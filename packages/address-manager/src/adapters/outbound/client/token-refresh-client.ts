@@ -3,7 +3,7 @@ import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { URLString } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-
+import { RotatedTokenWire } from "@trading-model/validation/wire/service-instance";
 import type { AddressManagerConfig } from "../../../domain/config/address-manager-config";
 
 export class TokenRefreshClient {
@@ -28,10 +28,11 @@ export class TokenRefreshClient {
 	}
 
 	async doRefresh(currentToken: string | null): Promise<string> {
-		const response = await this._httpClient.post<{ token: string }>(
+		const response = await this._httpClient.post(
 			URLString.of(`${this._config.addressManagerUrl}/token/rotate`),
 			this._buildTokenPayload(),
-			{ headers: this._buildAuthHeaders(currentToken) }
+			{ headers: this._buildAuthHeaders(currentToken) },
+			RotatedTokenWire
 		);
 		if (!response?.token) {
 			throw authenticationError("Invalid token response from Address Manager");

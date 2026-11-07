@@ -1,27 +1,8 @@
-import type { BrandedNumber, BrandedString } from "./branded-utils";
-import { createStringBrand } from "./branded-utils";
-
-export type ISODateTime = BrandedString<"ISODateTime">;
-export const ISODateTime = createStringBrand("ISODateTime", (value) => {
-	if (Number.isNaN(Date.parse(value))) {
-		throw new RangeError(
-			`ISODateTime must be a valid ISO date string, got ${JSON.stringify(value)}`
-		);
-	}
-});
-export function toISODateTime(value: string): ISODateTime {
-	return ISODateTime.of(value);
-}
-export function fromISODateTime(value: ISODateTime): string {
-	return value;
-}
+import type { BrandedNumber } from "./branded-utils";
 
 export type DurationMs = BrandedNumber<"DurationMs">;
 export function toDurationMs(value: number): DurationMs {
 	return DurationMs.of(value);
-}
-export function fromDurationMs(value: DurationMs): number {
-	return value;
 }
 export const DurationMs = {
 	of(value: number): DurationMs {
@@ -66,12 +47,6 @@ export const DurationMs = {
 };
 
 export type SequenceNumber = BrandedNumber<"SequenceNumber">;
-export function toSequenceNumber(value: number): SequenceNumber {
-	return SequenceNumber.of(value);
-}
-export function fromSequenceNumber(value: SequenceNumber): number {
-	return value;
-}
 export const SequenceNumber = {
 	of(value: number): SequenceNumber {
 		if (!Number.isInteger(value) || value < 0) {

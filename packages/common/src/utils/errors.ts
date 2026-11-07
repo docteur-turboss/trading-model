@@ -9,8 +9,4 @@ export {
 	makeGuard,
 	normalizeError,
 } from "./errors/base";
-export {
-	configurationError,
-	isTimeoutError,
-	timeoutError,
-} from "./errors/general";
+export { configurationError, timeoutError } from "./errors/general";

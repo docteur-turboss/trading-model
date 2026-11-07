@@ -12,8 +12,8 @@ Imports use the subpath of the source file (`exports` maps `./*` to `dist/*.js`)
 
 | Import path | Exports | Purpose |
 |-------------|---------|---------|
-| `@trading-model/primitives/primitives` | `toUserId` / `fromUserId`, `toAuthToken`, `toProcessId`, `toRole`, `toEnvironment`, … and their branded types | Branded string/number types (`to*` brands, `from*` unwraps) so ids cannot be mixed |
-| `@trading-model/primitives/service-identity` | `ServiceIdentity`, `ServiceInstanceIdentity`, `HostPort`, `ServiceEndpoint` | Who a service is and where it listens |
+| `@trading-model/primitives/primitives` | `UserId`, `AuthToken`, `Role`, `Environment`, … (`X.of(value)` brands, some with a `toX` alias) | Branded string/number types so ids cannot be mixed |
+| `@trading-model/primitives/service-identity` | `ServiceIdentity`, `HostPort`, `ServiceEndpoint` | Who a service is and where it listens |
 | `@trading-model/primitives/service-instance-name` | `ServiceInstanceName`, `ALL_SERVICE_NAMES`, `parseServiceName`, `registerServiceName` | Canonical list of service names |
 | `@trading-model/primitives/numeric-range` | `NumericRange` | Min/max bounds (GA genes, parameters) |
 | `@trading-model/primitives/topic-binding` | `TopicBinding` | Topic ↔ callback binding for the message bus |

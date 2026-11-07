@@ -36,7 +36,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-log()  { echo "[$(date +%H:%M:%S)] $*"; }
 ok()   { log "OK $*"; }
 fail() { log "KO $*"; FAILURES=$((FAILURES + 1)); }
 warn() { log "!! $*"; }

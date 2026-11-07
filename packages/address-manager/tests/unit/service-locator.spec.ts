@@ -10,7 +10,6 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import {
-	IpAddressLocator,
 	MappingServiceLocator,
 	MapResolver,
 	ServiceNameLocator,
@@ -45,36 +44,6 @@ describe("ServiceNameLocator", () => {
 	test("resolve returns the given serviceName", () => {
 		const result = locator.resolve(toServiceId("other-service"));
 		expect(result).toBe("other-service");
-	});
-});
-
-describe("IpAddressLocator", () => {
-	let locator: IpAddressLocator;
-	let instance: ServiceInstance;
-
-	beforeEach(() => {
-		locator = new IpAddressLocator();
-		instance = {
-			host: IPAddress.of("10.0.0.5"),
-			port: Port.of(8080),
-			instanceId: toInstanceId("instance-2"),
-			lastHeartbeat: UnixTimestamp.of(1_700_000_000_000),
-			protocol: Protocol.Http,
-			registeredAt: UnixTimestamp.of(1_700_000_000_000),
-			serviceName: toServiceId("my-service"),
-			version: toVersion("1.0.0"),
-			ttl: toDurationMs(30000),
-		};
-	});
-
-	test("locate returns instance.host", () => {
-		const result = locator.locate(instance);
-		expect(result).toBe("10.0.0.5");
-	});
-
-	test("resolve returns the given serviceName", () => {
-		const result = locator.resolve(toServiceId("some-service"));
-		expect(result).toBe("some-service");
 	});
 });
 

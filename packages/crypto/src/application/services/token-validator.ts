@@ -20,23 +20,13 @@ interface TokenFormat {
 	encodedId: string;
 	payloadParts: string[];
 	signature: string;
-	isLegacy: boolean;
 }
 
-interface HmacVerificationInput {
-	encodedId: string;
-	payloadParts: string[];
-	signature: string;
-	signingSecret: string;
-}
-
-function verifyHmac(input: HmacVerificationInput): boolean {
-	const { encodedId, payloadParts, signature, signingSecret } = input;
-	const payload = payloadParts.join(".");
+function verifyHmac(format: TokenFormat, signingSecret: string): boolean {
 	return verifyHmacSha256Formatted({
 		secret: signingSecret,
-		signature,
-		parts: [encodedId, payload],
+		signature: format.signature,
+		parts: [format.encodedId, format.payloadParts.join(".")],
 		separator: ".",
 		digest: CryptoAlg.BASE64URL,
 	});
@@ -49,7 +39,7 @@ function checkTokenFormat(token: string): TokenFormat | null {
 	}
 	const [encodedId, ...payloadParts] = parts;
 	const signature = payloadParts.pop()!;
-	return { encodedId, payloadParts, signature, isLegacy: parts.length === 4 };
+	return { encodedId, payloadParts, signature };
 }
 
 function _decodeTimestamp(timestampB64: string): number {
@@ -79,19 +69,6 @@ function validateTimestamp(
 	return true;
 }
 
-function _decodeInstanceId(format: TokenFormat): string {
-	return Buffer.from(format.encodedId, CryptoAlg.BASE64URL).toString(
-		CryptoAlg.UTF8
-	);
-}
-
-function _checkLegacyTimestamp(
-	format: TokenFormat,
-	options?: TokenValidationOptions
-): boolean {
-	return !format.isLegacy || validateTimestamp(format.payloadParts[0], options);
-}
-
 function _verifyStoredToken(
 	storedToken: string | undefined | null,
 	signingSecret: string,
@@ -101,27 +78,7 @@ function _verifyStoredToken(
 		return false;
 	}
 	const storedFormat = checkTokenFormat(storedToken);
-	return Boolean(
-		storedFormat &&
-			verifyHmac({
-				encodedId: storedFormat.encodedId,
-				payloadParts: storedFormat.payloadParts,
-				signature: storedFormat.signature,
-				signingSecret,
-			})
-	);
-}
-
-function _verifyFormatHmac(
-	format: TokenFormat,
-	signingSecret: string
-): boolean {
-	return verifyHmac({
-		encodedId: format.encodedId,
-		payloadParts: format.payloadParts,
-		signature: format.signature,
-		signingSecret,
-	});
+	return Boolean(storedFormat && verifyHmac(storedFormat, signingSecret));
 }
 
 /** Returns true when the token is well formed, signed for the instance with the secret, and matches the stored token. */
@@ -131,13 +88,18 @@ export function validInstanceToken(input: TokenValidationInput): boolean {
 	if (!format) {
 		return false;
 	}
-	if (_decodeInstanceId(format) !== instanceId) {
+	const decodedId = Buffer.from(format.encodedId, CryptoAlg.BASE64URL).toString(
+		CryptoAlg.UTF8
+	);
+	if (decodedId !== instanceId) {
 		return false;
 	}
-	if (!_checkLegacyTimestamp(format, options)) {
+	// Legacy 4-part tokens carry a timestamp: payloadParts = [timestamp, nonce].
+	const isLegacy = format.payloadParts.length === 2;
+	if (isLegacy && !validateTimestamp(format.payloadParts[0], options)) {
 		return false;
 	}
-	if (!_verifyFormatHmac(format, signingSecret)) {
+	if (!verifyHmac(format, signingSecret)) {
 		return false;
 	}
 	if (storedToken === token) {

@@ -1,9 +1,7 @@
 import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import {
-	type HttpClient,
-	isHttpClientError,
-} from "@trading-model/http/adapters/outbound/http-client";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { isHttpClientError } from "@trading-model/http/adapters/outbound/http-client-errors";
 import {
 	PositiveInt,
 	UnixTimestamp,

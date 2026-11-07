@@ -56,19 +56,11 @@ const AuditEvent = z.object({
  */
 const DeliveredMetadata = z.looseObject({ topic: z.string().min(1) });
 
-/** A delivery from message-manager, or the older envelope nested in `message`. */
-const DeliveredEnvelope = z.union([
-	z.looseObject({
-		metadata: DeliveredMetadata,
-		payload: z.unknown().optional(),
-	}),
-	z.looseObject({
-		message: z.looseObject({
-			metadata: DeliveredMetadata,
-			payload: z.unknown().optional(),
-		}),
-	}),
-]);
+/** A delivery from message-manager (http-message-delivery.ts). */
+const DeliveredEnvelope = z.looseObject({
+	metadata: DeliveredMetadata,
+	payload: z.unknown().optional(),
+});
 
 export const AUDIT_API = {
 	receive: defineRoute({

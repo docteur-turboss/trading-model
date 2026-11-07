@@ -9,7 +9,7 @@ import type {
 	ChainStatePort,
 } from "../../../domain/ports/audit-chain.port";
 
-const EVENTS = "audit_events";
+export const EVENTS_COLLECTION = "audit_events";
 const STATE = "audit_chain_state";
 const STATE_ID = "chain";
 /** Events read per round trip: bounds memory on a five-year trail. */
@@ -29,7 +29,7 @@ export class MongoAuditChainReader implements AuditChainReaderPort {
 	private readonly _events: Collection<ChainedAuditEvent>;
 
 	constructor(db: Db) {
-		this._events = db.collection<ChainedAuditEvent>(EVENTS);
+		this._events = db.collection<ChainedAuditEvent>(EVENTS_COLLECTION);
 	}
 
 	async *eventsAfter(

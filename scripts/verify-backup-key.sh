@@ -58,11 +58,6 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-log() { echo "[$(date +%H:%M:%S)] $*"; }
-ok() { log "✓ $*"; }
-fail() { log "✗ $*"; }
-warn() { log "⚠ $*"; }
-
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
 

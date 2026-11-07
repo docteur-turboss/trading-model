@@ -28,12 +28,6 @@
   "dependencies": {
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
-    "@opentelemetry/api": "^1.10.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
-    "@opentelemetry/instrumentation-express": "^0.72.0",
-    "@opentelemetry/instrumentation-http": "^0.300.0",
-    "@opentelemetry/resources": "^3.0.0",
-    "@opentelemetry/sdk-node": "^0.300.0",
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",
     "@trading-model/common": "*",

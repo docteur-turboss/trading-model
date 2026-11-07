@@ -60,15 +60,10 @@ export class CircuitBreakerPersistenceHandler {
 		);
 	}
 
-	deletePersistedState(instanceId: InstanceId): void {
-		this._persistence.deletePersistedState(instanceId);
-	}
-
 	clear(forEachMachine: (fn: (key: string) => void) => void): void {
 		forEachMachine((key) => {
 			this._persistence.deletePersistedState(key as unknown as InstanceId);
 		});
-		this._persistence.clear();
 		this._sweeper.stop();
 	}
 

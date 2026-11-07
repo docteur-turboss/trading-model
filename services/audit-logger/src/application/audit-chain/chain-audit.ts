@@ -155,22 +155,19 @@ export class ChainAudit {
 				};
 			}
 		}
-		const anchorList = anchors
-			? applicableAnchors(
-					await anchors.anchorsAfter(start?.chainSequence ?? null),
-					await anchors.acknowledgements()
-				)
-			: [];
+		const after = start?.chainSequence ?? null;
+		const [anchorList, acknowledgements] = await Promise.all([
+			anchors?.anchorsAfter(after) ?? [],
+			anchors?.acknowledgements() ?? [],
+		]);
 		const verifier = new ChainVerifier({
 			start,
-			anchors: anchorList,
+			anchors: applicableAnchors(anchorList, acknowledgements),
 			expiredBefore: new Date(
 				this._now().getTime() - retentionMs + EXPIRY_GRACE_MS
 			),
 		});
-		for await (const event of reader.eventsAfter(
-			start?.chainSequence ?? null
-		)) {
+		for await (const event of reader.eventsAfter(after)) {
 			if (!verifier.check(event)) {
 				break;
 			}

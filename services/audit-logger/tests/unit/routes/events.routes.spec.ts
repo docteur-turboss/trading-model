@@ -16,7 +16,9 @@ import {
 import express from "express";
 
 jest.mock("../../../src/config/metrics", () => ({
-	EVENTS_QUERY_DURATION_SECONDS: { observe: jest.fn() },
+	EVENTS_QUERY_DURATION_SECONDS: {
+		startTimer: jest.fn().mockReturnValue(jest.fn()),
+	},
 }));
 
 import { AUDIT_API } from "../../../src/adapters/inbound/http/api-routes";
@@ -110,7 +112,9 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 				page: 2,
 				limit: 10,
 			});
-			expect(EVENTS_QUERY_DURATION_SECONDS.observe).toHaveBeenCalledTimes(1);
+			const startTimer = EVENTS_QUERY_DURATION_SECONDS.startTimer as jest.Mock;
+			expect(startTimer).toHaveBeenCalledTimes(1);
+			expect(startTimer.mock.results[0].value).toHaveBeenCalledTimes(1);
 		});
 
 		it("leaves out the empty filters and caps the limit at 1000", async () => {

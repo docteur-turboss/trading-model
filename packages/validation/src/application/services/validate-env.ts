@@ -22,9 +22,6 @@ export function validateEnv<TSchema extends z.ZodType>(
 }
 
 function _treeifyErrors(error: z.ZodError): unknown {
-	if (typeof z.treeifyError !== "function") {
-		return error;
-	}
 	try {
 		return z.treeifyError(error);
 	} catch (err) {

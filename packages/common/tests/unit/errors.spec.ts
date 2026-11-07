@@ -4,7 +4,6 @@ import {
 	ErrorCode,
 	isAppError,
 	isAuthenticationError,
-	isTimeoutError,
 	makeErrorCode,
 	makeGuard,
 	normalizeError,
@@ -73,9 +72,8 @@ describe("AppError", () => {
 		expect(isMessageManagerError(error)).toBe(true);
 	});
 
-	it("should be identified by type guard for TimeoutError", () => {
-		const error = timeoutError("timed out");
-		expect(isTimeoutError(error)).toBe(true);
+	it("should tag TimeoutError with its code", () => {
+		expect(timeoutError("timed out").code).toBe(ErrorCode.Timeout);
 	});
 
 	it("should support reason via options", () => {

@@ -71,9 +71,7 @@ export class RedisCacheScanner {
 				return null;
 			}
 			const suffix = key.slice(this._prefix.length);
-			const [serviceName, region] = suffix.includes("::")
-				? [suffix.split("::")[0], suffix.split("::")[1]]
-				: [suffix, undefined];
+			const [serviceName, region] = suffix.split("::");
 			return {
 				serviceName: toServiceId(serviceName),
 				instance: instance as ServiceInstance,

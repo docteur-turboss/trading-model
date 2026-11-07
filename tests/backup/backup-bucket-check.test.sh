@@ -15,11 +15,8 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 FAILED=0
 
-pass() { echo "  ✓ $*"; }
-failed() {
-	echo "  ✗ $*"
-	FAILED=1
-}
+# shellcheck source=test-lib.sh
+source "$ROOT/tests/backup/test-lib.sh"
 
 mkdir -p "$WORK/bin"
 cat >"$WORK/bin/aws" <<'STUB'

@@ -21,11 +21,11 @@ function timed<Route extends ApiRoute>(
 	handler: ApiRouteHandler<Route>
 ): ApiRouteHandler<Route> {
 	return async (input, req) => {
-		const start = performance.now();
+		const end = EVENTS_QUERY_DURATION_SECONDS.startTimer();
 		try {
 			return await handler(input, req);
 		} finally {
-			EVENTS_QUERY_DURATION_SECONDS.observe((performance.now() - start) / 1000);
+			end();
 		}
 	};
 }

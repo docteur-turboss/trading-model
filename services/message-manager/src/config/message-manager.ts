@@ -7,7 +7,6 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
 import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
-import type Redis from "ioredis";
 import { RedisMessageJournal } from "../adapters/outbound/redis-message-journal";
 import { RedisSubscriptionStore } from "../adapters/outbound/redis-subscription-store";
 import { ENV } from "../infrastructure/config/env";
@@ -23,7 +22,7 @@ const REDIS_CONNECTION = redisConnectionFromEnv(ENV);
  * everything in memory, lost on restart).
  */
 const SUBSCRIPTION_REDIS = REDIS_CONNECTION
-	? (createRedisClient(REDIS_CONNECTION) as Redis)
+	? createRedisClient(REDIS_CONNECTION)
 	: undefined;
 
 if (!SUBSCRIPTION_REDIS) {

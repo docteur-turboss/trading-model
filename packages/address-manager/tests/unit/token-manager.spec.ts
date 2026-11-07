@@ -108,7 +108,8 @@ describe("TokenManager", () => {
 				},
 				{
 					headers: { "x-instance-token": "initial-token" },
-				}
+				},
+				expect.anything()
 			);
 
 			expect(manager.getToken()).toBe(mockToken);
@@ -126,7 +127,8 @@ describe("TokenManager", () => {
 					instanceId: config.identity.instanceId,
 					serviceName: config.identity.serviceName,
 				},
-				{ headers: {} }
+				{ headers: {} },
+				expect.anything()
 			);
 			expect(manager.getToken()).toBe(mockToken);
 		});

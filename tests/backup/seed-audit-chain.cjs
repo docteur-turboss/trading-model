@@ -24,9 +24,9 @@ const CURRENT = 20;
 
 function envelope(i) {
 	return {
-		topic: "market.data",
 		payload: { symbol: "BTCUSDT", price: 65000.5 + i, volume: i, levels: [1, 2.5] },
 		metadata: {
+			topic: "market.data",
 			messageId: `restore-drill-${i}`,
 			emittedAt: new Date(Date.UTC(2026, 9, 31, 12, 0, i)).toISOString(),
 			publisher: { serviceName: "financial-scraper", instanceId: "drill" },

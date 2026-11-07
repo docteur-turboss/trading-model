@@ -7,12 +7,14 @@ import {
 	it,
 } from "@jest/globals";
 import { type Db, MongoClient } from "mongodb";
-import type { ParsedEnvelope } from "../../src/adapters/inbound/subscription/message-parser";
 import {
 	MongoAuditChainReader,
 	MongoChainState,
 } from "../../src/adapters/outbound/persistence/audit-chain-reader";
-import { buildAuditDocument } from "../../src/adapters/outbound/persistence/audit-document-builder";
+import {
+	buildAuditDocument,
+	type DeliveredEnvelope,
+} from "../../src/adapters/outbound/persistence/audit-document-builder";
 import {
 	type AuditEventDocument,
 	AuditRepository,
@@ -20,17 +22,17 @@ import {
 import { ChainAudit } from "../../src/application/audit-chain/chain-audit";
 import { computeAuditHash } from "../../src/domain/audit-chain";
 
-function envelope(i: number, correlationId?: string): ParsedEnvelope {
+function envelope(i: number, correlationId?: string): DeliveredEnvelope {
 	return {
-		topic: "market.data",
 		payload: { symbol: "BTCUSDT", price: 65000.5 + i, volume: i },
 		metadata: {
+			topic: "market.data",
 			messageId: `msg-${i}`,
 			emittedAt: new Date(Date.UTC(2026, 9, 31, 12, 0, i)).toISOString(),
 			publisher: { serviceName: "financial-scraper", instanceId: "fs-1" },
 			...(correlationId ? { correlationId } : {}),
 		},
-	} as unknown as ParsedEnvelope;
+	} as unknown as DeliveredEnvelope;
 }
 
 /** The chain as anyone holding the database (an auditor, a restore) sees it. */
@@ -64,10 +66,8 @@ describe("audit hash chain stored in MongoDB", () => {
 	it("can be verified again from the stored events, with or without correlationId", async () => {
 		await repository.insert(buildAuditDocument(envelope(1), 30));
 		await repository.insert(buildAuditDocument(envelope(2, "corr-2"), 30));
-		await repository.insertBatch([
-			buildAuditDocument(envelope(3), 30),
-			buildAuditDocument(envelope(4, "corr-4"), 30),
-		]);
+		await repository.insert(buildAuditDocument(envelope(3), 30));
+		await repository.insert(buildAuditDocument(envelope(4, "corr-4"), 30));
 
 		const chain = await storedChain(db);
 

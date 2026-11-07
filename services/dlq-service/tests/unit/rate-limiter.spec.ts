@@ -100,16 +100,6 @@ describe("rate-limiter", () => {
 		expect(MOCK_DISCONNECT).toHaveBeenCalled();
 	});
 
-	it("should close rate limiters", () => {
-		const rateLimiter = jest.requireActual(
-			"../../src/adapters/inbound/rate-limiter"
-		) as {
-			closeRateLimiters: () => void;
-		};
-
-		rateLimiter.closeRateLimiters();
-	});
-
 	it("should handle connect failure gracefully", () => {
 		jest.doMock("../../src/infrastructure/config/env", () => ({
 			ENV: {

@@ -1,7 +1,7 @@
 ﻿import { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	type BackoffConfig,
-	computeExponentialBackoff,
+	computeExponentialBackoffWithJitter,
 } from "./backoff-config";
 import { sleep } from "./sleep";
 
@@ -17,12 +17,6 @@ export interface RetryResult<_TResult> {
 	lastError: Error | null;
 	attempts: number;
 	timedOut: boolean;
-}
-
-function _addJitter(delayMs: DurationMs, jitterMs: DurationMs): DurationMs {
-	return jitterMs > 0
-		? DurationMs.of(delayMs + Math.random() * jitterMs)
-		: delayMs;
 }
 
 function _hasTimedOut(start: number, timeoutMs: DurationMs): boolean {
@@ -44,8 +38,7 @@ async function _sleepBackoff(
 	attempt: number,
 	config: BackoffConfig
 ): Promise<void> {
-	const delay = computeExponentialBackoff(attempt, config);
-	await sleep(_addJitter(delay, config.jitterMs ?? DurationMs.of(0)));
+	await sleep(computeExponentialBackoffWithJitter(attempt, config));
 }
 
 export async function retryWithBackoff<_TResult>(
@@ -106,9 +99,4 @@ export function withTimeout<TResult>(
 			timer.unref();
 		}),
 	]);
-}
-
-export function sleepWithJitter(ms: DurationMs): Promise<void> {
-	const jitter = ms * 0.2 * (Math.random() * 2 - 1);
-	return sleep(Math.max(1, Math.round(ms + jitter)));
 }

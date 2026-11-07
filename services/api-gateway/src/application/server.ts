@@ -17,15 +17,10 @@ export function createServer() {
 			{
 				name: "discovery",
 				check: async () => {
-					// biome-ignore lint/plugin: readiness probe: failure is the negative signal
-					try {
-						await discoveryClient.get(
-							URLString.of(`${ENV.DISCOVERY_SERVICE_URL}/ping`)
-						);
-						return true;
-					} catch {
-						return false;
-					}
+					await discoveryClient.get(
+						URLString.of(`${ENV.DISCOVERY_SERVICE_URL}/ping`)
+					);
+					return true;
 				},
 			},
 		],

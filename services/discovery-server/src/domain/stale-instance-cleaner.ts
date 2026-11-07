@@ -1,6 +1,10 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import {
+	type LoggerPort,
+	NoopLogger,
+} from "@trading-model/contracts/logger-registry";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { DurationMs } from "@trading-model/primitives/primitives";
 import {
@@ -8,8 +12,7 @@ import {
 	toServiceId,
 } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import { isAliveInstance, isExpiredInstance } from "./expiration";
-import { type LoggerPort, NoopLogger } from "./logger-port";
+import { isExpiredInstance } from "./expiration";
 import {
 	type CleanupMetricsPort,
 	NoopDiscoveryMetrics,
@@ -25,23 +28,12 @@ export interface CleanupDeps {
 	metrics?: CleanupMetricsPort;
 }
 
-export interface SyncCleanupDeps {
-	listServiceNames(): ServiceInstanceName[];
-	getInstances(serviceName: ServiceInstanceName): ServiceInstance[];
-	removeInstance(id: ServiceIdentity): void;
-	logger?: LoggerPort;
-}
-
 export class StaleInstanceCleaner {
 	private readonly _handle = new TimerHandle();
 	/** Random jitter before the first cycle; cancelled by stop(). */
 	private _startDelay: ReturnType<typeof setTimeout> | null = null;
 	private readonly _logger: LoggerPort;
 	private readonly _metrics: CleanupMetricsPort;
-
-	get isRunning(): boolean {
-		return this._handle.isRunning;
-	}
 
 	constructor(
 		private readonly _deps: CleanupDeps,
@@ -82,38 +74,6 @@ export class StaleInstanceCleaner {
 
 	async cleanupNow(): Promise<void> {
 		await this._cleanup();
-	}
-
-	async removeStaleInstances(): Promise<number> {
-		const before = await this._deps.listServiceNames();
-		await this._cleanup();
-		const after = await this._deps.listServiceNames();
-		return before.length - after.length;
-	}
-
-	isAlive(instance: ServiceInstance): boolean {
-		return isAliveInstance(instance);
-	}
-
-	static cleanupSync(deps: SyncCleanupDeps): void {
-		const now = Date.now();
-		const log = deps.logger ?? NoopLogger;
-		for (const serviceName of deps.listServiceNames()) {
-			for (const instance of deps.getInstances(serviceName)) {
-				if (isExpiredInstance(instance, now)) {
-					log.warn("Expired instance removed", {
-						serviceName,
-						instanceId: instance.instanceId,
-						heartbeatAge: now - instance.lastHeartbeat,
-						ttl: instance.ttl,
-					});
-					deps.removeInstance({
-						serviceName: toServiceId(serviceName),
-						instanceId: toInstanceId(instance.instanceId),
-					});
-				}
-			}
-		}
 	}
 
 	private async _removeExpiredInstance(

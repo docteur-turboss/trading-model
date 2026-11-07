@@ -16,7 +16,7 @@ Subpath imports (`@trading-model/contracts/<file>`; `exports` maps `./*` to `dis
 | `@trading-model/contracts/http-status` | `HTTP_STATUS`, `HttpStatusCode` | Named status codes, no magic numbers |
 | `@trading-model/contracts/logger-registry` | `LoggerPort`, `setLogger`, `getLogger` | Packages log through a port; the service registers the concrete logger |
 | `@trading-model/contracts/message-types` | `Message`, `MessageMetadata`, `RoutingType`, `DeliveryType` | Message envelope on the bus |
-| `@trading-model/contracts/service-registry-types` | `ServiceRegisterPayload`, `HeartbeatPayload`, `ServiceInstance` | Discovery protocol |
+| `@trading-model/contracts/service-registry-types` | `Protocol`, `ServiceInstance` | Discovery protocol |
 
 Also: `signed-request`, `http-headers`, `event-map`, `audit-events`, `market-events`, `training-events`, `dlq-events`, `dlq-types`, `error-response`.
 

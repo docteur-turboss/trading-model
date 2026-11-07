@@ -7,7 +7,6 @@ import type {
 	Timestamp,
 } from "@trading-model/contracts/signed-request";
 import type { ServiceId } from "@trading-model/primitives/primitives";
-import { toServiceId } from "@trading-model/primitives/primitives";
 import { sha256Hex } from "../../adapters/outbound/node-hash";
 import {
 	createHmacSha256,
@@ -34,7 +33,7 @@ export function signRequest(
 	if (secret.length < 16) {
 		return { timestamp, signature: "" as Signature };
 	}
-	const parts = _buildSignParts(input, timestamp, secret);
+	const parts = _buildSignParts(input, timestamp);
 	const signature = createHmacSha256(secret, ...parts) as Signature;
 	return { timestamp, signature };
 }
@@ -54,35 +53,20 @@ export function verifySignature(
 	const {
 		signature,
 		timestamp,
+		secret,
 		toleranceMs = DEFAULT_TIMESTAMP_TOLERANCE_MS,
 	} = options;
 	if (!(timestamp && signature)) {
 		return false;
 	}
-	if (!_isTimestampValid(timestamp, toleranceMs)) {
+	if (!isTimestampFresh(Number.parseInt(timestamp, 10), toleranceMs)) {
 		return false;
 	}
-	return _verifyHmacMatch(input, options);
-}
-
-function _isTimestampValid(timestamp: string, toleranceMs: number): boolean {
-	return isTimestampFresh(Number.parseInt(timestamp, 10), toleranceMs);
-}
-
-function _verifyHmacMatch(
-	input: SignedRequest,
-	options: SignatureVerificationOptions
-): boolean {
-	const { timestamp, secret, signature } = options;
-	const parts = _buildSignParts(input, timestamp, secret);
+	const parts = _buildSignParts(input, timestamp);
 	return verifyHmacSha256(secret, signature, ...parts);
 }
 
-function _buildSignParts(
-	input: SignedRequest,
-	timestamp: string,
-	_secret: string
-): string[] {
+function _buildSignParts(input: SignedRequest, timestamp: string): string[] {
 	const bodyString = deterministicStringify(normalizeBody(input.body));
 	const bodyHash = sha256Hex(bodyString);
 	return [input.serviceName, timestamp, bodyHash, input.method, input.path];
@@ -98,31 +82,5 @@ export function buildSignedHeaders(
 		[HTTP_HEADERS.X_TIMESTAMP]: timestamp,
 		[HTTP_HEADERS.X_SIGNATURE]: signature,
 		[HTTP_HEADERS.X_SERVICE_NAME]: input.serviceName,
-	};
-}
-
-/** Reads the signature headers of an incoming request; returns null when any is missing. */
-export function extractRequestParts(
-	headers: Record<string, string | string[] | undefined>,
-	_method: string,
-	_path: string,
-	_body: unknown
-): {
-	serviceName: ServiceId;
-	signature: Signature;
-	timestamp: Timestamp;
-} | null {
-	const serviceName = headers[HTTP_HEADERS.X_SERVICE_NAME] as
-		| string
-		| undefined;
-	const signature = headers[HTTP_HEADERS.X_SIGNATURE] as string | undefined;
-	const timestamp = headers[HTTP_HEADERS.X_TIMESTAMP] as string | undefined;
-	if (!(serviceName && signature && timestamp)) {
-		return null;
-	}
-	return {
-		serviceName: toServiceId(serviceName),
-		signature: signature as Signature,
-		timestamp: timestamp as Timestamp,
 	};
 }

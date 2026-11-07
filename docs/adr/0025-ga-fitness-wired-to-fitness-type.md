@@ -85,7 +85,7 @@ On this market the right action does not depend on the position, so showing it a
 
 ### First MT4 walk-forward run (2026-10-31)
 
-`scripts/fetch-klines.ts` downloads Binance candles, `scripts/mt4-walk-forward.ts` runs the real GA (`TrainingSession`, population 20, 30 generations, 10 evaluation episodes) on 500 candles, then evaluates the genome it would publish on the next 100 candles, unseen by training, segment after segment. BTCUSDT and ETHUSDT 1h, 2026-08-08 → 2026-10-30, 15 segments each, fitness `total_pnl`, both variants on the same segments and seeds. Only candle features (order book, trades and ticker inputs at 0).
+`services/trader-trainer/scripts/fetch-klines.ts` downloads Binance candles, `services/trader-trainer/scripts/mt4-walk-forward.ts` runs the real GA (`TrainingSession`, population 20, 30 generations, 10 evaluation episodes) on 500 candles, then evaluates the genome it would publish on the next 100 candles, unseen by training, segment after segment. BTCUSDT and ETHUSDT 1h, 2026-08-08 → 2026-10-30, 15 segments each, fitness `total_pnl`, both variants on the same segments and seeds. Only candle features (order book, trades and ticker inputs at 0).
 
 | Per 100-hour test segment | Position shown | Position hidden |
 | --- | --- | --- |
