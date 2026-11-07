@@ -24,11 +24,14 @@ Training starts when **at least 50 candles** (10% of `TRAINER_DATA_WINDOW`) have
 
 ```
 startTrainingLoop():
-  for each symbol in TRAINER_SYMBOLS:
-    if symbol has enough candles:
+  for each symbol in TRAINER_SYMBOLS, starting after the last one trained:
+    if symbol has enough candles and fresh data:
+      remember it as the last one trained
       trainer.train(symbol)
-      break (train one symbol per interval)
+      stop (train one symbol per interval)
 ```
+
+The scan is round-robin: every eligible symbol gets its turn, and a symbol whose training keeps failing does not hold the loop.
 
 ## 3. Data Preparation (`MarketDataBuffer`)
 
