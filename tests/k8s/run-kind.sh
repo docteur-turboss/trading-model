@@ -423,7 +423,7 @@ verify() {
 		log "a request without API key was not rejected"
 		return 1
 	}
-	wait_for 120 "curl -sf -H 'x-api-key: $API_KEY' $url | grep -q financial-scraper-service"
+	wait_for 120 "curl -sf -H 'x-api-key: $API_KEY' $url | grep -q financial-scraper"
 	log "  registered: $(curl -s -H "x-api-key: $API_KEY" "$url")"
 
 	log "Prometheus scrapes every target over mTLS (SVID)"

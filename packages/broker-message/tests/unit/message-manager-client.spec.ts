@@ -220,7 +220,7 @@ describe("MessageManagerClient", () => {
 				publisher: { serviceName: "TestService", instanceId: "uuid" },
 			} as any;
 			await client.publishDirectMessage(
-				ServiceInstanceName.MessageDeliveryService,
+				ServiceInstanceName.MessageManagerService,
 				{ data: "test" },
 				metadata
 			);
@@ -233,7 +233,7 @@ describe("MessageManagerClient", () => {
 
 			await expect(
 				client.publishDirectMessage(
-					ServiceInstanceName.MessageDeliveryService,
+					ServiceInstanceName.MessageManagerService,
 					{},
 					{} as any
 				)
@@ -246,7 +246,7 @@ describe("MessageManagerClient", () => {
 
 			await expect(
 				client.publishDirectMessage(
-					ServiceInstanceName.MessageDeliveryService,
+					ServiceInstanceName.MessageManagerService,
 					{},
 					{} as any
 				)

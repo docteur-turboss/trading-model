@@ -6,7 +6,7 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/shared/active-replay-counter", () => ({
+jest.mock("../../src/application/services/active-replay-counter", () => ({
 	activeReplays: {
 		get count() {
 			return mockActiveReplaysCount;

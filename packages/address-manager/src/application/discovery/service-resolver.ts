@@ -1,8 +1,4 @@
-import {
-	normalizeError,
-	serviceNotFoundError,
-	serviceUnreachableError,
-} from "@trading-model/common/utils/errors";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	type DurationMs,
@@ -14,6 +10,10 @@ import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/ser
 import type { ServiceInstance } from "../../domain/client/type";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
 import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import {
+	serviceNotFoundError,
+	serviceUnreachableError,
+} from "../../shared/errors";
 import { EndpointResolver } from "./endpoint-resolver";
 
 export interface ServiceResolverDeps {

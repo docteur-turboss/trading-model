@@ -1,6 +1,6 @@
 import { appendFile } from "node:fs/promises";
 import { describe, expect, it, jest } from "@jest/globals";
-import { isDeadLetterError } from "@trading-model/common/utils/errors";
+import { isDeadLetterError } from "@trading-model/broker-message/shared/errors";
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import {
 	createHttpClientError,

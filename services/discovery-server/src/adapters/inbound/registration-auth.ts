@@ -8,7 +8,7 @@ import type { RequestHandler } from "express";
  * Identity-bound authentication for the registration endpoint (ADR-0011).
  * The caller's attested SPIFFE identity must name the service it registers:
  * a workload can only register instances of itself, so no shared secret is
- * needed. Legacy service names (e.g. `financial-scrapper-service`) are
+ * needed. Legacy service names (e.g. `financial-scraper-service`) are
  * normalized before the comparison.
  */
 export const REGISTRATION_MTLS_AUTH: RequestHandler = (req, res, next) => {

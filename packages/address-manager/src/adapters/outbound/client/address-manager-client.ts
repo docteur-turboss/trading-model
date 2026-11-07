@@ -1,8 +1,5 @@
 import { parseServiceName } from "@trading-model/common/config/services.types";
-import {
-	addressManagerError,
-	normalizeError,
-} from "@trading-model/common/utils/errors";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { logger } from "@trading-model/http/infrastructure/logger";
@@ -14,6 +11,7 @@ import type {
 } from "../../../domain/client/type";
 import type { AddressManagerConfig } from "../../../domain/config/address-manager-config";
 import { LocalIPDetector } from "../../../shared/client/local-ip-detector";
+import { addressManagerError } from "../../../shared/errors";
 import { HeartbeatRefresher } from "./heartbeat-refresher";
 
 export class AddressManagerClient {

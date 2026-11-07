@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
-	addressManagerError,
 	authenticationError,
 	configurationError,
-	serviceNotFoundError,
-	serviceUnreachableError,
+	ErrorCode,
+	makeErrorCode,
 } from "@trading-model/common/utils/errors";
 import { ResponseProtocol } from "@trading-model/http/adapters/inbound/response-protocol";
+
+const addressManagerError = makeErrorCode(ErrorCode.AddressManager, 503);
+const serviceNotFoundError = makeErrorCode(ErrorCode.ServiceNotFound, 404);
+const serviceUnreachableError = makeErrorCode(
+	ErrorCode.ServiceUnreachable,
+	410
+);
 
 describe("ResponseProtocol", () => {
 	let req: any;

@@ -3,8 +3,8 @@ import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
-import type { DlqError } from "../../application/services/replay-batch";
 import { metrics } from "../../config/metrics";
+import type { DlqError } from "../services/replay-batch";
 
 export function buildReplayResponse(
 	batchId: string,

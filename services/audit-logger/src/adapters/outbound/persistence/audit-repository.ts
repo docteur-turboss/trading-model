@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { agentError } from "@trading-model/common/utils/errors";
+import { ErrorCode, makeErrorCode } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { MongoRepository } from "@trading-model/persistence/mongo-repository.interface";
 import type {
 	PaginationResult,
@@ -67,6 +68,10 @@ export interface AuditStats {
 	dateRange: DateRange<Date>;
 }
 
+const agentError = makeErrorCode(
+	ErrorCode.Agent,
+	HTTP_STATUS.SERVICE_UNAVAILABLE
+);
 const COLLECTION = "audit_events";
 
 /** Attempts when another writer takes the next chain sequence first. */
@@ -169,7 +174,7 @@ export class AuditRepository
 	}
 
 	/**
-	 * Single writer on the chain head (ADR-0046): one replica at a time holds
+	 * Single writer on the chain head (ADR-0047): one replica at a time holds
 	 * the lease while it appends. Waits for it, bounded by LEASE_WAIT_MS.
 	 */
 	private async _withLease(work: () => Promise<void>): Promise<void> {

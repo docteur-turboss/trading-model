@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { parseRequest } from "@trading-model/http/adapters/inbound/api-route/api-route";
 import { DLQ_API } from "../../services/dlq-service/src/adapters/inbound/api-routes";
 import { serviceAuth } from "../../services/dlq-service/src/adapters/inbound/auth";
-import { checkEntryAcceptable } from "../../services/dlq-service/src/adapters/inbound/dlq-validator";
+import { checkEntryAcceptable } from "../../services/dlq-service/src/application/use-cases/dlq-validator";
 import { HttpDeadLetterStore } from "../../services/message-manager/src/adapters/outbound/http-dead-letter-store";
 import { HttpMessageDelivery } from "../../services/message-manager/src/adapters/outbound/http-message-delivery";
 import { createMessage } from "../../services/message-manager/src/domain/message-factory";

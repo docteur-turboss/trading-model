@@ -1,12 +1,10 @@
-import {
-	addressManagerError,
-	normalizeError,
-} from "@trading-model/common/utils/errors";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { URLString } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { TokenManager } from "../../../application/client/token-manager";
+import { addressManagerError } from "../../../shared/errors";
 
 export class HeartbeatRefresher {
 	constructor(

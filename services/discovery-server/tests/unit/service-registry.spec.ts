@@ -221,8 +221,13 @@ describe("ServiceRegistry", () => {
 			await replicaA.syncRegisteredInstanceMetrics();
 
 			expect(setRegisteredInstancesPerService).toHaveBeenCalledWith(
-				"financial-scraper-service",
+				"financial-scraper",
 				0
+			);
+			// Empty legacy names are not exported (InstanceCountLow on upgrade).
+			expect(setRegisteredInstancesPerService).not.toHaveBeenCalledWith(
+				"financial-scraper-service",
+				expect.anything()
 			);
 			expect(setRegisteredInstances).toHaveBeenLastCalledWith(0);
 		});
