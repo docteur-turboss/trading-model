@@ -4,7 +4,9 @@ const MOCK_COLLECTION = {
 	insertOne: jest.fn<any>(),
 	findOne: jest.fn<any>(),
 	find: jest.fn<any>(),
+	createIndex: jest.fn<any>(),
 	createIndexes: jest.fn<any>(),
+	updateOne: jest.fn<any>(),
 	estimatedDocumentCount: jest.fn<any>(),
 	aggregate: jest.fn<any>(),
 	countDocuments: jest.fn<any>(),
@@ -65,6 +67,7 @@ describe("AuditRepository", () => {
 		});
 		MOCK_COLLECTION.findOne.mockResolvedValue(null);
 		MOCK_COLLECTION.aggregate.mockReturnValue({ toArray: jest.fn<any>() });
+		MOCK_COLLECTION.updateOne.mockResolvedValue({});
 		repository = new AuditRepository(MOCK_DB as any);
 	});
 
@@ -176,6 +179,19 @@ describe("AuditRepository", () => {
 				"Failed to persist audit event"
 			);
 			expect(MOCK_COLLECTION.insertOne).toHaveBeenCalledTimes(5);
+		});
+
+		it("should wait while another replica holds the lease", async () => {
+			MOCK_COLLECTION.updateOne
+				.mockRejectedValueOnce({ code: 11000 })
+				.mockResolvedValue({});
+			MOCK_COLLECTION.insertOne.mockResolvedValue({ insertedId: "id" });
+
+			await repository.insert(makeEvent());
+
+			// 2 acquire attempts + 1 release
+			expect(MOCK_COLLECTION.updateOne).toHaveBeenCalledTimes(3);
+			expect(MOCK_COLLECTION.insertOne).toHaveBeenCalledTimes(1);
 		});
 
 		it("should not record a redelivered message twice", async () => {
