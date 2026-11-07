@@ -1,6 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { z } from "zod";
+import { isObject } from "../domain/validation/primitives";
 
 export const AddressManagerEnvSchema = z.object({
 	APP_NAME: z.string().min(1),
@@ -14,7 +15,7 @@ export const AddressManagerEnvSchema = z.object({
 	TTL_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
 	ADDRESS_MANAGER_URL: z.url(),
 
-	ERROR_URL_WEBHOOK: z.union([z.string().url(), z.literal("")]).default(""),
+	ERROR_URL_WEBHOOK: z.union([z.url(), z.literal("")]).default(""),
 	MESSAGE_BUS_INIT_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
 	MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: z.coerce
 		.number()
@@ -25,16 +26,11 @@ export const AddressManagerEnvSchema = z.object({
 
 	DNS_NAME_MAP: z
 		.string()
-		.optional()
 		.default("{}")
 		.transform((val) => {
 			try {
 				const parsed = JSON.parse(val);
-				return typeof parsed === "object" &&
-					parsed !== null &&
-					!Array.isArray(parsed)
-					? (parsed as Record<string, string>)
-					: {};
+				return isObject(parsed) ? (parsed as Record<string, string>) : {};
 			} catch (err) {
 				logger.warn(
 					"Failed to parse DNS_NAME_MAP env var, falling back to {}",

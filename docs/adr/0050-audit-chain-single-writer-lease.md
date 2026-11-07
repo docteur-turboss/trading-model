@@ -1,4 +1,4 @@
-# ADR-0047: One Writer at a Time on the Audit Chain Head (Lease)
+# ADR-0050: One Writer at a Time on the Audit Chain Head (Lease)
 
 **Status:** Accepted
 **Date:** 2026-11

@@ -1,5 +1,4 @@
 import { createAppError, ErrorCode } from "@trading-model/common/utils/errors";
-import type { ErrorResponse } from "@trading-model/contracts/error-response";
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 
 export interface HttpClientErrorData {
@@ -34,14 +33,6 @@ export function isHttpClientError(err: unknown): err is HttpClientError {
 		err !== null &&
 		(err as HttpClientError).name === "HttpClientError"
 	);
-}
-
-export function toHttpClientErrorResponse(err: HttpClientError): ErrorResponse {
-	return {
-		code: err.code,
-		message: err.message,
-		statusCode: err.statusCode,
-	};
 }
 
 export interface HttpClientTimeoutErrorData {

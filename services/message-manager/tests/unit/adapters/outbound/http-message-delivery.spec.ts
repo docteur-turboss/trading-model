@@ -5,7 +5,7 @@ import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import {
 	createHttpClientError,
 	createHttpClientTimeoutError,
-} from "@trading-model/http/adapters/outbound/http-client";
+} from "@trading-model/http/adapters/outbound/http-client-errors";
 import {
 	DELIVERY_ATTEMPT_TIMEOUT_MS,
 	HttpMessageDelivery,

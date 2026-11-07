@@ -137,8 +137,7 @@ describe("DlqRedisQueue", () => {
 
 		it("should return entry from redis queue", async () => {
 			const mockClient = {
-				script: jest.fn().mockResolvedValue("hash123"),
-				evalsha: jest.fn().mockResolvedValue(["entry-1"]),
+				eval: jest.fn().mockResolvedValue(["entry-1"]),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);
@@ -147,12 +146,8 @@ describe("DlqRedisQueue", () => {
 			const result = await queue.pop();
 
 			expect(result).toBe("entry-1");
-			expect(mockClient.script).toHaveBeenCalledWith(
-				"LOAD",
-				expect.any(String)
-			);
-			expect(mockClient.evalsha).toHaveBeenCalledWith(
-				"hash123",
+			expect(mockClient.eval).toHaveBeenCalledWith(
+				expect.any(String),
 				1,
 				"dlq:queue"
 			);
@@ -160,8 +155,7 @@ describe("DlqRedisQueue", () => {
 
 		it("should return null when no entries", async () => {
 			const mockClient = {
-				script: jest.fn().mockResolvedValue("hash123"),
-				evalsha: jest.fn().mockResolvedValue([]),
+				eval: jest.fn().mockResolvedValue([]),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);
@@ -174,8 +168,7 @@ describe("DlqRedisQueue", () => {
 
 		it("should handle redis error gracefully", async () => {
 			const mockClient = {
-				script: jest.fn().mockRejectedValue(new Error("script error")),
-				evalsha: jest.fn(),
+				eval: jest.fn().mockRejectedValue(new Error("script error")),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);

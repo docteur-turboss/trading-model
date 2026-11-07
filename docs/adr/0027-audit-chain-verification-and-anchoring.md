@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10
-**Related:** [ADR-0047](./0047-audit-chain-single-writer-lease.md) (writers take a lease on the chain head)
+**Related:** [ADR-0050](./0050-audit-chain-single-writer-lease.md) (writers take a lease on the chain head)
 **Verified by:** `services/audit-logger/tests/unit/domain/audit-chain.spec.ts`, `services/audit-logger/tests/unit/domain/audit-chain-script.spec.ts`, `services/audit-logger/tests/unit/audit-chain/chain-audit.spec.ts`, `services/audit-logger/tests/unit/adapters/s3-anchor-store.spec.ts`, `services/audit-logger/tests/unit/config/chain-audit-container.spec.ts`, `tests/alerts/run.sh`, `tests/k8s/run-kind.sh`
 
 ## Context

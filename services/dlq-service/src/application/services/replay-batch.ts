@@ -12,16 +12,8 @@ import type {
 import { activeReplays } from "./active-replay-counter";
 import {
 	checkBatchRejection,
-	decrementActiveBatches,
-	incrementActiveBatches,
 	recordBatchResult,
 } from "./batch-concurrency-guard";
-
-function isRejected<TValue>(
-	result: PromiseSettledResult<TValue>
-): result is PromiseRejectedResult {
-	return result.status === "rejected";
-}
 
 export interface ReplayContext extends BatchReplayContext {
 	delivery: EntryDeliveryPort;
@@ -66,7 +58,7 @@ function processBatchResults(options: ProcessBatchResultsOptions): void {
 	const { batch, batchResults, ctx } = options;
 	for (const [idx, result] of batchResults.entries()) {
 		const entry = batch[idx];
-		if (isRejected(result)) {
+		if (result.status === "rejected") {
 			_recordFailedEntry(entry, result, ctx);
 		}
 	}
@@ -74,12 +66,10 @@ function processBatchResults(options: ProcessBatchResultsOptions): void {
 
 function _recordFailedEntry(
 	entry: DlqEntryRef | undefined,
-	result: PromiseSettledResult<void>,
+	result: PromiseRejectedResult,
 	ctx: ProcessBatchResultsOptions["ctx"]
 ): void {
-	const errorMsg = isRejected(result)
-		? ((result.reason as Error)?.message ?? "unknown error")
-		: "unknown error";
+	const errorMsg = (result.reason as Error)?.message ?? "unknown error";
 	ctx.errors.push({
 		id: entry?.id ?? toMessageId("unknown"),
 		error: errorMsg,
@@ -183,18 +173,16 @@ async function _replayBatch(
 	options: ReplayBatchOptions,
 	delivery: EntryDeliveryPort
 ): Promise<BatchResults> {
-	const rejection = checkBatchRejection(options.entries, options.batchId);
+	const rejection = checkBatchRejection(options.entries);
 	if (rejection) {
 		return rejection;
 	}
 
-	incrementActiveBatches();
 	activeReplays.increment();
 	try {
 		return await _executeBatch(options, delivery);
 	} finally {
 		activeReplays.decrement();
-		decrementActiveBatches();
 	}
 }
 

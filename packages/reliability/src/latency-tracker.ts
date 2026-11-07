@@ -26,7 +26,7 @@ export class LatencyTracker {
 		const window = this._getOrCreateWindow(key);
 		this._recordSample(window, durationMs);
 		if (window.count >= 10) {
-			return this._checkThreshold(key, window);
+			return this._checkThreshold(window);
 		}
 	}
 
@@ -59,10 +59,7 @@ export class LatencyTracker {
 		}
 	}
 
-	private _checkThreshold(
-		_key: string,
-		window: LatencyWindow
-	): number | undefined {
+	private _checkThreshold(window: LatencyWindow): number | undefined {
 		if (this._p99ThresholdMs <= 0) {
 			return;
 		}

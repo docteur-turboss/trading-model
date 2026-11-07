@@ -39,23 +39,6 @@ function parseCIDR(cidr: string): CIDRRange | null {
 	return { start, end, mask };
 }
 
-const PRIVATE_RANGES: readonly CIDRRange[] = [
-	parseCIDR("10.0.0.0/8")!,
-	parseCIDR("172.16.0.0/12")!,
-	parseCIDR("192.168.0.0/16")!,
-	parseCIDR("127.0.0.0/8")!,
-].filter((entry): entry is CIDRRange => entry !== null);
-
-export function isPrivateIP(ip: string): boolean {
-	const ipNum = ipToUint32(ip);
-	if (ipNum < 0) {
-		return false;
-	}
-	return PRIVATE_RANGES.some(
-		(range) => ipNum >= range.start && ipNum <= range.end
-	);
-}
-
 export function isAllowedProxyIP(
 	ip: string,
 	allowedRanges: readonly CIDRRange[]

@@ -4,7 +4,6 @@ import type {
 	DurationMs,
 	IPAddress,
 	Port,
-	PositiveInt,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
@@ -30,12 +29,6 @@ interface AddressManagerConfig {
 	 * (`REDIS_SENTINELS` / `REDIS_URL`); unset: an in-memory cache per process.
 	 */
 	redisCache?: RedisConnectionConfig;
-
-	circuitBreakerFailureThreshold?: PositiveInt;
-	circuitBreakerHalfOpenTimeoutMs?: DurationMs;
-	circuitBreakerCacheTtlMs?: DurationMs;
-	circuitBreakerLatencyWindowSize?: PositiveInt;
-	circuitBreakerLatencyThresholdMs?: DurationMs;
 }
 
 export type { AddressManagerConfig };

@@ -4,6 +4,7 @@ import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { URLString } from "@trading-model/primitives/primitives";
+import { ServiceRegistrationWire } from "@trading-model/validation/wire/service-instance";
 import type { TokenManager } from "../../../application/client/token-manager";
 import type {
 	RegisterServicePayload,
@@ -50,9 +51,12 @@ export class AddressManagerClient {
 
 	async registerService(): Promise<ServiceRegistrationResponse | undefined> {
 		try {
-			return await this._httpClient.post<ServiceRegistrationResponse>(
+			return await this._httpClient.post(
 				this._url("/register"),
-				this._buildRegistrationPayload()
+				this._buildRegistrationPayload(),
+				// Discovery merges a second registration of the same instanceId.
+				{ idempotent: true },
+				ServiceRegistrationWire
 			);
 		} catch (error) {
 			throw addressManagerError(
@@ -76,12 +80,13 @@ export class AddressManagerClient {
 				this._config.identity,
 				{
 					headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token },
+					idempotent: true,
 				}
 			);
 		} catch (err) {
 			logger.warn("Failed to unregister from Address Manager", {
 				url: this._config.addressManagerUrl,
-				err: (err as Error).message,
+				err: normalizeError(err).message,
 			});
 		}
 	}

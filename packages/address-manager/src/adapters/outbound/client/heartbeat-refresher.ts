@@ -27,6 +27,7 @@ export class HeartbeatRefresher {
 					headers: {
 						[HTTP_HEADERS.X_INSTANCE_TOKEN]: this._tokenManager.getToken(),
 					},
+					idempotent: true,
 				}
 			);
 		} catch (error) {

@@ -20,25 +20,10 @@ jest.mock("ioredis", () => {
 		disconnect(): void {}
 	}
 
-	class MockCluster {
-		status = "connecting";
-
-		on(): this {
-			return this;
-		}
-
-		connect(): Promise<void> {
-			return Promise.resolve();
-		}
-
-		disconnect(): void {}
-	}
-
 	return {
 		__esModule: true,
 		default: MockRedis,
 		Redis: MockRedis,
-		Cluster: MockCluster,
 	};
 });
 

@@ -39,7 +39,7 @@ export class RedisClientManager {
 
 	private _create(connection: RedisConnectionConfig): Redis | null {
 		try {
-			this._client = createRedisClient(connection) as Redis;
+			this._client = createRedisClient(connection);
 			this._client.connect().catch((err) => {
 				logger.warn("Rate limiter Redis connection failed", {
 					error: (err as Error)?.message,

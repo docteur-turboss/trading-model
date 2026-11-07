@@ -123,8 +123,7 @@ export async function createRepositories(mongoUri: string): Promise<{
 	const mongoClient = await mongoManager.getConnection();
 	const db = mongoClient.db();
 	const auditRepo = new AuditRepository(db);
-	await auditRepo.ensureIndexes();
-	await dropRetiredCollections(db);
+	await Promise.all([auditRepo.ensureIndexes(), dropRetiredCollections(db)]);
 	return { mongoManager, db, auditRepo };
 }
 

@@ -1,11 +1,10 @@
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import { ErrorCode, makeErrorCode, makeGuard } from "./base";
+import { ErrorCode, makeErrorCode } from "./base";
 
 export const timeoutError = makeErrorCode(
 	ErrorCode.Timeout,
 	HTTP_STATUS.SERVICE_UNAVAILABLE
 );
-export const isTimeoutError = makeGuard(ErrorCode.Timeout);
 
 export const configurationError = makeErrorCode(
 	ErrorCode.Configuration,

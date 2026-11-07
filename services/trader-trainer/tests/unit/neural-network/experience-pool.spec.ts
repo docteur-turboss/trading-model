@@ -176,6 +176,28 @@ describe("createExperiencePool", () => {
 			});
 		});
 
+		it("should pick exactly what a linear scan of the running sums picks", () => {
+			const { pool } = makePerPool({}, 11);
+			const rolls = makePRNG(11);
+			const scaled = TD_ERRORS.map((err) => (Math.abs(err) + 1e-6) ** ALPHA);
+			const total = scaled.reduce((acc, val) => acc + val, 0);
+			const linearPick = () => {
+				const roll = rolls() * total;
+				let cumulative = 0;
+				for (let idx = 0; idx < scaled.length; idx++) {
+					cumulative += scaled[idx];
+					if (roll < cumulative) {
+						return idx;
+					}
+				}
+				return scaled.length - 1;
+			};
+
+			const { ids } = pool.sampleWithWeights(1000);
+
+			expect(ids).toEqual(Array.from({ length: 1000 }, linearPick));
+		});
+
 		it("should ignore priorities when α is 0", () => {
 			const { pool } = makePerPool({ alpha: 0 });
 

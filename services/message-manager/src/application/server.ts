@@ -2,7 +2,6 @@ import { createRedisClient } from "@trading-model/persistence/redis-connection-m
 import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
-import type Redis from "ioredis";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { MESSAGE_MANAGER_ROUTES } from "../config/message-manager";
@@ -34,13 +33,10 @@ export function createServer() {
 						connectTimeout: 2000,
 						retryStrategy: () => null,
 						sentinelRetryStrategy: () => null,
-					}) as Redis;
-					// biome-ignore lint/plugin: readiness probe: failure is the negative signal
+					});
 					try {
 						await client.connect();
 						return (await client.ping()) === "PONG";
-					} catch {
-						return false;
 					} finally {
 						client.disconnect();
 					}

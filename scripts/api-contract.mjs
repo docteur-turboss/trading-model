@@ -523,7 +523,8 @@ function jsonSchema(schema, io) {
 	}
 }
 
-const ERROR_RESPONSE_JSON = JSON.stringify(jsonSchema(ErrorResponse, "output"));
+const ERROR_RESPONSE_SCHEMA = jsonSchema(ErrorResponse, "output");
+const ERROR_RESPONSE_JSON = JSON.stringify(ERROR_RESPONSE_SCHEMA);
 
 /** A response schema, as a reference when it is the shared ErrorResponse. */
 function responseSchema(schema) {
@@ -714,7 +715,7 @@ function buildSpec(routesByService, publicByService) {
 		...yaml(SECURITY_SCHEMES.SignedRequest, 4),
 		"  schemas:",
 		"    ErrorResponse:",
-		...yaml(jsonSchema(ErrorResponse, "output"), 6),
+		...yaml(ERROR_RESPONSE_SCHEMA, 6),
 		"  responses:",
 		"    Unauthorized: { description: Missing or invalid API key }",
 		"    NotFound: { description: \"Unknown route, or no registered instance of the service\" }",
@@ -741,12 +742,7 @@ function buildSpec(routesByService, publicByService) {
 		),
 	];
 
-	const byPath = new Map();
-	for (const entry of entries) {
-		const key = toOpenApiPath(entry.path);
-		if (!byPath.has(key)) byPath.set(key, []);
-		byPath.get(key).push(entry);
-	}
+	const byPath = Map.groupBy(entries, (entry) => toOpenApiPath(entry.path));
 	for (const path of [...byPath.keys()].sort()) {
 		lines.push(`  ${path}:`);
 		const ops = byPath.get(path).sort((a, b) => a.method.localeCompare(b.method));
@@ -799,15 +795,10 @@ function buildInternalSpecs(routesByService) {
 			...(Object.keys(schemes).length > 0 ? ["  securitySchemes:", ...yaml(schemes, 4)] : []),
 			"  schemas:",
 			"    ErrorResponse:",
-			...yaml(jsonSchema(ErrorResponse, "output"), 6),
+			...yaml(ERROR_RESPONSE_SCHEMA, 6),
 			"paths:",
 		];
-		const byPath = new Map();
-		for (const route of documented) {
-			const key = toOpenApiPath(route.path);
-			if (!byPath.has(key)) byPath.set(key, []);
-			byPath.get(key).push(route);
-		}
+		const byPath = Map.groupBy(documented, (route) => toOpenApiPath(route.path));
 		for (const path of [...byPath.keys()].sort()) {
 			lines.push(`  ${path}:`);
 			for (const route of byPath.get(path).sort((a, b) => a.method.localeCompare(b.method))) {

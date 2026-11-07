@@ -58,8 +58,11 @@ export class DlqRedisQueue {
 			return null;
 		}
 		try {
-			const scriptHash = await this._getPopScriptHash(client);
-			const result = await client.evalsha(scriptHash, 1, this._queueKey);
+			const result = await client.eval(
+				DlqRedisQueue._POP_SCRIPT,
+				1,
+				this._queueKey
+			);
 			return this._extractFirstEntry(result as string[]);
 		} catch (err) {
 			logger.error("Redis queue pop failed", {
@@ -99,10 +102,6 @@ export class DlqRedisQueue {
 			return false;
 		}
 		return true;
-	}
-
-	private _getPopScriptHash(client: Redis): Promise<string> {
-		return client.script("LOAD", DlqRedisQueue._POP_SCRIPT) as Promise<string>;
 	}
 
 	private _extractFirstEntry(entries: string[]): string | null {

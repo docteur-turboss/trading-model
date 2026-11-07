@@ -1,4 +1,3 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import type { UnixTimestamp } from "@trading-model/primitives/primitives";
@@ -36,10 +35,7 @@ export class InstanceHeartbeatHandler {
 		identity: ServiceIdentity
 	): Promise<boolean> {
 		const result = await this._deps.redis.sismember(
-			serviceInstancesSet(
-				this._deps.keyPrefix,
-				identity.serviceName as unknown as ServiceInstanceName
-			),
+			serviceInstancesSet(this._deps.keyPrefix, identity.serviceName),
 			identity.instanceId
 		);
 		return result === 1;
@@ -52,10 +48,7 @@ export class InstanceHeartbeatHandler {
 		const persisted = await this._deps.redis.eval(
 			PERSIST_IF_REGISTERED_SCRIPT,
 			3,
-			serviceInstancesSet(
-				this._deps.keyPrefix,
-				identity.serviceName as unknown as ServiceInstanceName
-			),
+			serviceInstancesSet(this._deps.keyPrefix, identity.serviceName),
 			instanceMetadata(this._deps.keyPrefix, identity.instanceId),
 			instanceUpdatedBy(this._deps.keyPrefix, identity.instanceId),
 			identity.instanceId,

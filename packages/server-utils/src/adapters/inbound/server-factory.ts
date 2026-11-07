@@ -74,5 +74,3 @@ export async function createAndStartHttpsServer(
 
 	return { raw: httpsServer, close: _createCloseHandle(httpsServer) };
 }
-
-export { setupTlsWatcher } from "../../infrastructure/tls-watcher";

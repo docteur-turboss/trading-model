@@ -1,3 +1,4 @@
+import { DEFAULT_PRIVATE_CIDRS } from "@trading-model/primitives/primitives";
 import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
@@ -15,9 +16,7 @@ const DISCOVERY_EXTRA = {
 		(value) => (value === "" ? undefined : value),
 		z.string().min(1).optional()
 	),
-	ALLOWED_REGISTRATION_CIDRS: z
-		.string()
-		.default("10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8"),
+	ALLOWED_REGISTRATION_CIDRS: z.string().default(DEFAULT_PRIVATE_CIDRS),
 } satisfies Record<string, z.ZodTypeAny>;
 
 const DISCOVERY_ENV_SCHEMA = BaseEnvSchema.extend(RedisEnvSchema.shape)

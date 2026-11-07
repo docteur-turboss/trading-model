@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
-import { BinanceFromId, toSymbol } from "@trading-model/primitives/primitives";
+import { toSymbol } from "@trading-model/primitives/primitives";
 import { BINANCE_ENDPOINTS } from "../../../../src/adapters/outbound/binance/endpoints";
 
 const BTC = toSymbol("BTCUSDT");
@@ -28,24 +28,6 @@ describe("BINANCE_ENDPOINTS", () => {
 		it("should build recent trades URL without params", () => {
 			const url = BINANCE_ENDPOINTS.trades();
 			expect(url).toBe("/api/v3/trades");
-		});
-	});
-
-	describe("historicalTrades", () => {
-		it("should build historical trades URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.historicalTrades({
-				symbol: BTC,
-				limit: 500,
-				fromId: BinanceFromId.of("12345"),
-			});
-			expect(url).toBe(
-				"/api/v3/historicalTrades?symbol=BTCUSDT&limit=500&fromId=12345"
-			);
-		});
-
-		it("should build historical trades URL without params", () => {
-			const url = BINANCE_ENDPOINTS.historicalTrades();
-			expect(url).toBe("/api/v3/historicalTrades");
 		});
 	});
 
@@ -79,38 +61,6 @@ describe("BINANCE_ENDPOINTS", () => {
 		it("should build 24hr stats URL without symbols", () => {
 			const url = BINANCE_ENDPOINTS.change24hrStats();
 			expect(url).toBe("/api/v3/ticker/24hr");
-		});
-	});
-
-	describe("compressedAggregateTrades", () => {
-		it("should build aggTrades URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.compressedAggregateTrades({
-				symbol: BTC,
-				fromId: BinanceFromId.of("12345"),
-				limit: 100,
-			});
-			expect(url).toBe(
-				"/api/v3/aggTrades?symbol=BTCUSDT&fromId=12345&limit=100"
-			);
-		});
-
-		it("should build aggTrades URL without params", () => {
-			const url = BINANCE_ENDPOINTS.compressedAggregateTrades();
-			expect(url).toBe("/api/v3/aggTrades");
-		});
-	});
-
-	describe("tradingDayTicker", () => {
-		it("should build trading day ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.tradingDayTicker([BTC, ETH]);
-			expect(url).toContain("/api/v3/ticker/tradingDay?symbols=");
-			expect(url).toContain("BTCUSDT");
-			expect(url).toContain("ETHUSDT");
-		});
-
-		it("should build trading day ticker URL without symbols", () => {
-			const url = BINANCE_ENDPOINTS.tradingDayTicker();
-			expect(url).toBe("/api/v3/ticker/tradingDay");
 		});
 	});
 

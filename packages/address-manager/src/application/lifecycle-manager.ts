@@ -49,7 +49,7 @@ export class LifecycleManager {
 		this._options.shutdownHandler.removeSignalHandlers();
 		this._started = true;
 
-		const steadyState = this._createSteadyState();
+		const steadyState = new SteadyStateScheduler(this._options);
 		steadyState.setup();
 		const registrationPromise = this._startRegistration(steadyState);
 		this._options.shutdownHandler.setupSignalHandlers(steadyState);
@@ -62,33 +62,6 @@ export class LifecycleManager {
 				await this._options.shutdownHandler.leaveRegistry();
 			},
 		};
-	}
-
-	private _createSteadyState(): SteadyStateScheduler {
-		const {
-			tokenManager,
-			addressManagerClient,
-			heartbeatManager,
-			serviceCache,
-			healthChecker,
-			serviceName,
-			instanceId,
-			tokenRefreshIntervalMs,
-			ttlRefreshIntervalMs,
-			cacheTtlMs,
-		} = this._options;
-		return new SteadyStateScheduler({
-			tokenManager,
-			addressManagerClient,
-			heartbeatManager,
-			serviceCache,
-			healthChecker,
-			serviceName,
-			instanceId,
-			tokenRefreshIntervalMs,
-			ttlRefreshIntervalMs,
-			cacheTtlMs,
-		});
 	}
 
 	private _returnExistingHandle(): LifecycleHandle {

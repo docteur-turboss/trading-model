@@ -140,10 +140,7 @@ if [ -n "$RESTORE_UNTIL" ]; then
   RESTORE_NOT_AFTER="$UNTIL_STAMP"
 fi
 
-log()  { echo "[$(date +%H:%M:%S)] $*"; }
-ok()   { log "✓ $*"; }
 fail() { log "✗ $*"; RESTORE_FAILURES=$((RESTORE_FAILURES + 1)); }
-warn() { log "⚠ $*"; }
 
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"

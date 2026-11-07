@@ -1,5 +1,8 @@
 ﻿import type { Document } from "mongodb";
-import { DLQ_MAX_CONSECUTIVE_ERRORS } from "../../domain/dlq-constants";
+import {
+	DLQ_MAX_CONSECUTIVE_ERRORS,
+	RELEASE_CLAIM,
+} from "../../domain/dlq-constants";
 import { DlqStatus } from "../../domain/dlq-status";
 import { ENV } from "../../infrastructure/config/env";
 
@@ -31,7 +34,7 @@ export class RetryPipelineBuilder {
 				completedAt: new Date(),
 				lastBatchId: batchId,
 			},
-			$unset: { processingAt: "", processingInstance: "" },
+			...RELEASE_CLAIM,
 		};
 	}
 

@@ -1,11 +1,8 @@
 import { describe, expect, it } from "@jest/globals";
-import type { TlsPaths, TlsPemBundle } from "../../../src/config/tls-paths";
+import type { TlsPemBundle } from "../../../src/config/tls-paths";
 import {
 	buildTlsFromEnv,
-	fromPemBundle,
-	resolveSecureContextOptions,
 	toSecureContextOptions,
-	toTlsConfig,
 } from "../../../src/config/tls-paths";
 
 const bundle: TlsPemBundle = {
@@ -74,51 +71,5 @@ describe("toSecureContextOptions", () => {
 			cert: "cert-pem",
 			ca: "ca-pem",
 		});
-	});
-});
-
-describe("resolveSecureContextOptions", () => {
-	it("should accept a TlsPemBundle directly", () => {
-		expect(resolveSecureContextOptions(bundle)).toEqual({
-			key: "key-pem",
-			cert: "cert-pem",
-			ca: "ca-pem",
-		});
-	});
-
-	it("should resolve pems from a TlsConfig", () => {
-		expect(resolveSecureContextOptions({ pems: bundle })).toEqual({
-			key: "key-pem",
-			cert: "cert-pem",
-			ca: "ca-pem",
-		});
-	});
-
-	it("should throw when no PEM data is available", () => {
-		const paths: TlsPaths = {
-			caPath: "/etc/certs/ca.pem" as never,
-			certPath: "/etc/certs/cert.pem" as never,
-			keyPath: "/etc/certs/key.pem" as never,
-		};
-		expect(() => resolveSecureContextOptions({ paths })).toThrow(
-			"Cannot resolve TLS context"
-		);
-	});
-});
-
-describe("toTlsConfig", () => {
-	it("should wrap paths in a TlsConfig", () => {
-		const paths: TlsPaths = {
-			caPath: "/etc/certs/ca.pem" as never,
-			certPath: "/etc/certs/cert.pem" as never,
-			keyPath: "/etc/certs/key.pem" as never,
-		};
-		expect(toTlsConfig(paths)).toEqual({ paths });
-	});
-});
-
-describe("fromPemBundle", () => {
-	it("should wrap a PEM bundle in a TlsConfig", () => {
-		expect(fromPemBundle(bundle)).toEqual({ pems: bundle });
 	});
 });

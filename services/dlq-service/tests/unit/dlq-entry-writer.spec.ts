@@ -80,8 +80,11 @@ describe("dlq-entry-writer", () => {
 	});
 
 	it("should throw when capacity is reached", async () => {
+		const insertOne = jest.fn();
 		const mockCol = {
 			estimatedDocumentCount: MOCK_ESTIMATED_DOC_COUNT,
+			findOne: jest.fn<any>().mockResolvedValue(null),
+			insertOne,
 		};
 		MOCK_GET_COLLECTION.mockResolvedValue(mockCol);
 		MOCK_ESTIMATED_DOC_COUNT.mockResolvedValue(100);
@@ -103,6 +106,7 @@ describe("dlq-entry-writer", () => {
 				deliveryAttempt: 1,
 			})
 		).rejects.toThrow("DLQ capacity limit reached");
+		expect(insertOne).not.toHaveBeenCalled();
 	});
 
 	it("should apply ping-pong abandon", async () => {

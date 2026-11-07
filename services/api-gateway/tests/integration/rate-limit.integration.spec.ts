@@ -148,13 +148,4 @@ describe("API Gateway — Rate Limiting Integration", () => {
 
 		expect((await request(server, path, "other-token")).status).toBe(200);
 	});
-
-	it("should not rate-limit the unauthenticated ping endpoint", async () => {
-		const app = createApp();
-		await new Promise<void>((resolve) => {
-			server = app.listen(0, () => resolve());
-		});
-		const result = await request(server, "/ping");
-		expect(result.status).toBe(200);
-	});
 });

@@ -125,33 +125,11 @@ export default class BrokerMessage {
 
 	/** Publishes messages directly or indirectly to services. */
 	get post() {
+		const client = this._messageManagerClient;
 		return {
-			direct: this._publishDirect.bind(this),
-			indirect: this._publishToTopic.bind(this),
+			direct: client.publishDirectMessage.bind(client),
+			indirect: client.publish.bind(client),
 		};
-	}
-
-	private _publishDirect<
-		TPayload = Parameters<MessageManagerClient["publishDirectMessage"]>[1],
-	>(
-		service: Parameters<MessageManagerClient["publishDirectMessage"]>[0],
-		payload: TPayload,
-		metadata: Parameters<MessageManagerClient["publishDirectMessage"]>[2]
-	) {
-		return this._messageManagerClient.publishDirectMessage(
-			service,
-			payload,
-			metadata
-		);
-	}
-
-	private _publishToTopic<
-		TPayload = Parameters<MessageManagerClient["publish"]>[0],
-	>(
-		payload: TPayload,
-		metadata: Parameters<MessageManagerClient["publish"]>[1]
-	) {
-		return this._messageManagerClient.publish(payload, metadata);
 	}
 }
 

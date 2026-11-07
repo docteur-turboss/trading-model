@@ -52,7 +52,7 @@ const IDENTIFY_SCHEMA = z.object({
 			]
 		)
 		.transform(toServiceId),
-	instanceId: INSTANCE_ID_SCHEMA.transform(toInstanceId),
+	instanceId: INSTANCE_ID_SCHEMA,
 });
 
 /**
@@ -92,7 +92,7 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 		.optional()
 		.transform((val) => (val ? toCorrelationId(val) : undefined)),
 	eventType: z.string().min(1) as unknown as z.ZodType<EventEnumMap>,
-	topic: TOPIC_SCHEMA.transform(toTopic),
+	topic: TOPIC_SCHEMA,
 
 	publisher: IDENTIFY_SCHEMA,
 

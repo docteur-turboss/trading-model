@@ -12,8 +12,10 @@ import {
 	PageNumber,
 } from "@trading-model/primitives/primitives/page-number";
 import { MongoClient } from "mongodb";
-import type { ParsedEnvelope } from "../../src/adapters/inbound/subscription/message-parser";
-import { buildAuditDocument } from "../../src/adapters/outbound/persistence/audit-document-builder";
+import {
+	buildAuditDocument,
+	type DeliveredEnvelope,
+} from "../../src/adapters/outbound/persistence/audit-document-builder";
 import {
 	type AuditEventQuery,
 	AuditRepository,
@@ -27,11 +29,11 @@ function envelope(event: {
 	publisher?: string;
 	at?: number;
 	correlationId?: string;
-}): ParsedEnvelope {
+}): DeliveredEnvelope {
 	return {
-		topic: event.topic ?? "market.data",
 		payload: { id: event.id },
 		metadata: {
+			topic: event.topic ?? "market.data",
 			messageId: event.id,
 			emittedAt: new Date(event.at ?? NOON).toISOString(),
 			publisher: {
@@ -40,7 +42,7 @@ function envelope(event: {
 			},
 			...(event.correlationId ? { correlationId: event.correlationId } : {}),
 		},
-	} as unknown as ParsedEnvelope;
+	} as unknown as DeliveredEnvelope;
 }
 
 describe("AuditRepository reads — real MongoDB", () => {

@@ -67,7 +67,7 @@ export function createDiscoveryApp(
 ): DiscoveryApp {
 	const redisConnection = redisConnectionFromEnv(settings);
 	const redisClient = redisConnection
-		? (createRedisClient(redisConnection) as Redis)
+		? createRedisClient(redisConnection)
 		: undefined;
 	const instanceStore = _buildInstanceStore(
 		settings,

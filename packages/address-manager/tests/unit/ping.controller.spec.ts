@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
 import type { Response } from "express";
 import { pingController } from "../../src/adapters/inbound/ping.controller";
 
@@ -16,9 +15,6 @@ describe("pingController", () => {
 	});
 
 	test("should respond with OK and pong", () => {
-		const result = ResponseException("pong").ok();
-		expect(result).toEqual({ status: 201, data: "pong" });
-
 		pingController({} as any, mockRes as Response);
 		expect(mockRes.status).toHaveBeenCalledWith(201);
 		expect(mockRes.json).toHaveBeenCalledWith("pong");

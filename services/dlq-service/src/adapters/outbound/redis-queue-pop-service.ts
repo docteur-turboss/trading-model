@@ -16,13 +16,7 @@ export class QueuePopService {
 	}
 
 	shouldSkip(): boolean {
-		if (isShuttingDown()) {
-			return true;
-		}
-		if (!dlqRedisQueue.isAvailable()) {
-			return true;
-		}
-		return false;
+		return isShuttingDown() || !dlqRedisQueue.isAvailable();
 	}
 }
 

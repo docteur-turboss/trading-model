@@ -3,7 +3,6 @@ import {
 	type URLString,
 } from "@trading-model/primitives/primitives";
 import { logger } from "../../config/logger";
-import { metrics } from "../../config/metrics";
 import type {
 	ClaimedEntry,
 	DlqReplaySettings,
@@ -11,6 +10,7 @@ import type {
 	ReplayQueuePort,
 } from "../../domain/ports/replay.ports";
 import { generateBatchId } from "../../shared/batch-id";
+import { emitReplayMetrics } from "../../shared/replay-metrics";
 import { isShuttingDown } from "../../shared/shutdown-flag";
 import type { BatchResults, ReplayBatchOptions } from "../../shared/types";
 
@@ -81,11 +81,8 @@ export class ClaimReplayOrchestrator {
 			instanceId: this._deps.settings.instanceId,
 		});
 
-		if (success > 0) {
-			metrics.entriesReplayed.inc(success);
-		}
+		emitReplayMetrics(success, errors.length);
 		if (errors.length > 0) {
-			metrics.entriesReplayFailed.inc(errors.length);
 			await this._deps.handleAbandonedEntries("DLQ Redis queue");
 		}
 

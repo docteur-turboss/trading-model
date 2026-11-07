@@ -27,6 +27,11 @@ export const DLQ_MAX_CONSECUTIVE_ERRORS = PositiveInt.of(3);
 export const DLQ_MAX_PASS_COUNT = PositiveInt.of(3);
 
 /** MongoDB projection fields used when claiming entries. */
+/** Update that drops an entry's claim. */
+export const RELEASE_CLAIM = {
+	$unset: { processingAt: "", processingInstance: "" },
+} as const;
+
 export const CLAIM_PROJECTION = {
 	_id: 1 as const,
 	topic: 1 as const,

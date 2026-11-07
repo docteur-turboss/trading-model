@@ -30,9 +30,6 @@ async function _deliverMessage(
 		{
 			timeoutMs: DurationMs.of(REPLAY_DELIVERY_TIMEOUT_MS),
 			serviceName: toServiceId(ServiceInstanceName.MessageManagerService),
-			// A replay that left may have been published: only a refused
-			// connection is sent again.
-			retryUnsentOnly: true,
 		}
 	);
 }

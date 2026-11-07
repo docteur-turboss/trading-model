@@ -68,16 +68,14 @@ describe("HttpDeadLetterStore", () => {
 	});
 
 	// A POST that timed out may have been stored: re-sending it would store
-	// it twice.
-	it("should only retry a request that never left", async () => {
+	// it twice. HttpClient re-sends a POST only when it never left, unless marked.
+	it("should not mark the insert idempotent", async () => {
 		const { store, post } = createStore();
 
 		await store.insert(ENTRY);
 
-		expect(post.mock.calls[0]?.[2]).toMatchObject({
-			retryUnsentOnly: true,
-			timeoutMs: 5000,
-		});
+		expect(post.mock.calls[0]?.[2]).toMatchObject({ timeoutMs: 5000 });
+		expect(post.mock.calls[0]?.[2]).not.toHaveProperty("idempotent");
 	});
 
 	it("should propagate a failure, for the caller to keep the entry", async () => {

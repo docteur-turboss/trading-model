@@ -30,7 +30,7 @@ jest.mock("../../../src/config/message-manager", () => ({
 	startDeadLetterForwarding: MOCK_START_FORWARDING,
 }));
 
-jest.mock("../../../src/config/telemetry", () => ({
+jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
 	initializeTelemetry: jest.fn(),
 	shutdownTelemetry: jest.fn(async () => undefined),
 }));

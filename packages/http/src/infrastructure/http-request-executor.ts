@@ -38,8 +38,6 @@ export interface RequestContext<TResponse> {
 	schema?: z.ZodType<TResponse>;
 }
 
-export type { ServiceRoute };
-
 export class HttpRequestExecutor {
 	private readonly _circuitRecorder: CircuitRecorder;
 
@@ -144,9 +142,11 @@ export class HttpRequestExecutor {
 			} catch (error) {
 				lastError = error instanceof Error ? error : new Error(String(error));
 
-				const retryable = context.options?.retryUnsentOnly
-					? isConnectionRefused(lastError)
-					: shouldRetry(lastError);
+				const idempotent =
+					context.options?.idempotent ?? context.method !== "POST";
+				const retryable = idempotent
+					? shouldRetry(lastError)
+					: isConnectionRefused(lastError);
 				if (attempt < retryCount && retryable) {
 					await sleep(computeRetryDelay(attempt));
 					continue;
@@ -168,13 +168,5 @@ export class HttpRequestExecutor {
 		options?: HttpRequestOptions
 	): ServiceRoute {
 		return this._circuitRecorder.checkPreconditions(urlStr, options);
-	}
-
-	recordSuccess(route: ServiceRoute): void {
-		this._circuitRecorder.recordSuccess(route);
-	}
-
-	recordFailure(route: ServiceRoute, serviceInstanceCount?: number): void {
-		this._circuitRecorder.recordFailure(route, serviceInstanceCount);
 	}
 }

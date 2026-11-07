@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { ErrorCode, makeErrorCode } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import type { MongoRepository } from "@trading-model/persistence/mongo-repository.interface";
 import type {
 	PaginationResult,
 	QueryEnvelope,
@@ -19,8 +18,9 @@ import {
 	CHAIN_COLLISIONS_TOTAL,
 	EVENTS_STORED_TOTAL,
 } from "../../../config/metrics";
-import { computeAuditHash } from "../../../domain/audit-chain";
+import { computeAuditHash, hashedContentOf } from "../../../domain/audit-chain";
 import type { DateRange } from "../../../domain/date-range";
+import { EVENTS_COLLECTION, MongoAuditChainReader } from "./audit-chain-reader";
 import { AuditQuerier } from "./audit-querier";
 
 export interface AuditEventDocument {
@@ -40,17 +40,12 @@ export interface AuditEventDocument {
 	payload: unknown;
 }
 
-export const METADATA_FIELDS: {
-	readonly topic: "metadata.topic";
-	readonly publisher: "metadata.publisher";
-	readonly correlationId: "metadata.correlationId";
-	readonly messageId: "metadata.messageId";
-} = {
+export const METADATA_FIELDS = {
 	topic: "metadata.topic",
 	publisher: "metadata.publisher",
 	correlationId: "metadata.correlationId",
 	messageId: "metadata.messageId",
-};
+} as const;
 
 /** Filters of `GET /events`; an absent field does not filter. */
 export interface AuditFilter {
@@ -72,7 +67,6 @@ const agentError = makeErrorCode(
 	ErrorCode.Agent,
 	HTTP_STATUS.SERVICE_UNAVAILABLE
 );
-const COLLECTION = "audit_events";
 
 /** Attempts when another writer takes the next chain sequence first. */
 const MAX_CHAIN_ATTEMPTS = 5;
@@ -105,58 +99,31 @@ function duplicateKeyOf(err: unknown): string | undefined {
 	return Object.keys(error.keyPattern ?? {})[0] ?? "";
 }
 
-export class AuditRepository
-	implements MongoRepository<AuditEventDocument, AuditEventQuery>
-{
+export class AuditRepository {
 	private readonly _collection: Collection<AuditEventDocument>;
 	private readonly _lease: Collection<LeaseDocument>;
 	private readonly _querier: AuditQuerier;
+	private readonly _chain: MongoAuditChainReader;
 	/** Inserts of this instance run one at a time: each extends the chain tail. */
 	private _writes: Promise<unknown> = Promise.resolve();
 
 	constructor(db: Db) {
-		this._collection = db.collection<AuditEventDocument>(COLLECTION);
+		this._collection = db.collection<AuditEventDocument>(EVENTS_COLLECTION);
 		this._lease = db.collection<LeaseDocument>(LEASE_COLLECTION);
 		this._querier = new AuditQuerier(this._collection);
+		this._chain = new MongoAuditChainReader(db);
 	}
 
 	async ensureIndexes(): Promise<void> {
-		await this._collection.createIndex({
-			[METADATA_FIELDS.correlationId]: 1,
-		});
-		await this._collection.createIndex({
-			[METADATA_FIELDS.publisher]: 1,
-			receivedAt: -1,
-		});
-		await this._collection.createIndex({
-			[METADATA_FIELDS.topic]: 1,
-			receivedAt: -1,
-		});
-		await this._collection.createIndex({ receivedAt: -1 });
-		await this._collection.createIndex(
-			{ [METADATA_FIELDS.messageId]: 1 },
-			{ unique: true }
-		);
-		await this._collection.createIndex({ ttl: 1 }, { expireAfterSeconds: 0 });
-		await this._collection.createIndex({ chainSequence: 1 }, { unique: true });
-	}
-
-	async findLastHash(): Promise<{
-		previousHash: string;
-		chainSequence: number;
-	} | null> {
-		const last = await this._collection
-			.find()
-			.sort({ chainSequence: -1 })
-			.limit(1)
-			.toArray();
-		if (last.length === 0) {
-			return null;
-		}
-		return {
-			previousHash: last[0].dataHash,
-			chainSequence: last[0].chainSequence,
-		};
+		await this._collection.createIndexes([
+			{ key: { [METADATA_FIELDS.correlationId]: 1 } },
+			{ key: { [METADATA_FIELDS.publisher]: 1, receivedAt: -1 } },
+			{ key: { [METADATA_FIELDS.topic]: 1, receivedAt: -1 } },
+			{ key: { receivedAt: -1 } },
+			{ key: { [METADATA_FIELDS.messageId]: 1 }, unique: true },
+			{ key: { ttl: 1 }, expireAfterSeconds: 0 },
+			{ key: { chainSequence: 1 }, unique: true },
+		]);
 	}
 
 	/**
@@ -174,7 +141,7 @@ export class AuditRepository
 	}
 
 	/**
-	 * Single writer on the chain head (ADR-0047): one replica at a time holds
+	 * Single writer on the chain head (ADR-0050): one replica at a time holds
 	 * the lease while it appends. Waits for it, bounded by LEASE_WAIT_MS.
 	 */
 	private async _withLease(work: () => Promise<void>): Promise<void> {
@@ -226,16 +193,10 @@ export class AuditRepository
 	private async _appendUnderLease(event: AuditEventDocument): Promise<void> {
 		for (let attempt = 1; ; attempt++) {
 			try {
-				const tail = await this.findLastHash();
-				event.previousHash = tail?.previousHash ?? "";
+				const tail = await this._chain.head();
+				event.previousHash = tail?.dataHash ?? "";
 				event.chainSequence = (tail?.chainSequence ?? 0) + 1;
-				event.dataHash = computeAuditHash({
-					receivedAt: event.receivedAt,
-					metadata: event.metadata,
-					payload: event.payload,
-					previousHash: event.previousHash,
-					chainSequence: event.chainSequence,
-				});
+				event.dataHash = computeAuditHash(hashedContentOf(event));
 				await this._collection.insertOne(event, STORE_AS_HASHED);
 				EVENTS_STORED_TOTAL.inc({ status: "success" });
 				return;
@@ -258,39 +219,6 @@ export class AuditRepository
 					cause: err,
 				});
 			}
-		}
-	}
-
-	async insertBatch(events: AuditEventDocument[]): Promise<void> {
-		if (events.length === 0) {
-			return;
-		}
-		try {
-			let tail = await this.findLastHash();
-			for (const event of events) {
-				event.previousHash = tail?.previousHash ?? "";
-				event.chainSequence = (tail?.chainSequence ?? 0) + 1;
-				event.dataHash = computeAuditHash({
-					receivedAt: event.receivedAt,
-					metadata: event.metadata,
-					payload: event.payload,
-					previousHash: event.previousHash,
-					chainSequence: event.chainSequence,
-				});
-				tail = {
-					previousHash: event.dataHash,
-					chainSequence: event.chainSequence,
-				};
-			}
-			await this._collection.insertMany(events, {
-				...STORE_AS_HASHED,
-				ordered: false,
-			});
-			EVENTS_STORED_TOTAL.inc({ status: "success" }, events.length);
-		} catch (err) {
-			throw agentError("Failed to persist audit event batch", {
-				cause: err,
-			});
 		}
 	}
 

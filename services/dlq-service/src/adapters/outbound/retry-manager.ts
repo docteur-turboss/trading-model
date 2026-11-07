@@ -1,18 +1,10 @@
 ﻿import type { InstanceId } from "@trading-model/primitives/primitives";
 import { ObjectId } from "mongodb";
 import { getCollection } from "../../config/db";
+import { RELEASE_CLAIM } from "../../domain/dlq-constants";
 import { DlqStatus } from "../../domain/dlq-status";
 import { ENV } from "../../infrastructure/config/env";
 import { RetryPipelineBuilder } from "./retry-pipeline-builder";
-
-function _isEntryAbandoned(
-	col: import("mongodb").Collection,
-	id: string
-): Promise<boolean> {
-	return col
-		.findOne({ _id: new ObjectId(id) }, { projection: { status: 1 } })
-		.then((entry) => entry?.status === DlqStatus.Abandoned);
-}
 
 async function _updateEntryCompleted(
 	col: import("mongodb").Collection,
@@ -21,15 +13,13 @@ async function _updateEntryCompleted(
 	batchId?: string
 ): Promise<void> {
 	await col.updateOne(
-		{ _id: new ObjectId(id), processingInstance: instanceId },
 		{
-			$set: {
-				status: DlqStatus.Completed,
-				completedAt: new Date(),
-				lastBatchId: batchId,
-			},
-			$unset: { processingAt: "", processingInstance: "" },
-		}
+			_id: new ObjectId(id),
+			processingInstance: instanceId,
+			// An entry abandoned meanwhile stays abandoned.
+			status: { $ne: DlqStatus.Abandoned },
+		},
+		new RetryPipelineBuilder().buildCompletedUpdate(batchId)
 	);
 }
 
@@ -70,9 +60,6 @@ export class DlqRetryManager {
 		batchId?: string
 	): Promise<void> {
 		const col = await getCollection();
-		if (await _isEntryAbandoned(col, id)) {
-			return;
-		}
 		await _updateEntryCompleted(col, id, instanceId, batchId);
 	}
 
@@ -96,7 +83,7 @@ export class DlqRetryManager {
 		if (!updated) {
 			await col.updateOne(
 				{ _id: new ObjectId(id), processingInstance: instanceId },
-				{ $unset: { processingAt: "", processingInstance: "" } }
+				RELEASE_CLAIM
 			);
 		}
 	}

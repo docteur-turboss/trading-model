@@ -6,6 +6,7 @@ import {
 	toServiceId,
 	URLString,
 } from "@trading-model/primitives/primitives";
+import { ServiceInstancesWire } from "@trading-model/validation/wire/service-instance";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
@@ -116,11 +117,12 @@ export class ServiceResolver {
 
 	async findAllServices(serviceName: ServiceId): Promise<ServiceInstance[]> {
 		try {
-			const instances = await this._httpClient.get<ServiceInstance[]>(
+			const instances = await this._httpClient.get(
 				URLString.of(
 					`${this._config.addressManagerUrl}/services/${serviceName}`
 				),
-				{ timeoutMs: this._discoveryTimeoutMs }
+				{ timeoutMs: this._discoveryTimeoutMs },
+				ServiceInstancesWire
 			);
 			return instances ?? [];
 		} catch (error) {

@@ -19,7 +19,6 @@ import {
 import type { DeliveryParams } from "../../domain/delivery-params";
 import type { MessageDeliveryPort } from "../ports/message-delivery-port";
 import type { DeliveryAttemptHandler } from "./delivery-attempt-handler";
-import type { DeliveryErrorHandler } from "./delivery-error-handler";
 
 export interface DispatchContext {
 	topic: Topic;
@@ -29,7 +28,6 @@ export interface DispatchContext {
 export interface DispatchServices {
 	circuitBreaker: CircuitStateMachine;
 	attemptHandler: DeliveryAttemptHandler;
-	errorHandler: DeliveryErrorHandler;
 	deliveryPort: MessageDeliveryPort;
 }
 

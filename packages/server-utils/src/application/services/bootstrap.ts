@@ -8,7 +8,6 @@ import type { BootstrapOptions } from "./bootstrap-types";
 export type {
 	BootstrapOptions,
 	GracefulShutdownOptions,
-	TlsBootstrapOptions,
 } from "./bootstrap-types";
 
 export function createBootstrap(options: BootstrapOptions): {
@@ -20,7 +19,7 @@ export function createBootstrap(options: BootstrapOptions): {
 	const doShutdown = (signal: string) =>
 		gracefulShutdown(signal, svrRef.current, options);
 	setupProcessHandlers(doShutdown, doHardShutdown);
-	_startBootstrap(
+	runBootstrap(
 		options,
 		(svr) => {
 			svrRef.current = svr;
@@ -28,14 +27,6 @@ export function createBootstrap(options: BootstrapOptions): {
 		doHardShutdown
 	);
 	return { shutdown: doShutdown };
-}
-
-function _startBootstrap(
-	options: BootstrapOptions,
-	setServer: (server: HttpServer) => void,
-	doHardShutdown: (code: number) => void
-): void {
-	runBootstrap(options, setServer, doHardShutdown);
 }
 
 function _onBootstrapError(
@@ -56,18 +47,6 @@ function runBootstrap(
 	const onError = (err: unknown) => _onBootstrapError(onFatal, err);
 	logger.info("Bootstrapping service", { context: { name: options.name } });
 	runSyncOrAsync(
-		() => options.tlsBootstrap?.ensure(),
-		() => _handleBeforeServer(options, setServer, onError),
-		onError
-	);
-}
-
-function _handleBeforeServer(
-	options: BootstrapOptions,
-	setServer: (server: HttpServer) => void,
-	onError: (err: unknown) => void
-): void {
-	runSyncOrAsync(
 		() => options.onBeforeServer?.(),
 		() => _finishCreateServer(options, setServer, onError),
 		onError
@@ -83,8 +62,7 @@ function _finishCreateServer(
 		() => options.createServer(),
 		(httpServer) => {
 			setServer(httpServer);
-			setupAutoRenew(httpServer, options);
-			finishBootstrap(httpServer, options);
+			finishBootstrap(options);
 		},
 		onError
 	);
@@ -107,25 +85,9 @@ function runSyncOrAsync<TValue>(
 	}
 }
 
-function setupAutoRenew(
-	httpServer: HttpServer,
-	options: BootstrapOptions
-): void {
-	if (options.tlsBootstrap?.setupAutoRenew) {
-		options.tlsBootstrap.setupAutoRenew(httpServer.raw);
-	}
-}
-
-function finishBootstrap(
-	_httpServer: HttpServer,
-	options: BootstrapOptions
-): void {
-	if (options.onStart) {
-		options.onStart();
-	}
+function finishBootstrap(options: BootstrapOptions): void {
+	options.onStart?.();
 	logger.info("Service started successfully", {
 		context: { name: options.name },
 	});
 }
-
-export { gracefulShutdown, hardShutdown } from "./bootstrap-shutdown";
