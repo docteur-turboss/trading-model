@@ -36,7 +36,7 @@ Inventory (issue #506). Address-manager caches in memory per process, so only th
 | ------- | ---------- | -------- | ------- |
 | discovery-server | `trading-model:discovery:*` | `GET SET DEL MGET SADD SREM SMEMBERS SISMEMBER SCARD MULTI EVAL` | Instance registry and tokens (ADR-0023) |
 | message-manager | `trading-model:message-manager:subscriptions:<topic>` | `HSET HGETALL HDEL PEXPIRE` | Broker subscriptions |
-| message-manager | `trading-model:message-manager:journal:<topic>`, `trading-model:message-manager:journal-groups` | `XADD XDEL XREADGROUP XPENDING XCLAIM XACK XGROUP WAIT SADD SMEMBERS` | Durable message journal (ADR-0048) |
+| message-manager | `trading-model:message-manager:journal:<topic>`, `trading-model:message-manager:journal-groups` | `EXISTS XADD XDEL XREADGROUP XPENDING XCLAIM XACK XGROUP WAIT SADD SMEMBERS` | Durable message journal (ADR-0048) |
 | dlq-service | `dlq:queue` | `LLEN LPUSH LRANGE LTRIM EVAL EVALSHA SCRIPT LOAD` | Replay queue, a cache of the MongoDB entries (rebuilt from MongoDB; the HTTP rate limiter is in memory) |
 
 Dead letters live in MongoDB, not Redis.

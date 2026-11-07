@@ -76,6 +76,15 @@ export class RedisMessageJournal implements MessageJournalPort {
 		onlyFor?: string
 	): Promise<void> {
 		const { topic } = message.metadata;
+		// A stream Redis lost (restart without AOF) has no groups left: XADD would recreate it bare and the
+		// groups, created later at "$", would miss this message. Re-register before writing (ADR-0048 §1).
+		if (
+			Number(await this._deps.redis.call("EXISTS", this._stream(topic))) === 0
+		) {
+			for (const service of services) {
+				this._registered.delete(`${topic}|${service}`);
+			}
+		}
 		await Promise.all(
 			services.map((service) => this.register({ topic, service }))
 		);
@@ -139,13 +148,8 @@ export class RedisMessageJournal implements MessageJournalPort {
 				">"
 			)) as typeof reply;
 		} catch (err) {
-			if (err instanceof Error && err.message.includes("NOGROUP")) {
-				// Redis lost the stream (restart without AOF): create the group again.
-				this._registered.delete(`${group.topic}|${group.service}`);
-				await this.register(group);
-				return [];
-			}
-			throw err;
+			await this._recoverNoGroup(err, group);
+			return [];
 		}
 		// ioredis `call` hands one stream back as [name, entries], not [[name, entries]].
 		return this._parse(group, reply?.[1] ?? null, () => 1);
@@ -158,16 +162,27 @@ export class RedisMessageJournal implements MessageJournalPort {
 		count: number
 	): Promise<JournalEntry[]> {
 		const stream = this._stream(group.topic);
-		const pending = (await this._deps.redis.call(
-			"XPENDING",
-			stream,
-			group.service,
-			"IDLE",
-			String(retry.floorMs),
-			"-",
-			"+",
-			String(count)
-		)) as [id: string, consumer: string, idleMs: number, deliveries: number][];
+		let pending: [
+			id: string,
+			consumer: string,
+			idleMs: number,
+			deliveries: number,
+		][];
+		try {
+			pending = (await this._deps.redis.call(
+				"XPENDING",
+				stream,
+				group.service,
+				"IDLE",
+				String(retry.floorMs),
+				"-",
+				"+",
+				String(count)
+			)) as typeof pending;
+		} catch (err) {
+			await this._recoverNoGroup(err, group);
+			return [];
+		}
 		const entries: JournalEntry[] = [];
 		for (const [id, , idleMs, deliveries] of pending) {
 			const due = retry.dueAfterMs(deliveries);
@@ -233,6 +248,18 @@ export class RedisMessageJournal implements MessageJournalPort {
 			}
 		}
 		return entries;
+	}
+
+	/** NOGROUP: Redis lost the stream (restart without AOF), create the group again; any other error is rethrown. */
+	private async _recoverNoGroup(
+		err: unknown,
+		group: JournalGroup
+	): Promise<void> {
+		if (!(err instanceof Error && err.message.includes("NOGROUP"))) {
+			throw err;
+		}
+		this._registered.delete(`${group.topic}|${group.service}`);
+		await this.register(group);
 	}
 
 	private _reader(group: JournalGroup, blockMs?: number) {

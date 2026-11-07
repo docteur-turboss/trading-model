@@ -198,9 +198,12 @@ describe("RedisMessageJournal blocking reads — real Redis", () => {
 		const entries = await read;
 
 		expect(entries).toHaveLength(1);
-		expect(Date.now() - startedAt).toBeLessThan(500);
+		const latencyMs = Date.now() - startedAt;
+		process.stdout.write(`publish -> blocked read latency: ${latencyMs} ms
+`);
+		expect(latencyMs).toBeLessThan(500);
 		const names = spy.mock.calls.map(([name]) => name);
-		expect(names).toEqual(["XADD"]);
+		expect(names).toEqual(["EXISTS", "XADD"]);
 		journal.close();
 	});
 
@@ -210,6 +213,16 @@ describe("RedisMessageJournal blocking reads — real Redis", () => {
 		await replica().flushdb();
 
 		await expect(journal.readNew(GROUP, "c1", 10)).resolves.toEqual([]);
+		await journal.append(createMockMessage("m1"), [GROUP.service]);
+
+		await expect(journal.readNew(GROUP, "c1", 10)).resolves.toHaveLength(1);
+	});
+
+	it("should deliver a message published after Redis lost everything, with no read in between", async () => {
+		const journal = journalOn(replica());
+		await journal.register(GROUP);
+		await replica().flushdb();
+
 		await journal.append(createMockMessage("m1"), [GROUP.service]);
 
 		await expect(journal.readNew(GROUP, "c1", 10)).resolves.toHaveLength(1);
