@@ -35,8 +35,7 @@ function _messageManager(): MessageManager {
 
 /**
  * Publishes a DLQ event on the bus, where audit-logger records it like every
- * topic. Does not wait: message-manager answers once audit-logger took it or
- * gave up (up to PUBLISH_TIMEOUT_MS), which must not hold the DLQ request.
+ * topic. Does not wait: the DLQ request must not depend on the bus.
  */
 export function publishDlqEvent<TEvent extends DlqEvent>(
 	event: TEvent,

@@ -7,7 +7,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
-import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_COMPAT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { isNonRetryableClientError } from "@trading-model/http/infrastructure/http-retry";
@@ -29,13 +29,13 @@ import type {
 import { messageManagerError } from "../../shared/errors";
 
 /**
- * message-manager answers once it has delivered (or given up) the message:
- * wait for its answer rather than time out first. A publish is never sent
- * twice once it left: the broker stamps a new messageId on each copy, so
- * subscribers could not tell the duplicates apart.
+ * message-manager answers 202 once the message is journaled (ADR-0048); the
+ * older release answered 204 after delivery: both are success. A publish is
+ * never sent twice once it left: the broker stamps a new messageId on each
+ * copy, so subscribers could not tell the duplicates apart.
  */
 const PUBLISH_OPTIONS = {
-	timeoutMs: DurationMs.of(PUBLISH_TIMEOUT_MS + 5_000),
+	timeoutMs: DurationMs.of(PUBLISH_COMPAT_TIMEOUT_MS),
 };
 
 /** Client for interacting with the Message Delivery Service via HTTP. */

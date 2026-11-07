@@ -6,10 +6,8 @@ import {
 	createHttpClientError,
 	createHttpClientTimeoutError,
 } from "@trading-model/http/adapters/outbound/http-client-errors";
-import {
-	DELIVERY_ATTEMPT_TIMEOUT_MS,
-	HttpMessageDelivery,
-} from "../../../../src/adapters/outbound/http-message-delivery";
+import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
+import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "../../../../src/domain/backoff-calculator";
 import { FileDlqRepository } from "../../../../src/infrastructure/fallback/dlq-repository";
 import { createMockMessage } from "../../../fixtures/broker.fixture";
 import { createMockHttpClient } from "../../../helpers/broker.helper";

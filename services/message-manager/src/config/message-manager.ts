@@ -7,6 +7,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
 import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
+import { RedisMessageJournal } from "../adapters/outbound/redis-message-journal";
 import { RedisSubscriptionStore } from "../adapters/outbound/redis-subscription-store";
 import { ENV } from "../infrastructure/config/env";
 import createBrokerModule from "./container";
@@ -16,8 +17,9 @@ const SUBSCRIPTION_KEY_PREFIX = "trading-model:message-manager";
 const REDIS_CONNECTION = redisConnectionFromEnv(ENV);
 
 /**
- * Holds the subscriptions shared by the replicas. Lazy: connects on the first
- * command. Absent without Redis (single replica, subscriptions in memory).
+ * Holds the subscriptions and the message journal shared by the replicas.
+ * Lazy: connects on the first command. Absent without Redis (single replica,
+ * everything in memory, lost on restart).
  */
 const SUBSCRIPTION_REDIS = REDIS_CONNECTION
 	? createRedisClient(REDIS_CONNECTION)
@@ -25,7 +27,7 @@ const SUBSCRIPTION_REDIS = REDIS_CONNECTION
 
 if (!SUBSCRIPTION_REDIS) {
 	logger.warn(
-		"Redis not configured — subscriptions kept in memory (single replica only)"
+		"Redis not configured — subscriptions and accepted messages kept in memory (single replica only, lost on restart)"
 	);
 }
 
@@ -42,6 +44,13 @@ const BROKER = createBrokerModule(
 		? new RedisSubscriptionStore({
 				redis: SUBSCRIPTION_REDIS,
 				keyPrefix: SUBSCRIPTION_KEY_PREFIX,
+			})
+		: undefined,
+	SUBSCRIPTION_REDIS
+		? new RedisMessageJournal({
+				redis: SUBSCRIPTION_REDIS,
+				keyPrefix: SUBSCRIPTION_KEY_PREFIX,
+				minReplicas: ENV.JOURNAL_MIN_REPLICAS,
 			})
 		: undefined
 );
@@ -80,13 +89,19 @@ function startDeadLetterForwarding(): void {
 	forwardTimer.unref();
 }
 
+/** Starts the workers that deliver the accepted messages (ADR-0048). */
+function startDelivery(): void {
+	BROKER.startDelivery();
+}
+
 /**
- * On shutdown, once no delivery is in flight: closes the subscription store
- * and sends the dead letters still in the local file, whose volume does not
- * outlive the pod.
+ * On shutdown: waits for the deliveries in flight, closes Redis and sends the
+ * dead letters still in the local file, whose volume does not outlive the
+ * pod. Messages not delivered yet stay in the journal for the other replicas.
  */
 async function closeMessageManager(): Promise<void> {
 	clearInterval(forwardTimer);
+	await BROKER.stopDelivery();
 	SUBSCRIPTION_REDIS?.disconnect();
 	await forwardDeadLetters();
 }
@@ -95,4 +110,5 @@ export {
 	closeMessageManager,
 	MESSAGE_MANAGER_ROUTES,
 	startDeadLetterForwarding,
+	startDelivery,
 };
