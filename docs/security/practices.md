@@ -119,6 +119,8 @@ AUTH_TOKENS=your-api-key-here
 AUTH_TOKEN_HEADER=x-api-key
 ```
 
+The gateway accepts the token as `x-api-key: <token>` or `Authorization: Bearer <token>`. Tokens are compared as SHA-256 digests with `timingSafeEqual`; the client identity (rate-limit key) is derived from the digest, never from the raw token.
+
 ### Loading Order (Priority)
 
 ```

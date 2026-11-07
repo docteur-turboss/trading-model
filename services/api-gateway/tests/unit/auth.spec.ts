@@ -74,7 +74,43 @@ describe("AUTH_MIDDLEWARE", () => {
 		);
 		expect(result).toBeUndefined();
 	});
+
+	it("should accept Bearer scheme (case-insensitive)", async () => {
+		for (const h of ["Bearer valid-token-1", "bearer valid-token-1"]) {
+			const result = await AUTH_MIDDLEWARE(
+				createReq({ headers: { authorization: h } }),
+				createRes(),
+				createNext
+			);
+			expect(result).toBeUndefined();
+		}
+	});
+
+	it("should reject Bearer with invalid token", async () => {
+		const result = await AUTH_MIDDLEWARE(
+			createReq({ headers: { authorization: "Bearer nope" } }),
+			createRes(),
+			createNext
+		);
+		expect(result).toMatchObject({ status: 401 });
+	});
+
+	it("should give distinct identities to tokens sharing an 8-char prefix", async () => {
+		mockEnvTokens("abcdefgh-1,abcdefgh-2");
+		const ids = [];
+		for (const t of ["abcdefgh-1", "abcdefgh-2"]) {
+			const req: any = createReq({ headers: { "x-api-key": t } });
+			await AUTH_MIDDLEWARE(req, createRes(), createNext);
+			ids.push(req.clientIdentity);
+		}
+		expect(ids[0]).not.toEqual(ids[1]);
+		expect(ids[0]).not.toContain("abcdefgh");
+	});
 });
+
+function mockEnvTokens(tokens: string): void {
+	require("../../src/infrastructure/config/env").ENV.AUTH_TOKENS = tokens;
+}
 
 describe("AUTH_MIDDLEWARE — strict mode", () => {
 	const mockEnv = jest.mocked(
