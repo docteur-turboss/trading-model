@@ -30,11 +30,6 @@ const selectCandlesBy = {
 	source: jest.fn<any>(),
 	timestamp: { after: jest.fn<any>() },
 };
-const selectOrderBookBy = {
-	symbol: jest.fn<any>(),
-	source: jest.fn<any>(),
-	timestamp: { after: jest.fn<any>(), before: jest.fn<any>() },
-};
 
 jest.mock(
 	"../../../../src/adapters/outbound/persistence/schema/trades.schema",
@@ -47,10 +42,6 @@ jest.mock(
 jest.mock(
 	"../../../../src/adapters/outbound/persistence/schema/candles-schema",
 	() => ({ selectCandlesBy })
-);
-jest.mock(
-	"../../../../src/adapters/outbound/persistence/schema/order-book.schema",
-	() => ({ selectOrderBookBy })
 );
 const findForAsset = jest.fn<any>();
 jest.mock("../../../../src/adapters/outbound/persistence/signal-store", () => ({
@@ -96,13 +87,6 @@ const CANDLE = {
 	trades: 42,
 	timestamp: AT,
 	closeTimestamp: AT,
-};
-/** In-memory snapshot: levels in Sets, epoch-millisecond timestamp. */
-const ORDER_BOOK = {
-	...MARKET,
-	timestamp: AT.getTime(),
-	bids: new Set([{ price: 66999, quantity: 1 }]),
-	asks: new Set([{ price: 67001, quantity: 2 }]),
 };
 
 describe("financial-scraper HTTP API (SCRAPER_API)", () => {
@@ -211,58 +195,6 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			expect(selectCandlesBy.timestamp.after).toHaveBeenCalledWith(
 				Date.parse("2026-10-28")
-			);
-		});
-	});
-
-	describe("order books", () => {
-		it("sends the levels as arrays, not as empty objects", async () => {
-			selectOrderBookBy.symbol.mockResolvedValue([ORDER_BOOK]);
-
-			const { body } = await get(
-				SCRAPER_API.orderBooksBySymbol,
-				"/orderbook/symbols/BTCUSDT"
-			);
-
-			expect(body).toEqual([
-				{
-					...ORDER_BOOK,
-					bids: [{ price: 66999, quantity: 1 }],
-					asks: [{ price: 67001, quantity: 2 }],
-				},
-			]);
-		});
-
-		it("answers an empty list for an unknown key, and skips gaps", async () => {
-			selectOrderBookBy.source.mockResolvedValue(null);
-			selectOrderBookBy.timestamp.after.mockResolvedValue([
-				undefined,
-				ORDER_BOOK,
-			]);
-
-			const unknown = await get(
-				SCRAPER_API.orderBooksBySource,
-				"/orderbook/sources/nyse"
-			);
-			const after = await get(
-				SCRAPER_API.orderBooksAfter,
-				"/orderbook/after/timestamp/0"
-			);
-
-			expect(unknown.body).toEqual([]);
-			expect(after.body).toHaveLength(1);
-		});
-
-		it("queries the snapshots before an instant in epoch milliseconds", async () => {
-			selectOrderBookBy.timestamp.before.mockResolvedValue([]);
-
-			await get(
-				SCRAPER_API.orderBooksBefore,
-				`/orderbook/before/timestamp/${AT.getTime()}`
-			);
-
-			expect(selectOrderBookBy.timestamp.before).toHaveBeenCalledWith(
-				AT.getTime()
 			);
 		});
 	});
@@ -376,8 +308,6 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			[SCRAPER_API.tradesAt, "/trade/timestamp/yesterday"],
 			[SCRAPER_API.tradesAt, "/trade/timestamp/1761652800000"],
 			[SCRAPER_API.candlesSince, "/candles/timestamp/1960-01-01"],
-			[SCRAPER_API.orderBooksAfter, "/orderbook/after/timestamp/-5"],
-			[SCRAPER_API.orderBooksBefore, "/orderbook/before/timestamp/1.5"],
 		] as const)("%#: %s", async (route, path) => {
 			const { status, body } = await get(route, path);
 

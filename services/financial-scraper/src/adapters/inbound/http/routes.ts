@@ -5,7 +5,6 @@ import { toJsonWire } from "@trading-model/http/infrastructure/json-wire";
 import { Router } from "express";
 import { SIGNAL_REGISTRY } from "../../../config/signal-registry";
 import { selectCandlesBy } from "../../outbound/persistence/schema/candles-schema";
-import { selectOrderBookBy } from "../../outbound/persistence/schema/order-book.schema";
 import { selectTickerBy } from "../../outbound/persistence/schema/ticker24h.schema";
 import { selectTradesBy } from "../../outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../../outbound/persistence/signal-store";
@@ -13,16 +12,10 @@ import { MAX_SIGNALS_PER_ANSWER, SCRAPER_API } from "./api-routes";
 
 /**
  * 200 with the rows as JSON. `toJsonWire` sends BIGINT trade ids as decimal
- * strings (plain JSON.stringify throws on a bigint) and order book levels
- * (Sets) as arrays (plain JSON.stringify turns them into `{}`).
+ * strings (plain JSON.stringify throws on a bigint).
  */
 async function rows(query: Promise<unknown>) {
 	return sendResponse(JSON.stringify(await query, toJsonWire), HTTP_STATUS.OK);
-}
-
-/** Order book lookups answer `null` for an unknown key and may hold gaps. */
-function orderBooks(query: Promise<readonly unknown[] | null>) {
-	return rows(query.then((books) => (books ?? []).filter(Boolean)));
 }
 
 function _registerTradeRoutes(router: Router): void {
@@ -61,21 +54,6 @@ function _registerCandleRoutes(router: Router): void {
 	);
 }
 
-function _registerOrderBookRoutes(router: Router): void {
-	mountRoute(router, SCRAPER_API.orderBooksBySource, ({ params }) =>
-		orderBooks(selectOrderBookBy.source(params.source))
-	);
-	mountRoute(router, SCRAPER_API.orderBooksBySymbol, ({ params }) =>
-		orderBooks(selectOrderBookBy.symbol(params.symbol))
-	);
-	mountRoute(router, SCRAPER_API.orderBooksAfter, ({ params }) =>
-		orderBooks(selectOrderBookBy.timestamp.after(params.timestamp))
-	);
-	mountRoute(router, SCRAPER_API.orderBooksBefore, ({ params }) =>
-		orderBooks(selectOrderBookBy.timestamp.before(params.timestamp))
-	);
-}
-
 function _registerSignalRoutes(router: Router): void {
 	mountRoute(router, SCRAPER_API.assetSignals, async ({ params, query }) => {
 		const asset = SIGNAL_REGISTRY.assets.get(params.assetId);
@@ -105,14 +83,13 @@ function _registerSignalRoutes(router: Router): void {
 	});
 }
 
-/** Create an Express Router with all financial-data query endpoints (trades, tickers, candles, order books, signals). */
+/** Create an Express Router with all financial-data query endpoints (trades, tickers, candles, signals). */
 export const FINANCIAL_ROUTES = (): Router => {
 	const router = Router();
 
 	_registerTradeRoutes(router);
 	_registerTickerRoutes(router);
 	_registerCandleRoutes(router);
-	_registerOrderBookRoutes(router);
 	_registerSignalRoutes(router);
 
 	return router;

@@ -31,10 +31,6 @@ are reached under the service prefix `financial-scraper` of the gateway API (v1)
 | `/candles/sources/:source`               | candles of a source                               | source                                      |
 | `/candles/symbols/:symbol`               | candles of a symbol                               | symbol                                      |
 | `/candles/timestamp/:timestamp`          | candles opened **after** this instant             | ISO date or date-time                       |
-| `/orderbook/sources/:source`             | order book snapshots of a source                  | source                                      |
-| `/orderbook/symbols/:symbol`             | order book snapshots of a symbol                  | symbol                                      |
-| `/orderbook/after/timestamp/:timestamp`  | snapshots after this instant                      | epoch milliseconds                          |
-| `/orderbook/before/timestamp/:timestamp` | snapshots before this instant                     | epoch milliseconds                          |
 
 Queries are not paginated: a symbol or source query returns every stored row.
 The signals route is described in [Signals](#signals-adr-0036).
@@ -61,38 +57,22 @@ Tickers carry `open`, `high`, `low`, `last`, `volume`, `timestamp` and
 `closeTimestamp`; candles carry `interval`, `open`, `high`, `low`, `close`,
 `volume`, `trades` (absent when unknown), `timestamp` and `closeTimestamp`.
 
-Order books are in-memory snapshots (lost on restart), timestamped in epoch
-milliseconds. Each process keeps only the newest 60 snapshots per symbol
-(`MAX_ORDER_BOOKS_PER_SYMBOL`, one hour at the 1 per minute scrape): older ones
-are evicted, so the collector's memory stays bounded (issue #554). The store is
-local to the process that scrapes: in K8s only the `financial-scraper-collector`
-pod scrapes and the HTTP replicas never do, so these routes answer `[]` there.
-The trainer gets order books from the bus, not from these routes:
-
-```json
-[
-  {
-    "symbol": "BTCUSDT",
-    "market": "crypto",
-    "source": "binance",
-    "timestamp": 1705315200000,
-    "bids": [{ "price": 50000.0, "quantity": 1.5 }],
-    "asks": [{ "price": 50010.0, "quantity": 0.8 }]
-  }
-]
-```
+Order books have no route (ADR-0053): the collector writes each snapshot to
+`market_order_books` for historical replay and publishes it on the bus, where
+the trainer reads it. No process keeps them in memory.
 
 ## MySQL Tables
 
 All tables live in the `financial_scraper` database (configurable via `DB_NAME` env var). The ORM is `ts-sql-query` with a custom `DBConnection` wrapper.
 
-Three tables store market data:
+Four tables store market data:
 
 | Table              | Content                   |
 | ------------------ | ------------------------- |
 | `market_candles`   | OHLCV candle data         |
 | `market_trades`    | Individual trade data     |
 | `market_tickers`   | 24-hour ticker statistics |
+| `market_order_books` | Order book depth snapshots (migration 008, ADR-0053): `bids` / `asks` as JSON `[price, quantity]` pairs, best first; no API route reads them |
 
 `market_publish_cursors` holds the candle publish backlog (see below) and
 `signals` (migration 006) the signals of every dimension ([Signals](#signals-adr-0036)).
@@ -259,7 +239,7 @@ dimensions and metrics: nothing changes here (ADR-0036, decision 14).
 
 ```
 HTTP Server
-  ├── Financial routes (/trade/*, /ticker/*, /candles/*, /orderbook/*, /signals/assets/*)
+  ├── Financial routes (/trade/*, /ticker/*, /candles/*, /signals/assets/*)
   ├── AddressManager routes (ping)
   └── MessageManager routes (callback)
 

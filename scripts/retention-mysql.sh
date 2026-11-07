@@ -45,6 +45,7 @@ TARGETS=(
   "market_candles timestamp ${RETENTION_DAYS}"
   "market_trades timestamp ${RETENTION_DAYS}"
   "market_tickers timestamp ${RETENTION_DAYS}"
+  "market_order_books timestamp ${RETENTION_DAYS}"
   "signals observed_at ${RETENTION_SIGNALS_DAYS}"
 )
 
