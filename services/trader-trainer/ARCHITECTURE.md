@@ -455,11 +455,11 @@ GA meta-parameters (population size, elitism fraction, episodes per individual, 
 
 All genome operations produce **new frozen objects** using `deepFreeze`. This eliminates mutation bugs and enables safe concurrent evaluation across the population.
 
-### 6. Pooled Parallel Evaluation
+### 6. Sequential Evaluation
 
-Genomes are evaluated concurrently with a configurable concurrency cap (`evalConcurrency`, default 4). Each genome creates its own `RLBackend` (TradingAgent), runs Q-learning training, then evaluates on validation data.
+Genomes are evaluated sequentially on the training worker thread (CPU-bound, no parallelism). Each genome creates its own `RLBackend` (TradingAgent), runs Q-learning training, then evaluates on validation data.
 
-**File**: `ga-runner.ts` (`pooledEval`)
+**File**: `ga-runner.ts` (`sequentialEval`)
 
 ---
 

@@ -121,7 +121,6 @@ export class TrainingSession {
 				initialControl.seeding.networkSeed,
 				{ observePosition: this._settings.observePosition ?? true }
 			),
-			evalConcurrency: 4,
 			initialControl,
 			onGeneration,
 			telemetry: this._telemetry,
