@@ -31,7 +31,14 @@ const workerRunner = createWorkerRunner({
 		__dirname,
 		"../../../src/adapters/outbound/training-worker/training-worker.ts"
 	),
-	options: { execArgv: ["-r", "ts-node/register/transpile-only"] },
+	options: {
+		execArgv: [
+			"-r",
+			"ts-node/register/transpile-only",
+			"-r",
+			path.join(__dirname, "../../support/resolve-workspace-src.cjs"),
+		],
+	},
 });
 
 function makeTrainer(runner: typeof runInProcess, telemetry?: object): Trainer {
