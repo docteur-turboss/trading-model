@@ -68,6 +68,11 @@ spec:
           protocol: TCP
         - port: 3000
           protocol: TCP
+        - port: 6379 # kept one release: rollback to N-1 still reads Redis (expand/contract, ADR-0040)
+          protocol: TCP
+        # Sentinels (REDIS_SENTINELS).
+        - port: 26379
+          protocol: TCP
     # Anchor store of the audit chain (ADR-0027): S3 over HTTPS.
     - to:
         - ipBlock:

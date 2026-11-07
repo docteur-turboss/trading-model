@@ -13,7 +13,7 @@ The project owner chose (issue #506, 2026-11-06): ACL users per service (option 
 
 ## Decision
 
-1. **Address cache in process.** address-manager keeps its service and circuit state in memory per pod (`RedisServiceCache`, `RedisCircuitStateStore` and the scanner are gone). audit-logger, financial-scraper and trader-trainer no longer have `REDIS_*` nor egress to 6379/26379. Each pod sees its own view of addresses; they converge through discovery.
+1. **Address cache in process.** address-manager keeps its service and circuit state in memory per pod (`RedisServiceCache`, `RedisCircuitStateStore` and the scanner are gone). audit-logger, financial-scraper and trader-trainer no longer have `REDIS_*`. Their NetworkPolicy keeps egress to 6379/26379 for one release: the deploy rollback puts the N-1 pods back, which still read Redis (expand/contract, ADR-0040); remove it in the next release. Each pod sees its own view of addresses; they converge through discovery.
 2. **DLQ rate limiter in memory.** `express-rate-limit` default store: the limit holds per pod, not globally (accepted trade-off). `rate-limit-redis` is removed. dlq-service still uses Redis for its `dlq:queue` list (a re-seedable cache of the MongoDB entries, degraded mode without it), so it keeps a user.
 3. **One ACL user per remaining service**, created by `deploy/k8s/infra/redis-ha.sh` on every node from the Secret `trading-model-secrets`: `-@all`, the key pattern of the service only and the commands it needs (table in `databases.md`). The `default` user is off. A key outside the pattern or a command outside the list is refused (`NOPERM`).
    - `discovery` → `trading-model:discovery:*`; `message-manager` → `trading-model:message-manager:*`; `dlq-service` → `dlq:queue`.
