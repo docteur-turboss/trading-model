@@ -1,7 +1,10 @@
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
-import type { ProxyDeps } from "../../src/application/ports";
+import {
+	type ProxyDeps,
+	UpstreamResponseTooLargeError,
+} from "../../src/application/ports";
 import {
 	proxyAndCache,
 	tryServeFromCache,
@@ -56,6 +59,20 @@ describe("proxyAndCache", () => {
 			d
 		);
 		expect(res.status).toBe(503);
+	});
+
+	it("answers 502 when the upstream answer is too large", async () => {
+		const d = deps();
+		d.forward.mockRejectedValue(new UpstreamResponseTooLargeError(8));
+		const res = await proxyAndCache(
+			{ method: "GET", headers: {} } as Request,
+			TARGET,
+			CTX,
+			d
+		);
+		expect(res.status).toBe(HTTP_STATUS.BAD_GATEWAY);
+		expect(res.data).toEqual({ error: "Upstream response too large" });
+		expect(d.cache.set).not.toHaveBeenCalled();
 	});
 });
 

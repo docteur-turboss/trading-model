@@ -16,7 +16,11 @@ import {
 	ACTIVE_REQUESTS,
 	PROXY_REQUEST_DURATION_SECONDS,
 } from "../infrastructure/config/metrics";
-import type { ProxyDeps, ResponseCachePort } from "./ports";
+import {
+	type ProxyDeps,
+	type ResponseCachePort,
+	UpstreamResponseTooLargeError,
+} from "./ports";
 
 interface ProxyContext {
 	serviceName: ServiceId;
@@ -43,13 +47,29 @@ export async function proxyAndCache(
 		);
 		return sendResponse(parsedBody ?? result.body, result.status);
 	} catch (err: unknown) {
+		const tooLarge = err instanceof UpstreamResponseTooLargeError;
 		PROXY_REQUEST_DURATION_SECONDS.observe(
 			{
 				service: ctx.serviceName,
-				status: String(HTTP_STATUS.SERVICE_UNAVAILABLE),
+				status: String(
+					tooLarge ? HTTP_STATUS.BAD_GATEWAY : HTTP_STATUS.SERVICE_UNAVAILABLE
+				),
 			},
 			(performance.now() - start) / 1000
 		);
+		if (tooLarge) {
+			logger.warn("Upstream response too large", {
+				context: {
+					serviceName: ctx.serviceName,
+					path: ctx.path,
+					maxBytes: err.maxBytes,
+				},
+			});
+			return sendResponse(
+				{ error: "Upstream response too large" },
+				HTTP_STATUS.BAD_GATEWAY
+			);
+		}
 		return buildProxyErrorResponse(err, ctx, target);
 	} finally {
 		ACTIVE_REQUESTS.dec();

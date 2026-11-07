@@ -3,6 +3,7 @@ import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { HostPort } from "@trading-model/primitives/service-identity";
+import { UpstreamResponseTooLargeError } from "../../application/ports";
 import { ENV } from "../../infrastructure/config/env";
 import type { ProxyRequestOptions } from "./proxy-options-builder";
 import { buildProxyOptions } from "./proxy-options-builder";
@@ -23,7 +24,23 @@ export function forwardRequest(
 			_withBodyLength(buildProxyOptions(opts), payload),
 			(proxyRes) => {
 				const chunks: Buffer[] = [];
-				proxyRes.on("data", (chunk: Buffer) => chunks.push(chunk));
+				let bytes = 0;
+				// A destroyed or reset upstream answer errors here: unhandled, it
+				// would crash the gateway.
+				proxyRes.on("error", reject);
+				proxyRes.on("data", (chunk: Buffer) => {
+					bytes += chunk.length;
+					if (bytes > ENV.PROXY_MAX_RESPONSE_BYTES) {
+						// Cut the upstream answer: buffered, then parsed, it would take
+						// several times its size in memory (ADR-0053).
+						proxyRes.destroy();
+						reject(
+							new UpstreamResponseTooLargeError(ENV.PROXY_MAX_RESPONSE_BYTES)
+						);
+						return;
+					}
+					chunks.push(chunk);
+				});
 				proxyRes.on("end", () =>
 					resolve({
 						status: (proxyRes.statusCode ??

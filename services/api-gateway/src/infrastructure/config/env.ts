@@ -19,6 +19,12 @@ const API_GATEWAY_ENV_SHAPE = {
 		.transform((value) => value !== "false"),
 	AUTH_TOKENS: z.string().default(""),
 	PROXY_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+	/** Larger upstream answers are cut and answered 502 (ADR-0053). 8 MiB. */
+	PROXY_MAX_RESPONSE_BYTES: z.coerce
+		.number()
+		.int()
+		.positive()
+		.default(8 * 1024 * 1024),
 	ALLOWED_PROXY_CIDRS: z.string().default(DEFAULT_PRIVATE_CIDRS),
 } satisfies Record<string, z.ZodTypeAny>;
 

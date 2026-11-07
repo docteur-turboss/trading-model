@@ -9,6 +9,17 @@ export type ForwardRequestPort = (opts: {
 	path: string;
 }) => Promise<{ status: HttpStatusCode; body: string }>;
 
+/**
+ * The upstream answer passed PROXY_MAX_RESPONSE_BYTES: the forward port cut
+ * it rather than hold it in memory (ADR-0053). The dispatcher answers 502.
+ */
+export class UpstreamResponseTooLargeError extends Error {
+	constructor(readonly maxBytes: number) {
+		super(`Upstream response larger than ${maxBytes} bytes`);
+		this.name = "UpstreamResponseTooLargeError";
+	}
+}
+
 /** Short-lived cache of successful GET answers, keyed by method + path + query. */
 export interface ResponseCachePort {
 	get(key: string): { data: unknown; status: HttpStatusCode } | undefined;

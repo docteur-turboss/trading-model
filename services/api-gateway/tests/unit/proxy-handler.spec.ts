@@ -4,6 +4,7 @@ import { createReq } from "../helpers/express";
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		PROXY_TIMEOUT_MS: 10000,
+		PROXY_MAX_RESPONSE_BYTES: 16,
 	},
 }));
 
@@ -485,5 +486,59 @@ describe("proxy-handler", () => {
 
 		expect(sentHeaders["content-length"]).toBeUndefined();
 		expect(mockReq.write).not.toHaveBeenCalled();
+	});
+
+	it("should cut an upstream answer past PROXY_MAX_RESPONSE_BYTES", async () => {
+		const { mockRes, mockReq, events } = createMockResponse(200, "");
+		mockRes.destroy = jest.fn();
+		const https = require("node:https");
+		https.request = createMockHttps(
+			(_opts: any, callback: (res: any) => void) => {
+				callback(mockRes);
+				// 10 + 10 bytes: the second chunk passes the 16-byte cap.
+				for (const h of events.data ?? []) {
+					h(Buffer.from("[111111111"));
+					h(Buffer.from(",222222222"));
+				}
+				for (const h of events.end ?? []) {
+					h();
+				}
+				return mockReq;
+			}
+		);
+
+		const { forwardRequest: forward } = await Promise.resolve(
+			require("../../src/adapters/outbound/proxy-handler")
+		);
+		const {
+			UpstreamResponseTooLargeError,
+		} = require("../../src/application/ports");
+		const req = createReq({ method: "GET" });
+		await expect(
+			forward({ req, target: MOCK_TARGET, path: "/test" })
+		).rejects.toBeInstanceOf(UpstreamResponseTooLargeError);
+		expect(mockRes.destroy).toHaveBeenCalled();
+	});
+
+	it("should reject when the upstream answer errors mid-body", async () => {
+		const { mockRes, mockReq, events } = createMockResponse(200, "");
+		const https = require("node:https");
+		https.request = createMockHttps(
+			(_opts: any, callback: (res: any) => void) => {
+				callback(mockRes);
+				for (const h of events.error ?? []) {
+					h(new Error("aborted"));
+				}
+				return mockReq;
+			}
+		);
+
+		const { forwardRequest: forward } = await Promise.resolve(
+			require("../../src/adapters/outbound/proxy-handler")
+		);
+		const req = createReq({ method: "GET" });
+		await expect(
+			forward({ req, target: MOCK_TARGET, path: "/test" })
+		).rejects.toThrow("aborted");
 	});
 });
