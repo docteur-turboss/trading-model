@@ -21,7 +21,7 @@
     },
     "packages/address-manager": {
       "name": "@trading-model/address-manager",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "dependencies": {
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
@@ -49,7 +49,7 @@
     },
     "packages/broker-message": {
       "name": "@trading-model/broker-message",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "dependencies": {
         "@opentelemetry/api": "^1.10.0",
         "@trading-model/address-manager": "*",
@@ -74,7 +74,7 @@
     },
     "packages/common": {
       "name": "@trading-model/common",
-      "version": "1.2.1",
+      "version": "1.3.0",
       "dependencies": {
         "@trading-model/contracts": "*",
         "@trading-model/primitives": "*",
@@ -238,8 +238,9 @@
     },
     "services/api-gateway": {
       "name": "api-gateway",
-      "version": "1.0.0",
+      "version": "2.0.3",
       "dependencies": {
+        "@trading-model/address-manager": "*",
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
         "@trading-model/crypto": "*",
@@ -265,7 +266,7 @@
     },
     "services/audit-logger": {
       "name": "audit-logger",
-      "version": "1.0.0",
+      "version": "2.0.3",
       "bin": {
         "audit-chain": "./dist/application/chain-cli.js",
       },
@@ -298,7 +299,7 @@
     },
     "services/discovery-server": {
       "name": "discovery-server",
-      "version": "1.1.1",
+      "version": "2.0.3",
       "dependencies": {
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
@@ -327,7 +328,7 @@
     },
     "services/dlq-service": {
       "name": "dlq-service",
-      "version": "2.0.0",
+      "version": "2.0.3",
       "dependencies": {
         "@opentelemetry/api": "^1.10.0",
         "@trading-model/address-manager": "^1.2.0",
@@ -362,7 +363,7 @@
     },
     "services/financial-scraper": {
       "name": "financial-scraper",
-      "version": "1.2.1",
+      "version": "2.0.3",
       "dependencies": {
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
@@ -396,7 +397,7 @@
     },
     "services/message-manager": {
       "name": "message-manager",
-      "version": "1.1.1",
+      "version": "2.0.3",
       "dependencies": {
         "@opentelemetry/api": "^1.10.0",
         "@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
@@ -434,7 +435,7 @@
     },
     "services/trader-trainer": {
       "name": "trader-service",
-      "version": "1.4.0",
+      "version": "2.0.3",
       "dependencies": {
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
