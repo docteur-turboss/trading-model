@@ -12,12 +12,11 @@ import type { ServiceId } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
-import { forwardRequest } from "../adapters/outbound/proxy-handler";
-import type { ResponseCache } from "../infrastructure/cache";
 import {
 	ACTIVE_REQUESTS,
 	PROXY_REQUEST_DURATION_SECONDS,
 } from "../infrastructure/config/metrics";
+import type { ProxyDeps, ResponseCachePort } from "./ports";
 
 interface ProxyContext {
 	serviceName: ServiceId;
@@ -30,12 +29,12 @@ export async function proxyAndCache(
 	req: Request,
 	target: ResolvedEndpoint,
 	ctx: ProxyContext,
-	cache: ResponseCache
+	{ forward, cache }: ProxyDeps
 ): Promise<ResponseObject> {
 	const start = performance.now();
 	ACTIVE_REQUESTS.inc();
 	try {
-		const result = await forwardRequest({ req, target, path: ctx.path });
+		const result = await forward({ req, target, path: ctx.path });
 		const parsedBody = tryParseJson(result.body);
 		tryCacheResponse(req, ctx, result, parsedBody, cache);
 		PROXY_REQUEST_DURATION_SECONDS.observe(
@@ -62,7 +61,7 @@ function tryCacheResponse(
 	ctx: ProxyContext,
 	result: { status: number; body: string },
 	parsed: unknown,
-	cache: ResponseCache
+	cache: ResponseCachePort
 ): void {
 	// A signed answer (DLQ) is for its signer only: cached, it would be served
 	// to any caller of the same URL.
@@ -112,7 +111,7 @@ function tryParseJson(raw: string): unknown | null {
 export function tryServeFromCache(
 	method: string,
 	cacheKey: string,
-	cache: ResponseCache
+	cache: ResponseCachePort
 ): ResponseObject | null {
 	if (method !== "GET") {
 		return null;
