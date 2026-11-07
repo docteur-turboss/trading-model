@@ -168,6 +168,22 @@ jobs:
         run: bun run test:e2e -- market-data-flow
       - name: Other E2E suites
         run: bun run test:e2e -- --testPathIgnorePatterns market-data-flow resilience
+      # 30 s k6 smoke through the edge-proxy against the three public routes
+      # (SLO thresholds, key of the E2E overlay); runs before the resilience restarts.
+      - name: k6 smoke (public API via edge-proxy)
+        run: >-
+          mkdir -p k6-out && docker run --rm --network host --user "$(id -u):$(id -g)"
+          -v "$PWD/tests/load:/load:ro" -v "$PWD/k6-out:/out"
+          -e API_KEY=e2e-api-key
+          grafana/k6:1.4.0@sha256:6a3ee54ac0e9ff5527923f6295257453dd88012f32f40dadf0eb1b638cbb21c7
+          run --summary-export /out/k6-summary.json /load/k6/smoke-test.js
+      - name: Archive the k6 summary
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: k6-summary
+          path: k6-out/k6-summary.json
+          if-no-files-found: warn
       # Last: restarts message-manager and discovery to check the mesh heals.
       - name: Resilience (service restarts)
         run: bun run test:e2e -- resilience
