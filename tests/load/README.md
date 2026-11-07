@@ -20,6 +20,30 @@ k6 run -e API_KEY=e2e-api-key tests/load/scenarios/candles.js  # 2 min ramp to 2
 
 Tear the stack down afterwards: `docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml down -v`.
 
+## Rate limit (429)
+
+The gateway limits each IP (`RATE_LIMIT_MAX` per minute, default 100). The E2E overlay sets 2 000: enough for the smoke only (2 VUs, ~240 req/min). Beyond that the gateway answers 429, the `status == 200` checks fail and the run measures the limiter, not the latency.
+
+| Script                              | Rate (one IP)                          | Needs `RATE_LIMIT_MAX` |
+| ----------------------------------- | -------------------------------------- | ---------------------- |
+| `k6/smoke-test.js`                  | ~240 req/min                           | 2 000 (overlay as is)  |
+| `scenarios/*.js`                    | 25 VUs, `sleep(0.5)`: ~50 req/s = ~3 000 req/min | 5 000 |
+| `k6/stress-test.js`                 | 100 VUs, no sleep: bounded by latency, thousands of req/s | 1 000 000 (effectively off) |
+
+For the scenarios and the stress test, raise the limit with an extra compose file (the overlay value is not changed, CI keeps 2 000):
+
+```yaml
+# rate-limit-load.yml
+services:
+  api-gateway:
+    environment:
+      RATE_LIMIT_MAX: '1000000'
+```
+
+```bash
+docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f rate-limit-load.yml up -d --build --wait ...
+```
+
 ## Scripts
 
 | Script                           | Route (all `GET`)                                | Thresholds |
