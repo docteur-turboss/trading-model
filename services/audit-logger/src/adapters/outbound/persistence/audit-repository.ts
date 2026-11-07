@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { agentError } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type { MongoRepository } from "@trading-model/persistence/mongo-repository.interface";
@@ -71,6 +72,18 @@ const COLLECTION = "audit_events";
 /** Attempts when another writer takes the next chain sequence first. */
 const MAX_CHAIN_ATTEMPTS = 5;
 const DUPLICATE_KEY = 11000;
+const LEASE_COLLECTION = "audit_chain_lease";
+const LEASE_ID = "head";
+/** A holder that dies mid-append blocks the others at most this long. */
+const LEASE_TTL_MS = 10_000;
+const LEASE_WAIT_MS = 30_000;
+const LEASE_POLL_MS = 20;
+
+interface LeaseDocument {
+	_id: string;
+	owner: string;
+	expiresAt: Date;
+}
 /**
  * Stores the event exactly as computeAuditHash saw it: JSON.stringify skips
  * undefined fields, the driver would store them as null and the dataHash of
@@ -91,12 +104,14 @@ export class AuditRepository
 	implements MongoRepository<AuditEventDocument, AuditEventQuery>
 {
 	private readonly _collection: Collection<AuditEventDocument>;
+	private readonly _lease: Collection<LeaseDocument>;
 	private readonly _querier: AuditQuerier;
 	/** Inserts of this instance run one at a time: each extends the chain tail. */
 	private _writes: Promise<unknown> = Promise.resolve();
 
 	constructor(db: Db) {
 		this._collection = db.collection<AuditEventDocument>(COLLECTION);
+		this._lease = db.collection<LeaseDocument>(LEASE_COLLECTION);
 		this._querier = new AuditQuerier(this._collection);
 	}
 
@@ -153,7 +168,57 @@ export class AuditRepository
 		return write;
 	}
 
-	private async _appendToChain(event: AuditEventDocument): Promise<void> {
+	/**
+	 * Single writer on the chain head (ADR-0046): one replica at a time holds
+	 * the lease while it appends. Waits for it, bounded by LEASE_WAIT_MS.
+	 */
+	private async _withLease(work: () => Promise<void>): Promise<void> {
+		const owner = randomUUID();
+		const deadline = Date.now() + LEASE_WAIT_MS;
+		while (!(await this._tryAcquire(owner))) {
+			if (Date.now() > deadline) {
+				throw agentError("Audit chain lease not acquired in time");
+			}
+			await new Promise((resolve) =>
+				setTimeout(resolve, LEASE_POLL_MS * (1 + Math.random()))
+			);
+		}
+		try {
+			await work();
+		} finally {
+			// An expired lease is simply taken over, so a failed release only delays others.
+			await this._lease.updateOne(
+				{ _id: LEASE_ID, owner },
+				{ $set: { expiresAt: new Date(0) } }
+			);
+		}
+	}
+
+	private async _tryAcquire(owner: string): Promise<boolean> {
+		const now = new Date();
+		try {
+			// A held lease matches no filter, so the upsert hits the _id index.
+			await this._lease.updateOne(
+				{ _id: LEASE_ID, expiresAt: { $lte: now } },
+				{ $set: { owner, expiresAt: new Date(now.getTime() + LEASE_TTL_MS) } },
+				{ upsert: true }
+			);
+			return true;
+		} catch (err) {
+			if ((err as { code?: number })?.code === DUPLICATE_KEY) {
+				return false;
+			}
+			throw agentError("Failed to acquire the audit chain lease", {
+				cause: err,
+			});
+		}
+	}
+
+	private _appendToChain(event: AuditEventDocument): Promise<void> {
+		return this._withLease(() => this._appendUnderLease(event));
+	}
+
+	private async _appendUnderLease(event: AuditEventDocument): Promise<void> {
 		for (let attempt = 1; ; attempt++) {
 			try {
 				const tail = await this.findLastHash();

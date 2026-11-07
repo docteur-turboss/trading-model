@@ -58,8 +58,9 @@ describe("audit chain contention between writers (issue #496)", () => {
 			console.info(
 				`MEASURE writers=${n} events=${n * PER_WRITER} stored=${stored} failed=${failed} retries=${retries} exhausted=${exhausted} ms=${ms} eps=${Math.round((stored * 1000) / ms)}`
 			);
-			expect(failed).toBe(exhausted);
-			expect(stored).toBe(n * PER_WRITER - failed);
+			expect(failed).toBe(0);
+			expect(exhausted).toBe(0);
+			expect(stored).toBe(n * PER_WRITER);
 		},
 		120000
 	);
