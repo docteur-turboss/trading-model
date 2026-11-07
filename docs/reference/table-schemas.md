@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS `market_candles` (
     `timestamp`        DATETIME(3) NOT NULL,
     `close_timestamp`  DATETIME(3) NOT NULL,
     PRIMARY KEY (`id`, `symbol`, `market`, `interval_value`, `timestamp`, `source`),
-    INDEX `idx_candles_timestamp` (`timestamp` ASC) INVISIBLE,
+    INDEX `idx_candles_timestamp` (`timestamp` ASC),
     INDEX `idx_candles_symbol` (`symbol` ASC) VISIBLE
 ) ENGINE = InnoDB;
 ```
@@ -92,7 +92,7 @@ CREATE TABLE `market_trades` (
     `side`        ENUM('buy', 'sell') NOT NULL,
     `timestamp`   DATETIME(3) NOT NULL,
     PRIMARY KEY (`symbol`, `market`, `source`, `trade_id`, `timestamp`),
-    INDEX `idx_trades_timestamp` (`timestamp` ASC) INVISIBLE,
+    INDEX `idx_trades_timestamp` (`timestamp` ASC),
     INDEX `idx_trades_symbol` (`symbol` ASC) VISIBLE
 ) ENGINE=InnoDB;
 ```
@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS `market_tickers` (
     `timestamp`        DATETIME(3) NOT NULL,
     `close_time`       DATETIME(3) NOT NULL,
     PRIMARY KEY (`id`, `symbol`, `market`, `timestamp`, `source`),
-    INDEX `idx_tickers_timestamp` (`timestamp` ASC) INVISIBLE,
+    INDEX `idx_tickers_timestamp` (`timestamp` ASC),
     INDEX `idx_tickers_symbol` (`symbol` ASC) VISIBLE
 ) ENGINE = InnoDB;
 ```
@@ -205,7 +205,7 @@ interface BaseMarketData {
 
 ## Index Conventions
 
-- All tables have an `INVISIBLE` index on `timestamp` — tracked by the optimizer but not used unless explicitly hinted
+- All tables have a visible index on `timestamp` (`INVISIBLE` until migration `007_make_timestamp_indexes_visible`), so `timestamp` range queries use it
 - All tables have a `VISIBLE` index on `symbol` — the primary query path for market data lookups
 
 ## Entity Types Not Yet Persisted
