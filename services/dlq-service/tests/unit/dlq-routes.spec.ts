@@ -11,10 +11,6 @@ jest.mock("express-rate-limit", () => {
 	};
 });
 
-jest.mock("rate-limit-redis", () => {
-	return jest.fn();
-});
-
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: jest.fn(),
 }));

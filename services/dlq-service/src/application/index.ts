@@ -7,7 +7,6 @@ import {
 	initializeTelemetry,
 	shutdownTelemetry,
 } from "@trading-model/server-utils/infrastructure/telemetry";
-import { closeRedisClient } from "../adapters/inbound/routes";
 import { AddressManager } from "../config/address-manager";
 import { closeDb, getDb, resetDbState } from "../config/db";
 import {
@@ -61,7 +60,6 @@ function _onStart(): void {
 async function _onStop(): Promise<void> {
 	await shutdownTelemetry();
 	await shutdownSchedulers();
-	await closeRedisClient();
 	try {
 		await closeDb();
 	} catch (err) {

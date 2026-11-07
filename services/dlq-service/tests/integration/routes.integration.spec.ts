@@ -30,8 +30,6 @@ jest.mock("express-rate-limit", () => {
 	};
 });
 
-jest.mock("rate-limit-redis", () => jest.fn());
-
 jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 	_createReplayLimiter:
 		() => (_req: unknown, _res: unknown, next: () => void) =>
@@ -41,7 +39,7 @@ jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 	_createHealthLimiter:
 		() => (_req: unknown, _res: unknown, next: () => void) =>
 			next(),
-	closeRedisClient: jest.fn(),
+	closeRateLimiters: jest.fn(),
 }));
 
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({

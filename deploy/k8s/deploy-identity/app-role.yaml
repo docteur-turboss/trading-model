@@ -27,6 +27,10 @@ rules:
   - apiGroups: [apps]
     resources: [replicasets]
     verbs: [get, list, watch]
+  # StatefulSet revisions: `rollout undo statefulset` and deploy-release.sh record.
+  - apiGroups: [apps]
+    resources: [controllerrevisions]
+    verbs: [get, list, watch]
   - apiGroups: [apps]
     resources: [deployments/scale]
     verbs: [get, update, patch]

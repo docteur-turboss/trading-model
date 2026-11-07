@@ -45,7 +45,7 @@ jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
 
 jest.mock("../../src/adapters/outbound/redis-instance-store", () => ({
 	RedisInstanceStore: jest.fn().mockImplementation(() => ({
-		deps: { redis: mockRedisClient, keyPrefix: "trading-model:discovery" },
+		deps: { redis: mockRedisClient, keyPrefix: "trading-model:discovery:" },
 	})),
 }));
 

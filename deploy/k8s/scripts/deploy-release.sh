@@ -27,6 +27,10 @@ set -euo pipefail
 DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
   api-gateway audit-logger dlq-service edge-proxy"
 
+# Redis and its sentinels: the services' credentials (ADR-0047) only work
+# against the nodes of their own release, so these roll out and back too.
+STATEFULSETS="redis redis-sentinel"
+
 usage() {
 	echo "usage: $0 record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | wait <ns> [timeout] | rollback <ns> <file>" >&2
 	exit 64
@@ -36,12 +40,21 @@ usage() {
 # exactly it (image and hashed ConfigMap), not to "the one before the
 # current", which is older than N for a Deployment the overlay left as is.
 record() {
-	local ns="$1" file="$2" dep rev
-	for dep in $DEPLOYMENTS; do
-		rev=$(kubectl get deployment "$dep" -n "$ns" --ignore-not-found \
-			-o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}')
-		echo "$dep ${rev:-none}"
-	done | tee "$file"
+	local ns="$1" file="$2" dep rev sts cr
+	{
+		for sts in $STATEFULSETS; do
+			cr=$(kubectl get statefulset "$sts" -n "$ns" --ignore-not-found \
+				-o jsonpath='{.status.currentRevision}')
+			rev=""
+			[ -z "$cr" ] || rev=$(kubectl get controllerrevision "$cr" -n "$ns" -o jsonpath='{.revision}')
+			echo "statefulset/$sts ${rev:-none}"
+		done
+		for dep in $DEPLOYMENTS; do
+			rev=$(kubectl get deployment "$dep" -n "$ns" --ignore-not-found \
+				-o jsonpath='{.metadata.annotations.deployment\.kubernetes\.io/revision}')
+			echo "$dep ${rev:-none}"
+		done
+	} | tee "$file"
 }
 
 # Deployments driven by an HPA carry no spec.replicas in the overlay. A
@@ -103,6 +116,15 @@ wait_rollout() {
 		echo "deploy-release.sh: timeout must be in seconds (e.g. 180s), got $2" >&2
 		return 64
 	}
+	# Redis first: a service that starts before its nodes accept its ACL user
+	# only fails its readiness and burns its own timeout.
+	for dep in $STATEFULSETS; do
+		echo "Waiting for rollout of $dep (${base}s)..."
+		if ! kubectl rollout status "statefulset/$dep" -n "$ns" --timeout="${base}s"; then
+			echo "::error::Rollout of $dep failed or timed out"
+			return 1
+		fi
+	done
 	for dep in $DEPLOYMENTS; do
 		grace=$(kubectl get deployment "$dep" -n "$ns" \
 			-o jsonpath='{.spec.template.spec.terminationGracePeriodSeconds}')
@@ -117,19 +139,21 @@ wait_rollout() {
 # Back to the revision recorded before the overlay: its pod template names
 # the image digest and the hashed ConfigMaps of release N, which are still in
 # the namespace (never pruned), so configuration comes back with the image
-# (issue #410). Only Deployments are rolled back: docs/deployment/DEPLOY.md
-# lists what is not. Every deployment is tried: one without a previous
+# (issue #410). Only Deployments and the Redis StatefulSets (first in the
+# file) are rolled back: docs/deployment/DEPLOY.md lists what is not. Every deployment is tried: one without a previous
 # revision (first deploy) must not leave the others on the failed release.
 rollback() {
-	local ns="$1" file="$2" dep rev failed=0
+	local ns="$1" file="$2" dep rev failed=0 target
 	while read -r dep rev; do
+		target="$dep"
+		[[ $dep == */* ]] || target="deployment/$dep"
 		if [ "$rev" = none ]; then
 			echo "::error::Could not roll back $dep: it did not exist before this deploy"
 			failed=1
-		elif ! kubectl rollout undo "deployment/$dep" -n "$ns" --to-revision="$rev"; then
+		elif ! kubectl rollout undo "$target" -n "$ns" --to-revision="$rev"; then
 			echo "::error::Could not roll back $dep to revision $rev"
 			failed=1
-		elif ! kubectl rollout status "deployment/$dep" -n "$ns" --timeout=180s; then
+		elif ! kubectl rollout status "$target" -n "$ns" --timeout=180s; then
 			echo "::error::$dep did not finish rolling back to revision $rev"
 			failed=1
 		fi

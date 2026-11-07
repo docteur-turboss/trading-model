@@ -54,6 +54,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0044](./0044-singleton-trainer.md) | trader-trainer Runs as a Singleton | Accepted | 2026-11 |
 | [ADR-0045](./0045-single-service-resolution-strategy.md) | One Service Resolution Strategy: Registry Says Alive, Platform Says Where | Accepted | 2026-11 |
 | [ADR-0046](./0046-simplification-trajectory.md) | Simplification Trajectory for the Services, Broker, Discovery and DLQ | Proposed | 2026-11 |
+| [ADR-0047](./0047-redis-isolation-per-service.md) | Redis Isolated Per Service — ACL Users, In-Process Address Cache, In-Memory DLQ Rate Limiter | Accepted | 2026-11 |
 | [ADR-0048](./0048-durable-message-journal-in-redis-streams.md) | Durable Message Journal in Redis Streams — Accept First, Deliver Afterwards | Accepted | 2026-11 |
 | [ADR-0049](./0049-downstream-context-for-models-and-signals.md) | Downstream Context and Contract for Trained Models and Collected Signals | Proposed | 2026-11 |
 | [ADR-0050](./0050-audit-chain-single-writer-lease.md) | One Writer at a Time on the Audit Chain Head (Lease) | Accepted | 2026-11 |

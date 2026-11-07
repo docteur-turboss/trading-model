@@ -2,7 +2,6 @@ import { validateEnv } from "@trading-model/validation/application/services/vali
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { featureFlag } from "@trading-model/validation/config/feature-flags";
-import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
 
@@ -35,9 +34,8 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_OBSERVE_POSITION: z.stringbool().default(true),
 } satisfies Record<string, z.ZodTypeAny>;
 
-/** Redis: the address-manager cache shared by the replicas (ADR-0029). */
-const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(AddressManagerEnvSchema)
-	.extend(RedisEnvSchema.shape)
-	.extend(TRAINER_ENV_SHAPE);
+const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
+	AddressManagerEnvSchema
+).extend(TRAINER_ENV_SHAPE);
 
 export const ENV = validateEnv(TRADER_TRAINER_ENV_SCHEMA);

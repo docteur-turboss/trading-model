@@ -12,7 +12,6 @@ jest.mock("../../src/application/address-manager", () => ({
 	default: jest.fn().mockImplementation(() => MOCK_ADDRESS_MANAGER_INSTANCE),
 }));
 
-import AddressManager from "../../src/application/address-manager";
 import { createAddressManager } from "../../src/application/create-address-manager";
 
 describe("createAddressManager", () => {
@@ -43,39 +42,5 @@ describe("createAddressManager", () => {
 			DNS_NAME_MAP: { "discovery-service": "discovery-server" },
 		});
 		expect(am).toBe(MOCK_ADDRESS_MANAGER_INSTANCE);
-	});
-
-	describe("shared Redis cache", () => {
-		const configOf = () =>
-			(AddressManager as unknown as jest.Mock).mock.calls.at(-1)?.[0] as {
-				redisCache?: unknown;
-			};
-
-		it("keeps an in-memory cache when the service has no Redis", () => {
-			createAddressManager(MINIMAL_ENV);
-			expect(configOf().redisCache).toBeUndefined();
-		});
-
-		it("goes through the sentinels when REDIS_SENTINELS is set", () => {
-			createAddressManager({
-				...MINIMAL_ENV,
-				REDIS_SENTINELS: "redis-sentinel-0:26379,redis-sentinel-1:26379",
-				REDIS_SENTINEL_MASTER_NAME: "mymaster",
-			});
-			expect(configOf().redisCache).toEqual(
-				expect.objectContaining({
-					mode: "sentinel",
-					config: expect.objectContaining({ name: "mymaster" }),
-				})
-			);
-		});
-
-		it("uses REDIS_URL without sentinels", () => {
-			createAddressManager({ ...MINIMAL_ENV, REDIS_URL: "redis://redis:6379" });
-			expect(configOf().redisCache).toEqual({
-				mode: "single",
-				url: "redis://redis:6379",
-			});
-		});
 	});
 });

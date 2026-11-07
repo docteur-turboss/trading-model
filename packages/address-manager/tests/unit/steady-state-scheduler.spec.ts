@@ -5,7 +5,6 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { SteadyStateSchedulerOptions } from "../../src/application/scheduler/steady-state-scheduler";
 import { SteadyStateScheduler } from "../../src/application/scheduler/steady-state-scheduler";
-import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
 import type { ScheduledJob } from "../../src/infrastructure/scheduler/scheduler";
 
 const MOCK_SCHEDULER_INSTANCE = {
@@ -71,22 +70,6 @@ describe("SteadyStateScheduler", () => {
 		scheduler.start();
 		expect(() => scheduler.stop()).not.toThrow();
 		expect(MOCK_SCHEDULER_INSTANCE.stop).toHaveBeenCalledTimes(1);
-	});
-
-	it("should skip cache refresh when serviceCache is RedisServiceCache", () => {
-		const mod = jest.requireActual(
-			"../../src/adapters/outbound/discovery/redis-service-cache"
-		) as {
-			RedisServiceCache: new (config: { connection: string }) => IServiceCache;
-		};
-		const redisScheduler = new SteadyStateScheduler({
-			...options,
-			serviceCache: new mod.RedisServiceCache({
-				connection: "redis://localhost:6379",
-			}),
-		});
-		redisScheduler.setup();
-		expect(MOCK_SCHEDULER_INSTANCE.register).toHaveBeenCalledTimes(2);
 	});
 
 	it("token refresh job should call tokenManager.refreshToken()", async () => {
