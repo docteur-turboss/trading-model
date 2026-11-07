@@ -120,7 +120,7 @@ export class MessageManagerClient implements IMessageClient {
 	): Promise<void> {
 		try {
 			const target = await this._findService(
-				ServiceInstanceName.MessageDeliveryService
+				ServiceInstanceName.MessageManagerService
 			);
 			return await this._publishToService(target, payload, metadata);
 		} catch (error) {

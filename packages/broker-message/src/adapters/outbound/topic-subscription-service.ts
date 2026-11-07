@@ -53,7 +53,7 @@ export class TopicSubscriptionService {
 
 	private async _findMessageService(): Promise<HostPort> {
 		const target = await this._addressManagerClient.findService(
-			ServiceInstanceName.MessageDeliveryService
+			ServiceInstanceName.MessageManagerService
 		);
 		if (!target) {
 			throw serviceUnreachableError("Unable to contact the message manager");

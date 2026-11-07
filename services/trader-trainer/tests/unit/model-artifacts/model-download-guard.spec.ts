@@ -30,7 +30,7 @@ describe("MODEL_DOWNLOAD_GUARD", () => {
 
 	it("compares canonical names: a legacy name in the list still matches", async () => {
 		const guard = MODEL_DOWNLOAD_GUARD(
-			["financial-scrapper-service"],
+			["financial-scraper-service"],
 			() => "financial-scraper"
 		);
 
