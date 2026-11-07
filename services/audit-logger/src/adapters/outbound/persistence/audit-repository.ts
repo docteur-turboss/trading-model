@@ -13,7 +13,10 @@ import type {
 	Topic,
 } from "@trading-model/primitives/primitives";
 import type { Collection, Db } from "mongodb";
-import { EVENTS_STORED_TOTAL } from "../../../config/metrics";
+import {
+	CHAIN_COLLISIONS_TOTAL,
+	EVENTS_STORED_TOTAL,
+} from "../../../config/metrics";
 import { computeAuditHash } from "../../../domain/audit-chain";
 import type { DateRange } from "../../../domain/date-range";
 import { AuditQuerier } from "./audit-querier";
@@ -172,8 +175,14 @@ export class AuditRepository
 					EVENTS_STORED_TOTAL.inc({ status: "duplicate" });
 					return;
 				}
-				if (key === "chainSequence" && attempt < MAX_CHAIN_ATTEMPTS) {
-					continue;
+				if (key === "chainSequence") {
+					const retry = attempt < MAX_CHAIN_ATTEMPTS;
+					CHAIN_COLLISIONS_TOTAL.inc({
+						outcome: retry ? "retried" : "exhausted",
+					});
+					if (retry) {
+						continue;
+					}
 				}
 				throw agentError("Failed to persist audit event", {
 					cause: err,
