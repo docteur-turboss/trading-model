@@ -98,6 +98,13 @@ spec:
               for f in bundle.pem svid.pem svid_key.pem; do
                 until [ -s "/run/spire/svid/$f" ]; do echo "waiting for /run/spire/svid/$f"; sleep 2; done
               done
+              # The ConfigMap is not hash-suffixed and Prometheus does not reread a changed
+              # config by itself: reload it, or an upgrade keeps scraping the old targets.
+              confsum() { cat /etc/prometheus/* 2>/dev/null | cksum; }
+              (last="$(confsum)"; while sleep 20; do
+                cur="$(confsum)"
+                if [ "$cur" != "$last" ] && wget -q -O /dev/null --post-data= http://localhost:9090/-/reload; then last="$cur"; fi
+              done) &
               exec /bin/prometheus \
                 --config.file=/etc/prometheus/prometheus.yml \
                 --storage.tsdb.path=/prometheus \
