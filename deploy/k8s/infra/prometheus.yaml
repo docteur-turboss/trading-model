@@ -6,6 +6,34 @@ metadata:
     app.kubernetes.io/component: prometheus
     app.kubernetes.io/part-of: trading-model
 ---
+# Pod discovery of the scrape jobs: read-only, own namespace only (issue #559).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus
+  labels:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus
+  labels:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -70,6 +98,13 @@ spec:
               for f in bundle.pem svid.pem svid_key.pem; do
                 until [ -s "/run/spire/svid/$f" ]; do echo "waiting for /run/spire/svid/$f"; sleep 2; done
               done
+              # The ConfigMap is not hash-suffixed and Prometheus does not reread a changed
+              # config by itself: reload it, or an upgrade keeps scraping the old targets.
+              confsum() { cat /etc/prometheus/* 2>/dev/null | cksum; }
+              (last="$(confsum)"; while sleep 20; do
+                cur="$(confsum)"
+                if [ "$cur" != "$last" ] && wget -q -O /dev/null --post-data= http://localhost:9090/-/reload; then last="$cur"; fi
+              done) &
               exec /bin/prometheus \
                 --config.file=/etc/prometheus/prometheus.yml \
                 --storage.tsdb.path=/prometheus \
@@ -183,8 +218,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['message-manager:3000']
+          server_name: message-manager
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: message-manager
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'discovery-server'
         scheme: https
@@ -192,8 +242,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['discovery-server:3000']
+          server_name: discovery-server
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: discovery-server
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'dlq-service'
         scheme: https
@@ -201,8 +266,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['dlq-service:3000']
+          server_name: dlq-service
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: dlq-service
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'api-gateway'
         scheme: https
@@ -210,8 +290,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['api-gateway:3000']
+          server_name: api-gateway
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: api-gateway
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'audit-logger'
         scheme: https
@@ -219,8 +314,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['audit-logger:3000']
+          server_name: audit-logger
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: audit-logger
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'financial-scraper'
         scheme: https
@@ -228,8 +338,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['financial-scraper:3000']
+          server_name: financial-scraper
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: financial-scraper
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       # The scrape cron (fs_events_published_total, fs_scrape_*) runs only here.
       - job_name: 'financial-scraper-collector'
@@ -240,8 +365,22 @@ data:
           key_file: /run/spire/svid/svid_key.pem
           # The SVID carries the ServiceAccount DNS name, shared with financial-scraper.
           server_name: financial-scraper
-        static_configs:
-          - targets: ['financial-scraper-collector:3000']
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: financial-scraper-collector
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'trader-trainer'
         scheme: https
@@ -249,8 +388,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['trader-trainer:3000']
+          server_name: trader-trainer
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: trader-trainer
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'otel-collector'
         scheme: http
@@ -423,7 +577,7 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
 
           - alert: InstanceCountLow
-            expr: max by (service) (discovery_registered_instances_per_service) < 2 and max by (service) (max_over_time(min_over_time(discovery_registered_instances_per_service[15m])[1d:5m])) >= 2
+            expr: max by (service) (discovery_registered_instances_per_service) < 2 and max_over_time(min_over_time(max by (service) (discovery_registered_instances_per_service)[15m:1m])[1d:5m]) >= 2
             for: 2m
             labels:
               severity: critical
