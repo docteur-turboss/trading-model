@@ -6,6 +6,7 @@ import type { MetricsCollector } from "../infrastructure/monitoring/metrics-coll
 import { buildAddressManagerDependencies } from "./address-manager-factory";
 import type { TokenManager } from "./client/token-manager";
 import type { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
+import { findUnderAnyName } from "./find-under-any-name";
 import type { LifecycleManager } from "./lifecycle-manager";
 
 export default class AddressManager {
@@ -33,6 +34,10 @@ export default class AddressManager {
 	}
 
 	findService(serviceName: ServiceInstanceName): Promise<ServiceInstance> {
-		return this.discoveryOrchestrator.findService(serviceName);
+		return findUnderAnyName(
+			(name) =>
+				this.discoveryOrchestrator.findService(name as ServiceInstanceName),
+			serviceName
+		);
 	}
 }
