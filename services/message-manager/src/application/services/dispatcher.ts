@@ -5,10 +5,9 @@
  * and dispatches published messages to all matching subscribers.
  */
 
-import { messageManagerError } from "@trading-model/common/utils/errors";
+import { messageManagerError } from "@trading-model/broker-message/shared/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { Message } from "@trading-model/contracts/message-types";
-import type { InstanceId } from "@trading-model/primitives/primitives";
 import {
 	DELIVERY_LATENCY_SECONDS,
 	IN_FLIGHT_MESSAGES,
@@ -22,7 +21,6 @@ import type {
 } from "../../domain/messaging-types";
 import type { MessageDeliveryPort } from "../ports/message-delivery-port";
 import type { SubscriptionStorePort } from "../ports/subscription-store-port";
-import { handleAck as logAck, handleNack as logNack } from "./ack-handler";
 import { SubscriptionRegistry } from "./subscription-registry";
 
 function isRejected<TValue>(
@@ -112,18 +110,6 @@ export class Dispatcher {
 				(Date.now() - start) / 1000
 			);
 		}
-	}
-
-	getBackpressureRatio(): number {
-		return 0;
-	}
-
-	handleAck(messageId: string, instanceId: InstanceId): void {
-		logAck(messageId, instanceId);
-	}
-
-	handleNack(messageId: string, instanceId: InstanceId): void {
-		logNack(messageId, instanceId);
 	}
 
 	unsubscribe(params: TopicSubscription): Promise<void> {

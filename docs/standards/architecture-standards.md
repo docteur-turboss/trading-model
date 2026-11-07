@@ -92,7 +92,7 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 
 | Service | Dependencies |
 | --- | --- |
-| api-gateway | common, contracts, crypto, http, primitives, server-utils, validation |
+| api-gateway | address-manager, common, contracts, crypto, http, primitives, server-utils, validation |
 | audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, server-utils, validation |
 | discovery-server | common, contracts, crypto, http, persistence, primitives, server-utils, validation |
 | dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |

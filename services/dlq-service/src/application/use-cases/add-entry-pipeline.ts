@@ -3,11 +3,14 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import {
+	type DlqEntry,
+	dlqRepository,
+	notifyAddAudit,
+	pushToRedisQueue,
+} from "../../config/dlq-adapters";
 import { metrics } from "../../config/metrics";
 import { handleAddEntryError } from "../../shared/dlq-error-builder";
-import { notifyAddAudit } from "../outbound/audit-notifier";
-import { pushToRedisQueue } from "../outbound/dlq-redis-pusher";
-import { type DlqEntry, dlqRepository } from "../outbound/repository";
 import { checkEntryAcceptable } from "./dlq-validator";
 
 type PostInsertStep = (id: string, data: DlqEntry) => Promise<void>;

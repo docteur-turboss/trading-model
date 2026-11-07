@@ -1,4 +1,4 @@
-# ADR-0043: Downstream Context and Contract for Trained Models and Collected Signals
+# ADR-0046: Downstream Context and Contract for Trained Models and Collected Signals
 
 **Status:** Proposed
 **Date:** 2026-11

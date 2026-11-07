@@ -1,16 +1,16 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# HPA, PDB, NetworkPolicy and ServiceAccount of each service.
+# HPA, PDB, NetworkPolicy and ServiceAccount of each service (autoscaling.yaml).
 resources:
-  - discovery-server-configmap.yaml
-  - message-manager-configmap.yaml
-  - financial-scraper-configmap.yaml
-  - trader-trainer-configmap.yaml
-  - api-gateway-configmap.yaml
-  - audit-logger-configmap.yaml
-  - dlq-service-configmap.yaml
-  - edge-proxy-configmap.yaml
+  - discovery-server-autoscaling.yaml
+  - message-manager-autoscaling.yaml
+  - financial-scraper-autoscaling.yaml
+  - trader-trainer-autoscaling.yaml
+  - api-gateway-autoscaling.yaml
+  - audit-logger-autoscaling.yaml
+  - dlq-service-autoscaling.yaml
+  - edge-proxy-autoscaling.yaml
   - ../../edge-proxy
   - spiffe-helper-configmap.yaml
 

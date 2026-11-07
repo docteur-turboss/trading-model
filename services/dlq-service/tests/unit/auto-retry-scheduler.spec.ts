@@ -16,11 +16,11 @@ jest.mock("../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/shared/auto-retry", () => ({
+jest.mock("../../src/config/container", () => ({
 	autoRetryTick: MOCK_AUTO_RETRY_TICK,
 }));
 
-jest.mock("../../src/adapters/inbound/redis-queue-processor", () => ({
+jest.mock("../../src/application/use-cases/redis-queue-processor", () => ({
 	startRedisWorkerLoop: MOCK_START_REDIS_WORKER,
 	stopRedisWorkerTimer: MOCK_STOP_REDIS_WORKER,
 }));

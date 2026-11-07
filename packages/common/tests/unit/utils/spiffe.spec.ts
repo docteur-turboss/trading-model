@@ -76,7 +76,6 @@ describe("registryNamesFor", () => {
 		expect(registryNamesFor("financial-scraper")).toEqual([
 			"financial-scraper",
 			"financial-scraper-service",
-			"financial-scrapper-service",
 		]);
 	});
 

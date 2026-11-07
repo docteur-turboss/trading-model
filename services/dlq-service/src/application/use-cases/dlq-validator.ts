@@ -3,8 +3,8 @@ import { CryptoAlg } from "@trading-model/crypto/domain/constants/crypto-constan
 import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
 import type { Bytes } from "@trading-model/primitives/primitives";
 import { isDbConnected } from "../../config/db";
+import type { DlqEntry } from "../../config/dlq-adapters";
 import { validationFail } from "../../shared/dlq-error-builder";
-import type { DlqEntry } from "../outbound/repository";
 
 const MAX_MESSAGE_BYTES = (5 * 1024 * 1024) as Bytes;
 
