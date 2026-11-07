@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
@@ -31,7 +32,7 @@ export class TrainingLoop {
 		const runTraining = (): void => {
 			this._runTrainingForSymbols(symbols, maxDataAgeMs).catch((err) => {
 				getLogger().error("Training cycle failed", {
-					error: err instanceof Error ? err.message : String(err),
+					error: normalizeError(err).message,
 				});
 			});
 		};

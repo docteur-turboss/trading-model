@@ -11,22 +11,12 @@ function createDlqRateLimiter(opts: {
 	max: number;
 	message: { error: string };
 }): ReturnType<typeof rateLimit> {
-	const limiter = rateLimit({
+	return rateLimit({
 		...opts,
 		standardHeaders: true,
 		legacyHeaders: false,
 		// shortcut: in-memory counters, so the limit holds per pod, not globally; move to a shared store if a global limit is ever needed (ADR-0047).
 	});
-	_trackLimiter(limiter);
-	return limiter;
-}
-
-function _trackLimiter(limiter: ReturnType<typeof rateLimit>): void {
-	if (typeof limiter === "function" && "resetKey" in limiter) {
-		activeRateLimiters.push(
-			limiter as unknown as { resetKey: (key: string) => void }
-		);
-	}
 }
 
 function _createReplayLimiter(): ReturnType<typeof rateLimit> {

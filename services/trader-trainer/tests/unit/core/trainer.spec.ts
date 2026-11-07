@@ -384,40 +384,6 @@ describe("Trainer", () => {
 		});
 	});
 
-	describe("computeSharpe", () => {
-		it("should return 0 for empty scores array", () => {
-			const computeSharpe = (
-				Trainer.prototype as unknown as Record<string, unknown>
-			)._computeSharpe as (scores: number[]) => number;
-
-			expect(computeSharpe([])).toBe(0);
-		});
-
-		it("should return 0 for single-element scores array", () => {
-			const computeSharpe = (
-				Trainer.prototype as unknown as Record<string, unknown>
-			)._computeSharpe as (scores: number[]) => number;
-
-			expect(computeSharpe([1])).toBe(0);
-		});
-
-		it("should return mean when all scores are identical (std is zero)", () => {
-			const computeSharpe = (
-				Trainer.prototype as unknown as Record<string, unknown>
-			)._computeSharpe as (scores: number[]) => number;
-
-			expect(computeSharpe([5, 5, 5])).toBe(5);
-		});
-
-		it("should return positive value for increasing scores", () => {
-			const computeSharpe = (
-				Trainer.prototype as unknown as Record<string, unknown>
-			)._computeSharpe as (scores: number[]) => number;
-
-			expect(computeSharpe([1, 2])).toBeGreaterThan(0);
-		});
-	});
-
 	describe("getGenerationContext", () => {
 		it("should return null when no training has occurred", () => {
 			const trainer = new Trainer(dataBuffer, {

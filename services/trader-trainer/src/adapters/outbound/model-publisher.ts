@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { HELPER } from "@trading-model/broker-message";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import {
@@ -27,7 +28,7 @@ function buildMetadata(ctx: PublishContext): MessageMetadata {
 		serviceName: toServiceId(ctx.trainerId),
 	})
 		.setDelivery({
-			mode: "at-least-once" as never,
+			mode: DeliveryMode.AtLeastOnce,
 			deduplicationId: toMessageId(randomUUID()),
 		})
 		.setIds({

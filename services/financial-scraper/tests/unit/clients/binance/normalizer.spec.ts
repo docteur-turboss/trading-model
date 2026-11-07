@@ -7,14 +7,12 @@ import { toSymbol } from "@trading-model/primitives/primitives";
 import { BinanceNormalizer } from "../../../../src/adapters/outbound/binance/normalizer";
 import {
 	mock24hrTickerResponse,
-	mockAggregateTradeResponse,
 	mockBookTickerResponse,
 	mockCandlestickResponse,
 	mockDepthResponse,
 	mockHistoricalTradeResponse,
 	mockPriceTickerResponse,
 	mockTradeResponse,
-	mockTradingDayTickerResponse,
 } from "../../../fixtures/binance.fixture";
 
 const SYMBOL = toSymbol("BTCUSDT");
@@ -71,38 +69,6 @@ describe("BinanceNormalizer", () => {
 		});
 	});
 
-	describe("aggregateTrades", () => {
-		it("should normalize aggregate trade response", () => {
-			const result = BinanceNormalizer.aggregateTrades(
-				SYMBOL_QUERY,
-				mockAggregateTradeResponse
-			);
-			expect(result).toHaveLength(1);
-			expect(result[0].tradeId).toBe(BigInt(28457));
-			expect(result[0].side).toBe(TradeSide.Sell); // m = true → sell
-		});
-
-		it("should set side to buy when m is false", () => {
-			const buyPayload = [
-				{
-					aggregateTradeId: 28458,
-					price: "5.0",
-					quantity: "10.0",
-					firstTradeId: 1,
-					lastTradeId: 2,
-					time: 1499865549591 as unknown as import("@trading-model/primitives/primitives").UnixTimestamp,
-					isBuyerMaker: false,
-					isBestMatch: true,
-				},
-			];
-			const result = BinanceNormalizer.aggregateTrades(
-				SYMBOL_QUERY,
-				buyPayload as never
-			);
-			expect(result[0].side).toBe(TradeSide.Buy);
-		});
-	});
-
 	describe("candles", () => {
 		it("should normalize candlestick response to CandleData array", () => {
 			const result = BinanceNormalizer.candles(
@@ -133,16 +99,6 @@ describe("BinanceNormalizer", () => {
 			expect(result[0].low).toBe(0.1);
 			expect(result[0].last).toBe(4.000002);
 			expect(result[0].volume).toBe(8913.3);
-		});
-	});
-
-	describe("tradingDayTicker", () => {
-		it("should normalize trading day ticker response", () => {
-			const result = BinanceNormalizer.tradingDayTicker(
-				mockTradingDayTickerResponse
-			);
-			expect(result).toHaveLength(1);
-			expect(result[0].symbol).toBe("BTCUSDT");
 		});
 	});
 

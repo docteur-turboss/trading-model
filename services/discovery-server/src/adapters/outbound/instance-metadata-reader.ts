@@ -1,11 +1,10 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import type { InstanceId } from "@trading-model/primitives/primitives";
 import {
 	ALL_SERVICE_NAMES,
-	type ServiceInstanceName as KnownServiceName,
+	type ServiceInstanceName,
 } from "@trading-model/primitives/service-instance-name";
 import type { RedisDepsWithoutToken } from "../../shared/redis-deps";
 import {
@@ -63,16 +62,11 @@ export class InstanceMetadataReader {
 	 * closed set: one SCARD per known name instead of a KEYS scan, which
 	 * blocks Redis for the whole keyspace.
 	 */
-	async listServiceNames(): Promise<KnownServiceName[]> {
+	async listServiceNames(): Promise<ServiceInstanceName[]> {
 		const names = [...ALL_SERVICE_NAMES];
 		const sizes = await Promise.all(
 			names.map((name) =>
-				this._deps.redis.scard(
-					serviceInstancesSet(
-						this._deps.keyPrefix,
-						name as unknown as ServiceInstanceName
-					)
-				)
+				this._deps.redis.scard(serviceInstancesSet(this._deps.keyPrefix, name))
 			)
 		);
 		return names.filter((_name, index) => sizes[index] > 0);

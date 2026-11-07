@@ -1,3 +1,5 @@
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
+import { DEFAULT_PRIVATE_CIDRS } from "@trading-model/primitives/primitives";
 import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { z } from "zod";
@@ -17,9 +19,7 @@ const API_GATEWAY_ENV_SHAPE = {
 		.transform((value) => value !== "false"),
 	AUTH_TOKENS: z.string().default(""),
 	PROXY_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
-	ALLOWED_PROXY_CIDRS: z
-		.string()
-		.default("10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8"),
+	ALLOWED_PROXY_CIDRS: z.string().default(DEFAULT_PRIVATE_CIDRS),
 } satisfies Record<string, z.ZodTypeAny>;
 
 const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(
@@ -44,7 +44,7 @@ const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(
 			path: ["AUTH_STRICT"],
 		});
 	}
-	if (data.AUTH_TOKENS.split(",").every((token) => token.trim() === "")) {
+	if (parseCommaSeparated(data.AUTH_TOKENS).length === 0) {
 		ctx.addIssue({
 			code: z.ZodIssueCode.custom,
 			message: "AUTH_TOKENS cannot be empty in production",

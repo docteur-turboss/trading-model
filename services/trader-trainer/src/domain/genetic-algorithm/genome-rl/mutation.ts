@@ -108,10 +108,6 @@ function _mutateMaxEpisodeLength(
 	);
 }
 
-function _mutateDiscreteStepParam(value: number, rng: () => number): number {
-	return mutateDiscreteStepParam(value, rng);
-}
-
 function _mutateHorizon(
 	rl: RLGenome,
 	mutation: MutationGenome,
@@ -124,11 +120,11 @@ function _mutateHorizon(
 				mutation,
 				rng
 			) as PositiveInt,
-			nStepReturn: _mutateDiscreteStepParam(
+			nStepReturn: mutateDiscreteStepParam(
 				rl.horizon.nStepReturn,
 				rng
 			) as PositiveInt,
-			frameSkip: _mutateDiscreteStepParam(
+			frameSkip: mutateDiscreteStepParam(
 				rl.horizon.frameSkip,
 				rng
 			) as PositiveInt,

@@ -3,7 +3,6 @@ import {
 	DurationMs,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type { IUnkeyedCircuitBreaker } from "./circuit-breaker.interface";
 
 /** Thresholds of a circuit: failures before opening, cooldown while open, probes allowed half-open. */
 export interface CircuitBreakerConfig {
@@ -30,7 +29,7 @@ interface PersistentState {
 }
 
 /** Closed / open / half-open state of one target; holds no timers, state is derived from the clock on each call. */
-export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
+export class CircuitStateMachine {
 	protected _failures = 0;
 	protected _openUntil: UnixTimestamp = 0 as UnixTimestamp;
 	protected _halfOpenAttempts = 0;
@@ -38,10 +37,7 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 	constructor(protected readonly _config: CircuitBreakerConfig) {}
 
 	static defaultConfig(): CircuitBreakerConfig {
-		return {
-			failureThreshold: 5,
-			cooldownMs: DurationMs.of(30_000),
-		};
+		return { ...DEFAULT_CIRCUIT_CONFIG };
 	}
 
 	get failures(): number {
@@ -100,7 +96,8 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 			return true;
 		}
 		if (this._openUntil > 0) {
-			this._transitionToClosed();
+			this._openUntil = 0 as UnixTimestamp;
+			this._halfOpenAttempts = 0;
 		}
 		return false;
 	}
@@ -161,14 +158,7 @@ export class CircuitStateMachine implements IUnkeyedCircuitBreaker {
 	}
 
 	clear(): void {
-		this._failures = 0;
-		this._openUntil = 0 as UnixTimestamp;
-		this._halfOpenAttempts = 0;
-	}
-
-	protected _transitionToClosed(): void {
-		this._openUntil = 0 as UnixTimestamp;
-		this._halfOpenAttempts = 0;
+		this.recordSuccess();
 	}
 
 	/** Snapshot for persistence / inspection. */

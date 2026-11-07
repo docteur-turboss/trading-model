@@ -1,5 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { RedisClientBuilder } from "../../src/redis-client-builder";
+import {
+	disconnectRedis,
+	withErrorLogging,
+} from "../../src/redis-client-builder";
 import { RedisStatus } from "../../src/redis-constants";
 
 class MockRedisClient {
@@ -26,25 +29,11 @@ class MockRedisClient {
 	disconnect(): void {}
 }
 
-describe("RedisClientBuilder", () => {
-	it("should register an error handler and chain", () => {
+describe("redis-client-builder", () => {
+	it("should register an error handler and return the client", () => {
 		const client = new MockRedisClient();
-		const builder = new RedisClientBuilder(client as never);
-		expect(builder.withErrorHandler()).toBe(builder);
+		expect(withErrorLogging(client as never)).toBe(client);
 		expect(() => client.emit("error", new Error("boom"))).not.toThrow();
-	});
-
-	it("should return the underlying client on build", () => {
-		const client = new MockRedisClient();
-		const builder = new RedisClientBuilder(client as never);
-		expect(builder.build()).toBe(client);
-	});
-
-	it("should connect the client", async () => {
-		const client = new MockRedisClient();
-		const connect = jest.spyOn(client, "connect");
-		await RedisClientBuilder.connect(client as never);
-		expect(connect).toHaveBeenCalledTimes(1);
 	});
 
 	it("should quit when ready", async () => {
@@ -52,16 +41,15 @@ describe("RedisClientBuilder", () => {
 		client.status = RedisStatus.READY;
 		const quit = jest.spyOn(client, "quit");
 		const disconnect = jest.spyOn(client, "disconnect");
-		await RedisClientBuilder.disconnect(client as never);
+		await disconnectRedis(client as never);
 		expect(quit).toHaveBeenCalledTimes(1);
 		expect(disconnect).not.toHaveBeenCalled();
 	});
 
 	it("should disconnect when not ready", async () => {
 		const client = new MockRedisClient();
-		client.status = RedisStatus.CONNECTING;
 		const disconnect = jest.spyOn(client, "disconnect");
-		await RedisClientBuilder.disconnect(client as never);
+		await disconnectRedis(client as never);
 		expect(disconnect).toHaveBeenCalledTimes(1);
 	});
 
@@ -70,7 +58,7 @@ describe("RedisClientBuilder", () => {
 		client.status = RedisStatus.READY;
 		jest.spyOn(client, "quit").mockRejectedValue(new Error("quit failed"));
 		const disconnect = jest.spyOn(client, "disconnect");
-		await RedisClientBuilder.disconnect(client as never);
+		await disconnectRedis(client as never);
 		expect(disconnect).toHaveBeenCalledTimes(1);
 	});
 });

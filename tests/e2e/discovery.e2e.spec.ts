@@ -1,7 +1,5 @@
-import { describe, expect, it, jest } from "@jest/globals";
-import { CALLER, containerIp, e2eTestTimeout, meshRequest } from "./helpers";
-
-jest.setTimeout(e2eTestTimeout);
+import { describe, expect, it } from "@jest/globals";
+import { CALLER, containerIp, meshRequest } from "./helpers";
 
 const DISCOVERY = "https://discovery-server:3000";
 /** The scraper's SVID only lets it register instances of its own service. */

@@ -5,6 +5,7 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
+import type { ServiceInstance } from "../../domain/client/type";
 import type { DiscoveryContext } from "../../domain/discovery/discovery-context";
 import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
 import {
@@ -41,7 +42,7 @@ export class DiscoveryOrchestrator {
 
 	async findService(
 		serviceName: ServiceInstanceName
-	): Promise<import("../../domain/client/type").ServiceInstance> {
+	): Promise<ServiceInstance> {
 		const ctx: DiscoveryContext = {
 			serviceName,
 			startTime: UnixTimestamp.now(),
@@ -56,7 +57,7 @@ export class DiscoveryOrchestrator {
 	private async _handleDiscoveryFailure(
 		ctx: DiscoveryContext,
 		lastError: unknown
-	): Promise<import("../../domain/client/type").ServiceInstance> {
+	): Promise<ServiceInstance> {
 		const staleInstance = await this._retryHandler.fallbackToStaleCache(ctx);
 		if (staleInstance) {
 			return staleInstance;
@@ -70,12 +71,11 @@ export class DiscoveryOrchestrator {
 
 	findAllServices(
 		serviceName: ServiceInstanceName
-	): Promise<import("../../domain/client/type").ServiceInstance[]> {
+	): Promise<ServiceInstance[]> {
 		return this._serviceDiscovery.findAllServices(serviceName);
 	}
 
 	recordCallSuccess(instanceId: InstanceId, durationMs?: number): void {
-		this._serviceDiscovery.releaseConnection(instanceId);
 		this.circuitBreaker.recordSuccess(instanceId);
 		if (durationMs !== undefined) {
 			this.circuitBreaker.recordLatency(instanceId, durationMs);
@@ -84,7 +84,6 @@ export class DiscoveryOrchestrator {
 	}
 
 	recordCallFailure(instanceId: InstanceId, durationMs?: number): void {
-		this._serviceDiscovery.releaseConnection(instanceId);
 		this.circuitBreaker.recordFailure(instanceId);
 		if (durationMs !== undefined) {
 			this.circuitBreaker.recordLatency(instanceId, durationMs);

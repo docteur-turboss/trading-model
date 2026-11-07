@@ -32,11 +32,9 @@ createBootstrap({
 	onStart: async () => {
 		initializeTelemetry({
 			serviceName: ServiceInstanceName.FinancialScraperService,
-			serviceVersion: process.env.APP_VERSION ?? "1.0.0",
-			instanceId: toInstanceId(
-				process.env.INSTANCE_ID ?? "financial-scraper-1"
-			),
-			otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+			serviceVersion: ENV.APP_VERSION,
+			instanceId: toInstanceId(ENV.INSTANCE_ID),
+			otlpEndpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
 		});
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 

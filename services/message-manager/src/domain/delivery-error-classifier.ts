@@ -36,49 +36,47 @@ export type ErrorAction =
 	| { action: ErrorActionType.SWALLOW }
 	| { action: ErrorActionType.RETRY };
 
-export class DeliveryErrorClassifier {
-	classify(
-		err: unknown,
-		deliveryAttempt: SequenceNumber,
-		{ ttl, emittedAt, deliveryMode }: DeliveryParams
-	): ErrorAction {
-		if (isDeadLetterError(err)) {
-			const reason = err.reason ?? DlqReason.NoReason;
-			return { action: ErrorActionType.DLQ, reason };
-		}
-
-		if (this._isExpired(ttl, emittedAt)) {
-			return { action: ErrorActionType.DLQ, reason: DlqReason.TtlExpired };
-		}
-
-		if (deliveryMode === DeliveryMode.AtMostOnce) {
-			return { action: ErrorActionType.SWALLOW };
-		}
-
-		// No broker retry, so no duplicate; the failed message stays replayable.
-		if (deliveryMode === DeliveryMode.ExactlyOnce) {
-			return {
-				action: ErrorActionType.DLQ,
-				reason: DlqReason.SingleAttemptFailed,
-			};
-		}
-
-		if (deliveryAttempt >= MAX_RETRIES) {
-			return {
-				action: ErrorActionType.DLQ,
-				reason: DlqReason.MaxRetriesExceeded,
-			};
-		}
-
-		return { action: ErrorActionType.RETRY };
+export function classifyDeliveryError(
+	err: unknown,
+	deliveryAttempt: SequenceNumber,
+	{ ttl, emittedAt, deliveryMode }: DeliveryParams
+): ErrorAction {
+	if (isDeadLetterError(err)) {
+		const reason = err.reason ?? DlqReason.NoReason;
+		return { action: ErrorActionType.DLQ, reason };
 	}
 
-	private _isExpired(ttl: DurationMs, emittedAt: UnixTimestamp): boolean {
-		if (ttl <= 0 || emittedAt <= 0) {
-			return false;
-		}
-		return emittedAt + ttl < Date.now();
+	if (isExpired(ttl, emittedAt)) {
+		return { action: ErrorActionType.DLQ, reason: DlqReason.TtlExpired };
 	}
+
+	if (deliveryMode === DeliveryMode.AtMostOnce) {
+		return { action: ErrorActionType.SWALLOW };
+	}
+
+	// No broker retry, so no duplicate; the failed message stays replayable.
+	if (deliveryMode === DeliveryMode.ExactlyOnce) {
+		return {
+			action: ErrorActionType.DLQ,
+			reason: DlqReason.SingleAttemptFailed,
+		};
+	}
+
+	if (deliveryAttempt >= MAX_RETRIES) {
+		return {
+			action: ErrorActionType.DLQ,
+			reason: DlqReason.MaxRetriesExceeded,
+		};
+	}
+
+	return { action: ErrorActionType.RETRY };
+}
+
+function isExpired(ttl: DurationMs, emittedAt: UnixTimestamp): boolean {
+	if (ttl <= 0 || emittedAt <= 0) {
+		return false;
+	}
+	return emittedAt + ttl < Date.now();
 }
 
 /** Delivery attempts of an at-least-once message before it is dead-lettered. */

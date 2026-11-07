@@ -6,116 +6,49 @@ export type ShutdownHandler = (signal: string) => Promise<void>;
 /** Callback signature for forced shutdown. */
 export type HardShutdownHandler = (code: number) => void;
 
-type CleanupFn = () => void;
-
-/** Tracks cleanup functions for registered listeners. */
-const CLEANUP_FNS: CleanupFn[] = [];
-let handlersRegistered = false;
+/** Removes the registered listeners; null while none are registered. */
+let cleanup: (() => void) | null = null;
 
 /**
- * Registers process-level signal and error handlers.
- * Separated from the bootstrap lifecycle to respect SRP.
+ * Registers process-level signal and error handlers, once per process.
  *
  * @param shutdown  - Graceful shutdown handler (SIGTERM, SIGINT).
  * @param hardShutdown - Forced shutdown handler (uncaughtException, unhandledRejection).
  */
-function _buildCleanupFn(
-	onSigTerm: () => Promise<void>,
-	onSigInt: () => Promise<void>,
-	onUncaughtException: (error: Error) => void,
-	onUnhandledRejection: (reason: unknown) => void
-): () => void {
-	return () => {
-		process.removeListener("SIGTERM", onSigTerm);
-		process.removeListener("SIGINT", onSigInt);
-		process.removeListener("uncaughtException", onUncaughtException);
-		process.removeListener("unhandledRejection", onUnhandledRejection);
-	};
-}
-
 export function setupProcessHandlers(
 	shutdown: ShutdownHandler,
 	hardShutdown: HardShutdownHandler
 ): void {
-	if (handlersRegistered) {
+	if (cleanup) {
 		return;
 	}
-	handlersRegistered = true;
-
-	const handlers = _createHandlers(shutdown, hardShutdown);
-	_registerHandlers(handlers);
-	_registerCleanup(handlers);
-}
-
-interface Handlers {
-	onSigTerm: () => Promise<void>;
-	onSigInt: () => Promise<void>;
-	onUncaughtException: (error: Error) => void;
-	onUnhandledRejection: (reason: unknown) => void;
-}
-
-function _createHandlers(
-	shutdown: ShutdownHandler,
-	hardShutdown: HardShutdownHandler
-): Handlers {
-	return {
-		onSigTerm: _createSigTermHandler(shutdown),
-		onSigInt: _createSigIntHandler(shutdown),
-		onUncaughtException: _createUncaughtExceptionHandler(hardShutdown),
-		onUnhandledRejection: _createUnhandledRejectionHandler(hardShutdown),
+	const onSignal = async (signal: "SIGTERM" | "SIGINT") => {
+		logger.warn(`${signal} received`);
+		await shutdown(signal);
 	};
-}
-
-function _registerHandlers(handlers: Handlers): void {
-	process.on("SIGTERM", handlers.onSigTerm);
-	process.on("SIGINT", handlers.onSigInt);
-	process.on("uncaughtException", handlers.onUncaughtException);
-	process.on("unhandledRejection", handlers.onUnhandledRejection);
-}
-
-function _registerCleanup(handlers: Handlers): void {
-	CLEANUP_FNS.push(
-		_buildCleanupFn(
-			handlers.onSigTerm,
-			handlers.onSigInt,
-			handlers.onUncaughtException,
-			handlers.onUnhandledRejection
-		)
-	);
-}
-
-function _createSigTermHandler(shutdown: ShutdownHandler): () => Promise<void> {
-	return async () => {
-		logger.warn("SIGTERM received");
-		await shutdown("SIGTERM");
-	};
-}
-
-function _createSigIntHandler(shutdown: ShutdownHandler): () => Promise<void> {
-	return async () => {
-		logger.warn("SIGINT received");
-		await shutdown("SIGINT");
-	};
-}
-
-function _createUncaughtExceptionHandler(
-	hardShutdown: HardShutdownHandler
-): (error: Error) => void {
-	return (error: Error) => {
+	const onSigTerm = () => onSignal("SIGTERM");
+	const onSigInt = () => onSignal("SIGINT");
+	const onUncaughtException = (error: Error) => {
 		logger.error("Uncaught exception - exiting", { context: { err: error } });
 		hardShutdown(1);
 	};
-}
-
-function _createUnhandledRejectionHandler(
-	hardShutdown: HardShutdownHandler
-): (reason: unknown) => void {
-	return (reason: unknown) => {
+	const onUnhandledRejection = (reason: unknown) => {
 		logger.error("Unhandled promise rejection - exiting", {
 			context: { reason },
 		});
 		hardShutdown(1);
 		process.exit(1);
+	};
+
+	process.on("SIGTERM", onSigTerm);
+	process.on("SIGINT", onSigInt);
+	process.on("uncaughtException", onUncaughtException);
+	process.on("unhandledRejection", onUnhandledRejection);
+	cleanup = () => {
+		process.removeListener("SIGTERM", onSigTerm);
+		process.removeListener("SIGINT", onSigInt);
+		process.removeListener("uncaughtException", onUncaughtException);
+		process.removeListener("unhandledRejection", onUnhandledRejection);
 	};
 }
 
@@ -124,9 +57,6 @@ function _createUnhandledRejectionHandler(
  * Useful for test cleanup to avoid side effects between tests.
  */
 export function removeProcessHandlers(): void {
-	for (const cleanup of CLEANUP_FNS) {
-		cleanup();
-	}
-	CLEANUP_FNS.length = 0;
-	handlersRegistered = false;
+	cleanup?.();
+	cleanup = null;
 }

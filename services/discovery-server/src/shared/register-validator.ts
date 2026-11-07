@@ -1,5 +1,6 @@
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import {
+	DEFAULT_PRIVATE_CIDRS,
 	isAllowedProxyIP,
 	parseCIDRList,
 } from "@trading-model/primitives/primitives";
@@ -11,8 +12,7 @@ let _cachedRanges: ReturnType<typeof parseCIDRList> | null = null;
 function _getAllowedRanges() {
 	if (_cachedRanges === null) {
 		_cachedRanges = parseCIDRList(
-			process.env.ALLOWED_REGISTRATION_CIDRS ??
-				"10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8"
+			process.env.ALLOWED_REGISTRATION_CIDRS ?? DEFAULT_PRIVATE_CIDRS
 		);
 	}
 	return _cachedRanges;

@@ -8,6 +8,12 @@ import type { TopicBinding } from "@trading-model/primitives/topic-binding";
  */
 export const SUBSCRIPTION_TTL_MS = 60_000;
 
+/** A binding as a store keeps it, with its last renewal time. */
+export interface StoredSubscription {
+	binding: TopicBinding;
+	renewedAt: number;
+}
+
 /**
  * Where subscriptions live. Every message-manager replica reads the same
  * store: a subscription made on one replica routes the messages published on

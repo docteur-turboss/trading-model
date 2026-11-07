@@ -1,3 +1,4 @@
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import { DataEventHandler } from "../adapters/inbound/events/event-handlers";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
@@ -58,6 +59,7 @@ export interface AppContainerConfig {
 	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
+	instanceId: string;
 }
 
 export class ApplicationContainer {
@@ -83,7 +85,7 @@ export class ApplicationContainer {
 		this.dataBuffer = new MarketDataBuffer(bufferConfig);
 		this.eventHandler = new DataEventHandler(this.dataBuffer);
 
-		const instanceId = process.env.INSTANCE_ID ?? "trader-trainer-1";
+		const { instanceId } = config;
 		const publisher = new ModelPublisher(MessageManager, {
 			trainerId: "trader-trainer",
 			instanceId,
@@ -130,6 +132,7 @@ export interface TraderTrainerSettings {
 	TRAINER_OBSERVE_POSITION?: boolean;
 	TRAINER_MODEL_DIR: string;
 	TRAINER_MODEL_RETENTION: number;
+	INSTANCE_ID: string;
 }
 
 /** Builds the service container from the environment settings. */
@@ -138,8 +141,8 @@ export function createTraderTrainerContainer(
 ): ApplicationContainer {
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
-		symbols: settings.TRAINER_SYMBOLS.split(",").map((symbol) =>
-			toSymbol(symbol.trim())
+		symbols: parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
+			toSymbol(symbol)
 		),
 		validationSplit: settings.TRAINER_VALIDATION_SPLIT,
 		walkForwardFolds: settings.TRAINER_WALK_FORWARD_FOLDS,
@@ -151,5 +154,6 @@ export function createTraderTrainerContainer(
 		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
+		instanceId: settings.INSTANCE_ID,
 	});
 }

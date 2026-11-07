@@ -4,7 +4,6 @@ import type {
 	Port,
 	Region,
 	ServiceId,
-	Version,
 } from "./primitives";
 
 /** Uniquely identifies a service instance in the distributed system. */
@@ -20,11 +19,6 @@ export namespace ServiceIdentity {
 	export function toKey(identity: ServiceIdentity): string {
 		return `${identity.serviceName}:${identity.instanceId}`;
 	}
-}
-
-/** Extends ServiceIdentity with a software version. */
-export interface ServiceInstanceIdentity extends ServiceIdentity {
-	version: Version;
 }
 
 /** Host and port pair for network endpoints. */

@@ -494,7 +494,6 @@ describe("DlqRetryManager", () => {
 
 		it("should set completed status on success without incrementing retryCount", () => {
 			const rm = new DlqRetryManagerClass();
-			mockFindOne.mockResolvedValue(null);
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
 			return rm
@@ -505,12 +504,12 @@ describe("DlqRetryManager", () => {
 					success: true,
 				})
 				.then(() => {
-					expect(mockFindOne).toHaveBeenCalledWith(
-						{ _id: expect.any(Object) },
-						{ projection: { status: 1 } }
-					);
 					expect(mockUpdateOne).toHaveBeenCalledWith(
-						{ _id: expect.any(Object), processingInstance: "instance-1" },
+						{
+							_id: expect.any(Object),
+							processingInstance: "instance-1",
+							status: { $ne: "abandoned" },
+						},
 						{
 							$set: expect.objectContaining({
 								status: "completed",
@@ -551,23 +550,6 @@ describe("DlqRetryManager", () => {
 						]),
 						{ returnDocument: "after", projection: { _id: 1 } }
 					);
-					expect(mockUpdateOne).not.toHaveBeenCalled();
-				});
-		});
-
-		it("should skip update on abandoned entry for success path", () => {
-			const rm = new DlqRetryManagerClass();
-			mockFindOne.mockResolvedValue({ _id: "id1", status: "abandoned" });
-
-			return rm
-				.markRetried({
-					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-					instanceId: "instance-1",
-					batchId: "batch-1",
-					success: true,
-				})
-				.then(() => {
-					expect(mockFindOne).toHaveBeenCalled();
 					expect(mockUpdateOne).not.toHaveBeenCalled();
 				});
 		});

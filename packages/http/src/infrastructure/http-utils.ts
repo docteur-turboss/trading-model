@@ -87,4 +87,4 @@ function buildRequestOptions(
 	};
 }
 
-export { buildRequestOptions, getKeepAliveAgent };
+export { buildRequestOptions };

@@ -43,15 +43,6 @@ export interface TlsPemBundle {
 	caPem: CaPem;
 }
 
-/**
- * Unified TLS configuration that accepts either file paths or in-memory PEMs.
- * At least one representation (paths or pems) must be provided.
- */
-export interface TlsConfig {
-	paths?: TlsPaths;
-	pems?: TlsPemBundle;
-}
-
 /** Converts a TlsPemBundle to the object shape expected by tls.createServer / setSecureContext. */
 export function toSecureContextOptions(
 	bundle: TlsPemBundle
@@ -61,21 +52,6 @@ export function toSecureContextOptions(
 		cert: bundle.certPem,
 		ca: bundle.caPem,
 	};
-}
-
-/** Resolve SecureContextOptions from either a TlsConfig or a TlsPemBundle directly. */
-export function resolveSecureContextOptions(
-	config: TlsConfig | TlsPemBundle
-): SecureContextOptions {
-	if ("keyPem" in config) {
-		return toSecureContextOptions(config);
-	}
-	if (config.pems) {
-		return toSecureContextOptions(config.pems);
-	}
-	throw new Error(
-		"Cannot resolve TLS context: no PEM data available in config"
-	);
 }
 
 /**
@@ -88,14 +64,4 @@ export function buildTlsFromEnv(env: TlsEnvVars): TlsPaths {
 		keyPath: FilePath.of(env.TLS_KEY_PATH),
 		caPath: FilePath.of(env.TLS_CA_PATH),
 	};
-}
-
-/** Build a TlsConfig from a TlsPaths (no PEMs loaded yet). */
-export function toTlsConfig(paths: TlsPaths): TlsConfig {
-	return { paths };
-}
-
-/** Build a TlsConfig from a TlsPemBundle (pre-loaded certificates). */
-export function fromPemBundle(bundle: TlsPemBundle): TlsConfig {
-	return { pems: bundle };
 }

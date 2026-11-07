@@ -51,7 +51,6 @@ done
 [ -n "$ENVIRONMENT" ] || usage_error "--environment is required"
 
 log() { echo "$*"; }
-ok() { log "✓ $*"; }
 fail() { echo "::error::$*"; }
 warn() { echo "::warning::$*"; }
 # shellcheck source=backup-lib.sh

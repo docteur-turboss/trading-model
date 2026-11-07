@@ -1,42 +1,25 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type Redis from "ioredis";
-import type { Cluster } from "ioredis";
 import { RedisStatus } from "./redis-constants";
 
-export class RedisClientBuilder {
-	private readonly _client: Redis | Cluster;
-
-	constructor(client: Redis | Cluster) {
-		this._client = client;
-	}
-
-	withErrorHandler(): this {
-		this._client.on("error", (err: Error) => {
-			getLogger().error("Redis connection error", {
-				error: normalizeError(err),
-			});
+export function withErrorLogging(client: Redis): Redis {
+	client.on("error", (err: Error) => {
+		getLogger().error("Redis connection error", {
+			error: normalizeError(err),
 		});
-		return this;
-	}
+	});
+	return client;
+}
 
-	build(): Redis | Cluster {
-		return this._client;
-	}
-
-	static async connect(client: Redis | Cluster): Promise<void> {
-		await client.connect();
-	}
-
-	static async disconnect(client: Redis | Cluster): Promise<void> {
-		try {
-			if ((client as Redis).status === RedisStatus.READY) {
-				await (client as Redis).quit();
-			} else {
-				client.disconnect();
-			}
-		} catch {
+export async function disconnectRedis(client: Redis): Promise<void> {
+	try {
+		if (client.status === RedisStatus.READY) {
+			await client.quit();
+		} else {
 			client.disconnect();
 		}
+	} catch {
+		client.disconnect();
 	}
 }

@@ -2,7 +2,7 @@ import {
 	type Fitness,
 	SharpeRatio,
 } from "@trading-model/primitives/primitives";
-import { EpisodeScores } from "./genetic-algorithm/episode-scores";
+import type { EpisodeScores } from "./genetic-algorithm/episode-scores";
 import type { GenomeFitnessMeta } from "./genetic-algorithm/genome";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
@@ -76,8 +76,4 @@ export function buildSummary(
 		network: buildNetworkSummary(genome),
 		rl: buildRLSummary(genome),
 	};
-}
-
-export function computeSharpe(scores: readonly number[]): number {
-	return new EpisodeScores([...scores]).sharpe();
 }

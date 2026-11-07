@@ -1,10 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
-import Redis, { Cluster } from "ioredis";
+import Redis from "ioredis";
 import {
 	BASE_REDIS_OPTIONS,
 	BASE_RETRY_STRATEGY,
 	buildFromConfig,
-	createClusterClient,
 	createFromUrl,
 	createSentinel,
 } from "../../src/redis-client-factories";
@@ -25,23 +24,10 @@ jest.mock("ioredis", () => {
 		}
 	}
 
-	class MockCluster {
-		static lastOptions: Record<string, unknown> | undefined;
-
-		constructor(_nodes?: unknown, options?: Record<string, unknown>) {
-			MockCluster.lastOptions = options;
-		}
-
-		on(): this {
-			return this;
-		}
-	}
-
 	return {
 		__esModule: true,
 		default: MockRedis,
 		Redis: MockRedis,
-		Cluster: MockCluster,
 	};
 });
 
@@ -108,15 +94,6 @@ describe("createSentinel", () => {
 	});
 });
 
-describe("createClusterClient", () => {
-	it("should create a Cluster client", () => {
-		const client = createClusterClient([
-			{ host: "127.0.0.1" as never, port: 7000 as never },
-		]);
-		expect(client).toBeInstanceOf(Cluster);
-	});
-});
-
 describe("buildFromConfig", () => {
 	it("should build a single-mode client", () => {
 		const client = buildFromConfig({
@@ -135,46 +112,5 @@ describe("buildFromConfig", () => {
 			},
 		});
 		expect(client).toBeInstanceOf(Redis);
-	});
-
-	it("should build a cluster-mode client", () => {
-		const client = buildFromConfig({
-			mode: "cluster",
-			config: {
-				nodes: [{ host: "127.0.0.1" as never, port: 7000 as never }],
-			},
-		});
-		expect(client).toBeInstanceOf(Cluster);
-	});
-
-	it("should throw for unknown modes", () => {
-		expect(() =>
-			buildFromConfig({ mode: "bogus", url: "redis://localhost:6379" } as never)
-		).toThrow("Unknown Redis mode");
-	});
-});
-
-describe("createClusterClient option wiring", () => {
-	it("should wire redisOptions and clusterRetryStrategy into the Cluster options", () => {
-		createClusterClient(
-			[{ host: "127.0.0.1" as never, port: 7000 as never }],
-			"secret"
-		);
-
-		const options = (
-			Cluster as unknown as { lastOptions: Record<string, unknown> }
-		).lastOptions;
-		const strategy = options.clusterRetryStrategy as (
-			times: number
-		) => number | null;
-
-		expect(strategy(1)).toBe(200);
-		expect(strategy(25)).toBe(5000);
-		expect((options.redisOptions as { password: string }).password).toBe(
-			"secret"
-		);
-		expect((options.redisOptions as { lazyConnect: boolean }).lazyConnect).toBe(
-			true
-		);
 	});
 });

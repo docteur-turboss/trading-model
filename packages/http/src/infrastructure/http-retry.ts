@@ -46,18 +46,7 @@ function computeRetryDelay(
 	);
 }
 
-function computeAdaptiveTimeout(
-	baseMs: DurationMs,
-	ewmLatencyMs?: DurationMs
-): DurationMs {
-	if (ewmLatencyMs !== undefined) {
-		return DurationMs.of(Math.max(baseMs, Math.round(ewmLatencyMs * 3)));
-	}
-	return DurationMs.of(baseMs * 2);
-}
-
 export {
-	computeAdaptiveTimeout,
 	computeRetryDelay,
 	DEFAULT_RETRY_COUNT,
 	isNonRetryableClientError,

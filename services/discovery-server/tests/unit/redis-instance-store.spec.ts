@@ -228,20 +228,6 @@ describe("RedisInstanceStore", () => {
 		});
 	});
 
-	describe("removeInstanceSetAndMetadata", () => {
-		it("should delegate to removeInstanceSetAndMetadata", async () => {
-			mockRemoveInstanceSetAndMetadata.mockResolvedValue(true);
-
-			const result = await store.removeInstanceSetAndMetadata({
-				serviceName: "financial-scraper-service" as never,
-				instanceId: "i1" as never,
-			});
-
-			expect(mockRemoveInstanceSetAndMetadata).toHaveBeenCalled();
-			expect(result).toBe(true);
-		});
-	});
-
 	describe("removeInstance", () => {
 		it("should delegate to removeInstanceSetAndMetadata", async () => {
 			mockRemoveInstanceSetAndMetadata.mockResolvedValue(true);

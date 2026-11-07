@@ -4,10 +4,7 @@ import {
 	type HttpStatusCode,
 } from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
-import {
-	HEALTH_STATUS_OK,
-	sendResponse,
-} from "@trading-model/http/adapters/inbound/response-exception";
+import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	DurationMs,
@@ -144,16 +141,8 @@ const catchAllRoute = catchSync(async (req) => {
 	return response;
 });
 
-function pingHandler(
-	_req: import("express").Request,
-	res: import("express").Response
-): void {
-	res.json({ status: HEALTH_STATUS_OK });
-}
-
 export function createRouter(): Router {
 	const router = Router();
-	router.get("/ping", pingHandler);
 	router.get("/metrics", metricsHandler);
 	router.use(AUTH_MIDDLEWARE);
 	router.use(DEFAULT_LIMITER);

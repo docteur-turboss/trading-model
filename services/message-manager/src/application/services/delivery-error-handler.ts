@@ -6,7 +6,7 @@ import type {
 	Topic,
 } from "@trading-model/primitives/primitives";
 import {
-	DeliveryErrorClassifier,
+	classifyDeliveryError,
 	ErrorActionType,
 	isDeliveryExhausted,
 } from "../../domain/delivery-error-classifier";
@@ -21,21 +21,19 @@ export interface DeliveryErrorHandlerDeps {
 }
 
 /**
- * Routes delivery errors based on classification from DeliveryErrorClassifier.
+ * Routes delivery errors based on classification from classifyDeliveryError.
  */
 export class DeliveryErrorHandler {
 	private readonly _deliveryPort: MessageDeliveryPort;
 	private readonly _recordFailure: () => void;
 	private readonly _topic: Topic;
 	private readonly _serviceName: ServiceInstanceName;
-	private readonly _classifier: DeliveryErrorClassifier;
 
 	constructor(deps: DeliveryErrorHandlerDeps) {
 		this._deliveryPort = deps.deliveryPort;
 		this._recordFailure = deps.recordFailure;
 		this._topic = deps.topic;
 		this._serviceName = deps.serviceName;
-		this._classifier = new DeliveryErrorClassifier();
 	}
 
 	/**
@@ -43,53 +41,34 @@ export class DeliveryErrorHandler {
 	 *
 	 * @returns `true` when the error has been fully handled (no retry needed).
 	 */
-	handleDeliveryError<TData>(
+	async handleDeliveryError<TData>(
 		err: unknown,
 		message: Message<TData>,
 		context: { deliveryAttempt: SequenceNumber },
 		deliveryParams: DeliveryParams
 	): Promise<boolean> {
-		const classification = this._classifier.classify(
+		const classification = classifyDeliveryError(
 			err,
 			context.deliveryAttempt,
 			deliveryParams
 		);
-
-		return this._actionHandlers[classification.action](
+		if (classification.action !== ErrorActionType.DLQ) {
+			return classification.action === ErrorActionType.SWALLOW;
+		}
+		if (isDeliveryExhausted(classification.reason)) {
+			this._recordFailure();
+			getLogger().error("Delivery attempts exhausted, routing to DLQ", {
+				topic: this._topic,
+				service: this._serviceName,
+				reason: classification.reason,
+				deliveryAttempt: context.deliveryAttempt,
+			});
+		}
+		await this._deliveryPort.markDeadLetter({
 			message,
-			context,
-			classification
-		);
+			reason: classification.reason,
+			deliveryAttempt: context.deliveryAttempt,
+		});
+		return true;
 	}
-
-	private readonly _actionHandlers: Record<
-		ErrorActionType,
-		<TData>(
-			message: Message<TData>,
-			context: { deliveryAttempt: SequenceNumber },
-			classification: ReturnType<DeliveryErrorClassifier["classify"]>
-		) => Promise<boolean>
-	> = {
-		[ErrorActionType.DLQ]: async (message, context, classification) => {
-			if (classification.action === ErrorActionType.DLQ) {
-				if (isDeliveryExhausted(classification.reason)) {
-					this._recordFailure();
-					getLogger().error("Delivery attempts exhausted, routing to DLQ", {
-						topic: this._topic,
-						service: this._serviceName,
-						reason: classification.reason,
-						deliveryAttempt: context.deliveryAttempt,
-					});
-				}
-				await this._deliveryPort.markDeadLetter({
-					message,
-					reason: classification.reason,
-					deliveryAttempt: context.deliveryAttempt,
-				});
-			}
-			return true;
-		},
-		[ErrorActionType.SWALLOW]: async () => true,
-		[ErrorActionType.RETRY]: async () => false,
-	};
 }

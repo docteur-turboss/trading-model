@@ -18,8 +18,7 @@
 	}
 
 	drain(): TItem[] {
-		const items = this._items.splice(0, this._maxSize);
-		return items;
+		return this._items.splice(0);
 	}
 
 	get size(): number {

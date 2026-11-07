@@ -1,7 +1,5 @@
-import { describe, expect, it, jest } from "@jest/globals";
-import { e2eTestTimeout, externalRequest, GATEWAY_API_KEY } from "./helpers";
-
-jest.setTimeout(e2eTestTimeout);
+import { describe, expect, it } from "@jest/globals";
+import { externalRequest, GATEWAY_API_KEY } from "./helpers";
 
 const AUTH = { "x-api-key": GATEWAY_API_KEY };
 

@@ -6,11 +6,7 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { TradeData } from "../../../../domain/market-data.types";
 import { MarketType, SourceType } from "../../../../domain/market-data.types";
-import type {
-	BinanceAggregateTradeResponse,
-	BinanceHistoricalTradeResponse,
-	BinanceTradeResponse,
-} from "../binance.api";
+import type { BinanceTradeResponse } from "../binance.api";
 import type { SymbolQuery } from "./query-types";
 
 function _normalizeTrade(
@@ -37,28 +33,13 @@ function _normalizeTrade(
 
 export function normalizeTrades(
 	query: SymbolQuery,
-	payload: BinanceTradeResponse | BinanceHistoricalTradeResponse
+	payload: BinanceTradeResponse
 ): TradeData[] {
 	return payload.map((trade) =>
 		_normalizeTrade(query, {
 			id: trade.id,
 			price: trade.price,
 			quantity: trade.qty,
-			time: trade.time,
-			isBuyerMaker: trade.isBuyerMaker,
-		})
-	);
-}
-
-export function normalizeAggregateTrades(
-	query: SymbolQuery,
-	payload: BinanceAggregateTradeResponse
-): TradeData[] {
-	return payload.map((trade) =>
-		_normalizeTrade(query, {
-			id: trade.aggregateTradeId,
-			price: trade.price,
-			quantity: trade.quantity,
 			time: trade.time,
 			isBuyerMaker: trade.isBuyerMaker,
 		})

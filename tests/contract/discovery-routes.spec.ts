@@ -74,6 +74,7 @@ const SERVICE = "financial-scraper-service";
 
 interface Exchange {
 	route: ApiRoute | undefined;
+	params: Record<string, string> | undefined;
 	method: string;
 	path: string;
 	headers: Record<string, string>;
@@ -122,8 +123,10 @@ function recordingHttpClient(exchanges: Exchange[]) {
 			const text = await res.text();
 			const response = text ? JSON.parse(text) : undefined;
 			const { pathname } = new URL(url);
+			const routed = routeFor(method, pathname);
 			exchanges.push({
-				route: routeFor(method, pathname)?.route,
+				route: routed?.route,
+				params: routed?.params,
 				method,
 				path: pathname,
 				headers,
@@ -168,7 +171,7 @@ describe("discovery contract: address-manager → discovery-server", () => {
 	beforeEach(() => {
 		exchanges = [];
 		const http = recordingHttpClient(exchanges) as never;
-		instanceId = `scraper-${exchanges.length}-${Date.now()}-${Math.random()}`;
+		instanceId = `scraper-${Date.now()}-${Math.random()}`;
 		const config = {
 			identity: {
 				serviceName: toServiceId(SERVICE),
@@ -206,7 +209,7 @@ describe("discovery contract: address-manager → discovery-server", () => {
 			const route = exchange.route as ApiRoute;
 			const parsed = parseRequest(route, {
 				body: exchange.body,
-				params: routeFor(exchange.method, exchange.path)?.params,
+				params: exchange.params,
 			});
 			expect({ where, request: parsed.success }).toEqual({
 				where,

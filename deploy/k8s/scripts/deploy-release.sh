@@ -126,7 +126,8 @@ wait_rollout() {
 		fi
 	done
 	for dep in $DEPLOYMENTS; do
-		grace=$(kubectl get deployment "$dep" -n "$ns" 			-o jsonpath='{.spec.template.spec.terminationGracePeriodSeconds}')
+		grace=$(kubectl get deployment "$dep" -n "$ns" \
+			-o jsonpath='{.spec.template.spec.terminationGracePeriodSeconds}')
 		echo "Waiting for rollout of $dep ($((base + ${grace:-30}))s)..."
 		if ! kubectl rollout status "deployment/$dep" -n "$ns" --timeout="$((base + ${grace:-30}))s"; then
 			echo "::error::Rollout of $dep failed or timed out"

@@ -3,7 +3,6 @@ import type {
 	DurationMs,
 	IPAddress,
 	Port,
-	PositiveInt,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
@@ -23,12 +22,6 @@ interface AddressManagerConfig {
 
 	cacheTtlMs: DurationMs;
 	dnsNameMap?: Record<ServiceId, IPAddress>;
-
-	circuitBreakerFailureThreshold?: PositiveInt;
-	circuitBreakerHalfOpenTimeoutMs?: DurationMs;
-	circuitBreakerCacheTtlMs?: DurationMs;
-	circuitBreakerLatencyWindowSize?: PositiveInt;
-	circuitBreakerLatencyThresholdMs?: DurationMs;
 }
 
 export type { AddressManagerConfig };

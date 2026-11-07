@@ -1,14 +1,10 @@
 import type { InstanceId, Topic } from "@trading-model/primitives/primitives";
 import type { TopicBinding } from "@trading-model/primitives/topic-binding";
 import {
+	type StoredSubscription,
 	SUBSCRIPTION_TTL_MS,
 	type SubscriptionStorePort,
 } from "../../application/ports/subscription-store-port";
-
-interface StoredSubscription {
-	binding: TopicBinding;
-	renewedAt: number;
-}
 
 /** Single-replica store (no Redis configured): lost on restart. */
 export class InMemorySubscriptionStore implements SubscriptionStorePort {

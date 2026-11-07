@@ -1,6 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { describe, expect, it, jest } from "@jest/globals";
-import { CALLER, containerHealth, meshRequest } from "./helpers";
+import {
+	containerHealth,
+	metric,
+	persistedCandles,
+	eventually as poll,
+} from "./helpers";
 
 /**
  * Restarts core services and checks the mesh heals by itself. Runs with the
@@ -12,24 +17,12 @@ const RECOVERY_TIMEOUT_MS = 90_000;
 
 jest.setTimeout(RECOVERY_TIMEOUT_MS + 60_000);
 
-async function eventually<T>(
+function eventually<T>(
 	description: string,
 	probe: () => T | undefined,
 	timeoutMs = RECOVERY_TIMEOUT_MS
 ): Promise<T> {
-	const deadline = Date.now() + timeoutMs;
-	while (Date.now() < deadline) {
-		try {
-			const value = probe();
-			if (value !== undefined) {
-				return value;
-			}
-		} catch {
-			// Not ready yet.
-		}
-		await new Promise((resolve) => setTimeout(resolve, 3000));
-	}
-	throw new Error(`Timed out waiting for ${description}`);
+	return poll(description, probe, { timeoutMs, intervalMs: 3000 });
 }
 
 function restart(container: string): Promise<string> {
@@ -37,26 +30,6 @@ function restart(container: string): Promise<string> {
 	return eventually(`${container} healthy`, () =>
 		containerHealth(container) === "healthy" ? "healthy" : undefined
 	);
-}
-
-function persistedCandles(symbol: string): number {
-	const output = execFileSync(
-		"docker",
-		[
-			"exec",
-			"trading-mysql",
-			"sh",
-			"-c",
-			`mysql -N -B -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM market_candles WHERE symbol='${symbol}'"`,
-		],
-		{ encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
-	);
-	return Number(output.trim());
-}
-
-function metric(url: string, pattern: RegExp): number {
-	const match = meshRequest(CALLER.scraper, url).body.match(pattern);
-	return match ? Number(match[1]) : 0;
 }
 
 describe("Resilience E2E", () => {

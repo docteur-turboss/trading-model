@@ -8,9 +8,9 @@ import {
 import { formatLogEntry } from "../../infrastructure/console-formatter";
 import { LogDispatcher } from "../../infrastructure/log-dispatcher";
 import {
+	isLogLevelAtLeast,
 	type LogEntry,
 	LogLevel,
-	LogLevelThreshold,
 	type LogOptions,
 } from "../../infrastructure/log-types";
 import { generateProcessId } from "../../infrastructure/process-id-generator";
@@ -41,7 +41,7 @@ export class Logger {
 	}
 
 	private _log(level: LogLevel, message: string, context?: JsonObject): void {
-		if (!LogLevelThreshold.isAtLeast(level, this._logLevel)) {
+		if (!isLogLevelAtLeast(level, this._logLevel)) {
 			return;
 		}
 		const logEntry = this._buildLogEntry(level, message, context);

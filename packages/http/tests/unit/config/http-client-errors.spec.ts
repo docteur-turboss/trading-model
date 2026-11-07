@@ -2,7 +2,6 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	createHttpClientError,
 	createHttpClientTimeoutError,
-	toHttpClientErrorResponse,
 } from "@trading-model/http/adapters/outbound/http-client-errors";
 
 describe("HttpClientError", () => {
@@ -18,26 +17,6 @@ describe("HttpClientError", () => {
 		const err = createHttpClientError("not found", 404 as never);
 		expect(err.message).toBe("not found");
 		expect(err.statusCode).toBe(404);
-	});
-
-	it("should convert to error response", () => {
-		const err = createHttpClientError("bad request", 400 as never);
-		const resp = toHttpClientErrorResponse(err);
-		expect(resp).toEqual({
-			code: "HttpClientError",
-			message: "bad request",
-			statusCode: 400,
-		});
-	});
-
-	it("should convert to error response without status code", () => {
-		const err = createHttpClientError("generic error");
-		const resp = toHttpClientErrorResponse(err);
-		expect(resp).toEqual({
-			code: "HttpClientError",
-			message: "generic error",
-			statusCode: undefined,
-		});
 	});
 });
 

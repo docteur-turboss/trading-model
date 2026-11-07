@@ -31,28 +31,21 @@ export class TtlCacheBase<TValue> implements ISyncCache<TValue> {
 		return this._defaultTtlMs > 0 && Date.now() >= entry.expiresAt;
 	}
 
-	has(key: string): boolean {
+	private _liveEntry(key: string): CacheEntry<TValue> | undefined {
 		const entry = this._store.get(key);
-		if (!entry) {
-			return false;
-		}
-		if (this._isExpired(entry)) {
+		if (entry && this._isExpired(entry)) {
 			this._store.delete(key);
-			return false;
+			return;
 		}
-		return true;
+		return entry;
+	}
+
+	has(key: string): boolean {
+		return this._liveEntry(key) !== undefined;
 	}
 
 	get(key: string): TValue | undefined {
-		const entry = this._store.get(key);
-		if (!entry) {
-			return;
-		}
-		if (this._isExpired(entry)) {
-			this._store.delete(key);
-			return;
-		}
-		return entry.value;
+		return this._liveEntry(key)?.value;
 	}
 
 	set(key: string, value: TValue, ttlMs?: number): void {

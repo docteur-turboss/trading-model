@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_COLLECTION = {
 	insertOne: jest.fn<any>(),
-	insertMany: jest.fn<any>(),
 	findOne: jest.fn<any>(),
 	find: jest.fn<any>(),
-	createIndex: jest.fn<any>(),
+	createIndexes: jest.fn<any>(),
 	estimatedDocumentCount: jest.fn<any>(),
 	aggregate: jest.fn<any>(),
 	countDocuments: jest.fn<any>(),
@@ -64,6 +63,7 @@ describe("AuditRepository", () => {
 			limit: jest.fn<any>().mockReturnThis(),
 			toArray: jest.fn<any>().mockResolvedValue([]),
 		});
+		MOCK_COLLECTION.findOne.mockResolvedValue(null);
 		MOCK_COLLECTION.aggregate.mockReturnValue({ toArray: jest.fn<any>() });
 		repository = new AuditRepository(MOCK_DB as any);
 	});
@@ -75,38 +75,20 @@ describe("AuditRepository", () => {
 	});
 
 	describe("ensureIndexes", () => {
-		it("should create 7 indexes", async () => {
-			MOCK_COLLECTION.createIndex.mockResolvedValue(undefined);
+		it("should create the 7 indexes in one call", async () => {
+			MOCK_COLLECTION.createIndexes.mockResolvedValue([]);
 
 			await repository.ensureIndexes();
 
-			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledTimes(7);
-			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith({
-				"metadata.correlationId": 1,
-			});
-			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith({
-				"metadata.publisher": 1,
-				receivedAt: -1,
-			});
-			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith({
-				"metadata.topic": 1,
-				receivedAt: -1,
-			});
-			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith({
-				receivedAt: -1,
-			});
-			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith(
-				{ "metadata.messageId": 1 },
-				{ unique: true }
-			);
-			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith(
-				{ ttl: 1 },
-				{ expireAfterSeconds: 0 }
-			);
-			expect(MOCK_COLLECTION.createIndex).toHaveBeenCalledWith(
-				{ chainSequence: 1 },
-				{ unique: true }
-			);
+			expect(MOCK_COLLECTION.createIndexes).toHaveBeenCalledWith([
+				{ key: { "metadata.correlationId": 1 } },
+				{ key: { "metadata.publisher": 1, receivedAt: -1 } },
+				{ key: { "metadata.topic": 1, receivedAt: -1 } },
+				{ key: { receivedAt: -1 } },
+				{ key: { "metadata.messageId": 1 }, unique: true },
+				{ key: { ttl: 1 }, expireAfterSeconds: 0 },
+				{ key: { chainSequence: 1 }, unique: true },
+			]);
 		});
 	});
 
@@ -138,11 +120,9 @@ describe("AuditRepository", () => {
 
 		function useStoredChain(): AuditEventDocument[] {
 			const stored: AuditEventDocument[] = [];
-			MOCK_COLLECTION.find.mockImplementation(() => ({
-				sort: jest.fn<any>().mockReturnThis(),
-				limit: jest.fn<any>().mockReturnThis(),
-				toArray: jest.fn<any>(async () => stored.slice(-1)),
-			}));
+			MOCK_COLLECTION.findOne.mockImplementation(
+				async () => stored[stored.length - 1] ?? null
+			);
 			MOCK_COLLECTION.insertOne.mockImplementation(async (doc: any) => {
 				// Let the other concurrent inserts read the tail in between.
 				await new Promise((resolve) => setImmediate(resolve));
@@ -215,51 +195,6 @@ describe("AuditRepository", () => {
 
 			await expect(repository.insert(makeEvent())).rejects.toThrow();
 			await expect(repository.insert(makeEvent())).resolves.toBeUndefined();
-		});
-	});
-
-	describe("insertBatch", () => {
-		it("should call insertMany with chained events", async () => {
-			MOCK_COLLECTION.insertMany.mockResolvedValue({ insertedCount: 2 });
-			const events = [
-				makeEvent({
-					metadata: {
-						...makeEvent().metadata,
-						messageId: toMessageId("msg-1"),
-					},
-				}),
-				makeEvent({
-					metadata: {
-						...makeEvent().metadata,
-						messageId: toMessageId("msg-2"),
-					},
-				}),
-			];
-
-			await repository.insertBatch(events);
-
-			expect(MOCK_COLLECTION.insertMany).toHaveBeenCalledWith(events, {
-				ignoreUndefined: true,
-				ordered: false,
-			});
-			expect(events[0].previousHash).toBe("");
-			expect(events[0].chainSequence).toBe(1);
-			expect(events[1].previousHash).toBe(events[0].dataHash);
-			expect(events[1].chainSequence).toBe(2);
-		});
-
-		it("should not call insertMany for empty array", async () => {
-			await repository.insertBatch([]);
-
-			expect(MOCK_COLLECTION.insertMany).not.toHaveBeenCalled();
-		});
-
-		it("should throw AppError on failure", async () => {
-			MOCK_COLLECTION.insertMany.mockRejectedValue(new Error("DB error"));
-
-			await expect(repository.insertBatch([makeEvent()])).rejects.toThrow(
-				"Failed to persist audit event batch"
-			);
 		});
 	});
 

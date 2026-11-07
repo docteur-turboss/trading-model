@@ -44,9 +44,9 @@ async function _onBeforeServer(): Promise<void> {
 function _onStart(): void {
 	initializeTelemetry({
 		serviceName: ServiceInstanceName.DlqService,
-		serviceVersion: "2.0.0",
-		instanceId: toInstanceId(process.env.INSTANCE_ID ?? "dlq-1"),
-		otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+		serviceVersion: ENV.APP_VERSION,
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		otlpEndpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
 	});
 	AddressManager.lifecycleManager.start();
 	void ensureRedisQueue();

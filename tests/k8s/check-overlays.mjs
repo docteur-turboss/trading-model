@@ -65,14 +65,20 @@ function spreadsAcrossNodes(text) {
 		);
 }
 
-/** Deployments that may run several pods without a hard spread across nodes. */
-function unspreadDeployments(docs) {
+/** Deployment name -> maxReplicas of the HPA that drives it. */
+function hpaTargets(docs) {
 	const maxReplicas = new Map();
 	for (const doc of docs.filter((d) => d.kind === "HorizontalPodAutoscaler")) {
 		const target = doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1];
 		const max = Number(doc.text.match(/^ {2}maxReplicas: (\d+)$/m)?.[1] ?? 1);
 		if (target) maxReplicas.set(target, max);
 	}
+	return maxReplicas;
+}
+
+/** Deployments that may run several pods without a hard spread across nodes. */
+function unspreadDeployments(docs) {
+	const maxReplicas = hpaTargets(docs);
 	return docs
 		.filter((doc) => doc.kind === "Deployment")
 		.filter((doc) => {
@@ -128,11 +134,7 @@ function uncoveredKinds(docs, namespacedFile) {
 
 /** Deployments driven by an HPA that still set spec.replicas. */
 function replicasUnderHpa(docs) {
-	const targets = new Set();
-	for (const doc of docs.filter((d) => d.kind === "HorizontalPodAutoscaler")) {
-		const target = doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1];
-		if (target) targets.add(target);
-	}
+	const targets = hpaTargets(docs);
 	return docs
 		.filter((doc) => doc.kind === "Deployment" && targets.has(doc.name))
 		.filter((doc) => /^ {2}replicas: \d+$/m.test(doc.text))
@@ -221,10 +223,10 @@ for (const image of signed) {
 }
 
 for (const env of OVERLAYS) {
-	const rendered = [
-		render(`deploy/k8s/overlays/${env}`),
-		render(`deploy/k8s/overlays/${env}/node-agents`),
-	].join("\n---\n");
+	const app = render(`deploy/k8s/overlays/${env}`);
+	const nodeAgents = render(`deploy/k8s/overlays/${env}/node-agents`);
+	const rendered = [app, nodeAgents].join("\n---\n");
+	const docs = documents(rendered);
 
 	for (const [, image] of rendered.matchAll(IMAGE)) {
 		if (!deployed.has(image)) {
@@ -240,24 +242,24 @@ for (const env of OVERLAYS) {
 		if (!image.includes("@sha256:")) errors.push(`${env}: image ${image} is not pinned by digest`);
 	}
 
-	for (const [dir, file] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml"], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml"]]) {
-		for (const kind of uncoveredKinds(documents(render(dir)), file)) {
+	for (const [dir, file, text] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml", app], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml", nodeAgents]]) {
+		for (const kind of uncoveredKinds(documents(text), file)) {
 			errors.push(env + ": " + kind + " of " + dir + " is not covered by deploy/k8s/deploy-identity/" + file + " (or cluster-role.yaml): the deploy identity could not apply it");
 		}
 	}
 
-	for (const name of unspreadDeployments(documents(rendered))) {
+	for (const name of unspreadDeployments(docs)) {
 		errors.push(`${env}: Deployment ${name} can run several pods without topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
 	}
 
-	for (const name of replicasUnderHpa(documents(rendered))) {
+	for (const name of replicasUnderHpa(docs)) {
 		errors.push(`${env}: Deployment ${name} is driven by an HPA but sets spec.replicas (each apply would reset it)`);
 	}
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
 
 	if (env === "staging") {
-		for (const pdb of documents(rendered).filter((doc) => doc.kind === "PodDisruptionBudget")) {
+		for (const pdb of docs.filter((doc) => doc.kind === "PodDisruptionBudget")) {
 			if (/^ {2}minAvailable: [1-9]/m.test(pdb.text)) {
 				errors.push(`staging: PodDisruptionBudget ${pdb.name} keeps minAvailable (one replica: drains would block)`);
 			}
@@ -267,15 +269,12 @@ for (const env of OVERLAYS) {
 		}
 	}
 
-	{
-		const docs = documents(rendered);
-		for (const name of SEALED_ONLY) {
-			if (docs.some((doc) => doc.kind === "Secret" && doc.name === name)) {
-				errors.push(`${env}: Secret ${name} must come from a SealedSecret`);
-			}
-			if (!docs.some((doc) => doc.kind === "SealedSecret" && doc.name === name)) {
-				errors.push(`${env}: no SealedSecret ${name}`);
-			}
+	for (const name of SEALED_ONLY) {
+		if (docs.some((doc) => doc.kind === "Secret" && doc.name === name)) {
+			errors.push(`${env}: Secret ${name} must come from a SealedSecret`);
+		}
+		if (!docs.some((doc) => doc.kind === "SealedSecret" && doc.name === name)) {
+			errors.push(`${env}: no SealedSecret ${name}`);
 		}
 	}
 }

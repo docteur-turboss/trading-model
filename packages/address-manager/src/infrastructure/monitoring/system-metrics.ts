@@ -35,20 +35,14 @@ export function computeCpuPercent(
 	totalTick: number,
 	previous: CpuTimes
 ): { percent: CpuPercent; previousCpuTimes: CpuTimes } {
-	if (previous.idle === 0 && previous.total === 0) {
-		return {
-			percent: CpuPercent.of(0),
-			previousCpuTimes: {
-				idle: totalIdle as DurationMs,
-				total: totalTick as DurationMs,
-			},
-		};
-	}
+	const firstSample = previous.idle === 0 && previous.total === 0;
 	const idleDiff = totalIdle - previous.idle;
 	const totalDiff = totalTick - previous.total;
 	return {
 		percent: CpuPercent.of(
-			totalDiff > 0 ? Math.round((1 - idleDiff / totalDiff) * 100) : 0
+			!firstSample && totalDiff > 0
+				? Math.round((1 - idleDiff / totalDiff) * 100)
+				: 0
 		),
 		previousCpuTimes: {
 			idle: totalIdle as DurationMs,

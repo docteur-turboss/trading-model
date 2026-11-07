@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type {
 	Fitness,
@@ -13,7 +14,6 @@ import {
 import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
 import type { GenerationContext } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
-import { computeSharpe } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
@@ -65,14 +65,10 @@ export class Trainer {
 		TrainingSnapshot
 	>();
 
-	private readonly _publisher?: ModelPublisherPort;
-
 	constructor(
 		private readonly _dataBuffer: MarketDataBuffer,
 		private readonly _deps: TrainerDeps
-	) {
-		this._publisher = _deps.publisher;
-	}
+	) {}
 
 	isTraining(): boolean {
 		return this._status === TrainerStatus.Training;
@@ -137,21 +133,7 @@ export class Trainer {
 			this._deps.settings,
 			this._deps.telemetry
 		);
-		const snapshot = new LastTrainingInfo({
-			symbol,
-			bestGenome: result.bestGenome,
-			bestFitness: result.bestFitness as unknown as Fitness,
-			bestFitnessMeta: result.bestFitnessMeta,
-			generation: result.generation as unknown as PositiveInt,
-			generationContext: result.generationContext,
-		});
-		this._lastInfo = snapshot;
-		this._symbolSnapshots.set(symbol, snapshot);
-		getLogger().info("Training complete", {
-			context: { symbol, bestFitness: result.bestFitness },
-		});
-		return {
-			success: true,
+		const outcome = {
 			symbol,
 			bestGenome: result.bestGenome,
 			bestFitness: result.bestFitness as unknown as Fitness,
@@ -159,6 +141,13 @@ export class Trainer {
 			generation: result.generation as unknown as PositiveInt,
 			generationContext: result.generationContext,
 		};
+		const snapshot = new LastTrainingInfo(outcome);
+		this._lastInfo = snapshot;
+		this._symbolSnapshots.set(symbol, snapshot);
+		getLogger().info("Training complete", {
+			context: { symbol, bestFitness: result.bestFitness },
+		});
+		return { success: true, ...outcome };
 	}
 
 	/**
@@ -201,14 +190,15 @@ export class Trainer {
 			getLogger().error("Failed to store model artifact", {
 				context: {
 					symbol: result.symbol,
-					err: err instanceof Error ? err.message : String(err),
+					err: normalizeError(err).message,
 				},
 			});
 		}
 	}
 
 	private async _publishModel(symbol: TradingSymbol): Promise<void> {
-		if (!this._publisher) {
+		const publisher = this._deps.publisher;
+		if (!publisher) {
 			return;
 		}
 		const summary = this._lastInfo.buildBestAgentSummary();
@@ -216,7 +206,7 @@ export class Trainer {
 			return;
 		}
 		try {
-			await this._publisher.publish(symbol, summary);
+			await publisher.publish(symbol, summary);
 			getLogger().info("Model published", {
 				context: { symbol, agentId: summary.id },
 			});
@@ -224,7 +214,7 @@ export class Trainer {
 			getLogger().error("Failed to publish model", {
 				context: {
 					symbol,
-					err: err instanceof Error ? err.message : String(err),
+					err: normalizeError(err).message,
 				},
 			});
 		}
@@ -234,7 +224,7 @@ export class Trainer {
 		symbol: TradingSymbol,
 		err: unknown
 	): TrainingFailure {
-		const error = err instanceof Error ? err : new Error(String(err));
+		const error = normalizeError(err);
 		getLogger().error("Training failed", {
 			context: { symbol, err: error.message },
 		});
@@ -247,9 +237,5 @@ export class Trainer {
 
 	getGenerationContext(): GenerationContext | null {
 		return this._lastInfo.generationContext;
-	}
-
-	_computeSharpe(scores: number[]): number {
-		return computeSharpe(scores);
 	}
 }
