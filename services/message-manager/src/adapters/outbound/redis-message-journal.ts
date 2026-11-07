@@ -1,5 +1,6 @@
 import { messageManagerError } from "@trading-model/broker-message/shared/errors";
 import type { Message } from "@trading-model/contracts/message-types";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type Redis from "ioredis";
 import {
 	JOURNAL_RETENTION_MS,
@@ -7,6 +8,7 @@ import {
 	type JournalGroup,
 	type MessageJournalPort,
 } from "../../application/ports/message-journal-port";
+import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../config/metrics";
 
 export interface RedisMessageJournalDeps {
 	redis: Pick<Redis, "call" | "sadd" | "smembers">;
@@ -173,6 +175,16 @@ export class RedisMessageJournal implements MessageJournalPort {
 					deliveries: deliveries(),
 				});
 			} else {
+				// Trimmed (24 h) before delivery: the message is gone for good, so it is counted, logged and alerted.
+				JOURNAL_TRIMMED_PENDING_TOTAL.inc({
+					topic: group.topic,
+					service: group.service,
+				});
+				logger.error("Journal entry trimmed before delivery: message lost", {
+					topic: group.topic,
+					service: group.service,
+					entryId: id,
+				});
 				await this.ack(group, id);
 			}
 		}

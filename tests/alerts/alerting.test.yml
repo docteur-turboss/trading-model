@@ -591,6 +591,43 @@ tests:
               description: 'message-manager drops the messages published on market.ticker: no instance subscribes to it. audit-logger subscribes to every topic: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
 
+  - name: journal entries trimmed before delivery
+    interval: 1m
+    input_series:
+      - series: 'mm_journal_trimmed_pending_total{job="message-manager",instance="m",topic="market.candle",service="trader-trainer"}'
+        values: '0 0 3 3 3 3'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: JournalEntriesTrimmed
+        exp_alerts:
+          - exp_labels: {severity: critical, topic: market.candle, service: trader-trainer}
+            exp_annotations:
+              summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
+              description: 'trader-trainer stayed unreachable for more than 24 h: message-manager trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
+      - eval_time: 30m
+        alertname: JournalEntriesTrimmed
+        exp_alerts: []
+
+  # The series is created by the first trim: it is born at 1, never at 0.
+  - name: first journal trim of a topic and service fires
+    interval: 1m
+    input_series:
+      - series: 'mm_journal_trimmed_pending_total{job="message-manager",instance="m",topic="market.candle",service="trader-trainer"}'
+        values: '_ _ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: JournalEntriesTrimmed
+        exp_alerts:
+          - exp_labels: {severity: critical, topic: market.candle, service: trader-trainer}
+            exp_annotations:
+              summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
+              description: 'trader-trainer stayed unreachable for more than 24 h: message-manager trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
+      - eval_time: 19m
+        alertname: JournalEntriesTrimmed
+        exp_alerts: []
+
   # V8 keeps the allocated heap close to the used one (95% here): no alert.
   # 92% of the heap limit: out of memory is close.
   - name: heap usage is measured against the V8 limit

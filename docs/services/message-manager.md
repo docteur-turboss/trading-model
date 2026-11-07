@@ -124,7 +124,7 @@ Previously validated as `z.unknown()`, the `authContext` object is now strictly 
 - **Alerting**: Persistent delivery failures are logged at ERROR level with topic, service name, and attempt count
 - **Dead Letter Queue**: Undelivered messages are sent to dlq-service (a `POST` to its `/dlq` route, signed with `DLQ_AUTH_HMAC_SECRET`). While it cannot take them they are kept in `DLQ_LOCAL_FALLBACK_PATH` and sent again every `DLQ_FORWARD_INTERVAL_MS`, at startup and at shutdown; entries refused for good (400, 413) go to `DLQ_LOCAL_FALLBACK_PATH.rejected`
 - **Graceful shutdown**: on SIGTERM the instance leaves discovery, keeps serving for `CACHE_TTL_MS`, stops its delivery worker after the attempts in flight (10 s at most), then forwards its local dead letters; messages not delivered yet stay in the journal for the other replicas (K8s `terminationGracePeriodSeconds: 120`, compose `stop_grace_period: 2m`)
-- **Durable journal**: one Redis stream per topic, one consumer group per subscriber service (delivery once per service, at least once); entries older than 24 h are trimmed; `JOURNAL_MIN_REPLICAS` replicas must hold a write before the 202 (`WAIT`); production needs Redis with AOF
+- **Durable journal**: one Redis stream per topic, one consumer group per subscriber service (delivery once per service, at least once); entries older than 24 h are trimmed, and an undelivered one is counted (`mm_journal_trimmed_pending_total`), logged and alerted (`JournalEntriesTrimmed`); `JOURNAL_MIN_REPLICAS` replicas must hold a write before the 202 (`WAIT`); production needs Redis with AOF
 - **Deduplication**: Via `deduplicationId` in delivery metadata
 - **Partitioning**: Via `partitionKey` in routing metadata
 - **Priority**: Via `priority` in routing metadata
