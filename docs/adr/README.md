@@ -64,5 +64,6 @@ An ADR documents a significant architectural decision, including the context, al
 - **Supersession goes both ways.** The successor has a `**Supersedes:**` line linking back, and every ADR it supersedes says so. When a change removes or replaces what an ADR decided (as ADR-0012 did for ADR-0002/0008), write the superseding ADR in the same change.
 - **Every Accepted or Implemented ADR has a `**Verified by:**` line** naming, in backticks, what proves it today: a `bun run <script>`, a test file, or a script run by a gate. When nothing automated can, write `manual review YYYY-MM-DD`; reviews older than 180 days are reported.
 - This index lists every ADR once, with its status.
+- **Architecture pages cite real symbols.** A PascalCase `Name` in code in `docs/architecture/*.md` must appear in `services/` or `packages/` (exceptions: `SYMBOL_EXCEPTIONS`).
 
 The check proves that each decision is tied to a live check, not that the check covers every sentence of the ADR: when you change what an ADR describes, update the check it names.
