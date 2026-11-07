@@ -106,7 +106,7 @@ describe("EndpointResolver", () => {
 
 		const target = await resolver.resolve("financial-scraper" as never, 1);
 
-		expect(target?.host).toBe("10.0.3.2");
+		expect(target?.host).toBe("10.9.9.9");
 	});
 
 	it("should reach discovery at its configured URL (it never registers)", async () => {
