@@ -24,9 +24,16 @@ async function _deliverMessage(
 	if (isShuttingDown()) {
 		throw new Error("Server shutting down");
 	}
+	// Entries from before ADR-0043 name no service: they go through the normal publication, to every subscriber.
+	const targeted = entry.service
+		? {
+				path: "/message/replay",
+				body: { service: entry.service, message: entry.message },
+			}
+		: { path: "/message", body: entry.message };
 	await client.post(
-		URLString.of(`${messageManagerUrl}/message`),
-		entry.message,
+		URLString.of(`${messageManagerUrl}${targeted.path}`),
+		targeted.body,
 		{
 			timeoutMs: DurationMs.of(REPLAY_DELIVERY_TIMEOUT_MS),
 			serviceName: toServiceId(ServiceInstanceName.MessageManagerService),

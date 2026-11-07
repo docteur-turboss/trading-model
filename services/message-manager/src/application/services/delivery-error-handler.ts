@@ -65,6 +65,7 @@ export class DeliveryErrorHandler {
 			});
 		}
 		await this._deliveryPort.markDeadLetter({
+			service: this._serviceName,
 			message,
 			reason: classification.reason,
 			deliveryAttempt: context.deliveryAttempt,

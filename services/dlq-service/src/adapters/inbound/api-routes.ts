@@ -24,6 +24,7 @@ const StoredDlqEntry = z.object({
 	id: z.string(),
 	topic: z.string().nullable(),
 	message: z.unknown(),
+	service: z.string().nullable(),
 	reason: z.string().nullable(),
 	deliveryAttempt: z.number().int(),
 	createdAt: z.iso.datetime(),

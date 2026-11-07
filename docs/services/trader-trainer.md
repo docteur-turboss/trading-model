@@ -58,7 +58,7 @@ Training service for trading agents using genetic algorithms and neural networks
 
 ### `GET /best-agent`
 
-Returns the best trained agent summary from the most recent generation.
+Returns the best trained agent summary from the most recent generation. After a restart, until the first new training, it is the summary of the newest stored model manifest (`/training-agents/:symbol` also returns it as `model`).
 
 **Response** `200 OK`:
 

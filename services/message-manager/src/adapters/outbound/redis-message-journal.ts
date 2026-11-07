@@ -24,6 +24,7 @@ export interface RedisMessageJournalDeps {
 
 const WAIT_REPLICAS_TIMEOUT_MS = 2000;
 const FIELD = "message";
+const ONLY_FIELD = "only";
 
 type StreamReply = [id: string, fields: string[] | null][] | null;
 
@@ -48,7 +49,11 @@ export class RedisMessageJournal implements MessageJournalPort {
 		);
 	}
 
-	async append(message: Message, services: readonly string[]): Promise<void> {
+	async append(
+		message: Message,
+		services: readonly string[],
+		onlyFor?: string
+	): Promise<void> {
 		const { topic } = message.metadata;
 		for (const service of services) {
 			await this.register({ topic, service });
@@ -61,7 +66,8 @@ export class RedisMessageJournal implements MessageJournalPort {
 			String(this._now() - JOURNAL_RETENTION_MS),
 			"*",
 			FIELD,
-			JSON.stringify(message)
+			JSON.stringify(message),
+			...(onlyFor ? [ONLY_FIELD, onlyFor] : [])
 		)) as string;
 		const required = this._deps.minReplicas ?? 0;
 		if (required > 0) {
@@ -168,7 +174,11 @@ export class RedisMessageJournal implements MessageJournalPort {
 		const entries: JournalEntry[] = [];
 		for (const [id, fields] of reply ?? []) {
 			const at = fields?.indexOf(FIELD) ?? -1;
-			if (fields && at >= 0) {
+			const only = fields?.indexOf(ONLY_FIELD) ?? -1;
+			// Targeted replay: the other groups see the entry too and settle it unread.
+			const forOthers =
+				fields && only >= 0 && fields[only + 1] !== group.service;
+			if (fields && at >= 0 && !forOthers) {
 				entries.push({
 					id,
 					message: JSON.parse(fields[at + 1] as string) as Message,

@@ -118,6 +118,7 @@ describe("HttpMessageDelivery", () => {
 			expect(written.deliveryAttempt).toBe(3);
 			expect(written.message).toEqual(JSON.parse(JSON.stringify(message)));
 			expect(written.timestamp).toBeDefined();
+			expect(written.messageId).toBe(message.metadata.messageId);
 		});
 	});
 });

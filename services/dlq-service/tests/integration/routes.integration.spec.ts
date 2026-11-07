@@ -377,6 +377,7 @@ describe("DLQ Service — Routes Integration", () => {
 				id: "entry-1",
 				topic: "test.topic",
 				message: { key: "value" },
+				service: "audit-logger-service",
 				reason: "integration test",
 				deliveryAttempt: 1,
 				createdAt: new Date().toISOString(),

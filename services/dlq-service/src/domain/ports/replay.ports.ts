@@ -10,6 +10,7 @@ import type { BatchContext, DlqEntryRef } from "../../shared/types";
 export interface ClaimedEntry {
 	id: string;
 	message: unknown;
+	service?: string | null;
 }
 
 export interface ClaimEntriesOptions {

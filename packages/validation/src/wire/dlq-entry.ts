@@ -37,6 +37,7 @@ export const DlqEntryWire = z.object({
 		.union([EPOCH_MS, LEGACY_TIMESTAMP])
 		.transform(brand(UnixTimestamp.of)),
 	messageId: z.string().min(1).transform(brand(toMessageId)).optional(),
+	service: z.string().min(1).optional(),
 });
 
 export type DlqEntryWireChecks = [

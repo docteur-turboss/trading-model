@@ -180,6 +180,152 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /message/replay:
+    post:
+      operationId: "postMessageReplay"
+      tags:
+        - "message-manager"
+      summary: "Replay a dead letter to the one service whose delivery failed, under its original messageId (ADR-0043); callable by dlq-service only"
+      x-registry-entry: "republish"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              properties:
+                service:
+                  type: "string"
+                  minLength: 1
+                message:
+                  type: "object"
+                  properties:
+                    payload: {}
+                    metadata:
+                      type: "object"
+                      properties:
+                        correlationId:
+                          type: "string"
+                        schemaVersion:
+                          type: "string"
+                          minLength: 1
+                        causationId:
+                          type: "string"
+                        eventType:
+                          type: "string"
+                          minLength: 1
+                        topic:
+                          type: "string"
+                          minLength: 1
+                        publisher:
+                          type: "object"
+                          properties:
+                            serviceName:
+                              type: "string"
+                              enum:
+                                - "api-gateway"
+                                - "audit-logger"
+                                - "discovery-server"
+                                - "dlq-service"
+                                - "financial-scraper"
+                                - "message-manager"
+                                - "trader-trainer"
+                                - "audit-logger-service"
+                                - "discovery-service"
+                                - "financial-scraper-service"
+                                - "message-delivery-service"
+                            instanceId:
+                              type: "string"
+                              minLength: 1
+                          required:
+                            - "serviceName"
+                            - "instanceId"
+                        routing:
+                          type: "object"
+                          properties:
+                            partitionKey:
+                              type: "string"
+                            priority:
+                              type: "integer"
+                        delivery:
+                          type: "object"
+                          properties:
+                            mode:
+                              type: "string"
+                              enum:
+                                - "at-most-once"
+                                - "at-least-once"
+                                - "exactly-once"
+                            ttl:
+                              type: "integer"
+                              minimum: 0
+                              exclusiveMinimum: true
+                            deduplicationId:
+                              type: "string"
+                            requireSubscriber:
+                              type: "boolean"
+                          required:
+                            - "mode"
+                        security:
+                          type: "object"
+                          properties:
+                            authContext:
+                              type: "object"
+                              properties:
+                                subject:
+                                  type: "string"
+                                roles:
+                                  type: "array"
+                                  items:
+                                    type: "string"
+                                tenantId:
+                                  type: "string"
+                              required:
+                                - "subject"
+                                - "roles"
+                                - "tenantId"
+                            signature:
+                              type: "string"
+                        messageId:
+                          type: "string"
+                          minLength: 1
+                        emittedAt:
+                          type: "integer"
+                          minimum: 0
+                      required:
+                        - "schemaVersion"
+                        - "eventType"
+                        - "topic"
+                        - "publisher"
+                        - "messageId"
+                        - "emittedAt"
+                  required:
+                    - "payload"
+                    - "metadata"
+              required:
+                - "service"
+                - "message"
+      responses:
+        "204":
+          description: "No content"
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: "Too many requests"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: "Service unavailable"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /subscribe:
     delete:
       operationId: "deleteSubscribe"

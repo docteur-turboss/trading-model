@@ -67,7 +67,7 @@ const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/
 const SERVICE_TO_SERVICE = {
 	"discovery-server": ["POST /register", "POST /heartbeat", "POST /token/rotate", "POST /unregister"],
 	"audit-logger": ["POST /message"],
-	"message-manager": ["POST /message", "POST /subscribe", "DELETE /subscribe"],
+	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["POST /message", "GET /models/:symbol/:version/weights"],
 };
@@ -86,6 +86,7 @@ const CALLERS = {
 	"message-manager POST /message": { caller: "packages/broker-message", call: /\}\/message`/ },
 	"message-manager POST /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
 	"message-manager DELETE /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
+	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
 	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
 	"trader-trainer POST /message": { caller: "services/trader-trainer", call: /\.intents\(/ },
 };
