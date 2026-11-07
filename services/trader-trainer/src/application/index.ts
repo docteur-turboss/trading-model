@@ -49,6 +49,8 @@ createBootstrap({
 
 		await MessageManager.intents(intents);
 
+		await trainer.rehydrate(symbols);
+
 		trainingLoop.start({
 			symbols,
 			intervalMs: 60_000,

@@ -14,6 +14,7 @@ import {
 import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
 import type { GenerationContext } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
+import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
@@ -21,6 +22,7 @@ import type { ModelPublisherPort } from "../domain/ports/model-publisher.port";
 import { validateTrainingPrerequisites } from "../domain/training-prerequisite-validator";
 import type { TrainingSettings } from "../domain/training-settings";
 import {
+	ArtifactTrainingInfo,
 	type BestAgentSummary,
 	LastTrainingInfo,
 	NullLastTrainingInfo,
@@ -88,6 +90,42 @@ export class Trainer {
 
 	getSnapshotForSymbol(symbol: TradingSymbol): TrainingSnapshot | undefined {
 		return this._symbolSnapshots.get(symbol);
+	}
+
+	/**
+	 * Serves the newest stored agent of each symbol until a training replaces
+	 * it. An unreadable manifest is logged and skipped (startup goes on).
+	 */
+	async rehydrate(symbols: readonly TradingSymbol[]): Promise<void> {
+		const models = this._deps.models;
+		if (!models) {
+			return;
+		}
+		for (const symbol of symbols) {
+			try {
+				const latest = (await models.list(String(symbol)))[0];
+				const manifest =
+					latest && (await models.manifest(String(symbol), latest.version));
+				if (manifest && !this._symbolSnapshots.has(symbol)) {
+					const snapshot = new ArtifactTrainingInfo(
+						String(symbol),
+						summaryFromManifest(manifest)
+					);
+					this._symbolSnapshots.set(symbol, snapshot);
+					// /best-agent reads the last snapshot: serve the first one until a training.
+					if (this._lastInfo instanceof NullLastTrainingInfo) {
+						this._lastInfo = snapshot;
+					}
+					getLogger().info("Best agent rehydrated", {
+						context: { symbol, version: manifest.version },
+					});
+				}
+			} catch (err) {
+				getLogger().error("Cannot rehydrate the best agent from its manifest", {
+					context: { symbol, err: normalizeError(err).message },
+				});
+			}
+		}
 	}
 
 	async train(symbol: TradingSymbol): Promise<TrainingResult> {

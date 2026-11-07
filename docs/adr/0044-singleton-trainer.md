@@ -21,7 +21,7 @@
 ## Consequences
 
 - No horizontal scaling: one trainer's CPU bounds training throughput.
-- Each release and each pod loss stops training and empties the read routes until the new pod is ready; the in-memory state starts over (already the case on any restart). Published model artifacts stay on the checkpoint volume.
+- Each release and each pod loss stops training and empties the read routes until the new pod is ready; the training state starts over, but at startup the trainer rehydrates each symbol's best-agent summary from its newest model manifest (issue #533), so the read routes answer with the last published agent (`model` carries its version) until a new training replaces it. The market buffer still starts empty. Published model artifacts stay on the checkpoint volume.
 - The read routes answer the same state whatever the call.
 - A canary release does not cover the trainer: its new image is first exercised by the rollout itself, and a failure there goes through the rollback step.
 

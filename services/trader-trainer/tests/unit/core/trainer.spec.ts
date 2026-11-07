@@ -683,6 +683,76 @@ describe("Trainer — model publication", () => {
 			expect(artifact.normalization.candle.close.count).toBeGreaterThan(0);
 		});
 
+		describe("rehydrate", () => {
+			const sym = TradingSymbol.of("BTCUSDT");
+			async function storedManifest() {
+				const genome = await trainedGenome();
+				const { trainedWeights: _w, ...g } = genome;
+				return {
+					version: "v1",
+					genome: JSON.parse(JSON.stringify(g)),
+					metrics: {
+						generation: 3,
+						fitness: 1.5,
+						sharpe: 0.9,
+						avgPnl: 2,
+						maxDrawdown: 4,
+					},
+				};
+			}
+
+			it("serves the newest manifest summary, then a training replaces it", async () => {
+				const genome = await trainedGenome();
+				mockRunImpl = () => Promise.resolve(genome);
+				const models = fakeStore();
+				models.list.mockResolvedValue([{ version: "v1" }] as never);
+				models.manifest.mockResolvedValue((await storedManifest()) as never);
+				const trainer = new Trainer(dataBuffer, {
+					settings: TEST_TRAINING_SETTINGS,
+					models,
+				});
+
+				await trainer.rehydrate([sym]);
+
+				expect(
+					trainer.getSnapshotForSymbol(sym)?.buildBestAgentSummary()
+				).toMatchObject({
+					fitness: 1.5,
+					generation: 3,
+				});
+				expect(trainer.getBestAgentSummary()?.fitness).toBe(1.5);
+
+				feedCandles(dataBuffer, "BTCUSDT", 100);
+				await trainer.train(sym);
+				expect(
+					trainer.getSnapshotForSymbol(sym)?.buildBestAgentSummary()?.id
+				).toBe(genome.id);
+			});
+
+			it("leaves no snapshot without manifest", async () => {
+				const models = fakeStore();
+				models.list.mockResolvedValue([] as never);
+				const trainer = new Trainer(dataBuffer, {
+					settings: TEST_TRAINING_SETTINGS,
+					models,
+				});
+				await trainer.rehydrate([sym]);
+				expect(trainer.getSnapshotForSymbol(sym)).toBeUndefined();
+				expect(trainer.getBestAgentSummary()).toBeNull();
+			});
+
+			it("skips an unreadable manifest", async () => {
+				const models = fakeStore();
+				models.list.mockRejectedValue(new Error("EIO") as never);
+				const trainer = new Trainer(dataBuffer, {
+					settings: TEST_TRAINING_SETTINGS,
+					models,
+				});
+				await expect(trainer.rehydrate([sym])).resolves.toBeUndefined();
+				expect(trainer.getSnapshotForSymbol(sym)).toBeUndefined();
+			});
+		});
+
 		it("does not store a best genome without trained weights", async () => {
 			const models = fakeStore();
 			const trainer = new Trainer(dataBuffer, {
