@@ -246,8 +246,8 @@ spec:
     spec:
       serviceAccountName: financial-scraper
       # On stop the collector waits for its publishes in flight, each bounded by
-      # PUBLISH_TIMEOUT_MS (300s + 5s): same grace as message-manager.
-      terminationGracePeriodSeconds: 360
+      # PUBLISH_ACCEPT_TIMEOUT_MS (15s + 5s; PUBLISH_COMPAT_TIMEOUT_MS for one release, the grace then cuts what remains: the cursor republishes).
+      terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

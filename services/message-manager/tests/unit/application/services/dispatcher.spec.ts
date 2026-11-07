@@ -1,396 +1,173 @@
-import { existsSync } from "node:fs";
-import { unlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import {
-	afterAll,
-	beforeEach,
-	describe,
-	expect,
-	it,
-	jest,
-} from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
-import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
+import { InMemoryMessageJournal } from "../../../../src/adapters/outbound/in-memory-message-journal";
 import { InMemorySubscriptionStore } from "../../../../src/adapters/outbound/in-memory-subscription-store";
 import { Dispatcher } from "../../../../src/application/services/dispatcher";
-import { Subscription } from "../../../../src/application/services/subscription";
-import { FileDlqRepository } from "../../../../src/infrastructure/fallback/dlq-repository";
+import { SubscriptionRegistry } from "../../../../src/application/services/subscription-registry";
 import {
-	createMockMessage,
+	mockServiceIdentity,
 	mockSubscribeParams,
 	mockSubscriberIdentity,
 } from "../../../fixtures/broker.fixture";
-import { createMockHttpClient } from "../../../helpers/broker.helper";
 
 const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => mockLogger,
 }));
 
-jest.mock("@trading-model/common/utils/sleep", () => ({
-	sleep: jest.fn(() => Promise.resolve()),
-}));
-
-jest.mock("../../../../src/config/address-manager", () => ({
-	FIND_A_SERVICE: jest
-		.fn<() => Promise<{ host: string; port: number }>>()
-		.mockResolvedValue({ host: "10.0.0.1", port: 8444 }),
-}));
-
 jest.mock("../../../../src/config/metrics", () => ({
 	MESSAGES_PUBLISHED_TOTAL: { inc: jest.fn() },
 	MESSAGES_UNROUTED_TOTAL: { inc: jest.fn() },
-	MESSAGES_DELIVERED_TOTAL: { inc: jest.fn() },
-	MESSAGES_DLQ_TOTAL: { inc: jest.fn() },
-	MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.fn() },
-	DELIVERY_LATENCY_SECONDS: { observe: jest.fn() },
 	SUBSCRIPTION_COUNT: { set: jest.fn() },
-	CIRCUIT_BREAKER_STATE: { set: jest.fn() },
-	IN_FLIGHT_MESSAGES: { inc: jest.fn(), dec: jest.fn() },
-	SUBSCRIBER_DELIVERY_CONCURRENCY: { inc: jest.fn(), dec: jest.fn() },
 }));
 
+import {
+	MESSAGES_PUBLISHED_TOTAL,
+	MESSAGES_UNROUTED_TOTAL,
+	SUBSCRIPTION_COUNT,
+} from "../../../../src/config/metrics";
+
+const METADATA = {
+	schemaVersion: "1.0",
+	eventType: "PriceUpdate",
+	topic: "test.topic",
+	publisher: mockServiceIdentity,
+} as never;
+
 describe("Dispatcher", () => {
-	let mockHttpClient: ReturnType<typeof createMockHttpClient>;
+	let journal: InMemoryMessageJournal;
 	let dispatcher: Dispatcher;
-	let dqlRepository: FileDlqRepository;
-	const dlqFilePath = join(tmpdir(), `dlq-test-disp-${Date.now()}.jsonl`);
 
 	beforeEach(() => {
-		mockHttpClient = createMockHttpClient();
-		dqlRepository = new FileDlqRepository(dlqFilePath);
-		dispatcher = new Dispatcher({
-			deliveryPort: new HttpMessageDelivery(
-				mockHttpClient as never,
-				dqlRepository
-			),
-			subscriptionStore: new InMemorySubscriptionStore(),
-		});
 		jest.clearAllMocks();
+		journal = new InMemoryMessageJournal();
+		const registry = new SubscriptionRegistry(
+			new InMemorySubscriptionStore(),
+			journal
+		);
+		dispatcher = new Dispatcher({ registry, journal });
 	});
 
-	afterAll(async () => {
-		if (existsSync(dlqFilePath)) {
-			await unlink(dlqFilePath);
-		}
+	/** What the workers would read for a service, i.e. what was journaled for it. */
+	const journaled = (service = mockSubscriberIdentity.serviceName) =>
+		journal.readNew({ topic: "test.topic", service }, "c", 100);
+
+	it("should journal an accepted message and return its id without delivering", async () => {
+		await dispatcher.subscribe(mockSubscribeParams);
+
+		const messageId = await dispatcher.publish({ price: 1 }, METADATA);
+
+		const [entry] = await journaled();
+		expect(entry?.message.metadata.messageId).toBe(messageId);
+		expect(entry?.message.payload).toEqual({ price: 1 });
 	});
 
-	describe("subscribe", () => {
-		it("should register a new subscription for a topic", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
+	it("should journal one copy per subscriber service, not per instance", async () => {
+		await dispatcher.subscribe(mockSubscribeParams);
+		await dispatcher.subscribe({
+			...mockSubscribeParams,
+			serviceIdentity: {
+				...mockSubscriberIdentity,
+				instanceId: "subscriber-2",
+			},
+		});
+		await dispatcher.subscribe({
+			...mockSubscribeParams,
+			serviceIdentity: {
+				serviceName: "audit-logger-service",
+				instanceId: "al-1",
+			},
+		} as never);
 
-			const message = createMockMessage("test");
-			await dispatcher.dispatch(message);
+		await dispatcher.publish({ price: 1 }, METADATA);
 
-			expect(mockHttpClient.post).toHaveBeenCalled();
+		expect(await journaled()).toHaveLength(1);
+		expect(await journaled("audit-logger-service")).toHaveLength(1);
+	});
+
+	it("should not journal for the subscribers of another topic", async () => {
+		await dispatcher.subscribe({
+			...mockSubscribeParams,
+			topic: "other.topic",
 		});
 
-		it("should not register duplicate subscriptions for the same instance", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-			await dispatcher.subscribe(mockSubscribeParams);
+		await dispatcher.publish({ price: 1 }, METADATA);
 
-			const message = createMockMessage("test");
-			await dispatcher.dispatch(message);
-
-			expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-		});
-
-		it("should register subscriptions for different topics separately", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-			await dispatcher.subscribe({
-				...mockSubscribeParams,
-				topic: "other.topic",
-			});
-
-			const message1 = createMockMessage("test", { topic: "test.topic" });
-			const message2 = createMockMessage("test", { topic: "other.topic" });
-
-			await dispatcher.dispatch(message1);
-			await dispatcher.dispatch(message2);
-
-			expect(mockHttpClient.post).toHaveBeenCalledTimes(2);
-		});
-
-		it("should deliver once to a service whose instances all subscribed (consumer group)", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-			await dispatcher.subscribe({
-				...mockSubscribeParams,
-				serviceIdentity: {
-					...mockSubscriberIdentity,
-					instanceId: "subscriber-2",
-				},
-			});
-
-			await dispatcher.dispatch(createMockMessage("test"));
-
-			expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-		});
-
-		it("should deliver once to each subscribed service", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-			await dispatcher.subscribe({
-				...mockSubscribeParams,
-				serviceIdentity: {
-					serviceName: "audit-logger-service",
-					instanceId: "audit-1",
-				},
-			});
-
-			await dispatcher.dispatch(createMockMessage("test"));
-
-			expect(mockHttpClient.post).toHaveBeenCalledTimes(2);
+		expect(await journaled()).toHaveLength(0);
+		expect(MESSAGES_UNROUTED_TOTAL.inc).toHaveBeenCalledWith({
+			topic: "test.topic",
 		});
 	});
 
-	describe("dispatch", () => {
-		it("should count and log a message no subscription routes", async () => {
-			const { MESSAGES_UNROUTED_TOTAL } = jest.requireMock<{
-				MESSAGES_UNROUTED_TOTAL: { inc: jest.Mock };
-			}>("../../../../src/config/metrics");
-			const message = createMockMessage("test");
+	it("should count and log a message no subscription routes", async () => {
+		await expect(dispatcher.publish({ price: 1 }, METADATA)).resolves.toEqual(
+			expect.any(String)
+		);
 
-			await dispatcher.dispatch(message);
-
-			expect(mockHttpClient.post).not.toHaveBeenCalled();
-			expect(MESSAGES_UNROUTED_TOTAL.inc).toHaveBeenCalledWith({
-				topic: "test.topic",
-			});
-			expect(mockLogger.warn).toHaveBeenCalledWith(
-				"Message dropped: no subscriber for its topic",
-				{ context: { topic: "test.topic", messageId: "msg-123" } }
-			);
+		expect(MESSAGES_UNROUTED_TOTAL.inc).toHaveBeenCalledWith({
+			topic: "test.topic",
 		});
-
-		it("should refuse, not drop, an unrouted message that requires a subscriber", async () => {
-			const { MESSAGES_UNROUTED_TOTAL } = jest.requireMock<{
-				MESSAGES_UNROUTED_TOTAL: { inc: jest.Mock };
-			}>("../../../../src/config/metrics");
-			const message = createMockMessage("test", {
-				delivery: {
-					mode: DeliveryMode.AtLeastOnce,
-					requireSubscriber: true,
-				},
-			});
-
-			await expect(dispatcher.dispatch(message)).rejects.toMatchObject({
-				httpStatus: 503,
-			});
-
-			expect(mockHttpClient.post).not.toHaveBeenCalled();
-			expect(MESSAGES_UNROUTED_TOTAL.inc).toHaveBeenCalledWith({
-				topic: "test.topic",
-			});
-			expect(mockLogger.warn).toHaveBeenCalledWith(
-				"Message refused: no subscriber for its topic",
-				{ context: { topic: "test.topic", messageId: "msg-123" } }
-			);
-		});
-
-		it("should deliver a message that requires a subscriber when one exists", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-			const message = createMockMessage("test", {
-				delivery: {
-					mode: DeliveryMode.AtLeastOnce,
-					requireSubscriber: true,
-				},
-			});
-
-			await expect(dispatcher.dispatch(message)).resolves.toBeUndefined();
-			expect(mockHttpClient.post).toHaveBeenCalled();
-		});
-
-		it("should route a message published on another replica sharing the store", async () => {
-			const sharedStore = new InMemorySubscriptionStore();
-			const deliveryPort = new HttpMessageDelivery(
-				mockHttpClient as never,
-				dqlRepository
-			);
-			const replicaA = new Dispatcher({
-				deliveryPort,
-				subscriptionStore: sharedStore,
-			});
-			const replicaB = new Dispatcher({
-				deliveryPort,
-				subscriptionStore: sharedStore,
-			});
-
-			await replicaA.subscribe(mockSubscribeParams);
-			await replicaB.dispatch(createMockMessage("test"));
-
-			expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-		});
-
-		it("should dispatch to all matching subscriptions", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-
-			const message = createMockMessage("test");
-			await dispatcher.dispatch(message);
-
-			expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-		});
-
-		it("should not dispatch to subscriptions of other topics", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-
-			const message = createMockMessage("test", { topic: "other.topic" });
-			await dispatcher.dispatch(message);
-
-			expect(mockHttpClient.post).not.toHaveBeenCalled();
-		});
-
-		it("should not fail when a subscription dispatch throws", async () => {
-			mockHttpClient.post.mockRejectedValueOnce(new Error("Delivery failed"));
-
-			await dispatcher.subscribe(mockSubscribeParams);
-			await dispatcher.subscribe({
-				...mockSubscribeParams,
-				serviceIdentity: {
-					serviceName: "audit-logger-service",
-					instanceId: "audit-1",
-				},
-			});
-
-			const message = createMockMessage("test");
-			await dispatcher.dispatch(message);
-
-			expect(mockHttpClient.post).toHaveBeenCalledTimes(3);
-		});
-
-		it("should log allSettled rejections when subscription.dispatch rejects", async () => {
-			jest
-				.spyOn(Subscription.prototype, "dispatch")
-				.mockRejectedValue(new Error("Unhandled error"));
-
-			await dispatcher.subscribe(mockSubscribeParams);
-
-			const message = createMockMessage("test");
-			await dispatcher.dispatch(message);
-
-			expect(mockLogger.error).toHaveBeenCalledWith("Message delivery failed", {
-				context: { error: new Error("Unhandled error") },
-			});
-
-			jest.restoreAllMocks();
-		});
-
-		it("should keep one subscription per instanceId, renewed with the latest callback", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-			await dispatcher.subscribe({
-				...mockSubscribeParams,
-				callbackPath: "different/path",
-				serviceIdentity: mockSubscriberIdentity,
-			});
-
-			const message = createMockMessage("test");
-			await dispatcher.dispatch(message);
-
-			expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-		});
+		expect(mockLogger.warn).toHaveBeenCalledWith(
+			"Message dropped: no subscriber for its topic",
+			expect.anything()
+		);
 	});
 
-	describe("unsubscribe", () => {
-		it("should remove a subscription from a topic", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-			await dispatcher.unsubscribe({
-				topic: "test.topic",
-				instanceId: mockSubscriberIdentity.instanceId,
-			});
+	it("should refuse, not drop, an unrouted message that requires a subscriber", async () => {
+		const required = {
+			...(METADATA as object),
+			delivery: { mode: DeliveryMode.AtLeastOnce, requireSubscriber: true },
+		} as never;
 
-			const message = createMockMessage("test");
-			await dispatcher.dispatch(message);
-
-			expect(mockHttpClient.post).not.toHaveBeenCalled();
-		});
-
-		it("should do nothing when unregistering from a non-existent topic", async () => {
-			await expect(
-				dispatcher.unsubscribe({
-					topic: "nonexistent.topic",
-					instanceId: "unknown",
-				})
-			).resolves.toBeUndefined();
-		});
-
-		it("should keep delivering to a service while another of its instances is subscribed", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-			await dispatcher.subscribe({
-				...mockSubscribeParams,
-				serviceIdentity: {
-					...mockSubscriberIdentity,
-					instanceId: "subscriber-2",
-				},
-			});
-
-			await dispatcher.unsubscribe({
-				topic: "test.topic",
-				instanceId: mockSubscriberIdentity.instanceId,
-			});
-
-			const message = createMockMessage("test");
-			await dispatcher.dispatch(message);
-
-			expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-		});
+		await expect(dispatcher.publish({ price: 1 }, required)).rejects.toThrow(
+			"No subscriber for topic test.topic"
+		);
+		expect(await journaled()).toHaveLength(0);
 	});
 
-	describe("metrics", () => {
-		it("should count published messages per topic", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-			const { MESSAGES_PUBLISHED_TOTAL } = jest.requireMock<{
-				MESSAGES_PUBLISHED_TOTAL: { inc: jest.Mock };
-			}>("../../../../src/config/metrics");
+	it("should journal a message that requires a subscriber when one exists", async () => {
+		await dispatcher.subscribe(mockSubscribeParams);
+		const required = {
+			...(METADATA as object),
+			delivery: { mode: DeliveryMode.AtLeastOnce, requireSubscriber: true },
+		} as never;
 
-			await dispatcher.publish("hello", {
-				topic: "test.topic",
-				eventType: "TestEvent",
-				schemaVersion: "1.0.0",
-				publisher: mockSubscriberIdentity,
-			});
+		await dispatcher.publish({ price: 1 }, required);
 
-			expect(MESSAGES_PUBLISHED_TOTAL.inc).toHaveBeenCalledWith({
-				topic: "test.topic",
-			});
+		expect(await journaled()).toHaveLength(1);
+	});
+
+	it("should stop routing to an unsubscribed instance", async () => {
+		await dispatcher.subscribe(mockSubscribeParams);
+		await dispatcher.unsubscribe({
+			topic: "test.topic",
+			instanceId: mockSubscriberIdentity.instanceId,
 		});
 
-		it("should track subscription count on subscribe and unsubscribe", async () => {
-			const { SUBSCRIPTION_COUNT } = jest.requireMock<{
-				SUBSCRIPTION_COUNT: { set: jest.Mock };
-			}>("../../../../src/config/metrics");
+		await dispatcher.publish({ price: 1 }, METADATA);
 
-			await dispatcher.subscribe(mockSubscribeParams);
-			expect(SUBSCRIPTION_COUNT.set).toHaveBeenLastCalledWith(
-				{ topic: "test.topic" },
-				1
-			);
+		expect(await journaled()).toHaveLength(0);
+	});
 
-			await dispatcher.unsubscribe({
-				topic: "test.topic",
-				instanceId: mockSubscriberIdentity.instanceId,
-			});
-			expect(SUBSCRIPTION_COUNT.set).toHaveBeenLastCalledWith(
-				{ topic: "test.topic" },
-				0
-			);
+	it("should count published messages and subscriptions per topic", async () => {
+		await dispatcher.subscribe(mockSubscribeParams);
+		await dispatcher.publish({ price: 1 }, METADATA);
+
+		expect(MESSAGES_PUBLISHED_TOTAL.inc).toHaveBeenCalledWith({
+			topic: "test.topic",
 		});
+		expect(SUBSCRIPTION_COUNT.set).toHaveBeenCalledWith(
+			{ topic: "test.topic" },
+			1
+		);
+	});
 
-		it("should track delivery latency and in-flight messages on dispatch", async () => {
-			await dispatcher.subscribe(mockSubscribeParams);
-			const { DELIVERY_LATENCY_SECONDS, IN_FLIGHT_MESSAGES } =
-				jest.requireMock<{
-					DELIVERY_LATENCY_SECONDS: { observe: jest.Mock };
-					IN_FLIGHT_MESSAGES: { inc: jest.Mock; dec: jest.Mock };
-				}>("../../../../src/config/metrics");
+	it("should refuse a message the journal cannot take", async () => {
+		await dispatcher.subscribe(mockSubscribeParams);
+		jest.spyOn(journal, "append").mockRejectedValue(new Error("Redis down"));
 
-			const message = createMockMessage("test");
-			await dispatcher.dispatch(message);
-
-			expect(IN_FLIGHT_MESSAGES.inc).toHaveBeenCalledTimes(1);
-			expect(IN_FLIGHT_MESSAGES.dec).toHaveBeenCalledTimes(1);
-			expect(DELIVERY_LATENCY_SECONDS.observe).toHaveBeenCalledWith(
-				{ topic: "test.topic" },
-				expect.any(Number)
-			);
-		});
+		await expect(dispatcher.publish({ price: 1 }, METADATA)).rejects.toThrow(
+			"Redis down"
+		);
 	});
 });

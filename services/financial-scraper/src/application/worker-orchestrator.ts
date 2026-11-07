@@ -62,7 +62,7 @@ interface NextCandles {
  *
  * MySQL does not wait for the bus: a cycle persists, then starts the publish
  * without awaiting it (a hung message-manager may hold a publish for
- * PUBLISH_TIMEOUT_MS). While a symbol's publish is in flight, the next cycles
+ * PUBLISH_ACCEPT_TIMEOUT_MS). While a symbol's publish is in flight, the next cycles
  * only persist. The candles to publish are read back from MySQL from the
  * series publish cursor, which moves only once a publish of theirs succeeded:
  * a bus outage or a scraper restart loses none of them. A series without a

@@ -258,6 +258,17 @@ describe("K8s Redis HA start script — real failovers", () => {
 				"b"
 			)
 		).resolves.toBe("1");
+		// The durable message journal (ADR-0048): Redis Streams under its own prefix.
+		await expect(
+			first(
+				"message-manager",
+				"XADD",
+				"trading-model:message-manager:journal:t",
+				"*",
+				"m",
+				"1"
+			)
+		).resolves.toMatch(/^\d+-\d+$/);
 		await expect(first("dlq-service", "LLEN", "dlq:queue")).resolves.toBe("0");
 		await expect(
 			first(

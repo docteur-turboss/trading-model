@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import {
 	REPLAY_BATCH_TIMEOUT_MS,
 	REPLAY_DELIVERY_TIMEOUT_MS,
@@ -39,7 +39,9 @@ describe("dlq-constants", () => {
 	});
 
 	it("waits for message-manager's answer to a replay rather than timing out first", () => {
-		expect(REPLAY_DELIVERY_TIMEOUT_MS).toBeGreaterThan(PUBLISH_TIMEOUT_MS);
+		expect(REPLAY_DELIVERY_TIMEOUT_MS).toBeGreaterThan(
+			PUBLISH_ACCEPT_TIMEOUT_MS
+		);
 	});
 
 	it("never releases the claim of a delivery that may still be in flight", () => {

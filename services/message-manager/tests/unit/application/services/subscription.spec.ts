@@ -18,6 +18,18 @@ jest.mock("../../../../src/config/address-manager", () => ({
 		.mockResolvedValue({ host: "10.0.0.1", port: 8444 }),
 }));
 
+/** Runs attempts the way the delivery worker does: the next one when the entry stays pending. */
+async function dispatchUntilSettled(
+	subscription: Subscription,
+	message: ReturnType<typeof createMockMessage>
+): Promise<void> {
+	for (let deliveries = 1; deliveries <= 20; deliveries++) {
+		if (await subscription.deliver(message, deliveries)) {
+			return;
+		}
+	}
+}
+
 describe("Subscription", () => {
 	let mockDeliveryPort: jest.Mocked<MessageDeliveryPort>;
 	let subscription: Subscription;
@@ -40,7 +52,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockResolvedValue(undefined);
 
 			const message = createMockMessage("payload");
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			const sendArg = mockDeliveryPort.send.mock.calls[0][0] as {
@@ -66,7 +78,7 @@ describe("Subscription", () => {
 				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
 
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(3);
 		});
@@ -81,7 +93,7 @@ describe("Subscription", () => {
 			const message = createMockMessage("payload", {
 				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
@@ -102,7 +114,7 @@ describe("Subscription", () => {
 				emittedAt: new Date("2026-01-01T00:00:00Z"),
 				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 1 },
 			});
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
@@ -119,7 +131,7 @@ describe("Subscription", () => {
 			const message = createMockMessage("payload", {
 				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 },
 			});
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 		});
@@ -134,7 +146,7 @@ describe("Subscription", () => {
 			const message = createMockMessage("payload", {
 				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 },
 			});
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
@@ -150,7 +162,7 @@ describe("Subscription", () => {
 			const message = createMockMessage("payload", {
 				delivery: { mode: DeliveryMode.ExactlyOnce, ttl: 60000 },
 			});
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
@@ -167,7 +179,7 @@ describe("Subscription", () => {
 				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
 
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
@@ -184,11 +196,11 @@ describe("Subscription", () => {
 			});
 
 			for (let i = 0; i < 5; i++) {
-				await subscription.dispatch(message);
+				await dispatchUntilSettled(subscription, message);
 			}
 
 			mockDeliveryPort.markDeadLetter.mockClear();
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
@@ -206,15 +218,15 @@ describe("Subscription", () => {
 				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
 
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			mockDeliveryPort.send.mockReset();
 			mockDeliveryPort.send.mockResolvedValue(undefined);
 
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(2);
 		});
 
@@ -224,7 +236,7 @@ describe("Subscription", () => {
 			const message = createMockMessage("payload", {
 				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 },
 			});
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 		});
@@ -235,7 +247,7 @@ describe("Subscription", () => {
 			const message = createMockMessage("payload", {
 				delivery: { mode: DeliveryMode.ExactlyOnce, ttl: 60000 },
 			});
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 		});
@@ -244,7 +256,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockResolvedValue(undefined);
 
 			const message = createMockMessage("payload");
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			const sendArg = mockDeliveryPort.send.mock.calls[0][0] as {
 				url: string;
@@ -260,7 +272,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockResolvedValue(undefined);
 
 			const message = createMockMessage("payload", { delivery: undefined });
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 		});
@@ -270,7 +282,7 @@ describe("Subscription", () => {
 
 			const message = createMockMessage("payload", { delivery: undefined });
 			(message.metadata as any).emittedAt = undefined;
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 		});
@@ -281,7 +293,7 @@ describe("Subscription", () => {
 			const message = createMockMessage("payload", {
 				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
 			});
-			await subscription.dispatch(message);
+			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({

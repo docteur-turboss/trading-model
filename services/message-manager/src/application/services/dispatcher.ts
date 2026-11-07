@@ -1,16 +1,13 @@
 /**
- * Message dispatch coordinator.
- *
- * Reads the subscriptions of each topic from the shared subscription store
- * and dispatches published messages to all matching subscribers.
+ * Message acceptance (ADR-0048): delivers nothing. Once a subscriber exists
+ * for the topic, it writes the message to the durable journal; the delivery
+ * workers deliver it afterwards, outside the publisher's request.
  */
 
 import { messageManagerError } from "@trading-model/broker-message/shared/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type { Message } from "@trading-model/contracts/message-types";
+import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import {
-	DELIVERY_LATENCY_SECONDS,
-	IN_FLIGHT_MESSAGES,
 	MESSAGES_PUBLISHED_TOTAL,
 	MESSAGES_UNROUTED_TOTAL,
 } from "../../config/metrics";
@@ -19,45 +16,32 @@ import type {
 	SubscriptionParams,
 	TopicSubscription,
 } from "../../domain/messaging-types";
-import type { MessageDeliveryPort } from "../ports/message-delivery-port";
-import type { SubscriptionStorePort } from "../ports/subscription-store-port";
-import { SubscriptionRegistry } from "./subscription-registry";
+import type { MessageJournalPort } from "../ports/message-journal-port";
+import type { SubscriptionRegistry } from "./subscription-registry";
 
 export interface DispatcherDeps {
-	deliveryPort: MessageDeliveryPort;
-	subscriptionStore: SubscriptionStorePort;
+	registry: SubscriptionRegistry;
+	journal: MessageJournalPort;
 }
 
 export class Dispatcher {
-	private readonly _registry: SubscriptionRegistry;
+	constructor(private readonly _deps: DispatcherDeps) {}
 
-	constructor(deps: DispatcherDeps) {
-		this._registry = new SubscriptionRegistry(
-			deps.deliveryPort,
-			deps.subscriptionStore
-		);
-	}
-
+	/**
+	 * Accepts a message: it is durable when this resolves.
+	 *
+	 * @returns the `messageId` stamped on the message.
+	 * @throws when the topic has no subscriber and the message sets
+	 *   `delivery.requireSubscriber` (the publisher sends it again).
+	 */
 	async publish(
 		payload: unknown,
-		metadata: Omit<
-			import("@trading-model/contracts/message-types").MessageMetadata,
-			"emittedAt" | "messageId"
-		>
+		metadata: Omit<MessageMetadata, "emittedAt" | "messageId">
 	): Promise<string> {
-		const msg = createMessage(payload, metadata);
-		MESSAGES_PUBLISHED_TOTAL.inc({ topic: msg.metadata.topic });
-		await this.dispatch(msg);
-		return msg.metadata.messageId!;
-	}
-
-	subscribe(params: SubscriptionParams): Promise<void> {
-		return this._registry.subscribe(params);
-	}
-
-	async dispatch<TData>(message: Message<TData>) {
+		const message = createMessage(payload, metadata);
 		const { topic, messageId } = message.metadata;
-		const subscriptions = await this._registry.getSubscriptions(topic);
+		MESSAGES_PUBLISHED_TOTAL.inc({ topic });
+		const subscriptions = await this._deps.registry.getSubscriptions(topic);
 		if (subscriptions.length === 0) {
 			// Nobody to deliver to: the message is dropped. Counted so that a
 			// subscriber that stopped subscribing does not go unnoticed.
@@ -75,38 +59,20 @@ export class Dispatcher {
 			getLogger().warn("Message dropped: no subscriber for its topic", {
 				context: { topic, messageId },
 			});
-			return;
+			return messageId as string;
 		}
-		await this._deliverToAll(message, subscriptions);
+		const services = new Set<string>(
+			subscriptions.map((binding) => binding.serviceIdentity.serviceName)
+		);
+		await this._deps.journal.append(message, [...services]);
+		return messageId as string;
 	}
 
-	private async _deliverToAll<TData>(
-		message: Message<TData>,
-		subscriptions: readonly import("./subscription").Subscription[]
-	): Promise<void> {
-		const start = Date.now();
-		IN_FLIGHT_MESSAGES.inc();
-		try {
-			const results = await Promise.allSettled(
-				subscriptions.map((subscription) => subscription.dispatch(message))
-			);
-			for (const result of results) {
-				if (result.status === "rejected") {
-					getLogger().error("Message delivery failed", {
-						context: { error: result.reason },
-					});
-				}
-			}
-		} finally {
-			IN_FLIGHT_MESSAGES.dec();
-			DELIVERY_LATENCY_SECONDS.observe(
-				{ topic: message.metadata.topic },
-				(Date.now() - start) / 1000
-			);
-		}
+	subscribe(params: SubscriptionParams): Promise<void> {
+		return this._deps.registry.subscribe(params);
 	}
 
 	unsubscribe(params: TopicSubscription): Promise<void> {
-		return this._registry.unsubscribe(params);
+		return this._deps.registry.unsubscribe(params);
 	}
 }

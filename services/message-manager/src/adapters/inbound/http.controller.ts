@@ -29,13 +29,13 @@ export const DELETE_A_SUBSCRIPTION =
 		return NO_CONTENT();
 	};
 
-/** Forwards payload and metadata to the dispatcher, which stamps id and emission time. */
+/** Hands payload and metadata to the dispatcher, which stamps id and emission time and journals the message: 202 once it is durable. */
 export const PUBLISH_A_MESSAGE =
 	(dispatcher: Dispatcher): ApiRouteHandler<Api["publish"]> =>
 	async ({ body }) => {
-		await dispatcher.publish(
+		const messageId = await dispatcher.publish(
 			body.payload,
 			body.metadata as Omit<MessageMetadata, "emittedAt" | "messageId">
 		);
-		return NO_CONTENT();
+		return sendResponse({ messageId }, 202 as HttpStatusCode);
 	};

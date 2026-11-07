@@ -11,7 +11,7 @@ import { createMessage } from "../../services/message-manager/src/domain/message
 import { FileDlqRepository } from "../../services/message-manager/src/infrastructure/fallback/dlq-repository";
 
 /**
- * Dead-letter contract: message-manager → dlq-service (ADR-0019, ADR-0021).
+ * Dead-letter contract: message-manager → dlq-service (ADR-0048, ADR-0021).
  *
  * message-manager's real delivery adapter writes a dead letter to its real
  * file repository; each line must pass dlq-service's real `POST /dlq`
