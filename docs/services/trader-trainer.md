@@ -158,7 +158,7 @@ Candles are kept strictly increasing in time per symbol: a candle with the times
 ## Training Loop
 
 - **Frequency**: every 60 seconds
-- **Condition**: `hasEnoughTrainingData` (`domain/market-data/window-splitter.ts`), the rule the validator applies too. With `steps = candles - 1`: `steps >= MIN_TRAINING_STEPS`, and either walk-forward is on (`TRAINER_WALK_FORWARD_FOLDS >= 2`) with `steps >= MIN_TRAINING_STEPS × folds`, or `floor(steps × (1 - TRAINER_VALIDATION_SPLIT)) >= MIN_TRAINING_STEPS`. It does not depend on `TRAINER_DATA_WINDOW`
+- **Condition**: `hasEnoughTrainingData` (`domain/market-data/window-splitter.ts`), the rule the validator applies too. With `steps = candles - 1`: `steps >= MIN_TRAINING_STEPS`, and either walk-forward is on (`TRAINER_WALK_FORWARD_FOLDS >= 2`) with `steps >= MIN_TRAINING_STEPS * folds`, or `floor(steps * (1 - split)) >= MIN_TRAINING_STEPS`, where `split` is `TRAINER_VALIDATION_SPLIT` (the default split when walk-forward falls back). It does not depend on `TRAINER_DATA_WINDOW`
 - **Parallelism**: one training session at a time (`trainer.isTraining()`)
 - **Rotation**: each cycle trains one symbol of `TRAINER_SYMBOLS`, round-robin. The scan starts after the last symbol trained and takes the first eligible one (enough candles, fresh data). Every eligible symbol gets its turn; a symbol that keeps failing does not hold the loop; a skipped symbol (stale or filling) is checked again on the next cycle
 

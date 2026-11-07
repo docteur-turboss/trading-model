@@ -181,6 +181,25 @@ describe("TrainingLoop", () => {
 		}
 	});
 
+	it("should follow the rule with walk-forward folds and a split other than 0.2", async () => {
+		const windowing = { validationSplit: 0.99, walkForwardFolds: 5 };
+		const trainer = { train, isTraining: () => false } as unknown as Trainer;
+		const buffer = {
+			getMaxSize: () => 1000,
+			getCandleCount: () => candleCount,
+			getLastCandleCloseTime: () => NOW - MINUTE,
+		} as unknown as MarketDataBuffer;
+		loop = new TrainingLoop(trainer, buffer, windowing);
+		for (const count of [13, 14, 50, 100]) {
+			candleCount = count;
+			train.mockClear();
+			await runOnce();
+			expect(train.mock.calls.length === 1).toBe(
+				hasEnoughTrainingData(count, 0.99, 5)
+			);
+		}
+	});
+
 	it("should not judge freshness while the buffer is still filling", async () => {
 		candleCount = 10;
 

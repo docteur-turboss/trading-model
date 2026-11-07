@@ -11,10 +11,16 @@ describe("hasEnoughTrainingData", () => {
 		expect(hasEnoughTrainingData(14, 0.2, 1)).toBe(true);
 	});
 
-	it("walk-forward: MIN_TRAINING_STEPS per fold is accepted, one less falls back to the single split", () => {
-		const folds = 5;
-		const steps = MIN_TRAINING_STEPS * folds;
-		expect(hasEnoughTrainingData(steps + 1, 0.99, folds)).toBe(true);
-		expect(hasEnoughTrainingData(steps, 0.99, folds)).toBe(false);
+	it("walk-forward: MIN_TRAINING_STEPS per fold is accepted", () => {
+		const steps = MIN_TRAINING_STEPS * 5;
+		expect(hasEnoughTrainingData(steps + 1, 0.99, 5)).toBe(true);
+	});
+
+	it("walk-forward fallback uses the default split (0.2), not the configured one", () => {
+		// 49 steps < 50: splitter falls back to 0.2 -> 39 train steps, accepted even with split 0.99.
+		expect(hasEnoughTrainingData(50, 0.99, 5)).toBe(true);
+		// 12 steps -> floor(12 * 0.8) = 9: refused.
+		expect(hasEnoughTrainingData(13, 0.99, 5)).toBe(false);
+		expect(hasEnoughTrainingData(14, 0.99, 5)).toBe(true);
 	});
 });

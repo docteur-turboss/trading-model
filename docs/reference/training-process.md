@@ -20,7 +20,7 @@ On startup:
 
 ## 2. Training Trigger
 
-Training starts when **at least 50 candles** (10% of `TRAINER_DATA_WINDOW`) have been received for a symbol. A 60-second interval timer then runs training sessions:
+Training starts when **enough candles** (formula in [Trader Trainer, Training Loop](../services/trader-trainer.md#training-loop)) have been received for a symbol. A 60-second interval timer then runs training sessions:
 
 ```
 startTrainingLoop():

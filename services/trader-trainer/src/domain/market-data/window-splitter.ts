@@ -34,7 +34,10 @@ export function hasEnoughTrainingData(
 	if (walkForwardFolds >= 2 && steps >= MIN_TRAINING_STEPS * walkForwardFolds) {
 		return true;
 	}
-	return Math.floor(steps * (1 - validationSplit)) >= MIN_TRAINING_STEPS;
+	// Walk-forward fallback uses DEFAULT_VALIDATION_SPLIT, as splitWalkForward does.
+	const split =
+		walkForwardFolds >= 2 ? DEFAULT_VALIDATION_SPLIT : validationSplit;
+	return Math.floor(steps * (1 - split)) >= MIN_TRAINING_STEPS;
 }
 
 /** Handles building market steps and train/validation window splitting. */
