@@ -52,6 +52,7 @@ graph TD
 - **Core entities:** Candle, Trade, Ticker, OrderBook
 - **External dependency:** Binance API
 - **Publishes:** `market.trade.recent.fetch`, `market.candlestick.series.fetch`, `market.order-book.snapshot.fetch`, `market.ticker.24hr-stats.fetch`, `market.price-ticker.snapshot.fetch`, `market.order-book-ticker.snapshot.fetch`
+- **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; **no consumer yet** (trader-trainer does not read them).
 - **Debug events:** `example.debug.create`, `example.show.create`
 
 ### 2. Training Context
@@ -60,7 +61,8 @@ graph TD
 - **Sub-contexts:** `genetic-algorithm` (population evolution), `neural-network` (agent learning)
 - **Core entities:** Genome, Agent, Wallet, Experience
 - **Consumes:** Market events from Market Data Context
-- **Publishes:** Agent payloads (best agent after each generation)
+- **Publishes:** Agent payloads (best agent after each generation), `training.model.published` after each versioned artifact (ADR-0022)
+- **Consumers:** none yet. Only audit-logger receives `training.model.published`; `MODEL_DOWNLOAD_CALLERS` is empty, so no service may download weights. The trainer does not read signals either.
 
 ### 3. Messaging Context
 
@@ -94,6 +96,10 @@ graph TD
 - **Owner:** `api-gateway`
 - **Core entities:** Route, CacheEntry
 - **Responsibilities:** Auth, rate limiting, caching, proxying
+
+### Not yet defined: downstream context
+
+No Strategy, Execution or Evaluation context exists: trained models and collected signals have no consumer, so the trading decision is not part of the system yet. Options and the proposed contract are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Proposed).
 
 ## Integration Patterns
 
