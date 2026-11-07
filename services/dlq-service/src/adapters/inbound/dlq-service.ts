@@ -1,5 +1,5 @@
-﻿export { addEntry } from "./add-entry-pipeline";
-export { deleteEntries } from "./dlq-delete-handler";
+﻿export { addEntry } from "../../application/use-cases/add-entry-pipeline";
+export { deleteEntries } from "../../application/use-cases/dlq-delete-handler";
 export {
 	healthCheck,
 	readyCheck,

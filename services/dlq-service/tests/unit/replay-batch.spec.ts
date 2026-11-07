@@ -89,7 +89,7 @@ describe("replay-batch", () => {
 
 	it("counts the batch as in flight until its deliveries end (shutdown drain)", async () => {
 		const { activeReplays } = jest.requireActual(
-			"../../src/shared/active-replay-counter"
+			"../../src/application/services/active-replay-counter"
 		) as { activeReplays: { count: number } };
 		const during: number[] = [];
 
