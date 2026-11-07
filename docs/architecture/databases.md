@@ -28,6 +28,21 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 
 > SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database).
 
+## Redis — who uses it, with which keys
+
+Inventory (issue #506). Address-manager caches in memory per process, so only three services still talk to Redis (K8s: through the sentinels). Never `KEYS` (ADR-0023).
+
+| Service | Key prefix | Commands | Purpose |
+| ------- | ---------- | -------- | ------- |
+| discovery-server | `trading-model:discovery:*` | `GET SET DEL MGET SADD SREM SMEMBERS SISMEMBER SCARD MULTI EVAL` | Instance registry and tokens (ADR-0023) |
+| message-manager | `trading-model:message-manager:subscriptions:<topic>` | `HSET HGETALL HDEL PEXPIRE` | Broker subscriptions |
+| message-manager | `trading-model:message-manager:journal:<topic>`, `trading-model:message-manager:journal-groups` | `XADD XDEL XREADGROUP XPENDING XCLAIM XACK XGROUP WAIT SADD SMEMBERS` | Durable message journal (ADR-0048) |
+| dlq-service | `dlq:queue` | `LLEN LPUSH LRANGE LTRIM EVAL EVALSHA SCRIPT LOAD` | Replay queue, a cache of the MongoDB entries (rebuilt from MongoDB; the HTTP rate limiter is in memory) |
+
+Dead letters live in MongoDB, not Redis.
+
+Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off; the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix. Compose runs one unauthenticated Redis (dev).
+
 ## Schema Validation
 
 The message broker uses **Zod validation schemas** at `services/message-manager/src/adapters/inbound/validation/broker.schema.ts` to enforce message shapes, subscriptions, and metadata.

@@ -67,9 +67,11 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
-| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, FS, TT, AL, DLQ |
-| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, FS, TT, AL, DLQ |
-| `REDIS_PASSWORD`             | string | —          | no       | Redis password (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL) | DS, MM, FS, TT, AL, DLQ |
+| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, DLQ |
+| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, DLQ |
+| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: `discovery`, `message-manager`, `dlq-service`, ADR-0047; only with `REDIS_SENTINELS`) | DS, MM, DLQ |
+| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | DS, MM, DLQ |
+| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | DS, MM, DLQ |
 
 ---
 
@@ -221,7 +223,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (`true` in compose and K8s)  | no       | Replay eligible entries automatically| DLQ      |
 | `DLQ_AUTO_RETRY_INTERVAL_MS` | number  | `30000`                              | no       | Interval between auto-retry attempts | DLQ      |
 | `DLQ_AUTO_RETRY_LIMIT`       | number  | `50`                                 | no       | Max auto-retry attempts per entry    | DLQ      |
-| `REDIS_URL`                  | string  | —                                    | no       | Redis URL for rate limiting          | DLQ      |
+| `REDIS_URL`                  | string  | —                                    | no       | Redis URL of the `dlq:queue` list (the rate limiter is in memory, ADR-0047) | DLQ      |
 
 ---
 

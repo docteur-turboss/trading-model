@@ -16,7 +16,11 @@ export interface RedisEnv {
 	/** Comma-separated sentinels, `host:port` with an IP or DNS name (`[ipv6]:port`). */
 	REDIS_SENTINELS?: string;
 	REDIS_SENTINEL_MASTER_NAME?: string;
+	/** ACL user of the service (K8s: one per service, limited to its key prefix). */
+	REDIS_USERNAME?: string;
 	REDIS_PASSWORD?: string;
+	/** Password of the sentinels, when they require one. */
+	REDIS_SENTINEL_PASSWORD?: string;
 }
 
 /** Parses `host:port,host:port`; throws a RangeError on a malformed entry. */
@@ -42,7 +46,9 @@ export function redisConnectionFromEnv(
 			config: {
 				sentinels: parseRedisNodes(sentinels),
 				name: env.REDIS_SENTINEL_MASTER_NAME || DEFAULT_SENTINEL_MASTER_NAME,
+				username: env.REDIS_USERNAME || undefined,
 				password: env.REDIS_PASSWORD || undefined,
+				sentinelPassword: env.REDIS_SENTINEL_PASSWORD || undefined,
 			},
 		};
 	}

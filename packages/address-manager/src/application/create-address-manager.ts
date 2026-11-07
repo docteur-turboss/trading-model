@@ -1,5 +1,4 @@
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
-import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import {
 	DurationMs,
 	type IPAddress,
@@ -43,7 +42,6 @@ function _buildOptionalConfig(env: AddressManagerEnv) {
 		dnsNameMap: env.DNS_NAME_MAP as unknown as
 			| Record<ServiceId, IPAddress>
 			| undefined,
-		redisCache: redisConnectionFromEnv(env),
 	};
 }
 
