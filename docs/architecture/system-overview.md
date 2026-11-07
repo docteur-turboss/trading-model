@@ -2,6 +2,8 @@
 
 Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md) (broker), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
 
+> **No downstream consumer yet.** Trained models (`training.model.published`, weights route closed by an empty `MODEL_DOWNLOAD_CALLERS`) and collected signals (`GET /financial-scraper/signals/assets/:assetId`) are read by no service; there is no inference, paper-trading or execution context. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Proposed).
+
 ## 1. C4 level 1 — Context
 
 ```mermaid
