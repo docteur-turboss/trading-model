@@ -7,7 +7,7 @@
 
 ## Context
 
-Migration 003 no longer holds the purge (a `DELETE` in a migration is irreversible, audit A9) and pointed at a retention job that did not exist: `market_candles`, `market_trades`, `market_tickers` and `signals` grew without bound, and so did the dumps (issue #534). There is no order-book table.
+Migration 003 no longer holds the purge (a `DELETE` in a migration is irreversible, audit A9) and pointed at a retention job that did not exist: `market_candles`, `market_trades`, `market_tickers` and `signals` grew without bound, and so did the dumps (issue #534). There is no order-book table. *Amended by [ADR-0053](./0053-order-books-persisted-not-served.md): `market_order_books` is a fifth table, purged on `timestamp` after `RETENTION_DAYS`.*
 
 ## Decision
 

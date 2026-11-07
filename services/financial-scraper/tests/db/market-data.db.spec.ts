@@ -28,6 +28,7 @@ import {
 	insertCandles,
 	selectCandlesBy,
 } from "../../src/adapters/outbound/persistence/schema/candles-schema";
+import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 import {
 	insertTicker,
 	selectTickerBy,
@@ -40,6 +41,7 @@ import { MySqlSignalStore } from "../../src/adapters/outbound/persistence/signal
 import { DATABASE } from "../../src/config/db";
 import type {
 	CandleData,
+	OrderBookData,
 	TickerData,
 	TradeData,
 } from "../../src/domain/market-data.types";
@@ -131,6 +133,21 @@ function ticker(overrides: Partial<TickerData> = {}): TickerData {
 	};
 }
 
+function orderBook(overrides: Partial<OrderBookData> = {}): OrderBookData {
+	return {
+		symbol: SYMBOL,
+		market: MarketType.Crypto,
+		source: SourceType.Binance,
+		bids: new Set([
+			{ price: Price.of(100.5), quantity: Volume.of(2) },
+			{ price: Price.of(100.25), quantity: Volume.of(0.125) },
+		]),
+		asks: new Set([{ price: Price.of(100.75), quantity: Volume.of(1.5) }]),
+		timestamp: T0,
+		...overrides,
+	};
+}
+
 async function count(table: string): Promise<number> {
 	const [rows] = await DATABASE.promise().query(
 		`SELECT COUNT(*) AS n FROM ${table}`
@@ -154,6 +171,7 @@ beforeEach(async () => {
 		"market_candles",
 		"market_trades",
 		"market_tickers",
+		"market_order_books",
 		"market_publish_cursors",
 		"signals",
 	]) {
@@ -171,6 +189,7 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		"_migration_steps",
 		"_migrations",
 		"market_candles",
+		"market_order_books",
 		"market_publish_cursors",
 		"market_tickers",
 		"market_trades",
@@ -186,7 +205,7 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 			MIGRATION_IDS.slice(0, -2)
 		);
 		await expect(tables()).resolves.toEqual(
-			ALL_TABLES.filter((table) => table !== "signals")
+			ALL_TABLES.filter((table) => table !== "market_order_books")
 		);
 
 		migrate("up");
@@ -354,6 +373,46 @@ describe("market_tickers — real MySQL", () => {
 		).rejects.toThrow();
 
 		await expect(count("market_tickers")).resolves.toBe(0);
+	});
+});
+
+describe("market_order_books — real MySQL (ADR-0053)", () => {
+	async function rows() {
+		const [result] = await DATABASE.promise().query(
+			"SELECT symbol, timestamp, bids, asks FROM market_order_books ORDER BY timestamp"
+		);
+		return result as {
+			symbol: string;
+			timestamp: Date;
+			bids: number[][];
+			asks: number[][];
+		}[];
+	}
+
+	it("should keep every level of a snapshot, best first, with its millisecond timestamp", async () => {
+		await insertOrderBook([orderBook()]);
+
+		const [row] = await rows();
+
+		expect(row.symbol).toBe(SYMBOL);
+		expect(row.timestamp.getTime()).toBe(T0);
+		expect(row.bids).toEqual([
+			[100.5, 2],
+			[100.25, 0.125],
+		]);
+		expect(row.asks).toEqual([[100.75, 1.5]]);
+	});
+
+	it("should keep one row per snapshot, and overwrite a replayed one", async () => {
+		await insertOrderBook([
+			orderBook(),
+			orderBook({ timestamp: UnixTimestamp.of(T0 + 60_000) }),
+		]);
+
+		await insertOrderBook([orderBook({ asks: new Set() })]);
+
+		await expect(count("market_order_books")).resolves.toBe(2);
+		expect((await rows())[0].asks).toEqual([]);
 	});
 });
 
@@ -525,6 +584,7 @@ describe("timestamp queries — real MySQL (issue #555)", () => {
 		["market_candles", "idx_candles_timestamp"],
 		["market_trades", "idx_trades_timestamp"],
 		["market_tickers", "idx_tickers_timestamp"],
+		["market_order_books", "idx_order_books_timestamp"],
 	] as const;
 
 	it.each(

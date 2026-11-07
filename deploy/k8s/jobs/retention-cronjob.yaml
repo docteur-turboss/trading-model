@@ -5,7 +5,7 @@
 #  the hourly :30 incremental run's busiest minute: Forbid is per CronJob, the
 #  deletes land in the binlogs the incremental job archives, as expected).
 #  Connects as the `retention` MySQL user (SELECT, DELETE on market_candles,
-#  market_trades, market_tickers, signals only; created by db-migrate-user).
+#  market_trades, market_tickers, market_order_books, signals only; created by db-migrate-user).
 #
 #  Metrics: /backups/metrics/retention.prom, served by backup-metrics-exporter.
 #  Alerts: RetentionFailed, RetentionStale (runbook BACKUP_DR.md#retention-job).

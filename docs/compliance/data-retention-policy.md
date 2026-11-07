@@ -53,7 +53,7 @@ Only the backups of the records kept 5 years go past 30 days (ADR-0032): the aud
 
 ### MySQL Market Data Retention
 
-A daily Kubernetes CronJob, `db-retention` (ADR-0051), runs `scripts/retention-mysql.sh`: it deletes, in bounded batches, the rows of `market_candles`, `market_trades`, `market_tickers` (column `timestamp`) and `signals` (column `observed_at`) older than `RETENTION_DAYS` (1827 days, 5 years; `RETENTION_SIGNALS_DAYS` for signals, same default). It connects as MySQL user `retention`, which can only SELECT and DELETE on those four tables. Migration 003 used to hold a `DELETE` event; per deployment audit A9 destructive `DELETE`s no longer live in schema migrations, so the migration stays empty and the job replaces it. Operation, metrics, alerts (`RetentionFailed`, `RetentionStale`) and the compose equivalent: [BACKUP_DR.md](../deployment/BACKUP_DR.md#retention-job).
+A daily Kubernetes CronJob, `db-retention` (ADR-0051), runs `scripts/retention-mysql.sh`: it deletes, in bounded batches, the rows of `market_candles`, `market_trades`, `market_tickers`, `market_order_books` (column `timestamp`) and `signals` (column `observed_at`) older than `RETENTION_DAYS` (1827 days, 5 years; `RETENTION_SIGNALS_DAYS` for signals, same default). It connects as MySQL user `retention`, which can only SELECT and DELETE on those five tables. Migration 003 used to hold a `DELETE` event; per deployment audit A9 destructive `DELETE`s no longer live in schema migrations, so the migration stays empty and the job replaces it. Operation, metrics, alerts (`RetentionFailed`, `RetentionStale`) and the compose equivalent: [BACKUP_DR.md](../deployment/BACKUP_DR.md#retention-job).
 
 ### MongoDB Audit Retention
 

@@ -80,7 +80,7 @@ spec:
               CREATE USER IF NOT EXISTS 'retention'@'%' IDENTIFIED BY '${rpw}';
               ALTER USER 'retention'@'%' IDENTIFIED BY '${rpw}';
               EOSQL
-              for t in market_candles market_trades market_tickers signals; do
+              for t in market_candles market_trades market_tickers market_order_books signals; do
                 if [ "$(mysql -h mysql-primary -u root -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='financial_scraper' AND table_name='$t'")" = 1 ]; then
                   mysql -h mysql-primary -u root -e "GRANT SELECT, DELETE ON financial_scraper.$t TO 'retention'@'%'"
                 else
