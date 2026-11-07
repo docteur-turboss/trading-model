@@ -40,7 +40,7 @@ Inventory (issue #506). Address-manager caches in memory per process, so only th
 
 Dead letters live in MongoDB, not Redis.
 
-Isolation (ADR-0043, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off; the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix. Compose runs one unauthenticated Redis (dev).
+Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off; the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix. Compose runs one unauthenticated Redis (dev).
 
 ## Schema Validation
 

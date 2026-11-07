@@ -1,5 +1,5 @@
-import { agentError } from "@trading-model/common/utils/errors";
 import type { Reward } from "@trading-model/primitives/primitives";
+import { agentError } from "../../shared/errors";
 import {
 	createExperiencePool,
 	type IExperiencePool,

@@ -1,30 +1,4 @@
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: trader-trainer-hpa
-  labels:
-    app.kubernetes.io/component: trader-trainer
-    app.kubernetes.io/part-of: trading-model
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: trader-trainer
-  minReplicas: 1
-  maxReplicas: 3
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 80
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-    scaleUp:
-      stabilizationWindowSeconds: 60
----
+# No HorizontalPodAutoscaler: trader-trainer is a singleton (ADR-0044).
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

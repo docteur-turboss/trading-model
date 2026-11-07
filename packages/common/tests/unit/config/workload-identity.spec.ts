@@ -90,9 +90,6 @@ describe("workload-identity", () => {
 			expect(normalizeServiceName("audit-logger-service")).toBe(
 				ServiceId.of("audit-logger")
 			);
-			expect(normalizeServiceName("financial-scrapper-service")).toBe(
-				ServiceId.of("financial-scraper")
-			);
 		});
 
 		it("should pass through canonical and unknown names", () => {

@@ -1,4 +1,4 @@
-# ADR-0043: Redis Isolated Per Service — ACL Users, In-Process Address Cache, In-Memory DLQ Rate Limiter
+# ADR-0047: Redis Isolated Per Service — ACL Users, In-Process Address Cache, In-Memory DLQ Rate Limiter
 
 **Status:** Accepted
 **Date:** 2026-11

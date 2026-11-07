@@ -3,11 +3,13 @@ import { describe, expect, it, jest } from "@jest/globals";
 const MOCK_INSERT = jest.fn();
 const MOCK_VALIDATE = jest.fn();
 
-jest.mock("../../src/adapters/outbound/repository", () => ({
+jest.mock("../../src/config/dlq-adapters", () => ({
 	dlqRepository: { insert: MOCK_INSERT },
+	pushToRedisQueue: jest.fn(),
+	notifyAddAudit: jest.fn(),
 }));
 
-jest.mock("../../src/adapters/inbound/dlq-validator", () => ({
+jest.mock("../../src/application/use-cases/dlq-validator", () => ({
 	checkEntryAcceptable: MOCK_VALIDATE,
 }));
 
@@ -15,14 +17,6 @@ jest.mock("../../src/config/metrics", () => ({
 	metrics: {
 		entriesAdded: { inc: jest.fn() },
 	},
-}));
-
-jest.mock("../../src/adapters/outbound/dlq-redis-pusher", () => ({
-	pushToRedisQueue: jest.fn(),
-}));
-
-jest.mock("../../src/adapters/outbound/audit-notifier", () => ({
-	notifyAddAudit: jest.fn(),
 }));
 
 jest.mock("../../src/shared/dlq-error-builder", () => ({
@@ -46,7 +40,7 @@ describe("add-entry-pipeline", () => {
 		MOCK_INSERT.mockResolvedValue("entry-id-123");
 
 		const { addEntry } = jest.requireActual(
-			"../../src/adapters/inbound/add-entry-pipeline"
+			"../../src/application/use-cases/add-entry-pipeline"
 		) as { addEntry: (entry: unknown) => Promise<unknown> };
 
 		const result = await addEntry({ topic: "test", reason: "testing" });
@@ -61,7 +55,7 @@ describe("add-entry-pipeline", () => {
 		});
 
 		const { addEntry } = jest.requireActual(
-			"../../src/adapters/inbound/add-entry-pipeline"
+			"../../src/application/use-cases/add-entry-pipeline"
 		) as { addEntry: (entry: unknown) => Promise<unknown> };
 
 		const result = await addEntry({ topic: "test", reason: "testing" });
@@ -75,7 +69,7 @@ describe("add-entry-pipeline", () => {
 		MOCK_INSERT.mockRejectedValue(new Error("db error"));
 
 		const { addEntry } = jest.requireActual(
-			"../../src/adapters/inbound/add-entry-pipeline"
+			"../../src/application/use-cases/add-entry-pipeline"
 		) as { addEntry: (entry: unknown) => Promise<unknown> };
 
 		const result = await addEntry({ topic: "test", reason: "testing" });

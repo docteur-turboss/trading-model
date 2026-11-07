@@ -10,7 +10,7 @@ export class MapResolver implements ServiceLocator {
 	constructor(private readonly _dnsMap: Record<ServiceId, string>) {}
 
 	// Unmapped names fall back to the canonical service name, which is the DNS
-	// name in compose and K8s (e.g. message-delivery-service → message-manager).
+	// name in compose and K8s (e.g. financial-scraper-service → financial-scraper).
 	locate(instance: ServiceInstance): string {
 		return (
 			this._dnsMap[instance.serviceName] ??

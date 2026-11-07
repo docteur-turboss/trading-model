@@ -77,7 +77,7 @@ message-manager keeps subscriptions in Redis and **no messages** (ADR-0019): it 
 flowchart TB
   subgraph tm["namespace trading-model (Pod Security: restricted)"]
     ing["Ingress gateway / grafana"] --> edge["Deployment edge-proxy"]
-    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>trader-trainer, audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints)"]
+    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints);<br/>trader-trainer: 1 replica, Recreate (ADR-0044)"]
     svc --> mysql["StatefulSet mysql"]
     svc --> mA["StatefulSet mongo-audit"]
     svc --> mD["StatefulSet mongo-dlq"]
@@ -131,5 +131,7 @@ sequenceDiagram
     Note over MM,DLQ: dlq-service down: local JSON Lines file, forwarded later
   end
 ```
+
+Each subscribed service gets one delivery per message, whatever its number of instances: message-manager groups the subscribed instances by service and posts to the service name, the Kubernetes Service picks the pod (consumer group, [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
 
 Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed through `POST /dlq/replay`; an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).

@@ -1,7 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import { rebuildQueueFromMongo } from "../config/container";
 import { dlqRedisQueue } from "../config/redis-queue";
-import { rebuildQueueFromMongo } from "../shared/controller-reexports";
 
 export async function ensureRedisQueue(): Promise<void> {
 	try {

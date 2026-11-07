@@ -15,7 +15,7 @@ function createDlqRateLimiter(opts: {
 		...opts,
 		standardHeaders: true,
 		legacyHeaders: false,
-		// shortcut: in-memory counters, so the limit holds per pod, not globally; move to a shared store if a global limit is ever needed (ADR-0043).
+		// shortcut: in-memory counters, so the limit holds per pod, not globally; move to a shared store if a global limit is ever needed (ADR-0047).
 	});
 	_trackLimiter(limiter);
 	return limiter;

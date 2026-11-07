@@ -60,7 +60,7 @@ export const DELIVERY_LATENCY_SECONDS = new promClient.Histogram({
 
 export const SUBSCRIPTION_COUNT = new promClient.Gauge({
 	name: "mm_subscription_count",
-	help: "Number of active subscriptions",
+	help: "Number of subscribed services (one delivery each per message)",
 	labelNames: ["topic"] as const,
 });
 

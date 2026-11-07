@@ -205,7 +205,7 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 
 ## Replicas and the HPA
 
-A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The `financial-scraper-collector` (no HPA) keeps `replicas: 1`.
+A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singletons `financial-scraper-collector` (ADR-0042) and `trader-trainer` (ADR-0044: training state in memory) have no HPA, keep `replicas: 1` and `Recreate`; `check-overlays.mjs` enforces it. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` of older releases. A release stops training until the new trainer pod is ready. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
 
 Moving an existing cluster over: `deploy.yml` (step "Release replicas of autoscaled Deployments") removes `spec.replicas` from `kubectl.kubernetes.io/last-applied-configuration` before the apply, otherwise the apply would drop the Deployment to 1 pod. By hand: `kubectl apply edit-last-applied deployment/<name> -n <ns>` and delete the `replicas` line, before applying the new overlay.
 
@@ -231,7 +231,7 @@ timeouts as production.
 What the rollback restores:
 
 - the image of every Deployment (by digest);
-- the Redis and Redis Sentinel StatefulSets (ADR-0043: the services' ACL
+- the Redis and Redis Sentinel StatefulSets (ADR-0047: the services' ACL
   credentials only work against nodes of their own release), rolled back first;
 - the service configuration: the ConfigMaps read through `envFrom`
   (`<service>-config`, from `deploy/k8s/config/<service>.properties`) and the
@@ -272,9 +272,11 @@ Redeploying a tag published before `db-migrate` existed works: the workflow chec
 
 ### Canary gate
 
-`deploy.yml` runs `deploy-k8s.sh canary-all`: the 7 canaries are created in
+`deploy.yml` runs `deploy-k8s.sh canary-all`: the 6 canaries are created in
 parallel and observed over one `CANARY_GATE_SECONDS` window (default 120 s), so
-the step lasts one rollout plus one window, not 7 of each. Every failing gate is
+the step lasts one rollout plus one window, not 6 of each. The singletons
+(`trader-trainer`, `financial-scraper-collector`) get no canary: it would be a
+second pod (`check-overlays.mjs` enforces it). Every failing gate is
 reported and every canary is removed if one fails.
 
 | GitHub variable | Default | Meaning |

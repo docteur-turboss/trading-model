@@ -27,6 +27,20 @@ export interface TrainingSessionResult {
 	generationContext: GenerationContext | null;
 }
 
+/**
+ * Runs one training session. The in-process default blocks the caller's event
+ * loop; the composition root injects the worker-thread runner (issue #508).
+ */
+export type TrainingRunner = (
+	windowSets: WindowSet[],
+	settings: TrainingSettings,
+	telemetry?: GaTelemetry
+) => Promise<TrainingSessionResult>;
+
+/** Runs the session on the calling thread. */
+export const runInProcess: TrainingRunner = (windowSets, settings, telemetry) =>
+	new TrainingSession(windowSets, settings, telemetry).run();
+
 export class TrainingSession {
 	private readonly _windowSets: WindowSet[];
 
