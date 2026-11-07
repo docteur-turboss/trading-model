@@ -11,7 +11,7 @@ Data shall be retained only as long as necessary for the purposes for which it i
 
 | Data Type                                  | System                    | Retention Period                      | Legal Basis                                                            | Deletion Mechanism                                      |
 | ------------------------------------------ | ------------------------- | ------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |
-| **Market data** (candles, trades, tickers) | MySQL `financial_scraper` | **5 years** (target)                  | Record-keeping (Delegated Reg. (EU) 2017/565 Art. 72, if operated by an investment firm) | **None yet** — purge event removed from migration 003 (audit A9); out-of-schema retention job open (DPIA action #2) |
+| **Market data** (candles, trades, tickers) | MySQL `financial_scraper` | **5 years** (target)                  | Record-keeping (Delegated Reg. (EU) 2017/565 Art. 72, if operated by an investment firm) | Daily CronJob `db-retention` (`scripts/retention-mysql.sh`, `RETENTION_DAYS`, default 1827; `signals` on `RETENTION_SIGNALS_DAYS`), out of schema since audit A9 (ADR-0051, DPIA action #2) |
 | **Audit events**                           | MongoDB `audit_events`    | **5 years**                           | Record-keeping, traceability                                           | TTL index on the `ttl` field (`AUDIT_RETENTION_DAYS`, default 1827) |
 | **Messages in transit**                    | message-manager memory    | **Delivery only**                     | Operational necessity — routing                                        | Not persisted                                           |
 | **Dead letter entries**                    | MongoDB `dlq_entries`     | **30 days**                           | Operational — messages not delivered after retries                     | TTL index on `createdAt` + prune every minute above `MAX_ENTRIES` |
@@ -53,7 +53,7 @@ Only the backups of the records kept 5 years go past 30 days (ADR-0032): the aud
 
 ### MySQL Market Data Retention
 
-Not implemented. Migration 003 used to create a daily MySQL `EVENT` deleting rows older than 1827 days; per deployment audit A9, destructive `DELETE`s no longer live in schema migrations, so the migration is now empty. Until a dedicated retention job exists (DPIA action #2), market data accumulates without bound.
+A daily Kubernetes CronJob, `db-retention` (ADR-0051), runs `scripts/retention-mysql.sh`: it deletes, in bounded batches, the rows of `market_candles`, `market_trades`, `market_tickers` (column `timestamp`) and `signals` (column `observed_at`) older than `RETENTION_DAYS` (1827 days, 5 years; `RETENTION_SIGNALS_DAYS` for signals, same default). It connects as MySQL user `retention`, which can only SELECT and DELETE on those four tables. Migration 003 used to hold a `DELETE` event; per deployment audit A9 destructive `DELETE`s no longer live in schema migrations, so the migration stays empty and the job replaces it. Operation, metrics, alerts (`RetentionFailed`, `RetentionStale`) and the compose equivalent: [BACKUP_DR.md](../deployment/BACKUP_DR.md#retention-job).
 
 ### MongoDB Audit Retention
 

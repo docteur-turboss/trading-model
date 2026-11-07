@@ -896,3 +896,36 @@ tests:
               summary: 'backup-data volume is over 80% full'
               description: 'The backup-data PVC (100Gi) is filling up: dumps grow with the market data. Check the retention (RETENTION_DAYS) or grow the volume before a night of backups fails.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
+  # Retention (ADR-0051): a failed run alerts after 5 m; no success for 36 h
+  # alerts after one more hour.
+  - name: a failed retention run and a stale one warn
+    interval: 1m
+    input_series:
+      - series: 'retention_last_status{job="backup-metrics"}'
+        values: '1x10 0x20'
+      - series: 'retention_last_success_timestamp{job="backup-metrics"}'
+        values: '0x2400'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: RetentionFailed
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: RetentionFailed
+        exp_alerts:
+          - exp_labels: {severity: warning, job: backup-metrics}
+            exp_annotations:
+              summary: 'MySQL retention job failed'
+              description: 'The last db-retention run failed on at least one table: market data and signals older than the retention period are not being purged.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
+      - eval_time: 2000m
+        alertname: RetentionStale
+        exp_alerts: []
+      - eval_time: 2300m
+        alertname: RetentionStale
+        exp_alerts:
+          - exp_labels: {severity: warning, job: backup-metrics}
+            exp_annotations:
+              summary: 'MySQL retention job has not succeeded for 36 hours'
+              description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'

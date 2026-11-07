@@ -101,3 +101,6 @@ require_migrate_password
 run_job db-migrate-user "$JOBS/migration-user-job.yaml"
 [ "${2:-}" = user-only ] && exit 0
 run_job db-migrate "$JOBS/migration-job.yaml"
+# Again once the tables exist: the `retention` user is granted per table (ADR-0051),
+# and on a new database the first run came before the migrations created them.
+run_job db-migrate-user "$JOBS/migration-user-job.yaml"

@@ -510,6 +510,32 @@ them back with `aws s3api get-bucket-lifecycle-configuration`. In Kubernetes not
 checks them: `backup-tools` has no `aws` CLI, so every run only logs
 "Off-site lifecycle rules not verified".
 
+## Retention job
+
+ADR-0051. Market data (`market_candles`, `market_trades`, `market_tickers`) and `signals` older than `RETENTION_DAYS` (default 1827, 5 years; `RETENTION_SIGNALS_DAYS` for `signals`) are deleted by `scripts/retention-mysql.sh`, in `DELETE ... LIMIT RETENTION_BATCH_SIZE` batches with a pause between them. A rerun deletes only what is still too old. Variables: [ENV.md](ENV.md#mysql-retention-job-adr-0051).
+
+**Kubernetes.** CronJob `db-retention` (`deploy/k8s/jobs/retention-cronjob.yaml`), daily 03:30 UTC, image `backup-tools`, script from the `backup-scripts` ConfigMap. It connects as MySQL user `retention` (SELECT, DELETE on the four tables only), created and granted per table by `db-migrate-user` from `MYSQL_RETENTION_PASSWORD` in `trading-model-secrets`. `run-migrations.sh` runs that Job again after the migrations, so the grants exist on a new database.
+
+- **Before the first production deploy (manual):** add `MYSQL_RETENTION_PASSWORD` to `deploy/k8s/secrets/trading-model-sealed-secrets.yaml` with every other key (see [sealed-secrets.md](sealed-secrets.md)). Without it the `retention` user is not created and `db-retention` fails (`RetentionFailed` / `RetentionStale`).
+- Change the period: edit `RETENTION_DAYS` in the CronJob and deploy. Lowering it deletes the surplus at the next run: check the backups first (the GFS dumps keep 5 years, [Retention](#retention)).
+- Run now: `kubectl -n trading-model create job retention-manual --from=cronjob/db-retention`, then `kubectl -n trading-model logs job/retention-manual`.
+- Suspend: `kubectl -n trading-model patch cronjob db-retention -p '{"spec":{"suspend":true}}'` (`RetentionStale` fires after 36 h).
+
+**Docker (compose).** No scheduler: schedule on the host, inside the MySQL container (it has the client), e.g. daily with cron:
+
+```bash
+docker exec -i -e MYSQL_USER=root -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" -e MYSQL_HOST=localhost   -e RETENTION_DAYS=1827 trading-mysql bash -s < scripts/retention-mysql.sh
+```
+
+Without `METRICS_FILE` it publishes no metric (the script runs in the container). Windows: Task Scheduler with Git Bash and `MSYS_NO_PATHCONV=1`.
+
+**Metrics** (`/backups/metrics/retention.prom`, served by `backup-metrics-exporter`): `retention_last_run_rows_deleted{table}`, `retention_last_success_timestamp` (kept on failure), `retention_last_status` (1 ok, 0 a table failed), `retention_last_run_duration_seconds`.
+
+**Runbook.**
+- `RetentionFailed`: `kubectl -n trading-model logs job/<db-retention-...>`: the line `ERROR <table>` names the table. Usual causes: MySQL down or read-only (group replication failover), `retention` user missing (`MYSQL_RETENTION_PASSWORD` absent: add it, rerun `db-migrate-user`), lock wait timeout (lower `RETENTION_BATCH_SIZE`). The next run resumes; nothing is lost.
+- `RetentionStale`: `kubectl -n trading-model get cronjob db-retention` (suspended? last schedule?) and the job's pods (image pull, Secret key missing).
+- The deletes go through the binlogs (PITR, [ADR-0031](../adr/0031-point-in-time-recovery-hourly-archives.md)): a restore `--until` an instant replays them. The first purge of a large backlog writes a lot of binlog: watch `BackupVolumeFilling`.
+
 ## Monitoring
 
 `backup-k8s.sh` writes `/backups/metrics/backup.prom`,
@@ -531,6 +557,8 @@ and Prometheus scrapes them (job `backup-metrics`).
 | `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
 | `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
+| `RetentionFailed`         | the last `db-retention` run failed on a table ([Retention job](#retention-job); warning) |
+| `RetentionStale`          | no successful `db-retention` run for 36 h (daily job) |
 | `BackupVolumeFilling`     | the `backup-data` volume is more than 80 % full for 30 min (`backup_volume_used_ratio`, measured with `df` by both jobs; independent of kubelet volume metrics) |
 
 ### Storage class of `backup-data`
