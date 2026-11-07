@@ -67,6 +67,7 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 			// dlq-service lists and replays dead letters by topic.
 			topic: message.metadata.topic,
 			message,
+			messageId: message.metadata.messageId,
 			service,
 			reason,
 			deliveryAttempt: PositiveInt.of(deliveryAttempt),
