@@ -196,7 +196,7 @@ Fitness reads the **wallet PnL** of the validation pass, never the shaped reward
 | `calmar`    | `mean / max drawdown` (bar curve)             | Drawdown-averse            |
 | `composite` | `0.4·mean + 0.3·sharpe + 0.3·sortino` (curve) | Balanced                   |
 
-Ratios divide by `max(denominator, 0.1 x max(1, |mean|))`: continuous and bounded when the dispersion (or drawdown) tends to 0, so a near-constant agent is not rewarded (issue #536). `composite` squashes each term with `tanh` so PnL units and dimensionless ratios weigh comparably.
+Ratios are `mean / max(denominator, 0.1 x |mean|)` (0 when the mean is 0): continuous, and a constant, loss-free or drawdown-free series scores 10, the order of a good realistic ratio (0.5 to 3). The floor is relative, so realistic series of any scale keep `mean / denominator` (issue #536). `composite` squashes each term with `tanh` so PnL units and dimensionless ratios weigh comparably.
 
 **Final fitness** applies a complexity penalty: `adjusted = fitness - |fitness| * 0.15 * complexity_penalty` (lower whatever the sign). A failed evaluation scores `-1e9`.
 
@@ -255,5 +255,3 @@ import { estimateComplexity } from './complexity-estimator';
 // Adaptive control
 import { adaptGAControl, checkTerminationConditions } from './adaptive-control-system';
 ```
-
-Floor `0.1` (issue #536 review): a constant, loss-free or drawdown-free series scores at most `10 x max(|mean|, ...)`/`max(1,|mean|)`, i.e. about 10 for |mean| >= 1, the order of a good realistic ratio (0.5 to 3), instead of 1e6. `composite` keeps `tanh(mean)`: the score is the PnL of an episode in units of the initial balance, so |mean| is mostly below 1 and `tanh` stays near-linear.

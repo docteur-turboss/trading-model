@@ -1,15 +1,16 @@
 /**
- * Relative floor of every ratio denominator: a degenerate series (constant,
- * no loss, no drawdown) scores at most 1/0.1 = 10 times its mean (when
- * |mean| >= 1), the order of a good realistic ratio (0.5 to 3), and no jump.
+ * Ratio denominator floor, relative to |mean|: a degenerate series (constant,
+ * no loss, no drawdown) scores at most 1/0.1 = 10, the order of a good
+ * realistic ratio (0.5 to 3). Relative, so realistic series of any scale
+ * (mean 0.02, std 0.03) keep their exact mean / denominator.
  */
 const DENOMINATOR_FLOOR = 0.1;
 
 function ratio(mean: number, denominator: number): number {
-	return (
-		mean /
-		Math.max(denominator, DENOMINATOR_FLOOR * Math.max(1, Math.abs(mean)))
-	);
+	if (mean === 0) {
+		return 0;
+	}
+	return mean / Math.max(denominator, DENOMINATOR_FLOOR * Math.abs(mean));
 }
 
 export class EpisodeScores {
