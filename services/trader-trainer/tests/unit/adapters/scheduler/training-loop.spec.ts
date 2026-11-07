@@ -15,6 +15,7 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 
 import { TrainingLoop } from "../../../../src/adapters/inbound/scheduler/training-loop";
 import type { Trainer } from "../../../../src/application/trainer";
+import { hasEnoughTrainingData } from "../../../../src/domain/market-data/window-splitter";
 import type { MarketDataBuffer } from "../../../../src/domain/market-data-buffer";
 
 const BTC = TradingSymbol.of("BTCUSDT");
@@ -22,6 +23,7 @@ const ETH = TradingSymbol.of("ETHUSDT");
 const NOW = 1_800_000_000_000;
 const MINUTE = 60_000;
 const MAX_AGE = 15 * MINUTE;
+const WINDOWING = { validationSplit: 0.2, walkForwardFolds: 1 };
 
 describe("TrainingLoop", () => {
 	let train: jest.Mock<(symbol: TradingSymbol) => Promise<void>>;
@@ -49,7 +51,7 @@ describe("TrainingLoop", () => {
 			getCandleCount: () => candleCount,
 			getLastCandleCloseTime: (symbol: TradingSymbol) => lastClose.get(symbol),
 		} as unknown as MarketDataBuffer;
-		loop = new TrainingLoop(trainer, buffer);
+		loop = new TrainingLoop(trainer, buffer, WINDOWING);
 	});
 
 	afterEach(() => {
@@ -156,7 +158,8 @@ describe("TrainingLoop", () => {
 				getCandleCount: () => candleCount,
 				getLastCandleCloseTime: (symbol: TradingSymbol) =>
 					lastClose.get(symbol),
-			} as unknown as MarketDataBuffer
+			} as unknown as MarketDataBuffer,
+			WINDOWING
 		);
 
 		busy.start({ symbols: [BTC], intervalMs: MINUTE, maxDataAgeMs: MAX_AGE });
@@ -164,6 +167,18 @@ describe("TrainingLoop", () => {
 		await Promise.resolve();
 
 		expect(train).not.toHaveBeenCalled();
+	});
+
+	it("should call train() only when the validator would accept the series", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+		for (const count of [1, 12, 13, 14, 20, 100]) {
+			candleCount = count;
+			train.mockClear();
+			await runOnce();
+			expect(train.mock.calls.length === 1).toBe(
+				hasEnoughTrainingData(count, 0.2, 1)
+			);
+		}
 	});
 
 	it("should not judge freshness while the buffer is still filling", async () => {

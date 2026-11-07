@@ -3,10 +3,9 @@ import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Trainer } from "../../../application/trainer";
+import { hasEnoughTrainingData } from "../../../domain/market-data/window-splitter";
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
 import type { TradingSymbol } from "../../../domain/market-data-types";
-
-const MIN_CANDLE_RATIO = 0.1;
 
 export interface TrainingLoopConfig {
 	symbols: TradingSymbol[];
@@ -26,7 +25,11 @@ export class TrainingLoop {
 
 	constructor(
 		private readonly _trainer: Trainer,
-		private readonly _dataBuffer: MarketDataBuffer
+		private readonly _dataBuffer: MarketDataBuffer,
+		private readonly _windowing: {
+			validationSplit: number;
+			walkForwardFolds: number;
+		}
 	) {}
 
 	start(config: TrainingLoopConfig): void {
@@ -47,9 +50,10 @@ export class TrainingLoop {
 	}
 
 	private _hasEnoughData(symbol: TradingSymbol): boolean {
-		return (
-			this._dataBuffer.getCandleCount(symbol) >=
-			this._dataBuffer.getMaxSize() * MIN_CANDLE_RATIO
+		return hasEnoughTrainingData(
+			this._dataBuffer.getCandleCount(symbol),
+			this._windowing.validationSplit,
+			this._windowing.walkForwardFolds
 		);
 	}
 
