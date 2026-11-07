@@ -577,7 +577,7 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
 
           - alert: InstanceCountLow
-            expr: max by (service) (discovery_registered_instances_per_service) < 2 and max by (service) (max_over_time(min_over_time(discovery_registered_instances_per_service[15m])[1d:5m])) >= 2
+            expr: max by (service) (discovery_registered_instances_per_service) < 2 and max_over_time(min_over_time(max by (service) (discovery_registered_instances_per_service)[15m:1m])[1d:5m]) >= 2
             for: 2m
             labels:
               severity: critical
