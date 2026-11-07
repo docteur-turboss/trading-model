@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_COLLECTION = {
 	insertOne: jest.fn<any>(),
+	insertMany: jest.fn<any>(),
 	findOne: jest.fn<any>(),
 	find: jest.fn<any>(),
 	createIndex: jest.fn<any>(),
@@ -67,7 +68,7 @@ describe("AuditRepository", () => {
 		});
 		MOCK_COLLECTION.findOne.mockResolvedValue(null);
 		MOCK_COLLECTION.aggregate.mockReturnValue({ toArray: jest.fn<any>() });
-		MOCK_COLLECTION.updateOne.mockResolvedValue({});
+		MOCK_COLLECTION.updateOne.mockResolvedValue({ matchedCount: 1 });
 		repository = new AuditRepository(MOCK_DB as any);
 	});
 
@@ -96,118 +97,147 @@ describe("AuditRepository", () => {
 	});
 
 	describe("insert", () => {
-		it("should call insertOne with the event document and chain fields", async () => {
-			MOCK_COLLECTION.insertOne.mockResolvedValue({ insertedId: "id" });
+		const bulkError = (index: number, keyPattern: object) => ({
+			writeErrors: [{ index, code: 11000, keyPattern }],
+		});
+		const withId = (n: number) =>
+			makeEvent({
+				metadata: { ...makeEvent().metadata, messageId: toMessageId(`m-${n}`) },
+			});
+
+		it("should insertMany the chained event, stored as hashed", async () => {
+			MOCK_COLLECTION.insertMany.mockResolvedValue({});
 			const event = makeEvent();
 
 			await repository.insert(event);
 
-			expect(MOCK_COLLECTION.insertOne).toHaveBeenCalledTimes(1);
+			expect(MOCK_COLLECTION.insertMany).toHaveBeenCalledTimes(1);
 			// Stored as hashed: an undefined field must not become null.
-			expect(MOCK_COLLECTION.insertOne).toHaveBeenCalledWith(event, {
+			expect(MOCK_COLLECTION.insertMany).toHaveBeenCalledWith([event], {
 				ignoreUndefined: true,
+				ordered: true,
 			});
 			expect(event.previousHash).toBe("");
 			expect(event.chainSequence).toBe(1);
-			expect(typeof event.dataHash).toBe("string");
 			expect(event.dataHash.length).toBeGreaterThan(0);
 		});
 
 		it("should throw AppError on failure", async () => {
-			MOCK_COLLECTION.insertOne.mockRejectedValue(new Error("DB error"));
+			MOCK_COLLECTION.insertMany.mockRejectedValue(new Error("DB error"));
 
 			await expect(repository.insert(makeEvent())).rejects.toThrow(
 				"Failed to persist audit event"
 			);
 		});
 
-		function useStoredChain(): AuditEventDocument[] {
-			const stored: AuditEventDocument[] = [];
-			MOCK_COLLECTION.findOne.mockImplementation(
-				async () => stored[stored.length - 1] ?? null
-			);
-			MOCK_COLLECTION.insertOne.mockImplementation(async (doc: any) => {
-				// Let the other concurrent inserts read the tail in between.
-				await new Promise((resolve) => setImmediate(resolve));
-				stored.push({ ...doc });
-				return { insertedId: "id" };
+		it("should chain concurrent inserts in one batch under one lease", async () => {
+			const batches: AuditEventDocument[][] = [];
+			MOCK_COLLECTION.insertMany.mockImplementation(async (docs: any) => {
+				batches.push(docs.map((d: any) => ({ ...d })));
+				return {};
 			});
-			return stored;
-		}
 
-		it("should chain concurrent inserts one after the other", async () => {
-			const stored = useStoredChain();
+			await Promise.all([1, 2, 3].map((n) => repository.insert(withId(n))));
 
-			await Promise.all(
-				[1, 2, 3].map((n) =>
-					repository.insert(
-						makeEvent({
-							metadata: {
-								...makeEvent().metadata,
-								messageId: toMessageId(`m-${n}`),
-							},
-						})
-					)
-				)
-			);
-
-			expect(stored.map((doc) => doc.chainSequence)).toEqual([1, 2, 3]);
+			const stored = batches.flat();
+			expect(stored.map((d) => d.chainSequence)).toEqual([1, 2, 3]);
 			expect(stored[1].previousHash).toBe(stored[0].dataHash);
 			expect(stored[2].previousHash).toBe(stored[1].dataHash);
+			// Acquire once, release once: not per event.
+			expect(MOCK_COLLECTION.updateOne.mock.calls.length).toBeLessThanOrEqual(
+				2 + batches.length
+			);
 		});
 
-		it("should retry when another replica took the sequence", async () => {
-			MOCK_COLLECTION.insertOne
-				.mockRejectedValueOnce({
-					code: 11000,
-					keyPattern: { chainSequence: 1 },
-				})
-				.mockResolvedValueOnce({ insertedId: "id" });
+		it("should keep the tail in memory while the lease is held", async () => {
+			MOCK_COLLECTION.insertMany.mockResolvedValue({});
+			const first = repository.insert(withId(1));
+			const second = repository.insert(withId(2));
+			await Promise.all([first, second]);
+
+			expect(MOCK_COLLECTION.findOne).toHaveBeenCalledTimes(1);
+		});
+
+		it("should retry the batch when another replica took the sequence", async () => {
+			MOCK_COLLECTION.insertMany
+				.mockRejectedValueOnce(bulkError(0, { chainSequence: 1 }))
+				.mockResolvedValueOnce({});
 
 			await repository.insert(makeEvent());
 
-			expect(MOCK_COLLECTION.insertOne).toHaveBeenCalledTimes(2);
+			expect(MOCK_COLLECTION.insertMany).toHaveBeenCalledTimes(2);
+			// The tail is read again after the collision.
+			expect(MOCK_COLLECTION.findOne).toHaveBeenCalledTimes(2);
 		});
 
 		it("should give up after repeated sequence conflicts", async () => {
-			MOCK_COLLECTION.insertOne.mockRejectedValue({
-				code: 11000,
-				keyPattern: { chainSequence: 1 },
-			});
+			MOCK_COLLECTION.insertMany.mockRejectedValue(
+				bulkError(0, { chainSequence: 1 })
+			);
 
 			await expect(repository.insert(makeEvent())).rejects.toThrow(
 				"Failed to persist audit event"
 			);
-			expect(MOCK_COLLECTION.insertOne).toHaveBeenCalledTimes(5);
+			expect(MOCK_COLLECTION.insertMany).toHaveBeenCalledTimes(5);
 		});
 
 		it("should wait while another replica holds the lease", async () => {
 			MOCK_COLLECTION.updateOne
 				.mockRejectedValueOnce({ code: 11000 })
-				.mockResolvedValue({});
-			MOCK_COLLECTION.insertOne.mockResolvedValue({ insertedId: "id" });
+				.mockResolvedValue({ matchedCount: 1 });
+			MOCK_COLLECTION.insertMany.mockResolvedValue({});
 
 			await repository.insert(makeEvent());
+			await new Promise((resolve) => setImmediate(resolve));
 
 			// 2 acquire attempts + 1 release
 			expect(MOCK_COLLECTION.updateOne).toHaveBeenCalledTimes(3);
-			expect(MOCK_COLLECTION.insertOne).toHaveBeenCalledTimes(1);
+			expect(MOCK_COLLECTION.insertMany).toHaveBeenCalledTimes(1);
 		});
 
-		it("should not record a redelivered message twice", async () => {
-			MOCK_COLLECTION.insertOne.mockRejectedValue({
-				code: 11000,
-				keyPattern: { "metadata.messageId": 1 },
+		it("should re-acquire when the lease was taken over before a batch", async () => {
+			MOCK_COLLECTION.insertMany.mockImplementation(async () => {
+				// A second batch is queued while the first is written.
+				void repository.insert(withId(9));
+				return {};
 			});
+			MOCK_COLLECTION.insertMany.mockImplementationOnce(async () => {
+				void repository.insert(withId(9));
+				return {};
+			});
+			MOCK_COLLECTION.insertMany.mockImplementationOnce(async () => ({}));
+			// acquire ok, renew refused (taken over), acquire ok, release
+			MOCK_COLLECTION.updateOne
+				.mockResolvedValueOnce({})
+				.mockResolvedValueOnce({ matchedCount: 0 })
+				.mockResolvedValue({ matchedCount: 1 });
 
-			await expect(repository.insert(makeEvent())).resolves.toBeUndefined();
-			expect(MOCK_COLLECTION.insertOne).toHaveBeenCalledTimes(1);
+			await repository.insert(withId(1));
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			expect(MOCK_COLLECTION.insertMany).toHaveBeenCalledTimes(2);
+			expect(MOCK_COLLECTION.findOne).toHaveBeenCalledTimes(2);
+		});
+
+		it("should not record a redelivered message twice and go on", async () => {
+			MOCK_COLLECTION.insertMany
+				.mockRejectedValueOnce(bulkError(1, { "metadata.messageId": 1 }))
+				.mockResolvedValueOnce({});
+
+			await expect(
+				Promise.all([1, 2, 3].map((n) => repository.insert(withId(n))))
+			).resolves.toBeDefined();
+			expect(MOCK_COLLECTION.insertMany).toHaveBeenCalledTimes(2);
+			// Event 3 was re-chained right after event 1.
+			const retried = MOCK_COLLECTION.insertMany.mock.calls[1][0] as any[];
+			expect(retried).toHaveLength(1);
+			expect(retried[0].chainSequence).toBe(2);
 		});
 
 		it("should keep inserting after a failed insert", async () => {
-			MOCK_COLLECTION.insertOne
+			MOCK_COLLECTION.insertMany
 				.mockRejectedValueOnce(new Error("DB error"))
-				.mockResolvedValueOnce({ insertedId: "id" });
+				.mockResolvedValueOnce({});
 
 			await expect(repository.insert(makeEvent())).rejects.toThrow();
 			await expect(repository.insert(makeEvent())).resolves.toBeUndefined();
