@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Related:** [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) (chain, verifier and anchors stay as they are), [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md)
+**Related:** [ADR-0052](./0052-audit-chain-amortized-lease-batched-writes.md) (lease amortized over queued writes), [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) (chain, verifier and anchors stay as they are), [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md)
 **Verified by:** `services/audit-logger/tests/unit/persistence/audit-repository.spec.ts`, `services/audit-logger/tests/db/audit-contention.db.spec.ts`
 
 ## Context
@@ -19,7 +19,7 @@ audit-logger runs under an HPA of 2 to 5 replicas, so a burst could lose audit e
 ## Decision
 
 1. **A Mongo lease serialises the replicas.** Document `_id: "head"` in `audit_chain_lease` (`owner`, `expiresAt`). A replica takes it by an upsert whose filter only matches an expired lease: a held lease makes the upsert hit the `_id` index (duplicate key), so there is no race. The holder reads the tail, hashes and inserts, then releases it.
-2. **The lease is held per append, not per leader.** The owner chosen in option 1 of the issue was a long-lived single writer; forwarding events from other replicas to it needs a new inter-replica channel. Taking the lease around each append gives the same guarantee (one writer on the head at a time) with no forwarding and no failover gap. A replica that waits polls every 20-40 ms, for at most 30 s, then fails the insert with an error.
+2. **(Amended by ADR-0052: the lease is now held while writes are queued.) The lease is held per append, not per leader.** The owner chosen in option 1 of the issue was a long-lived single writer; forwarding events from other replicas to it needs a new inter-replica channel. Taking the lease around each append gives the same guarantee (one writer on the head at a time) with no forwarding and no failover gap. A replica that waits polls every 20-40 ms, for at most 30 s, then fails the insert with an error.
 3. **TTL 10 s.** A holder that dies mid-append blocks the others for at most 10 s. The unique index on `chainSequence` and the retry loop stay as the safety net if a lease expires under a slow holder; `audit_chain_sequence_collisions_total{outcome}` counts them and should stay at 0.
 4. **Chain, verifier, `chain-cli` and S3 anchors are unchanged.** Same collections, same hashes, same sequences. `audit_chain_lease` is operational state: never edit it by hand, and it is not part of the trail.
 
