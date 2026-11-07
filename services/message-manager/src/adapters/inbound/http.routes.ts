@@ -1,4 +1,4 @@
-import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import {
 	type NextFunction,
@@ -41,7 +41,7 @@ export const BROKER_ROUTES = (dispatcher: Dispatcher): Router => {
 	const router = Router();
 	router.get("/metrics", metricsHandler);
 	mountRoute(router, BROKER_API.publish, PUBLISH_A_MESSAGE(dispatcher), {
-		middlewares: [WITH_TIMEOUT(PUBLISH_TIMEOUT_MS), PUBLISH_LIMITER],
+		middlewares: [WITH_TIMEOUT(PUBLISH_ACCEPT_TIMEOUT_MS), PUBLISH_LIMITER],
 	});
 	mountRoute(
 		router,

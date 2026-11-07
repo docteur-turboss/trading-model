@@ -162,13 +162,14 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 
 ## Message Manager
 
-No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), dead letters in dlq-service ([ADR-0019](../adr/0019-message-broker-as-built.md)).
+No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), accepted messages in a Redis Streams journal (`REDIS_URL` / `REDIS_SENTINELS` required in production, AOF on), dead letters in dlq-service ([ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)).
 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
 | `DLQ_AUTH_HMAC_SECRET`    | string | —                           | **yes** (production) | Signs the dead letters sent to dlq-service: same value as dlq-service (min 16 chars). Unset: dead letters stay in the local file | MM       |
 | `DLQ_LOCAL_FALLBACK_PATH` | string | `./dead-letter-queue.jsonl` | no                   | File keeping the dead letters dlq-service cannot take yet (writable volume) | MM       |
 | `DLQ_FORWARD_INTERVAL_MS` | number | `60000`                     | no                   | How often the dead letters kept in the file are sent to dlq-service again   | MM       |
+| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publisher gets its 202 (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM       |
 
 ---
 

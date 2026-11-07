@@ -18,8 +18,8 @@ export function createMockDispatcher(
 ): jest.Mocked<Dispatcher> {
 	return {
 		publish: jest
-			.fn<(payload: unknown, metadata: unknown) => Promise<void>>()
-			.mockResolvedValue(undefined),
+			.fn<(payload: unknown, metadata: unknown) => Promise<string>>()
+			.mockResolvedValue("message-id"),
 		subscribe: jest
 			.fn<(params: SubscriptionParams) => Promise<void>>()
 			.mockResolvedValue(undefined),

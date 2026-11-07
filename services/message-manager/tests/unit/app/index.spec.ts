@@ -24,10 +24,12 @@ jest.mock("../../../src/config/address-manager", () => ({
 
 const MOCK_CLOSE_MESSAGE_MANAGER = jest.fn(async () => undefined);
 const MOCK_START_FORWARDING = jest.fn();
+const MOCK_START_DELIVERY = jest.fn();
 
 jest.mock("../../../src/config/message-manager", () => ({
 	closeMessageManager: MOCK_CLOSE_MESSAGE_MANAGER,
 	startDeadLetterForwarding: MOCK_START_FORWARDING,
+	startDelivery: MOCK_START_DELIVERY,
 }));
 
 jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
@@ -59,7 +61,7 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import "../../../src/application/index";
 
 describe("app/index", () => {
@@ -104,7 +106,7 @@ describe("app/index", () => {
 
 	it("should let in-flight publishes finish before closing", () => {
 		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
-		expect(opts.shutdown.closeTimeoutMs).toBe(PUBLISH_TIMEOUT_MS);
+		expect(opts.shutdown.closeTimeoutMs).toBe(PUBLISH_ACCEPT_TIMEOUT_MS);
 	});
 
 	// Publishers keep the address they resolved for CACHE_TTL_MS: until then

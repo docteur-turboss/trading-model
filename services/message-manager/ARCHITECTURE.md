@@ -142,14 +142,14 @@ Service A                    Dispatcher                    Service B
    |— POST /message ———————→   |                              |
    |  { payload, metadata }   |                              |
    |                           |— enrich (messageId, time)    |
-   |                           |— dispatch()                  |
-   |                           |   ├─ subscription.dispatch() |
-   |                           |   │   └─ POST /callback ———→ |
-   |                           |   │       { message, context}|
-   |                           |   │      ← 200 / ack()       |
-   |                           |   └─ (parallel for all subs) |
+   |                           |— XADD (journal, 1 per topic) |
+   |← 202 { messageId } ————— |                              |
    |                           |                              |
-   |← 204 No Content ———————— |                              |
+   |        (worker, any replica, outside the request)        |
+   |                           |— XREADGROUP / XCLAIM due     |
+   |                           |   └─ POST /callback ———————→ |
+   |                           |       { message, context }   |
+   |                           |      ← 200 → XACK            |
 ```
 
 ### Delivery Decision Flow (per Subscription)
@@ -232,5 +232,5 @@ Service A                    Dispatcher                    Service B
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Shared subscription registry (Redis)**   | Every replica reads the same subscriptions (`RedisSubscriptionStore`, one hash per topic): a subscription made on one replica routes the messages published on any other, and survives a restart. Subscribers renew theirs every 15s (`@trading-model/broker-message`); a subscription not renewed for 60s expires. Without Redis, `InMemorySubscriptionStore` (single replica only). A message whose topic has no subscriber is dropped and counted (`mm_messages_unrouted_total`, alert `MessagesUnrouted`). |
 | **Parallel dispatch (Promise.allSettled)** | Ensures one slow or failing subscriber does not block delivery to others.                                                                                                                                    |
-| **Bounded retry backoff**                  | Exponential backoff (1s base, 20s cap, ±20% jitter), 10 attempts of at most 10s: the worst case (~4.3 min) fits in `PUBLISH_TIMEOUT_MS` (5 min), checked by `backoff-calculator.spec.ts`. |
+| **Bounded retry backoff**                  | Exponential backoff (1s base, 20s cap, ±20% jitter), 10 attempts of at most 10s, spaced by the pending list of the journal (`retryDueMs`, `backoff-calculator.spec.ts`); the budget no longer holds a publisher request. |
 | **Dead letters in dlq-service**            | `ForwardingDeadLetterStore` sends them to dlq-service and keeps a local JSONL file only while it is unreachable; no database in message-manager itself.                                                    |

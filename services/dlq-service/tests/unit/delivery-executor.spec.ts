@@ -69,7 +69,7 @@ describe("delivery-executor", () => {
 		expect(mockClient.post).toHaveBeenCalledWith(
 			"https://mm:3000/message",
 			{ text: "hello" },
-			expect.objectContaining({ timeoutMs: 305_000 })
+			expect.objectContaining({ timeoutMs: 20_000 })
 		);
 		expect(MOCK_MARK_RETRIED).toHaveBeenCalledWith(
 			expect.objectContaining({ id: "entry-1", success: true })
