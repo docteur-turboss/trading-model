@@ -13,7 +13,7 @@ Market data collection service from Binance, with MySQL persistence and REST API
 
 ## REST Endpoints
 
-All market data endpoints are **GET**, return one bounded **page** (ADR-0053), and answer
+All market data endpoints are **GET**, return one bounded **page** (ADR-0054), and answer
 400 with `{ "error": "Validation failed", "details": [...] }` on an invalid
 parameter. Their parameters and responses are declared in
 `src/adapters/inbound/http/api-routes.ts` (`SCRAPER_API`, ADR-0021) and
@@ -31,24 +31,18 @@ are reached under the service prefix `financial-scraper` of the gateway API (v1)
 | `/candles/sources/:source`               | candles of a source                               | source                                      |
 | `/candles/symbols/:symbol`               | candles of a symbol                               | symbol                                      |
 | `/candles/timestamp/:timestamp`          | candles opened **after** this instant             | ISO date or date-time                       |
-| `/orderbook/sources/:source`             | order book snapshots of a source                  | source                                      |
-| `/orderbook/symbols/:symbol`             | order book snapshots of a symbol                  | symbol                                      |
-| `/orderbook/after/timestamp/:timestamp`  | snapshots after this instant                      | epoch milliseconds                          |
-| `/orderbook/before/timestamp/:timestamp` | snapshots before this instant                     | epoch milliseconds                          |
 
-Every answer is bounded (ADR-0053). Query parameters:
+Every answer is bounded (ADR-0054). Query parameters:
 
 | Parameter | Routes | Meaning |
 | --------- | ------ | ------- |
-| `limit` | all 13 | rows per answer, 1 to 5000, default 500 |
+| `limit` | all 9 | rows per answer, 1 to 5000, default 500 |
 | `after` | trades, tickers, candles | `nextCursor` of the previous page (opaque) |
 | `from`, `to` | trades, tickers, candles | optional window on `timestamp`, ISO dates, `[from, to)` |
 
 Trades, tickers and candles answer `{ "rows": [...], "nextCursor": "..." | null,
 "truncated": boolean }`, rows oldest first (ties in insertion order); follow
-`nextCursor` as `after` until it is `null`. Order books answer
-`{ "rows": [...], "truncated": boolean }` (no cursor).
-The signals route is described in [Signals](#signals-adr-0036).
+`nextCursor` as `after` until it is `null`. The signals route is described in [Signals](#signals-adr-0036).
 
 Trades, tickers and candles come from MySQL: their instants are ISO date-times
 and `tradeId` (BIGINT) is a decimal string, exact past 2^53:
@@ -76,36 +70,22 @@ Tickers carry `open`, `high`, `low`, `last`, `volume`, `timestamp` and
 `closeTimestamp`; candles carry `interval`, `open`, `high`, `low`, `close`,
 `volume`, `trades` (absent when unknown), `timestamp` and `closeTimestamp`.
 
-Order books are in-memory snapshots (lost on restart), timestamped in epoch
-milliseconds:
-
-```json
-{
-  "rows": [
-  {
-    "symbol": "BTCUSDT",
-    "market": "crypto",
-    "source": "binance",
-    "timestamp": 1705315200000,
-    "bids": [{ "price": 50000.0, "quantity": 1.5 }],
-    "asks": [{ "price": 50010.0, "quantity": 0.8 }]
-  }
-  ],
-  "truncated": false
-}
-```
+Order books have no route (ADR-0053): the collector writes each snapshot to
+`market_order_books` for historical replay and publishes it on the bus, where
+the trainer reads it. No process keeps them in memory.
 
 ## MySQL Tables
 
 All tables live in the `financial_scraper` database (configurable via `DB_NAME` env var). The ORM is `ts-sql-query` with a custom `DBConnection` wrapper.
 
-Three tables store market data:
+Four tables store market data:
 
 | Table              | Content                   |
 | ------------------ | ------------------------- |
 | `market_candles`   | OHLCV candle data         |
 | `market_trades`    | Individual trade data     |
 | `market_tickers`   | 24-hour ticker statistics |
+| `market_order_books` | Order book depth snapshots (migration 008, ADR-0053): `bids` / `asks` as JSON `[price, quantity]` pairs, best first; no API route reads them |
 
 `market_publish_cursors` holds the candle publish backlog (see below) and
 `signals` (migration 006) the signals of every dimension ([Signals](#signals-adr-0036)).
@@ -272,7 +252,7 @@ dimensions and metrics: nothing changes here (ADR-0036, decision 14).
 
 ```
 HTTP Server
-  ├── Financial routes (/trade/*, /ticker/*, /candles/*, /orderbook/*, /signals/assets/*)
+  ├── Financial routes (/trade/*, /ticker/*, /candles/*, /signals/assets/*)
   ├── AddressManager routes (ping)
   └── MessageManager routes (callback)
 

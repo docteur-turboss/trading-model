@@ -34,7 +34,7 @@ const T_MARKET_TICKER = new (class TMarketTicker extends Table<
 	timestamp = this.primaryKey("timestamp", "localDateTime");
 	closeTimestamp = this.primaryKey("close_time", "localDateTime");
 
-	/** AUTO_INCREMENT: tie-break of the page order (ADR-0053). */
+	/** AUTO_INCREMENT: tie-break of the page order (ADR-0054). */
 	id = this.column("id", "int");
 
 	constructor() {

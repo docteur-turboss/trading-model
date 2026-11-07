@@ -32,7 +32,7 @@ const T_MARKET_TRADES = new (class TMarketTrades extends Table<
 
 	timestamp = this.primaryKey("timestamp", "localDateTime");
 
-	/** AUTO_INCREMENT: tie-break of the page order (ADR-0053). */
+	/** AUTO_INCREMENT: tie-break of the page order (ADR-0054). */
 	id = this.column("id", "int");
 
 	constructor() {

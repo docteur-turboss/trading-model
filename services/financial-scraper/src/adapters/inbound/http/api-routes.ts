@@ -37,12 +37,7 @@ const AT_DATE = z.object({
 	timestamp: ISO_DATE_MS.transform(brand(UnixTimestamp.of)),
 });
 
-/** Order books: epoch milliseconds. */
-const EPOCH_MS = z.object({
-	timestamp: z.coerce.number().int().min(0).transform(brand(UnixTimestamp.of)),
-});
-
-/** Rows of a market data page by default and at most (ADR-0053). */
+/** Rows of a market data page by default and at most (ADR-0054). */
 export const DEFAULT_PAGE_LIMIT = 500;
 export const MAX_PAGE_LIMIT = 5000;
 
@@ -95,9 +90,6 @@ const PAGE_QUERY = z
 		{ message: "from must be before to", path: ["to"] }
 	);
 
-/** Order books are in-memory snapshots, not table rows: no cursor. */
-const LIMIT_QUERY = z.object({ limit: LIMIT });
-
 /** Most signals one answer holds; past it the answer says `truncated`. */
 export const MAX_SIGNALS_PER_ANSWER = 5000;
 
@@ -145,17 +137,6 @@ const Trade = z.object({
 	timestamp: DATE_TIME,
 });
 
-const OrderBookLevel = z.object({ price: z.number(), quantity: z.number() });
-
-/** Order books are in-memory snapshots, timestamped in epoch milliseconds. */
-const OrderBook = z.object({
-	...MARKET,
-	timestamp: z.number().int(),
-	bids: z.array(OrderBookLevel),
-	asks: z.array(OrderBookLevel),
-});
-
-/** A keyset page of trades, tickers or candles (ADR-0053). */
 function query<
 	const Path extends string,
 	Params extends z.ZodType,
@@ -174,29 +155,6 @@ function query<
 				/** Pass as `after` for the next page; null on the last page. */
 				nextCursor: z.string().nullable(),
 				/** Rows are left past this page: `nextCursor !== null`. */
-				truncated: z.boolean(),
-			}),
-			400: ErrorResponse,
-		},
-	});
-}
-
-/** Order book snapshots, `limit` at most (ADR-0053). */
-function orderBookQuery<const Path extends string, Params extends z.ZodType>(
-	path: Path,
-	summary: string,
-	params: Params
-) {
-	return defineRoute({
-		method: "GET",
-		path,
-		summary,
-		params,
-		query: LIMIT_QUERY,
-		responses: {
-			200: z.object({
-				rows: z.array(OrderBook),
-				/** More than `limit` snapshots matched. */
 				truncated: z.boolean(),
 			}),
 			400: ErrorResponse,
@@ -258,26 +216,6 @@ export const SCRAPER_API = {
 		"Candles opened after a date",
 		AT_DATE,
 		Candle
-	),
-	orderBooksBySource: orderBookQuery(
-		"/orderbook/sources/:source",
-		"Order book snapshots of a source",
-		BY_SOURCE
-	),
-	orderBooksBySymbol: orderBookQuery(
-		"/orderbook/symbols/:symbol",
-		"Order book snapshots of a symbol",
-		BY_SYMBOL
-	),
-	orderBooksAfter: orderBookQuery(
-		"/orderbook/after/timestamp/:timestamp",
-		"Order book snapshots after an instant",
-		EPOCH_MS
-	),
-	orderBooksBefore: orderBookQuery(
-		"/orderbook/before/timestamp/:timestamp",
-		"Order book snapshots before an instant",
-		EPOCH_MS
 	),
 	/** ADR-0036: every dimension, the sector signals of the asset included. */
 	assetSignals: defineRoute({

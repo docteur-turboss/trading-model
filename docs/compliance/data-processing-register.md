@@ -31,7 +31,7 @@ This register documents the processing activities of the trading-model platform,
 | **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. See third-party assessment |
 | **Retention period**     | **Not bounded yet.** Target 5 years (record-keeping, see [Data Retention Policy](data-retention-policy.md)); the former MySQL purge event was removed from migration 003 (audit A9) and its out-of-schema replacement is open (DPIA action #2) |
 | **Technical measures**   | mTLS (SPIFFE SVIDs), LUKS2 data disks, age-encrypted backups, RBAC service accounts                                               |
-| **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers, signals). `signals` (ADR-0036) holds numeric observations of public sources free for any use: bond yields (ECB), company filings (SEC EDGAR), weather observations (NWS), daily Wikipedia page views (Wikimedia, counts only); see [Third-Party DPAs](third-party-dpas.md#signal-sources-adr-0036) |
+| **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers, market_order_books, signals). `signals` (ADR-0036) holds numeric observations of public sources free for any use: bond yields (ECB), company filings (SEC EDGAR), weather observations (NWS), daily Wikipedia page views (Wikimedia, counts only); see [Third-Party DPAs](third-party-dpas.md#signal-sources-adr-0036) |
 
 ## Processing Activity 2: Message Routing
 

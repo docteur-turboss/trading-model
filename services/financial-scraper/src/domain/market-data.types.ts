@@ -11,7 +11,7 @@ export {
 } from "@trading-model/contracts/market-data.types";
 
 /**
- * One keyset page of a market data table (ADR-0053): rows in
+ * One keyset page of a market data table (ADR-0054): rows in
  * (`timestamp`, `id`) order, strictly after `after`, `timestamp` in
  * [`from`, `to`), at most `limit` of them.
  */

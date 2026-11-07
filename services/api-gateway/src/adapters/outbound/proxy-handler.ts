@@ -32,7 +32,7 @@ export function forwardRequest(
 					bytes += chunk.length;
 					if (bytes > ENV.PROXY_MAX_RESPONSE_BYTES) {
 						// Cut the upstream answer: buffered, then parsed, it would take
-						// several times its size in memory (ADR-0053).
+						// several times its size in memory (ADR-0054).
 						proxyRes.destroy();
 						reject(
 							new UpstreamResponseTooLargeError(ENV.PROXY_MAX_RESPONSE_BYTES)

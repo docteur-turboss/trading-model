@@ -11,7 +11,7 @@ export type ForwardRequestPort = (opts: {
 
 /**
  * The upstream answer passed PROXY_MAX_RESPONSE_BYTES: the forward port cut
- * it rather than hold it in memory (ADR-0053). The dispatcher answers 502.
+ * it rather than hold it in memory (ADR-0054). The dispatcher answers 502.
  */
 export class UpstreamResponseTooLargeError extends Error {
 	constructor(readonly maxBytes: number) {

@@ -36,7 +36,7 @@ const T_MARKET_CANDLES = new (class TMarketCandles extends Table<
 	closeTimestamp = this.column("close_timestamp", "localDateTime");
 	timestamp = this.primaryKey("timestamp", "localDateTime");
 
-	/** AUTO_INCREMENT: tie-break of the page order (ADR-0053). */
+	/** AUTO_INCREMENT: tie-break of the page order (ADR-0054). */
 	id = this.column("id", "int");
 
 	constructor() {

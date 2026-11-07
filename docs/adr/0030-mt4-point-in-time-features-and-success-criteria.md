@@ -59,7 +59,7 @@ The 2026-09-13 architecture audit put MT4 on the mid-term roadmap: once ingestio
 ## Consequences
 
 - Training and validation no longer see the future. Live training costs one pass over the buffer per build, as before.
-- The order book inputs are never exercised by a historical run until the scraper's own history is long enough (it keeps no order book in MySQL, `market_candles` / `market_trades` / `market_tickers` only).
+- The order book inputs are never exercised by a historical run until the scraper's own history is long enough (it keeps no order book in MySQL, `market_candles` / `market_trades` / `market_tickers` only). *Amended by [ADR-0053](./0053-order-books-persisted-not-served.md): order book snapshots are kept in `market_order_books` from then on.*
 - MT4 cannot pass while the paper trading criterion is open.
 
 ## Results
