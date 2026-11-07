@@ -14,6 +14,12 @@ import {
 	type OrderBookIndexSnapshot,
 } from "./order-book-index-querier";
 
+/**
+ * Order-book snapshots kept in memory per symbol: one hour at the 1 per minute
+ * scrape. Older ones are evicted, so the collector's memory stays bounded (issue #554).
+ */
+export const MAX_ORDER_BOOKS_PER_SYMBOL = 60;
+
 interface MarketOrderBooksSnapshot {
 	storage: Map<number, OrderBookData>;
 	index: OrderBookIndexSnapshot;
@@ -42,7 +48,26 @@ const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 			this._restoreState(snapshot);
 			throw normalizeError(err);
 		}
+		for (const symbol of new Set(data.map((entry) => entry.symbol))) {
+			this._evictOldest(symbol);
+		}
 		return this;
+	}
+
+	/** Keep only the newest {@link MAX_ORDER_BOOKS_PER_SYMBOL} snapshots of `symbol` (issue #554). */
+	private _evictOldest(symbol: TradingSymbol): void {
+		const ids = this._indexQuerier.idsForSymbol(symbol);
+		const excess = ids.slice(
+			0,
+			Math.max(0, ids.length - MAX_ORDER_BOOKS_PER_SYMBOL)
+		);
+		for (const id of excess) {
+			const entry = this._storage.get(id);
+			if (entry) {
+				this._indexQuerier.removeEntry(id, entry);
+				this._storage.delete(id);
+			}
+		}
 	}
 
 	private _snapshotState(): MarketOrderBooksSnapshot {

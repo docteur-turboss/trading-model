@@ -70,6 +70,34 @@ export class OrderBookIndexQuerier {
 			this._timestampStorage.set(entry.timestamp, [id]);
 		}
 	}
+	/** Drop `id` from every index; a key left with no id is deleted, so queries on it return null again. */
+	removeEntry(id: number, entry: OrderBookData): void {
+		this._removeFromIndex(this._marketStorage, entry.market, id);
+		this._removeFromIndex(this._sourceStorage, entry.source, id);
+		this._removeFromIndex(this._symbolStorage, entry.symbol, id);
+		this._removeFromIndex(this._timestampStorage, entry.timestamp, id);
+	}
+	/** Ids indexed for `symbol`, oldest first (ids grow with insertion). */
+	idsForSymbol(symbol: TradingSymbol): readonly number[] {
+		return this._symbolStorage.get(symbol) ?? [];
+	}
+	private _removeFromIndex<TKey>(
+		storage: Map<TKey, number[]>,
+		key: TKey,
+		id: number
+	): void {
+		const ids = storage.get(key);
+		if (!ids) {
+			return;
+		}
+		const position = ids.indexOf(id);
+		if (position !== -1) {
+			ids.splice(position, 1);
+		}
+		if (!ids.length) {
+			storage.delete(key);
+		}
+	}
 	private _addToIndex<TKey extends string>(
 		storage: Map<TKey, number[]>,
 		key: TKey,

@@ -62,7 +62,12 @@ Tickers carry `open`, `high`, `low`, `last`, `volume`, `timestamp` and
 `volume`, `trades` (absent when unknown), `timestamp` and `closeTimestamp`.
 
 Order books are in-memory snapshots (lost on restart), timestamped in epoch
-milliseconds:
+milliseconds. Each process keeps only the newest 60 snapshots per symbol
+(`MAX_ORDER_BOOKS_PER_SYMBOL`, one hour at the 1 per minute scrape): older ones
+are evicted, so the collector's memory stays bounded (issue #554). The store is
+local to the process that scrapes: in K8s only the `financial-scraper-collector`
+pod scrapes and the HTTP replicas never do, so these routes answer `[]` there.
+The trainer gets order books from the bus, not from these routes:
 
 ```json
 [

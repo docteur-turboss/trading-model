@@ -10,6 +10,7 @@ import {
 
 import {
 	insertOrderBook,
+	MAX_ORDER_BOOKS_PER_SYMBOL,
 	selectOrderBookBy,
 } from "../../../../../src/adapters/outbound/persistence/schema/order-book.schema";
 
@@ -134,6 +135,47 @@ describe("MarkerOrderBooks (in-memory storage)", () => {
 		it("should return null for unknown market", async () => {
 			const results = await selectOrderBookBy.market(MarketType.Fx);
 			expect(results).toBeNull();
+		});
+	});
+
+	describe("per-symbol bound (issue #554)", () => {
+		it("evicts the oldest snapshots of a symbol from storage and every index", async () => {
+			const symbol = TradingSymbol.of("BOUNDUSDT");
+			const base = 1_000_000;
+			const books = Array.from(
+				{ length: MAX_ORDER_BOOKS_PER_SYMBOL + 5 },
+				(_, offset) =>
+					MAKE_BOOK({
+						symbol: "BOUNDUSDT",
+						source: "bound-source",
+						timestamp: base + offset,
+					}) as never
+			);
+			await insertOrderBook(books.slice(0, 10));
+			await insertOrderBook(books.slice(10));
+
+			const kept = await selectOrderBookBy.symbol(symbol);
+			expect(kept).toHaveLength(MAX_ORDER_BOOKS_PER_SYMBOL);
+			expect(kept![0]!.timestamp).toBe(base + 5);
+			expect(
+				await selectOrderBookBy.source("bound-source" as SourceType)
+			).toHaveLength(MAX_ORDER_BOOKS_PER_SYMBOL);
+			const early = await selectOrderBookBy.timestamp.before(
+				UnixTimestamp.of(base + 5)
+			);
+			expect(early).toHaveLength(0);
+		});
+
+		it("does not evict the snapshots of another symbol", async () => {
+			const other = TradingSymbol.of("KEEPUSDT");
+			await insertOrderBook([MAKE_BOOK({ symbol: "KEEPUSDT" }) as never]);
+			await insertOrderBook(
+				Array.from(
+					{ length: MAX_ORDER_BOOKS_PER_SYMBOL + 1 },
+					() => MAKE_BOOK({ symbol: "FLOODUSDT" }) as never
+				)
+			);
+			expect(await selectOrderBookBy.symbol(other)).toHaveLength(1);
 		});
 	});
 
