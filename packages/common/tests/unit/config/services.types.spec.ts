@@ -23,6 +23,17 @@ describe("parseServiceName", () => {
 		expect(parseServiceName("discovery-service")).toBe("discovery-service");
 	});
 
+	it("accepts the canonical and the legacy name of a service (release N)", () => {
+		for (const name of [
+			"financial-scraper",
+			"financial-scraper-service",
+			"message-manager",
+			"message-delivery-service",
+		]) {
+			expect(parseServiceName(name)).toBe(name);
+		}
+	});
+
 	it("should throw for unknown names", () => {
 		expect(() => parseServiceName("not-a-service")).toThrow(
 			"Invalid ServiceInstanceName"

@@ -3,10 +3,9 @@ import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
+import type { DeleteEntriesBody } from "../../config/dlq-adapters";
+import { dlqRepository, notifyDeleteAudit } from "../../config/dlq-adapters";
 import { metrics } from "../../config/metrics";
-import { notifyDeleteAudit } from "../outbound/audit-notifier";
-import { dlqRepository } from "../outbound/repository";
-import type { DeleteEntriesBody } from "./api-routes";
 
 export async function deleteEntries({
 	ids,

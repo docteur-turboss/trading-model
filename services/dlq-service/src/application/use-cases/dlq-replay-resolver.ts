@@ -5,7 +5,7 @@ import {
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
 import type { URLString } from "@trading-model/primitives/primitives";
-import { resolveMessageManagerUrl } from "../outbound/message-manager-resolver";
+import { resolveMessageManagerUrl } from "../../config/dlq-adapters";
 
 export async function resolveMMUrlOrFail(
 	span: import("@opentelemetry/api").Span

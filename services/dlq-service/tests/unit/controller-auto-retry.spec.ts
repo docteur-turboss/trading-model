@@ -118,11 +118,16 @@ jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 
 describe("Controller - Auto Retry", () => {
 	let controller: Record<string, unknown>;
+	let scheduler: typeof import("../../src/infrastructure/auto-retry-scheduler");
 
 	beforeAll(() => {
-		controller = jest.requireActual(
-			"../../src/shared/controller-reexports"
-		) as Record<string, unknown>;
+		scheduler = jest.requireActual(
+			"../../src/infrastructure/auto-retry-scheduler"
+		);
+		controller = jest.requireActual("../../src/config/container") as Record<
+			string,
+			unknown
+		>;
 	});
 
 	afterAll(() => {
@@ -150,12 +155,12 @@ describe("Controller - Auto Retry", () => {
 
 	describe("startAutoRetry / stopAutoRetry", () => {
 		afterEach(() => {
-			(controller.stopAutoRetry as () => void)();
+			scheduler.stopAutoRetry();
 		});
 
 		it("should start and stop auto-retry timers", () => {
-			(controller.startAutoRetry as () => void)();
-			(controller.stopAutoRetry as () => void)();
+			scheduler.startAutoRetry();
+			scheduler.stopAutoRetry();
 		});
 	});
 

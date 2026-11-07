@@ -8,10 +8,18 @@ import {
 } from "@jest/globals";
 
 jest.mock("node:dns/promises", () => ({
-	lookup: jest.fn(async () => ({ address: "172.25.0.2", family: 4 })),
+	lookup: jest.fn(async (name: string) => ({
+		address: name === "discovery" ? "172.25.0.2" : "10.9.9.9",
+		family: 4,
+	})),
 }));
 
-import { ServiceResolver } from "../../src/adapters/outbound/service-resolver";
+import { lookup } from "node:dns/promises";
+import {
+	isAllowedProxyIP,
+	parseCIDRList,
+} from "@trading-model/primitives/primitives";
+import { EndpointResolver } from "../../src/application/discovery/endpoint-resolver";
 
 const makeInstance = (host: string, port: number, version: string) => ({
 	serviceName: "sector-allocator",
@@ -31,8 +39,8 @@ const MOCK_RESPONSE = [
 	makeInstance("10.0.2.1", 3000, "2.0.0"),
 ];
 
-describe("ServiceResolver", () => {
-	let resolver: ServiceResolver;
+describe("EndpointResolver", () => {
+	let resolver: EndpointResolver;
 	let mockHttpClient: { get: jest.Mock };
 
 	beforeEach(() => {
@@ -40,7 +48,7 @@ describe("ServiceResolver", () => {
 		mockHttpClient = {
 			get: jest.fn().mockImplementation(async () => [...MOCK_RESPONSE]),
 		};
-		resolver = new ServiceResolver(
+		resolver = new EndpointResolver(
 			"https://discovery:3000",
 			5000,
 			mockHttpClient as any
@@ -86,7 +94,19 @@ describe("ServiceResolver", () => {
 
 		const target = await resolver.resolve("financial-scraper" as never, 1);
 
-		expect(target?.host).toBe("10.0.3.1");
+		expect(target?.host).toBe("10.9.9.9");
+	});
+
+	it("should find a service registered under its canonical name", async () => {
+		mockHttpClient.get.mockImplementation(async (url: unknown) =>
+			String(url).endsWith("/financial-scraper")
+				? [makeInstance("10.0.3.2", 3000, "1.0.0")]
+				: []
+		);
+
+		const target = await resolver.resolve("financial-scraper" as never, 1);
+
+		expect(target?.host).toBe("10.9.9.9");
 	});
 
 	it("should reach discovery at its configured URL (it never registers)", async () => {
@@ -118,18 +138,23 @@ describe("ServiceResolver", () => {
 		expect(mockHttpClient.get).toHaveBeenCalledTimes(2);
 	});
 
-	it("should round-robin through instances", async () => {
-		mockHttpClient.get.mockImplementation(async () => [
-			makeInstance("10.0.1.5", 3000, "1.0.0"),
-			makeInstance("10.0.1.6", 3000, "1.0.0"),
-		]);
+	it("should target the platform DNS address, never the registered IP", async () => {
+		const target = await resolver.resolve("sector-allocator", 1);
 
-		const first = await resolver.resolve("sector-allocator", 1);
-		const second = await resolver.resolve("sector-allocator", 1);
+		expect(target).toMatchObject({ host: "10.9.9.9", port: 3000 });
+		expect(lookup).toHaveBeenCalledWith("sector-allocator", { family: 4 });
+	});
 
-		expect(first).not.toBeNull();
-		expect(second).not.toBeNull();
-		expect(first!.host).not.toBe(second!.host);
+	// The gateway checks the host against ALLOWED_PROXY_CIDRS: it must be an IP.
+	it("should return an IPv4 host the CIDR allowlist can check", async () => {
+		const target = await resolver.resolve("sector-allocator", 1);
+
+		expect(isAllowedProxyIP(target!.host, parseCIDRList("10.9.0.0/16"))).toBe(
+			true
+		);
+		expect(
+			isAllowedProxyIP(target!.host, parseCIDRList("192.168.0.0/16"))
+		).toBe(false);
 	});
 
 	it("should return stale cached data when discovery is unreachable", async () => {
@@ -209,8 +234,8 @@ describe("ServiceResolver", () => {
 	});
 
 	it("should construct without httpClient (uses default)", () => {
-		const r = new ServiceResolver("https://discovery:3000", 5000);
-		expect(r).toBeInstanceOf(ServiceResolver);
+		const r = new EndpointResolver("https://discovery:3000", 5000);
+		expect(r).toBeInstanceOf(EndpointResolver);
 	});
 
 	it("should invalidate cache only for matching service key", async () => {

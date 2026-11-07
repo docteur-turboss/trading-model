@@ -1,6 +1,6 @@
 import { logger } from "../../config/logger";
 import { STALE_CLAIM_MS } from "../../domain/dlq-constants";
-import { activeReplays } from "../../shared/active-replay-counter";
+import { activeReplays } from "./active-replay-counter";
 
 const DRAIN_TIMEOUT_MS = 10_000;
 

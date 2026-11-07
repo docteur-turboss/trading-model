@@ -69,7 +69,7 @@ describe("REGISTRATION_MTLS_AUTH", () => {
 	it("accepts a legacy alias of the caller's service name", () => {
 		callerIs("financial-scraper");
 
-		const { next } = register({ serviceName: "financial-scrapper-service" });
+		const { next } = register({ serviceName: "financial-scraper-service" });
 
 		expect(next).toHaveBeenCalled();
 	});

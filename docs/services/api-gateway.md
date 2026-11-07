@@ -75,7 +75,7 @@ Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-lim
 ```
 
 - **Versioned Routing:** Pattern `/v{major}/{serviceName}/**` — resolved via Discovery Server, filtered by major version
-- **Service Resolution:** `ServiceResolver` queries Discovery Server, caches results with configurable TTL, round-robin load balancing across instances
+- **Service Resolution:** `EndpointResolver` (`@trading-model/address-manager`, ADR-0045) asks Discovery Server whether the major version is alive, resolves the Service DNS name to an IP, caches with configurable TTL; the platform spreads calls
 - **Proxy:** Forwards HTTPS request via `https.request`, strips sensitive headers (`x-api-key`, `authorization`, `host`, `connection`), injects `x-forwarded-for`, `x-forwarded-proto`, `x-request-id`
 - **Startup order:** Position 6 (depends on discovery-server:healthy)
 

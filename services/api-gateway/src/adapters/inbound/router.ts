@@ -1,3 +1,4 @@
+import { EndpointResolver } from "@trading-model/address-manager/application/discovery/endpoint-resolver";
 import {
 	HTTP_STATUS,
 	type HttpStatusCode,
@@ -28,11 +29,11 @@ import {
 } from "../../infrastructure/config/metrics";
 import { parseRequestPath } from "../../shared/path-parser";
 import { isPublicRoute } from "../../shared/public-routes";
-import { ServiceResolver } from "../outbound/service-resolver";
+import { forwardRequest } from "../outbound/proxy-handler";
 import { AUTH_MIDDLEWARE } from "./auth";
 import { DEFAULT_LIMITER } from "./rate-limiter";
 
-const RESOLVER = new ServiceResolver(
+const RESOLVER = new EndpointResolver(
 	ENV.DISCOVERY_SERVICE_URL,
 	ENV.CACHE_TTL_MS,
 	discoveryClient
@@ -135,7 +136,7 @@ const catchAllRoute = catchSync(async (req) => {
 		req,
 		target,
 		{ serviceName, majorVersion, cacheKey, path: `${path}${search}` },
-		CACHE
+		{ forward: forwardRequest, cache: CACHE }
 	);
 	if (response.status >= HTTP_STATUS.SERVICE_UNAVAILABLE) {
 		SERVICE_ERRORS_TOTAL.inc({ service: serviceName });

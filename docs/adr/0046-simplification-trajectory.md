@@ -1,4 +1,4 @@
-# ADR-0043: Simplification Trajectory for the Services, Broker, Discovery and DLQ
+# ADR-0046: Simplification Trajectory for the Services, Broker, Discovery and DLQ
 
 **Status:** Proposed
 **Date:** 2026-11
