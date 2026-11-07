@@ -44,7 +44,7 @@ Normalization (z-score) is applied per-symbol with running statistics, ensuring 
 ```
 Every 60 seconds:
   For each symbol (one per cycle):
-    1. Check if enough data is available (≥ 10% of window)
+    1. Check if enough data is available (`hasEnoughTrainingData`, see trader-trainer.md)
     2. Split data into train/validation sets
     3. Run GA evolution:
        a. Evaluate each genome on training data (Q-learning)

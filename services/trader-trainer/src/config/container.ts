@@ -112,7 +112,10 @@ export class ApplicationContainer {
 			// Training is CPU-bound: off the thread that serves the API (issue #508).
 			runner: runInWorker,
 		});
-		this.trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer);
+		this.trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer, {
+			validationSplit: config.validationSplit,
+			walkForwardFolds: config.walkForwardFolds,
+		});
 	}
 }
 
