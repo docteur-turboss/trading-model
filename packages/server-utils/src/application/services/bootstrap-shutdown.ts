@@ -1,4 +1,5 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { withTimeout } from "@trading-model/common/utils/retry";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { HttpServer } from "../../adapters/inbound/create-secure-server";
@@ -32,27 +33,7 @@ function _runOnStop(options: BootstrapOptions): void {
 	}
 }
 
-function _createCloseTimeoutPromise(timeoutMs: DurationMs): Promise<never> {
-	return new Promise<never>((_, reject) => {
-		const timer = setTimeout(
-			() => reject(new Error("Server close timed out")),
-			timeoutMs
-		);
-		timer.unref();
-	});
-}
-
 const DEFAULT_CLOSE_TIMEOUT_MS = DurationMs.of(10000);
-
-async function _closeServerWithTimeout(
-	server: HttpServer,
-	closeTimeout: DurationMs
-): Promise<void> {
-	await Promise.race([
-		server.close(),
-		_createCloseTimeoutPromise(closeTimeout),
-	]);
-}
 
 async function _runBeforeClose(options: BootstrapOptions): Promise<void> {
 	const beforeClose = options.shutdown?.beforeClose;
@@ -98,9 +79,10 @@ export async function gracefulShutdown(
 	try {
 		await _runBeforeClose(options);
 		if (server) {
-			await _closeServerWithTimeout(
-				server,
-				options.shutdown?.closeTimeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS
+			await withTimeout(
+				server.close(),
+				options.shutdown?.closeTimeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS,
+				"Server close timed out"
 			);
 			logger.info("HTTP server closed");
 		}

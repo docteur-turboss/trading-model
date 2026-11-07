@@ -6,6 +6,7 @@ jest.mock("../../../src/domain/agent/trading-agent", () => {
 	const makeMockAgent = () => ({
 		forwardPass: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
 		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
+		parameterCount: jest.fn(() => 2),
 		setWeights: jest.fn(),
 		getExperiencePool: jest.fn(() => []),
 		remember: jest.fn(),

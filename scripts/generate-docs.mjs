@@ -19,9 +19,6 @@ const ROOT = dirname(dirname(__filename));
 const OUT_DIR = join(ROOT, 'docs', 'architecture', 'code');
 const DRY_RUN = process.argv.includes('--dry-run');
 
-/** Shared stylesheet injected into every TypeDoc output via --customCss. */
-const CUSTOM_CSS = join(ROOT, 'scripts', 'docs', 'typedoc-custom.css');
-
 /**
  * TypeDoc entry per module: label, type, entry points, strategy, description.
  *
@@ -187,7 +184,6 @@ function buildTypedocArgs(mod) {
     `--out "${posix(join(OUT_DIR, mod.label))}"`,
     `--tsconfig "${posix(mod.tsconfig)}"`,
     `--name "${mod.label}"`,
-    `--customCss "${posix(CUSTOM_CSS)}"`,
     '--includeVersion',
     '--cleanOutputDir',
     '--hideGenerator',
@@ -296,17 +292,7 @@ const indexHtml = `<!DOCTYPE html>
     .card .desc { font-size: 0.85rem; color: #94a3b8; }
     .card .type { display: inline-block; font-size: 0.7rem; font-family: 'JetBrains Mono', Menlo, Consolas, monospace; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(129, 140, 248, 0.1); color: #818cf8; border: 1px solid rgba(129, 140, 248, 0.25); margin-top: 0.5rem; }
     hr { border: none; border-top: 1px solid #243046; margin: 1.5rem 0; }
-    .tm-doc-header { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0.625rem 1rem; background: rgba(11, 15, 25, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid #243046; font-size: 0.8125rem; font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace; }
-    .tm-doc-header a { color: #cbd5e1; text-decoration: none; font-weight: 600; }
-    .tm-doc-header a:hover { color: #fff; }
-    .tm-doc-brand { color: #818cf8 !important; font-size: 0.9375rem; }
-    .tm-doc-module, .tm-doc-page { color: #94a3b8; }
-    .tm-doc-module::before { content: '‹'; color: #475569; margin-right: 1rem; }
-    .tm-doc-page::before { content: '·'; color: #475569; margin-right: 1rem; }
-    .tm-doc-back { margin-left: auto; color: #94a3b8 !important; font-size: 0.75rem; }
     footer { margin-top: 2rem; }
-    .tm-doc-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem 1rem; max-width: 900px; margin: 0 auto; padding: 1.25rem 2rem 1.5rem; color: #94a3b8; font-size: 0.75rem; font-family: 'JetBrains Mono', Menlo, Consolas, monospace; border-top: 1px solid rgba(36, 48, 70, 0.6); }
-    .tm-doc-footer a { color: #818cf8; }
   </style>
 </head>
 <body>
@@ -345,7 +331,7 @@ console.log(`\n✓ Root index: ${indexPath}`);
 
 // Apply the shared structural chrome (header/footer) to every generated page.
 const { postprocess } = await import('./docs/postprocess.mjs');
-const { pages, icons } = postprocess(OUT_DIR);
-console.log(`✓ Post-processed ${pages} pages, restyled ${icons} icon sets`);
+const { pages } = postprocess(OUT_DIR);
+console.log(`✓ Post-processed ${pages} pages`);
 
 console.log('Done.');

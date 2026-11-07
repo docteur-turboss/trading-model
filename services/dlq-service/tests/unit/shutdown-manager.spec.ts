@@ -111,18 +111,4 @@ describe("shutdown-manager", () => {
 		stopPeriodicPrune();
 		expect(MOCK_PRUNE_STOP).toHaveBeenCalled();
 	});
-
-	it("should alias shutdown to shutdownSchedulers", async () => {
-		MOCK_CLOSE_REDIS_QUEUE.mockResolvedValue(undefined);
-		MOCK_CLOSE_HTTP_CLIENT.mockResolvedValue(undefined);
-		MOCK_DRAIN.mockResolvedValue(true);
-		MOCK_RELEASE_AND_REQUEUE.mockResolvedValue(undefined);
-
-		const { shutdown } = jest.requireActual(
-			"../../src/config/shutdown-manager"
-		) as { shutdown: () => Promise<void> };
-		await shutdown();
-
-		expect(MOCK_SET_SHUTTING_DOWN).toHaveBeenCalledWith(true);
-	});
 });

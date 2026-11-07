@@ -22,7 +22,6 @@ describe("AuditSubscriber", () => {
 	beforeEach(() => {
 		mockRepo = {
 			insert: jest.fn(),
-			insertBatch: jest.fn(),
 			findById: jest.fn(),
 			query: jest.fn(),
 			getStats: jest.fn(),
@@ -33,25 +32,23 @@ describe("AuditSubscriber", () => {
 	});
 
 	describe("message handling", () => {
-		it("should accept a message in nested envelope format and return 200", async () => {
+		it("should record a delivered message and return 200", async () => {
 			mockRepo.insert.mockResolvedValue(undefined);
 
 			const req = createReq({
 				body: {
-					message: {
-						metadata: {
-							topic: "order.created",
-							eventType: "OrderCreated",
-							messageId: "msg-123",
-							correlationId: "corr-456",
-							emittedAt: "2024-06-01T12:00:00Z",
-							publisher: {
-								serviceName: "order-service",
-								instanceId: "instance-1",
-							},
+					metadata: {
+						topic: "order.created",
+						eventType: "OrderCreated",
+						messageId: "msg-123",
+						correlationId: "corr-456",
+						emittedAt: "2024-06-01T12:00:00Z",
+						publisher: {
+							serviceName: "order-service",
+							instanceId: "instance-1",
 						},
-						payload: { orderId: "ord-1" },
 					},
+					payload: { orderId: "ord-1" },
 					context: { deliveryAttempt: 1 },
 				},
 			});
@@ -112,8 +109,10 @@ describe("AuditSubscriber", () => {
 
 		// The route rejects these before the handler (AUDIT_API.receive).
 		it.each([
-			["no topic", { message: { metadata: {}, payload: {} } }],
-			["neither message nor metadata", { random: "data" }],
+			["no topic", { metadata: {}, payload: {} }],
+			["no metadata", { random: "data" }],
+			// The older envelope nested in `message`: no sender uses it.
+			["a nested envelope", { message: { metadata: { topic: "t" } } }],
 		])("rejects an envelope with %s", (_label, body) => {
 			expect(parseRequest(AUDIT_API.receive, { body }).success).toBe(false);
 		});

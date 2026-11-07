@@ -1,12 +1,12 @@
-import type { HashPort } from "../../domain/ports/hash-port";
-import {
-	sha256Base64url,
-	sha256Hex,
-} from "../../infrastructure/hash-primitives";
+import { createHash } from "node:crypto";
+import { CryptoAlg } from "../../domain/constants/crypto-constants";
 
-export const nodeHashAdapter: HashPort = {
-	sha256Hex,
-	sha256Base64url,
-};
+/** Returns the SHA-256 digest of the input, hex encoded. */
+export function sha256Hex(input: string): string {
+	return createHash(CryptoAlg.SHA256).update(input).digest(CryptoAlg.HEX);
+}
 
-export { sha256Base64url, sha256Hex };
+/** Returns the SHA-256 digest of the input, base64url encoded. */
+export function sha256Base64url(input: string): string {
+	return createHash(CryptoAlg.SHA256).update(input).digest(CryptoAlg.BASE64URL);
+}

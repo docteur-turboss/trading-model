@@ -15,7 +15,7 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { parse } from 'node-html-parser';
 import MarkdownIt from 'markdown-it';
 
@@ -1415,7 +1415,7 @@ function classifyPage(root, file, moduleRoot) {
 
   const isModulePage = relToModule.startsWith('modules/');
   if (isModulePage || !firstBc) {
-    const moduleText = lastBc?.isCurrent ? lastBc.text : kind?.name || lastBc?.text || '';
+    const moduleText = lastBc?.text || '';
     return {
       type: isModulePage ? 'module' : 'entity',
       kind,
@@ -1484,36 +1484,22 @@ function buildContent(root, ctx, moduleRoot, currentFile) {
     return { sections, codeText: null };
   }
 
-  if (ctx.type === 'exports') {
-    const groups = extractModuleSummaries(root);
-    if (groups.length) {
-      const all = groups.flatMap(g => g.items);
-      const pills = all
-        .map(item => ({ name: item.name, href: item.href, kind: item.kind }))
-        .map(renderMemberPill)
-        .join('\n');
-      sections.push(renderQuickIndex(pills, `${all.length} export${all.length === 1 ? '' : 's'}`, false));
-      sections.push(renderSummaryGroups(groups, currentFile));
-    }
-    return { sections, codeText: null };
-  }
-
   if (ctx.type === 'hierarchy') {
     sections.push(renderHierarchy(root));
     return { sections, codeText: null };
   }
 
-  if (ctx.type === 'module') {
-    const comment = root.querySelector('.col-content > .tsd-comment');
-    if (comment) sections.push(renderCommentHtml(comment));
+  if (ctx.type === 'exports' || ctx.type === 'module') {
+    if (ctx.type === 'module') {
+      const comment = root.querySelector('.col-content > .tsd-comment');
+      if (comment) sections.push(renderCommentHtml(comment));
+    }
     const groups = extractModuleSummaries(root);
     if (groups.length) {
       const all = groups.flatMap(g => g.items);
-      const pills = all
-        .map(item => ({ name: item.name, href: item.href, kind: item.kind }))
-        .map(renderMemberPill)
-        .join('\n');
-      sections.push(renderQuickIndex(pills, `${all.length} member${all.length === 1 ? '' : 's'}`, false));
+      const pills = all.map(renderMemberPill).join('\n');
+      const noun = ctx.type === 'module' ? 'member' : 'export';
+      sections.push(renderQuickIndex(pills, `${all.length} ${noun}${all.length === 1 ? '' : 's'}`, false));
       sections.push(renderSummaryGroups(groups, currentFile));
     }
     return { sections, codeText: null };
@@ -1600,8 +1586,6 @@ function postprocess(outDir) {
     const moduleRoot = findModuleRoot(file, outDir);
     if (!moduleRoot) continue; // root landing index, not a module page
     moduleRoots.add(moduleRoot);
-    const relToOut = relative(outDir, file);
-    if (!relToOut.includes(sep)) continue;
 
     const original = readFileSync(file, 'utf-8');
     const root = parse(original);
@@ -1617,8 +1601,6 @@ function postprocess(outDir) {
     const currentFile = file;
 
     const ctx = classifyPage(root, file, moduleRoot);
-    ctx.module = module;
-    ctx.version = version;
     if (['module-index', 'hierarchy', 'exports'].includes(ctx.type)) ctx.name = module;
     ctx.activeModuleKey = ctx.moduleKey || null;
     ctx.activeMemberName = ctx.memberName || null;
@@ -1682,7 +1664,7 @@ function postprocess(outDir) {
     if (existsSync(assetsDir)) rmSync(assetsDir, { recursive: true, force: true });
   }
 
-  return { pages, icons: 0 };
+  return { pages };
 }
 
 export { postprocess };

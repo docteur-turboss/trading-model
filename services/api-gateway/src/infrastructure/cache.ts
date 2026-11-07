@@ -1,4 +1,3 @@
-import type { ISyncCache } from "@trading-model/common/utils/cache";
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import type { DurationMs } from "@trading-model/primitives/primitives";
 import { CACHE_HIT_RATIO, CACHE_SIZE } from "./config/metrics";
@@ -16,7 +15,7 @@ const MAX_ENTRIES = 1000;
 /** The pod has 256Mi: a parsed body takes a few times its JSON length. */
 const MAX_BYTES = 32 * 1024 * 1024;
 
-export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
+export class ResponseCache {
 	private readonly _store = new Map<string, ResponseCacheEntry>();
 	private _bytes = 0;
 	private _hits = 0;
@@ -74,42 +73,8 @@ export class ResponseCache implements ISyncCache<ResponseCacheEntry> {
 		CACHE_SIZE.set(this._store.size);
 	}
 
-	delete(key: string): void {
-		this._remove(key);
-		CACHE_SIZE.set(this._store.size);
-	}
-
 	private _remove(key: string): void {
 		this._bytes -= this._store.get(key)?.bytes ?? 0;
 		this._store.delete(key);
-	}
-
-	invalidate(pattern: string): void {
-		const regex = new RegExp(
-			pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\*/g, ".*")
-		);
-
-		for (const key of this._store.keys()) {
-			if (regex.test(key)) {
-				this._remove(key);
-			}
-		}
-		CACHE_SIZE.set(this._store.size);
-	}
-
-	clear(): void {
-		this._store.clear();
-		this._bytes = 0;
-		CACHE_SIZE.set(this._store.size);
-	}
-
-	has(key: string): boolean {
-		return (
-			this._store.has(key) && Date.now() <= this._store.get(key)!.expiresAt
-		);
-	}
-
-	get size(): number {
-		return this._store.size;
 	}
 }

@@ -8,7 +8,6 @@ import { MarketType, SourceType } from "../../../../domain/market-data.types";
 import type {
 	Binance24hrTickerStatsResponse,
 	BinanceTickerBaseStats,
-	BinanceTradingDayTickerResponse,
 } from "../binance.api";
 
 function normalizeTickers(payload: BinanceTickerBaseStats[]): TickerData[] {
@@ -28,12 +27,6 @@ function normalizeTickers(payload: BinanceTickerBaseStats[]): TickerData[] {
 
 export function normalizeTicker24h(
 	payload: Binance24hrTickerStatsResponse
-): TickerData[] {
-	return normalizeTickers(payload);
-}
-
-export function normalizeTradingDayTicker(
-	payload: BinanceTradingDayTickerResponse
 ): TickerData[] {
 	return normalizeTickers(payload);
 }

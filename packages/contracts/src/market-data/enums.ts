@@ -12,10 +12,6 @@ export enum MarketType {
 
 export namespace MarketType {
 	export const values: () => MarketType[] = createEnumValues(MarketType);
-
-	export function isDecentralized(value: MarketType): boolean {
-		return value === MarketType.Crypto;
-	}
 }
 
 export enum SourceType {
@@ -82,8 +78,4 @@ export enum TradeSide {
 
 export namespace TradeSide {
 	export const values: () => TradeSide[] = createEnumValues(TradeSide);
-
-	export function inverse(value: TradeSide): TradeSide {
-		return value === TradeSide.Buy ? TradeSide.Sell : TradeSide.Buy;
-	}
 }

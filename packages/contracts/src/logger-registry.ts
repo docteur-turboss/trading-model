@@ -15,8 +15,8 @@ export interface LoggerPort {
 	error(message: string, context?: JsonObject): void;
 }
 
-/** No-op logger used before the concrete logger is registered. */
-const NoopLogger: LoggerPort = {
+/** No-op logger: default before the concrete logger is registered, or when none is injected. */
+export const NoopLogger: LoggerPort = {
 	debug: () => {
 		// Intentional no-op.
 	},

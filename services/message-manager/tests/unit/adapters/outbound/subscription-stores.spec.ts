@@ -12,19 +12,29 @@ import { mockSubscribeParams } from "../../../fixtures/broker.fixture";
 function fakeRedis() {
 	const hashes = new Map<string, Map<string, string>>();
 	const expiries = new Map<string, number>();
+	const multi = () => {
+		const queued: (() => void)[] = [];
+		const chain = {
+			hset: (key: string, field: string, value: string) => {
+				queued.push(() => {
+					const hash = hashes.get(key) ?? new Map<string, string>();
+					hash.set(field, value);
+					hashes.set(key, hash);
+				});
+				return chain;
+			},
+			pexpire: (key: string, ms: number) => {
+				queued.push(() => expiries.set(key, ms));
+				return chain;
+			},
+			exec: async () => queued.map((command) => [null, command()]),
+		};
+		return chain;
+	};
 	return {
 		hashes,
 		expiries,
-		hset: async (key: string, field: string, value: string) => {
-			const hash = hashes.get(key) ?? new Map<string, string>();
-			hash.set(field, value);
-			hashes.set(key, hash);
-			return 1;
-		},
-		pexpire: async (key: string, ms: number) => {
-			expiries.set(key, ms);
-			return 1;
-		},
+		multi,
 		hgetall: async (key: string) =>
 			Object.fromEntries(hashes.get(key) ?? new Map<string, string>()),
 		hdel: async (key: string, ...fields: string[]) => {

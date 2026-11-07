@@ -53,43 +53,21 @@ paths:
         content:
           "application/json":
             schema:
-              anyOf:
-                - type: "object"
+              type: "object"
+              properties:
+                metadata:
+                  type: "object"
                   properties:
-                    metadata:
-                      type: "object"
-                      properties:
-                        topic:
-                          type: "string"
-                          minLength: 1
-                      required:
-                        - "topic"
-                      additionalProperties: {}
-                    payload: {}
+                    topic:
+                      type: "string"
+                      minLength: 1
                   required:
-                    - "metadata"
+                    - "topic"
                   additionalProperties: {}
-                - type: "object"
-                  properties:
-                    message:
-                      type: "object"
-                      properties:
-                        metadata:
-                          type: "object"
-                          properties:
-                            topic:
-                              type: "string"
-                              minLength: 1
-                          required:
-                            - "topic"
-                          additionalProperties: {}
-                        payload: {}
-                      required:
-                        - "metadata"
-                      additionalProperties: {}
-                  required:
-                    - "message"
-                  additionalProperties: {}
+                payload: {}
+              required:
+                - "metadata"
+              additionalProperties: {}
       responses:
         "200":
           description: "OK"

@@ -17,16 +17,10 @@ export interface DiscoveryLayer {
 	metricsCollector: MetricsCollector;
 }
 function buildCircuitBreaker(
-	config: AddressManagerConfig,
 	serviceCache: IServiceCache
 ): DiscoveryCircuitBreaker {
 	return new DiscoveryCircuitBreaker({
-		failureThreshold: config.circuitBreakerFailureThreshold ?? 3,
-		halfOpenTimeoutMs: config.circuitBreakerHalfOpenTimeoutMs ?? 10_000,
 		stateStore: serviceCache.circuitStateStore,
-		loadFromStoreCacheTtlMs: config.circuitBreakerCacheTtlMs ?? 2_000,
-		latencyWindowSize: config.circuitBreakerLatencyWindowSize ?? 100,
-		latencyP99ThresholdMs: config.circuitBreakerLatencyThresholdMs ?? 5000,
 	});
 }
 function buildHealthChecker(
@@ -70,7 +64,7 @@ export function buildDiscoveryLayer(
 	serviceCache: IServiceCache,
 	config: AddressManagerConfig
 ): DiscoveryLayer {
-	const circuitBreaker = buildCircuitBreaker(config, serviceCache);
+	const circuitBreaker = buildCircuitBreaker(serviceCache);
 	const healthChecker = buildHealthChecker(httpClient, config);
 	const discoveryOrchestrator = buildDiscoveryOrchestrator({
 		httpClient,

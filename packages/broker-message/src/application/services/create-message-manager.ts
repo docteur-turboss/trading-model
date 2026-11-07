@@ -7,7 +7,7 @@ import {
 } from "@trading-model/common/config/tls-paths";
 import { toInstanceId } from "@trading-model/primitives/primitives";
 import type { MessageManagerConfig } from "../../domain/types/config";
-import MessageManagerClass from "../../index";
+import MessageManagerClass from "./broker-message";
 
 /** Configuration options for creating a MessageManager instance. */
 export interface MessageManagerOptions extends MessageManagerConfig {
@@ -21,13 +21,7 @@ export interface MessageManagerOptions extends MessageManagerConfig {
  * @returns An object containing the MessageManager instance and its Express listener
  */
 export function createMessageManager(options: MessageManagerOptions) {
-	const ma = new MessageManagerClass({
-		addressManagerClient: options.addressManagerClient,
-		tlsPaths: options.tlsPaths,
-		instanceId: options.instanceId,
-		serviceName: options.serviceName,
-		callbackPath: options.callbackPath,
-	});
+	const ma = new MessageManagerClass(options);
 	return {
 		messageManager: ma,
 		messageManagerListenExpress: ma.listenExpress.bind(ma),

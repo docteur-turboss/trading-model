@@ -15,8 +15,6 @@ jest.mock("../../src/config/logger", () => ({
 
 jest.mock("../../src/application/services/batch-concurrency-guard", () => ({
 	checkBatchRejection: () => null,
-	incrementActiveBatches: jest.fn(),
-	decrementActiveBatches: jest.fn(),
 	recordBatchResult: jest.fn(),
 }));
 

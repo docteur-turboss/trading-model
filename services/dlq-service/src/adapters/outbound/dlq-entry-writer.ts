@@ -80,12 +80,15 @@ export class DlqEntryWriter {
 	async insert(entry: DlqEntry): Promise<string> {
 		const col = await getCollection();
 
-		if (await this._isCapacityReached(col)) {
+		const hash = this._serializer.computeHash(entry);
+		// Independent reads: one round trip of latency instead of two.
+		const [capacityReached, doc] = await Promise.all([
+			this._isCapacityReached(col),
+			this._buildDoc(col, entry, hash),
+		]);
+		if (capacityReached) {
 			throw dlqCapacityError("DLQ capacity limit reached");
 		}
-
-		const hash = this._serializer.computeHash(entry);
-		const doc = await this._buildDoc(col, entry, hash);
 
 		return this._inserter.insert(
 			col,

@@ -36,41 +36,11 @@ import {
 	observeCleanupDuration,
 	setRegisteredInstances,
 	setRegisteredInstancesPerService,
-	trackRequest,
 } from "../../src/infrastructure/monitoring/metrics";
 
 describe("metrics", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-	});
-
-	describe("trackRequest", () => {
-		it("should track request metrics without throwing", () => {
-			expect(() => {
-				trackRequest({
-					method: "GET",
-					path: "/test",
-					status: 200,
-					durationMs: 10,
-				});
-			}).not.toThrow();
-			expect(MOCK_INC).toHaveBeenCalledWith({
-				method: "GET",
-				path: "/test",
-				status: 200,
-			});
-		});
-
-		it("should handle error status codes", () => {
-			expect(() => {
-				trackRequest({
-					method: "POST",
-					path: "/register",
-					status: 500,
-					durationMs: 50,
-				});
-			}).not.toThrow();
-		});
 	});
 
 	describe("observeCleanupDuration", () => {

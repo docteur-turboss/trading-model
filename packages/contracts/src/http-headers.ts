@@ -7,9 +7,7 @@ export enum HTTP_HEADERS {
 	X_INSTANCE_TOKEN = "x-instance-token",
 	X_INSTANCE_ID = "x-instance-id",
 	X_SERVICE_NAME = "x-service-name",
-	X_SUBSCRIBED_TOPICS = "x-subscribed-topics",
 	X_TIMESTAMP = "x-timestamp",
 	X_SIGNATURE = "x-signature",
-	X_VAULT_NAMESPACE = "X-Vault-Namespace",
 	CONTENT_TYPE = "Content-Type",
 }

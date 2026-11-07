@@ -15,6 +15,7 @@ import {
 	URLString,
 	type Version,
 } from "@trading-model/primitives/primitives";
+import { ServiceInstancesWire } from "@trading-model/validation/wire/service-instance";
 
 const DISCOVERY_SERVICE = "discovery-server";
 
@@ -128,13 +129,11 @@ export class EndpointResolver {
 		for (const name of registryNamesFor(serviceName)) {
 			// biome-ignore lint/plugin: an unknown alias is expected, the next one is tried
 			try {
-				const response = await this._httpClient.get<
-					ServiceInstance[] | { data: ServiceInstance[] }
-				>(
+				const instances = await this._httpClient.get(
 					URLString.of(`${this._discoveryUrl}/services/${name}`),
-					this._timeoutMs ? { timeoutMs: this._timeoutMs } : undefined
+					this._timeoutMs ? { timeoutMs: this._timeoutMs } : undefined,
+					ServiceInstancesWire
 				);
-				const instances = Array.isArray(response) ? response : response?.data;
 				if (!Array.isArray(instances)) {
 					logger.warn("Registry answered with a malformed body", {
 						context: { serviceName, alias: name },

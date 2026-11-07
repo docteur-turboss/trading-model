@@ -30,24 +30,16 @@ function _buildSdkResources(
 
 export function initializeTelemetry(config: TelemetryConfig): void {
 	if (!config.otlpEndpoint) {
-		_logTelemetryDisabled(config);
+		logger.info("OpenTelemetry disabled (no endpoint configured)", {
+			context: { service: config.serviceName },
+		});
 		return;
 	}
-	_diagSetup();
+	diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
 	_initSdk(config);
 	logger.info("OpenTelemetry initialized", {
 		context: { endpoint: config.otlpEndpoint, service: config.serviceName },
 	});
-}
-
-function _logTelemetryDisabled(config: TelemetryConfig): void {
-	logger.info("OpenTelemetry disabled (no endpoint configured)", {
-		context: { service: config.serviceName },
-	});
-}
-
-function _diagSetup(): void {
-	diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
 }
 
 function _initSdk(config: TelemetryConfig): void {

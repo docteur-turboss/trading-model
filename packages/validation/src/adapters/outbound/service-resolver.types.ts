@@ -1,4 +1,3 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	DurationMs,
 	Region,
@@ -14,12 +13,4 @@ export interface ResolveOptions {
 	majorVersion?: number;
 	region?: Region;
 	timeoutMs?: DurationMs;
-}
-
-export interface IServiceResolver {
-	resolve(
-		serviceName: ServiceInstanceName,
-		options?: ResolveOptions
-	): Promise<ResolvedEndpoint | null>;
-	invalidateCache?(serviceName?: ServiceInstanceName): void;
 }

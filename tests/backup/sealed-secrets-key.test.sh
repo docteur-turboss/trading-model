@@ -23,11 +23,8 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 FAILED=0
 
-pass() { echo "  ✓ $*"; }
-failed() {
-	echo "  ✗ $*"
-	FAILED=1
-}
+# shellcheck source=test-lib.sh
+source "$ROOT/tests/backup/test-lib.sh"
 
 for k in operator escrow foreign; do
 	age-keygen -o "$WORK/$k.txt" 2>/dev/null

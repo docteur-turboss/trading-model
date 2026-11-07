@@ -17,14 +17,8 @@ export interface RedisSentinelConfig {
 	password?: string;
 }
 
-export interface RedisClusterNodesConfig {
-	nodes: RedisNodeAddress[];
-	password?: string;
-}
-
 export type RedisConnectionMode = RedisConnectionConfig["mode"];
 
 export type RedisConnectionConfig =
 	| { mode: "single"; url: URLString }
-	| { mode: "sentinel"; config: RedisSentinelConfig }
-	| { mode: "cluster"; config: RedisClusterNodesConfig };
+	| { mode: "sentinel"; config: RedisSentinelConfig };

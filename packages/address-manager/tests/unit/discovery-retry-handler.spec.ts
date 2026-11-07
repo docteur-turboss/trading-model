@@ -69,8 +69,6 @@ describe("DiscoveryRetryHandler", () => {
 		return {
 			findService:
 				jest.fn<(name: ServiceInstanceName) => Promise<ServiceInstance>>(),
-			acquireConnection: jest.fn<(id: typeof instance.instanceId) => void>(),
-			releaseConnection: jest.fn(),
 			findAllServices: jest.fn(),
 		} as unknown as jest.Mocked<ServiceDiscovery>;
 	}
@@ -144,9 +142,6 @@ describe("DiscoveryRetryHandler", () => {
 			expect(mockCircuitBreaker.isOpen).toHaveBeenCalledWith(
 				instance.instanceId
 			);
-			expect(mockDiscovery.acquireConnection).toHaveBeenCalledWith(
-				instance.instanceId
-			);
 			expect(recordDiscoveryMetrics).toHaveBeenCalledWith(
 				{ serviceName: serviceId, startTime },
 				"success"
@@ -168,7 +163,6 @@ describe("DiscoveryRetryHandler", () => {
 			expect(mockCircuitBreaker.isOpen).toHaveBeenCalledTimes(2);
 			expect(mockCache.delete).toHaveBeenCalledTimes(1);
 			expect(mockCache.delete).toHaveBeenCalledWith(serviceId);
-			expect(mockDiscovery.acquireConnection).toHaveBeenCalledTimes(1);
 			expect(sleep).toHaveBeenCalledTimes(1);
 			expect(sleep).toHaveBeenCalledWith(100);
 			expect(recordDiscoveryMetrics).toHaveBeenCalledWith(
@@ -191,7 +185,6 @@ describe("DiscoveryRetryHandler", () => {
 			expect(sleep).toHaveBeenCalledTimes(2);
 			expect(sleep).toHaveBeenNthCalledWith(1, 100);
 			expect(sleep).toHaveBeenNthCalledWith(2, 200);
-			expect(mockDiscovery.acquireConnection).not.toHaveBeenCalled();
 			expect(recordDiscoveryMetrics).not.toHaveBeenCalled();
 		});
 

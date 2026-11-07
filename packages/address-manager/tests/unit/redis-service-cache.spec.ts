@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { REDIS_RESP } from "@trading-model/persistence/redis-constants";
+import { RedisResp } from "@trading-model/persistence/redis-constants";
 
 const MOCK_REDIS_INSTANCE = {
 	connect: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(),
@@ -9,7 +9,7 @@ const MOCK_REDIS_INSTANCE = {
 		.mockResolvedValue(null),
 	setex: jest
 		.fn<(...args: any[]) => Promise<string>>()
-		.mockResolvedValue(REDIS_RESP.OK),
+		.mockResolvedValue(RedisResp.OK),
 	del: jest.fn<(...args: any[]) => Promise<number>>().mockResolvedValue(1),
 	scan: jest
 		.fn<(...args: any[]) => Promise<[string, string[]]>>()
@@ -17,7 +17,7 @@ const MOCK_REDIS_INSTANCE = {
 	pipeline: jest.fn<(...args: any[]) => any>(),
 	set: jest
 		.fn<(...args: any[]) => Promise<string>>()
-		.mockResolvedValue(REDIS_RESP.OK),
+		.mockResolvedValue(RedisResp.OK),
 	on: jest.fn<(...args: any[]) => any>(),
 	status: "ready",
 	quit: jest.fn<(...args: any[]) => Promise<"OK">>().mockResolvedValue("OK"),
@@ -57,7 +57,7 @@ describe("RedisServiceCache", () => {
 
 	describe("set / get", () => {
 		it("should store instance with TTL in seconds", async () => {
-			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
+			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(RedisResp.OK);
 			MOCK_REDIS_INSTANCE.get.mockResolvedValue(
 				JSON.stringify({
 					serviceName: "svc",
@@ -93,7 +93,7 @@ describe("RedisServiceCache", () => {
 		});
 
 		it("should use region-prefixed keys when region provided", async () => {
-			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
+			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(RedisResp.OK);
 			await cache.set({
 				serviceName: toServiceId("svc"),
 				instance: { serviceName: "svc" } as any,
@@ -160,7 +160,7 @@ describe("RedisServiceCache", () => {
 
 	describe("circuit state", () => {
 		it("should store circuit state with 2x TTL", async () => {
-			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(REDIS_RESP.OK);
+			MOCK_REDIS_INSTANCE.setex.mockResolvedValue(RedisResp.OK);
 			await cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
 				failures: PositiveInt.of(3),
 				lastFailureTime: UnixTimestamp.of(1000),

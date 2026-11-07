@@ -1,19 +1,6 @@
 import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 import promClient from "prom-client";
 
-const HTTP_REQUESTS_TOTAL = new promClient.Counter({
-	name: "discovery_http_requests_total",
-	help: "Total HTTP requests by method, path, and status",
-	labelNames: ["method", "path", "status"],
-});
-
-const HTTP_REQUEST_DURATION_SECONDS = new promClient.Histogram({
-	name: "discovery_http_request_duration_seconds",
-	help: "HTTP request latency in seconds",
-	labelNames: ["method", "path"],
-	buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
-});
-
 const REGISTERED_INSTANCES = new promClient.Gauge({
 	name: "discovery_registered_instances",
 	help: "Number of registered service instances",
@@ -48,26 +35,7 @@ const LEASE_CLEANUP_CYCLES_TOTAL = new promClient.Counter({
 	help: "Total lease cleanup cycles executed",
 });
 
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
-import type { HttpMethod } from "@trading-model/contracts/signed-request";
 import type { DiscoveryMetricsPort } from "../../domain/ports/discovery-metrics.port";
-
-export interface RequestTrack {
-	method: HttpMethod;
-	path: string;
-	status: HttpStatusCode;
-	durationMs: number;
-}
-
-export function trackRequest({
-	method,
-	path,
-	status,
-	durationMs,
-}: RequestTrack): void {
-	HTTP_REQUESTS_TOTAL.inc({ method, path, status });
-	HTTP_REQUEST_DURATION_SECONDS.observe({ method, path }, durationMs / 1000);
-}
 
 export function setRegisteredInstances(count: number): void {
 	REGISTERED_INSTANCES.set(count);

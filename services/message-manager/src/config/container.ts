@@ -2,6 +2,7 @@
  * Initializes the broker system: HTTP client, dispatcher, and Express routes.
  */
 
+import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
@@ -16,7 +17,6 @@ import type { SubscriptionStorePort } from "../application/ports/subscription-st
 import { resolveTarget } from "../application/services/address-resolver";
 import { Dispatcher } from "../application/services/dispatcher";
 import { FileDlqRepository } from "../infrastructure/fallback/dlq-repository";
-import type { BrokerConfig } from "../shared/broker.type";
 
 export interface BrokerModule {
 	listen: (app: Application) => void;
@@ -38,7 +38,7 @@ export interface DeadLetterSettings {
  *   default only suits a single replica.
  */
 export default function createBrokerModule(
-	config: BrokerConfig,
+	config: TlsPaths,
 	deadLetters: DeadLetterSettings = {},
 	subscriptionStore: SubscriptionStorePort = new InMemorySubscriptionStore()
 ): BrokerModule {

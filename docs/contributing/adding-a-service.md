@@ -71,15 +71,15 @@ createBootstrap({
 ## HTTPS Server (`src/application/server.ts`)
 
 ```typescript
-import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
-import { loadTlsConfig } from '@trading-model/server-utils/infrastructure/load-tls-config';
+import { ServiceId } from '@trading-model/primitives/primitives';
+import { createServiceServer } from '@trading-model/server-utils/adapters/inbound/service-server-factory';
 import { myRoutes } from '../adapters/inbound/my.routes';
 import { env } from '../config/env';
 
 export function createServer() {
-  return createSecureServer({
-    port: env.PORT,
-    tls: loadTlsConfig(env),
+  return createServiceServer({
+    env,
+    serviceId: ServiceId.of('my-service'),
     routes: app => {
       app.use('/', myRoutes());
     },

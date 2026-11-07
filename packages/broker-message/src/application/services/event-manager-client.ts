@@ -1,8 +1,8 @@
+import { EventEmitter as NodeEventEmitter } from "node:events";
 import type {
 	EventMap,
 	EventMessagesArgs,
 } from "@trading-model/contracts/event-map";
-import { TypedEventEmitter } from "./typed-event-emitter";
 
 /** Callback signature for event listeners. */
 export type Listener<TData> = (data: TData) => void;
@@ -10,21 +10,17 @@ export type Listener<TData> = (data: TData) => void;
 /**
  * Typed event bus for broker message events.
  *
- * Composes `TypedEventEmitter` rather than extending it: `on` returns an
- * unsubscribe function (used to tear down listeners on shutdown), while the
- * base class returns `this` for chaining, which is incompatible.
+ * Wraps rather than extends Node's EventEmitter: `on` returns an unsubscribe
+ * function (used to tear down listeners on shutdown), not `this`.
  */
 class EventEmitter<TEvents extends keyof EventMap> {
-	private readonly _emitter = new TypedEventEmitter<{
-		[TEvent in TEvents]: [EventMessagesArgs<TEvent>];
-	}>();
+	private readonly _emitter = new NodeEventEmitter();
 
 	on<TEvent extends TEvents>(
 		eventName: TEvent,
 		callback: Listener<EventMessagesArgs<TEvent>>
 	): () => void {
 		this._emitter.on(eventName, callback);
-
 		return () => this._emitter.off(eventName, callback);
 	}
 
@@ -36,7 +32,7 @@ class EventEmitter<TEvents extends keyof EventMap> {
 	}
 
 	removeAllListeners(): void {
-		this._emitter.raw.removeAllListeners();
+		this._emitter.removeAllListeners();
 	}
 
 	emit<TEvent extends TEvents>(
@@ -45,7 +41,7 @@ class EventEmitter<TEvents extends keyof EventMap> {
 			? []
 			: [EventMessagesArgs<TEvent>]
 	): boolean {
-		return this._emitter.emit(eventName, args[0] as EventMessagesArgs<TEvent>);
+		return this._emitter.emit(eventName, args[0]);
 	}
 }
 

@@ -10,8 +10,8 @@ export interface EntryHash {
 export class EntrySerializer {
 	computeHash(entry: DlqEntry): EntryHash {
 		const serialized = this._serialize(entry);
-		const messageId = entry.messageId ?? sha256Hex(serialized);
 		const contentHash = sha256Hex(serialized);
+		const messageId = entry.messageId ?? contentHash;
 		return { messageId, contentHash, serialized };
 	}
 

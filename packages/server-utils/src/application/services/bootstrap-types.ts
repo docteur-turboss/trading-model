@@ -1,10 +1,5 @@
 import type { DurationMs } from "@trading-model/primitives/primitives";
-import type { HttpServer, RawHttpServer } from "../../shared/server-types";
-
-export interface TlsBootstrapOptions {
-	ensure: () => Promise<void>;
-	setupAutoRenew?: (server: RawHttpServer) => void;
-}
+import type { HttpServer } from "../../shared/server-types";
 
 export interface BootstrapOptions {
 	name: string;
@@ -12,7 +7,6 @@ export interface BootstrapOptions {
 	onBeforeServer?: () => void | Promise<void>;
 	onStart?: () => void;
 	onStop?: () => void | Promise<void>;
-	tlsBootstrap?: TlsBootstrapOptions | null;
 	shutdown?: GracefulShutdownOptions;
 }
 

@@ -12,11 +12,6 @@ describe("MarketType", () => {
 		expect(MarketType.Equity).toBe("equity");
 	});
 
-	it("should check if decentralized", () => {
-		expect(MarketType.isDecentralized(MarketType.Crypto)).toBe(true);
-		expect(MarketType.isDecentralized(MarketType.Equity)).toBe(false);
-	});
-
 	it("should list all values", () => {
 		const values = MarketType.values();
 		expect(values).toContain(MarketType.Crypto);
@@ -43,7 +38,11 @@ describe("CandleInterval", () => {
 	it("should convert to milliseconds", () => {
 		expect(CandleInterval.toMs(CandleInterval.S1)).toBe(1000);
 		expect(CandleInterval.toMs(CandleInterval.H1)).toBe(3600000);
+		expect(CandleInterval.toMs(CandleInterval.Min1)).toBe(60000);
+		expect(CandleInterval.toMs(CandleInterval.Min5)).toBe(300000);
 		expect(CandleInterval.toMs(CandleInterval.D1)).toBe(86400000);
+		expect(CandleInterval.toMs(CandleInterval.W1)).toBe(604800000);
+		expect(CandleInterval.toMs(CandleInterval.Month1)).toBe(2592000000);
 	});
 
 	it("should list all values", () => {
@@ -56,11 +55,6 @@ describe("TradeSide", () => {
 	it("should have correct enum values", () => {
 		expect(TradeSide.Buy).toBe("buy");
 		expect(TradeSide.Sell).toBe("sell");
-	});
-
-	it("should inverse side", () => {
-		expect(TradeSide.inverse(TradeSide.Buy)).toBe(TradeSide.Sell);
-		expect(TradeSide.inverse(TradeSide.Sell)).toBe(TradeSide.Buy);
 	});
 
 	it("should list all values", () => {

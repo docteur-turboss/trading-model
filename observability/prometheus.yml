@@ -17,71 +17,46 @@ alerting:
 scrape_configs:
   - job_name: 'message-manager'
     scheme: https
-    tls_config:
+    tls_config: &svid
       ca_file: /run/spire/svid/bundle.pem
       cert_file: /run/spire/svid/svid.pem
       key_file: /run/spire/svid/svid_key.pem
-    metrics_path: /metrics
     static_configs:
       - targets: ['message-manager:3000']
 
   - job_name: 'discovery-server'
     scheme: https
-    tls_config:
-      ca_file: /run/spire/svid/bundle.pem
-      cert_file: /run/spire/svid/svid.pem
-      key_file: /run/spire/svid/svid_key.pem
-    metrics_path: /metrics
+    tls_config: *svid
     static_configs:
       - targets: ['discovery-server:3000']
 
   - job_name: 'dlq-service'
     scheme: https
-    tls_config:
-      ca_file: /run/spire/svid/bundle.pem
-      cert_file: /run/spire/svid/svid.pem
-      key_file: /run/spire/svid/svid_key.pem
-    metrics_path: /metrics
+    tls_config: *svid
     static_configs:
       - targets: ['dlq-service:3000']
 
   - job_name: 'api-gateway'
     scheme: https
-    tls_config:
-      ca_file: /run/spire/svid/bundle.pem
-      cert_file: /run/spire/svid/svid.pem
-      key_file: /run/spire/svid/svid_key.pem
-    metrics_path: /metrics
+    tls_config: *svid
     static_configs:
       - targets: ['api-gateway:3000']
 
   - job_name: 'audit-logger'
     scheme: https
-    tls_config:
-      ca_file: /run/spire/svid/bundle.pem
-      cert_file: /run/spire/svid/svid.pem
-      key_file: /run/spire/svid/svid_key.pem
-    metrics_path: /metrics
+    tls_config: *svid
     static_configs:
       - targets: ['audit-logger:3000']
 
   - job_name: 'financial-scraper'
     scheme: https
-    tls_config:
-      ca_file: /run/spire/svid/bundle.pem
-      cert_file: /run/spire/svid/svid.pem
-      key_file: /run/spire/svid/svid_key.pem
-    metrics_path: /metrics
+    tls_config: *svid
     static_configs:
       - targets: ['financial-scraper:3000']
 
   - job_name: 'trader-trainer'
     scheme: https
-    tls_config:
-      ca_file: /run/spire/svid/bundle.pem
-      cert_file: /run/spire/svid/svid.pem
-      key_file: /run/spire/svid/svid_key.pem
-    metrics_path: /metrics
+    tls_config: *svid
     static_configs:
       - targets: ['trader-trainer:3000']
 

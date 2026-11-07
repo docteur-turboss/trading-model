@@ -118,8 +118,6 @@ jest.mock("../../src/application/discovery/service-discovery", () => ({
 				serviceName: "test-service",
 			},
 		]),
-		acquireConnection: jest.fn<any>(),
-		releaseConnection: jest.fn<any>(),
 	}),
 }));
 

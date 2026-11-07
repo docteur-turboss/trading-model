@@ -9,6 +9,11 @@ import {
 import { isDlqCapacityError } from "../adapters/outbound/repository";
 import { logger } from "../config/logger";
 
+export const STORAGE_UNAVAILABLE = {
+	error: "Storage unavailable — message not persisted. Retry later.",
+	code: "STORAGE_UNAVAILABLE",
+} as const;
+
 export function validationFail(
 	span: import("@opentelemetry/api").Span,
 	message: string,
@@ -31,23 +36,14 @@ export function handleAddEntryError(
 	span: import("@opentelemetry/api").Span
 ): ResponseObject {
 	if (isDlqCapacityError(err)) {
-		return handleCapacityError(span);
+		return validationFail(
+			span,
+			"DLQ capacity limit reached",
+			HTTP_STATUS.TOO_MANY_REQUESTS,
+			{ error: "DLQ capacity limit reached, entry rejected" }
+		).response;
 	}
 	return handleStorageError(err, span);
-}
-
-function handleCapacityError(
-	span: import("@opentelemetry/api").Span
-): ResponseObject {
-	span.setStatus({
-		code: SpanStatusCode.ERROR,
-		message: "DLQ capacity limit reached",
-	});
-	span.end();
-	return sendResponse(
-		{ error: "DLQ capacity limit reached, entry rejected" },
-		HTTP_STATUS.TOO_MANY_REQUESTS
-	);
 }
 
 function handleStorageError(
@@ -56,13 +52,7 @@ function handleStorageError(
 ): ResponseObject {
 	_logStorageError(err);
 	_spanError(span, err);
-	return sendResponse(
-		{
-			error: "Storage unavailable — message not persisted. Retry later.",
-			code: "STORAGE_UNAVAILABLE",
-		},
-		HTTP_STATUS.SERVICE_UNAVAILABLE
-	);
+	return sendResponse(STORAGE_UNAVAILABLE, HTTP_STATUS.SERVICE_UNAVAILABLE);
 }
 
 function _logStorageError(err: unknown): void {

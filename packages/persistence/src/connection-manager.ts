@@ -1,14 +1,7 @@
 import type { BackoffConfig } from "@trading-model/common/utils/backoff-config";
-import {
-	type RetryResult,
-	retryWithBackoff,
-} from "@trading-model/common/utils/retry";
+import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
-
-export interface ConnectionFactory<_TConnection> {
-	connect(): Promise<_TConnection>;
-}
 
 export interface ConnectionManagerOptions extends BackoffConfig {
 	maxRetries: number;
@@ -19,21 +12,6 @@ export const DEFAULT_CONNECTION_OPTIONS: ConnectionManagerOptions = {
 	baseDelayMs: DurationMs.of(1000),
 	maxDelayMs: DurationMs.of(30000),
 };
-
-function _executeRetry<_TResult>(
-	connectFn: () => Promise<_TResult>,
-	options: ConnectionManagerOptions
-): Promise<RetryResult<_TResult>> {
-	return retryWithBackoff(connectFn, {
-		maxRetries: options.maxRetries,
-		baseDelayMs: options.baseDelayMs,
-		maxDelayMs: options.maxDelayMs,
-	});
-}
-
-function _throwConnectFailed<_TResult>(lastError: Error | null): _TResult {
-	throw lastError ?? new Error("Failed to connect after retries");
-}
 
 export class ConnectionManager<_TConnection> {
 	protected _connection: _TConnection | null = null;
@@ -53,26 +31,21 @@ export class ConnectionManager<_TConnection> {
 		this._options = { ...DEFAULT_CONNECTION_OPTIONS, ...options };
 	}
 
-	async getConnection(): Promise<_TConnection> {
+	getConnection(): Promise<_TConnection> {
 		if (this._connection) {
-			return this._connection;
+			return Promise.resolve(this._connection);
 		}
-		const existingConn =
-			this._connectionPromise === null ? null : await this._connectionPromise;
-		if (existingConn) {
-			return existingConn;
-		}
-		this._connectionPromise = this._connectWithRetry();
+		this._connectionPromise ??= this._connectWithRetry();
 		return this._connectionPromise;
 	}
 
 	protected async _connectWithRetry(): Promise<_TConnection> {
-		const { result: conn, lastError } = await _executeRetry(
+		const { result: conn, lastError } = await retryWithBackoff(
 			() => this._connectFn(),
 			this._options
 		);
 		if (!conn) {
-			return _throwConnectFailed(lastError);
+			throw lastError ?? new Error("Failed to connect after retries");
 		}
 		this._connection = conn;
 		this._connected = true;
