@@ -25,6 +25,8 @@ export interface StoredDlqEntry {
 	id: string;
 	topic: Topic | null;
 	message: unknown;
+	/** Subscriber whose delivery failed; null on entries from before ADR-0043 (replayed to every subscriber). */
+	service: string | null;
 	reason: string | null;
 	deliveryAttempt: SequenceNumber;
 	/** ISO 8601, as listed by `GET /dlq`. */
@@ -36,6 +38,7 @@ export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 		id: doc._id.toHexString(),
 		topic: doc.topic ? Topic.of(doc.topic as string) : null,
 		message: doc.message,
+		service: (doc.service as string | null | undefined) ?? null,
 		reason: (doc.reason as string | null) ?? null,
 		deliveryAttempt: SequenceNumber.of(doc.deliveryAttempt as number),
 		createdAt: (

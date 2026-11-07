@@ -645,6 +645,9 @@ paths:
                           nullable: true
                           type: "string"
                         message: {}
+                        service:
+                          nullable: true
+                          type: "string"
                         reason:
                           nullable: true
                           type: "string"
@@ -657,6 +660,7 @@ paths:
                         - "id"
                         - "topic"
                         - "message"
+                        - "service"
                         - "reason"
                         - "deliveryAttempt"
                         - "createdAt"
@@ -731,6 +735,9 @@ paths:
                         - type: "string"
                           format: "date-time"
                 messageId:
+                  type: "string"
+                  minLength: 1
+                service:
                   type: "string"
                   minLength: 1
               required:

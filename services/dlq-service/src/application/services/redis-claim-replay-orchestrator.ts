@@ -56,7 +56,11 @@ export class ClaimReplayOrchestrator {
 			return null;
 		}
 
-		return claimed.map((entry) => ({ id: entry.id, message: entry.message }));
+		return claimed.map((entry) => ({
+			id: entry.id,
+			message: entry.message,
+			service: entry.service,
+		}));
 	}
 
 	private _requeueRemaining(entryIds: string[]): void {
@@ -75,6 +79,7 @@ export class ClaimReplayOrchestrator {
 			entries: entries.map((entry) => ({
 				id: toMessageId(entry.id),
 				message: entry.message,
+				service: entry.service,
 			})),
 			messageManagerUrl,
 			batchId,

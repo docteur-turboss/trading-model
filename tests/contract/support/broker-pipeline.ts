@@ -1,8 +1,12 @@
 import type { Message } from "@trading-model/contracts/message-types";
 import { toJsonWire } from "@trading-model/http/infrastructure/json-wire";
 import { MessageManagerClient } from "../../../packages/broker-message/src/adapters/outbound/message-manager-client";
-import { PUBLISH_SCHEMA } from "../../../services/message-manager/src/adapters/inbound/validation/broker.schema";
+import {
+	PUBLISH_SCHEMA,
+	REPUBLISH_SCHEMA,
+} from "../../../services/message-manager/src/adapters/inbound/validation/broker.schema";
 import { HttpMessageDelivery } from "../../../services/message-manager/src/adapters/outbound/http-message-delivery";
+import { Dispatcher } from "../../../services/message-manager/src/application/services/dispatcher";
 import { createMessage } from "../../../services/message-manager/src/domain/message-factory";
 
 /** JSON round trip with the HttpClient body replacer: what actually travels. */
@@ -56,21 +60,49 @@ export function createRecordingBrokerClient(
 export async function relayThroughMessageManager(
 	request: PublishedRequest
 ): Promise<
-	| { accepted: true; message: Message; delivered: unknown }
+	| {
+			accepted: true;
+			message: Message;
+			delivered: unknown;
+			/** Replay only: the services the journal entry was written for. */
+			journaledFor?: { services: readonly string[]; onlyFor?: string };
+	  }
 	| { accepted: false; error: string }
 > {
-	if (!request.url.endsWith("/message")) {
+	const replay = request.url.endsWith("/message/replay");
+	if (!(replay || request.url.endsWith("/message"))) {
 		return { accepted: false, error: `published to ${request.url}` };
 	}
-	const parsed = PUBLISH_SCHEMA.safeParse(request.body);
-	if (!parsed.success) {
-		return { accepted: false, error: parsed.error.message };
+	let message: Message;
+	let journaledFor:
+		| { services: readonly string[]; onlyFor?: string }
+		| undefined;
+	if (replay) {
+		const parsedReplay = REPUBLISH_SCHEMA.safeParse(request.body);
+		if (!parsedReplay.success) {
+			return { accepted: false, error: parsedReplay.error.message };
+		}
+		// message-manager's real dispatcher, over a journal that records its write.
+		await new Dispatcher({
+			registry: {} as never,
+			journal: {
+				append: async (
+					_m: Message,
+					services: readonly string[],
+					onlyFor?: string
+				) => {
+					journaledFor = { services, onlyFor };
+				},
+			} as never,
+		}).republish(parsedReplay.data.message as never, parsedReplay.data.service);
+		message = parsedReplay.data.message as never;
+	} else {
+		const parsed = PUBLISH_SCHEMA.safeParse(request.body);
+		if (!parsed.success) {
+			return { accepted: false, error: parsed.error.message };
+		}
+		message = createMessage(parsed.data.payload, parsed.data.metadata as never);
 	}
-
-	const message: Message = createMessage(
-		parsed.data.payload,
-		parsed.data.metadata as never
-	);
 	let delivered: unknown;
 	const delivery = new HttpMessageDelivery(
 		{
@@ -85,5 +117,5 @@ export async function relayThroughMessageManager(
 		message,
 		context: { deliveryAttempt: 1 },
 	} as never);
-	return { accepted: true, message, delivered };
+	return { accepted: true, message, delivered, journaledFor };
 }

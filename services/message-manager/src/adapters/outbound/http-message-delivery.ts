@@ -61,12 +61,13 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 	}
 
 	async markDeadLetter(input: DeadLetterInput): Promise<void> {
-		const { message, reason, deliveryAttempt } = input;
+		const { message, reason, deliveryAttempt, service } = input;
 		MESSAGES_DLQ_TOTAL.inc({ topic: message.metadata.topic, reason });
 		await this._deadLetters.insert({
 			// dlq-service lists and replays dead letters by topic.
 			topic: message.metadata.topic,
 			message,
+			service,
 			reason,
 			deliveryAttempt: PositiveInt.of(deliveryAttempt),
 			timestamp: UnixTimestamp.now(),

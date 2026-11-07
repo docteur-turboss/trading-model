@@ -60,6 +60,10 @@ Body (validated by `PublishSchema`):
 
 ### Subscribe to a Topic
 
+**`POST /message/replay`**
+
+Replays a dead letter to the one service whose delivery failed (ADR-0043). Body: `{ "service": "<subscriber service>", "message": { "payload": ..., "metadata": ... } }`; the metadata keeps the `messageId` and `emittedAt` it was stamped with. The message is journaled for that service alone (the other consumer groups skip the entry), so no other subscriber, `audit-logger` included, receives a duplicate. Caller: dlq-service only (SPIFFE); never in the gateway `PUBLIC_ROUTES`. **Response:** `204` once journaled.
+
 **`POST /subscribe`**
 
 Subscribes a consumer to a topic for receiving messages.

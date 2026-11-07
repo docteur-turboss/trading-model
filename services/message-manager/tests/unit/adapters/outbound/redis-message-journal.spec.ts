@@ -105,6 +105,50 @@ describe("RedisMessageJournal", () => {
 		await expect(setup().journal.groups()).resolves.toEqual([GROUP]);
 	});
 
+	it("should write a targeted replay for its service only, and leave the others' groups out of it", async () => {
+		const { journal, redis } = setup();
+		const message = createMockMessage("payload");
+
+		await journal.append(
+			message,
+			["audit-logger-service"],
+			"audit-logger-service"
+		);
+
+		const xadd = redis.call.mock.calls.find(
+			([name]) => name === "XADD"
+		) as string[];
+		expect(xadd.slice(-4)).toEqual([
+			"message",
+			JSON.stringify(message),
+			"only",
+			"audit-logger-service",
+		]);
+		expect(
+			redis.call.mock.calls.filter(([name]) => name === "XGROUP")
+		).toHaveLength(1);
+	});
+
+	it("should settle without delivering an entry targeted at another service", async () => {
+		const message = createMockMessage("payload");
+		const { journal, redis } = setup(async (command) =>
+			command === "XREADGROUP"
+				? [
+						"p:journal:test.topic",
+						[["1-0", [...stored(message), "only", "audit-logger-service"]]],
+					]
+				: "OK"
+		);
+
+		await expect(journal.readNew(GROUP, "replica-1", 5)).resolves.toEqual([]);
+		expect(redis.call).toHaveBeenCalledWith(
+			"XACK",
+			"p:journal:test.topic",
+			"trader-trainer",
+			"1-0"
+		);
+	});
+
 	it("should read new entries as first deliveries", async () => {
 		const message = createMockMessage("payload");
 		const { journal, redis } = setup(async () => [

@@ -97,6 +97,7 @@ export function createAutoRetryCycle(deps: AutoRetryCycleDeps): AutoRetryCycle {
 			entries.map((entry) => ({
 				id: toMessageId(entry.id),
 				message: entry.message,
+				service: entry.service,
 			})),
 			messageManagerUrl,
 			batchId

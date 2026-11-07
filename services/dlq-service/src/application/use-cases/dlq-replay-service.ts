@@ -70,6 +70,7 @@ export async function executeReplayPipeline(
 		entries: entries.map((entry) => ({
 			id: toMessageId(entry.id),
 			message: entry.message,
+			service: entry.service,
 		})),
 		messageManagerUrl,
 		batchId,

@@ -110,6 +110,7 @@ export class Subscription {
 				failureCount: circuitBreaker.getFailureCount(),
 			});
 			await deliveryPort.markDeadLetter({
+				service: subscriber,
 				message,
 				reason: CircuitState.OPEN.toUpperCase(),
 				deliveryAttempt: circuitBreaker.getFailureCount() as SequenceNumber,

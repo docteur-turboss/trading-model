@@ -100,6 +100,7 @@ describe("Subscription", () => {
 				message,
 				reason: "Unrecoverable",
 				deliveryAttempt: expect.any(Number),
+				service: expect.any(String),
 			});
 		});
 
@@ -121,6 +122,7 @@ describe("Subscription", () => {
 				message,
 				reason: "TTL_EXPIRED",
 				deliveryAttempt: expect.any(Number),
+				service: expect.any(String),
 			});
 			mockDateNow.mockRestore();
 		});
@@ -153,6 +155,7 @@ describe("Subscription", () => {
 				message,
 				reason: "Unrecoverable",
 				deliveryAttempt: expect.any(Number),
+				service: expect.any(String),
 			});
 		});
 
@@ -167,6 +170,7 @@ describe("Subscription", () => {
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
+				service: expect.any(String),
 				reason: "SINGLE_ATTEMPT_FAILED",
 				deliveryAttempt: 1,
 			});
@@ -185,6 +189,7 @@ describe("Subscription", () => {
 				message,
 				reason: "MAX_RETRIES_EXCEEDED",
 				deliveryAttempt: expect.any(Number),
+				service: expect.any(String),
 			});
 		});
 
@@ -204,6 +209,7 @@ describe("Subscription", () => {
 
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
+				service: expect.any(String),
 				reason: "OPEN",
 				deliveryAttempt: 5,
 			});
@@ -300,6 +306,7 @@ describe("Subscription", () => {
 				message,
 				reason: "NO_REASON",
 				deliveryAttempt: expect.any(Number),
+				service: expect.any(String),
 			});
 		});
 	});

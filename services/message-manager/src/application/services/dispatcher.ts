@@ -6,7 +6,10 @@
 
 import { messageManagerError } from "@trading-model/broker-message/shared/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type { MessageMetadata } from "@trading-model/contracts/message-types";
+import type {
+	Message,
+	MessageMetadata,
+} from "@trading-model/contracts/message-types";
 import {
 	MESSAGES_PUBLISHED_TOTAL,
 	MESSAGES_UNROUTED_TOTAL,
@@ -66,6 +69,14 @@ export class Dispatcher {
 		);
 		await this._deps.journal.append(message, [...services]);
 		return messageId as string;
+	}
+
+	/**
+	 * Replays a dead letter to the one service whose delivery failed, under the
+	 * `messageId` it already has (ADR-0043): the other subscribers got it.
+	 */
+	async republish(message: Message, service: string): Promise<void> {
+		await this._deps.journal.append(message, [service], service);
 	}
 
 	subscribe(params: SubscriptionParams): Promise<void> {
