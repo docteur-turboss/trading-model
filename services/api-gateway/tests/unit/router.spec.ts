@@ -35,21 +35,24 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/adapters/outbound/service-resolver", () => ({
-	ServiceResolver: jest.fn().mockImplementation(() => ({
-		resolve: jest.fn().mockImplementation((name: string) => {
-			// No trader-trainer instance is registered.
-			if (name === "trader-trainer") {
-				return Promise.resolve(null);
-			}
-			return Promise.resolve({
-				host: "10.0.1.5",
-				port: 3000,
-				version: "1.2.0",
-			});
-		}),
-	})),
-}));
+jest.mock(
+	"@trading-model/address-manager/application/discovery/endpoint-resolver",
+	() => ({
+		EndpointResolver: jest.fn().mockImplementation(() => ({
+			resolve: jest.fn().mockImplementation((name: string) => {
+				// No trader-trainer instance is registered.
+				if (name === "trader-trainer") {
+					return Promise.resolve(null);
+				}
+				return Promise.resolve({
+					host: "10.0.1.5",
+					port: 3000,
+					version: "1.2.0",
+				});
+			}),
+		})),
+	})
+);
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 	forwardRequest: jest.fn().mockResolvedValue({

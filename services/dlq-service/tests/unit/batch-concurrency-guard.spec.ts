@@ -53,7 +53,7 @@ describe("batch-concurrency-guard", () => {
 			) => { success: number; errors: { id: string; error: string }[] } | null;
 		};
 		const { activeReplays } = jest.requireActual(
-			"../../src/shared/active-replay-counter"
+			"../../src/application/services/active-replay-counter"
 		) as { activeReplays: { increment: () => void } };
 
 		activeReplays.increment();
@@ -113,7 +113,7 @@ describe("batch-concurrency-guard", () => {
 			) => { success: number; errors: { id: string; error: string }[] } | null;
 		};
 		const { activeReplays } = jest.requireActual(
-			"../../src/shared/active-replay-counter"
+			"../../src/application/services/active-replay-counter"
 		) as { activeReplays: { increment: () => void; decrement: () => void } };
 
 		activeReplays.increment();

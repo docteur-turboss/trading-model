@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { deadLetterError } from "@trading-model/common/utils/errors";
+import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import {
 	DurationMs,

@@ -16,7 +16,8 @@ export interface RedisSubscriptionStoreDeps {
 /**
  * Subscriptions shared by every message-manager replica: one hash per topic,
  * one field per subscribed instance. The hash expires with its last renewal,
- * expired fields are dropped when the topic is read.
+ * expired fields are dropped when the topic is read. Instance fields only
+ * track liveness: the registry delivers once per service (ADR-0043).
  */
 export class RedisSubscriptionStore implements SubscriptionStorePort {
 	private readonly _now: () => number;

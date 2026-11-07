@@ -14,8 +14,8 @@ import {
 import express from "express";
 import { AddressManagerClient } from "../../packages/address-manager/src/adapters/outbound/client/address-manager-client";
 import { TokenManager } from "../../packages/address-manager/src/application/client/token-manager";
+import { EndpointResolver } from "../../packages/address-manager/src/application/discovery/endpoint-resolver";
 import { ServiceResolver } from "../../packages/address-manager/src/application/discovery/service-resolver";
-import { ServiceResolver as GatewayResolver } from "../../services/api-gateway/src/adapters/outbound/service-resolver";
 import { DISCOVERY_API } from "../../services/discovery-server/src/adapters/inbound/http/api-routes";
 import { HEARTBEAT_ROUTES } from "../../services/discovery-server/src/adapters/inbound/http/heartbeat.routes";
 import { REGISTRY_ROUTES } from "../../services/discovery-server/src/adapters/inbound/http/register.routes";
@@ -36,6 +36,11 @@ import { createServiceRegistry } from "../../services/discovery-server/src/confi
  * The caller's identity (mTLS SVID, IP allowlist) is not part of the
  * contract: those middlewares are let through.
  */
+
+// The platform DNS gives the address; the registry only says the version is alive.
+jest.mock("node:dns/promises", () => ({
+	lookup: jest.fn(async () => ({ address: "127.0.0.1", family: 4 })),
+}));
 
 jest.mock(
 	"../../services/discovery-server/src/adapters/inbound/registration-auth",
@@ -276,9 +281,9 @@ describe("discovery contract: address-manager → discovery-server", () => {
 		).toMatchObject({ host: "127.0.0.1", port: 3000 });
 	});
 
-	it("the gateway resolves the canonical name to the registered instance", async () => {
+	it("the gateway resolves the canonical name once the registry shows it alive", async () => {
 		await registered();
-		const gateway = new GatewayResolver(
+		const gateway = new EndpointResolver(
 			`${baseUrl}/`,
 			60_000,
 			recordingHttpClient(exchanges) as never

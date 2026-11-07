@@ -1,8 +1,4 @@
-import {
-	normalizeError,
-	serviceNotFoundError,
-	serviceUnreachableError,
-} from "@trading-model/common/utils/errors";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	type DurationMs,
@@ -15,6 +11,11 @@ import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/ser
 import type { ServiceInstance } from "../../domain/client/type";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
 import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import {
+	serviceNotFoundError,
+	serviceUnreachableError,
+} from "../../shared/errors";
+import { EndpointResolver } from "./endpoint-resolver";
 
 export interface ServiceResolverDeps {
 	httpClient: HttpClient;
@@ -24,7 +25,17 @@ export interface ServiceResolverDeps {
 }
 
 export class ServiceResolver {
-	constructor(private readonly _deps: ServiceResolverDeps) {}
+	/** Same selection logic as the gateway (ADR-0045). */
+	private readonly _endpoints: EndpointResolver;
+
+	constructor(private readonly _deps: ServiceResolverDeps) {
+		this._endpoints = new EndpointResolver(
+			_deps.config.addressManagerUrl,
+			Number(_deps.config.cacheTtlMs),
+			_deps.httpClient,
+			_deps.config.discoveryTimeoutMs
+		);
+	}
 
 	private get _httpClient(): HttpClient {
 		return this._deps.httpClient;
@@ -42,17 +53,13 @@ export class ServiceResolver {
 		return this._deps.config.discoveryTimeoutMs;
 	}
 
-	async findService(serviceName: ServiceId): Promise<ServiceInstance> {
-		const instances = await this._fetchInstances(serviceName).catch(
-			(error: unknown) => {
-				throw serviceNotFoundError(`Service "${serviceName}" not found`, {
-					cause: normalizeError(error),
-				});
-			}
-		);
-		const instance = this._addressed(
-			this._firstInstance(instances, serviceName)
-		);
+	/** `majorVersion` omitted: any live instance (services pass none, the gateway the route's). */
+	async findService(
+		serviceName: ServiceId,
+		majorVersion?: number
+	): Promise<ServiceInstance> {
+		const found = await this._findInstance(serviceName, majorVersion);
+		const instance = this._addressed(found);
 		await this._validateAndCache(instance, serviceName);
 		return instance;
 	}
@@ -69,24 +76,23 @@ export class ServiceResolver {
 		};
 	}
 
-	/** Instances of a service, validated: `[]` when discovery answers 204. */
-	private async _fetchInstances(
-		serviceName: ServiceId
-	): Promise<ServiceInstance[]> {
-		const instances = await this._httpClient.get(
-			URLString.of(`${this._config.addressManagerUrl}/services/${serviceName}`),
-			{ timeoutMs: this._discoveryTimeoutMs },
-			ServiceInstancesWire
-		);
-		return instances ?? [];
-	}
-
-	private _firstInstance(
-		instances: ServiceInstance[],
-		serviceName: ServiceId
-	): ServiceInstance {
-		const instance = instances[0];
-		if (!instance) {
+	private async _findInstance(
+		serviceName: ServiceId,
+		majorVersion?: number
+	): Promise<ServiceInstance> {
+		let instance: ServiceInstance | undefined;
+		try {
+			instance = (await this._endpoints.findInstance(
+				serviceName,
+				majorVersion
+			)) as ServiceInstance | undefined;
+		} catch (error) {
+			throw serviceNotFoundError(`Service "${serviceName}" not found`, {
+				cause: normalizeError(error),
+			});
+		}
+		// discovery-server never registers: findInstance answers a host-less stub for it.
+		if (!instance?.port) {
 			throw serviceNotFoundError(
 				`Service "${serviceName}" has no registered instances`
 			);
@@ -111,7 +117,14 @@ export class ServiceResolver {
 
 	async findAllServices(serviceName: ServiceId): Promise<ServiceInstance[]> {
 		try {
-			return await this._fetchInstances(serviceName);
+			const instances = await this._httpClient.get(
+				URLString.of(
+					`${this._config.addressManagerUrl}/services/${serviceName}`
+				),
+				{ timeoutMs: this._discoveryTimeoutMs },
+				ServiceInstancesWire
+			);
+			return instances ?? [];
 		} catch (error) {
 			throw serviceUnreachableError(
 				`Unable to list instances of "${serviceName}"`,

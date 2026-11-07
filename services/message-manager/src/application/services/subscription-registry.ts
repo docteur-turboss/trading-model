@@ -9,14 +9,16 @@ import type { MessageDeliveryPort } from "../ports/message-delivery-port";
 import type { SubscriptionStorePort } from "../ports/subscription-store-port";
 import { Subscription } from "./subscription";
 
+/** Consumer group (ADR-0043): one subscription, so one delivery, per service. */
 function localKey(topic: Topic, binding: TopicBinding): string {
-	return `${topic}|${binding.serviceIdentity.instanceId}`;
+	return `${topic}|${binding.serviceIdentity.serviceName}`;
 }
 
 export class SubscriptionRegistry {
 	/**
-	 * Delivery state (circuit breaker) of each subscription, kept per replica.
-	 * Which subscriptions exist is read from the shared store.
+	 * Delivery state (circuit breaker) of each subscribed service, kept per
+	 * replica. Which instances are subscribed is read from the shared store: a
+	 * service stays subscribed while at least one of its instances renews.
 	 */
 	private readonly _local = new Map<string, Subscription>();
 
@@ -38,13 +40,17 @@ export class SubscriptionRegistry {
 
 	async getSubscriptions(topic: Topic): Promise<readonly Subscription[]> {
 		const bindings = await this._store.list(topic);
-		const live = new Set<string>();
-		const subscriptions = bindings.map((binding) => {
+		const byService = new Map<string, TopicBinding>();
+		for (const binding of bindings) {
 			const key = localKey(topic, binding);
-			live.add(key);
-			return this._localSubscription(key, binding);
-		});
-		this._forgetOthers(topic, live);
+			if (!byService.has(key)) {
+				byService.set(key, binding);
+			}
+		}
+		const subscriptions = [...byService].map(([key, binding]) =>
+			this._localSubscription(key, binding)
+		);
+		this._forgetOthers(topic, new Set(byService.keys()));
 		SUBSCRIPTION_COUNT.set({ topic }, subscriptions.length);
 		return subscriptions;
 	}

@@ -1,5 +1,6 @@
-import { agentError } from "@trading-model/common/utils/errors";
+import { ErrorCode, makeErrorCode } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type {
 	PaginationResult,
 	QueryEnvelope,
@@ -57,6 +58,11 @@ export interface AuditStats {
 	eventsByPublisher: Record<ServiceId, number>;
 	dateRange: DateRange<Date>;
 }
+
+const agentError = makeErrorCode(
+	ErrorCode.Agent,
+	HTTP_STATUS.SERVICE_UNAVAILABLE
+);
 
 /** Attempts when another writer takes the next chain sequence first. */
 const MAX_CHAIN_ATTEMPTS = 5;

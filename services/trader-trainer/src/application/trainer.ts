@@ -32,7 +32,8 @@ import type {
 	TrainingSuccess,
 } from "../domain/training-types";
 import {
-	TrainingSession,
+	runInProcess,
+	type TrainingRunner,
 	type TrainingSessionResult,
 } from "./training-session";
 
@@ -46,6 +47,8 @@ export interface TrainerDeps {
 	models?: ModelArtifactStorePort;
 	/** Instance written in the artifacts it produces. */
 	instanceId?: string;
+	/** Where the session runs; default: the calling thread. */
+	runner?: TrainingRunner;
 }
 
 enum TrainerStatus {
@@ -124,12 +127,12 @@ export class Trainer {
 		symbol: TradingSymbol,
 		windowSets: import("../domain/genetic-algorithm/ga-runner").WindowSet[]
 	): Promise<TrainingSuccess> {
-		const session = new TrainingSession(
+		const run: TrainingRunner = this._deps.runner ?? runInProcess;
+		const result: TrainingSessionResult = await run(
 			windowSets,
 			this._deps.settings,
 			this._deps.telemetry
 		);
-		const result: TrainingSessionResult = await session.run();
 		const outcome = {
 			symbol,
 			bestGenome: result.bestGenome,

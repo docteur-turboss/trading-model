@@ -28,11 +28,7 @@ run_job() { # <job> <manifest>
   else
     kubectl apply -n "$NS" -f "$2"
   fi
-  if ! kubectl wait --for=condition=complete "job/$1" -n "$NS" --timeout=180s; then
-    echo "::error::Job $1 failed or timed out"
-    kubectl logs -n "$NS" "job/$1" --tail=50
-    exit 1
-  fi
+  bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" "$1" 180
 }
 
 # Prints the requested field of trading-model-secrets. A missing Secret prints nothing;

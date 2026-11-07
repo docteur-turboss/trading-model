@@ -1,5 +1,5 @@
-import type { DlqError } from "../../application/services/replay-batch";
 import { emitReplayMetrics } from "../../shared/replay-metrics";
+import type { DlqError } from "../services/replay-batch";
 
 export function buildReplayResponse(
 	batchId: string,

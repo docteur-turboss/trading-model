@@ -184,7 +184,7 @@ describe("ServiceDiscovery", () => {
 
 	test("throws ServiceNotFoundError when AddressManager returns empty instances", async () => {
 		cache.get.mockResolvedValue(null);
-		httpClient.get.mockResolvedValueOnce(null);
+		httpClient.get.mockResolvedValue([]);
 
 		await expect(discovery.findService(svcInstanceName)).rejects.toThrow(Error);
 		await expect(discovery.findService(svcInstanceName)).rejects.toMatchObject({

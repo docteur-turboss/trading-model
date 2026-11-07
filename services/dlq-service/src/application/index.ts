@@ -10,14 +10,14 @@ import {
 import { closeRedisClient } from "../adapters/inbound/routes";
 import { AddressManager } from "../config/address-manager";
 import { closeDb, getDb, resetDbState } from "../config/db";
-import { ENV } from "../infrastructure/config/env";
-import { ensureRedisQueue } from "../infrastructure/redis-init";
 import {
 	releaseStaleClaims,
 	shutdownSchedulers,
-	startAutoRetry,
 	startPeriodicPrune,
-} from "../shared/controller-reexports";
+} from "../config/shutdown-manager";
+import { startAutoRetry } from "../infrastructure/auto-retry-scheduler";
+import { ENV } from "../infrastructure/config/env";
+import { ensureRedisQueue } from "../infrastructure/redis-init";
 import { createServer } from "./server";
 
 createBootstrap({

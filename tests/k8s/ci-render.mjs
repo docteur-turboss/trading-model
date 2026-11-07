@@ -10,6 +10,7 @@
 //   - points the scraper at the in-cluster Binance stub
 //   - turns off the collection of the signal registry sources (real public
 //     APIs, ADR-0036)
+//   - sends the Pushover pages to the in-cluster alert sink (webhook)
 //   - drops every internet egress rule (`ipBlock` 0.0.0.0/0) of the
 //     NetworkPolicies: fail closed, a new outside call is refused in CI
 //     instead of reaching the real service
@@ -46,30 +47,43 @@ stringData:
   HMAC_SECRET: dev-hmac
 `;
 
-// A silent miss sends the scraper to the real Binance (HTTP 451 from CI).
-const STUB_URL = 'BINANCE_BASE_URL: "http://binance-stub:3000"';
-// Same for the signal sources: real public APIs, never called from CI runners.
-const NO_SIGNALS = 'SIGNAL_COLLECTION_ENABLED: "false"';
-const PUSHOVER_SINK = "url: http://alert-sink:8080/pushover";
-
 function adapt(manifest) {
 	return manifest
 		.replace(/imagePullPolicy: Always/g, "imagePullPolicy: IfNotPresent")
-		.replace(/(requests:\n\s+)cpu: "?(\d+(?:\.\d+)?)(m?)"?/g, _quarterCpu)
-		// kustomize drops the quotes of the ConfigMap value.
-		.replace(/BINANCE_BASE_URL: "?https:\/\/api\.binance\.com"?/g, STUB_URL)
-		// Pushover to the alert sink: api.pushover.net is unreachable from CI, and a
-		// failed page fires AlertmanagerNotificationsFailing, critical, so paged again.
 		.replace(
-			/^( +)token_file: \/etc\/alertmanager-credentials\/PUSHOVER_TOKEN$/m,
-			`$&\n$1${PUSHOVER_SINK}`
+			/(requests:\n\s+)cpu: "?(\d+(?:\.\d+)?)(m?)"?/g,
+			(match, head, value, unit) => _quarterCpu(match, head, value, unit)
 		)
-		.replace(/SIGNAL_COLLECTION_ENABLED: "?true"?/g, NO_SIGNALS)
+		// kustomize drops the quotes of the ConfigMap value.
+		.replace(
+			/BINANCE_BASE_URL: "?https:\/\/api\.binance\.com"?/g,
+			'BINANCE_BASE_URL: "http://binance-stub:3000"'
+		)
+		// Pages to the alert sink: api.pushover.net is unreachable from CI, and a
+		// failed page fires AlertmanagerNotificationsFailing, critical, so paged
+		// again. Alertmanager has no setting for the Pushover endpoint (its `url`
+		// is a link shown in the message), so the receiver becomes a webhook.
+		.replace(
+			/^( +)pushover_configs:\n(?:\1 .*\n)*/m,
+			(_block, i) =>
+				`${i}webhook_configs:\n${i}  - ${PUSHOVER_SINK}\n` +
+				`${i}    send_resolved: true\n`
+		)
+		.replace(
+			/SIGNAL_COLLECTION_ENABLED: "?true"?/g,
+			'SIGNAL_COLLECTION_ENABLED: "false"'
+		)
 		// An egress item: "  - " then its lines indented by 4 or more (kustomize layout).
 		.replace(/^ {2}- .*\n(?: {4}.*\n)*/gm, (item) =>
 			item.includes("cidr: 0.0.0.0/0") ? "" : item
 		);
 }
+
+// A silent miss sends the scraper to the real Binance (HTTP 451 from CI).
+const STUB_URL = 'BINANCE_BASE_URL: "http://binance-stub:3000"';
+// Same for the signal sources: real public APIs, never called from CI runners.
+const NO_SIGNALS = 'SIGNAL_COLLECTION_ENABLED: "false"';
+const PUSHOVER_SINK = "url: http://alert-sink:8080/pushover";
 
 const documents = readFileSync(0, "utf8")
 	.split(/^---$/m)
@@ -86,7 +100,11 @@ if (!rendered.includes(NO_SIGNALS) || /SIGNAL_COLLECTION_ENABLED: "?true/.test(r
 	process.stderr.write("ci-render: SIGNAL_COLLECTION_ENABLED not turned off\n");
 	process.exit(1);
 }
-if (/PUSHOVER_TOKEN$/m.test(rendered) && !rendered.includes(PUSHOVER_SINK)) {
+const PAGED = /name: critical-receiver/.test(rendered);
+if (
+	/pushover_configs:/.test(rendered) ||
+	(PAGED && !rendered.includes(PUSHOVER_SINK))
+) {
 	process.stderr.write("ci-render: Pushover not pointed at the alert sink\n");
 	process.exit(1);
 }

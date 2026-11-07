@@ -9,17 +9,17 @@ import {
 	toInstanceId,
 	toMessageId,
 } from "@trading-model/primitives/primitives";
-import type { DlqError } from "../../application/services/replay-batch";
 import { doReplayBatch } from "../../config/container";
-import { logger } from "../../config/logger";
-import { ENV } from "../../infrastructure/config/env";
-import { notifyReplayAudit } from "../outbound/audit-notifier";
+import type { ReplayEntriesQuery } from "../../config/dlq-adapters";
 import {
 	claimReleaseManager,
 	dlqClaimManager,
-} from "../outbound/claim-manager";
-import { dlqRetryManager } from "../outbound/retry-manager";
-import type { ReplayEntriesQuery } from "./api-routes";
+	dlqRetryManager,
+	notifyReplayAudit,
+} from "../../config/dlq-adapters";
+import { logger } from "../../config/logger";
+import { ENV } from "../../infrastructure/config/env";
+import type { DlqError } from "../services/replay-batch";
 import { mmResolveError, resolveMMUrlOrFail } from "./dlq-replay-resolver";
 import { buildReplayResponse } from "./dlq-replay-response";
 

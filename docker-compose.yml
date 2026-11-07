@@ -264,7 +264,7 @@ services:
       <<: *message-env
       APP_NAME: message-manager
       APP_VERSION: ${APP_VERSION:-1.3.0}
-      SERVICE_NAME: message-delivery-service
+      SERVICE_NAME: message-manager
       INSTANCE_ID: message-manager-1
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       # Signs the dead letters sent to dlq-service: same key as dlq-service.
@@ -308,7 +308,7 @@ services:
       <<: *message-env
       APP_NAME: financial-scraper
       APP_VERSION: ${APP_VERSION:-1.3.0}
-      SERVICE_NAME: financial-scraper-service
+      SERVICE_NAME: financial-scraper
       INSTANCE_ID: financial-scraper-1
       # Same symbols as TRAINER_SYMBOLS: the trainer consumes what the scraper publishes.
       SYMBOLS_TO_TRACK: ${SYMBOLS_TO_TRACK:-BTCUSDT,ETHUSDT}
@@ -450,7 +450,7 @@ services:
       <<: *message-env
       APP_NAME: audit-logger
       APP_VERSION: ${APP_VERSION:-1.0.0}
-      SERVICE_NAME: audit-logger-service
+      SERVICE_NAME: audit-logger
       INSTANCE_ID: audit-logger-1
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       MONGODB_URI: mongodb://mongo:27017/audit-logger

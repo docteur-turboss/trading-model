@@ -5,7 +5,7 @@
  * and dispatches published messages to all matching subscribers.
  */
 
-import { messageManagerError } from "@trading-model/common/utils/errors";
+import { messageManagerError } from "@trading-model/broker-message/shared/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { Message } from "@trading-model/contracts/message-types";
 import {

@@ -1,4 +1,4 @@
-import { agentError } from "@trading-model/common/utils/errors";
+import { agentError } from "../../shared/errors";
 import type { BackpropEngine } from "./backprop-engine";
 import type { FeedForwardEngine } from "./feed-forward-engine";
 import type { LearningPool } from "./pool-manager";

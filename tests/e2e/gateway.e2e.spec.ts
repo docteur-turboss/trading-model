@@ -24,12 +24,12 @@ describe("API Gateway E2E", () => {
 		);
 		expect(status).toBe(200);
 		expect(JSON.parse(body)).toEqual(
-			expect.arrayContaining(["financial-scraper-service"])
+			expect.arrayContaining(["financial-scraper"])
 		);
 	});
 
 	it("routes a canonical service name to its legacy registration name", async () => {
-		// financial-scraper registers as financial-scraper-service.
+		// financial-scraper registers under its canonical name.
 		const { status, body } = await externalRequest(
 			"/v1/financial-scraper/candles/symbols/BTCUSDT",
 			{ headers: AUTH }

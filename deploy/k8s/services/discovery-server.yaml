@@ -25,8 +25,11 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 spec:
   strategy:
+    # Surge first: with one replica (staging), maxUnavailable 1 left no
+    # discovery until the new pod was ready, every instance expired (TTL 30 s)
+    # and re-registered only after 3 failed heartbeats (issue #486).
     rollingUpdate:
-      maxUnavailable: 1
+      maxUnavailable: 0
       maxSurge: 1
   selector:
     matchLabels:

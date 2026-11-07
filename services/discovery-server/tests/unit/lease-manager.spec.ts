@@ -70,7 +70,7 @@ describe("LeaseManager", () => {
 			manager.stop();
 
 			expect(setRegisteredInstancesPerService).toHaveBeenCalledWith(
-				"financial-scraper-service",
+				"financial-scraper",
 				0
 			);
 		});

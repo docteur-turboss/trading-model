@@ -1,11 +1,10 @@
 import type addressManagerClient from "@trading-model/address-manager";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	isServiceUnreachableError,
-	messageManagerError,
-	normalizeError,
 	serviceUnreachableError,
-} from "@trading-model/common/utils/errors";
+} from "@trading-model/address-manager/shared/errors";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
@@ -27,6 +26,7 @@ import type {
 	SubscribesTopicsPayload,
 	UnSubscribesTopicsPayload,
 } from "../../domain/types/payloads";
+import { messageManagerError } from "../../shared/errors";
 
 /**
  * message-manager answers once it has delivered (or given up) the message:
@@ -90,7 +90,7 @@ export class MessageManagerClient implements IMessageClient {
 
 	private async _subscribeUrl(): Promise<URLString> {
 		const target = await this._findService(
-			ServiceInstanceName.MessageDeliveryService
+			ServiceInstanceName.MessageManagerService
 		);
 		return URLString.of(`https://${HostPort.toAddress(target)}/subscribe`);
 	}
@@ -159,7 +159,7 @@ export class MessageManagerClient implements IMessageClient {
 	): Promise<void> {
 		try {
 			const target = await this._findService(
-				ServiceInstanceName.MessageDeliveryService
+				ServiceInstanceName.MessageManagerService
 			);
 			return await this._publishToService(target, payload, metadata);
 		} catch (error) {

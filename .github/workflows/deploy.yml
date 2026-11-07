@@ -603,8 +603,9 @@ jobs:
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
+          # No singleton here (trader-trainer ADR-0044, collector ADR-0042): a canary is a second pod.
           ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
-            discovery-server message-manager financial-scraper trader-trainer \
+            discovery-server message-manager financial-scraper \
             api-gateway audit-logger dlq-service
 
       # Revision each Deployment runs before the overlay: "Rollback on failure"
@@ -722,6 +723,21 @@ jobs:
           [ "${{ inputs.environment }}" = production ] || export MARKET_DATA_RECOVERY_MODE=warn
           bash deploy/k8s/scripts/deploy-k8s.sh verify-market-data
 
+      # Functional gate over an observation window: API call through edge-proxy
+      # (the key is read from the cluster Secret and never printed), fresh market
+      # data, no critical alert. A failure triggers the rollback below.
+      - name: Verify release
+        shell: bash
+        env:
+          VERIFY_WINDOW_SECONDS: ${{ vars.VERIFY_WINDOW_SECONDS || '600' }}
+          VERIFY_INTERVAL_SECONDS: ${{ vars.VERIFY_INTERVAL_SECONDS || '60' }}
+          VERIFY_EXTERNAL_URL: ${{ vars.VERIFY_EXTERNAL_URL }}
+          # ADR-0042: missing market data only warns in staging (verify-market-data above).
+          VERIFY_REQUIRE_FRESH_DATA: ${{ inputs.environment == 'production' && 'true' || 'false' }}
+        run: |
+          export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
+          bash deploy/k8s/scripts/deploy-k8s.sh verify-release
+
       - name: Annotate deployments with release metadata
         shell: bash
         run: |
@@ -740,7 +756,7 @@ jobs:
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
-          for dep in discovery-server message-manager financial-scraper trader-trainer \
+          for dep in discovery-server message-manager financial-scraper \
                      api-gateway audit-logger dlq-service; do
             ./deploy/k8s/scripts/deploy-k8s.sh canary-cleanup "$dep"
           done

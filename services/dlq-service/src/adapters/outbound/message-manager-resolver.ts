@@ -14,7 +14,7 @@ export function resolveMessageManagerUrl(): Promise<URLString | null> {
 async function _resolveViaAddressManager(): Promise<URLString | null> {
 	try {
 		const target = await FIND_A_SERVICE(
-			ServiceInstanceName.MessageDeliveryService
+			ServiceInstanceName.MessageManagerService
 		);
 		if (target) {
 			return URLString.of(`https://${HostPort.toAddress(target)}`);

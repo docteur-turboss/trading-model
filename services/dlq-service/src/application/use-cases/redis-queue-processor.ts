@@ -1,8 +1,10 @@
 import { claimReplayOrchestrator } from "../../config/container";
+import {
+	claimReleaseManager,
+	queuePopService,
+	resolveMessageManagerUrl,
+} from "../../config/dlq-adapters";
 import { RedisWorkerTimer } from "../../infrastructure/redis-worker-timer";
-import { claimReleaseManager } from "../outbound/claim-manager";
-import { resolveMessageManagerUrl } from "../outbound/message-manager-resolver";
-import { queuePopService } from "../outbound/redis-queue-pop-service";
 
 export async function processRedisQueue(): Promise<void> {
 	if (queuePopService.shouldSkip()) {

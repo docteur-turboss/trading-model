@@ -1,4 +1,4 @@
-import { agentError } from "@trading-model/common/utils/errors";
+import { agentError } from "../../shared/errors";
 
 import type { Experience } from "./type";
 

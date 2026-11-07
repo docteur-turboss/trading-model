@@ -1,4 +1,4 @@
-import { agentError } from "@trading-model/common/utils/errors";
+import { agentError } from "../../shared/errors";
 import { type LayerComputationContext, LayerComputer } from "./layer-computer";
 import { NORMALIZERS, type NormalizeParams } from "./normalizers";
 import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
