@@ -8,7 +8,7 @@ import {
 } from "@jest/globals";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 
-const MOCK_LOGGER = { info: jest.fn(), warn: jest.fn() };
+const MOCK_LOGGER = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => MOCK_LOGGER,
 }));
@@ -101,6 +101,69 @@ describe("TrainingLoop", () => {
 
 		expect(train).toHaveBeenCalledTimes(1);
 		expect(train).toHaveBeenCalledWith(ETH);
+	});
+
+	it("should train every fresh symbol in turn", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+		lastClose.set(ETH, NOW - MINUTE);
+
+		for (let cycle = 0; cycle < 10; cycle++) {
+			await runOnce([BTC, ETH]);
+		}
+
+		const trained = train.mock.calls.map(([symbol]) => symbol);
+		expect(trained.filter((s) => s === BTC)).toHaveLength(5);
+		expect(trained.filter((s) => s === ETH)).toHaveLength(5);
+	});
+
+	it("should still train the next symbol when the first one keeps failing", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+		lastClose.set(ETH, NOW - MINUTE);
+		train.mockImplementation(async (symbol) => {
+			if (symbol === BTC) {
+				throw new Error("non-monotonic series");
+			}
+		});
+
+		for (let cycle = 0; cycle < 4; cycle++) {
+			await runOnce([BTC, ETH]);
+		}
+
+		expect(train).toHaveBeenCalledWith(ETH);
+		expect(train.mock.calls.filter(([s]) => s === ETH)).toHaveLength(2);
+		expect(MOCK_LOGGER.error).toHaveBeenCalledWith("Training cycle failed", {
+			error: "non-monotonic series",
+		});
+	});
+
+	it("should give a skipped symbol its turn once it is eligible again", async () => {
+		lastClose.set(BTC, NOW - MAX_AGE - 1);
+		lastClose.set(ETH, NOW - MINUTE);
+		await runOnce([BTC, ETH]);
+
+		lastClose.set(BTC, NOW - MINUTE);
+		await runOnce([BTC, ETH]);
+
+		expect(train.mock.calls.map(([s]) => s)).toEqual([ETH, BTC]);
+	});
+
+	it("should not train while a session is already running", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+		const busy = new TrainingLoop(
+			{ train, isTraining: () => true } as unknown as Trainer,
+			{
+				getMaxSize: () => 1000,
+				getCandleCount: () => candleCount,
+				getLastCandleCloseTime: (symbol: TradingSymbol) =>
+					lastClose.get(symbol),
+			} as unknown as MarketDataBuffer
+		);
+
+		busy.start({ symbols: [BTC], intervalMs: MINUTE, maxDataAgeMs: MAX_AGE });
+		busy.stop();
+		await Promise.resolve();
+
+		expect(train).not.toHaveBeenCalled();
 	});
 
 	it("should not judge freshness while the buffer is still filling", async () => {

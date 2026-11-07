@@ -21,6 +21,8 @@ export interface TrainingLoopConfig {
 export class TrainingLoop {
 	private readonly _trainingInterval = new TimerHandle();
 	private readonly _staleSymbols = new Set<TradingSymbol>();
+	/** Position in the symbol list where the next cycle starts its scan. */
+	private _nextIndex = 0;
 
 	constructor(
 		private readonly _trainer: Trainer,
@@ -82,10 +84,11 @@ export class TrainingLoop {
 		}
 	}
 
-	private async _trainSymbol(symbol: TradingSymbol): Promise<void> {
-		await this._trainer.train(symbol);
-	}
-
+	/**
+	 * Trains one eligible symbol per cycle, round-robin: the scan starts after
+	 * the last symbol trained, so every eligible symbol gets its turn and one
+	 * that keeps failing cannot hold the loop.
+	 */
 	private async _runTrainingForSymbols(
 		symbols: TradingSymbol[],
 		maxDataAgeMs: number
@@ -93,13 +96,17 @@ export class TrainingLoop {
 		if (this._trainer.isTraining()) {
 			return;
 		}
-		for (const symbol of symbols) {
+		for (let offset = 0; offset < symbols.length; offset++) {
+			const index = (this._nextIndex + offset) % symbols.length;
+			const symbol = symbols[index];
 			if (
 				this._hasEnoughData(symbol) &&
 				this._hasFreshData(symbol, maxDataAgeMs)
 			) {
-				await this._trainSymbol(symbol);
-				break;
+				// Advance before training: a rejected train() still passes the turn.
+				this._nextIndex = (index + 1) % symbols.length;
+				await this._trainer.train(symbol);
+				return;
 			}
 		}
 	}

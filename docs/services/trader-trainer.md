@@ -161,6 +161,7 @@ Candles are kept strictly increasing in time per symbol: a candle with the times
 - **Frequency**: every 60 seconds
 - **Condition**: at least 10% of `TRAINER_DATA_WINDOW` available
 - **Parallelism**: one training session at a time (`trainer.isTraining()`)
+- **Rotation**: each cycle trains one symbol of `TRAINER_SYMBOLS`, round-robin. The scan starts after the last symbol trained and takes the first eligible one (enough candles, fresh data). Every eligible symbol gets its turn; a symbol that keeps failing does not hold the loop; a skipped symbol (stale or filling) is checked again on the next cycle
 
 See [Training Process — Reference](../reference/training-process.md) for the full pipeline description.
 
