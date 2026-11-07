@@ -50,7 +50,7 @@ function isMissing(err: unknown): boolean {
 }
 
 /**
- * Model artifacts on a filesystem shared by the trainer replicas (the
+ * Model artifacts on a filesystem that outlives the trainer pod (the
  * ReadWriteMany checkpoint volume, ADR-0022). A version is written in a
  * temporary directory and renamed into place: readers never see a partial
  * artifact, and a version is never overwritten.

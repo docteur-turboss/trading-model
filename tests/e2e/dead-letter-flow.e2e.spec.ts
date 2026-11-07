@@ -10,7 +10,7 @@ import {
  * A message no subscriber can take goes the real dead-letter path: message-
  * manager dead-letters it, sends it to dlq-service (signed `POST /dlq`), which
  * stores it in MongoDB; a replay publishes it again through message-manager,
- * which dead-letters it again (ADR-0043). dlq-service publishes each step on
+ * which dead-letters it again (ADR-0048). dlq-service publishes each step on
  * the bus (`dlq.*` topics), where audit-logger records it.
  *
  * The subscriber is the trainer's identity with a callback path it does not

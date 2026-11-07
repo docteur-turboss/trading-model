@@ -76,5 +76,5 @@ Until 2026-10-30 these notifications were a `POST` to an `/audit` route audit-lo
 ## Limitations
 
 - Maximum stored entries is configurable via `MAX_ENTRIES` (default: 100,000)
-- Replay delivers back to message-manager with original payload headers intact. message-manager stamps a new `messageId` on each publish, so a replay is never re-sent once it left: it waits for the answer of message-manager, now a 202 once the message is journaled (`PUBLISH_ACCEPT_TIMEOUT_MS` + 5 s), and a claim is released as stale only after `STALE_CLAIM_MS` (about 3 min, see ADR-0043). At shutdown, claims of replays still in flight stay until then
+- Replay delivers back to message-manager with original payload headers intact. message-manager stamps a new `messageId` on each publish, so a replay is never re-sent once it left: it waits for the answer of message-manager, now a 202 once the message is journaled (`PUBLISH_ACCEPT_TIMEOUT_MS` + 5 s), and a claim is released as stale only after `STALE_CLAIM_MS` (about 3 min, see ADR-0048). At shutdown, claims of replays still in flight stay until then
 - A `POST /dlq/replay` lasts as long as message-manager takes to deliver the batch (up to the 2 min batch timeout plus one delivery): a caller with a shorter timeout gets an error while the replay goes on

@@ -26,6 +26,10 @@
  *   - every relative link in a tracked *.md (docs/architecture/code/ excluded,
  *     it is generated) points at an existing file or folder (issue #372)
  *
+
+ * - every PascalCase `Name` cited in code in docs/architecture/*.md exists in
+ *   services/ or packages/ (issue #498)
+ *
  * A manual review older than MANUAL_REVIEW_MAX_AGE_DAYS is reported as a
  * warning, not a failure: the check must not break a build on a date.
  *
@@ -191,6 +195,28 @@ function checkMarkdownLinks() {
   }
 }
 
+/** Names an architecture page may cite in code that are not symbols of services/ or packages/. */
+const SYMBOL_EXCEPTIONS = new Set(['EnumEventMessage']); // historical enum, named on purpose as removed
+/** Fails on a PascalCase `Name` cited in docs/architecture/*.md that no file of services/ or packages/ mentions. */
+function checkArchitectureSymbols() {
+  const dir = join(ROOT, 'docs/architecture');
+  const pages = readdirSync(dir).filter((f) => f.endsWith('.md'));
+  const cited = new Map();
+  for (const page of pages) {
+    const text = readFileSync(join(dir, page), 'utf8');
+    for (const [, name] of text.matchAll(/`([A-Z][a-z0-9]+(?:[A-Z][A-Za-z0-9]*)+)`/g)) {
+      if (!SYMBOL_EXCEPTIONS.has(name)) cited.set(name, `docs/architecture/${page}`);
+    }
+  }
+  for (const [name, page] of cited) {
+    try {
+      execFileSync('git', ['grep', '-qw', name, '--', 'services', 'packages'], { cwd: ROOT });
+    } catch {
+      errors.push(`${page}: \`${name}\` is not defined in services/ or packages/ (fix the page, or list it in SYMBOL_EXCEPTIONS)`);
+    }
+  }
+}
+
 const adrs = readAdrs();
 const scripts = packageScripts();
 const gates = gateSources();
@@ -201,6 +227,7 @@ for (const adr of adrs.values()) {
 }
 checkIndex(adrs);
 checkMarkdownLinks();
+checkArchitectureSymbols();
 
 for (const warning of warnings) console.warn(`  ! ${warning}`);
 if (errors.length > 0) {

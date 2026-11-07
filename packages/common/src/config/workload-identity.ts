@@ -46,7 +46,6 @@ export const LEGACY_SERVICE_NAME_ALIASES: Readonly<Record<string, string>> = {
 	"audit-logger-service": "audit-logger",
 	"discovery-service": "discovery-server",
 	"financial-scraper-service": "financial-scraper",
-	"financial-scrapper-service": "financial-scraper",
 	"message-delivery-service": "message-manager",
 	"trader-training-service": "trader-trainer",
 };

@@ -1,4 +1,4 @@
-# ADR-0043: Durable Message Journal in Redis Streams — Accept First, Deliver Afterwards
+# ADR-0048: Durable Message Journal in Redis Streams — Accept First, Deliver Afterwards
 
 **Status:** Accepted
 **Date:** 2026-11

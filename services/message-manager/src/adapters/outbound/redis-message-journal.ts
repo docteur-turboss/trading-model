@@ -1,4 +1,4 @@
-import { messageManagerError } from "@trading-model/common/utils/errors";
+import { messageManagerError } from "@trading-model/broker-message/shared/errors";
 import type { Message } from "@trading-model/contracts/message-types";
 import type Redis from "ioredis";
 import {
@@ -26,7 +26,7 @@ const FIELD = "message";
 type StreamReply = [id: string, fields: string[] | null][] | null;
 
 /**
- * Journal in Redis Streams (ADR-0043): one stream per topic, one consumer
+ * Journal in Redis Streams (ADR-0048): one stream per topic, one consumer
  * group per subscriber service. The pending list of each group carries the
  * retry state (last attempt, number of deliveries) shared by all replicas.
  * Never `KEYS` (ADR-0023): the groups are listed from a set.

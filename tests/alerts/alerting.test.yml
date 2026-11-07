@@ -393,7 +393,7 @@ tests:
         exp_alerts: []
 
   # Model artifacts (ADR-0022): the error series exists at 0 from startup, so
-  # the first failed write alerts; both trainer replicas count as one job, and
+  # the first failed write alerts; all trainer pods count as one job, and
   # the alert ends 30 minutes after the last failure.
   - name: a failed model write alerts until 30 minutes have passed
     interval: 1m

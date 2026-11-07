@@ -1,5 +1,5 @@
 /**
- * How long a `POST /message` to message-manager may last (ADR-0043).
+ * How long a `POST /message` to message-manager may last (ADR-0048).
  *
  * The broker answers 202 as soon as the message is written to its durable
  * journal; delivery and retries run outside the request. The bound only has to

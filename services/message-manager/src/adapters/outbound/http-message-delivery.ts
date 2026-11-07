@@ -1,4 +1,4 @@
-import { deadLetterError } from "@trading-model/common/utils/errors";
+import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	type HttpClient,

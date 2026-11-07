@@ -31,7 +31,7 @@ export interface DeliveryWorkerDeps {
 }
 
 /**
- * Delivers the journal (ADR-0043), outside any publisher's request. Every
+ * Delivers the journal (ADR-0048), outside any publisher's request. Every
  * replica runs one: each tick, for every group, it takes over the entries
  * whose retry is due (its own or a dead replica's) and reads the new ones,
  * then delivers them to the subscriber service. The retry state (attempts,

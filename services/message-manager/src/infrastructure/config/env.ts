@@ -22,7 +22,7 @@ const MM_EXTRA_SHAPE = {
 			.optional()
 	),
 	// Replicas that must hold an accepted message before the publisher gets its
-	// 202 (Redis WAIT, ADR-0043). 0 on a single Redis node, 1+ with Sentinel.
+	// 202 (Redis WAIT, ADR-0048). 0 on a single Redis node, 1+ with Sentinel.
 	JOURNAL_MIN_REPLICAS: z.coerce.number().int().min(0).default(0),
 	// How often dead letters kept in the file are sent to dlq-service again.
 	DLQ_FORWARD_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),

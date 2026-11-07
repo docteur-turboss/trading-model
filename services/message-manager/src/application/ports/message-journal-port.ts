@@ -16,7 +16,7 @@ export interface JournalEntry {
 }
 
 /**
- * Durable log of the accepted messages (ADR-0043). A message is written once
+ * Durable log of the accepted messages (ADR-0048). A message is written once
  * per topic and delivered once per subscriber service: each group keeps its
  * own position and its own pending entries, so the retry state is shared
  * between replicas and survives the loss of one.

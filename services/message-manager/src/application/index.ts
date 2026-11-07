@@ -44,7 +44,7 @@ createBootstrap({
 			await addressManager.leave();
 			await sleep(ENV.CACHE_TTL_MS);
 		},
-		// A publish only lasts until the message is journaled (ADR-0043); the
+		// A publish only lasts until the message is journaled (ADR-0048); the
 		// deliveries in flight are awaited by closeMessageManager.
 		closeTimeoutMs: DurationMs.of(PUBLISH_ACCEPT_TIMEOUT_MS),
 	},

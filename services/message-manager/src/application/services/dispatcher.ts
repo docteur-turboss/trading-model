@@ -1,10 +1,10 @@
 /**
- * Message acceptance (ADR-0043): delivers nothing. Once a subscriber exists
+ * Message acceptance (ADR-0048): delivers nothing. Once a subscriber exists
  * for the topic, it writes the message to the durable journal; the delivery
  * workers deliver it afterwards, outside the publisher's request.
  */
 
-import { messageManagerError } from "@trading-model/common/utils/errors";
+import { messageManagerError } from "@trading-model/broker-message/shared/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import {

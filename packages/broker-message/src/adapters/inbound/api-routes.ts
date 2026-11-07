@@ -6,7 +6,7 @@ import { z } from "zod";
 import { MESSAGE_METADATA_SCHEMA } from "../../shared/barrel/message.schema";
 
 /**
- * The callback every subscriber of the broker mounts (ADR-0021, ADR-0043):
+ * The callback every subscriber of the broker mounts (ADR-0021, ADR-0048):
  * message-manager delivers each message of a subscribed topic to it.
  * Mounted by `MessageManagerListenExpress` at `MESSAGE_CALLBACK_PATH`
  * (`message` everywhere it is deployed).
