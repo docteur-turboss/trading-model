@@ -41,7 +41,7 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 | `x-api-key`     | Yes\*    | API key for authentication |
 | `authorization` | No       | Fallback auth header       |
 
-\*All routes except `/ping` require authentication via `x-api-key` (or `authorization` fallback). Validated against `AUTH_TOKENS`.
+\*All routes except `/ping` require authentication via `x-api-key: <token>` or `Authorization: Bearer <token>` (the `Bearer ` prefix is case-insensitive and also stripped from the configured header). Validated against `AUTH_TOKENS` by SHA-256 digests compared with `timingSafeEqual`; the rate-limit identity is `client:` + 32 hex chars of that digest (one quota per token, no token material in logs).
 
 **Response (success):** Proxied response from target service (status code and body forwarded as-is).
 
