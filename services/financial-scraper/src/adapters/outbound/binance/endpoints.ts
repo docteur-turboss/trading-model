@@ -1,6 +1,5 @@
 import type { SymbolInterval } from "@trading-model/contracts/candlestick-query";
 import type {
-	BinanceFromId,
 	PositiveInt,
 	TradingSymbol,
 	UnixTimestamp,
@@ -10,7 +9,6 @@ import type {
 export interface BinanceQueryParams {
 	symbol: TradingSymbol;
 	limit?: number | PositiveInt;
-	fromId?: BinanceFromId;
 	startTime?: UnixTimestamp;
 	endTime?: UnixTimestamp;
 }
@@ -58,20 +56,6 @@ export const BINANCE_ENDPOINTS = {
 			limit: query?.limit,
 		}),
 
-	historicalTrades: (query?: BinanceEndpointQuery): string =>
-		buildUrl("/api/v3/historicalTrades", {
-			symbol: query?.symbol,
-			limit: query?.limit,
-			fromId: query?.fromId,
-		}),
-
-	compressedAggregateTrades: (query?: BinanceEndpointQuery): string =>
-		buildUrl("/api/v3/aggTrades", {
-			symbol: query?.symbol,
-			fromId: query?.fromId,
-			limit: query?.limit,
-		}),
-
 	candlesticks: (query?: BinanceEndpointQuery & SymbolInterval): string =>
 		buildUrl("/api/v3/klines", {
 			symbol: query?.symbol,
@@ -82,9 +66,6 @@ export const BINANCE_ENDPOINTS = {
 
 	change24hrStats: (symbol?: TradingSymbol[]): string =>
 		arraySymbolEndpoint("/api/v3/ticker/24hr", symbol),
-
-	tradingDayTicker: (symbol?: TradingSymbol[]): string =>
-		arraySymbolEndpoint("/api/v3/ticker/tradingDay", symbol),
 
 	symbolPriceTicker: (symbol?: TradingSymbol[]): string =>
 		arraySymbolEndpoint("/api/v3/ticker/price", symbol),

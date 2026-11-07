@@ -165,7 +165,6 @@ describe("DLQ Routes — Redis", () => {
 	let routes: {
 		DlqRoutes: () => ReturnType<typeof import("express").Router>;
 		closeRedisClient: () => Promise<void>;
-		closeRateLimiters: () => void;
 	};
 
 	beforeAll(() => {
@@ -183,8 +182,7 @@ describe("DLQ Routes — Redis", () => {
 		expect(router).toBeDefined();
 	});
 
-	it("closeRedisClient and closeRateLimiters should not throw", async () => {
+	it("closeRedisClient should not throw", async () => {
 		await routes.closeRedisClient();
-		routes.closeRateLimiters();
 	});
 });

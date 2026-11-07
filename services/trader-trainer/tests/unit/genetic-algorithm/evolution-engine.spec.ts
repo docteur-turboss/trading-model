@@ -2,9 +2,7 @@ import { beforeEach, describe, expect, it } from "@jest/globals";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import {
-	crossoverGenomes,
 	crossoverWeights,
-	mutateGenome,
 	mutateWeights,
 } from "../../../src/domain/genetic-algorithm/evolution-engine";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
@@ -100,26 +98,6 @@ describe("EvolutionEngine", () => {
 			});
 			const allMutated = result[0] !== 1 || result[1] !== 1 || result[2] !== 1;
 			expect(allMutated).toBe(true);
-		});
-	});
-
-	describe("mutateGenome", () => {
-		it("should return a shallow copy of the genome", () => {
-			const genome = createDefaultGenome("test");
-			const result = mutateGenome(genome);
-			expect(result).not.toBe(genome);
-			expect(result.id).toBe("test");
-			expect(result.rl.gamma).toBe(genome.rl.gamma);
-		});
-	});
-
-	describe("crossoverGenomes", () => {
-		it("should return a shallow copy of the first parent", () => {
-			const pA = createDefaultGenome("parentA");
-			const result = crossoverGenomes(pA);
-			expect(result).not.toBe(pA);
-			expect(result.id).toBe("parentA");
-			expect(result.rl.gamma).toBe(pA.rl.gamma);
 		});
 	});
 

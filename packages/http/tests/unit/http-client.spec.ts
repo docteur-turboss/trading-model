@@ -9,7 +9,7 @@ import {
 } from "@jest/globals";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import {
-	DurationMs,
+	type DurationMs,
 	type FilePath,
 	URLString,
 } from "@trading-model/primitives/primitives";
@@ -53,15 +53,15 @@ import {
 	type ServiceInstanceName,
 } from "@trading-model/common/config/services.types";
 import { runWithCorrelationId } from "@trading-model/http/adapters/inbound/correlation-id";
-import {
-	computeAdaptiveTimeout,
-	HttpClient,
-	isServiceCircuitOpen,
-} from "@trading-model/http/adapters/outbound/http-client";
+import { getDefaultCircuitRecorder } from "@trading-model/http/adapters/outbound/circuit-recorder";
+import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import type {
 	PositiveInt,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
+
+const isServiceCircuitOpen = (name: ServiceInstanceName) =>
+	getDefaultCircuitRecorder().isServiceCircuitOpen(name);
 
 const TEST_SERVICE_NAMES = [
 	"my-service",
@@ -906,14 +906,14 @@ describe("HttpClient", () => {
 		});
 	});
 
-	describe("retryUnsentOnly", () => {
+	describe("POST: not idempotent unless marked", () => {
 		beforeEach(() => (https.request as jest.Mock).mockClear());
 
 		it("should not re-send a request that timed out", async () => {
 			const promise = client.post(
 				URLString.of("https://example.com/api"),
 				{},
-				{ retryCount: 1, retryUnsentOnly: true, timeoutMs: 100 as DurationMs }
+				{ retryCount: 1, timeoutMs: 100 as DurationMs }
 			);
 			mockReq._timeoutCb();
 			await expect(promise).rejects.toThrow("timed out");
@@ -924,9 +924,22 @@ describe("HttpClient", () => {
 			const promise = client.post(
 				URLString.of("https://example.com/api"),
 				{},
-				{ retryCount: 1, retryUnsentOnly: true, timeoutMs: 100 as DurationMs }
+				{ retryCount: 1, timeoutMs: 100 as DurationMs }
 			);
 			errorHandler!(new Error("connect ECONNREFUSED 10.0.0.1:3000"));
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
+			await expect(promise).resolves.toEqual({ ok: true });
+			expect(https.request).toHaveBeenCalledTimes(2);
+		});
+
+		it("should re-send a timed-out request marked idempotent", async () => {
+			const promise = client.post(
+				URLString.of("https://example.com/api"),
+				{},
+				{ retryCount: 1, idempotent: true, timeoutMs: 100 as DurationMs }
+			);
+			mockReq._timeoutCb();
 			await new Promise((resolve) => setTimeout(resolve, 300));
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			await expect(promise).resolves.toEqual({ ok: true });
@@ -1023,30 +1036,6 @@ describe("HttpClient", () => {
 			const result = await client.get(URLString.of("https://example.com/data"));
 			expect(result).toBe("deflate-compressed-data");
 		});
-	});
-});
-
-describe("computeAdaptiveTimeout", () => {
-	it("should return baseMs × 2 when no EWMA latency", () => {
-		expect(computeAdaptiveTimeout(DurationMs.of(5000))).toBe(10000);
-	});
-
-	it("should return max(baseMs, ewmaLatencyMs × 3) when latency is known", () => {
-		expect(
-			computeAdaptiveTimeout(DurationMs.of(5000), DurationMs.of(2000))
-		).toBe(6000);
-	});
-
-	it("should return baseMs when EWMA is very small", () => {
-		expect(
-			computeAdaptiveTimeout(DurationMs.of(5000), DurationMs.of(100))
-		).toBe(5000);
-	});
-
-	it("should handle zero baseMs", () => {
-		expect(computeAdaptiveTimeout(DurationMs.of(0), DurationMs.of(1000))).toBe(
-			3000
-		);
 	});
 });
 

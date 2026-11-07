@@ -8,6 +8,7 @@ import {
 } from "../../neural-network/type";
 import type { ValidationContext } from "../genome";
 import {
+	err,
 	VALID_ACTIVATIONS,
 	VALID_BIAS_TYPES,
 	VALID_CONNECTION_TYPES,
@@ -46,10 +47,6 @@ function _validateEnumField(
 	if (!validSet.has(value)) {
 		err(ctx, `unknown ${label}`, value);
 	}
-}
-
-function err(ctx: ValidationContext, message: string, actual: unknown): void {
-	ctx.errors.push({ path: ctx.path, message, actual });
 }
 
 function checkPositiveInt(ctx: ValidationContext, value: unknown): void {

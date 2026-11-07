@@ -15,21 +15,13 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 FAILED=0
 
-pass() { echo "  ✓ $*"; }
-failed() {
-	echo "  ✗ $*"
-	FAILED=1
-}
+# shellcheck source=test-lib.sh
+source "$ROOT/tests/backup/test-lib.sh"
 indent() {
 	local line
 	while IFS= read -r line; do echo "      $line"; done <<<"$1"
 }
 
-# The library expects the caller's log helpers.
-log() { echo "[test] $*" >&2; }
-ok() { log "$*"; }
-fail() { log "$*"; }
-warn() { log "$*"; }
 # shellcheck source=../../scripts/backup-lib.sh
 source "$ROOT/scripts/backup-lib.sh"
 

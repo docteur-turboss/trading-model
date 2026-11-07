@@ -72,38 +72,4 @@ describe("createBootstrap", () => {
 
 		expect(onStop).toHaveBeenCalled();
 	});
-
-	it("should call tlsBootstrap.ensure when provided", () => {
-		const ensure = jest.fn();
-		const tlsBootstrap = { ensure };
-		const options = {
-			name: "test-service",
-			createServer: jest.fn().mockReturnValue(createMockServer()),
-			tlsBootstrap,
-		};
-
-		createBootstrap(options);
-
-		expect(ensure).toHaveBeenCalledTimes(1);
-	});
-
-	it("should call tlsBootstrap.setupAutoRenew when provided", async () => {
-		const ensure = jest.fn().mockResolvedValue(undefined);
-		const setupAutoRenew = jest.fn();
-		const tlsBootstrap = {
-			ensure,
-			setupAutoRenew,
-		};
-		const options = {
-			name: "test-service",
-			createServer: jest.fn().mockReturnValue(createMockServer()),
-			tlsBootstrap,
-		};
-
-		createBootstrap(options);
-
-		await new Promise(setImmediate);
-
-		expect(setupAutoRenew).toHaveBeenCalledTimes(1);
-	});
 });

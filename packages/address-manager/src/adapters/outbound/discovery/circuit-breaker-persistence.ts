@@ -77,14 +77,4 @@ export class CircuitBreakerPersistence {
 			});
 		});
 	}
-
-	clearPersistedStates(instances: Map<string, CircuitStateMachine>): void {
-		for (const instanceId of instances.keys()) {
-			this.deletePersistedState(instanceId as unknown as InstanceId);
-		}
-	}
-
-	clear(): void {
-		// Intentional no-op.
-	}
 }

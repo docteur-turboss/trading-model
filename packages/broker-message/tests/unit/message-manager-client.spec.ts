@@ -51,7 +51,8 @@ describe("MessageManagerClient", () => {
 				expect.objectContaining({
 					topic: "example.debug.create",
 					callbackPath: mockConfig.callbackPath,
-				})
+				}),
+				{ idempotent: true }
 			);
 		});
 

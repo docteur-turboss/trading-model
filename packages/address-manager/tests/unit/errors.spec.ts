@@ -2,7 +2,6 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	addressManagerError,
 	isAddressManagerError,
-	isServiceNotFoundError,
 	isServiceUnreachableError,
 	serviceNotFoundError,
 	serviceUnreachableError,
@@ -11,9 +10,8 @@ import {
 describe("address-manager errors", () => {
 	it("build errors matched by their own guard only", () => {
 		expect(isAddressManagerError(addressManagerError("x"))).toBe(true);
-		expect(isServiceNotFoundError(serviceNotFoundError("x"))).toBe(true);
 		expect(isServiceUnreachableError(serviceUnreachableError("x"))).toBe(true);
-		expect(isServiceNotFoundError(serviceUnreachableError("x"))).toBe(false);
+		expect(isServiceUnreachableError(serviceNotFoundError("x"))).toBe(false);
 	});
 
 	it("keep the cause", () => {

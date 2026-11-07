@@ -41,7 +41,6 @@ jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 	_createHealthLimiter:
 		() => (_req: unknown, _res: unknown, next: () => void) =>
 			next(),
-	closeRateLimiters: jest.fn(),
 	closeRedisClient: jest.fn(),
 }));
 

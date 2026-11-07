@@ -1,6 +1,5 @@
 ﻿import type { DateRange } from "./date-range";
-import type { Limit, PageNumber } from "./primitives";
-import { toLimit, toPageNumber } from "./primitives/page-number";
+import { Limit, PageNumber } from "./primitives/page-number";
 
 export interface PaginationQuery {
 	page?: PageNumber;
@@ -15,8 +14,8 @@ export namespace PaginationQuery {
 		defaultLimit = 50,
 		maxLimit = DEFAULT_MAX_LIMIT
 	): ComputedPagination {
-		const page = toPageNumber(query.page ?? 1);
-		const limit = toLimit(query.limit ?? defaultLimit, maxLimit);
+		const page = PageNumber.of(query.page ?? 1);
+		const limit = Limit.of(query.limit ?? defaultLimit, maxLimit);
 		const skip = (page - 1) * limit;
 		return { page, limit, skip };
 	}

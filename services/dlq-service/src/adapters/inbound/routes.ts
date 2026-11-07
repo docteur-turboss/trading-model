@@ -15,7 +15,6 @@ import {
 	_createHealthLimiter,
 	_createReplayLimiter,
 	_createWriteLimiter,
-	closeRateLimiters,
 	closeRedisClient,
 } from "./rate-limiter";
 
@@ -59,4 +58,4 @@ export const DlqRoutes = (): Router => {
 	return router;
 };
 
-export { closeRateLimiters, closeRedisClient };
+export { closeRedisClient };

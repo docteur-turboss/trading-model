@@ -10,34 +10,38 @@ export function overTheWire<TValue>(value: unknown): TValue {
 	return JSON.parse(JSON.stringify(value, toJsonWire)) as TValue;
 }
 
-/** Body of one HTTP POST a publisher sent to message-manager `/message`. */
+/** One HTTP request a service sent to message-manager (publish: `POST /message`). */
 export interface PublishedRequest {
+	method: "POST" | "DELETE";
 	url: string;
 	body: unknown;
 }
 
 /**
- * The real broker client of a publishing service, with only the network cut:
- * every POST is recorded (over the wire) instead of being sent.
+ * The real broker client of a service, with only the network cut: every
+ * request is recorded (over the wire) instead of being sent.
  */
-export function createRecordingBrokerClient(serviceName: string): {
+export function createRecordingBrokerClient(
+	serviceName: string,
+	callbackPath = "message"
+): {
 	client: MessageManagerClient;
 	requests: PublishedRequest[];
 } {
 	const requests: PublishedRequest[] = [];
-	const httpClient = {
-		post: async (url: string, body: unknown) => {
-			requests.push({ url, body: overTheWire(body) });
-		},
-	};
+	const record =
+		(method: PublishedRequest["method"]) =>
+		async (url: string, body: unknown) => {
+			requests.push({ method, url, body: overTheWire(body) });
+		};
 	const addressManager = {
 		findService: async () => ({ host: "10.0.0.1", port: 3000 }),
 		recordCallSuccess: () => undefined,
 		recordCallFailure: () => undefined,
 	};
 	const client = new MessageManagerClient(
-		httpClient as never,
-		{ callbackPath: "message", instanceId: "contract-1", serviceName } as never,
+		{ post: record("POST"), delete: record("DELETE") } as never,
+		{ callbackPath, instanceId: "contract-1", serviceName } as never,
 		addressManager as never
 	);
 	return { client, requests };

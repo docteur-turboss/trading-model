@@ -17,7 +17,7 @@ import { InstanceRegistrar } from "./instance-registrar";
  *   - Create: `registerInstance(instance)`
  *   - Read:   `getMetadata(instanceId)`, `getServiceInstanceIds(serviceName)`, `getMetadatas(keys)`, `listServiceNames()`
  *   - Update: `updateHeartbeat(serviceName, instanceId)`
- *   - Delete: `removeInstanceSetAndMetadata(identity)`
+ *   - Delete: `removeInstance(identity)`
  *
  * @see InstanceStore — in-memory counterpart
  * @see CacheStore — client-side cache (address-manager)
@@ -70,15 +70,8 @@ export class RedisInstanceStore implements IInstanceStore {
 		return this.reader.getMetadatas(keys);
 	}
 
-	removeInstanceSetAndMetadata(identity: ServiceIdentity): Promise<boolean> {
-		return removeInstanceSetAndMetadata(
-			{ redis: this.deps.redis, keyPrefix: this.deps.keyPrefix },
-			identity
-		);
-	}
-
 	removeInstance(identity: ServiceIdentity): Promise<boolean> {
-		return this.removeInstanceSetAndMetadata(identity);
+		return removeInstanceSetAndMetadata(this.deps, identity);
 	}
 
 	async dump(): Promise<Record<string, ServiceInstance[]>> {

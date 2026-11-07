@@ -4,7 +4,7 @@
  */
 
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type { Genome } from "./genome-types";
+import { sampleGaussian } from "./noise";
 
 /** Per-weight uniform crossover using separate RNG to produce a child weight vector. */
 export function crossoverWeights(
@@ -32,35 +32,14 @@ export interface MutateWeightsContext {
 	rng: () => number;
 }
 
-function _boxMullerSample(rng: () => number): number {
-	const u1 = Math.max(1e-10, rng());
-	return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * rng());
-}
-
 /** Apply Gaussian weight mutation (Box-Muller) to each element with probability `rate`. */
 export function mutateWeights(ctx: MutateWeightsContext): Float32Array {
 	const { weights, rate, std, rng } = ctx;
 	const out = weights.slice();
 	for (let i = 0; i < out.length; i++) {
 		if (rng() < rate) {
-			out[i] += std * _boxMullerSample(rng);
+			out[i] += sampleGaussian(rng, std);
 		}
 	}
 	return out;
-}
-
-/**
- * Apply structural mutations to a genome.
- * Mutates network architecture (layers, neurons, activation functions).
- */
-export function mutateGenome(genome: Genome): Genome {
-	return { ...genome };
-}
-
-/**
- * Structural crossover at the topology level.
- * Blends network architectures from two parents.
- */
-export function crossoverGenomes(pA: Genome): Genome {
-	return { ...pA };
 }

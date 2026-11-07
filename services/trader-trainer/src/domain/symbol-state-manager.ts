@@ -33,10 +33,6 @@ export class SymbolStateManager {
 		) as Record<DataType, DataHandler>;
 	}
 
-	getMemoryManager(): MemoryManager {
-		return this._memoryManager;
-	}
-
 	getMaxSize(): number {
 		return this._memoryManager.getMaxSize();
 	}
@@ -49,10 +45,6 @@ export class SymbolStateManager {
 		}
 		this._memoryManager.recordAccess(symbol);
 		return state;
-	}
-
-	_getState(symbol: TradingSymbol): SymbolState {
-		return this._getOrCreate(symbol);
 	}
 
 	private _createSymbolState(): SymbolState {

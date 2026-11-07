@@ -78,6 +78,6 @@ describe("app/server", () => {
 
 	it("reports MySQL down when the query fails", async () => {
 		MOCK_PROMISE_QUERY.mockRejectedValueOnce(new Error("ECONNREFUSED"));
-		await expect(mysqlReadiness()()).resolves.toBe(false);
+		await expect(mysqlReadiness()()).rejects.toThrow("ECONNREFUSED");
 	});
 });

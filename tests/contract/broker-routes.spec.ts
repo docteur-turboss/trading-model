@@ -7,13 +7,15 @@ import {
 	parseRequest,
 } from "@trading-model/http/adapters/inbound/api-route/api-route";
 import { CREATE_CALLBACK_ROUTE } from "../../packages/broker-message/src/adapters/inbound/messages.routes";
-import { MessageManagerClient } from "../../packages/broker-message/src/adapters/outbound/message-manager-client";
 import { DEFAULT_CALLBACK_PATH } from "../../packages/broker-message/src/application/services/broker-message";
 import { AUDIT_API } from "../../services/audit-logger/src/adapters/inbound/http/api-routes";
 import { BROKER_API } from "../../services/message-manager/src/adapters/inbound/api-routes";
 import { SUBSCRIBE_SCHEMA } from "../../services/message-manager/src/adapters/inbound/validation/broker.schema";
 import { resolveTarget } from "../../services/message-manager/src/application/services/address-resolver";
-import { overTheWire } from "./support/broker-pipeline";
+import {
+	createRecordingBrokerClient,
+	type PublishedRequest,
+} from "./support/broker-pipeline";
 
 /**
  * The HTTP routes between the broker client (SDK) and message-manager, on
@@ -27,44 +29,13 @@ jest.mock("../../services/message-manager/src/config/address-manager", () => ({
 	FIND_A_SERVICE: async () => ({ host: "10.0.0.2", port: 3000 }),
 }));
 
+const TRAINER = "trader-trainer";
 const ROOT = join(__dirname, "../..");
 const TOPIC =
 	MarketEvent[Object.keys(MarketEvent)[0] as keyof typeof MarketEvent];
 
-interface SentRequest {
-	method: "POST" | "DELETE";
-	url: string;
-	body: unknown;
-}
-
-/** The real broker client of a service, every request recorded instead of sent. */
-function recordingClient(callbackPath: string): {
-	client: MessageManagerClient;
-	sent: SentRequest[];
-} {
-	const sent: SentRequest[] = [];
-	const record =
-		(method: SentRequest["method"]) => async (url: string, body: unknown) => {
-			sent.push({ method, url, body: overTheWire(body) });
-		};
-	const client = new MessageManagerClient(
-		{ post: record("POST"), delete: record("DELETE") } as never,
-		{
-			callbackPath,
-			instanceId: "routes-1",
-			serviceName: "trader-trainer",
-		} as never,
-		{
-			findService: async () => ({ host: "10.0.0.1", port: 3000 }),
-			recordCallSuccess: () => undefined,
-			recordCallFailure: () => undefined,
-		} as never
-	);
-	return { client, sent };
-}
-
 /** The message-manager route serving this request, if any. */
-function brokerRouteFor(request: SentRequest): ApiRoute | undefined {
+function brokerRouteFor(request: PublishedRequest): ApiRoute | undefined {
 	const { pathname } = new URL(request.url);
 	return Object.values(BROKER_API).find(
 		(route) => route.method === request.method && route.path === pathname
@@ -94,7 +65,10 @@ function deployedCallbackPaths(): string[] {
 
 /** Path message-manager delivers to, from the subscription the SDK sent. */
 async function deliveryPath(callbackPath: string): Promise<string> {
-	const { client, sent } = recordingClient(callbackPath);
+	const { client, requests: sent } = createRecordingBrokerClient(
+		TRAINER,
+		callbackPath
+	);
 	await client.subscribe([TOPIC]);
 	const parsed = SUBSCRIBE_SCHEMA.parse(sent[0].body);
 	const url = await resolveTarget(
@@ -112,7 +86,10 @@ interface RouterLayer {
 describe("broker routes", () => {
 	describe("message-manager serves every request of the broker client", () => {
 		it("publish", async () => {
-			const { client, sent } = recordingClient(DEFAULT_CALLBACK_PATH);
+			const { client, requests: sent } = createRecordingBrokerClient(
+				TRAINER,
+				DEFAULT_CALLBACK_PATH
+			);
 			await client.publish({}, {} as never);
 
 			expect(sent).toHaveLength(1);
@@ -125,7 +102,10 @@ describe("broker routes", () => {
 		] as const)(
 			"%s, with a body its route accepts",
 			async (action, expected) => {
-				const { client, sent } = recordingClient(DEFAULT_CALLBACK_PATH);
+				const { client, requests: sent } = createRecordingBrokerClient(
+					TRAINER,
+					DEFAULT_CALLBACK_PATH
+				);
 				await client[action]([TOPIC]);
 
 				expect(sent).toHaveLength(1);

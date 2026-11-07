@@ -60,7 +60,7 @@ The monorepo has **11 shared packages** under the `@trading-model/*` scope. Buil
 | `retry.ts` | `retry(fn, options)` — retry loop with exponential backoff, `maxRetries`, `timeoutMs`, optional `shouldRetry` guard |
 | `backoff-config.ts` | `BackoffConfig`, `computeExponentialBackoff()` — shared backoff math used by `retry` |
 | `sleep.ts` | `sleep(ms): Promise<void>` |
-| `cache.ts` | `ICache<T>`, `ISyncCache<T>` — cache abstractions (get/set/delete/clear/has/invalidate with TTL) |
+| `cache.ts` | `ISyncCache<T>` — cache abstraction (get/set/delete/clear/has/invalidate with TTL) |
 | `ttl-cache-base.ts` | Base class for TTL-based cache implementations |
 | `circular-buffer.ts` | Fixed-capacity circular buffer |
 | `sanitize.ts` | `sanitizeForLog()` — strips PEM blocks and secrets before logging |
@@ -129,7 +129,7 @@ The combined helpers live in `@trading-model/contracts/event-map`:
 
 - **Import**: `@trading-model/common/config/workload-identity` (or the `utils/spiffe` facade)
 
-Provides the platform's SPIFFE trust domain, ID scheme, canonical service identities (ADR-0011): `buildSpiffeId`, `parseSpiffeId`, `isSpiffeId`, `extractServiceName`, `extractCanonicalServiceName`, `normalizeServiceName`, `PLATFORM_SERVICES`.
+Provides the platform's SPIFFE trust domain, ID scheme, canonical service identities (ADR-0011): `buildSpiffeId`, `parseSpiffeId`, `isSpiffeId`, `extractCanonicalServiceName`, `normalizeServiceName`, `PLATFORM_SERVICES`.
 
 ## TLS Configuration
 

@@ -5,7 +5,6 @@ import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
 import { z } from "zod";
 
 const MM_EXTRA_SHAPE = {
-	OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
 	// Dead-lettered messages (JSON Lines) dlq-service could not take yet.
 	// K8s mounts a writable volume there: the root filesystem is read-only.
 	DLQ_LOCAL_FALLBACK_PATH: z

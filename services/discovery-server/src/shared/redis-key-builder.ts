@@ -1,10 +1,10 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { buildRedisKey } from "@trading-model/persistence/redis-key-builder";
 import type { InstanceId } from "@trading-model/primitives/primitives";
 
+/** Takes the raw name: callers hold a `ServiceId` (identity) or a `ServiceInstanceName` (query). */
 export function serviceInstancesSet(
 	prefix: string,
-	serviceName: ServiceInstanceName
+	serviceName: string
 ): string {
 	return buildRedisKey(prefix, "service", serviceName, "instances");
 }

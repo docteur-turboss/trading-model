@@ -32,7 +32,7 @@ jest.mock("../../../src/config/message-manager", () => ({
 	startDelivery: MOCK_START_DELIVERY,
 }));
 
-jest.mock("../../../src/config/telemetry", () => ({
+jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
 	initializeTelemetry: jest.fn(),
 	shutdownTelemetry: jest.fn(async () => undefined),
 }));

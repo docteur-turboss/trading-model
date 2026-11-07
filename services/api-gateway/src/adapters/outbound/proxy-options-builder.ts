@@ -14,39 +14,37 @@ export interface ProxyRequestOptions {
 	req: Request;
 	target: ResolvedEndpoint;
 	path: string;
-	timeoutMs?: number;
 }
 
-class TlsOptionsBuilder {
-	buildOptions(opts: ProxyRequestOptions): https.RequestOptions {
-		const { target, req, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
-		const url = new URL(path, `https://${HostPort.toAddress(target)}`);
-		return {
-			hostname: target.host,
-			port: target.port,
-			path: url.pathname + url.search,
-			method: req.method,
-			headers: safeHeaders(req),
-			rejectUnauthorized: true,
-			timeout: timeoutMs,
-			...this._resolveSvidTls(),
-		};
-	}
-
-	/**
-	 * Loads the gateway's own SVID for the outbound leg so downstream services
-	 * can authenticate it via mTLS/ACL (ADR-0011). Re-read on every request so
-	 * spiffe-helper rotation is picked up immediately. SVIDs carry only a
-	 * `spiffe://` URI SAN, so hostname verification is disabled in favour of
-	 * the SPIFFE trust bundle.
-	 */
-	private _resolveSvidTls(): https.AgentOptions {
-		const env = ENV as TlsEnvVars;
-		if (!(env.TLS_KEY_PATH && env.TLS_CERT_PATH && env.TLS_CA_PATH)) {
-			return {};
-		}
-		return buildHttpsAgentOptions(buildTlsFromEnv(env)) ?? {};
-	}
+export function buildProxyOptions({
+	target,
+	req,
+	path,
+}: ProxyRequestOptions): https.RequestOptions {
+	const url = new URL(path, `https://${HostPort.toAddress(target)}`);
+	return {
+		hostname: target.host,
+		port: target.port,
+		path: url.pathname + url.search,
+		method: req.method,
+		headers: safeHeaders(req),
+		rejectUnauthorized: true,
+		timeout: ENV.PROXY_TIMEOUT_MS,
+		..._resolveSvidTls(),
+	};
 }
 
-export const tlsOptionsBuilder = new TlsOptionsBuilder();
+/**
+ * Loads the gateway's own SVID for the outbound leg so downstream services
+ * can authenticate it via mTLS/ACL (ADR-0011). Re-read on every request so
+ * spiffe-helper rotation is picked up immediately. SVIDs carry only a
+ * `spiffe://` URI SAN, so hostname verification is disabled in favour of
+ * the SPIFFE trust bundle.
+ */
+function _resolveSvidTls(): https.AgentOptions {
+	const env = ENV as TlsEnvVars;
+	if (!(env.TLS_KEY_PATH && env.TLS_CERT_PATH && env.TLS_CA_PATH)) {
+		return {};
+	}
+	return buildHttpsAgentOptions(buildTlsFromEnv(env)) ?? {};
+}
