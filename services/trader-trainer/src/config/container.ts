@@ -18,6 +18,7 @@ import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-stor
 import { effectiveFitnessType } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
+	CROSSOVER_FALLBACK_TOTAL,
 	CURRENT_GENERATION,
 	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
@@ -42,6 +43,9 @@ const PROMETHEUS_GA_TELEMETRY: GaTelemetry = {
 	},
 	genomeEvaluated(durationMs) {
 		GENOME_EVALUATION_SECONDS.observe(durationMs / 1000);
+	},
+	crossoverFallbacks(count) {
+		CROSSOVER_FALLBACK_TOTAL.inc(count);
 	},
 };
 

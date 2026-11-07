@@ -33,6 +33,13 @@ export const GENOME_EVALUATION_SECONDS = new promClient.Histogram({
 	buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
 });
 
+// Parents with different weight lengths (diverging architectures) are crossed by
+// copying one parent: expected, so counted here instead of logged per crossover.
+export const CROSSOVER_FALLBACK_TOTAL = new promClient.Counter({
+	name: "tt_crossover_fallback_total",
+	help: "Crossovers that copied a parent's weights because the parents' weight lengths differ",
+});
+
 export const TRAINING_STATUS = new promClient.Gauge({
 	name: "tt_training_status",
 	help: "Current training status (0=idle, 1=training)",
