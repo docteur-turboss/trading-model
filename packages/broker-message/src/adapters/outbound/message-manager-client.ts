@@ -8,7 +8,7 @@ import {
 } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
-import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_COMPAT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { DurationMs, URLString } from "@trading-model/primitives/primitives";
@@ -24,7 +24,7 @@ import { TopicSubscriptionService } from "./topic-subscription-service";
  * copy, so subscribers could not tell the duplicates apart.
  */
 const PUBLISH_OPTIONS = {
-	timeoutMs: DurationMs.of(PUBLISH_ACCEPT_TIMEOUT_MS + 5_000),
+	timeoutMs: DurationMs.of(PUBLISH_COMPAT_TIMEOUT_MS),
 	retryUnsentOnly: true,
 };
 

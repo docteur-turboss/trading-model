@@ -42,7 +42,7 @@ Publisher ──POST /message──▶ message-manager ──XADD──▶ Redis
 
 ### Contract and rollout (expand/contract)
 
-The publish response changes from `204` (after delivery) to `202 {"messageId"}` (after acceptance). Publishers never read the body and treat any 2xx as success, so the **old publishers already accept the new answer**; the new publishers (`PUBLISH_TIMEOUT_MS` 305 s → `PUBLISH_ACCEPT_TIMEOUT_MS` 15 s + 5 s) also accept the old one, with one caveat for the rollout window: an old message-manager replica still answers after delivery, so a publish to it may exceed 20 s and be reported as failed although it will be delivered. The publisher then publishes it again (scraper cursor, dlq-service replay) and the subscriber sees a duplicate with a new `messageId`; the window lasts one rolling update.
+The publish response changes from `204` (after delivery) to `202 {"messageId"}` (after acceptance). Publishers never read the body and treat any 2xx as success, so the **old publishers already accept the new answer**; the new publishers also accept the old one and, for this release only, keep the old bound (`PUBLISH_COMPAT_TIMEOUT_MS` 305 s) so that a publish to a still-old replica is not reported failed (nor opens the publisher circuit breaker, which the kind upgrade gate caught). The bound drops to `PUBLISH_ACCEPT_TIMEOUT_MS` 15 s + 5 s in the next release (contract step); the broker side (15 s) and the grace periods already use the short value.
 
 ### Guarantees, stated plainly
 
