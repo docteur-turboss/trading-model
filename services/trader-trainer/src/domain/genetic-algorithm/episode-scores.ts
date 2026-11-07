@@ -1,5 +1,9 @@
-/** Relative floor of every ratio denominator: bounds the ratio near 0 dispersion, without a jump. */
-const DENOMINATOR_FLOOR = 1e-6;
+/**
+ * Relative floor of every ratio denominator: a degenerate series (constant,
+ * no loss, no drawdown) scores at most 1/0.1 = 10 times its mean (when
+ * |mean| >= 1), the order of a good realistic ratio (0.5 to 3), and no jump.
+ */
+const DENOMINATOR_FLOOR = 0.1;
 
 function ratio(mean: number, denominator: number): number {
 	return (

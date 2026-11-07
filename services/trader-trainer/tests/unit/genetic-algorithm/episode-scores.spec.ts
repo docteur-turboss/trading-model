@@ -5,13 +5,25 @@ describe("EpisodeScores near-zero dispersion", () => {
 		const a = new EpisodeScores([1, 1 + 2e-11]).sharpe();
 		const b = new EpisodeScores([1, 1 + 2e-9]).sharpe();
 		expect(b / a).toBeLessThan(10);
-		expect(b).toBeLessThanOrEqual(1e6 * 1.01);
 	});
 
-	it("sortino and calmar are bounded without loss", () => {
-		const s = new EpisodeScores([1, 2]);
-		expect(s.sortino()).toBeLessThanOrEqual(1e6);
-		expect(s.calmar()).toBeLessThanOrEqual(1e6);
+	it("degenerate series stay bounded near a realistic ratio of the same mean", () => {
+		// realistic: mean 0.5, std ~1 -> ratios ~0.5
+		const realistic = new EpisodeScores([1.5, -0.5]);
+		const constant = new EpisodeScores([0.5, 0.5]);
+		const noLoss = new EpisodeScores([0.5, 0.5, 0.5]);
+		expect(constant.sharpe()).toBeLessThanOrEqual(15 * realistic.sharpe());
+		expect(noLoss.sortino()).toBeLessThanOrEqual(15 * realistic.sortino());
+		expect(noLoss.calmar()).toBeLessThanOrEqual(10);
+		expect(new EpisodeScores([1, 1]).sharpe()).toBeLessThanOrEqual(10);
+	});
+
+	it("ranking: a no-trade agent does not beat a realistic profitable one by orders of magnitude", () => {
+		const noTrade = new EpisodeScores([0.3, 0.3, 0.3, 0.3]);
+		const trader = new EpisodeScores([2, -1, 1.5, 0.5]);
+		for (const f of ["sharpe", "sortino", "calmar"] as const) {
+			expect(noTrade[f]() / trader[f]()).toBeLessThan(10);
+		}
 	});
 
 	it("nominal series unchanged", () => {
