@@ -36,11 +36,6 @@ const AT_DATE = z.object({
 	timestamp: ISO_DATE_MS.transform(brand(UnixTimestamp.of)),
 });
 
-/** Order books: epoch milliseconds. */
-const EPOCH_MS = z.object({
-	timestamp: z.coerce.number().int().min(0).transform(brand(UnixTimestamp.of)),
-});
-
 /** Most signals one answer holds; past it the answer says `truncated`. */
 export const MAX_SIGNALS_PER_ANSWER = 5000;
 
@@ -86,16 +81,6 @@ const Trade = z.object({
 	/** BIGINT: a decimal string, exact past 2^53. */
 	tradeId: z.string().regex(/^\d+$/),
 	timestamp: DATE_TIME,
-});
-
-const OrderBookLevel = z.object({ price: z.number(), quantity: z.number() });
-
-/** Order books are in-memory snapshots, timestamped in epoch milliseconds. */
-const OrderBook = z.object({
-	...MARKET,
-	timestamp: z.number().int(),
-	bids: z.array(OrderBookLevel),
-	asks: z.array(OrderBookLevel),
 });
 
 function query<
@@ -166,30 +151,6 @@ export const SCRAPER_API = {
 		"Candles opened after a date",
 		AT_DATE,
 		Candle
-	),
-	orderBooksBySource: query(
-		"/orderbook/sources/:source",
-		"Order book snapshots of a source",
-		BY_SOURCE,
-		OrderBook
-	),
-	orderBooksBySymbol: query(
-		"/orderbook/symbols/:symbol",
-		"Order book snapshots of a symbol",
-		BY_SYMBOL,
-		OrderBook
-	),
-	orderBooksAfter: query(
-		"/orderbook/after/timestamp/:timestamp",
-		"Order book snapshots after an instant",
-		EPOCH_MS,
-		OrderBook
-	),
-	orderBooksBefore: query(
-		"/orderbook/before/timestamp/:timestamp",
-		"Order book snapshots before an instant",
-		EPOCH_MS,
-		OrderBook
 	),
 	/** ADR-0036: every dimension, the sector signals of the asset included. */
 	assetSignals: defineRoute({

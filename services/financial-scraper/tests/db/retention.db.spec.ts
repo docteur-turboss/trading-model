@@ -14,7 +14,7 @@ import { type Connection, createConnection } from "mysql2/promise";
 /**
  * scripts/retention-mysql.sh (ADR-0051) against a real MySQL. The script runs
  * inside the Testcontainers container (it has the `mysql` client and bash), on
- * the test database: the four tables are replaced by ones holding only the
+ * the test database: the five tables are replaced by ones holding only the
  * columns the job reads (the other specs create their own schema).
  */
 const SCRIPT = readFileSync(
@@ -26,6 +26,7 @@ const TABLES = [
 	["market_candles", "timestamp"],
 	["market_trades", "timestamp"],
 	["market_tickers", "timestamp"],
+	["market_order_books", "timestamp"],
 	["signals", "observed_at"],
 ] as const;
 
