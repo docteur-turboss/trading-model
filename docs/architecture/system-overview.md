@@ -77,7 +77,7 @@ message-manager keeps subscriptions in Redis and **no messages** (ADR-0019): it 
 flowchart TB
   subgraph tm["namespace trading-model (Pod Security: restricted)"]
     ing["Ingress gateway / grafana"] --> edge["Deployment edge-proxy"]
-    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>trader-trainer, audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints)"]
+    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints);<br/>trader-trainer: 1 replica, Recreate (ADR-0044)"]
     svc --> mysql["StatefulSet mysql"]
     svc --> mA["StatefulSet mongo-audit"]
     svc --> mD["StatefulSet mongo-dlq"]

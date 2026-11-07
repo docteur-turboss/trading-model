@@ -20,7 +20,7 @@ const REGISTRY: Record<string, unknown[]> = {
 	"financial-scraper-service": [inst("1.4.0", 3001), inst("2.0.0", 3002)],
 };
 
-describe("one resolution strategy (ADR-0044)", () => {
+describe("one resolution strategy (ADR-0045)", () => {
 	it("AddressManager path and gateway path pick the same registered instance", async () => {
 		const httpClient = {
 			get: jest.fn(async (url: any) => {

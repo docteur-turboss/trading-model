@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10
-**Related:** [ADR-0044](./0044-single-service-resolution-strategy.md) (registry role narrowed), [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (removed the never-wired Redis "cached registry"), [ADR-0019](./0019-message-broker-as-built.md) (message-manager subscriptions in Redis), [ADR-0020](./0020-database-topology-as-deployed.md)
+**Related:** [ADR-0045](./0045-single-service-resolution-strategy.md) (registry role narrowed), [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (removed the never-wired Redis "cached registry"), [ADR-0019](./0019-message-broker-as-built.md) (message-manager subscriptions in Redis), [ADR-0020](./0020-database-topology-as-deployed.md)
 **Verified by:** `services/discovery-server/tests/unit/discovery-app.spec.ts`, `services/discovery-server/tests/db/redis-instance-store.db.spec.ts`, `services/discovery-server/tests/unit/redis-token-store.spec.ts`, `services/discovery-server/tests/unit/instance-metadata-reader.spec.ts`, `services/discovery-server/tests/unit/service-registry.spec.ts`
 
 ## Context

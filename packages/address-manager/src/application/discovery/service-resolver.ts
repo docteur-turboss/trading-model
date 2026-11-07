@@ -24,7 +24,7 @@ export interface ServiceResolverDeps {
 }
 
 export class ServiceResolver {
-	/** Same selection logic as the gateway (ADR-0044). */
+	/** Same selection logic as the gateway (ADR-0045). */
 	private readonly _endpoints: EndpointResolver;
 
 	constructor(private readonly _deps: ServiceResolverDeps) {
