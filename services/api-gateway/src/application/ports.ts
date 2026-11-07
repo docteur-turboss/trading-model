@@ -7,7 +7,7 @@ export type ForwardRequestPort = (opts: {
 	req: Request;
 	target: ResolvedEndpoint;
 	path: string;
-}) => Promise<{ status: number; body: string }>;
+}) => Promise<{ status: HttpStatusCode; body: string }>;
 
 /** Short-lived cache of successful GET answers, keyed by method + path + query. */
 export interface ResponseCachePort {

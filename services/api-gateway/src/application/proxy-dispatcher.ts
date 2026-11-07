@@ -59,7 +59,7 @@ export async function proxyAndCache(
 function tryCacheResponse(
 	req: Request,
 	ctx: ProxyContext,
-	result: { status: number; body: string },
+	result: { status: HttpStatusCode; body: string },
 	parsed: unknown,
 	cache: ResponseCachePort
 ): void {
@@ -74,7 +74,7 @@ function tryCacheResponse(
 	) {
 		cache.set(ctx.cacheKey, {
 			data: parsed,
-			status: result.status as HttpStatusCode,
+			status: result.status,
 			bytes: result.body.length,
 		});
 	}
