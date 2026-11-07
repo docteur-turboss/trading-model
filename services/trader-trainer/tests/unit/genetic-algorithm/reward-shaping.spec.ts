@@ -75,8 +75,8 @@ describe("RewardShaper", () => {
 });
 
 describe("EpisodeScores.sortino", () => {
-	it("falls back to the mean without any loss instead of dividing by ~0", () => {
-		expect(new EpisodeScores([1, 2, 3]).sortino()).toBe(2);
+	it("gives a bounded ratio without any loss", () => {
+		expect(new EpisodeScores([1, 2, 3]).sortino()).toBeCloseTo(1e6);
 	});
 
 	it("takes the downside deviation over every score", () => {

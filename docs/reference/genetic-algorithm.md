@@ -196,6 +196,8 @@ Fitness reads the **wallet PnL** of the validation pass, never the shaped reward
 | `calmar`    | `mean / max drawdown` (bar curve)             | Drawdown-averse            |
 | `composite` | `0.4·mean + 0.3·sharpe + 0.3·sortino` (curve) | Balanced                   |
 
+Ratios divide by `max(denominator, 1e-6�max(1, |mean|))`: continuous and bounded when the dispersion (or drawdown) tends to 0, so a near-constant agent is not rewarded (issue #536). `composite` squashes each term with `tanh` so PnL units and dimensionless ratios weigh comparably.
+
 **Final fitness** applies a complexity penalty: `adjusted = fitness - |fitness| * 0.15 * complexity_penalty` (lower whatever the sign). A failed evaluation scores `-1e9`.
 
 The scalar fitness drives parent selection, stagnation, the reward threshold and the published genome: the Pareto-front member with the highest fitness (`ParetoArchive.best()`). NSGA-II keeps ranking on the objectives `avgPnl` (mean episode PnL), `sharpe` (bar curve) and `negFlops`.
