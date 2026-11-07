@@ -6,6 +6,7 @@ import type { EpisodeScores } from "./genetic-algorithm/episode-scores";
 import type { GenomeFitnessMeta } from "./genetic-algorithm/genome";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
+import type { ModelManifest } from "./model-artifact";
 import type { BestAgentSummary } from "./training-state";
 
 function buildGASummary(
@@ -72,6 +73,23 @@ export function buildSummary(
 		sharpe: SharpeRatio.of(curve ? annualisedSharpe(curve, fitnessMeta) : 0),
 		avgPnl: fitnessMeta?.rawScores ? fitnessMeta.rawScores.mean() : 0,
 		maxDrawdown: curve ? curve.maxDrawdown() : 0,
+		gaControl: buildGASummary(genome),
+		network: buildNetworkSummary(genome),
+		rl: buildRLSummary(genome),
+	};
+}
+
+/** Summary of a stored version: metrics from the manifest, genes from its genome. */
+export function summaryFromManifest(manifest: ModelManifest): BestAgentSummary {
+	const genome = manifest.genome as unknown as DeepReadonly<LamarckGenome>;
+	const { metrics } = manifest;
+	return {
+		id: String(genome.id),
+		generation: metrics.generation as BestAgentSummary["generation"],
+		fitness: metrics.fitness as Fitness,
+		sharpe: SharpeRatio.of(metrics.sharpe),
+		avgPnl: metrics.avgPnl,
+		maxDrawdown: metrics.maxDrawdown,
 		gaControl: buildGASummary(genome),
 		network: buildNetworkSummary(genome),
 		rl: buildRLSummary(genome),
