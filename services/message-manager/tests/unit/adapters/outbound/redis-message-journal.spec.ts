@@ -62,6 +62,67 @@ describe("RedisMessageJournal", () => {
 		);
 	});
 
+	it("should not register a group again once this process did", async () => {
+		const { redis, journal } = setup();
+
+		await journal.append(createMockMessage("a"), ["trader-trainer"]);
+		await journal.append(createMockMessage("b"), ["trader-trainer"]);
+
+		const names = redis.call.mock.calls.map(([name]) => name);
+		expect(names).toEqual(["XGROUP", "XADD", "XADD"]);
+		expect(redis.sadd).toHaveBeenCalledTimes(1);
+	});
+
+	it("should read with BLOCK on a connection of its own, and close it", async () => {
+		const blocking = {
+			call: jest.fn(async () => null),
+			disconnect: jest.fn(),
+		};
+		const { redis } = setup();
+		const blocked = new RedisMessageJournal({
+			redis: redis as never,
+			openBlockingRedis: () => blocking as never,
+			keyPrefix: "p",
+		});
+
+		await blocked.readNew(GROUP, "c", 100, 1000);
+		await blocked.readNew(GROUP, "c", 100, 1000);
+		blocked.close();
+
+		expect(blocking.call).toHaveBeenCalledWith(
+			"XREADGROUP",
+			"GROUP",
+			"trader-trainer",
+			"c",
+			"COUNT",
+			"100",
+			"BLOCK",
+			"1000",
+			"STREAMS",
+			"p:journal:test.topic",
+			">"
+		);
+		expect(blocking.disconnect).toHaveBeenCalledTimes(1);
+		expect(redis.call).not.toHaveBeenCalled();
+	});
+
+	it("should create the group again after NOGROUP", async () => {
+		let lost = true;
+		const { redis, journal } = setup(async (name) => {
+			if (name === "XREADGROUP" && lost) {
+				lost = false;
+				throw new Error("NOGROUP No such key or consumer group");
+			}
+			return "OK";
+		});
+		await journal.register(GROUP);
+
+		await expect(journal.readNew(GROUP, "c", 5)).resolves.toEqual([]);
+
+		const names = redis.call.mock.calls.map(([name]) => name);
+		expect(names).toEqual(["XGROUP", "XREADGROUP", "XGROUP"]);
+	});
+
 	it("should accept a group that already exists, and only that error", async () => {
 		const existing = setup(async () => {
 			throw new Error("BUSYGROUP Consumer Group name already exists");

@@ -18,13 +18,16 @@ import type {
 import { Subscription } from "./subscription";
 import type { SubscriptionRegistry } from "./subscription-registry";
 
-/** Entries one group handles per tick: a slow subscriber holds its own group only. */
-const BATCH = 10;
+/** Entries one group handles per read: a slow subscriber holds its own group only. */
+const BATCH = 100;
+/** A blocking read ends after this long without entry, so the loop sees a stop. */
+const BLOCK_MS = 1000;
 
 export interface DeliveryWorkerDeps {
 	journal: MessageJournalPort;
 	registry: SubscriptionRegistry;
 	deliveryPort: MessageDeliveryPort;
+	/** Between two looks for new groups and two takeovers of due retries. */
 	pollMs?: number;
 	/** Name of this replica in the consumer groups. */
 	consumer?: string;
@@ -32,9 +35,10 @@ export interface DeliveryWorkerDeps {
 
 /**
  * Delivers the journal (ADR-0048), outside any publisher's request. Every
- * replica runs one: each tick, for every group, it takes over the entries
- * whose retry is due (its own or a dead replica's) and reads the new ones,
- * then delivers them to the subscriber service. The retry state (attempts,
+ * replica runs one: a loop per group takes over the entries whose retry is
+ * due (its own or a dead replica's) and reads the new ones (blocking, so a
+ * message is delivered as it arrives), then delivers them to the subscriber
+ * service. `tick` is one non-blocking pass over every group. The retry state (attempts,
  * last attempt) lives in the journal, not here.
  */
 export class DeliveryWorker {
@@ -43,27 +47,74 @@ export class DeliveryWorker {
 	/** Circuit breaker per group, local to the replica. */
 	private readonly _subscriptions = new Map<string, Subscription>();
 	private readonly _running = new Map<string, Promise<void>>();
+	private readonly _loops = new Map<string, Promise<void>>();
 	private _timer: NodeJS.Timeout | undefined;
+	private _stopped = true;
 
 	constructor(private readonly _deps: DeliveryWorkerDeps) {
 		this._consumer = _deps.consumer ?? `message-manager-${randomUUID()}`;
-		this._pollMs = _deps.pollMs ?? 500;
+		this._pollMs = _deps.pollMs ?? 2000;
 	}
 
 	start(): void {
-		this._timer = setInterval(() => {
-			this.tick().catch((err: unknown) =>
-				getLogger().error("Delivery tick failed", {
-					error: normalizeError(err),
+		this._stopped = false;
+		const discover = () =>
+			this._deps.journal
+				.groups()
+				.then((groups) => {
+					for (const group of groups) {
+						this._startLoop(group);
+					}
 				})
-			);
-		}, this._pollMs);
+				.catch((err: unknown) =>
+					getLogger().error("Listing the journal groups failed", {
+						error: normalizeError(err),
+					})
+				);
+		void discover();
+		this._timer = setInterval(() => void discover(), this._pollMs);
 	}
 
-	/** Stops polling and waits for the attempts in flight (each bounded by its HTTP timeout). */
+	/** Stops the loops, ends their blocking reads and waits for the attempts in flight (each bounded by its HTTP timeout). */
 	async stop(): Promise<void> {
+		this._stopped = true;
 		clearInterval(this._timer);
-		await Promise.all(this._running.values());
+		this._deps.journal.close?.();
+		await Promise.all([...this._loops.values(), ...this._running.values()]);
+		this._loops.clear();
+	}
+
+	private _startLoop(group: JournalGroup): void {
+		const key = `${group.topic}|${group.service}`;
+		if (!this._loops.has(key)) {
+			this._loops.set(key, this._loop(group));
+		}
+	}
+
+	private async _loop(group: JournalGroup): Promise<void> {
+		let lastClaim = 0;
+		while (!this._stopped) {
+			let served = false;
+			try {
+				const claim = Date.now() - lastClaim >= this._pollMs;
+				if (claim) {
+					lastClaim = Date.now();
+				}
+				served = await this._deliverGroup(group, claim, BLOCK_MS);
+			} catch (err) {
+				if (this._stopped) {
+					return;
+				}
+				getLogger().error("Delivery loop failed", {
+					context: { topic: group.topic, service: group.service },
+					error: normalizeError(err),
+				});
+			}
+			if (!served) {
+				// No subscriber or a failure: do not spin.
+				await new Promise((resolve) => setTimeout(resolve, BLOCK_MS));
+			}
+		}
 	}
 
 	/** One pass over every group; a group still busy with its previous pass is skipped. */
@@ -78,18 +129,23 @@ export class DeliveryWorker {
 		if (busy !== undefined) {
 			return busy;
 		}
-		const run = this._deliverGroup(group).finally(() =>
-			this._running.delete(key)
-		);
+		const run = this._deliverGroup(group)
+			.then(() => undefined)
+			.finally(() => this._running.delete(key));
 		this._running.set(key, run);
 		return run;
 	}
 
-	private async _deliverGroup(group: JournalGroup): Promise<void> {
+	/** @returns false when the group has no live subscriber. */
+	private async _deliverGroup(
+		group: JournalGroup,
+		claim = true,
+		blockMs?: number
+	): Promise<boolean> {
 		const subscription = await this._subscription(group);
 		if (!subscription) {
 			// No live subscriber: what was accepted waits in the journal.
-			return;
+			return false;
 		}
 		const { journal } = this._deps;
 		const retry = {
@@ -97,12 +153,15 @@ export class DeliveryWorker {
 			dueAfterMs: retryDueMs,
 		};
 		const entries = [
-			...(await journal.claimDue(group, this._consumer, retry, BATCH)),
-			...(await journal.readNew(group, this._consumer, BATCH)),
+			...(claim
+				? await journal.claimDue(group, this._consumer, retry, BATCH)
+				: []),
+			...(await journal.readNew(group, this._consumer, BATCH, blockMs)),
 		];
 		await Promise.all(
 			entries.map((entry) => this._deliver(subscription, group, entry))
 		);
+		return true;
 	}
 
 	private async _subscription(
