@@ -78,6 +78,10 @@ const LEASE_ID = "head";
 const LEASE_TTL_MS = 10_000;
 const LEASE_WAIT_MS = 30_000;
 const LEASE_POLL_MS = 20;
+/** A holder hands the lease over after this long even with a non-empty queue. */
+const LEASE_MAX_HOLD_MS = 2000;
+/** Pause after a handover: longer than a waiter's poll (20-40 ms) so one wins. */
+const LEASE_YIELD_MS = 100;
 
 /** Events chained in one ordered insertMany. */
 const MAX_BATCH = 100;
@@ -94,6 +98,7 @@ interface PendingWrite {
 	reject: (err: unknown) => void;
 	/** Sequence collisions this write already went through. */
 	collisions: number;
+	enqueuedAt: number;
 }
 
 interface ChainTail {
@@ -179,7 +184,13 @@ export class AuditRepository {
 	 */
 	insert(event: AuditEventDocument): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
-			this._pending.push({ event, resolve, reject, collisions: 0 });
+			this._pending.push({
+				event,
+				resolve,
+				reject,
+				collisions: 0,
+				enqueuedAt: Date.now(),
+			});
 			if (!this._draining) {
 				this._draining = true;
 				void this._drain();
@@ -194,12 +205,24 @@ export class AuditRepository {
 	private async _drain(): Promise<void> {
 		const owner = randomUUID();
 		let held = false;
+		let heldSince = 0;
 		try {
 			while (this._pending.length > 0) {
+				if (held && Date.now() - heldSince > LEASE_MAX_HOLD_MS) {
+					// Fairness: let waiting replicas take a turn.
+					await this._release(owner);
+					held = false;
+					await new Promise((resolve) => setTimeout(resolve, LEASE_YIELD_MS));
+				}
 				if (!(held && (await this._renew(owner)))) {
 					this._tail = null;
-					await this._acquire(owner);
+					if (!(await this._acquire(owner))) {
+						// Only what waited the whole LEASE_WAIT_MS fails; later arrivals keep waiting.
+						this._rejectWaited();
+						break;
+					}
 					held = true;
+					heldSince = Date.now();
 				}
 				await this._writeBatch(this._pending.splice(0, MAX_BATCH));
 			}
@@ -214,23 +237,39 @@ export class AuditRepository {
 			this._tail = null;
 			this._draining = false;
 			if (held) {
-				try {
-					// An expired lease is simply taken over, so a failed release only delays others.
-					await this._lease.updateOne(
-						{ _id: LEASE_ID, owner },
-						{ $set: { expiresAt: new Date(0) } }
-					);
-				} catch (err) {
-					getLogger().warn("Audit chain lease not released", {
-						error: String(err),
-					});
-				}
+				await this._release(owner);
 			}
 			if (this._pending.length > 0 && !this._draining) {
 				this._draining = true;
 				void this._drain();
 			}
 		}
+	}
+
+	/** An expired lease is simply taken over, so a failed release only delays others. */
+	private async _release(owner: string): Promise<void> {
+		try {
+			await this._lease.updateOne(
+				{ _id: LEASE_ID, owner },
+				{ $set: { expiresAt: new Date(0) } }
+			);
+		} catch (err) {
+			getLogger().warn("Audit chain lease not released", {
+				error: String(err),
+			});
+		}
+	}
+
+	private _rejectWaited(): void {
+		const err = agentError("Audit chain lease not acquired in time");
+		const now = Date.now();
+		this._pending = this._pending.filter((item) => {
+			const waited = now - item.enqueuedAt >= LEASE_WAIT_MS;
+			if (waited) {
+				item.reject(err);
+			}
+			return !waited;
+		});
 	}
 
 	/** Extends the lease if this owner still holds it (a takeover changes the owner). */
@@ -242,17 +281,18 @@ export class AuditRepository {
 		return result.matchedCount > 0;
 	}
 
-	/** Waits for the lease, bounded by LEASE_WAIT_MS. */
-	private async _acquire(owner: string): Promise<void> {
+	/** Waits for the lease; false once LEASE_WAIT_MS has passed. */
+	private async _acquire(owner: string): Promise<boolean> {
 		const deadline = Date.now() + LEASE_WAIT_MS;
 		while (!(await this._tryAcquire(owner))) {
 			if (Date.now() > deadline) {
-				throw agentError("Audit chain lease not acquired in time");
+				return false;
 			}
 			await new Promise((resolve) =>
 				setTimeout(resolve, LEASE_POLL_MS * (1 + Math.random()))
 			);
 		}
+		return true;
 	}
 
 	private async _tryAcquire(owner: string): Promise<boolean> {

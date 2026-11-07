@@ -219,6 +219,67 @@ describe("AuditRepository", () => {
 			expect(MOCK_COLLECTION.findOne).toHaveBeenCalledTimes(2);
 		});
 
+		it("should hand the lease over after the max hold time", async () => {
+			jest.useFakeTimers();
+			try {
+				const calls: string[] = [];
+				MOCK_COLLECTION.updateOne.mockImplementation(
+					async (_f: any, u: any) => {
+						calls.push(u.$set.expiresAt.getTime() === 0 ? "release" : "lease");
+						return { matchedCount: 1 };
+					}
+				);
+				MOCK_COLLECTION.insertMany.mockImplementation(async () => {
+					calls.push("batch");
+					if (calls.filter((c) => c === "batch").length === 1) {
+						jest.setSystemTime(Date.now() + 3000);
+						void repository.insert(withId(2));
+					}
+					return {};
+				});
+
+				const first = repository.insert(withId(1));
+				await jest.advanceTimersByTimeAsync(500);
+				await first;
+
+				// release between the two batches, so a waiter can take a turn
+				expect(calls.slice(0, 4)).toEqual([
+					"lease",
+					"batch",
+					"release",
+					"lease",
+				]);
+			} finally {
+				jest.useRealTimers();
+			}
+		});
+
+		it("should reject only the writes that waited LEASE_WAIT_MS for the lease", async () => {
+			jest.useFakeTimers();
+			try {
+				MOCK_COLLECTION.updateOne.mockRejectedValue({ code: 11000 });
+				MOCK_COLLECTION.insertMany.mockResolvedValue({});
+
+				const old = repository.insert(withId(1));
+				const oldResult = old.then(
+					() => "ok",
+					(e: Error) => e.message
+				);
+				await jest.advanceTimersByTimeAsync(29_000);
+				const recent = repository.insert(withId(2));
+				await jest.advanceTimersByTimeAsync(2000);
+				expect(await oldResult).toBe("Audit chain lease not acquired in time");
+
+				// The recent write is still queued and goes through once the lease is free.
+				MOCK_COLLECTION.updateOne.mockResolvedValue({ matchedCount: 1 });
+				await jest.advanceTimersByTimeAsync(1000);
+				await expect(recent).resolves.toBeUndefined();
+				expect(MOCK_COLLECTION.insertMany).toHaveBeenCalledTimes(1);
+			} finally {
+				jest.useRealTimers();
+			}
+		});
+
 		it("should not record a redelivered message twice and go on", async () => {
 			MOCK_COLLECTION.insertMany
 				.mockRejectedValueOnce(bulkError(1, { "metadata.messageId": 1 }))

@@ -21,7 +21,7 @@ Single local run, indicative only; absolute numbers depend on the Mongo latency.
 
 ## Decision
 
-1. **The lease is held while the queue is not empty.** A replica acquires it when its first write is queued, renews it (`owner` must still match and the lease must not be expired) before every batch, and releases it when the queue is empty. A failed renewal means a takeover: the cached tail is dropped and the lease is acquired again.
+1. **The lease is held while the queue is not empty.** A replica acquires it when its first write is queued, renews it (`owner` must still match and the lease must not be expired) before every batch, and releases it when the queue is empty, or after `LEASE_MAX_HOLD_MS` (2 s) even if it is not: the holder then pauses `LEASE_YIELD_MS` (100 ms, longer than a waiter's 20-40 ms poll) before taking it again, so waiting replicas get a turn under a sustained flow. A failed renewal means a takeover: the cached tail is dropped and the lease is acquired again.
 2. **Writes are batched.** Up to 100 queued events are chained in memory and stored with one ordered `insertMany` (`ignoreUndefined`, as hashed). The chain tail is read once per lease and kept in memory while the lease is held.
 3. **Safety net unchanged.** The unique index on `chainSequence` still stops a holder whose lease expired (frozen past `LEASE_TTL_MS`): its stale batch collides, the tail is dropped, the events go back to the front of the queue and the loop renews or re-acquires the lease. `audit_chain_sequence_collisions_total{outcome}` still counts these (5 collisions on the same event = `exhausted`, the event fails).
 4. **Duplicates.** A duplicate `messageId` in the middle of a batch leaves the events before it stored; it is counted `duplicate` (no chain break) and the events after it are re-chained after the last stored one.
@@ -30,5 +30,6 @@ Single local run, indicative only; absolute numbers depend on the Mongo latency.
 ## Consequences
 
 - About 2 Mongo round trips per batch instead of 4 per event; throughput about 8x higher and flat from 1 to 5 replicas in the test.
-- A replica that holds the lease keeps others waiting while its queue is non-empty (they poll up to `LEASE_WAIT_MS`, as before). Under a sustained flow on one replica the others write little; the total throughput is the same.
+- A replica holds the lease at most 2 s at a time, then yields 100 ms: waiters take a turn, so no replica is starved. The cost is one acquire and one release per 2 s of flow, and 100 ms of idle chain per handover (about 5 %).
+- A replica that cannot get the lease within `LEASE_WAIT_MS` (30 s, e.g. a dead holder whose lease has not expired yet) rejects only the writes that waited that long (they return to the bus / DLQ); writes queued later keep waiting and the drain starts again. Before this cap the whole queue was rejected.
 - Still one writer at a time: partitioned chains stay the next step above the measured ceiling (new ADR).
