@@ -23,6 +23,7 @@ jest.mock("fs", () => ({
 	},
 	constants: { R_OK: 4 },
 	readFileSync: jest.fn(() => "-----BEGIN CERTIFICATE-----\nmock-content"),
+	statSync: jest.fn(() => ({ mtimeMs: 1, ino: 1, size: 1 })),
 }));
 
 jest.mock("@opentelemetry/api", () => {
@@ -473,7 +474,7 @@ describe("HttpClient", () => {
 	});
 
 	describe("TLS reload", () => {
-		it("should re-read TLS files on every request so SVID rotation is picked up", async () => {
+		it("should not re-read TLS files per request (cached, see http-tls-loader.spec)", async () => {
 			const tlsClient = new HttpClient({
 				caPath: "/etc/ca.pem" as FilePath,
 				certPath: "/etc/cert.pem" as FilePath,
@@ -485,7 +486,7 @@ describe("HttpClient", () => {
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			await promise;
 
-			expect(fs.readFileSync).toHaveBeenCalled();
+			expect(fs.readFileSync).not.toHaveBeenCalled();
 		});
 	});
 
