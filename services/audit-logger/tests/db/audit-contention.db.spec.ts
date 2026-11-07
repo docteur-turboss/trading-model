@@ -1,9 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
-import { MongoClient } from "mongodb";
+import { type Db, MongoClient } from "mongodb";
+import {
+	MongoAuditChainReader,
+	MongoChainState,
+} from "../../src/adapters/outbound/persistence/audit-chain-reader";
 import {
 	type AuditEventDocument,
 	AuditRepository,
 } from "../../src/adapters/outbound/persistence/audit-repository";
+import { ChainAudit } from "../../src/application/audit-chain/chain-audit";
 import { CHAIN_COLLISIONS_TOTAL } from "../../src/config/metrics";
 
 const PER_WRITER = 40;
@@ -25,6 +30,27 @@ async function counter(outcome: string): Promise<number> {
 	return m.values.find((v) => v.labels.outcome === outcome)?.value ?? 0;
 }
 
+/** No gap, no duplicate chainSequence, and the verifier accepts the chain. */
+async function expectIntactChain(db: Db, expected: number): Promise<void> {
+	const seqs = (
+		await db
+			.collection("audit_events")
+			.find({}, { projection: { chainSequence: 1 } })
+			.sort({ chainSequence: 1 })
+			.toArray()
+	).map((d) => d.chainSequence);
+	expect(seqs).toEqual(Array.from({ length: expected }, (_, i) => i + 1));
+	const audit = new ChainAudit({
+		reader: new MongoAuditChainReader(db),
+		state: new MongoChainState(db),
+		anchors: null,
+		retentionMs: 1827 * 86_400_000,
+		metrics: { verified: () => undefined, anchored: () => undefined },
+	});
+	const report = await audit.verify("full");
+	expect(report).toMatchObject({ broken: null });
+}
+
 describe("audit chain contention between writers (issue #496)", () => {
 	let client: MongoClient;
 	beforeAll(async () => {
@@ -34,7 +60,7 @@ describe("audit chain contention between writers (issue #496)", () => {
 		await client.close();
 	});
 
-	it.each([2, 5])(
+	it.each([1, 2, 5])(
 		"measures retries and failures with %i writers",
 		async (n) => {
 			const db = client.db(`audit-contention-${n}-${Date.now()}`);
@@ -61,7 +87,49 @@ describe("audit chain contention between writers (issue #496)", () => {
 			expect(failed).toBe(0);
 			expect(exhausted).toBe(0);
 			expect(stored).toBe(n * PER_WRITER);
+			await expectIntactChain(db, n * PER_WRITER);
 		},
 		120000
 	);
+
+	it("keeps the chain intact when a holder freezes past the lease TTL (ADR-0052)", async () => {
+		const db = client.db(`audit-frozen-${Date.now()}`);
+		const frozen = new AuditRepository(db);
+		const other = new AuditRepository(db);
+		await frozen.ensureIndexes();
+		const leases = db.collection("audit_chain_lease");
+
+		// The frozen holder takes the lease, then stalls before its insertMany.
+		const events = db.collection("audit_events");
+		let thaw: () => void = () => undefined;
+		const stalled = new Promise<void>((resolve) => {
+			thaw = resolve;
+		});
+		const realInsertMany = (
+			frozen as unknown as { _collection: { insertMany: (...a: any[]) => any } }
+		)._collection;
+		const original = realInsertMany.insertMany.bind(realInsertMany);
+		realInsertMany.insertMany = async (...args: any[]) => {
+			await stalled;
+			return original(...args);
+		};
+		const frozenWrite = frozen.insert(doc("frozen-0", 0));
+		for (let i = 0; i < 100 && !(await leases.findOne({})); i++) {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+		}
+		// Simulates LEASE_TTL_MS elapsing: the lease is expired.
+		await leases.updateOne(
+			{ _id: "head" as never },
+			{ $set: { expiresAt: new Date(0) } }
+		);
+
+		await Promise.all([1, 2, 3].map((i) => other.insert(doc(`other-${i}`, i))));
+		expect(await events.countDocuments()).toBe(3);
+
+		// The stale holder wakes up: its stale tail collides, it must not fork.
+		thaw();
+		await frozenWrite;
+		expect(await events.countDocuments()).toBe(4);
+		await expectIntactChain(db, 4);
+	}, 60000);
 });

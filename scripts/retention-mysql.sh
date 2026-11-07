@@ -49,8 +49,8 @@ TARGETS=(
 )
 
 # Prints the rows deleted by one batch. The session turns invisible indexes on:
-# the `timestamp` indexes are INVISIBLE (migration 0000), without it each batch
-# would scan the whole table.
+# the `timestamp` indexes were INVISIBLE until migration 007; kept so a database
+# not yet migrated (or rolled back) still purges by index, not by full scan.
 purge_batch() { # <table> <column> <days>
   mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -N -B "$MYSQL_DATABASE" -e \
     "SET SESSION optimizer_switch='use_invisible_indexes=on';

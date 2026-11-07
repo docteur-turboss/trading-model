@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ErrorCode, makeErrorCode } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import type {
 	PaginationResult,
 	QueryEnvelope,
@@ -77,12 +78,34 @@ const LEASE_ID = "head";
 const LEASE_TTL_MS = 10_000;
 const LEASE_WAIT_MS = 30_000;
 const LEASE_POLL_MS = 20;
+/** A holder hands the lease over after this long even with a non-empty queue. */
+const LEASE_MAX_HOLD_MS = 2000;
+/** Pause after a handover: longer than a waiter's poll (20-40 ms) so one wins. */
+const LEASE_YIELD_MS = 100;
+
+/** Events chained in one ordered insertMany. */
+const MAX_BATCH = 100;
 
 interface LeaseDocument {
 	_id: string;
 	owner: string;
 	expiresAt: Date;
 }
+
+interface PendingWrite {
+	event: AuditEventDocument;
+	resolve: () => void;
+	reject: (err: unknown) => void;
+	/** Sequence collisions this write already went through. */
+	collisions: number;
+	enqueuedAt: number;
+}
+
+interface ChainTail {
+	dataHash: string;
+	chainSequence: number;
+}
+
 /**
  * Stores the event exactly as computeAuditHash saw it: JSON.stringify skips
  * undefined fields, the driver would store them as null and the dataHash of
@@ -92,11 +115,33 @@ const STORE_AS_HASHED = { ignoreUndefined: true } as const;
 
 /** The unique index a duplicate-key error hit, if it is one. */
 function duplicateKeyOf(err: unknown): string | undefined {
-	const error = err as { code?: number; keyPattern?: Record<string, unknown> };
+	const error = err as {
+		code?: number;
+		keyPattern?: Record<string, unknown>;
+		errmsg?: string;
+	};
 	if (error?.code !== DUPLICATE_KEY) {
 		return;
 	}
-	return Object.keys(error.keyPattern ?? {})[0] ?? "";
+	if (error.keyPattern) {
+		return Object.keys(error.keyPattern)[0] ?? "";
+	}
+	// Bulk write errors carry the index name in the message, not keyPattern.
+	const msg = error.errmsg ?? "";
+	if (msg.includes(METADATA_FIELDS.messageId)) {
+		return METADATA_FIELDS.messageId;
+	}
+	return msg.includes("chainSequence") ? "chainSequence" : "";
+}
+
+/** The failing document of an ordered insertMany: its position and its error. */
+function bulkFailureOf(
+	err: unknown
+): { index: number; error: unknown } | undefined {
+	const writeErrors = (err as { writeErrors?: unknown })?.writeErrors;
+	const first = Array.isArray(writeErrors) ? writeErrors[0] : writeErrors;
+	const index = (first as { index?: unknown })?.index;
+	return typeof index === "number" ? { index, error: first } : undefined;
 }
 
 export class AuditRepository {
@@ -104,8 +149,11 @@ export class AuditRepository {
 	private readonly _lease: Collection<LeaseDocument>;
 	private readonly _querier: AuditQuerier;
 	private readonly _chain: MongoAuditChainReader;
-	/** Inserts of this instance run one at a time: each extends the chain tail. */
-	private _writes: Promise<unknown> = Promise.resolve();
+	/** Events of this instance waiting for the next batch. */
+	private _pending: PendingWrite[] = [];
+	private _draining = false;
+	/** Chain tail, trusted only while this instance holds the lease. */
+	private _tail: ChainTail | null = null;
 
 	constructor(db: Db) {
 		this._collection = db.collection<AuditEventDocument>(EVENTS_COLLECTION);
@@ -127,43 +175,124 @@ export class AuditRepository {
 	}
 
 	/**
-	 * Appends the event to the hash chain. Messages arrive concurrently, so the
-	 * inserts of this instance are queued; another replica can still take the
-	 * same sequence first (unique index), and the insert then retries on the new
-	 * tail. A message already recorded (redelivery, same messageId) is not
-	 * recorded twice.
+	 * Appends the event to the hash chain. Messages arrive concurrently and are
+	 * queued: one lease holder (ADR-0050, amended by ADR-0052) chains everything
+	 * queued in one insertMany. Another replica can still take the same sequence
+	 * first if the lease expired under a slow holder (unique index): the batch
+	 * then retries on the new tail. A message already recorded (redelivery, same
+	 * messageId) is not recorded twice.
 	 */
 	insert(event: AuditEventDocument): Promise<void> {
-		const write = this._writes.then(() => this._appendToChain(event));
-		// biome-ignore lint/plugin: the caller gets the rejection through `write`; the queue must go on
-		this._writes = write.catch(() => undefined);
-		return write;
+		return new Promise<void>((resolve, reject) => {
+			this._pending.push({
+				event,
+				resolve,
+				reject,
+				collisions: 0,
+				enqueuedAt: Date.now(),
+			});
+			if (!this._draining) {
+				this._draining = true;
+				void this._drain();
+			}
+		});
 	}
 
 	/**
-	 * Single writer on the chain head (ADR-0050): one replica at a time holds
-	 * the lease while it appends. Waits for it, bounded by LEASE_WAIT_MS.
+	 * Holds the lease while writes are queued, renews it before every batch and
+	 * releases it once the queue is empty.
 	 */
-	private async _withLease(work: () => Promise<void>): Promise<void> {
+	private async _drain(): Promise<void> {
 		const owner = randomUUID();
+		let held = false;
+		let heldSince = 0;
+		try {
+			while (this._pending.length > 0) {
+				if (held && Date.now() - heldSince > LEASE_MAX_HOLD_MS) {
+					// Fairness: let waiting replicas take a turn.
+					await this._release(owner);
+					held = false;
+					await new Promise((resolve) => setTimeout(resolve, LEASE_YIELD_MS));
+				}
+				if (!(held && (await this._renew(owner)))) {
+					this._tail = null;
+					if (!(await this._acquire(owner))) {
+						// Only what waited the whole LEASE_WAIT_MS fails; later arrivals keep waiting.
+						this._rejectWaited();
+						break;
+					}
+					held = true;
+					heldSince = Date.now();
+				}
+				await this._writeBatch(this._pending.splice(0, MAX_BATCH));
+			}
+		} catch (err) {
+			const failure = agentError("Failed to persist audit event", {
+				cause: err,
+			});
+			for (const item of this._pending.splice(0)) {
+				item.reject(failure);
+			}
+		} finally {
+			this._tail = null;
+			this._draining = false;
+			if (held) {
+				await this._release(owner);
+			}
+			if (this._pending.length > 0 && !this._draining) {
+				this._draining = true;
+				void this._drain();
+			}
+		}
+	}
+
+	/** An expired lease is simply taken over, so a failed release only delays others. */
+	private async _release(owner: string): Promise<void> {
+		try {
+			await this._lease.updateOne(
+				{ _id: LEASE_ID, owner },
+				{ $set: { expiresAt: new Date(0) } }
+			);
+		} catch (err) {
+			getLogger().warn("Audit chain lease not released", {
+				error: String(err),
+			});
+		}
+	}
+
+	private _rejectWaited(): void {
+		const err = agentError("Audit chain lease not acquired in time");
+		const now = Date.now();
+		this._pending = this._pending.filter((item) => {
+			const waited = now - item.enqueuedAt >= LEASE_WAIT_MS;
+			if (waited) {
+				item.reject(err);
+			}
+			return !waited;
+		});
+	}
+
+	/** Extends the lease if this owner still holds it (a takeover changes the owner). */
+	private async _renew(owner: string): Promise<boolean> {
+		const result = await this._lease.updateOne(
+			{ _id: LEASE_ID, owner, expiresAt: { $gt: new Date() } },
+			{ $set: { expiresAt: new Date(Date.now() + LEASE_TTL_MS) } }
+		);
+		return result.matchedCount > 0;
+	}
+
+	/** Waits for the lease; false once LEASE_WAIT_MS has passed. */
+	private async _acquire(owner: string): Promise<boolean> {
 		const deadline = Date.now() + LEASE_WAIT_MS;
 		while (!(await this._tryAcquire(owner))) {
 			if (Date.now() > deadline) {
-				throw agentError("Audit chain lease not acquired in time");
+				return false;
 			}
 			await new Promise((resolve) =>
 				setTimeout(resolve, LEASE_POLL_MS * (1 + Math.random()))
 			);
 		}
-		try {
-			await work();
-		} finally {
-			// An expired lease is simply taken over, so a failed release only delays others.
-			await this._lease.updateOne(
-				{ _id: LEASE_ID, owner },
-				{ $set: { expiresAt: new Date(0) } }
-			);
-		}
+		return true;
 	}
 
 	private async _tryAcquire(owner: string): Promise<boolean> {
@@ -186,39 +315,90 @@ export class AuditRepository {
 		}
 	}
 
-	private _appendToChain(event: AuditEventDocument): Promise<void> {
-		return this._withLease(() => this._appendUnderLease(event));
-	}
-
-	private async _appendUnderLease(event: AuditEventDocument): Promise<void> {
-		for (let attempt = 1; ; attempt++) {
+	/** Chains `writes` after the tail and stores them with ordered insertMany calls. */
+	private async _writeBatch(writes: PendingWrite[]): Promise<void> {
+		let remaining = writes;
+		while (remaining.length > 0) {
+			let tail: ChainTail;
 			try {
-				const tail = await this._chain.head();
-				event.previousHash = tail?.dataHash ?? "";
-				event.chainSequence = (tail?.chainSequence ?? 0) + 1;
-				event.dataHash = computeAuditHash(hashedContentOf(event));
-				await this._collection.insertOne(event, STORE_AS_HASHED);
-				EVENTS_STORED_TOTAL.inc({ status: "success" });
-				return;
+				tail = this._tail ??
+					(await this._chain.head()) ?? { dataHash: "", chainSequence: 0 };
 			} catch (err) {
-				const key = duplicateKeyOf(err);
-				if (key === METADATA_FIELDS.messageId) {
-					EVENTS_STORED_TOTAL.inc({ status: "duplicate" });
+				this._reject(remaining, err);
+				return;
+			}
+			const docs = remaining.map((item) => {
+				item.event.previousHash = tail.dataHash;
+				item.event.chainSequence = tail.chainSequence + 1;
+				item.event.dataHash = computeAuditHash(hashedContentOf(item.event));
+				tail = {
+					dataHash: item.event.dataHash,
+					chainSequence: item.event.chainSequence,
+				};
+				return item.event;
+			});
+			let stored = docs.length;
+			let failure: unknown;
+			try {
+				await this._collection.insertMany(docs, {
+					...STORE_AS_HASHED,
+					ordered: true,
+				});
+			} catch (err) {
+				const bulk = bulkFailureOf(err);
+				if (!bulk) {
+					this._reject(remaining, err);
 					return;
 				}
-				if (key === "chainSequence") {
-					const retry = attempt < MAX_CHAIN_ATTEMPTS;
-					CHAIN_COLLISIONS_TOTAL.inc({
-						outcome: retry ? "retried" : "exhausted",
-					});
-					if (retry) {
-						continue;
-					}
-				}
-				throw agentError("Failed to persist audit event", {
-					cause: err,
-				});
+				stored = bulk.index;
+				failure = bulk.error;
 			}
+			for (const item of remaining.slice(0, stored)) {
+				EVENTS_STORED_TOTAL.inc({ status: "success" });
+				item.resolve();
+			}
+			const last = docs[stored - 1];
+			if (last) {
+				this._tail = {
+					dataHash: last.dataHash,
+					chainSequence: last.chainSequence,
+				};
+			}
+			if (failure === undefined) {
+				return;
+			}
+			const key = duplicateKeyOf(failure);
+			if (key === METADATA_FIELDS.messageId) {
+				EVENTS_STORED_TOTAL.inc({ status: "duplicate" });
+				remaining[stored].resolve();
+				remaining = remaining.slice(stored + 1);
+				continue;
+			}
+			if (key === "chainSequence") {
+				// Another writer got in: the cached tail is stale and the lease may be
+				// lost. Back to the drain loop, which renews or re-acquires it.
+				this._tail = null;
+				const [first, ...rest] = remaining.slice(stored);
+				const retry = ++first.collisions < MAX_CHAIN_ATTEMPTS;
+				CHAIN_COLLISIONS_TOTAL.inc({
+					outcome: retry ? "retried" : "exhausted",
+				});
+				if (!retry) {
+					this._reject([first], failure);
+				}
+				this._pending.unshift(...(retry ? [first, ...rest] : rest));
+				return;
+			}
+			this._reject(remaining.slice(stored), failure);
+			return;
+		}
+	}
+
+	private _reject(writes: PendingWrite[], cause: unknown): void {
+		this._tail = null;
+		const err = agentError("Failed to persist audit event", { cause });
+		for (const item of writes) {
+			item.reject(err);
 		}
 	}
 

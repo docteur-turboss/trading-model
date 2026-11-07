@@ -183,9 +183,9 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		migrate("down", "1");
+		migrate("down", "2");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -1)
+			MIGRATION_IDS.slice(0, -2)
 		);
 		await expect(tables()).resolves.toEqual(
 			ALL_TABLES.filter((table) => table !== "signals")
@@ -555,4 +555,29 @@ describe("signals — real MySQL", () => {
 			MySqlSignalStore.save([signal({ sector: "crypto" })])
 		).rejects.toThrow(/chk_signals_one_subject/);
 	});
+});
+
+describe("timestamp queries — real MySQL (issue #555)", () => {
+	const CASES = [
+		["market_candles", "idx_candles_timestamp"],
+		["market_trades", "idx_trades_timestamp"],
+		["market_tickers", "idx_tickers_timestamp"],
+	] as const;
+
+	it.each(
+		CASES.flatMap(([table, index]) =>
+			(["=", ">", "<"] as const).map((op) => [table, index, op] as const)
+		)
+	)(
+		"should read %s through %s for timestamp %s ?, not a full scan",
+		async (table, index, op) => {
+			const [plan] = await DATABASE.promise().query(
+				`EXPLAIN SELECT * FROM \`${table}\` WHERE \`timestamp\` ${op} ?`,
+				[new Date(T0)]
+			);
+			const [row] = plan as { type: string; key: string | null }[];
+			expect(row.type).not.toBe("ALL");
+			expect(row.key).toBe(index);
+		}
+	);
 });
