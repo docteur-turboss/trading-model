@@ -35,21 +35,20 @@ jest.mock("../../src/config/redis-queue", () => ({
 	},
 }));
 
-jest.mock("../../src/adapters/outbound/claim-manager", () => ({
-	dlqClaimManager: {
-		claimEntriesByIds: MOCK_CLAIM_ENTRIES_BY_IDS,
-	},
-	claimReleaseManager: {
-		releaseStaleClaims: MOCK_RELEASE_STALE,
-	},
-}));
-
 jest.mock("../../src/shared/shutdown-flag", () => ({
 	isShuttingDown: MOCK_IS_SHUTTING_DOWN,
 }));
 
-jest.mock("../../src/adapters/outbound/message-manager-resolver", () => ({
+jest.mock("../../src/config/dlq-adapters", () => ({
+	claimReleaseManager: { releaseStaleClaims: MOCK_RELEASE_STALE },
 	resolveMessageManagerUrl: MOCK_RESOLVE_MM_URL,
+	queuePopService: (
+		jest.requireActual(
+			"../../src/adapters/outbound/redis-queue-pop-service"
+		) as {
+			queuePopService: unknown;
+		}
+	).queuePopService,
 }));
 
 jest.mock("../../src/config/container", () => {
@@ -79,7 +78,7 @@ describe("redis-queue-processor", () => {
 
 	it("should start and stop redis worker loop", () => {
 		const { startRedisWorkerLoop, stopRedisWorkerTimer } = jest.requireActual(
-			"../../src/adapters/inbound/redis-queue-processor"
+			"../../src/application/use-cases/redis-queue-processor"
 		) as {
 			startRedisWorkerLoop: () => void;
 			stopRedisWorkerTimer: () => void;
@@ -93,7 +92,7 @@ describe("redis-queue-processor", () => {
 		MOCK_IS_SHUTTING_DOWN.mockReturnValue(true);
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/adapters/inbound/redis-queue-processor"
+			"../../src/application/use-cases/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
@@ -105,7 +104,7 @@ describe("redis-queue-processor", () => {
 		MOCK_IS_AVAILABLE.mockReturnValue(false);
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/adapters/inbound/redis-queue-processor"
+			"../../src/application/use-cases/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
@@ -117,7 +116,7 @@ describe("redis-queue-processor", () => {
 		MOCK_RESOLVE_MM_URL.mockResolvedValue(null);
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/adapters/inbound/redis-queue-processor"
+			"../../src/application/use-cases/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
@@ -129,7 +128,7 @@ describe("redis-queue-processor", () => {
 		MOCK_POP.mockResolvedValue(null);
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/adapters/inbound/redis-queue-processor"
+			"../../src/application/use-cases/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
@@ -148,7 +147,7 @@ describe("redis-queue-processor", () => {
 		MOCK_DO_REPLAY_BATCH.mockResolvedValue({ success: 1, errors: [] });
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/adapters/inbound/redis-queue-processor"
+			"../../src/application/use-cases/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
@@ -171,7 +170,7 @@ describe("redis-queue-processor", () => {
 		});
 
 		const { processRedisQueue } = jest.requireActual(
-			"../../src/adapters/inbound/redis-queue-processor"
+			"../../src/application/use-cases/redis-queue-processor"
 		) as { processRedisQueue: () => Promise<void> };
 
 		await processRedisQueue();
