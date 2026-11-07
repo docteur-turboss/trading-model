@@ -66,6 +66,7 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 ## Caching
 
 - In-memory GET response cache (status 200 only)
+- Upstream answers capped at `PROXY_MAX_RESPONSE_BYTES`: larger ones are cut and answered 502 (ADR-0054)
 - Default TTL: 30s (configurable via `CACHE_TTL_MS`)
 
 ## Architecture
@@ -92,3 +93,4 @@ Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-lim
 | `AUTH_STRICT`           | `true`                          | `false` accepts any key when `AUTH_TOKENS` is empty; refused in production |
 | `AUTH_TOKENS`           | `''`                            | Comma-separated valid tokens; required in production (the gateway refuses to start) |
 | `PROXY_TIMEOUT_MS`      | `10000`                         | Proxy request timeout (ms)   |
+| `PROXY_MAX_RESPONSE_BYTES` | `8388608` (8 MiB)          | Largest upstream answer; past it 502 `Upstream response too large` (ADR-0054) |

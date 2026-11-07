@@ -4,53 +4,86 @@ import { sendResponse } from "@trading-model/http/adapters/inbound/response-exce
 import { toJsonWire } from "@trading-model/http/infrastructure/json-wire";
 import { Router } from "express";
 import { SIGNAL_REGISTRY } from "../../../config/signal-registry";
+import type { MarketDataPage } from "../../../domain/market-data.types";
 import { selectCandlesBy } from "../../outbound/persistence/schema/candles-schema";
 import { selectTickerBy } from "../../outbound/persistence/schema/ticker24h.schema";
 import { selectTradesBy } from "../../outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../../outbound/persistence/signal-store";
-import { MAX_SIGNALS_PER_ANSWER, SCRAPER_API } from "./api-routes";
+import {
+	encodeCursor,
+	MAX_SIGNALS_PER_ANSWER,
+	SCRAPER_API,
+} from "./api-routes";
 
 /**
  * 200 with the rows as JSON. `toJsonWire` sends BIGINT trade ids as decimal
  * strings (plain JSON.stringify throws on a bigint).
  */
-async function rows(query: Promise<unknown>) {
-	return sendResponse(JSON.stringify(await query, toJsonWire), HTTP_STATUS.OK);
+function json(body: unknown) {
+	return sendResponse(JSON.stringify(body, toJsonWire), HTTP_STATUS.OK);
+}
+
+type PageQuery = (page: MarketDataPage) => Promise<PageRow[]>;
+interface PageRow {
+	id: number;
+	timestamp: Date;
+}
+
+/**
+ * One keyset page (ADR-0054): reads one row more than `limit` to tell whether
+ * any are left, and drops the internal `id` from the rows.
+ */
+async function page(select: PageQuery, { limit, ...window }: MarketDataPage) {
+	const found = await select({ ...window, limit: limit + 1 });
+	const rows = found.slice(0, limit);
+	const last = rows[rows.length - 1];
+	const nextCursor =
+		found.length > limit && last
+			? encodeCursor({ timestamp: last.timestamp.getTime(), id: last.id })
+			: null;
+	return json({
+		rows: rows.map(({ id: _id, ...row }) => row),
+		nextCursor,
+		truncated: nextCursor !== null,
+	});
 }
 
 function _registerTradeRoutes(router: Router): void {
-	mountRoute(router, SCRAPER_API.tradesBySource, ({ params }) =>
-		rows(selectTradesBy.source(params.source))
+	mountRoute(router, SCRAPER_API.tradesBySource, ({ params, query }) =>
+		page((window) => selectTradesBy.source(params.source, window), query)
 	);
-	mountRoute(router, SCRAPER_API.tradesBySymbol, ({ params }) =>
-		rows(selectTradesBy.symbol(params.symbol))
+	mountRoute(router, SCRAPER_API.tradesBySymbol, ({ params, query }) =>
+		page((window) => selectTradesBy.symbol(params.symbol, window), query)
 	);
-	mountRoute(router, SCRAPER_API.tradesAt, ({ params }) =>
-		rows(selectTradesBy.timestamp(params.timestamp))
+	mountRoute(router, SCRAPER_API.tradesAt, ({ params, query }) =>
+		page((window) => selectTradesBy.timestamp(params.timestamp, window), query)
 	);
 }
 
 function _registerTickerRoutes(router: Router): void {
-	mountRoute(router, SCRAPER_API.tickersBySource, ({ params }) =>
-		rows(selectTickerBy.source(params.source))
+	mountRoute(router, SCRAPER_API.tickersBySource, ({ params, query }) =>
+		page((window) => selectTickerBy.source(params.source, window), query)
 	);
-	mountRoute(router, SCRAPER_API.tickersBySymbol, ({ params }) =>
-		rows(selectTickerBy.symbol(params.symbol))
+	mountRoute(router, SCRAPER_API.tickersBySymbol, ({ params, query }) =>
+		page((window) => selectTickerBy.symbol(params.symbol, window), query)
 	);
-	mountRoute(router, SCRAPER_API.tickersAt, ({ params }) =>
-		rows(selectTickerBy.timestamp(params.timestamp))
+	mountRoute(router, SCRAPER_API.tickersAt, ({ params, query }) =>
+		page((window) => selectTickerBy.timestamp(params.timestamp, window), query)
 	);
 }
 
 function _registerCandleRoutes(router: Router): void {
-	mountRoute(router, SCRAPER_API.candlesBySource, ({ params }) =>
-		rows(selectCandlesBy.source(params.source))
+	mountRoute(router, SCRAPER_API.candlesBySource, ({ params, query }) =>
+		page((window) => selectCandlesBy.source(params.source, window), query)
 	);
-	mountRoute(router, SCRAPER_API.candlesBySymbol, ({ params }) =>
-		rows(selectCandlesBy.symbol(params.symbol))
+	mountRoute(router, SCRAPER_API.candlesBySymbol, ({ params, query }) =>
+		page((window) => selectCandlesBy.symbol(params.symbol, window), query)
 	);
-	mountRoute(router, SCRAPER_API.candlesSince, ({ params }) =>
-		rows(selectCandlesBy.timestamp.after(params.timestamp))
+	mountRoute(router, SCRAPER_API.candlesSince, ({ params, query }) =>
+		page(
+			(window) => selectCandlesBy.timestamp.after(params.timestamp, window),
+			query
+		)
 	);
 }
 

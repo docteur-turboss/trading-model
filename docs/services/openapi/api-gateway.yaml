@@ -941,55 +941,101 @@ paths:
               - "bloomberg"
               - "binance"
               - "nyse"
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    interval:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    close:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    trades:
-                      type: "integer"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "interval"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "close"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        interval:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        close:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        trades:
+                          type: "integer"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "interval"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "close"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -1014,55 +1060,101 @@ paths:
           schema:
             type: "string"
             minLength: 1
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    interval:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    close:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    trades:
-                      type: "integer"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "interval"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "close"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        interval:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        close:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        trades:
+                          type: "integer"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "interval"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "close"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -1091,55 +1183,101 @@ paths:
               - type: "string"
                 format: "date"
                 pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    interval:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    close:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    trades:
-                      type: "integer"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "interval"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "close"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        interval:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        close:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        trades:
+                          type: "integer"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "interval"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "close"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -1918,50 +2056,96 @@ paths:
               - "bloomberg"
               - "binance"
               - "nyse"
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    last:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "last"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        last:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "last"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -1986,50 +2170,96 @@ paths:
           schema:
             type: "string"
             minLength: 1
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    last:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "last"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        last:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "last"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -2058,50 +2288,96 @@ paths:
               - type: "string"
                 format: "date"
                 pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    last:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "last"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        last:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "last"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -2129,44 +2405,90 @@ paths:
               - "bloomberg"
               - "binance"
               - "nyse"
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    side:
-                      type: "string"
-                    price:
-                      type: "number"
-                    quantity:
-                      type: "number"
-                    tradeId:
-                      type: "string"
-                      pattern: "^\\d+$"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "side"
-                    - "price"
-                    - "quantity"
-                    - "tradeId"
-                    - "timestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        side:
+                          type: "string"
+                        price:
+                          type: "number"
+                        quantity:
+                          type: "number"
+                        tradeId:
+                          type: "string"
+                          pattern: "^\\d+$"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "side"
+                        - "price"
+                        - "quantity"
+                        - "tradeId"
+                        - "timestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -2191,44 +2513,90 @@ paths:
           schema:
             type: "string"
             minLength: 1
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    side:
-                      type: "string"
-                    price:
-                      type: "number"
-                    quantity:
-                      type: "number"
-                    tradeId:
-                      type: "string"
-                      pattern: "^\\d+$"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "side"
-                    - "price"
-                    - "quantity"
-                    - "tradeId"
-                    - "timestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        side:
+                          type: "string"
+                        price:
+                          type: "number"
+                        quantity:
+                          type: "number"
+                        tradeId:
+                          type: "string"
+                          pattern: "^\\d+$"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "side"
+                        - "price"
+                        - "quantity"
+                        - "tradeId"
+                        - "timestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -2257,44 +2625,90 @@ paths:
               - type: "string"
                 format: "date"
                 pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    side:
-                      type: "string"
-                    price:
-                      type: "number"
-                    quantity:
-                      type: "number"
-                    tradeId:
-                      type: "string"
-                      pattern: "^\\d+$"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "side"
-                    - "price"
-                    - "quantity"
-                    - "tradeId"
-                    - "timestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        side:
+                          type: "string"
+                        price:
+                          type: "number"
+                        quantity:
+                          type: "number"
+                        tradeId:
+                          type: "string"
+                          pattern: "^\\d+$"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "side"
+                        - "price"
+                        - "quantity"
+                        - "tradeId"
+                        - "timestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:

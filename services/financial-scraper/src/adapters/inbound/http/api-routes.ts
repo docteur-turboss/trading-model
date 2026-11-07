@@ -10,6 +10,7 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
+import type { MarketDataPage } from "../../../domain/market-data.types";
 import { Asset, AssetId, Signal } from "../../../domain/signals";
 
 /**
@@ -35,6 +36,59 @@ const ISO_DATE_MS = z
 const AT_DATE = z.object({
 	timestamp: ISO_DATE_MS.transform(brand(UnixTimestamp.of)),
 });
+
+/** Rows of a market data page by default and at most (ADR-0054). */
+export const DEFAULT_PAGE_LIMIT = 500;
+export const MAX_PAGE_LIMIT = 5000;
+
+const LIMIT = z.coerce
+	.number()
+	.int()
+	.min(1)
+	.max(MAX_PAGE_LIMIT)
+	.default(DEFAULT_PAGE_LIMIT);
+
+/** Key of the row a page ends on: (`timestamp` in epoch ms, `id`). */
+export type PageKey = NonNullable<MarketDataPage["after"]>;
+
+/** Opaque to clients: base64url of `<timestamp ms>.<id>`. */
+export function encodeCursor(key: PageKey): string {
+	return Buffer.from(`${key.timestamp}.${key.id}`).toString("base64url");
+}
+
+/** The key of a cursor `encodeCursor` made, or undefined for anything else. */
+export function decodeCursor(cursor: string): PageKey | undefined {
+	const match = /^(\d{1,15})\.(\d{1,15})$/.exec(
+		Buffer.from(cursor, "base64url").toString()
+	);
+	return match
+		? { timestamp: Number(match[1]), id: Number(match[2]) }
+		: undefined;
+}
+
+const CURSOR = z.string().transform((cursor, ctx) => {
+	const key = decodeCursor(cursor);
+	if (!key) {
+		ctx.addIssue({ code: "custom", message: "Invalid cursor" });
+		return z.NEVER;
+	}
+	return key;
+});
+
+/** Trades, tickers, candles: keyset pages, optionally within [from, to). */
+const PAGE_QUERY = z
+	.object({
+		limit: LIMIT,
+		/** `nextCursor` of the previous page. */
+		after: CURSOR.optional(),
+		from: ISO_DATE_MS.optional(),
+		to: ISO_DATE_MS.optional(),
+	})
+	.refine(
+		(page) =>
+			page.from === undefined || page.to === undefined || page.from < page.to,
+		{ message: "from must be before to", path: ["to"] }
+	);
 
 /** Most signals one answer holds; past it the answer says `truncated`. */
 export const MAX_SIGNALS_PER_ANSWER = 5000;
@@ -93,7 +147,18 @@ function query<
 		path,
 		summary,
 		params,
-		responses: { 200: z.array(item), 400: ErrorResponse },
+		query: PAGE_QUERY,
+		responses: {
+			200: z.object({
+				/** Oldest first, then by insertion order. */
+				rows: z.array(item),
+				/** Pass as `after` for the next page; null on the last page. */
+				nextCursor: z.string().nullable(),
+				/** Rows are left past this page: `nextCursor !== null`. */
+				truncated: z.boolean(),
+			}),
+			400: ErrorResponse,
+		},
 	});
 }
 

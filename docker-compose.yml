@@ -420,6 +420,7 @@ services:
       # Required: in production the gateway refuses to start without API keys.
       AUTH_TOKENS: ${GATEWAY_AUTH_TOKENS:-}
       PROXY_TIMEOUT_MS: '10000'
+      PROXY_MAX_RESPONSE_BYTES: '8388608'
     volumes:
       - svid-gateway:/run/spire/svid
     networks:
