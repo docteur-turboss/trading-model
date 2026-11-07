@@ -15,9 +15,9 @@ const inst = (version: string, port: number) => ({
 	version,
 });
 
-/** Registry knows the legacy alias only, with two major versions. */
+/** Legacy alias only; the wanted major version is NOT first (the old "first instance" path fails). */
 const REGISTRY: Record<string, unknown[]> = {
-	"financial-scraper-service": [inst("2.0.0", 3002), inst("1.4.0", 3001)],
+	"financial-scraper-service": [inst("1.4.0", 3001), inst("2.0.0", 3002)],
 };
 
 describe("one resolution strategy (ADR-0044)", () => {
@@ -52,7 +52,8 @@ describe("one resolution strategy (ADR-0044)", () => {
 		);
 
 		const viaAddressManager = await serviceResolver.findService(
-			"financial-scraper" as any
+			"financial-scraper" as any,
+			2
 		);
 		const viaGateway = await gateway.resolve("financial-scraper" as any, 2);
 

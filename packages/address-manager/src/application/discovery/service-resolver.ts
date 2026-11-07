@@ -52,8 +52,12 @@ export class ServiceResolver {
 		return this._deps.config.discoveryTimeoutMs;
 	}
 
-	async findService(serviceName: ServiceId): Promise<ServiceInstance> {
-		const found = await this._findInstance(serviceName);
+	/** `majorVersion` omitted: any live instance (services pass none, the gateway the route's). */
+	async findService(
+		serviceName: ServiceId,
+		majorVersion?: number
+	): Promise<ServiceInstance> {
+		const found = await this._findInstance(serviceName, majorVersion);
 		const instance = this._addressed(found);
 		await this._validateAndCache(instance, serviceName);
 		return instance;
@@ -72,19 +76,22 @@ export class ServiceResolver {
 	}
 
 	private async _findInstance(
-		serviceName: ServiceId
+		serviceName: ServiceId,
+		majorVersion?: number
 	): Promise<ServiceInstance> {
 		let instance: ServiceInstance | undefined;
 		try {
-			instance = (await this._endpoints.findInstance(serviceName)) as
-				| ServiceInstance
-				| undefined;
+			instance = (await this._endpoints.findInstance(
+				serviceName,
+				majorVersion
+			)) as ServiceInstance | undefined;
 		} catch (error) {
 			throw serviceNotFoundError(`Service "${serviceName}" not found`, {
 				cause: normalizeError(error),
 			});
 		}
-		if (!instance) {
+		// discovery-server never registers: findInstance answers a host-less stub for it.
+		if (!instance?.port) {
 			throw serviceNotFoundError(
 				`Service "${serviceName}" has no registered instances`
 			);
