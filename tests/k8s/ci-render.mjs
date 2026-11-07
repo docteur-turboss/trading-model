@@ -42,6 +42,7 @@ stringData:
   MYSQL_ROOT_PASSWORD: dev-mysql-root
   MYSQL_PASSWORD: dev-mysql
   MYSQL_MIGRATE_PASSWORD: dev-mysql-migrate
+  MYSQL_RETENTION_PASSWORD: dev-mysql-retention
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
   GRAFANA_PASSWORD: dev-grafana
   HMAC_SECRET: dev-hmac

@@ -183,6 +183,20 @@ No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), accepted 
 
 ---
 
+## MySQL retention job (ADR-0051)
+
+Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host cron). Not a service setting: set in `deploy/k8s/jobs/retention-cronjob.yaml` (K8s) or the shell that runs the script (compose).
+
+| Variable                  | Type   | Default                | Required | Description | Services |
+| ------------------------- | ------ | ---------------------- | -------- | ----------- | -------- |
+| `RETENTION_DAYS`          | number (≥1) | `1827` (5 years)  | no       | Age after which `market_candles`, `market_trades` and `market_tickers` rows (column `timestamp`) are deleted | retention job |
+| `RETENTION_SIGNALS_DAYS`  | number (≥1) | `RETENTION_DAYS`  | no       | Same for `signals` (column `observed_at`) | retention job |
+| `RETENTION_BATCH_SIZE`    | number (≥1) | `10000`           | no       | Rows per `DELETE ... LIMIT` | retention job |
+| `RETENTION_PAUSE_SECONDS` | number (≥0) | `1`               | no       | Pause between two batches | retention job |
+| `MYSQL_RETENTION_PASSWORD` | string | —                      | **yes** in K8s | Password of MySQL user `retention` (SELECT, DELETE on the four tables). Key of Secret `trading-model-secrets`, read by `db-migrate-user` and `db-retention` | retention job |
+
+---
+
 ## Audit Logger — Audit chain (ADR-0027)
 
 | Variable                  | Type    | Default          | Required | Description | Services |

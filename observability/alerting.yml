@@ -288,6 +288,27 @@ groups:
           description: 'The backup-data PVC (100Gi) is filling up: dumps grow with the market data. Check the retention (RETENTION_DAYS) or grow the volume before a night of backups fails.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
+      # Retention job (ADR-0051): daily at 03:30 UTC, so 36 h = one missed run.
+      - alert: RetentionFailed
+        expr: 'retention_last_status == 0'
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'MySQL retention job failed'
+          description: 'The last db-retention run failed on at least one table: market data and signals older than the retention period are not being purged.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
+
+      - alert: RetentionStale
+        expr: 'time() - retention_last_success_timestamp > 129600'
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'MySQL retention job has not succeeded for 36 hours'
+          description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
+
       # ── Audit trail integrity (ADR-0027) ──────────────────────────
 
       - alert: AuditChainBroken

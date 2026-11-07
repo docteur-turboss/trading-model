@@ -58,6 +58,8 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `DeadLettersNotForwarded` | dead letters have waited 15 min in a message-manager pod's local file (`mm_dlq_fallback_pending`): dlq-service cannot take them; lost if the pod is deleted | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DeadLettersRejected` | dlq-service refused dead letters for good (400, 413): they are in `DLQ_LOCAL_FALLBACK_PATH.rejected` | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `MessagesLost` | dlq-service could not take dead letters and the local file could not be written either: they are gone | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
+| `RetentionFailed` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
+| `RetentionStale` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
 | `AuditChainBroken` | audit-logger's verification found the audit chain broken: event changed, missing or removed, or a chain that no longer matches its anchors (ADR-0027) | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
 | `AuditChainVerificationStale` / `AuditChainAnchoringStale` | no verification, or no anchor written, for 45 min | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
 | `AuditChainNotAnchored` (warning) | no anchor store configured (`AUDIT_ANCHOR_BUCKET`): expected in compose and staging | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
