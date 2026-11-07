@@ -53,6 +53,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md) | Message Delivery Once per Subscribed Service (Consumer Group) | Accepted | 2026-11 |
 | [ADR-0044](./0044-singleton-trainer.md) | trader-trainer Runs as a Singleton | Accepted | 2026-11 |
 | [ADR-0045](./0045-single-service-resolution-strategy.md) | One Service Resolution Strategy: Registry Says Alive, Platform Says Where | Accepted | 2026-11 |
+| [ADR-0046](./0046-simplification-trajectory.md) | Simplification Trajectory for the Services, Broker, Discovery and DLQ | Proposed | 2026-11 |
 | [ADR-0049](./0049-downstream-context-for-models-and-signals.md) | Downstream Context and Contract for Trained Models and Collected Signals | Proposed | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
