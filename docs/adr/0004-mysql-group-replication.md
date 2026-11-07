@@ -50,5 +50,6 @@ Each data type has a dedicated table with composite primary keys:
 ### Mitigations
 
 - `INVISIBLE` indexes on timestamp avoid optimizer confusion while enabling historical queries
+- *Amendment 2026-11-07 (#555):* this left every `timestamp` query scanning the whole table (primary keys start with `symbol`). Migration `007_make_timestamp_indexes_visible` makes the three indexes visible.
 - Binance rate limiting (token bucket) prevents API bans
 - Exponential backoff (5 retries, 300ms–10s) handles transient failures
