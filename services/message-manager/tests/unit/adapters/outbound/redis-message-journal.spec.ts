@@ -73,14 +73,21 @@ describe("RedisMessageJournal", () => {
 	});
 
 	it("should refuse a message held by fewer replicas than required", async () => {
-		const { journal } = setup(
-			async (command) => (command === "WAIT" ? 0 : "OK"),
+		const { journal, redis } = setup(
+			async (command) =>
+				command === "WAIT" ? 0 : command === "XADD" ? "9-0" : "OK",
 			1
 		);
 
 		await expect(
 			journal.append(createMockMessage("payload"), ["trader-trainer"])
 		).rejects.toThrow("held by 0 of 1 replicas");
+		// The entry is removed so the publisher's retry cannot be delivered twice.
+		expect(redis.call).toHaveBeenCalledWith(
+			"XDEL",
+			"p:journal:test.topic",
+			"9-0"
+		);
 	});
 
 	it("should accept a message held by enough replicas", async () => {
@@ -168,14 +175,20 @@ describe("RedisMessageJournal", () => {
 		);
 	});
 
-	it("should skip an entry trimmed from the stream while still pending", async () => {
-		const { journal } = setup(async (command) =>
+	it("should skip and acknowledge an entry trimmed from the stream while still pending", async () => {
+		const { journal, redis } = setup(async (command) =>
 			command === "XPENDING" ? [["1-0", "c", 20_000, 1]] : [["1-0", null]]
 		);
 
 		await expect(
 			journal.claimDue(GROUP, "c", { floorMs: 0, dueAfterMs: () => 0 }, 10)
 		).resolves.toEqual([]);
+		expect(redis.call).toHaveBeenCalledWith(
+			"XACK",
+			"p:journal:test.topic",
+			"trader-trainer",
+			"1-0"
+		);
 	});
 
 	it("should acknowledge an entry in its group", async () => {

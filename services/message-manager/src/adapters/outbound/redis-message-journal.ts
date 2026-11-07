@@ -51,7 +51,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		for (const service of services) {
 			await this.register({ topic, service });
 		}
-		await this._deps.redis.call(
+		const entryId = (await this._deps.redis.call(
 			"XADD",
 			this._stream(topic),
 			"MINID",
@@ -60,7 +60,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 			"*",
 			FIELD,
 			JSON.stringify(message)
-		);
+		)) as string;
 		const required = this._deps.minReplicas ?? 0;
 		if (required > 0) {
 			const replicated = await this._deps.redis.call(
@@ -69,6 +69,8 @@ export class RedisMessageJournal implements MessageJournalPort {
 				String(WAIT_REPLICAS_TIMEOUT_MS)
 			);
 			if (Number(replicated) < required) {
+				// The publisher will send again under a new messageId: drop this entry so it is not delivered twice.
+				await this._deps.redis.call("XDEL", this._stream(topic), entryId);
 				throw messageManagerError(
 					`Message not accepted: journal write held by ${replicated} of ${required} replicas`
 				);
@@ -104,7 +106,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 			">"
 		)) as [stream: string, entries: StreamReply] | null;
 		// ioredis `call` hands one stream back as [name, entries], not [[name, entries]].
-		return parseEntries(reply?.[1] ?? null, () => 1);
+		return this._parse(group, reply?.[1] ?? null, () => 1);
 	}
 
 	async claimDue(
@@ -139,7 +141,9 @@ export class RedisMessageJournal implements MessageJournalPort {
 				String(due),
 				id
 			)) as StreamReply;
-			entries.push(...parseEntries(claimed, () => deliveries + 1));
+			entries.push(
+				...(await this._parse(group, claimed, () => deliveries + 1))
+			);
 		}
 		return entries;
 	}
@@ -151,6 +155,28 @@ export class RedisMessageJournal implements MessageJournalPort {
 			group.service,
 			id
 		);
+	}
+
+	/** Parses entries; acks trimmed ones (no body) so they leave the pending list on any Redis version. */
+	private async _parse(
+		group: JournalGroup,
+		reply: StreamReply,
+		deliveries: () => number
+	): Promise<JournalEntry[]> {
+		const entries: JournalEntry[] = [];
+		for (const [id, fields] of reply ?? []) {
+			const at = fields?.indexOf(FIELD) ?? -1;
+			if (fields && at >= 0) {
+				entries.push({
+					id,
+					message: JSON.parse(fields[at + 1] as string) as Message,
+					deliveries: deliveries(),
+				});
+			} else {
+				await this.ack(group, id);
+			}
+		}
+		return entries;
 	}
 
 	private async _ensureGroup(group: JournalGroup): Promise<void> {
@@ -178,23 +204,4 @@ export class RedisMessageJournal implements MessageJournalPort {
 	private _groupsKey(): string {
 		return `${this._deps.keyPrefix}:journal-groups`;
 	}
-}
-
-function parseEntries(
-	reply: StreamReply,
-	deliveries: () => number
-): JournalEntry[] {
-	const entries: JournalEntry[] = [];
-	for (const [id, fields] of reply ?? []) {
-		// A trimmed entry stays in the pending list with no body: nothing to deliver.
-		const at = fields?.indexOf(FIELD) ?? -1;
-		if (fields && at >= 0) {
-			entries.push({
-				id,
-				message: JSON.parse(fields[at + 1] as string) as Message,
-				deliveries: deliveries(),
-			});
-		}
-	}
-	return entries;
 }

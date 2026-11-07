@@ -40,6 +40,8 @@ function replica(): Redis {
 const journalOn = (redis: Redis, minReplicas = 0) =>
 	new RedisMessageJournal({ redis, keyPrefix: KEY_PREFIX, minReplicas });
 
+const stream = () => `${KEY_PREFIX}:journal:${mockSubscribeParams.topic}`;
+
 const GROUP = {
 	topic: mockSubscribeParams.topic,
 	service: mockSubscribeParams.serviceIdentity.serviceName,
@@ -137,6 +139,23 @@ describe("RedisMessageJournal — real Redis", () => {
 		await expect(
 			journalOn(replica(), 1).append(createMockMessage("m1"), [GROUP.service])
 		).rejects.toThrow("held by 0 of 1 replicas");
+		// The refused entry is removed: the publisher's retry must not be delivered twice.
+		expect(await replica().xlen(stream())).toBe(0);
+	});
+
+	it("should drop a pending entry trimmed from the stream, whatever the Redis version", async () => {
+		const journal = journalOn(replica());
+		await journal.append(createMockMessage("m1"), [GROUP.service]);
+		await journal.readNew(GROUP, "c1", 10);
+		await replica().xtrim(stream(), "MAXLEN", 0);
+
+		const claimed = await journal.claimDue(GROUP, "c2", RETRY_NOW, 10);
+
+		expect(claimed).toEqual([]);
+		const pending = (await replica().xpending(stream(), GROUP.service)) as [
+			number,
+		];
+		expect(pending[0]).toBe(0);
 	});
 });
 
