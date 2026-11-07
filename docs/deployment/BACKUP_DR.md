@@ -512,9 +512,9 @@ checks them: `backup-tools` has no `aws` CLI, so every run only logs
 
 ## Retention job
 
-ADR-0051. Market data (`market_candles`, `market_trades`, `market_tickers`) and `signals` older than `RETENTION_DAYS` (default 1827, 5 years; `RETENTION_SIGNALS_DAYS` for `signals`) are deleted by `scripts/retention-mysql.sh`, in `DELETE ... LIMIT RETENTION_BATCH_SIZE` batches with a pause between them. A rerun deletes only what is still too old. Variables: [ENV.md](ENV.md#mysql-retention-job-adr-0051).
+ADR-0051. Market data (`market_candles`, `market_trades`, `market_tickers`, `market_order_books`) and `signals` older than `RETENTION_DAYS` (default 1827, 5 years; `RETENTION_SIGNALS_DAYS` for `signals`) are deleted by `scripts/retention-mysql.sh`, in `DELETE ... LIMIT RETENTION_BATCH_SIZE` batches with a pause between them. A rerun deletes only what is still too old. Variables: [ENV.md](ENV.md#mysql-retention-job-adr-0051).
 
-**Kubernetes.** CronJob `db-retention` (`deploy/k8s/jobs/retention-cronjob.yaml`), daily 03:30 UTC, image `backup-tools`, script from the `backup-scripts` ConfigMap. It connects as MySQL user `retention` (SELECT, DELETE on the four tables only), created and granted per table by `db-migrate-user` from `MYSQL_RETENTION_PASSWORD` in `trading-model-secrets`. `run-migrations.sh` runs that Job again after the migrations, so the grants exist on a new database.
+**Kubernetes.** CronJob `db-retention` (`deploy/k8s/jobs/retention-cronjob.yaml`), daily 03:30 UTC, image `backup-tools`, script from the `backup-scripts` ConfigMap. It connects as MySQL user `retention` (SELECT, DELETE on the five tables only), created and granted per table by `db-migrate-user` from `MYSQL_RETENTION_PASSWORD` in `trading-model-secrets`. `run-migrations.sh` runs that Job again after the migrations, so the grants exist on a new database.
 
 - **Before the first production deploy (manual):** add `MYSQL_RETENTION_PASSWORD` to `deploy/k8s/secrets/trading-model-sealed-secrets.yaml` with every other key (see [sealed-secrets.md](sealed-secrets.md)). Without it the `retention` user is not created and `db-retention` fails (`RetentionFailed` / `RetentionStale`).
 - Change the period: edit `RETENTION_DAYS` in the CronJob and deploy. Lowering it deletes the surplus at the next run: check the backups first (the GFS dumps keep 5 years, [Retention](#retention)).

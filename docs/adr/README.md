@@ -60,6 +60,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0050](./0050-audit-chain-single-writer-lease.md) | One Writer at a Time on the Audit Chain Head (Lease) | Accepted | 2026-11 |
 | [ADR-0051](./0051-mysql-retention-cronjob.md) | MySQL Retention Job for Market Data and Signals (CronJob, `retention` User) | Accepted | 2026-11 |
 | [ADR-0052](./0052-audit-chain-amortized-lease-batched-writes.md) | Amortized Audit Chain Lease and Batched Writes | Accepted | 2026-11 |
+| [ADR-0053](./0053-order-books-persisted-not-served.md) | Order Books Persisted in MySQL for Replay, Not Served by the API | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 
