@@ -1,4 +1,4 @@
-import { agentError } from "@trading-model/common/utils/errors";
+import { agentError } from "../../shared/errors";
 import { AgentExperienceHandler } from "./agent-experience-handler";
 import { NeuralNetwork } from "./neural-network";
 import { ScoreTracker } from "./score-tracker";

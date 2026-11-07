@@ -5,7 +5,7 @@
 
 ## Architecture Context
 
-message-manager is an HTTP pub/sub broker with a durable Redis Streams journal ([ADR-0043](../../adr/0043-durable-message-journal-in-redis-streams.md)). Know its limits before acting:
+message-manager is an HTTP pub/sub broker with a durable Redis Streams journal ([ADR-0048](../../adr/0048-durable-message-journal-in-redis-streams.md)). Know its limits before acting:
 
 - **A publish is answered (202) once the message is in the journal** (one Redis stream per topic, one consumer group per subscriber service, key `trading-model:message-manager:journal:<topic>`); the workers of every replica deliver and retry afterwards. A stop or a crash of a replica loses nothing: another replica claims its pending entries within about 30 s. Messages accepted for a service that does not subscribe wait for it up to 24 h. The journal is Redis state with no backup: AOF and replication protect it, so a Redis outage stops publishing (503) and losing Redis with its replicas loses what was not delivered yet. Inspect a backlog with `XPENDING <journal key> <service>`; never `KEYS`.
 - **Subscriptions live in Redis** (one hash per topic, `REDIS_SENTINELS`), expire 60 s after their last renewal, and subscribers renew every 15 s. Without Redis, message-manager cannot route anything.
@@ -121,5 +121,5 @@ kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli --scan --pattern 'tra
 
 ## Prevention
 
-- Run 2+ message-manager replicas with Redis (subscriptions and the journal are shared, see ADR-0043).
+- Run 2+ message-manager replicas with Redis (subscriptions and the journal are shared, see ADR-0048).
 - Remember that a restart loses in-flight messages: drain (scale down one replica at a time) rather than delete every pod at once.

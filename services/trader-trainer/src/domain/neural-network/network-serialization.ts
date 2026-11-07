@@ -1,4 +1,4 @@
-import { agentError } from "@trading-model/common/utils/errors";
+import { agentError } from "../../shared/errors";
 
 import type { LayerMemory } from "./type";
 import { GAUSSIAN_NOISE as gaussianNoise } from "./utils";

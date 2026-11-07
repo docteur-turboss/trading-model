@@ -3,7 +3,7 @@ import { PositiveInt } from "@trading-model/primitives/primitives";
 
 /**
  * One replayed `POST /message`: message-manager answers 202 once the
- * message is journaled (ADR-0043). Waiting less than that answer and sending
+ * message is journaled (ADR-0048). Waiting less than that answer and sending
  * again would publish the entry twice, each copy with a new messageId.
  */
 export const REPLAY_DELIVERY_TIMEOUT_MS = PUBLISH_ACCEPT_TIMEOUT_MS + 5000;

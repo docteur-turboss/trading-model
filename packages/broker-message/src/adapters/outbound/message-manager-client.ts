@@ -1,11 +1,10 @@
 import type addressManagerClient from "@trading-model/address-manager";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	isServiceUnreachableError,
-	messageManagerError,
-	normalizeError,
 	serviceUnreachableError,
-} from "@trading-model/common/utils/errors";
+} from "@trading-model/address-manager/shared/errors";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { PUBLISH_COMPAT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
@@ -15,10 +14,11 @@ import { DurationMs, URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import type { IMessageClient } from "../../domain/ports/i-message-client";
 import type { MessageManagerConfig } from "../../domain/types/config";
+import { messageManagerError } from "../../shared/errors";
 import { TopicSubscriptionService } from "./topic-subscription-service";
 
 /**
- * message-manager answers 202 once the message is journaled (ADR-0043); the
+ * message-manager answers 202 once the message is journaled (ADR-0048); the
  * older release answered 204 after delivery: both are success. A publish is
  * never sent twice once it left: the broker stamps a new messageId on each
  * copy, so subscribers could not tell the duplicates apart.
@@ -120,7 +120,7 @@ export class MessageManagerClient implements IMessageClient {
 	): Promise<void> {
 		try {
 			const target = await this._findService(
-				ServiceInstanceName.MessageDeliveryService
+				ServiceInstanceName.MessageManagerService
 			);
 			return await this._publishToService(target, payload, metadata);
 		} catch (error) {

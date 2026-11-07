@@ -3,6 +3,7 @@ import { DataEventHandler } from "../adapters/inbound/events/event-handlers";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
+import { runInWorker } from "../adapters/outbound/training-worker/worker-training-runner";
 import { Trainer } from "../application/trainer";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
@@ -106,6 +107,8 @@ export class ApplicationContainer {
 			telemetry: PROMETHEUS_GA_TELEMETRY,
 			models: this.models,
 			instanceId,
+			// Training is CPU-bound: off the thread that serves the API (issue #508).
+			runner: runInWorker,
 		});
 		this.trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer);
 	}

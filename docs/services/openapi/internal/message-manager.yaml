@@ -46,7 +46,7 @@ paths:
       operationId: "postMessage"
       tags:
         - "message-manager"
-      summary: "Publish a message: answered 202 once it is written to the durable journal, delivered to the subscribers afterwards (ADR-0043); 503 when the topic has no subscriber and delivery.requireSubscriber is set, or the journal cannot take it"
+      summary: "Publish a message: answered 202 once it is written to the durable journal, delivered to the subscribers afterwards (ADR-0048); 503 when the topic has no subscriber and delivery.requireSubscriber is set, or the journal cannot take it"
       x-registry-entry: "publish"
       requestBody:
         required: true
@@ -79,13 +79,16 @@ paths:
                           type: "string"
                           enum:
                             - "api-gateway"
-                            - "audit-logger-service"
-                            - "discovery-service"
+                            - "audit-logger"
+                            - "discovery-server"
                             - "dlq-service"
-                            - "financial-scraper-service"
-                            - "message-delivery-service"
+                            - "financial-scraper"
                             - "message-manager"
                             - "trader-trainer"
+                            - "audit-logger-service"
+                            - "discovery-service"
+                            - "financial-scraper-service"
+                            - "message-delivery-service"
                         instanceId:
                           type: "string"
                           minLength: 1
@@ -241,13 +244,16 @@ paths:
                       type: "string"
                       enum:
                         - "api-gateway"
-                        - "audit-logger-service"
-                        - "discovery-service"
+                        - "audit-logger"
+                        - "discovery-server"
                         - "dlq-service"
-                        - "financial-scraper-service"
-                        - "message-delivery-service"
+                        - "financial-scraper"
                         - "message-manager"
                         - "trader-trainer"
+                        - "audit-logger-service"
+                        - "discovery-service"
+                        - "financial-scraper-service"
+                        - "message-delivery-service"
                     instanceId:
                       type: "string"
                       minLength: 1

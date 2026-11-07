@@ -10,7 +10,7 @@ import {
 } from "./validation/broker.schema";
 
 /**
- * HTTP API of message-manager (ADR-0021, ADR-0043): service-to-service only,
+ * HTTP API of message-manager (ADR-0021, ADR-0048): service-to-service only,
  * called by the broker client of every service over mTLS. Each entry mounts
  * its route (`http.routes.ts`), validates its body and documents it in the
  * internal OpenAPI.
@@ -22,7 +22,7 @@ export const BROKER_API = {
 		method: "POST",
 		path: "/message",
 		summary:
-			"Publish a message: answered 202 once it is written to the durable journal, delivered to the subscribers afterwards (ADR-0043); 503 when the topic has no subscriber and delivery.requireSubscriber is set, or the journal cannot take it",
+			"Publish a message: answered 202 once it is written to the durable journal, delivered to the subscribers afterwards (ADR-0048); 503 when the topic has no subscriber and delivery.requireSubscriber is set, or the journal cannot take it",
 		body: PUBLISH_SCHEMA,
 		responses: {
 			202: z.object({ messageId: z.string() }),

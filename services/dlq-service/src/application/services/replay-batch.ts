@@ -2,7 +2,6 @@ import { PositiveInt, toMessageId } from "@trading-model/primitives/primitives";
 import { logger } from "../../config/logger";
 import { REPLAY_BATCH_TIMEOUT_MS } from "../../domain/dlq-constants";
 import type { EntryDeliveryPort } from "../../domain/ports/replay.ports";
-import { activeReplays } from "../../shared/active-replay-counter";
 import type {
 	BatchReplayContext,
 	BatchResults,
@@ -10,6 +9,7 @@ import type {
 	DlqError,
 	ReplayBatchOptions,
 } from "../../shared/types";
+import { activeReplays } from "./active-replay-counter";
 import {
 	checkBatchRejection,
 	decrementActiveBatches,

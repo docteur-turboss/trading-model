@@ -1,5 +1,6 @@
-import { agentError } from "@trading-model/common/utils/errors";
+import { ErrorCode, makeErrorCode } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { MongoRepository } from "@trading-model/persistence/mongo-repository.interface";
 import type {
 	PaginationResult,
@@ -63,6 +64,10 @@ export interface AuditStats {
 	dateRange: DateRange<Date>;
 }
 
+const agentError = makeErrorCode(
+	ErrorCode.Agent,
+	HTTP_STATUS.SERVICE_UNAVAILABLE
+);
 const COLLECTION = "audit_events";
 
 /** Attempts when another writer takes the next chain sequence first. */

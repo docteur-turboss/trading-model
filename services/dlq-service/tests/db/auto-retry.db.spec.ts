@@ -59,9 +59,9 @@ interface Modules {
 	getCollection: typeof import("../../src/config/db").getCollection;
 	closeDb: typeof import("../../src/config/db").closeDb;
 	dlqRedisQueue: typeof import("../../src/config/redis-queue").dlqRedisQueue;
-	autoRetryTick: typeof import("../../src/shared/auto-retry").autoRetryTick;
-	rebuildQueueFromMongo: typeof import("../../src/shared/auto-retry").rebuildQueueFromMongo;
-	processRedisQueue: typeof import("../../src/shared/auto-retry").processRedisQueue;
+	autoRetryTick: typeof import("../../src/config/container").autoRetryTick;
+	rebuildQueueFromMongo: typeof import("../../src/config/container").rebuildQueueFromMongo;
+	processRedisQueue: typeof import("../../src/application/use-cases/redis-queue-processor").processRedisQueue;
 }
 let m: Modules;
 
@@ -84,7 +84,8 @@ beforeAll(async () => {
 		...require("../../src/adapters/outbound/repository"),
 		...require("../../src/config/db"),
 		...require("../../src/config/redis-queue"),
-		...require("../../src/shared/auto-retry"),
+		...require("../../src/config/container"),
+		...require("../../src/application/use-cases/redis-queue-processor"),
 	};
 	await expect(m.dlqRedisQueue.connect()).resolves.toBe(true);
 });

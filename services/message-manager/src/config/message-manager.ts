@@ -90,7 +90,7 @@ function startDeadLetterForwarding(): void {
 	forwardTimer.unref();
 }
 
-/** Starts the workers that deliver the accepted messages (ADR-0043). */
+/** Starts the workers that deliver the accepted messages (ADR-0048). */
 function startDelivery(): void {
 	BROKER.startDelivery();
 }

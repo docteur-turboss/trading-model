@@ -68,7 +68,7 @@ Note: `at-most-once`: single attempt, a failure is dropped. `exactly-once`: sing
 | **503 Service Unavailable** | No subscriber for the topic and `delivery.requireSubscriber` set, or the journal could not hold the message |
 | **400 Bad Request** | Invalid payload (Zod validation failure)        |
 
-Note: A 202 response means the message is durably accepted (ADR-0043), not delivered. Delivery to the subscribers and its retries are asynchronous: individual failures never affect the publish response; they end in dlq-service.
+Note: A 202 response means the message is durably accepted (ADR-0048), not delivered. Delivery to the subscribers and its retries are asynchronous: individual failures never affect the publish response; they end in dlq-service.
 
 ---
 

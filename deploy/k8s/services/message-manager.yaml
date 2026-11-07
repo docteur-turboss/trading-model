@@ -42,7 +42,7 @@ spec:
       # preStop 15 s + leaving discovery while callers' caches expire
       # (CACHE_TTL_MS, 30 s) + in-flight publishes (PUBLISH_ACCEPT_TIMEOUT_MS,
       # 15 s) + deliveries in flight (10 s) + forwarding the local dead letters.
-      # Messages not delivered yet stay in the Redis journal (ADR-0043).
+      # Messages not delivered yet stay in the Redis journal (ADR-0048).
       terminationGracePeriodSeconds: 120
       securityContext:
         runAsNonRoot: true
@@ -209,6 +209,6 @@ spec:
           emptyDir: {}
         # Dead letters dlq-service could not take yet (DLQ_LOCAL_FALLBACK_PATH),
         # forwarded every minute and at shutdown; lost with the pod otherwise
-        # (alert DeadLettersNotForwarded), see ADR-0043.
+        # (alert DeadLettersNotForwarded), see ADR-0048.
         - name: dlq-data
           emptyDir: {}

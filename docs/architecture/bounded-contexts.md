@@ -15,6 +15,7 @@ graph TD
     end
     subgraph "Messaging Context"
         MM["message-manager"]
+        DLQ["dlq-service"]
         MT["message transport"]
         SUB["subscriptions (Redis)"]
     end
@@ -26,7 +27,6 @@ graph TD
     end
     subgraph "Observability Context"
         AL["audit-logger"]
-        DLQ["dlq-service"]
     end
     subgraph "Gateway Context"
         GW["api-gateway"]
@@ -37,6 +37,9 @@ graph TD
     TT -->|"AgentPayload (published)"| MM
     MM -->|"events"| AL
     AL -.->|"subscribe (all topics)"| MM
+    MM -->|"dead letters"| DLQ
+    DLQ -->|"replay"| MM
+    DLQ -->|"dlq.* events"| MM
     DS --> GW
     GW --> DS
 ```
@@ -61,10 +64,11 @@ graph TD
 
 ### 3. Messaging Context
 
-- **Owner:** `message-manager`
-- **Core entities:** Message, Subscription, DeliveryAttempt, DeadLetter
-- **Responsibilities:** Topic routing, delivery guarantees, retry, DLQ routing
-- **Internal interfaces:** MessageDeliveryPort, SubscriptionStore, MessageStore
+- **Owner:** `message-manager` + `dlq-service` (dead letters and replay are part of delivery, not observability)
+- **Core entities:** Message, Subscription, DeliveryAttempt, DeadLetterEntry
+- **Responsibilities:** Topic routing, delivery guarantees, retry (message-manager); dead-letter storage and replay back to message-manager (dlq-service). The broker stores no message (ADR-0019)
+- **Internal interfaces:** `MessageDeliveryPort`, `SubscriptionStorePort`
+- **Publishes (dlq-service):** `dlq.entry.added`, `dlq.replay.completed`, `dlq.entries.deleted`
 
 ### 4. Security Context
 
@@ -80,11 +84,10 @@ graph TD
 
 ### 6. Observability Context
 
-- **Owner:** `audit-logger` + `dlq-service`
-- **Core entities:** AuditEvent, DeadLetterEntry
-- **Consumes:** All published events for audit trail
+- **Owner:** `audit-logger`
+- **Core entities:** AuditEvent
+- **Consumes:** All published events for audit trail (including `dlq.*`)
 - **Internal events:** `audit.heartbeat`, `audit.gap.detected`
-- **Publishes:** Replay requests (DLQ → Message Manager)
 
 ### 7. Gateway Context
 

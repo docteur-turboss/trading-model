@@ -13,7 +13,7 @@ components:
 
 patches:
   # Redis runs master + 2 replicas in production only: a journal write is
-  # accepted once one replica holds it (ADR-0043). Staging has one Redis node,
+  # accepted once one replica holds it (ADR-0048). Staging has one Redis node,
   # where WAIT 1 can never succeed.
   - target:
       kind: ConfigMap

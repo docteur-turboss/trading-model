@@ -17,7 +17,7 @@ Pub/sub message brokering service with configurable delivery guarantees.
 
 - Topic-based publish/subscribe over HTTP
 - Subscription registry with instance-level deduplication
-- Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE` (single attempt, not an end-to-end guarantee: see [ADR-0043](../adr/0043-durable-message-journal-in-redis-streams.md))
+- Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE` (single attempt, not an end-to-end guarantee: see [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md))
 - TTL-based message expiration with Dead Letter Queue routing (dlq-service)
 - Parallel dispatch to all subscribers of a topic
 - No write-ahead log or archive: messages are dispatched in memory; undeliverable messages are sent to dlq-service (local JSONL file while it is unreachable)
@@ -56,7 +56,7 @@ Body (validated by `PublishSchema`):
 }
 ```
 
-**Response:** `202 Accepted` with `{ "messageId": "..." }`, once the message is written to the durable journal (Redis Streams, ADR-0043). Delivery and retries run afterwards, outside the request; `503` when the topic has no subscriber and `delivery.requireSubscriber` is set, or the journal could not hold the message.
+**Response:** `202 Accepted` with `{ "messageId": "..." }`, once the message is written to the durable journal (Redis Streams, ADR-0048). Delivery and retries run afterwards, outside the request; `503` when the topic has no subscriber and `delivery.requireSubscriber` is set, or the journal could not hold the message.
 
 ### Subscribe to a Topic
 
@@ -102,7 +102,7 @@ Body (validated by `UnsubscribeSchema`):
 | --------------- | ----------------------------------------------------------------------------- |
 | `AT_MOST_ONCE`  | Delivered at most once (no retries)                                           |
 | `AT_LEAST_ONCE` | Delivered at least once (retries with exponential backoff, up to 10 attempts) |
-| `EXACTLY_ONCE`  | Single attempt, no retry; no duplicate only if the subscriber is idempotent on `messageId` ([ADR-0043](../adr/0043-durable-message-journal-in-redis-streams.md)) |
+| `EXACTLY_ONCE`  | Single attempt, no retry; no duplicate only if the subscriber is idempotent on `messageId` ([ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)) |
 
 ## Security Metadata
 

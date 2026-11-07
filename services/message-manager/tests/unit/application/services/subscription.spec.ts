@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { deadLetterError } from "@trading-model/common/utils/errors";
+import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { MessageDeliveryPort } from "../../../../src/application/ports/message-delivery-port";
 import { Subscription } from "../../../../src/application/services/subscription";

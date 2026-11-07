@@ -4,14 +4,14 @@ import { join } from "node:path";
 import { parseRequest } from "@trading-model/http/adapters/inbound/api-route/api-route";
 import { DLQ_API } from "../../services/dlq-service/src/adapters/inbound/api-routes";
 import { serviceAuth } from "../../services/dlq-service/src/adapters/inbound/auth";
-import { checkEntryAcceptable } from "../../services/dlq-service/src/adapters/inbound/dlq-validator";
+import { checkEntryAcceptable } from "../../services/dlq-service/src/application/use-cases/dlq-validator";
 import { HttpDeadLetterStore } from "../../services/message-manager/src/adapters/outbound/http-dead-letter-store";
 import { HttpMessageDelivery } from "../../services/message-manager/src/adapters/outbound/http-message-delivery";
 import { createMessage } from "../../services/message-manager/src/domain/message-factory";
 import { FileDlqRepository } from "../../services/message-manager/src/infrastructure/fallback/dlq-repository";
 
 /**
- * Dead-letter contract: message-manager → dlq-service (ADR-0043, ADR-0021).
+ * Dead-letter contract: message-manager → dlq-service (ADR-0048, ADR-0021).
  *
  * message-manager's real delivery adapter writes a dead letter to its real
  * file repository; each line must pass dlq-service's real `POST /dlq`
