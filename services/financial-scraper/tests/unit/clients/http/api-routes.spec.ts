@@ -58,6 +58,10 @@ jest.mock("../../../../src/adapters/outbound/persistence/signal-store", () => ({
 }));
 
 import {
+	DEFAULT_PAGE_LIMIT,
+	decodeCursor,
+	encodeCursor,
+	MAX_PAGE_LIMIT,
 	MAX_SIGNALS_PER_ANSWER,
 	SCRAPER_API,
 } from "../../../../src/adapters/inbound/http/api-routes";
@@ -66,8 +70,9 @@ import { FINANCIAL_ROUTES } from "../../../../src/adapters/inbound/http/routes";
 const AT = new Date("2026-10-28T12:00:00.000Z");
 const MARKET = { symbol: "BTCUSDT", market: "crypto", source: "binance" };
 
-/** Rows as the MySQL repositories return them (Dates, BIGINT as bigint). */
+/** Rows as the MySQL repositories return them (Dates, BIGINT as bigint, internal id). */
 const TRADE = {
+	id: 1,
 	...MARKET,
 	side: "buy",
 	price: 67000.5,
@@ -76,6 +81,7 @@ const TRADE = {
 	timestamp: AT,
 };
 const TICKER = {
+	id: 1,
 	...MARKET,
 	open: 1,
 	high: 2,
@@ -86,6 +92,7 @@ const TICKER = {
 	closeTimestamp: AT,
 };
 const CANDLE = {
+	id: 1,
 	...MARKET,
 	interval: "1m",
 	open: 1,
@@ -144,14 +151,21 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			);
 
 			expect(status).toBe(200);
-			expect(body).toEqual([
-				{
-					...TRADE,
-					tradeId: "9007199254740993",
-					timestamp: AT.toISOString(),
-				},
-			]);
-			expect(selectTradesBy.symbol).toHaveBeenCalledWith("BTCUSDT");
+			const { id: _id, ...row } = TRADE;
+			expect(body).toEqual({
+				rows: [
+					{
+						...row,
+						tradeId: "9007199254740993",
+						timestamp: AT.toISOString(),
+					},
+				],
+				nextCursor: null,
+				truncated: false,
+			});
+			expect(selectTradesBy.symbol).toHaveBeenCalledWith("BTCUSDT", {
+				limit: DEFAULT_PAGE_LIMIT + 1,
+			});
 		});
 
 		it("queries a source", async () => {
@@ -163,7 +177,9 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			);
 
 			expect(status).toBe(200);
-			expect(selectTradesBy.source).toHaveBeenCalledWith("binance");
+			expect(selectTradesBy.source).toHaveBeenCalledWith("binance", {
+				limit: DEFAULT_PAGE_LIMIT + 1,
+			});
 		});
 
 		it("queries an exact instant given as an ISO date-time", async () => {
@@ -171,7 +187,9 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			await get(SCRAPER_API.tradesAt, `/trade/timestamp/${AT.toISOString()}`);
 
-			expect(selectTradesBy.timestamp).toHaveBeenCalledWith(AT.getTime());
+			expect(selectTradesBy.timestamp).toHaveBeenCalledWith(AT.getTime(), {
+				limit: DEFAULT_PAGE_LIMIT + 1,
+			});
 		});
 	});
 
@@ -210,7 +228,8 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			await get(SCRAPER_API.candlesSince, "/candles/timestamp/2026-10-28");
 
 			expect(selectCandlesBy.timestamp.after).toHaveBeenCalledWith(
-				Date.parse("2026-10-28")
+				Date.parse("2026-10-28"),
+				{ limit: DEFAULT_PAGE_LIMIT + 1 }
 			);
 		});
 	});
@@ -224,13 +243,16 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 				"/orderbook/symbols/BTCUSDT"
 			);
 
-			expect(body).toEqual([
-				{
-					...ORDER_BOOK,
-					bids: [{ price: 66999, quantity: 1 }],
-					asks: [{ price: 67001, quantity: 2 }],
-				},
-			]);
+			expect(body).toEqual({
+				rows: [
+					{
+						...ORDER_BOOK,
+						bids: [{ price: 66999, quantity: 1 }],
+						asks: [{ price: 67001, quantity: 2 }],
+					},
+				],
+				truncated: false,
+			});
 		});
 
 		it("answers an empty list for an unknown key, and skips gaps", async () => {
@@ -249,8 +271,20 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 				"/orderbook/after/timestamp/0"
 			);
 
-			expect(unknown.body).toEqual([]);
-			expect(after.body).toHaveLength(1);
+			expect(unknown.body).toEqual({ rows: [], truncated: false });
+			expect(after.body.rows).toHaveLength(1);
+		});
+
+		it("answers at most limit snapshots and says truncated", async () => {
+			selectOrderBookBy.symbol.mockResolvedValue([ORDER_BOOK, ORDER_BOOK]);
+
+			const { body } = await get(
+				SCRAPER_API.orderBooksBySymbol,
+				"/orderbook/symbols/BTCUSDT?limit=1"
+			);
+
+			expect(body.rows).toHaveLength(1);
+			expect(body.truncated).toBe(true);
 		});
 
 		it("queries the snapshots before an instant in epoch milliseconds", async () => {
@@ -264,6 +298,98 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(selectOrderBookBy.timestamp.before).toHaveBeenCalledWith(
 				AT.getTime()
 			);
+		});
+	});
+
+	describe("pages of trades, tickers and candles (ADR-0053)", () => {
+		/** `count` rows, one millisecond apart, ids 1..count. */
+		const rows = <T extends object>(row: T, count: number) =>
+			Array.from({ length: count }, (_, i) => ({
+				...row,
+				id: i + 1,
+				timestamp: new Date(AT.getTime() + i),
+			}));
+
+		it.each([
+			[
+				"trades",
+				SCRAPER_API.tradesBySymbol,
+				"/trade/symbols/BTCUSDT",
+				() => selectTradesBy.symbol,
+				TRADE,
+			],
+			[
+				"tickers",
+				SCRAPER_API.tickersBySymbol,
+				"/ticker/symbols/BTCUSDT",
+				() => selectTickerBy.symbol,
+				TICKER,
+			],
+			[
+				"candles",
+				SCRAPER_API.candlesBySymbol,
+				"/candles/symbols/BTCUSDT",
+				() => selectCandlesBy.symbol,
+				CANDLE,
+			],
+		] as const)(
+			"%s: more rows than limit answer limit rows and a cursor",
+			async (_family, route, path, select, row) => {
+				// The repository is asked for limit + 1: it found that many.
+				select().mockResolvedValue(rows(row, 4));
+
+				const { status, body } = await get(route, `${path}?limit=3`);
+
+				expect(status).toBe(200);
+				expect(select()).toHaveBeenCalledWith("BTCUSDT", { limit: 4 });
+				expect(body.rows).toHaveLength(3);
+				expect(body.rows[0]).not.toHaveProperty("id");
+				expect(body.truncated).toBe(true);
+				expect(decodeCursor(body.nextCursor)).toEqual({
+					timestamp: AT.getTime() + 2,
+					id: 3,
+				});
+			}
+		);
+
+		it("resumes after the cursor, within the window", async () => {
+			selectTradesBy.symbol.mockResolvedValue(rows(TRADE, 2));
+			const cursor = encodeCursor({ timestamp: AT.getTime(), id: 9 });
+
+			const { body } = await get(
+				SCRAPER_API.tradesBySymbol,
+				`/trade/symbols/BTCUSDT?limit=2&after=${cursor}&from=2026-10-28&to=2026-10-29`
+			);
+
+			expect(selectTradesBy.symbol).toHaveBeenCalledWith("BTCUSDT", {
+				limit: 3,
+				after: { timestamp: AT.getTime(), id: 9 },
+				from: Date.parse("2026-10-28"),
+				to: Date.parse("2026-10-29"),
+			});
+			expect(body).toMatchObject({ nextCursor: null, truncated: false });
+		});
+
+		it.each([
+			[
+				"a limit past the maximum",
+				`limit=${MAX_PAGE_LIMIT + 1}`,
+				"query.limit",
+			],
+			["a limit of zero", "limit=0", "query.limit"],
+			["a cursor it did not make", "after=bm90LWEtY3Vyc29y", "query.after"],
+			["an empty window", "from=2026-10-29&to=2026-10-28", "query.to"],
+		])("answers 400 for %s", async (_label, search, field) => {
+			const { status, body } = await get(
+				SCRAPER_API.candlesBySource,
+				`/candles/sources/binance?${search}`
+			);
+
+			expect(status).toBe(400);
+			expect(body.details).toEqual(
+				expect.arrayContaining([expect.objectContaining({ field })])
+			);
+			expect(selectCandlesBy.source).not.toHaveBeenCalled();
 		});
 	});
 

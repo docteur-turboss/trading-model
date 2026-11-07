@@ -48,6 +48,8 @@ import { createMigrateRunner } from "./migrate-runner";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../../scripts/migrations");
 const SYMBOL = TradingSymbol.of("BTCUSDT");
+/** One page large enough for every case that is not about paging. */
+const PAGE = { limit: 100 };
 const T0 = UnixTimestamp.of(Date.UTC(2026, 0, 2, 3, 4, 5, 678));
 
 const MIGRATION_IDS = readdirSync(MIGRATIONS_DIR)
@@ -243,7 +245,7 @@ describe("market_candles — real MySQL", () => {
 	it("should round-trip a candle with its millisecond timestamps", async () => {
 		await insertCandles([candle()]);
 
-		const [row] = await selectCandlesBy.symbol(SYMBOL);
+		const [row] = await selectCandlesBy.symbol(SYMBOL, PAGE);
 
 		expect(row).toMatchObject({
 			symbol: SYMBOL,
@@ -269,7 +271,7 @@ describe("market_candles — real MySQL", () => {
 		]);
 
 		await expect(count("market_candles")).resolves.toBe(1);
-		const [row] = await selectCandlesBy.symbol(SYMBOL);
+		const [row] = await selectCandlesBy.symbol(SYMBOL, PAGE);
 		expect(row).toMatchObject({ close: 107, volume: 20 });
 	});
 
@@ -281,15 +283,15 @@ describe("market_candles — real MySQL", () => {
 		]);
 
 		await expect(count("market_candles")).resolves.toBe(3);
-		await expect(selectCandlesBy.source(SourceType.Nyse)).resolves.toHaveLength(
-			1
-		);
+		await expect(
+			selectCandlesBy.source(SourceType.Nyse, PAGE)
+		).resolves.toHaveLength(1);
 	});
 
 	it("should store a candle without a trade count", async () => {
 		await insertCandles([candle({ trades: undefined })]);
 
-		const [row] = await selectCandlesBy.symbol(SYMBOL);
+		const [row] = await selectCandlesBy.symbol(SYMBOL, PAGE);
 
 		expect(row.trades).toBeUndefined();
 	});
@@ -300,9 +302,11 @@ describe("market_candles — real MySQL", () => {
 			candle({ timestamp: UnixTimestamp.of(T0 + 60_000) }),
 		]);
 
-		await expect(selectCandlesBy.timestamp.after(T0)).resolves.toHaveLength(1);
 		await expect(
-			selectCandlesBy.timestamp.before(UnixTimestamp.of(T0 + 60_000))
+			selectCandlesBy.timestamp.after(T0, PAGE)
+		).resolves.toHaveLength(1);
+		await expect(
+			selectCandlesBy.timestamp.before(UnixTimestamp.of(T0 + 60_000), PAGE)
 		).resolves.toHaveLength(1);
 	});
 });
@@ -313,7 +317,7 @@ describe("market_trades — real MySQL", () => {
 
 		await insertTrades([trade({ tradeId })]);
 
-		const [row] = await selectTradesBy.symbol(SYMBOL);
+		const [row] = await selectTradesBy.symbol(SYMBOL, PAGE);
 		expect(BigInt(row.tradeId)).toBe(tradeId);
 		expect(row.side).toBe(TradeSide.Buy);
 		expect(row.timestamp.getTime()).toBe(T0);
@@ -325,7 +329,40 @@ describe("market_trades — real MySQL", () => {
 		await insertTrades([trade({ side: TradeSide.Sell })]);
 
 		await expect(count("market_trades")).resolves.toBe(2);
-		await expect(selectTradesBy.timestamp(T0)).resolves.toHaveLength(2);
+		await expect(selectTradesBy.timestamp(T0, PAGE)).resolves.toHaveLength(2);
+	});
+
+	it("should page in (timestamp, id) order without a gap or a duplicate, ties included", async () => {
+		// Five trades, three on the same millisecond: the cursor id breaks the tie.
+		await insertTrades([
+			trade({ tradeId: 5n, timestamp: UnixTimestamp.of(T0 + 1) }),
+			trade({ tradeId: 1n }),
+			trade({ tradeId: 2n }),
+			trade({ tradeId: 3n }),
+			trade({ tradeId: 4n, timestamp: UnixTimestamp.of(T0 + 2) }),
+		]);
+
+		const seen: bigint[] = [];
+		let after: { timestamp: number; id: number } | undefined;
+		for (let pages = 0; pages < 10; pages++) {
+			const rows = await selectTradesBy.symbol(SYMBOL, { limit: 2, after });
+			expect(rows.length).toBeLessThanOrEqual(2);
+			seen.push(...rows.map((row) => BigInt(row.tradeId)));
+			const last = rows[rows.length - 1];
+			if (rows.length < 2) {
+				break;
+			}
+			after = { timestamp: last.timestamp.getTime(), id: last.id };
+		}
+
+		expect(seen).toEqual([1n, 2n, 3n, 5n, 4n]);
+		await expect(
+			selectTradesBy.symbol(SYMBOL, {
+				limit: 100,
+				from: T0 + 1,
+				to: T0 + 2,
+			})
+		).resolves.toHaveLength(1);
 	});
 
 	it("should reject a side outside the column enum", async () => {
@@ -343,7 +380,7 @@ describe("market_tickers — real MySQL", () => {
 		await insertTicker([ticker({ last: Price.of(108) })]);
 
 		await expect(count("market_tickers")).resolves.toBe(1);
-		const [row] = await selectTickerBy.timestamp(T0);
+		const [row] = await selectTickerBy.timestamp(T0, PAGE);
 		expect(row).toMatchObject({ last: 108, volume: 1234.5 });
 		expect(row.closeTimestamp.getTime()).toBe(T0 + 86_399_999);
 	});

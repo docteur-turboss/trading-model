@@ -3,14 +3,19 @@ import type {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
+import type { BooleanValueSource } from "ts-sql-query/expressions/values";
 import { Table } from "ts-sql-query/Table";
+import type { tableOrViewRef } from "ts-sql-query/utils/symbols";
 
 import {
 	createDBConnection,
 	DATABASE,
 	type DBConnection,
 } from "../../../../config/db";
-import type { TickerData } from "../../../../domain/market-data.types";
+import type {
+	MarketDataPage,
+	TickerData,
+} from "../../../../domain/market-data.types";
 
 const T_MARKET_TICKER = new (class TMarketTicker extends Table<
 	DBConnection,
@@ -29,12 +34,16 @@ const T_MARKET_TICKER = new (class TMarketTicker extends Table<
 	timestamp = this.primaryKey("timestamp", "localDateTime");
 	closeTimestamp = this.primaryKey("close_time", "localDateTime");
 
+	/** AUTO_INCREMENT: tie-break of the page order (ADR-0053). */
+	id = this.column("id", "int");
+
 	constructor() {
 		super("market_tickers");
 	}
 })();
 
 const SELECT = {
+	id: T_MARKET_TICKER.id,
 	low: T_MARKET_TICKER.low,
 	open: T_MARKET_TICKER.open,
 	high: T_MARKET_TICKER.high,
@@ -81,27 +90,48 @@ export const insertTicker = async (data: TickerData[]): Promise<void> => {
 	await DATABASE.promise().query(UPSERT_SQL, [rows]);
 };
 
+/** One page in (timestamp, id) order: `filter`, then the window and the cursor of `page`. */
+function _selectPage(
+	filter: BooleanValueSource<
+		(typeof T_MARKET_TICKER)[typeof tableOrViewRef],
+		"required"
+	>,
+	page: MarketDataPage
+) {
+	const table = T_MARKET_TICKER;
+	const after = new Date(page.after?.timestamp ?? 0);
+	return createDBConnection()
+		.selectFrom(table)
+		.where(filter)
+		.and(table.timestamp.largeAsIfValue(_date(page.from)))
+		.and(table.timestamp.lessThanIfValue(_date(page.to)))
+		.and(
+			table.timestamp
+				.greaterThan(after)
+				.or(
+					table.timestamp
+						.equals(after)
+						.and(table.id.greaterThan(page.after?.id ?? 0))
+				)
+				.onlyWhen(page.after !== undefined)
+		)
+		.select(SELECT)
+		.orderBy("timestamp")
+		.orderBy("id")
+		.limit(page.limit)
+		.executeSelectMany();
+}
+
+function _date(epochMs: number | undefined): Date | undefined {
+	return epochMs === undefined ? undefined : new Date(epochMs);
+}
+
 /** Query helpers for the market_tickers table, indexed by symbol, timestamp, and source. */
 export const selectTickerBy = {
-	symbol: async (symbol: TradingSymbol) => {
-		return await createDBConnection()
-			.selectFrom(T_MARKET_TICKER)
-			.where(T_MARKET_TICKER.symbol.equals(symbol))
-			.select(SELECT)
-			.executeSelectMany();
-	},
-	timestamp: async (timestamp: UnixTimestamp) => {
-		return await createDBConnection()
-			.selectFrom(T_MARKET_TICKER)
-			.where(T_MARKET_TICKER.timestamp.equals(new Date(timestamp)))
-			.select(SELECT)
-			.executeSelectMany();
-	},
-	source: async (source: SourceType) => {
-		return await createDBConnection()
-			.selectFrom(T_MARKET_TICKER)
-			.where(T_MARKET_TICKER.source.equals(source))
-			.select(SELECT)
-			.executeSelectMany();
-	},
+	symbol: (symbol: TradingSymbol, page: MarketDataPage) =>
+		_selectPage(T_MARKET_TICKER.symbol.equals(symbol), page),
+	timestamp: (timestamp: UnixTimestamp, page: MarketDataPage) =>
+		_selectPage(T_MARKET_TICKER.timestamp.equals(new Date(timestamp)), page),
+	source: (source: SourceType, page: MarketDataPage) =>
+		_selectPage(T_MARKET_TICKER.source.equals(source), page),
 };
