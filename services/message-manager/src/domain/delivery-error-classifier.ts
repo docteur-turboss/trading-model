@@ -1,4 +1,4 @@
-import { isDeadLetterError } from "@trading-model/common/utils/errors";
+import { isDeadLetterError } from "@trading-model/broker-message/shared/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type {
 	DurationMs,
