@@ -3,19 +3,21 @@
  * Handles both structural genome mutations and weight-level operations.
  */
 
-import { getLogger } from "@trading-model/contracts/logger-registry";
 import { sampleGaussian } from "./noise";
 
-/** Per-weight uniform crossover using separate RNG to produce a child weight vector. */
+/**
+ * Per-weight uniform crossover using separate RNG to produce a child weight vector.
+ * Parents of different lengths (diverging network architectures) are expected:
+ * the child copies `wa` and `onFallback` is called, so the caller counts it.
+ */
 export function crossoverWeights(
 	wa: Float32Array,
 	wb: Float32Array,
-	rng: () => number
+	rng: () => number,
+	onFallback?: () => void
 ): Float32Array {
 	if (wa.length !== wb.length) {
-		getLogger().warn(
-			"Crossover weight length mismatch — falling back to parent weights"
-		);
+		onFallback?.();
 		return wa.slice();
 	}
 	const out = new Float32Array(wa.length);

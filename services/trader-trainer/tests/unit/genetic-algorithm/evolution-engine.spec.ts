@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import {
@@ -8,6 +8,7 @@ import {
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import { SelectionType } from "../../../src/domain/genetic-algorithm/genome";
 import type { PopMember } from "../../../src/domain/genetic-algorithm/genome-types";
+import { createOffspring } from "../../../src/domain/genetic-algorithm/offspring-factory";
 import { selectParent } from "../../../src/domain/genetic-algorithm/selection";
 
 describe("EvolutionEngine", () => {
@@ -31,6 +32,17 @@ describe("EvolutionEngine", () => {
 			const result = crossoverWeights(wa, wb, rng);
 			expect(result).toEqual(wa);
 			expect(result).not.toBe(wa);
+		});
+
+		it("should call onFallback once per length mismatch and never log", () => {
+			const onFallback = jest.fn();
+			const wa = new Float32Array([0.1, 0.2, 0.3]);
+			const wb = new Float32Array([0.5, 0.6]);
+			for (let i = 0; i < 1000; i++) {
+				crossoverWeights(wa, wb, rng, onFallback);
+			}
+			crossoverWeights(wa, wa, rng, onFallback);
+			expect(onFallback).toHaveBeenCalledTimes(1000);
 		});
 
 		it("should return all from parent a when rng always returns < 0.5", () => {
@@ -64,6 +76,50 @@ describe("EvolutionEngine", () => {
 			expect(result[0]).toBeCloseTo(0.4);
 			expect(result[1]).toBeCloseTo(0.2);
 			expect(result[2]).toBeCloseTo(0.6);
+		});
+	});
+
+	describe("createOffspring fallback telemetry", () => {
+		function member(id: string, weights: number[]): PopMember {
+			const genome = {
+				...createDefaultGenome(id, 1),
+				trainedWeights: new Float32Array(weights),
+			};
+			return {
+				genome,
+				fitness: 1,
+				fitnessMeta: {
+					episodesRun: 3,
+					computeMs: DurationMs.of(100),
+					efficiencyScore: 1,
+					variance: 0,
+					rawScores: new EpisodeScores([1]),
+				},
+			} as unknown as PopMember;
+		}
+
+		it("reports the fallbacks of a generation in one call", () => {
+			const ranked = Array.from({ length: 20 }, (_u, i) =>
+				member(`m${i}`, i % 2 ? [1, 2] : [1, 2, 3])
+			);
+			const ctrl = ranked[0].genome.gaControl;
+			const crossoverFallbacks = jest.fn();
+			createOffspring({
+				ranked,
+				newCtrl: ctrl,
+				ctrl,
+				rng: Math.random,
+				generation: 1,
+				telemetry: {
+					generationStarted: jest.fn(),
+					stagnationUpdated: jest.fn(),
+					evaluationFailed: jest.fn(),
+					genomeEvaluated: jest.fn(),
+					crossoverFallbacks,
+				},
+			});
+			expect(crossoverFallbacks).toHaveBeenCalledTimes(1);
+			expect(crossoverFallbacks.mock.calls[0][0]).toBeGreaterThan(0);
 		});
 	});
 
