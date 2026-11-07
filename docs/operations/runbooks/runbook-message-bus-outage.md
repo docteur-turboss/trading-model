@@ -1,6 +1,6 @@
 # Runbook: Message Bus Outage
 
-**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `DeadLettersNotForwarded`, `DeadLettersRejected`, `MessagesLost`, `MessagesUnrouted`  
+**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `DeadLettersNotForwarded`, `DeadLettersRejected`, `MessagesLost`, `MessagesUnrouted`, `JournalEntriesTrimmed`  
 **Severity:** SEV1
 
 ## Architecture Context
@@ -25,6 +25,7 @@ An outage affects:
 - `MessagesDeadLettered`: messages given up, now in dlq-service.
 - `DeadLettersNotForwarded` / `DeadLettersRejected` / `MessagesLost`: dead letters stuck in a pod, refused by dlq-service, or gone.
 - `MessagesUnrouted`: a topic has had no subscriber for 10 min.
+- `JournalEntriesTrimmed`: undelivered journal entries were trimmed after 24 h: messages lost (see 6).
 - Publishers log timeouts or connection errors to message-manager.
 - `MarketDataUnpublished`: candles persisted by the scraper have waited 15 min for the bus (see 5).
 
@@ -102,6 +103,12 @@ kubectl cp -n trading-model -c message-manager \
 **Symptoms:** `fs_unpublished_candles` grows on the collector, `fs_publishes_skipped_total` grows (a publish held up to `PUBLISH_ACCEPT_TIMEOUT_MS`, 15 s), the scraper logs `Previous publish still in flight: skipped` or `Market data publish failed`. MySQL is still fed: the scraper persists before publishing and does not wait for the bus.
 
 Nothing is lost: the candles persisted while the bus is down stay in MySQL past the series publish cursor (`market_publish_cursors`, migration 005) and go out oldest first, 100 per cycle, once message-manager answers again, even after a collector restart. Fix the bus and `fs_unpublished_candles` falls back to 0; until then the trainer lags (`TrainerMarketDataStale` once it has received nothing for 15 min). To skip a backlog on purpose (e.g. after a very long outage, if old candles are not wanted), move the cursor: `UPDATE market_publish_cursors SET published_until = NOW(3) WHERE symbol = '<SYMBOL>'` (UTC session); the skipped candles stay in MySQL only.
+
+### 6. Journal entries trimmed before delivery
+
+**Symptoms:** `JournalEntriesTrimmed` (critical) with `topic` and `service`; message-manager logs `Journal entry trimmed before delivery: message lost` with the entry id.
+**Cause:** `service` did not receive its messages for more than 24 h (ADR-0048). They are gone from the journal and not dead-lettered.
+**Fix:** bring `service` back up. Then recover what it missed from the source: re-scrape the candles for `market.*` topics; for `audit-logger`, accept the gap and run `chain-cli.js acknowledge-loss` if its chain reports a loss (runbook-audit-chain-broken).
 
 ## Recovery Verification
 

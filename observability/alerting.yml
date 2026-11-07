@@ -396,6 +396,16 @@ groups:
           description: 'message-manager drops the messages published on {{ $labels.topic }}: no instance subscribes to it. audit-logger subscribes to every topic: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
 
+      - alert: JournalEntriesTrimmed
+        expr: sum by (topic, service) (increase(mm_journal_trimmed_pending_total[15m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Messages lost on {{ $labels.topic }} for {{ $labels.service }}: journal trimmed before delivery'
+          description: '{{ $labels.service }} stayed unreachable for more than 24 h: message-manager trimmed undelivered {{ $labels.topic }} entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
+
       - alert: DLQDrainRateLow
         expr: sum by (job) (rate(dlq_entries_replayed_total[15m])) / sum by (job) (rate(dlq_entries_added_total[15m])) < 0.8
         for: 15m

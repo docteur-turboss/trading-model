@@ -36,6 +36,12 @@ export const MESSAGES_DLQ_ERROR_TOTAL = new promClient.Counter({
 	labelNames: ["target"] as const,
 });
 
+export const JOURNAL_TRIMMED_PENDING_TOTAL = new promClient.Counter({
+	name: "mm_journal_trimmed_pending_total",
+	help: "Journal entries trimmed (24 h) before their service received them: messages lost",
+	labelNames: ["topic", "service"] as const,
+});
+
 export const DLQ_FORWARD_FAILURES_TOTAL = new promClient.Counter({
 	name: "mm_dlq_forward_failures_total",
 	help: "Dead letters dlq-service could not take, kept in the local file",
