@@ -4,7 +4,7 @@
 **Date:** 2026-11
 **Amends:** [ADR-0019](./0019-message-broker-as-built.md) (its "Subscriptions" and "Circuit breaker" items only; the HTTP broker without message persistence stands)
 **Related:** [ADR-0023](./0023-discovery-registry-in-redis.md) (addresses resolved by service name), issue #493
-**Verified by:** `services/message-manager/tests/unit/application/services/dispatcher.spec.ts`, `services/message-manager/tests/unit/application/services/subscription-registry.spec.ts`, `services/message-manager/tests/db/redis-subscription-store.db.spec.ts`, `bun run test:contract`
+**Verified by:** `services/message-manager/tests/unit/application/services/dispatcher.spec.ts`, `services/message-manager/tests/unit/application/services/subscription-registry.spec.ts`, `services/message-manager/tests/db/redis-subscription-store.db.spec.ts`, `services/message-manager/tests/unit/adapters/outbound/redis-message-journal.spec.ts`, `bun run test:contract`
 
 ## Context
 
@@ -25,6 +25,7 @@ With N subscribed instances, each message was posted N times to the Service, lan
 4. An instance that unsubscribes (or stops renewing) does not stop the delivery while another instance of the same service stays subscribed; the circuit breaker state is kept.
 5. `mm_subscription_count{topic}` counts subscribed services, that is deliveries per message.
 6. Subscribers stay idempotent on `messageId`: retries can still deliver a message twice (ADR-0019, at-least-once).
+7. **A dead letter is replayed to the one service whose delivery failed, under its original `messageId`** (issue #531). `DlqEntry.service` records that service (optional: entries written before it exist without it and are replayed through `POST /message` to every subscriber, as before). dlq-service replays an entry with a `service` through `POST /message/replay` of message-manager (callable by dlq-service only), which writes the stored message to the journal flagged for that service (`only` field of the stream entry, ADR-0048); the other groups settle the entry without delivering it. dlq-service deduplicates on `<messageId>:<service>` and counts ping-pong passes per `(content, service)`, so two subscribers failing on one message each keep a replayable entry.
 
 ## Alternatives Considered
 

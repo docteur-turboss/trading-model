@@ -12,6 +12,7 @@ export interface BatchContext {
 export interface DlqEntryRef {
 	id: MessageId;
 	message: unknown;
+	service?: string | null;
 }
 
 export interface DlqError {

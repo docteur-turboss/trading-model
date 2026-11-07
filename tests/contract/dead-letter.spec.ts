@@ -5,6 +5,7 @@ import { parseRequest } from "@trading-model/http/adapters/inbound/api-route/api
 import { DLQ_API } from "../../services/dlq-service/src/adapters/inbound/api-routes";
 import { serviceAuth } from "../../services/dlq-service/src/adapters/inbound/auth";
 import { checkEntryAcceptable } from "../../services/dlq-service/src/application/use-cases/dlq-validator";
+import { EntrySerializer } from "../../services/dlq-service/src/shared/entry-serializer";
 import { HttpDeadLetterStore } from "../../services/message-manager/src/adapters/outbound/http-dead-letter-store";
 import { HttpMessageDelivery } from "../../services/message-manager/src/adapters/outbound/http-message-delivery";
 import { createMessage } from "../../services/message-manager/src/domain/message-factory";
@@ -155,5 +156,35 @@ describe("dead-letter contract: message-manager → dlq-service", () => {
 		expect(parseRequest(DLQ_API.addEntry, { body: req.body })).toMatchObject({
 			success: true,
 		});
+	});
+
+	it("two subscribers failing on one message give two replayable entries under the original messageId", async () => {
+		const file = join(dir, "dead-letter-queue.jsonl");
+		const delivery = new HttpMessageDelivery(
+			{} as never,
+			new FileDlqRepository(file)
+		);
+		const message = sampleMessage();
+		for (const service of ["audit-logger", "trainer-service"]) {
+			await delivery.markDeadLetter({
+				message,
+				service,
+				reason: "OPEN",
+				deliveryAttempt: 5 as never,
+			});
+		}
+		const lines = readFileSync(file, "utf-8")
+			.trim()
+			.split(String.fromCharCode(10))
+			.map((line) => JSON.parse(line));
+		const serializer = new EntrySerializer();
+
+		const keys = lines.map((line) => serializer.computeHash(line).messageId);
+
+		expect(lines.map((line) => line.messageId)).toEqual([
+			message.metadata.messageId,
+			message.metadata.messageId,
+		]);
+		expect(new Set(keys).size).toBe(2);
 	});
 });

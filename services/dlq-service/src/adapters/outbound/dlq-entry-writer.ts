@@ -20,6 +20,7 @@ interface NewDlqDocument {
 	contentHash: string;
 	topic: string | null;
 	message: unknown;
+	service: string | null;
 	reason: string | null;
 	deliveryAttempt: number;
 	retryCount: number;
@@ -54,6 +55,7 @@ function _buildBaseDoc(
 		contentHash: hash.contentHash,
 		topic: entry.topic ?? null,
 		message: entry.message,
+		service: entry.service ?? null,
 		reason: entry.reason ?? null,
 		deliveryAttempt: entry.deliveryAttempt,
 		retryCount: 0,

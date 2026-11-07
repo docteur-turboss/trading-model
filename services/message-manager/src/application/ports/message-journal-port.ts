@@ -28,7 +28,12 @@ export interface MessageJournalPort {
 	 * Writes the message; resolves once it is durable. Creates the groups of
 	 * `services` first so that none of them can miss it.
 	 */
-	append(message: Message, services: readonly string[]): Promise<void>;
+	append(
+		message: Message,
+		services: readonly string[],
+		/** Replay of a dead letter: only this service's group delivers the entry (ADR-0043). */
+		onlyFor?: string
+	): Promise<void>;
 	/** Every group any replica registered. */
 	groups(): Promise<JournalGroup[]>;
 	/** Entries never delivered to the group, now pending for `consumer`. */

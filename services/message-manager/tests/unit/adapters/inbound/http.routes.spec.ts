@@ -31,6 +31,13 @@ describe("BROKER_ROUTES", () => {
 		expect(route).toBeDefined();
 	});
 
+	it("should define POST /message/replay route", () => {
+		const route = router.stack.find(
+			(r: { route?: { path?: string } }) => r.route?.path === "/message/replay"
+		);
+		expect(route).toBeDefined();
+	});
+
 	it("should define POST /subscribe route", () => {
 		const route = router.stack.find(
 			(r: { route?: { path?: string } }) => r.route?.path === "/subscribe"
@@ -45,8 +52,8 @@ describe("BROKER_ROUTES", () => {
 		expect(route).toBeDefined();
 	});
 
-	it("should have exactly 4 routes", () => {
-		expect(router.stack.length).toBe(4);
+	it("should have exactly 5 routes", () => {
+		expect(router.stack.length).toBe(5);
 	});
 
 	it("should set timeout on incoming requests", () => {

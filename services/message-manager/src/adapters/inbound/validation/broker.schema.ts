@@ -30,8 +30,10 @@ import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import {
 	toCorrelationId,
 	toInstanceId,
+	toMessageId,
 	toServiceId,
 	toTopic,
+	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 
@@ -110,4 +112,19 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 export const PUBLISH_SCHEMA = z.object({
 	payload: z.unknown(),
 	metadata: PUBLISH_METADATA_SCHEMA,
+});
+
+/**
+ * Replay of a dead letter to one service (ADR-0043): the stored message, with
+ * the `messageId` and `emittedAt` it was stamped with.
+ */
+export const REPUBLISH_SCHEMA = z.object({
+	service: z.string().min(1),
+	message: z.object({
+		payload: z.unknown(),
+		metadata: PUBLISH_METADATA_SCHEMA.extend({
+			messageId: z.string().min(1).transform(toMessageId),
+			emittedAt: z.number().int().nonnegative().transform(UnixTimestamp.of),
+		}),
+	}),
 });

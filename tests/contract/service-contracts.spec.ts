@@ -403,6 +403,14 @@ describe("service message contracts", () => {
 					if (!replayed.accepted) {
 						continue;
 					}
+					// ADR-0043: only the failed service, under the original messageId.
+					expect(replayed.journaledFor).toEqual({
+						services: ["audit-logger-service"],
+						onlyFor: "audit-logger-service",
+					});
+					expect(replayed.message.metadata.messageId).toBe(
+						first.message.metadata.messageId
+					);
 					expect((replayed.delivered as { payload: unknown }).payload).toEqual(
 						(first.delivered as { payload: unknown }).payload
 					);

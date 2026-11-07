@@ -5,6 +5,7 @@ import {
 import { z } from "zod";
 import {
 	PUBLISH_SCHEMA,
+	REPUBLISH_SCHEMA,
 	SUBSCRIBE_SCHEMA,
 	UNSUBSCRIBE_SCHEMA,
 } from "./validation/broker.schema";
@@ -29,6 +30,14 @@ export const BROKER_API = {
 			...REJECTED,
 			503: ErrorResponse,
 		},
+	}),
+	republish: defineRoute({
+		method: "POST",
+		path: "/message/replay",
+		summary:
+			"Replay a dead letter to the one service whose delivery failed, under its original messageId (ADR-0043); callable by dlq-service only",
+		body: REPUBLISH_SCHEMA,
+		responses: { 204: null, ...REJECTED, 503: ErrorResponse },
 	}),
 	subscribe: defineRoute({
 		method: "POST",

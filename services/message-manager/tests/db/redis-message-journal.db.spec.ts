@@ -81,6 +81,22 @@ describe("RedisMessageJournal — real Redis", () => {
 		expect(other).toHaveLength(1);
 	});
 
+	it("should hand an entry written for one service to that group only", async () => {
+		const journal = journalOn(replica());
+		const other = { ...GROUP, service: "other-service" };
+		await journal.register(GROUP);
+		await journal.register(other);
+		await journal.append(
+			createMockMessage("replay"),
+			[GROUP.service],
+			GROUP.service
+		);
+
+		await expect(journal.readNew(other, "b", 10)).resolves.toEqual([]);
+		const mine = await journal.readNew(GROUP, "a", 10);
+		expect(mine.map((entry) => entry.message.payload)).toEqual(["replay"]);
+	});
+
 	it("should not hand a group a message written before the group existed", async () => {
 		const journal = journalOn(replica());
 		await journal.append(createMockMessage("early"), ["first-service"]);

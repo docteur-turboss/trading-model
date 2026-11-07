@@ -1,5 +1,7 @@
 import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
+import { MTLSAuthorizationMiddleware } from "@trading-model/http/adapters/inbound/mtls-authorization";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import {
 	type NextFunction,
 	type Request,
@@ -13,6 +15,7 @@ import { BROKER_API } from "./api-routes";
 import {
 	DELETE_A_SUBSCRIPTION,
 	PUBLISH_A_MESSAGE,
+	REPLAY_A_MESSAGE,
 	SUBSCRIPTION_TO_A_TOPIC,
 } from "./http.controller";
 
@@ -42,6 +45,16 @@ export const BROKER_ROUTES = (dispatcher: Dispatcher): Router => {
 	router.get("/metrics", metricsHandler);
 	mountRoute(router, BROKER_API.publish, PUBLISH_A_MESSAGE(dispatcher), {
 		middlewares: [WITH_TIMEOUT(PUBLISH_ACCEPT_TIMEOUT_MS), PUBLISH_LIMITER],
+	});
+	// Narrower than the service ACL: only dlq-service replays dead letters.
+	mountRoute(router, BROKER_API.republish, REPLAY_A_MESSAGE(dispatcher), {
+		middlewares: [
+			MTLSAuthorizationMiddleware(ServiceId.of("message-manager"), [
+				ServiceId.of("dlq-service"),
+			]),
+			WITH_TIMEOUT(PUBLISH_ACCEPT_TIMEOUT_MS),
+			PUBLISH_LIMITER,
+		],
 	});
 	mountRoute(
 		router,
