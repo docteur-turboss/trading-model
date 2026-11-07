@@ -85,9 +85,10 @@ function waitForBatchTimeout(
 	batchId: string,
 	timeoutMs: number,
 	onTimeout: () => void
-): Promise<void> {
-	return new Promise<void>((resolve) => {
-		setTimeout(() => {
+): { promise: Promise<void>; cancel: () => void } {
+	let handle: ReturnType<typeof setTimeout> | undefined;
+	const promise = new Promise<void>((resolve) => {
+		handle = setTimeout(() => {
 			onTimeout();
 			logger.warn(
 				"DLQ batch replay timeout — stopping new requests, waiting for in-flight",
@@ -96,6 +97,7 @@ function waitForBatchTimeout(
 			resolve();
 		}, timeoutMs);
 	});
+	return { promise, cancel: () => clearTimeout(handle) };
 }
 
 async function _runBatchWithTimeout(
@@ -108,13 +110,17 @@ async function _runBatchWithTimeout(
 	const { ctx, setTimedOut } = _createReplayContext(ctxBase, delivery);
 
 	const batchLoop = runBatchLoop(entries, ctx, ReplayConcurrency);
-	const timeoutPromise = waitForBatchTimeout(
+	const timeout = waitForBatchTimeout(
 		ctxBase.batchId,
 		REPLAY_BATCH_TIMEOUT_MS,
 		setTimedOut
 	);
 
-	await Promise.race([batchLoop, timeoutPromise]);
+	try {
+		await Promise.race([batchLoop, timeout.promise]);
+	} finally {
+		timeout.cancel();
+	}
 
 	if (ctx.isTimedOut()) {
 		await _drainBatchLoop(batchLoop);
