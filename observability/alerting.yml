@@ -397,7 +397,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
 
       - alert: JournalEntriesTrimmed
-        expr: sum by (topic, service) (increase(mm_journal_trimmed_pending_total[15m])) > 0
+        expr: sum by (topic, service) (increase(mm_journal_trimmed_pending_total[15m])) > 0 or sum by (topic, service) (mm_journal_trimmed_pending_total unless mm_journal_trimmed_pending_total offset 15m) > 0
         for: 0m
         labels:
           severity: critical

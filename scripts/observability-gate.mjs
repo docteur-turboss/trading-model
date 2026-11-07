@@ -187,6 +187,7 @@ function promqlMetricNames(expr) {
     .replace(/"[^"]*"/g, "")
     .replace(/\{[^}]*\}/g, "")
     .replace(/\[[^\]]*\]/g, "")
+    .replace(/\boffset\s+\d+[smhdwy]+/g, "")
     .replace(/\b(by|without|on|ignoring)\s*\([^)]*\)/g, "");
   const names = bare.match(/[a-zA-Z_:][a-zA-Z0-9_:]*/g) ?? [];
   return [...new Set(names.filter((name) => !PROMQL_WORDS.has(name)))];
