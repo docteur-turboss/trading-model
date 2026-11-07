@@ -17,6 +17,15 @@ export enum ServiceInstanceName {
 	LegacyMessageDeliveryService = "message-delivery-service",
 }
 
+/** Release N transition names (issue #495): readable, never canonical. */
+export const LEGACY_SERVICE_INSTANCE_NAMES: ReadonlySet<ServiceInstanceName> =
+	new Set([
+		ServiceInstanceName.LegacyAuditLoggerService,
+		ServiceInstanceName.LegacyDiscoveryService,
+		ServiceInstanceName.LegacyFinancialScraperService,
+		ServiceInstanceName.LegacyMessageDeliveryService,
+	]);
+
 const CORE_SERVICE_NAMES = new Set<ServiceInstanceName>(
 	Object.values(ServiceInstanceName)
 );
