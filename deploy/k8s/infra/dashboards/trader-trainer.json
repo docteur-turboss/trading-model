@@ -5,57 +5,141 @@
   "uid": "trading-trader-trainer",
   "panels": [
     {
-      "title": "Training Jobs (Last 24h)",
+      "title": "Training Sessions (Last 24h)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "sum(increase(training_jobs_total[24h]))",
-          "legendFormat": "Total"
+          "expr": "sum(increase(tt_training_sessions_total[24h])) by (result)",
+          "legendFormat": "{{result}}"
         }
       ]
     },
     {
-      "title": "Training Duration",
+      "title": "Training Status",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "max(tt_training_status)",
+          "legendFormat": "status"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "value": "0", "text": "IDLE" },
+            { "type": "value", "value": "1", "text": "TRAINING" }
+          ]
+        }
+      }
+    },
+    {
+      "title": "Current Generation",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "max(tt_current_generation)",
+          "legendFormat": "generation"
+        }
+      ]
+    },
+    {
+      "title": "Stagnation (generations without improvement)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "max(tt_stagnation_generations)",
+          "legendFormat": "generations"
+        }
+      ]
+    },
+    {
+      "title": "Training Duration (P50 / P95)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
       "targets": [
         {
-          "expr": "training_duration_seconds",
-          "legendFormat": "{{job_id}}"
+          "expr": "histogram_quantile(0.5, sum(rate(tt_training_duration_seconds_bucket[1h])) by (le))",
+          "legendFormat": "P50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(tt_training_duration_seconds_bucket[1h])) by (le))",
+          "legendFormat": "P95"
         }
       ]
     },
     {
-      "title": "Model Accuracy",
+      "title": "Best Fitness by Symbol",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
       "targets": [
         {
-          "expr": "model_accuracy",
-          "legendFormat": "{{model_id}}"
+          "expr": "max(tt_best_fitness) by (symbol)",
+          "legendFormat": "{{symbol}}"
         }
       ]
     },
     {
-      "title": "Checkpoint Age (Last Save)",
-      "type": "gauge",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
-      "targets": [
-        {
-          "expr": "time() - max(checkpoint_last_save_timestamp)",
-          "legendFormat": "Age (s)"
-        }
-      ]
-    },
-    {
-      "title": "Training Errors",
+      "title": "Market Data Received (candles/s)",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 12 },
       "targets": [
         {
-          "expr": "rate(training_errors_total[5m])",
-          "legendFormat": "errors/s"
+          "expr": "sum(rate(tt_market_data_received_total[5m]))",
+          "legendFormat": "candles/s"
+        }
+      ]
+    },
+    {
+      "title": "Market Data Buffer by Symbol",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 12 },
+      "targets": [
+        {
+          "expr": "max(tt_market_data_buffer_size) by (symbol)",
+          "legendFormat": "{{symbol}}"
+        }
+      ]
+    },
+    {
+      "title": "Training Errors (per second)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum(rate(tt_training_sessions_total{result=\"fail\"}[5m])) by (result)",
+          "legendFormat": "session {{result}}"
+        },
+        {
+          "expr": "sum(rate(tt_qlearning_train_errors_total[5m])) by (reason)",
+          "legendFormat": "q-learning {{reason}}"
+        }
+      ]
+    },
+    {
+      "title": "Model Artifacts Written",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 18 },
+      "targets": [
+        {
+          "expr": "sum(increase(tt_model_artifacts_total[1h])) by (result)",
+          "legendFormat": "{{result}}"
+        }
+      ]
+    },
+    {
+      "title": "Genome Evaluation P95 (event loop blocked)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 18 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(tt_genome_evaluation_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P95"
         }
       ]
     }

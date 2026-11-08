@@ -185,7 +185,7 @@
         "targets": [
           {
             "expr": "address_manager_circuit_breaker_state",
-            "legendFormat": "{{service}}"
+            "legendFormat": "{{job}} {{instanceId}}"
           }
         ],
         "fieldConfig": {
@@ -204,30 +204,15 @@
         }
       },
       {
-        "title": "Backpressure Ratio",
+        "title": "Messages In Flight",
         "type": "timeseries",
         "gridPos": { "h": 6, "w": 12, "x": 0, "y": 24 },
         "targets": [
           {
-            "expr": "mm_backpressure_ratio",
-            "legendFormat": "Backpressure"
+            "expr": "sum(mm_in_flight_messages)",
+            "legendFormat": "in-flight"
           }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percentunit",
-            "min": 0,
-            "max": 1,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "green", "value": null },
-                { "color": "orange", "value": 0.6 },
-                { "color": "red", "value": 0.8 }
-              ]
-            }
-          }
-        }
+        ]
       },
       {
         "title": "DLQ Growth Rate",
@@ -255,7 +240,7 @@
         "gridPos": { "h": 6, "w": 8, "x": 0, "y": 30 },
         "targets": [
           {
-            "expr": "rate(mm_messages_published_total[5m]) / (rate(mm_messages_published_total[5m]) + rate(mm_messages_dlq_total[5m])) * 100",
+            "expr": "sum(rate(mm_messages_published_total[5m])) / (sum(rate(mm_messages_published_total[5m])) + sum(rate(mm_messages_dlq_total[5m]))) * 100",
             "legendFormat": "Delivery Rate"
           }
         ],
@@ -307,7 +292,7 @@
         "gridPos": { "h": 6, "w": 8, "x": 16, "y": 30 },
         "targets": [
           {
-            "expr": "rate(tt_training_sessions_total{result=\"completed\"}[15m]) / rate(tt_training_sessions_total[15m]) * 100",
+            "expr": "sum(rate(tt_training_sessions_total{result=\"success\"}[15m])) / sum(rate(tt_training_sessions_total[15m])) * 100",
             "legendFormat": "Completion Rate"
           }
         ],
