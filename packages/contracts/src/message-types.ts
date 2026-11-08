@@ -122,4 +122,10 @@ export interface MessageMetadata {
 
 	/** Optional security context. */
 	security?: SecurityType;
+
+	/**
+	 * W3C Trace Context of the publish: the delivery, sent later from the
+	 * journal, continues this trace. Absent when the publisher does not trace.
+	 */
+	traceparent?: string;
 }

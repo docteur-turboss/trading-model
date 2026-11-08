@@ -24,6 +24,7 @@ import {
 	DELIVERY_METADATA_MODE_PREDICATE,
 	ROUTING_METADATA_CONTEXT_PREDICATE,
 	SECURITY_METADATA_CONTEXT_PREDICATE,
+	TRACEPARENT_METADATA_PREDICATE,
 } from "@trading-model/broker-message/shared/barrel/message.schema";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
@@ -103,6 +104,8 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 	delivery: DELIVERY_METADATA_MODE_PREDICATE,
 
 	security: SECURITY_METADATA_CONTEXT_PREDICATE,
+
+	traceparent: TRACEPARENT_METADATA_PREDICATE,
 });
 
 /**

@@ -10,6 +10,7 @@ import {
 	toTenantId,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
+import { TRACEPARENT_PATTERN } from "../../../shared/trace-context";
 
 export const SECURITY_METADATA_CONTEXT_PREDICATE = z
 	.object({
@@ -133,6 +134,16 @@ export const EVENT_TYPE_METADATA_PREDICATE = z.enum(
 	{ error: () => "eventType is invalid. Must be a valid event type string." }
 );
 
+/**
+ * W3C `traceparent` of the publish. A malformed value is dropped, not
+ * rejected: a broken trace header must not cost the message.
+ */
+export const TRACEPARENT_METADATA_PREDICATE = z
+	.string()
+	.regex(TRACEPARENT_PATTERN)
+	.optional()
+	.catch(undefined);
+
 export const MESSAGE_METADATA_SCHEMA = z.object({
 	topic: TOPIC_METADATA_PREDICATE,
 	causationId: IDS_METADATA_PREDICATE,
@@ -143,4 +154,5 @@ export const MESSAGE_METADATA_SCHEMA = z.object({
 	security: SECURITY_METADATA_CONTEXT_PREDICATE,
 	publisher: PUBLISHER_METADATA_CONTEXT_PREDICATE,
 	schemaVersion: SCHEMA_METADATA_VERSION_PREDICATE,
+	traceparent: TRACEPARENT_METADATA_PREDICATE,
 });
