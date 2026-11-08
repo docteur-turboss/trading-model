@@ -168,7 +168,9 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5.2.0
         with:
-          version: 'stable'
+          # v5 refuses 'stable'. Same minor as the kind node of the CI k8s job
+          # (kind v0.27.0); keep within one minor of the target clusters.
+          version: 'v1.32.2'
 
       # Two identities (ADR-0041, scripts/deploy-identity.sh): `app` (default
       # kubeconfig) is limited to the application namespace; `cluster`
