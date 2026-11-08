@@ -613,8 +613,9 @@ describe("full GA loop", () => {
 			initialControl: { populationSize: 2, maxGenerations: 4 } as any,
 		});
 		const result = await runner.run();
-		expect(result).toBeDefined();
-		expect(runner.processor.lastBestGenome).toBeDefined();
+		expect(result).toBe(runner.processor.lastBestGenome);
+		expect(runner.processor.generation).toBeGreaterThan(0);
+		expect(typeof result.id).toBe("string");
 	});
 
 	it("should exercise advanced GA branches (frameSkip, normalize, sparse, NSGA-II, weight crossover)", async () => {
@@ -728,7 +729,8 @@ describe("full GA loop", () => {
 		});
 		const result = await runner.run();
 		expect(runner.processor.generation).toBeLessThan(100);
-		expect(result).toBeDefined();
+		expect(result).toBe(runner.processor.lastBestGenome);
+		expect(typeof result.id).toBe("string");
 	});
 
 	it("should exit run via stagnationPatience", async () => {
@@ -771,7 +773,8 @@ describe("full GA loop", () => {
 		});
 		const result = await runner.run();
 		expect(runner.processor.generation).toBeLessThan(100);
-		expect(result).toBeDefined();
+		expect(result).toBe(runner.processor.lastBestGenome);
+		expect(typeof result.id).toBe("string");
 	});
 
 	it("should exit run via timeBudgetMs", async () => {
@@ -814,7 +817,8 @@ describe("full GA loop", () => {
 		});
 		const result = await runner.run();
 		expect(runner.processor.generation).toBeLessThan(100);
-		expect(result).toBeDefined();
+		expect(result).toBe(runner.processor.lastBestGenome);
+		expect(typeof result.id).toBe("string");
 	});
 
 	it("should replay transitions while training", async () => {
