@@ -496,7 +496,7 @@ it('should emit event', done => {
 
 ## Mutation testing
 
-Stryker runs weekly (`.github/workflows/mutation-testing.yml`, plus `workflow_dispatch`), never in PR gates or pre-push. Scope: `services/trader-trainer` `src/domain/**` and `services/dlq-service` `src/application/**`; `break: 50`. Locally: `bun run build`, then `bun run --filter trader-service stryker` or `bun run --filter dlq-service stryker` (the TypeScript checker needs the built packages). The report lands in `reports/mutation/` (HTML + JSON). The sandbox sits in the root `.stryker-tmp/` so the `../../scripts/*.cjs` required by `jest.config.js` still resolve.
+Stryker runs weekly (`.github/workflows/mutation-testing.yml`, plus `workflow_dispatch`), never in PR gates or pre-push. Scope: `services/trader-trainer` `src/domain/**` (without `genetic-algorithm/` and `neural-network/`: one run did not finish in 1 h; ~25 min for the rest) and `services/dlq-service` `src/application/**`; `break: 50`. Locally: `bun run build`, then `bun run --filter trader-service stryker` or `bun run --filter dlq-service stryker` (the TypeScript checker needs the built packages). The report lands in `reports/mutation/` (HTML + JSON). The sandbox sits in the root `.stryker-tmp/` so the `../../scripts/*.cjs` required by `jest.config.js` still resolve.
 
 ## References
 
