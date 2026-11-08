@@ -99,6 +99,21 @@ services:
   binance-stub:
     container_name: !reset null
     ports: !reset []
+  redis-exporter:
+    container_name: !reset null
+    ports: !reset []
+  node-exporter:
+    container_name: !reset null
+    ports: !reset []
+  mysql-exporter-user:
+    container_name: !reset null
+    ports: !reset []
+  mysqld-exporter:
+    container_name: !reset null
+    ports: !reset []
+  mongodb-exporter:
+    container_name: !reset null
+    ports: !reset []
   edge-proxy:
     container_name: !reset null
     ports: !override ['18449:8080']

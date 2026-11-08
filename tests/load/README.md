@@ -94,7 +94,7 @@ kill %1
 docker compose -p $P -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f tests/load/docker-compose.isolate.yml down -v --rmi local
 ```
 
-Set the env vars `ci.yml` sets for the stack (`MYSQL_ROOT_PASSWORD`, `GRAFANA_PASSWORD`, `DLQ_AUTH_HMAC_SECRET`, `DLQ_ALLOWED_SERVICES`). MySQL can exceed its 180 s `start_period` on first start and `up --wait` then fails: run the same `up` again once MySQL is healthy.
+Set the env vars `ci.yml` sets for the stack (`MYSQL_ROOT_PASSWORD`, `MYSQL_EXPORTER_PASSWORD`, `GRAFANA_PASSWORD`, `DLQ_AUTH_HMAC_SECRET`, `DLQ_ALLOWED_SERVICES`). MySQL can exceed its 180 s `start_period` on first start and `up --wait` then fails: run the same `up` again once MySQL is healthy.
 
 `soak-monitor.sh <out.csv> [minutes] [prefix]`: CSV `timestamp,kind,name,value` with the RSS of every `trading-*` container (`rss_bytes`), the message-manager journal per topic/service (`journal_pending`, `journal_oldest_age_s`, from the `mm_journal_*` gauges, read from inside the container with its SVID), free disk of C: (`disk_free_gb`) and `journal_error` when the metrics could not be read. A leak is an RSS column that keeps growing between samples; a backlog is a `journal_pending` that does not return to 0.
 
