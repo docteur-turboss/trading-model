@@ -74,6 +74,20 @@ Order books have no route (ADR-0053): the collector writes each snapshot to
 `market_order_books` for historical replay and publishes it on the bus, where
 the trainer reads it. No process keeps them in memory.
 
+### Breaking changes of the gateway API v1 in 3.0.0
+
+Release 3.0.0 changes the public routes `/v1/financial-scraper/*` without a new
+API version. A client of 2.x must change:
+
+- **Removed** (#577, ADR-0053), answer 404: `/orderbook/after/timestamp/{timestamp}`,
+  `/orderbook/before/timestamp/{timestamp}`, `/orderbook/sources/{source}`,
+  `/orderbook/symbols/{symbol}`.
+- **Paged** (#576, ADR-0054): the 9 trade, ticker and candle routes above
+  answered the whole result as a JSON array. They now answer
+  `{ rows, nextCursor, truncated }` with at most `limit` rows (default 500):
+  read `rows`, and follow `nextCursor` as `after` until it is `null` to get
+  everything.
+
 ## MySQL Tables
 
 All tables live in the `financial_scraper` database (configurable via `DB_NAME` env var). The ORM is `ts-sql-query` with a custom `DBConnection` wrapper.
