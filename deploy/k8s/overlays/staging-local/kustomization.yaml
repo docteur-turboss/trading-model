@@ -63,12 +63,8 @@ patches:
           periodSeconds: 10
           failureThreshold: 180
 
-  # One pod per data StatefulSet (../staging): a rolling update deletes it
-  # before its replacement starts, so every release that changes the pod
-  # template would cut MySQL, Redis, Sentinel or MongoDB (issue #700). A
-  # partition >= replicas keeps the running pods on their revision; a new
-  # cluster gets the current template. New templates are taken by the planned
-  # restart of STAGING_LOCAL.md. tests/k8s/check-overlays.mjs keeps it.
+  # One pod per data StatefulSet: a release must not restart it (issue #700).
+  # Planned restart for a new template: docs/deployment/STAGING_LOCAL.md.
   - target:
       kind: StatefulSet
       name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$

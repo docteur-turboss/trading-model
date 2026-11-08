@@ -20,7 +20,8 @@
 //     ADR-0044 trainer)
 //   - the data StatefulSets of staging-local (DATA_STATEFULSETS) set a
 //     partition >= replicas, so a release never restarts their single pods;
-//     staging and production set none (issue #700)
+//     staging (CI keeps testing their restarts) and production set none
+//     (issue #700)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -264,8 +265,6 @@ for (const env of OVERLAYS) {
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
 
-	// Issue #700: staging-local keeps its single data pods across releases
-	// (partition >= replicas); the others roll them, so CI keeps testing restarts.
 	for (const name of DATA_STATEFULSETS) {
 		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
 		if (!sts) {
