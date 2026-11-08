@@ -159,7 +159,11 @@ file absent from the repository, or on an anchor that matches no heading.
 - `scripts/observability-gate.mjs` keeps compose and K8s identical (rules with
   their annotations, and Alertmanager config), checks that every metric a rule
   reads is emitted and that every `runbook_url` leads to an existing file and
-  heading, and refuses inline receiver credentials.
+  heading, and refuses inline receiver credentials. It also fails on a dashboard
+  query (named by file and panel) that reads a metric nobody emits, on
+  `observability/dashboards` and `deploy/k8s/infra/dashboards` that differ, on a
+  Grafana datasource whose host is no compose service / K8s Service, and on a
+  `probe_*` rule without a blackbox job (`metrics_path: /probe`) in compose or K8s.
 
 ## Compose observability stack (parity with K8s)
 
