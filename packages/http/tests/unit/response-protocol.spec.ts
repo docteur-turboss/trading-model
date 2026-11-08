@@ -44,6 +44,19 @@ describe("ResponseProtocol", () => {
 		spy.mockRestore();
 	});
 
+	it("logs the path only, never the query string, on a 5xx", () => {
+		const spy = jest.spyOn(logger, "error").mockImplementation(() => {});
+		req.originalUrl = "/v1/x?accessToken=abc&signature=def";
+		ResponseProtocol(new Error("boom"), req, res, next);
+		expect(spy).toHaveBeenCalledWith(
+			"Server error",
+			expect.objectContaining({
+				context: expect.objectContaining({ url: "/v1/x" }),
+			})
+		);
+		spy.mockRestore();
+	});
+
 	it("should map SERVICE_NOT_FOUND to 404", () => {
 		const err = serviceNotFoundError("Service not found");
 		ResponseProtocol(err, req, res, next);
