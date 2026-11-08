@@ -1,3 +1,4 @@
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import {
 	Cash,
 	Percentage,
@@ -12,7 +13,6 @@ import {
 	ExperienceKind,
 	InitialisationType,
 } from "../neural-network/type";
-import { makePRNG } from "./prng";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 interface StepInput {
@@ -101,7 +101,7 @@ function _buildStateManagerCfg(
 }
 
 /** Run-level options of the backends, outside the genome. */
-export interface BackendOptions {
+interface BackendOptions {
 	/** Show the agent its position (default true, ADR-0025). */
 	observePosition?: boolean;
 }
@@ -138,10 +138,25 @@ function _tryLamarckianInjection(
 ): void {
 	if (
 		genome.trainedWeights &&
-		genome.trainedWeights.length === agent.getWeights().length
+		genome.trainedWeights.length === agent.parameterCount()
 	) {
 		agent.setWeights(new Float32Array(genome.trainedWeights));
 	}
+}
+
+/**
+ * Market steps are shared by every genome of every generation and never change
+ * once built; the agent copies its input (observe), so one encoding per step.
+ */
+const ENCODED = new WeakMap<FeatureVector, Float32Array>();
+
+function encoded(features: FeatureVector): Float32Array {
+	let data = ENCODED.get(features);
+	if (!data) {
+		data = features.toFloat32Array();
+		ENCODED.set(features, data);
+	}
+	return data;
 }
 
 export function makeTradingAgentBackend(
@@ -154,10 +169,9 @@ export function makeTradingAgentBackend(
 	_tryLamarckianInjection(agent, genome);
 
 	return {
-		forwardPass: (features) =>
-			agent.forwardPass(features.toFloat32Array()).output,
+		forwardPass: (features) => agent.forwardPass(encoded(features)).output,
 		step: (input) => {
-			const result = agent.step(input.features.toFloat32Array(), input.price);
+			const result = agent.step(encoded(input.features), input.price);
 			return {
 				reward: result.reward,
 				action: result.actionIndex,

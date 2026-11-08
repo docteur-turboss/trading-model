@@ -1,12 +1,10 @@
 import { parseServiceName } from "@trading-model/common/config/services.types";
-import {
-	addressManagerError,
-	normalizeError,
-} from "@trading-model/common/utils/errors";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { URLString } from "@trading-model/primitives/primitives";
+import { ServiceRegistrationWire } from "@trading-model/validation/wire/service-instance";
 import type { TokenManager } from "../../../application/client/token-manager";
 import type {
 	RegisterServicePayload,
@@ -14,6 +12,7 @@ import type {
 } from "../../../domain/client/type";
 import type { AddressManagerConfig } from "../../../domain/config/address-manager-config";
 import { LocalIPDetector } from "../../../shared/client/local-ip-detector";
+import { addressManagerError } from "../../../shared/errors";
 import { HeartbeatRefresher } from "./heartbeat-refresher";
 
 export class AddressManagerClient {
@@ -42,6 +41,7 @@ export class AddressManagerClient {
 			// generates another instanceId and every later call is rejected (401).
 			instanceId: this._config.identity.instanceId,
 			port: this._config.servicePort,
+			version: this._config.serviceVersion,
 			ip: LocalIPDetector.getIP() as import("@trading-model/primitives/primitives").IPAddress,
 		};
 	}
@@ -52,9 +52,12 @@ export class AddressManagerClient {
 
 	async registerService(): Promise<ServiceRegistrationResponse | undefined> {
 		try {
-			return await this._httpClient.post<ServiceRegistrationResponse>(
+			return await this._httpClient.post(
 				this._url("/register"),
-				this._buildRegistrationPayload()
+				this._buildRegistrationPayload(),
+				// Discovery merges a second registration of the same instanceId.
+				{ idempotent: true },
+				ServiceRegistrationWire
 			);
 		} catch (error) {
 			throw addressManagerError(
@@ -78,12 +81,13 @@ export class AddressManagerClient {
 				this._config.identity,
 				{
 					headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token },
+					idempotent: true,
 				}
 			);
 		} catch (err) {
 			logger.warn("Failed to unregister from Address Manager", {
 				url: this._config.addressManagerUrl,
-				err: (err as Error).message,
+				err: normalizeError(err).message,
 			});
 		}
 	}

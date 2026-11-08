@@ -10,12 +10,8 @@ import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/facto
 import {
 	ActivationType,
 	ConnectionType,
-	CrossoverType,
 	FitnessType,
 	InitialisationType,
-	MutationAdaptation,
-	MutationDistribution,
-	MutationScope,
 	NormalisationType,
 	SelectionType,
 } from "../../../src/domain/genetic-algorithm/genome";
@@ -92,7 +88,6 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 					},
 					evaluation: {
 						episodesPerIndividual: 3,
-						seedsPerEval: 2,
 					},
 					seeding: { envSeed: 42, mutationSeed: 1337, networkSeed: 7 },
 					termination: {
@@ -147,26 +142,13 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 				mutation: {
 					rate: 0.1,
 					sigma: 0.05,
-					noiseStd: 0.02,
-					distribution: MutationDistribution.Gaussian,
-					adaptation: MutationAdaptation.Fixed,
-					scope: MutationScope.Global,
-					selfSigma: 0.05,
-					mutateActivations: false,
-					activationMutationRate: 0.05,
-					mutateHyperparams: true,
 					addNeuronRate: 0.01,
 					removeNeuronRate: 0.01,
 					addLayerRate: 0.005,
 					removeLayerRate: 0.005,
-					addConnectionRate: 0.01,
-					removeConnectionRate: 0.01,
 				},
 				crossover: {
-					type: CrossoverType.Uniform,
 					probability: 0.7,
-					blendAlpha: 0.5,
-					sbxEta: 2,
 				},
 			});
 		}),
@@ -381,40 +363,6 @@ describe("Trainer", () => {
 
 			expect(result.success).toBe(true);
 			expect(trainer.isTraining()).toBe(false);
-		});
-	});
-
-	describe("computeSharpe", () => {
-		it("should return 0 for empty scores array", () => {
-			const computeSharpe = (
-				Trainer.prototype as unknown as Record<string, unknown>
-			)._computeSharpe as (scores: number[]) => number;
-
-			expect(computeSharpe([])).toBe(0);
-		});
-
-		it("should return 0 for single-element scores array", () => {
-			const computeSharpe = (
-				Trainer.prototype as unknown as Record<string, unknown>
-			)._computeSharpe as (scores: number[]) => number;
-
-			expect(computeSharpe([1])).toBe(0);
-		});
-
-		it("should return mean when all scores are identical (std is zero)", () => {
-			const computeSharpe = (
-				Trainer.prototype as unknown as Record<string, unknown>
-			)._computeSharpe as (scores: number[]) => number;
-
-			expect(computeSharpe([5, 5, 5])).toBe(5);
-		});
-
-		it("should return positive value for increasing scores", () => {
-			const computeSharpe = (
-				Trainer.prototype as unknown as Record<string, unknown>
-			)._computeSharpe as (scores: number[]) => number;
-
-			expect(computeSharpe([1, 2])).toBeGreaterThan(0);
 		});
 	});
 
@@ -636,6 +584,7 @@ describe("Trainer — model publication", () => {
 			stagnationUpdated: jest.fn(),
 			evaluationFailed: jest.fn(),
 			genomeEvaluated: jest.fn(),
+			crossoverFallbacks: jest.fn(),
 		};
 		const trainer = new Trainer(dataBuffer, {
 			settings: TEST_TRAINING_SETTINGS,
@@ -715,6 +664,76 @@ describe("Trainer — model publication", () => {
 				candle: { close: { count: expect.any(Number) } },
 			});
 			expect(artifact.normalization.candle.close.count).toBeGreaterThan(0);
+		});
+
+		describe("rehydrate", () => {
+			const sym = TradingSymbol.of("BTCUSDT");
+			async function storedManifest() {
+				const genome = await trainedGenome();
+				const { trainedWeights: _w, ...g } = genome;
+				return {
+					version: "v1",
+					genome: JSON.parse(JSON.stringify(g)),
+					metrics: {
+						generation: 3,
+						fitness: 1.5,
+						sharpe: 0.9,
+						avgPnl: 2,
+						maxDrawdown: 4,
+					},
+				};
+			}
+
+			it("serves the newest manifest summary, then a training replaces it", async () => {
+				const genome = await trainedGenome();
+				mockRunImpl = () => Promise.resolve(genome);
+				const models = fakeStore();
+				models.list.mockResolvedValue([{ version: "v1" }] as never);
+				models.manifest.mockResolvedValue((await storedManifest()) as never);
+				const trainer = new Trainer(dataBuffer, {
+					settings: TEST_TRAINING_SETTINGS,
+					models,
+				});
+
+				await trainer.rehydrate([sym]);
+
+				expect(
+					trainer.getSnapshotForSymbol(sym)?.buildBestAgentSummary()
+				).toMatchObject({
+					fitness: 1.5,
+					generation: 3,
+				});
+				expect(trainer.getBestAgentSummary()?.fitness).toBe(1.5);
+
+				feedCandles(dataBuffer, "BTCUSDT", 100);
+				await trainer.train(sym);
+				expect(
+					trainer.getSnapshotForSymbol(sym)?.buildBestAgentSummary()?.id
+				).toBe(genome.id);
+			});
+
+			it("leaves no snapshot without manifest", async () => {
+				const models = fakeStore();
+				models.list.mockResolvedValue([] as never);
+				const trainer = new Trainer(dataBuffer, {
+					settings: TEST_TRAINING_SETTINGS,
+					models,
+				});
+				await trainer.rehydrate([sym]);
+				expect(trainer.getSnapshotForSymbol(sym)).toBeUndefined();
+				expect(trainer.getBestAgentSummary()).toBeNull();
+			});
+
+			it("skips an unreadable manifest", async () => {
+				const models = fakeStore();
+				models.list.mockRejectedValue(new Error("EIO") as never);
+				const trainer = new Trainer(dataBuffer, {
+					settings: TEST_TRAINING_SETTINGS,
+					models,
+				});
+				await expect(trainer.rehydrate([sym])).resolves.toBeUndefined();
+				expect(trainer.getSnapshotForSymbol(sym)).toBeUndefined();
+			});
 		});
 
 		it("does not store a best genome without trained weights", async () => {

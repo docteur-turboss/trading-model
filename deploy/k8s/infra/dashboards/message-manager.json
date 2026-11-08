@@ -9,12 +9,11 @@
       "targets": [{ "expr": "sum(rate(mm_messages_published_total[5m]))", "legendFormat": "msg/s" }]
     },
     {
-      "title": "Queue Depth (In-Flight)",
+      "title": "Messages In Flight",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
       "targets": [
-        { "expr": "mm_in_flight_messages", "legendFormat": "in-flight" },
-        { "expr": "mm_backpressure_ratio", "legendFormat": "backpressure" }
+        { "expr": "mm_in_flight_messages", "legendFormat": "in-flight" }
       ]
     },
     {
@@ -68,12 +67,6 @@
           }
         }
       }
-    },
-    {
-      "title": "WSS Connections",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
-      "targets": [{ "expr": "mm_wss_connections", "legendFormat": "connections" }]
     }
   ]
 }

@@ -155,6 +155,17 @@ function topicOf(request: PublishedRequest): string {
 	return (request.body as { metadata: { topic: string } }).metadata.topic;
 }
 
+function publicationsOf(
+	producer: string,
+	requests: PublishedRequest[]
+): Publication[] {
+	return requests.map((request) => ({
+		producer,
+		topic: topicOf(request),
+		request,
+	}));
+}
+
 async function publishScrapeCycle(): Promise<Publication[]> {
 	const response = buildResponse(
 		{ symbol: toSymbol("BTCUSDT"), interval: CandleInterval.Min1 },
@@ -171,11 +182,7 @@ async function publishScrapeCycle(): Promise<Publication[]> {
 		buildMarketDataEntries(response),
 		createMarketDataMetadata()
 	);
-	return mockScraperBroker.requests.map((request) => ({
-		producer: "financial-scraper",
-		topic: topicOf(request),
-		request,
-	}));
+	return publicationsOf("financial-scraper", mockScraperBroker.requests);
 }
 
 async function publishDlqEvents(): Promise<Publication[]> {
@@ -184,11 +191,7 @@ async function publishDlqEvents(): Promise<Publication[]> {
 	notifyDeleteAudit(["entry-1"], 1);
 	// dlq-service does not wait for its publishes.
 	await new Promise((resolve) => setImmediate(resolve));
-	return mockDlqBroker.requests.map((request) => ({
-		producer: "dlq-service",
-		topic: topicOf(request),
-		request,
-	}));
+	return publicationsOf("dlq-service", mockDlqBroker.requests);
 }
 
 async function publishTrainedModel(): Promise<Publication[]> {
@@ -232,11 +235,7 @@ async function publishTrainedModel(): Promise<Publication[]> {
 			},
 		} as never
 	);
-	return mockTrainerBroker.requests.map((request) => ({
-		producer: "trader-trainer",
-		topic: topicOf(request),
-		request,
-	}));
+	return publicationsOf("trader-trainer", mockTrainerBroker.requests);
 }
 
 describe("service message contracts", () => {
@@ -338,28 +337,24 @@ describe("service message contracts", () => {
 			return bodies;
 		}
 
+		function bufferState(): string {
+			const { buffer } = trainer;
+			return JSON.stringify({
+				states: buffer.getSymbols().map((s) => buffer.getSymbolState(s)),
+			});
+		}
+
 		it.each(trainer.topics as string[])(
 			"trader-trainer: %s is validated and reaches the market data buffer",
 			async (topic) => {
-				const before = JSON.stringify({
-					states: trainer.buffer
-						.getSymbols()
-						.map((s) => trainer.buffer.getSymbolState(s)),
-					prices: trainer.buffer.getPriceSnapshot(),
-				});
+				const before = bufferState();
 
 				for (const body of await deliveredBodies(topic)) {
 					const reception = await trainer.receive(body);
 					expect(reception).toEqual({ status: 200 });
 				}
 
-				const after = JSON.stringify({
-					states: trainer.buffer
-						.getSymbols()
-						.map((s) => trainer.buffer.getSymbolState(s)),
-					prices: trainer.buffer.getPriceSnapshot(),
-				});
-				expect(after).not.toEqual(before);
+				expect(bufferState()).not.toEqual(before);
 			}
 		);
 
@@ -407,6 +402,14 @@ describe("service message contracts", () => {
 					if (!replayed.accepted) {
 						continue;
 					}
+					// ADR-0043: only the failed service, under the original messageId.
+					expect(replayed.journaledFor).toEqual({
+						services: ["audit-logger-service"],
+						onlyFor: "audit-logger-service",
+					});
+					expect(replayed.message.metadata.messageId).toBe(
+						first.message.metadata.messageId
+					);
 					expect((replayed.delivered as { payload: unknown }).payload).toEqual(
 						(first.delivered as { payload: unknown }).payload
 					);

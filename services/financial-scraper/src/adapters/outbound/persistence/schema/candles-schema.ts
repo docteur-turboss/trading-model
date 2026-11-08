@@ -3,14 +3,19 @@ import type {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
+import type { BooleanValueSource } from "ts-sql-query/expressions/values";
 import { Table } from "ts-sql-query/Table";
+import type { tableOrViewRef } from "ts-sql-query/utils/symbols";
 
 import {
 	createDBConnection,
 	DATABASE,
 	type DBConnection,
 } from "../../../../config/db";
-import type { CandleData } from "../../../../domain/market-data.types";
+import type {
+	CandleData,
+	MarketDataPage,
+} from "../../../../domain/market-data.types";
 
 const T_MARKET_CANDLES = new (class TMarketCandles extends Table<
 	DBConnection,
@@ -31,12 +36,16 @@ const T_MARKET_CANDLES = new (class TMarketCandles extends Table<
 	closeTimestamp = this.column("close_timestamp", "localDateTime");
 	timestamp = this.primaryKey("timestamp", "localDateTime");
 
+	/** AUTO_INCREMENT: tie-break of the page order (ADR-0054). */
+	id = this.column("id", "int");
+
 	constructor() {
 		super("market_candles");
 	}
 })();
 
 const SELECT = {
+	id: T_MARKET_CANDLES.id,
 	low: T_MARKET_CANDLES.low,
 	open: T_MARKET_CANDLES.open,
 	high: T_MARKET_CANDLES.high,
@@ -88,36 +97,58 @@ export const insertCandles = async (data: CandleData[]): Promise<void> => {
 	await DATABASE.promise().query(UPSERT_SQL, [rows]);
 };
 
+/** One page in (timestamp, id) order: `filter`, then the window and the cursor of `page`. */
+function _selectPage(
+	filter: BooleanValueSource<
+		(typeof T_MARKET_CANDLES)[typeof tableOrViewRef],
+		"required"
+	>,
+	page: MarketDataPage
+) {
+	const table = T_MARKET_CANDLES;
+	const after = new Date(page.after?.timestamp ?? 0);
+	return createDBConnection()
+		.selectFrom(table)
+		.where(filter)
+		.and(table.timestamp.largeAsIfValue(_date(page.from)))
+		.and(table.timestamp.lessThanIfValue(_date(page.to)))
+		.and(
+			table.timestamp
+				.greaterThan(after)
+				.or(
+					table.timestamp
+						.equals(after)
+						.and(table.id.greaterThan(page.after?.id ?? 0))
+				)
+				.onlyWhen(page.after !== undefined)
+		)
+		.select(SELECT)
+		.orderBy("timestamp")
+		.orderBy("id")
+		.limit(page.limit)
+		.executeSelectMany();
+}
+
+function _date(epochMs: number | undefined): Date | undefined {
+	return epochMs === undefined ? undefined : new Date(epochMs);
+}
+
 /** Query helpers for the market_candles table, indexed by symbol, timestamp, and source. */
 export const selectCandlesBy = {
-	symbol: async (symbol: TradingSymbol) => {
-		return await createDBConnection()
-			.selectFrom(T_MARKET_CANDLES)
-			.where(T_MARKET_CANDLES.symbol.equals(symbol))
-			.select(SELECT)
-			.executeSelectMany();
-	},
+	symbol: (symbol: TradingSymbol, page: MarketDataPage) =>
+		_selectPage(T_MARKET_CANDLES.symbol.equals(symbol), page),
 	timestamp: {
-		after: async (timestamp: UnixTimestamp) => {
-			return await createDBConnection()
-				.selectFrom(T_MARKET_CANDLES)
-				.where(T_MARKET_CANDLES.timestamp.greaterThan(new Date(timestamp)))
-				.select(SELECT)
-				.executeSelectMany();
-		},
-		before: async (timestamp: UnixTimestamp) => {
-			return await createDBConnection()
-				.selectFrom(T_MARKET_CANDLES)
-				.where(T_MARKET_CANDLES.timestamp.lessThan(new Date(timestamp)))
-				.select(SELECT)
-				.executeSelectMany();
-		},
+		after: (timestamp: UnixTimestamp, page: MarketDataPage) =>
+			_selectPage(
+				T_MARKET_CANDLES.timestamp.greaterThan(new Date(timestamp)),
+				page
+			),
+		before: (timestamp: UnixTimestamp, page: MarketDataPage) =>
+			_selectPage(
+				T_MARKET_CANDLES.timestamp.lessThan(new Date(timestamp)),
+				page
+			),
 	},
-	source: async (source: SourceType) => {
-		return await createDBConnection()
-			.selectFrom(T_MARKET_CANDLES)
-			.where(T_MARKET_CANDLES.source.equals(source))
-			.select(SELECT)
-			.executeSelectMany();
-	},
+	source: (source: SourceType, page: MarketDataPage) =>
+		_selectPage(T_MARKET_CANDLES.source.equals(source), page),
 };

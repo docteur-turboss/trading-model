@@ -141,15 +141,6 @@ export function containerIp(container: string): string {
 	).trim();
 }
 
-export interface DlqSignatureInput {
-	serviceName: string;
-	secret: string;
-	body: unknown;
-	timestamp: string;
-	method: string;
-	path: string;
-}
-
 function deterministicStringify(value: unknown): string {
 	return JSON.stringify(value, (_key: string, val: unknown): unknown => {
 		if (typeof val === "object" && val !== null) {
@@ -168,10 +159,72 @@ function deterministicStringify(value: unknown): string {
 	});
 }
 
-export function computeDlqSignature(input: DlqSignatureInput): string {
+/** Listed in DLQ_ALLOWED_SERVICES by the E2E overlay. */
+const DLQ_SERVICE_NAME = "e2e-test-runner";
+const DLQ_HMAC_SECRET = process.env.DLQ_AUTH_HMAC_SECRET ?? "test-hmac-secret";
+
+/** HMAC headers dlq-service requires; `path` includes the query string. */
+export function signedDlqHeaders(
+	body: unknown,
+	method: string,
+	path: string,
+	secret = DLQ_HMAC_SECRET
+): Record<string, string> {
+	const timestamp = Date.now().toString();
 	const bodyHash = createHash("sha256")
-		.update(deterministicStringify(input.body ?? {}))
+		.update(deterministicStringify(body ?? {}))
 		.digest("hex");
-	const payload = `${input.serviceName}:${input.timestamp}:${bodyHash}:${input.method}:${input.path}`;
-	return createHmac("sha256", input.secret).update(payload).digest("hex");
+	const payload = `${DLQ_SERVICE_NAME}:${timestamp}:${bodyHash}:${method}:${path}`;
+	return {
+		"x-service-name": DLQ_SERVICE_NAME,
+		"x-timestamp": timestamp,
+		"x-signature": createHmac("sha256", secret).update(payload).digest("hex"),
+	};
+}
+
+/** Polls `probe` until it returns a value; a throwing probe counts as not ready yet. */
+export async function eventually<T>(
+	description: string,
+	probe: () => T | undefined,
+	{ timeoutMs = e2eTestTimeout, intervalMs = 1000 } = {}
+): Promise<T> {
+	const deadline = Date.now() + timeoutMs;
+	let lastError: unknown;
+	while (Date.now() < deadline) {
+		try {
+			const value = probe();
+			if (value !== undefined) {
+				return value;
+			}
+		} catch (error) {
+			lastError = error;
+		}
+		await new Promise((resolve) => setTimeout(resolve, intervalMs));
+	}
+	throw new Error(
+		`Timed out after ${timeoutMs}ms waiting for ${description}` +
+			(lastError ? `: ${String(lastError)}` : "")
+	);
+}
+
+/** Rows of `symbol` in MySQL `market_candles`. */
+export function persistedCandles(symbol: string): number {
+	const output = execFileSync(
+		"docker",
+		[
+			"exec",
+			"trading-mysql",
+			"sh",
+			"-c",
+			`mysql -N -B -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM market_candles WHERE symbol='${symbol}'"`,
+		],
+		{ encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
+	);
+	return Number(output.trim());
+}
+
+/** First capture of `pattern` in the metrics at `url` (read by the scraper), 0 if absent. */
+export function metric(url: string, pattern: RegExp): number {
+	const match = meshRequest(CALLER.scraper, url).body.match(pattern);
+	return match ? Number(match[1]) : 0;
 }

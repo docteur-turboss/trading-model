@@ -164,7 +164,7 @@ spec:
                   - -c
                   - sleep 10
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
           imagePullPolicy: IfNotPresent
           args:
             - -config
@@ -246,8 +246,8 @@ spec:
     spec:
       serviceAccountName: financial-scraper
       # On stop the collector waits for its publishes in flight, each bounded by
-      # PUBLISH_TIMEOUT_MS (300s + 5s): same grace as message-manager.
-      terminationGracePeriodSeconds: 360
+      # PUBLISH_ACCEPT_TIMEOUT_MS (15s + 5s; PUBLISH_COMPAT_TIMEOUT_MS for one release, the grace then cuts what remains: the cursor republishes).
+      terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -363,7 +363,7 @@ spec:
                   - -c
                   - sleep 10
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
           imagePullPolicy: IfNotPresent
           args:
             - -config

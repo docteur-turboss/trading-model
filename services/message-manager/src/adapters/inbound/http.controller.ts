@@ -3,7 +3,10 @@
  */
 
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
-import type { MessageMetadata } from "@trading-model/contracts/message-types";
+import type {
+	Message,
+	MessageMetadata,
+} from "@trading-model/contracts/message-types";
 import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import type { Dispatcher } from "../../application/services/dispatcher";
@@ -12,6 +15,14 @@ import type { BROKER_API } from "./api-routes";
 type Api = typeof BROKER_API;
 
 const NO_CONTENT = () => sendResponse(undefined, 204 as HttpStatusCode);
+
+/** Journals a dead letter for the one service it failed for, keeping its `messageId`: 204 once durable. */
+export const REPLAY_A_MESSAGE =
+	(dispatcher: Dispatcher): ApiRouteHandler<Api["republish"]> =>
+	async ({ body }) => {
+		await dispatcher.republish(body.message as Message, body.service);
+		return NO_CONTENT();
+	};
 
 /** Forwards a subscription to the dispatcher. */
 export const SUBSCRIPTION_TO_A_TOPIC =
@@ -29,13 +40,13 @@ export const DELETE_A_SUBSCRIPTION =
 		return NO_CONTENT();
 	};
 
-/** Forwards payload and metadata to the dispatcher, which stamps id and emission time. */
+/** Hands payload and metadata to the dispatcher, which stamps id and emission time and journals the message: 202 once it is durable. */
 export const PUBLISH_A_MESSAGE =
 	(dispatcher: Dispatcher): ApiRouteHandler<Api["publish"]> =>
 	async ({ body }) => {
-		await dispatcher.publish(
+		const messageId = await dispatcher.publish(
 			body.payload,
 			body.metadata as Omit<MessageMetadata, "emittedAt" | "messageId">
 		);
-		return NO_CONTENT();
+		return sendResponse({ messageId }, 202 as HttpStatusCode);
 	};

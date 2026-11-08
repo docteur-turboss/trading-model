@@ -23,7 +23,7 @@ describe("dlq-replay-response", () => {
 	describe("buildReplayResponse", () => {
 		it("should build response with success count and errors", () => {
 			const { buildReplayResponse } = jest.requireActual(
-				"../../src/adapters/inbound/dlq-replay-response"
+				"../../src/application/use-cases/dlq-replay-response"
 			) as {
 				buildReplayResponse: (
 					batchId: string,
@@ -45,7 +45,7 @@ describe("dlq-replay-response", () => {
 
 		it("should build response without errors when errors array is empty", () => {
 			const { buildReplayResponse } = jest.requireActual(
-				"../../src/adapters/inbound/dlq-replay-response"
+				"../../src/application/use-cases/dlq-replay-response"
 			) as {
 				buildReplayResponse: (
 					batchId: string,
@@ -66,7 +66,7 @@ describe("dlq-replay-response", () => {
 
 		it("should emit metrics with both counts", () => {
 			const { buildReplayResponse } = jest.requireActual(
-				"../../src/adapters/inbound/dlq-replay-response"
+				"../../src/application/use-cases/dlq-replay-response"
 			) as {
 				buildReplayResponse: (
 					batchId: string,
@@ -91,7 +91,7 @@ describe("dlq-replay-response", () => {
 
 		it("should not emit replay metrics when counts are zero", () => {
 			const { buildReplayResponse } = jest.requireActual(
-				"../../src/adapters/inbound/dlq-replay-response"
+				"../../src/application/use-cases/dlq-replay-response"
 			) as {
 				buildReplayResponse: (
 					batchId: string,
@@ -112,26 +112,6 @@ describe("dlq-replay-response", () => {
 			expect(
 				metricsMock.metrics.entriesReplayFailed.inc
 			).not.toHaveBeenCalled();
-		});
-	});
-
-	describe("noEntriesResponse", () => {
-		it("should return empty response", () => {
-			const { noEntriesResponse } = jest.requireActual(
-				"../../src/adapters/inbound/dlq-replay-response"
-			) as {
-				noEntriesResponse: () => {
-					response: { data: unknown; status: number };
-					successCount: number;
-					errors: unknown[];
-				};
-			};
-
-			const result = noEntriesResponse();
-
-			expect(result.response.status).toBe(200);
-			expect(result.successCount).toBe(0);
-			expect(result.errors).toEqual([]);
 		});
 	});
 });

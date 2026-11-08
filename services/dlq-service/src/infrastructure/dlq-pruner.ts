@@ -20,7 +20,6 @@ export class DlqPruner {
 				this._logIterationError(err);
 			});
 		}, DurationMs.of(ENV.DLQ_PRUNE_INTERVAL_MS));
-		this._timer.unref();
 	}
 
 	stop(): void {

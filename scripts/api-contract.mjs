@@ -52,6 +52,17 @@ const IDENTITY_PATH = join(ROOT, "packages/common/src/config/workload-identity.t
 const PUBLIC_ROUTES_PATH = join(ROOT, "services/api-gateway/src/shared/public-routes.ts");
 const API_MAJOR_VERSION = 1;
 
+/**
+ * Major version a service registers in discovery, hence its gateway prefix
+ * `/v<major>/<service>`: the major of APP_VERSION in its K8s config (compose
+ * sets the same), 1 when unset (the address-manager default "1.0.0").
+ */
+function serviceMajor(service) {
+	const file = join(ROOT, "deploy/k8s/config", `${service}.properties`);
+	const text = existsSync(file) ? readFileSync(file, "utf8") : "";
+	return Number(text.match(/^APP_VERSION=(\d+)\./m)?.[1] ?? API_MAJOR_VERSION);
+}
+
 /** Services the gateway proxies to, by canonical (SPIFFE) name. */
 const PROXIED_SERVICES = [
 	"audit-logger",
@@ -67,7 +78,7 @@ const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/
 const SERVICE_TO_SERVICE = {
 	"discovery-server": ["POST /register", "POST /heartbeat", "POST /token/rotate", "POST /unregister"],
 	"audit-logger": ["POST /message"],
-	"message-manager": ["POST /message", "POST /subscribe", "DELETE /subscribe"],
+	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["POST /message", "GET /models/:symbol/:version/weights"],
 };
@@ -86,6 +97,7 @@ const CALLERS = {
 	"message-manager POST /message": { caller: "packages/broker-message", call: /\}\/message`/ },
 	"message-manager POST /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
 	"message-manager DELETE /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
+	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
 	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
 	"trader-trainer POST /message": { caller: "services/trader-trainer", call: /\.intents\(/ },
 };
@@ -523,7 +535,8 @@ function jsonSchema(schema, io) {
 	}
 }
 
-const ERROR_RESPONSE_JSON = JSON.stringify(jsonSchema(ErrorResponse, "output"));
+const ERROR_RESPONSE_SCHEMA = jsonSchema(ErrorResponse, "output");
+const ERROR_RESPONSE_JSON = JSON.stringify(ERROR_RESPONSE_SCHEMA);
 
 /** A response schema, as a reference when it is the shared ErrorResponse. */
 function responseSchema(schema) {
@@ -697,10 +710,10 @@ function buildSpec(routesByService, publicByService) {
 		"    registry entry (ADR-0021) also describe their parameters, request body",
 		"    and responses from the service's Zod schemas; the others do not yet",
 		"    (scripts/api-contract-known-gaps.json, `schemas`).",
-		`  version: "v${API_MAJOR_VERSION}"`,
+		`  version: ${JSON.stringify(PROXIED_SERVICES.map((service) => `${service} v${serviceMajor(service)}`).join(", "))}`,
 		"servers:",
 		"  - url: http://localhost:8449",
-		"    description: Development (compose) — edge-proxy, which forwards /v1 to the gateway over mTLS",
+		"    description: Development (compose) — edge-proxy, which forwards /v{major} to the gateway over mTLS",
 		"  - url: https://api.trading-model.example.com",
 		"    description: Kubernetes — public API Ingress → edge-proxy",
 		"security:",
@@ -714,7 +727,7 @@ function buildSpec(routesByService, publicByService) {
 		...yaml(SECURITY_SCHEMES.SignedRequest, 4),
 		"  schemas:",
 		"    ErrorResponse:",
-		...yaml(jsonSchema(ErrorResponse, "output"), 6),
+		...yaml(ERROR_RESPONSE_SCHEMA, 6),
 		"  responses:",
 		"    Unauthorized: { description: Missing or invalid API key }",
 		"    NotFound: { description: \"Unknown route, or no registered instance of the service\" }",
@@ -732,7 +745,7 @@ function buildSpec(routesByService, publicByService) {
 			routesByService[service]
 				.filter((route) => publicByService[service].some((pub) => routeKey(pub) === routeKey(route)))
 				.map((route) => ({
-					path: `/v${API_MAJOR_VERSION}/${service}${route.path}`,
+					path: `/v${serviceMajor(service)}/${service}${route.path}`,
 					method: route.method,
 					meta: route.entry
 						? { tag: service, entry: route.entry, operation: route.operation }
@@ -741,12 +754,7 @@ function buildSpec(routesByService, publicByService) {
 		),
 	];
 
-	const byPath = new Map();
-	for (const entry of entries) {
-		const key = toOpenApiPath(entry.path);
-		if (!byPath.has(key)) byPath.set(key, []);
-		byPath.get(key).push(entry);
-	}
+	const byPath = Map.groupBy(entries, (entry) => toOpenApiPath(entry.path));
 	for (const path of [...byPath.keys()].sort()) {
 		lines.push(`  ${path}:`);
 		const ops = byPath.get(path).sort((a, b) => a.method.localeCompare(b.method));
@@ -799,15 +807,10 @@ function buildInternalSpecs(routesByService) {
 			...(Object.keys(schemes).length > 0 ? ["  securitySchemes:", ...yaml(schemes, 4)] : []),
 			"  schemas:",
 			"    ErrorResponse:",
-			...yaml(jsonSchema(ErrorResponse, "output"), 6),
+			...yaml(ERROR_RESPONSE_SCHEMA, 6),
 			"paths:",
 		];
-		const byPath = new Map();
-		for (const route of documented) {
-			const key = toOpenApiPath(route.path);
-			if (!byPath.has(key)) byPath.set(key, []);
-			byPath.get(key).push(route);
-		}
+		const byPath = Map.groupBy(documented, (route) => toOpenApiPath(route.path));
 		for (const path of [...byPath.keys()].sort()) {
 			lines.push(`  ${path}:`);
 			for (const route of byPath.get(path).sort((a, b) => a.method.localeCompare(b.method))) {
@@ -869,7 +872,7 @@ function routeReason(service, path, method, routesByService) {
 	return null;
 }
 
-/** Why a gateway path (`/<service>/<route>`, after `/v1`) reaches no public route, or null. */
+/** Why a gateway path (`/<service>/<route>`, after `/v<major>`) reaches no public route, or null. */
 function gatewayReason(path, method, publicByService, serviceNames) {
 	const [service, ...segments] = path.split("/").filter(Boolean);
 	const canonical = serviceNames.get(service);
@@ -923,13 +926,15 @@ function documentedGatewayUrls(publicByService, serviceNames) {
 	for (const file of markdownFiles()) {
 		for (const match of readFileSync(file, "utf8").matchAll(GATEWAY_URL)) {
 			const path = `/${match[2]}`;
+			const service = serviceNames.get(match[2].split("/")[0]);
+			const major = service ? serviceMajor(service) : API_MAJOR_VERSION;
 			checked.push({
 				key: `${rel(file)} /v${match[1]}${path}`,
 				where: rel(file),
 				reason:
-					Number(match[1]) === API_MAJOR_VERSION
+					Number(match[1]) === major
 						? gatewayReason(path, null, publicByService, serviceNames)
-						: `the gateway API is v${API_MAJOR_VERSION}`,
+						: `the gateway serves ${service ?? "this service"} at /v${major}`,
 			});
 		}
 	}

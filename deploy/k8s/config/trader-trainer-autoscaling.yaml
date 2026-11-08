@@ -1,0 +1,56 @@
+# No HorizontalPodAutoscaler: trader-trainer is a singleton (ADR-0044).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: trader-trainer-pdb
+  labels:
+    app.kubernetes.io/component: trader-trainer
+    app.kubernetes.io/part-of: trading-model
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: trader-trainer
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: trader-trainer-network-policy
+  labels:
+    app.kubernetes.io/component: trader-trainer
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: trader-trainer
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    - to:
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
+      ports:
+        - port: 3000
+          protocol: TCP
+        # Redis and its sentinels (REDIS_SENTINELS).
+        - port: 6379 # kept one release: rollback to N-1 still reads Redis (expand/contract, ADR-0040)
+          protocol: TCP
+        - port: 26379
+          protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trader-trainer
+  labels:
+    app.kubernetes.io/component: trader-trainer
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { deadLetterError } from "@trading-model/common/utils/errors";
+import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import {
 	DurationMs,
@@ -7,14 +7,13 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import {
-	DeliveryErrorClassifier,
+	classifyDeliveryError,
 	DlqReason,
 	ErrorActionType,
 	isDeliveryExhausted,
 	MAX_RETRIES,
 } from "../../../src/domain/delivery-error-classifier";
 
-const classifier = new DeliveryErrorClassifier();
 const transient = new Error("Transient error");
 
 function params(deliveryMode: DeliveryMode) {
@@ -25,10 +24,10 @@ function params(deliveryMode: DeliveryMode) {
 	};
 }
 
-describe("DeliveryErrorClassifier", () => {
+describe("classifyDeliveryError", () => {
 	it("should dead-letter a DeadLetterError at once with its reason", () => {
 		expect(
-			classifier.classify(
+			classifyDeliveryError(
 				deadLetterError("rejected", {
 					reason: DlqReason.RejectedBySubscriber,
 				}),
@@ -43,7 +42,7 @@ describe("DeliveryErrorClassifier", () => {
 
 	it("should retry an at-least-once failure below the retry budget", () => {
 		expect(
-			classifier.classify(
+			classifyDeliveryError(
 				transient,
 				1 as SequenceNumber,
 				params(DeliveryMode.AtLeastOnce)
@@ -53,7 +52,7 @@ describe("DeliveryErrorClassifier", () => {
 
 	it("should dead-letter an at-least-once failure once the budget is spent", () => {
 		expect(
-			classifier.classify(
+			classifyDeliveryError(
 				transient,
 				MAX_RETRIES as unknown as SequenceNumber,
 				params(DeliveryMode.AtLeastOnce)
@@ -66,7 +65,7 @@ describe("DeliveryErrorClassifier", () => {
 
 	it("should swallow an at-most-once failure", () => {
 		expect(
-			classifier.classify(
+			classifyDeliveryError(
 				transient,
 				1 as SequenceNumber,
 				params(DeliveryMode.AtMostOnce)
@@ -77,7 +76,7 @@ describe("DeliveryErrorClassifier", () => {
 	// A retry could deliver it twice; a silent drop would lose it.
 	it("should dead-letter an exactly-once failure without retrying", () => {
 		expect(
-			classifier.classify(
+			classifyDeliveryError(
 				transient,
 				1 as SequenceNumber,
 				params(DeliveryMode.ExactlyOnce)

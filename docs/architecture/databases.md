@@ -11,6 +11,7 @@ Used by `financial-scraper` to persist market data. All tables live in the `fina
 | `market_candles` | OHLCV candle data | symbol, market, source, interval, open/high/low/close, volume, timestamp |
 | `market_trades` | Individual trade data | symbol, trade_id, price, quantity, side, timestamp |
 | `market_tickers` | 24-hour ticker statistics | symbol, open/high/low/last, volume, timestamp |
+| `market_order_books` | Order book depth snapshots, kept for historical replay, never served by the API (ADR-0053) | symbol, market, source, timestamp, bids / asks (JSON `[price, quantity]` pairs, best first) |
 | `market_publish_cursors` | Per candle series, open time of the next candle to publish to the bus (the persisted candles from it wait for message-manager) | source, symbol, interval, market, published_until |
 | `signals` | Signals of every dimension from the source registry (ADR-0036): one observation about an asset or a sector | id, source_id, dimension, asset_id / sector, observed_at, ingested_at, confidence_score, payload (JSON, canonical per dimension) |
 
@@ -27,6 +28,21 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 | **dlq-service** | Dead letter entries |
 
 > SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database).
+
+## Redis — who uses it, with which keys
+
+Inventory (issue #506). Address-manager caches in memory per process, so only three services still talk to Redis (K8s: through the sentinels). Never `KEYS` (ADR-0023).
+
+| Service | Key prefix | Commands | Purpose |
+| ------- | ---------- | -------- | ------- |
+| discovery-server | `trading-model:discovery:*` | `GET SET DEL MGET SADD SREM SMEMBERS SISMEMBER SCARD MULTI EVAL` | Instance registry and tokens (ADR-0023) |
+| message-manager | `trading-model:message-manager:subscriptions:<topic>` | `HSET HGETALL HDEL PEXPIRE` | Broker subscriptions |
+| message-manager | `trading-model:message-manager:journal:<topic>`, `trading-model:message-manager:journal-groups` | `EXISTS XADD XDEL XREADGROUP XPENDING XCLAIM XACK XGROUP XINFO XRANGE WAIT SADD SMEMBERS` | Durable message journal (ADR-0048) |
+| dlq-service | `dlq:queue` | `LLEN LPUSH LRANGE LTRIM EVAL EVALSHA SCRIPT LOAD` | Replay queue, a cache of the MongoDB entries (rebuilt from MongoDB; the HTTP rate limiter is in memory) |
+
+Dead letters live in MongoDB, not Redis.
+
+Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off (release 3.0.0 keeps it on without a password, with sentinels open, through `REDIS_ALLOW_LEGACY_CLIENTS=true` in `deploy/k8s/infra/redis.yaml`, so 2.x clients survive the upgrade: removed in the next release); the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix. Compose runs one unauthenticated Redis (dev).
 
 ## Schema Validation
 

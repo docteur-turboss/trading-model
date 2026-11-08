@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Staging on the local kind cluster (docs/deployment/STAGING_LOCAL.md): the
+# staging overlay, adapted to what a laptop provides. deploy.yml picks it when
+# the GitHub environment `staging` sets K8S_OVERLAY=staging-local.
+resources:
+  - ../staging
+
+patches:
+  # No public DNS name for Let's Encrypt: self-signed certificates
+  # (ClusterIssuer created by deploy/staging-local/bootstrap.sh prereqs).
+  # Only the host reaches the Ingress (kind port mapping 127.0.0.1:9443),
+  # through the gateway of the `kind` Docker network.
+  - target:
+      kind: Ingress
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: selfsigned-local
+      - op: replace
+        path: /metadata/annotations/nginx.ingress.kubernetes.io~1whitelist-source-range
+        value: 172.18.0.0/16
+
+  # Audit anchors go to the local MinIO (deploy/staging-local/docker-compose.yml,
+  # fixed address on the `kind` network), plain HTTP on 9000: the base rule
+  # only allows public addresses on 443.
+  - target:
+      kind: NetworkPolicy
+      name: audit-logger-network-policy
+    patch: |-
+      - op: add
+        path: /spec/egress/-
+        value:
+          to:
+            - ipBlock:
+                cidr: 172.18.0.200/32
+          ports:
+            - port: 9000
+              protocol: TCP
+
+  # Secrets sealed with the key of the kind cluster's controller, not the
+  # placeholders of ../staging (OVERLAY=staging-local bash scripts/init-sealed-secrets.sh).
+  - path: sealed-secrets.yaml
+    target:
+      kind: SealedSecret
+      name: trading-model-secrets

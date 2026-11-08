@@ -1,6 +1,8 @@
 # System Overview (C4)
 
-Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0019](../adr/0019-message-broker-as-built.md) (broker), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
+Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md) (broker), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
+
+> **No downstream consumer yet.** Trained models (`training.model.published`, weights route closed by an empty `MODEL_DOWNLOAD_CALLERS`) and collected signals (`GET /financial-scraper/signals/assets/:assetId`) are read by no service; there is no inference, paper-trading or execution context. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Proposed).
 
 ## 1. C4 level 1 — Context
 
@@ -69,7 +71,7 @@ flowchart TB
   prom -.->|"scrape /metrics"| services
 ```
 
-message-manager keeps subscriptions in Redis and **no messages** (ADR-0019): it has no database. MongoDB belongs to audit-logger and dlq-service. Compose runs one `mongo` container (databases `audit-logger` and `dlq`); K8s runs two StatefulSets, `mongo-audit` and `mongo-dlq`.
+message-manager keeps its subscriptions and a durable message journal (Redis Streams) in Redis (ADR-0048): it has no database of its own. MongoDB belongs to audit-logger and dlq-service. Compose runs one `mongo` container (databases `audit-logger` and `dlq`); K8s runs two StatefulSets, `mongo-audit` and `mongo-dlq`.
 
 ## 3. Kubernetes deployment
 
@@ -77,7 +79,7 @@ message-manager keeps subscriptions in Redis and **no messages** (ADR-0019): it 
 flowchart TB
   subgraph tm["namespace trading-model (Pod Security: restricted)"]
     ing["Ingress gateway / grafana"] --> edge["Deployment edge-proxy"]
-    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>trader-trainer, audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints)"]
+    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints);<br/>trader-trainer: 1 replica, Recreate (ADR-0044)"]
     svc --> mysql["StatefulSet mysql"]
     svc --> mA["StatefulSet mongo-audit"]
     svc --> mD["StatefulSet mongo-dlq"]
@@ -131,5 +133,7 @@ sequenceDiagram
     Note over MM,DLQ: dlq-service down: local JSON Lines file, forwarded later
   end
 ```
+
+Each subscribed service gets one delivery per message, whatever its number of instances: message-manager groups the subscribed instances by service and posts to the service name, the Kubernetes Service picks the pod (consumer group, [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
 
 Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed through `POST /dlq/replay`; an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).

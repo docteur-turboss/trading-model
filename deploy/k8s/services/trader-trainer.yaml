@@ -22,11 +22,12 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 spec:
   revisionHistoryLimit: 3
+  # Exactly one trainer (ADR-0044): its training state is in memory, so a second
+  # pod would train apart and answer the read routes differently. No HPA, and
+  # Recreate never runs the old and the new pod side by side.
+  replicas: 1
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/component: trader-trainer
@@ -159,7 +160,7 @@ spec:
                   - -c
                   - sleep 10
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
           imagePullPolicy: IfNotPresent
           args:
             - -config

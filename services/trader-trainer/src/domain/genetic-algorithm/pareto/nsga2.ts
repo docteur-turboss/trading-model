@@ -1,5 +1,5 @@
 import type { ObjectiveVector } from "./domination";
-import { buildDominationMatrix } from "./domination";
+import { buildDominationMatrix, dominates } from "./domination";
 
 const EXACT_NSGA2_THRESHOLD = 300;
 
@@ -69,21 +69,6 @@ function _buildPool(count: number, idx: number): number[] {
 	);
 }
 
-function _isDominated(
-	objectives: ObjectiveVector[],
-	candidateIdx: number,
-	targetIdx: number
-): boolean {
-	return (
-		objectives[candidateIdx].avgPnl >= objectives[targetIdx].avgPnl &&
-		objectives[candidateIdx].sharpe >= objectives[targetIdx].sharpe &&
-		objectives[candidateIdx].negFlops >= objectives[targetIdx].negFlops &&
-		(objectives[candidateIdx].avgPnl > objectives[targetIdx].avgPnl ||
-			objectives[candidateIdx].sharpe > objectives[targetIdx].sharpe ||
-			objectives[candidateIdx].negFlops > objectives[targetIdx].negFlops)
-	);
-}
-
 interface SamplingState {
 	objectives: ObjectiveVector[];
 	dominated: Int32Array;
@@ -96,7 +81,7 @@ function _sampleDomination(state: SamplingState, idx: number): void {
 	for (let sample = 0; sample < state.sampleSize; sample++) {
 		const pick = sample + Math.floor(state.rng() * (pool.length - sample));
 		[pool[sample], pool[pick]] = [pool[pick], pool[sample]];
-		if (_isDominated(state.objectives, pool[sample], idx)) {
+		if (dominates(state.objectives[pool[sample]], state.objectives[idx])) {
 			state.dominated[idx]++;
 		}
 	}
@@ -194,30 +179,21 @@ function assignCrowding(
 	}
 }
 
-function _collectFront(paretoRank: number[], rankIdx: number): number[] {
-	return paretoRank.reduce((acc, rank, index) => {
-		if (rank === rankIdx) {
-			acc.push(index);
-		}
-		return acc;
-	}, [] as number[]);
-}
-
-function _computeMaxRank(paretoRank: number[]): number {
-	return Math.max(...paretoRank);
-}
-
 function _assignCrowdingForAllFronts(
 	paretoRank: number[],
 	objectives: ObjectiveVector[],
 	crowdingDist: number[]
 ): void {
-	for (let rankIdx = 0; rankIdx <= _computeMaxRank(paretoRank); rankIdx++) {
-		assignCrowding(
-			_collectFront(paretoRank, rankIdx),
-			objectives,
-			crowdingDist
-		);
+	// One pass buckets indices by rank, ascending inside each front.
+	const fronts: number[][] = [];
+	paretoRank.forEach((rank, index) => {
+		fronts[rank] ??= [];
+		fronts[rank].push(index);
+	});
+	for (const front of fronts) {
+		if (front) {
+			assignCrowding(front, objectives, crowdingDist);
+		}
 	}
 }
 

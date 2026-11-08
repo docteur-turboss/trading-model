@@ -1,31 +1,46 @@
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type {
+	DeliveryType,
 	MessageMetadata as MetadataType,
+	RoutingType,
 	SecurityType,
 	ServiceIdentity,
 } from "@trading-model/contracts/message-types";
 import {
 	type CorrelationId,
 	type Topic,
+	toCorrelationId,
 	toTopic,
 } from "@trading-model/primitives/primitives";
 import {
-	type ChainingIds,
-	type ChainingMetadata,
-	MessageChainingMetadata,
-	NULL_MESSAGE_CHAINING_METADATA,
-} from "./message-chaining-metadata";
-import { MessageContext } from "./message-context";
-import { MessageMetadataValidator } from "./message-metadata-validator";
+	DELIVERY_METADATA_MODE_PREDICATE,
+	EVENT_TYPE_METADATA_PREDICATE,
+	IDS_METADATA_PREDICATE,
+	PUBLISHER_METADATA_CONTEXT_PREDICATE,
+	ROUTING_METADATA_CONTEXT_PREDICATE,
+	SCHEMA_METADATA_VERSION_PREDICATE,
+	SECURITY_METADATA_CONTEXT_PREDICATE,
+	TOPIC_METADATA_PREDICATE,
+} from "../../shared/barrel/message.schema";
+
+export interface ChainingIds {
+	causationId?: CorrelationId;
+	correlationId?: CorrelationId;
+}
+
+const toId = (id: CorrelationId | undefined) =>
+	id ? toCorrelationId(IDS_METADATA_PREDICATE.parse(id) as string) : undefined;
 
 export class MessageMetadataBuilder {
 	public topic: Topic;
 	public eventType: EventEnumMap;
 	public publisher: ServiceIdentity;
 	public schemaVersion = "1.0.0" as const;
-	private _context: MessageContext;
-	private _chaining: ChainingMetadata;
-	private readonly _validator = new MessageMetadataValidator();
+	private _delivery?: DeliveryType;
+	private _routing?: RoutingType;
+	private _security?: SecurityType;
+	/** `undefined` until an id is set: toJSON then carries no id key at all. */
+	private _ids?: ChainingIds;
 
 	public constructor(
 		topic: Topic,
@@ -33,89 +48,79 @@ export class MessageMetadataBuilder {
 		publisher: ServiceIdentity,
 		data: Partial<Omit<MetadataType, "topic" | "eventType" | "publisher">> = {}
 	) {
-		this._validator.validateTopic(topic);
-		this._validator.validateEventType(eventType);
-		this._validator.validatePublisher(publisher);
+		TOPIC_METADATA_PREDICATE.parse(topic);
+		EVENT_TYPE_METADATA_PREDICATE.parse(eventType);
+		PUBLISHER_METADATA_CONTEXT_PREDICATE.parse(publisher);
 		this.topic = toTopic(topic);
 		this.eventType = eventType;
 		this.publisher = publisher;
-		this._context = new MessageContext({
-			routing: data.routing,
-			delivery: data.delivery,
-			security: data.security,
-		});
-		this._chaining =
-			data.causationId || data.correlationId
-				? new MessageChainingMetadata({
-						causationId: data.causationId,
-						correlationId: data.correlationId,
-					})
-				: NULL_MESSAGE_CHAINING_METADATA;
+		this._delivery = data.delivery;
+		this._routing = data.routing;
+		this._security = data.security;
+		this.setIds(data);
 	}
 
 	public get causationId(): CorrelationId | undefined {
-		return this._chaining.causationId;
+		return this._ids?.causationId;
 	}
 	public get correlationId(): CorrelationId | undefined {
-		return this._chaining.correlationId;
+		return this._ids?.correlationId;
 	}
 
 	public setSecurity(context: SecurityType | null): this {
-		this._context = this._context.withSecurity(context);
+		if (context !== null) {
+			SECURITY_METADATA_CONTEXT_PREDICATE.parse(context);
+		}
+		this._security = context ?? undefined;
 		return this;
 	}
-	public setDelivery(
-		context:
-			| import("@trading-model/contracts/message-types").DeliveryType
-			| null
-	): this {
-		this._context = this._context.withDelivery(context);
+	public setDelivery(context: DeliveryType | null): this {
+		if (context !== null) {
+			DELIVERY_METADATA_MODE_PREDICATE.parse(context);
+		}
+		this._delivery = context ?? undefined;
 		return this;
 	}
-	public setRouting(
-		context: import("@trading-model/contracts/message-types").RoutingType | null
-	): this {
-		this._context = this._context.withRouting(context);
+	public setRouting(context: RoutingType | null): this {
+		if (context !== null) {
+			ROUTING_METADATA_CONTEXT_PREDICATE.parse(context);
+		}
+		this._routing = context ?? undefined;
 		return this;
 	}
 	public setPublisher(context: ServiceIdentity): this {
-		this._validator.validatePublisher(context);
+		PUBLISHER_METADATA_CONTEXT_PREDICATE.parse(context);
 		this.publisher = context;
 		return this;
 	}
 	public setSchemaVersion(version: string | null): this {
-		if (version === null) {
-			this.schemaVersion = "1.0.0";
-			return this;
+		if (version !== null) {
+			SCHEMA_METADATA_VERSION_PREDICATE.parse(version);
 		}
-		this._validator.validateSchemaVersion(version);
-		this.schemaVersion = version as "1.0.0";
+		this.schemaVersion = (version ?? "1.0.0") as "1.0.0";
 		return this;
 	}
 	public setEventType(event: EventEnumMap): this {
-		this._validator.validateEventType(event);
+		EVENT_TYPE_METADATA_PREDICATE.parse(event);
 		this.eventType = event;
 		return this;
 	}
 	public setTopic(topic: Topic): this {
-		this._validator.validateTopic(topic);
+		TOPIC_METADATA_PREDICATE.parse(topic);
 		this.topic = toTopic(topic);
 		return this;
 	}
+	/** Replaces both ids; `null` clears them, an object with neither id keeps them. */
 	public setIds(context: ChainingIds | null): this {
 		if (context === null) {
-			this._chaining = NULL_MESSAGE_CHAINING_METADATA;
-			return this;
+			this._ids = undefined;
+		} else if (context.causationId || context.correlationId) {
+			this._ids = {
+				causationId: toId(context.causationId),
+				correlationId: toId(context.correlationId),
+			};
 		}
-		if (!(context.causationId || context.correlationId)) {
-			return this;
-		}
-		this._chaining = new MessageChainingMetadata(context);
 		return this;
-	}
-
-	public build(): MetadataType {
-		return this.toJSON();
 	}
 
 	public toJSON(): MetadataType {
@@ -124,8 +129,10 @@ export class MessageMetadataBuilder {
 			publisher: this.publisher,
 			schemaVersion: this.schemaVersion,
 			topic: this.topic,
-			...this._chaining.toJSON(),
-			...this._context.toJSON(),
+			...this._ids,
+			delivery: this._delivery,
+			routing: this._routing,
+			security: this._security,
 		};
 	}
 }

@@ -20,15 +20,18 @@ On startup:
 
 ## 2. Training Trigger
 
-Training starts when **at least 50 candles** (10% of `TRAINER_DATA_WINDOW`) have been received for a symbol. A 60-second interval timer then runs training sessions:
+Training starts when **enough candles** (formula in [Trader Trainer, Training Loop](../services/trader-trainer.md#training-loop)) have been received for a symbol. A 60-second interval timer then runs training sessions:
 
 ```
 startTrainingLoop():
-  for each symbol in TRAINER_SYMBOLS:
-    if symbol has enough candles:
+  for each symbol in TRAINER_SYMBOLS, starting after the last one trained:
+    if symbol has enough candles and fresh data:
+      remember it as the last one trained
       trainer.train(symbol)
-      break (train one symbol per interval)
+      stop (train one symbol per interval)
 ```
+
+The scan is round-robin: every eligible symbol gets its turn, and a symbol whose training keeps failing does not hold the loop.
 
 ## 3. Data Preparation (`MarketDataBuffer`)
 
@@ -98,7 +101,7 @@ Repeated until termination:
 2. **NSGA-II sort** the population by Pareto rank + crowding distance
 3. **Update archive** with non-dominated solutions
 4. **Select elites** (top `elitismFraction`)
-5. **Select parents** (tournament/roulette/rank)
+5. **Select parents** (tournament)
 6. **Crossover** parents → child genomes (structural + weight-level)
 7. **Mutate** children (structural + weight-level)
 8. **Adapt** GA control parameters

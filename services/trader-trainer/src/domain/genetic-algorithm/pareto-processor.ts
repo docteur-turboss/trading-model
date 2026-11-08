@@ -4,8 +4,9 @@ import type {
 	LamarckGenome,
 	PopMember,
 } from "./genome-types";
-import type { ObjectiveVector, PopulationMeta } from "./nsga2";
-import { buildPopulationMeta } from "./nsga2";
+import type { ObjectiveVector } from "./pareto/domination";
+import type { PopulationMeta } from "./pareto/nsga2";
+import { buildPopulationMeta } from "./pareto/nsga2";
 import type { DeepReadonly } from "./shared-types";
 
 export function buildParetoFronts(

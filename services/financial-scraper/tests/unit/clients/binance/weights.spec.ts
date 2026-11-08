@@ -34,18 +34,6 @@ describe("BINANCE_WEIGHTS", () => {
 		});
 	});
 
-	describe("historicalTrades", () => {
-		it("should return 25", () => {
-			expect(BINANCE_WEIGHTS.historicalTrades()).toBe(25);
-		});
-	});
-
-	describe("compressedAggregateTrades", () => {
-		it("should return 4", () => {
-			expect(BINANCE_WEIGHTS.compressedAggregateTrades()).toBe(4);
-		});
-	});
-
 	describe("candlesticks", () => {
 		it("should return 2", () => {
 			expect(BINANCE_WEIGHTS.candlesticks()).toBe(2);
@@ -65,24 +53,6 @@ describe("BINANCE_WEIGHTS", () => {
 
 		it("should return 80 for > 100 symbols", () => {
 			expect(BINANCE_WEIGHTS.change24hrStats(101)).toBe(80);
-		});
-	});
-
-	describe("tradingDayTicker", () => {
-		it("should return 4 * symbolCount for 1-49 symbols", () => {
-			expect(BINANCE_WEIGHTS.tradingDayTicker(1)).toBe(4);
-			expect(BINANCE_WEIGHTS.tradingDayTicker(49)).toBe(196);
-		});
-
-		it("should return 200 for 50-100 symbols", () => {
-			expect(BINANCE_WEIGHTS.tradingDayTicker(50)).toBe(200);
-			expect(BINANCE_WEIGHTS.tradingDayTicker(100)).toBe(200);
-		});
-
-		it("should throw for > 100 symbols", () => {
-			expect(() => BINANCE_WEIGHTS.tradingDayTicker(101)).toThrow(
-				"maximum of 100"
-			);
 		});
 	});
 

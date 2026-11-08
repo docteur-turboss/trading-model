@@ -15,8 +15,6 @@ jest.mock("../../src/config/logger", () => ({
 
 jest.mock("../../src/application/services/batch-concurrency-guard", () => ({
 	checkBatchRejection: () => null,
-	incrementActiveBatches: jest.fn(),
-	decrementActiveBatches: jest.fn(),
 	recordBatchResult: jest.fn(),
 }));
 
@@ -87,9 +85,50 @@ describe("replay-batch", () => {
 		expect(new Set(result.errors.map((err) => err.id)).size).toBe(3);
 	});
 
+	it("clears the timeout timer once the batch ends, even when delivery fails", async () => {
+		jest.spyOn(global, "setTimeout").mockImplementation((() => 42) as never);
+		const clear = jest.spyOn(global, "clearTimeout").mockImplementation();
+		const { logger } = jest.requireMock("../../src/config/logger") as {
+			logger: { warn: jest.Mock };
+		};
+
+		await runReplay(() => Promise.reject(new Error("boom")));
+
+		expect(clear).toHaveBeenCalledWith(42);
+		expect(logger.warn).not.toHaveBeenCalled();
+	});
+
+	it("warns and still drains in-flight deliveries when the batch outlives the timeout", async () => {
+		let fire: () => void = () => undefined;
+		jest.spyOn(global, "setTimeout").mockImplementation(((cb: () => void) => {
+			fire = cb;
+			return 7;
+		}) as never);
+		jest.spyOn(global, "clearTimeout").mockImplementation();
+		const { logger } = jest.requireMock("../../src/config/logger") as {
+			logger: { warn: jest.Mock };
+		};
+		let release: () => void = () => undefined;
+		const gate = new Promise<void>((r) => {
+			release = r;
+		});
+
+		const pending = runReplay(() => gate);
+		await Promise.resolve();
+		fire();
+		release();
+		const result = await pending;
+
+		expect(logger.warn).toHaveBeenCalledWith(
+			expect.stringContaining("DLQ batch replay timeout"),
+			{ batchId: "batch-1" }
+		);
+		expect(result.success).toBe(3);
+	});
+
 	it("counts the batch as in flight until its deliveries end (shutdown drain)", async () => {
 		const { activeReplays } = jest.requireActual(
-			"../../src/shared/active-replay-counter"
+			"../../src/application/services/active-replay-counter"
 		) as { activeReplays: { count: number } };
 		const during: number[] = [];
 

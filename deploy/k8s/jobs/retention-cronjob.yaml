@@ -1,0 +1,111 @@
+# =============================================================================
+#  retention-cronjob.yaml — Daily purge of market data and signals older than
+#  the retention period (ADR-0051, issue #534)
+#  Runs retention-mysql.sh at 03:30 UTC (after the 02:00 daily dump, away from
+#  the hourly :30 incremental run's busiest minute: Forbid is per CronJob, the
+#  deletes land in the binlogs the incremental job archives, as expected).
+#  Connects as the `retention` MySQL user (SELECT, DELETE on market_candles,
+#  market_trades, market_tickers, market_order_books, signals only; created by db-migrate-user).
+#
+#  Metrics: /backups/metrics/retention.prom, served by backup-metrics-exporter.
+#  Alerts: RetentionFailed, RetentionStale (runbook BACKUP_DR.md#retention-job).
+#  Durations: RETENTION_DAYS / RETENTION_SIGNALS_DAYS (docs/deployment/ENV.md).
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-retention
+  labels:
+    app.kubernetes.io/component: retention
+    app.kubernetes.io/part-of: trading-model
+  annotations:
+    description: "Daily batched purge of market data and signals older than RETENTION_DAYS"
+spec:
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 3
+  startingDeadlineSeconds: 3600
+  jobTemplate:
+    spec:
+      # No retry: the next daily run continues where this one stopped.
+      backoffLimit: 0
+      activeDeadlineSeconds: 14400
+      ttlSecondsAfterFinished: 172800
+      template:
+        spec:
+          serviceAccountName: backup-runner
+          restartPolicy: Never
+          # backup-data is ReadWriteOnce: run next to the exporter's volume.
+          affinity:
+            podAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        app.kubernetes.io/component: backup-metrics
+                    topologyKey: kubernetes.io/hostname
+          containers:
+            - name: retention
+              image: ghcr.io/trading-model/backup-tools:latest
+              imagePullPolicy: Always
+              securityContext:
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                seccompProfile:
+                  type: RuntimeDefault
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  exec bash /scripts/retention-mysql.sh
+              env:
+                - name: MYSQL_HOST
+                  value: mysql-primary
+                - name: MYSQL_USER
+                  value: retention
+                - name: MYSQL_PWD
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-secrets
+                      key: MYSQL_RETENTION_PASSWORD
+                - name: RETENTION_DAYS
+                  value: "1827"
+                - name: RETENTION_BATCH_SIZE
+                  value: "10000"
+                - name: RETENTION_PAUSE_SECONDS
+                  value: "1"
+                - name: METRICS_FILE
+                  value: /backups/metrics/retention.prom
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: backup-data
+                  mountPath: /backups
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+          volumes:
+            - name: scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0555
+            - name: backup-data
+              persistentVolumeClaim:
+                claimName: backup-data
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault

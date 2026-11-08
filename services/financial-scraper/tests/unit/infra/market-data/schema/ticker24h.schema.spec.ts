@@ -5,34 +5,30 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 
-const MOCK_EXECUTE_INSERT = jest
-	.fn<() => Promise<void>>()
-	.mockResolvedValue(undefined);
-const MOCK_EXECUTE_SELECT_MANY = jest
-	.fn<() => Promise<any[]>>()
-	.mockResolvedValue([]);
+/** SQL and parameters the selects sent; rows they get back. */
+const MOCK_SQL: Array<{ query: string; params: unknown[] }> = [];
+/** Backticks dropped: MySQL quotes only some identifiers. */
+const SQL_OF = (query: string) => query.replaceAll("`", "");
+let MOCK_ROWS: unknown[] = [];
 const MOCK_QUERY = jest.fn<() => Promise<any>>().mockResolvedValue(undefined);
 
 jest.mock("../../../../../src/config/db", () => {
-	const mockSelectQuery = {
-		where: jest.fn().mockReturnThis(),
-		select: jest.fn().mockReturnThis(),
-		executeSelectMany: MOCK_EXECUTE_SELECT_MANY,
-	};
-
-	const mockInsertQuery = {
-		values: jest.fn().mockReturnThis(),
-		executeInsert: MOCK_EXECUTE_INSERT,
-	};
-
-	const mockDbConnection = {
-		insertInto: jest.fn(() => mockInsertQuery),
-		selectFrom: jest.fn(() => mockSelectQuery),
-	};
-
+	const {
+		MySqlConnection,
+	} = require("ts-sql-query/connections/MySqlConnection");
+	const {
+		MockQueryRunner,
+	} = require("ts-sql-query/queryRunners/MockQueryRunner");
+	// The real query builder, so the tests see the SQL a select sends.
+	const runner = new MockQueryRunner(
+		(_type: string, query: string, params: unknown[]) => {
+			MOCK_SQL.push({ query, params: [...params] });
+			return MOCK_ROWS;
+		}
+	);
+	const connection = class extends MySqlConnection<"DBConnection"> {};
 	return {
-		DBConnection: jest.fn(() => mockDbConnection),
-		createDBConnection: jest.fn(() => mockDbConnection),
+		createDBConnection: () => new connection(runner),
 		DATABASE: { promise: jest.fn(() => ({ query: MOCK_QUERY })) },
 	};
 });
@@ -55,9 +51,6 @@ const MAKE_TICKER = (overrides: Record<string, unknown> = {}) => ({
 	closeTimestamp: 1704153599000,
 	...overrides,
 });
-
-const BTC = TradingSymbol.of("BTCUSDT");
-const UNKNOWN = TradingSymbol.of("UNKNOWN");
 
 describe("ticker24h-schema", () => {
 	beforeEach(() => {
@@ -88,33 +81,73 @@ describe("ticker24h-schema", () => {
 	});
 
 	describe("selectTickerBy", () => {
-		it("should select ticker by symbol", async () => {
-			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_TICKER()] as never[]);
-			const results = await selectTickerBy.symbol(BTC);
-			expect(results).toHaveLength(1);
-			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
+		beforeEach(() => {
+			MOCK_SQL.length = 0;
 		});
 
-		it("should select ticker by source", async () => {
-			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_TICKER()] as never[]);
-			const results = await selectTickerBy.source(SourceType.Binance);
-			expect(results).toHaveLength(1);
-			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
+		it("pages symbol in (timestamp, id) order, limit applied", async () => {
+			MOCK_ROWS = [];
+			const rows = await selectTickerBy.symbol(TradingSymbol.of("BTCUSDT"), {
+				limit: 3,
+			});
+			expect(rows).toEqual([]);
+			const [{ query, params }] = MOCK_SQL;
+			const sql = SQL_OF(query);
+			expect(sql).toContain("from market_tickers");
+			expect(sql).toContain("symbol = ?");
+			expect(sql).toMatch(/order by timestamp, id limit \?$/);
+			expect(params.at(-1)).toBe(3);
 		});
-
-		it("should select ticker by timestamp", async () => {
-			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([MAKE_TICKER()] as never[]);
-			const results = await selectTickerBy.timestamp(
-				UnixTimestamp.of(new Date("2024-01-01").getTime())
+		it("pages source in (timestamp, id) order, limit applied", async () => {
+			MOCK_ROWS = [];
+			const rows = await selectTickerBy.source(SourceType.Binance, {
+				limit: 3,
+			});
+			expect(rows).toEqual([]);
+			const [{ query, params }] = MOCK_SQL;
+			const sql = SQL_OF(query);
+			expect(sql).toContain("from market_tickers");
+			expect(sql).toContain("source = ?");
+			expect(sql).toMatch(/order by timestamp, id limit \?$/);
+			expect(params.at(-1)).toBe(3);
+		});
+		it("pages timestamp in (timestamp, id) order, limit applied", async () => {
+			MOCK_ROWS = [];
+			const rows = await selectTickerBy.timestamp(
+				UnixTimestamp.of(Date.UTC(2024, 0, 1)),
+				{ limit: 3 }
 			);
-			expect(results).toHaveLength(1);
-			expect(MOCK_EXECUTE_SELECT_MANY).toHaveBeenCalled();
+			expect(rows).toEqual([]);
+			const [{ query, params }] = MOCK_SQL;
+			const sql = SQL_OF(query);
+			expect(sql).toContain("from market_tickers");
+			expect(sql).toContain("timestamp = ?");
+			expect(sql).toMatch(/order by timestamp, id limit \?$/);
+			expect(params.at(-1)).toBe(3);
 		});
 
-		it("should return empty array when no ticker found", async () => {
-			MOCK_EXECUTE_SELECT_MANY.mockResolvedValue([] as never[]);
-			const results = await selectTickerBy.symbol(UNKNOWN);
-			expect(results).toEqual([]);
+		it("adds the window and the cursor of the page", async () => {
+			MOCK_ROWS = [];
+			await selectTickerBy.symbol(TradingSymbol.of("BTCUSDT"), {
+				limit: 10,
+				after: { timestamp: 5000, id: 7 },
+				from: 1000,
+				to: 9000,
+			});
+			const [{ query, params }] = MOCK_SQL;
+			const sql = SQL_OF(query);
+			expect(sql).toContain("timestamp >= ?");
+			expect(sql).toContain("timestamp < ?");
+			expect(sql).toContain("(timestamp > ? or (timestamp = ? and id > ?))");
+			expect(params).toEqual(
+				expect.arrayContaining([
+					new Date(1000),
+					new Date(9000),
+					new Date(5000),
+					7,
+					10,
+				])
+			);
 		});
 	});
 });

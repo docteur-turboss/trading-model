@@ -30,8 +30,6 @@ jest.mock("express-rate-limit", () => {
 	};
 });
 
-jest.mock("rate-limit-redis", () => jest.fn());
-
 jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 	_createReplayLimiter:
 		() => (_req: unknown, _res: unknown, next: () => void) =>
@@ -42,7 +40,6 @@ jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 		() => (_req: unknown, _res: unknown, next: () => void) =>
 			next(),
 	closeRateLimiters: jest.fn(),
-	closeRedisClient: jest.fn(),
 }));
 
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
@@ -380,6 +377,7 @@ describe("DLQ Service — Routes Integration", () => {
 				id: "entry-1",
 				topic: "test.topic",
 				message: { key: "value" },
+				service: "audit-logger-service",
 				reason: "integration test",
 				deliveryAttempt: 1,
 				createdAt: new Date().toISOString(),

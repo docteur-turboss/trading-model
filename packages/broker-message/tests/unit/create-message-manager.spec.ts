@@ -6,7 +6,7 @@ const MOCK_MESSAGE_MANAGER_INSTANCE = {
 	listenExpress: MOCK_LISTEN_EXPRESS,
 };
 
-jest.mock("../../src/index", () => ({
+jest.mock("../../src/application/services/broker-message", () => ({
 	__esModule: true,
 	default: jest.fn().mockImplementation(() => MOCK_MESSAGE_MANAGER_INSTANCE),
 }));
@@ -24,7 +24,7 @@ describe("createMessageManager", () => {
 			caPath: "/path/to/ca.pem",
 		},
 		instanceId: "550e8400-e29b-41d4-a716-446655440000",
-		serviceName: ServiceInstanceName.MessageDeliveryService,
+		serviceName: ServiceInstanceName.MessageManagerService,
 		callbackPath: "/callback",
 	};
 
@@ -33,7 +33,8 @@ describe("createMessageManager", () => {
 	});
 
 	it("should create a MessageManager instance with correct options", () => {
-		const MessageManagerClass = require("../../src/index").default;
+		const MessageManagerClass =
+			require("../../src/application/services/broker-message").default;
 
 		createMessageManager(options);
 

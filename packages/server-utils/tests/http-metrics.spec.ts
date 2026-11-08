@@ -99,6 +99,19 @@ describe("httpMetricsMiddleware", () => {
 		expect(bounds).toEqual(expect.arrayContaining([10, 30, "+Inf"]));
 	});
 
+	it("splits latency by status class: a 500 and a 200 are different series", async () => {
+		const app = buildApp();
+		await get(app, "/ok");
+		await get(app, "/v1/instances/abc");
+
+		const histogram = await metric("http_request_duration_seconds");
+		const classes = histogram.values
+			.filter((v) => v.metricName === "http_request_duration_seconds_count")
+			.map((v) => v.labels.status_class)
+			.sort();
+		expect(classes).toEqual(["2xx", "5xx"]);
+	});
+
 	it("brings the in-flight gauge back to zero once the response is closed", async () => {
 		const app = buildApp();
 		await get(app, "/ok");

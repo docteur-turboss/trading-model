@@ -28,6 +28,7 @@ import {
 	insertCandles,
 	selectCandlesBy,
 } from "../../src/adapters/outbound/persistence/schema/candles-schema";
+import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 import {
 	insertTicker,
 	selectTickerBy,
@@ -40,6 +41,7 @@ import { MySqlSignalStore } from "../../src/adapters/outbound/persistence/signal
 import { DATABASE } from "../../src/config/db";
 import type {
 	CandleData,
+	OrderBookData,
 	TickerData,
 	TradeData,
 } from "../../src/domain/market-data.types";
@@ -48,6 +50,8 @@ import { createMigrateRunner } from "./migrate-runner";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../../scripts/migrations");
 const SYMBOL = TradingSymbol.of("BTCUSDT");
+/** One page large enough for every case that is not about paging. */
+const PAGE = { limit: 100 };
 const T0 = UnixTimestamp.of(Date.UTC(2026, 0, 2, 3, 4, 5, 678));
 
 const MIGRATION_IDS = readdirSync(MIGRATIONS_DIR)
@@ -131,6 +135,21 @@ function ticker(overrides: Partial<TickerData> = {}): TickerData {
 	};
 }
 
+function orderBook(overrides: Partial<OrderBookData> = {}): OrderBookData {
+	return {
+		symbol: SYMBOL,
+		market: MarketType.Crypto,
+		source: SourceType.Binance,
+		bids: new Set([
+			{ price: Price.of(100.5), quantity: Volume.of(2) },
+			{ price: Price.of(100.25), quantity: Volume.of(0.125) },
+		]),
+		asks: new Set([{ price: Price.of(100.75), quantity: Volume.of(1.5) }]),
+		timestamp: T0,
+		...overrides,
+	};
+}
+
 async function count(table: string): Promise<number> {
 	const [rows] = await DATABASE.promise().query(
 		`SELECT COUNT(*) AS n FROM ${table}`
@@ -154,6 +173,7 @@ beforeEach(async () => {
 		"market_candles",
 		"market_trades",
 		"market_tickers",
+		"market_order_books",
 		"market_publish_cursors",
 		"signals",
 	]) {
@@ -171,6 +191,7 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		"_migration_steps",
 		"_migrations",
 		"market_candles",
+		"market_order_books",
 		"market_publish_cursors",
 		"market_tickers",
 		"market_trades",
@@ -181,12 +202,12 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		migrate("down", "1");
+		migrate("down", "2");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -1)
+			MIGRATION_IDS.slice(0, -2)
 		);
 		await expect(tables()).resolves.toEqual(
-			ALL_TABLES.filter((table) => table !== "signals")
+			ALL_TABLES.filter((table) => table !== "market_order_books")
 		);
 
 		migrate("up");
@@ -243,7 +264,7 @@ describe("market_candles — real MySQL", () => {
 	it("should round-trip a candle with its millisecond timestamps", async () => {
 		await insertCandles([candle()]);
 
-		const [row] = await selectCandlesBy.symbol(SYMBOL);
+		const [row] = await selectCandlesBy.symbol(SYMBOL, PAGE);
 
 		expect(row).toMatchObject({
 			symbol: SYMBOL,
@@ -269,7 +290,7 @@ describe("market_candles — real MySQL", () => {
 		]);
 
 		await expect(count("market_candles")).resolves.toBe(1);
-		const [row] = await selectCandlesBy.symbol(SYMBOL);
+		const [row] = await selectCandlesBy.symbol(SYMBOL, PAGE);
 		expect(row).toMatchObject({ close: 107, volume: 20 });
 	});
 
@@ -281,15 +302,15 @@ describe("market_candles — real MySQL", () => {
 		]);
 
 		await expect(count("market_candles")).resolves.toBe(3);
-		await expect(selectCandlesBy.source(SourceType.Nyse)).resolves.toHaveLength(
-			1
-		);
+		await expect(
+			selectCandlesBy.source(SourceType.Nyse, PAGE)
+		).resolves.toHaveLength(1);
 	});
 
 	it("should store a candle without a trade count", async () => {
 		await insertCandles([candle({ trades: undefined })]);
 
-		const [row] = await selectCandlesBy.symbol(SYMBOL);
+		const [row] = await selectCandlesBy.symbol(SYMBOL, PAGE);
 
 		expect(row.trades).toBeUndefined();
 	});
@@ -300,9 +321,11 @@ describe("market_candles — real MySQL", () => {
 			candle({ timestamp: UnixTimestamp.of(T0 + 60_000) }),
 		]);
 
-		await expect(selectCandlesBy.timestamp.after(T0)).resolves.toHaveLength(1);
 		await expect(
-			selectCandlesBy.timestamp.before(UnixTimestamp.of(T0 + 60_000))
+			selectCandlesBy.timestamp.after(T0, PAGE)
+		).resolves.toHaveLength(1);
+		await expect(
+			selectCandlesBy.timestamp.before(UnixTimestamp.of(T0 + 60_000), PAGE)
 		).resolves.toHaveLength(1);
 	});
 });
@@ -313,7 +336,7 @@ describe("market_trades — real MySQL", () => {
 
 		await insertTrades([trade({ tradeId })]);
 
-		const [row] = await selectTradesBy.symbol(SYMBOL);
+		const [row] = await selectTradesBy.symbol(SYMBOL, PAGE);
 		expect(BigInt(row.tradeId)).toBe(tradeId);
 		expect(row.side).toBe(TradeSide.Buy);
 		expect(row.timestamp.getTime()).toBe(T0);
@@ -325,7 +348,40 @@ describe("market_trades — real MySQL", () => {
 		await insertTrades([trade({ side: TradeSide.Sell })]);
 
 		await expect(count("market_trades")).resolves.toBe(2);
-		await expect(selectTradesBy.timestamp(T0)).resolves.toHaveLength(2);
+		await expect(selectTradesBy.timestamp(T0, PAGE)).resolves.toHaveLength(2);
+	});
+
+	it("should page in (timestamp, id) order without a gap or a duplicate, ties included", async () => {
+		// Five trades, three on the same millisecond: the cursor id breaks the tie.
+		await insertTrades([
+			trade({ tradeId: 5n, timestamp: UnixTimestamp.of(T0 + 1) }),
+			trade({ tradeId: 1n }),
+			trade({ tradeId: 2n }),
+			trade({ tradeId: 3n }),
+			trade({ tradeId: 4n, timestamp: UnixTimestamp.of(T0 + 2) }),
+		]);
+
+		const seen: bigint[] = [];
+		let after: { timestamp: number; id: number } | undefined;
+		for (let pages = 0; pages < 10; pages++) {
+			const rows = await selectTradesBy.symbol(SYMBOL, { limit: 2, after });
+			expect(rows.length).toBeLessThanOrEqual(2);
+			seen.push(...rows.map((row) => BigInt(row.tradeId)));
+			const last = rows[rows.length - 1];
+			if (rows.length < 2) {
+				break;
+			}
+			after = { timestamp: last.timestamp.getTime(), id: last.id };
+		}
+
+		expect(seen).toEqual([1n, 2n, 3n, 5n, 4n]);
+		await expect(
+			selectTradesBy.symbol(SYMBOL, {
+				limit: 100,
+				from: T0 + 1,
+				to: T0 + 2,
+			})
+		).resolves.toHaveLength(1);
 	});
 
 	it("should reject a side outside the column enum", async () => {
@@ -343,7 +399,7 @@ describe("market_tickers — real MySQL", () => {
 		await insertTicker([ticker({ last: Price.of(108) })]);
 
 		await expect(count("market_tickers")).resolves.toBe(1);
-		const [row] = await selectTickerBy.timestamp(T0);
+		const [row] = await selectTickerBy.timestamp(T0, PAGE);
 		expect(row).toMatchObject({ last: 108, volume: 1234.5 });
 		expect(row.closeTimestamp.getTime()).toBe(T0 + 86_399_999);
 	});
@@ -354,6 +410,46 @@ describe("market_tickers — real MySQL", () => {
 		).rejects.toThrow();
 
 		await expect(count("market_tickers")).resolves.toBe(0);
+	});
+});
+
+describe("market_order_books — real MySQL (ADR-0053)", () => {
+	async function rows() {
+		const [result] = await DATABASE.promise().query(
+			"SELECT symbol, timestamp, bids, asks FROM market_order_books ORDER BY timestamp"
+		);
+		return result as {
+			symbol: string;
+			timestamp: Date;
+			bids: number[][];
+			asks: number[][];
+		}[];
+	}
+
+	it("should keep every level of a snapshot, best first, with its millisecond timestamp", async () => {
+		await insertOrderBook([orderBook()]);
+
+		const [row] = await rows();
+
+		expect(row.symbol).toBe(SYMBOL);
+		expect(row.timestamp.getTime()).toBe(T0);
+		expect(row.bids).toEqual([
+			[100.5, 2],
+			[100.25, 0.125],
+		]);
+		expect(row.asks).toEqual([[100.75, 1.5]]);
+	});
+
+	it("should keep one row per snapshot, and overwrite a replayed one", async () => {
+		await insertOrderBook([
+			orderBook(),
+			orderBook({ timestamp: UnixTimestamp.of(T0 + 60_000) }),
+		]);
+
+		await insertOrderBook([orderBook({ asks: new Set() })]);
+
+		await expect(count("market_order_books")).resolves.toBe(2);
+		expect((await rows())[0].asks).toEqual([]);
 	});
 });
 
@@ -518,4 +614,30 @@ describe("signals — real MySQL", () => {
 			MySqlSignalStore.save([signal({ sector: "crypto" })])
 		).rejects.toThrow(/chk_signals_one_subject/);
 	});
+});
+
+describe("timestamp queries — real MySQL (issue #555)", () => {
+	const CASES = [
+		["market_candles", "idx_candles_timestamp"],
+		["market_trades", "idx_trades_timestamp"],
+		["market_tickers", "idx_tickers_timestamp"],
+		["market_order_books", "idx_order_books_timestamp"],
+	] as const;
+
+	it.each(
+		CASES.flatMap(([table, index]) =>
+			(["=", ">", "<"] as const).map((op) => [table, index, op] as const)
+		)
+	)(
+		"should read %s through %s for timestamp %s ?, not a full scan",
+		async (table, index, op) => {
+			const [plan] = await DATABASE.promise().query(
+				`EXPLAIN SELECT * FROM \`${table}\` WHERE \`timestamp\` ${op} ?`,
+				[new Date(T0)]
+			);
+			const [row] = plan as { type: string; key: string | null }[];
+			expect(row.type).not.toBe("ALL");
+			expect(row.key).toBe(index);
+		}
+	);
 });

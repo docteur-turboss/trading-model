@@ -1,10 +1,18 @@
 /**
- * How long a `POST /message` to message-manager may last (ADR-0019).
+ * How long a `POST /message` to message-manager may last (ADR-0048).
  *
- * The broker answers once every delivery is acknowledged, dead-lettered or
- * given up, so the request lasts as long as the slowest subscriber's retries.
- * message-manager closes the request after this delay and checks that its
- * worst-case retry budget fits in it; publishers wait slightly longer so that
- * the broker's answer, not their own timeout, ends the request.
+ * The broker answers 202 as soon as the message is written to its durable
+ * journal; delivery and retries run outside the request. The bound only has to
+ * cover discovery, one journal write (replicated when configured) and the
+ * network, so a publisher that waits longer is facing a broker that is down.
  */
-export const PUBLISH_TIMEOUT_MS = 300_000;
+export const PUBLISH_ACCEPT_TIMEOUT_MS = 15_000;
+
+/**
+ * Publisher-side bound kept for one release (expand/contract, ADR-0043): an
+ * N-1 message-manager replica still answers after delivery, up to 300 s, so a
+ * shorter bound would fail publishes the old broker goes on to deliver and open
+ * the publishers' circuit breaker during a rolling update. Drop it to
+ * `PUBLISH_ACCEPT_TIMEOUT_MS + 5_000` in the release after ADR-0043 ships.
+ */
+export const PUBLISH_COMPAT_TIMEOUT_MS = 305_000;

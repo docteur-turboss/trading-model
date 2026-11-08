@@ -21,11 +21,11 @@ function timed<Route extends ApiRoute>(
 	handler: ApiRouteHandler<Route>
 ): ApiRouteHandler<Route> {
 	return async (input, req) => {
-		const start = performance.now();
+		const end = EVENTS_QUERY_DURATION_SECONDS.startTimer();
 		try {
 			return await handler(input, req);
 		} finally {
-			EVENTS_QUERY_DURATION_SECONDS.observe((performance.now() - start) / 1000);
+			end();
 		}
 	};
 }
@@ -36,6 +36,7 @@ function toAuditEventQuery(query: ListEventsQuery): AuditEventQuery {
 		publisher: query.publisher,
 		correlationId: query.correlationId,
 		dateRange: DateRange.fromQueryParams(query.startDate, query.endDate),
+		withTotal: query.withTotal,
 		page: query.page === undefined ? undefined : PageNumber.of(query.page),
 		limit: query.limit === undefined ? undefined : Limit.of(query.limit, 1000),
 	};

@@ -17,6 +17,7 @@
 #    bash scripts/init-sealed-secrets.sh --apply        # ... and kubectl apply
 #    bash scripts/init-sealed-secrets.sh --dry-run      # print what would happen
 #    OVERLAY=staging bash scripts/init-sealed-secrets.sh  # staging (namespace trading-model-staging)
+#    OVERLAY=staging-local bash scripts/init-sealed-secrets.sh  # local kind staging (same namespace)
 #
 #  Override any value by exporting it, e.g.:
 #    MYSQL_ROOT_PASSWORD='s3cret' bash scripts/init-sealed-secrets.sh
@@ -31,14 +32,14 @@ APPLY=${APPLY:-false}
 OVERLAY=${OVERLAY:-production}
 case "$OVERLAY" in
   production) NAMESPACE=${NAMESPACE:-trading-model} ;;
-  staging) NAMESPACE=${NAMESPACE:-trading-model-staging} ;;
-  *) echo "OVERLAY must be production or staging" >&2; exit 1 ;;
+  staging | staging-local) NAMESPACE=${NAMESPACE:-trading-model-staging} ;;
+  *) echo "OVERLAY must be production, staging or staging-local" >&2; exit 1 ;;
 esac
 CONTROLLER_NAMESPACE=${CONTROLLER_NAMESPACE:-sealed-secrets}
 CONTROLLER_NAME=${CONTROLLER_NAME:-sealed-secrets-controller}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [ "$OVERLAY" = staging ]; then
-  SEALED_FILE="${SCRIPT_DIR}/deploy/k8s/overlays/staging/sealed-secrets.yaml"
+if [ "$OVERLAY" != production ]; then
+  SEALED_FILE="${SCRIPT_DIR}/deploy/k8s/overlays/${OVERLAY}/sealed-secrets.yaml"
 else
   SEALED_FILE="${SCRIPT_DIR}/deploy/k8s/secrets/trading-model-sealed-secrets.yaml"
 fi
@@ -79,17 +80,23 @@ main() {
 
   # Resolve values: env override or random.
   local AUTH_TOKENS SIGNING_SECRET SERVICE_BOOTSTRAP_TOKEN
-  local MYSQL_ROOT_PASSWORD MYSQL_PASSWORD MYSQL_MIGRATE_PASSWORD DLQ_AUTH_HMAC_SECRET
+  local MYSQL_ROOT_PASSWORD MYSQL_PASSWORD MYSQL_MIGRATE_PASSWORD MYSQL_RETENTION_PASSWORD DLQ_AUTH_HMAC_SECRET
   local GRAFANA_PASSWORD HMAC_SECRET
+  local REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD
   AUTH_TOKENS="${AUTH_TOKENS:-$(rand_hex 24)}"
   SIGNING_SECRET="${SIGNING_SECRET:-$(rand_hex 32)}"
   SERVICE_BOOTSTRAP_TOKEN="${SERVICE_BOOTSTRAP_TOKEN:-$(rand_hex 24)}"
   MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-$(rand_hex 16)}"
   MYSQL_PASSWORD="${MYSQL_PASSWORD:-$(rand_hex 16)}"
   MYSQL_MIGRATE_PASSWORD="${MYSQL_MIGRATE_PASSWORD:-$(rand_hex 16)}"
+  MYSQL_RETENTION_PASSWORD="${MYSQL_RETENTION_PASSWORD:-$(rand_hex 16)}"
   DLQ_AUTH_HMAC_SECRET="${DLQ_AUTH_HMAC_SECRET:-$(rand_hex 32)}"
   GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-$(rand_hex 16)}"
   HMAC_SECRET="${HMAC_SECRET:-$(rand_hex 32)}"
+  REDIS_INTERNAL_PASSWORD="${REDIS_INTERNAL_PASSWORD:-$(rand_hex 24)}"
+  REDIS_DISCOVERY_PASSWORD="${REDIS_DISCOVERY_PASSWORD:-$(rand_hex 24)}"
+  REDIS_MESSAGE_MANAGER_PASSWORD="${REDIS_MESSAGE_MANAGER_PASSWORD:-$(rand_hex 24)}"
+  REDIS_DLQ_PASSWORD="${REDIS_DLQ_PASSWORD:-$(rand_hex 24)}"
 
   if ! $DRY_RUN; then
     local plaintext_app="/tmp/trading-model-secrets-plaintext.yaml"
@@ -109,9 +116,14 @@ stringData:
   MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
   MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
   MYSQL_MIGRATE_PASSWORD: "${MYSQL_MIGRATE_PASSWORD}"
+  MYSQL_RETENTION_PASSWORD: "${MYSQL_RETENTION_PASSWORD}"
   DLQ_AUTH_HMAC_SECRET: "${DLQ_AUTH_HMAC_SECRET}"
   GRAFANA_PASSWORD: "${GRAFANA_PASSWORD}"
   HMAC_SECRET: "${HMAC_SECRET}"
+  REDIS_INTERNAL_PASSWORD: "${REDIS_INTERNAL_PASSWORD}"
+  REDIS_DISCOVERY_PASSWORD: "${REDIS_DISCOVERY_PASSWORD}"
+  REDIS_MESSAGE_MANAGER_PASSWORD: "${REDIS_MESSAGE_MANAGER_PASSWORD}"
+  REDIS_DLQ_PASSWORD: "${REDIS_DLQ_PASSWORD}"
 EOF
     seal "$plaintext_app" "$SEALED_FILE"
     rm -f "$plaintext_app"

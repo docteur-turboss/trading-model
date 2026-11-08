@@ -1,5 +1,5 @@
 # Notification target of Alertmanager in the kind test (tests/k8s/run-kind.sh,
-# verify_alerts): stands for Slack and the dead man's switch, and
+# verify_alerts): stands for Slack, Pushover and the dead man's switch, and
 # lists what it received on GET /received. CI only.
 apiVersion: v1
 kind: ConfigMap

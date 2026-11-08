@@ -1,12 +1,10 @@
+import { EndpointResolver } from "@trading-model/address-manager/application/discovery/endpoint-resolver";
 import {
 	HTTP_STATUS,
 	type HttpStatusCode,
 } from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
-import {
-	HEALTH_STATUS_OK,
-	sendResponse,
-} from "@trading-model/http/adapters/inbound/response-exception";
+import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	DurationMs,
@@ -28,11 +26,11 @@ import {
 } from "../../infrastructure/config/metrics";
 import { parseRequestPath } from "../../shared/path-parser";
 import { isPublicRoute } from "../../shared/public-routes";
-import { ServiceResolver } from "../outbound/service-resolver";
+import { forwardRequest } from "../outbound/proxy-handler";
 import { AUTH_MIDDLEWARE } from "./auth";
 import { DEFAULT_LIMITER } from "./rate-limiter";
 
-const RESOLVER = new ServiceResolver(
+const RESOLVER = new EndpointResolver(
 	ENV.DISCOVERY_SERVICE_URL,
 	ENV.CACHE_TTL_MS,
 	discoveryClient
@@ -135,7 +133,7 @@ const catchAllRoute = catchSync(async (req) => {
 		req,
 		target,
 		{ serviceName, majorVersion, cacheKey, path: `${path}${search}` },
-		CACHE
+		{ forward: forwardRequest, cache: CACHE }
 	);
 	if (response.status >= HTTP_STATUS.SERVICE_UNAVAILABLE) {
 		SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
@@ -143,16 +141,8 @@ const catchAllRoute = catchSync(async (req) => {
 	return response;
 });
 
-function pingHandler(
-	_req: import("express").Request,
-	res: import("express").Response
-): void {
-	res.json({ status: HEALTH_STATUS_OK });
-}
-
 export function createRouter(): Router {
 	const router = Router();
-	router.get("/ping", pingHandler);
 	router.get("/metrics", metricsHandler);
 	router.use(AUTH_MIDDLEWARE);
 	router.use(DEFAULT_LIMITER);

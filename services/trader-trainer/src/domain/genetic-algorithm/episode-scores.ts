@@ -1,3 +1,18 @@
+/**
+ * Ratio denominator floor, relative to |mean|: a degenerate series (constant,
+ * no loss, no drawdown) scores at most 1/0.1 = 10, the order of a good
+ * realistic ratio (0.5 to 3). Relative, so realistic series of any scale
+ * (mean 0.02, std 0.03) keep their exact mean / denominator.
+ */
+const DENOMINATOR_FLOOR = 0.1;
+
+function ratio(mean: number, denominator: number): number {
+	if (mean === 0) {
+		return 0;
+	}
+	return mean / Math.max(denominator, DENOMINATOR_FLOOR * Math.abs(mean));
+}
+
 export class EpisodeScores {
 	private readonly _scores: readonly number[];
 
@@ -35,33 +50,19 @@ export class EpisodeScores {
 		);
 	}
 
-	best(): number {
-		if (this._scores.length === 0) {
-			return Number.NEGATIVE_INFINITY;
-		}
-		return Math.max(...this._scores);
-	}
-
-	worst(): number {
-		if (this._scores.length === 0) {
-			return Number.POSITIVE_INFINITY;
-		}
-		return Math.min(...this._scores);
-	}
-
 	sharpe(): number {
 		if (this._scores.length < 2) {
 			return 0;
 		}
 		const mean = this.mean();
 		const std = Math.sqrt(this.variance());
-		return std < 1e-10 ? mean : mean / std;
+		return ratio(mean, std);
 	}
 
 	/**
 	 * Mean over downside deviation, the deviation taken over every score (a
-	 * gain counts 0). Without any loss it falls back to the mean, like
-	 * {@link sharpe} without variance, instead of dividing by ~0.
+	 * gain counts 0). The denominator is floored like {@link sharpe}'s, so a
+	 * series without loss gives a large but bounded ratio.
 	 */
 	sortino(): number {
 		if (this._scores.length < 2) {
@@ -72,7 +73,7 @@ export class EpisodeScores {
 			this._scores.reduce((sum, value) => sum + Math.min(0, value) ** 2, 0) /
 				this._scores.length
 		);
-		return downDev < 1e-10 ? mean : mean / downDev;
+		return ratio(mean, downDev);
 	}
 
 	/**
@@ -102,10 +103,15 @@ export class EpisodeScores {
 		}
 		const mean = this.mean();
 		const maxDD = this.maxDrawdown();
-		return maxDD < 1e-10 ? mean : mean / maxDD;
+		return ratio(mean, maxDD);
 	}
 
+	/** Weighted tanh of mean, Sharpe and Sortino: dimensionless terms in (-1, 1). */
 	composite(): number {
-		return 0.4 * this.mean() + 0.3 * this.sharpe() + 0.3 * this.sortino();
+		return (
+			0.4 * Math.tanh(this.mean()) +
+			0.3 * Math.tanh(this.sharpe()) +
+			0.3 * Math.tanh(this.sortino())
+		);
 	}
 }

@@ -8,6 +8,11 @@
 #  runs on every deploy (deploy/k8s/scripts/run-migrations.sh): it covers a
 #  database initialised before the user existed, and applies a rotated
 #  MYSQL_MIGRATE_PASSWORD. Delete the previous job first (immutable template).
+#
+#  Also creates the `retention` user of the db-retention CronJob (ADR-0051):
+#  SELECT and DELETE on the four purged tables, nothing else. Its password is
+#  MYSQL_RETENTION_PASSWORD (optional key: a cluster whose Secret does not have
+#  it yet skips the user, and db-retention then fails visibly).
 # =============================================================================
 apiVersion: batch/v1
 kind: Job
@@ -53,6 +58,10 @@ spec:
                 ""|*[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_MIGRATE_PASSWORD must be non-empty and match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
               esac
               pw="$MIGRATE_PASSWORD"
+              rpw="${RETENTION_PASSWORD:-}"
+              case "$rpw" in
+                *[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_RETENTION_PASSWORD must match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
+              esac
               export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
               mysql -h mysql-primary -u root <<EOSQL
               CREATE USER IF NOT EXISTS 'migrator'@'%' IDENTIFIED BY '${pw}';
@@ -61,6 +70,24 @@ spec:
                 ON financial_scraper.* TO 'migrator'@'%';
               EOSQL
               echo "migrator user ready"
+              if [ -z "$rpw" ]; then
+                echo "MYSQL_RETENTION_PASSWORD not set: retention user skipped (db-retention will fail until it is)"
+                exit 0
+              fi
+              # The tables exist once the migrations ran: the job runs before them
+              # on a new database, so grant only when they are there.
+              mysql -h mysql-primary -u root <<EOSQL
+              CREATE USER IF NOT EXISTS 'retention'@'%' IDENTIFIED BY '${rpw}';
+              ALTER USER 'retention'@'%' IDENTIFIED BY '${rpw}';
+              EOSQL
+              for t in market_candles market_trades market_tickers market_order_books signals; do
+                if [ "$(mysql -h mysql-primary -u root -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='financial_scraper' AND table_name='$t'")" = 1 ]; then
+                  mysql -h mysql-primary -u root -e "GRANT SELECT, DELETE ON financial_scraper.$t TO 'retention'@'%'"
+                else
+                  echo "table $t not created yet: grant on the next run (run-migrations.sh runs this job again after the migrations)"
+                fi
+              done
+              echo "retention user ready"
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
@@ -72,6 +99,12 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: MYSQL_MIGRATE_PASSWORD
+            - name: RETENTION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_RETENTION_PASSWORD
+                  optional: true
           resources:
             requests:
               cpu: 50m

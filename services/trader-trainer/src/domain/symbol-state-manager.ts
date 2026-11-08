@@ -9,7 +9,7 @@ import type { SymbolState, TradingSymbol } from "./market-data-types";
 import type { MemoryConfig } from "./memory-config";
 import { NormalizationManager } from "./normalization-manager";
 
-export type SymbolStateManagerConfig = MemoryConfig;
+type SymbolStateManagerConfig = MemoryConfig;
 
 export class SymbolStateManager {
 	readonly states: Map<TradingSymbol, SymbolState> = new Map();
@@ -33,10 +33,6 @@ export class SymbolStateManager {
 		) as Record<DataType, DataHandler>;
 	}
 
-	getMemoryManager(): MemoryManager {
-		return this._memoryManager;
-	}
-
 	getMaxSize(): number {
 		return this._memoryManager.getMaxSize();
 	}
@@ -51,10 +47,6 @@ export class SymbolStateManager {
 		return state;
 	}
 
-	_getState(symbol: TradingSymbol): SymbolState {
-		return this._getOrCreate(symbol);
-	}
-
 	private _createSymbolState(): SymbolState {
 		return {
 			...Object.assign(
@@ -65,11 +57,7 @@ export class SymbolStateManager {
 		};
 	}
 
-	addData(
-		dataType: import("./data-handlers/data-handler").DataType,
-		symbol: TradingSymbol,
-		data: unknown
-	): void {
+	addData(dataType: DataType, symbol: TradingSymbol, data: unknown): void {
 		const maxSize = this._memoryManager.getMaxSize();
 		const state = this._getOrCreate(symbol);
 		const handler = this._handlerMap[dataType];

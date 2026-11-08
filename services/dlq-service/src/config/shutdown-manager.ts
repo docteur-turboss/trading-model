@@ -48,8 +48,3 @@ export {
 	startPeriodicPrune,
 	stopPeriodicPrune,
 };
-
-/** Alias for shutdownSchedulers — consistent with ShutdownHandler.shutdown() naming. */
-export function shutdown(): Promise<void> {
-	return shutdownSchedulers();
-}

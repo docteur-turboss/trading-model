@@ -1,15 +1,12 @@
-import { describe, expect, it, jest } from "@jest/globals";
+import { describe, expect, it } from "@jest/globals";
 import {
 	CALLER,
 	containerHealth,
-	e2eTestTimeout,
 	externalRequest,
 	GATEWAY_API_KEY,
 	meshRequest,
 	SERVICE_CONTAINERS,
 } from "./helpers";
-
-jest.setTimeout(e2eTestTimeout);
 
 /** In-mesh hostnames of the services that answer /health/ready over mTLS. */
 const MESH_SERVICES = [

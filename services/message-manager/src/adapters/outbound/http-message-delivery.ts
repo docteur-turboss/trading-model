@@ -1,11 +1,9 @@
-import { deadLetterError } from "@trading-model/common/utils/errors";
+import { deadLetterError } from "@trading-model/broker-message/shared/errors";
+import { runInMessageTraceContext } from "@trading-model/broker-message/shared/trace-context";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { isHttpClientError } from "@trading-model/http/adapters/outbound/http-client-errors";
 import {
-	type HttpClient,
-	isHttpClientError,
-} from "@trading-model/http/adapters/outbound/http-client";
-import {
-	DurationMs,
 	PositiveInt,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
@@ -16,13 +14,8 @@ import type {
 	MessageDeliveryPort,
 } from "../../application/ports/message-delivery-port";
 import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
+import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "../../domain/backoff-calculator";
 import { DlqReason } from "../../domain/delivery-error-classifier";
-
-/**
- * One delivery attempt. The dispatcher owns the retries (backoff, dead
- * letters): the HTTP client must not retry on its own underneath it.
- */
-export const DELIVERY_ATTEMPT_TIMEOUT_MS = DurationMs.of(10_000);
 
 /**
  * Answers saying the message itself is wrong (the subscriber's callback
@@ -48,10 +41,13 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 		// Subscribers (broker-message MESSAGE_CONTROLLER) read `metadata` and
 		// `payload` at the top level of the body: wrapping them got every delivery a 400.
 		try {
-			await this._httpClient.post(
-				url,
-				{ metadata: message.metadata, payload: message.payload, context },
-				{ timeoutMs: DELIVERY_ATTEMPT_TIMEOUT_MS, retryCount: 0 }
+			// The delivery request joins the publisher's trace (W3C `traceparent`).
+			await runInMessageTraceContext(message.metadata, () =>
+				this._httpClient.post(
+					url,
+					{ metadata: message.metadata, payload: message.payload, context },
+					{ timeoutMs: DELIVERY_ATTEMPT_TIMEOUT_MS, retryCount: 0 }
+				)
 			);
 		} catch (err) {
 			if (
@@ -69,12 +65,14 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 	}
 
 	async markDeadLetter(input: DeadLetterInput): Promise<void> {
-		const { message, reason, deliveryAttempt } = input;
+		const { message, reason, deliveryAttempt, service } = input;
 		MESSAGES_DLQ_TOTAL.inc({ topic: message.metadata.topic, reason });
 		await this._deadLetters.insert({
 			// dlq-service lists and replays dead letters by topic.
 			topic: message.metadata.topic,
 			message,
+			messageId: message.metadata.messageId,
+			service,
 			reason,
 			deliveryAttempt: PositiveInt.of(deliveryAttempt),
 			timestamp: UnixTimestamp.now(),

@@ -35,6 +35,9 @@ export function runWithCorrelationId<TResult>(
 	return correlationStore.run(correlationId, fn);
 }
 
+// An external client must not inject arbitrary data into logs: other ids are replaced.
+const VALID_INCOMING_ID = /^[A-Za-z0-9._-]{1,64}$/;
+
 export function correlationIdMiddleware(
 	req: Request,
 	res: Response,
@@ -44,7 +47,7 @@ export function correlationIdMiddleware(
 		req.headers[HTTP_HEADERS.CORRELATION_ID] ??
 		req.headers[HTTP_HEADERS.X_REQUEST_ID];
 	const correlationId =
-		typeof existing === "string" && existing.length > 0
+		typeof existing === "string" && VALID_INCOMING_ID.test(existing)
 			? toCorrelationId(existing)
 			: toCorrelationId(randomUUID());
 

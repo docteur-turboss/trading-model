@@ -1,14 +1,14 @@
 import { Volume } from "@trading-model/primitives/primitives";
 import { TradeAction } from "./action-types";
 
-export interface ActionMap {
+interface ActionMap {
 	action: TradeAction;
 	amount: Volume;
 	/** Output unit that drove the decision; the one Q-learning updates. */
 	outputIndex: number;
 }
 
-export interface ActionMapperConfig {
+interface ActionMapperConfig {
 	tradeAmount?: Volume;
 	/** Uniform [0, 1) source for exploration; seed it to replay a run. */
 	rng?: () => number;

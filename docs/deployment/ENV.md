@@ -27,8 +27,8 @@ Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), valid
 | `TLS_KEY_PATH`  | string                                         | `/run/spire/svid/svid_key.pem` | **yes**  | Path to TLS private key (PEM) | All*     |
 | `TLS_CERT_PATH` | string                                         | `/run/spire/svid/svid.pem`     | **yes**  | Path to TLS certificate (PEM) | All*     |
 | `TLS_CA_PATH`   | string                                         | `/run/spire/svid/bundle.pem`   | **yes**  | Path to CA certificate (PEM)  | All*     |
-| `LOG_LEVEL`     | `error \| warn \| info \| debug`               | `info`                  | no       | Logging verbosity             | All*     |
-| `BUILD_VERSION` | string | `dev` | no | Release version, set at image build; label of `build_info` (its `service` label is `SERVICE_NAME`, which differs from the `job` label for `audit-logger-service`, `message-delivery-service`) | All |
+| `LOG_LEVEL`     | `error \| warn \| info \| debug` (case-insensitive) | unset: from `NODE_ENV` (`development` → `debug`, `staging` → `info`, otherwise `warn`) | no       | Level of the global logger (`@trading-model/http`), takes priority over `NODE_ENV`. Compose and every K8s ConfigMap set `info`. Invalid value: the `NODE_ENV` default plus one WARN line at startup | All*     |
+| `BUILD_VERSION` | string | `dev` | no | Release version, set at image build; label of `build_info` (its `service` label is `SERVICE_NAME`, equal to the `job` label since #495; old pods still report `audit-logger-service`, `financial-scraper-service`, `message-delivery-service` until they roll) | All |
 | `GIT_SHA` | string | `unknown` | no | Commit of the image, set at image build; label of `build_info` | All |
 | `ENFORCE_MTLS_STRICT` | boolean (`true`/`1`)                     | `false`                 | no (set `true` in production) | Enforces the per-service caller ACL on every inbound request (ADR-0011): a caller with a valid SVID but not allowed for the target gets 403. Off: any caller with a valid SVID passes. No startup check refuses `false` in production: compose (`${ENFORCE_MTLS_STRICT:-true}`) and every K8s ConfigMap set `true` | All*     |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | URL                              | —                       | no       | OTLP/HTTP collector base URL; traces go to `<url>/v1/traces`. Unset: tracing off | All      |
@@ -44,7 +44,7 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
 | `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | MM, FS, TT, AL, DLQ |
-| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version                              | MM, FS, TT, AL, DLQ |
+| `APP_VERSION`                     | string | `1.0.0`                         | no       | Version registered in discovery: its major is the gateway prefix `/v<major>` (FS: `2.0.0`, the others 1.x) | MM, FS, TT, AL, DLQ |
 | `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity (discovery; `build_info` label)  | MM, FS, TT, AL, DLQ, GW, DS |
 | `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT, AL, DLQ |
 | `CACHE_TTL_MS`                    | number | `30000`                         | no       | In-memory cache TTL                              | MM, FS, TT, AL, DLQ |
@@ -67,9 +67,11 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
-| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, FS, TT, AL, DLQ |
-| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, FS, TT, AL, DLQ |
-| `REDIS_PASSWORD`             | string | —          | no       | Redis password (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL) | DS, MM, FS, TT, AL, DLQ |
+| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, DLQ |
+| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, DLQ |
+| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: `discovery`, `message-manager`, `dlq-service`, ADR-0047; only with `REDIS_SENTINELS`) | DS, MM, DLQ |
+| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | DS, MM, DLQ |
+| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | DS, MM, DLQ |
 
 ---
 
@@ -108,6 +110,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
 | `AUTH_TOKENS`         | string | —                                | **yes**  | Comma/whitespace-separated valid tokens | GW |
 | `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy request timeout           | GW       |
+| `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
 | `AUTH_STRICT`         | boolean (only `false` turns it off) | `true`              | no (`false` refused in production) | Strict API key check. `false` with no `AUTH_TOKENS` accepts any API key: in production the gateway refuses to start with `false` | GW |
 | `ALLOWED_PROXY_CIDRS` | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs the resolved proxy target IP must be in. Empty: target IP check off; in production the gateway refuses to start | GW |
 
@@ -162,13 +165,14 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 
 ## Message Manager
 
-No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), dead letters in dlq-service ([ADR-0019](../adr/0019-message-broker-as-built.md)).
+No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), accepted messages in a Redis Streams journal (`REDIS_URL` / `REDIS_SENTINELS` required in production, AOF on), dead letters in dlq-service ([ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)).
 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
 | `DLQ_AUTH_HMAC_SECRET`    | string | —                           | **yes** (production) | Signs the dead letters sent to dlq-service: same value as dlq-service (min 16 chars). Unset: dead letters stay in the local file | MM       |
 | `DLQ_LOCAL_FALLBACK_PATH` | string | `./dead-letter-queue.jsonl` | no                   | File keeping the dead letters dlq-service cannot take yet (writable volume) | MM       |
 | `DLQ_FORWARD_INTERVAL_MS` | number | `60000`                     | no                   | How often the dead letters kept in the file are sent to dlq-service again   | MM       |
+| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publisher gets its 202 (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM       |
 
 ---
 
@@ -177,6 +181,20 @@ No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), dead lett
 | Variable      | Type   | Default                                 | Required | Description            | Services |
 | ------------- | ------ | --------------------------------------- | -------- | ---------------------- | -------- |
 | `MONGODB_URI` | string | `mongodb://mongo:27017/audit-logger`    | **yes**  | MongoDB connection URI | AL       |
+
+---
+
+## MySQL retention job (ADR-0051)
+
+Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host cron). Not a service setting: set in `deploy/k8s/jobs/retention-cronjob.yaml` (K8s) or the shell that runs the script (compose).
+
+| Variable                  | Type   | Default                | Required | Description | Services |
+| ------------------------- | ------ | ---------------------- | -------- | ----------- | -------- |
+| `RETENTION_DAYS`          | number (≥1) | `1827` (5 years)  | no       | Age after which `market_candles`, `market_trades`, `market_tickers` and `market_order_books` rows (column `timestamp`) are deleted | retention job |
+| `RETENTION_SIGNALS_DAYS`  | number (≥1) | `RETENTION_DAYS`  | no       | Same for `signals` (column `observed_at`) | retention job |
+| `RETENTION_BATCH_SIZE`    | number (≥1) | `10000`           | no       | Rows per `DELETE ... LIMIT` | retention job |
+| `RETENTION_PAUSE_SECONDS` | number (≥0) | `1`               | no       | Pause between two batches | retention job |
+| `MYSQL_RETENTION_PASSWORD` | string | —                      | **yes** in K8s | Password of MySQL user `retention` (SELECT, DELETE on the five tables). Key of Secret `trading-model-secrets`, read by `db-migrate-user` and `db-retention` | retention job |
 
 ---
 
@@ -220,7 +238,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (`true` in compose and K8s)  | no       | Replay eligible entries automatically| DLQ      |
 | `DLQ_AUTO_RETRY_INTERVAL_MS` | number  | `30000`                              | no       | Interval between auto-retry attempts | DLQ      |
 | `DLQ_AUTO_RETRY_LIMIT`       | number  | `50`                                 | no       | Max auto-retry attempts per entry    | DLQ      |
-| `REDIS_URL`                  | string  | —                                    | no       | Redis URL for rate limiting          | DLQ      |
+| `REDIS_URL`                  | string  | —                                    | no       | Redis URL of the `dlq:queue` list (the rate limiter is in memory, ADR-0047) | DLQ      |
 
 ---
 
@@ -237,6 +255,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `DLQ_PORT`            | number | `8452`                  | Host port for dlq-service          | DC       |
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
+| `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
 | `IMAGE_TAG`           | string | `latest`                | Image tag to pull                  | DC       |
@@ -282,6 +301,7 @@ AUDIT_PORT=8450
 
 # MySQL
 MYSQL_ROOT_PASSWORD=changeme
+GRAFANA_PASSWORD=change-me-grafana-admin-password
 MYSQL_DATABASE=financial_scraper
 
 # Trader-Trainer

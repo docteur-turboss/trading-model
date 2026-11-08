@@ -116,7 +116,8 @@ describe("app/server", () => {
 			MOCK_ENV.REDIS_URL = "redis://redis:6379";
 			MOCK_REDIS.connect.mockRejectedValue(new Error("ECONNREFUSED"));
 
-			await expect(redisReadinessCheck()()).resolves.toBe(false);
+			// The shared readiness handler reports a throwing check as "error".
+			await expect(redisReadinessCheck()()).rejects.toThrow("ECONNREFUSED");
 			expect(MOCK_REDIS.disconnect).toHaveBeenCalled();
 		});
 	});

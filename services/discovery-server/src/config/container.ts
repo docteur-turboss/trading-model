@@ -20,7 +20,8 @@ import type { InstanceTokenStorePort } from "../domain/ports/instance-token-stor
 import { ServiceRegistry } from "../domain/service-registry";
 import { prometheusDiscoveryMetrics } from "../infrastructure/monitoring/metrics";
 
-const DISCOVERY_KEY_PREFIX = "trading-model:discovery";
+// Trailing colon: buildRedisKey appends segments as is, and the ACL (ADR-0047) matches `trading-model:discovery:*`.
+const DISCOVERY_KEY_PREFIX = "trading-model:discovery:";
 
 export interface ServiceRegistryOptions {
 	/** HMAC secret for instance tokens; a random one is generated when absent. */
@@ -67,7 +68,7 @@ export function createDiscoveryApp(
 ): DiscoveryApp {
 	const redisConnection = redisConnectionFromEnv(settings);
 	const redisClient = redisConnection
-		? (createRedisClient(redisConnection) as Redis)
+		? createRedisClient(redisConnection)
 		: undefined;
 	const instanceStore = _buildInstanceStore(
 		settings,

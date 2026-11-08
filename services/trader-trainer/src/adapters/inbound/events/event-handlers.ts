@@ -1,12 +1,8 @@
 import { MarketEvent } from "@trading-model/contracts/market-events";
+import type { Price } from "@trading-model/primitives/primitives";
 import { DataType } from "../../../domain/data-handlers/data-types";
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
-import { processBookTicker } from "./event-processors/book-ticker-processor";
-import { processCandle } from "./event-processors/candle-processor";
-import { processOrderBook } from "./event-processors/order-book-processor";
-import { processPrice } from "./event-processors/price-processor";
-import { processTicker } from "./event-processors/ticker-processor";
-import { processTrade } from "./event-processors/trade-processor";
+import type { TradingSymbol } from "../../../domain/market-data-types";
 
 /**
  * Single source of the topics the trainer consumes: the bootstrap registers one
@@ -26,13 +22,41 @@ export type SubscribedMarketEvent = keyof typeof EVENT_TO_HANDLER;
 
 type EventProcessor = (buffer: MarketDataBuffer, data: unknown) => void;
 
+/**
+ * Forwards the items of a named list field of the event payload to the buffer
+ * under the given data type; `firstOnly` keeps the first item only.
+ */
+function listProcessor(
+	field: string,
+	dataType: DataType,
+	firstOnly = false
+): EventProcessor {
+	return (buffer, data) => {
+		const items = (
+			data as Record<string, { symbol: TradingSymbol }[] | undefined>
+		)?.[field];
+		if (!items?.length) {
+			return;
+		}
+		for (const item of firstOnly ? items.slice(0, 1) : items) {
+			buffer.addData(dataType, item.symbol, item);
+		}
+	};
+}
+
 const EVENT_PROCESSORS: Record<DataType, EventProcessor> = {
-	[DataType.Candle]: processCandle,
-	[DataType.Trade]: processTrade,
-	[DataType.OrderBook]: processOrderBook,
-	[DataType.BookTicker]: processBookTicker,
-	[DataType.Ticker]: processTicker,
-	[DataType.Price]: processPrice,
+	[DataType.Candle]: listProcessor("candle", DataType.Candle),
+	[DataType.Trade]: listProcessor("trades", DataType.Trade),
+	[DataType.OrderBook]: listProcessor("orderBook", DataType.OrderBook, true),
+	[DataType.BookTicker]: listProcessor("bookTicker", DataType.BookTicker),
+	[DataType.Ticker]: listProcessor("ticker", DataType.Ticker),
+	[DataType.Price]: (buffer, data) => {
+		const parsed = data as { price?: Record<TradingSymbol, Price> };
+		if (!parsed?.price) {
+			return;
+		}
+		buffer.setPriceSnapshot(parsed.price);
+	},
 };
 
 export class DataEventHandler {

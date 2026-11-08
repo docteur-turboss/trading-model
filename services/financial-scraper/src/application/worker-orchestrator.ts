@@ -6,6 +6,7 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import {
+	CANDLES_PERSISTED_TOTAL,
 	PUBLISHES_SKIPPED_TOTAL,
 	SYMBOLS_FAILED_TOTAL,
 	SYMBOLS_SCRAPED_TOTAL,
@@ -48,7 +49,12 @@ interface SymbolState {
 	publishLoaded: boolean;
 	/** Publish in flight: the next ones wait for it. */
 	publishing?: Promise<void>;
+	/** Run of identical scrape failures in progress (absent: last cycle succeeded). */
+	failure?: { signature: string; repeats: number; lastLoggedAt: number };
 }
+
+/** Minimum gap between two summary lines of the same repeated failure. */
+export const REPEATED_FAILURE_LOG_INTERVAL_MS = 15 * 60_000;
 
 /** The next candles to publish, from `cursor` (absent: nothing queued yet). */
 interface NextCandles {
@@ -62,7 +68,7 @@ interface NextCandles {
  *
  * MySQL does not wait for the bus: a cycle persists, then starts the publish
  * without awaiting it (a hung message-manager may hold a publish for
- * PUBLISH_TIMEOUT_MS). While a symbol's publish is in flight, the next cycles
+ * PUBLISH_ACCEPT_TIMEOUT_MS). While a symbol's publish is in flight, the next cycles
  * only persist. The candles to publish are read back from MySQL from the
  * series publish cursor, which moves only once a publish of theirs succeeded:
  * a bus outage or a scraper restart loses none of them. A series without a
@@ -79,6 +85,13 @@ export class WorkerOrchestrator {
 		private readonly _deps: WorkerOrchestratorDeps
 	) {
 		this._maxConcurrency = maxConcurrency;
+		// Series at 0 from the start: increase() then sees the first failure,
+		// and a symbol that never persists a candle (SymbolMarketDataStale).
+		for (const symbol of _symbols) {
+			CANDLES_PERSISTED_TOTAL.inc({ symbol }, 0);
+			SYMBOLS_FAILED_TOTAL.inc({ symbol }, 0);
+			SYMBOLS_SCRAPED_TOTAL.inc({ symbol }, 0);
+		}
 	}
 
 	async executeAll(): Promise<void> {
@@ -89,19 +102,56 @@ export class WorkerOrchestrator {
 		);
 
 		settled.forEach((outcome, index) => {
+			const symbol = this._symbols[index];
 			if (outcome.status === "rejected") {
-				getLogger().error("Symbol scrape failed", {
-					context: {
-						source: this._deps.source.id,
-						symbol: this._symbols[index],
-					},
-					error: outcome.reason,
-				});
-				SYMBOLS_FAILED_TOTAL.inc();
+				this._logFailure(symbol, outcome.reason);
+				SYMBOLS_FAILED_TOTAL.inc({ symbol });
 			} else {
-				SYMBOLS_SCRAPED_TOTAL.inc();
+				this._logRecovery(symbol);
+				SYMBOLS_SCRAPED_TOTAL.inc({ symbol });
 			}
 		});
+	}
+
+	/**
+	 * Full ERROR with stack on a new failure; the same failure again is
+	 * summarized without stack at most every REPEATED_FAILURE_LOG_INTERVAL_MS.
+	 */
+	private _logFailure(symbol: TradingSymbol, reason: unknown): void {
+		const state = this._stateOf(symbol);
+		const context = { source: this._deps.source.id, symbol };
+		const now = Date.now();
+		const signature =
+			reason instanceof Error
+				? `${reason.name}: ${reason.message}`
+				: String(reason);
+		if (state.failure?.signature !== signature) {
+			state.failure = { signature, repeats: 0, lastLoggedAt: now };
+			getLogger().error("Symbol scrape failed", { context, error: reason });
+			return;
+		}
+		state.failure.repeats++;
+		if (now - state.failure.lastLoggedAt >= REPEATED_FAILURE_LOG_INTERVAL_MS) {
+			state.failure.lastLoggedAt = now;
+			getLogger().error("Symbol scrape still failing", {
+				context: { ...context, signature, repeats: state.failure.repeats },
+			});
+		}
+	}
+
+	private _logRecovery(symbol: TradingSymbol): void {
+		const state = this._stateOf(symbol);
+		if (state.failure) {
+			getLogger().info("Symbol scrape recovered", {
+				context: {
+					source: this._deps.source.id,
+					symbol,
+					signature: state.failure.signature,
+					repeats: state.failure.repeats,
+				},
+			});
+			state.failure = undefined;
+		}
 	}
 
 	/** Waits for the publishes in flight (shutdown, tests). */

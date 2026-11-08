@@ -4,14 +4,15 @@ import { join } from "node:path";
 import { parseRequest } from "@trading-model/http/adapters/inbound/api-route/api-route";
 import { DLQ_API } from "../../services/dlq-service/src/adapters/inbound/api-routes";
 import { serviceAuth } from "../../services/dlq-service/src/adapters/inbound/auth";
-import { checkEntryAcceptable } from "../../services/dlq-service/src/adapters/inbound/dlq-validator";
+import { checkEntryAcceptable } from "../../services/dlq-service/src/application/use-cases/dlq-validator";
+import { EntrySerializer } from "../../services/dlq-service/src/shared/entry-serializer";
 import { HttpDeadLetterStore } from "../../services/message-manager/src/adapters/outbound/http-dead-letter-store";
 import { HttpMessageDelivery } from "../../services/message-manager/src/adapters/outbound/http-message-delivery";
 import { createMessage } from "../../services/message-manager/src/domain/message-factory";
 import { FileDlqRepository } from "../../services/message-manager/src/infrastructure/fallback/dlq-repository";
 
 /**
- * Dead-letter contract: message-manager → dlq-service (ADR-0019, ADR-0021).
+ * Dead-letter contract: message-manager → dlq-service (ADR-0048, ADR-0021).
  *
  * message-manager's real delivery adapter writes a dead letter to its real
  * file repository; each line must pass dlq-service's real `POST /dlq`
@@ -36,6 +37,13 @@ jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
 jest.mock("../../services/dlq-service/src/config/db", () => ({
 	isDbConnected: () => true,
 }));
+
+function sampleMessage() {
+	return createMessage({ close: 101.5 }, {
+		topic: "market.candles.fetch",
+		publisher: "financial-scraper-service",
+	} as never);
+}
 
 const span = {
 	setAttribute: () => span,
@@ -63,10 +71,7 @@ describe("dead-letter contract: message-manager → dlq-service", () => {
 			{} as never,
 			new FileDlqRepository(file)
 		);
-		const message = createMessage({ close: 101.5 }, {
-			topic: "market.candles.fetch",
-			publisher: "financial-scraper-service",
-		} as never);
+		const message = sampleMessage();
 		for (const { reason, deliveryAttempt } of reasons) {
 			await delivery.markDeadLetter({
 				message,
@@ -124,10 +129,7 @@ describe("dead-letter contract: message-manager → dlq-service", () => {
 			resolveUrl: async () => "https://dlq-service:3000/dlq" as never,
 			secret: "contract-test-hmac-secret",
 		});
-		const message = createMessage({ close: 101.5 }, {
-			topic: "market.candles.fetch",
-			publisher: "financial-scraper-service",
-		} as never);
+		const message = sampleMessage();
 
 		await store.insert({
 			message,
@@ -154,5 +156,35 @@ describe("dead-letter contract: message-manager → dlq-service", () => {
 		expect(parseRequest(DLQ_API.addEntry, { body: req.body })).toMatchObject({
 			success: true,
 		});
+	});
+
+	it("two subscribers failing on one message give two replayable entries under the original messageId", async () => {
+		const file = join(dir, "dead-letter-queue.jsonl");
+		const delivery = new HttpMessageDelivery(
+			{} as never,
+			new FileDlqRepository(file)
+		);
+		const message = sampleMessage();
+		for (const service of ["audit-logger", "trainer-service"]) {
+			await delivery.markDeadLetter({
+				message,
+				service,
+				reason: "OPEN",
+				deliveryAttempt: 5 as never,
+			});
+		}
+		const lines = readFileSync(file, "utf-8")
+			.trim()
+			.split(String.fromCharCode(10))
+			.map((line) => JSON.parse(line));
+		const serializer = new EntrySerializer();
+
+		const keys = lines.map((line) => serializer.computeHash(line).messageId);
+
+		expect(lines.map((line) => line.messageId)).toEqual([
+			message.metadata.messageId,
+			message.metadata.messageId,
+		]);
+		expect(new Set(keys).size).toBe(2);
 	});
 });

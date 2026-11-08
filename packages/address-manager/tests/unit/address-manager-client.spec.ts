@@ -64,6 +64,7 @@ describe("AddressManagerClient", () => {
 		config = {
 			addressManagerUrl: "http://localhost:8443",
 			servicePort: Port.of(8080),
+			serviceVersion: "2.0.0",
 			tokenRefreshIntervalMs: 300_000,
 			ttlRefreshIntervalMs: 300_000,
 			servicePingTimeoutMs: 2000,
@@ -93,7 +94,7 @@ describe("AddressManagerClient", () => {
 					serviceName: config.identity.serviceName,
 					instanceId: config.identity.instanceId,
 				},
-				{ headers: { "x-instance-token": "mock-token" } }
+				{ headers: { "x-instance-token": "mock-token" }, idempotent: true }
 			);
 		});
 
@@ -129,7 +130,9 @@ describe("AddressManagerClient", () => {
 				expect.stringMatching(/\/register$/),
 				expect.objectContaining({
 					instanceId: config.identity.instanceId,
-				})
+				}),
+				{ idempotent: true },
+				expect.anything()
 			);
 		});
 
@@ -146,7 +149,9 @@ describe("AddressManagerClient", () => {
 				expect.any(String),
 				expect.objectContaining({
 					ip: "192.168.1.100",
-				})
+				}),
+				{ idempotent: true },
+				expect.anything()
 			);
 		});
 
@@ -171,12 +176,19 @@ describe("AddressManagerClient", () => {
 
 			const result = await client.registerService();
 
-			expect(httpClient.post).toHaveBeenCalledWith(expect.any(String), {
-				serviceName: config.identity.serviceName,
-				instanceId: config.identity.instanceId,
-				port: config.servicePort,
-				ip: expect.any(String),
-			});
+			expect(httpClient.post).toHaveBeenCalledWith(
+				expect.any(String),
+				{
+					serviceName: config.identity.serviceName,
+					instanceId: config.identity.instanceId,
+					port: config.servicePort,
+					// The major routes the gateway prefix /v<major> to this instance.
+					version: "2.0.0",
+					ip: expect.any(String),
+				},
+				{ idempotent: true },
+				expect.anything()
+			);
 			expect(result).toEqual(response);
 		});
 
@@ -204,8 +216,11 @@ describe("AddressManagerClient", () => {
 					serviceName: config.identity.serviceName,
 					instanceId: config.identity.instanceId,
 					port: config.servicePort,
+					version: "2.0.0",
 					ip: "192.168.1.100",
-				}
+				},
+				{ idempotent: true },
+				expect.anything()
 			);
 		});
 
@@ -231,7 +246,7 @@ describe("AddressManagerClient", () => {
 					serviceName: config.identity.serviceName,
 					instanceId: config.identity.instanceId,
 				},
-				{ headers: { "x-instance-token": "mock-token" } }
+				{ headers: { "x-instance-token": "mock-token" }, idempotent: true }
 			);
 		});
 

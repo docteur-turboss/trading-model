@@ -48,7 +48,7 @@ export interface BestAgentSummary {
 	};
 }
 
-export interface LastTrainingInfoData {
+interface LastTrainingInfoData {
 	symbol: TradingSymbol;
 	bestGenome: DeepReadonly<LamarckGenome>;
 	bestFitness: Fitness;
@@ -97,5 +97,28 @@ export class LastTrainingInfo implements TrainingSnapshot {
 			this.bestFitness,
 			this.bestFitnessMeta
 		);
+	}
+}
+
+/**
+ * Snapshot rebuilt at startup from the newest model manifest (ADR-0022), until
+ * a training replaces it. The genome of a manifest has no weights, only the
+ * topology, RL and GA genes the summary needs.
+ */
+export class ArtifactTrainingInfo implements TrainingSnapshot {
+	readonly generationContext: GenerationContext | null = null;
+	readonly generation: PositiveInt;
+	readonly symbol: TradingSymbol;
+
+	constructor(
+		symbol: string,
+		private readonly _summary: BestAgentSummary
+	) {
+		this.symbol = symbol as TradingSymbol;
+		this.generation = _summary.generation;
+	}
+
+	buildBestAgentSummary(): BestAgentSummary {
+		return this._summary;
 	}
 }

@@ -205,7 +205,6 @@ interface Wallet {
   sell(amount: number): boolean; // Execute sell order
   getPnL(): number; // Unrealized PnL
   getValuation(): number; // Total account value
-  getMetrics(): WalletMetrics; // Performance metrics
   setPrice(price: number): void; // Update market price
 }
 ```
@@ -216,8 +215,6 @@ interface Wallet {
 - Transaction fee simulation
 - Max position limits
 - P&L calculation (realized + unrealized)
-- Sharpe/Sortino/Calmar metrics
-- Drawdown tracking
 
 **Trade Execution Logic**:
 
@@ -235,9 +232,9 @@ Sell: cash += amount * price - fees; position -= amount
 Fully-connected feedforward network with configurable:
 
 - **Layers**: Input → Hidden Layers... → Output
-- **Activations**: ReLU, Tanh, Sigmoid, GELU, Softmax, ELU, Mish, LeakyReLU
-- **Optimizers**: SGD, Adam, RMSProp
-- **Loss Functions**: MSE, Cross-Entropy, Huber, Smooth L1
+- **Activations**: ReLU, Tanh, Sigmoid, GELU, ELU, Mish, LeakyReLU, Linear
+- **Optimizer**: plain SGD
+- **Loss Function**: mean squared error
 - **Normalizations**: MinMax, Z-score, Robust, Batch Norm, Layer Norm
 
 **Forward Pass**:
@@ -249,7 +246,7 @@ output = activation(weight @ input + bias)
 **Backward Propagation**:
 
 - Gradient computation via chain rule
-- Weight updates using optimizer (SGD, Adam)
+- Weight updates by SGD
 - Support for batch training
 
 #### Agent
@@ -282,10 +279,10 @@ Main evolution loop orchestrating:
 
 1. **Initialization**: Create initial population of random genomes
 2. **Evaluation**: Each genome → TradingAgent → fitness score
-3. **Selection**: Choose parents via tournament/roulette
+3. **Selection**: Choose parents by tournament
 4. **Genetic Operators**:
-   - **Mutation**: Gaussian, Lévy, Cauchy, Uniform perturbations
-   - **Crossover**: Uniform, Arithmetic, BLX-α, SBX
+   - **Mutation**: Gaussian perturbations with a fixed sigma
+   - **Crossover**: Uniform
 5. **Environmental Selection**: Keep best + maintain diversity
 6. **Termination**: Check convergence, generation limit, diversity
 
@@ -323,13 +320,11 @@ interface Genome {
     };
   };
   mutation: {
-    distribution: MutationDistribution;
-    sigma: number;
-    adaptiveRate: number;
+    rates: { rate: number; sigma: number };
+    structural: { addNeuronRate: number; removeNeuronRate: number; addLayerRate: number; removeLayerRate: number };
   };
   crossover: {
-    type: CrossoverType;
-    blxAlpha: number;
+    probability: number;
   };
 }
 ```
@@ -338,17 +333,11 @@ interface Genome {
 
 **Mutation**:
 
-- Per-layer adaptive sigma adjustment
-- Multiple distributions (Gaussian, Lévy)
+- Gaussian noise, sigma evolved with the genome
 - Hyperparameter mutation capability
 - Complexity penalty on mutation strength
 
-**Crossover**:
-
-- Uniform: randomly blend parent alleles
-- Arithmetic: weighted average of weights
-- BLX-α: blend in extended range
-- SBX: Simulated Binary Crossover
+**Crossover**: uniform, each gene comes from either parent with probability 0.5.
 
 **Fitness Calculation**:
 
@@ -453,13 +442,13 @@ GA meta-parameters (population size, elitism fraction, episodes per individual, 
 
 ### 5. Immutable Genome Architecture
 
-All genome operations produce **new frozen objects** using `deepFreeze`. This eliminates mutation bugs and enables safe concurrent evaluation across the population.
+All genome operations produce **new frozen objects** using `deepFreeze`. This eliminates mutation bugs and keeps each evaluation free of shared mutable state.
 
-### 6. Pooled Parallel Evaluation
+### 6. Sequential Evaluation
 
-Genomes are evaluated concurrently with a configurable concurrency cap (`evalConcurrency`, default 4). Each genome creates its own `RLBackend` (TradingAgent), runs Q-learning training, then evaluates on validation data.
+Genomes are evaluated sequentially on the training worker thread (CPU-bound, no parallelism). Each genome creates its own `RLBackend` (TradingAgent), runs Q-learning training, then evaluates on validation data.
 
-**File**: `ga-runner.ts` (`pooledEval`)
+**File**: `ga-runner.ts` (`sequentialEval`)
 
 ---
 
@@ -566,7 +555,7 @@ function calculateMaxPopulation(): number {
 ```typescript
 // Activation functions
 type ActivationType =
-  'sigmoid' | 'tanh' | 'relu' | 'gelu' | 'softmax' | 'elu' | 'mish' | 'leakyRelu';
+  'sigmoid' | 'tanh' | 'relu' | 'gelu' | 'elu' | 'mish' | 'leakyReLu' | 'linear';
 
 // Connection types
 type ConnectionType = 'fully-connected' | 'dense-skip' | 'residual-connection';
@@ -577,17 +566,11 @@ type InitialisationType = 'zeros' | 'lecun' | 'he' | 'xavier' | 'random';
 // Normalizations
 type NormalisationType = 'minmax' | 'zscore' | 'robust' | 'batch' | 'layer' | 'instance' | 'none';
 
-// Optimizers
-type OptimizerType = 'sgd' | 'adam' | 'rmsprop';
-
 // Fitness metrics
 type FitnessType = 'total_pnl' | 'sharpe' | 'sortino' | 'calmar' | 'composite';
 
-// Mutation distributions
-type MutationDistribution = 'gaussian' | 'levy' | 'cauchy' | 'uniform';
-
 // Selection methods
-type SelectionType = 'tournament' | 'roulette' | 'rank' | 'sus';
+type SelectionType = 'tournament';
 ```
 
 ---

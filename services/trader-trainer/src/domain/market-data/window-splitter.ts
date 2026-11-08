@@ -14,7 +14,31 @@ export const MIN_TRAINING_STEPS = PositiveInt.of(10);
 export const DEFAULT_VALIDATION_SPLIT = Percentage.of(0.2);
 
 /** Default number of walk-forward folds (1 = single split, no rolling). */
-export const DEFAULT_WALK_FORWARD_FOLDS = 1;
+const DEFAULT_WALK_FORWARD_FOLDS = 1;
+
+/**
+ * Whether `candleCount` candles give windows the training validator accepts.
+ * A series of N candles makes N-1 steps. Walk-forward needs MIN_TRAINING_STEPS
+ * per fold; otherwise the single split must leave MIN_TRAINING_STEPS to train.
+ * The loop and the validator both decide through this rule.
+ */
+export function hasEnoughTrainingData(
+	candleCount: number,
+	validationSplit: number,
+	walkForwardFolds: number
+): boolean {
+	const steps = candleCount - 1;
+	if (steps < MIN_TRAINING_STEPS) {
+		return false;
+	}
+	if (walkForwardFolds >= 2 && steps >= MIN_TRAINING_STEPS * walkForwardFolds) {
+		return true;
+	}
+	// Walk-forward fallback uses DEFAULT_VALIDATION_SPLIT, as splitWalkForward does.
+	const split =
+		walkForwardFolds >= 2 ? DEFAULT_VALIDATION_SPLIT : validationSplit;
+	return Math.floor(steps * (1 - split)) >= MIN_TRAINING_STEPS;
+}
 
 /** Handles building market steps and train/validation window splitting. */
 export class WindowSplitter {

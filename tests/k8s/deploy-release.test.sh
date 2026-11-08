@@ -41,7 +41,9 @@ if [ "$1" = get ] && [ "$2" = deployment ] && [[ $* == *terminationGracePeriodSe
 	for pair in $STUB_GRACE; do [ "${pair%%=*}" = "$3" ] && printf '%s' "${pair#*=}"; done
 	exit 0
 fi
-if [ "$1" = rollout ] && [ "$2" = status ]; then exit 0; fi
+if [ "$1" = get ] && [ "$2" = statefulset ]; then [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
+if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
+if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
 if [ "$1" = get ] && [ "$2" = deployment ]; then
 	for pair in $STUB_REVS; do [ "${pair%%=*}" = "$3" ] && printf '%s' "${pair#*=}"; done
 	exit 0
@@ -57,8 +59,9 @@ export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log"
 
 STUB_REVS="discovery-server=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
 grep -qx "discovery-server 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
-	grep -qx "edge-proxy none" "$WORK/revs" && [ "$(wc -l <"$WORK/revs")" -eq 9 ] &&
-	ok "record writes the 9 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
+	grep -qx "edge-proxy none" "$WORK/revs" && grep -qx "statefulset/redis 3" "$WORK/revs" && grep -qx "statefulset/redis-sentinel none" "$WORK/revs" &&
+	[ "$(wc -l <"$WORK/revs")" -eq 11 ] &&
+	ok "record writes the Redis StatefulSets and the 9 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
 
 printf 'discovery-server 4\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
@@ -73,11 +76,30 @@ out="$(STUB_UNDO_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs" 
 	{ grep -q "deployment/api-gateway" "$WORK/log" && [[ $out == *"edge-proxy: it did not exist"* ]] &&
 		ok "rollback fails, reports and still tries every Deployment" || ko "rollback: $out"; }
 
+printf 'discovery-server 4
+api-gateway 7
+' >"$WORK/revs"
+: >"$WORK/log"
+out="$(STUB_STATUS_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+	ko "rollback succeeded though a rollout did not come back" ||
+	{ grep -q "rollout status deployment/api-gateway -n ns --timeout=180s" "$WORK/log" &&
+		[[ $out == *"discovery-server did not finish rolling back"* ]] &&
+		ok "rollback waits for each rollout and fails if one does not come back" || ko "rollback status: $out"; }
+
+printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\ndiscovery-server 4\n' >"$WORK/revs"
+: >"$WORK/log"
+bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
+	[ "$(grep -n 'rollout undo statefulset/redis-sentinel' "$WORK/log" | cut -d: -f1)" -lt \
+		"$(grep -n 'rollout status statefulset/redis ' "$WORK/log" | cut -d: -f1)" ] &&
+	ok "rollback undoes every resource before waiting (Redis and its sentinels restart together)" ||
+	ko "rollback order: $(cat "$WORK/log")"
+
 : >"$WORK/log"
 STUB_GRACE="financial-scraper-collector=360 api-gateway=30" bash "$SCRIPT" wait ns >/dev/null &&
 	grep -q "rollout status deployment/financial-scraper-collector -n ns --timeout=540s" "$WORK/log" &&
 	grep -q "rollout status deployment/api-gateway -n ns --timeout=210s" "$WORK/log" &&
 	grep -q "rollout status deployment/edge-proxy -n ns --timeout=210s" "$WORK/log" &&
+	grep -q "rollout status statefulset/redis-sentinel -n ns --timeout=180s" "$WORK/log" &&
 	ok "wait adds each template's termination grace to the timeout" || ko "wait: $(cat "$WORK/log")"
 bash "$SCRIPT" wait ns 3m >/dev/null 2>&1 && ko "wait accepted a timeout not in seconds" || ok "wait refuses a timeout not in seconds"
 

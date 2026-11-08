@@ -40,9 +40,10 @@ spec:
     spec:
       serviceAccountName: message-manager
       # preStop 15 s + leaving discovery while callers' caches expire
-      # (CACHE_TTL_MS, 30 s) + in-flight publishes (PUBLISH_TIMEOUT_MS, 300 s)
-      # + forwarding the local dead letters.
-      terminationGracePeriodSeconds: 360
+      # (CACHE_TTL_MS, 30 s) + in-flight publishes (PUBLISH_ACCEPT_TIMEOUT_MS,
+      # 15 s) + deliveries in flight (10 s) + forwarding the local dead letters.
+      # Messages not delivered yet stay in the Redis journal (ADR-0048).
+      terminationGracePeriodSeconds: 120
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -91,6 +92,16 @@ spec:
             - configMapRef:
                 name: message-manager-config
           env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_MESSAGE_MANAGER_PASSWORD
+            - name: REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
@@ -172,7 +183,7 @@ spec:
                   - -c
                   - sleep 15
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
           imagePullPolicy: IfNotPresent
           args:
             - -config
@@ -208,6 +219,6 @@ spec:
           emptyDir: {}
         # Dead letters dlq-service could not take yet (DLQ_LOCAL_FALLBACK_PATH),
         # forwarded every minute and at shutdown; lost with the pod otherwise
-        # (alert DeadLettersNotForwarded), see ADR-0019.
+        # (alert DeadLettersNotForwarded), see ADR-0048.
         - name: dlq-data
           emptyDir: {}

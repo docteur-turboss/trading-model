@@ -58,7 +58,7 @@ Training service for trading agents using genetic algorithms and neural networks
 
 ### `GET /best-agent`
 
-Returns the best trained agent summary from the most recent generation.
+Returns the best trained agent summary from the most recent generation. After a restart, until the first new training, it is the summary of the newest stored model manifest (`/training-agents/:symbol` also returns it as `model`).
 
 **Response** `200 OK`:
 
@@ -157,10 +157,11 @@ Candles are kept strictly increasing in time per symbol: a candle with the times
 
 ## Training Loop
 
-- **Trigger**: once 50 candles are available for a symbol
 - **Frequency**: every 60 seconds
-- **Condition**: at least 10% of `TRAINER_DATA_WINDOW` available
+- **Condition**: `hasEnoughTrainingData` (`domain/market-data/window-splitter.ts`), the rule the validator applies too. With `steps = candles - 1`: `steps >= MIN_TRAINING_STEPS`, and either walk-forward is on (`TRAINER_WALK_FORWARD_FOLDS >= 2`) with `steps >= MIN_TRAINING_STEPS * folds`, or `floor(steps * (1 - split)) >= MIN_TRAINING_STEPS`, where `split` is `TRAINER_VALIDATION_SPLIT` (the default split when walk-forward falls back). It does not depend on `TRAINER_DATA_WINDOW`
 - **Parallelism**: one training session at a time (`trainer.isTraining()`)
+- **Time budget is the limiting factor**: genome evaluation is CPU-bound and runs sequentially on the single training worker thread (K8s limit `cpu: "1"`), so a generation costs the sum of its genomes. Audit measure (dev machine, population 20, 10 episodes, 500 candles, 1 fold): about 5.3 s per generation, P95 794 ms per genome, so 50 generations take about 265 s against `TRAINER_TIME_BUDGET_MS=300000`. Re-measured at this change (`runInProcess`, K8s config, `feedCandles` fixture, 16-core dev machine, Node 25, 2026-11-08): the former `evalConcurrency` 4 and 1 gave the same duration within run noise (3 generations: 25.6 s vs 17.8 s, current sequential code 21.7 s, i.e. 5.9 to 8.5 s per generation), and a full 50-generation session with the 300 s budget finished all 50 generations in 188 s (3.8 s per generation on average). The budget binds only on slower CPUs or with more folds. More folds (`TRAINER_WALK_FORWARD_FOLDS`) or a slower CPU make the session stop at the budget before `TRAINER_GENERATIONS`. Raise the budget or lower population/generations/folds to fit; there is no worker pool.
+- **Rotation**: each cycle trains one symbol of `TRAINER_SYMBOLS`, round-robin. The scan starts after the last symbol trained and takes the first eligible one (enough candles, fresh data). Every eligible symbol gets its turn; a symbol that keeps failing does not hold the loop; a skipped symbol (stale or filling) is checked again on the next cycle
 
 See [Training Process — Reference](../reference/training-process.md) for the full pipeline description.
 
@@ -187,9 +188,9 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 
 ## Rate Limiting
 
-- **Window**: 15 minutes
-- **Limit**: 100 requests per window
-- Configured in `createSecureServer` within `server.ts`
+- **Window**: 1 minute
+- **Limit**: 1 000 requests per IP and per window
+- Default of the shared server (`packages/server-utils/src/adapters/inbound/configure-app.ts`); the trainer passes no `rateLimit` option
 
 ## TLS
 

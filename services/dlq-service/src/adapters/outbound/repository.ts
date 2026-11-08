@@ -1,20 +1,21 @@
-import { type AppError, isAppError } from "@trading-model/common/utils/errors";
+import {
+	type AppError,
+	ErrorCode,
+	isAppError,
+} from "@trading-model/common/utils/errors";
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import { SequenceNumber, Topic } from "@trading-model/primitives/primitives";
 import type { Document, WithId } from "mongodb";
 import { getCollection } from "../../config/db";
-import { DlqEntryWriter, dlqCapacityError } from "./dlq-entry-writer";
+import { DlqEntryWriter } from "./dlq-entry-writer";
 import { pruneEntries } from "./dlq-eviction-policy";
 import { type DlqListOptions, DlqQueryBuilder } from "./dlq-query-builder";
 import { DlqQueueRepository } from "./dlq-queue-repository";
 
-export { DlqQueryBuilder } from "./dlq-query-builder";
-export { DlqQueueRepository } from "./dlq-queue-repository";
 export type { DlqListOptions };
-export { dlqCapacityError };
 
 export function isDlqCapacityError(err: unknown): err is AppError {
-	return isAppError(err) && err.code === "DlqCapacityError";
+	return isAppError(err) && err.code === ErrorCode.DlqCapacity;
 }
 
 export { DlqStatus } from "../../domain/dlq-status";
@@ -24,6 +25,8 @@ export interface StoredDlqEntry {
 	id: string;
 	topic: Topic | null;
 	message: unknown;
+	/** Subscriber whose delivery failed; null on entries from before ADR-0043 (replayed to every subscriber). */
+	service: string | null;
 	reason: string | null;
 	deliveryAttempt: SequenceNumber;
 	/** ISO 8601, as listed by `GET /dlq`. */
@@ -35,6 +38,7 @@ export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 		id: doc._id.toHexString(),
 		topic: doc.topic ? Topic.of(doc.topic as string) : null,
 		message: doc.message,
+		service: (doc.service as string | null | undefined) ?? null,
 		reason: (doc.reason as string | null) ?? null,
 		deliveryAttempt: SequenceNumber.of(doc.deliveryAttempt as number),
 		createdAt: (
@@ -47,14 +51,6 @@ export class DlqRepository {
 	private _entryWriter = new DlqEntryWriter();
 	private _queryBuilder = new DlqQueryBuilder();
 	private _queueRepository = new DlqQueueRepository(this._queryBuilder);
-
-	get queryBuilder(): DlqQueryBuilder {
-		return this._queryBuilder;
-	}
-
-	get queueRepository(): DlqQueueRepository {
-		return this._queueRepository;
-	}
 
 	insert(entry: DlqEntry): Promise<string> {
 		return this._entryWriter.insert(entry);

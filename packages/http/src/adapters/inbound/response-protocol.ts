@@ -40,7 +40,9 @@ function logServerError(
 		context: {
 			message: originalError?.message,
 			stack: originalError?.stack,
-			url: req.originalUrl,
+			correlationId: req.correlationId,
+			// path only: the query string may carry secrets
+			url: req.originalUrl.split("?")[0],
 			method: req.method,
 			ip: anonymizeIp(req.ip),
 		},

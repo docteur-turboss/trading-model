@@ -1,23 +1,18 @@
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import "./telemetry";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import {
-	initializeTelemetry,
-	shutdownTelemetry,
-} from "@trading-model/server-utils/infrastructure/telemetry";
-import { closeRedisClient } from "../adapters/inbound/routes";
+import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
 import { AddressManager } from "../config/address-manager";
 import { closeDb, getDb, resetDbState } from "../config/db";
-import { ENV } from "../infrastructure/config/env";
-import { ensureRedisQueue } from "../infrastructure/redis-init";
 import {
 	releaseStaleClaims,
 	shutdownSchedulers,
-	startAutoRetry,
 	startPeriodicPrune,
-} from "../shared/controller-reexports";
+} from "../config/shutdown-manager";
+import { startAutoRetry } from "../infrastructure/auto-retry-scheduler";
+import { ENV } from "../infrastructure/config/env";
+import { ensureRedisQueue } from "../infrastructure/redis-init";
 import { createServer } from "./server";
 
 createBootstrap({
@@ -43,12 +38,6 @@ async function _onBeforeServer(): Promise<void> {
 }
 
 function _onStart(): void {
-	initializeTelemetry({
-		serviceName: ServiceInstanceName.DlqService,
-		serviceVersion: "2.0.0",
-		instanceId: toInstanceId(process.env.INSTANCE_ID ?? "dlq-1"),
-		otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-	});
 	AddressManager.lifecycleManager.start();
 	void ensureRedisQueue();
 	startPeriodicPrune();
@@ -61,7 +50,6 @@ function _onStart(): void {
 async function _onStop(): Promise<void> {
 	await shutdownTelemetry();
 	await shutdownSchedulers();
-	await closeRedisClient();
 	try {
 		await closeDb();
 	} catch (err) {

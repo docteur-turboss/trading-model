@@ -33,22 +33,6 @@ interface BinanceTrade {
 
 export type BinanceTradeResponse = BinanceTrade[];
 
-export type BinanceHistoricalTrade = BinanceTrade;
-export type BinanceHistoricalTradeResponse = BinanceHistoricalTrade[];
-
-interface BinanceAggregateTrade {
-	aggregateTradeId: number;
-	price: PriceString;
-	quantity: VolumeString;
-	firstTradeId: number;
-	lastTradeId: number;
-	time: UnixTimestamp;
-	isBuyerMaker: boolean;
-	isBestMatch: boolean;
-}
-
-export type BinanceAggregateTradeResponse = BinanceAggregateTrade[];
-
 /** OHLCV + last price fields shared by Binance ticker responses (all strings as received from API). */
 export interface BinanceTickerBaseStats {
 	symbol: TradingSymbol;
@@ -136,12 +120,6 @@ export interface Binance24hrTickerStats extends BinanceTickerBaseStats {
 }
 
 export type Binance24hrTickerStatsResponse = Binance24hrTickerStats[];
-
-export interface BinanceTradingDayTicker extends BinanceTickerBaseStats {
-	quoteVolume: CashString;
-}
-
-export type BinanceTradingDayTickerResponse = BinanceTradingDayTicker[];
 
 export interface BinanceSymbolPriceTicker {
 	symbol: TradingSymbol;

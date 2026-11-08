@@ -24,7 +24,19 @@ const ORDINALS = [0, 1, 2];
 const REDIS_PORT = 6379;
 const SENTINEL_PORT = 26379;
 const FAILOVER_DEADLINE_MS = 20_000;
+// ACL passwords, as the redis-credentials Secret gives them to the pods.
+const PASSWORDS = {
+	internal: "internal-pw",
+	discovery: "discovery-pw",
+	"message-manager": "message-manager-pw",
+	"dlq-service": "dlq-pw",
+};
+const DISCOVERY_KEY = "trading-model:discovery:spec";
 const HA_ENV = {
+	REDIS_INTERNAL_PASSWORD: PASSWORDS.internal,
+	REDIS_DISCOVERY_PASSWORD: PASSWORDS.discovery,
+	REDIS_MESSAGE_MANAGER_PASSWORD: PASSWORDS["message-manager"],
+	REDIS_DLQ_PASSWORD: PASSWORDS["dlq-service"],
 	REDIS_HOSTS: ORDINALS.map((n) => `redis-${n}`).join(" "),
 	SENTINEL_HOSTS: ORDINALS.map((n) => `redis-sentinel-${n}`).join(" "),
 	DOWN_AFTER_MS: "1000",
@@ -72,13 +84,32 @@ const startSentinel = (network: StartedNetwork, n: number) =>
 		"+monitor master"
 	);
 
-async function cli(
+async function cliAs(
 	node: StartedTestContainer,
+	user: string | undefined,
+	password: string,
 	...args: string[]
 ): Promise<string[]> {
-	const { output } = await node.exec(["redis-cli", "--raw", ...args]);
+	const { output } = await node.exec([
+		"env",
+		`REDISCLI_AUTH=${password}`,
+		"redis-cli",
+		"--raw",
+		...(user ? ["--user", user] : []),
+		...args,
+	]);
 	return output.trim().split("\n");
 }
+
+// The internal `ha` user on the data nodes, the sentinel password on a sentinel.
+const cli = (node: StartedTestContainer, ...args: string[]) =>
+	cliAs(node, args[0] === "-p" ? undefined : "ha", PASSWORDS.internal, ...args);
+
+const asService = (
+	node: StartedTestContainer,
+	service: "discovery" | "message-manager" | "dlq-service",
+	...args: string[]
+) => cliAs(node, service, PASSWORDS[service], ...args);
 
 const role = async (node: StartedTestContainer) => (await cli(node, "ROLE"))[0];
 
@@ -152,6 +183,9 @@ describe("K8s Redis HA start script — real failovers", () => {
 			REDIS_SENTINELS: sentinels
 				.map((s) => `localhost:${s.getMappedPort(SENTINEL_PORT)}`)
 				.join(","),
+			REDIS_USERNAME: "discovery",
+			REDIS_PASSWORD: PASSWORDS.discovery,
+			REDIS_SENTINEL_PASSWORD: PASSWORDS.internal,
 		}) as RedisConnectionConfig;
 		manager = createRedisConnectionManager(connection, {
 			natMap,
@@ -183,23 +217,115 @@ describe("K8s Redis HA start script — real failovers", () => {
 			);
 		}
 
-		await client.set("before-failover", "1");
-		await expect(client.call("WAIT", "2", "5000")).resolves.toBe(2);
+		await client.set(`${DISCOVERY_KEY}:before-failover`, "1");
+		await eventually(
+			async () =>
+				(
+					await asService(
+						redis[1],
+						"discovery",
+						"GET",
+						`${DISCOVERY_KEY}:before-failover`
+					)
+				)[0] === "1"
+		);
+	});
+
+	it("should keep each service on its own key prefix and commands", async () => {
+		const master = await masterNode();
+		const first = async (
+			service: "discovery" | "message-manager" | "dlq-service",
+			...args: string[]
+		) => (await asService(master, service, ...args))[0];
+		const foreign = `${DISCOVERY_KEY}:before-failover`;
+
+		await expect(
+			first("discovery", "SET", `${DISCOVERY_KEY}:own`, "1")
+		).resolves.toBe("OK");
+		await expect(first("discovery", "SET", "other:key", "1")).resolves.toMatch(
+			/^NOPERM/
+		);
+		await expect(first("discovery", "FLUSHALL")).resolves.toMatch(/^NOPERM/);
+		await expect(first("message-manager", "GET", foreign)).resolves.toMatch(
+			/^NOPERM/
+		);
+		await expect(
+			first(
+				"message-manager",
+				"HSET",
+				"trading-model:message-manager:subscriptions:t",
+				"a",
+				"b"
+			)
+		).resolves.toBe("1");
+		// The durable message journal (ADR-0048): Redis Streams under its own prefix.
+		await expect(
+			first(
+				"message-manager",
+				"XADD",
+				"trading-model:message-manager:journal:t",
+				"*",
+				"m",
+				"1"
+			)
+		).resolves.toMatch(/^\d+-\d+$/);
+		// The journal backlog gauges (issue #606): XINFO / XPENDING / XRANGE on its own prefix only.
+		const journalKey = "trading-model:message-manager:journal:t";
+		await first("message-manager", "XGROUP", "CREATE", journalKey, "g", "0");
+		await expect(
+			first("message-manager", "XINFO", "GROUPS", journalKey)
+		).resolves.not.toMatch(/^NOPERM/);
+		await expect(
+			first("message-manager", "XPENDING", journalKey, "g")
+		).resolves.not.toMatch(/^NOPERM/);
+		await expect(
+			first("message-manager", "XRANGE", journalKey, "-", "+", "COUNT", "1")
+		).resolves.not.toMatch(/^NOPERM/);
+		await expect(
+			first("message-manager", "XINFO", "GROUPS", "other:stream")
+		).resolves.toMatch(/^NOPERM/);
+		await expect(first("dlq-service", "LLEN", "dlq:queue")).resolves.toBe("0");
+		await expect(
+			first(
+				"dlq-service",
+				"EVAL",
+				"return redis.call('GET', KEYS[1])",
+				"1",
+				foreign
+			)
+		).resolves.toMatch(/^NOPERM/);
+		// The default user is off; the internal user reaches no key.
+		expect((await cliAs(master, undefined, "", "PING"))[0]).toMatch(
+			/NOAUTH|WRONGPASS/
+		);
+		expect((await cli(master, "GET", foreign))[0]).toMatch(/^NOPERM/);
 	});
 
 	it("should fail over when the master pod is deleted, then rejoin it as a replica", async () => {
 		await redis[0].stop();
 
 		const started = Date.now();
-		await expect(client.set("after-failover", "1")).resolves.toBe("OK");
+		await expect(
+			client.set(`${DISCOVERY_KEY}:after-failover`, "1")
+		).resolves.toBe("OK");
 		expect(Date.now() - started).toBeLessThan(FAILOVER_DEADLINE_MS);
-		await expect(client.get("before-failover")).resolves.toBe("1");
+		await expect(client.get(`${DISCOVERY_KEY}:before-failover`)).resolves.toBe(
+			"1"
+		);
 
 		redis[0] = await startRedis(network, 0);
 		mapNode(redis[0]);
 		await eventually(async () => (await role(redis[0])) === "slave");
 		await eventually(
-			async () => (await cli(redis[0], "GET", "after-failover"))[0] === "1"
+			async () =>
+				(
+					await asService(
+						redis[0],
+						"discovery",
+						"GET",
+						`${DISCOVERY_KEY}:after-failover`
+					)
+				)[0] === "1"
 		);
 	});
 
@@ -238,7 +364,9 @@ describe("K8s Redis HA start script — real failovers", () => {
 		await master.stop();
 		// No deadline here: under load a first attempt can still abort for
 		// lack of fresh replica INFO, and Sentinel retries after 2x the timeout.
-		await expect(client.set("second-failover", "1")).resolves.toBe("OK");
+		await expect(
+			client.set(`${DISCOVERY_KEY}:second-failover`, "1")
+		).resolves.toBe("OK");
 		// The other sentinels learn of the switch from the one that failed over.
 		await eventually(async () => (await masterIp()) !== ipOf(master));
 	}, 120_000);

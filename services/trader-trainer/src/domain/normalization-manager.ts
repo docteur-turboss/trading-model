@@ -1,8 +1,8 @@
 import {
 	createDefaultHandlers,
 	type DataHandler,
-	type DataType,
 } from "./data-handlers/data-handler";
+import type { DataType } from "./data-handlers/data-types";
 import type { SymbolNormalizers, SymbolState } from "./market-data-types";
 
 export class NormalizationManager {

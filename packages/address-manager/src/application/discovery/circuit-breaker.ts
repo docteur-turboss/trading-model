@@ -1,4 +1,4 @@
-import { MemoryStoreAdapter } from "@trading-model/persistence/index";
+import { MemoryStoreAdapter } from "@trading-model/persistence/memory-store-adapter";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type {
 	DurationMs,
@@ -8,6 +8,8 @@ import { CircuitBreaker } from "@trading-model/reliability/circuit-breaker";
 import type { CircuitBreakerConfig } from "@trading-model/reliability/circuit-state-machine";
 import { CircuitBreakerPersistence } from "../../adapters/outbound/discovery/circuit-breaker-persistence";
 import {
+	DEFAULT_FAILURE_THRESHOLD,
+	DEFAULT_HALF_OPEN_TIMEOUT_MS,
 	DEFAULT_LATENCY_P99_THRESHOLD_MS,
 	DEFAULT_LATENCY_WINDOW_SIZE,
 	DEFAULT_LOAD_CACHE_TTL_MS,
@@ -62,8 +64,10 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 	private readonly _lastActivity = new Map<string, number>();
 
 	constructor(options: CircuitBreakerOptions = {}) {
-		const failureThreshold = options.failureThreshold ?? 3;
-		const halfOpenTimeoutMs = options.halfOpenTimeoutMs ?? 10_000;
+		const failureThreshold =
+			options.failureThreshold ?? DEFAULT_FAILURE_THRESHOLD;
+		const halfOpenTimeoutMs =
+			options.halfOpenTimeoutMs ?? DEFAULT_HALF_OPEN_TIMEOUT_MS;
 		const loadFromStoreCacheTtlMs =
 			options.loadFromStoreCacheTtlMs ?? DEFAULT_LOAD_CACHE_TTL_MS;
 		const latencyWindowSize =
@@ -122,13 +126,7 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 		const machine = this.getMachine(instanceId as unknown as string);
 		const currentState = machine.getState(Date.now());
 		this._reportState(instanceId, currentState);
-		if (currentState === CircuitState.CLOSED) {
-			return true;
-		}
-		if (currentState === CircuitState.OPEN) {
-			return false;
-		}
-		return true;
+		return currentState !== CircuitState.OPEN;
 	}
 
 	recordSuccess(instanceId: InstanceId): void {
@@ -143,10 +141,8 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 		count?: number,
 		threshold?: number
 	): boolean {
-		const opened = this.getMachine(
-			instanceId as unknown as string
-		).recordFailure(count ?? 1, threshold);
 		const machine = this.getMachine(instanceId as unknown as string);
+		const opened = machine.recordFailure(count ?? 1, threshold);
 		this._persistenceHandler.onRecordFailure(instanceId, machine, opened);
 		this._reportState(instanceId);
 		return opened;

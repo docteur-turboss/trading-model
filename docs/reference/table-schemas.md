@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS `market_candles` (
     `timestamp`        DATETIME(3) NOT NULL,
     `close_timestamp`  DATETIME(3) NOT NULL,
     PRIMARY KEY (`id`, `symbol`, `market`, `interval_value`, `timestamp`, `source`),
-    INDEX `idx_candles_timestamp` (`timestamp` ASC) INVISIBLE,
+    INDEX `idx_candles_timestamp` (`timestamp` ASC),
     INDEX `idx_candles_symbol` (`symbol` ASC) VISIBLE
 ) ENGINE = InnoDB;
 ```
@@ -92,7 +92,7 @@ CREATE TABLE `market_trades` (
     `side`        ENUM('buy', 'sell') NOT NULL,
     `timestamp`   DATETIME(3) NOT NULL,
     PRIMARY KEY (`symbol`, `market`, `source`, `trade_id`, `timestamp`),
-    INDEX `idx_trades_timestamp` (`timestamp` ASC) INVISIBLE,
+    INDEX `idx_trades_timestamp` (`timestamp` ASC),
     INDEX `idx_trades_symbol` (`symbol` ASC) VISIBLE
 ) ENGINE=InnoDB;
 ```
@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS `market_tickers` (
     `timestamp`        DATETIME(3) NOT NULL,
     `close_time`       DATETIME(3) NOT NULL,
     PRIMARY KEY (`id`, `symbol`, `market`, `timestamp`, `source`),
-    INDEX `idx_tickers_timestamp` (`timestamp` ASC) INVISIBLE,
+    INDEX `idx_tickers_timestamp` (`timestamp` ASC),
     INDEX `idx_tickers_symbol` (`symbol` ASC) VISIBLE
 ) ENGINE = InnoDB;
 ```
@@ -172,6 +172,21 @@ Migration 005. The scraper persists candles before publishing them; the candles 
 | `updated_at` | `DATETIME(3)` | `NOT NULL`, auto | Last move |
 
 **Primary key:** `(source, symbol, interval_value)`. A series without a row starts at the first candle the scraper persists, not at the history. Skipping a backlog on purpose: see `runbook-message-bus-outage`.
+
+### `market_order_books` — order book depth snapshots
+
+Migration 008, ADR-0053. One row per depth snapshot the collector fetched (100 bids + 100 asks per symbol, once a minute), kept for historical replay. No API route reads it; the trainer gets order books on the bus. Purged by `db-retention` on `timestamp` after `RETENTION_DAYS` (ADR-0051).
+
+| Column | Type | Constraints | Description |
+| ------ | ---- | ----------- | ----------- |
+| `symbol` | `VARCHAR(32)` | `NOT NULL`, `PK` | Trading pair / ticker |
+| `market` | `VARCHAR(16)` | `NOT NULL`, `PK` | Market type |
+| `source` | `VARCHAR(32)` | `NOT NULL`, `PK` | Data provider |
+| `timestamp` | `DATETIME(3)` | `NOT NULL`, `PK` | When the scraper took the snapshot |
+| `bids` | `JSON` | `NOT NULL` | `[price, quantity]` pairs, best (highest) first |
+| `asks` | `JSON` | `NOT NULL` | `[price, quantity]` pairs, best (lowest) first |
+
+**Primary key:** `(symbol, market, source, timestamp)`: a replayed snapshot overwrites its row. **Index:** `idx_order_books_timestamp` (visible), used by the retention job.
 
 ### `signals` — signals of every dimension
 
@@ -205,12 +220,11 @@ interface BaseMarketData {
 
 ## Index Conventions
 
-- All tables have an `INVISIBLE` index on `timestamp` — tracked by the optimizer but not used unless explicitly hinted
+- All tables have a visible index on `timestamp` (`INVISIBLE` until migration `007_make_timestamp_indexes_visible`), so `timestamp` range queries use it
 - All tables have a `VISIBLE` index on `symbol` — the primary query path for market data lookups
 
 ## Entity Types Not Yet Persisted
 
-These interfaces exist in `@trading-model/contracts` (`contracts/market-data/orderbook.types`) but have **no corresponding table** yet:
+This interface exists in `@trading-model/contracts` (`contracts/market-data/orderbook.types`) but has **no corresponding table** yet:
 
-- `OrderBookData` — order book depth snapshots (`bids` / `asks`)
 - `BookTickerData` — best bid/ask ticker (`bid`, `ask`, `bidQty`, `askQty`)

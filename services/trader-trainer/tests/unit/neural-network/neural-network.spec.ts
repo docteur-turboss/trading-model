@@ -1,13 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { setLogger } from "@trading-model/contracts/logger-registry";
-import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
+import { beforeEach, describe, expect, it } from "@jest/globals";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
 import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
-	LossFunctionType,
 	NormalisationType,
 } from "../../../src/domain/neural-network/type";
 
@@ -18,7 +16,6 @@ function makeConfig(
 		neuronsByLayer: [4, 6, 3],
 		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
 		initialisationType: InitialisationType.Zeros,
-		lossFunctionType: LossFunctionType.MeanSquaredError,
 		normalisationType: NormalisationType.None,
 		connectionType: ConnectionType.FullyConnected,
 		enablePool: false,
@@ -67,33 +64,6 @@ describe("NeuralNetwork", () => {
 			).toThrow();
 		});
 
-		it("should throw when softmax output is not paired with cross-entropy loss", () => {
-			expect(
-				() =>
-					new NeuralNetwork(
-						makeConfig({
-							activationType: [ActivationType.Relu, ActivationType.Softmax],
-							lossFunctionType: LossFunctionType.MeanSquaredError,
-						})
-					)
-			).toThrow();
-		});
-
-		it("should warn when sigmoid output is not paired with binary cross-entropy", () => {
-			const warn = jest.fn();
-			setLogger({ debug: jest.fn(), info: jest.fn(), warn, error: jest.fn() });
-			new NeuralNetwork(
-				makeConfig({
-					activationType: [ActivationType.Relu, ActivationType.Sigmoid],
-					lossFunctionType: LossFunctionType.MeanSquaredError,
-				})
-			);
-
-			expect(warn).toHaveBeenCalledWith(
-				"Sigmoid output is usually paired with binary-cross-entropy"
-			);
-		});
-
 		it("should use default values when optional fields are omitted", () => {
 			const nn = new NeuralNetwork({ neuronsByLayer: [3, 2] });
 
@@ -140,17 +110,6 @@ describe("NeuralNetwork", () => {
 		});
 	});
 
-	describe("predict", () => {
-		it("should return only the output vector", () => {
-			const nn = new NeuralNetwork(makeConfig());
-			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-
-			const result = nn.predict(input);
-
-			expect(result.length).toBe(3);
-		});
-	});
-
 	describe("train", () => {
 		it("should return a finite loss value", () => {
 			const nn = new NeuralNetwork(makeConfig({ learningRate: 0.01 }));
@@ -187,7 +146,6 @@ describe("NeuralNetwork", () => {
 				neuronsByLayer: [1, 1],
 				activationType: [ActivationType.Relu],
 				initialisationType: InitialisationType.Zeros,
-				lossFunctionType: LossFunctionType.MeanSquaredError,
 				normalisationType: NormalisationType.None,
 				connectionType: ConnectionType.FullyConnected,
 				useBias: false,
@@ -285,80 +243,12 @@ describe("NeuralNetwork", () => {
 		});
 	});
 
-	describe("pool operations", () => {
-		it("forwardAndPool should throw when pool is disabled", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: false }));
-			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			const target = new Float32Array([1, 0, 0]);
-
-			expect(() => nn.forwardAndPool(input, target)).toThrow();
-		});
-
-		it("forwardAndPool should store experience in pool", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
-			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			const target = new Float32Array([1, 0, 0]);
-
-			nn.forwardAndPool(input, target);
-
-			expect(nn.getPoolSize()).toBe(1);
-		});
-
-		it("trainPooled should return 0 when pool is empty", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
-
-			const loss = nn.trainPooled();
-
-			expect(loss).toBe(0);
-		});
-
-		it("trainPooled should throw when pool is disabled", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: false }));
-
-			expect(() => nn.trainPooled()).toThrow();
-		});
-
-		it("trainPooled should clear pool after training", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
-			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			const target = new Float32Array([1, 0, 0]);
-			nn.forwardAndPool(input, target);
-
-			nn.trainPooled();
-
-			expect(nn.getPoolSize()).toBe(0);
-		});
-
-		it("trainPooled should return finite loss", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
-			nn.forwardAndPool(
-				new Float32Array([0.5, -0.3, 0.1, 0.8]),
-				new Float32Array([1, 0, 0])
-			);
-			const loss = nn.trainPooled();
-			expect(Number.isFinite(loss)).toBe(true);
-		});
-
-		it("clearPool should remove all experiences", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
-			nn.forwardAndPool(
-				new Float32Array([0.5, -0.3, 0.1, 0.8]),
-				new Float32Array([1, 0, 0])
-			);
-
-			nn.clearPool();
-
-			expect(nn.getPoolSize()).toBe(0);
-		});
-	});
-
 	describe("single layer network", () => {
 		it("should handle input-to-output direct connection", () => {
 			const nn = new NeuralNetwork({
 				neuronsByLayer: [4, 2],
 				activationType: [ActivationType.Sigmoid],
 				initialisationType: InitialisationType.Zeros,
-				lossFunctionType: LossFunctionType.BinaryCrossEntropy,
 				normalisationType: NormalisationType.None,
 				connectionType: ConnectionType.FullyConnected,
 				enablePool: false,
@@ -368,27 +258,6 @@ describe("NeuralNetwork", () => {
 			const result = nn.forward(input);
 
 			expect(result.output.length).toBe(2);
-		});
-	});
-
-	describe("softmax activation", () => {
-		it("should produce non-equal Z values with random init covering max-finding branch", () => {
-			const nn = new NeuralNetwork({
-				neuronsByLayer: [4, 3],
-				activationType: [ActivationType.Softmax],
-				initialisationType: InitialisationType.Random,
-				lossFunctionType: LossFunctionType.CrossEntropy,
-				normalisationType: NormalisationType.None,
-				connectionType: ConnectionType.FullyConnected,
-				enablePool: false,
-			});
-
-			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			const result = nn.forward(input);
-
-			expect(result.output.length).toBe(3);
-			const sum = result.output.reduce((s, v) => s + v, 0);
-			expect(sum).toBeCloseTo(1, 3);
 		});
 	});
 
@@ -402,15 +271,12 @@ describe("NeuralNetwork", () => {
 			expect(result.output.length).toBe(3);
 		});
 
-		it("should train pooled without bias", () => {
-			const nn = new NeuralNetwork(
-				makeConfig({ useBias: false, enablePool: true })
-			);
-			nn.forwardAndPool(
+		it("should train without bias", () => {
+			const nn = new NeuralNetwork(makeConfig({ useBias: false }));
+			const loss = nn.train(
 				new Float32Array([0.5, -0.3, 0.1, 0.8]),
 				new Float32Array([1, 0, 0])
 			);
-			const loss = nn.trainPooled();
 			expect(Number.isFinite(loss)).toBe(true);
 		});
 	});
@@ -421,7 +287,6 @@ describe("NeuralNetwork", () => {
 				neuronsByLayer: [4, 4],
 				activationType: [ActivationType.Relu],
 				initialisationType: InitialisationType.Zeros,
-				lossFunctionType: LossFunctionType.MeanSquaredError,
 				normalisationType: NormalisationType.None,
 				connectionType: ConnectionType.DenseSkip,
 				enablePool: false,

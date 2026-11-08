@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { setLogger } from "@trading-model/contracts/logger-registry";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import {
 	DurationMs,
 	type PositiveInt,
@@ -14,7 +15,6 @@ import {
 import type { GaTelemetry } from "../../../src/domain/genetic-algorithm/ga-telemetry";
 import { createGAControlGenome } from "../../../src/domain/genetic-algorithm/genome-control";
 import type { MarketStep } from "../../../src/domain/genetic-algorithm/genome-types";
-import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
 import { makeSeededBackendFactory } from "../../../src/domain/genetic-algorithm/rl-backend";
 
 const INPUT_DIM = 32;
@@ -58,12 +58,12 @@ async function runGA(seed: number): Promise<RunSummary> {
 		genomeEvaluated: () => {
 			// Not under test.
 		},
+		crossoverFallbacks: () => {},
 	};
 	const defaults = createGAControlGenome();
 	const runner = new GeneticAlgorithmRunner({
 		windowSets: WINDOW_SETS,
 		backendFactory: makeSeededBackendFactory(seed),
-		evalConcurrency: 2,
 		telemetry,
 		onGeneration: (ctx) => contexts.push(ctx),
 		initialControl: {

@@ -1,5 +1,7 @@
-import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
+import { MTLSAuthorizationMiddleware } from "@trading-model/http/adapters/inbound/mtls-authorization";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import {
 	type NextFunction,
 	type Request,
@@ -13,36 +15,24 @@ import { BROKER_API } from "./api-routes";
 import {
 	DELETE_A_SUBSCRIPTION,
 	PUBLISH_A_MESSAGE,
+	REPLAY_A_MESSAGE,
 	SUBSCRIPTION_TO_A_TOPIC,
 } from "./http.controller";
 
 const SUBSCRIPTION_TIMEOUT_MS = 10_000;
 
-const PUBLISH_LIMITER = rateLimit({
-	windowMs: 60_000,
-	max: 1000,
-	standardHeaders: true,
-	legacyHeaders: false,
-	message: { error: "Too many publications, please try again later" },
-});
+const limiter = (max: number, what: string) =>
+	rateLimit({
+		windowMs: 60_000,
+		max,
+		standardHeaders: true,
+		legacyHeaders: false,
+		message: { error: `Too many ${what}, please try again later` },
+	});
 
-const SUBSCRIBE_LIMITER = rateLimit({
-	windowMs: 60_000,
-	max: 500,
-	standardHeaders: true,
-	legacyHeaders: false,
-	message: { error: "Too many subscription requests, please try again later" },
-});
-
-const UNSUBSCRIBE_LIMITER = rateLimit({
-	windowMs: 60_000,
-	max: 500,
-	standardHeaders: true,
-	legacyHeaders: false,
-	message: {
-		error: "Too many unsubscription requests, please try again later",
-	},
-});
+const PUBLISH_LIMITER = limiter(1000, "publications");
+const SUBSCRIBE_LIMITER = limiter(500, "subscription requests");
+const UNSUBSCRIBE_LIMITER = limiter(500, "unsubscription requests");
 
 const WITH_TIMEOUT =
 	(ms: number) => (req: Request, _res: Response, next: NextFunction) => {
@@ -53,19 +43,19 @@ const WITH_TIMEOUT =
 export const BROKER_ROUTES = (dispatcher: Dispatcher): Router => {
 	const router = Router();
 	router.get("/metrics", metricsHandler);
-	registerPublishRoute(router, dispatcher);
-	registerSubscribeRoute(router, dispatcher);
-	registerUnsubscribeRoute(router, dispatcher);
-	return router;
-};
-
-function registerPublishRoute(router: Router, dispatcher: Dispatcher): void {
 	mountRoute(router, BROKER_API.publish, PUBLISH_A_MESSAGE(dispatcher), {
-		middlewares: [WITH_TIMEOUT(PUBLISH_TIMEOUT_MS), PUBLISH_LIMITER],
+		middlewares: [WITH_TIMEOUT(PUBLISH_ACCEPT_TIMEOUT_MS), PUBLISH_LIMITER],
 	});
-}
-
-function registerSubscribeRoute(router: Router, dispatcher: Dispatcher): void {
+	// Narrower than the service ACL: only dlq-service replays dead letters.
+	mountRoute(router, BROKER_API.republish, REPLAY_A_MESSAGE(dispatcher), {
+		middlewares: [
+			MTLSAuthorizationMiddleware(ServiceId.of("message-manager"), [
+				ServiceId.of("dlq-service"),
+			]),
+			WITH_TIMEOUT(PUBLISH_ACCEPT_TIMEOUT_MS),
+			PUBLISH_LIMITER,
+		],
+	});
 	mountRoute(
 		router,
 		BROKER_API.subscribe,
@@ -74,12 +64,6 @@ function registerSubscribeRoute(router: Router, dispatcher: Dispatcher): void {
 			middlewares: [WITH_TIMEOUT(SUBSCRIPTION_TIMEOUT_MS), SUBSCRIBE_LIMITER],
 		}
 	);
-}
-
-function registerUnsubscribeRoute(
-	router: Router,
-	dispatcher: Dispatcher
-): void {
 	mountRoute(
 		router,
 		BROKER_API.unsubscribe,
@@ -88,4 +72,5 @@ function registerUnsubscribeRoute(
 			middlewares: [WITH_TIMEOUT(SUBSCRIPTION_TIMEOUT_MS), UNSUBSCRIBE_LIMITER],
 		}
 	);
-}
+	return router;
+};

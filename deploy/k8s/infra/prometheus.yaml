@@ -6,6 +6,34 @@ metadata:
     app.kubernetes.io/component: prometheus
     app.kubernetes.io/part-of: trading-model
 ---
+# Pod discovery of the scrape jobs: read-only, own namespace only (issue #559).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus
+  labels:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus
+  labels:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -61,11 +89,27 @@ spec:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
+          # Wait for the SVID files written by the spiffe-helper sidecar: a scrape pool
+          # whose tls_config file is missing at startup is never created again, so every
+          # mTLS job would silently stay unscraped (issue #425).
+          command: ["/bin/sh", "-c"]
           args:
-            - "--config.file=/etc/prometheus/prometheus.yml"
-            - "--storage.tsdb.path=/prometheus"
-            - "--storage.tsdb.retention.time=30d"
-            - "--web.enable-lifecycle"
+            - |
+              for f in bundle.pem svid.pem svid_key.pem; do
+                until [ -s "/run/spire/svid/$f" ]; do echo "waiting for /run/spire/svid/$f"; sleep 2; done
+              done
+              # The ConfigMap is not hash-suffixed and Prometheus does not reread a changed
+              # config by itself: reload it, or an upgrade keeps scraping the old targets.
+              confsum() { cat /etc/prometheus/* 2>/dev/null | cksum; }
+              (last="$(confsum)"; while sleep 20; do
+                cur="$(confsum)"
+                if [ "$cur" != "$last" ] && wget -q -O /dev/null --post-data= http://localhost:9090/-/reload; then last="$cur"; fi
+              done) &
+              exec /bin/prometheus \
+                --config.file=/etc/prometheus/prometheus.yml \
+                --storage.tsdb.path=/prometheus \
+                --storage.tsdb.retention.time=30d \
+                --web.enable-lifecycle
           ports:
             - containerPort: 9090
               name: http
@@ -99,7 +143,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
           imagePullPolicy: IfNotPresent
           args:
             - -config
@@ -174,8 +218,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['message-manager:3000']
+          server_name: message-manager
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: message-manager
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'discovery-server'
         scheme: https
@@ -183,8 +242,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['discovery-server:3000']
+          server_name: discovery-server
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: discovery-server
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'dlq-service'
         scheme: https
@@ -192,8 +266,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['dlq-service:3000']
+          server_name: dlq-service
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: dlq-service
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'api-gateway'
         scheme: https
@@ -201,8 +290,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['api-gateway:3000']
+          server_name: api-gateway
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: api-gateway
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'audit-logger'
         scheme: https
@@ -210,8 +314,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['audit-logger:3000']
+          server_name: audit-logger
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: audit-logger
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'financial-scraper'
         scheme: https
@@ -219,8 +338,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['financial-scraper:3000']
+          server_name: financial-scraper
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: financial-scraper
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       # The scrape cron (fs_events_published_total, fs_scrape_*) runs only here.
       - job_name: 'financial-scraper-collector'
@@ -231,8 +365,22 @@ data:
           key_file: /run/spire/svid/svid_key.pem
           # The SVID carries the ServiceAccount DNS name, shared with financial-scraper.
           server_name: financial-scraper
-        static_configs:
-          - targets: ['financial-scraper-collector:3000']
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: financial-scraper-collector
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'trader-trainer'
         scheme: https
@@ -240,8 +388,23 @@ data:
           ca_file: /run/spire/svid/bundle.pem
           cert_file: /run/spire/svid/svid.pem
           key_file: /run/spire/svid/svid_key.pem
-        static_configs:
-          - targets: ['trader-trainer:3000']
+          server_name: trader-trainer
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: trader-trainer
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
 
       - job_name: 'otel-collector'
         scheme: http
@@ -253,10 +416,27 @@ data:
         params:
           module: [http_2xx]
         static_configs:
-          - targets:
-              - https://api-gateway:3000/ping
+          - targets: ['https://discovery-server:3000/ping']
             labels:
-              check: 'gateway-health'
+              service: discovery-server
+          - targets: ['https://message-manager:3000/ping']
+            labels:
+              service: message-manager
+          - targets: ['https://financial-scraper:3000/ping']
+            labels:
+              service: financial-scraper
+          - targets: ['https://trader-trainer:3000/ping']
+            labels:
+              service: trader-trainer
+          - targets: ['https://api-gateway:3000/ping']
+            labels:
+              service: api-gateway
+          - targets: ['https://audit-logger:3000/ping']
+            labels:
+              service: audit-logger
+          - targets: ['https://dlq-service:3000/ping']
+            labels:
+              service: dlq-service
         relabel_configs:
           - source_labels: [__address__]
             target_label: __param_target
@@ -288,25 +468,25 @@ data:
 
           # ── Burn Rate Alerts (SLO-based) ─────────────────────────────
           - alert: SLOAvailabilityFastBurn
-            expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.02
+            expr: slo:sli_error:ratio_rate1h > 0.0144 and slo:sli_error:ratio_rate5m > 0.0144
             for: 2m
             labels:
               severity: critical
               slo: availability
             annotations:
               summary: 'Availability SLO fast burn rate exceeded'
-              description: 'Error rate > 2% over 5m — burning through 99.9% error budget rapidly.'
+              description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
           - alert: SLOAvailabilitySlowBurn
-            expr: sum by (job) (rate(http_requests_total{status=~"5.."}[1h])) / sum by (job) (rate(http_requests_total[1h])) > 0.005
-            for: 10m
+            expr: slo:sli_error:ratio_rate6h > 0.006 and slo:sli_error:ratio_rate30m > 0.006
+            for: 15m
             labels:
               severity: warning
               slo: availability
             annotations:
               summary: 'Availability SLO slow burn rate exceeded'
-              description: 'Error rate > 0.5% over 1h — burning through 99.9% error budget.'
+              description: '5xx ratio > 0.6% over both 6h and 30m (6x the 0.1% budget of the 99.9% SLO). Probes are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
           - alert: SLOLatencyFastBurn
@@ -318,7 +498,7 @@ data:
             annotations:
               summary: 'Latency SLO fast burn rate exceeded'
               description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
           - alert: SLOLatencySlowBurn
             expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[1h]))) > 3
@@ -329,28 +509,28 @@ data:
             annotations:
               summary: 'Latency SLO slow burn rate exceeded'
               description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
           - alert: SLOErrorRateFastBurn
-            expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.05
+            expr: slo:sli_error:ratio_rate1h > 0.144 and slo:sli_error:ratio_rate5m > 0.144
             for: 2m
             labels:
               severity: critical
               slo: error_rate
             annotations:
               summary: 'Error rate SLO fast burn rate exceeded'
-              description: 'Error rate > 5% over 5m — exceeding 1% SLO target.'
+              description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the error rate SLO). Probes are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
           - alert: SLOErrorRateSlowBurn
-            expr: sum by (job) (rate(http_requests_total{status=~"5.."}[1h])) / sum by (job) (rate(http_requests_total[1h])) > 0.02
-            for: 10m
+            expr: slo:sli_error:ratio_rate6h > 0.06 and slo:sli_error:ratio_rate30m > 0.06
+            for: 15m
             labels:
               severity: warning
               slo: error_rate
             annotations:
               summary: 'Error rate SLO slow burn rate exceeded'
-              description: 'Error rate > 2% over 1h — approaching 1% SLO target breach.'
+              description: '5xx ratio > 6% over both 6h and 30m (6x the 1% budget of the error rate SLO). Probes are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
           - alert: ServiceDown
@@ -363,6 +543,16 @@ data:
               description: 'Service {{ $labels.job }} has been unreachable for over 1 minute.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
 
+          - alert: ServiceTargetsMissing
+            expr: absent(up{job="message-manager"}) or absent(up{job="discovery-server"}) or absent(up{job="dlq-service"}) or absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"})
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: '{{ $labels.job }} has no scrape target'
+              description: 'Prometheus has had no up series for {{ $labels.job }} for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
+
           - alert: HighErrorRate
             expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.05
             for: 2m
@@ -373,23 +563,13 @@ data:
               description: 'Error rate is {{ $value | humanizePercentage }} for the last 5 minutes.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
-          - alert: HighLatency
-            expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[5m]))) > 5
-            for: 2m
-            labels:
-              severity: warning
-            annotations:
-              summary: 'High latency on {{ $labels.job }}'
-              description: 'P95 latency is {{ $value | humanize }}s for the last 5 minutes.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
-
           - alert: CertificateExpiry
             expr: probe_ssl_earliest_cert_expiry - time() < 1800
             for: 5m
             labels:
               severity: warning
             annotations:
-              summary: 'SVID close to expiry on {{ $labels.instance }}'
+              summary: 'SVID close to expiry on {{ $labels.service }}'
               description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
@@ -414,7 +594,7 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
 
           - alert: InstanceCountLow
-            expr: max by (service) (discovery_registered_instances_per_service) < 2 and max by (service) (max_over_time(min_over_time(discovery_registered_instances_per_service[15m])[1d:5m])) >= 2
+            expr: max by (service) (discovery_registered_instances_per_service) < 2 and max_over_time(min_over_time(max by (service) (discovery_registered_instances_per_service)[15m:1m])[1d:5m]) >= 2
             for: 2m
             labels:
               severity: critical
@@ -571,6 +751,27 @@ data:
               description: 'The backup-data PVC (100Gi) is filling up: dumps grow with the market data. Check the retention (RETENTION_DAYS) or grow the volume before a night of backups fails.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
+          # Retention job (ADR-0051): daily at 03:30 UTC, so 36 h = one missed run.
+          - alert: RetentionFailed
+            expr: 'retention_last_status == 0'
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'MySQL retention job failed'
+              description: 'The last db-retention run failed on at least one table: market data and signals older than the retention period are not being purged.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
+
+          - alert: RetentionStale
+            expr: 'time() - retention_last_success_timestamp > 129600'
+            for: 1h
+            labels:
+              severity: warning
+            annotations:
+              summary: 'MySQL retention job has not succeeded for 36 hours'
+              description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
+
           # ── Audit trail integrity (ADR-0027) ──────────────────────────
 
           - alert: AuditChainBroken
@@ -679,6 +880,26 @@ data:
               description: 'message-manager drops the messages published on {{ $labels.topic }}: no instance subscribes to it. audit-logger subscribes to every topic: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
 
+          - alert: JournalEntriesTrimmed
+            expr: sum by (topic, service) (increase(mm_journal_trimmed_pending_total[15m])) > 0 or sum by (topic, service) (mm_journal_trimmed_pending_total unless mm_journal_trimmed_pending_total offset 15m) > 0
+            for: 0m
+            labels:
+              severity: critical
+            annotations:
+              summary: 'Messages lost on {{ $labels.topic }} for {{ $labels.service }}: journal trimmed before delivery'
+              description: '{{ $labels.service }} stayed unreachable for more than 24 h: message-manager trimmed undelivered {{ $labels.topic }} entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
+
+          - alert: JournalBacklogOld
+            expr: max by (topic, service) (mm_journal_oldest_pending_age_seconds) > 900
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'Journal backlog on {{ $labels.topic }} for {{ $labels.service }}: oldest entry waiting for more than 15 min'
+              description: '{{ $labels.service }} has not acknowledged a {{ $labels.topic }} entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber'
+
           - alert: DLQDrainRateLow
             expr: sum by (job) (rate(dlq_entries_replayed_total[15m])) / sum by (job) (rate(dlq_entries_added_total[15m])) < 0.8
             for: 15m
@@ -701,6 +922,26 @@ data:
               description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
+          - alert: TrainerEventLoopBlocked
+            expr: histogram_quantile(0.99, sum by (job, le) (rate(tt_genome_evaluation_seconds_bucket[15m]))) > 5
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'trader-trainer event loop blocked for several seconds'
+              description: 'p99 genome evaluation is {{ $value | humanizeDuration }} over 15m (threshold 5 s). Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventloopblocked'
+
+          - alert: TrainerEventLoopLagHigh
+            expr: max by (job) (nodejs_eventloop_lag_max_seconds{job="trader-trainer"}) > 10
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'trader-trainer event loop lag above 10 s'
+              description: 'Trainer event loop lag reached {{ $value | humanizeDuration }} (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+
           - alert: MarketDataStale
             expr: sum(increase(fs_candles_persisted_total[15m])) == 0
             for: 5m
@@ -720,6 +961,21 @@ data:
               summary: 'Most scrape cycles fail'
               description: 'More than half of the financial-scraper cycles failed over 15 minutes ({{ $value | humanizePercentage }}).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
+
+          # Issue #598: one symbol without candles while the others have them leaves
+          # the cycle "success" and the global sums above non-zero, whatever the
+          # cause: symbol rejected, klines endpoint failing or candles refused by the
+          # normalizer (#618: only that part is dropped, the symbol counts "scraped").
+          # The series are born at 0 for every tracked symbol (WorkerOrchestrator).
+          - alert: SymbolMarketDataStale
+            expr: sum by (symbol) (increase(fs_candles_persisted_total[15m])) == 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: 'No candle persisted for {{ $labels.symbol }} for 15 minutes'
+              description: 'financial-scraper persisted no {{ $labels.symbol }} candle in 15 minutes, while the other symbols may still flow. The error is in the "Symbol scrape failed", "Market data part fetch failed" or "Market data part normalization failed" logs of that symbol.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#symbolmarketdatastale'
 
           # ADR-0026: Binance stays the source while its public API answers from
           # here. A 451 is the geo-block that reopens the decision. The series is
@@ -760,6 +1016,17 @@ data:
               summary: 'Persisted candles not reaching the bus'
               description: '{{ $value | humanize }} persisted {{ $labels.symbol }} candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
+
+          - alert: CandleDeliveryLagging
+            expr: sum(increase(fs_candles_persisted_total[30m])) > 0 and sum(increase(tt_market_data_received_total[30m])) < 0.5 * sum(increase(fs_candles_persisted_total[30m]))
+            for: 15m
+            labels:
+              severity: warning
+              slo: data_freshness
+            annotations:
+              summary: 'Less than half of the persisted candles reach the trainer'
+              description: 'financial-scraper persisted candles over the last 30m but trader-trainer received under 50% of them: the scraper to trainer path is lagging or dropping data.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
           - alert: TrainerMarketDataStale
             expr: sum(increase(tt_market_data_received_total[15m])) == 0
@@ -804,6 +1071,16 @@ data:
               description: 'Some alert rules cannot be evaluated: alerts may be silently missing.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'
 
+          - alert: OtelSpanExportFailing
+            expr: sum by (job) (increase(otelcol_exporter_send_failed_spans_total[10m]) or increase(otelcol_exporter_send_failed_spans[10m])) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'The OTel collector fails to export spans'
+              description: 'The collector dropped {{ $value | humanize }} span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'
+
           - alert: Watchdog
             expr: vector(1)
             for: 0m
@@ -813,3 +1090,33 @@ data:
               summary: 'Alerting pipeline heartbeat'
               description: 'Always firing. Routed to the dead man''s switch (ALERTMANAGER_DEADMAN_URL): when it stops arriving, Prometheus, Alertmanager or the notification path is down.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#dead-mans-switch'
+
+      # ── Error budget (slo.md: 99.9% over 30d) ────────────────────
+      - name: trading-model-slo-recording
+        interval: 1m
+        rules:
+          - record: slo:sli_error:ratio_rate5m
+            expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[5m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[5m]))
+          - record: slo:sli_error:ratio_rate1h
+            expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h]))
+          - record: slo:sli_error:ratio_rate30m
+            expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30m]))
+          - record: slo:sli_error:ratio_rate6h
+            expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[6h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[6h]))
+          # Numerator guarded: a job with no 5xx series yet has a ratio of 0, not no data.
+          - record: slo:sli_error:ratio_rate30d
+            expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30d])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30d])) or sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30d])) * 0
+
+      - name: trading-model-slo-budget
+        interval: 5m
+        rules:
+          - alert: SLOErrorBudgetLow
+            expr: (1 - slo:sli_error:ratio_rate30d / 0.001) * 100 < 20
+            for: 1h
+            labels:
+              severity: warning
+              slo: availability
+            annotations:
+              summary: 'Error budget of {{ $labels.job }} below 20%'
+              description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'

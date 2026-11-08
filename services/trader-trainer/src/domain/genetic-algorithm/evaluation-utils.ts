@@ -3,14 +3,11 @@ import {
 	PositiveInt,
 	Ratio,
 } from "@trading-model/primitives/primitives";
-import {
-	computeAdjustedFitness,
-	estimateComplexity,
-} from "./complexity-estimator";
 import { EpisodeScores } from "./episode-scores";
 import type { EvaluationPnl } from "./evaluation-phase";
 import type { GenomeFitnessMeta } from "./genome";
 import { FitnessType } from "./genome-control";
+import { computeAdjustedFitness, estimateComplexity } from "./genome-fitness";
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
@@ -76,7 +73,7 @@ export function barsPerYear(steps: readonly MarketStep[]): number | undefined {
 	return MS_PER_YEAR / gaps[Math.floor(gaps.length / 2)];
 }
 
-export interface ComputeAllResultsContext extends EvaluationPnl {
+interface ComputeAllResultsContext extends EvaluationPnl {
 	currentGenome: DeepReadonly<LamarckGenome>;
 	/** Annualises the published ratios; fitness itself stays per bar. */
 	barsPerYear?: number;
@@ -100,38 +97,25 @@ export function computeAllResults(ctx: ComputeAllResultsContext): {
 				0.15
 			);
 
+	const scores = new EpisodeScores(ctx.episodePnl);
+	const curve = new EpisodeScores(ctx.pnlCurve);
 	return {
 		updatedGenome: currentGenome,
-		meta: _buildFitnessMeta(ctx, adjFitness, t0),
-		objectives: _buildObjectives(ctx, failed, complexity),
-	};
-}
-
-function _buildFitnessMeta(
-	pnl: ComputeAllResultsContext,
-	adjFitness: number,
-	t0: number
-): GenomeFitnessMeta {
-	const scores = new EpisodeScores(pnl.episodePnl);
-	return {
-		episodesRun: PositiveInt.of(Math.max(1, scores.length)),
-		computeMs: DurationMs.of(Date.now() - t0),
-		efficiencyScore: Ratio.of(Number.isFinite(adjFitness) ? adjFitness : 0),
-		variance: scores.variance(),
-		rawScores: scores,
-		pnlCurve: new EpisodeScores(pnl.pnlCurve),
-		...(pnl.barsPerYear === undefined ? {} : { barsPerYear: pnl.barsPerYear }),
-	};
-}
-
-function _buildObjectives(
-	pnl: EvaluationPnl,
-	failed: boolean,
-	complexity: { inferenceFLOPs: number }
-): { avgPnl: number; sharpe: number; negFlops: number } {
-	return {
-		avgPnl: failed ? FAILED_FITNESS : new EpisodeScores(pnl.episodePnl).mean(),
-		sharpe: failed ? FAILED_FITNESS : new EpisodeScores(pnl.pnlCurve).sharpe(),
-		negFlops: -complexity.inferenceFLOPs,
+		meta: {
+			episodesRun: PositiveInt.of(Math.max(1, scores.length)),
+			computeMs: DurationMs.of(Date.now() - t0),
+			efficiencyScore: Ratio.of(Number.isFinite(adjFitness) ? adjFitness : 0),
+			variance: scores.variance(),
+			rawScores: scores,
+			pnlCurve: curve,
+			...(ctx.barsPerYear === undefined
+				? {}
+				: { barsPerYear: ctx.barsPerYear }),
+		},
+		objectives: {
+			avgPnl: failed ? FAILED_FITNESS : scores.mean(),
+			sharpe: failed ? FAILED_FITNESS : curve.sharpe(),
+			negFlops: -complexity.inferenceFLOPs,
+		},
 	};
 }

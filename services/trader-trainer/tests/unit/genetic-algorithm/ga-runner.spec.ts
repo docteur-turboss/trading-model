@@ -6,6 +6,7 @@ jest.mock("../../../src/domain/agent/trading-agent", () => {
 	const makeMockAgent = () => ({
 		forwardPass: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
 		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
+		parameterCount: jest.fn(() => 2),
 		setWeights: jest.fn(),
 		getExperiencePool: jest.fn(() => []),
 		remember: jest.fn(),
@@ -33,15 +34,6 @@ jest.mock("../../../src/domain/env/wallet-manager", () => ({
 		getValuation: jest.fn(() => 1000),
 		getPrice: jest.fn(() => Price.of(100)),
 		getPnL: jest.fn(() => 0),
-		getMetrics: jest.fn(() => ({
-			pnl: 0,
-			returnRate: 0,
-			peakValuation: 1000,
-			drawdown: 0,
-			totalFeesPaid: 0,
-			tradeCount: 0,
-		})),
-		getHistory: jest.fn(() => []),
 		reset: jest.fn(),
 	})),
 }));
@@ -65,23 +57,10 @@ jest.mock("../../../src/domain/neural-network/agent", () => ({
 			setWeights: jest.fn(),
 			distributeAroundWeights: jest.fn(),
 		},
-		scores: {
-			addScore: jest.fn(),
-			getAverageScore: jest.fn(() => 0),
-			getTotalScore: jest.fn(() => 0),
-			resetScores: jest.fn(),
-		},
 		experience: {
 			getPool: jest.fn(() => []),
-			getPoolSize: jest.fn(() => 0),
 			clearPool: jest.fn(),
-			samplePool: jest.fn(() => []),
-			learnFromPool: jest.fn(),
-			learnExperience: jest.fn(),
-			recordExperience: jest.fn(),
-			removeFromPool: jest.fn(),
 		},
-		fastForward: jest.fn(() => new Float32Array([0.5, 0.5, 0.5])),
 	})),
 }));
 
@@ -93,11 +72,7 @@ import { GeneticAlgorithmRunner } from "../../../src/domain/genetic-algorithm/ga
 import {
 	ActivationType,
 	ConnectionType,
-	CrossoverType,
 	FitnessType,
-	MutationAdaptation,
-	MutationDistribution,
-	MutationScope,
 	NormalisationType,
 	SelectionType,
 } from "../../../src/domain/genetic-algorithm/genome";
@@ -329,26 +304,13 @@ function getMinimalGenome() {
 		mutation: {
 			rate: 0.1,
 			sigma: 0.5,
-			noiseStd: 0.1,
-			distribution: MutationDistribution.Gaussian,
-			adaptation: MutationAdaptation.Fixed,
-			scope: MutationScope.Global,
-			selfSigma: 0.5,
-			mutateActivations: false,
-			activationMutationRate: 0.1,
-			mutateHyperparams: false,
 			addNeuronRate: 0.1,
 			removeNeuronRate: 0.1,
 			addLayerRate: 0.1,
 			removeLayerRate: 0.1,
-			addConnectionRate: 0.1,
-			removeConnectionRate: 0.1,
 		},
 		crossover: {
-			type: CrossoverType.Uniform,
 			probability: 0.5,
-			blendAlpha: 0.5,
-			sbxEta: 15,
 		},
 		gaControl: {
 			population: { size: 20, elitismFraction: 0.1, survivorFraction: 0.5 },
@@ -359,7 +321,7 @@ function getMinimalGenome() {
 				timeBudgetMs: 60000,
 			},
 			seeding: { envSeed: 1, mutationSeed: 1, networkSeed: 1 },
-			evaluation: { episodesPerIndividual: 2, seedsPerEval: 1 },
+			evaluation: { episodesPerIndividual: 2 },
 			selectionType: SelectionType.Tournament,
 			fitnessType: FitnessType.TotalPnl,
 			mutationRate: 0.1,
@@ -394,7 +356,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
@@ -409,7 +370,6 @@ describe("GeneticAlgorithmRunner", () => {
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [{ id: "w1", train: [], validation: [] }],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise();
 		const pop = runner.processor.population;
@@ -448,7 +408,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
@@ -473,7 +432,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
@@ -499,7 +457,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 			onArchiveUpdate,
 		});
 		runner.processor.initialise({
@@ -527,7 +484,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
@@ -551,7 +507,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
@@ -577,7 +532,6 @@ describe("GeneticAlgorithmRunner", () => {
 		const runner = new GeneticAlgorithmRunner({
 			windowSets,
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 			onGeneration,
 		});
 		runner.processor.initialise({
@@ -656,7 +610,6 @@ describe("full GA loop", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 			initialControl: { populationSize: 2, maxGenerations: 4 } as any,
 		});
 		const result = await runner.run();
@@ -767,7 +720,6 @@ describe("full GA loop", () => {
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
 			})) as any,
-			evalConcurrency: 1,
 			initialControl: {
 				populationSize: 2,
 				maxGenerations: 100,
@@ -811,7 +763,6 @@ describe("full GA loop", () => {
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
 			})) as any,
-			evalConcurrency: 1,
 			initialControl: {
 				populationSize: 2,
 				maxGenerations: 100,
@@ -855,7 +806,6 @@ describe("full GA loop", () => {
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
 			})) as any,
-			evalConcurrency: 1,
 			initialControl: {
 				populationSize: 2,
 				maxGenerations: 100,
@@ -926,7 +876,6 @@ describe("full GA loop", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 			initialControl: { populationSize: 2, maxGenerations: 4 } as any,
 		});
 		await runner.run();

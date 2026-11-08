@@ -15,7 +15,7 @@ service's SVID and write it to `/run/spire/svid` (`svid.pem`, `svid_key.pem`,
 `bundle.pem`), consumed via `TLS_*_PATH`. No manual certificate generation is
 required.
 
-Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>/sa/<service>`) — one identity per workload (the 7 services and the `edge-proxy`, plus `prometheus`, and `blackbox-exporter` in K8s, for monitoring):
+Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>/sa/<service>`) — one identity per workload (the 7 services and the `edge-proxy`, plus `prometheus` and `blackbox-exporter`, for monitoring):
 
 - `api-gateway`
 - `audit-logger`
@@ -118,6 +118,8 @@ TLS_CA_PATH=/run/spire/svid/bundle.pem
 AUTH_TOKENS=your-api-key-here
 AUTH_TOKEN_HEADER=x-api-key
 ```
+
+The gateway accepts the token as `x-api-key: <token>` or `Authorization: Bearer <token>`. Tokens are compared as SHA-256 digests with `timingSafeEqual`; the client identity (rate-limit key) is derived from the digest, never from the raw token.
 
 ### Loading Order (Priority)
 

@@ -27,16 +27,26 @@ export interface TrainingSessionResult {
 	generationContext: GenerationContext | null;
 }
 
-export class TrainingSession {
-	private readonly _windowSets: WindowSet[];
+/**
+ * Runs one training session. The in-process default blocks the caller's event
+ * loop; the composition root injects the worker-thread runner (issue #508).
+ */
+export type TrainingRunner = (
+	windowSets: WindowSet[],
+	settings: TrainingSettings,
+	telemetry?: GaTelemetry
+) => Promise<TrainingSessionResult>;
 
+/** Runs the session on the calling thread. */
+export const runInProcess: TrainingRunner = (windowSets, settings, telemetry) =>
+	new TrainingSession(windowSets, settings, telemetry).run();
+
+class TrainingSession {
 	constructor(
-		windowSets: WindowSet | WindowSet[],
+		private readonly _windowSets: WindowSet[],
 		private readonly _settings: TrainingSettings,
 		private readonly _telemetry?: GaTelemetry
-	) {
-		this._windowSets = Array.isArray(windowSets) ? windowSets : [windowSets];
-	}
+	) {}
 
 	async run(): Promise<TrainingSessionResult> {
 		let lastCtx: GenerationContext | null = null;
@@ -107,7 +117,6 @@ export class TrainingSession {
 				initialControl.seeding.networkSeed,
 				{ observePosition: this._settings.observePosition ?? true }
 			),
-			evalConcurrency: 4,
 			initialControl,
 			onGeneration,
 			telemetry: this._telemetry,

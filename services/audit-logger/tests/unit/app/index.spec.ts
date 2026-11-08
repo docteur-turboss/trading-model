@@ -26,7 +26,7 @@ jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 }));
 
 jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
-	initializeTelemetry: jest.fn(),
+	startTelemetry: jest.fn(),
 	shutdownTelemetry: jest.fn(),
 }));
 
@@ -61,7 +61,6 @@ jest.mock("../../../src/config/address-manager", () => ({
 
 const MOCK_AUDIT_REPOSITORY_INSTANCE = {
 	insert: jest.fn<any>(),
-	insertBatch: jest.fn<any>(),
 	findById: jest.fn<any>(),
 	query: jest.fn<any>(),
 	getStats: jest.fn<any>(),

@@ -43,7 +43,7 @@ describe("dlq-validator", () => {
 
 	it("should accept an entry within limits with storage up", () => {
 		const { checkEntryAcceptable } = jest.requireActual(
-			"../../src/adapters/inbound/dlq-validator"
+			"../../src/application/use-cases/dlq-validator"
 		) as {
 			checkEntryAcceptable: (...args: unknown[]) => {
 				valid: boolean;
@@ -68,7 +68,7 @@ describe("dlq-validator", () => {
 
 	it("should reject message exceeding 5MB", () => {
 		const { checkEntryAcceptable } = jest.requireActual(
-			"../../src/adapters/inbound/dlq-validator"
+			"../../src/application/use-cases/dlq-validator"
 		) as {
 			checkEntryAcceptable: (...args: unknown[]) => {
 				valid: boolean;
@@ -93,7 +93,7 @@ describe("dlq-validator", () => {
 	it("should return 503 when db is not connected", () => {
 		mockIsDbConnected.mockReturnValue(false);
 		const { checkEntryAcceptable } = jest.requireActual(
-			"../../src/adapters/inbound/dlq-validator"
+			"../../src/application/use-cases/dlq-validator"
 		) as {
 			checkEntryAcceptable: (...args: unknown[]) => {
 				valid: boolean;

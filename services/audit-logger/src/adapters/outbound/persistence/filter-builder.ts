@@ -4,7 +4,6 @@ import {
 	type AuditEventQuery,
 	METADATA_FIELDS,
 } from "./audit-repository";
-import { buildDateRangeFilter } from "./date-range-filter";
 
 export function buildAuditEventFilter(
 	query: AuditEventQuery
@@ -21,7 +20,11 @@ export function buildAuditEventFilter(
 		filter[METADATA_FIELDS.correlationId] = query.correlationId;
 	}
 	if (query.dateRange) {
-		filter.receivedAt = buildDateRangeFilter(query.dateRange);
+		const { start, end } = query.dateRange;
+		filter.receivedAt = {
+			...(start ? { $gte: start } : {}),
+			...(end ? { $lte: end } : {}),
+		};
 	}
 
 	return filter;

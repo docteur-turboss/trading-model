@@ -1,13 +1,13 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Trainer } from "../../../application/trainer";
+import { hasEnoughTrainingData } from "../../../domain/market-data/window-splitter";
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
 import type { TradingSymbol } from "../../../domain/market-data-types";
 
-const MIN_CANDLE_RATIO = 0.1;
-
-export interface TrainingLoopConfig {
+interface TrainingLoopConfig {
 	symbols: TradingSymbol[];
 	intervalMs: number;
 	/**
@@ -20,10 +20,16 @@ export interface TrainingLoopConfig {
 export class TrainingLoop {
 	private readonly _trainingInterval = new TimerHandle();
 	private readonly _staleSymbols = new Set<TradingSymbol>();
+	/** Position in the symbol list where the next cycle starts its scan. */
+	private _nextIndex = 0;
 
 	constructor(
 		private readonly _trainer: Trainer,
-		private readonly _dataBuffer: MarketDataBuffer
+		private readonly _dataBuffer: MarketDataBuffer,
+		private readonly _windowing: {
+			validationSplit: number;
+			walkForwardFolds: number;
+		}
 	) {}
 
 	start(config: TrainingLoopConfig): void {
@@ -31,7 +37,7 @@ export class TrainingLoop {
 		const runTraining = (): void => {
 			this._runTrainingForSymbols(symbols, maxDataAgeMs).catch((err) => {
 				getLogger().error("Training cycle failed", {
-					error: err instanceof Error ? err.message : String(err),
+					error: normalizeError(err).message,
 				});
 			});
 		};
@@ -44,9 +50,10 @@ export class TrainingLoop {
 	}
 
 	private _hasEnoughData(symbol: TradingSymbol): boolean {
-		return (
-			this._dataBuffer.getCandleCount(symbol) >=
-			this._dataBuffer.getMaxSize() * MIN_CANDLE_RATIO
+		return hasEnoughTrainingData(
+			this._dataBuffer.getCandleCount(symbol),
+			this._windowing.validationSplit,
+			this._windowing.walkForwardFolds
 		);
 	}
 
@@ -81,10 +88,11 @@ export class TrainingLoop {
 		}
 	}
 
-	private async _trainSymbol(symbol: TradingSymbol): Promise<void> {
-		await this._trainer.train(symbol);
-	}
-
+	/**
+	 * Trains one eligible symbol per cycle, round-robin: the scan starts after
+	 * the last symbol trained, so every eligible symbol gets its turn and one
+	 * that keeps failing cannot hold the loop.
+	 */
 	private async _runTrainingForSymbols(
 		symbols: TradingSymbol[],
 		maxDataAgeMs: number
@@ -92,13 +100,17 @@ export class TrainingLoop {
 		if (this._trainer.isTraining()) {
 			return;
 		}
-		for (const symbol of symbols) {
+		for (let offset = 0; offset < symbols.length; offset++) {
+			const index = (this._nextIndex + offset) % symbols.length;
+			const symbol = symbols[index];
 			if (
 				this._hasEnoughData(symbol) &&
 				this._hasFreshData(symbol, maxDataAgeMs)
 			) {
-				await this._trainSymbol(symbol);
-				break;
+				// Advance before training: a rejected train() still passes the turn.
+				this._nextIndex = (index + 1) % symbols.length;
+				await this._trainer.train(symbol);
+				return;
 			}
 		}
 	}

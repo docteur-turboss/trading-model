@@ -209,8 +209,7 @@ function collectCommits(args) {
     rawCommits = run('git log --format="%H %s" --no-merges');
     console.log('\n  No tags found — using full history');
   }
-  const allCommits = rawCommits ? parseCommits(rawCommits) : [];
-  return { allCommits, lastTag };
+  return parseCommits(rawCommits);
 }
 
 function groupByScope(commits) {
@@ -230,11 +229,7 @@ function groupByScope(commits) {
 function handleExplicitVersion(args) {
   const rootPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
   console.log(`  Root: ${rootPkg.version} → ${args.version}\n`);
-  if (!args.dryRun) {
-    rootPkg.version = args.version;
-    alignServices(args.version);
-    writeFileSync(join(ROOT, 'package.json'), `${JSON.stringify(rootPkg, null, 2)}\n`, 'utf-8');
-  }
+  bumpRoot(rootPkg, args.version, args.dryRun);
   console.log(`\n  ── Release ${args.version} ──\n`);
   if (args.dryRun) console.log(`  ⚠️  Dry run — no files written\n`);
   else console.log(`  ✓ package.json updated`);
@@ -353,7 +348,7 @@ function main() {
 
   handlePublishMerge(args);
 
-  const { allCommits } = collectCommits(args);
+  const allCommits = collectCommits(args);
   if (!args.version && allCommits.length === 0) {
     console.log('  No new commits to release.\n');
     return;

@@ -15,6 +15,9 @@
 //   - every Deployment that can run more than one pod (replicas or its HPA)
 //     spreads them across nodes (ADR-0024): otherwise one node can hold every
 //     replica and its loss takes the whole service down
+//   - singleton Deployments (SINGLETONS) run exactly one pod: replicas: 1,
+//     strategy Recreate, no HPA, no canary in deploy.yml (ADR-0042 collector,
+//     ADR-0044 trainer)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -23,8 +26,13 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-const OVERLAYS = ["staging", "production"];
+const OVERLAYS = ["staging", "staging-local", "production"];
 const SEALED_ONLY = ["trading-model-secrets"];
+// Deployments that must never run two pods -> the ADR that says why.
+const SINGLETONS = {
+	"financial-scraper-collector": "ADR-0042",
+	"trader-trainer": "ADR-0044",
+};
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 
 function render(dir) {
@@ -57,14 +65,20 @@ function spreadsAcrossNodes(text) {
 		);
 }
 
-/** Deployments that may run several pods without a hard spread across nodes. */
-function unspreadDeployments(docs) {
+/** Deployment name -> maxReplicas of the HPA that drives it. */
+function hpaTargets(docs) {
 	const maxReplicas = new Map();
 	for (const doc of docs.filter((d) => d.kind === "HorizontalPodAutoscaler")) {
 		const target = doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1];
 		const max = Number(doc.text.match(/^ {2}maxReplicas: (\d+)$/m)?.[1] ?? 1);
 		if (target) maxReplicas.set(target, max);
 	}
+	return maxReplicas;
+}
+
+/** Deployments that may run several pods without a hard spread across nodes. */
+function unspreadDeployments(docs) {
+	const maxReplicas = hpaTargets(docs);
 	return docs
 		.filter((doc) => doc.kind === "Deployment")
 		.filter((doc) => {
@@ -120,15 +134,36 @@ function uncoveredKinds(docs, namespacedFile) {
 
 /** Deployments driven by an HPA that still set spec.replicas. */
 function replicasUnderHpa(docs) {
-	const targets = new Set();
-	for (const doc of docs.filter((d) => d.kind === "HorizontalPodAutoscaler")) {
-		const target = doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1];
-		if (target) targets.add(target);
-	}
+	const targets = hpaTargets(docs);
 	return docs
 		.filter((doc) => doc.kind === "Deployment" && targets.has(doc.name))
 		.filter((doc) => /^ {2}replicas: \d+$/m.test(doc.text))
 		.map((doc) => doc.name);
+}
+
+/** Why each singleton Deployment could run more than one pod (empty when sound). */
+function singletonViolations(docs) {
+	const errors = [];
+	for (const [name, adr] of Object.entries(SINGLETONS)) {
+		const deployment = docs.find((doc) => doc.kind === "Deployment" && doc.name === name);
+		if (!deployment) {
+			errors.push(`singleton Deployment ${name} not found (${adr})`);
+			continue;
+		}
+		if (!/^ {2}replicas: 1$/m.test(deployment.text)) {
+			errors.push(`Deployment ${name} must set replicas: 1 (${adr}: singleton)`);
+		}
+		if (!/^ {2}strategy:\n {4}type: Recreate$/m.test(deployment.text)) {
+			errors.push(`Deployment ${name} must use strategy Recreate (${adr}: a rollout must never run two pods)`);
+		}
+		const scaled = docs.some(
+			(doc) =>
+				doc.kind === "HorizontalPodAutoscaler" &&
+				doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1] === name,
+		);
+		if (scaled) errors.push(`Deployment ${name} must have no HorizontalPodAutoscaler (${adr}: singleton)`);
+	}
+	return errors;
 }
 
 function deployImages() {
@@ -157,7 +192,22 @@ function signedImages() {
 	return new Set(images[1].match(/- (\S+)/g).map((item) => item.slice(2)));
 }
 
-const errors = [];
+/** Singletons named by a deploy.yml step that runs `deploy-k8s.sh canary*`: a canary is a second pod. */
+function canarySingletons() {
+	const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
+	const errors = [];
+	for (const step of workflow.split(/^ {6}- name: /m).filter((text) => /deploy-k8s\.sh canary/.test(text))) {
+		const code = step.replace(/#.*$/gm, "");
+		for (const [name, adr] of Object.entries(SINGLETONS)) {
+			if (new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(code)) {
+				errors.push(`deploy.yml step "${step.split("\n")[0]}": singleton ${name} must get no canary (${adr}: it would run a second pod)`);
+			}
+		}
+	}
+	return errors;
+}
+
+const errors = [...canarySingletons()];
 const deployed = deployImages();
 const released = releaseImages();
 const signed = signedImages();
@@ -173,10 +223,10 @@ for (const image of signed) {
 }
 
 for (const env of OVERLAYS) {
-	const rendered = [
-		render(`deploy/k8s/overlays/${env}`),
-		render(`deploy/k8s/overlays/${env}/node-agents`),
-	].join("\n---\n");
+	const app = render(`deploy/k8s/overlays/${env}`);
+	const nodeAgents = render(`deploy/k8s/overlays/${env}/node-agents`);
+	const rendered = [app, nodeAgents].join("\n---\n");
+	const docs = documents(rendered);
 
 	for (const [, image] of rendered.matchAll(IMAGE)) {
 		if (!deployed.has(image)) {
@@ -187,22 +237,29 @@ for (const env of OVERLAYS) {
 		}
 	}
 
-	for (const [dir, file] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml"], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml"]]) {
-		for (const kind of uncoveredKinds(documents(render(dir)), file)) {
+	// Issue #433: the images that deliver mTLS identities are pinned by digest.
+	for (const [, image] of rendered.matchAll(/image: (\S*(?:spiffe-helper|spire-server|spire-agent|spiffe-csi-driver|csi-node-driver-registrar):\S+)/g)) {
+		if (!image.includes("@sha256:")) errors.push(`${env}: image ${image} is not pinned by digest`);
+	}
+
+	for (const [dir, file, text] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml", app], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml", nodeAgents]]) {
+		for (const kind of uncoveredKinds(documents(text), file)) {
 			errors.push(env + ": " + kind + " of " + dir + " is not covered by deploy/k8s/deploy-identity/" + file + " (or cluster-role.yaml): the deploy identity could not apply it");
 		}
 	}
 
-	for (const name of unspreadDeployments(documents(rendered))) {
+	for (const name of unspreadDeployments(docs)) {
 		errors.push(`${env}: Deployment ${name} can run several pods without topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
 	}
 
-	for (const name of replicasUnderHpa(documents(rendered))) {
+	for (const name of replicasUnderHpa(docs)) {
 		errors.push(`${env}: Deployment ${name} is driven by an HPA but sets spec.replicas (each apply would reset it)`);
 	}
 
-	if (env === "staging") {
-		for (const pdb of documents(rendered).filter((doc) => doc.kind === "PodDisruptionBudget")) {
+	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
+
+	if (env.startsWith("staging")) {
+		for (const pdb of docs.filter((doc) => doc.kind === "PodDisruptionBudget")) {
 			if (/^ {2}minAvailable: [1-9]/m.test(pdb.text)) {
 				errors.push(`staging: PodDisruptionBudget ${pdb.name} keeps minAvailable (one replica: drains would block)`);
 			}
@@ -212,15 +269,12 @@ for (const env of OVERLAYS) {
 		}
 	}
 
-	{
-		const docs = documents(rendered);
-		for (const name of SEALED_ONLY) {
-			if (docs.some((doc) => doc.kind === "Secret" && doc.name === name)) {
-				errors.push(`${env}: Secret ${name} must come from a SealedSecret`);
-			}
-			if (!docs.some((doc) => doc.kind === "SealedSecret" && doc.name === name)) {
-				errors.push(`${env}: no SealedSecret ${name}`);
-			}
+	for (const name of SEALED_ONLY) {
+		if (docs.some((doc) => doc.kind === "Secret" && doc.name === name)) {
+			errors.push(`${env}: Secret ${name} must come from a SealedSecret`);
+		}
+		if (!docs.some((doc) => doc.kind === "SealedSecret" && doc.name === name)) {
+			errors.push(`${env}: no SealedSecret ${name}`);
 		}
 	}
 }

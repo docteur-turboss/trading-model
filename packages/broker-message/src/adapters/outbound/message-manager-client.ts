@@ -1,55 +1,99 @@
 import type addressManagerClient from "@trading-model/address-manager";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	isServiceUnreachableError,
-	messageManagerError,
-	normalizeError,
 	serviceUnreachableError,
-} from "@trading-model/common/utils/errors";
-import type { EventEnumMap } from "@trading-model/contracts/event-map";
+} from "@trading-model/address-manager/shared/errors";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
-import { PUBLISH_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_COMPAT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { DurationMs, URLString } from "@trading-model/primitives/primitives";
+import { isNonRetryableClientError } from "@trading-model/http/infrastructure/http-retry";
+import { logger } from "@trading-model/http/infrastructure/logger";
+import {
+	DurationMs,
+	ServiceId,
+	toInstanceId,
+	toTopic,
+	URLString,
+} from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import type { IMessageClient } from "../../domain/ports/i-message-client";
 import type { MessageManagerConfig } from "../../domain/types/config";
-import { TopicSubscriptionService } from "./topic-subscription-service";
+import type {
+	SubscribesTopicsPayload,
+	UnSubscribesTopicsPayload,
+} from "../../domain/types/payloads";
+import { messageManagerError } from "../../shared/errors";
+import { withTraceparent } from "../../shared/trace-context";
 
 /**
- * message-manager answers once it has delivered (or given up) the message:
- * wait for its answer rather than time out first. A publish is never sent
- * twice once it left: the broker stamps a new messageId on each copy, so
- * subscribers could not tell the duplicates apart.
+ * message-manager answers 202 once the message is journaled (ADR-0048); the
+ * older release answered 204 after delivery: both are success. A publish is
+ * never sent twice once it left: the broker stamps a new messageId on each
+ * copy, so subscribers could not tell the duplicates apart.
  */
 const PUBLISH_OPTIONS = {
-	timeoutMs: DurationMs.of(PUBLISH_TIMEOUT_MS + 5_000),
-	retryUnsentOnly: true,
+	timeoutMs: DurationMs.of(PUBLISH_COMPAT_TIMEOUT_MS),
 };
 
 /** Client for interacting with the Message Delivery Service via HTTP. */
 export class MessageManagerClient implements IMessageClient {
-	private _subscriptionService: TopicSubscriptionService;
-
 	constructor(
 		private readonly _httpClient: HttpClient,
 		readonly _config: MessageManagerConfig,
 		private readonly _addressManagerClient: addressManagerClient
-	) {
-		this._subscriptionService = new TopicSubscriptionService(
-			_httpClient,
-			_config,
-			_addressManagerClient
+	) {}
+
+	/** Subscribes the topics one by one: the first failure stops the pass. */
+	async subscribe(topics: readonly string[]): Promise<void> {
+		try {
+			const url = await this._subscribeUrl();
+			for (const topic of topics) {
+				const payload: SubscribesTopicsPayload = {
+					callbackPath: this._config.callbackPath,
+					serviceIdentity: {
+						instanceId: toInstanceId(this._config.instanceId),
+						serviceName: ServiceId.of(this._config.serviceName),
+					},
+					topic: toTopic(topic),
+				};
+				// A subscription is an upsert: sending it twice is harmless.
+				await this._httpClient.post(url, payload, { idempotent: true });
+			}
+		} catch (error) {
+			this._wrapError(error, "Failed to subscribe topic to Message Manager");
+		}
+	}
+
+	/**
+	 * Best-effort: called on shutdown, where throwing would abort the remaining
+	 * cleanup. Failures are logged so the leftover subscriptions are visible.
+	 */
+	async unsubscribe(topics: readonly string[]): Promise<void> {
+		try {
+			const url = await this._subscribeUrl();
+			for (const topic of topics) {
+				const payload: UnSubscribesTopicsPayload = {
+					instanceId: this._config.instanceId,
+					topic: toTopic(topic),
+				};
+				await this._httpClient.delete(url, payload);
+			}
+		} catch (err) {
+			logger.warn("Failed to unsubscribe topics from Message Manager", {
+				context: { topics, error: normalizeError(err).message },
+			});
+		}
+	}
+
+	private async _subscribeUrl(): Promise<URLString> {
+		const target = await this._findService(
+			ServiceInstanceName.MessageManagerService
 		);
-	}
-
-	subscribe(topics: readonly string[]): Promise<void> {
-		return this._subscriptionService.subscribe(topics as EventEnumMap[]);
-	}
-
-	unsubscribe(topics: readonly string[]): Promise<void> {
-		return this._subscriptionService.unsubscribe(topics as EventEnumMap[]);
+		return URLString.of(`https://${HostPort.toAddress(target)}/subscribe`);
 	}
 
 	private async _findService(
@@ -74,7 +118,7 @@ export class MessageManagerClient implements IMessageClient {
 		try {
 			await this._httpClient.post(
 				URLString.of(`https://${HostPort.toAddress(target)}/message`),
-				{ payload, metadata },
+				{ payload, metadata: withTraceparent(metadata) },
 				PUBLISH_OPTIONS
 			);
 		} catch (error) {
@@ -82,10 +126,8 @@ export class MessageManagerClient implements IMessageClient {
 			const status = (error as { statusCode?: number }).statusCode;
 			const targetAnswered =
 				status !== undefined &&
-				status >= 400 &&
-				status < 500 &&
-				status !== 408 &&
-				status !== 429;
+				isNonRetryableClientError(status) &&
+				status !== HTTP_STATUS.REQUEST_TIMEOUT;
 			if (targetAnswered) {
 				this._addressManagerClient.recordCallSuccess(
 					target.instanceId,
@@ -105,13 +147,11 @@ export class MessageManagerClient implements IMessageClient {
 		);
 	}
 
-	private _wrapPublishError(error: unknown, service: string): never {
+	private _wrapError(error: unknown, message: string): never {
 		if (isServiceUnreachableError(error)) {
 			throw error;
 		}
-		throw messageManagerError(`Failed to publish message to ${service}`, {
-			cause: normalizeError(error),
-		});
+		throw messageManagerError(message, { cause: normalizeError(error) });
 	}
 
 	async publish<TPayload = unknown>(
@@ -120,11 +160,11 @@ export class MessageManagerClient implements IMessageClient {
 	): Promise<void> {
 		try {
 			const target = await this._findService(
-				ServiceInstanceName.MessageDeliveryService
+				ServiceInstanceName.MessageManagerService
 			);
 			return await this._publishToService(target, payload, metadata);
 		} catch (error) {
-			this._wrapPublishError(error, "Message Manager");
+			this._wrapError(error, "Failed to publish message to Message Manager");
 		}
 	}
 
@@ -137,7 +177,7 @@ export class MessageManagerClient implements IMessageClient {
 			const target = await this._findService(service);
 			return await this._publishToService(target, payload, metadata);
 		} catch (error) {
-			this._wrapPublishError(error, service);
+			this._wrapError(error, `Failed to publish message to ${service}`);
 		}
 	}
 }

@@ -4,7 +4,6 @@ import {
 	type URLString,
 } from "@trading-model/primitives/primitives";
 import { logger } from "../../config/logger";
-import { metrics } from "../../config/metrics";
 import type {
 	ClaimedEntry,
 	ClaimReleasePort,
@@ -15,6 +14,7 @@ import type {
 	RetryLedgerPort,
 } from "../../domain/ports/replay.ports";
 import { generateBatchId } from "../../shared/batch-id";
+import { emitReplayMetrics } from "../../shared/replay-metrics";
 import { isShuttingDown } from "../../shared/shutdown-flag";
 import type {
 	BatchResults,
@@ -71,7 +71,7 @@ export function createAutoRetryCycle(deps: AutoRetryCycleDeps): AutoRetryCycle {
 			batchId,
 			instanceId: deps.settings.instanceId,
 		});
-		_emitRetryMetrics(result);
+		emitReplayMetrics(result.success, result.errors.length);
 		return result;
 	}
 
@@ -97,6 +97,7 @@ export function createAutoRetryCycle(deps: AutoRetryCycleDeps): AutoRetryCycle {
 			entries.map((entry) => ({
 				id: toMessageId(entry.id),
 				message: entry.message,
+				service: entry.service,
 			})),
 			messageManagerUrl,
 			batchId
@@ -131,13 +132,4 @@ export function createAutoRetryCycle(deps: AutoRetryCycleDeps): AutoRetryCycle {
 			await executeCycle(messageManagerUrl);
 		},
 	};
-}
-
-function _emitRetryMetrics(result: BatchResults): void {
-	if (result.success > 0) {
-		metrics.entriesReplayed.inc(result.success);
-	}
-	if (result.errors.length > 0) {
-		metrics.entriesReplayFailed.inc(result.errors.length);
-	}
 }

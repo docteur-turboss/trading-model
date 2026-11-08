@@ -1,9 +1,3 @@
-export {
-	addressManagerError,
-	isAddressManagerError,
-} from "./errors/address-manager";
-export { agentError, isAgentError } from "./errors/agent";
-
 export { authenticationError, isAuthenticationError } from "./errors/auth";
 export {
 	type AppError,
@@ -11,24 +5,8 @@ export {
 	createAppError,
 	ErrorCode,
 	isAppError,
+	makeErrorCode,
+	makeGuard,
 	normalizeError,
 } from "./errors/base";
-export {
-	configurationError,
-	isTimeoutError,
-	timeoutError,
-} from "./errors/general";
-export {
-	backpressureError,
-	deadLetterError,
-	isDeadLetterError,
-	isMessageManagerError,
-	messageManagerError,
-	nackError,
-} from "./errors/messaging";
-export {
-	isServiceNotFoundError,
-	isServiceUnreachableError,
-	serviceNotFoundError,
-	serviceUnreachableError,
-} from "./errors/service-discovery";
+export { configurationError, timeoutError } from "./errors/general";

@@ -10,6 +10,8 @@ export interface GaTelemetry {
 	evaluationFailed(reason: string): void;
 	/** One genome evaluated on every window: it blocks the event loop that long. */
 	genomeEvaluated(durationMs: number): void;
+	/** Crossovers of one generation that copied a parent because the weight lengths differ. */
+	crossoverFallbacks(count: number): void;
 }
 
 export const NoopGaTelemetry: GaTelemetry = {
@@ -23,6 +25,9 @@ export const NoopGaTelemetry: GaTelemetry = {
 		// Intentional no-op.
 	},
 	genomeEvaluated: () => {
+		// Intentional no-op.
+	},
+	crossoverFallbacks: () => {
 		// Intentional no-op.
 	},
 };

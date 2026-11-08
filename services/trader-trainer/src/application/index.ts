@@ -1,10 +1,7 @@
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import "./telemetry";
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import {
-	initializeTelemetry,
-	shutdownTelemetry,
-} from "@trading-model/server-utils/infrastructure/telemetry";
+import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { createTraderTrainerContainer } from "../config/container";
 import { MessageManager } from "../config/message-manager";
@@ -25,21 +22,13 @@ const CONTAINER = createTraderTrainerContainer(ENV);
 const { trainer, eventHandler, trainingLoop, symbols, models } = CONTAINER;
 
 /** MODEL_DOWNLOAD_CALLERS, comma-separated service names (ADR-0022). */
-const MODEL_DOWNLOAD_CALLERS = ENV.MODEL_DOWNLOAD_CALLERS.split(",")
-	.map((name) => name.trim())
-	.filter(Boolean);
+const MODEL_DOWNLOAD_CALLERS = parseCommaSeparated(ENV.MODEL_DOWNLOAD_CALLERS);
 
 createBootstrap({
 	name: "Trader Trainer",
 	createServer: () =>
 		createServer(trainer, { models, downloadCallers: MODEL_DOWNLOAD_CALLERS }),
 	onStart: async () => {
-		initializeTelemetry({
-			serviceName: ServiceInstanceName.TraderTrainerService,
-			serviceVersion: process.env.APP_VERSION ?? "1.0.0",
-			instanceId: toInstanceId(process.env.INSTANCE_ID ?? "trader-trainer-1"),
-			otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-		});
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 
 		// Broker messages are emitted under their topic (the MarketEvent value).
@@ -49,6 +38,8 @@ createBootstrap({
 		}
 
 		await MessageManager.intents(intents);
+
+		await trainer.rehydrate(symbols);
 
 		trainingLoop.start({
 			symbols,

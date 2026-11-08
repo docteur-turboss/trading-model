@@ -44,7 +44,7 @@ The 2026-09-13 architecture audit put MT4 on the mid-term roadmap: once ingestio
 
    A track record is a symbol's test segments chained in time order, for one seed: PnL per bar (mean over the evaluation episodes), annualised from the bar spacing; returns and drawdowns are in % of the initial cash, on which trades are sized (ADR-0025 item 16).
 
-3. **Protocol** (`scripts/mt4-walk-forward.ts`): 500 training candles (its own 80 / 20 train / validation split), then 100 test candles never seen by training, segment after segment; the real `TrainingSession`, population 20, 30 generations, 10 evaluation episodes. `seedOffset` (`TrainingSettings`, 0 = the default seeds) makes the seeds independent and reproducible. `--features klines` (default) rebuilds at each close what the candle files allow: the 24h ticker from the previous 24 hours of candles, and the candle's trades as one buyer and one seller aggregate trade from its taker volumes. Binance publishes no order book history: those inputs stay 0. The script prints PASS / FAIL for each criterion.
+3. **Protocol** (`services/trader-trainer/scripts/mt4-walk-forward.ts`): 500 training candles (its own 80 / 20 train / validation split), then 100 test candles never seen by training, segment after segment; the real `TrainingSession`, population 20, 30 generations, 10 evaluation episodes. `seedOffset` (`TrainingSettings`, 0 = the default seeds) makes the seeds independent and reproducible. `--features klines` (default) rebuilds at each close what the candle files allow: the 24h ticker from the previous 24 hours of candles, and the candle's trades as one buyer and one seller aggregate trade from its taker volumes. Binance publishes no order book history: those inputs stay 0. The script prints PASS / FAIL for each criterion.
 
 ## Alternatives Considered
 
@@ -59,7 +59,7 @@ The 2026-09-13 architecture audit put MT4 on the mid-term roadmap: once ingestio
 ## Consequences
 
 - Training and validation no longer see the future. Live training costs one pass over the buffer per build, as before.
-- The order book inputs are never exercised by a historical run until the scraper's own history is long enough (it keeps no order book in MySQL, `market_candles` / `market_trades` / `market_tickers` only).
+- The order book inputs are never exercised by a historical run until the scraper's own history is long enough (it keeps no order book in MySQL, `market_candles` / `market_trades` / `market_tickers` only). *Amended by [ADR-0053](./0053-order-books-persisted-not-served.md): order book snapshots are kept in `market_order_books` from then on.*
 - MT4 cannot pass while the paper trading criterion is open.
 
 ## Results
@@ -77,3 +77,5 @@ Run of 2026-10-31: BTCUSDT and ETHUSDT 1h candles from 2026-08-04 to 2026-10-31,
 - **The seed decides more than the fitness.** With `total_pnl`, the six track records range from a Sharpe of −3.73 to +1.38 (ETH seed 0: +27.6 % a year, Calmar 3.8); the same data with another seed loses 41.7 % a year. Nothing here separates an edge from luck.
 - **Buy and hold:** the mean `total_pnl` Sharpe beats it on ETH (+0.03 against −1.09: a falling market, the agent is less exposed) but not on BTC (−1.38 against −0.21).
 - The paper trading criterion stays open.
+
+> **Reproducibility note (2026-11-08, PR #589):** the trainer simplification removed genes that never changed (mutation distribution, adaptation, scope, `selfSigma`, …) and with them some RNG draws of the mutation-genome crossover and of the self-adaptive mutation. Same-seed runs stay deterministic, but from that PR on they no longer replay the figures above. Re-run `scripts/mt4-walk-forward.ts` before comparing a new result with this table.

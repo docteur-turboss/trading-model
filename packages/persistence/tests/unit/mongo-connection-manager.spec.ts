@@ -42,16 +42,6 @@ describe("MongoConnectionManager", () => {
 		MockMongoClient.mockReturnValue(mockClient);
 	});
 
-	it("should expose uri and poolSize", () => {
-		const mgr = new MongoConnectionManager({
-			uri: URLString.of("mongodb://localhost:27017"),
-			dbName: "test",
-			poolSize: 10,
-		});
-		expect(mgr.uri).toBe("mongodb://localhost:27017");
-		expect(mgr.poolSize).toBe(10);
-	});
-
 	// The real driver behaviour is in tests/db/mongo-outage.db.spec.ts.
 	it("should follow the data-bearing servers of the monitored topology", async () => {
 		const mgr = new MongoConnectionManager({
@@ -113,20 +103,7 @@ describe("MongoConnectionManager", () => {
 	});
 });
 
-describe("MongoConnectionManager reconnect and collection name", () => {
-	it("tryReconnect should return true after a successful reconnect", async () => {
-		const mgr = new MongoConnectionManager({
-			uri: URLString.of("mongodb://localhost:27017"),
-			dbName: "test",
-		});
-		await mgr.getConnection();
-
-		const reconnected = await mgr.tryReconnect();
-
-		expect(reconnected).toBe(true);
-		expect(mgr.isConnected()).toBe(true);
-	});
-
+describe("MongoConnectionManager collection name", () => {
 	it("should expose the configured collectionName to subclasses", () => {
 		class TestStore extends MongoConnectionManager {
 			collection(): string | undefined {

@@ -20,6 +20,7 @@ x-core-env: &core-env
   # Enforce the service-to-service ACL using attested SVID identities (ADR-0011).
   ENFORCE_MTLS_STRICT: ${ENFORCE_MTLS_STRICT:-true}
   LOG_LEVEL: ${LOG_LEVEL:-info}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
 
 # Rotated json-file logs: without a cap a looping service fills the Docker
 # Desktop disk image, which freezes every container on the host.
@@ -179,7 +180,7 @@ services:
   # ---------------------------------------------------------------------------
   spire-server:
     logging: *default-logging
-    image: ghcr.io/spiffe/spire-server:1.15.5  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spire-server:1.15.5@sha256:584a9c5cc95b9457f5033e7e4488d603fffe5ec48a80c4dba14b05c5e1c2c384
     container_name: trading-spire-server
     restart: unless-stopped
     # Named volumes are created root-owned: the image user (1000) could not write them.
@@ -264,14 +265,15 @@ services:
       <<: *message-env
       APP_NAME: message-manager
       APP_VERSION: ${APP_VERSION:-1.3.0}
-      SERVICE_NAME: message-delivery-service
+      SERVICE_NAME: message-manager
       INSTANCE_ID: message-manager-1
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       # Signs the dead letters sent to dlq-service: same key as dlq-service.
       DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
     # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
-    # publishes finish (PUBLISH_TIMEOUT_MS, 5 min): see application/index.ts.
-    stop_grace_period: 6m
+    # publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries finish: see
+    # application/index.ts. Undelivered messages stay in the Redis journal.
+    stop_grace_period: 2m
     volumes:
       - svid-message:/run/spire/svid
     networks:
@@ -294,8 +296,8 @@ services:
   #  Financial Scraper — Real-time market data ingestion
   # ---------------------------------------------------------------------------
   financial-scraper:
-    # Waits for its publishes in flight on stop (PUBLISH_TIMEOUT_MS + 5s).
-    stop_grace_period: 6m
+    # Waits for its publishes in flight on stop (PUBLISH_ACCEPT_TIMEOUT_MS + 5s).
+    stop_grace_period: 1m
     logging: *default-logging
     build:
       context: .
@@ -307,8 +309,10 @@ services:
     environment:
       <<: *message-env
       APP_NAME: financial-scraper
-      APP_VERSION: ${APP_VERSION:-1.3.0}
-      SERVICE_NAME: financial-scraper-service
+      # Major 2 = gateway prefix /v2/financial-scraper (v3.0.0 breaking API change):
+      # not the shared APP_VERSION, whose major stays 1.
+      APP_VERSION: 2.0.0
+      SERVICE_NAME: financial-scraper
       INSTANCE_ID: financial-scraper-1
       # Same symbols as TRAINER_SYMBOLS: the trainer consumes what the scraper publishes.
       SYMBOLS_TO_TRACK: ${SYMBOLS_TO_TRACK:-BTCUSDT,ETHUSDT}
@@ -419,6 +423,7 @@ services:
       # Required: in production the gateway refuses to start without API keys.
       AUTH_TOKENS: ${GATEWAY_AUTH_TOKENS:-}
       PROXY_TIMEOUT_MS: '10000'
+      PROXY_MAX_RESPONSE_BYTES: '8388608'
     volumes:
       - svid-gateway:/run/spire/svid
     networks:
@@ -450,7 +455,7 @@ services:
       <<: *message-env
       APP_NAME: audit-logger
       APP_VERSION: ${APP_VERSION:-1.0.0}
-      SERVICE_NAME: audit-logger-service
+      SERVICE_NAME: audit-logger
       INSTANCE_ID: audit-logger-1
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       MONGODB_URI: mongodb://mongo:27017/audit-logger
@@ -527,7 +532,7 @@ services:
   # ---------------------------------------------------------------------------
   spiffe-helper-discovery:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-discovery
     restart: unless-stopped
     network_mode: none
@@ -542,7 +547,7 @@ services:
 
   spiffe-helper-message:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-message
     restart: unless-stopped
     network_mode: none
@@ -557,7 +562,7 @@ services:
 
   spiffe-helper-scraper:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-scraper
     restart: unless-stopped
     network_mode: none
@@ -572,7 +577,7 @@ services:
 
   spiffe-helper-trainer:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-trainer
     restart: unless-stopped
     network_mode: none
@@ -587,7 +592,7 @@ services:
 
   spiffe-helper-gateway:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-gateway
     restart: unless-stopped
     network_mode: none
@@ -602,7 +607,7 @@ services:
 
   spiffe-helper-audit:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-audit
     restart: unless-stopped
     network_mode: none
@@ -617,7 +622,7 @@ services:
 
   spiffe-helper-dlq:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-dlq
     restart: unless-stopped
     network_mode: none
@@ -632,7 +637,7 @@ services:
 
   spiffe-helper-edge:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-edge
     restart: unless-stopped
     network_mode: none
@@ -647,7 +652,7 @@ services:
 
   spiffe-helper-prometheus:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1  # pin: digest unavailable without GHCR auth
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
     container_name: trading-helper-prometheus
     restart: unless-stopped
     network_mode: none
@@ -656,6 +661,21 @@ services:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-prometheus:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-blackbox:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    container_name: trading-helper-blackbox
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-blackbox:/run/spire/svid
     depends_on:
       spire-agent:
         condition: service_healthy
@@ -787,7 +807,7 @@ services:
       - backend-net
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set (Grafana admin password)}
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/services.json
 
   loki:
@@ -803,6 +823,51 @@ services:
     networks:
       - backend-net
     command: -config.file=/etc/loki/local-config.yaml
+
+  # Probes /ping of every service with its own SVID (CertificateExpiry).
+  blackbox-exporter:
+    logging: *default-logging
+    image: prom/blackbox-exporter@sha256:b04a9fef4fa086a02fc7fcd8dcdbc4b7b35cc30cdee860fdc6a19dd8b208d63e
+    container_name: trading-blackbox
+    restart: unless-stopped
+    volumes:
+      - ./observability/blackbox.yml:/etc/blackbox-exporter/config.yml:ro
+      - svid-blackbox:/run/spire/svid:ro
+    networks:
+      - backend-net
+    depends_on:
+      spiffe-helper-blackbox:
+        condition: service_started
+    command: ['--config.file=/etc/blackbox-exporter/config.yml']
+
+  # Traces: services export OTLP/HTTP straight to Jaeger (no collector in compose).
+  jaeger:
+    logging: *default-logging
+    image: jaegertracing/all-in-one@sha256:7e9591218e7ddd51e568ef892e3ea190ae420ecf97c4d718910a3f57e076c216
+    container_name: trading-jaeger
+    restart: unless-stopped
+    ports:
+      - '${JAEGER_PORT:-16686}:16686'
+    environment:
+      COLLECTOR_OTLP_ENABLED: 'true'
+    networks:
+      - backend-net
+
+  # Logs: reads the container logs through the Docker API (needs the socket).
+  promtail:
+    logging: *default-logging
+    image: grafana/promtail@sha256:b3db8e7b1cba0e8c45ce2ae72ebddfd88ebdcae86383f1680edf0074e9010ff6
+    container_name: trading-promtail
+    restart: unless-stopped
+    volumes:
+      - ./observability/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/run/promtail
+    networks:
+      - backend-net
+    depends_on:
+      - loki
+    command: -config.file=/etc/promtail/promtail.yml
 
 networks:
   data-net:
@@ -832,6 +897,8 @@ volumes:
   svid-dlq:
   svid-edge:
   svid-prometheus:
+  svid-blackbox:
+  promtail-positions:
   prometheus-data:
   grafana-data:
   loki-data:

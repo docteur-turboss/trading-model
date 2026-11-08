@@ -32,15 +32,18 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock("../../src/adapters/outbound/service-resolver", () => ({
-	ServiceResolver: jest.fn().mockImplementation(() => ({
-		resolve: jest.fn().mockResolvedValue({
-			host: "10.0.0.5",
-			port: 3000,
-			version: "1.2.0",
-		}),
-	})),
-}));
+jest.mock(
+	"@trading-model/address-manager/application/discovery/endpoint-resolver",
+	() => ({
+		EndpointResolver: jest.fn().mockImplementation(() => ({
+			resolve: jest.fn().mockResolvedValue({
+				host: "10.0.0.5",
+				port: 3000,
+				version: "1.2.0",
+			}),
+		})),
+	})
+);
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 	forwardRequest: jest.fn().mockResolvedValue({
@@ -144,14 +147,5 @@ describe("API Gateway — Rate Limiting Integration", () => {
 		expect((await request(server, path)).status).toBe(429);
 
 		expect((await request(server, path, "other-token")).status).toBe(200);
-	});
-
-	it("should not rate-limit the unauthenticated ping endpoint", async () => {
-		const app = createApp();
-		await new Promise<void>((resolve) => {
-			server = app.listen(0, () => resolve());
-		});
-		const result = await request(server, "/ping");
-		expect(result.status).toBe(200);
 	});
 });

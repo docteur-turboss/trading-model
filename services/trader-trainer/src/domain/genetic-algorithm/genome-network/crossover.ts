@@ -1,6 +1,4 @@
 import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { crossoverScalar } from "../crossover/strategies";
-import type { CrossoverGenome } from "../genome-control";
 import type { LayerGenome, NetworkGenome } from "./types";
 
 function _crossoverLayerPair(
@@ -66,10 +64,9 @@ function _crossoverHiddenLayers(
 export function crossoverNetwork(ctx: {
 	left: NetworkGenome;
 	right: NetworkGenome;
-	co: CrossoverGenome;
 	rng: () => number;
 }): NetworkGenome {
-	const { left, right, co, rng } = ctx;
+	const { left, right, rng } = ctx;
 	const minLen = Math.min(left.hiddenLayers.length, right.hiddenLayers.length);
 	const maxLen = Math.max(left.hiddenLayers.length, right.hiddenLayers.length);
 	const longer =
@@ -77,8 +74,9 @@ export function crossoverNetwork(ctx: {
 			? left.hiddenLayers
 			: right.hiddenLayers;
 
+	// Uniform crossover: each gene comes from either parent with probability 0.5.
 	const crossoverFn = (valueA: number, valueB: number) =>
-		crossoverScalar({ left: valueA, right: valueB, co, rng });
+		rng() < 0.5 ? valueA : valueB;
 
 	return {
 		...left,

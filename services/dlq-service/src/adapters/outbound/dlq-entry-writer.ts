@@ -20,6 +20,7 @@ interface NewDlqDocument {
 	contentHash: string;
 	topic: string | null;
 	message: unknown;
+	service: string | null;
 	reason: string | null;
 	deliveryAttempt: number;
 	retryCount: number;
@@ -54,6 +55,7 @@ function _buildBaseDoc(
 		contentHash: hash.contentHash,
 		topic: entry.topic ?? null,
 		message: entry.message,
+		service: entry.service ?? null,
 		reason: entry.reason ?? null,
 		deliveryAttempt: entry.deliveryAttempt,
 		retryCount: 0,
@@ -80,12 +82,15 @@ export class DlqEntryWriter {
 	async insert(entry: DlqEntry): Promise<string> {
 		const col = await getCollection();
 
-		if (await this._isCapacityReached(col)) {
+		const hash = this._serializer.computeHash(entry);
+		// Independent reads: one round trip of latency instead of two.
+		const [capacityReached, doc] = await Promise.all([
+			this._isCapacityReached(col),
+			this._buildDoc(col, entry, hash),
+		]);
+		if (capacityReached) {
 			throw dlqCapacityError("DLQ capacity limit reached");
 		}
-
-		const hash = this._serializer.computeHash(entry);
-		const doc = await this._buildDoc(col, entry, hash);
 
 		return this._inserter.insert(
 			col,

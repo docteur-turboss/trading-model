@@ -1,6 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
 import {
-	computeAdaptiveTimeout,
 	computeRetryDelay,
 	DEFAULT_RETRY_COUNT,
 	isNonRetryableClientError,
@@ -93,21 +92,6 @@ describe("computeRetryDelay", () => {
 		});
 		expect(delay).toBeGreaterThanOrEqual(0);
 		expect(delay).toBeLessThanOrEqual(10000);
-	});
-});
-
-describe("computeAdaptiveTimeout", () => {
-	it("should return baseMs * 2 when no ewmLatencyMs", () => {
-		expect(computeAdaptiveTimeout(DurationMs.of(5000))).toBe(10000);
-	});
-
-	it("should return max of baseMs and ewmLatencyMs * 3", () => {
-		expect(
-			computeAdaptiveTimeout(DurationMs.of(5000), DurationMs.of(1000))
-		).toBe(5000);
-		expect(
-			computeAdaptiveTimeout(DurationMs.of(2000), DurationMs.of(1000))
-		).toBe(3000);
 	});
 });
 

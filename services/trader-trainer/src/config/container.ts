@@ -1,8 +1,10 @@
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import { DataEventHandler } from "../adapters/inbound/events/event-handlers";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
+import { runInWorker } from "../adapters/outbound/training-worker/worker-training-runner";
 import { Trainer } from "../application/trainer";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
@@ -16,6 +18,7 @@ import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-stor
 import { effectiveFitnessType } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
+	CROSSOVER_FALLBACK_TOTAL,
 	CURRENT_GENERATION,
 	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
@@ -41,9 +44,12 @@ const PROMETHEUS_GA_TELEMETRY: GaTelemetry = {
 	genomeEvaluated(durationMs) {
 		GENOME_EVALUATION_SECONDS.observe(durationMs / 1000);
 	},
+	crossoverFallbacks(count) {
+		CROSSOVER_FALLBACK_TOTAL.inc(count);
+	},
 };
 
-export interface AppContainerConfig {
+interface AppContainerConfig {
 	bufferSize: number;
 	symbols: TradingSymbol[];
 	validationSplit: number;
@@ -57,9 +63,10 @@ export interface AppContainerConfig {
 	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
+	instanceId: string;
 }
 
-export class ApplicationContainer {
+class ApplicationContainer {
 	public readonly symbols: TradingSymbol[];
 	public readonly dataBuffer: MarketDataBuffer;
 	public readonly eventHandler: DataEventHandler;
@@ -82,7 +89,7 @@ export class ApplicationContainer {
 		this.dataBuffer = new MarketDataBuffer(bufferConfig);
 		this.eventHandler = new DataEventHandler(this.dataBuffer);
 
-		const instanceId = process.env.INSTANCE_ID ?? "trader-trainer-1";
+		const { instanceId } = config;
 		const publisher = new ModelPublisher(MessageManager, {
 			trainerId: "trader-trainer",
 			instanceId,
@@ -106,12 +113,17 @@ export class ApplicationContainer {
 			telemetry: PROMETHEUS_GA_TELEMETRY,
 			models: this.models,
 			instanceId,
+			// Training is CPU-bound: off the thread that serves the API (issue #508).
+			runner: runInWorker,
 		});
-		this.trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer);
+		this.trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer, {
+			validationSplit: config.validationSplit,
+			walkForwardFolds: config.walkForwardFolds,
+		});
 	}
 }
 
-export interface TraderTrainerSettings {
+interface TraderTrainerSettings {
 	TRAINER_DATA_WINDOW: number;
 	/** Comma-separated symbols, e.g. "BTCUSDT,ETHUSDT". */
 	TRAINER_SYMBOLS: string;
@@ -127,6 +139,7 @@ export interface TraderTrainerSettings {
 	TRAINER_OBSERVE_POSITION?: boolean;
 	TRAINER_MODEL_DIR: string;
 	TRAINER_MODEL_RETENTION: number;
+	INSTANCE_ID: string;
 }
 
 /** Builds the service container from the environment settings. */
@@ -135,8 +148,8 @@ export function createTraderTrainerContainer(
 ): ApplicationContainer {
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
-		symbols: settings.TRAINER_SYMBOLS.split(",").map((symbol) =>
-			toSymbol(symbol.trim())
+		symbols: parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
+			toSymbol(symbol)
 		),
 		validationSplit: settings.TRAINER_VALIDATION_SPLIT,
 		walkForwardFolds: settings.TRAINER_WALK_FORWARD_FOLDS,
@@ -148,5 +161,6 @@ export function createTraderTrainerContainer(
 		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
+		instanceId: settings.INSTANCE_ID,
 	});
 }

@@ -13,6 +13,13 @@ export const EVENTS_STORED_TOTAL = new promClient.Counter({
 	labelNames: ["status"] as const,
 });
 
+/** Another replica took the chain sequence first (ADR-0027). `outcome`: retried | exhausted. */
+export const CHAIN_COLLISIONS_TOTAL = new promClient.Counter({
+	name: "audit_chain_sequence_collisions_total",
+	help: "Chain sequence collisions between writers, by outcome (retried, exhausted)",
+	labelNames: ["outcome"] as const,
+});
+
 export const EVENTS_QUERY_DURATION_SECONDS = new promClient.Histogram({
 	name: "audit_events_query_duration_seconds",
 	help: "Audit event query latency in seconds",

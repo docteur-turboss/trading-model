@@ -14,16 +14,24 @@ jest.mock("p-limit", () =>
 	jest.fn(() => (fn: (...args: unknown[]) => unknown) => fn())
 );
 
+const mockLog = {
+	debug: jest.fn(),
+	info: jest.fn(),
+	warn: jest.fn(),
+	error: jest.fn(),
+};
 jest.mock("@trading-model/contracts/logger-registry", () => ({
-	getLogger: () => ({ debug: jest.fn(), warn: jest.fn(), error: jest.fn() }),
+	getLogger: () => mockLog,
 }));
 
 import {
 	MAX_CANDLES_PER_PUBLISH,
+	REPEATED_FAILURE_LOG_INTERVAL_MS,
 	WorkerOrchestrator,
 	type WorkerOrchestratorDeps,
 } from "../../../../src/application/worker-orchestrator";
 import {
+	CANDLES_PERSISTED_TOTAL,
 	PUBLISHES_SKIPPED_TOTAL,
 	SYMBOLS_FAILED_TOTAL,
 	SYMBOLS_SCRAPED_TOTAL,
@@ -159,12 +167,20 @@ describe("WorkerOrchestrator", () => {
 			persist,
 			backlog,
 		};
-		orchestrator = newOrchestrator();
 		SYMBOLS_FAILED_TOTAL.reset();
 		SYMBOLS_SCRAPED_TOTAL.reset();
+		CANDLES_PERSISTED_TOTAL.reset();
 		PUBLISHES_SKIPPED_TOTAL.reset();
 		UNPUBLISHED_CANDLES.reset();
+		orchestrator = newOrchestrator();
 	});
+
+	/** Value of a per-symbol counter (undefined: no series for that symbol). */
+	const symbolCount = async (
+		metric: typeof SYMBOLS_FAILED_TOTAL | typeof CANDLES_PERSISTED_TOTAL,
+		symbol: TradingSymbol
+	): Promise<number | undefined> =>
+		(await metric.get()).values.find((v) => v.labels.symbol === symbol)?.value;
 
 	/** One cycle and the publishes it started. */
 	const runCycle = async () => {
@@ -271,8 +287,10 @@ describe("WorkerOrchestrator", () => {
 			expect(persist).toHaveBeenCalledTimes(1);
 			expect(publish).toHaveBeenCalledTimes(1);
 			expect(publishedCandles(0)).toEqual([candleAt(1, ETH)]);
-			expect(await metricValue(SYMBOLS_FAILED_TOTAL)).toBe(1);
-			expect(await metricValue(SYMBOLS_SCRAPED_TOTAL)).toBe(1);
+			expect(await symbolCount(SYMBOLS_FAILED_TOTAL, BTC)).toBe(1);
+			expect(await symbolCount(SYMBOLS_FAILED_TOTAL, ETH)).toBe(0);
+			expect(await symbolCount(SYMBOLS_SCRAPED_TOTAL, BTC)).toBe(0);
+			expect(await symbolCount(SYMBOLS_SCRAPED_TOTAL, ETH)).toBe(1);
 		});
 
 		it("should still persist the other symbols when one fails to persist", async () => {
@@ -280,9 +298,57 @@ describe("WorkerOrchestrator", () => {
 
 			await runCycle();
 
+			const total = async (metric: typeof SYMBOLS_FAILED_TOTAL) =>
+				(await metric.get()).values.reduce((sum, v) => sum + v.value, 0);
 			expect(persist).toHaveBeenCalledTimes(2);
-			expect(await metricValue(SYMBOLS_FAILED_TOTAL)).toBe(1);
-			expect(await metricValue(SYMBOLS_SCRAPED_TOTAL)).toBe(1);
+			expect(await total(SYMBOLS_FAILED_TOTAL)).toBe(1);
+			expect(await total(SYMBOLS_SCRAPED_TOTAL)).toBe(1);
+		});
+
+		it("should start every symbol's counters at 0 before any cycle", async () => {
+			for (const symbol of [BTC, ETH]) {
+				expect(await symbolCount(SYMBOLS_FAILED_TOTAL, symbol)).toBe(0);
+				expect(await symbolCount(SYMBOLS_SCRAPED_TOTAL, symbol)).toBe(0);
+				expect(await symbolCount(CANDLES_PERSISTED_TOTAL, symbol)).toBe(0);
+			}
+		});
+	});
+
+	describe("repeated failures", () => {
+		let now: number;
+		beforeEach(() => {
+			now = 1_000;
+			jest.spyOn(Date, "now").mockImplementation(() => now);
+			for (const fn of Object.values(mockLog)) {
+				fn.mockClear();
+			}
+		});
+
+		it("should log the stack once, then a summary without stack, then the recovery", async () => {
+			fetchSnapshot.mockRejectedValue(new RangeError("got 0"));
+			await runCycle();
+			await runCycle();
+			await runCycle();
+			expect(mockLog.error).toHaveBeenCalledTimes(1);
+			expect(mockLog.error.mock.calls[0]?.[1]).toHaveProperty("error");
+
+			now += REPEATED_FAILURE_LOG_INTERVAL_MS;
+			await runCycle();
+			expect(mockLog.error).toHaveBeenCalledTimes(2);
+			expect(mockLog.error.mock.calls[1]?.[1]).not.toHaveProperty("error");
+			expect(await symbolCount(SYMBOLS_FAILED_TOTAL, BTC)).toBe(4);
+
+			fetchSnapshot.mockResolvedValue({ candles: [], fetchedAt: 0 });
+			await runCycle();
+			expect(mockLog.info).toHaveBeenCalledTimes(1);
+		});
+
+		it("should log a new stack when the error changes", async () => {
+			fetchSnapshot.mockRejectedValueOnce(new Error("a"));
+			fetchSnapshot.mockRejectedValueOnce(new Error("b"));
+			await runCycle();
+			await runCycle();
+			expect(mockLog.error).toHaveBeenCalledTimes(2);
 		});
 	});
 

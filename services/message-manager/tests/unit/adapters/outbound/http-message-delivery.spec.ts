@@ -1,15 +1,13 @@
 import { appendFile } from "node:fs/promises";
 import { describe, expect, it, jest } from "@jest/globals";
-import { isDeadLetterError } from "@trading-model/common/utils/errors";
+import { isDeadLetterError } from "@trading-model/broker-message/shared/errors";
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import {
 	createHttpClientError,
 	createHttpClientTimeoutError,
-} from "@trading-model/http/adapters/outbound/http-client";
-import {
-	DELIVERY_ATTEMPT_TIMEOUT_MS,
-	HttpMessageDelivery,
-} from "../../../../src/adapters/outbound/http-message-delivery";
+} from "@trading-model/http/adapters/outbound/http-client-errors";
+import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
+import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "../../../../src/domain/backoff-calculator";
 import { FileDlqRepository } from "../../../../src/infrastructure/fallback/dlq-repository";
 import { createMockMessage } from "../../../fixtures/broker.fixture";
 import { createMockHttpClient } from "../../../helpers/broker.helper";
@@ -120,6 +118,7 @@ describe("HttpMessageDelivery", () => {
 			expect(written.deliveryAttempt).toBe(3);
 			expect(written.message).toEqual(JSON.parse(JSON.stringify(message)));
 			expect(written.timestamp).toBeDefined();
+			expect(written.messageId).toBe(message.metadata.messageId);
 		});
 	});
 });

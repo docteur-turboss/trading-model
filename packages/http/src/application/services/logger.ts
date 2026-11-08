@@ -8,9 +8,9 @@ import {
 import { formatLogEntry } from "../../infrastructure/console-formatter";
 import { LogDispatcher } from "../../infrastructure/log-dispatcher";
 import {
+	isLogLevelAtLeast,
 	type LogEntry,
 	LogLevel,
-	LogLevelThreshold,
 	type LogOptions,
 } from "../../infrastructure/log-types";
 import { generateProcessId } from "../../infrastructure/process-id-generator";
@@ -41,7 +41,7 @@ export class Logger {
 	}
 
 	private _log(level: LogLevel, message: string, context?: JsonObject): void {
-		if (!LogLevelThreshold.isAtLeast(level, this._logLevel)) {
+		if (!isLogLevelAtLeast(level, this._logLevel)) {
 			return;
 		}
 		const logEntry = this._buildLogEntry(level, message, context);
@@ -120,18 +120,40 @@ export class Logger {
 	}
 }
 
+/**
+ * Creates a logger whose level comes from `LOG_LEVEL` (a `LogLevel` value,
+ * case-insensitive). Without `LOG_LEVEL`, the level follows `NODE_ENV`:
+ * development → debug, staging → info, anything else → warn. An invalid
+ * `LOG_LEVEL` falls back to that default and logs a WARN (never throws: the
+ * global logger is created at import time, before the environment is validated).
+ */
 export function createLogger(): Logger {
 	const nodeEnv = getNodeEnv();
-	const logLevel =
+	const defaultLevel =
 		nodeEnv === NODE_ENV.DEVELOPMENT
 			? LogLevel.Debug
 			: nodeEnv === NODE_ENV.STAGING
 				? LogLevel.Info
 				: LogLevel.Warn;
-	return new Logger(logLevel);
+	const raw = process.env.LOG_LEVEL;
+	if (!raw) {
+		return new Logger(defaultLevel);
+	}
+	const requested = raw.toLowerCase() as LogLevel;
+	if (Object.values(LogLevel).includes(requested)) {
+		return new Logger(requested);
+	}
+	const created = new Logger(defaultLevel);
+	// defaultLevel is at most warn, so this line is always written.
+	created.warn("Invalid LOG_LEVEL, using the NODE_ENV default", {
+		logLevel: raw,
+		allowed: Object.values(LogLevel),
+		fallback: defaultLevel,
+	});
+	return created;
 }
 
-/** Global logger instance pre-configured based on the current environment. */
+/** Global logger instance; level from `LOG_LEVEL`, else from `NODE_ENV` (see {@link createLogger}). */
 export const logger: Logger = createLogger();
 
 setLogger(logger);

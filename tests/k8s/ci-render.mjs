@@ -10,6 +10,7 @@
 //   - points the scraper at the in-cluster Binance stub
 //   - turns off the collection of the signal registry sources (real public
 //     APIs, ADR-0036)
+//   - sends the Pushover pages to the in-cluster alert sink (webhook)
 //   - drops every internet egress rule (`ipBlock` 0.0.0.0/0) of the
 //     NetworkPolicies: fail closed, a new outside call is refused in CI
 //     instead of reaching the real service
@@ -41,9 +42,14 @@ stringData:
   MYSQL_ROOT_PASSWORD: dev-mysql-root
   MYSQL_PASSWORD: dev-mysql
   MYSQL_MIGRATE_PASSWORD: dev-mysql-migrate
+  MYSQL_RETENTION_PASSWORD: dev-mysql-retention
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
   GRAFANA_PASSWORD: dev-grafana
   HMAC_SECRET: dev-hmac
+  REDIS_INTERNAL_PASSWORD: dev-redis-internal-password
+  REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
+  REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
+  REDIS_DLQ_PASSWORD: dev-redis-dlq-password
 `;
 
 function adapt(manifest) {
@@ -57,6 +63,16 @@ function adapt(manifest) {
 		.replace(
 			/BINANCE_BASE_URL: "?https:\/\/api\.binance\.com"?/g,
 			'BINANCE_BASE_URL: "http://binance-stub:3000"'
+		)
+		// Pages to the alert sink: api.pushover.net is unreachable from CI, and a
+		// failed page fires AlertmanagerNotificationsFailing, critical, so paged
+		// again. Alertmanager has no setting for the Pushover endpoint (its `url`
+		// is a link shown in the message), so the receiver becomes a webhook.
+		.replace(
+			/^( +)pushover_configs:\n(?:\1 .*\n)*/m,
+			(_block, i) =>
+				`${i}webhook_configs:\n${i}  - ${PUSHOVER_SINK}\n` +
+				`${i}    send_resolved: true\n`
 		)
 		.replace(
 			/SIGNAL_COLLECTION_ENABLED: "?true"?/g,
@@ -72,6 +88,7 @@ function adapt(manifest) {
 const STUB_URL = 'BINANCE_BASE_URL: "http://binance-stub:3000"';
 // Same for the signal sources: real public APIs, never called from CI runners.
 const NO_SIGNALS = 'SIGNAL_COLLECTION_ENABLED: "false"';
+const PUSHOVER_SINK = "url: http://alert-sink:8080/pushover";
 
 const documents = readFileSync(0, "utf8")
 	.split(/^---$/m)
@@ -86,6 +103,14 @@ if (!rendered.includes(STUB_URL) || /BINANCE_BASE_URL: "?https:/.test(rendered))
 }
 if (!rendered.includes(NO_SIGNALS) || /SIGNAL_COLLECTION_ENABLED: "?true/.test(rendered)) {
 	process.stderr.write("ci-render: SIGNAL_COLLECTION_ENABLED not turned off\n");
+	process.exit(1);
+}
+const PAGED = /name: critical-receiver/.test(rendered);
+if (
+	/pushover_configs:/.test(rendered) ||
+	(PAGED && !rendered.includes(PUSHOVER_SINK))
+) {
+	process.stderr.write("ci-render: Pushover not pointed at the alert sink\n");
 	process.exit(1);
 }
 if (/^kind: SealedSecret$/m.test(rendered)) {

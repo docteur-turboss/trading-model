@@ -3,9 +3,10 @@ import type {
 	Limit,
 	Topic,
 } from "@trading-model/primitives/primitives";
+import type { Collection, Document, ObjectId, WithId } from "mongodb";
 import { getCollection } from "../../config/db";
 import { CLAIM_PROJECTION } from "../../domain/dlq-constants";
-import { ClaimQueryExecutor } from "./claim-query-executor";
+import type { BatchContext } from "../../shared/types";
 import { DlqQueryBuilder } from "./dlq-query-builder";
 import type { StoredDlqEntry } from "./repository";
 import { toStoredDlqEntry } from "./repository";
@@ -19,24 +20,41 @@ export interface ClaimEntriesOptions {
 
 export class DlqClaimManager {
 	private readonly _queryBuilder = new DlqQueryBuilder();
-	private readonly _queryExecutor = new ClaimQueryExecutor();
 
 	async claimEntriesForRetry(
 		options: ClaimEntriesOptions
 	): Promise<StoredDlqEntry[]> {
 		const col = await getCollection();
-		const filter = this._queryBuilder.buildClaimFilter(options.topic);
-		const candidates = await this._findCandidates(col, filter, options.limit);
+		const candidates = await col
+			.find(this._queryBuilder.buildClaimFilter(options.topic), {
+				sort: { createdAt: -1 },
+				limit: options.limit,
+				projection: CLAIM_PROJECTION,
+			})
+			.toArray();
 		if (candidates.length === 0) {
 			return [];
 		}
 
-		return this._claimAndMapResults(col, candidates, options);
+		const modified = await this._claim(col, candidates, options);
+		if (modified === 0) {
+			return [];
+		}
+		// Every candidate claimed: the claim changes no projected field, no re-read needed.
+		const claimed =
+			modified === candidates.length
+				? candidates
+				: await this._fetchClaimed(
+						col,
+						candidates.map((doc) => doc._id),
+						options.batchId
+					);
+		return claimed.map(toStoredDlqEntry);
 	}
 
 	async claimEntriesByIds(
 		ids: string[],
-		ctx: import("../../shared/types").BatchContext
+		ctx: BatchContext
 	): Promise<StoredDlqEntry[]> {
 		if (ids.length === 0) {
 			return [];
@@ -47,56 +65,41 @@ export class DlqClaimManager {
 			return [];
 		}
 
-		await this._queryExecutor.claimByIds(col, objectIds, ctx, () =>
-			this._queryBuilder.buildQueuableQuery()
+		await this._claim(
+			col,
+			objectIds.map((_id) => ({ _id })),
+			ctx
 		);
-
-		return this._fetchAndMapResults(col, objectIds, ctx.batchId);
+		const claimed = await this._fetchClaimed(col, objectIds, ctx.batchId);
+		return claimed.map(toStoredDlqEntry);
 	}
 
-	private _findCandidates(
-		col: import("mongodb").Collection,
-		filter: Record<string, unknown>,
-		limit: Limit
-	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
-		return this._queryExecutor.findClaimCandidates(
-			col,
-			filter,
-			limit,
-			CLAIM_PROJECTION
-		);
-	}
-
-	private async _claimAndMapResults(
-		col: import("mongodb").Collection,
-		candidates: import("mongodb").WithId<import("mongodb").Document>[],
-		options: ClaimEntriesOptions
-	): Promise<StoredDlqEntry[]> {
-		const claimed = await this._queryExecutor.executeBulkClaim({
-			col,
+	private async _claim(
+		col: Collection,
+		candidates: { _id: ObjectId }[],
+		ctx: BatchContext
+	): Promise<number> {
+		const operations = this._queryBuilder.buildBulkUpdateOps(
 			candidates,
-			batchId: options.batchId,
-			instanceId: options.instanceId,
-			claimProjection: CLAIM_PROJECTION,
-			buildBulkUpdateOps: this._queryBuilder.buildBulkUpdateOps.bind(
-				this._queryBuilder
-			),
-		});
-		return claimed.map((doc) => toStoredDlqEntry(doc));
+			new Date(),
+			ctx.instanceId,
+			ctx.batchId
+		);
+		const result = await col.bulkWrite(operations, { ordered: false });
+		return result.modifiedCount;
 	}
 
-	private async _fetchAndMapResults(
-		col: import("mongodb").Collection,
-		objectIds: import("mongodb").ObjectId[],
+	private _fetchClaimed(
+		col: Collection,
+		ids: ObjectId[],
 		batchId: string
-	): Promise<StoredDlqEntry[]> {
-		const claimed = await this._queryExecutor.fetchClaimedByIds(
-			col,
-			objectIds,
-			batchId,
-			CLAIM_PROJECTION
-		);
-		return claimed.map((doc) => toStoredDlqEntry(doc));
+	): Promise<WithId<Document>[]> {
+		return col
+			.find(
+				{ _id: { $in: ids }, lastBatchId: batchId },
+				{ projection: CLAIM_PROJECTION }
+			)
+			.toArray();
 	}
 }
 

@@ -3,7 +3,6 @@ import { TokenManager } from "../../application/client/token-manager";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
 import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
 import { AddressManagerClient } from "./client/address-manager-client";
-import { RedisServiceCache } from "./discovery/redis-service-cache";
 import { ServiceCache } from "./discovery/service-cache";
 
 export interface HttpLayer {
@@ -21,16 +20,6 @@ export function buildHttpLayer(config: AddressManagerConfig): HttpLayer {
 		tokenManager,
 		config
 	);
-	const serviceCache = createServiceCache(config);
+	const serviceCache = new ServiceCache(config.cacheTtlMs);
 	return { httpClient, tokenManager, addressManagerClient, serviceCache };
-}
-
-function createServiceCache(config: AddressManagerConfig): IServiceCache {
-	return config.redisCache
-		? new RedisServiceCache({
-				connection: config.redisCache,
-				prefix: "discovery:cache:",
-				ttlMs: config.cacheTtlMs,
-			})
-		: new ServiceCache(config.cacheTtlMs);
 }

@@ -10,11 +10,11 @@
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "count(up{job=~\"trading-.+\"} == 1)",
+          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|dlq-service|financial-scraper.*|message-manager|trader-trainer\"} == 1)",
           "legendFormat": "Healthy"
         },
         {
-          "expr": "count(up{job=~\"trading-.+\"} == 0)",
+          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|dlq-service|financial-scraper.*|message-manager|trader-trainer\"} == 0)",
           "legendFormat": "Unhealthy"
         }
       ]
@@ -25,8 +25,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total[5m])) by (service)",
-          "legendFormat": "{{service}}"
+          "expr": "sum(rate(http_requests_total[5m])) by (job)",
+          "legendFormat": "{{job}}"
         }
       ]
     },
@@ -36,8 +36,8 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service))",
-          "legendFormat": "{{service}}"
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
+          "legendFormat": "{{job}}"
         }
       ]
     },
@@ -47,38 +47,38 @@
       "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
       "targets": [
         {
-          "expr": "count(circuit_breaker_state == 0)",
+          "expr": "count(address_manager_circuit_breaker_state == 0)",
           "legendFormat": "Closed"
         },
         {
-          "expr": "count(circuit_breaker_state == 1)",
+          "expr": "count(address_manager_circuit_breaker_state == 1)",
           "legendFormat": "Open"
         },
         {
-          "expr": "count(circuit_breaker_state == 2)",
+          "expr": "count(address_manager_circuit_breaker_state == 2)",
           "legendFormat": "Half-Open"
         }
       ]
     },
     {
-      "title": "DLQ Queue Depth",
+      "title": "DLQ Size (entries)",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 12 },
       "targets": [
         {
-          "expr": "dlq_queue_depth",
-          "legendFormat": "{{queue}}"
+          "expr": "max(dlq_collection_size)",
+          "legendFormat": "entries"
         }
       ]
     },
     {
-      "title": "TLS Certificate Expiry",
+      "title": "TLS Certificate Expiry (seconds left, blackbox probes)",
       "type": "table",
       "gridPos": { "h": 6, "w": 8, "x": 8, "y": 12 },
       "targets": [
         {
-          "expr": "tls_cert_expiry_seconds",
-          "legendFormat": "{{cn}}"
+          "expr": "probe_ssl_earliest_cert_expiry - time()",
+          "legendFormat": "{{instance}}"
         }
       ]
     },
@@ -88,8 +88,95 @@
       "gridPos": { "h": 6, "w": 8, "x": 16, "y": 12 },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (service) / sum(rate(http_requests_total[5m])) by (service)",
-          "legendFormat": "{{service}}"
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total[5m])) by (job)",
+          "legendFormat": "{{job}}"
+        }
+      ]
+    },
+    {
+      "title": "Scrape Cycles by Result",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 18 },
+      "targets": [
+        {
+          "expr": "sum(rate(fs_scrape_cycles_total[5m])) by (result)",
+          "legendFormat": "{{result}}"
+        }
+      ]
+    },
+    {
+      "title": "Candles Persisted (per second)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 18 },
+      "targets": [
+        {
+          "expr": "sum(rate(fs_candles_persisted_total[5m]))",
+          "legendFormat": "candles/s"
+        }
+      ]
+    },
+    {
+      "title": "Symbols Failed (per second)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 18 },
+      "targets": [
+        {
+          "expr": "sum(rate(fs_symbols_failed_total[5m]))",
+          "legendFormat": "failed/s"
+        }
+      ]
+    },
+    {
+      "title": "Audit Chain Broken",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "max(audit_chain_broken)",
+          "legendFormat": "broken"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "value": "0", "text": "OK" },
+            { "type": "value", "value": "1", "text": "BROKEN" }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+          }
+        }
+      }
+    },
+    {
+      "title": "Audit Chain Verification / Anchor Age",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 10, "x": 4, "y": 24 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        {
+          "expr": "time() - max(audit_chain_last_verification_timestamp)",
+          "legendFormat": "since last verification"
+        },
+        {
+          "expr": "time() - max(audit_chain_last_anchor_timestamp)",
+          "legendFormat": "since last anchor"
+        }
+      ]
+    },
+    {
+      "title": "Audit Chain Verified / Anchored Sequence",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 10, "x": 14, "y": 24 },
+      "targets": [
+        {
+          "expr": "max(audit_chain_verified_sequence)",
+          "legendFormat": "verified"
+        },
+        {
+          "expr": "max(audit_chain_anchored_sequence)",
+          "legendFormat": "anchored"
         }
       ]
     }

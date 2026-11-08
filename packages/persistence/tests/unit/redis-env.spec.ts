@@ -52,6 +52,26 @@ describe("redisConnectionFromEnv", () => {
 				],
 				name: "trading",
 				password: "secret",
+				username: undefined,
+				sentinelPassword: undefined,
+			},
+		});
+	});
+
+	it("should carry the ACL user and the sentinel password", () => {
+		expect(
+			redisConnectionFromEnv({
+				REDIS_SENTINELS: "10.0.0.7:26379",
+				REDIS_USERNAME: "discovery",
+				REDIS_PASSWORD: "service-pw",
+				REDIS_SENTINEL_PASSWORD: "sentinel-pw",
+			})
+		).toMatchObject({
+			mode: "sentinel",
+			config: {
+				username: "discovery",
+				password: "service-pw",
+				sentinelPassword: "sentinel-pw",
 			},
 		});
 	});
@@ -69,6 +89,8 @@ describe("redisConnectionFromEnv", () => {
 				sentinels: [{ host: "10.0.0.7", port: 26379 }],
 				name: "mymaster",
 				password: undefined,
+				username: undefined,
+				sentinelPassword: undefined,
 			},
 		});
 	});

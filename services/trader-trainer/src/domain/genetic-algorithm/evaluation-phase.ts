@@ -35,7 +35,7 @@ export interface EvaluationResult extends EvaluationPnl {
 export const EVAL_EPSILON = 0.05;
 
 /** The genome as evaluated: same weights and policy, evaluation exploration. */
-export function evaluationGenome(
+function evaluationGenome(
 	genome: DeepReadonly<LamarckGenome>
 ): DeepReadonly<LamarckGenome> {
 	return {

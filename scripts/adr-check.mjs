@@ -26,11 +26,16 @@
  *   - every relative link in a tracked *.md (docs/architecture/code/ excluded,
  *     it is generated) points at an existing file or folder (issue #372)
  *
+
+ * - every PascalCase `Name` cited in code in docs/architecture/*.md exists in
+ *   services/ or packages/ (issue #498)
+ *
  * A manual review older than MANUAL_REVIEW_MAX_AGE_DAYS is reported as a
  * warning, not a failure: the check must not break a build on a date.
  *
  * Usage: node scripts/adr-check.mjs
  */
+import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -191,6 +196,34 @@ function checkMarkdownLinks() {
   }
 }
 
+/** A PascalCase symbol in backticks, acronym segments included (`FooBAR`); linear, no nested quantifier (CodeQL). */
+const SYMBOL_PATTERN = /`([A-Z][a-z0-9]+[A-Z][A-Za-z0-9]*)`/g;
+// Self-check: a narrower pattern silently stops checking the symbols it misses.
+const cites = (text) => [...text.matchAll(SYMBOL_PATTERN)].map(([, name]) => name);
+assert.deepEqual(cites('`EndpointResolver` `FooBAR` `S3AnchorStore` `Foo` `HTTP` `fooBar`'), ['EndpointResolver', 'FooBAR', 'S3AnchorStore']);
+
+/** Names an architecture page may cite in code that are not symbols of services/ or packages/. */
+const SYMBOL_EXCEPTIONS = new Set(['EnumEventMessage']); // historical enum, named on purpose as removed
+/** Fails on a PascalCase `Name` cited in docs/architecture/*.md that no file of services/ or packages/ mentions. */
+function checkArchitectureSymbols() {
+  const dir = join(ROOT, 'docs/architecture');
+  const pages = readdirSync(dir).filter((f) => f.endsWith('.md'));
+  const cited = new Map();
+  for (const page of pages) {
+    const text = readFileSync(join(dir, page), 'utf8');
+    for (const [, name] of text.matchAll(SYMBOL_PATTERN)) {
+      if (!SYMBOL_EXCEPTIONS.has(name)) cited.set(name, `docs/architecture/${page}`);
+    }
+  }
+  for (const [name, page] of cited) {
+    try {
+      execFileSync('git', ['grep', '-qw', name, '--', 'services', 'packages'], { cwd: ROOT });
+    } catch {
+      errors.push(`${page}: \`${name}\` is not defined in services/ or packages/ (fix the page, or list it in SYMBOL_EXCEPTIONS)`);
+    }
+  }
+}
+
 const adrs = readAdrs();
 const scripts = packageScripts();
 const gates = gateSources();
@@ -201,6 +234,7 @@ for (const adr of adrs.values()) {
 }
 checkIndex(adrs);
 checkMarkdownLinks();
+checkArchitectureSymbols();
 
 for (const warning of warnings) console.warn(`  ! ${warning}`);
 if (errors.length > 0) {

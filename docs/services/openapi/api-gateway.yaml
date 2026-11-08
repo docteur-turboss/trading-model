@@ -13,10 +13,10 @@ info:
     registry entry (ADR-0021) also describe their parameters, request body
     and responses from the service's Zod schemas; the others do not yet
     (scripts/api-contract-known-gaps.json, `schemas`).
-  version: "v1"
+  version: "audit-logger v1, discovery-server v1, dlq-service v1, financial-scraper v2, message-manager v1, trader-trainer v1"
 servers:
   - url: http://localhost:8449
-    description: Development (compose) — edge-proxy, which forwards /v1 to the gateway over mTLS
+    description: Development (compose) — edge-proxy, which forwards /v{major} to the gateway over mTLS
   - url: https://api.trading-model.example.com
     description: Kubernetes — public API Ingress → edge-proxy
 security:
@@ -122,6 +122,14 @@ paths:
               - type: "string"
                 format: "date"
                 pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "withTotal"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+            enum:
+              - "true"
+              - "false"
         - name: "page"
           in: "query"
           required: false
@@ -202,7 +210,6 @@ paths:
                     type: "integer"
                 required:
                   - "docs"
-                  - "total"
                   - "page"
                   - "limit"
                 additionalProperties: false
@@ -645,6 +652,9 @@ paths:
                           nullable: true
                           type: "string"
                         message: {}
+                        service:
+                          nullable: true
+                          type: "string"
                         reason:
                           nullable: true
                           type: "string"
@@ -657,6 +667,7 @@ paths:
                         - "id"
                         - "topic"
                         - "message"
+                        - "service"
                         - "reason"
                         - "deliveryAttempt"
                         - "createdAt"
@@ -731,6 +742,9 @@ paths:
                         - type: "string"
                           format: "date-time"
                 messageId:
+                  type: "string"
+                  minLength: 1
+                service:
                   type: "string"
                   minLength: 1
               required:
@@ -917,9 +931,744 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /v1/financial-scraper/candles/sources/{source}:
+  /v1/trader-trainer/best-agent:
     get:
-      operationId: "getV1FinancialScraperCandlesSourcesSource"
+      operationId: "getV1TraderTrainerBestAgent"
+      tags:
+        - "trader-trainer"
+      summary: "Best agent of the last trained symbol"
+      x-registry-entry: "bestAgent"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "object"
+                    properties:
+                      agent:
+                        type: "object"
+                        properties:
+                          id:
+                            type: "string"
+                          generation:
+                            type: "integer"
+                          fitness:
+                            type: "number"
+                          sharpe:
+                            type: "number"
+                          avgPnl:
+                            type: "number"
+                          maxDrawdown:
+                            type: "number"
+                            minimum: 0
+                          gaControl:
+                            type: "object"
+                            properties:
+                              populationSize:
+                                type: "integer"
+                              elitismFraction:
+                                type: "number"
+                              survivorFraction:
+                                type: "number"
+                              episodesPerIndividual:
+                                type: "integer"
+                              selectionType:
+                                type: "string"
+                              fitnessType:
+                                type: "string"
+                            required:
+                              - "populationSize"
+                              - "elitismFraction"
+                              - "survivorFraction"
+                              - "episodesPerIndividual"
+                              - "selectionType"
+                              - "fitnessType"
+                            additionalProperties: false
+                          network:
+                            type: "object"
+                            properties:
+                              inputDim:
+                                type: "integer"
+                              outputDim:
+                                type: "integer"
+                              hiddenLayers:
+                                type: "array"
+                                items:
+                                  type: "object"
+                                  properties:
+                                    neurons:
+                                      type: "integer"
+                                    activation:
+                                      type: "string"
+                                  required:
+                                    - "neurons"
+                                    - "activation"
+                                  additionalProperties: false
+                            required:
+                              - "inputDim"
+                              - "outputDim"
+                              - "hiddenLayers"
+                            additionalProperties: false
+                          rl:
+                            type: "object"
+                            properties:
+                              gamma:
+                                type: "number"
+                              learningRate:
+                                type: "number"
+                              epsilonStart:
+                                type: "number"
+                              epsilonMin:
+                                type: "number"
+                              epsilonDecay:
+                                type: "number"
+                            required:
+                              - "gamma"
+                              - "learningRate"
+                              - "epsilonStart"
+                              - "epsilonMin"
+                              - "epsilonDecay"
+                            additionalProperties: false
+                        required:
+                          - "id"
+                          - "generation"
+                          - "fitness"
+                          - "sharpe"
+                          - "avgPnl"
+                          - "maxDrawdown"
+                          - "gaControl"
+                          - "network"
+                          - "rl"
+                        additionalProperties: false
+                      training:
+                        type: "boolean"
+                      symbol:
+                        type: "string"
+                      generation:
+                        type: "integer"
+                    required:
+                      - "agent"
+                      - "training"
+                      - "symbol"
+                      - "generation"
+                    additionalProperties: false
+                required:
+                  - "data"
+                additionalProperties: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: "Not found"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/trader-trainer/models/{symbol}:
+    get:
+      operationId: "getV1TraderTrainerModelsSymbol"
+      tags:
+        - "trader-trainer"
+      summary: "Stored model versions of a symbol, newest first"
+      x-registry-entry: "listModels"
+      parameters:
+        - name: "symbol"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            pattern: "^[A-Za-z0-9._-]+$"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        version:
+                          type: "string"
+                        createdAt:
+                          type: "string"
+                          format: "date-time"
+                        sha256:
+                          type: "string"
+                          pattern: "^[0-9a-f]{64}$"
+                        metrics:
+                          type: "object"
+                          properties:
+                            metricsVersion:
+                              type: "integer"
+                            generation:
+                              type: "integer"
+                            fitness:
+                              type: "number"
+                            sharpe:
+                              type: "number"
+                            avgPnl:
+                              type: "number"
+                            maxDrawdown:
+                              type: "number"
+                              minimum: 0
+                          required:
+                            - "generation"
+                            - "fitness"
+                            - "sharpe"
+                            - "avgPnl"
+                            - "maxDrawdown"
+                          additionalProperties: false
+                      required:
+                        - "symbol"
+                        - "version"
+                        - "createdAt"
+                        - "sha256"
+                        - "metrics"
+                      additionalProperties: false
+                required:
+                  - "data"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/trader-trainer/models/{symbol}/{version}:
+    get:
+      operationId: "getV1TraderTrainerModelsSymbolVersion"
+      tags:
+        - "trader-trainer"
+      summary: "Manifest of a model version (everything but the weights)"
+      x-registry-entry: "getModel"
+      parameters:
+        - name: "symbol"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            pattern: "^[A-Za-z0-9._-]+$"
+        - name: "version"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            pattern: "^\\d{8}T\\d{6}Z-[0-9a-f]{12}$"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "object"
+                    properties:
+                      formatVersion:
+                        type: "number"
+                        enum:
+                          - 1
+                      symbol:
+                        type: "string"
+                      version:
+                        type: "string"
+                      createdAt:
+                        type: "string"
+                        format: "date-time"
+                      producedBy:
+                        type: "object"
+                        properties:
+                          instanceId:
+                            type: "string"
+                        required:
+                          - "instanceId"
+                        additionalProperties: false
+                      weights:
+                        type: "object"
+                        properties:
+                          file:
+                            type: "string"
+                            enum:
+                              - "weights.f32"
+                          dtype:
+                            type: "string"
+                            enum:
+                              - "float32-le"
+                          length:
+                            type: "integer"
+                          sha256:
+                            type: "string"
+                            pattern: "^[0-9a-f]{64}$"
+                        required:
+                          - "file"
+                          - "dtype"
+                          - "length"
+                          - "sha256"
+                        additionalProperties: false
+                      genome:
+                        type: "object"
+                        additionalProperties: {}
+                      features:
+                        type: "object"
+                        properties:
+                          dim:
+                            type: "integer"
+                          fields:
+                            type: "array"
+                            items:
+                              type: "string"
+                        required:
+                          - "dim"
+                          - "fields"
+                        additionalProperties: false
+                      normalization:
+                        type: "object"
+                        additionalProperties: {}
+                      metrics:
+                        type: "object"
+                        properties:
+                          metricsVersion:
+                            type: "integer"
+                          generation:
+                            type: "integer"
+                          fitness:
+                            type: "number"
+                          sharpe:
+                            type: "number"
+                          avgPnl:
+                            type: "number"
+                          maxDrawdown:
+                            type: "number"
+                            minimum: 0
+                        required:
+                          - "generation"
+                          - "fitness"
+                          - "sharpe"
+                          - "avgPnl"
+                          - "maxDrawdown"
+                        additionalProperties: false
+                    required:
+                      - "formatVersion"
+                      - "symbol"
+                      - "version"
+                      - "createdAt"
+                      - "producedBy"
+                      - "weights"
+                      - "genome"
+                      - "features"
+                      - "normalization"
+                      - "metrics"
+                    additionalProperties: false
+                required:
+                  - "data"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: "Not found"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/trader-trainer/training-agents:
+    get:
+      operationId: "getV1TraderTrainerTrainingAgents"
+      tags:
+        - "trader-trainer"
+      summary: "Best agent of every trained symbol"
+      x-registry-entry: "trainingAgents"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "object"
+                    properties:
+                      agents:
+                        type: "array"
+                        items:
+                          type: "object"
+                          properties:
+                            symbol:
+                              type: "string"
+                            agent:
+                              type: "object"
+                              properties:
+                                id:
+                                  type: "string"
+                                generation:
+                                  type: "integer"
+                                fitness:
+                                  type: "number"
+                                sharpe:
+                                  type: "number"
+                                avgPnl:
+                                  type: "number"
+                                maxDrawdown:
+                                  type: "number"
+                                  minimum: 0
+                                gaControl:
+                                  type: "object"
+                                  properties:
+                                    populationSize:
+                                      type: "integer"
+                                    elitismFraction:
+                                      type: "number"
+                                    survivorFraction:
+                                      type: "number"
+                                    episodesPerIndividual:
+                                      type: "integer"
+                                    selectionType:
+                                      type: "string"
+                                    fitnessType:
+                                      type: "string"
+                                  required:
+                                    - "populationSize"
+                                    - "elitismFraction"
+                                    - "survivorFraction"
+                                    - "episodesPerIndividual"
+                                    - "selectionType"
+                                    - "fitnessType"
+                                  additionalProperties: false
+                                network:
+                                  type: "object"
+                                  properties:
+                                    inputDim:
+                                      type: "integer"
+                                    outputDim:
+                                      type: "integer"
+                                    hiddenLayers:
+                                      type: "array"
+                                      items:
+                                        type: "object"
+                                        properties:
+                                          neurons:
+                                            type: "integer"
+                                          activation:
+                                            type: "string"
+                                        required:
+                                          - "neurons"
+                                          - "activation"
+                                        additionalProperties: false
+                                  required:
+                                    - "inputDim"
+                                    - "outputDim"
+                                    - "hiddenLayers"
+                                  additionalProperties: false
+                                rl:
+                                  type: "object"
+                                  properties:
+                                    gamma:
+                                      type: "number"
+                                    learningRate:
+                                      type: "number"
+                                    epsilonStart:
+                                      type: "number"
+                                    epsilonMin:
+                                      type: "number"
+                                    epsilonDecay:
+                                      type: "number"
+                                  required:
+                                    - "gamma"
+                                    - "learningRate"
+                                    - "epsilonStart"
+                                    - "epsilonMin"
+                                    - "epsilonDecay"
+                                  additionalProperties: false
+                              required:
+                                - "id"
+                                - "generation"
+                                - "fitness"
+                                - "sharpe"
+                                - "avgPnl"
+                                - "maxDrawdown"
+                                - "gaControl"
+                                - "network"
+                                - "rl"
+                              additionalProperties: false
+                            training:
+                              type: "boolean"
+                            generation:
+                              type: "integer"
+                          required:
+                            - "symbol"
+                            - "agent"
+                            - "training"
+                            - "generation"
+                          additionalProperties: false
+                      training:
+                        type: "boolean"
+                      currentSymbol:
+                        type: "string"
+                    required:
+                      - "agents"
+                      - "training"
+                      - "currentSymbol"
+                    additionalProperties: false
+                required:
+                  - "data"
+                additionalProperties: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/trader-trainer/training-agents/{symbol}:
+    get:
+      operationId: "getV1TraderTrainerTrainingAgentsSymbol"
+      tags:
+        - "trader-trainer"
+      summary: "Best agent of a symbol, with its latest stored model"
+      x-registry-entry: "trainingAgent"
+      parameters:
+        - name: "symbol"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            minLength: 1
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "object"
+                    properties:
+                      symbol:
+                        type: "string"
+                      agent:
+                        type: "object"
+                        properties:
+                          id:
+                            type: "string"
+                          generation:
+                            type: "integer"
+                          fitness:
+                            type: "number"
+                          sharpe:
+                            type: "number"
+                          avgPnl:
+                            type: "number"
+                          maxDrawdown:
+                            type: "number"
+                            minimum: 0
+                          gaControl:
+                            type: "object"
+                            properties:
+                              populationSize:
+                                type: "integer"
+                              elitismFraction:
+                                type: "number"
+                              survivorFraction:
+                                type: "number"
+                              episodesPerIndividual:
+                                type: "integer"
+                              selectionType:
+                                type: "string"
+                              fitnessType:
+                                type: "string"
+                            required:
+                              - "populationSize"
+                              - "elitismFraction"
+                              - "survivorFraction"
+                              - "episodesPerIndividual"
+                              - "selectionType"
+                              - "fitnessType"
+                            additionalProperties: false
+                          network:
+                            type: "object"
+                            properties:
+                              inputDim:
+                                type: "integer"
+                              outputDim:
+                                type: "integer"
+                              hiddenLayers:
+                                type: "array"
+                                items:
+                                  type: "object"
+                                  properties:
+                                    neurons:
+                                      type: "integer"
+                                    activation:
+                                      type: "string"
+                                  required:
+                                    - "neurons"
+                                    - "activation"
+                                  additionalProperties: false
+                            required:
+                              - "inputDim"
+                              - "outputDim"
+                              - "hiddenLayers"
+                            additionalProperties: false
+                          rl:
+                            type: "object"
+                            properties:
+                              gamma:
+                                type: "number"
+                              learningRate:
+                                type: "number"
+                              epsilonStart:
+                                type: "number"
+                              epsilonMin:
+                                type: "number"
+                              epsilonDecay:
+                                type: "number"
+                            required:
+                              - "gamma"
+                              - "learningRate"
+                              - "epsilonStart"
+                              - "epsilonMin"
+                              - "epsilonDecay"
+                            additionalProperties: false
+                        required:
+                          - "id"
+                          - "generation"
+                          - "fitness"
+                          - "sharpe"
+                          - "avgPnl"
+                          - "maxDrawdown"
+                          - "gaControl"
+                          - "network"
+                          - "rl"
+                        additionalProperties: false
+                      training:
+                        type: "boolean"
+                      generation:
+                        type: "integer"
+                      model:
+                        nullable: true
+                        type: "object"
+                        properties:
+                          symbol:
+                            type: "string"
+                          version:
+                            type: "string"
+                          createdAt:
+                            type: "string"
+                            format: "date-time"
+                          sha256:
+                            type: "string"
+                            pattern: "^[0-9a-f]{64}$"
+                          metrics:
+                            type: "object"
+                            properties:
+                              metricsVersion:
+                                type: "integer"
+                              generation:
+                                type: "integer"
+                              fitness:
+                                type: "number"
+                              sharpe:
+                                type: "number"
+                              avgPnl:
+                                type: "number"
+                              maxDrawdown:
+                                type: "number"
+                                minimum: 0
+                            required:
+                              - "generation"
+                              - "fitness"
+                              - "sharpe"
+                              - "avgPnl"
+                              - "maxDrawdown"
+                            additionalProperties: false
+                        required:
+                          - "symbol"
+                          - "version"
+                          - "createdAt"
+                          - "sha256"
+                          - "metrics"
+                        additionalProperties: false
+                    required:
+                      - "symbol"
+                      - "agent"
+                      - "training"
+                      - "generation"
+                      - "model"
+                    additionalProperties: false
+                required:
+                  - "data"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: "Not found"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/trader-trainer/training-status:
+    get:
+      operationId: "getV1TraderTrainerTrainingStatus"
+      tags:
+        - "trader-trainer"
+      summary: "Whether a training runs, on which symbol and generation"
+      x-registry-entry: "trainingStatus"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  data:
+                    type: "object"
+                    properties:
+                      training:
+                        type: "boolean"
+                      symbol:
+                        type: "string"
+                      generation:
+                        type: "integer"
+                    required:
+                      - "training"
+                      - "symbol"
+                      - "generation"
+                    additionalProperties: false
+                required:
+                  - "data"
+                additionalProperties: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v2/financial-scraper/candles/sources/{source}:
+    get:
+      operationId: "getV2FinancialScraperCandlesSourcesSource"
       tags:
         - "financial-scraper"
       summary: "Candles of a source"
@@ -934,55 +1683,101 @@ paths:
               - "bloomberg"
               - "binance"
               - "nyse"
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    interval:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    close:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    trades:
-                      type: "integer"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "interval"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "close"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        interval:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        close:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        trades:
+                          type: "integer"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "interval"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "close"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -993,9 +1788,9 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/candles/symbols/{symbol}:
+  /v2/financial-scraper/candles/symbols/{symbol}:
     get:
-      operationId: "getV1FinancialScraperCandlesSymbolsSymbol"
+      operationId: "getV2FinancialScraperCandlesSymbolsSymbol"
       tags:
         - "financial-scraper"
       summary: "Candles of a symbol"
@@ -1007,55 +1802,101 @@ paths:
           schema:
             type: "string"
             minLength: 1
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    interval:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    close:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    trades:
-                      type: "integer"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "interval"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "close"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        interval:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        close:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        trades:
+                          type: "integer"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "interval"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "close"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -1066,9 +1907,9 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/candles/timestamp/{timestamp}:
+  /v2/financial-scraper/candles/timestamp/{timestamp}:
     get:
-      operationId: "getV1FinancialScraperCandlesTimestampTimestamp"
+      operationId: "getV2FinancialScraperCandlesTimestampTimestamp"
       tags:
         - "financial-scraper"
       summary: "Candles opened after a date"
@@ -1084,362 +1925,101 @@ paths:
               - type: "string"
                 format: "date"
                 pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    interval:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    close:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    trades:
-                      type: "integer"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "interval"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "close"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/orderbook/after/timestamp/{timestamp}:
-    get:
-      operationId: "getV1FinancialScraperOrderbookAfterTimestampTimestamp"
-      tags:
-        - "financial-scraper"
-      summary: "Order book snapshots after an instant"
-      x-registry-entry: "orderBooksAfter"
-      parameters:
-        - name: "timestamp"
-          in: "path"
-          required: true
+        - name: "limit"
+          in: "query"
+          required: false
           schema:
+            default: 500
             type: "integer"
-            minimum: 0
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    timestamp:
-                      type: "integer"
-                    bids:
-                      type: "array"
-                      items:
-                        type: "object"
-                        properties:
-                          price:
-                            type: "number"
-                          quantity:
-                            type: "number"
-                        required:
-                          - "price"
-                          - "quantity"
-                        additionalProperties: false
-                    asks:
-                      type: "array"
-                      items:
-                        type: "object"
-                        properties:
-                          price:
-                            type: "number"
-                          quantity:
-                            type: "number"
-                        required:
-                          - "price"
-                          - "quantity"
-                        additionalProperties: false
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "timestamp"
-                    - "bids"
-                    - "asks"
-                  additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/orderbook/before/timestamp/{timestamp}:
-    get:
-      operationId: "getV1FinancialScraperOrderbookBeforeTimestampTimestamp"
-      tags:
-        - "financial-scraper"
-      summary: "Order book snapshots before an instant"
-      x-registry-entry: "orderBooksBefore"
-      parameters:
-        - name: "timestamp"
-          in: "path"
-          required: true
-          schema:
-            type: "integer"
-            minimum: 0
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    timestamp:
-                      type: "integer"
-                    bids:
-                      type: "array"
-                      items:
-                        type: "object"
-                        properties:
-                          price:
-                            type: "number"
-                          quantity:
-                            type: "number"
-                        required:
-                          - "price"
-                          - "quantity"
-                        additionalProperties: false
-                    asks:
-                      type: "array"
-                      items:
-                        type: "object"
-                        properties:
-                          price:
-                            type: "number"
-                          quantity:
-                            type: "number"
-                        required:
-                          - "price"
-                          - "quantity"
-                        additionalProperties: false
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "timestamp"
-                    - "bids"
-                    - "asks"
-                  additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/orderbook/sources/{source}:
-    get:
-      operationId: "getV1FinancialScraperOrderbookSourcesSource"
-      tags:
-        - "financial-scraper"
-      summary: "Order book snapshots of a source"
-      x-registry-entry: "orderBooksBySource"
-      parameters:
-        - name: "source"
-          in: "path"
-          required: true
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
           schema:
             type: "string"
-            enum:
-              - "bloomberg"
-              - "binance"
-              - "nyse"
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    timestamp:
-                      type: "integer"
-                    bids:
-                      type: "array"
-                      items:
-                        type: "object"
-                        properties:
-                          price:
-                            type: "number"
-                          quantity:
-                            type: "number"
-                        required:
-                          - "price"
-                          - "quantity"
-                        additionalProperties: false
-                    asks:
-                      type: "array"
-                      items:
-                        type: "object"
-                        properties:
-                          price:
-                            type: "number"
-                          quantity:
-                            type: "number"
-                        required:
-                          - "price"
-                          - "quantity"
-                        additionalProperties: false
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "timestamp"
-                    - "bids"
-                    - "asks"
-                  additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/orderbook/symbols/{symbol}:
-    get:
-      operationId: "getV1FinancialScraperOrderbookSymbolsSymbol"
-      tags:
-        - "financial-scraper"
-      summary: "Order book snapshots of a symbol"
-      x-registry-entry: "orderBooksBySymbol"
-      parameters:
-        - name: "symbol"
-          in: "path"
-          required: true
+        - name: "from"
+          in: "query"
+          required: false
           schema:
-            type: "string"
-            minLength: 1
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    timestamp:
-                      type: "integer"
-                    bids:
-                      type: "array"
-                      items:
-                        type: "object"
-                        properties:
-                          price:
-                            type: "number"
-                          quantity:
-                            type: "number"
-                        required:
-                          - "price"
-                          - "quantity"
-                        additionalProperties: false
-                    asks:
-                      type: "array"
-                      items:
-                        type: "object"
-                        properties:
-                          price:
-                            type: "number"
-                          quantity:
-                            type: "number"
-                        required:
-                          - "price"
-                          - "quantity"
-                        additionalProperties: false
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "timestamp"
-                    - "bids"
-                    - "asks"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        interval:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        close:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        trades:
+                          type: "integer"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "interval"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "close"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -1450,9 +2030,9 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/signals/assets/{assetId}:
+  /v2/financial-scraper/signals/assets/{assetId}:
     get:
-      operationId: "getV1FinancialScraperSignalsAssetsAssetId"
+      operationId: "getV2FinancialScraperSignalsAssetsAssetId"
       tags:
         - "financial-scraper"
       summary: "Signals of an asset and of its sector, every dimension, observed in [from, to)"
@@ -2201,9 +2781,9 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /v1/financial-scraper/ticker/sources/{source}:
+  /v2/financial-scraper/ticker/sources/{source}:
     get:
-      operationId: "getV1FinancialScraperTickerSourcesSource"
+      operationId: "getV2FinancialScraperTickerSourcesSource"
       tags:
         - "financial-scraper"
       summary: "24h tickers of a source"
@@ -2218,50 +2798,96 @@ paths:
               - "bloomberg"
               - "binance"
               - "nyse"
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    last:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "last"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        last:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "last"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -2272,9 +2898,9 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/ticker/symbols/{symbol}:
+  /v2/financial-scraper/ticker/symbols/{symbol}:
     get:
-      operationId: "getV1FinancialScraperTickerSymbolsSymbol"
+      operationId: "getV2FinancialScraperTickerSymbolsSymbol"
       tags:
         - "financial-scraper"
       summary: "24h tickers of a symbol"
@@ -2286,50 +2912,96 @@ paths:
           schema:
             type: "string"
             minLength: 1
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    last:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "last"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        last:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "last"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -2340,9 +3012,9 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/ticker/timestamp/{timestamp}:
+  /v2/financial-scraper/ticker/timestamp/{timestamp}:
     get:
-      operationId: "getV1FinancialScraperTickerTimestampTimestamp"
+      operationId: "getV2FinancialScraperTickerTimestampTimestamp"
       tags:
         - "financial-scraper"
       summary: "24h tickers opened at exactly this instant"
@@ -2358,50 +3030,96 @@ paths:
               - type: "string"
                 format: "date"
                 pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    open:
-                      type: "number"
-                    high:
-                      type: "number"
-                    low:
-                      type: "number"
-                    last:
-                      type: "number"
-                    volume:
-                      type: "number"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                    closeTimestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "open"
-                    - "high"
-                    - "low"
-                    - "last"
-                    - "volume"
-                    - "timestamp"
-                    - "closeTimestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        open:
+                          type: "number"
+                        high:
+                          type: "number"
+                        low:
+                          type: "number"
+                        last:
+                          type: "number"
+                        volume:
+                          type: "number"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                        closeTimestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "open"
+                        - "high"
+                        - "low"
+                        - "last"
+                        - "volume"
+                        - "timestamp"
+                        - "closeTimestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -2412,9 +3130,9 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/trade/sources/{source}:
+  /v2/financial-scraper/trade/sources/{source}:
     get:
-      operationId: "getV1FinancialScraperTradeSourcesSource"
+      operationId: "getV2FinancialScraperTradeSourcesSource"
       tags:
         - "financial-scraper"
       summary: "Trades of a source"
@@ -2429,44 +3147,90 @@ paths:
               - "bloomberg"
               - "binance"
               - "nyse"
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    side:
-                      type: "string"
-                    price:
-                      type: "number"
-                    quantity:
-                      type: "number"
-                    tradeId:
-                      type: "string"
-                      pattern: "^\\d+$"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "side"
-                    - "price"
-                    - "quantity"
-                    - "tradeId"
-                    - "timestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        side:
+                          type: "string"
+                        price:
+                          type: "number"
+                        quantity:
+                          type: "number"
+                        tradeId:
+                          type: "string"
+                          pattern: "^\\d+$"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "side"
+                        - "price"
+                        - "quantity"
+                        - "tradeId"
+                        - "timestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -2477,9 +3241,9 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/trade/symbols/{symbol}:
+  /v2/financial-scraper/trade/symbols/{symbol}:
     get:
-      operationId: "getV1FinancialScraperTradeSymbolsSymbol"
+      operationId: "getV2FinancialScraperTradeSymbolsSymbol"
       tags:
         - "financial-scraper"
       summary: "Trades of a symbol"
@@ -2491,44 +3255,90 @@ paths:
           schema:
             type: "string"
             minLength: 1
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
           content:
             "application/json":
               schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    side:
-                      type: "string"
-                    price:
-                      type: "number"
-                    quantity:
-                      type: "number"
-                    tradeId:
-                      type: "string"
-                      pattern: "^\\d+$"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "side"
-                    - "price"
-                    - "quantity"
-                    - "tradeId"
-                    - "timestamp"
-                  additionalProperties: false
+                type: "object"
+                properties:
+                  rows:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        symbol:
+                          type: "string"
+                        market:
+                          type: "string"
+                        source:
+                          type: "string"
+                        side:
+                          type: "string"
+                        price:
+                          type: "number"
+                        quantity:
+                          type: "number"
+                        tradeId:
+                          type: "string"
+                          pattern: "^\\d+$"
+                        timestamp:
+                          type: "string"
+                          format: "date-time"
+                      required:
+                        - "symbol"
+                        - "market"
+                        - "source"
+                        - "side"
+                        - "price"
+                        - "quantity"
+                        - "tradeId"
+                        - "timestamp"
+                      additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
+                required:
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
+                additionalProperties: false
         "400":
           description: "Invalid request"
           content:
@@ -2539,9 +3349,9 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-  /v1/financial-scraper/trade/timestamp/{timestamp}:
+  /v2/financial-scraper/trade/timestamp/{timestamp}:
     get:
-      operationId: "getV1FinancialScraperTradeTimestampTimestamp"
+      operationId: "getV2FinancialScraperTradeTimestampTimestamp"
       tags:
         - "financial-scraper"
       summary: "Trades at exactly this instant"
@@ -2557,204 +3367,39 @@ paths:
               - type: "string"
                 format: "date"
                 pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    symbol:
-                      type: "string"
-                    market:
-                      type: "string"
-                    source:
-                      type: "string"
-                    side:
-                      type: "string"
-                    price:
-                      type: "number"
-                    quantity:
-                      type: "number"
-                    tradeId:
-                      type: "string"
-                      pattern: "^\\d+$"
-                    timestamp:
-                      type: "string"
-                      format: "date-time"
-                  required:
-                    - "symbol"
-                    - "market"
-                    - "source"
-                    - "side"
-                    - "price"
-                    - "quantity"
-                    - "tradeId"
-                    - "timestamp"
-                  additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /v1/trader-trainer/best-agent:
-    get:
-      operationId: "getV1TraderTrainerBestAgent"
-      tags:
-        - "trader-trainer"
-      summary: "Best agent of the last trained symbol"
-      x-registry-entry: "bestAgent"
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "object"
-                properties:
-                  data:
-                    type: "object"
-                    properties:
-                      agent:
-                        type: "object"
-                        properties:
-                          id:
-                            type: "string"
-                          generation:
-                            type: "integer"
-                          fitness:
-                            type: "number"
-                          sharpe:
-                            type: "number"
-                          avgPnl:
-                            type: "number"
-                          maxDrawdown:
-                            type: "number"
-                            minimum: 0
-                          gaControl:
-                            type: "object"
-                            properties:
-                              populationSize:
-                                type: "integer"
-                              elitismFraction:
-                                type: "number"
-                              survivorFraction:
-                                type: "number"
-                              episodesPerIndividual:
-                                type: "integer"
-                              selectionType:
-                                type: "string"
-                              fitnessType:
-                                type: "string"
-                            required:
-                              - "populationSize"
-                              - "elitismFraction"
-                              - "survivorFraction"
-                              - "episodesPerIndividual"
-                              - "selectionType"
-                              - "fitnessType"
-                            additionalProperties: false
-                          network:
-                            type: "object"
-                            properties:
-                              inputDim:
-                                type: "integer"
-                              outputDim:
-                                type: "integer"
-                              hiddenLayers:
-                                type: "array"
-                                items:
-                                  type: "object"
-                                  properties:
-                                    neurons:
-                                      type: "integer"
-                                    activation:
-                                      type: "string"
-                                  required:
-                                    - "neurons"
-                                    - "activation"
-                                  additionalProperties: false
-                            required:
-                              - "inputDim"
-                              - "outputDim"
-                              - "hiddenLayers"
-                            additionalProperties: false
-                          rl:
-                            type: "object"
-                            properties:
-                              gamma:
-                                type: "number"
-                              learningRate:
-                                type: "number"
-                              epsilonStart:
-                                type: "number"
-                              epsilonMin:
-                                type: "number"
-                              epsilonDecay:
-                                type: "number"
-                            required:
-                              - "gamma"
-                              - "learningRate"
-                              - "epsilonStart"
-                              - "epsilonMin"
-                              - "epsilonDecay"
-                            additionalProperties: false
-                        required:
-                          - "id"
-                          - "generation"
-                          - "fitness"
-                          - "sharpe"
-                          - "avgPnl"
-                          - "maxDrawdown"
-                          - "gaControl"
-                          - "network"
-                          - "rl"
-                        additionalProperties: false
-                      training:
-                        type: "boolean"
-                      symbol:
-                        type: "string"
-                      generation:
-                        type: "integer"
-                    required:
-                      - "agent"
-                      - "training"
-                      - "symbol"
-                      - "generation"
-                    additionalProperties: false
-                required:
-                  - "data"
-                additionalProperties: false
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          description: "Not found"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /v1/trader-trainer/models/{symbol}:
-    get:
-      operationId: "getV1TraderTrainerModelsSymbol"
-      tags:
-        - "trader-trainer"
-      summary: "Stored model versions of a symbol, newest first"
-      x-registry-entry: "listModels"
-      parameters:
-        - name: "symbol"
-          in: "path"
-          required: true
+        - name: "limit"
+          in: "query"
+          required: false
+          schema:
+            default: 500
+            type: "integer"
+            minimum: 1
+            maximum: 5000
+        - name: "after"
+          in: "query"
+          required: false
           schema:
             type: "string"
-            pattern: "^[A-Za-z0-9._-]+$"
+        - name: "from"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "to"
+          in: "query"
+          required: false
+          schema:
+            anyOf:
+              - type: "string"
+                format: "date-time"
+              - type: "string"
+                format: "date"
+                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
       responses:
         "200":
           description: "OK"
@@ -2763,53 +3408,48 @@ paths:
               schema:
                 type: "object"
                 properties:
-                  data:
+                  rows:
                     type: "array"
                     items:
                       type: "object"
                       properties:
                         symbol:
                           type: "string"
-                        version:
+                        market:
                           type: "string"
-                        createdAt:
+                        source:
+                          type: "string"
+                        side:
+                          type: "string"
+                        price:
+                          type: "number"
+                        quantity:
+                          type: "number"
+                        tradeId:
+                          type: "string"
+                          pattern: "^\\d+$"
+                        timestamp:
                           type: "string"
                           format: "date-time"
-                        sha256:
-                          type: "string"
-                          pattern: "^[0-9a-f]{64}$"
-                        metrics:
-                          type: "object"
-                          properties:
-                            metricsVersion:
-                              type: "integer"
-                            generation:
-                              type: "integer"
-                            fitness:
-                              type: "number"
-                            sharpe:
-                              type: "number"
-                            avgPnl:
-                              type: "number"
-                            maxDrawdown:
-                              type: "number"
-                              minimum: 0
-                          required:
-                            - "generation"
-                            - "fitness"
-                            - "sharpe"
-                            - "avgPnl"
-                            - "maxDrawdown"
-                          additionalProperties: false
                       required:
                         - "symbol"
-                        - "version"
-                        - "createdAt"
-                        - "sha256"
-                        - "metrics"
+                        - "market"
+                        - "source"
+                        - "side"
+                        - "price"
+                        - "quantity"
+                        - "tradeId"
+                        - "timestamp"
                       additionalProperties: false
+                  nextCursor:
+                    nullable: true
+                    type: "string"
+                  truncated:
+                    type: "boolean"
                 required:
-                  - "data"
+                  - "rows"
+                  - "nextCursor"
+                  - "truncated"
                 additionalProperties: false
         "400":
           description: "Invalid request"
@@ -2817,525 +3457,6 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /v1/trader-trainer/models/{symbol}/{version}:
-    get:
-      operationId: "getV1TraderTrainerModelsSymbolVersion"
-      tags:
-        - "trader-trainer"
-      summary: "Manifest of a model version (everything but the weights)"
-      x-registry-entry: "getModel"
-      parameters:
-        - name: "symbol"
-          in: "path"
-          required: true
-          schema:
-            type: "string"
-            pattern: "^[A-Za-z0-9._-]+$"
-        - name: "version"
-          in: "path"
-          required: true
-          schema:
-            type: "string"
-            pattern: "^\\d{8}T\\d{6}Z-[0-9a-f]{12}$"
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "object"
-                properties:
-                  data:
-                    type: "object"
-                    properties:
-                      formatVersion:
-                        type: "number"
-                        enum:
-                          - 1
-                      symbol:
-                        type: "string"
-                      version:
-                        type: "string"
-                      createdAt:
-                        type: "string"
-                        format: "date-time"
-                      producedBy:
-                        type: "object"
-                        properties:
-                          instanceId:
-                            type: "string"
-                        required:
-                          - "instanceId"
-                        additionalProperties: false
-                      weights:
-                        type: "object"
-                        properties:
-                          file:
-                            type: "string"
-                            enum:
-                              - "weights.f32"
-                          dtype:
-                            type: "string"
-                            enum:
-                              - "float32-le"
-                          length:
-                            type: "integer"
-                          sha256:
-                            type: "string"
-                            pattern: "^[0-9a-f]{64}$"
-                        required:
-                          - "file"
-                          - "dtype"
-                          - "length"
-                          - "sha256"
-                        additionalProperties: false
-                      genome:
-                        type: "object"
-                        additionalProperties: {}
-                      features:
-                        type: "object"
-                        properties:
-                          dim:
-                            type: "integer"
-                          fields:
-                            type: "array"
-                            items:
-                              type: "string"
-                        required:
-                          - "dim"
-                          - "fields"
-                        additionalProperties: false
-                      normalization:
-                        type: "object"
-                        additionalProperties: {}
-                      metrics:
-                        type: "object"
-                        properties:
-                          metricsVersion:
-                            type: "integer"
-                          generation:
-                            type: "integer"
-                          fitness:
-                            type: "number"
-                          sharpe:
-                            type: "number"
-                          avgPnl:
-                            type: "number"
-                          maxDrawdown:
-                            type: "number"
-                            minimum: 0
-                        required:
-                          - "generation"
-                          - "fitness"
-                          - "sharpe"
-                          - "avgPnl"
-                          - "maxDrawdown"
-                        additionalProperties: false
-                    required:
-                      - "formatVersion"
-                      - "symbol"
-                      - "version"
-                      - "createdAt"
-                      - "producedBy"
-                      - "weights"
-                      - "genome"
-                      - "features"
-                      - "normalization"
-                      - "metrics"
-                    additionalProperties: false
-                required:
-                  - "data"
-                additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          description: "Not found"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /v1/trader-trainer/training-agents:
-    get:
-      operationId: "getV1TraderTrainerTrainingAgents"
-      tags:
-        - "trader-trainer"
-      summary: "Best agent of every trained symbol"
-      x-registry-entry: "trainingAgents"
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "object"
-                properties:
-                  data:
-                    type: "object"
-                    properties:
-                      agents:
-                        type: "array"
-                        items:
-                          type: "object"
-                          properties:
-                            symbol:
-                              type: "string"
-                            agent:
-                              type: "object"
-                              properties:
-                                id:
-                                  type: "string"
-                                generation:
-                                  type: "integer"
-                                fitness:
-                                  type: "number"
-                                sharpe:
-                                  type: "number"
-                                avgPnl:
-                                  type: "number"
-                                maxDrawdown:
-                                  type: "number"
-                                  minimum: 0
-                                gaControl:
-                                  type: "object"
-                                  properties:
-                                    populationSize:
-                                      type: "integer"
-                                    elitismFraction:
-                                      type: "number"
-                                    survivorFraction:
-                                      type: "number"
-                                    episodesPerIndividual:
-                                      type: "integer"
-                                    selectionType:
-                                      type: "string"
-                                    fitnessType:
-                                      type: "string"
-                                  required:
-                                    - "populationSize"
-                                    - "elitismFraction"
-                                    - "survivorFraction"
-                                    - "episodesPerIndividual"
-                                    - "selectionType"
-                                    - "fitnessType"
-                                  additionalProperties: false
-                                network:
-                                  type: "object"
-                                  properties:
-                                    inputDim:
-                                      type: "integer"
-                                    outputDim:
-                                      type: "integer"
-                                    hiddenLayers:
-                                      type: "array"
-                                      items:
-                                        type: "object"
-                                        properties:
-                                          neurons:
-                                            type: "integer"
-                                          activation:
-                                            type: "string"
-                                        required:
-                                          - "neurons"
-                                          - "activation"
-                                        additionalProperties: false
-                                  required:
-                                    - "inputDim"
-                                    - "outputDim"
-                                    - "hiddenLayers"
-                                  additionalProperties: false
-                                rl:
-                                  type: "object"
-                                  properties:
-                                    gamma:
-                                      type: "number"
-                                    learningRate:
-                                      type: "number"
-                                    epsilonStart:
-                                      type: "number"
-                                    epsilonMin:
-                                      type: "number"
-                                    epsilonDecay:
-                                      type: "number"
-                                  required:
-                                    - "gamma"
-                                    - "learningRate"
-                                    - "epsilonStart"
-                                    - "epsilonMin"
-                                    - "epsilonDecay"
-                                  additionalProperties: false
-                              required:
-                                - "id"
-                                - "generation"
-                                - "fitness"
-                                - "sharpe"
-                                - "avgPnl"
-                                - "maxDrawdown"
-                                - "gaControl"
-                                - "network"
-                                - "rl"
-                              additionalProperties: false
-                            training:
-                              type: "boolean"
-                            generation:
-                              type: "integer"
-                          required:
-                            - "symbol"
-                            - "agent"
-                            - "training"
-                            - "generation"
-                          additionalProperties: false
-                      training:
-                        type: "boolean"
-                      currentSymbol:
-                        type: "string"
-                    required:
-                      - "agents"
-                      - "training"
-                      - "currentSymbol"
-                    additionalProperties: false
-                required:
-                  - "data"
-                additionalProperties: false
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /v1/trader-trainer/training-agents/{symbol}:
-    get:
-      operationId: "getV1TraderTrainerTrainingAgentsSymbol"
-      tags:
-        - "trader-trainer"
-      summary: "Best agent of a symbol, with its latest stored model"
-      x-registry-entry: "trainingAgent"
-      parameters:
-        - name: "symbol"
-          in: "path"
-          required: true
-          schema:
-            type: "string"
-            minLength: 1
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "object"
-                properties:
-                  data:
-                    type: "object"
-                    properties:
-                      symbol:
-                        type: "string"
-                      agent:
-                        type: "object"
-                        properties:
-                          id:
-                            type: "string"
-                          generation:
-                            type: "integer"
-                          fitness:
-                            type: "number"
-                          sharpe:
-                            type: "number"
-                          avgPnl:
-                            type: "number"
-                          maxDrawdown:
-                            type: "number"
-                            minimum: 0
-                          gaControl:
-                            type: "object"
-                            properties:
-                              populationSize:
-                                type: "integer"
-                              elitismFraction:
-                                type: "number"
-                              survivorFraction:
-                                type: "number"
-                              episodesPerIndividual:
-                                type: "integer"
-                              selectionType:
-                                type: "string"
-                              fitnessType:
-                                type: "string"
-                            required:
-                              - "populationSize"
-                              - "elitismFraction"
-                              - "survivorFraction"
-                              - "episodesPerIndividual"
-                              - "selectionType"
-                              - "fitnessType"
-                            additionalProperties: false
-                          network:
-                            type: "object"
-                            properties:
-                              inputDim:
-                                type: "integer"
-                              outputDim:
-                                type: "integer"
-                              hiddenLayers:
-                                type: "array"
-                                items:
-                                  type: "object"
-                                  properties:
-                                    neurons:
-                                      type: "integer"
-                                    activation:
-                                      type: "string"
-                                  required:
-                                    - "neurons"
-                                    - "activation"
-                                  additionalProperties: false
-                            required:
-                              - "inputDim"
-                              - "outputDim"
-                              - "hiddenLayers"
-                            additionalProperties: false
-                          rl:
-                            type: "object"
-                            properties:
-                              gamma:
-                                type: "number"
-                              learningRate:
-                                type: "number"
-                              epsilonStart:
-                                type: "number"
-                              epsilonMin:
-                                type: "number"
-                              epsilonDecay:
-                                type: "number"
-                            required:
-                              - "gamma"
-                              - "learningRate"
-                              - "epsilonStart"
-                              - "epsilonMin"
-                              - "epsilonDecay"
-                            additionalProperties: false
-                        required:
-                          - "id"
-                          - "generation"
-                          - "fitness"
-                          - "sharpe"
-                          - "avgPnl"
-                          - "maxDrawdown"
-                          - "gaControl"
-                          - "network"
-                          - "rl"
-                        additionalProperties: false
-                      training:
-                        type: "boolean"
-                      generation:
-                        type: "integer"
-                      model:
-                        nullable: true
-                        type: "object"
-                        properties:
-                          symbol:
-                            type: "string"
-                          version:
-                            type: "string"
-                          createdAt:
-                            type: "string"
-                            format: "date-time"
-                          sha256:
-                            type: "string"
-                            pattern: "^[0-9a-f]{64}$"
-                          metrics:
-                            type: "object"
-                            properties:
-                              metricsVersion:
-                                type: "integer"
-                              generation:
-                                type: "integer"
-                              fitness:
-                                type: "number"
-                              sharpe:
-                                type: "number"
-                              avgPnl:
-                                type: "number"
-                              maxDrawdown:
-                                type: "number"
-                                minimum: 0
-                            required:
-                              - "generation"
-                              - "fitness"
-                              - "sharpe"
-                              - "avgPnl"
-                              - "maxDrawdown"
-                            additionalProperties: false
-                        required:
-                          - "symbol"
-                          - "version"
-                          - "createdAt"
-                          - "sha256"
-                          - "metrics"
-                        additionalProperties: false
-                    required:
-                      - "symbol"
-                      - "agent"
-                      - "training"
-                      - "generation"
-                      - "model"
-                    additionalProperties: false
-                required:
-                  - "data"
-                additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          description: "Not found"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /v1/trader-trainer/training-status:
-    get:
-      operationId: "getV1TraderTrainerTrainingStatus"
-      tags:
-        - "trader-trainer"
-      summary: "Whether a training runs, on which symbol and generation"
-      x-registry-entry: "trainingStatus"
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "object"
-                properties:
-                  data:
-                    type: "object"
-                    properties:
-                      training:
-                        type: "boolean"
-                      symbol:
-                        type: "string"
-                      generation:
-                        type: "integer"
-                    required:
-                      - "training"
-                      - "symbol"
-                      - "generation"
-                    additionalProperties: false
-                required:
-                  - "data"
-                additionalProperties: false
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":

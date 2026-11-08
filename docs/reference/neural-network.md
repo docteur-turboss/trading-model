@@ -18,9 +18,9 @@ This document describes the neural network module (`src/domain/neural-network/`)
 | `network-serialization.ts` | Weight serialization: `getWeights`, `setWeights`, `parameterCount`, `distributeAroundWeights` |
 | `activation.ts`            | Activation functions                                                                          |
 | `initializers.ts`          | Weight/bias initializers                                                                      |
-| `losses.ts`                | Loss functions                                                                                |
-| `normalize.ts`             | Input normalization strategies                                                                |
-| `optimizer.ts`             | Optimizers (SGD, Adam, RMSprop)                                                               |
+| `output-delta-computer.ts` | Mean squared error loss and output deltas                                                     |
+| `gradient-applier.ts`      | Weight gradients and the SGD step                                                             |
+| `normalizers.ts`           | Input normalization strategies                                                                |
 | `type.ts`                  | Shared types                                                                                  |
 | `utils.ts`                 | Utilities                                                                                     |
 
@@ -34,8 +34,6 @@ The core network class. Structure: `Input → Hidden Layer × N → Output`.
 interface NeuralNetworkConfig {
   neuronsByLayer: number[]; // [input, hidden1, ..., output]
   activationType: ActivationType[]; // one per hidden+output layer
-  lossFunctionType: string; // 'mean-squared-error' | 'cross-entropy' | 'huber'
-  optimizerType: string; // 'sgd' | 'adam' | 'rmsprop'
   learningRate: number; // default 0.001
   initialisationType: string; // 'random' | 'he' | 'xavier' | 'lecun' | 'zeros'
   normalisationType: string; // 'none' | 'minmax' | 'zscore' | ...
@@ -57,25 +55,18 @@ Stateless computation returning a `ForwardContext` containing all intermediate v
    - Apply connection strategy (skip/residual if configured)
 3. Return output + layerZValues + layerOutputs
 
-Supports **softmax** activation with numerical stability (max subtraction).
-
-#### Backward Pass (`backprop`, `backpropAccumulate`)
+#### Backward Pass (`backprop`)
 
 Standard backpropagation via chain rule:
 
 1. Compute output layer deltas from loss gradient × activation derivative
-2. Special case: softmax + cross-entropy → `δ = ŷ - y`
-3. Propagate deltas backward through hidden layers
-4. Compute weight gradients (outer product of delta × layer input)
-5. Apply gradients via optimizer (immediate or accumulated for mini-batch)
+2. Propagate deltas backward through hidden layers
+3. Compute weight gradients (outer product of delta × layer input)
+4. Apply gradients via optimizer
 
-#### Training Modes
+#### Training
 
-| Method                          | Description                                           |
-| ------------------------------- | ----------------------------------------------------- |
-| `train(input, target)`          | Single-sample forward + backprop                      |
-| `forwardAndPool(input, target)` | Forward + store in pool for batch training            |
-| `trainPooled()`                 | Accumulate gradients from pool, apply averaged update |
+`train(input, target)`: single-sample forward + backprop, returns the loss before the step.
 
 #### Weight Serialization
 
@@ -87,19 +78,15 @@ Standard backpropagation via chain rule:
 
 ### `Agent` (`agent.ts`)
 
-High-level wrapper around `NeuralNetwork` adding:
+Pairs a `NeuralNetwork` (`agent.nn`) with its experience replay pool (`agent.experience`):
 
-- **Experience replay pool**: Stores `{input, output, reward, nextState, done}` tuples
-- **Score tracking**: `addScore()`, `getAverageScore()`, `getTotalScore()`
-- **Q-learning update**: `learnQLearning(experience, gamma)` applies Bellman update:
+- `experience.remember(transition)`: stores a `{input, output, reward, nextState, done, action}` transition
+- `experience.replay(nn, batchSize, discount)`: samples `batchSize` transitions (by TD error when prioritized, uniformly otherwise) and trains on each, moving the played action towards:
 
 ```
 target[a] = r + γ · max_a' Q(s', a')   (non-terminal)
 target[a] = r                            (terminal)
 ```
-
-- **Supervised learning**: `learnSupervised(input, target)`, `learnFromPool()`
-- **Pool sampling**: `samplePool(batchSize)` for mini-batch DQN
 
 ---
 
@@ -135,34 +122,21 @@ replay(batchSize, discount)   # minibatch Q-learning update (PER weights when pr
 | **Sigmoid**   | (0, 1)        | Binary output           |
 | **Tanh**      | (-1, 1)       | Zero-centered hidden    |
 | **GELU**      | ≈(-0.5, ∞)    | Transformer-style       |
-| **Softmax**   | (0, 1), sum=1 | Multi-class output      |
 | **ELU**       | (-α, ∞)       | Smooth ReLU alternative |
 | **Mish**      | ≈(-0.3, ∞)    | Self-regularized        |
 | **LeakyReLU** | (-∞, ∞)       | Avoids dead neurons     |
 
 ---
 
-### Optimizers (`optimizer.ts`)
+### Optimizer (`gradient-applier.ts`)
 
-| Optimizer   | Update rule                                      |
-| ----------- | ------------------------------------------------ |
-| **SGD**     | `θ = θ - lr · ∇θ`                                |
-| **Adam**    | `θ = θ - lr · m̂ / (√v̂ + ε)` with bias correction |
-| **RMSProp** | `θ = θ - lr · ∇θ / √(v + ε)`                     |
+Plain SGD: `θ = θ - lr · ∇θ`, on the weights and, when `useBias`, on the biases.
 
 ---
 
-### Loss Functions (`losses.ts`)
+### Loss (`output-delta-computer.ts`)
 
-| Loss | Formula | When to use |
-| ------------------------ | ---------------------------- | -------------------------- | ------------- | --- | --------- | ----------------- |
-| **MSE** | `½(ŷ - y)²` | Regression |
-| **Cross-Entropy** | `-Σ y·log(ŷ)` | Multi-class classification |
-| **Binary Cross-Entropy** | `-y·log(ŷ) - (1-y)·log(1-ŷ)` | Binary classification |
-| **Huber** | `0.5·d²` if `                | d                          | <δ`, else `δ· | d   | - 0.5·δ²` | Robust regression |
-| **Smooth L1** | Same as Huber | Object detection style |
-| **Hinge** | `max(0, 1 - y·ŷ)` | SVM-style |
-| **Log-Cosh** | `log(cosh(ŷ - y))` | Smooth L1 alternative |
+Mean squared error: `mean((t - o)²)`, gradient `2 (o - t) / n`. Output and target lengths must match (`RangeError` otherwise).
 
 ---
 
@@ -227,8 +201,6 @@ interface LayerMemory {
   delta: Float32Array;
   gradW: Float32Array;
   gradB: Float32Array;
-  accumGradW: Float32Array;
-  accumGradB: Float32Array;
   wState: Record<string, Float32Array | number>;
   bState: Record<string, Float32Array | number>;
 }

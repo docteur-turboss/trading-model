@@ -56,19 +56,11 @@ const AuditEvent = z.object({
  */
 const DeliveredMetadata = z.looseObject({ topic: z.string().min(1) });
 
-/** A delivery from message-manager, or the older envelope nested in `message`. */
-const DeliveredEnvelope = z.union([
-	z.looseObject({
-		metadata: DeliveredMetadata,
-		payload: z.unknown().optional(),
-	}),
-	z.looseObject({
-		message: z.looseObject({
-			metadata: DeliveredMetadata,
-			payload: z.unknown().optional(),
-		}),
-	}),
-]);
+/** A delivery from message-manager (http-message-delivery.ts). */
+const DeliveredEnvelope = z.looseObject({
+	metadata: DeliveredMetadata,
+	payload: z.unknown().optional(),
+});
 
 export const AUDIT_API = {
 	receive: defineRoute({
@@ -94,6 +86,11 @@ export const AUDIT_API = {
 			/** Inclusive bounds on `receivedAt`. */
 			startDate: DATE.optional(),
 			endDate: DATE.optional(),
+			/** `false` omits `total` (no count). Absent or any other value: counted. */
+			withTotal: z
+				.enum(["true", "false"])
+				.optional()
+				.transform((value) => value !== "false"),
 			page: z.coerce.number().int().min(1).optional(),
 			limit: z.coerce
 				.number()
@@ -107,7 +104,8 @@ export const AUDIT_API = {
 		responses: {
 			200: z.object({
 				docs: z.array(AuditEvent),
-				total: z.number().int(),
+				/** Absent when `withTotal=false`. Without filter: an estimate. */
+				total: z.number().int().optional(),
 				page: z.number().int(),
 				limit: z.number().int(),
 			}),
@@ -120,6 +118,7 @@ export const AUDIT_API = {
 		summary: "Event counts by topic and publisher",
 		responses: {
 			200: z.object({
+				/** Live count (estimate). The two breakdowns are refreshed at most every 60 s, so their sums can differ from it. */
 				totalEvents: z.number().int(),
 				eventsByTopic: z.record(z.string(), z.number().int()),
 				eventsByPublisher: z.record(z.string(), z.number().int()),

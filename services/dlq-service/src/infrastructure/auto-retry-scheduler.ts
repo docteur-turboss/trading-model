@@ -3,9 +3,9 @@ import { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	startRedisWorkerLoop,
 	stopRedisWorkerTimer,
-} from "../adapters/inbound/redis-queue-processor";
+} from "../application/use-cases/redis-queue-processor";
+import { autoRetryTick } from "../config/container";
 import { logger } from "../config/logger";
-import { autoRetryTick } from "../shared/auto-retry";
 import { isShuttingDown } from "../shared/shutdown-flag";
 import { ENV } from "./config/env";
 
@@ -23,7 +23,6 @@ function scheduleAutoRetryTick(): void {
 		},
 		DurationMs.of(baseInterval + jitter)
 	);
-	autoRetryTimer.unref();
 }
 
 async function runAutoRetryTick(): Promise<void> {
@@ -44,7 +43,6 @@ function scheduleInitialTick(): void {
 	autoRetryStartTimer.startTimeout(() => {
 		scheduleAutoRetryTick();
 	}, DurationMs.of(jitterMs));
-	autoRetryStartTimer.unref();
 }
 
 export function startAutoRetry(): void {

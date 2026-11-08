@@ -102,9 +102,9 @@ describe("EpisodeScores - sharpe", () => {
 		expect(new EpisodeScores([]).sharpe()).toBe(0);
 	});
 
-	test("should return mean for zero standard deviation", () => {
+	test("should return a bounded ratio for zero standard deviation", () => {
 		const scores = new EpisodeScores([5, 5, 5]);
-		expect(scores.sharpe()).toBe(5);
+		expect(scores.sharpe()).toBeCloseTo(10);
 	});
 
 	test("should compute positive sharpe for positive mean", () => {
@@ -136,8 +136,8 @@ describe("EpisodeScores - calmar", () => {
 		expect(scores.calmar()).toBeCloseTo(scores.mean() / 7);
 	});
 
-	test("should return the mean without a drawdown", () => {
-		expect(new EpisodeScores([1, 2, 3]).calmar()).toBe(2);
+	test("should return a bounded ratio without a drawdown", () => {
+		expect(new EpisodeScores([1, 2, 3]).calmar()).toBeCloseTo(10);
 		expect(new EpisodeScores([]).calmar()).toBe(0);
 	});
 });

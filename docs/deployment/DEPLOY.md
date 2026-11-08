@@ -64,6 +64,9 @@ that release with the workflow it was tagged with, or release again.
 
 ### Prerequisites (secrets)
 
+The environment `staging` currently targets a local kind cluster through a
+self-hosted runner: [STAGING_LOCAL.md](STAGING_LOCAL.md) (`STAGING_RUNNER`, `K8S_OVERLAY`).
+
 Add the cluster kubeconfigs (two per environment, see
 [Deploy identities](#deploy-identities)) as base64-encoded secrets of the GitHub
 **environment** (Settings → Environments → `staging` / `production`), never as
@@ -148,10 +151,10 @@ missing rule loses nothing, but those copies are then never expired.
 2. Resolve every image tag to a digest (fails if the release was not published)
 3. Check sealed secrets (production: controller CRD present, no placeholder)
    Check ingress hosts (production: no example.com host left, see KUBERNETES.md "Set the Ingress hosts"; staging: warning)
-4. Apply cluster-scope objects (namespace, ClusterRoles), SPIFFE node components, run database migrations (existing cluster: `MYSQL_MIGRATE_PASSWORD` must be in `trading-model-secrets` first; both environments fail with an explicit error if it is not sealed; the deploy first applies the environment's SealedSecret (`deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, staging `deploy/k8s/overlays/staging/sealed-secrets.yaml`) and waits for the controller to create the key; if the file lacks it, add ONLY that key with `kubeseal --merge-into` (see `sealed-secrets.md`, "Adding one key"): a single-key SealedSecret erases the other keys of the live Secret, and `init-sealed-secrets.sh` draws random values for every key not provided, `MYSQL_ROOT_PASSWORD` included; the script refuses a file missing a live key)
+4. (Retention: seal `MYSQL_RETENTION_PASSWORD` in the production SealedSecret beforehand, [BACKUP_DR.md](BACKUP_DR.md#retention-job).) Apply cluster-scope objects (namespace, ClusterRoles), SPIFFE node components, run database migrations (existing cluster: `MYSQL_MIGRATE_PASSWORD` must be in `trading-model-secrets` first; both environments fail with an explicit error if it is not sealed; the deploy first applies the environment's SealedSecret (`deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, staging `deploy/k8s/overlays/staging/sealed-secrets.yaml`) and waits for the controller to create the key; if the file lacks it, add ONLY that key with `kubeseal --merge-into` (see `sealed-secrets.md`, "Adding one key"): a single-key SealedSecret erases the other keys of the live Secret, and `init-sealed-secrets.sh` draws random values for every key not provided, `MYSQL_ROOT_PASSWORD` included; the script refuses a file missing a live key)
 5. Canary gate on live traffic (if enabled)
 6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest; namespaced part, application identity)
-7. Wait for rollout of all services, smoke test
+7. Wait for rollout of all services, smoke test, `verify-market-data`, then `verify-release` (see "Release verification")
 ```
 
 **Ingestion during a release.** `financial-scraper-collector` is a singleton
@@ -205,7 +208,7 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 
 ## Replicas and the HPA
 
-A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The `financial-scraper-collector` (no HPA) keeps `replicas: 1`.
+A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singletons `financial-scraper-collector` (ADR-0042) and `trader-trainer` (ADR-0044: training state in memory) have no HPA, keep `replicas: 1` and `Recreate`; `check-overlays.mjs` enforces it. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` of older releases. A release stops training until the new trainer pod is ready. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
 
 Moving an existing cluster over: `deploy.yml` (step "Release replicas of autoscaled Deployments") removes `spec.replicas` from `kubectl.kubernetes.io/last-applied-configuration` before the apply, otherwise the apply would drop the Deployment to 1 pod. By hand: `kubectl apply edit-last-applied deployment/<name> -n <ns>` and delete the `replicas` line, before applying the new overlay.
 
@@ -231,6 +234,8 @@ timeouts as production.
 What the rollback restores:
 
 - the image of every Deployment (by digest);
+- the Redis and Redis Sentinel StatefulSets (ADR-0047: the services' ACL
+  credentials only work against nodes of their own release), rolled back first;
 - the service configuration: the ConfigMaps read through `envFrom`
   (`<service>-config`, from `deploy/k8s/config/<service>.properties`) and the
   edge-proxy nginx config are generated by kustomize with a content hash in
@@ -243,7 +248,7 @@ What it does not restore (still at N+1 after a rollback):
 
 - the other Deployments (`spire-server`, whose `spire-entries` sidecar runs the
   `spire-tools` image of the release, and the infrastructure ones);
-- StatefulSets (MySQL, MongoDB, Redis...), CronJobs, Jobs, HPAs, PDBs,
+- the other StatefulSets (MySQL, MongoDB...), CronJobs, Jobs, HPAs, PDBs,
   NetworkPolicies, Services, the SPIFFE node agents (`trading-model-node`) and
   the fixed-name ConfigMaps (`spiffe-helper-config`, infrastructure configs,
   `backup-encryption`);
@@ -270,9 +275,11 @@ Redeploying a tag published before `db-migrate` existed works: the workflow chec
 
 ### Canary gate
 
-`deploy.yml` runs `deploy-k8s.sh canary-all`: the 7 canaries are created in
+`deploy.yml` runs `deploy-k8s.sh canary-all`: the 6 canaries are created in
 parallel and observed over one `CANARY_GATE_SECONDS` window (default 120 s), so
-the step lasts one rollout plus one window, not 7 of each. Every failing gate is
+the step lasts one rollout plus one window, not 6 of each. The singletons
+(`trader-trainer`, `financial-scraper-collector`) get no canary: it would be a
+second pod (`check-overlays.mjs` enforces it). Every failing gate is
 reported and every canary is removed if one fails.
 
 | GitHub variable | Default | Meaning |
@@ -286,6 +293,28 @@ reported and every canary is removed if one fails.
 admin call, so a healthy environment gives it no traffic. Add a service to
 `CANARY_READINESS_ONLY` only for the same reason. Test of the gate:
 `bash tests/k8s/canary-gate.test.sh`.
+
+### Release verification
+
+After the smoke test, `deploy.yml` runs `deploy-k8s.sh verify-release`. Each pass checks
+an API call through `edge-proxy` (`GET /v1/discovery-server/services`, 200 expected, with
+the first `AUTH_TOKENS` key of the Secret `trading-model-secrets`: it goes through stdin
+and is never printed), at least one candle persisted in the last 15 min
+(`fs_candles_persisted_total`), and no `severity="critical"` alert firing in Prometheus
+(`Watchdog` excluded). Passes repeat over an observation window; any failed pass fails the
+step and triggers "Rollback on failure". Market data may be missing until the first pass
+that sees it, but must be present on the last pass and never disappear after. A critical
+alert already firing before the deploy also fails the gate. Staging skips the market-data
+check and ignores `MarketDataStale` (`VERIFY_REQUIRE_FRESH_DATA=false`, set by `deploy.yml`):
+there, missing market data only warns (ADR-0042, `Verify market data resumed`).
+
+| Variable (GitHub environment) | Default | Role |
+|---|---|---|
+| `VERIFY_WINDOW_SECONDS` | `600` | Observation window (`0` = one pass) |
+| `VERIFY_INTERVAL_SECONDS` | `60` | Pause between passes |
+| `VERIFY_EXTERNAL_URL` | unset | Optional real ingress URL (`https://host`) also called with the key, once hosts are defined |
+
+Test: `bash tests/k8s/verify-release.test.sh`; `tests/k8s/run-kind.sh verify` runs the same command.
 
 For a manual rollback, revert a service to a previous revision:
 

@@ -1,15 +1,9 @@
+import { sleep } from "@trading-model/common/utils/sleep";
 import { logger } from "../../config/logger";
 import { STALE_CLAIM_MS } from "../../domain/dlq-constants";
-import { activeReplays } from "../../shared/active-replay-counter";
+import { activeReplays } from "./active-replay-counter";
 
 const DRAIN_TIMEOUT_MS = 10_000;
-
-function _sleep(ms: number): Promise<void> {
-	return new Promise<void>((resolve) => {
-		const timer = setTimeout(resolve, ms);
-		timer.unref();
-	});
-}
 
 export class ReplayDrainService {
 	/**
@@ -27,7 +21,7 @@ export class ReplayDrainService {
 		);
 		const deadline = Date.now() + DRAIN_TIMEOUT_MS;
 		while (activeReplays.count > 0 && Date.now() < deadline) {
-			await _sleep(100);
+			await sleep(100);
 		}
 		if (activeReplays.count === 0) {
 			return true;

@@ -12,12 +12,15 @@ import type { ServiceId } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
-import { forwardRequest } from "../adapters/outbound/proxy-handler";
-import type { ResponseCache } from "../infrastructure/cache";
 import {
 	ACTIVE_REQUESTS,
 	PROXY_REQUEST_DURATION_SECONDS,
 } from "../infrastructure/config/metrics";
+import {
+	type ProxyDeps,
+	type ResponseCachePort,
+	UpstreamResponseTooLargeError,
+} from "./ports";
 
 interface ProxyContext {
 	serviceName: ServiceId;
@@ -30,12 +33,12 @@ export async function proxyAndCache(
 	req: Request,
 	target: ResolvedEndpoint,
 	ctx: ProxyContext,
-	cache: ResponseCache
+	{ forward, cache }: ProxyDeps
 ): Promise<ResponseObject> {
 	const start = performance.now();
 	ACTIVE_REQUESTS.inc();
 	try {
-		const result = await forwardRequest({ req, target, path: ctx.path });
+		const result = await forward({ req, target, path: ctx.path });
 		const parsedBody = tryParseJson(result.body);
 		tryCacheResponse(req, ctx, result, parsedBody, cache);
 		PROXY_REQUEST_DURATION_SECONDS.observe(
@@ -44,13 +47,29 @@ export async function proxyAndCache(
 		);
 		return sendResponse(parsedBody ?? result.body, result.status);
 	} catch (err: unknown) {
+		const tooLarge = err instanceof UpstreamResponseTooLargeError;
 		PROXY_REQUEST_DURATION_SECONDS.observe(
 			{
 				service: ctx.serviceName,
-				status: String(HTTP_STATUS.SERVICE_UNAVAILABLE),
+				status: String(
+					tooLarge ? HTTP_STATUS.BAD_GATEWAY : HTTP_STATUS.SERVICE_UNAVAILABLE
+				),
 			},
 			(performance.now() - start) / 1000
 		);
+		if (tooLarge) {
+			logger.warn("Upstream response too large", {
+				context: {
+					serviceName: ctx.serviceName,
+					path: ctx.path,
+					maxBytes: err.maxBytes,
+				},
+			});
+			return sendResponse(
+				{ error: "Upstream response too large" },
+				HTTP_STATUS.BAD_GATEWAY
+			);
+		}
 		return buildProxyErrorResponse(err, ctx, target);
 	} finally {
 		ACTIVE_REQUESTS.dec();
@@ -60,9 +79,9 @@ export async function proxyAndCache(
 function tryCacheResponse(
 	req: Request,
 	ctx: ProxyContext,
-	result: { status: number; body: string },
+	result: { status: HttpStatusCode; body: string },
 	parsed: unknown,
-	cache: ResponseCache
+	cache: ResponseCachePort
 ): void {
 	// A signed answer (DLQ) is for its signer only: cached, it would be served
 	// to any caller of the same URL.
@@ -75,7 +94,7 @@ function tryCacheResponse(
 	) {
 		cache.set(ctx.cacheKey, {
 			data: parsed,
-			status: result.status as HttpStatusCode,
+			status: result.status,
 			bytes: result.body.length,
 		});
 	}
@@ -112,7 +131,7 @@ function tryParseJson(raw: string): unknown | null {
 export function tryServeFromCache(
 	method: string,
 	cacheKey: string,
-	cache: ResponseCache
+	cache: ResponseCachePort
 ): ResponseObject | null {
 	if (method !== "GET") {
 		return null;

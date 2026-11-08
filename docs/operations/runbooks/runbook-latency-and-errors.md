@@ -1,6 +1,6 @@
 # Runbook: High Latency or Error Rate
 
-**Alerts:** `HighLatency` (warning), `SLOLatencyFastBurn` (critical),
+**Alerts:** `SLOLatencyFastBurn` (critical),
 `SLOLatencySlowBurn` (warning), `HighErrorRate` (warning),
 `SLOAvailabilityFastBurn` / `SLOErrorRateFastBurn` (critical),
 `SLOAvailabilitySlowBurn` / `SLOErrorRateSlowBurn` (warning).
@@ -14,16 +14,18 @@ All of them read the shared HTTP middleware metrics of every service
 
 | Alert | Fires when |
 | --- | --- |
-| `HighLatency`, `SLOLatencyFastBurn` | P95 of a job above 5 s over 5 min, for 2 min |
+| `SLOLatencyFastBurn` | P95 of a job above 5 s over 5 min, for 2 min |
 | `SLOLatencySlowBurn` | P95 above 3 s over 1 h, for 10 min |
-| `HighErrorRate`, `SLOErrorRateFastBurn` | more than 5% of 5xx over 5 min, for 2 min |
-| `SLOAvailabilityFastBurn` | more than 2% of 5xx over 5 min, for 2 min |
-| `SLOAvailabilitySlowBurn` / `SLOErrorRateSlowBurn` | more than 0.5% / 2% of 5xx over 1 h, for 10 min |
+| `HighErrorRate` | more than 5% of 5xx over 5 min, for 2 min |
+| `SLOAvailabilityFastBurn` / `SLOErrorRateFastBurn` | 5xx ratio above 1.44% / 14.4% over 1 h **and** 5 min, for 2 min |
+| `SLOAvailabilitySlowBurn` / `SLOErrorRateSlowBurn` | 5xx ratio above 0.6% / 6% over 6 h **and** 30 min, for 15 min |
+
+`/ping`, `/health/ready` and `/metrics` are excluded from the SLO ratios.
 
 The histogram stops at 30 s (largest finite bucket): a P95 of 30 s means
 "30 s or more", usually timeouts.
 
-## HighLatency
+## SLOLatencyFastBurn
 
 ### Symptom
 
@@ -98,7 +100,7 @@ kubectl -n $NS logs deploy/$JOB --tail=200 | grep -iE "\"level\":\"error\"|error
 - `503` on `/health/ready` or every route: a dependency is down (readiness
   check names it in the response body).
 - `502` / `504` from api-gateway: the target service is down or slow
-  (`ServiceDown`, `HighLatency` on that job).
+  (`ServiceDown`, `SLOLatencyFastBurn` on that job).
 - `500` on one route: a bug; the log line carries the stack.
 
 ### Remediation
@@ -107,6 +109,22 @@ Fix the dependency, roll back a bad deploy
 ([runbook-deployment-failure](runbook-deployment-failure.md)) or restart a
 stuck pod (`kubectl -n $NS rollout restart deploy/$JOB`). A burn-rate alert
 consumes error budget: apply the [error budget policy](../slo.md#error-budget-policy).
+
+## SLO error budget low
+
+### Symptom
+
+`SLOErrorBudgetLow`: less than 20% of the 30-day availability error budget
+(99.9%) remains for a job. Budget remaining = `(1 - error ratio / 0.001) * 100`,
+from the recording rule `slo:sli_error:ratio_rate30d` (Grafana: SLO dashboard,
+"Error Budget Remaining").
+
+### Remediation
+
+Apply the [error budget policy](../slo.md#error-budget-policy): below 20%, full
+freeze except critical fixes and rollbacks, and a postmortem. Find the cause with
+the [HighErrorRate](#higherrorrate) diagnosis; the budget recovers only as old
+errors leave the 30-day window.
 
 ## Escalation
 

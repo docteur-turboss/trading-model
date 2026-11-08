@@ -15,12 +15,46 @@ jest.mock(
 
 import { MarketDataModel } from "../../../../src/adapters/outbound/persistence/market-data.model";
 import { MarketDataController } from "../../../../src/config/container";
+import { CANDLES_PERSISTED_TOTAL } from "../../../../src/config/metrics";
 
 const MOCK_MODEL = jest.mocked(MarketDataModel);
 
 describe("MarketDataController", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
+		CANDLES_PERSISTED_TOTAL.reset();
+	});
+
+	// Issue #598: SymbolMarketDataStale reads the candles persisted per symbol.
+	it("should count persisted candles per symbol", async () => {
+		const candle = (symbol: string) => ({
+			symbol,
+			interval: CandleInterval.Min1,
+		});
+		const payload: any = {
+			candles: [candle("BTCUSDT"), candle("BTCUSDT"), candle("ETHUSDT")],
+			fetchedAt: Date.now(),
+		};
+
+		await MarketDataController.persist(payload);
+
+		const values = (await CANDLES_PERSISTED_TOTAL.get()).values;
+		const count = (symbol: string) =>
+			values.find((v) => v.labels.symbol === symbol)?.value;
+		expect(count("BTCUSDT")).toBe(2);
+		expect(count("ETHUSDT")).toBe(1);
+	});
+
+	it("should not count candles whose insert failed", async () => {
+		MOCK_MODEL.insertCandles.mockRejectedValueOnce(new Error("MySQL down"));
+		const payload: any = {
+			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }],
+			fetchedAt: Date.now(),
+		};
+
+		await expect(MarketDataController.persist(payload)).rejects.toThrow();
+
+		expect((await CANDLES_PERSISTED_TOTAL.get()).values).toEqual([]);
 	});
 
 	it("should persist candles when payload has candles", async () => {

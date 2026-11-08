@@ -29,7 +29,7 @@ jest.mock("../../src/shared/shutdown-flag", () => ({
 
 describe("delivery-executor", () => {
 	let deliverEntry: (
-		entry: { id: string; message: unknown },
+		entry: { id: string; message: unknown; service?: string | null },
 		ctx: {
 			instanceId: string;
 			batchId: string;
@@ -59,6 +59,23 @@ describe("delivery-executor", () => {
 		deliverEntry = mod.deliverEntry;
 	});
 
+	it("should replay to the one failed service through the targeted route (ADR-0043)", async () => {
+		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
+		mockClient.post.mockResolvedValue(undefined);
+		MOCK_MARK_RETRIED.mockResolvedValue(undefined);
+
+		await deliverEntry(
+			{ id: "entry-1", message: { text: "hello" }, service: "audit-logger" },
+			baseCtx
+		);
+
+		expect(mockClient.post).toHaveBeenCalledWith(
+			"https://mm:3000/message/replay",
+			{ service: "audit-logger", message: { text: "hello" } },
+			expect.anything()
+		);
+	});
+
 	it("should deliver message and mark success", async () => {
 		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
 		mockClient.post.mockResolvedValue(undefined);
@@ -69,7 +86,7 @@ describe("delivery-executor", () => {
 		expect(mockClient.post).toHaveBeenCalledWith(
 			"https://mm:3000/message",
 			{ text: "hello" },
-			expect.objectContaining({ timeoutMs: 305_000, retryUnsentOnly: true })
+			expect.objectContaining({ timeoutMs: 20_000 })
 		);
 		expect(MOCK_MARK_RETRIED).toHaveBeenCalledWith(
 			expect.objectContaining({ id: "entry-1", success: true })

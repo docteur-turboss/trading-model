@@ -9,16 +9,16 @@ import {
 	HttpRequestExecutor,
 	type RequestContext,
 } from "../../infrastructure/http-request-executor";
-import { computeAdaptiveTimeout } from "../../infrastructure/http-retry";
 import { loadTlsPemBundleSync } from "../../infrastructure/http-tls-loader";
-import { isServiceCircuitOpen } from "./http-circuit-breaker";
-import {
-	createHttpClientError,
-	createHttpClientTimeoutError,
-	isHttpClientError,
-	isHttpClientTimeoutError,
-	toHttpClientErrorResponse,
-} from "./http-client-errors";
+
+/**
+ * A typed response needs its schema: the body is validated at this trust
+ * boundary instead of being cast by every caller. Untyped calls get `void`.
+ */
+// biome-ignore lint/suspicious/noConfusingVoidType: matches the `void` default of the methods below
+type SchemaArg<TResponse> = [TResponse] extends [void]
+	? [schema?: z.ZodType<TResponse>]
+	: [schema: z.ZodType<TResponse>];
 
 export class HttpClient {
 	private _tlsBundle: Partial<TlsPemBundle>;
@@ -31,18 +31,12 @@ export class HttpClient {
 		this._executor = new HttpRequestExecutor();
 	}
 
-	async request<TResponse = void>(
-		context: RequestContext<TResponse>
-	): Promise<TResponse | undefined> {
-		return await this._request<TResponse>(context);
-	}
-
 	async get<TResponse = void>(
 		url: URLString,
 		options?: HttpRequestOptions,
-		schema?: z.ZodType<TResponse>
+		...[schema]: SchemaArg<TResponse>
 	): Promise<TResponse | undefined> {
-		return await this.request<TResponse>({
+		return await this._request<TResponse>({
 			method: "GET" as HttpMethod,
 			urlStr: url,
 			body: undefined,
@@ -55,9 +49,9 @@ export class HttpClient {
 		url: URLString,
 		body?: unknown,
 		options?: HttpRequestOptions,
-		schema?: z.ZodType<TResponse>
+		...[schema]: SchemaArg<TResponse>
 	): Promise<TResponse | undefined> {
-		return await this.request<TResponse>({
+		return await this._request<TResponse>({
 			method: "POST" as HttpMethod,
 			urlStr: url,
 			body,
@@ -70,9 +64,9 @@ export class HttpClient {
 		url: URLString,
 		body?: unknown,
 		options?: HttpRequestOptions,
-		schema?: z.ZodType<TResponse>
+		...[schema]: SchemaArg<TResponse>
 	): Promise<TResponse | undefined> {
-		return await this.request<TResponse>({
+		return await this._request<TResponse>({
 			method: "DELETE" as HttpMethod,
 			urlStr: url,
 			body,
@@ -106,17 +100,3 @@ export class HttpClient {
 		});
 	}
 }
-
-export type {
-	HttpClientError,
-	HttpClientTimeoutError,
-} from "./http-client-errors";
-export {
-	computeAdaptiveTimeout,
-	createHttpClientError,
-	createHttpClientTimeoutError,
-	isHttpClientError,
-	isHttpClientTimeoutError,
-	isServiceCircuitOpen,
-	toHttpClientErrorResponse,
-};

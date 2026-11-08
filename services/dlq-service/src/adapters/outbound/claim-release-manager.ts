@@ -3,11 +3,10 @@ import { ObjectId } from "mongodb";
 import { getCollection } from "../../config/db";
 import {
 	CLAIM_PROJECTION,
-	DLQ_MAX_CONSECUTIVE_ERRORS,
+	RELEASE_CLAIM,
 	STALE_CLAIM_MS,
 } from "../../domain/dlq-constants";
-import { DlqStatus } from "../../domain/dlq-status";
-import { ENV } from "../../infrastructure/config/env";
+import { DlqQueryBuilder } from "./dlq-query-builder";
 import { toStoredDlqEntry } from "./repository";
 
 export class ClaimReleaseManager {
@@ -19,10 +18,7 @@ export class ClaimReleaseManager {
 		const result = await col.findOneAndUpdate(
 			{
 				_id: new ObjectId(id),
-				retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
-				processingAt: { $exists: false },
-				status: { $nin: [DlqStatus.Completed, DlqStatus.Abandoned] },
-				consecutiveErrors: { $not: { $gte: DLQ_MAX_CONSECUTIVE_ERRORS } },
+				...new DlqQueryBuilder().buildQueuableQuery(),
 			},
 			{
 				$set: {
@@ -47,7 +43,7 @@ export class ClaimReleaseManager {
 		const staleThreshold = new Date(Date.now() - staleThresholdMs);
 		const result = await col.updateMany(
 			{ processingAt: { $lt: staleThreshold } },
-			{ $unset: { processingAt: "", processingInstance: "" } }
+			RELEASE_CLAIM
 		);
 		return result.modifiedCount;
 	}
@@ -56,17 +52,14 @@ export class ClaimReleaseManager {
 		const col = await getCollection();
 		const result = await col.updateMany(
 			{ processingInstance: instanceId },
-			{ $unset: { processingAt: "", processingInstance: "" } }
+			RELEASE_CLAIM
 		);
 		return result.modifiedCount;
 	}
 
 	async releaseClaimWithoutCount(id: string): Promise<void> {
 		const col = await getCollection();
-		await col.updateOne(
-			{ _id: new ObjectId(id) },
-			{ $unset: { processingAt: "", processingInstance: "" } }
-		);
+		await col.updateOne({ _id: new ObjectId(id) }, RELEASE_CLAIM);
 	}
 
 	async incrementRetryCount(id: string): Promise<boolean> {

@@ -9,6 +9,7 @@ import type {
 	HorizonGenome,
 	ReplayBufferGenome,
 	RewardShapingGenome,
+	RLGenome,
 } from "./types";
 
 export function createRewardShapingGenome(): RewardShapingGenome {
@@ -46,5 +47,18 @@ export function createReplayBufferGenome(): ReplayBufferGenome {
 		betaPER: Probability.of(0.4),
 		betaAnneal: true,
 		batchSize: PositiveInt.of(8),
+	};
+}
+
+export function createRLGenome(): RLGenome {
+	return {
+		// 0.9: over 24 seeded markets, 0.99 learned in 14 of them, 0.9 in 19
+		// (ADR-0025); the GA still evolves it within [0.8, 0.9999].
+		gamma: Probability.of(0.9),
+		learningRate: Percentage.of(1e-3),
+		rewardShaping: createRewardShapingGenome(),
+		horizon: createHorizonGenome(),
+		discretePolicy: createDiscretePolicyGenome(),
+		replayBuffer: createReplayBufferGenome(),
 	};
 }

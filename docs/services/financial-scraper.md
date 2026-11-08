@@ -13,12 +13,14 @@ Market data collection service from Binance, with MySQL persistence and REST API
 
 ## REST Endpoints
 
-All market data endpoints are **GET**, return a JSON **array** (possibly empty), and answer
+All market data endpoints are **GET**, return one bounded **page** (ADR-0054), and answer
 400 with `{ "error": "Validation failed", "details": [...] }` on an invalid
 parameter. Their parameters and responses are declared in
 `src/adapters/inbound/http/api-routes.ts` (`SCRAPER_API`, ADR-0021) and
 published in the [OpenAPI](openapi/api-gateway.yaml); through the gateway they
-are reached under the service prefix `financial-scraper` of the gateway API (v1).
+are reached under the service prefix `financial-scraper` of the gateway API (v2 since release 3.0.0).
+
+A client of 2.x must migrate: see [Breaking changes in 3.0.0](#breaking-changes-in-300-gateway-api-v2).
 
 | Route                                    | Returns                                           | Parameter                                   |
 | ---------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
@@ -31,19 +33,25 @@ are reached under the service prefix `financial-scraper` of the gateway API (v1)
 | `/candles/sources/:source`               | candles of a source                               | source                                      |
 | `/candles/symbols/:symbol`               | candles of a symbol                               | symbol                                      |
 | `/candles/timestamp/:timestamp`          | candles opened **after** this instant             | ISO date or date-time                       |
-| `/orderbook/sources/:source`             | order book snapshots of a source                  | source                                      |
-| `/orderbook/symbols/:symbol`             | order book snapshots of a symbol                  | symbol                                      |
-| `/orderbook/after/timestamp/:timestamp`  | snapshots after this instant                      | epoch milliseconds                          |
-| `/orderbook/before/timestamp/:timestamp` | snapshots before this instant                     | epoch milliseconds                          |
 
-Queries are not paginated: a symbol or source query returns every stored row.
-The signals route is described in [Signals](#signals-adr-0036).
+Every answer is bounded (ADR-0054). Query parameters:
+
+| Parameter | Routes | Meaning |
+| --------- | ------ | ------- |
+| `limit` | all 9 | rows per answer, 1 to 5000, default 500 |
+| `after` | trades, tickers, candles | `nextCursor` of the previous page (opaque) |
+| `from`, `to` | trades, tickers, candles | optional window on `timestamp`, ISO dates, `[from, to)` |
+
+Trades, tickers and candles answer `{ "rows": [...], "nextCursor": "..." | null,
+"truncated": boolean }`, rows oldest first (ties in insertion order); follow
+`nextCursor` as `after` until it is `null`. The signals route is described in [Signals](#signals-adr-0036).
 
 Trades, tickers and candles come from MySQL: their instants are ISO date-times
 and `tradeId` (BIGINT) is a decimal string, exact past 2^53:
 
 ```json
-[
+{
+  "rows": [
   {
     "symbol": "BTCUSDT",
     "market": "crypto",
@@ -54,40 +62,49 @@ and `tradeId` (BIGINT) is a decimal string, exact past 2^53:
     "tradeId": "9007199254740993",
     "timestamp": "2024-01-15T10:40:00.000Z"
   }
-]
+  ],
+  "nextCursor": "MTcwNTMxNTIwMDAwMC40Mg",
+  "truncated": true
+}
 ```
 
 Tickers carry `open`, `high`, `low`, `last`, `volume`, `timestamp` and
 `closeTimestamp`; candles carry `interval`, `open`, `high`, `low`, `close`,
 `volume`, `trades` (absent when unknown), `timestamp` and `closeTimestamp`.
 
-Order books are in-memory snapshots (lost on restart), timestamped in epoch
-milliseconds:
+Order books have no route (ADR-0053): the collector writes each snapshot to
+`market_order_books` for historical replay and publishes it on the bus, where
+the trainer reads it. No process keeps them in memory.
 
-```json
-[
-  {
-    "symbol": "BTCUSDT",
-    "market": "crypto",
-    "source": "binance",
-    "timestamp": 1705315200000,
-    "bids": [{ "price": 50000.0, "quantity": 1.5 }],
-    "asks": [{ "price": 50010.0, "quantity": 0.8 }]
-  }
-]
-```
+### Breaking changes in 3.0.0 (gateway API v2)
+
+Release 3.0.0 moves the public routes of the service from the version prefix
+`v1` to `v2`: it registers in discovery with major version 2
+(`APP_VERSION=2.0.0`), so the gateway serves it under `v2` only and the same
+route under `v1` answers 404. The signals route is unchanged apart from that
+prefix. A client of 2.x must change:
+
+- **Removed** (#577, ADR-0053), answer 404: `/orderbook/after/timestamp/{timestamp}`,
+  `/orderbook/before/timestamp/{timestamp}`, `/orderbook/sources/{source}`,
+  `/orderbook/symbols/{symbol}`.
+- **Paged** (#576, ADR-0054): the 9 trade, ticker and candle routes above
+  answered the whole result as a JSON array. They now answer
+  `{ rows, nextCursor, truncated }` with at most `limit` rows (default 500):
+  read `rows`, and follow `nextCursor` as `after` until it is `null` to get
+  everything.
 
 ## MySQL Tables
 
 All tables live in the `financial_scraper` database (configurable via `DB_NAME` env var). The ORM is `ts-sql-query` with a custom `DBConnection` wrapper.
 
-Three tables store market data:
+Four tables store market data:
 
 | Table              | Content                   |
 | ------------------ | ------------------------- |
 | `market_candles`   | OHLCV candle data         |
 | `market_trades`    | Individual trade data     |
 | `market_tickers`   | 24-hour ticker statistics |
+| `market_order_books` | Order book depth snapshots (migration 008, ADR-0053): `bids` / `asks` as JSON `[price, quantity]` pairs, best first; no API route reads them |
 
 `market_publish_cursors` holds the candle publish backlog (see below) and
 `signals` (migration 006) the signals of every dimension ([Signals](#signals-adr-0036)).
@@ -107,8 +124,8 @@ A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`Mar
 
 - `node-cron` runs the cycle with concurrency control via `p-limit`
 - The Binance source fetches all 6 data types in parallel and normalizes them; `BrokerMarketDataPublisher` publishes them to the message bus
-- Failures stay where they happen: a symbol that fails does not stop the others (`fs_symbols_failed_total`), and an endpoint that fails only leaves its data type out of the snapshot (`fs_snapshot_parts_failed_total{part}`): an order book error does not cost the candles. The symbol fails only when all 6 endpoints fail
-- MySQL does not wait for the bus: the cycle persists, then starts the publish without awaiting it (a hung message-manager may hold a publish for `PUBLISH_TIMEOUT_MS`). While a symbol's publish is in flight, the next cycles persist only (`fs_publishes_skipped_total`; their trades, tickers and order book are not published, they are snapshots)
+- Failures stay where they happen: a symbol that fails does not stop the others (`fs_symbols_failed_total{symbol}` and `fs_symbols_scraped_total{symbol}`, born at 0 for every tracked symbol), and an endpoint that fails only leaves its data type out of the snapshot (`fs_snapshot_parts_failed_total{part}`): an order book error does not cost the candles. A payload that cannot be normalized (a value outside its domain type) only loses its data type too, counted on the same metric. The symbol fails only when all 6 endpoints fail. So a symbol can count as scraped with no candle: alert `SymbolMarketDataStale` reads `fs_candles_persisted_total{symbol}` (born at 0 for every tracked symbol) and names a symbol with no candle persisted for 15 min, whatever the cause, even when the cycle counts `success`
+- MySQL does not wait for the bus: the cycle persists, then starts the publish without awaiting it (a hung message-manager may hold a publish for `PUBLISH_ACCEPT_TIMEOUT_MS`, 15 s: it answers 202 once the message is journaled, whatever the subscribers do, ADR-0048). While a symbol's publish is in flight, the next cycles persist only (`fs_publishes_skipped_total`; their trades, tickers and order book are not published, they are snapshots)
 - The candles to publish are read back from MySQL: each series has a publish cursor (`market_publish_cursors`, migration 005, open time of the next candle to publish) that moves only once a publish of its candles succeeded. Each cycle sends the next 100 persisted candles from the cursor, so a bus outage or a collector restart loses none (`fs_unpublished_candles{symbol}` counts those waiting, alert `MarketDataUnpublished`). A series without a cursor starts at the first candle the process persists, not at the history. If the backlog cannot be read (MySQL down) the other data types still go out. On shutdown the scraper stops the cron and waits for the running cycle and the publishes in flight (collector grace period 360 s)
 - Candles are fetched from a per-symbol cursor (`startTime` = close of the last persisted candle + 1 ms), so each cycle publishes only the candles closed since the previous one and catches up after an outage. The still-open candle is never published. The cursor lives in memory: after a restart the first cycle sends the latest window again, which the upserts and the trainer absorb
 
@@ -198,7 +215,7 @@ value stays). A sector signal is stored once, with `sector` set and
 `asset_id` null.
 
 **Query**: `GET /signals/assets/:assetId?from=<date>&to=<date>` (through the
-gateway: `/v1/financial-scraper/signals/assets/:assetId`). `from` and `to` are
+gateway: `/v2/financial-scraper/signals/assets/:assetId`). `from` and `to` are
 ISO dates or date-times, the window is `[from, to)`. The answer holds the asset,
 then its own and its sector's signals of its applicable dimensions in the
 window, oldest first, at most 5000 (`truncated: true` beyond: narrow the
@@ -254,7 +271,7 @@ dimensions and metrics: nothing changes here (ADR-0036, decision 14).
 
 ```
 HTTP Server
-  ├── Financial routes (/trade/*, /ticker/*, /candles/*, /orderbook/*, /signals/assets/*)
+  ├── Financial routes (/trade/*, /ticker/*, /candles/*, /signals/assets/*)
   ├── AddressManager routes (ping)
   └── MessageManager routes (callback)
 

@@ -1,25 +1,27 @@
-import { describe, expect, it } from "@jest/globals";
 import {
-	addressManagerError,
-	agentError,
 	authenticationError,
 	createAppError,
-	deadLetterError,
-	isAddressManagerError,
-	isAgentError,
+	ErrorCode,
 	isAppError,
 	isAuthenticationError,
-	isMessageManagerError,
-	isServiceNotFoundError,
-	isServiceUnreachableError,
-	isTimeoutError,
-	messageManagerError,
-	nackError,
+	makeErrorCode,
+	makeGuard,
 	normalizeError,
-	serviceNotFoundError,
-	serviceUnreachableError,
 	timeoutError,
 } from "../../src/utils/errors";
+
+const serviceNotFoundError = makeErrorCode(ErrorCode.ServiceNotFound);
+const isServiceNotFoundError = makeGuard(ErrorCode.ServiceNotFound);
+const serviceUnreachableError = makeErrorCode(ErrorCode.ServiceUnreachable);
+const isServiceUnreachableError = makeGuard(ErrorCode.ServiceUnreachable);
+const addressManagerError = makeErrorCode(ErrorCode.AddressManager);
+const isAddressManagerError = makeGuard(ErrorCode.AddressManager);
+const messageManagerError = makeErrorCode(ErrorCode.MessageManager);
+const isMessageManagerError = makeGuard(ErrorCode.MessageManager);
+const nackError = makeErrorCode(ErrorCode.Nack);
+const deadLetterError = makeErrorCode(ErrorCode.DeadLetter);
+const agentError = makeErrorCode(ErrorCode.Agent);
+const isAgentError = makeGuard(ErrorCode.Agent);
 
 describe("AppError", () => {
 	it("should be constructable with message", () => {
@@ -70,9 +72,8 @@ describe("AppError", () => {
 		expect(isMessageManagerError(error)).toBe(true);
 	});
 
-	it("should be identified by type guard for TimeoutError", () => {
-		const error = timeoutError("timed out");
-		expect(isTimeoutError(error)).toBe(true);
+	it("should tag TimeoutError with its code", () => {
+		expect(timeoutError("timed out").code).toBe(ErrorCode.Timeout);
 	});
 
 	it("should support reason via options", () => {

@@ -15,7 +15,8 @@ import { overTheWire, type PublishedRequest } from "./broker-pipeline";
  * The spec mocks dlq-service's claim and retry bookkeeping (MongoDB).
  */
 export async function deadLetterAndReplay(
-	message: Message
+	message: Message,
+	service = "audit-logger-service"
 ): Promise<{ stored: DlqEntry; replay: PublishedRequest }> {
 	const deadLetters: DlqEntry[] = [];
 	const delivery = new HttpMessageDelivery({} as never, {
@@ -24,6 +25,7 @@ export async function deadLetterAndReplay(
 		},
 	});
 	await delivery.markDeadLetter({
+		service,
 		message,
 		reason: "MAX_RETRIES_EXCEEDED",
 		deliveryAttempt: 10 as never,
@@ -41,14 +43,18 @@ export async function deadLetterAndReplay(
 
 	const replays: PublishedRequest[] = [];
 	await deliverEntry(
-		{ id: "entry-1", message: stored.message } as never,
+		{
+			id: "entry-1",
+			message: stored.message,
+			service: stored.service,
+		} as never,
 		{
 			instanceId: "dlq-service-1",
 			batchId: "batch-1",
 			messageManagerUrl: "https://10.0.0.3:3000",
 			client: {
 				post: async (url: string, body: unknown) => {
-					replays.push({ url, body: overTheWire(body) });
+					replays.push({ method: "POST", url, body: overTheWire(body) });
 				},
 			},
 		} as never

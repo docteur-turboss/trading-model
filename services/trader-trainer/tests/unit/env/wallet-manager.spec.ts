@@ -282,21 +282,9 @@ describe("Wallet module", () => {
 				6
 			);
 		});
-
-		test("should track totalFeesPaid in metrics", () => {
-			const wallet = createWallet({
-				initialCash: Cash.of(1000),
-				initialPrice: Price.of(50),
-				feeRate: Percentage.of(0.01),
-			});
-			wallet.buy(Volume.of(5));
-			wallet.sell(Volume.of(3));
-			const metrics = wallet.getMetrics();
-			expect(metrics.totalFeesPaid).toBeGreaterThan(0);
-		});
 	});
 
-	describe("PnL and Metrics", () => {
+	describe("PnL", () => {
 		test("should return 0 PnL when no trades", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
@@ -313,53 +301,6 @@ describe("Wallet module", () => {
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(60));
 			expect(wallet.getPnL()).toBeGreaterThan(0);
-		});
-
-		test("should track drawdown in metrics", () => {
-			const wallet = createWallet({
-				initialCash: Cash.of(1000),
-				initialPrice: Price.of(50),
-			});
-			wallet.buy(Volume.of(10));
-			wallet.setPrice(Price.of(70));
-			wallet.setPrice(Price.of(30));
-			const metrics = wallet.getMetrics();
-			expect(metrics.drawdown).toBeGreaterThan(0);
-		});
-
-		test("should track tradeCount in metrics", () => {
-			const wallet = createWallet({
-				initialCash: Cash.of(1000),
-				initialPrice: Price.of(50),
-			});
-			wallet.buy(Volume.of(5));
-			wallet.sell(Volume.of(2));
-			const metrics = wallet.getMetrics();
-			expect(metrics.tradeCount).toBe(2);
-		});
-
-		test("should compute returnRate in metrics", () => {
-			const wallet = createWallet({
-				initialCash: Cash.of(1000),
-				initialPrice: Price.of(50),
-			});
-			wallet.buy(Volume.of(10));
-			wallet.setPrice(Price.of(60));
-			const metrics = wallet.getMetrics();
-			const expectedValuation = 1000 - 10 * 50 + 10 * 60;
-			const expectedReturnRate = (expectedValuation - 1000) / 1000;
-			expect(metrics.returnRate).toBeCloseTo(expectedReturnRate, 5);
-		});
-
-		test("should handle zero cash in metrics drawdown", () => {
-			const wallet = createWallet({
-				initialCash: Cash.of(0),
-				initialPrice: Price.of(50),
-			});
-			const metrics = wallet.getMetrics();
-			expect(metrics.drawdown).toBe(0);
-			expect(metrics.pnl).toBe(0);
-			expect(metrics.returnRate).toBeNaN();
 		});
 	});
 
@@ -380,22 +321,6 @@ describe("Wallet module", () => {
 			expect(wallet.getPrice()).toBe(50);
 			expect(wallet.getValuation()).toBe(1000);
 			expect(wallet.getPnL()).toBe(0);
-			expect(wallet.getHistory()).toEqual([]);
-		});
-	});
-
-	describe("getHistory", () => {
-		test("should record trade history", () => {
-			const wallet = createWallet({
-				initialCash: Cash.of(1000),
-				initialPrice: Price.of(50),
-			});
-			wallet.buy(Volume.of(5));
-			wallet.sell(Volume.of(2));
-			const history = wallet.getHistory();
-			expect(history.length).toBe(2);
-			expect(history[0].action).toBe("buy");
-			expect(history[1].action).toBe("sell");
 		});
 	});
 });

@@ -15,6 +15,7 @@ graph TD
     end
     subgraph "Messaging Context"
         MM["message-manager"]
+        DLQ["dlq-service"]
         MT["message transport"]
         SUB["subscriptions (Redis)"]
     end
@@ -26,7 +27,6 @@ graph TD
     end
     subgraph "Observability Context"
         AL["audit-logger"]
-        DLQ["dlq-service"]
     end
     subgraph "Gateway Context"
         GW["api-gateway"]
@@ -37,6 +37,9 @@ graph TD
     TT -->|"AgentPayload (published)"| MM
     MM -->|"events"| AL
     AL -.->|"subscribe (all topics)"| MM
+    MM -->|"dead letters"| DLQ
+    DLQ -->|"replay"| MM
+    DLQ -->|"dlq.* events"| MM
     DS --> GW
     GW --> DS
 ```
@@ -49,6 +52,7 @@ graph TD
 - **Core entities:** Candle, Trade, Ticker, OrderBook
 - **External dependency:** Binance API
 - **Publishes:** `market.trade.recent.fetch`, `market.candlestick.series.fetch`, `market.order-book.snapshot.fetch`, `market.ticker.24hr-stats.fetch`, `market.price-ticker.snapshot.fetch`, `market.order-book-ticker.snapshot.fetch`
+- **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; **no consumer yet** (trader-trainer does not read them).
 - **Debug events:** `example.debug.create`, `example.show.create`
 
 ### 2. Training Context
@@ -57,14 +61,16 @@ graph TD
 - **Sub-contexts:** `genetic-algorithm` (population evolution), `neural-network` (agent learning)
 - **Core entities:** Genome, Agent, Wallet, Experience
 - **Consumes:** Market events from Market Data Context
-- **Publishes:** Agent payloads (best agent after each generation)
+- **Publishes:** Agent payloads (best agent after each generation), `training.model.published` after each versioned artifact (ADR-0022)
+- **Consumers:** none yet. Only audit-logger receives `training.model.published`; `MODEL_DOWNLOAD_CALLERS` is empty, so no service may download weights. The trainer does not read signals either.
 
 ### 3. Messaging Context
 
-- **Owner:** `message-manager`
-- **Core entities:** Message, Subscription, DeliveryAttempt, DeadLetter
-- **Responsibilities:** Topic routing, delivery guarantees, retry, DLQ routing
-- **Internal interfaces:** MessageDeliveryPort, SubscriptionStore, MessageStore
+- **Owner:** `message-manager` + `dlq-service` (dead letters and replay are part of delivery, not observability)
+- **Core entities:** Message, Subscription, DeliveryAttempt, DeadLetterEntry
+- **Responsibilities:** Topic routing, delivery guarantees, retry (message-manager); dead-letter storage and replay back to message-manager (dlq-service). The broker stores no message (ADR-0019)
+- **Internal interfaces:** `MessageDeliveryPort`, `SubscriptionStorePort`
+- **Publishes (dlq-service):** `dlq.entry.added`, `dlq.replay.completed`, `dlq.entries.deleted`
 
 ### 4. Security Context
 
@@ -80,17 +86,20 @@ graph TD
 
 ### 6. Observability Context
 
-- **Owner:** `audit-logger` + `dlq-service`
-- **Core entities:** AuditEvent, DeadLetterEntry
-- **Consumes:** All published events for audit trail
+- **Owner:** `audit-logger`
+- **Core entities:** AuditEvent
+- **Consumes:** All published events for audit trail (including `dlq.*`)
 - **Internal events:** `audit.heartbeat`, `audit.gap.detected`
-- **Publishes:** Replay requests (DLQ → Message Manager)
 
 ### 7. Gateway Context
 
 - **Owner:** `api-gateway`
 - **Core entities:** Route, CacheEntry
 - **Responsibilities:** Auth, rate limiting, caching, proxying
+
+### Not yet defined: downstream context
+
+No Strategy, Execution or Evaluation context exists: trained models and collected signals have no consumer, so the trading decision is not part of the system yet. Options and the proposed contract are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Proposed).
 
 ## Integration Patterns
 

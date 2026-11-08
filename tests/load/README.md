@@ -1,81 +1,71 @@
 # Load Tests
 
-Performance and capacity testing for the trading-model platform using [k6](https://k6.io).
+[k6](https://k6.io) tests of the public API, through the **edge-proxy** (compose host port 8449): the only external entry (ADR-0018). Services accept only SPIFFE mTLS clients, so k6 never targets a service or gateway port. Every route is in `PUBLIC_ROUTES` (`services/api-gateway/src/shared/public-routes.ts`); every check requires `status == 200`.
 
-## Prerequisites
+| Variable   | Default                 | Meaning                                                      |
+| ---------- | ----------------------- | ------------------------------------------------------------ |
+| `BASE_URL` | `http://localhost:8449` | Edge-proxy URL                                               |
+| `API_KEY`  | empty                   | A key of `GATEWAY_AUTH_TOKENS` (E2E overlay: `e2e-api-key`) |
 
-```bash
-# Install k6
-# macOS:  brew install k6
-# Linux:  apt install k6  |  rpm -i k6-*.rpm
-# Win:    choco install k6
+Without a valid `API_KEY` the gateway answers 401: the checks fail and k6 exits non-zero.
 
-# Or use Docker:
-docker pull grafana/k6
-```
-
-## Running Tests
+## Run
 
 ```bash
-# API Gateway health test
-k6 run tests/load/scenarios/api-gateway-health.js
-
-# Message publish test
-k6 run tests/load/scenarios/message-publish.js
-
-# Discovery registration test
-k6 run tests/load/scenarios/discovery-register.js
-
-# With custom env
-k6 run -e API_GATEWAY_URL=https://staging.example.com -e ADMIN_TOKEN=your-token tests/load/scenarios/api-gateway-health.js
-
-# Docker-based
-docker run --rm -i -v $PWD/tests/load:/tests grafana/k6 run /tests/scenarios/api-gateway-health.js
+# Stack: docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml up -d --build --wait ...
+k6 run -e API_KEY=e2e-api-key tests/load/k6/smoke-test.js      # 30 s, 2 VUs (what CI runs)
+k6 run -e API_KEY=e2e-api-key tests/load/scenarios/candles.js  # 2 min ramp to 25 VUs
+# Docker: docker run --rm -i --network host -v $PWD/tests/load:/load grafana/k6:1.4.0 run -e API_KEY=... /load/k6/smoke-test.js
 ```
 
-## Scenarios
+Tear the stack down afterwards: `docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml down -v`.
 
-| Scenario                | Description                             | Target RPS | P95 Target |
-| ----------------------- | --------------------------------------- | ---------- | ---------- |
-| `api-gateway-health.js` | Serial health checks ramping 10→100 VUs | 100        | <2s        |
-| `message-publish.js`    | Serial message publishing 5→20 VUs      | 20         | <3s        |
-| `discovery-register.js` | Service registration 5→10 VUs           | 10         | <1s        |
+## Rate limit (429)
 
-## Capacity Targets
+The gateway limits each IP (`RATE_LIMIT_MAX` per minute, default 100). The E2E overlay sets 2 000: enough for the smoke only (2 VUs, ~240 req/min). Beyond that the gateway answers 429, the `status == 200` checks fail and the run measures the limiter, not the latency.
 
-Based on SLO definitions (`docs/operations/slo.md`):
+Rates below are estimated from the script configuration (VUs, `sleep`), written 2026-11-08. They are not measured: no run has recorded them.
 
-| Metric       | Target                     |
-| ------------ | -------------------------- |
-| Availability | 99.9% (43m downtime/month) |
-| P95 Latency  | <2s                        |
-| Error Rate   | <1%                        |
+| Script                              | Estimated rate (one IP, not measured)  | Needs `RATE_LIMIT_MAX` |
+| ----------------------------------- | -------------------------------------- | ---------------------- |
+| `k6/smoke-test.js`                  | ~240 req/min                           | 2 000 (overlay as is)  |
+| `scenarios/*.js`                    | 25 VUs, `sleep(0.5)`: ~50 req/s = ~3 000 req/min | 5 000 |
+| `k6/stress-test.js`                 | 100 VUs, no sleep: bounded by latency (no measured figure) | 1 000 000 (effectively off) |
 
-## Running a Full Capacity Test
-
-```bash
-# All scenarios sequentially
-for scenario in api-gateway-health message-publish discovery-register; do
-  echo "=== Running $scenario ==="
-  k6 run "tests/load/scenarios/${scenario}.js"
-done
-```
-
-## CI Integration
-
-Add to CI workflow:
+For the scenarios and the stress test, raise the limit with an extra compose file (the overlay value is not changed, CI keeps 2 000):
 
 ```yaml
-- name: Load test (staging)
-  run: |
-    k6 run tests/load/scenarios/api-gateway-health.js \
-      -e API_GATEWAY_URL=https://staging-api.example.com \
-      -e ADMIN_TOKEN=${{ secrets.STAGING_ADMIN_TOKEN }}
+# rate-limit-load.yml
+services:
+  api-gateway:
+    environment:
+      RATE_LIMIT_MAX: '1000000'
 ```
 
-## Interpreting Results
+```bash
+docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f rate-limit-load.yml up -d --build --wait ...
+```
 
-- **http_req_duration (p95)**: If >2s, investigate upstream latency or resource limits
-- **http_req_failed**: If >1%, check error logs and circuit breaker status
-- **vus**: Shows how many virtual users were running at peak
-- **iterations**: Total requests completed
+## Scripts
+
+| Script                           | Route (all `GET`)                                | Thresholds |
+| -------------------------------- | ------------------------------------------------ | ---------- |
+| `scenarios/candles.js`           | `/v2/financial-scraper/candles/symbols/BTCUSDT`  | SLO        |
+| `scenarios/discovery-services.js`| `/v1/discovery-server/services`                  | SLO        |
+| `scenarios/audit-events.js`      | `/v1/audit-logger/events`                        | SLO        |
+| `k6/smoke-test.js`               | the three above                                  | SLO        |
+| `k6/stress-test.js`              | the three above, up to 100 VUs                   | stress (see below; objective, not measured), not the SLO |
+
+**SLO thresholds** (`docs/operations/slo.md`, shared as `SLO_THRESHOLDS` in `lib/public-api.js`): `checks rate>0.99`, `http_req_duration p(95)<2000`, `http_req_failed rate<0.01`. A run that breaks them violates the SLO.
+
+**Stress thresholds** (`k6/stress-test.js`, declared in its header comment): `checks rate>0.95`, `http_req_duration p(95)<5000` and `p(99)<10000`, `http_req_failed rate<0.05`. They are deliberately looser: the stress test finds the load at which the system breaks, not whether it meets the SLO. A stress run that passes them can still violate the SLO, so never report it as SLO evidence.
+
+## CI
+
+The `e2e` job of `ci.yml` runs the smoke after the E2E suites (image pinned by tag and digest) and archives `k6-summary.json` (`--summary-export`) as the artifact `k6-summary`. The E2E overlay stubs Binance, so numbers there prove the thresholds hold on a small runner, not capacity.
+
+## Not covered
+
+- **Message bus throughput** (`/message` is service-to-service, mTLS SPIFFE): manual only, from inside the stack with `docker exec` and an SVID, like the mesh helpers of `tests/e2e/helpers.ts`. No k6 script today.
+- Capacity ceilings (audit performances C1, M3, M6) are not measured yet: run the scenarios and the stress test on a production-sized host and record the results here.
+- K8s cluster load tests.

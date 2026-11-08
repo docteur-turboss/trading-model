@@ -92,7 +92,7 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 
 | Service | Dependencies |
 | --- | --- |
-| api-gateway | common, contracts, crypto, http, primitives, server-utils, validation |
+| api-gateway | address-manager, common, contracts, http, primitives, server-utils, validation |
 | audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, server-utils, validation |
 | discovery-server | common, contracts, crypto, http, persistence, primitives, server-utils, validation |
 | dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
@@ -214,16 +214,16 @@ createBootstrap({
 ### Server (`src/application/server.ts`)
 
 ```typescript
-import { createSecureServer } from '@trading-model/server-utils/adapters/inbound/create-secure-server';
-import { loadTlsConfig } from '@trading-model/server-utils/infrastructure/load-tls-config';
+import { ServiceId } from '@trading-model/primitives/primitives';
+import { createServiceServer } from '@trading-model/server-utils/adapters/inbound/service-server-factory';
 import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
 import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';
 
 export function createServer() {
-  return createSecureServer({
-    port: env.PORT,
-    tls: loadTlsConfig(env),
+  return createServiceServer({
+    env,
+    serviceId: ServiceId.of('discovery-server'),
     routes: app => {
       app.use('/', registryRoutes());
       app.use('/', heartbeatRoutes());

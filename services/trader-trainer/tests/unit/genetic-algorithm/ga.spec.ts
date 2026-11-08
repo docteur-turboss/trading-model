@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "@jest/globals";
-import { crossoverGenomes } from "../../../src/domain/genetic-algorithm/crossover";
+import { crossoverGenomes } from "../../../src/domain/genetic-algorithm/crossover/genome-crossover";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
-import { mutateGenome } from "../../../src/domain/genetic-algorithm/mutation";
+import { mutateGenome } from "../../../src/domain/genetic-algorithm/mutation/mutate";
 
 describe("Genetic Algorithm - Core Operators", () => {
 	let baseGenome: any;

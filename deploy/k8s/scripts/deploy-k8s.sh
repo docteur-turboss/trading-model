@@ -12,6 +12,7 @@
 #    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
 #    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0042)
+#    ./deploy-k8s.sh [-n <namespace>] verify-release  # API call, fresh data, no critical alert, over a window
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
 
@@ -22,14 +23,6 @@ NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 
 log()  { echo "[$(date '+%H:%M:%S')] $*"; }
 err()  { echo "[$(date '+%H:%M:%S')] ERROR: $*" >&2; }
-
-# Feature flags: enable individual capabilities with the FEATURE_FLAGS env var
-# (comma-separated), e.g. FEATURE_FLAGS="canary-auto-cleanup". Flags are additive
-# and default to off so deploys stay predictable unless explicitly opted in.
-feature_enabled() {
-  local flag="$1"
-  [[ -n "${FEATURE_FLAGS:-}" && ",${FEATURE_FLAGS}," == *",${flag},"* ]]
-}
 
 # Resolve a container image reference (repo:tag) to an immutable @sha256 digest.
 # Uses crane when available, falling back to docker buildx imagetools inspect.
@@ -113,8 +106,7 @@ cmd_apply() {
       rollout_failed=1
     fi
   else
-    for dep in discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer \
-               api-gateway audit-logger dlq-service edge-proxy; do
+    for dep in $(bash "$(dirname "${BASH_SOURCE[0]}")/deploy-release.sh" deployments); do
       if ! kubectl rollout status -n "$NAMESPACE" "deployment/${dep}" --timeout=120s; then
         err "Rollout of $dep failed or timed out."
         rollout_failed=1
@@ -215,13 +207,7 @@ cmd_migrate_down() {
     "${K8S_DIR}/jobs/migration-job-down.yaml" | kubectl apply -n "$NAMESPACE" -f -
 
   log "Waiting for migration rollback to complete..."
-  if ! kubectl wait --for=condition=complete job/db-migrate-down -n "$NAMESPACE" --timeout=180s; then
-    err "Migration rollback job failed or timed out."
-    if ! kubectl logs -n "$NAMESPACE" job/db-migrate-down --tail=50 2>/dev/null; then
-      err "Could not retrieve logs from db-migrate-down job"
-    fi
-    exit 1
-  fi
+  bash "${K8S_DIR}/scripts/wait-job.sh" "$NAMESPACE" db-migrate-down 180
 
   log "Migration rollback complete."
   kubectl logs -n "$NAMESPACE" job/db-migrate-down --tail=20 2>/dev/null
@@ -283,18 +269,17 @@ canary_start() {
   [[ "$canary_replicas" -lt 1 ]] && canary_replicas=1
 
   # Resolve image: prefer immutable @sha256 digest over mutable tag.
-  local image_ref="${image_tag:-}"
-  if [[ -n "$image_ref" ]]; then
+  local repo="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}"
+  local image_ref="${repo}:latest"
+  if [[ -n "$image_tag" ]]; then
     local digest
-    if digest="$(resolve_image_digest "${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}" "$image_ref")"; then
-      image_ref="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}@${digest}"
+    if digest="$(resolve_image_digest "$repo" "$image_tag")"; then
+      image_ref="${repo}@${digest}"
       log "Pinned ${service} canary image to digest ${digest}"
     else
-      image_ref="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}:${image_tag}"
+      image_ref="${repo}:${image_tag}"
       log "WARNING: could not resolve a digest for ${service}:${image_tag} — falling back to tag"
     fi
-  else
-    image_ref="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}:latest"
   fi
 
   # A canary left by an earlier run may carry another (immutable) selector.
@@ -380,7 +365,7 @@ canary_check() {
   fi
 }
 
-# Scales a passed canary to 0 (or removes it with canary-auto-cleanup).
+# Scales a passed canary to 0.
 canary_finish() {
   local canary_name="${1}-canary"
   # Scale canary to 0 after successful gate — no traffic drain needed.
@@ -388,13 +373,7 @@ canary_finish() {
   kubectl scale deployment -n "$NAMESPACE" "$canary_name" --replicas=0
 
   log "Canary $canary_name gate passed."
-
-  if feature_enabled "canary-auto-cleanup"; then
-    log "FEATURE_FLAGS includes canary-auto-cleanup — removing $canary_name"
-    kubectl delete deployment -n "$NAMESPACE" "$canary_name" --ignore-not-found
-  else
-    log "Canary $canary_name kept (scaled to 0). Remove it with: $0 canary-cleanup ${1}"
-  fi
+  log "Canary $canary_name kept (scaled to 0). Remove it with: $0 canary-cleanup ${1}"
 }
 
 cmd_canary() {
@@ -460,39 +439,6 @@ cmd_canary_cleanup() {
   fi
 }
 
-cmd_pin() {
-  log "Pinning deployed images to immutable @sha256 digests..."
-  local services=(
-    discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
-    api-gateway audit-logger dlq-service
-  )
-  local failed=0
-  for svc in "${services[@]}"; do
-    local image
-    image=$(kubectl get deployment -n "$NAMESPACE" "$svc" -o json \
-      | jq -r --arg name "$svc" '.spec.template.spec.containers[] | select(.name == $name) | .image' 2>/dev/null) || {
-      err "Deployment '$svc' not found in namespace $NAMESPACE — skipping pin."
-      continue
-    }
-    [[ -z "$image" || "$image" == *"@"* ]] && continue
-    local repo="${image%%:*}"
-    local tag="${image##*:}"
-    local digest
-    if digest="$(resolve_image_digest "$repo" "$tag")"; then
-      log "  ✓ $svc: $image → ${repo}@${digest}"
-      kubectl set image -n "$NAMESPACE" "deployment/${svc}" "${svc}=${repo}@${digest}" >/dev/null
-    else
-      err "  ✗ could not resolve digest for $svc ($image)"
-      failed=$((failed + 1))
-    fi
-  done
-  if [[ "$failed" -gt 0 ]]; then
-    err "$failed image(s) could not be pinned."
-    exit 1
-  fi
-  log "All deployed images pinned to digests."
-}
-
 cmd_smoke_test() {
   log "Running smoke tests..."
 
@@ -541,9 +487,10 @@ cmd_verify_market_data() {
   local deadline=$((SECONDS + timeout)) persisted="" metrics="" last_err="no attempt made"
   log "Waiting up to ${timeout}s for the collector to persist candles..."
   while [[ "$SECONDS" -lt "$deadline" ]]; do
-    if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector --       curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem       https://localhost:3000/metrics 2>&1)"; then
-      persisted="$(printf '%s
-' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
+    if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector -- \
+        curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+        https://localhost:3000/metrics 2>&1)"; then
+      persisted="$(printf '%s\n' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
       last_err="no fs_candles_persisted_total candle yet (0 persisted)"
     else
       persisted=0
@@ -561,6 +508,105 @@ cmd_verify_market_data() {
   fi
   err "Collector persisted no candle within ${timeout}s after the release: ${last_err} (runbook-market-data-stale.md)."
   exit 1
+}
+
+# Query `$1` (URL-encoded PromQL) on the in-cluster Prometheus; prints the JSON
+# answer. Fails when Prometheus does not answer: a missing signal is not a pass.
+prom_query() {
+  kubectl exec -n "$NAMESPACE" prometheus-0 -c prometheus -- \
+    wget -qO- "http://localhost:9090/api/v1/query?query=$1"
+}
+
+# Candles persisted in the last 15 min (0 when the series is absent).
+fresh_candles() {
+  prom_query 'sum%28increase%28fs_candles_persisted_total%5B15m%5D%29%29' | jq -r '.data.result[0].value[1] // "0"'
+}
+
+# One pass of the post-deploy functional checks (see cmd_verify_release).
+# $1 = 1 when a missing market-data signal must fail now (last pass or data
+# already seen once), 0 while the first scrape may still be pending.
+release_checks_once() {
+  local strict="$1" key code critical fresh
+
+  key="$(kubectl get secret -n "$NAMESPACE" trading-model-secrets -o jsonpath='{.data.AUTH_TOKENS}' | base64 -d | cut -d, -f1)"
+  if [[ -z "$key" ]]; then
+    err "  ✗ no gateway API key in Secret trading-model-secrets (AUTH_TOKENS)"
+    return 1
+  fi
+  # The key goes through stdin (curl -H @-), never on a command line or in a log.
+  local path="/v1/discovery-server/services"
+  code="$(printf 'x-api-key: %s\n' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+    curl -s -o /dev/null -w '%{http_code}' -H @- "http://edge-proxy:8080${path}")" || code="000"
+  if [[ "$code" != "200" ]]; then
+    err "  ✗ GET ${path} through edge-proxy answered ${code}, expected 200"
+    return 1
+  fi
+  log "  ✓ API through edge-proxy: 200"
+
+  # Optional: the real ingress host, once defined (VERIFY_EXTERNAL_URL=https://host).
+  if [[ -n "${VERIFY_EXTERNAL_URL:-}" ]]; then
+    code="$(printf 'x-api-key: %s\n' "$key" | curl -s -o /dev/null -w '%{http_code}' -H @- "${VERIFY_EXTERNAL_URL%/}${path}")" || code="000"
+    if [[ "$code" != "200" ]]; then
+      err "  ✗ external ${VERIFY_EXTERNAL_URL%/}${path} answered ${code}, expected 200"
+      return 1
+    fi
+    log "  ✓ API through the external ingress: 200"
+  fi
+
+  # VERIFY_REQUIRE_FRESH_DATA=false (staging): missing market data only warns
+  # there (ADR-0042, verify-market-data), so skip the data check and MarketDataStale.
+  local ignored='%2Calertname!%3D%22Watchdog%22'
+  if [[ "${VERIFY_REQUIRE_FRESH_DATA:-true}" == "false" ]]; then
+    ignored+='%2Calertname!%3D%22MarketDataStale%22'
+    log "  - market data not checked (VERIFY_REQUIRE_FRESH_DATA=false)"
+  else
+    fresh="$(fresh_candles)" || return 1
+    # Strict pass: a scrape cycle runs every minute and Prometheus needs two
+    # samples for increase(), so give the first ones up to 3 min to show up.
+    local tries=0
+    while [[ "$strict" == "1" ]] && ! awk -v v="$fresh" 'BEGIN { exit !(v > 0) }' && (( tries++ < 6 )); do
+      log "  … no candle counted yet (${fresh}), retrying in 30s"
+      sleep 30
+      fresh="$(fresh_candles)" || return 1
+    done
+    if awk -v v="$fresh" 'BEGIN { exit !(v > 0) }'; then
+      log "  ✓ market data: ${fresh%.*} candles persisted in the last 15 min"
+      FRESH_SEEN=1
+    elif [[ "$strict" == "1" ]]; then
+      err "  ✗ no candle persisted in the last 15 min"
+      return 1
+    else
+      log "  … no market data persisted yet"
+    fi
+  fi
+
+  critical="$(prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${ignored}%7D" \
+    | jq -r '.data.result[].metric | .alertname + (if .job then "{job=\(.job), instance=\(.instance // "")}" else "" end)')" || return 1
+  if [[ -n "$critical" ]]; then
+    err "  ✗ critical alert(s) firing: $(echo "$critical" | sort -u | paste -sd, -)"
+    return 1
+  fi
+  log "  ✓ no critical alert firing"
+}
+
+# Functional gate after smoke-test: an API call through edge-proxy with a
+# gateway key, fresh market data, no critical alert (Watchdog excluded), all
+# repeated every VERIFY_INTERVAL_SECONDS (default 60) over VERIFY_WINDOW_SECONDS
+# (default 600; 0 = one pass). Any failed pass fails the command, so deploy.yml
+# rolls back. Market data may be missing until its first sighting, but must be
+# there on the last pass and never disappear after.
+cmd_verify_release() {
+  local window="${VERIFY_WINDOW_SECONDS:-600}" interval="${VERIFY_INTERVAL_SECONDS:-60}"
+  local deadline=$(( SECONDS + window )) last=0
+  FRESH_SEEN=0
+  log "Verifying the release for ${window}s (every ${interval}s)..."
+  while :; do
+    (( SECONDS + interval >= deadline )) && last=1
+    release_checks_once "$(( last || FRESH_SEEN ))" || { err "Release verification failed."; exit 1; }
+    [[ "$last" -eq 1 ]] && break
+    sleep "$interval"
+  done
+  log "Release verified."
 }
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -609,14 +655,14 @@ case "${1:-help}" in
   canary-cleanup)
     cmd_canary_cleanup "${2:-}"
     ;;
-  pin)
-    cmd_pin
-    ;;
   smoke-test)
     cmd_smoke_test
     ;;
   verify-market-data)
     cmd_verify_market_data
+    ;;
+  verify-release)
+    cmd_verify_release
     ;;
   *)
     echo "Trading Model K8s Deploy Script"
@@ -630,11 +676,10 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] canary <srv> [tag] [pct]     Canary deployment"
     echo "  $0 [-n namespace] canary-all <tag> <pct> <srv>...  Canaries in parallel, one gate window"
     echo "  $0 [-n namespace] canary-cleanup <srv>  Remove canary deployment"
-    echo "  $0 [-n namespace] pin                     Pin deployed images to digests"
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
     echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
+    echo "  $0 [-n namespace] verify-release        API via edge-proxy, fresh data, no critical alert (VERIFY_WINDOW_SECONDS)"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
-    echo "Feature flags (FEATURE_FLAGS=flag1,flag2): canary-auto-cleanup"
     exit 1
     ;;
 esac

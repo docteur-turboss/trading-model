@@ -3,3 +3,5 @@ import { DurationMs, PositiveInt } from "@trading-model/primitives/primitives";
 export const DEFAULT_LATENCY_WINDOW_SIZE = PositiveInt.of(100);
 export const DEFAULT_LATENCY_P99_THRESHOLD_MS = DurationMs.of(5000);
 export const DEFAULT_LOAD_CACHE_TTL_MS = DurationMs.of(2_000);
+export const DEFAULT_FAILURE_THRESHOLD = PositiveInt.of(3);
+export const DEFAULT_HALF_OPEN_TIMEOUT_MS = DurationMs.of(10_000);

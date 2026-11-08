@@ -1,9 +1,10 @@
 import { sampleGaussian } from "../genetic-algorithm/noise";
-import type { WeightInitializer } from "./initializers/weight-initializer";
 import type { LayerDims } from "./layer-dims";
 import { InitialisationType } from "./type";
 
-export type { WeightInitializer } from "./initializers/weight-initializer";
+interface WeightInitializer {
+	initialize(dims: LayerDims, rng?: () => number): number;
+}
 
 const Zeros: WeightInitializer = { initialize: () => 0 };
 const Random: WeightInitializer = {
@@ -28,16 +29,10 @@ const LeCun: WeightInitializer = {
 	},
 };
 
-const ZEROS = Zeros;
-const HE = He;
-const XAVIER = Xavier;
-const LE_CUN = LeCun;
-const RANDOM_INIT = Random;
-
 export const INITIALIZERS: Record<InitialisationType, WeightInitializer> = {
-	[InitialisationType.Zeros]: ZEROS,
-	[InitialisationType.He]: HE,
-	[InitialisationType.Xavier]: XAVIER,
-	[InitialisationType.LeCun]: LE_CUN,
-	[InitialisationType.Random]: RANDOM_INIT,
+	[InitialisationType.Zeros]: Zeros,
+	[InitialisationType.He]: He,
+	[InitialisationType.Xavier]: Xavier,
+	[InitialisationType.LeCun]: LeCun,
+	[InitialisationType.Random]: Random,
 };

@@ -28,17 +28,17 @@ describe("Middleware chain integration", () => {
 	});
 
 	it("should work with ResponseException factory", () => {
-		const response = ResponseException("not found").notFound();
-		expect(response.status).toBe(404);
+		const response = ResponseException("not found").forbidden();
+		expect(response.status).toBe(403);
 
 		res.status(response.status).json(response.data);
-		expect(res.status).toHaveBeenCalledWith(404);
+		expect(res.status).toHaveBeenCalledWith(403);
 		expect(res.json).toHaveBeenCalledWith("not found");
 	});
 
 	it("should flow from core error to standardized response", async () => {
 		const handler = catchSync((_req: any, _res: any, _next: any) => {
-			throw ResponseException("Bad input").badRequest();
+			throw ResponseException("Bad input").forbidden();
 		});
 
 		await handler(req, res, next);

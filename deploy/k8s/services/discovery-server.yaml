@@ -25,8 +25,11 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 spec:
   strategy:
+    # Surge first: with one replica (staging), maxUnavailable 1 left no
+    # discovery until the new pod was ready, every instance expired (TTL 30 s)
+    # and re-registered only after 3 failed heartbeats (issue #486).
     rollingUpdate:
-      maxUnavailable: 1
+      maxUnavailable: 0
       maxSurge: 1
   selector:
     matchLabels:
@@ -91,6 +94,16 @@ spec:
             - configMapRef:
                 name: discovery-server-config
           env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_DISCOVERY_PASSWORD
+            - name: REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             - name: SIGNING_SECRET
               valueFrom:
                 secretKeyRef:
@@ -159,7 +172,7 @@ spec:
                   - -c
                   - sleep 10
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
           imagePullPolicy: IfNotPresent
           args:
             - -config

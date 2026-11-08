@@ -1,5 +1,4 @@
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
-import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import {
 	DurationMs,
 	type IPAddress,
@@ -33,6 +32,7 @@ function _buildCoreConfig(env: AddressManagerEnv) {
 		discoveryTimeoutMs: DurationMs.of(env.DISCOVERY_TIMEOUT_MS),
 		servicePingTimeoutMs: DurationMs.of(env.SERVICE_PING_TIMEOUT_MS),
 		servicePort: Port.of(env.PORT),
+		serviceVersion: env.APP_VERSION,
 		tokenRefreshIntervalMs: DurationMs.of(env.TOKEN_REFRESH_INTERVAL_MS),
 		ttlRefreshIntervalMs: DurationMs.of(env.TTL_REFRESH_INTERVAL_MS),
 	};
@@ -43,7 +43,6 @@ function _buildOptionalConfig(env: AddressManagerEnv) {
 		dnsNameMap: env.DNS_NAME_MAP as unknown as
 			| Record<ServiceId, IPAddress>
 			| undefined,
-		redisCache: redisConnectionFromEnv(env),
 	};
 }
 

@@ -29,7 +29,7 @@ MarketDataController.persist()
      │
      ├── MarketDataModel.insertCandles()   → MySQL (market_candles)
      ├── MarketDataModel.insertTrades()    → MySQL (market_trades)
-     ├── MarketDataModel.insertOrderBook() → In-memory Map
+     ├── MarketDataModel.insertOrderBook() → MySQL (market_order_books)
      └── MarketDataModel.insertTicker()    → MySQL (market_tickers)
 ```
 
@@ -106,7 +106,7 @@ Storage schemas live in `src/adapters/outbound/persistence/schema/`; market data
 | `schema/trades.schema.ts`    | MySQL (`mysql2` + `ts-sql-query`) | `market_trades` — id, symbol, market, source, side, price, quantity, tradeId, timestamp  |
 | `schema/candles-schema.ts`   | MySQL                             | `market_candles` — id, symbol, market, source, interval_value, OHLCV, trades, timestamps |
 | `schema/ticker24h.schema.ts` | MySQL                             | `market_tickers` — id, symbol, market, source, OHLC, volume, timestamps                  |
-| `schema/orderBook.schema.ts` | In-memory (`Map`)                 | Indexed by symbol, source, market, timestamp with reverse lookup maps                    |
+| `schema/order-book.schema.ts` | MySQL                            | `market_order_books` — symbol, market, source, timestamp, bids/asks (JSON); write only (ADR-0053) |
 
 The `MarketDataModel` class (in `src/adapters/outbound/persistence/market-data.model.ts`) provides a unified facade over all schema modules. `MarketDataController.persist()` (built in `src/config/container.ts`) conditionally delegates to it.
 
@@ -123,10 +123,6 @@ The `MarketDataModel` class (in `src/adapters/outbound/persistence/market-data.m
 | GET    | `/candles/sources/:source`               | Candles by source            |
 | GET    | `/candles/symbols/:symbol`               | Candles by symbol            |
 | GET    | `/candles/timestamp/:timestamp`          | Candles by timestamp         |
-| GET    | `/orderbook/sources/:source`             | Order books by source        |
-| GET    | `/orderbook/symbols/:symbol`             | Order books by symbol        |
-| GET    | `/orderbook/after/timestamp/:timestamp`  | Order books after timestamp  |
-| GET    | `/orderbook/before/timestamp/:timestamp` | Order books before timestamp |
 | GET    | `/signals/assets/:assetId?from=&to=`     | Signals of an asset and its sector in a window (ADR-0036) |
 
 All routes use Zod-validated parameters and return standardized error responses via `ResponseException`.
@@ -150,7 +146,7 @@ Collection of the sources of every dimension declared in the source registry; se
 | Decision                             | Rationale                                                                                                                                            |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Token-bucket rate limiting**       | Binance enforces API weight limits per minute; a token bucket provides smooth request pacing vs. burst-and-wait                                      |
-| **In-memory order books**            | Order book snapshots change rapidly and are queried by timestamp ranges; MySQL is not suitable for this access pattern                               |
+| **Order books persisted, not served** | ADR-0053: kept in MySQL for historical replay; no route (no caller, the trainer reads them on the bus), no in-memory store to grow       |
 | **MySQL for trades/candles/tickers** | These are append-only time-series with stable schemas; SQL allows efficient range queries and joins                                                  |
 | **Separate worker per symbol**       | Avoids one slow symbol blocking others; `p-limit` caps total concurrency                                                                             |
 | **Message bus publishing**           | Decouples ingestion from consumption; other services (trainer, signal generator) consume normalized data without depending on the scraper's database |
@@ -205,5 +201,5 @@ All configuration is validated at startup via Zod schemas from `@trading-model/c
 | Level           | Focus                                                                             | Tools                       |
 | --------------- | --------------------------------------------------------------------------------- | --------------------------- |
 | **Unit**        | Client functions (URLs, weights), normalizers, workers (mocked API), utils        | Jest, manual mocks          |
-| **Integration** | Persistence pipeline (MarketDataController + model), in-memory order book storage | Jest, real in-memory stores |
+| **Integration** | Persistence pipeline (MarketDataController + model) | Jest, mocked repository |
 | **Fixtures**    | Mock Binance API responses for all endpoints                                      | Static fixture files        |

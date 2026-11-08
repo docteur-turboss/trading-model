@@ -34,7 +34,7 @@ export function createServer(trainer: Trainer, models: TrainerRoutesOptions) {
 					// biome-ignore lint/plugin: readiness probe: failure is the negative signal
 					try {
 						const target = await AddressManager.findService(
-							ServiceInstanceName.MessageDeliveryService
+							ServiceInstanceName.MessageManagerService
 						);
 						return Boolean(target);
 					} catch {

@@ -123,39 +123,28 @@ export function evaluateGenomeAllWindows(
 }
 
 /**
- * Parallel evaluation with bounded concurrency.
+ * Evaluates items one after the other on the calling thread. `fn` is CPU-bound,
+ * so there is no parallelism: a generation costs the sum of its genomes, and
+ * `TRAINER_TIME_BUDGET_MS` is the real limit on the generations reached.
  */
-export async function pooledEval<TItem, TResult>(
+export async function sequentialEval<TItem, TResult>(
 	items: TItem[],
-	concurrency: number,
 	fn: (item: TItem) => Promise<TResult>
 ): Promise<TResult[]> {
-	const results: TResult[] = new Array(items.length);
-	let nextIndex = 0;
-
-	async function worker() {
-		while (nextIndex < items.length) {
-			const i = nextIndex++;
-			results[i] = await fn(items[i]);
-			// fn is CPU-bound and awaits no I/O: without a macrotask yield a whole
-			// training session starves heartbeats, /metrics and incoming candles.
-			await new Promise<void>((resolve) => setImmediate(resolve));
-		}
+	const results: TResult[] = [];
+	for (const item of items) {
+		results.push(await fn(item));
+		// Without a macrotask yield a whole training session starves heartbeats,
+		// /metrics and incoming candles.
+		await new Promise<void>((resolve) => setImmediate(resolve));
 	}
-
-	const workers = Array.from(
-		{ length: Math.min(concurrency, items.length) },
-		worker
-	);
-	await Promise.all(workers);
 	return results;
 }
 
-export interface EvaluateFitnessContext {
+interface EvaluateFitnessContext {
 	population: DeepReadonly<LamarckGenome>[];
 	windowSets: WindowSet[];
 	backendFactory: BackendFactory;
-	concurrency: number;
 	telemetry?: GaTelemetry;
 }
 
@@ -184,11 +173,9 @@ export async function evaluateFitness(ctx: EvaluateFitnessContext): Promise<{
 	objectives: { avgPnl: number; sharpe: number; negFlops: number }[];
 	metas: GenomeFitnessMeta[];
 }> {
-	const { population, windowSets, backendFactory, concurrency, telemetry } =
-		ctx;
-	const evalResults = await pooledEval(
+	const { population, windowSets, backendFactory, telemetry } = ctx;
+	const evalResults = await sequentialEval(
 		population,
-		concurrency,
 		_makeEvalFn(windowSets, backendFactory, telemetry)
 	);
 

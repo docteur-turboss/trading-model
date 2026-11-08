@@ -1,6 +1,6 @@
-import { agentError } from "@trading-model/common/utils/errors";
+import { agentError } from "../../shared/errors";
 import { type LayerComputationContext, LayerComputer } from "./layer-computer";
-import { NORMALIZERS, type NormalizeParams } from "./normalize";
+import { NORMALIZERS, type NormalizeParams } from "./normalizers";
 import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
 
 export class FeedForwardEngine {
@@ -71,11 +71,6 @@ export class FeedForwardEngine {
 		}
 
 		return { current, layerZValues, layerOutputs };
-	}
-
-	predict(input: Float32Array): Float32Array {
-		const context = this.forward(input);
-		return context.output;
 	}
 
 	private _normalize(

@@ -41,7 +41,7 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 | `x-api-key`     | Yes\*    | API key for authentication |
 | `authorization` | No       | Fallback auth header       |
 
-\*All routes except `/ping` require authentication via `x-api-key` (or `authorization` fallback). Validated against `AUTH_TOKENS`.
+\*All routes except `/ping` require authentication via `x-api-key: <token>` or `Authorization: Bearer <token>` (the `Bearer ` prefix is case-insensitive and also stripped from the configured header). Validated against `AUTH_TOKENS` by SHA-256 digests compared with `timingSafeEqual`; the rate-limit identity is `client:` + 32 hex chars of that digest (one quota per token, no token material in logs).
 
 **Response (success):** Proxied response from target service (status code and body forwarded as-is).
 
@@ -66,6 +66,7 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 ## Caching
 
 - In-memory GET response cache (status 200 only)
+- Upstream answers capped at `PROXY_MAX_RESPONSE_BYTES`: larger ones are cut and answered 502 (ADR-0054)
 - Default TTL: 30s (configurable via `CACHE_TTL_MS`)
 
 ## Architecture
@@ -75,7 +76,7 @@ Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-lim
 ```
 
 - **Versioned Routing:** Pattern `/v{major}/{serviceName}/**` — resolved via Discovery Server, filtered by major version
-- **Service Resolution:** `ServiceResolver` queries Discovery Server, caches results with configurable TTL, round-robin load balancing across instances
+- **Service Resolution:** `EndpointResolver` (`@trading-model/address-manager`, ADR-0045) asks Discovery Server whether the major version is alive, resolves the Service DNS name to an IP, caches with configurable TTL; the platform spreads calls
 - **Proxy:** Forwards HTTPS request via `https.request`, strips sensitive headers (`x-api-key`, `authorization`, `host`, `connection`), injects `x-forwarded-for`, `x-forwarded-proto`, `x-request-id`
 - **Startup order:** Position 6 (depends on discovery-server:healthy)
 
@@ -92,3 +93,4 @@ Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-lim
 | `AUTH_STRICT`           | `true`                          | `false` accepts any key when `AUTH_TOKENS` is empty; refused in production |
 | `AUTH_TOKENS`           | `''`                            | Comma-separated valid tokens; required in production (the gateway refuses to start) |
 | `PROXY_TIMEOUT_MS`      | `10000`                         | Proxy request timeout (ms)   |
+| `PROXY_MAX_RESPONSE_BYTES` | `8388608` (8 MiB)          | Largest upstream answer; past it 502 `Upstream response too large` (ADR-0054) |

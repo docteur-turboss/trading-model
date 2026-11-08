@@ -24,6 +24,7 @@ cp .env.example .env
 Edit `.env` and replace the example values of these variables with your own secrets (`openssl rand -hex 32`):
 
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
+- `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated; you use one in Step 3
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
@@ -51,7 +52,7 @@ docker inspect --format '{{.State.Health.Status}}' trading-discovery
 
 ## Step 2: Start the API Gateway
 
-The gateway is the single entry point for all external requests. It only accepts mTLS clients with a SPIRE identity, so the host reaches it through the `edge-proxy` (plain HTTP on port 8449, `/v1` forwarded to the gateway):
+The gateway is the single entry point for all external requests. It only accepts mTLS clients with a SPIRE identity, so the host reaches it through the `edge-proxy` (plain HTTP on port 8449, `/v1` and `/v2` forwarded to the gateway):
 
 ```bash
 docker compose up -d api-gateway edge-proxy

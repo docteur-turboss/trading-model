@@ -1,7 +1,8 @@
 # shellcheck shell=bash
 # =============================================================================
 #  Trading Model — backup helpers, sourced by backup.sh, backup-k8s.sh,
-#  restore.sh and restore-k8s.sh (which define log/ok/fail/warn first).
+#  restore.sh and restore-k8s.sh (a caller may define log/ok/fail/warn
+#  first; the defaults below only fill in the missing ones).
 #
 #  Encryption (age, https://age-encryption.org):
 #    BACKUP_AGE_RECIPIENTS      age public keys (age1..., space or newline
@@ -36,6 +37,11 @@
 #  scripts pick the newest run whose manifest lists the component and check
 #  the file against it before applying it.
 # =============================================================================
+
+declare -F log >/dev/null || log() { echo "[$(date +%H:%M:%S)] $*"; }
+declare -F ok >/dev/null || ok() { log "✓ $*"; }
+declare -F fail >/dev/null || fail() { log "✗ $*"; }
+declare -F warn >/dev/null || warn() { log "⚠ $*"; }
 
 AGE_SUFFIX=""
 AGE_ARGS=()

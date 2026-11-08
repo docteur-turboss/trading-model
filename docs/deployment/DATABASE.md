@@ -16,13 +16,14 @@ The project uses two database engines managed by the **Financial Scraper** (MySQ
 
 ### Tables
 
-Three tables are defined in the SQL migrations (`scripts/migrations/`, applied by the `migrate` service):
+The market data tables are defined in the SQL migrations (`scripts/migrations/`, applied by the `migrate` service):
 
 | Table              | Content                   |
 | ------------------ | ------------------------- |
 | `market_candles`   | OHLCV candle data         |
 | `market_trades`    | Individual trade data     |
 | `market_tickers`   | 24-hour ticker statistics |
+| `market_order_books` | Order book depth snapshots (ADR-0053) |
 
 See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper-financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript entity interfaces.
 

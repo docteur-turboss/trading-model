@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
 import { BackpropEngine } from "../../../src/domain/neural-network/backprop-engine";
 import { FeedForwardEngine } from "../../../src/domain/neural-network/feed-forward-engine";
 import { NeuralNetworkBuilder } from "../../../src/domain/neural-network/neural-network-builder";
@@ -8,9 +8,7 @@ import type { NnTrainingDeps } from "../../../src/domain/neural-network/nn-train
 import {
 	ActivationType,
 	InitialisationType,
-	LossFunctionType,
 	NormalisationType,
-	OptimizerType,
 } from "../../../src/domain/neural-network/type";
 
 interface LayerParams {
@@ -34,9 +32,7 @@ function buildNet(
 		activationType,
 		initialisationType: InitialisationType.Xavier,
 		biasInitialisationType: InitialisationType.Xavier,
-		lossFunctionType: LossFunctionType.MeanSquaredError,
 		normalisationType: NormalisationType.None,
-		optimizerType: OptimizerType.Sgd,
 		learningRate: (options.learningRate ?? 0) as never,
 		gradientClipNorm: options.gradientClipNorm ?? 0,
 		enablePool: false,
@@ -250,120 +246,5 @@ describe("BackpropEngine", () => {
 				}
 			}
 		);
-	});
-
-	describe("accumulated mini-batch", () => {
-		const SAMPLES = [
-			{ input: [1, 2], target: [1] },
-			{ input: [-0.5, 0.3], target: [-0.2] },
-			{ input: [0.8, -1.1], target: [0.4] },
-		].map(({ input, target }) => ({
-			input: new Float32Array(input),
-			target: new Float32Array(target),
-		}));
-		const LR = 0.1;
-
-		function meanGradientStep(): LayerParams[] {
-			const sums = TINY_PARAMS.map(({ weights, bias }) => ({
-				weights: new Array<number>(weights.length).fill(0),
-				bias: new Array<number>(bias.length).fill(0),
-			}));
-			for (const sample of SAMPLES) {
-				const probe = buildTinyNet();
-				backpropOnce(probe, sample.input, sample.target);
-				probe.deps.layers.forEach((layer, idx) => {
-					layer.gradW.forEach((grad, k) => {
-						sums[idx].weights[k] += grad;
-					});
-					layer.gradB.forEach((grad, k) => {
-						sums[idx].bias[k] += grad;
-					});
-				});
-			}
-			return TINY_PARAMS.map(({ weights, bias }, idx) => ({
-				weights: weights.map(
-					(w, k) => w - (LR * sums[idx].weights[k]) / SAMPLES.length
-				),
-				bias: bias.map((b, k) => b - (LR * sums[idx].bias[k]) / SAMPLES.length),
-			}));
-		}
-
-		function accumulatedStep(net: Net): void {
-			for (const sample of SAMPLES) {
-				net.backprop.backpropAccumulate(
-					net.forward.forward(sample.input),
-					sample.target
-				);
-			}
-			net.backprop.applyAccumulatedGradients(SAMPLES.length);
-		}
-
-		it("should step by −lr · mean of the per-sample gradients", () => {
-			const net = buildTinyNet({ learningRate: LR });
-
-			accumulatedStep(net);
-
-			snapshot(net).forEach((layer, idx) => {
-				const expected = meanGradientStep()[idx];
-				expectCloseArray(layer.weights, expected.weights);
-				expectCloseArray(layer.bias, expected.bias);
-			});
-		});
-
-		it("should not touch the parameters before the batch is applied", () => {
-			const net = buildTinyNet({ learningRate: LR });
-
-			for (const sample of SAMPLES) {
-				net.backprop.backpropAccumulate(
-					net.forward.forward(sample.input),
-					sample.target
-				);
-			}
-
-			expect(snapshot(net)).toEqual(snapshot(buildTinyNet()));
-		});
-
-		it("should start the next batch from cleared accumulators", () => {
-			const net = buildTinyNet({ learningRate: LR });
-			accumulatedStep(net);
-			const afterFirst = snapshot(net);
-
-			net.backprop.backpropAccumulate(
-				net.forward.forward(SAMPLES[0].input),
-				SAMPLES[0].target
-			);
-			net.backprop.applyAccumulatedGradients(1);
-
-			const reference = buildTinyNet({ learningRate: LR });
-			afterFirst.forEach((layer, idx) => {
-				reference.deps.layers[idx].weights.set(layer.weights);
-				reference.deps.layers[idx].bias.set(layer.bias);
-			});
-			backpropOnce(reference, SAMPLES[0].input, SAMPLES[0].target);
-			expect(snapshot(net)).toEqual(snapshot(reference));
-		});
-
-		it("should ignore an empty batch", () => {
-			const net = buildTinyNet({ learningRate: LR });
-
-			net.backprop.applyAccumulatedGradients(0);
-
-			expect(snapshot(net)).toEqual(snapshot(buildTinyNet()));
-		});
-
-		it("should discard pending gradients on reset", () => {
-			const net = buildTinyNet({ learningRate: LR });
-			net.backprop.backpropAccumulate(
-				net.forward.forward(SAMPLES[0].input),
-				SAMPLES[0].target
-			);
-
-			net.backprop.resetAccumulators();
-
-			for (const layer of net.deps.layers) {
-				expect([...layer.accumGradW].every((g) => g === 0)).toBe(true);
-				expect([...layer.accumGradB].every((g) => g === 0)).toBe(true);
-			}
-		});
 	});
 });

@@ -3,11 +3,9 @@ import { ServiceId } from "@trading-model/primitives/primitives/general-ids";
 import {
 	buildSpiffeId,
 	DEFAULT_NAMESPACE,
-	isPlatformService,
 	isSpiffeId,
 	normalizeServiceName,
 	parseSpiffeId,
-	SPIFFE_PATH_SEGMENT_SERVICE_ACCOUNT,
 	serviceNameFromSpiffeId,
 	TRUST_DOMAIN,
 } from "../../../src/config/workload-identity";
@@ -90,9 +88,6 @@ describe("workload-identity", () => {
 			expect(normalizeServiceName("audit-logger-service")).toBe(
 				ServiceId.of("audit-logger")
 			);
-			expect(normalizeServiceName("financial-scrapper-service")).toBe(
-				ServiceId.of("financial-scraper")
-			);
 		});
 
 		it("should pass through canonical and unknown names", () => {
@@ -101,15 +96,6 @@ describe("workload-identity", () => {
 			);
 			expect(normalizeServiceName("some-future-service")).toBe(
 				ServiceId.of("some-future-service")
-			);
-		});
-	});
-
-	describe("isPlatformService", () => {
-		it("should recognise platform services", () => {
-			expect(isPlatformService("message-manager")).toBe(true);
-			expect(isPlatformService(SPIFFE_PATH_SEGMENT_SERVICE_ACCOUNT)).toBe(
-				false
 			);
 		});
 	});

@@ -1,16 +1,17 @@
 import { afterAll, describe, expect, it, jest } from "@jest/globals";
 import {
 	CALLER,
-	computeDlqSignature,
 	e2eTestTimeout,
+	eventually,
 	meshRequest,
+	signedDlqHeaders,
 } from "./helpers";
 
 /**
  * A message no subscriber can take goes the real dead-letter path: message-
  * manager dead-letters it, sends it to dlq-service (signed `POST /dlq`), which
  * stores it in MongoDB; a replay publishes it again through message-manager,
- * which dead-letters it again (ADR-0019). dlq-service publishes each step on
+ * which dead-letters it again (ADR-0048). dlq-service publishes each step on
  * the bus (`dlq.*` topics), where audit-logger records it.
  *
  * The subscriber is the trainer's identity with a callback path it does not
@@ -23,9 +24,6 @@ jest.setTimeout(e2eTestTimeout * 2);
 const MM = "https://message-manager:3000";
 const DLQ = "https://dlq-service:3000";
 const AUDIT = "https://audit-logger:3000";
-const HMAC_SECRET = process.env.DLQ_AUTH_HMAC_SECRET ?? "test-hmac-secret";
-/** Listed in DLQ_ALLOWED_SERVICES by the E2E overlay. */
-const SERVICE_NAME = "e2e-test-runner";
 const TOPIC = `e2e.dead-letter.run-${Date.now()}`;
 const INSTANCE_ID = "e2e-dead-letter-sink";
 
@@ -41,21 +39,9 @@ function signedDlqRequest(
 	path: string,
 	query = ""
 ): ReturnType<typeof meshRequest> {
-	const timestamp = Date.now().toString();
 	return meshRequest(CALLER.message, `${DLQ}${path}${query}`, {
 		method,
-		headers: {
-			"x-service-name": SERVICE_NAME,
-			"x-timestamp": timestamp,
-			"x-signature": computeDlqSignature({
-				serviceName: SERVICE_NAME,
-				secret: HMAC_SECRET,
-				body: undefined,
-				timestamp,
-				method,
-				path: `${path}${query}`,
-			}),
-		},
+		headers: signedDlqHeaders(undefined, method, `${path}${query}`),
 	});
 }
 
@@ -79,21 +65,6 @@ function auditedPayloads(event: string): Record<string, unknown>[] {
 	return (JSON.parse(body) as { docs: Array<{ payload: unknown }> }).docs
 		.map((doc) => doc.payload as Record<string, unknown>)
 		.filter((payload) => payload?.topic === TOPIC);
-}
-
-async function eventually<T>(
-	description: string,
-	probe: () => T | undefined
-): Promise<T> {
-	const deadline = Date.now() + e2eTestTimeout;
-	while (Date.now() < deadline) {
-		const value = probe();
-		if (value !== undefined) {
-			return value;
-		}
-		await new Promise((resolve) => setTimeout(resolve, 1000));
-	}
-	throw new Error(`Timed out waiting for ${description}`);
 }
 
 describe("Dead-letter flow E2E", () => {
@@ -136,7 +107,7 @@ describe("Dead-letter flow E2E", () => {
 				},
 			},
 		});
-		// Answered once the delivery was dead-lettered.
+		// 202: journaled, the delivery (and its dead-lettering) follows outside the request.
 		expect(status).toBeLessThan(300);
 
 		const [entry] = await eventually("the dead letter in dlq-service", () => {

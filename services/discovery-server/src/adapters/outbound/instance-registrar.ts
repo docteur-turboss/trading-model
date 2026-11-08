@@ -1,11 +1,10 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { generateInstanceToken } from "@trading-model/crypto/application/services/token-service";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import {
-	REDIS_RESP,
-	REDIS_SET,
+	RedisResp,
+	RedisSet,
 } from "@trading-model/persistence/redis-constants";
 import type {
 	InstanceId,
@@ -24,8 +23,8 @@ export class InstanceRegistrar {
 	async resolveToken(instanceId: InstanceId): Promise<string> {
 		const tokenKey = instanceToken(this._deps.keyPrefix, instanceId);
 		const token = generateInstanceToken(instanceId, this._deps.signingSecret);
-		const tokenSet = await this._deps.redis.set(tokenKey, token, REDIS_SET.NX);
-		return tokenSet === REDIS_RESP.OK
+		const tokenSet = await this._deps.redis.set(tokenKey, token, RedisSet.NX);
+		return tokenSet === RedisResp.OK
 			? token
 			: ((await this._deps.redis.get(tokenKey)) ?? token);
 	}
@@ -74,10 +73,7 @@ export class InstanceRegistrar {
 		const finalToken = await this.resolveToken(instanceId);
 		const multi = this._deps.redis.multi();
 		multi.sadd(
-			serviceInstancesSet(
-				this._deps.keyPrefix,
-				serviceName as unknown as ServiceInstanceName
-			),
+			serviceInstancesSet(this._deps.keyPrefix, serviceName),
 			instanceId
 		);
 		const storedInstance = await this.buildStoredInstance(instance, now);

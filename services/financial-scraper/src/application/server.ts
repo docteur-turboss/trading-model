@@ -27,15 +27,10 @@ export function createServer() {
 			{
 				name: "mysql",
 				check: async () => {
-					// biome-ignore lint/plugin: readiness probe: failure is the negative signal
-					try {
-						// The callback pool's query() returns no promise: awaiting it
-						// never surfaced the result and readiness stayed down.
-						await DATABASE.promise().query("SELECT 1");
-						return true;
-					} catch {
-						return false;
-					}
+					// The callback pool's query() returns no promise: awaiting it
+					// never surfaced the result and readiness stayed down.
+					await DATABASE.promise().query("SELECT 1");
+					return true;
 				},
 			},
 		],

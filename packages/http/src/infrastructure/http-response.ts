@@ -32,11 +32,9 @@ function parseResponseBody<TResponse>(
 	contentType: string,
 	schema?: z.ZodType<TResponse>
 ): TResponse {
-	if (contentType.startsWith("application/json")) {
-		const parsed: unknown = JSON.parse(data);
-		return schema ? schema.parse(parsed) : (parsed as TResponse);
-	}
-	const parsed: unknown = data;
+	const parsed: unknown = contentType.startsWith("application/json")
+		? JSON.parse(data)
+		: data;
 	return schema ? schema.parse(parsed) : (parsed as TResponse);
 }
 
@@ -75,5 +73,4 @@ function collectResponseBody<TResponse>(
 	});
 }
 
-export type { ResponseCollectionContext };
-export { collectResponseBody, decompressResponse, parseResponseBody };
+export { collectResponseBody };

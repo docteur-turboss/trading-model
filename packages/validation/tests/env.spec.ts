@@ -30,6 +30,16 @@ describe("BaseEnvSchema", () => {
 		expect(result.LOG_LEVEL).toBe("error");
 	});
 
+	it("accepts LOG_LEVEL in any case, like the global logger", () => {
+		const result = BaseEnvSchema.parse({
+			TLS_KEY_PATH: "/key.pem",
+			TLS_CERT_PATH: "/cert.pem",
+			TLS_CA_PATH: "/ca.pem",
+			LOG_LEVEL: "DEBUG",
+		});
+		expect(result.LOG_LEVEL).toBe("debug");
+	});
+
 	it("rejects invalid NODE_ENV", () => {
 		expect(() =>
 			BaseEnvSchema.parse({
