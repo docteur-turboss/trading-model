@@ -11,7 +11,7 @@ import {
 	Limit,
 	PageNumber,
 } from "@trading-model/primitives/primitives/page-number";
-import { MongoClient } from "mongodb";
+import { type Db, MongoClient } from "mongodb";
 import {
 	buildAuditDocument,
 	type DeliveredEnvelope,
@@ -48,6 +48,7 @@ function envelope(event: {
 describe("AuditRepository reads — real MongoDB", () => {
 	let client: MongoClient;
 	let repository: AuditRepository;
+	let db: Db;
 
 	async function record(...events: Parameters<typeof envelope>[0][]) {
 		for (const event of events) {
@@ -65,7 +66,8 @@ describe("AuditRepository reads — real MongoDB", () => {
 	});
 
 	beforeEach(async () => {
-		repository = new AuditRepository(client.db(`audit-query-${Date.now()}`));
+		db = client.db(`audit-query-${Date.now()}`);
+		repository = new AuditRepository(db);
 		await repository.ensureIndexes();
 	});
 
@@ -139,6 +141,17 @@ describe("AuditRepository reads — real MongoDB", () => {
 		expect(new Set(seen).size).toBe(25);
 	});
 
+	it("should omit total, and not count, with withTotal=false", async () => {
+		await record({ id: "x" }, { id: "y" });
+
+		const page = await repository.query({
+			withTotal: false,
+		} as AuditEventQuery);
+
+		expect(page.docs).toHaveLength(2);
+		expect(page).not.toHaveProperty("total");
+	});
+
 	it("should find an event by its message id", async () => {
 		await record({ id: "wanted", correlationId: "c-9" }, { id: "other" });
 
@@ -154,6 +167,10 @@ describe("AuditRepository reads — real MongoDB", () => {
 			{ id: "b", at: NOON + 1000, topic: "trading.signal" },
 			{ id: "c", at: NOON + 2000, publisher: "trader-service" }
 		);
+
+		// The warm-up of beforeEach ran on an empty collection: boot a fresh one.
+		repository = new AuditRepository(db);
+		await repository.ensureIndexes();
 
 		await expect(repository.getStats()).resolves.toEqual({
 			totalEvents: 3,

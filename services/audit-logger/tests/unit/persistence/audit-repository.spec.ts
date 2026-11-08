@@ -406,7 +406,7 @@ describe("AuditRepository", () => {
 		it("should cap limit at 1000", async () => {
 			await repository.query({ limit: 5000 as any });
 
-			expect(MOCK_COLLECTION.countDocuments).toHaveBeenCalled();
+			expect(MOCK_COLLECTION.estimatedDocumentCount).toHaveBeenCalled();
 
 			const findCall = MOCK_COLLECTION.find.mock.calls[0][1];
 			expect(findCall).toBeUndefined();
@@ -419,7 +419,7 @@ describe("AuditRepository", () => {
 				limit: jest.fn().mockReturnThis(),
 				toArray: jest.fn<any>().mockResolvedValue([]),
 			});
-			MOCK_COLLECTION.countDocuments.mockResolvedValue(0);
+			MOCK_COLLECTION.estimatedDocumentCount.mockResolvedValue(0);
 
 			const result = await repository.query({});
 
@@ -437,7 +437,20 @@ describe("AuditRepository", () => {
 			return { toArray: jest.fn<any>().mockResolvedValue(value) };
 		}
 
-		it("should return aggregated statistics", async () => {
+		function mockDateRange(oldest: Date | null, newest: Date | null) {
+			const page = (receivedAt: Date | null) => ({
+				sort: jest.fn().mockReturnThis(),
+				limit: jest.fn().mockReturnThis(),
+				toArray: jest
+					.fn<any>()
+					.mockResolvedValue(receivedAt ? [{ receivedAt }] : []),
+			});
+			MOCK_COLLECTION.find
+				.mockReturnValueOnce(page(oldest))
+				.mockReturnValueOnce(page(newest));
+		}
+
+		it("should return statistics from counters, indexed range and a cached breakdown", async () => {
 			MOCK_COLLECTION.estimatedDocumentCount.mockResolvedValue(10);
 			MOCK_COLLECTION.aggregate
 				.mockReturnValueOnce(
@@ -446,15 +459,10 @@ describe("AuditRepository", () => {
 						{ _id: "topic-b", count: 4 },
 					])
 				)
-				.mockReturnValueOnce(makeAggregateResult([{ _id: "svc-a", count: 10 }]))
 				.mockReturnValueOnce(
-					makeAggregateResult([
-						{
-							earliest: new Date("2024-01-01"),
-							latest: new Date("2024-12-31"),
-						},
-					])
+					makeAggregateResult([{ _id: "svc-a", count: 10 }])
 				);
+			mockDateRange(new Date("2024-01-01"), new Date("2024-12-31"));
 
 			const stats = await repository.getStats();
 
@@ -467,14 +475,21 @@ describe("AuditRepository", () => {
 					latest: new Date("2024-12-31"),
 				},
 			});
+
+			mockDateRange(new Date("2024-01-01"), new Date("2025-01-01"));
+			const again = await repository.getStats();
+
+			expect(MOCK_COLLECTION.aggregate).toHaveBeenCalledTimes(2);
+			expect(again.eventsByTopic).toEqual(stats.eventsByTopic);
+			expect(again.dateRange.latest).toEqual(new Date("2025-01-01"));
 		});
 
-		it("should handle empty dateRange aggregations", async () => {
+		it("should handle an empty collection", async () => {
 			MOCK_COLLECTION.estimatedDocumentCount.mockResolvedValue(0);
 			MOCK_COLLECTION.aggregate
 				.mockReturnValueOnce(makeAggregateResult([]))
-				.mockReturnValueOnce(makeAggregateResult([]))
 				.mockReturnValueOnce(makeAggregateResult([]));
+			mockDateRange(null, null);
 
 			const stats = await repository.getStats();
 
