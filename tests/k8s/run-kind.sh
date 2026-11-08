@@ -389,6 +389,12 @@ mm_dropped() {
 		grep -c "Message dropped: no subscriber for its topic" || true
 }
 
+# Number of up targets of a job: one per pod since the pod discovery (issue #559).
+prometheus_up_count() {
+	$K -n "$NS" exec prometheus-0 -c prometheus -- 		wget -qO- "http://localhost:9090/api/v1/query?query=count(up%7Bjob%3D%22$1%22%7D%3D%3D1)" |
+		node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8")).data.result;console.log(r.length?r[0].value[1]:0)'
+}
+
 # Every configured job must have active targets, all up: a scrape pool Prometheus
 # failed to create (missing tls_config file at startup) has no target at all.
 prometheus_targets_down() {
@@ -472,6 +478,14 @@ verify_replicas() {
 	before="$(trainer_received)"
 	wait_for 180 '[ "$(trainer_received)" -gt "'"${before:-0}"'" ]'
 	log "  3 replicas: the trainer receives market data ($(trainer_received) messages)"
+	local job
+	for job in message-manager discovery-server; do
+		wait_for 120 '[ "$(prometheus_up_count '"$job"')" -eq 3 ]' || {
+			log "Prometheus does not scrape the 3 pods of $job (up=$(prometheus_up_count "$job"))"
+			return 1
+		}
+	done
+	log "  Prometheus scrapes one target per pod"
 
 	local restarted_at
 	restarted_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"

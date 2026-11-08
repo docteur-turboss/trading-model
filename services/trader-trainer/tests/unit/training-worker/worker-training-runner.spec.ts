@@ -60,6 +60,7 @@ describe("worker training runner", () => {
 			stagnationUpdated: jest.fn(),
 			evaluationFailed: jest.fn(),
 			genomeEvaluated: evaluated,
+			crossoverFallbacks: jest.fn(),
 		}).train(SYMBOL);
 
 		expect(inProcess.success).toBe(true);

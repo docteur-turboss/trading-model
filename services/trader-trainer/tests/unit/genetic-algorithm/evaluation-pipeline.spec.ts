@@ -391,6 +391,7 @@ describe("evaluateGenomeAllWindows — failure reporting", () => {
 			stagnationUpdated: jest.fn(),
 			evaluationFailed: jest.fn(),
 			genomeEvaluated: jest.fn(),
+			crossoverFallbacks: jest.fn(),
 		};
 		const backendFactory = jest.fn(() => {
 			throw new Error("backend exploded");
@@ -413,6 +414,7 @@ describe("evaluateGenomeAllWindows — failure reporting", () => {
 			stagnationUpdated: jest.fn(),
 			evaluationFailed: jest.fn(),
 			genomeEvaluated: jest.fn(),
+			crossoverFallbacks: jest.fn(),
 		};
 		await evaluateFitness({
 			population: [MINIMAL_GENOME as any, MINIMAL_GENOME as any],

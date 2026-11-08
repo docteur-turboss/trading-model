@@ -144,6 +144,7 @@ export class GenerationProcessor {
 			ctrl,
 			rng,
 			generation: this._generation,
+			telemetry: this._telemetry,
 		});
 	}
 

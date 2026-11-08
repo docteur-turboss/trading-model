@@ -13,7 +13,7 @@ Market data collection service from Binance, with MySQL persistence and REST API
 
 ## REST Endpoints
 
-All market data endpoints are **GET**, return a JSON **array** (possibly empty), and answer
+All market data endpoints are **GET**, return one bounded **page** (ADR-0054), and answer
 400 with `{ "error": "Validation failed", "details": [...] }` on an invalid
 parameter. Their parameters and responses are declared in
 `src/adapters/inbound/http/api-routes.ts` (`SCRAPER_API`, ADR-0021) and
@@ -32,14 +32,24 @@ are reached under the service prefix `financial-scraper` of the gateway API (v1)
 | `/candles/symbols/:symbol`               | candles of a symbol                               | symbol                                      |
 | `/candles/timestamp/:timestamp`          | candles opened **after** this instant             | ISO date or date-time                       |
 
-Queries are not paginated: a symbol or source query returns every stored row.
-The signals route is described in [Signals](#signals-adr-0036).
+Every answer is bounded (ADR-0054). Query parameters:
+
+| Parameter | Routes | Meaning |
+| --------- | ------ | ------- |
+| `limit` | all 9 | rows per answer, 1 to 5000, default 500 |
+| `after` | trades, tickers, candles | `nextCursor` of the previous page (opaque) |
+| `from`, `to` | trades, tickers, candles | optional window on `timestamp`, ISO dates, `[from, to)` |
+
+Trades, tickers and candles answer `{ "rows": [...], "nextCursor": "..." | null,
+"truncated": boolean }`, rows oldest first (ties in insertion order); follow
+`nextCursor` as `after` until it is `null`. The signals route is described in [Signals](#signals-adr-0036).
 
 Trades, tickers and candles come from MySQL: their instants are ISO date-times
 and `tradeId` (BIGINT) is a decimal string, exact past 2^53:
 
 ```json
-[
+{
+  "rows": [
   {
     "symbol": "BTCUSDT",
     "market": "crypto",
@@ -50,7 +60,10 @@ and `tradeId` (BIGINT) is a decimal string, exact past 2^53:
     "tradeId": "9007199254740993",
     "timestamp": "2024-01-15T10:40:00.000Z"
   }
-]
+  ],
+  "nextCursor": "MTcwNTMxNTIwMDAwMC40Mg",
+  "truncated": true
+}
 ```
 
 Tickers carry `open`, `high`, `low`, `last`, `volume`, `timestamp` and

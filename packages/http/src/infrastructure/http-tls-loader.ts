@@ -19,13 +19,76 @@ function readTlsFileSync(filePath: string, label: string): string {
 	}
 }
 
-/** Synchronous variant for constructors – accepts optional partial paths. */
+/** Max delay before a rotated SVID file is noticed by the sync loader. */
+export const TLS_RELOAD_CHECK_INTERVAL_MS = 5000;
+
+interface CachedBundle {
+	bundle: Partial<TlsPemBundle>;
+	stamp: string;
+	checkedAt: number;
+}
+
+const bundleCache = new Map<string, CachedBundle>();
+
+function statStamp(paths: string[]): string {
+	return paths
+		.map((file) => {
+			const st = fs.statSync(file);
+			return `${st.mtimeMs}:${st.ino}:${st.size}`;
+		})
+		.join("|");
+}
+
+/**
+ * Synchronous variant for constructors – accepts optional partial paths.
+ * Cached in memory; the files are stat-ed at most every
+ * `TLS_RELOAD_CHECK_INTERVAL_MS` and all re-read together when one changed
+ * (cert and key must stay a consistent pair). A failed reload keeps the
+ * previous bundle and is retried at the next check.
+ */
 export function loadTlsPemBundleSync(
 	tlsConfig?: Partial<TlsPaths>
 ): Partial<TlsPemBundle> {
 	if (!tlsConfig) {
 		return {};
 	}
+	const paths = [
+		tlsConfig.caPath,
+		tlsConfig.certPath,
+		tlsConfig.keyPath,
+	].filter((file): file is NonNullable<typeof file> => Boolean(file));
+	const cacheKey = [
+		tlsConfig.caPath,
+		tlsConfig.certPath,
+		tlsConfig.keyPath,
+	].join("\0");
+	const now = Date.now();
+	const cached = bundleCache.get(cacheKey);
+	if (cached && now - cached.checkedAt < TLS_RELOAD_CHECK_INTERVAL_MS) {
+		return cached.bundle;
+	}
+	try {
+		const stamp = statStamp(paths);
+		if (cached && cached.stamp === stamp) {
+			cached.checkedAt = now;
+			return cached.bundle;
+		}
+		const bundle = readBundleSync(tlsConfig);
+		bundleCache.set(cacheKey, { bundle, stamp, checkedAt: now });
+		return bundle;
+	} catch (err) {
+		if (!cached) {
+			throw err;
+		}
+		cached.checkedAt = now;
+		process.emitWarning(
+			`TLS reload failed, keeping previous bundle: ${normalizeError(err).message}`
+		);
+		return cached.bundle;
+	}
+}
+
+function readBundleSync(tlsConfig: Partial<TlsPaths>): Partial<TlsPemBundle> {
 	const result: Partial<TlsPemBundle> = {};
 	if (tlsConfig.caPath) {
 		result.caPem = CaPem.of(

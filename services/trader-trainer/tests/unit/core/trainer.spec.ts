@@ -602,6 +602,7 @@ describe("Trainer — model publication", () => {
 			stagnationUpdated: jest.fn(),
 			evaluationFailed: jest.fn(),
 			genomeEvaluated: jest.fn(),
+			crossoverFallbacks: jest.fn(),
 		};
 		const trainer = new Trainer(dataBuffer, {
 			settings: TEST_TRAINING_SETTINGS,
