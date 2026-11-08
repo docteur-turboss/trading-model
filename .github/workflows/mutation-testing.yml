@@ -9,7 +9,7 @@ on:
   # TEMPORARY (issue #656): proves the shards finish on a GitHub runner (round 3: dryRunTimeoutMinutes 30). Remove before merge.
   push:
     branches: [chore/issue-656-make-the-stryker-mutation-testing-config]
-    paths: ['.github/workflows/mutation-testing.yml']
+    paths: ['.github/workflows/mutation-testing.yml', 'services/trader-trainer/stryker.config.json']
   schedule:
     - cron: '0 3 * * 0'  # Weekly: Sunday 3 AM UTC
   workflow_dispatch:

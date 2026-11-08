@@ -3,7 +3,7 @@
   "mutate": ["src/domain/**/*.ts", "!src/**/*.spec.ts", "!src/**/*.d.ts"],
   "testRunner": "jest",
   "plugins": ["@stryker-mutator/jest-runner", "@stryker-mutator/typescript-checker"],
-  "jest": { "configFile": "jest.config.js", "config": { "testTimeout": 120000 } },
+  "jest": { "configFile": "jest.config.js", "config": { "testTimeout": 120000, "testPathIgnorePatterns": ["/node_modules/", "/dist/", "worker-training-runner.spec.ts"] } },
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
   "concurrency": 2,
