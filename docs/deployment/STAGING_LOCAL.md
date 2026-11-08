@@ -13,7 +13,7 @@ overlay `production`.
 | Local secrets | `~/.trading-staging/env` (MinIO root, S3 users) and `~/.trading-staging/backup-age-identity.txt` (private age key of the staging backups): never committed |
 
 The Ingress answers on `https://localhost:9443` (self-signed certificate).
-The compose stack keeps `https://localhost:8449`.
+The compose stack keeps `http://localhost:8449` (edge-proxy).
 
 ## Selection in deploy.yml
 
@@ -21,9 +21,15 @@ The compose stack keeps `https://localhost:8449`.
   staging job. Unset: `ubuntu-latest`.
 - Variable `K8S_OVERLAY` of the environment `staging` (`staging-local`): the
   overlay directory. Unset: the environment name.
+- Variable `DEPLOY_TIMEOUT_FACTOR` of the environment `staging` (`4`): integer
+  the MySQL, migration Job and rollout timeouts are multiplied by. The kind
+  cluster shares the laptop disk with the compose stack: MySQL's first start
+  and the image pulls outlast the production timeouts. Unset: 1.
 
 `deploy.yml` checks out the release tag: a tag older than the `staging-local`
-overlay cannot be deployed this way.
+overlay cannot be deployed this way. Its scripts come from the tag too, so
+`DEPLOY_TIMEOUT_FACTOR` only reaches the migration Jobs and rollouts of a tag
+that has it (3.0.1 and later); the MySQL wait is in `deploy.yml` itself.
 
 ## Setup, once
 
