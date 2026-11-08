@@ -269,6 +269,21 @@ describe("K8s Redis HA start script — real failovers", () => {
 				"1"
 			)
 		).resolves.toMatch(/^\d+-\d+$/);
+		// The journal backlog gauges (issue #606): XINFO / XPENDING / XRANGE on its own prefix only.
+		const journalKey = "trading-model:message-manager:journal:t";
+		await first("message-manager", "XGROUP", "CREATE", journalKey, "g", "0");
+		await expect(
+			first("message-manager", "XINFO", "GROUPS", journalKey)
+		).resolves.not.toMatch(/^NOPERM/);
+		await expect(
+			first("message-manager", "XPENDING", journalKey, "g")
+		).resolves.not.toMatch(/^NOPERM/);
+		await expect(
+			first("message-manager", "XRANGE", journalKey, "-", "+", "COUNT", "1")
+		).resolves.not.toMatch(/^NOPERM/);
+		await expect(
+			first("message-manager", "XINFO", "GROUPS", "other:stream")
+		).resolves.toMatch(/^NOPERM/);
 		await expect(first("dlq-service", "LLEN", "dlq:queue")).resolves.toBe("0");
 		await expect(
 			first(

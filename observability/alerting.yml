@@ -437,6 +437,16 @@ groups:
           description: '{{ $labels.service }} stayed unreachable for more than 24 h: message-manager trimmed undelivered {{ $labels.topic }} entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
 
+      - alert: JournalBacklogOld
+        expr: max by (topic, service) (mm_journal_oldest_pending_age_seconds) > 900
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Journal backlog on {{ $labels.topic }} for {{ $labels.service }}: oldest entry waiting for more than 15 min'
+          description: '{{ $labels.service }} has not acknowledged a {{ $labels.topic }} entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber'
+
       - alert: DLQDrainRateLow
         expr: sum by (job) (rate(dlq_entries_replayed_total[15m])) / sum by (job) (rate(dlq_entries_added_total[15m])) < 0.8
         for: 15m

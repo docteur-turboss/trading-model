@@ -3,6 +3,8 @@
  */
 
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
@@ -21,6 +23,40 @@ import { DeliveryWorker } from "../application/services/delivery-worker";
 import { Dispatcher } from "../application/services/dispatcher";
 import { SubscriptionRegistry } from "../application/services/subscription-registry";
 import { FileDlqRepository } from "../infrastructure/fallback/dlq-repository";
+import {
+	JOURNAL_OLDEST_PENDING_AGE_SECONDS,
+	JOURNAL_PENDING_ENTRIES,
+} from "./metrics";
+
+/** Between two reads of the journal backlog: a few Redis calls per group, never per message. */
+const LAG_INTERVAL_MS = 15_000;
+
+/** Publishes the backlog of each group; a group that left the journal drops out of the gauges. */
+export async function publishJournalLag(
+	journal: MessageJournalPort
+): Promise<void> {
+	if (!journal.lag) {
+		return;
+	}
+	let lags: Awaited<ReturnType<NonNullable<MessageJournalPort["lag"]>>>;
+	try {
+		lags = await journal.lag();
+	} catch (err) {
+		// No frozen series on a Redis outage: stale values would hide or fake a backlog.
+		JOURNAL_PENDING_ENTRIES.reset();
+		JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
+		throw err;
+	}
+	JOURNAL_PENDING_ENTRIES.reset();
+	JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
+	for (const { topic, service, pending, oldestPendingAgeMs } of lags) {
+		JOURNAL_PENDING_ENTRIES.set({ topic, service }, pending);
+		JOURNAL_OLDEST_PENDING_AGE_SECONDS.set(
+			{ topic, service },
+			oldestPendingAgeMs / 1000
+		);
+	}
+}
 
 export interface BrokerModule {
 	listen: (app: Application) => void;
@@ -71,10 +107,25 @@ export default function createBrokerModule(
 	const registry = new SubscriptionRegistry(subscriptionStore, journal);
 	const dispatcher = new Dispatcher({ registry, journal });
 	const worker = new DeliveryWorker({ journal, registry, deliveryPort });
+	let lagTimer: NodeJS.Timeout | undefined;
 	return {
 		listen: (app) => app.use(BROKER_ROUTES(dispatcher)),
-		startDelivery: () => worker.start(),
-		stopDelivery: () => worker.stop(),
+		startDelivery: () => {
+			worker.start();
+			const measure = () =>
+				publishJournalLag(journal).catch((err: unknown) =>
+					getLogger().error("Reading the journal backlog failed", {
+						error: normalizeError(err),
+					})
+				);
+			void measure();
+			lagTimer = setInterval(() => void measure(), LAG_INTERVAL_MS);
+			lagTimer.unref();
+		},
+		stopDelivery: () => {
+			clearInterval(lagTimer);
+			return worker.stop();
+		},
 		forwardDeadLetters: async () => {
 			await forwarding?.forwardPending();
 		},

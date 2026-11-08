@@ -6,6 +6,7 @@ import {
 	JOURNAL_RETENTION_MS,
 	type JournalEntry,
 	type JournalGroup,
+	type JournalGroupLag,
 	type MessageJournalPort,
 } from "../../application/ports/message-journal-port";
 import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../config/metrics";
@@ -30,6 +31,15 @@ export interface RedisMessageJournalDeps {
 const WAIT_REPLICAS_TIMEOUT_MS = 2000;
 const FIELD = "message";
 const ONLY_FIELD = "only";
+
+/** `[k1, v1, k2, v2, ...]` of an XINFO reply as an object. */
+function toRecord(flat: unknown[]): Record<string, unknown> {
+	const record: Record<string, unknown> = {};
+	for (let i = 0; i < flat.length; i += 2) {
+		record[String(flat[i])] = flat[i + 1];
+	}
+	return record;
+}
 
 type StreamReply = [id: string, fields: string[] | null][] | null;
 
@@ -203,6 +213,76 @@ export class RedisMessageJournal implements MessageJournalPort {
 			);
 		}
 		return entries;
+	}
+
+	async lag(): Promise<JournalGroupLag[]> {
+		const groups = await this.groups();
+		const infos = new Map<string, Record<string, unknown>>();
+		for (const topic of new Set(groups.map((group) => group.topic))) {
+			try {
+				// One call per topic lists all its groups (Redis >= 7 for `lag`).
+				const reply = (await this._deps.redis.call(
+					"XINFO",
+					"GROUPS",
+					this._stream(topic)
+				)) as unknown[][];
+				for (const flat of reply) {
+					const info = toRecord(flat);
+					infos.set(`${topic}|${info.name}`, info);
+				}
+			} catch (err) {
+				// The stream is gone (Redis restart without AOF): nothing is pending on it.
+				if (!(err instanceof Error && err.message.includes("no such key"))) {
+					throw err;
+				}
+			}
+		}
+		const now = this._now();
+		const result: JournalGroupLag[] = [];
+		for (const group of groups) {
+			const info = infos.get(`${group.topic}|${group.service}`);
+			if (!info) {
+				continue;
+			}
+			const stream = this._stream(group.topic);
+			let count: number;
+			let oldestPending: string | null;
+			let unread: [string, unknown][];
+			try {
+				[count, oldestPending] = (await this._deps.redis.call(
+					"XPENDING",
+					stream,
+					group.service
+				)) as [number, string | null];
+				unread = (await this._deps.redis.call(
+					"XRANGE",
+					stream,
+					`(${info["last-delivered-id"]}`,
+					"+",
+					"COUNT",
+					"1"
+				)) as [string, unknown][];
+			} catch (err) {
+				// The group vanished since XINFO: skip it, keep the others.
+				if (err instanceof Error && err.message.includes("NOGROUP")) {
+					continue;
+				}
+				throw err;
+			}
+			// shortcut: a nil `lag` (Redis cannot tell after an XDEL) counts the one unread entry seen, upgrade with a XLEN walk if it ever matters.
+			const unreadCount = Number(info.lag ?? unread.length);
+			const oldest = [oldestPending, unread[0]?.[0]]
+				.filter((id): id is string => Boolean(id))
+				.map((id) => Number(id.split("-")[0]))
+				.sort((first, second) => first - second)[0];
+			result.push({
+				...group,
+				pending: count + unreadCount,
+				oldestPendingAgeMs:
+					oldest === undefined ? 0 : Math.max(0, now - oldest),
+			});
+		}
+		return result;
 	}
 
 	async ack(group: JournalGroup, id: string): Promise<void> {
