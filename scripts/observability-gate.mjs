@@ -312,6 +312,18 @@ function runbookUrlProblem(url) {
   // 8. every metric an alert reads is emitted: an alert on a metric nobody
   //    exports never fires (ca_certificate_last_renewed outlived the CA).
   const emitted = emittedMetricNames();
+  // Recording rules emit their own series; the metrics they read must exist too.
+  const recorded = new Set();
+  for (const group of Bun.YAML.parse(readFileSync(join(ROOT, "observability", "alerting.yml"), "utf-8")).groups ?? []) {
+    for (const rule of group.rules ?? []) {
+      if (!rule.record) continue;
+      recorded.add(rule.record);
+      for (const metric of promqlMetricNames(rule.expr)) {
+        if (!isEmitted(metric, emitted)) errors.push(`Recording rule ${rule.record}: metric ${metric} is emitted by no service, script or exporter`);
+      }
+    }
+  }
+  for (const name of recorded) emitted.add(name);
   for (const [name, rule] of composeRules) {
     for (const metric of promqlMetricNames(rule.expr)) {
       if (!isEmitted(metric, emitted)) {

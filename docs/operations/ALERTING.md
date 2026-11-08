@@ -40,6 +40,7 @@ Slack is down: configure that external check to notify someone directly
 | `AlertmanagerNotificationsFailing` | a receiver that rejects notifications (wrong webhook, missing Pushover key) |
 | `PrometheusRuleEvaluationFailures` | a rule that cannot be evaluated |
 | `ServiceDown` | a scrape target that is down, Alertmanager and Prometheus included |
+| `ServiceTargetsMissing` | an application service with no `up` series at all (0 replicas, Pending pods, broken scrape config), which `up == 0` cannot see |
 
 ## Business alerts that health checks miss
 
@@ -89,7 +90,9 @@ file absent from the repository, or on an anchor that matches no heading.
 | `SLOLatencySlowBurn` | warning | [runbook-latency-and-errors#highlatency](runbooks/runbook-latency-and-errors.md#highlatency) |
 | `SLOErrorRateFastBurn` | critical | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOErrorRateSlowBurn` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
+| `SLOErrorBudgetLow` | warning | [runbook-latency-and-errors#slo-error-budget-low](runbooks/runbook-latency-and-errors.md#slo-error-budget-low) |
 | `ServiceDown` | critical | [runbook-service-down](runbooks/runbook-service-down.md) |
+| `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
 | `HighErrorRate` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `HighLatency` | warning | [runbook-latency-and-errors#highlatency](runbooks/runbook-latency-and-errors.md#highlatency) |
 | `CertificateExpiry` | warning | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
