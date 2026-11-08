@@ -204,7 +204,7 @@ function checkArchitectureSymbols() {
   const cited = new Map();
   for (const page of pages) {
     const text = readFileSync(join(dir, page), 'utf8');
-    for (const [, name] of text.matchAll(/`([A-Z][a-z0-9]+(?:[A-Z][A-Za-z0-9]*)+)`/g)) {
+    for (const [, name] of text.matchAll(/`([A-Z][a-z0-9]+(?:[A-Z](?:[a-z]+|[0-9]+))+)`/g)) {
       if (!SYMBOL_EXCEPTIONS.has(name)) cited.set(name, `docs/architecture/${page}`);
     }
   }
