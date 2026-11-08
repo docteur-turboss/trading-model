@@ -86,6 +86,14 @@ out="$(STUB_STATUS_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs
 		[[ $out == *"discovery-server did not finish rolling back"* ]] &&
 		ok "rollback waits for each rollout and fails if one does not come back" || ko "rollback status: $out"; }
 
+printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\ndiscovery-server 4\n' >"$WORK/revs"
+: >"$WORK/log"
+bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
+	[ "$(grep -n 'rollout undo statefulset/redis-sentinel' "$WORK/log" | cut -d: -f1)" -lt \
+		"$(grep -n 'rollout status statefulset/redis ' "$WORK/log" | cut -d: -f1)" ] &&
+	ok "rollback undoes every resource before waiting (Redis and its sentinels restart together)" ||
+	ko "rollback order: $(cat "$WORK/log")"
+
 : >"$WORK/log"
 STUB_GRACE="financial-scraper-collector=360 api-gateway=30" bash "$SCRIPT" wait ns >/dev/null &&
 	grep -q "rollout status deployment/financial-scraper-collector -n ns --timeout=540s" "$WORK/log" &&
