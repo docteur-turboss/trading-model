@@ -21,6 +21,11 @@
 //       placeholder), and the Watchdog alert is routed to a dead man's switch.
 //    9. Every curl to https:// in docs/operations and docs/troubleshooting
 //       passes a client certificate (--cert): services are mTLS only.
+//   10. Dashboards: every metric a panel queries is emitted (recording rules,
+//       exporters and `up` included), compose and K8s ship identical dashboards,
+//       every Grafana datasource points to a compose service / K8s Service, and
+//       an alert on a `probe_*` metric has a blackbox scrape job (metrics_path
+//       /probe) in the compose and the K8s Prometheus.
 //
 //  Run: bun scripts/observability-gate.mjs
 // =============================================================================
@@ -175,7 +180,7 @@ function k8sAlertingConfig() {
 }
 
 const PROMQL_WORDS = new Set([
-  "abs", "absent", "and", "avg", "bool", "by", "ceil", "count", "delta", "deriv", "group_left",
+  "abs", "absent", "and", "avg", "bool", "by", "ceil", "clamp_max", "clamp_min", "count", "delta", "deriv", "group_left",
   "group_right", "histogram_quantile", "humanizePercentage", "ignoring", "increase",
   "irate", "max", "max_over_time", "min", "min_over_time", "offset", "on", "or", "rate", "sum", "time", "topk", "unless", "vector",
   "without",
@@ -276,6 +281,7 @@ function runbookUrlProblem(url) {
 }
 
 // ── 6 + 7: alert rules: same rules everywhere, on metrics that exist ─────────
+let allEmitted = new Set(); // emitted metrics + recording rules, reused by check 10
 {
   const composeRules = alertRules(
     readFileSync(join(ROOT, "observability", "alerting.yml"), "utf-8")
@@ -326,6 +332,7 @@ function runbookUrlProblem(url) {
     }
   }
   for (const name of recorded) emitted.add(name);
+  allEmitted = emitted;
   for (const [name, rule] of composeRules) {
     for (const metric of promqlMetricNames(rule.expr)) {
       if (!isEmitted(metric, emitted)) {
@@ -390,6 +397,103 @@ function runbookUrlProblem(url) {
     }
   }
   info.push(`On-call docs: every curl to https:// carries a client SVID (${docs.length} files)`);
+}
+
+// ── 10: dashboards, datasources, blackbox jobs ──────────────────────────────
+{
+  const infra = (file) => readFileSync(join(ROOT, "deploy", "k8s", "infra", file), "utf-8");
+  const normalize = (text) => text.replace(/\r\n/g, "\n");
+  /** Value of a ConfigMap `data` key in a multi-document manifest, or undefined. */
+  const configMapEntry = (manifest, key) => {
+    for (const doc of manifest.split(/^---$/m)) {
+      const value = Bun.YAML.parse(doc)?.data?.[key];
+      if (value) return value;
+    }
+    return undefined;
+  };
+
+  // 10a. every metric a panel queries is emitted (dashboards drifted on each rename).
+  const composeDir = join(ROOT, "observability", "dashboards");
+  const k8sDir = join(ROOT, "deploy", "k8s", "infra", "dashboards");
+  const dashboardFiles = (dir) => readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
+  /** Collects every `expr` of a dashboard (nested rows included) with its panel title. */
+  const queries = (node, panel, out) => {
+    if (Array.isArray(node)) node.forEach((child) => queries(child, panel, out));
+    else if (node && typeof node === "object") {
+      const title = typeof node.title === "string" ? node.title : panel;
+      if (typeof node.expr === "string") out.push({ panel, expr: node.expr });
+      for (const child of Object.values(node)) queries(child, title, out);
+    }
+  };
+  let queryCount = 0;
+  for (const file of dashboardFiles(composeDir)) {
+    const found = [];
+    queries(JSON.parse(readFileSync(join(composeDir, file), "utf-8")), "(no panel)", found);
+    queryCount += found.length;
+    for (const { panel, expr } of found) {
+      // Grafana variables ($service, $__rate_interval) are not metrics.
+      for (const metric of promqlMetricNames(expr.replace(/\$\w+/g, ""))) {
+        if (!isEmitted(metric, allEmitted)) {
+          errors.push(`Dashboard observability/dashboards/${file}, panel "${panel}": metric ${metric} is emitted by no service, script, recording rule or exporter`);
+        }
+      }
+    }
+  }
+
+  // 10b. compose and K8s ship the same dashboards.
+  const composeFiles = dashboardFiles(composeDir);
+  const k8sFiles = dashboardFiles(k8sDir);
+  for (const file of new Set([...composeFiles, ...k8sFiles])) {
+    if (!k8sFiles.includes(file)) errors.push(`Dashboard ${file}: in observability/dashboards, missing from deploy/k8s/infra/dashboards`);
+    else if (!composeFiles.includes(file)) errors.push(`Dashboard ${file}: in deploy/k8s/infra/dashboards, missing from observability/dashboards`);
+    else if (normalize(readFileSync(join(composeDir, file), "utf-8")) !== normalize(readFileSync(join(k8sDir, file), "utf-8"))) {
+      errors.push(`Dashboard ${file}: differs between observability/dashboards and deploy/k8s/infra/dashboards`);
+    }
+  }
+
+  // 10c. every datasource points to a service that exists in its environment.
+  const hostOf = (url) => new URL(url).hostname;
+  const composeServices = new Set(
+    Object.keys(Bun.YAML.parse(readFileSync(join(ROOT, "docker-compose.yml"), "utf-8")).services ?? {})
+  );
+  const composeDatasources = Bun.YAML.parse(readFileSync(join(ROOT, "observability", "grafana-datasources.yml"), "utf-8")).datasources ?? [];
+  for (const ds of composeDatasources) {
+    if (!composeServices.has(hostOf(ds.url))) {
+      errors.push(`Datasource ${ds.name} (observability/grafana-datasources.yml): ${ds.url} names no service of docker-compose.yml`);
+    }
+  }
+  const k8sServices = new Set();
+  for (const file of readdirSync(join(ROOT, "deploy", "k8s", "infra")).filter((f) => f.endsWith(".yaml"))) {
+    for (const doc of infra(file).split(/^---$/m)) {
+      const parsed = Bun.YAML.parse(doc);
+      if (parsed?.kind === "Service") k8sServices.add(parsed.metadata?.name);
+    }
+  }
+  const k8sDatasourceYaml = configMapEntry(infra("grafana.yaml"), "datasources.yml");
+  if (!k8sDatasourceYaml) errors.push("deploy/k8s/infra/grafana.yaml: no datasources.yml ConfigMap entry");
+  for (const ds of k8sDatasourceYaml ? Bun.YAML.parse(k8sDatasourceYaml).datasources ?? [] : []) {
+    if (!k8sServices.has(hostOf(ds.url))) {
+      errors.push(`Datasource ${ds.name} (deploy/k8s/infra/grafana.yaml): ${ds.url} names no Service of deploy/k8s/infra`);
+    }
+  }
+
+  // 10d. a rule on probe_* needs a blackbox job (metrics_path /probe) in each environment.
+  const probeRules = [...alertRules(readFileSync(join(ROOT, "observability", "alerting.yml"), "utf-8"))]
+    .filter(([, rule]) => promqlMetricNames(rule.expr).some((m) => m.startsWith("probe_")))
+    .map(([name]) => name);
+  if (probeRules.length > 0) {
+    const k8sPrometheus = configMapEntry(infra("prometheus.yaml"), "prometheus.yml");
+    for (const [env, text] of [
+      ["observability/prometheus.yml", readFileSync(join(ROOT, "observability", "prometheus.yml"), "utf-8")],
+      ["deploy/k8s/infra/prometheus.yaml", k8sPrometheus],
+    ]) {
+      const jobs = text ? Bun.YAML.parse(text).scrape_configs ?? [] : [];
+      if (!jobs.some((job) => job.metrics_path === "/probe")) {
+        errors.push(`${env}: no blackbox scrape job (metrics_path /probe) but ${probeRules.join(", ")} read probe_* metrics`);
+      }
+    }
+  }
+  info.push(`Dashboards: ${queryCount} queries on emitted metrics, same in compose and K8s; datasources point to existing services; probe_* alerts have a blackbox job`);
 }
 
 if (errors.length > 0) {
