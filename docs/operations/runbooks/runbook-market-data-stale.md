@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
 **Severity:** SEV2 (the platform runs, but trades and training work on old data)
-**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `BinanceRestrictedLocation`, `SignalCollectionFailing`
+**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolScrapeFailing`, `BinanceRestrictedLocation`, `SignalCollectionFailing`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -13,6 +13,7 @@ dependencies (MySQL, Redis), not that candles arrive.
 | --- | --- |
 | `MarketDataStale` (+ `TrainerMarketDataStale`) | collection: nothing is persisted, so nothing is published |
 | `ScrapeCyclesFailing` | cycles run but fail (Binance, MySQL) |
+| `SymbolScrapeFailing` | one symbol fails every cycle, the others pass: see [SymbolScrapeFailing](#symbolscrapefailing) |
 | `BinanceRestrictedLocation` | Binance geo-blocks the collector (451): apply the ADR-0026 fallback |
 | `TrainerMarketDataStale` alone | delivery: the scraper persists, the trainer receives nothing (message-manager, subscription) |
 
@@ -89,6 +90,36 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
 `sum(increase(fs_candles_persisted_total[15m]))` and
 `sum(increase(tt_market_data_received_total[15m]))` grow again; the alerts
 resolve within 15 minutes.
+
+## SymbolScrapeFailing
+
+**Severity:** SEV2 (critical). One tracked symbol has failed every scrape for
+15 minutes while the others may still succeed: the cycle counts as `success`
+and `MarketDataStale` stays silent, but that symbol gets no new data and the
+trainer stops training it (`TRAINER_MAX_DATA_AGE_MS`). The `symbol` label of
+the alert names it (issue #598: BTCUSDT failed 689 times in 33 hours unseen).
+
+```bash
+NS=trading-model
+# Failures and successes by symbol over 15 minutes
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
+  'http://localhost:9090/api/v1/query?query=sum by (symbol) (increase(fs_symbols_failed_total[15m]))'
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
+  'http://localhost:9090/api/v1/query?query=sum by (symbol) (increase(fs_symbols_scraped_total[15m]))'
+# The error of each failed scrape
+kubectl -n $NS logs deploy/financial-scraper-collector --since=30m | grep "Symbol scrape failed"
+```
+
+Read the `error` of the log line:
+
+- **Binance error for that symbol only** (400 `Invalid symbol`: delisted or
+  misspelled): fix `SYMBOLS_TO_TRACK`.
+- **Validation error** (`RangeError`, e.g. `PositiveInt must be a positive
+  integer, got 0`): Binance sent data the normalizer refuses. A code fix; the
+  symbol stays blocked until then (its cursor does not move).
+- **MySQL error**: see [runbook-database-failover](runbook-database-failover.md).
+
+The alert resolves once one scrape of the symbol succeeds again.
 
 ## SignalCollectionFailing
 

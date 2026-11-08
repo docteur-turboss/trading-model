@@ -79,6 +79,11 @@ export class WorkerOrchestrator {
 		private readonly _deps: WorkerOrchestratorDeps
 	) {
 		this._maxConcurrency = maxConcurrency;
+		// Series at 0 from the start: increase() then sees the first failure.
+		for (const symbol of _symbols) {
+			SYMBOLS_FAILED_TOTAL.inc({ symbol }, 0);
+			SYMBOLS_SCRAPED_TOTAL.inc({ symbol }, 0);
+		}
 	}
 
 	async executeAll(): Promise<void> {
@@ -89,17 +94,15 @@ export class WorkerOrchestrator {
 		);
 
 		settled.forEach((outcome, index) => {
+			const symbol = this._symbols[index];
 			if (outcome.status === "rejected") {
 				getLogger().error("Symbol scrape failed", {
-					context: {
-						source: this._deps.source.id,
-						symbol: this._symbols[index],
-					},
+					context: { source: this._deps.source.id, symbol },
 					error: outcome.reason,
 				});
-				SYMBOLS_FAILED_TOTAL.inc();
+				SYMBOLS_FAILED_TOTAL.inc({ symbol });
 			} else {
-				SYMBOLS_SCRAPED_TOTAL.inc();
+				SYMBOLS_SCRAPED_TOTAL.inc({ symbol });
 			}
 		});
 	}

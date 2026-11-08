@@ -15,12 +15,14 @@ export const SCRAPE_DURATION_SECONDS = new promClient.Histogram({
 
 export const SYMBOLS_SCRAPED_TOTAL = new promClient.Counter({
 	name: "fs_symbols_scraped_total",
-	help: "Total symbols successfully scraped",
+	help: "Symbol scrapes that succeeded, per symbol (series born at 0 for every tracked symbol)",
+	labelNames: ["symbol"] as const,
 });
 
 export const SYMBOLS_FAILED_TOTAL = new promClient.Counter({
 	name: "fs_symbols_failed_total",
-	help: "Total symbols that failed scraping",
+	help: "Symbol scrapes that failed, per symbol (series born at 0 for every tracked symbol; alert SymbolScrapeFailing)",
+	labelNames: ["symbol"] as const,
 });
 
 export const SNAPSHOT_PARTS_FAILED_TOTAL = new promClient.Counter({

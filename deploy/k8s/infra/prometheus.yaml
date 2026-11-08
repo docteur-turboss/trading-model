@@ -935,6 +935,19 @@ data:
               description: 'More than half of the financial-scraper cycles failed over 15 minutes ({{ $value | humanizePercentage }}).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
+          # Issue #598: one symbol failing while the others succeed leaves the
+          # cycle "success" and the global sums above non-zero. The series are born
+          # at 0 for every tracked symbol (WorkerOrchestrator constructor).
+          - alert: SymbolScrapeFailing
+            expr: sum by (symbol) (increase(fs_symbols_failed_total[15m])) > 0 and sum by (symbol) (increase(fs_symbols_scraped_total[15m])) == 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: 'Symbol {{ $labels.symbol }} is no longer scraped'
+              description: 'Every scrape of {{ $labels.symbol }} failed for 15 minutes ({{ $value | humanize }} failures), while the cycle may still succeed for the other symbols. The error is in the "Symbol scrape failed" logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#symbolscrapefailing'
+
           # ADR-0026: Binance stays the source while its public API answers from
           # here. A 451 is the geo-block that reopens the decision. The series is
           # born at the first 451; a cycle sends several requests per symbol, so
