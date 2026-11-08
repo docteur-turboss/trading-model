@@ -61,7 +61,7 @@ function genomeWith(rl: {
 				sparse: rl.sparse ?? false,
 			},
 		},
-	} as DeepReadonly<LamarckGenome>;
+	} as unknown as DeepReadonly<LamarckGenome>;
 }
 
 const bar = (transition: Transition) => transition.state[0];

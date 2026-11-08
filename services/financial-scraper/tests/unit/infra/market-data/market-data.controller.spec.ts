@@ -5,10 +5,10 @@ jest.mock(
 	"../../../../src/adapters/outbound/persistence/market-data.model",
 	() => ({
 		MarketDataModel: {
-			insertCandles: jest.fn<any>(),
-			insertTrades: jest.fn<any>(),
-			insertOrderBook: jest.fn<any>(),
-			insertTicker: jest.fn<any>(),
+			insertCandles: jest.fn<(...args: any[]) => any>(),
+			insertTrades: jest.fn<(...args: any[]) => any>(),
+			insertOrderBook: jest.fn<(...args: any[]) => any>(),
+			insertTicker: jest.fn<(...args: any[]) => any>(),
 		},
 	})
 );

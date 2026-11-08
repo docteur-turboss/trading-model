@@ -1,15 +1,17 @@
 import type {
 	Binance24hrTickerStats,
-	BinanceAggregateTradeResponse,
 	BinanceCandlestickData,
 	BinanceDepthEntry,
 	BinanceDepthResponse,
-	BinanceHistoricalTrade,
 	BinanceSymbolOrderBookTicker,
 	BinanceSymbolPriceTicker,
 	BinanceTradeResponse,
-	BinanceTradingDayTicker,
 } from "../../src/adapters/outbound/binance/binance.api";
+
+// Wire shapes of endpoints the adapter no longer types (binance.api exports no type for them).
+type BinanceHistoricalTrade = BinanceTradeResponse[number];
+type BinanceAggregateTradeResponse = Record<string, unknown>[];
+type BinanceTradingDayTicker = Record<string, unknown>;
 
 // Wire format of GET /api/v3/depth: levels are [price, quantity] string tuples.
 export const mockDepthResponse: BinanceDepthResponse = {

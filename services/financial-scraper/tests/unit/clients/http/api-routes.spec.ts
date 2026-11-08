@@ -16,19 +16,19 @@ import {
 import express from "express";
 
 const selectTradesBy = {
-	symbol: jest.fn<any>(),
-	timestamp: jest.fn<any>(),
-	source: jest.fn<any>(),
+	symbol: jest.fn<(...args: any[]) => any>(),
+	timestamp: jest.fn<(...args: any[]) => any>(),
+	source: jest.fn<(...args: any[]) => any>(),
 };
 const selectTickerBy = {
-	symbol: jest.fn<any>(),
-	timestamp: jest.fn<any>(),
-	source: jest.fn<any>(),
+	symbol: jest.fn<(...args: any[]) => any>(),
+	timestamp: jest.fn<(...args: any[]) => any>(),
+	source: jest.fn<(...args: any[]) => any>(),
 };
 const selectCandlesBy = {
-	symbol: jest.fn<any>(),
-	source: jest.fn<any>(),
-	timestamp: { after: jest.fn<any>() },
+	symbol: jest.fn<(...args: any[]) => any>(),
+	source: jest.fn<(...args: any[]) => any>(),
+	timestamp: { after: jest.fn<(...args: any[]) => any>() },
 };
 
 jest.mock(
@@ -43,7 +43,7 @@ jest.mock(
 	"../../../../src/adapters/outbound/persistence/schema/candles-schema",
 	() => ({ selectCandlesBy })
 );
-const findForAsset = jest.fn<any>();
+const findForAsset = jest.fn<(...args: any[]) => any>();
 jest.mock("../../../../src/adapters/outbound/persistence/signal-store", () => ({
 	MySqlSignalStore: { findForAsset },
 }));
@@ -104,7 +104,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		const app = express();
 		app.use(FINANCIAL_ROUTES());
 		await new Promise<void>((resolve) => {
-			server = app.listen(0, resolve);
+			server = app.listen(0, () => resolve());
 		});
 		baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 	});
@@ -120,7 +120,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 	/** GET the path, check the response against the route's entry. */
 	async function get(route: ApiRoute, path: string) {
 		const res = await fetch(`${baseUrl}${path}`);
-		const body = await res.json();
+		const body = (await res.json()) as any;
 		expect(responseIssues(route, res.status, body)).toEqual([]);
 		return { status: res.status, body };
 	}

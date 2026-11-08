@@ -32,6 +32,7 @@
     "lint": "bunx @biomejs/biome check .",
     "lint:fix": "bunx @biomejs/biome check . --write",
     "deps:check": "node scripts/check-deps.mjs",
+    "typecheck:tests": "node scripts/typecheck-tests.mjs",
     "api:check": "bun --tsconfig-override=scripts/api-contract.tsconfig.json scripts/api-contract.mjs",
     "adr:check": "node scripts/adr-check.mjs",
     "api:write": "bun --tsconfig-override=scripts/api-contract.tsconfig.json scripts/api-contract.mjs --write",

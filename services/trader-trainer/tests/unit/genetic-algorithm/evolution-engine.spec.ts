@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type {
+	Fitness,
+	PositiveInt,
+	Ratio,
+} from "@trading-model/primitives/primitives";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import {
@@ -34,7 +39,7 @@ describe("EvolutionEngine", () => {
 		});
 
 		it("should call onFallback once per length mismatch and never log", () => {
-			const onFallback = jest.fn();
+			const onFallback = jest.fn<(...args: any[]) => any>();
 			const wa = new Float32Array([0.1, 0.2, 0.3]);
 			const wb = new Float32Array([0.5, 0.6]);
 			for (let i = 0; i < 1000; i++) {
@@ -81,16 +86,16 @@ describe("EvolutionEngine", () => {
 	describe("createOffspring fallback telemetry", () => {
 		function member(id: string, weights: number[]): PopMember {
 			const genome = {
-				...createDefaultGenome(id, 1),
+				...createDefaultGenome(id, 1 as PositiveInt),
 				trainedWeights: new Float32Array(weights),
 			};
 			return {
 				genome,
-				fitness: 1,
+				fitness: 1 as Fitness,
 				fitnessMeta: {
-					episodesRun: 3,
+					episodesRun: 3 as PositiveInt,
 					computeMs: DurationMs.of(100),
-					efficiencyScore: 1,
+					efficiencyScore: 1 as Ratio,
 					variance: 0,
 					rawScores: new EpisodeScores([1]),
 				},
@@ -102,7 +107,7 @@ describe("EvolutionEngine", () => {
 				member(`m${i}`, i % 2 ? [1, 2] : [1, 2, 3])
 			);
 			const ctrl = ranked[0].genome.gaControl;
-			const crossoverFallbacks = jest.fn();
+			const crossoverFallbacks = jest.fn<(...args: any[]) => any>();
 			createOffspring({
 				ranked,
 				newCtrl: ctrl,
@@ -110,10 +115,10 @@ describe("EvolutionEngine", () => {
 				rng: Math.random,
 				generation: 1,
 				telemetry: {
-					generationStarted: jest.fn(),
-					stagnationUpdated: jest.fn(),
-					evaluationFailed: jest.fn(),
-					genomeEvaluated: jest.fn(),
+					generationStarted: jest.fn<(...args: any[]) => any>(),
+					stagnationUpdated: jest.fn<(...args: any[]) => any>(),
+					evaluationFailed: jest.fn<(...args: any[]) => any>(),
+					genomeEvaluated: jest.fn<(...args: any[]) => any>(),
 					crossoverFallbacks,
 				},
 			});
@@ -159,12 +164,12 @@ describe("EvolutionEngine", () => {
 	describe("selectParent", () => {
 		function makePop(fitnesses: number[]): PopMember[] {
 			return fitnesses.map((fitness, i) => ({
-				genome: createDefaultGenome(`g${i}`, 1),
-				fitness,
+				genome: createDefaultGenome(`g${i}`, 1 as PositiveInt),
+				fitness: fitness as Fitness,
 				fitnessMeta: {
-					episodesRun: 3,
+					episodesRun: 3 as PositiveInt,
 					computeMs: DurationMs.of(100),
-					efficiencyScore: fitness,
+					efficiencyScore: fitness as Ratio,
 					variance: 0.1,
 					rawScores: new EpisodeScores([fitness]),
 				},
@@ -187,33 +192,33 @@ describe("EvolutionEngine", () => {
 			const population = [
 				{
 					genome: createDefaultGenome("low"),
-					fitness: -100,
+					fitness: -100 as Fitness,
 					fitnessMeta: {
-						episodesRun: 3,
+						episodesRun: 3 as PositiveInt,
 						computeMs: DurationMs.of(100),
-						efficiencyScore: -100,
+						efficiencyScore: -100 as Ratio,
 						variance: 0,
 						rawScores: new EpisodeScores([-100]),
 					},
 				},
 				{
 					genome: createDefaultGenome("high"),
-					fitness: 100,
+					fitness: 100 as Fitness,
 					fitnessMeta: {
-						episodesRun: 3,
+						episodesRun: 3 as PositiveInt,
 						computeMs: DurationMs.of(100),
-						efficiencyScore: 100,
+						efficiencyScore: 100 as Ratio,
 						variance: 0,
 						rawScores: new EpisodeScores([100]),
 					},
 				},
 				{
 					genome: createDefaultGenome("mid"),
-					fitness: 0,
+					fitness: 0 as Fitness,
 					fitnessMeta: {
-						episodesRun: 3,
+						episodesRun: 3 as PositiveInt,
 						computeMs: DurationMs.of(100),
-						efficiencyScore: 0,
+						efficiencyScore: 0 as Ratio,
 						variance: 0,
 						rawScores: new EpisodeScores([0]),
 					},

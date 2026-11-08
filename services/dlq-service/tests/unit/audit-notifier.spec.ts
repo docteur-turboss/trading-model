@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_PUBLISH = jest.fn();
+const MOCK_PUBLISH = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/config/audit", () => ({
 	publishDlqEvent: MOCK_PUBLISH,

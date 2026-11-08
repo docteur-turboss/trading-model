@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { FilePath } from "@trading-model/primitives/primitives";
 
 jest.mock("express-rate-limit", () => {
 	return jest.fn(
@@ -19,23 +20,28 @@ import {
 } from "../../../src/config/metrics";
 
 jest.mock("../../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: jest.fn(),
-	BOOTSTRAP_ADDRESS_MANAGER: jest.fn(),
+	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
+	BOOTSTRAP_ADDRESS_MANAGER: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => {
-	const mockInstance = { post: jest.fn(), get: jest.fn() };
-	const MockHttpClient = jest.fn().mockImplementation(() => mockInstance);
-	MockHttpClient.createWithTls = jest.fn(() => mockInstance);
+	const mockInstance = {
+		post: jest.fn<(...args: any[]) => any>(),
+		get: jest.fn<(...args: any[]) => any>(),
+	};
+	const MockHttpClient = jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => mockInstance);
+	MockHttpClient.createWithTls = jest.fn((..._args: any[]) => mockInstance);
 	return { HttpClient: MockHttpClient };
 });
 
 describe("createBrokerModule", () => {
 	it("should create without error", () => {
 		const module = createBrokerModule({
-			caPath: "/certs/ca.pem",
-			certPath: "/certs/cert.pem",
-			keyPath: "/certs/key.pem",
+			caPath: "/certs/ca.pem" as FilePath,
+			certPath: "/certs/cert.pem" as FilePath,
+			keyPath: "/certs/key.pem" as FilePath,
 		});
 
 		expect(module).toBeDefined();
@@ -43,9 +49,9 @@ describe("createBrokerModule", () => {
 
 	it("should expose a listen method", () => {
 		const module = createBrokerModule({
-			caPath: "/certs/ca.pem",
-			certPath: "/certs/cert.pem",
-			keyPath: "/certs/key.pem",
+			caPath: "/certs/ca.pem" as FilePath,
+			certPath: "/certs/cert.pem" as FilePath,
+			keyPath: "/certs/key.pem" as FilePath,
 		});
 
 		expect(module.listen).toBeDefined();
@@ -55,9 +61,9 @@ describe("createBrokerModule", () => {
 	it("should keep dead letters in the file without a dlq-service secret", async () => {
 		const module = createBrokerModule(
 			{
-				caPath: "/certs/ca.pem",
-				certPath: "/certs/cert.pem",
-				keyPath: "/certs/key.pem",
+				caPath: "/certs/ca.pem" as FilePath,
+				certPath: "/certs/cert.pem" as FilePath,
+				keyPath: "/certs/key.pem" as FilePath,
 			},
 			{ filePath: "/tmp/never-written.jsonl" }
 		);
@@ -69,9 +75,9 @@ describe("createBrokerModule", () => {
 		expect(() =>
 			createBrokerModule(
 				{
-					caPath: "/certs/ca.pem",
-					certPath: "/certs/cert.pem",
-					keyPath: "/certs/key.pem",
+					caPath: "/certs/ca.pem" as FilePath,
+					certPath: "/certs/cert.pem" as FilePath,
+					keyPath: "/certs/key.pem" as FilePath,
 				},
 				{ dlqSecret: "short" }
 			)
@@ -80,12 +86,12 @@ describe("createBrokerModule", () => {
 
 	it("should accept an Express app in listen method", () => {
 		const module = createBrokerModule({
-			caPath: "/certs/ca.pem",
-			certPath: "/certs/cert.pem",
-			keyPath: "/certs/key.pem",
+			caPath: "/certs/ca.pem" as FilePath,
+			certPath: "/certs/cert.pem" as FilePath,
+			keyPath: "/certs/key.pem" as FilePath,
 		});
 
-		const mockApp = { use: jest.fn() };
+		const mockApp = { use: jest.fn<(...args: any[]) => any>() };
 		module.listen(mockApp as never);
 
 		expect(mockApp.use).toHaveBeenCalled();
@@ -135,7 +141,9 @@ describe("publishJournalLag", () => {
 		JOURNAL_PENDING_ENTRIES.set({ topic: "t", service: "a" }, 3);
 		JOURNAL_OLDEST_PENDING_AGE_SECONDS.set({ topic: "t", service: "a" }, 9);
 		const journal = {
-			lag: jest.fn().mockRejectedValue(new Error("down")),
+			lag: jest
+				.fn<(...args: any[]) => any>()
+				.mockRejectedValue(new Error("down")),
 		} as unknown as MessageJournalPort;
 
 		await expect(publishJournalLag(journal)).rejects.toThrow("down");

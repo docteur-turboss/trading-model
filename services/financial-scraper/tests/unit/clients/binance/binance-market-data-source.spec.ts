@@ -8,31 +8,31 @@ import {
 } from "@trading-model/primitives/primitives";
 
 jest.mock("../../../../src/adapters/outbound/binance/binance.client", () => ({
-	getOrderBook: jest.fn(),
-	getCandlestickData: jest.fn(),
-	getRecentTrades: jest.fn(),
-	getOrderBookTicker: jest.fn(),
-	get24hrTickerStats: jest.fn(),
-	getSymbolPriceTicker: jest.fn(),
+	getOrderBook: jest.fn<(...args: any[]) => any>(),
+	getCandlestickData: jest.fn<(...args: any[]) => any>(),
+	getRecentTrades: jest.fn<(...args: any[]) => any>(),
+	getOrderBookTicker: jest.fn<(...args: any[]) => any>(),
+	get24hrTickerStats: jest.fn<(...args: any[]) => any>(),
+	getSymbolPriceTicker: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../../../src/adapters/outbound/binance/normalizer", () => ({
 	BinanceNormalizer: {
-		orderBook: jest.fn(),
-		trades: jest.fn(),
-		candles: jest.fn(),
-		ticker24h: jest.fn(),
-		priceTicker: jest.fn(),
-		bookTicker: jest.fn(),
+		orderBook: jest.fn<(...args: any[]) => any>(),
+		trades: jest.fn<(...args: any[]) => any>(),
+		candles: jest.fn<(...args: any[]) => any>(),
+		ticker24h: jest.fn<(...args: any[]) => any>(),
+		priceTicker: jest.fn<(...args: any[]) => any>(),
+		bookTicker: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		warn: jest.fn(),
-		error: jest.fn(),
-		info: jest.fn(),
-		debug: jest.fn(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+		info: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 

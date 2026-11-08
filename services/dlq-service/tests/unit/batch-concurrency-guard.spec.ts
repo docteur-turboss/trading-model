@@ -1,8 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 let mockCircuitOpen = false;
-let mockRecordSuccess: jest.Mock;
-let mockRecordFailure: jest.Mock;
+let mockRecordSuccess: jest.Mock<(...args: any[]) => any>;
+let mockRecordFailure: jest.Mock<(...args: any[]) => any>;
 
 const mockDefaultConfig = {
 	failureThreshold: 5,
@@ -11,7 +11,7 @@ const mockDefaultConfig = {
 
 jest.mock("@trading-model/reliability/circuit-state-machine", () => ({
 	CircuitStateMachine: Object.assign(
-		jest.fn(() => ({
+		jest.fn((..._args: any[]) => ({
 			isOpen: () => mockCircuitOpen,
 			recordSuccess: mockRecordSuccess,
 			recordFailure: mockRecordFailure,
@@ -24,8 +24,8 @@ describe("batch-concurrency-guard", () => {
 	beforeEach(() => {
 		jest.resetModules();
 		mockCircuitOpen = false;
-		mockRecordSuccess = jest.fn();
-		mockRecordFailure = jest.fn();
+		mockRecordSuccess = jest.fn<(...args: any[]) => any>();
+		mockRecordFailure = jest.fn<(...args: any[]) => any>();
 	});
 
 	it("should return null when batches are within limit and circuit is closed", () => {

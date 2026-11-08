@@ -18,17 +18,17 @@ const serviceUnreachableError = makeErrorCode(
 describe("ResponseProtocol", () => {
 	let req: any;
 	let res: any;
-	let next: jest.Mock;
+	let next: jest.Mock<(...args: any[]) => any>;
 
 	beforeEach(() => {
 		req = { originalUrl: "/test", method: "GET", ip: "127.0.0.1" };
 		res = {
-			status: jest.fn().mockReturnThis(),
-			type: jest.fn().mockReturnThis(),
-			json: jest.fn().mockReturnThis(),
-			send: jest.fn().mockReturnThis(),
+			status: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			type: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			json: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			send: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 		};
-		next = jest.fn();
+		next = jest.fn<(...args: any[]) => any>();
 	});
 
 	it("logs Server error with the request correlationId on a 5xx", () => {

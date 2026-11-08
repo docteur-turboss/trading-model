@@ -248,7 +248,7 @@ describe("accepted message interrupted by a process stop — real Redis", () => 
 				deliveryPort: new HttpMessageDelivery(
 					http as never,
 					{
-						insert: jest.fn(async () => undefined),
+						insert: jest.fn(async (..._args: any[]) => undefined),
 					} as never
 				),
 			}),

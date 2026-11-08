@@ -205,7 +205,6 @@ describe("buildFeatures", () => {
 		const f = buildFeatures({
 			state: s,
 			idx: 1,
-			priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 		});
 		expect(f.toFloat32Array()).toBeInstanceOf(Float32Array);
 		expect(f.toFloat32Array().length).toBe(FEATURE_DIM);
@@ -236,7 +235,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 
 			expect(f.toFloat32Array()[0]).toBe(0);
@@ -263,7 +261,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 0,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(100) },
 			});
 			expect(f.toFloat32Array()[2]).toBe(0);
 		});
@@ -284,7 +281,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 			expect(f.toFloat32Array()[9]).toBeCloseTo(cn.normalize(100), 5);
 			expect(f.toFloat32Array()[10]).toBeCloseTo(an.normalize(110), 5);
@@ -300,7 +296,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 			expect(f.toFloat32Array()[9]).toBe(0);
 			expect(f.toFloat32Array()[10]).toBe(0);
@@ -323,7 +318,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 			expect(f.toFloat32Array()[13]).toBeCloseTo(cn.normalize(102), 5);
 			expect(f.toFloat32Array()[14]).toBeCloseTo(cn.normalize(108), 5);
@@ -338,7 +332,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 			expect(f.toFloat32Array()[13]).toBe(0);
 			expect(f.toFloat32Array()[14]).toBe(0);
@@ -378,7 +371,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 			expect(f.toFloat32Array()[16]).toBe(0);
 			expect(f.toFloat32Array()[17]).toBe(0);
@@ -405,7 +397,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 			expect(f.toFloat32Array()[16]).toBe(0);
 			expect(f.toFloat32Array()[17]).toBe(0);
@@ -423,7 +414,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 			expect(f.toFloat32Array()[19]).toBeCloseTo((110 - 100) / 100, 5);
 			expect(f.toFloat32Array()[20]).toBe(0);
@@ -438,7 +428,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 			expect(f.toFloat32Array()[19]).toBe(0);
 			expect(f.toFloat32Array()[20]).toBe(0);
@@ -455,7 +444,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(107) },
 			});
 			expect(f.toFloat32Array()[22]).toBe(0);
 		});
@@ -470,7 +458,7 @@ describe("buildFeatures", () => {
 				candleClose: cn,
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: {} });
+			const f = buildFeatures({ state: s, idx: 1 });
 			expect(f.toFloat32Array()[22]).toBeCloseTo(cn.normalize(105), 5);
 		});
 	});
@@ -487,7 +475,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 			expect(f.toFloat32Array()[23]).toBe(0);
 			expect(f.toFloat32Array()[24]).toBe(0);
@@ -514,7 +501,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 9,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(109) },
 			});
 			for (let j = 1; j <= 8; j++) {
 				expect(f.toFloat32Array()[22 + j]).toBeCloseTo(
@@ -534,7 +520,6 @@ describe("buildFeatures", () => {
 			const f = buildFeatures({
 				state: s,
 				idx: 1,
-				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 			expect(f.toFloat32Array()[31]).toBe(1.0);
 		});

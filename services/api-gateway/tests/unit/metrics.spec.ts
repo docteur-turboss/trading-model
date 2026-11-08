@@ -6,13 +6,17 @@ const mockMetricsFn = jest
 	.mockResolvedValue("prometheus data");
 
 jest.mock("prom-client", () => ({
-	collectDefaultMetrics: jest.fn(),
-	Counter: jest.fn().mockImplementation(() => ({ inc: jest.fn() })),
-	Histogram: jest.fn().mockImplementation(() => ({ observe: jest.fn() })),
-	Gauge: jest.fn().mockImplementation(() => ({
-		set: jest.fn(),
-		inc: jest.fn(),
-		dec: jest.fn(),
+	collectDefaultMetrics: jest.fn<(...args: any[]) => any>(),
+	Counter: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => ({ inc: jest.fn<(...args: any[]) => any>() })),
+	Histogram: jest.fn<(...args: any[]) => any>().mockImplementation(() => ({
+		observe: jest.fn<(...args: any[]) => any>(),
+	})),
+	Gauge: jest.fn<(...args: any[]) => any>().mockImplementation(() => ({
+		set: jest.fn<(...args: any[]) => any>(),
+		inc: jest.fn<(...args: any[]) => any>(),
+		dec: jest.fn<(...args: any[]) => any>(),
 	})),
 	register: {
 		contentType: "text/plain",
@@ -61,11 +65,11 @@ describe("metrics", () => {
 
 	it("metricsHandler should set content type and send metrics", () => {
 		const res = {
-			set: jest.fn(),
-			send: jest.fn(),
+			set: jest.fn<(...args: any[]) => any>(),
+			send: jest.fn<(...args: any[]) => any>(),
 		} as unknown as Response;
 
-		metricsHandler({} as Request, res);
+		metricsHandler({} as Request, res, jest.fn<(...args: any[]) => any>());
 
 		expect(res.set).toHaveBeenCalledWith("Content-Type", "text/plain");
 		expect(mockMetricsFn).toHaveBeenCalled();

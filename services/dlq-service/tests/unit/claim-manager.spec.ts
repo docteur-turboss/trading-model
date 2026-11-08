@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_GET_COLLECTION = jest.fn();
+const MOCK_GET_COLLECTION = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -19,10 +19,10 @@ jest.mock("../../src/config/db", () => ({
 }));
 
 jest.mock("../../src/adapters/outbound/dlq-query-builder", () => ({
-	DlqQueryBuilder: jest.fn(() => ({
-		buildClaimFilter: jest.fn(() => ({ status: "pending" })),
-		buildQueuableQuery: jest.fn(() => ({ status: "pending" })),
-		buildBulkUpdateOps: jest.fn(() => []),
+	DlqQueryBuilder: jest.fn((..._args: any[]) => ({
+		buildClaimFilter: jest.fn((..._args: any[]) => ({ status: "pending" })),
+		buildQueuableQuery: jest.fn((..._args: any[]) => ({ status: "pending" })),
+		buildBulkUpdateOps: jest.fn((..._args: any[]) => []),
 		toValidObjectIds: jest.fn((ids: string[]) => ids.filter(Boolean)),
 	})),
 }));
@@ -52,10 +52,10 @@ describe("DlqClaimManager", () => {
 	function mockCol(found: unknown[][], modifiedCount: number) {
 		const finds = [...found];
 		return {
-			find: jest.fn(() => ({
-				toArray: jest.fn(async () => finds.shift() ?? []),
+			find: jest.fn((..._args: unknown[]) => ({
+				toArray: jest.fn(async (..._args: any[]) => finds.shift() ?? []),
 			})),
-			bulkWrite: jest.fn(async () => ({ modifiedCount })),
+			bulkWrite: jest.fn(async (..._ops: unknown[]) => ({ modifiedCount })),
 		};
 	}
 

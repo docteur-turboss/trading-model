@@ -1,3 +1,4 @@
+import type { PositiveInt, Ratio } from "@trading-model/primitives/primitives";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { EpisodeScores } from "../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../src/domain/genetic-algorithm/factory";
@@ -8,19 +9,25 @@ import type {
 import type { DeepReadonly } from "../../src/domain/genetic-algorithm/shared-types";
 
 export function makeMinimalBestGenome(): DeepReadonly<LamarckGenome> {
-	return createDefaultGenome("test-best", 5) as DeepReadonly<LamarckGenome>;
+	return createDefaultGenome(
+		"test-best",
+		5 as PositiveInt
+	) as DeepReadonly<LamarckGenome>;
 }
 
 export function makeMinimalFitnessMeta(): GenomeFitnessMeta {
 	return {
-		episodesRun: 10,
+		episodesRun: 10 as PositiveInt,
 		computeMs: DurationMs.of(5000),
-		efficiencyScore: 1.5,
+		efficiencyScore: 1.5 as Ratio,
 		variance: 0.1,
 		rawScores: new EpisodeScores([1.0, 1.2, 1.4, 1.6, 1.8]),
 	};
 }
 
 export function makeBestGenomeNoMeta(): DeepReadonly<LamarckGenome> {
-	return createDefaultGenome("test-no-meta", 3) as DeepReadonly<LamarckGenome>;
+	return createDefaultGenome(
+		"test-no-meta",
+		3 as PositiveInt
+	) as DeepReadonly<LamarckGenome>;
 }

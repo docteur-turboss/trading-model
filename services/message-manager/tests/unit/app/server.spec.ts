@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_APP = { use: jest.fn() };
+const MOCK_APP = { use: jest.fn<(...args: any[]) => any>() };
 const MOCK_CREATE_SECURE_SERVER = jest
-	.fn<any>()
-	.mockReturnValue({ close: jest.fn() });
+	.fn<(...args: any[]) => any>()
+	.mockReturnValue({ close: jest.fn<(...args: any[]) => any>() });
 
 jest.mock(
 	"@trading-model/server-utils/adapters/inbound/service-server-factory",
@@ -13,7 +13,7 @@ jest.mock(
 );
 
 jest.mock("config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: jest.fn(),
+	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("config/message-manager", () => ({
@@ -31,11 +31,13 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 }));
 
 const MOCK_REDIS = {
-	connect: jest.fn<any>(),
-	ping: jest.fn<any>(),
-	disconnect: jest.fn(),
+	connect: jest.fn<(...args: any[]) => any>(),
+	ping: jest.fn<(...args: any[]) => any>(),
+	disconnect: jest.fn<(...args: any[]) => any>(),
 };
-const MOCK_CREATE_REDIS_CLIENT = jest.fn<any>(() => MOCK_REDIS);
+const MOCK_CREATE_REDIS_CLIENT = jest.fn<(...args: any[]) => any>(
+	() => MOCK_REDIS
+);
 jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
 	createRedisClient: MOCK_CREATE_REDIS_CLIENT,
 }));

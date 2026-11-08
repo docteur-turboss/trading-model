@@ -1,20 +1,28 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
-const MOCK_INC = jest.fn();
-const MOCK_OBSERVE = jest.fn();
-const MOCK_SET = jest.fn();
-const MOCK_METRICS = jest.fn().mockResolvedValue("mock_metrics 1");
+const MOCK_INC = jest.fn<(...args: any[]) => any>();
+const MOCK_OBSERVE = jest.fn<(...args: any[]) => any>();
+const MOCK_SET = jest.fn<(...args: any[]) => any>();
+const MOCK_METRICS = jest
+	.fn<(...args: any[]) => any>()
+	.mockResolvedValue("mock_metrics 1");
 const MOCK_CONTENT_TYPE = "text/plain; charset=utf-8";
 
 jest.mock("prom-client", () => {
-	const MockRegistry = jest.fn().mockImplementation(() => ({
-		contentType: MOCK_CONTENT_TYPE,
-		metrics: MOCK_METRICS,
-	}));
+	const MockRegistry = jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => ({
+			contentType: MOCK_CONTENT_TYPE,
+			metrics: MOCK_METRICS,
+		}));
 
 	return {
 		Registry: MockRegistry,
@@ -22,10 +30,16 @@ jest.mock("prom-client", () => {
 			contentType: MOCK_CONTENT_TYPE,
 			metrics: MOCK_METRICS,
 		},
-		collectDefaultMetrics: jest.fn(),
-		Counter: jest.fn().mockImplementation(() => ({ inc: MOCK_INC })),
-		Histogram: jest.fn().mockImplementation(() => ({ observe: MOCK_OBSERVE })),
-		Gauge: jest.fn().mockImplementation(() => ({ set: MOCK_SET })),
+		collectDefaultMetrics: jest.fn<(...args: any[]) => any>(),
+		Counter: jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementation(() => ({ inc: MOCK_INC })),
+		Histogram: jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementation(() => ({ observe: MOCK_OBSERVE })),
+		Gauge: jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementation(() => ({ set: MOCK_SET })),
 	};
 });
 

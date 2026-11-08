@@ -3,14 +3,14 @@ import type { Request, Response } from "express";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
-		debug: jest.fn(),
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
-const mockResolveMtlsIdentity = jest.fn();
+const mockResolveMtlsIdentity = jest.fn<(...args: any[]) => any>();
 jest.mock("@trading-model/http/adapters/inbound/mtls-identity", () => ({
 	resolveMtlsIdentity: mockResolveMtlsIdentity,
 }));
@@ -19,8 +19,8 @@ import { REGISTRATION_MTLS_AUTH } from "../../src/adapters/inbound/registration-
 
 function mockResponse(): Response {
 	const res = {
-		status: jest.fn().mockReturnThis(),
-		json: jest.fn().mockReturnThis(),
+		status: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+		json: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 	} as unknown as Response;
 	return res;
 }
@@ -32,10 +32,13 @@ function callerIs(serviceName: string): void {
 	});
 }
 
-function register(body: unknown): { res: Response; next: jest.Mock } {
+function register(body: unknown): {
+	res: Response;
+	next: jest.Mock<(...args: any[]) => any>;
+} {
 	const req = { ip: "10.0.0.1", body } as Request;
 	const res = mockResponse();
-	const next = jest.fn();
+	const next = jest.fn<(...args: any[]) => any>();
 	REGISTRATION_MTLS_AUTH(req, res, next);
 	return { res, next };
 }

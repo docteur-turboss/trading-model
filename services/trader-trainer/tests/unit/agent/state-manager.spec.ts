@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
 import StateManager from "../../../src/domain/agent/state-manager";
 import { Agent } from "../../../src/domain/neural-network/agent";
 import {
@@ -9,7 +10,7 @@ import {
 
 function makeAgent(): Agent {
 	return new Agent({
-		neuronsByLayer: [4, 6, 3],
+		neuronsByLayer: [4 as PositiveInt, 6 as PositiveInt, 3 as PositiveInt],
 		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
 		normalisationType: NormalisationType.None,
 		connectionType: ConnectionType.FullyConnected,

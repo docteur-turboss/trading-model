@@ -13,7 +13,9 @@ const MOCK_SQL: Array<{ query: string; params: unknown[] }> = [];
 /** Backticks dropped: MySQL quotes only some identifiers. */
 const SQL_OF = (query: string) => query.replaceAll("`", "");
 let MOCK_ROWS: unknown[] = [];
-const MOCK_QUERY = jest.fn<() => Promise<any>>().mockResolvedValue(undefined);
+const MOCK_QUERY = jest
+	.fn<(...args: any[]) => Promise<any>>()
+	.mockResolvedValue(undefined);
 
 jest.mock("../../../../../src/config/db", () => {
 	const {
@@ -31,8 +33,10 @@ jest.mock("../../../../../src/config/db", () => {
 	);
 	const connection = class extends MySqlConnection<"DBConnection"> {};
 	return {
-		createDBConnection: () => new connection(runner),
-		DATABASE: { promise: jest.fn(() => ({ query: MOCK_QUERY })) },
+		createDBConnection: () => new (connection as any)(runner),
+		DATABASE: {
+			promise: jest.fn((..._args: any[]) => ({ query: MOCK_QUERY })),
+		},
 	};
 });
 

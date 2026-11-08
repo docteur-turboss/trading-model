@@ -1,10 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_GET_COLLECTION = jest.fn();
-const MOCK_FIND = jest.fn();
-const MOCK_TO_ARRAY = jest.fn();
-const MOCK_BUILD_QUEUABLE_QUERY = jest.fn();
-const MOCK_BUILD_ACTIVE_CLAIM_QUERY = jest.fn();
+const MOCK_GET_COLLECTION = jest.fn<(...args: any[]) => any>();
+const MOCK_FIND = jest.fn<(...args: any[]) => any>();
+const MOCK_TO_ARRAY = jest.fn<(...args: any[]) => any>();
+const MOCK_BUILD_QUEUABLE_QUERY = jest.fn<(...args: any[]) => any>();
+const MOCK_BUILD_ACTIVE_CLAIM_QUERY = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/config/db", () => ({
 	getCollection: MOCK_GET_COLLECTION,
@@ -17,7 +17,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/adapters/outbound/dlq-query-builder", () => ({
-	DlqQueryBuilder: jest.fn(() => ({
+	DlqQueryBuilder: jest.fn((..._args: any[]) => ({
 		buildQueuableQuery: MOCK_BUILD_QUEUABLE_QUERY,
 		buildActiveClaimQuery: MOCK_BUILD_ACTIVE_CLAIM_QUERY,
 	})),

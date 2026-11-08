@@ -1,25 +1,43 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { MarketEvent } from "@trading-model/contracts/market-events";
+import type { Signature } from "@trading-model/contracts/signed-request";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
+import type {
+	CorrelationId,
+	DurationMs,
+	InstanceId,
+	MessageId,
+	MessagePriority,
+	Role,
+	ServiceId,
+	Subject,
+	TenantId,
+	Topic,
+} from "@trading-model/primitives/primitives";
 import { MessageMetadataBuilder } from "../../src/domain/messages/message-metadata-builder";
 
 const TEST_TOPIC = "test.event.created";
 const TEST_EVENT = "example.debug.create";
 const TEST_PUBLISHER = {
-	serviceName: ServiceInstanceName.DiscoveryService,
-	instanceId: "550e8400-e29b-41d4-a716-446655440000",
+	serviceName: ServiceInstanceName.DiscoveryService as unknown as ServiceId,
+	instanceId: "550e8400-e29b-41d4-a716-446655440000" as InstanceId,
 };
 
 function buildMinimalMetadata(): MessageMetadataBuilder {
-	return new MessageMetadataBuilder(TEST_TOPIC, TEST_EVENT, TEST_PUBLISHER);
+	return new MessageMetadataBuilder(
+		TEST_TOPIC as Topic,
+		TEST_EVENT,
+		TEST_PUBLISHER
+	);
 }
 
 describe("MessageMetadataBuilder", () => {
 	describe("constructor", () => {
 		it("should create with required fields", () => {
 			const m = new MessageMetadataBuilder(
-				TEST_TOPIC,
+				TEST_TOPIC as Topic,
 				TEST_EVENT,
 				TEST_PUBLISHER
 			);
@@ -33,13 +51,18 @@ describe("MessageMetadataBuilder", () => {
 
 		it("should throw on invalid topic format", () => {
 			expect(
-				() => new MessageMetadataBuilder("no-dots", TEST_EVENT, TEST_PUBLISHER)
+				() =>
+					new MessageMetadataBuilder(
+						"no-dots" as Topic,
+						TEST_EVENT,
+						TEST_PUBLISHER
+					)
 			).toThrow();
 		});
 
 		it("should accept the trainer's model-published event", () => {
 			const m = new MessageMetadataBuilder(
-				TrainingEvent.ModelPublished,
+				TrainingEvent.ModelPublished as unknown as Topic,
 				TrainingEvent.ModelPublished,
 				TEST_PUBLISHER
 			);
@@ -48,10 +71,10 @@ describe("MessageMetadataBuilder", () => {
 
 		it("should accept optional context data", () => {
 			const withData = new MessageMetadataBuilder(
-				TEST_TOPIC,
+				TEST_TOPIC as Topic,
 				TEST_EVENT,
 				TEST_PUBLISHER,
-				{ delivery: { mode: "at-least-once" } }
+				{ delivery: { mode: DeliveryMode.AtLeastOnce } }
 			);
 			const result = withData.toJSON();
 			expect(result.topic).toBe(TEST_TOPIC);
@@ -63,24 +86,24 @@ describe("MessageMetadataBuilder", () => {
 	describe("setTopic", () => {
 		it("should set valid topic", () => {
 			const m = buildMinimalMetadata();
-			m.setTopic("other.event.happened");
+			m.setTopic("other.event.happened" as Topic);
 			expect(m.toJSON().topic).toBe("other.event.happened");
 		});
 
 		it("should throw on invalid topic format", () => {
 			const m = buildMinimalMetadata();
-			expect(() => m.setTopic("")).toThrow();
-			expect(() => m.setTopic("no-dots")).toThrow();
-			expect(() => m.setTopic("two.segments")).toThrow();
-			expect(() => m.setTopic("market..fetch")).toThrow();
-			expect(() => m.setTopic("market.-trade.fetch")).toThrow();
+			expect(() => m.setTopic("" as Topic)).toThrow();
+			expect(() => m.setTopic("no-dots" as Topic)).toThrow();
+			expect(() => m.setTopic("two.segments" as Topic)).toThrow();
+			expect(() => m.setTopic("market..fetch" as Topic)).toThrow();
+			expect(() => m.setTopic("market.-trade.fetch" as Topic)).toThrow();
 		});
 
 		it.each(Object.values(MarketEvent))(
 			"should accept the %s market event as a topic",
 			(event) => {
 				const m = buildMinimalMetadata();
-				m.setTopic(event);
+				m.setTopic(event as unknown as Topic);
 				expect(m.toJSON().topic).toBe(event);
 			}
 		);
@@ -98,8 +121,9 @@ describe("MessageMetadataBuilder", () => {
 		it("should set publisher", () => {
 			const m = buildMinimalMetadata();
 			m.setPublisher({
-				serviceName: ServiceInstanceName.DiscoveryService,
-				instanceId: "550e8400-e29b-41d4-a716-446655440000",
+				serviceName:
+					ServiceInstanceName.DiscoveryService as unknown as ServiceId,
+				instanceId: "550e8400-e29b-41d4-a716-446655440000" as InstanceId,
 			});
 			expect(m.toJSON().publisher.serviceName).toBe(
 				ServiceInstanceName.DiscoveryService
@@ -126,12 +150,16 @@ describe("MessageMetadataBuilder", () => {
 
 	describe("setDelivery", () => {
 		it("should set delivery mode", () => {
-			const m = buildMinimalMetadata().setDelivery({ mode: "at-least-once" });
+			const m = buildMinimalMetadata().setDelivery({
+				mode: DeliveryMode.AtLeastOnce,
+			});
 			expect(m.toJSON().delivery?.mode).toBe("at-least-once");
 		});
 
 		it("should clear delivery when null", () => {
-			const m = buildMinimalMetadata().setDelivery({ mode: "at-least-once" });
+			const m = buildMinimalMetadata().setDelivery({
+				mode: DeliveryMode.AtLeastOnce,
+			});
 			m.setDelivery(null);
 			expect(m.toJSON().delivery).toBeUndefined();
 		});
@@ -139,18 +167,24 @@ describe("MessageMetadataBuilder", () => {
 
 	describe("setRouting", () => {
 		it("should set routing info", () => {
-			const m = buildMinimalMetadata().setRouting({ partitionKey: "key-1" });
+			const m = buildMinimalMetadata().setRouting({
+				partitionKey: "key-1" as CorrelationId,
+			});
 			expect(m.toJSON().routing?.partitionKey).toBe("key-1");
 		});
 
 		it("should clear routing when null", () => {
-			const m = buildMinimalMetadata().setRouting({ partitionKey: "key-1" });
+			const m = buildMinimalMetadata().setRouting({
+				partitionKey: "key-1" as CorrelationId,
+			});
 			m.setRouting(null);
 			expect(m.toJSON().routing).toBeUndefined();
 		});
 
 		it("should clear routing when undefined", () => {
-			const m = buildMinimalMetadata().setRouting({ partitionKey: "key-1" });
+			const m = buildMinimalMetadata().setRouting({
+				partitionKey: "key-1" as CorrelationId,
+			});
 			m.setRouting(undefined as any);
 			expect(m.toJSON().routing).toBeUndefined();
 		});
@@ -181,16 +215,16 @@ describe("MessageMetadataBuilder", () => {
 					tenantId: "t1",
 				},
 			};
-			const m = buildMinimalMetadata().setSecurity(security);
+			const m = buildMinimalMetadata().setSecurity(security as never);
 			expect(m.toJSON().security?.authContext?.subject).toBe("service-a");
 		});
 
 		it("should clear security when null", () => {
 			const m = buildMinimalMetadata().setSecurity({
 				authContext: {
-					subject: "service-a",
-					roles: ["reader"],
-					tenantId: "t1",
+					subject: "service-a" as Subject,
+					roles: ["reader" as Role],
+					tenantId: "t1" as TenantId,
 				},
 			});
 			m.setSecurity(null);
@@ -201,8 +235,8 @@ describe("MessageMetadataBuilder", () => {
 	describe("setIds", () => {
 		it("should set causation and correlation ids", () => {
 			const m = buildMinimalMetadata().setIds({
-				causationId: "550e8400-e29b-41d4-a716-446655440000",
-				correlationId: "550e8400-e29b-41d4-a716-446655440001",
+				causationId: "550e8400-e29b-41d4-a716-446655440000" as CorrelationId,
+				correlationId: "550e8400-e29b-41d4-a716-446655440001" as CorrelationId,
 			});
 			const result = m.toJSON();
 			expect(result.causationId).toBe("550e8400-e29b-41d4-a716-446655440000");
@@ -211,7 +245,7 @@ describe("MessageMetadataBuilder", () => {
 
 		it("should set only causationId without correlationId", () => {
 			const m = buildMinimalMetadata().setIds({
-				causationId: "550e8400-e29b-41d4-a716-446655440000",
+				causationId: "550e8400-e29b-41d4-a716-446655440000" as CorrelationId,
 			});
 			const result = m.toJSON();
 			expect(result.causationId).toBe("550e8400-e29b-41d4-a716-446655440000");
@@ -220,8 +254,8 @@ describe("MessageMetadataBuilder", () => {
 
 		it("should clear ids when null", () => {
 			const m = buildMinimalMetadata().setIds({
-				causationId: "550e8400-e29b-41d4-a716-446655440000",
-				correlationId: "550e8400-e29b-41d4-a716-446655440001",
+				causationId: "550e8400-e29b-41d4-a716-446655440000" as CorrelationId,
+				correlationId: "550e8400-e29b-41d4-a716-446655440001" as CorrelationId,
 			});
 			m.setIds(null);
 			const result = m.toJSON();
@@ -234,22 +268,26 @@ describe("MessageMetadataBuilder", () => {
 		it("should return metadata with all fields including delivery, routing, security", () => {
 			const m = buildMinimalMetadata()
 				.setDelivery({
-					mode: "at-least-once",
-					ttl: 5000,
-					deduplicationId: "dedup-1",
+					mode: DeliveryMode.AtLeastOnce,
+					ttl: 5000 as DurationMs,
+					deduplicationId: "dedup-1" as MessageId,
 				})
-				.setRouting({ partitionKey: "key-1", priority: 10 })
+				.setRouting({
+					partitionKey: "key-1" as CorrelationId,
+					priority: 10 as MessagePriority,
+				})
 				.setSecurity({
 					authContext: {
-						subject: "service-a",
-						roles: ["reader"],
-						tenantId: "t1",
+						subject: "service-a" as Subject,
+						roles: ["reader" as Role],
+						tenantId: "t1" as TenantId,
 					},
-					signature: "sig123",
+					signature: "sig123" as Signature,
 				})
 				.setIds({
-					causationId: "550e8400-e29b-41d4-a716-446655440000",
-					correlationId: "550e8400-e29b-41d4-a716-446655440001",
+					causationId: "550e8400-e29b-41d4-a716-446655440000" as CorrelationId,
+					correlationId:
+						"550e8400-e29b-41d4-a716-446655440001" as CorrelationId,
 				});
 			const result = m.toJSON();
 			expect(result.delivery?.mode).toBe("at-least-once");
@@ -279,13 +317,17 @@ describe("MessageMetadataBuilder", () => {
 
 		it("should throw on invalid causation id uuid format", () => {
 			expect(() =>
-				buildMinimalMetadata().setIds({ causationId: "not-a-uuid" })
+				buildMinimalMetadata().setIds({
+					causationId: "not-a-uuid" as CorrelationId,
+				})
 			).toThrow();
 		});
 
 		it("should throw on invalid correlation id uuid format", () => {
 			expect(() =>
-				buildMinimalMetadata().setIds({ correlationId: "not-a-uuid" })
+				buildMinimalMetadata().setIds({
+					correlationId: "not-a-uuid" as CorrelationId,
+				})
 			).toThrow();
 		});
 	});

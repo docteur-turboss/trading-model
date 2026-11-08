@@ -48,7 +48,7 @@ describe("ChainAuditScheduler", () => {
 
 	it("runs shortly after start, then every interval, until stopped", async () => {
 		jest.useFakeTimers();
-		const runCycle = jest.fn(() => Promise.resolve());
+		const runCycle = jest.fn((..._args: any[]) => Promise.resolve());
 		const scheduler = new ChainAuditScheduler(
 			auditWith(runCycle),
 			DurationMs.of(60_000)

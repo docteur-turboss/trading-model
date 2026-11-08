@@ -1,12 +1,12 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_INSERT = jest.fn();
-const MOCK_VALIDATE = jest.fn();
+const MOCK_INSERT = jest.fn<(...args: any[]) => any>();
+const MOCK_VALIDATE = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/config/dlq-adapters", () => ({
 	dlqRepository: { insert: MOCK_INSERT },
-	pushToRedisQueue: jest.fn(),
-	notifyAddAudit: jest.fn(),
+	pushToRedisQueue: jest.fn<(...args: any[]) => any>(),
+	notifyAddAudit: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/application/use-cases/dlq-validator", () => ({
@@ -15,7 +15,7 @@ jest.mock("../../src/application/use-cases/dlq-validator", () => ({
 
 jest.mock("../../src/config/metrics", () => ({
 	metrics: {
-		entriesAdded: { inc: jest.fn() },
+		entriesAdded: { inc: jest.fn<(...args: any[]) => any>() },
 	},
 }));
 

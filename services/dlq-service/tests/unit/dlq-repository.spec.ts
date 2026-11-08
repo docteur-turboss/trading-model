@@ -1,14 +1,16 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { DlqEntry as ContractDlqEntry } from "@trading-model/contracts/dlq-types";
+import { Limit, toInstanceId } from "@trading-model/primitives/primitives";
 
-const mockInsertOne = jest.fn();
-const mockFind = jest.fn();
-const mockFindOne = jest.fn();
-const mockFindOneAndUpdate = jest.fn();
-const mockBulkWrite = jest.fn();
-const mockDeleteMany = jest.fn();
-const mockUpdateOne = jest.fn();
-const mockUpdateMany = jest.fn();
-const mockEstimatedDocumentCount = jest.fn();
+const mockInsertOne = jest.fn<(...args: any[]) => any>();
+const mockFind = jest.fn<(...args: any[]) => any>();
+const mockFindOne = jest.fn<(...args: any[]) => any>();
+const mockFindOneAndUpdate = jest.fn<(...args: any[]) => any>();
+const mockBulkWrite = jest.fn<(...args: any[]) => any>();
+const mockDeleteMany = jest.fn<(...args: any[]) => any>();
+const mockUpdateOne = jest.fn<(...args: any[]) => any>();
+const mockUpdateMany = jest.fn<(...args: any[]) => any>();
+const mockEstimatedDocumentCount = jest.fn<(...args: any[]) => any>();
 
 function createCursor(docs: unknown[]) {
 	let i = 0;
@@ -25,7 +27,7 @@ function createCursor(docs: unknown[]) {
 	};
 }
 
-const mockCollection = jest.fn(() => ({
+const mockCollection = jest.fn((..._args: any[]) => ({
 	insertOne: mockInsertOne,
 	find: mockFind,
 	findOne: mockFindOne,
@@ -55,22 +57,15 @@ const DlqEntry = {
 	reason: "timeout",
 	deliveryAttempt: 2,
 	timestamp: new Date().toISOString(),
-};
+} as unknown as ContractDlqEntry;
 
 describe("DlqRepository", () => {
-	let DlqRepositoryClass: {
-		new (): {
-			insert: (...args: never[]) => Promise<string>;
-			query: (...args: never[]) => Promise<Record<string, unknown>[]>;
-			delete: (...args: never[]) => Promise<number>;
-			count: (...args: never[]) => Promise<number>;
-			prune: (...args: never[]) => Promise<number>;
-			listQueuable: (...args: never[]) => Promise<string[]>;
-		};
-	};
+	let DlqRepositoryClass: typeof import("../../src/adapters/outbound/repository").DlqRepository;
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/adapters/outbound/repository");
+		const mod = jest.requireActual<
+			typeof import("../../src/adapters/outbound/repository")
+		>("../../src/adapters/outbound/repository");
 		DlqRepositoryClass = mod.DlqRepository;
 	});
 
@@ -174,7 +169,7 @@ describe("DlqRepository", () => {
 			mockFindOne.mockResolvedValueOnce(null);
 			mockFindOne.mockResolvedValueOnce(null);
 			const duplicateError = new Error("E11000 duplicate key");
-			(duplicateError as Record<string, unknown>).code = 11000;
+			(duplicateError as unknown as Record<string, unknown>).code = 11000;
 			mockInsertOne.mockRejectedValueOnce(duplicateError);
 			mockFindOne.mockResolvedValueOnce({
 				_id: { toHexString: () => "race-id" },
@@ -216,7 +211,7 @@ describe("DlqRepository", () => {
 						expect.objectContaining({
 							sort: { createdAt: -1 },
 							skip: 0,
-							limit: 10,
+							limit: Limit.of(10, 100),
 						})
 					);
 				});
@@ -254,7 +249,7 @@ describe("DlqRepository", () => {
 						expect.objectContaining({
 							sort: { createdAt: -1 },
 							skip: 0,
-							limit: 10,
+							limit: Limit.of(10, 100),
 						})
 					);
 				});
@@ -322,16 +317,12 @@ describe("DlqRepository", () => {
 });
 
 describe("DlqClaimManager", () => {
-	let DlqClaimManagerClass: {
-		new (): {
-			claimEntriesForRetry: (
-				...args: never[]
-			) => Promise<Record<string, unknown>[]>;
-		};
-	};
+	let DlqClaimManagerClass: typeof import("../../src/adapters/outbound/claim-manager").DlqClaimManager;
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/adapters/outbound/claim-manager");
+		const mod = jest.requireActual<
+			typeof import("../../src/adapters/outbound/claim-manager")
+		>("../../src/adapters/outbound/claim-manager");
 		DlqClaimManagerClass = mod.DlqClaimManager;
 	});
 
@@ -370,9 +361,9 @@ describe("DlqClaimManager", () => {
 
 			return cm
 				.claimEntriesForRetry({
-					limit: 10,
+					limit: Limit.of(10, 100),
 					batchId: "batch-1",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(2);
@@ -396,9 +387,9 @@ describe("DlqClaimManager", () => {
 
 			return cm
 				.claimEntriesForRetry({
-					limit: 10,
+					limit: Limit.of(10, 100),
 					batchId: "batch-1",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(0);
@@ -433,9 +424,9 @@ describe("DlqClaimManager", () => {
 
 			return cm
 				.claimEntriesForRetry({
-					limit: 10,
+					limit: Limit.of(10, 100),
 					batchId: "batch-1",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(1);
@@ -446,15 +437,12 @@ describe("DlqClaimManager", () => {
 });
 
 describe("DlqRetryManager", () => {
-	let DlqRetryManagerClass: {
-		new (): {
-			markRetried: (...args: never[]) => Promise<void>;
-			abandonExhaustedEntries: (...args: never[]) => Promise<number>;
-		};
-	};
+	let DlqRetryManagerClass: typeof import("../../src/adapters/outbound/retry-manager").DlqRetryManager;
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/adapters/outbound/retry-manager");
+		const mod = jest.requireActual<
+			typeof import("../../src/adapters/outbound/retry-manager")
+		>("../../src/adapters/outbound/retry-manager");
 		DlqRetryManagerClass = mod.DlqRetryManager;
 	});
 
@@ -499,7 +487,7 @@ describe("DlqRetryManager", () => {
 			return rm
 				.markRetried({
 					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 					batchId: "batch-1",
 					success: true,
 				})
@@ -529,7 +517,7 @@ describe("DlqRetryManager", () => {
 			return rm
 				.markRetried({
 					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 					batchId: "batch-1",
 					success: false,
 				})
@@ -562,7 +550,7 @@ describe("DlqRetryManager", () => {
 			return rm
 				.markRetried({
 					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 					batchId: "batch-1",
 					success: false,
 				})
