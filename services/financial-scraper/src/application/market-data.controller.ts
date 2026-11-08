@@ -48,7 +48,9 @@ function buildPersisters(
 			present: (payload) => payload.candles,
 			insert: async (value) => {
 				await repository.insertCandles(value as CandleData[]);
-				CANDLES_PERSISTED_TOTAL.inc(Array.isArray(value) ? value.length : 1);
+				for (const candle of [value as CandleData[]].flat()) {
+					CANDLES_PERSISTED_TOTAL.inc({ symbol: candle.symbol });
+				}
 			},
 		},
 		{

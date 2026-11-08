@@ -6,6 +6,7 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import {
+	CANDLES_PERSISTED_TOTAL,
 	PUBLISHES_SKIPPED_TOTAL,
 	SYMBOLS_FAILED_TOTAL,
 	SYMBOLS_SCRAPED_TOTAL,
@@ -79,6 +80,13 @@ export class WorkerOrchestrator {
 		private readonly _deps: WorkerOrchestratorDeps
 	) {
 		this._maxConcurrency = maxConcurrency;
+		// Series at 0 from the start: increase() then sees the first failure,
+		// and a symbol that never persists a candle (SymbolMarketDataStale).
+		for (const symbol of _symbols) {
+			CANDLES_PERSISTED_TOTAL.inc({ symbol }, 0);
+			SYMBOLS_FAILED_TOTAL.inc({ symbol }, 0);
+			SYMBOLS_SCRAPED_TOTAL.inc({ symbol }, 0);
+		}
 	}
 
 	async executeAll(): Promise<void> {
@@ -89,17 +97,15 @@ export class WorkerOrchestrator {
 		);
 
 		settled.forEach((outcome, index) => {
+			const symbol = this._symbols[index];
 			if (outcome.status === "rejected") {
 				getLogger().error("Symbol scrape failed", {
-					context: {
-						source: this._deps.source.id,
-						symbol: this._symbols[index],
-					},
+					context: { source: this._deps.source.id, symbol },
 					error: outcome.reason,
 				});
-				SYMBOLS_FAILED_TOTAL.inc();
+				SYMBOLS_FAILED_TOTAL.inc({ symbol });
 			} else {
-				SYMBOLS_SCRAPED_TOTAL.inc();
+				SYMBOLS_SCRAPED_TOTAL.inc({ symbol });
 			}
 		});
 	}
