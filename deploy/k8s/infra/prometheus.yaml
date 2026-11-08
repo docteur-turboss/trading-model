@@ -1267,6 +1267,16 @@ data:
               description: 'Some alert rules cannot be evaluated: alerts may be silently missing.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'
 
+          - alert: OtelSpanExportFailing
+            expr: sum by (job) (increase(otelcol_exporter_send_failed_spans_total[10m]) or increase(otelcol_exporter_send_failed_spans[10m])) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'The OTel collector fails to export spans'
+              description: 'The collector dropped {{ $value | humanize }} span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'
+
           - alert: Watchdog
             expr: vector(1)
             for: 0m

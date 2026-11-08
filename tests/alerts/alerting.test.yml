@@ -1443,3 +1443,19 @@ tests:
               summary: 'MongoDB mongo-dlq has no primary'
               description: 'No member of the mongo-dlq replica set is primary for 2 minutes: writes fail (audit events for mongo-audit, dead letters for mongo-dlq).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetnoprimary'
+
+  # The collector cannot export spans to Jaeger.
+  - name: otel collector span export failures
+    interval: 1m
+    input_series:
+      - series: 'otelcol_exporter_send_failed_spans_total{job="otel-collector",instance="o"}'
+        values: '0+1x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: OtelSpanExportFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: otel-collector}
+            exp_annotations:
+              summary: 'The OTel collector fails to export spans'
+              description: 'The collector dropped 10 span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'

@@ -226,6 +226,8 @@ const EXPORTER_PREFIXES = [
   "probe_",
   // Alertmanager and Prometheus themselves (scrape jobs `alertmanager`, `prometheus`)
   "alertmanager_", "prometheus_",
+  // OTel collector self-telemetry (deploy/k8s/infra/otel-collector.yaml, job `otel-collector`)
+  "otelcol_",
 ];
 
 // Infrastructure exporters (ADR-0055): family prefix -> the K8s scrape job that
