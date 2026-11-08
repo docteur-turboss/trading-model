@@ -119,3 +119,14 @@ If the service does not recover within 15 minutes:
 1. Escalate to Engineering Manager
 2. Consider full incident response process
 3. In severe cases, route traffic away from affected service
+
+## No scrape target
+
+**Alert:** `ServiceTargetsMissing` (critical, 5 min). Fires when a job has no `up` series, so `ServiceDown` (`up == 0`) stays silent. Covers the 7 application services; the two alerts never fire together for a job (series absent vs series at 0). `financial-scraper-collector` (K8s only) is covered by `MarketDataStale`.
+
+```bash
+kubectl get deploy,pods -n trading-model -l app.kubernetes.io/component=<job>   # replicas 0? Pending?
+kubectl describe pod -n trading-model -l app.kubernetes.io/component=<job>      # scheduling events
+```
+
+Compose: `docker compose ps <job>`. Also check the scrape config and `/targets` in Prometheus for the job.

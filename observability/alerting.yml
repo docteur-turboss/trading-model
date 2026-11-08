@@ -80,6 +80,16 @@ groups:
           description: 'Service {{ $labels.job }} has been unreachable for over 1 minute.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
 
+      - alert: ServiceTargetsMissing
+        expr: absent(up{job="message-manager"}) or absent(up{job="discovery-server"}) or absent(up{job="dlq-service"}) or absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $labels.job }} has no scrape target'
+          description: 'Prometheus has had no up series for {{ $labels.job }} for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
+
       - alert: HighErrorRate
         expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.05
         for: 2m
@@ -607,3 +617,31 @@ groups:
           summary: 'Alerting pipeline heartbeat'
           description: 'Always firing. Routed to the dead man''s switch (ALERTMANAGER_DEADMAN_URL): when it stops arriving, Prometheus, Alertmanager or the notification path is down.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#dead-mans-switch'
+
+  # ── Error budget (slo.md: 99.9% over 30d) ────────────────────
+  - name: trading-model-slo-recording
+    interval: 1m
+    rules:
+      - record: slo:sli_error:ratio_rate5m
+        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m]))
+      - record: slo:sli_error:ratio_rate1h
+        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[1h])) / sum by (job) (rate(http_requests_total[1h]))
+      - record: slo:sli_error:ratio_rate6h
+        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[6h])) / sum by (job) (rate(http_requests_total[6h]))
+      # Numerator guarded: a job with no 5xx series yet has a ratio of 0, not no data.
+      - record: slo:sli_error:ratio_rate30d
+        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[30d])) / sum by (job) (rate(http_requests_total[30d])) or sum by (job) (rate(http_requests_total[30d])) * 0
+
+  - name: trading-model-slo-budget
+    interval: 5m
+    rules:
+      - alert: SLOErrorBudgetLow
+        expr: (1 - slo:sli_error:ratio_rate30d / 0.001) * 100 < 20
+        for: 1h
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: 'Error budget of {{ $labels.job }} below 20%'
+          description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'

@@ -110,6 +110,22 @@ Fix the dependency, roll back a bad deploy
 stuck pod (`kubectl -n $NS rollout restart deploy/$JOB`). A burn-rate alert
 consumes error budget: apply the [error budget policy](../slo.md#error-budget-policy).
 
+## SLO error budget low
+
+### Symptom
+
+`SLOErrorBudgetLow`: less than 20% of the 30-day availability error budget
+(99.9%) remains for a job. Budget remaining = `(1 - error ratio / 0.001) * 100`,
+from the recording rule `slo:sli_error:ratio_rate30d` (Grafana: SLO dashboard,
+"Error Budget Remaining").
+
+### Remediation
+
+Apply the [error budget policy](../slo.md#error-budget-policy): below 20%, full
+freeze except critical fixes and rollbacks, and a postmortem. Find the cause with
+the [HighErrorRate](#higherrorrate) diagnosis; the budget recovers only as old
+errors leave the 30-day window.
+
 ## Escalation
 
 - Critical burn-rate alert not resolved in 15 minutes: open an incident
