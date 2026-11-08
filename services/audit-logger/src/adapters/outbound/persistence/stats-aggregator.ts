@@ -82,6 +82,13 @@ export class StatsAggregator {
 		};
 	}
 
+	/** Starts the first pass at boot; a failure is logged, the first request retries. */
+	warm(): void {
+		this._startRefresh().catch((err) =>
+			getLogger().warn("Audit stats warm-up failed", { error: String(err) })
+		);
+	}
+
 	private _counts(): Promise<CountsSnapshot> {
 		const snapshot = this._snapshot;
 		if (!snapshot) {

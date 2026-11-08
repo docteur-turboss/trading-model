@@ -36,6 +36,7 @@ function toAuditEventQuery(query: ListEventsQuery): AuditEventQuery {
 		publisher: query.publisher,
 		correlationId: query.correlationId,
 		dateRange: DateRange.fromQueryParams(query.startDate, query.endDate),
+		withTotal: query.withTotal,
 		page: query.page === undefined ? undefined : PageNumber.of(query.page),
 		limit: query.limit === undefined ? undefined : Limit.of(query.limit, 1000),
 	};

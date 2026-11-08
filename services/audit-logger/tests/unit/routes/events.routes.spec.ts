@@ -111,6 +111,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 				}),
 				page: 2,
 				limit: 10,
+				withTotal: true,
 			});
 			const startTimer = EVENTS_QUERY_DURATION_SECONDS.startTimer as jest.Mock;
 			expect(startTimer).toHaveBeenCalledTimes(1);
@@ -134,7 +135,18 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 				dateRange: undefined,
 				page: undefined,
 				limit: 1000,
+				withTotal: true,
 			});
+		});
+
+		it("passes withTotal=false to the repository", async () => {
+			auditRepo.query.mockResolvedValue({ docs: [], page: 1, limit: 100 });
+
+			await get(AUDIT_API.listEvents, "/events?withTotal=false");
+
+			expect(auditRepo.query).toHaveBeenCalledWith(
+				expect.objectContaining({ withTotal: false })
+			);
 		});
 
 		it.each([

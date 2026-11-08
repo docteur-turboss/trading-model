@@ -3,10 +3,7 @@ import { ErrorCode, makeErrorCode } from "@trading-model/common/utils/errors";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type {
-	PaginationResult,
-	QueryEnvelope,
-} from "@trading-model/primitives/pagination";
+import type { QueryEnvelope } from "@trading-model/primitives/pagination";
 import type {
 	CorrelationId,
 	InstanceId,
@@ -22,7 +19,7 @@ import {
 import { computeAuditHash, hashedContentOf } from "../../../domain/audit-chain";
 import type { DateRange } from "../../../domain/date-range";
 import { EVENTS_COLLECTION, MongoAuditChainReader } from "./audit-chain-reader";
-import { AuditQuerier } from "./audit-querier";
+import { type AuditPage, AuditQuerier } from "./audit-querier";
 
 export interface AuditEventDocument {
 	receivedAt: Date;
@@ -55,7 +52,10 @@ export interface AuditFilter {
 	correlationId?: CorrelationId;
 }
 
-export interface AuditEventQuery extends QueryEnvelope, AuditFilter {}
+export interface AuditEventQuery extends QueryEnvelope, AuditFilter {
+	/** `false` skips the count (`total` absent); default: counted. */
+	withTotal?: boolean;
+}
 
 export interface AuditStats {
 	totalEvents: number;
@@ -172,6 +172,8 @@ export class AuditRepository {
 			{ key: { ttl: 1 }, expireAfterSeconds: 0 },
 			{ key: { chainSequence: 1 }, unique: true },
 		]);
+		// Off the request path: the first getStats finds the breakdown ready.
+		this._querier.warmStats();
 	}
 
 	/**
@@ -406,7 +408,7 @@ export class AuditRepository {
 		return this._querier.findById(messageId);
 	}
 
-	query(query: AuditEventQuery): Promise<PaginationResult<AuditEventDocument>> {
+	query(query: AuditEventQuery): Promise<AuditPage> {
 		return this._querier.query(query);
 	}
 

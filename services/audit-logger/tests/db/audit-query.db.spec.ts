@@ -139,6 +139,17 @@ describe("AuditRepository reads — real MongoDB", () => {
 		expect(new Set(seen).size).toBe(25);
 	});
 
+	it("should omit total, and not count, with withTotal=false", async () => {
+		await record({ id: "x" }, { id: "y" });
+
+		const page = await repository.query({
+			withTotal: false,
+		} as AuditEventQuery);
+
+		expect(page.docs).toHaveLength(2);
+		expect(page).not.toHaveProperty("total");
+	});
+
 	it("should find an event by its message id", async () => {
 		await record({ id: "wanted", correlationId: "c-9" }, { id: "other" });
 
