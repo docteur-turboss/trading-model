@@ -64,6 +64,9 @@ that release with the workflow it was tagged with, or release again.
 
 ### Prerequisites (secrets)
 
+The environment `staging` currently targets a local kind cluster through a
+self-hosted runner: [STAGING_LOCAL.md](STAGING_LOCAL.md) (`STAGING_RUNNER`, `K8S_OVERLAY`).
+
 Add the cluster kubeconfigs (two per environment, see
 [Deploy identities](#deploy-identities)) as base64-encoded secrets of the GitHub
 **environment** (Settings → Environments → `staging` / `production`), never as

@@ -16,6 +16,7 @@
 | [Environment Variables](ENV.md)        | Exhaustive table of all variables across all services: type, default, required, description |
 | [Database](DATABASE.md)                | MySQL (financial-scraper + SPIRE), MongoDB (3 databases), volumes, migration, reset     |
 | [Kubernetes](KUBERNETES.md)            | K8s manifests, Kustomize overlays (staging/production), HPA, mTLS, observability stack    |
+| [Local staging](STAGING_LOCAL.md)      | Environment `staging` on a local kind cluster: MinIO, self-hosted runner, overlay `staging-local` |
 | [Backup & Disaster Recovery](BACKUP_DR.md) | Automated backups (MongoDB, MySQL, Redis, CA keys), restore, DR plan, verification CI |
 | [Encryption at Rest](ENCRYPTION_AT_REST.md) | LUKS2 data disks unlocked by Clevis/Tang or TPM2 (self-hosted), age-encrypted backups |
 | [Multi-Region Deployment](MULTI_REGION.md) | Not supported: single region, what a second one would need                          |

@@ -84,7 +84,10 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # STAGING_RUNNER (repository variable): label of the self-hosted runner next
+    # to a cluster GitHub cannot reach, e.g. the local kind staging
+    # (docs/deployment/STAGING_LOCAL.md). Production always runs on GitHub.
+    runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-latest' }}
     environment: ${{ inputs.environment }}
     steps:
       # Manifests, node agents and migrations come from the released tag, not
@@ -133,6 +136,12 @@ jobs:
           fi
           echo "namespace=$NS" >> "$GITHUB_OUTPUT"
           echo "Target namespace: $NS"
+          # K8S_OVERLAY (variable of the GitHub environment): overlay directory
+          # when it differs from the environment name (staging-local).
+          OVERLAY="${{ vars.K8S_OVERLAY || inputs.environment }}"
+          [ -d "deploy/k8s/overlays/$OVERLAY" ] || { echo "::error::No overlay deploy/k8s/overlays/$OVERLAY"; exit 1; }
+          echo "OVERLAY=$OVERLAY" >> "$GITHUB_ENV"
+          echo "Overlay: $OVERLAY"
 
       # An alert nobody receives is no alert: production needs a real Slack
       # webhook and a dead man's switch before anything is deployed.
@@ -323,7 +332,7 @@ jobs:
         shell: bash
         run: |
           ENV="${{ inputs.environment }}"
-          rendered=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV")
+          rendered=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY")
           if ! grep -q '^kind: SealedSecret$' <<<"$rendered"; then
             echo "$ENV uses no SealedSecret"
             exit 0
@@ -352,7 +361,7 @@ jobs:
         shell: bash
         run: |
           ENV="${{ inputs.environment }}"
-          rendered=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV")
+          rendered=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY")
           hosts=$(grep -oE '[A-Za-z0-9.-]*example\.com' <<<"$rendered" | sort -u | tr '\n' ' ' || true)
           if [ -z "$hosts" ]; then
             echo "$ENV Ingress hosts are set"
@@ -360,7 +369,7 @@ jobs:
             echo "::error::production Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/production/ingress-hosts.yaml (docs/deployment/KUBERNETES.md, \"Set the Ingress hosts\")"
             exit 1
           else
-            echo "::warning::$ENV Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/$ENV/ingress-hosts.yaml"
+            echo "::warning::$ENV Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/$OVERLAY/ingress-hosts.yaml"
           fi
 
       # Anchor store of the audit chain (ADR-0027): an S3 bucket with Object
@@ -378,7 +387,7 @@ jobs:
           NS="${{ steps.ns.outputs.namespace }}"
           export KUBECONFIG="$CLUSTER_KUBECONFIG"
           kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
-          kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/${{ inputs.environment }}" |
+          kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY" |
             bash scripts/split-cluster-scope.sh cluster | kubectl apply -f -
 
       - name: Configure audit chain anchor store
@@ -478,7 +487,7 @@ jobs:
             BACKUP_AGE_RECIPIENTS="$(kubectl -n "$NS" get configmap backup-encryption -o 'jsonpath={.data.BACKUP_AGE_RECIPIENTS}')"
             export BACKUP_AGE_RECIPIENTS
           fi
-          min=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV" |
+          min=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY" |
             awk '/name: BACKUP_MIN_RECIPIENTS/ { getline; gsub(/[^0-9]/, ""); if ($0 + 0 > max + 0) max = $0 + 0 } END { print max + 0 }')
           [ "$min" -ge 1 ] || min=1
           bash scripts/backup-recipients-check.sh --environment "$ENV" --min "$min"
@@ -548,9 +557,9 @@ jobs:
         run: |
           ENV="${{ inputs.environment }}"
           {
-            kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$ENV"
+            kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY"
             echo ---
-            kubectl kustomize "deploy/k8s/overlays/$ENV/node-agents"
+            kubectl kustomize "deploy/k8s/overlays/$OVERLAY/node-agents"
           } | KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-prereqs.sh
 
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
@@ -558,7 +567,7 @@ jobs:
       - name: Apply SPIFFE node components
         shell: bash
         run: |
-          kubectl kustomize "deploy/k8s/overlays/${{ inputs.environment }}/node-agents" |
+          kubectl kustomize "deploy/k8s/overlays/$OVERLAY/node-agents" |
             KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply -f -
 
       # Migrations must run before the new image rolls out. On a first deploy
@@ -577,7 +586,7 @@ jobs:
           digest=$(awk '$1 == "db-migrate" { print $2 }' "$RUNNER_TEMP/image-digests")
           # Both environments are served by a SealedSecret (issue #417): applied before the
           # migrations when MYSQL_MIGRATE_PASSWORD is not in the live Secret yet.
-          if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE=deploy/k8s/overlays/staging/sealed-secrets.yaml
+          if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
           MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
             bash deploy/k8s/scripts/run-migrations.sh "$NS"
@@ -626,7 +635,7 @@ jobs:
         id: apply
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/${{ inputs.environment }}" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" |
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" |
             bash scripts/split-cluster-scope.sh app | kubectl apply -f -
           # The former secret-rotation CronJob (issue #424) held write rights on every
           # Secret; apply never prunes, so remove what an older deploy left behind.

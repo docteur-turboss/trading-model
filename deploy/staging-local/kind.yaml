@@ -1,0 +1,23 @@
+# Local staging cluster (overlay staging-local, docs/deployment/STAGING_LOCAL.md).
+#   kind create cluster --config deploy/staging-local/kind.yaml
+# Version pinned to the CI k8s job (ci.yml KIND_VERSION v0.27.0).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: trading-staging
+nodes:
+  - role: control-plane
+    # ingress-nginx for kind schedules on the node labelled ingress-ready.
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    # The edge Ingress on the host: https://localhost:9443 (compose keeps 8449).
+    extraPortMappings:
+      - containerPort: 443
+        hostPort: 9443
+        listenAddress: 127.0.0.1
+      - containerPort: 80
+        hostPort: 9080
+        listenAddress: 127.0.0.1
