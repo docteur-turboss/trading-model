@@ -4,7 +4,7 @@ import { ROUTES, get } from '../lib/public-api.js';
 // Soak: constant moderate load through the edge-proxy for SOAK_DURATION (default 4h).
 // Looks for drift (leaks, backlog, slowing), not for the ceiling.
 //   SOAK_DURATION  total run, e.g. 5m, 4h (default 4h)
-//   SOAK_VUS       VUs (default 2: ~240 req/min, each VU loops the 3 routes with sleep(0.5))
+//   SOAK_VUS       VUs (default 2: at most 240 req/min: sleep(0.5) per request, not measured)
 // The run is three consecutive phases at the same rate: "start" and "end" are the first and
 // last 10 % (k6 cannot compare two periods, so each phase is tagged and gets its own
 // threshold); "main" is the rest. Compare start/end p95 in the summary to read the drift.

@@ -36,6 +36,8 @@ while true; do
     https.get({host:"localhost",port:3000,path:"/metrics",key:fs.readFileSync(e.TLS_KEY_PATH),
       cert:fs.readFileSync(e.TLS_CERT_PATH),ca:fs.readFileSync(e.TLS_CA_PATH),
       rejectUnauthorized:false},r=>r.pipe(process.stdout)).on("error",e=>{console.error(e.message);process.exit(1)})'); then
+    # No series at all (no topic yet, or metric renamed) must not look like a healthy journal.
+    grep -q '^mm_journal_pending_entries{' <<<"$metrics" || echo "$ts,journal_error,$mm,no mm_journal_pending_entries series" >> "$out"
     echo "$metrics" | awk -v ts="$ts" -F'[{} ]' '
       /^mm_journal_pending_entries\{/ {print ts",journal_pending,"$0}
       /^mm_journal_oldest_pending_age_seconds\{/ {print ts",journal_oldest_age_s,"$0}' |
