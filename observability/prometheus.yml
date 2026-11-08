@@ -62,6 +62,10 @@ scrape_configs:
 
   # Self-monitoring of the alerting path (AlertmanagerNotificationsFailing,
   # PrometheusRuleEvaluationFailures).
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']

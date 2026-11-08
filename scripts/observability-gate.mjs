@@ -226,6 +226,8 @@ const EXPORTER_PREFIXES = [
   "probe_",
   // Alertmanager and Prometheus themselves (scrape jobs `alertmanager`, `prometheus`)
   "alertmanager_", "prometheus_",
+  // Loki (scrape job `loki`)
+  "loki_",
 ];
 
 function isEmitted(metric, emitted) {

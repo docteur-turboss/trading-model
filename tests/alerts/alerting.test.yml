@@ -1074,3 +1074,25 @@ tests:
               summary: 'Error budget of dlq-service below 20%'
               description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
+
+  - name: loki push failures and stale retention
+    interval: 1m
+    input_series:
+      - series: 'loki_request_duration_seconds_count{job="loki",route="loki_api_v1_push",status_code="500"}'
+        values: '0+10x30'
+      - series: 'loki_compactor_apply_retention_last_successful_run_timestamp_seconds{job="loki"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: LokiPushFailing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'Loki rejects or drops log lines'
+              description: 'Loki answers 5xx on push or discards samples: logs are being lost. Check the Loki pod and its PVC (full disk, rate limits).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#loki-and-the-trace-pipeline'
+      # time() is 1500 s at 25m: under the 3 h threshold, no alert yet.
+      - eval_time: 25m
+        alertname: LokiRetentionStale
+        exp_alerts: []
+

@@ -597,6 +597,26 @@ groups:
           description: 'Some alert rules cannot be evaluated: alerts may be silently missing.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'
 
+      - alert: LokiPushFailing
+        expr: sum(rate(loki_request_duration_seconds_count{job="loki",route="loki_api_v1_push",status_code=~"5.."}[5m])) > 0 or sum(rate(loki_discarded_samples_total{job="loki"}[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Loki rejects or drops log lines'
+          description: 'Loki answers 5xx on push or discards samples: logs are being lost. Check the Loki pod and its PVC (full disk, rate limits).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#loki-and-the-trace-pipeline'
+
+      - alert: LokiRetentionStale
+        expr: time() - max(loki_compactor_apply_retention_last_successful_run_timestamp_seconds{job="loki"}) > 3 * 3600
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Loki retention has not run for 3 hours'
+          description: 'The compactor has not applied retention (744h): the Loki PVC fills up and ingestion will stop. Check the Loki logs for compactor errors and the PVC usage.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#loki-and-the-trace-pipeline'
+
       - alert: Watchdog
         expr: vector(1)
         for: 0m
