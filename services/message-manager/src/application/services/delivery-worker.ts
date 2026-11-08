@@ -81,6 +81,8 @@ export class DeliveryWorker {
 		clearInterval(this._timer);
 		this._deps.journal.close?.();
 		await Promise.all([...this._loops.values(), ...this._running.values()]);
+		// A loop between its stop test and a read may have reopened a reader after the first close.
+		this._deps.journal.close?.();
 		this._loops.clear();
 	}
 
