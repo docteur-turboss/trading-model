@@ -16,6 +16,12 @@ module.exports = {
       },
     ],
   },
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    // Runs in a worker thread that Jest does not instrument (exercised by worker-training-runner.spec.ts).
+    '!src/adapters/outbound/training-worker/training-worker.ts',
+  ],
   coverageThreshold: {
     global: {
       branches: 80,
