@@ -11,6 +11,8 @@ import type { ServiceIdentity } from "@trading-model/primitives/service-identity
 interface AddressManagerConfig {
 	identity: ServiceIdentity;
 	servicePort: Port;
+	/** Version registered in discovery (discovery assumes "1.0.0" without it). */
+	serviceVersion?: string;
 	/** Discovery URL (a Service / load balancer in front of every replica). */
 	addressManagerUrl: string;
 

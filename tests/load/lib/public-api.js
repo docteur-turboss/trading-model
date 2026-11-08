@@ -9,7 +9,7 @@ const API_KEY = __ENV.API_KEY || '';
 
 // Public routes (PUBLIC_ROUTES), one per upstream: MySQL, Redis registry, MongoDB.
 export const ROUTES = [
-  '/v1/financial-scraper/candles/symbols/BTCUSDT',
+  '/v2/financial-scraper/candles/symbols/BTCUSDT',
   '/v1/discovery-server/services',
   '/v1/audit-logger/events',
 ];

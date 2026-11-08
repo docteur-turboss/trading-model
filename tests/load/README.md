@@ -50,7 +50,7 @@ docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f rate
 
 | Script                           | Route (all `GET`)                                | Thresholds |
 | -------------------------------- | ------------------------------------------------ | ---------- |
-| `scenarios/candles.js`           | `/v1/financial-scraper/candles/symbols/BTCUSDT`  | SLO        |
+| `scenarios/candles.js`           | `/v2/financial-scraper/candles/symbols/BTCUSDT`  | SLO        |
 | `scenarios/discovery-services.js`| `/v1/discovery-server/services`                  | SLO        |
 | `scenarios/audit-events.js`      | `/v1/audit-logger/events`                        | SLO        |
 | `k6/smoke-test.js`               | the three above                                  | SLO        |

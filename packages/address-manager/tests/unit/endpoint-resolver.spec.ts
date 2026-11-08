@@ -238,6 +238,18 @@ describe("EndpointResolver", () => {
 		expect(r).toBeInstanceOf(EndpointResolver);
 	});
 
+	it("should drop every trailing slash of the discovery URL", async () => {
+		const r = new EndpointResolver(
+			"https://discovery:3000///",
+			5000,
+			mockHttpClient as any
+		);
+		await r.resolve("sector-allocator", 1);
+		expect(String(mockHttpClient.get.mock.calls[0][0])).toMatch(
+			/^https:\/\/discovery:3000\/services\//
+		);
+	});
+
 	it("should share one discovery lookup between concurrent calls on a key", async () => {
 		const targets = await Promise.all(
 			Array.from({ length: 50 }, () => resolver.resolve("sector-allocator", 1))

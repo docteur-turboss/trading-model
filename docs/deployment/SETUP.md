@@ -136,7 +136,7 @@ for c in trading-discovery trading-message trading-scraper trading-trainer \
   docker exec "$c" curl -sk --cert /run/spire/svid/svid.pem \
     --key /run/spire/svid/svid_key.pem https://localhost:3000/ping; echo
 done
-curl -s http://localhost:8449/ping       # edge-proxy (HTTP entry to the gateway under /v1)
+curl -s http://localhost:8449/ping       # edge-proxy (HTTP entry to the gateway under /v1 and /v2)
 
 # List registered services (through edge-proxy → gateway)
 curl -s http://localhost:8449/v1/discovery-server/services \

@@ -87,6 +87,15 @@ describe("BinanceNormalizer", () => {
 			expect(result[0].trades).toBe(308);
 			expect(result[0].timestamp).toBe(1499040000000);
 		});
+
+		it("should keep a candle nobody traded in, with trades = 0", () => {
+			const result = BinanceNormalizer.candles(
+				{ symbol: SYMBOL, interval: CandleInterval.Min1 },
+				[{ ...mockCandlestickResponse[0], numberOfTrades: 0 }]
+			);
+			expect(result).toHaveLength(1);
+			expect(result[0].trades).toBe(0);
+		});
 	});
 
 	describe("ticker24h", () => {

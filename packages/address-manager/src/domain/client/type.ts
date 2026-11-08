@@ -15,6 +15,9 @@ export interface RegisterServicePayload {
 	/** Logical service name (e.g. "TradingTrainer", "SocialScraper") */
 	serviceName: ServiceInstanceName;
 
+	/** Version; its major is the gateway prefix /v<major> (discovery default "1.0.0") */
+	version?: string;
+
 	/** Port on which the service is listening */
 	port: Port;
 

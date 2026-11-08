@@ -1,6 +1,6 @@
 ﻿import type { SymbolInterval } from "@trading-model/contracts/candlestick-query";
 import {
-	PositiveInt,
+	NonNegativeInt,
 	Price,
 	UnixTimestamp,
 	Volume,
@@ -22,7 +22,7 @@ export function normalizeCandles(
 		close: Price.of(Number(candle.close)),
 		volume: Volume.of(Number(candle.volume)),
 		closeTimestamp: UnixTimestamp.of(candle.closeTime),
-		trades: PositiveInt.of(candle.numberOfTrades),
+		trades: NonNegativeInt.of(candle.numberOfTrades),
 		timestamp: UnixTimestamp.of(candle.openTime),
 		source: SourceType.Binance,
 		market: MarketType.Crypto,

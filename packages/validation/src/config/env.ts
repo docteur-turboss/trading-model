@@ -11,7 +11,13 @@ export const BaseEnvSchema = z.object({
 
 	...TlsEnvVarsSchema.shape,
 
-	LOG_LEVEL: z.nativeEnum(LogLevel).default(LogLevel.Info),
+	/** Read by the global logger itself (`createLogger`, case-insensitive like here). */
+	LOG_LEVEL: z
+		.preprocess(
+			(value) => (typeof value === "string" ? value.toLowerCase() : value),
+			z.nativeEnum(LogLevel)
+		)
+		.default(LogLevel.Info),
 
 	/** OTLP/HTTP collector base URL; unset: tracing off. */
 	OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),

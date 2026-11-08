@@ -32,6 +32,7 @@ function _buildCoreConfig(env: AddressManagerEnv) {
 		discoveryTimeoutMs: DurationMs.of(env.DISCOVERY_TIMEOUT_MS),
 		servicePingTimeoutMs: DurationMs.of(env.SERVICE_PING_TIMEOUT_MS),
 		servicePort: Port.of(env.PORT),
+		serviceVersion: env.APP_VERSION,
 		tokenRefreshIntervalMs: DurationMs.of(env.TOKEN_REFRESH_INTERVAL_MS),
 		ttlRefreshIntervalMs: DurationMs.of(env.TTL_REFRESH_INTERVAL_MS),
 	};

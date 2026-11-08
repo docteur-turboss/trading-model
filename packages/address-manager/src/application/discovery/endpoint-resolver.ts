@@ -52,7 +52,12 @@ export class EndpointResolver {
 		httpClient?: HttpClient,
 		private readonly _timeoutMs?: DurationMs
 	) {
-		this._discoveryUrl = discoveryUrl.replace(/\/+$/, "");
+		// A loop, not a /+$ regex: that one is polynomial on a long run of slashes (CodeQL).
+		let url = discoveryUrl;
+		while (url.endsWith("/")) {
+			url = url.slice(0, -1);
+		}
+		this._discoveryUrl = url;
 		this._httpClient = httpClient ?? new HttpClient();
 	}
 

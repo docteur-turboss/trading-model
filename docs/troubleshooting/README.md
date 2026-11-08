@@ -50,7 +50,7 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 | `502 Bad Gateway` on `/v1/...`            | api-gateway down, or no SVID in `svid-edge`    | `docker compose logs edge-proxy spiffe-helper-edge`; check `api-gateway` health       |
 | `403` from the gateway                    | Caller identity not in the gateway ACL         | The ACL allows only `edge-proxy` (`acl-config.ts`); check the SPIRE entry `spiffe-helper-edge` |
 | `401` on `/v1/...`                        | Missing or unknown `x-api-key`                 | Use a value of the gateway's `AUTH_TOKENS`                                            |
-| `404` on any path but `/v1`, `/ping`      | Expected: no UI is served (ADR-0018)           | —                                                                                     |
+| `404` on any path but `/v<n>`, `/ping`    | Expected: no UI is served (ADR-0018)           | —                                                                                     |
 
 ---
 

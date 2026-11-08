@@ -27,7 +27,7 @@ Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), valid
 | `TLS_KEY_PATH`  | string                                         | `/run/spire/svid/svid_key.pem` | **yes**  | Path to TLS private key (PEM) | All*     |
 | `TLS_CERT_PATH` | string                                         | `/run/spire/svid/svid.pem`     | **yes**  | Path to TLS certificate (PEM) | All*     |
 | `TLS_CA_PATH`   | string                                         | `/run/spire/svid/bundle.pem`   | **yes**  | Path to CA certificate (PEM)  | All*     |
-| `LOG_LEVEL`     | `error \| warn \| info \| debug`               | `info`                  | no       | Logging verbosity             | All*     |
+| `LOG_LEVEL`     | `error \| warn \| info \| debug` (case-insensitive) | unset: from `NODE_ENV` (`development` → `debug`, `staging` → `info`, otherwise `warn`) | no       | Level of the global logger (`@trading-model/http`), takes priority over `NODE_ENV`. Compose and every K8s ConfigMap set `info`. Invalid value: the `NODE_ENV` default plus one WARN line at startup | All*     |
 | `BUILD_VERSION` | string | `dev` | no | Release version, set at image build; label of `build_info` (its `service` label is `SERVICE_NAME`, equal to the `job` label since #495; old pods still report `audit-logger-service`, `financial-scraper-service`, `message-delivery-service` until they roll) | All |
 | `GIT_SHA` | string | `unknown` | no | Commit of the image, set at image build; label of `build_info` | All |
 | `ENFORCE_MTLS_STRICT` | boolean (`true`/`1`)                     | `false`                 | no (set `true` in production) | Enforces the per-service caller ACL on every inbound request (ADR-0011): a caller with a valid SVID but not allowed for the target gets 403. Off: any caller with a valid SVID passes. No startup check refuses `false` in production: compose (`${ENFORCE_MTLS_STRICT:-true}`) and every K8s ConfigMap set `true` | All*     |
@@ -44,7 +44,7 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
 | `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | MM, FS, TT, AL, DLQ |
-| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version                              | MM, FS, TT, AL, DLQ |
+| `APP_VERSION`                     | string | `1.0.0`                         | no       | Version registered in discovery: its major is the gateway prefix `/v<major>` (FS: `2.0.0`, the others 1.x) | MM, FS, TT, AL, DLQ |
 | `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity (discovery; `build_info` label)  | MM, FS, TT, AL, DLQ, GW, DS |
 | `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT, AL, DLQ |
 | `CACHE_TTL_MS`                    | number | `30000`                         | no       | In-memory cache TTL                              | MM, FS, TT, AL, DLQ |
