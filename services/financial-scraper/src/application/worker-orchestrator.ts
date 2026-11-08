@@ -49,7 +49,12 @@ interface SymbolState {
 	publishLoaded: boolean;
 	/** Publish in flight: the next ones wait for it. */
 	publishing?: Promise<void>;
+	/** Run of identical scrape failures in progress (absent: last cycle succeeded). */
+	failure?: { signature: string; repeats: number; lastLoggedAt: number };
 }
+
+/** Minimum gap between two summary lines of the same repeated failure. */
+export const REPEATED_FAILURE_LOG_INTERVAL_MS = 15 * 60_000;
 
 /** The next candles to publish, from `cursor` (absent: nothing queued yet). */
 interface NextCandles {
@@ -99,15 +104,54 @@ export class WorkerOrchestrator {
 		settled.forEach((outcome, index) => {
 			const symbol = this._symbols[index];
 			if (outcome.status === "rejected") {
-				getLogger().error("Symbol scrape failed", {
-					context: { source: this._deps.source.id, symbol },
-					error: outcome.reason,
-				});
+				this._logFailure(symbol, outcome.reason);
 				SYMBOLS_FAILED_TOTAL.inc({ symbol });
 			} else {
+				this._logRecovery(symbol);
 				SYMBOLS_SCRAPED_TOTAL.inc({ symbol });
 			}
 		});
+	}
+
+	/**
+	 * Full ERROR with stack on a new failure; the same failure again is
+	 * summarized without stack at most every REPEATED_FAILURE_LOG_INTERVAL_MS.
+	 */
+	private _logFailure(symbol: TradingSymbol, reason: unknown): void {
+		const state = this._stateOf(symbol);
+		const context = { source: this._deps.source.id, symbol };
+		const now = Date.now();
+		const signature =
+			reason instanceof Error
+				? `${reason.name}: ${reason.message}`
+				: String(reason);
+		if (state.failure?.signature !== signature) {
+			state.failure = { signature, repeats: 0, lastLoggedAt: now };
+			getLogger().error("Symbol scrape failed", { context, error: reason });
+			return;
+		}
+		state.failure.repeats++;
+		if (now - state.failure.lastLoggedAt >= REPEATED_FAILURE_LOG_INTERVAL_MS) {
+			state.failure.lastLoggedAt = now;
+			getLogger().error("Symbol scrape still failing", {
+				context: { ...context, signature, repeats: state.failure.repeats },
+			});
+		}
+	}
+
+	private _logRecovery(symbol: TradingSymbol): void {
+		const state = this._stateOf(symbol);
+		if (state.failure) {
+			getLogger().info("Symbol scrape recovered", {
+				context: {
+					source: this._deps.source.id,
+					symbol,
+					signature: state.failure.signature,
+					repeats: state.failure.repeats,
+				},
+			});
+			state.failure = undefined;
+		}
 	}
 
 	/** Waits for the publishes in flight (shutdown, tests). */
