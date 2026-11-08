@@ -115,10 +115,28 @@ render() {
 	kubectl kustomize --load-restrictor LoadRestrictionsNone "$wrapper"
 }
 
+# Why a rollout did not finish (slow or broken), printed before the caller
+# fails: the workload's description, recent Warning events, and the last logs
+# of every pod that is not ready. Best effort: it never changes the exit code.
+diagnose() {
+	local ns="$1" target="$2" pod
+	echo "::group::Diagnostics for $target"
+	kubectl describe "$target" -n "$ns" 2>&1 | tail -40 || true
+	kubectl get events -n "$ns" --field-selector type=Warning --sort-by=.lastTimestamp 2>&1 | tail -20 || true
+	for pod in $(kubectl get pods -n "$ns" --no-headers 2>/dev/null |
+		awk '{split($2, r, "/")} $3 != "Completed" && (r[1] != r[2] || $3 != "Running") {print $1}'); do
+		echo "===== $pod"
+		kubectl logs "$pod" -n "$ns" --all-containers --tail=30 2>&1 || true
+	done
+	echo "::endgroup::"
+}
+
 # A Recreate Deployment starts its new pod only once the old one is gone, and
 # a draining pod may use its whole grace (collector and message-manager: 360 s
 # for in-flight publishes). The grace is added to each wait, or a healthy
 # release whose drain outlasts the timeout would be rolled back (PR #460).
+# Base timeout (180 s) measured in kind run 42498902230: forward rollout of the upgrade, slowest
+# healthy Deployment 33 s (discovery-server drain), the others 1 to 5 s; plus each grace.
 wait_rollout() {
 	local ns="$1" base="${2%s}" dep grace
 	[[ $base =~ ^[0-9]+$ ]] || {
@@ -132,6 +150,7 @@ wait_rollout() {
 		echo "Waiting for rollout of $dep (${base}s)..."
 		if ! kubectl rollout status "statefulset/$dep" -n "$ns" --timeout="${base}s"; then
 			echo "::error::Rollout of $dep failed or timed out"
+			diagnose "$ns" "statefulset/$dep"
 			return 1
 		fi
 	done
@@ -141,6 +160,7 @@ wait_rollout() {
 		echo "Waiting for rollout of $dep ($((base + ${grace:-30}))s)..."
 		if ! kubectl rollout status "deployment/$dep" -n "$ns" --timeout="$((base + ${grace:-30}))s"; then
 			echo "::error::Rollout of $dep failed or timed out"
+			diagnose "$ns" "deployment/$dep"
 			return 1
 		fi
 	done
@@ -172,8 +192,11 @@ rollback() {
 	done <"$file"
 	for entry in "${undone[@]}"; do
 		read -r target dep rev <<<"$entry"
+		# 180 s: measured in kind run 42498902230 (PR #685): the whole rollback settled in 47 s, slowest
+		# discovery-server at 33 s (drain). Kept: lowering it would also cut the real deploy.
 		if ! kubectl rollout status "$target" -n "$ns" --timeout="$((180 * FACTOR))s"; then
 			echo "::error::$dep did not finish rolling back to revision $rev"
+			diagnose "$ns" "$target"
 			failed=1
 		fi
 	done
