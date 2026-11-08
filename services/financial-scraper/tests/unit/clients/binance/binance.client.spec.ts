@@ -12,23 +12,23 @@ jest.mock("../../../../src/config/http", () => ({
 
 jest.mock("../../../../src/adapters/outbound/binance/endpoints", () => ({
 	BINANCE_ENDPOINTS: {
-		depth: jest.fn(() => "/api/v3/depth"),
-		trades: jest.fn(() => "/api/v3/trades"),
-		candlesticks: jest.fn(() => "/api/v3/klines"),
-		change24hrStats: jest.fn(() => "/api/v3/ticker/24hr"),
-		symbolPriceTicker: jest.fn(() => "/api/v3/ticker/price"),
-		orderBookTicker: jest.fn(() => "/api/v3/ticker/bookTicker"),
+		depth: jest.fn((..._args: any[]) => "/api/v3/depth"),
+		trades: jest.fn((..._args: any[]) => "/api/v3/trades"),
+		candlesticks: jest.fn((..._args: any[]) => "/api/v3/klines"),
+		change24hrStats: jest.fn((..._args: any[]) => "/api/v3/ticker/24hr"),
+		symbolPriceTicker: jest.fn((..._args: any[]) => "/api/v3/ticker/price"),
+		orderBookTicker: jest.fn((..._args: any[]) => "/api/v3/ticker/bookTicker"),
 	},
 }));
 
 jest.mock("../../../../src/adapters/outbound/binance/weights", () => ({
 	BINANCE_WEIGHTS: {
-		depth: jest.fn(() => 5),
-		trades: jest.fn(() => 25),
-		candlesticks: jest.fn(() => 2),
-		change24hrStats: jest.fn(() => 2),
-		symbolPriceTicker: jest.fn(() => 4),
-		orderBookTicker: jest.fn(() => 4),
+		depth: jest.fn((..._args: any[]) => 5),
+		trades: jest.fn((..._args: any[]) => 25),
+		candlesticks: jest.fn((..._args: any[]) => 2),
+		change24hrStats: jest.fn((..._args: any[]) => 2),
+		symbolPriceTicker: jest.fn((..._args: any[]) => 4),
+		orderBookTicker: jest.fn((..._args: any[]) => 4),
 	},
 }));
 

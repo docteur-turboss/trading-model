@@ -649,7 +649,10 @@ describe("MarketDataBuffer", () => {
 		it("should return windows with 11+ candles (10+ steps)", () => {
 			feedCandles(buffer, "BTCUSDT", 11);
 
-			const result = buffer.getAllWindows(TradingSymbol.of("BTCUSDT"));
+			const result = buffer.getAllWindows(TradingSymbol.of("BTCUSDT")) as {
+				train: unknown[];
+				validation: unknown[];
+			} | null;
 
 			expect(result).not.toBeNull();
 			expect(result!.train.length).toBeGreaterThan(0);
@@ -706,7 +709,7 @@ describe("NormalizationStats", () => {
 
 describe("MarketDataBuffer — observability hook", () => {
 	it("should report the candle count and symbol count after each insertion", () => {
-		const onDataAdded = jest.fn();
+		const onDataAdded = jest.fn<(...args: any[]) => any>();
 		const buffer = new MarketDataBuffer({ maxSize: 50, onDataAdded });
 
 		feedCandles(buffer, "BTCUSDT", 3);

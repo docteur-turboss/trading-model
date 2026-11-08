@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import type { DecimalPrecision } from "@trading-model/primitives/primitives";
 import { Cash } from "../../../src/primitives/cash";
 
 describe("Cash", () => {
@@ -36,8 +37,8 @@ describe("Cash", () => {
 	});
 
 	it("should round cash values", () => {
-		expect(Cash.round(10.567 as never, 2)).toBe(10.57);
-		expect(Cash.round(10.56 as never, 1)).toBe(10.6);
+		expect(Cash.round(10.567 as never, 2 as DecimalPrecision)).toBe(10.57);
+		expect(Cash.round(10.56 as never, 1 as DecimalPrecision)).toBe(10.6);
 	});
 
 	it("should compute from product", () => {

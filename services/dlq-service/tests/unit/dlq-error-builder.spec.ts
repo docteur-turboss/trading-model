@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { createAppError } from "@trading-model/common/utils/errors";
+import { createAppError, ErrorCode } from "@trading-model/common/utils/errors";
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -23,18 +23,22 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/db", () => ({
-	getCollection: jest.fn(),
+	getCollection: jest.fn<(...args: any[]) => any>(),
 }));
 
 function createMockSpan() {
 	return {
-		setStatus: jest.fn(),
-		end: jest.fn(),
-		recordException: jest.fn(),
+		setStatus: jest.fn<(...args: any[]) => any>(),
+		end: jest.fn<(...args: any[]) => any>(),
+		recordException: jest.fn<(...args: any[]) => any>(),
 	};
 }
 
@@ -96,7 +100,7 @@ describe("dlq-error-builder", () => {
 			};
 			const span = createMockSpan();
 			const capacityErr = createAppError("capacity", {
-				code: "DlqCapacityError",
+				code: ErrorCode.DlqCapacity,
 			});
 
 			const result = handleAddEntryError(capacityErr, span);

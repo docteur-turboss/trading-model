@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
 jest.mock("@trading-model/http/infrastructure/http-tls-loader", () => ({
-	buildHttpsAgentOptions: jest.fn(() => ({
+	buildHttpsAgentOptions: jest.fn((..._args: any[]) => ({
 		ca: "ca-pem",
 		cert: "cert-pem",
 		key: "key-pem",

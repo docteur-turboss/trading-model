@@ -36,18 +36,18 @@ describe("CacheHealthRefresher", () => {
 
 	beforeEach(() => {
 		serviceCache = {
-			get: jest.fn(),
-			set: jest.fn(),
-			delete: jest.fn(),
-			clear: jest.fn(),
-			entries: jest.fn(),
-			setCircuitState: jest.fn(),
-			getCircuitState: jest.fn(),
-			deleteCircuitState: jest.fn(),
-			close: jest.fn(),
-		} as jest.Mocked<IServiceCache>;
+			get: jest.fn<(...args: any[]) => any>(),
+			set: jest.fn<(...args: any[]) => any>(),
+			delete: jest.fn<(...args: any[]) => any>(),
+			clear: jest.fn<(...args: any[]) => any>(),
+			entries: jest.fn<(...args: any[]) => any>(),
+			setCircuitState: jest.fn<(...args: any[]) => any>(),
+			getCircuitState: jest.fn<(...args: any[]) => any>(),
+			deleteCircuitState: jest.fn<(...args: any[]) => any>(),
+			close: jest.fn<(...args: any[]) => any>(),
+		} as unknown as jest.Mocked<IServiceCache>;
 		healthChecker = {
-			isHealthy: jest.fn(),
+			isHealthy: jest.fn<(...args: any[]) => any>(),
 		} as unknown as jest.Mocked<ServiceHealthChecker>;
 		refresher = new CacheHealthRefresher(serviceCache, healthChecker, 3000);
 	});

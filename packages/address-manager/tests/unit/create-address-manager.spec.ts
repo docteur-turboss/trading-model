@@ -1,15 +1,19 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_ADDRESS_MANAGER_INSTANCE = {
-	getToken: jest.fn(),
-	start: jest.fn(() => ({ stop: jest.fn() })),
-	findService: jest.fn(),
-	listenExpress: jest.fn(),
+	getToken: jest.fn<(...args: any[]) => any>(),
+	start: jest.fn((..._args: any[]) => ({
+		stop: jest.fn<(...args: any[]) => any>(),
+	})),
+	findService: jest.fn<(...args: any[]) => any>(),
+	listenExpress: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("../../src/application/address-manager", () => ({
 	__esModule: true,
-	default: jest.fn().mockImplementation(() => MOCK_ADDRESS_MANAGER_INSTANCE),
+	default: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => MOCK_ADDRESS_MANAGER_INSTANCE),
 }));
 
 import { createAddressManager } from "../../src/application/create-address-manager";

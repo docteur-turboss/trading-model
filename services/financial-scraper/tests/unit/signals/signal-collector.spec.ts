@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_LOGGER = { debug: jest.fn(), error: jest.fn() };
+const MOCK_LOGGER = {
+	debug: jest.fn<(...args: any[]) => any>(),
+	error: jest.fn<(...args: any[]) => any>(),
+};
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => MOCK_LOGGER,
 }));
@@ -76,7 +79,7 @@ function collector(): SignalCollector {
 		adapters: new Map([
 			["test-adapter", { dimensions: ["social"], normalize }],
 		]),
-		store: { save, findForAsset: jest.fn<any>() },
+		store: { save, findForAsset: jest.fn<(...args: any[]) => any>() },
 		now: () => NOW,
 		sleep,
 	});

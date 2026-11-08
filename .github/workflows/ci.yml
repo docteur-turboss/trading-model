@@ -58,6 +58,8 @@ jobs:
           bun run --filter api-gateway build
           bun run --filter audit-logger build
           bun run --filter dlq-service build
+      - name: Type-check the test files of every workspace
+        run: bun run typecheck:tests
 
   test:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.

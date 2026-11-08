@@ -34,8 +34,10 @@ jest.mock("os");
 
 registerServiceName("test-service" as ServiceInstanceName);
 
+type MockHttp = Record<"get" | "post", jest.Mock<(...args: any[]) => any>>;
+
 describe("AddressManagerClient", () => {
-	let httpClient: jest.Mocked<HttpClient>;
+	let httpClient: MockHttp;
 	let tokenManager: jest.Mocked<TokenManager>;
 	let config: AddressManagerConfig;
 	let client: AddressManagerClient;
@@ -46,17 +48,17 @@ describe("AddressManagerClient", () => {
 
 	beforeEach(() => {
 		AddressManagerClient.resetLocalIP();
-		(networkInterfaces as jest.Mock).mockReturnValue({
+		(networkInterfaces as jest.Mock<(...args: any[]) => any>).mockReturnValue({
 			eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
 		});
 		LocalIPDetector.reset();
 
 		httpClient = {
-			get: jest.fn(),
-			post: jest.fn(),
-		} as unknown as jest.Mocked<HttpClient>;
+			get: jest.fn<(...args: any[]) => any>(),
+			post: jest.fn<(...args: any[]) => any>(),
+		} as unknown as MockHttp;
 		tokenManager = {
-			getToken: jest.fn(),
+			getToken: jest.fn<(...args: any[]) => any>(),
 			exclusive: (operation: () => Promise<unknown>) => operation(),
 		} as unknown as jest.Mocked<TokenManager>;
 		tokenManager.getToken.mockReturnValue("mock-token");
@@ -81,7 +83,11 @@ describe("AddressManagerClient", () => {
 			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
 
-		client = new AddressManagerClient(httpClient, tokenManager, config);
+		client = new AddressManagerClient(
+			httpClient as unknown as HttpClient,
+			tokenManager,
+			config
+		);
 	});
 
 	describe("unregisterService", () => {
@@ -107,14 +113,16 @@ describe("AddressManagerClient", () => {
 
 	describe("registerService", () => {
 		test("should use cached IP on subsequent calls", async () => {
-			(networkInterfaces as jest.Mock).mockReturnValue({
-				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
-			});
+			(networkInterfaces as jest.Mock<(...args: any[]) => any>).mockReturnValue(
+				{
+					eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
+				}
+			);
 
 			httpClient.post.mockResolvedValue({} as ServiceRegistrationResponse);
 
 			await client.registerService();
-			(networkInterfaces as jest.Mock).mockClear();
+			(networkInterfaces as jest.Mock<(...args: any[]) => any>).mockClear();
 
 			await client.registerService();
 
@@ -137,7 +145,9 @@ describe("AddressManagerClient", () => {
 		});
 
 		test("should handle undefined network interface entries gracefully", async () => {
-			(networkInterfaces as jest.Mock).mockReturnValueOnce({
+			(
+				networkInterfaces as jest.Mock<(...args: any[]) => any>
+			).mockReturnValueOnce({
 				wlan0: undefined,
 				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
 			});
@@ -156,7 +166,9 @@ describe("AddressManagerClient", () => {
 		});
 
 		test("should fallback to 127.0.0.1 when no non-internal IPv4 interface exists", async () => {
-			(networkInterfaces as jest.Mock).mockReturnValueOnce({
+			(
+				networkInterfaces as jest.Mock<(...args: any[]) => any>
+			).mockReturnValueOnce({
 				lo: [{ family: "IPv4", internal: true, address: "127.0.0.1" }],
 			});
 
@@ -262,42 +274,54 @@ describe("AddressManagerClient", () => {
 
 	describe("hasIpChanged", () => {
 		test("should return false on first call and cache IP", () => {
-			(networkInterfaces as jest.Mock).mockReturnValue({
-				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
-			});
+			(networkInterfaces as jest.Mock<(...args: any[]) => any>).mockReturnValue(
+				{
+					eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
+				}
+			);
 			expect(client.hasIpChanged()).toBe(false);
 		});
 
 		test("should return false when IP has not changed", () => {
-			(networkInterfaces as jest.Mock).mockReturnValue({
-				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
-			});
+			(networkInterfaces as jest.Mock<(...args: any[]) => any>).mockReturnValue(
+				{
+					eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
+				}
+			);
 			client.hasIpChanged();
 			expect(client.hasIpChanged()).toBe(false);
 		});
 
 		test("should return true when IP has changed", () => {
-			(networkInterfaces as jest.Mock).mockReturnValue({
-				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
-			});
+			(networkInterfaces as jest.Mock<(...args: any[]) => any>).mockReturnValue(
+				{
+					eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
+				}
+			);
 			client.hasIpChanged();
-			(networkInterfaces as jest.Mock).mockReturnValue({
-				eth0: [{ family: "IPv4", internal: false, address: "192.168.1.200" }],
-			});
+			(networkInterfaces as jest.Mock<(...args: any[]) => any>).mockReturnValue(
+				{
+					eth0: [{ family: "IPv4", internal: false, address: "192.168.1.200" }],
+				}
+			);
 			expect(client.hasIpChanged()).toBe(true);
 		});
 
 		test("should return false when no non-internal IPv4 interface exists", () => {
-			(networkInterfaces as jest.Mock).mockReturnValue({
-				lo: [{ family: "IPv4", internal: true, address: "127.0.0.1" }],
-			});
+			(networkInterfaces as jest.Mock<(...args: any[]) => any>).mockReturnValue(
+				{
+					lo: [{ family: "IPv4", internal: true, address: "127.0.0.1" }],
+				}
+			);
 			expect(client.hasIpChanged()).toBe(false);
 		});
 
 		test("should handle undefined network interface entries gracefully", () => {
-			(networkInterfaces as jest.Mock).mockReturnValue({
-				wlan0: undefined,
-			});
+			(networkInterfaces as jest.Mock<(...args: any[]) => any>).mockReturnValue(
+				{
+					wlan0: undefined,
+				}
+			);
 			expect(client.hasIpChanged()).toBe(false);
 		});
 	});

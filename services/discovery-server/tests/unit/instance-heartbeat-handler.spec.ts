@@ -1,52 +1,65 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type { Protocol } from "@trading-model/contracts/service-registry-types";
+import type {
+	DurationMs,
+	InstanceId,
+	IPAddress,
+	Port,
+	ServiceId,
+	UnixTimestamp,
+	Version,
+} from "@trading-model/primitives/primitives";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
-		debug: jest.fn(),
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
 interface MockMulti {
-	sadd: jest.Mock;
-	set: jest.Mock;
-	srem: jest.Mock;
-	del: jest.Mock;
-	exec: jest.Mock;
+	sadd: jest.Mock<(...args: any[]) => any>;
+	set: jest.Mock<(...args: any[]) => any>;
+	srem: jest.Mock<(...args: any[]) => any>;
+	del: jest.Mock<(...args: any[]) => any>;
+	exec: jest.Mock<(...args: any[]) => any>;
 }
 
 interface MockRedisInstance {
-	on: jest.Mock;
-	set: jest.Mock;
-	get: jest.Mock;
-	sismember: jest.Mock;
-	multi: jest.Mock;
-	eval: jest.Mock;
+	on: jest.Mock<(...args: any[]) => any>;
+	set: jest.Mock<(...args: any[]) => any>;
+	get: jest.Mock<(...args: any[]) => any>;
+	sismember: jest.Mock<(...args: any[]) => any>;
+	multi: jest.Mock<(...args: any[]) => any>;
+	eval: jest.Mock<(...args: any[]) => any>;
 }
 
 const MOCK_MULTI: MockMulti = {
-	sadd: jest.fn().mockReturnThis(),
-	set: jest.fn().mockReturnThis(),
-	srem: jest.fn().mockReturnThis(),
-	del: jest.fn().mockReturnThis(),
-	exec: jest.fn().mockResolvedValue([[null, "OK"]]),
+	sadd: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+	set: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+	srem: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+	del: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+	exec: jest.fn<(...args: any[]) => any>().mockResolvedValue([[null, "OK"]]),
 };
 
-const MOCK_REDIS = Object.assign(jest.fn().mockReturnThis(), {
-	on: jest.fn().mockReturnThis(),
-	set: jest.fn().mockResolvedValue("OK"),
-	get: jest.fn().mockResolvedValue(null),
-	sismember: jest.fn().mockResolvedValue(1),
-	multi: jest.fn().mockReturnValue(MOCK_MULTI),
-	eval: jest.fn().mockResolvedValue(1),
-}) as unknown as jest.Mock & MockRedisInstance;
+const MOCK_REDIS = Object.assign(
+	jest.fn<(...args: any[]) => any>().mockReturnThis(),
+	{
+		on: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+		set: jest.fn<(...args: any[]) => any>().mockResolvedValue("OK"),
+		get: jest.fn<(...args: any[]) => any>().mockResolvedValue(null),
+		sismember: jest.fn<(...args: any[]) => any>().mockResolvedValue(1),
+		multi: jest.fn<(...args: any[]) => any>().mockReturnValue(MOCK_MULTI),
+		eval: jest.fn<(...args: any[]) => any>().mockResolvedValue(1),
+	}
+) as unknown as jest.Mock<(...args: any[]) => any> & MockRedisInstance;
 
 jest.mock("ioredis", () => ({
 	__esModule: true,
-	default: jest.fn(() => MOCK_REDIS),
-	Redis: jest.fn(() => MOCK_REDIS),
+	default: jest.fn((..._args: any[]) => MOCK_REDIS),
+	Redis: jest.fn((..._args: any[]) => MOCK_REDIS),
 }));
 
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
@@ -96,15 +109,15 @@ describe("InstanceHeartbeatHandler", () => {
 			instanceId: "i1" as never,
 		};
 		const mockInstance: ServiceInstance = {
-			serviceName: "financial-scraper-service",
-			instanceId: "i1",
-			host: "192.168.1.10",
-			port: 8444,
-			version: "1.0.0",
-			ttl: 30000,
-			protocol: "mtls",
-			registeredAt: Date.now() - 1000,
-			lastHeartbeat: Date.now() - 500,
+			serviceName: "financial-scraper-service" as ServiceId,
+			instanceId: "i1" as InstanceId,
+			host: "192.168.1.10" as IPAddress,
+			port: 8444 as Port,
+			version: "1.0.0" as Version,
+			ttl: 30000 as DurationMs,
+			protocol: "mtls" as unknown as Protocol,
+			registeredAt: (Date.now() - 1000) as UnixTimestamp,
+			lastHeartbeat: (Date.now() - 500) as UnixTimestamp,
 		};
 
 		it("should return false when instance is not a member of the service set", async () => {
@@ -171,7 +184,7 @@ describe("InstanceHeartbeatHandler", () => {
 		it("should log a warning and return false when Redis write fails", async () => {
 			const { logger } = jest.requireMock(
 				"@trading-model/http/infrastructure/logger"
-			) as { logger: { warn: jest.Mock } };
+			) as { logger: { warn: jest.Mock<(...args: any[]) => any> } };
 
 			MOCK_REDIS.sismember.mockResolvedValue(1);
 			mockReader.getMetadata.mockResolvedValue(mockInstance);

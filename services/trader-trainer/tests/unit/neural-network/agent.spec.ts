@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { Agent } from "../../../src/domain/neural-network/agent";
 import type { NetworkArchitecture } from "../../../src/domain/neural-network/type";
 import {
@@ -11,12 +12,12 @@ function makeConfig(
 	overrides?: Partial<NetworkArchitecture>
 ): NetworkArchitecture {
 	return {
-		neuronsByLayer: [4, 6, 3],
+		neuronsByLayer: [4 as PositiveInt, 6 as PositiveInt, 3 as PositiveInt],
 		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
 		normalisationType: NormalisationType.None,
 		connectionType: ConnectionType.FullyConnected,
 		enablePool: true,
-		poolMaxSize: 100,
+		poolMaxSize: 100 as PositiveInt,
 		...overrides,
 	};
 }
@@ -46,7 +47,9 @@ describe("Agent", () => {
 		});
 
 		it("should throw when neuronsByLayer has fewer than 2 entries", () => {
-			expect(() => new Agent(makeConfig({ neuronsByLayer: [3] }))).toThrow();
+			expect(
+				() => new Agent(makeConfig({ neuronsByLayer: [3 as PositiveInt] }))
+			).toThrow();
 		});
 
 		it("should create neural network inside agent", () => {

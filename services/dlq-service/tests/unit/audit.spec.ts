@@ -1,13 +1,17 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_INDIRECT = jest.fn<(...args: unknown[]) => Promise<void>>();
-const MOCK_CREATE = jest.fn(() => ({
+const MOCK_CREATE = jest.fn((..._args: any[]) => ({
 	messageManager: { post: { indirect: MOCK_INDIRECT } },
 }));
-const MOCK_WARN = jest.fn();
+const MOCK_WARN = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: MOCK_WARN, error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: MOCK_WARN,
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({

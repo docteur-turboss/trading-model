@@ -1,4 +1,8 @@
 import { describe, expect, test } from "@jest/globals";
+import type {
+	Percentage,
+	PositiveInt,
+} from "@trading-model/primitives/primitives";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import {
 	ActivationType,
@@ -19,7 +23,7 @@ describe("Mutation - mutateLayer", () => {
 
 	test("should return a clone of the layer", () => {
 		const layer: LayerGenome = {
-			neurons: 32,
+			neurons: 32 as PositiveInt,
 			activation: ActivationType.Relu,
 			connectionType: ConnectionType.DenseSkip,
 			biasType: InitialisationType.Zeros,
@@ -31,7 +35,7 @@ describe("Mutation - mutateLayer", () => {
 
 	test("should increase neurons with high rng when rate is high", () => {
 		const layer: LayerGenome = {
-			neurons: 16,
+			neurons: 16 as PositiveInt,
 			activation: ActivationType.Relu,
 			connectionType: ConnectionType.DenseSkip,
 			biasType: InitialisationType.Zeros,
@@ -89,7 +93,7 @@ describe("Mutation - mutateGenome", () => {
 
 	test("should trigger addNeuronRate structural mutation", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.structural.addNeuronRate = 0.9;
+		genome.mutation.structural.addNeuronRate = 0.9 as Percentage;
 		const origNeurons = genome.network.hiddenLayers.map((l) => l.neurons);
 		const mutated = mutateGenome(genome, () => 0.1);
 		let changed = false;
@@ -103,7 +107,7 @@ describe("Mutation - mutateGenome", () => {
 
 	test("should trigger removeNeuronRate structural mutation", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.structural.removeNeuronRate = 0.9;
+		genome.mutation.structural.removeNeuronRate = 0.9 as Percentage;
 		const origNeurons = genome.network.hiddenLayers.map((l) => l.neurons);
 		const mutated = mutateGenome(genome, () => 0.1);
 		let changed = false;
@@ -117,7 +121,7 @@ describe("Mutation - mutateGenome", () => {
 
 	test("should trigger addLayerRate structural mutation", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.structural.addLayerRate = 0.9;
+		genome.mutation.structural.addLayerRate = 0.9 as Percentage;
 		const origLen = genome.network.hiddenLayers.length;
 		const mutated = mutateGenome(genome, () => 0.1);
 		expect(mutated.network.hiddenLayers.length).toBeGreaterThanOrEqual(origLen);
@@ -125,7 +129,7 @@ describe("Mutation - mutateGenome", () => {
 
 	test("should trigger removeLayerRate structural mutation", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.structural.removeLayerRate = 0.9;
+		genome.mutation.structural.removeLayerRate = 0.9 as Percentage;
 		const mutated = mutateGenome(genome, () => 0.1);
 		expect(mutated.network.hiddenLayers.length).toBeGreaterThanOrEqual(1);
 	});
@@ -144,11 +148,11 @@ describe("Mutation - mutateGenome", () => {
 
 	test("should exercise perturb function on all RL fields in mutateRL", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.rates.rate = 0;
-		genome.mutation.structural.addNeuronRate = 0;
-		genome.mutation.structural.removeNeuronRate = 0;
-		genome.mutation.structural.addLayerRate = 0;
-		genome.mutation.structural.removeLayerRate = 0;
+		genome.mutation.rates.rate = 0 as Percentage;
+		genome.mutation.structural.addNeuronRate = 0 as Percentage;
+		genome.mutation.structural.removeNeuronRate = 0 as Percentage;
+		genome.mutation.structural.addLayerRate = 0 as Percentage;
+		genome.mutation.structural.removeLayerRate = 0 as Percentage;
 		const mutated = mutateGenome(genome, () => 0.5);
 		expect(mutated.rl.gamma).toBeGreaterThanOrEqual(0.8);
 		expect(mutated.rl.gamma).toBeLessThanOrEqual(0.9999);

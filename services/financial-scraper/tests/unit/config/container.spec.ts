@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_CRON_CONSTRUCTOR = jest.fn((config: unknown) => ({
 	config,
-	start: jest.fn(),
+	start: jest.fn<(...args: any[]) => any>(),
 }));
 
 const MOCK_LOGGER = {
-	info: jest.fn(),
-	warn: jest.fn(),
-	error: jest.fn(),
+	info: jest.fn<(...args: any[]) => any>(),
+	warn: jest.fn<(...args: any[]) => any>(),
+	error: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
@@ -23,13 +23,15 @@ jest.mock("../../../src/adapters/inbound/cron/scrape.cron", () => ({
 jest.mock(
 	"../../../src/adapters/outbound/binance/binance-market-data-source",
 	() => ({
-		BinanceMarketDataSource: jest.fn(() => ({ id: "binance" })),
+		BinanceMarketDataSource: jest.fn((..._args: any[]) => ({ id: "binance" })),
 	})
 );
 jest.mock(
 	"../../../src/adapters/outbound/broker/broker-market-data.publisher",
 	() => ({
-		BrokerMarketDataPublisher: jest.fn(() => ({ publish: jest.fn() })),
+		BrokerMarketDataPublisher: jest.fn((..._args: any[]) => ({
+			publish: jest.fn<(...args: any[]) => any>(),
+		})),
 	})
 );
 

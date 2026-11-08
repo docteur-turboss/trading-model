@@ -133,7 +133,7 @@ describe("AuditRepository reads — real MongoDB", () => {
 				page: PageNumber.of(page),
 				limit: Limit.of(10, 1000),
 			} as AuditEventQuery);
-			total = result.total;
+			total = result.total!;
 			seen.push(...result.docs.map((doc) => doc.metadata.messageId));
 		}
 

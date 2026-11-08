@@ -1,10 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("../../../src/config/container", () => {
-	const mockListen = jest.fn();
-	const mockBrokerModule = jest.fn(() => ({
+	const mockListen = jest.fn<(...args: any[]) => any>();
+	const mockBrokerModule = jest.fn((..._args: any[]) => ({
 		listen: mockListen,
-		forwardDeadLetters: jest.fn(async () => undefined),
+		forwardDeadLetters: jest.fn(async (..._args: any[]) => undefined),
 	}));
 	return {
 		__esModule: true,

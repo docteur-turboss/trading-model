@@ -11,15 +11,19 @@ jest.mock("../../../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../../../src/config/message-manager", () => ({
-	MessageManager: { post: { indirect: jest.fn() } },
+	MessageManager: { post: { indirect: jest.fn<(...args: any[]) => any>() } },
 }));
 
 jest.mock("../../../../src/config/metrics", () => ({
-	EVENTS_PUBLISHED_TOTAL: { inc: jest.fn() },
+	EVENTS_PUBLISHED_TOTAL: { inc: jest.fn<(...args: any[]) => any>() },
 }));
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
+	logger: {
+		error: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		info: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 import { sendAllMarketData } from "../../../../src/adapters/outbound/broker/market-data-sender";

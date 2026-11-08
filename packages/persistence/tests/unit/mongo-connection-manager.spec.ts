@@ -12,10 +12,12 @@ interface MockClient {
 }
 
 jest.mock("mongodb", () => ({
-	MongoClient: jest.fn(),
+	MongoClient: jest.fn<(...args: any[]) => any>(),
 }));
 
-const MockMongoClient = MongoClient as unknown as jest.Mock;
+const MockMongoClient = MongoClient as unknown as jest.Mock<
+	(...args: any[]) => any
+>;
 
 let mockClient: MockClient;
 

@@ -17,15 +17,15 @@ import { createNext, createReq, createRes } from "../../helpers/express";
 
 describe("AuditSubscriber", () => {
 	let mockRepo: jest.Mocked<AuditRepository>;
-	let handler: ReturnType<typeof createMessageHandler>;
+	let handler: (...args: any[]) => any;
 
 	beforeEach(() => {
 		mockRepo = {
-			insert: jest.fn(),
-			findById: jest.fn(),
-			query: jest.fn(),
-			getStats: jest.fn(),
-			ensureIndexes: jest.fn(),
+			insert: jest.fn<(...args: any[]) => any>(),
+			findById: jest.fn<(...args: any[]) => any>(),
+			query: jest.fn<(...args: any[]) => any>(),
+			getStats: jest.fn<(...args: any[]) => any>(),
+			ensureIndexes: jest.fn<(...args: any[]) => any>(),
 		} as unknown as jest.Mocked<AuditRepository>;
 
 		handler = createMessageHandler(mockRepo, 90);
@@ -169,7 +169,8 @@ describe("AuditSubscriber", () => {
 
 			await handler(req, createRes(), createNext);
 
-			const insertCall = (mockRepo.insert as jest.Mock).mock.calls[0][0] as any;
+			const insertCall = (mockRepo.insert as jest.Mock<(...args: any[]) => any>)
+				.mock.calls[0][0] as any;
 			expect(insertCall.receivedAt.getTime()).toBeGreaterThanOrEqual(before);
 		});
 	});

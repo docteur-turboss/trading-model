@@ -9,7 +9,11 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 const MOCK_TARGET = { host: "10.0.1.5", port: 3000, version: "1.0.0" };
@@ -42,8 +46,8 @@ function createMockResponse(
 			reqEvents[event].push(handler);
 			return mockReq;
 		}),
-		write: jest.fn(),
-		end: jest.fn().mockImplementation(() => {
+		write: jest.fn<(...args: any[]) => any>(),
+		end: jest.fn<(...args: any[]) => any>().mockImplementation(() => {
 			if (reqEvents.data) {
 				for (const h of reqEvents.data) {
 					h(Buffer.from(body));
@@ -55,7 +59,7 @@ function createMockResponse(
 				}
 			}
 		}),
-		destroy: jest.fn(),
+		destroy: jest.fn<(...args: any[]) => any>(),
 	};
 
 	return { mockRes, mockReq, events: resEvents };
@@ -64,7 +68,7 @@ function createMockResponse(
 function createMockHttps(
 	makeReq: (opts: any, callback: (res: any) => void) => any
 ) {
-	return jest.fn().mockImplementation(makeReq);
+	return jest.fn<(...args: any[]) => any>().mockImplementation(makeReq);
 }
 
 describe("proxy-handler", () => {
@@ -153,20 +157,22 @@ describe("proxy-handler", () => {
 
 	it("should reject on connection error", async () => {
 		const https = require("node:https");
-		https.request = jest.fn().mockImplementation(() => {
-			const errReq = {
-				on: jest.fn((event: string, handler: (err?: Error) => void) => {
-					if (event === "error") {
-						handler(new Error("ECONNREFUSED"));
-					}
-					return errReq;
-				}),
-				write: jest.fn(),
-				end: jest.fn(),
-				destroy: jest.fn(),
-			};
-			return errReq;
-		});
+		https.request = jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementation(() => {
+				const errReq = {
+					on: jest.fn((event: string, handler: (err?: Error) => void) => {
+						if (event === "error") {
+							handler(new Error("ECONNREFUSED"));
+						}
+						return errReq;
+					}),
+					write: jest.fn<(...args: any[]) => any>(),
+					end: jest.fn<(...args: any[]) => any>(),
+					destroy: jest.fn<(...args: any[]) => any>(),
+				};
+				return errReq;
+			});
 
 		const { forwardRequest: forward } = await Promise.resolve(
 			require("../../src/adapters/outbound/proxy-handler")
@@ -181,24 +187,26 @@ describe("proxy-handler", () => {
 		const timeoutEvents: Array<() => void> = [];
 
 		const https = require("node:https");
-		https.request = jest.fn().mockImplementation(() => {
-			const timeoutReq = {
-				on: jest.fn((event: string, handler: () => void) => {
-					if (event === "timeout") {
-						timeoutEvents.push(handler);
-					}
-					return timeoutReq;
-				}),
-				write: jest.fn(),
-				end: jest.fn().mockImplementation(() => {
-					for (const h of timeoutEvents) {
-						h();
-					}
-				}),
-				destroy: jest.fn(),
-			};
-			return timeoutReq;
-		});
+		https.request = jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementation(() => {
+				const timeoutReq = {
+					on: jest.fn((event: string, handler: () => void) => {
+						if (event === "timeout") {
+							timeoutEvents.push(handler);
+						}
+						return timeoutReq;
+					}),
+					write: jest.fn<(...args: any[]) => any>(),
+					end: jest.fn<(...args: any[]) => any>().mockImplementation(() => {
+						for (const h of timeoutEvents) {
+							h();
+						}
+					}),
+					destroy: jest.fn<(...args: any[]) => any>(),
+				};
+				return timeoutReq;
+			});
 
 		const { forwardRequest: forward } = await Promise.resolve(
 			require("../../src/adapters/outbound/proxy-handler")
@@ -490,7 +498,7 @@ describe("proxy-handler", () => {
 
 	it("should cut an upstream answer past PROXY_MAX_RESPONSE_BYTES", async () => {
 		const { mockRes, mockReq, events } = createMockResponse(200, "");
-		mockRes.destroy = jest.fn();
+		mockRes.destroy = jest.fn<(...args: any[]) => any>();
 		const https = require("node:https");
 		https.request = createMockHttps(
 			(_opts: any, callback: (res: any) => void) => {

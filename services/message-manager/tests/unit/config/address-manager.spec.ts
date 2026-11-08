@@ -1,13 +1,13 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const mockListenExpress = jest.fn();
-const mockFindService = jest.fn();
-const mockStart = jest.fn();
+const mockListenExpress = jest.fn<(...args: any[]) => any>();
+const mockFindService = jest.fn<(...args: any[]) => any>();
+const mockStart = jest.fn<(...args: any[]) => any>();
 
 jest.mock(
 	"@trading-model/address-manager/application/create-service-address-manager",
 	() => ({
-		createServiceAddressManager: jest.fn(() => ({
+		createServiceAddressManager: jest.fn((..._args: any[]) => ({
 			AddressManager: {},
 			ADDRESS_MANAGER_ROUTES: mockListenExpress,
 			FIND_A_SERVICE: mockFindService,

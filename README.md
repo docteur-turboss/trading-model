@@ -109,7 +109,7 @@ GitHub Actions workflows:
 - **deploy.yml** — manual staging/production deploy with rollback
 - **backup-test.yml** — weekly restore drill of the Docker backup scripts
 
-Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:check` → `reach:check` → `config:check` → observability gate → `build` → `test` → `test:contract` (see `.husky/pre-push`).
+Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:check` → `reach:check` → `config:check` → observability gate → `build` → `typecheck:tests` → `test` → `test:contract` (see `.husky/pre-push`).
 
 ## Documentation
 

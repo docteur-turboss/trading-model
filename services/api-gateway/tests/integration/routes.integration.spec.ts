@@ -14,7 +14,7 @@ jest.setTimeout(15000);
 
 // The mTLS discovery client loads the SVID files at construction.
 jest.mock("../../src/config/container", () => ({
-	discoveryClient: { get: jest.fn() },
+	discoveryClient: { get: jest.fn<(...args: any[]) => any>() },
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -36,30 +36,38 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock(
 	"@trading-model/address-manager/application/discovery/endpoint-resolver",
 	() => ({
-		EndpointResolver: jest.fn().mockImplementation(() => ({
-			resolve: jest.fn().mockImplementation((serviceName: string) => {
-				// No trader-trainer instance is registered.
-				if (serviceName === "trader-trainer") {
-					return Promise.resolve(null);
-				}
-				return Promise.resolve({
-					host: "10.0.0.5",
-					port: 3000,
-					version: "1.2.0",
-				});
-			}),
-		})),
+		EndpointResolver: jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementation(() => ({
+				resolve: jest
+					.fn<(...args: any[]) => any>()
+					.mockImplementation((serviceName: string) => {
+						// No trader-trainer instance is registered.
+						if (serviceName === "trader-trainer") {
+							return Promise.resolve(null);
+						}
+						return Promise.resolve({
+							host: "10.0.0.5",
+							port: 3000,
+							version: "1.2.0",
+						});
+					}),
+			})),
 	})
 );
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
-	forwardRequest: jest.fn(),
+	forwardRequest: jest.fn<(...args: any[]) => any>(),
 }));
 
 import { createRouter } from "../../src/adapters/inbound/router";
@@ -132,7 +140,7 @@ function request(
 const AUTH_HEADERS = { [HTTP_HEADERS.X_API_KEY]: "test-token" };
 
 function mockProxySuccess(result?: Partial<ProxyResult>): void {
-	(forwardRequest as jest.Mock).mockResolvedValue({
+	(forwardRequest as jest.Mock<(...args: any[]) => any>).mockResolvedValue({
 		status: 200,
 		body: JSON.stringify({ data: "ok" }),
 		headers: { "content-type": "application/json" },
@@ -202,7 +210,8 @@ describe("API Gateway — Routes Integration", () => {
 		await request(server, "/v1/audit-logger/events/stats", {
 			headers: AUTH_HEADERS,
 		});
-		const call = (forwardRequest as jest.Mock).mock.calls[0][0];
+		const call = (forwardRequest as jest.Mock<(...args: any[]) => any>).mock
+			.calls[0][0];
 		expect(call).toMatchObject({ path: "/events/stats" });
 	});
 
@@ -266,7 +275,7 @@ describe("API Gateway — Routes Integration", () => {
 	});
 
 	it("should return 503 when the target service is unreachable", async () => {
-		(forwardRequest as jest.Mock).mockRejectedValue(
+		(forwardRequest as jest.Mock<(...args: any[]) => any>).mockRejectedValue(
 			new Error("Connection timeout")
 		);
 

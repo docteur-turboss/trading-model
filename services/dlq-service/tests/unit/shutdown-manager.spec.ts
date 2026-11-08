@@ -1,15 +1,15 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_SET_SHUTTING_DOWN = jest.fn();
-const MOCK_CLOSE_REDIS_QUEUE = jest.fn();
-const MOCK_CLOSE_HTTP_CLIENT = jest.fn();
-const MOCK_STOP_AUTO_RETRY = jest.fn();
-const MOCK_PRUNE = jest.fn();
-const MOCK_PRUNE_START = jest.fn();
-const MOCK_PRUNE_STOP = jest.fn();
-const MOCK_DRAIN = jest.fn();
-const MOCK_RELEASE_AND_REQUEUE = jest.fn();
-const MOCK_RELEASE_STALE = jest.fn();
+const MOCK_SET_SHUTTING_DOWN = jest.fn<(...args: any[]) => any>();
+const MOCK_CLOSE_REDIS_QUEUE = jest.fn<(...args: any[]) => any>();
+const MOCK_CLOSE_HTTP_CLIENT = jest.fn<(...args: any[]) => any>();
+const MOCK_STOP_AUTO_RETRY = jest.fn<(...args: any[]) => any>();
+const MOCK_PRUNE = jest.fn<(...args: any[]) => any>();
+const MOCK_PRUNE_START = jest.fn<(...args: any[]) => any>();
+const MOCK_PRUNE_STOP = jest.fn<(...args: any[]) => any>();
+const MOCK_DRAIN = jest.fn<(...args: any[]) => any>();
+const MOCK_RELEASE_AND_REQUEUE = jest.fn<(...args: any[]) => any>();
+const MOCK_RELEASE_STALE = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: { close: MOCK_CLOSE_REDIS_QUEUE },
@@ -20,7 +20,7 @@ jest.mock("../../src/infrastructure/auto-retry-scheduler", () => ({
 }));
 
 jest.mock("../../src/infrastructure/dlq-pruner", () => ({
-	DlqPruner: jest.fn(() => ({
+	DlqPruner: jest.fn((..._args: any[]) => ({
 		prune: MOCK_PRUNE,
 		start: MOCK_PRUNE_START,
 		stop: MOCK_PRUNE_STOP,

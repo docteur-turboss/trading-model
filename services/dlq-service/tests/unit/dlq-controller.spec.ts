@@ -1,11 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const mockInsert = jest.fn();
-const mockQuery = jest.fn();
-const mockDelete = jest.fn();
-const mockCount = jest.fn();
-const mockPrune = jest.fn();
-const mockQueryQueuable = jest.fn();
+const mockInsert = jest.fn<(...args: any[]) => any>();
+const mockQuery = jest.fn<(...args: any[]) => any>();
+const mockDelete = jest.fn<(...args: any[]) => any>();
+const mockCount = jest.fn<(...args: any[]) => any>();
+const mockPrune = jest.fn<(...args: any[]) => any>();
+const mockQueryQueuable = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: {
@@ -18,10 +18,10 @@ jest.mock("../../src/adapters/outbound/repository", () => ({
 	},
 }));
 
-const mockClaimEntriesForRetry = jest.fn();
-const mockReleaseStaleClaims = jest.fn();
-const mockClaimEntry = jest.fn();
-const mockIncrementRetryCount = jest.fn();
+const mockClaimEntriesForRetry = jest.fn<(...args: any[]) => any>();
+const mockReleaseStaleClaims = jest.fn<(...args: any[]) => any>();
+const mockClaimEntry = jest.fn<(...args: any[]) => any>();
+const mockIncrementRetryCount = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 	dlqClaimManager: {
@@ -29,15 +29,15 @@ jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 		releaseStaleClaims: mockReleaseStaleClaims,
 		claimEntry: mockClaimEntry,
 		incrementRetryCount: mockIncrementRetryCount,
-		releaseClaimWithoutCount: jest.fn(),
-		releaseClaimsByInstance: jest.fn(),
+		releaseClaimWithoutCount: jest.fn<(...args: any[]) => any>(),
+		releaseClaimsByInstance: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
 jest.mock("../../src/adapters/outbound/retry-manager", () => ({
 	dlqRetryManager: {
-		markRetried: jest.fn(),
-		abandonExhaustedEntries: jest.fn(),
+		markRetried: jest.fn<(...args: any[]) => any>(),
+		abandonExhaustedEntries: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
@@ -61,42 +61,46 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 
 jest.mock("../../src/config/db", () => ({
 	isDbConnected: () => true,
-	getCollection: jest.fn(),
+	getCollection: jest.fn<(...args: any[]) => any>(),
 	getMissingCriticalIndexes: () => [],
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	FIND_A_SERVICE: jest.fn(),
+	FIND_A_SERVICE: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	publishDlqEvent: jest.fn(),
+	publishDlqEvent: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: {
-		push: jest.fn(() => Promise.resolve(true)),
-		pop: jest.fn(() => Promise.resolve(null)),
-		isAvailable: jest.fn(() => true),
-		connect: jest.fn(() => Promise.resolve(true)),
-		close: jest.fn(() => Promise.resolve()),
+		push: jest.fn((..._args: any[]) => Promise.resolve(true)),
+		pop: jest.fn((..._args: any[]) => Promise.resolve(null)),
+		isAvailable: jest.fn((..._args: any[]) => true),
+		connect: jest.fn((..._args: any[]) => Promise.resolve(true)),
+		close: jest.fn((..._args: any[]) => Promise.resolve()),
 	},
 }));
 
 jest.mock("../../src/config/metrics", () => ({
 	metrics: {
-		entriesAdded: { inc: jest.fn() },
-		entriesDeleted: { inc: jest.fn() },
-		entriesReplayed: { inc: jest.fn() },
-		entriesReplayFailed: { inc: jest.fn() },
-		entriesPruned: { inc: jest.fn() },
-		pruneErrors: { inc: jest.fn() },
-		entrySizeBytes: { observe: jest.fn() },
-		collectionSize: { set: jest.fn() },
+		entriesAdded: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesDeleted: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesPruned: { inc: jest.fn<(...args: any[]) => any>() },
+		pruneErrors: { inc: jest.fn<(...args: any[]) => any>() },
+		entrySizeBytes: { observe: jest.fn<(...args: any[]) => any>() },
+		collectionSize: { set: jest.fn<(...args: any[]) => any>() },
 	},
 }));
 
@@ -110,8 +114,8 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 }));
 
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
-	HttpClient: jest.fn().mockImplementation(() => ({
-		post: jest.fn(),
+	HttpClient: jest.fn<(...args: any[]) => any>().mockImplementation(() => ({
+		post: jest.fn<(...args: any[]) => any>(),
 	})),
 }));
 
@@ -122,21 +126,11 @@ interface MockReq {
 
 describe("DLQ Controller", () => {
 	let controller: {
-		AddEntry: (
-			req: MockReq
-		) => Promise<{ statusCode: number; data?: Record<string, unknown> }>;
-		ListEntries: (
-			req: MockReq
-		) => Promise<{ statusCode: number; data?: Record<string, unknown> }>;
-		DeleteEntries: (
-			req: MockReq
-		) => Promise<{ statusCode: number; data?: Record<string, unknown> }>;
-		HealthCheck: (
-			req: MockReq
-		) => Promise<{ statusCode: number; data?: Record<string, unknown> }>;
-		ReadyCheck: (
-			req: MockReq
-		) => Promise<{ statusCode: number; data?: Record<string, unknown> }>;
+		AddEntry: (req: MockReq) => Promise<{ statusCode: number; data: any }>;
+		ListEntries: (req: MockReq) => Promise<{ statusCode: number; data: any }>;
+		DeleteEntries: (req: MockReq) => Promise<{ statusCode: number; data: any }>;
+		HealthCheck: (req: MockReq) => Promise<{ statusCode: number; data: any }>;
+		ReadyCheck: (req: MockReq) => Promise<{ statusCode: number; data: any }>;
 	};
 
 	beforeAll(() => {

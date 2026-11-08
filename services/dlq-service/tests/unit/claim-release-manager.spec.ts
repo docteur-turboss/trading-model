@@ -1,9 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_GET_COLLECTION = jest.fn();
-const MOCK_UPDATE_MANY = jest.fn();
-const MOCK_UPDATE_ONE = jest.fn();
-const MOCK_FIND_ONE_AND_UPDATE = jest.fn();
+const MOCK_GET_COLLECTION = jest.fn<(...args: any[]) => any>();
+const MOCK_UPDATE_MANY = jest.fn<(...args: any[]) => any>();
+const MOCK_UPDATE_ONE = jest.fn<(...args: any[]) => any>();
+const MOCK_FIND_ONE_AND_UPDATE = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {

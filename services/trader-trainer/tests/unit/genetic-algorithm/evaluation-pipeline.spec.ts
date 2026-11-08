@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
+import type { Reward } from "@trading-model/primitives/primitives";
 import { Cash, Price } from "@trading-model/primitives/primitives";
 import { FeatureVector } from "../../../src/domain/feature-vector";
 import {
@@ -94,7 +95,7 @@ function makeMockBackend(poolSize: number): RLBackend {
 			kind: ExperienceKind.QLearning as const,
 			input: new Float32Array([0.1, 0.2, 0.3]),
 			output: new Float32Array([0.1, 0.2, 0.3]),
-			reward: 1,
+			reward: 1 as Reward,
 			nextState: new Float32Array([0.1, 0.2, 0.3]),
 			done: false,
 			action: 0,
@@ -104,13 +105,17 @@ function makeMockBackend(poolSize: number): RLBackend {
 		forwardPass: jest.fn(
 			(_f: FeatureVector) => new Float32Array([0.5, 0.5, 0.5])
 		),
-		step: jest.fn(() => ({ reward: 1, action: 0 })),
-		remember: jest.fn(),
-		replay: jest.fn(),
-		getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
-		setWeights: jest.fn(),
-		getPnL: jest.fn(() => Cash.of(50)),
-		resetEpisode: jest.fn(),
+		step: jest.fn((..._args: any[]) => ({
+			reward: 1,
+			action: 0,
+			state: new Float32Array(3),
+		})),
+		remember: jest.fn<(...args: any[]) => any>(),
+		replay: jest.fn<(...args: any[]) => any>(),
+		getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
+		setWeights: jest.fn<(...args: any[]) => any>(),
+		getPnL: jest.fn((..._args: any[]) => Cash.of(50)),
+		resetEpisode: jest.fn<(...args: any[]) => any>(),
 	};
 }
 
@@ -126,8 +131,8 @@ describe("evaluateGenomeAllWindows", () => {
 				validation: [makeStep([0.7, 0.8, 0.9])],
 			},
 		];
-		const trainMock = jest.fn();
-		const backendFactory = jest.fn(() => ({
+		const trainMock = jest.fn<(...args: any[]) => any>();
+		const backendFactory = jest.fn((..._args: any[]) => ({
 			...makeMockBackend(2),
 			replay: trainMock,
 		}));
@@ -140,7 +145,7 @@ describe("evaluateGenomeAllWindows", () => {
 	});
 
 	it("should handle empty window sets gracefully", async () => {
-		const backendFactory = jest.fn(() => makeMockBackend(2));
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
 		const result = await evaluateGenomeAllWindows(
 			MINIMAL_GENOME as any,
 			[],
@@ -173,7 +178,7 @@ describe("evaluateGenomeAllWindows", () => {
 				),
 			},
 		];
-		const backendFactory = jest.fn(() => makeMockBackend(2));
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
 		const result = await evaluateGenomeAllWindows(
 			genome as any,
 			windowSets,
@@ -204,7 +209,7 @@ describe("evaluateGenomeAllWindows", () => {
 				validation: [makeStep([0.7, 0.8, 0.9])],
 			},
 		];
-		const backendFactory = jest.fn(() => makeMockBackend(2));
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
 		const result = await evaluateGenomeAllWindows(
 			genome as any,
 			windowSets,
@@ -231,7 +236,7 @@ describe("evaluateGenomeAllWindows", () => {
 				validation: [makeStep([0.7, 0.8, 0.9])],
 			},
 		];
-		const backendFactory = jest.fn(() => makeMockBackend(2));
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
 		const result = await evaluateGenomeAllWindows(
 			genome as any,
 			windowSets,
@@ -248,8 +253,8 @@ describe("evaluateGenomeAllWindows", () => {
 				validation: [makeStep([0.7, 0.8, 0.9])],
 			},
 		];
-		const trainMock = jest.fn();
-		const backendFactory = jest.fn(() => ({
+		const trainMock = jest.fn<(...args: any[]) => any>();
+		const backendFactory = jest.fn((..._args: any[]) => ({
 			...makeMockBackend(1),
 			replay: trainMock,
 		}));
@@ -274,7 +279,7 @@ describe("evaluateGenomeAllWindows", () => {
 				validation: [makeStep([0.7, 0.8, 0.9])],
 			},
 		];
-		const backendFactory = jest.fn(() => makeMockBackend(2));
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
 		expect(() =>
 			evaluateGenomeAllWindows(
 				badGenome as any,
@@ -306,7 +311,7 @@ describe("evaluateGenomeAllWindows", () => {
 				validation: [makeStep([0.7, 0.8, 0.9])],
 			},
 		];
-		const backendFactory = jest.fn(() => makeMockBackend(2));
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
 		const result = await evaluateGenomeAllWindows(
 			genome as any,
 			windowSets,
@@ -370,13 +375,13 @@ describe("evaluateGenomeAllWindows — failure reporting", () => {
 
 	it("should report a failed evaluation to the telemetry and penalise the genome", async () => {
 		const telemetry = {
-			generationStarted: jest.fn(),
-			stagnationUpdated: jest.fn(),
-			evaluationFailed: jest.fn(),
-			genomeEvaluated: jest.fn(),
-			crossoverFallbacks: jest.fn(),
+			generationStarted: jest.fn<(...args: any[]) => any>(),
+			stagnationUpdated: jest.fn<(...args: any[]) => any>(),
+			evaluationFailed: jest.fn<(...args: any[]) => any>(),
+			genomeEvaluated: jest.fn<(...args: any[]) => any>(),
+			crossoverFallbacks: jest.fn<(...args: any[]) => any>(),
 		};
-		const backendFactory = jest.fn(() => {
+		const backendFactory = jest.fn((..._args: any[]) => {
 			throw new Error("backend exploded");
 		});
 
@@ -393,16 +398,16 @@ describe("evaluateGenomeAllWindows — failure reporting", () => {
 
 	it("reports the duration of each genome evaluation", async () => {
 		const telemetry = {
-			generationStarted: jest.fn(),
-			stagnationUpdated: jest.fn(),
-			evaluationFailed: jest.fn(),
-			genomeEvaluated: jest.fn(),
-			crossoverFallbacks: jest.fn(),
+			generationStarted: jest.fn<(...args: any[]) => any>(),
+			stagnationUpdated: jest.fn<(...args: any[]) => any>(),
+			evaluationFailed: jest.fn<(...args: any[]) => any>(),
+			genomeEvaluated: jest.fn<(...args: any[]) => any>(),
+			crossoverFallbacks: jest.fn<(...args: any[]) => any>(),
 		};
 		await evaluateFitness({
 			population: [MINIMAL_GENOME as any, MINIMAL_GENOME as any],
 			windowSets,
-			backendFactory: jest.fn(() => {
+			backendFactory: jest.fn((..._args: any[]) => {
 				throw new Error("backend exploded");
 			}) as any,
 			telemetry,
@@ -415,7 +420,7 @@ describe("evaluateGenomeAllWindows — failure reporting", () => {
 
 	it("should tolerate a failure without telemetry and a non-Error throw", async () => {
 		const nonError: unknown = "not an error";
-		const backendFactory = jest.fn(() => {
+		const backendFactory = jest.fn((..._args: any[]) => {
 			throw nonError;
 		});
 

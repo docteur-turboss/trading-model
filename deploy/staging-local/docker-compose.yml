@@ -53,7 +53,8 @@ services:
       RUNNER_TOKEN: ${RUNNER_TOKEN:-}
       RUNNER_NAME: trading-staging
       LABELS: trading-staging
-      EPHEMERAL: "false"
+      # No EPHEMERAL key: the entrypoint tests it with `-n`, so even "false"
+      # makes the runner ephemeral (registration deleted after one job).
       DISABLE_AUTOMATIC_DEREGISTRATION: "true"
       CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner/data
       RUNNER_WORKDIR: /tmp/runner

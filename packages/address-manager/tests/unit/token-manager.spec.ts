@@ -10,7 +10,9 @@ describe("TokenManager", () => {
 	let manager: TokenManager;
 
 	beforeEach(() => {
-		httpClient = { post: jest.fn() } as unknown as jest.Mocked<HttpClient>;
+		httpClient = {
+			post: jest.fn<(...args: any[]) => any>(),
+		} as unknown as jest.Mocked<HttpClient>;
 
 		config = {
 			addressManagerUrl: "http://localhost:8443",

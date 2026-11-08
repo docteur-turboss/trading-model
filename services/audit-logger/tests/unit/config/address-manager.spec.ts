@@ -1,9 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_ADDRESS_MANAGER = {
-	start: jest.fn(),
-	listenExpress: jest.fn(),
-	findService: jest.fn(),
+	start: jest.fn<(...args: any[]) => any>(),
+	listenExpress: jest.fn<(...args: any[]) => any>(),
+	findService: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock(
@@ -11,7 +11,7 @@ jest.mock(
 	() => {
 		const am = MOCK_ADDRESS_MANAGER;
 		return {
-			createServiceAddressManager: jest.fn(() => ({
+			createServiceAddressManager: jest.fn((..._args: any[]) => ({
 				AddressManager: am,
 				BOOTSTRAP_ADDRESS_MANAGER: am.start,
 				ADDRESS_MANAGER_ROUTES: am.listenExpress,

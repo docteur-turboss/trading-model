@@ -9,6 +9,7 @@ bun run build:ts                # Build everything (packages + all 7 services)
 bun run test                    # Run all workspace tests
 bun run --filter <name> test    # Run a single workspace's tests
 bun run lint                    # Biome check across the whole monorepo
+bun run typecheck:tests         # tsc --noEmit of src + tests of every workspace (tsconfig.test.json; needs bun run build first); stops at the first failing workspace
 bun run deps:check              # Verify @trading-model/* imports match package.json manifests (ADR-0016)
 bun run api:check               # OpenAPI up to date + documented routes reach real routes + every service-to-service route has a caller, no WebSocket server (ADR-0029)
 bun run api:write               # Regenerate docs/services/openapi/api-gateway.yaml from the routes
@@ -60,6 +61,7 @@ The root script references the package name too: `bun run --filter trader-servic
 - All tests use `**/?(*.)+(spec).ts` pattern
 - Jest configs use `ts-jest` preset; their `@trading-model/*` `moduleNameMapper` is generated from the workspace manifest by `scripts/jest-workspace-mapper.cjs` (declared deps + transitive runtime deps → package `src`) — packages don't need to be pre-built, and undeclared internal packages don't resolve
 - **Serial tests:** none currently require `maxWorkers: 1` (previously `certificate-utils` and `certificate-authority`, decommissioned per ADR-0011)
+- **Type-checked specs:** ts-jest runs with `diagnostics: false`, so `bun run typecheck:tests` (CI `typecheck` job, pre-push) is what fails a spec that calls `src` with a stale signature. Each workspace has a `tsconfig.test.json` (extends `tsconfig.json`, `noEmit`, `include` `src` + `tests`, `types` `node` + `jest`); a workspace with specs still failing sits in `EXCLUDED` of `scripts/typecheck-tests.mjs` with its error count (never `dlq-service` or `trader-trainer`). Type mocks with `jest.fn<(...args: any[]) => any>()` or `jest.Mocked<Port>`, never a bare `jest.fn()` imported from `@jest/globals` (its parameters are `never`)
 - **Coverage thresholds:** 80% (statements/functions/lines/branches) for all workspaces; branch-only exceptions: `broker-message` 75%, `message-manager` and `dlq-service` 79%
 - E2E tests: `testTimeout: 30000`, `forceExit: true`, `detectOpenHandles: true`. Run them against the compose stack with the overlay `tests/e2e/docker-compose.e2e.yml` (Binance stub, 10s scrape): `market-data-flow.e2e.spec.ts` asserts data reaches MySQL and the trainer. Services only accept SPIFFE mTLS clients, so assertions run inside the stack (`docker exec`); external calls go through the `edge-proxy` (host port 8449, `externalRequest`)
 - DB tests: `tests/db/**/*.db.spec.ts` run against real databases started by Testcontainers (images read from `docker-compose.yml`). Opt a workspace in with a `jest.db.config.js` built by `scripts/jest-db-config.cjs` (`dbJestConfig(base, { databases })`), add `DB_SPEC_IGNORE` to its default `testPathIgnorePatterns`, and a `test:db` script with `NODE_OPTIONS=--experimental-vm-modules` (the mongodb driver needs it under Jest). Connection strings: `TEST_MONGO_URI` (replica set), `TEST_REDIS_URL`, `TEST_MYSQL_URI`. Not part of `bun run test` / pre-push
@@ -73,7 +75,7 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## Git hooks (Husky) & commit format
 
-- **`pre-push`** runs: biome check → deps:check → api:check → adr:check → reach:check → config:check → observability gate → build → test → test:contract (must all pass to push)
+- **`pre-push`** runs: biome check → deps:check → api:check → adr:check → reach:check → config:check → observability gate → build → typecheck:tests → test → test:contract (must all pass to push)
 - **`commit-msg`** enforces gitmoji format via commitlint: `:emoji:(scope): subject`
 - Scopes are lowercased and must be from the allowed enum in `commitlint.config.mjs`
 - Use `bun run commit` for an interactive TUI that helps craft valid commits

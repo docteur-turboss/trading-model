@@ -4,16 +4,16 @@ import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 describe("catchSync", () => {
 	let req: any;
 	let res: any;
-	let next: jest.Mock;
+	let next: jest.Mock<(...args: any[]) => any>;
 
 	beforeEach(() => {
 		req = {};
 		res = {};
-		next = jest.fn();
+		next = jest.fn<(...args: any[]) => any>();
 	});
 
 	it("should call the wrapped function with req, res, next", async () => {
-		const handler = jest.fn();
+		const handler = jest.fn<(...args: any[]) => any>();
 		const wrapped = catchSync(handler as any);
 
 		await wrapped(req, res, next);
@@ -46,7 +46,7 @@ describe("catchSync", () => {
 	});
 
 	it("should not call next if handler succeeds", async () => {
-		const handler = jest.fn();
+		const handler = jest.fn<(...args: any[]) => any>();
 		const wrapped = catchSync(handler as any);
 
 		await wrapped(req, res, next);
@@ -56,11 +56,11 @@ describe("catchSync", () => {
 
 	it("should send response object via res when handler returns ResponseObject", async () => {
 		const mockRes = {
-			status: jest.fn().mockReturnThis(),
-			set: jest.fn().mockReturnThis(),
-			type: jest.fn().mockReturnThis(),
-			json: jest.fn().mockReturnThis(),
-			send: jest.fn().mockReturnThis(),
+			status: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			set: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			type: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			json: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			send: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 		};
 		const handler = () => ({ status: 201, data: { id: "abc" } });
 		const wrapped = catchSync(handler as any);

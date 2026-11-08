@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import type { DurationMs, Topic } from "@trading-model/primitives/primitives";
 import type { MessageDeliveryPort } from "../../../../src/application/ports/message-delivery-port";
 import { Subscription } from "../../../../src/application/services/subscription";
 import {
@@ -9,7 +10,7 @@ import {
 } from "../../../fixtures/broker.fixture";
 
 jest.mock("@trading-model/common/utils/sleep", () => ({
-	sleep: jest.fn(() => Promise.resolve()),
+	sleep: jest.fn((..._args: any[]) => Promise.resolve()),
 }));
 
 jest.mock("../../../../src/config/address-manager", () => ({
@@ -40,7 +41,7 @@ describe("Subscription", () => {
 			markDeadLetter: jest.fn<MessageDeliveryPort["markDeadLetter"]>(),
 		};
 		subscription = new Subscription({
-			topic: "test.topic",
+			topic: "test.topic" as Topic,
 			callbackPath: "message/callback",
 			serviceIdentity: mockServiceIdentity,
 			deliveryPort: mockDeliveryPort,
@@ -75,7 +76,7 @@ describe("Subscription", () => {
 				.mockResolvedValueOnce(undefined);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 as DurationMs },
 			});
 
 			await dispatchUntilSettled(subscription, message);
@@ -91,7 +92,7 @@ describe("Subscription", () => {
 			);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 as DurationMs },
 			});
 			await dispatchUntilSettled(subscription, message);
 
@@ -113,7 +114,7 @@ describe("Subscription", () => {
 
 			const message = createMockMessage("payload", {
 				emittedAt: new Date("2026-01-01T00:00:00Z"),
-				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 1 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 1 as DurationMs },
 			});
 			await dispatchUntilSettled(subscription, message);
 
@@ -131,7 +132,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Consumer error"));
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 as DurationMs },
 			});
 			await dispatchUntilSettled(subscription, message);
 
@@ -146,7 +147,7 @@ describe("Subscription", () => {
 			);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 as DurationMs },
 			});
 			await dispatchUntilSettled(subscription, message);
 
@@ -163,7 +164,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Transient error"));
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.ExactlyOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.ExactlyOnce, ttl: 60000 as DurationMs },
 			});
 			await dispatchUntilSettled(subscription, message);
 
@@ -180,7 +181,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Transient error"));
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 as DurationMs },
 			});
 
 			await dispatchUntilSettled(subscription, message);
@@ -197,7 +198,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Service down"));
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 as DurationMs },
 			});
 
 			for (let i = 0; i < 5; i++) {
@@ -221,7 +222,7 @@ describe("Subscription", () => {
 				.mockResolvedValueOnce(undefined);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 as DurationMs },
 			});
 
 			await dispatchUntilSettled(subscription, message);
@@ -240,7 +241,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockResolvedValue(undefined);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtMostOnce, ttl: 60000 as DurationMs },
 			});
 			await dispatchUntilSettled(subscription, message);
 
@@ -251,7 +252,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockResolvedValue(undefined);
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.ExactlyOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.ExactlyOnce, ttl: 60000 as DurationMs },
 			});
 			await dispatchUntilSettled(subscription, message);
 
@@ -297,7 +298,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(deadLetterError("Unrecoverable"));
 
 			const message = createMockMessage("payload", {
-				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 },
+				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 60000 as DurationMs },
 			});
 			await dispatchUntilSettled(subscription, message);
 

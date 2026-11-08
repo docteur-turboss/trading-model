@@ -20,7 +20,7 @@ function createOptions(overrides: Record<string, unknown> = {}) {
 }
 
 describe("hardShutdown", () => {
-	let originalExitCode: number;
+	let originalExitCode: typeof process.exitCode;
 
 	beforeEach(() => {
 		originalExitCode = process.exitCode;
@@ -68,7 +68,7 @@ describe("hardShutdown", () => {
 });
 
 describe("gracefulShutdown", () => {
-	let originalExitCode: number;
+	let originalExitCode: typeof process.exitCode;
 
 	beforeEach(() => {
 		originalExitCode = process.exitCode;

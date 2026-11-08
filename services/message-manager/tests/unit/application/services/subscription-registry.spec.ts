@@ -6,7 +6,7 @@ import { SubscriptionRegistry } from "../../../../src/application/services/subsc
 import { mockSubscribeParams } from "../../../fixtures/broker.fixture";
 
 jest.mock("../../../../src/config/metrics", () => ({
-	SUBSCRIPTION_COUNT: { set: jest.fn() },
+	SUBSCRIPTION_COUNT: { set: jest.fn<(...args: any[]) => any>() },
 }));
 
 const binding = mockSubscribeParams as unknown as TopicBinding;

@@ -10,10 +10,12 @@ import {
 	Volume,
 } from "@trading-model/primitives/primitives";
 
-const MOCK_QUERY = jest.fn<() => Promise<any>>().mockResolvedValue(undefined);
+const MOCK_QUERY = jest
+	.fn<(...args: any[]) => Promise<any>>()
+	.mockResolvedValue(undefined);
 
 jest.mock("../../../../../src/config/db", () => ({
-	DATABASE: { promise: jest.fn(() => ({ query: MOCK_QUERY })) },
+	DATABASE: { promise: jest.fn((..._args: any[]) => ({ query: MOCK_QUERY })) },
 }));
 
 import { insertOrderBook } from "../../../../../src/adapters/outbound/persistence/schema/order-book.schema";
