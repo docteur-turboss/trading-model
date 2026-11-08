@@ -12,7 +12,7 @@ const HTTP_REQUESTS_TOTAL = new promClient.Counter({
 const HTTP_REQUEST_DURATION_SECONDS = new promClient.Histogram({
 	name: "http_request_duration_seconds",
 	help: "HTTP request latency in seconds",
-	labelNames: ["method", "path"] as const,
+	labelNames: ["method", "path", "status_class"] as const,
 	buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
 });
 
@@ -65,7 +65,10 @@ export function httpMetricsMiddleware(
 		const method = req.method;
 
 		HTTP_REQUESTS_TOTAL.inc({ method, path, status: String(res.statusCode) });
-		HTTP_REQUEST_DURATION_SECONDS.observe({ method, path }, duration);
+		HTTP_REQUEST_DURATION_SECONDS.observe(
+			{ method, path, status_class: `${Math.floor(res.statusCode / 100)}xx` },
+			duration
+		);
 		HTTP_REQUESTS_IN_FLIGHT.dec();
 	});
 
