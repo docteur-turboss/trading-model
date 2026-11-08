@@ -35,7 +35,7 @@ groups:
         annotations:
           summary: 'Latency SLO fast burn rate exceeded'
           description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
       - alert: SLOLatencySlowBurn
         expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[1h]))) > 3
@@ -46,7 +46,7 @@ groups:
         annotations:
           summary: 'Latency SLO slow burn rate exceeded'
           description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
       - alert: SLOErrorRateFastBurn
         expr: slo:sli_error:ratio_rate1h > 0.144 and slo:sli_error:ratio_rate5m > 0.144
@@ -99,16 +99,6 @@ groups:
           summary: 'High error rate on {{ $labels.job }}'
           description: 'Error rate is {{ $value | humanizePercentage }} for the last 5 minutes.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
-
-      - alert: HighLatency
-        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[5m]))) > 5
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'High latency on {{ $labels.job }}'
-          description: 'P95 latency is {{ $value | humanize }}s for the last 5 minutes.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
 
       - alert: CertificateExpiry
         expr: probe_ssl_earliest_cert_expiry - time() < 1800

@@ -146,21 +146,13 @@ tests:
         values: '0+10x40'
     alert_rule_test:
       - eval_time: 20m
-        alertname: HighLatency
-        exp_alerts:
-          - exp_labels: {severity: warning, job: api-gateway}
-            exp_annotations:
-              summary: 'High latency on api-gateway'
-              description: 'P95 latency is 7.5s for the last 5 minutes.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
-      - eval_time: 20m
         alertname: SLOLatencyFastBurn
         exp_alerts:
           - exp_labels: {severity: critical, slo: latency, job: api-gateway}
             exp_annotations:
               summary: 'Latency SLO fast burn rate exceeded'
               description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
   - name: half of the training sessions fail
     interval: 1m
