@@ -138,6 +138,8 @@ jobs:
         run: bash tests/k8s/check-prereqs.test.sh
       - name: Test the Job wait helper
         run: bash tests/k8s/wait-job.test.sh
+      - name: Test the availability probe (stub kubectl)
+        run: bash tests/k8s/probe-availability.test.sh
       - name: Test the deploy Slack notification (stub curl)
         run: bash tests/k8s/notify-slack.test.sh
       - name: Test the migrations script (MYSQL_MIGRATE_PASSWORD guard)
