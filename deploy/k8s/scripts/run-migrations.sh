@@ -57,6 +57,10 @@ file_keys() { # keys of the data / stringData / encryptedData blocks of SEALED_S
     on { match($0, /^ */); if (RLENGTH <= ind) { on = 0; next } sub(/^ */, ""); sub(/:.*/, ""); print }' "$SEALED_SECRETS_FILE" | sort
 }
 
+keys_not_in() { # <sorted keys> <sorted keys>: those of the first list absent from the second, space-separated
+  comm -23 <(echo "$1") <(echo "$2") | paste -sd ' ' -
+}
+
 # The SealedSecret is otherwise applied with the overlay, after the migrations:
 # a key it adds (MYSQL_MIGRATE_PASSWORD, MYSQL_EXPORTER_PASSWORD...) would be
 # missing when db-migrate-user runs, and missing from the database pods that the
@@ -64,22 +68,23 @@ file_keys() { # keys of the data / stringData / encryptedData blocks of SEALED_S
 # applied first whenever it carries a key the live Secret lacks, and waited for.
 apply_new_sealed_keys() {
   [ -n "${SEALED_SECRETS_FILE:-}" ] || return 0
-  local live file new k
+  local live file gone new
   live=$(live_keys) || exit 1
   file=$(file_keys) || exit 1
   # The controller rewrites Secret.data from this file: a key of the live Secret
   # absent from encryptedData would be erased (MYSQL_ROOT_PASSWORD, SIGNING_SECRET...).
-  for k in $(comm -23 <(echo "$live") <(echo "$file")); do
-    echo "::error::$SEALED_SECRETS_FILE has no entry for live key $k: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md)."
+  gone=$(keys_not_in "$live" "$file")
+  if [ -n "$gone" ]; then
+    echo "::error::$SEALED_SECRETS_FILE has no entry for live key $gone: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md)."
     exit 1
-  done
-  new=$(comm -13 <(echo "$live") <(echo "$file") | paste -sd ' ' -)
+  fi
+  new=$(keys_not_in "$file" "$live")
   [ -n "$new" ] || return 0
   echo "trading-model-secrets lacks $new: applying $SEALED_SECRETS_FILE before the migrations"
   kubectl apply -n "$NS" -f "$SEALED_SECRETS_FILE"
   for _ in $(seq 1 "${SEALED_WAIT_TRIES:-30}"); do
     live=$(live_keys) || exit 1
-    new=$(comm -13 <(echo "$live") <(echo "$file") | paste -sd ' ' -)
+    new=$(keys_not_in "$file" "$live")
     [ -z "$new" ] && return 0
     sleep 2
   done

@@ -452,8 +452,8 @@ mm_dropped() {
 # Value of the first series of the instant PromQL query `$1`, empty when none.
 prometheus_value() {
 	$K -n "$NS" exec prometheus-0 -c prometheus -- \
-		wget -qO- "http://localhost:9090/api/v1/query?query=$(node -p 'encodeURIComponent(process.argv[1])' "$1")" |
-		node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8")).data.result;console.log(r.length?r[0].value[1]:"")'
+		wget -qO- "http://localhost:9090/api/v1/query?query=$(jq -rn --arg q "$1" '$q | @uri')" |
+		jq -r '.data.result[0].value[1] // empty'
 }
 
 # Number of up targets of a job: one per pod since the pod discovery (issue #559).
