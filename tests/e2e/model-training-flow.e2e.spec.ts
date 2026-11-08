@@ -108,6 +108,8 @@ describe("Model training flow E2E", () => {
 	});
 
 	it("lets a MODEL_DOWNLOAD_CALLERS service download the weights", () => {
+		// Test 1 sets `version`: fail here with the real cause if it did not.
+		expect(version).not.toBe("");
 		const { status, body } = meshRequest(
 			CALLER.scraper,
 			`${TRAINER}/models/${SYMBOL}/${version}/weights`
@@ -117,6 +119,8 @@ describe("Model training flow E2E", () => {
 	});
 
 	it("refuses the weights to a service that is not listed", () => {
+		// Test 1 sets `version`: fail here with the real cause if it did not.
+		expect(version).not.toBe("");
 		const { status } = meshRequest(
 			CALLER.message,
 			`${TRAINER}/models/${SYMBOL}/${version}/weights`
@@ -125,6 +129,8 @@ describe("Model training flow E2E", () => {
 	});
 
 	it("does not expose the weights through the gateway", async () => {
+		// Test 1 sets `version`: fail here with the real cause if it did not.
+		expect(version).not.toBe("");
 		const { status } = await externalRequest(
 			`/v1/trader-trainer/models/${SYMBOL}/${version}/weights`,
 			{ headers: AUTH }
