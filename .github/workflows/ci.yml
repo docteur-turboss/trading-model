@@ -162,6 +162,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MYSQL_ROOT_PASSWORD: ci-password
+      GRAFANA_PASSWORD: ci-grafana-password
       DLQ_AUTH_HMAC_SECRET: test-hmac-secret
       DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
     steps:

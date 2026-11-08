@@ -14,6 +14,7 @@ docker compose up -d
 Before the first `docker compose up`, set these variables in `.env` and replace their example values with your own secrets (`openssl rand -hex 32`):
 
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
+- `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 

@@ -24,6 +24,7 @@ cp .env.example .env
 Edit `.env` and replace the example values of these variables with your own secrets (`openssl rand -hex 32`):
 
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
+- `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated; you use one in Step 3
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 

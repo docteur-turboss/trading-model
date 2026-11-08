@@ -255,6 +255,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `DLQ_PORT`            | number | `8452`                  | Host port for dlq-service          | DC       |
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
+| `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
 | `IMAGE_TAG`           | string | `latest`                | Image tag to pull                  | DC       |
@@ -300,6 +301,7 @@ AUDIT_PORT=8450
 
 # MySQL
 MYSQL_ROOT_PASSWORD=changeme
+GRAFANA_PASSWORD=change-me-grafana-admin-password
 MYSQL_DATABASE=financial_scraper
 
 # Trader-Trainer
