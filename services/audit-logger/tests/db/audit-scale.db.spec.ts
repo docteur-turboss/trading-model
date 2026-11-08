@@ -26,8 +26,7 @@ describe("AuditRepository reads at scale — real MongoDB", () => {
 
 	it("should serve stats and an unfiltered page without scanning the collection", async () => {
 		const db = client.db(`audit-scale-${Date.now()}`);
-		const repository = new AuditRepository(db);
-		await repository.ensureIndexes();
+		await new AuditRepository(db).ensureIndexes();
 		const events = db.collection("audit_events");
 		for (let from = 0; from < EVENTS; from += BATCH) {
 			await events.insertMany(
@@ -51,6 +50,10 @@ describe("AuditRepository reads at scale — real MongoDB", () => {
 				})
 			);
 		}
+
+		// The warm-up of the first repository ran on an empty collection: boot a fresh one.
+		const repository = new AuditRepository(db);
+		await repository.ensureIndexes();
 
 		const [, aggregationMs] = await timed(() =>
 			events
