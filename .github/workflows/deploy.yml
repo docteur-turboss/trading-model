@@ -605,7 +605,8 @@ jobs:
           # The migrations job runs the released db-migrate image, by digest.
           digest=$(awk '$1 == "db-migrate" { print $2 }' "$RUNNER_TEMP/image-digests")
           # Both environments are served by a SealedSecret (issue #417): applied before the
-          # migrations when MYSQL_MIGRATE_PASSWORD is not in the live Secret yet.
+          # migrations when it has a key the live Secret lacks (MYSQL_MIGRATE_PASSWORD, the
+          # exporter passwords...), then waited for: issue #698.
           if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
           MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \

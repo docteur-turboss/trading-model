@@ -209,18 +209,30 @@ release_script() {
 		bash deploy/k8s/scripts/deploy-release.sh "$@")
 }
 
-# The migrations of the checkout `$1`, through its own run-migrations.sh.
+# The migrations of the checkout `$1`, through its own run-migrations.sh. For
+# release N, the Secret of ci-render.mjs stands in for the SealedSecret file
+# deploy.yml passes: its new keys are applied before the Jobs (issue #698).
 migrations() {
+	local sealed=""
+	if [ "$1" = "$ROOT" ]; then
+		sealed="$WORK/secret.yaml"
+		node "$ROOT/tests/k8s/ci-render.mjs" --secret >"$sealed" || return 1
+	fi
 	(cd "$1" && use_kube &&
-		SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
+		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
 }
 
 # The overlay of the checkout `$1`, pinned to the digests of file `$2` as
 # deploy.yml's "Apply overlay", adapted to kind by ci-render.mjs.
+# Release N-1 runs as if it predated the exporter keys (ADR-0056): they are
+# dropped from its Secret and its exporters read another key, so N adds the
+# keys and restarts the database pods, as a real upgrade to 3.1.0 (issue #698).
 apply_release() {
 	local rendered
 	rendered="$(release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" |
 		node "$ROOT/tests/k8s/ci-render.mjs")" || return 1
+	[ "$1" != "$PREVIOUS" ] || rendered="$(sed -E -e '/^  (MYSQL|REDIS)_EXPORTER_PASSWORD: /d' \
+		-e 's/key: (MYSQL|REDIS)_EXPORTER_PASSWORD$/key: \1_EXPORTER_PASSWORD_BEFORE_ADR_0056/' <<<"$rendered")"
 	if [ ! -f "$WORK/app.kubeconfig" ]; then
 		echo "$rendered" | $K apply -f -
 		return
@@ -312,6 +324,10 @@ upgrade() {
 		log "release N-1 applied no migration"
 		return 1
 	}
+	[ "$(exporter_users)" = 0 ] || {
+		log "release N-1 already has the MySQL exporter user: the upgrade would not prove issue #698"
+		return 1
+	}
 
 	log "upgrade N-1 → N with a forced failure: api-gateway pinned to a digest that does not exist"
 	sed 's/^api-gateway .*/api-gateway sha256:0000000000000000000000000000000000000000000000000000000000000000/' \
@@ -324,6 +340,15 @@ upgrade() {
 	log "  the upgrade failed: rollback on failure (deploy-release.sh rollback)"
 	release_script rollback "$NS" "$WORK/revisions"
 	release_script wait "$NS" 300s
+	# The first N-1 → N attempt ran db-migrate-user once, before the overlay that
+	# brings the exporter keys: the user exists only if their SealedSecret was
+	# applied before the Job (issue #698). MySQL stays on N (not rolled back).
+	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
+	[ "$(exporter_users)" = 1 ] || {
+		log "no MySQL exporter user after the first upgrade attempt: run-migrations.sh did not apply the new Secret keys before db-migrate-user"
+		return 1
+	}
+	log "  MySQL exporter user created before the overlay restarted MySQL"
 
 	local dep template expected
 	while read -r dep template; do
@@ -391,6 +416,14 @@ upgrade() {
 		log "the upgrade to release N failed"
 		return 1
 	}
+	# Every exporter reaches its database, so neither MySQLDown nor RedisDown
+	# (critical, verify-release rolls back on them) fires (issue #698).
+	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = 1, no MySQLDown / RedisDown"
+	wait_for 180 '[ "$(prometheus_value "min(mysql_up)")" = 1 ] && [ "$(prometheus_value "min(redis_up)")" = 1 ] &&
+		[ -z "$(prometheus_value "ALERTS{alertname=~\"MySQLDown|RedisDown\"}")" ]' || {
+		log "  min(mysql_up)=$(prometheus_value 'min(mysql_up)') min(redis_up)=$(prometheus_value 'min(redis_up)')"
+		return 1
+	}
 	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up in $((SECONDS - started)) s"
 	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
 		echo "Upgrade N-1 → N with forced failure and rollback: $((SECONDS - started)) s" >>"$GITHUB_STEP_SUMMARY"
@@ -416,10 +449,23 @@ mm_dropped() {
 		grep -c "Message dropped: no subscriber for its topic" || true
 }
 
+# Value of the first series of the instant PromQL query `$1`, empty when none.
+prometheus_value() {
+	$K -n "$NS" exec prometheus-0 -c prometheus -- \
+		wget -qO- "http://localhost:9090/api/v1/query?query=$(jq -rn --arg q "$1" '$q | @uri')" |
+		jq -r '.data.result[0].value[1] // empty'
+}
+
 # Number of up targets of a job: one per pod since the pod discovery (issue #559).
 prometheus_up_count() {
-	$K -n "$NS" exec prometheus-0 -c prometheus -- 		wget -qO- "http://localhost:9090/api/v1/query?query=count(up%7Bjob%3D%22$1%22%7D%3D%3D1)" |
-		node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8")).data.result;console.log(r.length?r[0].value[1]:0)'
+	local n
+	n="$(prometheus_value "count(up{job=\"$1\"}==1)")"
+	echo "${n:-0}"
+}
+
+# MySQL accounts named `exporter` (ADR-0056, created by db-migrate-user).
+exporter_users() {
+	mysql_root "SELECT COUNT(*) FROM mysql.user WHERE user='exporter'"
 }
 
 # Every configured job must have active targets, all up: a scrape pool Prometheus
