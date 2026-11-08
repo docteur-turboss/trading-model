@@ -1,9 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const mockToArray = jest.fn();
-const mockDeleteMany = jest.fn();
-const mockFind = jest.fn(() => ({ toArray: mockToArray }));
-const mockCollection = jest.fn(() => ({
+const mockToArray = jest.fn<(...args: any[]) => any>();
+const mockDeleteMany = jest.fn<(...args: any[]) => any>();
+const mockFind = jest.fn((..._args: any[]) => ({ toArray: mockToArray }));
+const mockCollection = jest.fn((..._args: any[]) => ({
 	find: mockFind,
 	deleteMany: mockDeleteMany,
 }));

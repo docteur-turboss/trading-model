@@ -6,6 +6,10 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type {
+	Percentage,
+	PositiveInt,
+} from "@trading-model/primitives/primitives";
 import { Cash, Price, Volume } from "@trading-model/primitives/primitives";
 import type { TradingAgentConfig } from "../../../src/domain/agent/trading-agent";
 import { TradingAgent } from "../../../src/domain/agent/trading-agent";
@@ -23,14 +27,14 @@ function makeConfig(
 	return {
 		nnConfig: {
 			// 4 market features + the agent state (exposure)
-			neuronsByLayer: [5, 6, 3],
+			neuronsByLayer: [5 as PositiveInt, 6 as PositiveInt, 3 as PositiveInt],
 			activationType: [ActivationType.Relu, ActivationType.Sigmoid],
 			initialisationType: InitialisationType.Zeros,
 			normalisationType: NormalisationType.None,
 			connectionType: ConnectionType.FullyConnected,
-			learningRate: 0.01,
+			learningRate: 0.01 as Percentage,
 			enablePool: true,
-			poolMaxSize: 100,
+			poolMaxSize: 100 as PositiveInt,
 		},
 		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(100) },
 		tradeAmount: Volume.of(1),
@@ -38,7 +42,6 @@ function makeConfig(
 			epsilonStart: 0,
 			epsilonMin: 0,
 			epsilonDecay: 0.995,
-			gamma: 0.99,
 		},
 		...overrides,
 	};
@@ -95,7 +98,6 @@ describe("TradingAgent", () => {
 						epsilonStart: 1.0,
 						epsilonMin: 0.01,
 						epsilonDecay: 0.995,
-						gamma: 0.99,
 					},
 				})
 			);
@@ -117,7 +119,7 @@ describe("TradingAgent", () => {
 			const result = agent.mapOutputToAction(output);
 
 			expect(result.action).toBe("sell");
-			expect(result.outputIndex).toBe(0);
+			expect((result as { outputIndex?: number }).outputIndex).toBe(0);
 		});
 
 		it("should map index 1 to hold", () => {
@@ -134,7 +136,7 @@ describe("TradingAgent", () => {
 			const result = agent.mapOutputToAction(output);
 
 			expect(result.action).toBe("buy");
-			expect(result.outputIndex).toBe(2);
+			expect((result as { outputIndex?: number }).outputIndex).toBe(2);
 		});
 
 		it("should use tradeAmount from config for discrete actions", () => {
@@ -144,7 +146,13 @@ describe("TradingAgent", () => {
 			const output = new Float32Array([0.0, 0.0, 1.0]);
 
 			const result = agentWithAmount.mapOutputToAction(output, {
-				nnConfig: { neuronsByLayer: [5, 6, 3] },
+				nnConfig: {
+					neuronsByLayer: [
+						5 as PositiveInt,
+						6 as PositiveInt,
+						3 as PositiveInt,
+					],
+				},
 				tradeAmount: Volume.of(5),
 			});
 
@@ -227,7 +235,6 @@ describe("TradingAgent", () => {
 						epsilonStart: 1.0,
 						epsilonMin: 0.01,
 						epsilonDecay: 0.995,
-						gamma: 0.99,
 					},
 				})
 			);

@@ -14,7 +14,9 @@ const MOCK_SCHEDULER_INSTANCE = {
 };
 
 jest.mock("../../src/infrastructure/scheduler/scheduler", () => ({
-	Scheduler: jest.fn().mockImplementation(() => MOCK_SCHEDULER_INSTANCE),
+	Scheduler: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => MOCK_SCHEDULER_INSTANCE),
 }));
 
 function createMockOptions(): jest.Mocked<SteadyStateSchedulerOptions> {

@@ -11,14 +11,18 @@ import {
 } from "@trading-model/primitives/primitives";
 
 jest.mock("p-limit", () =>
-	jest.fn(() => (fn: (...args: unknown[]) => unknown) => fn())
+	jest.fn(
+		(..._args: any[]) =>
+			(fn: (...args: unknown[]) => unknown) =>
+				fn()
+	)
 );
 
 const mockLog = {
-	debug: jest.fn(),
-	info: jest.fn(),
-	warn: jest.fn(),
-	error: jest.fn(),
+	debug: jest.fn<(...args: any[]) => any>(),
+	info: jest.fn<(...args: any[]) => any>(),
+	warn: jest.fn<(...args: any[]) => any>(),
+	error: jest.fn<(...args: any[]) => any>(),
 };
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => mockLog,
@@ -149,11 +153,11 @@ describe("WorkerOrchestrator", () => {
 		results = [];
 		steps = [];
 		backlog = new FakeBacklog();
-		fetchSnapshot = jest.fn(async () => {
+		fetchSnapshot = jest.fn(async (..._args: any[]) => {
 			steps.push("fetch");
 			return results.shift() ?? { candles: [], fetchedAt: 0 };
 		});
-		publish = jest.fn(async () => {
+		publish = jest.fn(async (..._args: any[]) => {
 			steps.push("publish");
 			return [];
 		});

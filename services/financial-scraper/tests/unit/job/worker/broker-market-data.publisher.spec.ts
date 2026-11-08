@@ -5,21 +5,23 @@ import { toSymbol } from "@trading-model/primitives/primitives";
 jest.mock("../../../../src/config/message-manager", () => ({
 	MessageManager: {
 		post: {
-			indirect: jest.fn(),
+			indirect: jest.fn<(...args: any[]) => any>(),
 		},
 	},
 }));
 
-const MOCK_SET_DELIVERY = jest.fn<any>().mockReturnThis();
-const MOCK_METADATA_BUILDER_CTOR = jest.fn<any>().mockReturnValue({
-	setDelivery: MOCK_SET_DELIVERY,
-	setEventType: jest.fn().mockReturnThis(),
-	setTopic: jest.fn().mockReturnThis(),
-	setSecurity: jest.fn().mockReturnThis(),
-	setIds: jest.fn().mockReturnThis(),
-	setPublisher: jest.fn().mockReturnThis(),
-	toJSON: jest.fn().mockReturnValue({}),
-});
+const MOCK_SET_DELIVERY = jest.fn<(...args: any[]) => any>().mockReturnThis();
+const MOCK_METADATA_BUILDER_CTOR = jest
+	.fn<(...args: any[]) => any>()
+	.mockReturnValue({
+		setDelivery: MOCK_SET_DELIVERY,
+		setEventType: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+		setTopic: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+		setSecurity: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+		setIds: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+		setPublisher: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+		toJSON: jest.fn<(...args: any[]) => any>().mockReturnValue({}),
+	});
 
 jest.mock("@trading-model/broker-message", () => ({
 	HELPER: {

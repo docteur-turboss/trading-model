@@ -6,8 +6,17 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-
 import type { LoggerPort } from "@trading-model/contracts/logger-registry";
+import type { Protocol } from "@trading-model/contracts/service-registry-types";
+import type {
+	DurationMs,
+	InstanceId,
+	IPAddress,
+	Port,
+	ServiceId,
+	UnixTimestamp,
+	Version,
+} from "@trading-model/primitives/primitives";
 
 const mockTimerStartInterval = jest.fn();
 const mockTimerStop = jest.fn();
@@ -48,15 +57,15 @@ function makeLogger(): LoggerPort {
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
-		serviceName: "financial-scraper-service",
-		instanceId: "test-instance-1",
-		host: "192.168.1.10",
-		port: 8444,
-		version: "1.0.0",
-		ttl: 30_000,
-		protocol: "mtls",
-		registeredAt: Date.now() - 1000,
-		lastHeartbeat: Date.now() - 500,
+		serviceName: "financial-scraper-service" as ServiceId,
+		instanceId: "test-instance-1" as InstanceId,
+		host: "192.168.1.10" as IPAddress,
+		port: 8444 as Port,
+		version: "1.0.0" as Version,
+		ttl: 30_000 as DurationMs,
+		protocol: "mtls" as unknown as Protocol,
+		registeredAt: (Date.now() - 1000) as UnixTimestamp,
+		lastHeartbeat: (Date.now() - 500) as UnixTimestamp,
 		...overrides,
 	};
 }
@@ -82,7 +91,7 @@ describe("StaleInstanceCleaner", () => {
 			},
 		};
 
-		cleaner = new StaleInstanceCleaner(deps, intervalMs);
+		cleaner = new StaleInstanceCleaner(deps, intervalMs as DurationMs);
 	});
 
 	describe("constructor", () => {
@@ -152,9 +161,9 @@ describe("StaleInstanceCleaner", () => {
 	describe("cleanupNow", () => {
 		it("should run cleanup immediately", async () => {
 			const expired = makeInstance({
-				instanceId: "expired-1",
-				lastHeartbeat: Date.now() - 100000,
-				ttl: 5000,
+				instanceId: "expired-1" as InstanceId,
+				lastHeartbeat: (Date.now() - 100000) as UnixTimestamp,
+				ttl: 5000 as DurationMs,
 			});
 			deps.listServiceNames.mockResolvedValue([
 				"financial-scraper-service" as ServiceInstanceName,
@@ -176,7 +185,10 @@ describe("StaleInstanceCleaner", () => {
 				"financial-scraper-service" as ServiceInstanceName,
 			]);
 			deps.getInstances.mockResolvedValue([
-				makeInstance({ lastHeartbeat: Date.now() - 100000, ttl: 5000 }),
+				makeInstance({
+					lastHeartbeat: (Date.now() - 100000) as UnixTimestamp,
+					ttl: 5000 as DurationMs,
+				}),
 			]);
 			deps.removeInstance.mockImplementation(async () => {
 				order.push("remove");

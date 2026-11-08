@@ -4,97 +4,118 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: {
-		createWithTls: jest.fn<any>().mockReturnValue({
-			get: jest.fn<any>(),
-			post: jest.fn<any>(),
+		createWithTls: jest.fn<(...args: any[]) => any>().mockReturnValue({
+			get: jest.fn<(...args: any[]) => any>(),
+			post: jest.fn<(...args: any[]) => any>(),
 		}),
 	},
 }));
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		info: jest.fn<any>(),
-		warn: jest.fn<any>(),
-		error: jest.fn<any>(),
-		debug: jest.fn<any>(),
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
 jest.mock("@trading-model/common/utils/sleep", () => ({
-	sleep: jest.fn<any>().mockResolvedValue(undefined),
+	sleep: jest.fn<(...args: any[]) => any>().mockResolvedValue(undefined),
 }));
 
 jest.mock("prom-client", () => ({
-	Counter: jest
-		.fn<any>()
-		.mockReturnValue({ inc: jest.fn<any>(), reset: jest.fn<any>() }),
-	Histogram: jest
-		.fn<any>()
-		.mockReturnValue({ observe: jest.fn<any>(), reset: jest.fn<any>() }),
-	Gauge: jest
-		.fn<any>()
-		.mockReturnValue({ set: jest.fn<any>(), reset: jest.fn<any>() }),
+	Counter: jest.fn<(...args: any[]) => any>().mockReturnValue({
+		inc: jest.fn<(...args: any[]) => any>(),
+		reset: jest.fn<(...args: any[]) => any>(),
+	}),
+	Histogram: jest.fn<(...args: any[]) => any>().mockReturnValue({
+		observe: jest.fn<(...args: any[]) => any>(),
+		reset: jest.fn<(...args: any[]) => any>(),
+	}),
+	Gauge: jest.fn<(...args: any[]) => any>().mockReturnValue({
+		set: jest.fn<(...args: any[]) => any>(),
+		reset: jest.fn<(...args: any[]) => any>(),
+	}),
 	register: {
-		clear: jest.fn<any>(),
+		clear: jest.fn<(...args: any[]) => any>(),
 		contentType: "text/plain",
-		metrics: jest.fn<any>().mockResolvedValue("metrics data"),
+		metrics: jest
+			.fn<(...args: any[]) => any>()
+			.mockResolvedValue("metrics data"),
 	},
 }));
 
 const MOCK_ADDRESS_MANAGER_CLIENT = (() => {
 	const impl = {
-		registerService: jest.fn<any>().mockResolvedValue({ token: "test-token" }),
-		refreshTTL: jest.fn<any>().mockResolvedValue(undefined),
-		unregisterService: jest.fn<any>().mockResolvedValue(undefined),
-		hasIpChanged: jest.fn<any>().mockReturnValue(false),
+		registerService: jest
+			.fn<(...args: any[]) => any>()
+			.mockResolvedValue({ token: "test-token" }),
+		refreshTTL: jest.fn<(...args: any[]) => any>().mockResolvedValue(undefined),
+		unregisterService: jest
+			.fn<(...args: any[]) => any>()
+			.mockResolvedValue(undefined),
+		hasIpChanged: jest.fn<(...args: any[]) => any>().mockReturnValue(false),
 	};
 	return impl;
 })();
 jest.mock("../../src/adapters/outbound/client/address-manager-client", () => ({
 	AddressManagerClient: jest
-		.fn<any>()
+		.fn<(...args: any[]) => any>()
 		.mockReturnValue(MOCK_ADDRESS_MANAGER_CLIENT),
 }));
 
 const MOCK_TOKEN_MANAGER = (() => {
 	const impl = {
-		getTokenOrUndefined: jest.fn<any>().mockReturnValue(undefined),
-		getToken: jest.fn<any>().mockReturnValue("tok"),
-		refreshToken: jest.fn<any>().mockResolvedValue(undefined),
-		setToken: jest.fn<any>(),
-		clearToken: jest.fn<any>(),
+		getTokenOrUndefined: jest
+			.fn<(...args: any[]) => any>()
+			.mockReturnValue(undefined),
+		getToken: jest.fn<(...args: any[]) => any>().mockReturnValue("tok"),
+		refreshToken: jest
+			.fn<(...args: any[]) => any>()
+			.mockResolvedValue(undefined),
+		setToken: jest.fn<(...args: any[]) => any>(),
+		clearToken: jest.fn<(...args: any[]) => any>(),
 	};
 	return impl;
 })();
 jest.mock("../../src/application/client/token-manager", () => ({
-	TokenManager: jest.fn<any>().mockReturnValue(MOCK_TOKEN_MANAGER),
+	TokenManager: jest
+		.fn<(...args: any[]) => any>()
+		.mockReturnValue(MOCK_TOKEN_MANAGER),
 }));
 
 jest.mock("../../src/adapters/outbound/discovery/service-cache", () => ({
-	ServiceCache: jest.fn<any>().mockReturnValue({
-		get: jest.fn<any>(),
-		set: jest.fn<any>(),
-		delete: jest.fn<any>(),
-		clear: jest.fn<any>(),
-		entries: jest.fn<any>().mockResolvedValue([]),
-		close: jest.fn<any>(),
+	ServiceCache: jest.fn<(...args: any[]) => any>().mockReturnValue({
+		get: jest.fn<(...args: any[]) => any>(),
+		set: jest.fn<(...args: any[]) => any>(),
+		delete: jest.fn<(...args: any[]) => any>(),
+		clear: jest.fn<(...args: any[]) => any>(),
+		entries: jest.fn<(...args: any[]) => any>().mockResolvedValue([]),
+		close: jest.fn<(...args: any[]) => any>(),
 		circuitStateStore: {
-			setCircuitState: jest.fn<any>().mockResolvedValue(undefined),
-			getCircuitState: jest.fn<any>().mockResolvedValue(null),
-			deleteCircuitState: jest.fn<any>().mockResolvedValue(undefined),
+			setCircuitState: jest
+				.fn<(...args: any[]) => any>()
+				.mockResolvedValue(undefined),
+			getCircuitState: jest
+				.fn<(...args: any[]) => any>()
+				.mockResolvedValue(null),
+			deleteCircuitState: jest
+				.fn<(...args: any[]) => any>()
+				.mockResolvedValue(undefined),
 		},
 	}),
 }));
 
 jest.mock("../../src/application/discovery/service-discovery", () => ({
-	ServiceDiscovery: jest.fn<any>().mockReturnValue({
-		findService: jest.fn<any>().mockResolvedValue({
+	ServiceDiscovery: jest.fn<(...args: any[]) => any>().mockReturnValue({
+		findService: jest.fn<(...args: any[]) => any>().mockResolvedValue({
 			host: "127.0.0.1",
 			port: 8080,
 			instanceId: "i-1",
 			serviceName: "test-service",
 		}),
-		findAllServices: jest.fn<any>().mockResolvedValue([
+		findAllServices: jest.fn<(...args: any[]) => any>().mockResolvedValue([
 			{
 				host: "127.0.0.1",
 				port: 8080,
@@ -108,10 +129,10 @@ jest.mock("../../src/application/discovery/service-discovery", () => ({
 jest.mock(
 	"../../src/adapters/outbound/discovery/service-health-checker",
 	() => ({
-		ServiceHealthChecker: jest.fn<any>().mockReturnValue({
-			isHealthy: jest.fn<any>().mockResolvedValue(true),
+		ServiceHealthChecker: jest.fn<(...args: any[]) => any>().mockReturnValue({
+			isHealthy: jest.fn<(...args: any[]) => any>().mockResolvedValue(true),
 			locate: jest.fn((instance: { host: string }) => instance.host),
-			recordLatency: jest.fn<any>(),
+			recordLatency: jest.fn<(...args: any[]) => any>(),
 		}),
 	})
 );
@@ -248,8 +269,8 @@ describe("AddressManager (main)", () => {
 	it("should listen on express app", () => {
 		const am = new AddressManager(makeConfig());
 		const app = {
-			use: jest.fn<any>(),
-			get: jest.fn<any>(),
+			use: jest.fn<(...args: any[]) => any>(),
+			get: jest.fn<(...args: any[]) => any>(),
 			locals: {} as Record<string, unknown>,
 		};
 		am.metricsCollector.listenExpress(app as any);

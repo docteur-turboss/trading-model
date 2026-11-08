@@ -9,29 +9,31 @@ import {
 import { EVENT_MANAGER } from "../../src/application/services/event-manager-client";
 
 const MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE = {
-	subscribe: jest.fn(),
-	unsubscribe: jest.fn(),
-	publishDirectMessage: jest.fn(),
-	publish: jest.fn(),
+	subscribe: jest.fn<(...args: any[]) => any>(),
+	unsubscribe: jest.fn<(...args: any[]) => any>(),
+	publishDirectMessage: jest.fn<(...args: any[]) => any>(),
+	publish: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("../../src/adapters/outbound/message-manager-client", () => ({
 	MessageManagerClient: jest
-		.fn()
+		.fn<(...args: any[]) => any>()
 		.mockImplementation(() => MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE),
 }));
 
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: Object.assign(
-		jest.fn().mockImplementation(() => ({})),
-		{ createWithTls: jest.fn(() => ({})) }
+		jest.fn<(...args: any[]) => any>().mockImplementation(() => ({})),
+		{ createWithTls: jest.fn((..._args: any[]) => ({})) }
 	),
 }));
 
-const MOCK_CREATE_CALLBACK_ROUTE = jest.fn();
+const MOCK_CREATE_CALLBACK_ROUTE = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/adapters/inbound/messages.routes", () => ({
-	CREATE_CALLBACK_ROUTE: jest.fn(() => MOCK_CREATE_CALLBACK_ROUTE),
+	CREATE_CALLBACK_ROUTE: jest.fn(
+		(..._args: any[]) => MOCK_CREATE_CALLBACK_ROUTE
+	),
 }));
 
 import { SUBSCRIPTION_REFRESH_MS } from "../../src/application/services/broker-message";
@@ -47,7 +49,7 @@ describe("BrokerMessage", () => {
 			keyPath: "/path/to/key.pem",
 		},
 		instanceId: "550e8400-e29b-41d4-a716-446655440000",
-		addressManagerClient: { findService: jest.fn() },
+		addressManagerClient: { findService: jest.fn<(...args: any[]) => any>() },
 		serviceName: "MessageDeliveryService",
 	};
 
@@ -134,10 +136,10 @@ describe("BrokerMessage", () => {
 		});
 
 		it("should call kill functions from event array", async () => {
-			const killFn = jest.fn();
-			EVENT_MANAGER.on("example.debug.create" as any, killFn);
+			const killFn = jest.fn<(...args: any[]) => any>();
+			EVENT_MANAGER.on("example.debug.create" as never as any, killFn);
 			broker = new BrokerMessage(defaultParams);
-			broker.on("example.debug.create", killFn);
+			broker.on("example.debug.create" as never, killFn);
 			await broker.stopMessageManager();
 		});
 
@@ -153,23 +155,23 @@ describe("BrokerMessage", () => {
 
 	describe("on", () => {
 		it("should register an event listener and trigger on emit", () => {
-			const listener = jest.fn();
-			broker.on("example.debug.create", listener);
-			EVENT_MANAGER.emit("example.debug.create", { debug: true });
+			const listener = jest.fn<(...args: any[]) => any>();
+			broker.on("example.debug.create" as never, listener);
+			(EVENT_MANAGER as any).emit("example.debug.create", { debug: true });
 			expect(listener).toHaveBeenCalledWith({ debug: true });
 		});
 
 		it("should trigger listener when event is emitted", () => {
-			const listener = jest.fn();
-			broker.on("example.debug.create", listener);
-			EVENT_MANAGER.emit("example.debug.create", { debug: true });
+			const listener = jest.fn<(...args: any[]) => any>();
+			broker.on("example.debug.create" as never, listener);
+			(EVENT_MANAGER as any).emit("example.debug.create", { debug: true });
 			expect(listener).toHaveBeenCalledWith({ debug: true });
 		});
 	});
 
 	describe("listenExpress", () => {
 		it("should call app.use with CreateCallbackRoute result", () => {
-			const app = { use: jest.fn() };
+			const app = { use: jest.fn<(...args: any[]) => any>() };
 			broker.listenExpress(app as any);
 			expect(app.use).toHaveBeenCalledWith(MOCK_CREATE_CALLBACK_ROUTE);
 		});

@@ -37,13 +37,13 @@ jest.mock("../../src/adapters/outbound/http-client-manager", () => ({
 	closeHttpClient: () => Promise.resolve(),
 }));
 jest.mock("../../src/adapters/outbound/audit-notifier", () => ({
-	notifyAddAudit: jest.fn(),
-	notifyReplayAudit: jest.fn(),
-	notifyDeleteAudit: jest.fn(),
+	notifyAddAudit: jest.fn<(...args: any[]) => any>(),
+	notifyReplayAudit: jest.fn<(...args: any[]) => any>(),
+	notifyDeleteAudit: jest.fn<(...args: any[]) => any>(),
 }));
 jest.mock("../../src/config/address-manager", () => ({
 	AddressManager: {},
-	FIND_A_SERVICE: jest.fn(),
+	FIND_A_SERVICE: jest.fn<(...args: any[]) => any>(),
 }));
 
 import {

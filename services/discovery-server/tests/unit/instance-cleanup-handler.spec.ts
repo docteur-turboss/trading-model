@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const mockSrem = jest.fn();
-const mockDel = jest.fn();
-const mockExec = jest.fn();
-const mockMulti = jest.fn(() => ({
+const mockSrem = jest.fn<(...args: any[]) => any>();
+const mockDel = jest.fn<(...args: any[]) => any>();
+const mockExec = jest.fn<(...args: any[]) => any>();
+const mockMulti = jest.fn((..._args: any[]) => ({
 	srem: mockSrem,
 	del: mockDel,
 	exec: mockExec,

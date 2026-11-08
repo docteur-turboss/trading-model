@@ -4,10 +4,10 @@ import type { Mock } from "jest-mock";
 
 jest.mock("../../src/adapters/outbound/persistence/market-data.model", () => ({
 	MarketDataModel: {
-		insertCandles: jest.fn(),
-		insertTrades: jest.fn(),
-		insertOrderBook: jest.fn(),
-		insertTicker: jest.fn(),
+		insertCandles: jest.fn<(...args: any[]) => any>(),
+		insertTrades: jest.fn<(...args: any[]) => any>(),
+		insertOrderBook: jest.fn<(...args: any[]) => any>(),
+		insertTicker: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 

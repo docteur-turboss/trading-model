@@ -10,18 +10,20 @@ describe("EVENT_MANAGER", () => {
 
 	describe("on", () => {
 		it("should register a listener for an event", () => {
-			const callback = jest.fn();
+			const callback = jest.fn<(...args: any[]) => any>();
 
-			EVENT_MANAGER.on("example.debug.create", callback);
+			EVENT_MANAGER.on("example.debug.create" as never, callback);
 
-			(EVENT_MANAGER as any).emit("example.debug.create", { debug: true });
+			(EVENT_MANAGER as any).emit("example.debug.create" as never, {
+				debug: true,
+			});
 
 			expect(callback).toHaveBeenCalledWith({ debug: true });
 		});
 
 		it("should register multiple listeners for the same event", () => {
-			const callback1 = jest.fn();
-			const callback2 = jest.fn();
+			const callback1 = jest.fn<(...args: any[]) => any>();
+			const callback2 = jest.fn<(...args: any[]) => any>();
 
 			(EVENT_MANAGER as any).on("test.event", callback1);
 			(EVENT_MANAGER as any).on("test.event", callback2);
@@ -33,7 +35,7 @@ describe("EVENT_MANAGER", () => {
 		});
 
 		it("should return an unsubscribe function", () => {
-			const callback = jest.fn();
+			const callback = jest.fn<(...args: any[]) => any>();
 
 			const unsubscribe = (EVENT_MANAGER as any).on("test.event", callback);
 
@@ -49,7 +51,7 @@ describe("EVENT_MANAGER", () => {
 
 	describe("off", () => {
 		it("should remove a listener from an event", () => {
-			const callback = jest.fn();
+			const callback = jest.fn<(...args: any[]) => any>();
 
 			(EVENT_MANAGER as any).on("test.event", callback);
 			(EVENT_MANAGER as any).off("test.event", callback);
@@ -60,8 +62,8 @@ describe("EVENT_MANAGER", () => {
 		});
 
 		it("should only remove the specified listener", () => {
-			const callback1 = jest.fn();
-			const callback2 = jest.fn();
+			const callback1 = jest.fn<(...args: any[]) => any>();
+			const callback2 = jest.fn<(...args: any[]) => any>();
 
 			(EVENT_MANAGER as any).on("test.event", callback1);
 			(EVENT_MANAGER as any).on("test.event", callback2);
@@ -77,8 +79,8 @@ describe("EVENT_MANAGER", () => {
 
 	describe("emit", () => {
 		it("should call all listeners for an event", () => {
-			const callback1 = jest.fn();
-			const callback2 = jest.fn();
+			const callback1 = jest.fn<(...args: any[]) => any>();
+			const callback2 = jest.fn<(...args: any[]) => any>();
 
 			(EVENT_MANAGER as any).on("test.event", callback1);
 			(EVENT_MANAGER as any).on("test.event", callback2);
@@ -91,8 +93,8 @@ describe("EVENT_MANAGER", () => {
 		});
 
 		it("should not call listeners for other events", () => {
-			const callback1 = jest.fn();
-			const callback2 = jest.fn();
+			const callback1 = jest.fn<(...args: any[]) => any>();
+			const callback2 = jest.fn<(...args: any[]) => any>();
 
 			(EVENT_MANAGER as any).on("event.a", callback1);
 			(EVENT_MANAGER as any).on("event.b", callback2);
@@ -110,10 +112,10 @@ describe("EVENT_MANAGER", () => {
 		});
 
 		it("should support void events (no data)", () => {
-			const callback = jest.fn();
+			const callback = jest.fn<(...args: any[]) => any>();
 
-			EVENT_MANAGER.on("example.show.create", callback);
-			EVENT_MANAGER.emit("example.show.create");
+			EVENT_MANAGER.on("example.show.create" as never, callback);
+			EVENT_MANAGER.emit("example.show.create" as never);
 
 			expect(callback).toHaveBeenCalled();
 		});
@@ -121,7 +123,7 @@ describe("EVENT_MANAGER", () => {
 
 	describe("Listener lifecycle", () => {
 		it("should handle rapid subscribe/unsubscribe cycles", () => {
-			const callback = jest.fn();
+			const callback = jest.fn<(...args: any[]) => any>();
 
 			for (let i = 0; i < 5; i++) {
 				const unsubscribe = (EVENT_MANAGER as any).on("test.event", callback);
@@ -133,10 +135,10 @@ describe("EVENT_MANAGER", () => {
 		});
 
 		it("should handle errors in listener callbacks gracefully", () => {
-			const errorCallback = jest.fn(() => {
+			const errorCallback = jest.fn((..._args: any[]) => {
 				throw new Error("Listener error");
 			});
-			const normalCallback = jest.fn();
+			const normalCallback = jest.fn<(...args: any[]) => any>();
 
 			(EVENT_MANAGER as any).on("error.event", errorCallback);
 			(EVENT_MANAGER as any).on("error.event", normalCallback);

@@ -3,20 +3,20 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 jest.mock(
 	"@trading-model/server-utils/adapters/inbound/service-server-factory",
 	() => ({
-		createServiceServer: jest.fn(),
+		createServiceServer: jest.fn<(...args: any[]) => any>(),
 	})
 );
 
 jest.mock("../../src/adapters/inbound/http/heartbeat.routes", () => ({
-	HEARTBEAT_ROUTES: jest.fn(),
+	HEARTBEAT_ROUTES: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/adapters/inbound/http/register.routes", () => ({
-	REGISTRY_ROUTES: jest.fn(),
+	REGISTRY_ROUTES: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/infrastructure/monitoring/metrics", () => ({
-	metricsHandler: jest.fn(),
+	metricsHandler: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -39,8 +39,8 @@ describe("createServer", () => {
 	it("should create a secure server with full config", () => {
 		const { createServiceServer } = jest.requireMock(
 			"@trading-model/server-utils/adapters/inbound/service-server-factory"
-		) as { createServiceServer: jest.Mock };
-		const mockServer = { close: jest.fn() };
+		) as { createServiceServer: jest.Mock<(...args: any[]) => any> };
+		const mockServer = { close: jest.fn<(...args: any[]) => any>() };
 		createServiceServer.mockReturnValue(mockServer);
 
 		const result = createServer({} as ServiceRegistry);
@@ -61,28 +61,34 @@ describe("createServer", () => {
 	it("should register heartbeat and registry routes", () => {
 		const { createServiceServer } = jest.requireMock(
 			"@trading-model/server-utils/adapters/inbound/service-server-factory"
-		) as { createServiceServer: jest.Mock };
+		) as { createServiceServer: jest.Mock<(...args: any[]) => any> };
 		const { HEARTBEAT_ROUTES } = jest.requireMock(
 			"../../src/adapters/inbound/http/heartbeat.routes"
 		) as {
-			HEARTBEAT_ROUTES: jest.Mock;
+			HEARTBEAT_ROUTES: jest.Mock<(...args: any[]) => any>;
 		};
 		const { REGISTRY_ROUTES } = jest.requireMock(
 			"../../src/adapters/inbound/http/register.routes"
 		) as {
-			REGISTRY_ROUTES: jest.Mock;
+			REGISTRY_ROUTES: jest.Mock<(...args: any[]) => any>;
 		};
 
-		const app = { use: jest.fn(), get: jest.fn() };
+		const app = {
+			use: jest.fn<(...args: any[]) => any>(),
+			get: jest.fn<(...args: any[]) => any>(),
+		};
 		createServiceServer.mockImplementation(((opts: {
-			routes: (app: { use: jest.Mock }) => void;
+			routes: (app: { use: jest.Mock<(...args: any[]) => any> }) => void;
 		}) => {
 			opts.routes(app);
-			return { close: jest.fn() };
+			return { close: jest.fn<(...args: any[]) => any>() };
 		}) as unknown as (...args: unknown[]) => unknown);
 
-		const hrRouter = { post: jest.fn() };
-		const rrRouter = { post: jest.fn(), get: jest.fn() };
+		const hrRouter = { post: jest.fn<(...args: any[]) => any>() };
+		const rrRouter = {
+			post: jest.fn<(...args: any[]) => any>(),
+			get: jest.fn<(...args: any[]) => any>(),
+		};
 		HEARTBEAT_ROUTES.mockReturnValue(hrRouter);
 		REGISTRY_ROUTES.mockReturnValue(rrRouter);
 

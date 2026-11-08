@@ -1,13 +1,13 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_POP = jest.fn();
-const MOCK_IS_AVAILABLE = jest.fn();
-const MOCK_CLAIM_ENTRIES_BY_IDS = jest.fn();
-const MOCK_RELEASE_STALE = jest.fn();
-const MOCK_DO_REPLAY_BATCH = jest.fn();
-const MOCK_IS_SHUTTING_DOWN = jest.fn();
-const MOCK_RESOLVE_MM_URL = jest.fn();
-const MOCK_HANDLE_ABANDONED = jest.fn();
+const MOCK_POP = jest.fn<(...args: any[]) => any>();
+const MOCK_IS_AVAILABLE = jest.fn<(...args: any[]) => any>();
+const MOCK_CLAIM_ENTRIES_BY_IDS = jest.fn<(...args: any[]) => any>();
+const MOCK_RELEASE_STALE = jest.fn<(...args: any[]) => any>();
+const MOCK_DO_REPLAY_BATCH = jest.fn<(...args: any[]) => any>();
+const MOCK_IS_SHUTTING_DOWN = jest.fn<(...args: any[]) => any>();
+const MOCK_RESOLVE_MM_URL = jest.fn<(...args: any[]) => any>();
+const MOCK_HANDLE_ABANDONED = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -17,13 +17,17 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/metrics", () => ({
 	metrics: {
-		entriesReplayed: { inc: jest.fn() },
-		entriesReplayFailed: { inc: jest.fn() },
+		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
 	},
 }));
 
@@ -31,7 +35,7 @@ jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: {
 		pop: MOCK_POP,
 		isAvailable: MOCK_IS_AVAILABLE,
-		push: jest.fn(),
+		push: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
@@ -60,7 +64,10 @@ jest.mock("../../src/config/container", () => {
 	return {
 		claimReplayOrchestrator: new ClaimReplayOrchestrator({
 			claims: { claimEntriesByIds: MOCK_CLAIM_ENTRIES_BY_IDS },
-			queue: { push: jest.fn(), isAvailable: MOCK_IS_AVAILABLE },
+			queue: {
+				push: jest.fn<(...args: any[]) => any>(),
+				isAvailable: MOCK_IS_AVAILABLE,
+			},
 			replayBatch: MOCK_DO_REPLAY_BATCH,
 			handleAbandonedEntries: MOCK_HANDLE_ABANDONED,
 			settings: { instanceId: "test-instance" },

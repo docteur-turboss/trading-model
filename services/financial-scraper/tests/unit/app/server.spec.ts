@@ -1,9 +1,12 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_APP = { use: jest.fn(), get: jest.fn() };
+const MOCK_APP = {
+	use: jest.fn<(...args: any[]) => any>(),
+	get: jest.fn<(...args: any[]) => any>(),
+};
 const MOCK_CREATE_SECURE_SERVER = jest
-	.fn<any>()
-	.mockReturnValue({ close: jest.fn() });
+	.fn<(...args: any[]) => any>()
+	.mockReturnValue({ close: jest.fn<(...args: any[]) => any>() });
 
 jest.mock(
 	"@trading-model/server-utils/adapters/inbound/service-server-factory",
@@ -17,7 +20,7 @@ jest.mock("../../../src/config/address-manager", () => ({
 }));
 
 jest.mock("../../../src/adapters/inbound/http/routes", () => ({
-	FINANCIAL_ROUTES: jest.fn(() => MOCK_APP),
+	FINANCIAL_ROUTES: jest.fn((..._args: any[]) => MOCK_APP),
 }));
 
 jest.mock("../../../src/infrastructure/config/env", () => ({
@@ -30,10 +33,12 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 }));
 
 // Mirrors mysql2: query() on the pool is callback-based, only promise() awaits.
-const MOCK_PROMISE_QUERY = jest.fn<any>().mockResolvedValue([[{ 1: 1 }]]);
+const MOCK_PROMISE_QUERY = jest
+	.fn<(...args: any[]) => any>()
+	.mockResolvedValue([[{ 1: 1 }]]);
 jest.mock("../../../src/config/db", () => ({
 	DATABASE: {
-		query: jest.fn(),
+		query: jest.fn<(...args: any[]) => any>(),
 		promise: () => ({ query: MOCK_PROMISE_QUERY }),
 	},
 }));

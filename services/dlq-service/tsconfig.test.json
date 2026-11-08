@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "types": ["node", "jest"],
+    "rootDir": "."
+  },
+  "include": ["src/**/*", "tests/**/*", "jest.setup.ts"],
+  "exclude": ["node_modules", "dist"]
+}

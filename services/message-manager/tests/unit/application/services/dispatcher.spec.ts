@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import type { InstanceId, Topic } from "@trading-model/primitives/primitives";
 import { InMemoryMessageJournal } from "../../../../src/adapters/outbound/in-memory-message-journal";
 import { InMemorySubscriptionStore } from "../../../../src/adapters/outbound/in-memory-subscription-store";
 import { Dispatcher } from "../../../../src/application/services/dispatcher";
@@ -10,15 +11,19 @@ import {
 	mockSubscriberIdentity,
 } from "../../../fixtures/broker.fixture";
 
-const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+const mockLogger = {
+	info: jest.fn<(...args: any[]) => any>(),
+	warn: jest.fn<(...args: any[]) => any>(),
+	error: jest.fn<(...args: any[]) => any>(),
+};
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => mockLogger,
 }));
 
 jest.mock("../../../../src/config/metrics", () => ({
-	MESSAGES_PUBLISHED_TOTAL: { inc: jest.fn() },
-	MESSAGES_UNROUTED_TOTAL: { inc: jest.fn() },
-	SUBSCRIPTION_COUNT: { set: jest.fn() },
+	MESSAGES_PUBLISHED_TOTAL: { inc: jest.fn<(...args: any[]) => any>() },
+	MESSAGES_UNROUTED_TOTAL: { inc: jest.fn<(...args: any[]) => any>() },
+	SUBSCRIPTION_COUNT: { set: jest.fn<(...args: any[]) => any>() },
 }));
 
 import {
@@ -50,7 +55,7 @@ describe("Dispatcher", () => {
 
 	/** What the workers would read for a service, i.e. what was journaled for it. */
 	const journaled = (service = mockSubscriberIdentity.serviceName) =>
-		journal.readNew({ topic: "test.topic", service }, "c", 100);
+		journal.readNew({ topic: "test.topic" as Topic, service }, "c", 100);
 
 	it("should journal an accepted message and return its id without delivering", async () => {
 		await dispatcher.subscribe(mockSubscribeParams);
@@ -68,7 +73,7 @@ describe("Dispatcher", () => {
 			...mockSubscribeParams,
 			serviceIdentity: {
 				...mockSubscriberIdentity,
-				instanceId: "subscriber-2",
+				instanceId: "subscriber-2" as InstanceId,
 			},
 		});
 		await dispatcher.subscribe({
@@ -88,7 +93,7 @@ describe("Dispatcher", () => {
 	it("should not journal for the subscribers of another topic", async () => {
 		await dispatcher.subscribe({
 			...mockSubscribeParams,
-			topic: "other.topic",
+			topic: "other.topic" as Topic,
 		});
 
 		await dispatcher.publish({ price: 1 }, METADATA);
@@ -140,8 +145,8 @@ describe("Dispatcher", () => {
 	it("should stop routing to an unsubscribed instance", async () => {
 		await dispatcher.subscribe(mockSubscribeParams);
 		await dispatcher.unsubscribe({
-			topic: "test.topic",
-			instanceId: mockSubscriberIdentity.instanceId,
+			topic: "test.topic" as Topic,
+			instanceId: mockSubscriberIdentity.instanceId as InstanceId,
 		});
 
 		await dispatcher.publish({ price: 1 }, METADATA);

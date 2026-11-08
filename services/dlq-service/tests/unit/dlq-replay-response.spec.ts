@@ -1,13 +1,13 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("../../src/config/audit", () => ({
-	publishDlqEvent: jest.fn(),
+	publishDlqEvent: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/config/metrics", () => ({
 	metrics: {
-		entriesReplayed: { inc: jest.fn() },
-		entriesReplayFailed: { inc: jest.fn() },
+		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
 	},
 }));
 
@@ -76,8 +76,8 @@ describe("dlq-replay-response", () => {
 			};
 			const metricsMock = jest.requireMock("../../src/config/metrics") as {
 				metrics: {
-					entriesReplayed: { inc: jest.Mock };
-					entriesReplayFailed: { inc: jest.Mock };
+					entriesReplayed: { inc: jest.Mock<(...args: any[]) => any> };
+					entriesReplayFailed: { inc: jest.Mock<(...args: any[]) => any> };
 				};
 			};
 
@@ -101,8 +101,8 @@ describe("dlq-replay-response", () => {
 			};
 			const metricsMock = jest.requireMock("../../src/config/metrics") as {
 				metrics: {
-					entriesReplayed: { inc: jest.Mock };
-					entriesReplayFailed: { inc: jest.Mock };
+					entriesReplayed: { inc: jest.Mock<(...args: any[]) => any> };
+					entriesReplayFailed: { inc: jest.Mock<(...args: any[]) => any> };
 				};
 			};
 

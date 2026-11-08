@@ -3,7 +3,9 @@ import type { HttpClient } from "@trading-model/http/adapters/outbound/http-clie
 import type { Dispatcher } from "../../src/application/services/dispatcher";
 import type { SubscriptionParams } from "../../src/domain/messaging-types";
 
-type MockHttpClient = { [K in keyof HttpClient]: jest.Mock };
+type MockHttpClient = {
+	[K in keyof HttpClient]: jest.Mock<(...args: any[]) => any>;
+};
 
 /** Utility mock object for HttpClient-based tests. */
 export function createMockHttpClient(): MockHttpClient {

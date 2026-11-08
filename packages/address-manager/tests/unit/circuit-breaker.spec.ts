@@ -8,6 +8,7 @@ import {
 } from "@jest/globals";
 import { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
 import {
+	type InstanceId,
 	PositiveInt,
 	toInstanceId,
 	UnixTimestamp,
@@ -20,13 +21,15 @@ import { CIRCUIT_BREAKER_STATE } from "../../src/infrastructure/metrics";
 function createMockStateStore(): jest.Mocked<ICircuitStateStore> {
 	return {
 		setCircuitState: jest
-			.fn<(instanceId: string, state: PersistedCircuitState) => Promise<void>>()
+			.fn<
+				(instanceId: InstanceId, state: PersistedCircuitState) => Promise<void>
+			>()
 			.mockResolvedValue(undefined),
 		getCircuitState: jest
-			.fn<(instanceId: string) => Promise<PersistedCircuitState | null>>()
+			.fn<(instanceId: InstanceId) => Promise<PersistedCircuitState | null>>()
 			.mockResolvedValue(null),
 		deleteCircuitState: jest
-			.fn<(instanceId: string) => Promise<void>>()
+			.fn<(instanceId: InstanceId) => Promise<void>>()
 			.mockResolvedValue(undefined),
 	};
 }
@@ -177,7 +180,7 @@ describe("CircuitBreaker", () => {
 		});
 
 		it("should load state from store on loadFromStore", async () => {
-			const persistedState: CircuitState = {
+			const persistedState: PersistedCircuitState = {
 				failures: PositiveInt.of(5),
 				lastFailureTime: UnixTimestamp.of(Date.now() - 5000),
 				state: CircuitStateEnum.OPEN,
@@ -382,7 +385,7 @@ describe("CircuitBreaker", () => {
 
 		it("loadFromStore should skip when cached recently", async () => {
 			await circuitBreaker.loadFromStore(toInstanceId("instance-1"));
-			const persistedState: CircuitState = {
+			const persistedState: PersistedCircuitState = {
 				failures: PositiveInt.of(5),
 				lastFailureTime: UnixTimestamp.of(Date.now() - 5000),
 				state: CircuitStateEnum.OPEN,
@@ -575,7 +578,7 @@ describe("CircuitBreaker", () => {
 		});
 
 		it("loadFromStore should restore from persisted state (persisted = true)", async () => {
-			const persistedState: CircuitState = {
+			const persistedState: PersistedCircuitState = {
 				failures: PositiveInt.of(5),
 				lastFailureTime: UnixTimestamp.of(Date.now() - 5000),
 				state: CircuitStateEnum.OPEN,
@@ -588,7 +591,7 @@ describe("CircuitBreaker", () => {
 		it("loadFromStore should NOT restore when existing machine has more failures (_shouldRestoreFromPersisted = false)", async () => {
 			cb.recordFailure(toInstanceId("persist-keep-local"));
 			cb.recordFailure(toInstanceId("persist-keep-local"));
-			const persistedState: CircuitState = {
+			const persistedState: PersistedCircuitState = {
 				failures: PositiveInt.of(1),
 				lastFailureTime: UnixTimestamp.of(Date.now() - 5000),
 				state: CircuitStateEnum.CLOSED,
@@ -600,7 +603,7 @@ describe("CircuitBreaker", () => {
 
 		it("loadFromStore should restore when persisted has more failures than existing (!existingMachine || persisted.failures > existing = true)", async () => {
 			cb.recordFailure(toInstanceId("persist-overwrite"));
-			const persistedState: CircuitState = {
+			const persistedState: PersistedCircuitState = {
 				failures: PositiveInt.of(5),
 				lastFailureTime: UnixTimestamp.of(Date.now() - 5000),
 				state: CircuitStateEnum.OPEN,
