@@ -100,29 +100,69 @@ export async function fetchAllRawData(
 	return raw as RawBinanceData;
 }
 
+/**
+ * Normalizes one part; a payload it cannot read only leaves that part out of
+ * the snapshot (logged, counted like a failed fetch), never the whole symbol.
+ */
+function normalizePart<Part>(
+	query: SymbolInterval,
+	part: SnapshotPart,
+	normalize: () => Part
+): Part | undefined {
+	try {
+		return normalize();
+	} catch (error) {
+		SNAPSHOT_PARTS_FAILED_TOTAL.inc({ part });
+		logger.warn("Market data part normalization failed", {
+			context: { symbol: query.symbol, part },
+			error: normalizeError(error),
+		});
+		return undefined;
+	}
+}
+
 export function buildResponse(
 	query: SymbolInterval,
 	raw: RawBinanceData
 ): MarketDataSnapshot {
 	const fetchedAt = Date.now();
+	const { orderBookRaw, tradesRaw, candlesRaw } = raw;
+	const { ticker24hRaw, priceTickerRaw, bookTickerRaw } = raw;
 	return {
 		orderBook:
-			raw.orderBookRaw && BinanceNormalizer.orderBook(query, raw.orderBookRaw),
+			orderBookRaw &&
+			normalizePart(query, "orderBook", () =>
+				BinanceNormalizer.orderBook(query, orderBookRaw)
+			),
 		recentTrades:
-			raw.tradesRaw && BinanceNormalizer.trades(query, raw.tradesRaw),
+			tradesRaw &&
+			normalizePart(query, "recentTrades", () =>
+				BinanceNormalizer.trades(query, tradesRaw)
+			),
 		// Binance returns the still-open candle last: publishing it would send a
 		// partial candle that the next cycle sends again with other values.
 		candles:
-			raw.candlesRaw &&
-			BinanceNormalizer.candles(query, raw.candlesRaw).filter(
-				(candle) => candle.closeTimestamp < fetchedAt
+			candlesRaw &&
+			normalizePart(query, "candles", () =>
+				BinanceNormalizer.candles(query, candlesRaw).filter(
+					(candle) => candle.closeTimestamp < fetchedAt
+				)
 			),
 		ticker24h:
-			raw.ticker24hRaw && BinanceNormalizer.ticker24h(raw.ticker24hRaw),
+			ticker24hRaw &&
+			normalizePart(query, "ticker24h", () =>
+				BinanceNormalizer.ticker24h(ticker24hRaw)
+			),
 		priceTicker:
-			raw.priceTickerRaw && BinanceNormalizer.priceTicker(raw.priceTickerRaw),
+			priceTickerRaw &&
+			normalizePart(query, "priceTicker", () =>
+				BinanceNormalizer.priceTicker(priceTickerRaw)
+			),
 		bookTicker:
-			raw.bookTickerRaw && BinanceNormalizer.bookTicker(raw.bookTickerRaw),
+			bookTickerRaw &&
+			normalizePart(query, "bookTicker", () =>
+				BinanceNormalizer.bookTicker(bookTickerRaw)
+			),
 		fetchedAt,
 	};
 }
