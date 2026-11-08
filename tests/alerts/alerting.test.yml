@@ -1099,3 +1099,22 @@ tests:
               summary: 'Error budget of dlq-service below 20%'
               description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
+
+  # One probe per service (compose and K8s): the alert names the service whose
+  # SVID is about to expire, and only that one.
+  - name: certificate expiry is reported per service
+    interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://api-gateway:3000/ping",service="api-gateway"}'
+        values: '3600+0x20'
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://dlq-service:3000/ping",service="dlq-service"}'
+        values: '900+0x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: CertificateExpiry
+        exp_alerts:
+          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+            exp_annotations:
+              summary: 'SVID close to expiry on dlq-service'
+              description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'

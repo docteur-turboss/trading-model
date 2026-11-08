@@ -116,7 +116,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: 'SVID close to expiry on {{ $labels.instance }}'
+          summary: 'SVID close to expiry on {{ $labels.service }}'
           description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
