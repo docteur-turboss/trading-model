@@ -1,6 +1,6 @@
 {
   "name": "trading-model",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "workspaces": [
     "packages/*",
@@ -49,7 +49,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.5",
     "@commitlint/cli": "^21.2.4",
     "@testcontainers/mongodb": "^12.2.1",
     "@testcontainers/mysql": "^12.2.1",

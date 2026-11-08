@@ -1,3 +1,111 @@
+## [2.2.0] - 2026-11-06
+
+### Root
+
+#### Feat
+
+- 754531a **k8s:** verify market data resumes after a collector release (#464)
+- 50ff38c **k8s:** split deploy into least-privilege application and cluster-scope identities (#447)
+- a4d9322 **observability:** expose build_info metric and notify deploys and rollbacks (#470)
+- 39810c7 **config:** add configuration feature flags with FEATURE_RISK_ADJUSTED_FITNESS kill switch (#453)
+- c16addf **database:** restore selected MongoDB namespaces or into a scratch database (#347)
+- bc6666c **database:** add verify-restore-k8s.sh to check restored data and run it in the kind drill (#341)
+- eb39591 **database:** back up the SealedSecrets controller keys off-site daily and restore them first in a total outage (#338)
+- ab36673 **database:** require two age recipients in production and verify the escrow key weekly against the real off-site backups (#337)
+- 893f379 **database:** keep GFS backup tiers to cover the 5-year retention of audit and market data (#319)
+- 683d91a **database:** archive MySQL binlogs and MongoDB oplogs hourly for point-in-time recovery (#320)
+
+#### Fix
+
+- 2b3d26a **k8s:** fix the two CI timing races (migrations vs MySQL bootstrap, ioredis Sentinel failover) (#443)
+- 9106de9 **k8s:** remove secret-rotation CronJob and its write RBAC on Secrets (#454)
+- f838d51 **k8s:** run canaries in parallel over one window and gate no-traffic services on readiness (#449)
+- e780066 **k8s:** VPA recommendations only and check cluster prerequisites before apply (#448)
+- ea97522 **k8s:** stop applies from resetting the replicas of HPA-driven Deployments (#446)
+- 0df5023 **k8s:** set Ingress hosts per overlay and refuse example.com in production (#445)
+- 7a494f4 **k8s:** version service ConfigMaps by hash and roll deploy back to the recorded revisions (#440)
+- 9f3fb77 **docs:** stop versioning generated TypeDoc HTML (ADR-0037) (#401)
+- 02a9f88 **observability:** feed the address-manager breaker from publish calls and set its state gauge (#478)
+- b2ebe53 **observability:** ignore the surge pod of a rolling update in InstanceCountLow
+- fa2e8f5 **database:** lock migrations, resume them per statement and refuse changed files (#459)
+- 3b960b0 **database:** keep the stderr of the backup dump commands in the job logs (#344)
+- 4f42edb **database:** restore helper pod uses the image of the db-backup CronJob instead of backup-tools:latest (#342)
+- 778ae1f **database:** restore every component from one run and refuse mixed runs unless --allow-mixed-runs (#340)
+- 0b31e1b **database:** never restore a dump left by a failed backup run (#317)
+- 58df43d **scripts:** make migrate-down roll back newest first without wiping migration-files (#441)
+
+#### Docs
+
+- 61b1ffb **k8s:** state that staging latest tags are a render default, deploy.yml deploys digests (#476)
+- dfb94a6 **release:** describe the tag-driven release in one page and fix stale workflow_dispatch docs (#387)
+- 3c0598e **docs:** rewrite the data corruption runbook around age-encrypted restores (#480)
+- 06a062d **docs:** use hotfix/* prefix for urgent hotfix branches in workflow (#474)
+- 4b4540e **docs:** fix rollback runbook diff and canary figures, add database rollback procedure (#472)
+- 925f496 **docs:** state tested Bun 1.4.4 in setup prerequisites (#368) (#407)
+- 49ab469 **docs:** name superseding ADR in index and explain 0014 and 0028 gaps (#406)
+- 3ecedd7 **docs:** translate STATE.md to English and use standard Markdown links (#365) (#405)
+- 00aab06 **docs:** fix SECURITY.md scope and move vulnerability reporting into it (#378) (#404)
+- 65c56e4 **docs:** add error code catalog with cause and expected action (#377) (#403)
+- 8e459b4 **docs:** replace message storage node with subscriptions (Redis) in bounded contexts (#376) (#402)
+- 28cff1c **docs:** remove stale ESLint and createSecureServer-from-common references (#373) (#399)
+- b94505a **docs:** replace compose production deploy with deploy.yml in contributing workflow (#358) (#397)
+- 2d150d8 **docs:** align README CI jobs, image count and pre-push steps (#371) (#396)
+- 18a3253 **docs:** remove hard-coded ADR count from README and docs index (#369) (#394)
+- 2c902be **docs:** state that MySQL is a single primary without failover (#364) (#393)
+- a87cfeb **docs:** add C4, K8s deployment and market flow diagrams, fix architecture-standards tables (#363) (#392)
+- e0784c5 **docs:** document single-service local development and flag bun run dev as unsupported outside Compose (#390)
+- d48cbde **docs:** document the 8 shared packages without docs, add all 11 to TypeDoc (#360) (#389)
+- 80cbcab **docs:** fix the shared package inventory in STATE.md, README and CHANGELOG and gate it in deps:check (#359) (#388)
+- 061693a **docs:** create .env before the first docker compose up in the README and Quick Start (#382)
+- fc21633 **docs:** rewrite the database failover runbook around encrypted restores and the single MySQL primary (#380)
+- 76479d5 **docs:** use the client SVID in every on-call and runbook health command (#379)
+- 6c90fc0 **docs:** state that the Docker Compose stack is development only and must hold no real data (#349)
+- f4ae44a **docs:** list observability stores and their no-backup decision in the backup classification (#348)
+- b3ac7a4 **docs:** add runbook for redeploying the platform in another region after a regional loss (#346)
+- 679f2fe **observability:** write the missing alert runbooks and require a runbook_url on every rule (#385)
+- 1a8c686 **config:** document every environment variable the code reads in ENV.md and gate it in config:check (#384)
+- dfd3f0b **api:** explain missing internal OpenAPI specs and unify infrastructure route rule (#370) (#395)
+
+#### Test
+
+- f0aad0b **k8s:** deploy the kind job with the restricted deploy identities (ADR-0041) (#484)
+- b4f2eeb **docs:** fix Examples link and fail adr:check on broken relative Markdown links (#372) (#398)
+- ca03065 **database:** time every step of the restore drills against a budget and keep a log of DR exercises (#339)
+- 5e72b0c **persistence:** make the Sentinel failover DB test deterministic (#465)
+
+#### Chore
+
+- 9b37645 **release:** align service versions on the release version (#471)
+- 51e0270 **config:** force LF line endings for YAML, JSON, JS/TS, Markdown and SQL in .gitattributes (#475)
+- 3b511e3 **database:** run migrations from a released image with a dedicated MySQL user (#450)
+- 3e8f7c8 **deps:** upgrade SPIRE 1.11.3 to 1.15.5 (critical CVEs in spire-tools blocked release v2.1.0) (#466)
+
+#### Ci
+
+- cb2aa0c **k8s:** test an N-1 to N upgrade, a forced failure and the rollback in the kind job (#460)
+- 3c22436 **release:** verify that the 9 deploy.yml images resolve after publishing (#439)
+- da791fe **ci:** keep Codecov and the keyserver from blocking releases (#458)
+- d9fb362 **ci:** run CI on pushes to main and development (#456)
+- 45a68e9 **ci:** pin Bun 1.4.4 in CI from a single .bun-version file (#455)
+- 51e6576 **github-actions:** deploy the manifests and migrations of the released tag (#442)
+- b244b89 **github-actions:** fail production deploys without backup encryption key or off-site copy (#343)
+- c94d409 **github-actions:** refuse production deploys whose off-site backup bucket has no Object Lock (#336)
+
+#### Security
+
+- 18b503b **k8s:** address release review #479: deploy-cluster without nodes/proxy, no staging secret fallback, genome evaluation metric (#481)
+- ff0bf69 **k8s:** restrict deploy-k8s.sh apply to local development clusters (#473)
+- daa5e34 **k8s:** seal staging secrets, relax staging PDBs, restrict staging ingress (#417) (#463)
+- 1ec08e5 **k8s:** address PR #444 review: delete secret-rotation leftovers on deploy, cover ECB UNIT branch (#462)
+- 8657d9b **ci:** scan, attest and sign release images and verify signatures at deploy (#452)
+
+#### Other
+
+- 010597b **release:** merge development into main — least-privilege deploy identities, SPIRE 1.15.5, trainer event loop fix (#479)
+- 2cb4a3b **observability:** route critical alerts to Pushover, scrape compose backup metrics, fix changelog scopes (#467)
+- 1ea63a0 **database:** alert on backup-data volume usage and document its storage class (#345)
+
+
 ## [2.1.0] - 2026-11-06
 
 ### @trading-model/common (1.2.1 → 1.3.0)
