@@ -238,6 +238,47 @@ describe("EndpointResolver", () => {
 		expect(r).toBeInstanceOf(EndpointResolver);
 	});
 
+	it("should share one discovery lookup between concurrent calls on a key", async () => {
+		const targets = await Promise.all(
+			Array.from({ length: 50 }, () => resolver.resolve("sector-allocator", 1))
+		);
+
+		expect(mockHttpClient.get).toHaveBeenCalledTimes(1);
+		expect(new Set(targets.map((t) => t?.host)).size).toBe(1);
+		expect(targets[0]).not.toBeNull();
+	});
+
+	it("should drop a failed lookup, retry on the next call and keep the stale fallback", async () => {
+		await resolver.resolve("sector-allocator", 1);
+		jest.advanceTimersByTime(6000);
+		mockHttpClient.get.mockRejectedValue(new Error("Connection refused"));
+
+		const [a, b] = await Promise.all([
+			resolver.resolve("sector-allocator", 1),
+			resolver.resolve("sector-allocator", 1),
+		]);
+		expect(a).not.toBeNull();
+		expect(b).toEqual(a);
+		expect(mockHttpClient.get).toHaveBeenCalledTimes(2);
+
+		mockHttpClient.get.mockImplementation(async () => [...MOCK_RESPONSE]);
+		await resolver.resolve("sector-allocator", 1);
+		expect(mockHttpClient.get).toHaveBeenCalledTimes(3);
+	});
+
+	it("should drop a lookup that throws outside the registry call", async () => {
+		(lookup as unknown as jest.Mock<any>).mockRejectedValueOnce(
+			new Error("dns down")
+		);
+		await expect(resolver.resolve("sector-allocator", 1)).rejects.toThrow(
+			"dns down"
+		);
+
+		await expect(
+			resolver.resolve("sector-allocator", 1)
+		).resolves.not.toBeNull();
+	});
+
 	it("should invalidate cache only for matching service key", async () => {
 		await resolver.resolve("sector-allocator", 1);
 		await resolver.resolve("other-service", 2);
