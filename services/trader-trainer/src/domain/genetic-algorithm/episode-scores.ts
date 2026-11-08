@@ -20,6 +20,14 @@ export class EpisodeScores {
 		this._scores = Object.freeze([...scores]);
 	}
 
+	/**
+	 * Rebuilds an instance from its structured clone (`postMessage`), which
+	 * keeps the fields but drops the prototype and its methods.
+	 */
+	static revive(cloned: EpisodeScores): EpisodeScores {
+		return new EpisodeScores([...cloned._scores]);
+	}
+
 	get values(): readonly number[] {
 		return this._scores;
 	}
