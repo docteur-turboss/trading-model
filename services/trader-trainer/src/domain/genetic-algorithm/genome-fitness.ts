@@ -10,9 +10,9 @@ import type { FeatureVector } from "../feature-vector.js";
 import type { EpisodeScores } from "./episode-scores";
 import type { CrossoverGenome, GAControlGenome } from "./genome-control";
 import type { MutationGenome } from "./genome-mutation";
-import type { NetworkGenome } from "./genome-network";
-import { ActivationType } from "./genome-network";
-import type { RLGenome } from "./genome-rl";
+import type { NetworkGenome } from "./genome-network/types";
+import { ActivationType } from "./genome-network/types";
+import type { RLGenome } from "./genome-rl/types";
 import type { DeepReadonly } from "./shared-types";
 
 export interface GenomeFitnessMeta {

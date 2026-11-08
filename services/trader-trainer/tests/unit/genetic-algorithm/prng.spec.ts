@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 
 describe("PRNG - makePRNG", () => {
 	test("should return a function", () => {

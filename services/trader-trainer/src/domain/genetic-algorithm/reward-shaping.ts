@@ -1,7 +1,7 @@
 import type { NumericRange } from "@trading-model/primitives/numeric-range";
+import type { NormalizationStats } from "../normalization-stats";
 import type { LamarckGenome } from "./genome-types";
 import type { DeepReadonly } from "./shared-types";
-import type { RunningStats } from "./utils";
 
 type RewardShapingGenes = DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>;
 
@@ -27,7 +27,7 @@ export class RewardShaper {
 
 	constructor(
 		private readonly _config: RewardShapingGenes,
-		private readonly _stats?: RunningStats
+		private readonly _stats?: NormalizationStats
 	) {}
 
 	/** Shaped reward of one decision; always 0 for a sparse genome. */

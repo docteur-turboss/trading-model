@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import {
 	createExperiencePool,
 	createPrioritizedExperiencePool,

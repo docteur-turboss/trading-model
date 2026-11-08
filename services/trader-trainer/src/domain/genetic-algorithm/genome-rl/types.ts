@@ -3,7 +3,7 @@ import type {
 	PositiveInt,
 	Probability,
 } from "@trading-model/primitives/primitives";
-import type { ClipBounds } from "../genome-network";
+import type { ClipBounds } from "../genome-network/types";
 
 /** Upper bound of the replay minibatch: each stored transition trains on it. */
 export const MaxBatchSize = 64;

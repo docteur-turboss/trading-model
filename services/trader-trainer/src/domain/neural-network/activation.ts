@@ -1,7 +1,9 @@
-import type { ActivationDefinition } from "./activations/activation-interface";
 import { ActivationType } from "./type";
 
-export type { ActivationDefinition } from "./activations/activation-interface";
+interface ActivationDefinition {
+	fn(input: number): number;
+	derivative(activation: number, preActivation: number): number;
+}
 
 function _geluTanhVal(sqrt2Pi: number, preActivation: number): number {
 	return Math.tanh(sqrt2Pi * (preActivation + 0.044715 * preActivation ** 3));
@@ -49,10 +51,8 @@ const Elu: ActivationDefinition = {
 };
 
 const Gelu: ActivationDefinition = {
-	fn: (input) => {
-		const inner = Math.sqrt(2 / Math.PI) * (input + 0.044715 * input ** 3);
-		return 0.5 * input * (1 + Math.tanh(inner));
-	},
+	fn: (input) =>
+		0.5 * input * (1 + _geluTanhVal(Math.sqrt(2 / Math.PI), input)),
 	derivative: (_activation, preActivation) => {
 		const sqrt2Pi = Math.sqrt(2 / Math.PI);
 		const tanhVal = _geluTanhVal(sqrt2Pi, preActivation);
@@ -75,22 +75,13 @@ const Linear: ActivationDefinition = {
 	derivative: () => 1,
 };
 
-const SIGMOID = Sigmoid;
-const TANH = Tanh;
-const RELU = Relu;
-const LEAKY_RELU = LeakyRelu;
-const ELU = Elu;
-const GELU = Gelu;
-const MISH = Mish;
-const LINEAR = Linear;
-
 export const ACTIVATIONS: Record<ActivationType, ActivationDefinition> = {
-	[ActivationType.Sigmoid]: SIGMOID,
-	[ActivationType.Tanh]: TANH,
-	[ActivationType.Relu]: RELU,
-	[ActivationType.LeakyReLu]: LEAKY_RELU,
-	[ActivationType.Elu]: ELU,
-	[ActivationType.Gelu]: GELU,
-	[ActivationType.Mish]: MISH,
-	[ActivationType.Linear]: LINEAR,
+	[ActivationType.Sigmoid]: Sigmoid,
+	[ActivationType.Tanh]: Tanh,
+	[ActivationType.Relu]: Relu,
+	[ActivationType.LeakyReLu]: LeakyRelu,
+	[ActivationType.Elu]: Elu,
+	[ActivationType.Gelu]: Gelu,
+	[ActivationType.Mish]: Mish,
+	[ActivationType.Linear]: Linear,
 };

@@ -23,11 +23,11 @@ export class NeuralNetwork {
 	private readonly _config: Required<NeuralNetworkConfig>;
 
 	constructor(cfg: NeuralNetworkConfig) {
-		const { config, layers, optimizerHp } = NeuralNetworkBuilder.build(cfg);
+		const { config, layers } = NeuralNetworkBuilder.build(cfg);
 		this._config = config;
 		this._layers = layers;
 		this._feedForward = new FeedForwardEngine(config, layers);
-		this._backprop = new BackpropEngine({ config, layers, optimizerHp });
+		this._backprop = new BackpropEngine({ config, layers });
 	}
 
 	public forward(input: Float32Array): ForwardContext {
@@ -36,9 +36,6 @@ export class NeuralNetwork {
 
 	/** One gradient step on (inputs, targets); returns the loss before the step. */
 	public train(inputs: Float32Array, targets: Float32Array): number {
-		const sizes = this._config.neuronsByLayer;
-		_validateSize("input", inputs.length, sizes[0]);
-		_validateSize("target", targets.length, sizes[sizes.length - 1]);
 		return this.trainFrom(this._feedForward.forward(inputs), targets);
 	}
 

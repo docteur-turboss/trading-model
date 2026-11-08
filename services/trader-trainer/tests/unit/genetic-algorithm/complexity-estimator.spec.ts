@@ -1,19 +1,15 @@
 import { describe, expect, it } from "@jest/globals";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
 import {
-	computeAdjustedFitness,
-	estimateComplexity,
-} from "../../../src/domain/genetic-algorithm/complexity-estimator";
-import {
 	ActivationType,
-	CrossoverType,
 	FitnessType,
-	MutationAdaptation,
-	MutationDistribution,
-	MutationScope,
 	NormalisationType,
 	SelectionType,
 } from "../../../src/domain/genetic-algorithm/genome";
+import {
+	computeAdjustedFitness,
+	estimateComplexity,
+} from "../../../src/domain/genetic-algorithm/genome-fitness";
 
 describe("estimateComplexity", () => {
 	const baseGenome = {
@@ -53,26 +49,13 @@ describe("estimateComplexity", () => {
 		mutation: {
 			rate: 0.1,
 			sigma: 0.5,
-			noiseStd: 0.1,
-			distribution: MutationDistribution.Gaussian,
-			adaptation: MutationAdaptation.Fixed,
-			scope: MutationScope.Global,
-			selfSigma: 0.5,
-			mutateActivations: false,
-			activationMutationRate: 0.1,
-			mutateHyperparams: false,
 			addNeuronRate: 0.1,
 			removeNeuronRate: 0.1,
 			addLayerRate: 0.1,
 			removeLayerRate: 0.1,
-			addConnectionRate: 0.1,
-			removeConnectionRate: 0.1,
 		},
 		crossover: {
-			type: CrossoverType.Uniform,
 			probability: 0.5,
-			blendAlpha: 0.5,
-			sbxEta: 15,
 		},
 		gaControl: {
 			populationSize: 20,

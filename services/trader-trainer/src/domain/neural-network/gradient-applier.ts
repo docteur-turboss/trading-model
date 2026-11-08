@@ -1,15 +1,10 @@
-import type {
-	LayerGradientContext,
-	WeightGradientContext,
-} from "./backprop-engine";
+import type { LayerGradientContext } from "./backprop-engine";
 import type { NnTrainingDeps } from "./nn-training-deps";
-import { OPTIMIZERS } from "./optimizer";
 import type { LayerMemory } from "./type";
 
-function computeWeightGradient(ctx: WeightGradientContext): void {
-	const { weightBuf, rowOffset, deltaJ, input, fanIn } = ctx;
-	for (let idxK = 0; idxK < fanIn; idxK++) {
-		weightBuf[rowOffset + idxK] += deltaJ * input[idxK];
+function sgdStep(params: Float32Array, grads: Float32Array, lr: number): void {
+	for (let i = 0; i < params.length; i++) {
+		params[i] -= lr * grads[i];
 	}
 }
 
@@ -29,40 +24,23 @@ export class GradientApplier {
 		layerInput: Float32Array
 	): void {
 		const { fanIn, fanOut, gradW, gradB } = layer;
-		// computeWeightGradient adds into the buffer: start each sample from zero
-		// so an immediate step never re-applies earlier samples' gradients.
-		gradW.fill(0);
+		// Assign, never accumulate: an immediate step must not re-apply earlier samples' gradients.
 		for (let j = 0; j < fanOut; j++) {
 			const rowOffset = j * fanIn;
 			const deltaJ = delta[j];
 			gradB[j] = deltaJ;
-			computeWeightGradient({
-				weightBuf: gradW,
-				rowOffset,
-				deltaJ,
-				input: layerInput,
-				fanIn,
-			});
+			for (let idxK = 0; idxK < fanIn; idxK++) {
+				gradW[rowOffset + idxK] = deltaJ * layerInput[idxK];
+			}
 		}
 	}
 
+	/** Plain SGD: the only optimizer training uses. */
 	private _applyOptimizerStepToLayer(layer: LayerMemory): void {
-		const opt = OPTIMIZERS[this._deps.config.optimizerType];
-		opt.step({
-			params: layer.weights,
-			grads: layer.gradW,
-			state: layer.wState,
-			lr: this._deps.config.learningRate,
-			hp: this._deps.optimizerHp,
-		});
+		const lr = this._deps.config.learningRate;
+		sgdStep(layer.weights, layer.gradW, lr);
 		if (this._deps.config.useBias) {
-			opt.step({
-				params: layer.bias,
-				grads: layer.gradB,
-				state: layer.bState,
-				lr: this._deps.config.learningRate,
-				hp: this._deps.optimizerHp,
-			});
+			sgdStep(layer.bias, layer.gradB, lr);
 		}
 	}
 }

@@ -1,81 +1,52 @@
-import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { agentError } from "../../shared/errors";
 import { INITIALIZERS } from "./initializers";
 import type { LayerDims } from "./layer-dims";
-import {
-	DEFAULT_HYPERPARAMS,
-	OPTIMIZERS,
-	type OptimizerHyperparams,
-} from "./optimizer";
 import type { LayerMemory, NeuralNetworkConfig } from "./type";
-import { ActivationType, LossFunctionType } from "./type";
 
-export { mergeConfig } from "./type";
-
-function _initializeWeights(
+function _initArray(
+	length: number,
+	type: Required<NeuralNetworkConfig>["initialisationType"],
 	dims: LayerDims,
-	config: Required<NeuralNetworkConfig>
+	rng: Required<NeuralNetworkConfig>["rng"]
 ): Float32Array {
-	const weights = new Float32Array(dims.fanIn * dims.fanOut);
-	for (let i = 0; i < weights.length; i++) {
-		weights[i] = INITIALIZERS[config.initialisationType].initialize(
-			dims,
-			config.rng
-		);
+	const values = new Float32Array(length);
+	for (let i = 0; i < length; i++) {
+		values[i] = INITIALIZERS[type].initialize(dims, rng);
 	}
-	return weights;
-}
-
-function _initializeBiases(
-	dims: LayerDims,
-	config: Required<NeuralNetworkConfig>
-): Float32Array {
-	const bias = new Float32Array(dims.fanOut);
-	for (let i = 0; i < bias.length; i++) {
-		bias[i] = INITIALIZERS[config.biasInitialisationType].initialize(
-			dims,
-			config.rng
-		);
-	}
-	return bias;
+	return values;
 }
 
 function _buildLayerMemory(
 	dims: LayerDims,
-	config: Required<NeuralNetworkConfig>,
-	opt: import("./optimizer").Optimizer
+	config: Required<NeuralNetworkConfig>
 ): LayerMemory {
 	return {
 		fanIn: dims.fanIn as unknown as PositiveInt,
 		fanOut: dims.fanOut as unknown as PositiveInt,
-		weights: _initializeWeights(dims, config),
-		bias: _initializeBiases(dims, config),
+		weights: _initArray(
+			dims.fanIn * dims.fanOut,
+			config.initialisationType,
+			dims,
+			config.rng
+		),
+		bias: _initArray(
+			dims.fanOut,
+			config.biasInitialisationType,
+			dims,
+			config.rng
+		),
 		output: new Float32Array(dims.fanOut),
 		preActivation: new Float32Array(dims.fanOut),
 		delta: new Float32Array(dims.fanOut),
 		gradW: new Float32Array(dims.fanIn * dims.fanOut),
 		gradB: new Float32Array(dims.fanOut),
-		wState: opt.initState(dims.fanIn * dims.fanOut),
-		bState: opt.initState(dims.fanOut),
 	};
 }
 
 function _validateLayerSize(sizes: number[], layerIdx: number): void {
 	if (sizes[layerIdx] <= 0 || sizes[layerIdx + 1] <= 0) {
 		throw agentError("Layer sizes must be positive integers");
-	}
-}
-
-function _warnSigmoidLoss(config: Required<NeuralNetworkConfig>): void {
-	if (
-		config.activationType[config.activationType.length - 1] ===
-			ActivationType.Sigmoid &&
-		config.lossFunctionType !== LossFunctionType.BinaryCrossEntropy
-	) {
-		getLogger().warn(
-			"Sigmoid output is usually paired with binary-cross-entropy"
-		);
 	}
 }
 
@@ -94,14 +65,7 @@ export function validateActivationLoss(
 	config: Required<NeuralNetworkConfig>,
 	layerCount: number
 ): void {
-	_warnSigmoidLoss(config);
 	_validateActivationCount(config, layerCount);
-}
-
-export function resolveOptimizerHyperparams(
-	config: Required<NeuralNetworkConfig>
-): OptimizerHyperparams {
-	return { ...DEFAULT_HYPERPARAMS, ...config.optimizerHyperparams };
 }
 
 export function validateMinLayers(config: Required<NeuralNetworkConfig>): void {
@@ -113,17 +77,15 @@ export function validateMinLayers(config: Required<NeuralNetworkConfig>): void {
 }
 
 export function createLayerMemories(
-	config: Required<NeuralNetworkConfig>,
-	_optimizerHp: OptimizerHyperparams
+	config: Required<NeuralNetworkConfig>
 ): LayerMemory[] {
 	const sizes = config.neuronsByLayer;
 	const layers: LayerMemory[] = [];
-	const opt = OPTIMIZERS[config.optimizerType];
 
 	for (let i = 0; i < sizes.length - 1; i++) {
 		_validateLayerSize(sizes, i);
 		layers.push(
-			_buildLayerMemory({ fanIn: sizes[i], fanOut: sizes[i + 1] }, config, opt)
+			_buildLayerMemory({ fanIn: sizes[i], fanOut: sizes[i + 1] }, config)
 		);
 	}
 

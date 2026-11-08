@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
 import { BackpropEngine } from "../../../src/domain/neural-network/backprop-engine";
 import { FeedForwardEngine } from "../../../src/domain/neural-network/feed-forward-engine";
 import { NeuralNetworkBuilder } from "../../../src/domain/neural-network/neural-network-builder";
@@ -8,9 +8,7 @@ import type { NnTrainingDeps } from "../../../src/domain/neural-network/nn-train
 import {
 	ActivationType,
 	InitialisationType,
-	LossFunctionType,
 	NormalisationType,
-	OptimizerType,
 } from "../../../src/domain/neural-network/type";
 
 interface LayerParams {
@@ -34,9 +32,7 @@ function buildNet(
 		activationType,
 		initialisationType: InitialisationType.Xavier,
 		biasInitialisationType: InitialisationType.Xavier,
-		lossFunctionType: LossFunctionType.MeanSquaredError,
 		normalisationType: NormalisationType.None,
-		optimizerType: OptimizerType.Sgd,
 		learningRate: (options.learningRate ?? 0) as never,
 		gradientClipNorm: options.gradientClipNorm ?? 0,
 		enablePool: false,

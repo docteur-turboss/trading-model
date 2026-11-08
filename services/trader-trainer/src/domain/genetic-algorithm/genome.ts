@@ -3,7 +3,6 @@ export type {
 	GAControlGenome,
 } from "./genome-control";
 export {
-	CrossoverType,
 	FitnessType,
 	SelectionType,
 } from "./genome-control";
@@ -15,19 +14,14 @@ export type {
 	PopMember,
 } from "./genome-fitness";
 export type { MutationGenome } from "./genome-mutation";
-export {
-	MutationAdaptation,
-	MutationDistribution,
-	MutationScope,
-} from "./genome-mutation";
-export type { LayerGenome } from "./genome-network";
+export type { LayerGenome } from "./genome-network/types";
 export {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
-} from "./genome-network";
+} from "./genome-network/types";
 export type {
 	RewardShapingGenome,
 	RLGenome,
-} from "./genome-rl";
+} from "./genome-rl/types";

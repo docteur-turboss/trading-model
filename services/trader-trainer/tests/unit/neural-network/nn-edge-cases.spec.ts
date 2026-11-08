@@ -5,7 +5,6 @@ import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
-	LossFunctionType,
 	NormalisationType,
 } from "../../../src/domain/neural-network/type";
 
@@ -16,7 +15,6 @@ function makeConfig(
 		neuronsByLayer: [4, 6, 3],
 		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
 		initialisationType: InitialisationType.Zeros,
-		lossFunctionType: LossFunctionType.MeanSquaredError,
 		normalisationType: NormalisationType.None,
 		connectionType: ConnectionType.FullyConnected,
 		enablePool: false,
@@ -76,7 +74,6 @@ describe("NeuralNetwork - Edge Cases", () => {
 				neuronsByLayer: [4, 4],
 				activationType: [ActivationType.Relu],
 				initialisationType: InitialisationType.Zeros,
-				lossFunctionType: LossFunctionType.MeanSquaredError,
 				normalisationType: NormalisationType.None,
 				connectionType: ConnectionType.DenseSkip,
 				enablePool: false,

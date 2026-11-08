@@ -4,94 +4,14 @@ import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
-	MutationAdaptation,
-	MutationScope,
 } from "../../../src/domain/genetic-algorithm/genome";
+import { mutateLayer } from "../../../src/domain/genetic-algorithm/genome-network/mutation";
 import { mutateDiscreteStepParam } from "../../../src/domain/genetic-algorithm/genome-rl/mutation";
 import type {
 	LayerGenome,
 	MutationGenome,
 } from "../../../src/domain/genetic-algorithm/genome-types";
-import {
-	adaptSigma,
-	mutateGenome,
-	mutateLayer,
-} from "../../../src/domain/genetic-algorithm/mutation";
-
-describe("Mutation - adaptSigma", () => {
-	const rng = () => 0.5;
-
-	function makeMutationGenome(overrides?: Record<string, any>): MutationGenome {
-		const base = createDefaultGenome("test").mutation;
-		return {
-			...base.rates,
-			...base.structural,
-			...base,
-			...overrides,
-			rates: { ...base.rates, ...((overrides?.rates as any) ?? {}) },
-			structural: {
-				...base.structural,
-				...((overrides?.structural as any) ?? {}),
-			},
-		} as any;
-	}
-
-	test("fixed adaptation returns sigma directly", () => {
-		const m = makeMutationGenome({
-			adaptation: MutationAdaptation.Fixed,
-			rates: { sigma: 0.5 },
-		});
-		expect(adaptSigma(m, rng)).toBe(0.5);
-	});
-
-	test("sigma_adaptive returns perturbed sigma", () => {
-		const m = makeMutationGenome({
-			adaptation: MutationAdaptation.SigmaAdaptive,
-			rates: { sigma: 0.5 },
-		});
-		const result = adaptSigma(m, rng);
-		expect(result).toBeGreaterThanOrEqual(0.45);
-		expect(result).toBeLessThanOrEqual(0.55);
-	});
-
-	test("self_adaptive returns positive value", () => {
-		const m = makeMutationGenome({
-			adaptation: MutationAdaptation.SelfAdaptive,
-			sigma: 0.5,
-			selfSigma: 0.3,
-		});
-		const result = adaptSigma(m, rng);
-		expect(result).toBeGreaterThan(0);
-	});
-
-	test("cma adapts sigma via selfSigma path length", () => {
-		const m1 = makeMutationGenome({
-			adaptation: MutationAdaptation.Cma,
-			rates: { sigma: 0.5, selfSigma: 1.0 },
-		});
-		expect(adaptSigma(m1, rng)).toBeCloseTo(0.5, 5);
-
-		const m2 = makeMutationGenome({
-			adaptation: MutationAdaptation.Cma,
-			rates: { sigma: 0.5, selfSigma: 0.1 },
-		});
-		expect(adaptSigma(m2, rng)).toBeLessThan(0.5);
-
-		const m3 = makeMutationGenome({
-			adaptation: MutationAdaptation.Cma,
-			rates: { sigma: 0.5, selfSigma: 2.0 },
-		});
-		expect(adaptSigma(m3, rng)).toBeGreaterThan(0.5);
-	});
-
-	test("unknown adaptation returns sigma", () => {
-		const m = makeMutationGenome({
-			adaptation: "unknown_value" as any,
-			rates: { sigma: 0.5 },
-		});
-		expect(adaptSigma(m, rng)).toBe(0.5);
-	});
-});
+import { mutateGenome } from "../../../src/domain/genetic-algorithm/mutation/mutate";
 
 describe("Mutation - mutateLayer", () => {
 	const rng = () => 0.5;
@@ -116,7 +36,7 @@ describe("Mutation - mutateLayer", () => {
 			connectionType: ConnectionType.DenseSkip,
 			biasType: InitialisationType.Zeros,
 		};
-		const highRateM = { ...m, rate: 0.9, mutateActivations: false };
+		const highRateM = { ...m, rate: 0.9 };
 		const mutated = mutateLayer(layer, highRateM, () => 0.1);
 		expect(mutated.activation).toBe(ActivationType.Relu);
 	});
@@ -163,16 +83,8 @@ describe("Mutation - mutateGenome", () => {
 		const genome = createDefaultGenome("test");
 		const mutated = mutateGenome(genome, rng);
 		expect(mutated.mutation.rates.sigma).toBeGreaterThanOrEqual(1e-5);
-		expect(mutated.mutation.rates.selfSigma).toBeGreaterThanOrEqual(1e-5);
 		expect(mutated.mutation.rates.rate).toBeGreaterThanOrEqual(0.001);
 		expect(mutated.mutation.rates.rate).toBeLessThanOrEqual(0.5);
-	});
-
-	test("per_layer scope should apply layer-level mutation", () => {
-		const genome = createDefaultGenome("test");
-		genome.mutation.scope = MutationScope.PerLayer;
-		const mutated = mutateGenome(genome, rng);
-		expect(mutated.network.hiddenLayers.length).toBeGreaterThan(0);
 	});
 
 	test("should trigger addNeuronRate structural mutation", () => {
@@ -218,23 +130,6 @@ describe("Mutation - mutateGenome", () => {
 		expect(mutated.network.hiddenLayers.length).toBeGreaterThanOrEqual(1);
 	});
 
-	test("should trigger mutateActivations when enabled", () => {
-		const genome = createDefaultGenome("test");
-		genome.mutation.mutateActivations = true;
-		genome.mutation.rates.activationMutationRate = 0.9;
-		genome.mutation.rates.rate = 0.9;
-		const mutated = mutateGenome(genome, () => 0.05);
-		expect(mutated.network.hiddenLayers).toBeDefined();
-	});
-
-	test("should skip RL hyperparameter mutation when mutateHyperparams is false", () => {
-		const genome = createDefaultGenome("test");
-		genome.mutation.mutateHyperparams = false;
-		const origGamma = genome.rl.gamma;
-		const mutated = mutateGenome(genome, () => 0.5);
-		expect(mutated.rl.gamma).toBe(origGamma);
-	});
-
 	test("should add one to a discrete step param when both rng gates pass", () => {
 		expect(mutateDiscreteStepParam(10, rngSequence(0.05, 0.05))).toBe(11);
 	});
@@ -249,7 +144,6 @@ describe("Mutation - mutateGenome", () => {
 
 	test("should exercise perturb function on all RL fields in mutateRL", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.mutateHyperparams = true;
 		genome.mutation.rates.rate = 0;
 		genome.mutation.structural.addNeuronRate = 0;
 		genome.mutation.structural.removeNeuronRate = 0;

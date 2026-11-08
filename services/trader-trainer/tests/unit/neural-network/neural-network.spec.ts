@@ -1,13 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { setLogger } from "@trading-model/contracts/logger-registry";
-import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
+import { beforeEach, describe, expect, it } from "@jest/globals";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
 import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
-	LossFunctionType,
 	NormalisationType,
 } from "../../../src/domain/neural-network/type";
 
@@ -18,7 +16,6 @@ function makeConfig(
 		neuronsByLayer: [4, 6, 3],
 		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
 		initialisationType: InitialisationType.Zeros,
-		lossFunctionType: LossFunctionType.MeanSquaredError,
 		normalisationType: NormalisationType.None,
 		connectionType: ConnectionType.FullyConnected,
 		enablePool: false,
@@ -65,21 +62,6 @@ describe("NeuralNetwork", () => {
 						})
 					)
 			).toThrow();
-		});
-
-		it("should warn when sigmoid output is not paired with binary cross-entropy", () => {
-			const warn = jest.fn();
-			setLogger({ debug: jest.fn(), info: jest.fn(), warn, error: jest.fn() });
-			new NeuralNetwork(
-				makeConfig({
-					activationType: [ActivationType.Relu, ActivationType.Sigmoid],
-					lossFunctionType: LossFunctionType.MeanSquaredError,
-				})
-			);
-
-			expect(warn).toHaveBeenCalledWith(
-				"Sigmoid output is usually paired with binary-cross-entropy"
-			);
 		});
 
 		it("should use default values when optional fields are omitted", () => {
@@ -164,7 +146,6 @@ describe("NeuralNetwork", () => {
 				neuronsByLayer: [1, 1],
 				activationType: [ActivationType.Relu],
 				initialisationType: InitialisationType.Zeros,
-				lossFunctionType: LossFunctionType.MeanSquaredError,
 				normalisationType: NormalisationType.None,
 				connectionType: ConnectionType.FullyConnected,
 				useBias: false,
@@ -268,7 +249,6 @@ describe("NeuralNetwork", () => {
 				neuronsByLayer: [4, 2],
 				activationType: [ActivationType.Sigmoid],
 				initialisationType: InitialisationType.Zeros,
-				lossFunctionType: LossFunctionType.BinaryCrossEntropy,
 				normalisationType: NormalisationType.None,
 				connectionType: ConnectionType.FullyConnected,
 				enablePool: false,
@@ -307,7 +287,6 @@ describe("NeuralNetwork", () => {
 				neuronsByLayer: [4, 4],
 				activationType: [ActivationType.Relu],
 				initialisationType: InitialisationType.Zeros,
-				lossFunctionType: LossFunctionType.MeanSquaredError,
 				normalisationType: NormalisationType.None,
 				connectionType: ConnectionType.DenseSkip,
 				enablePool: false,

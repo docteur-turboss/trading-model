@@ -179,30 +179,21 @@ function assignCrowding(
 	}
 }
 
-function _collectFront(paretoRank: number[], rankIdx: number): number[] {
-	return paretoRank.reduce((acc, rank, index) => {
-		if (rank === rankIdx) {
-			acc.push(index);
-		}
-		return acc;
-	}, [] as number[]);
-}
-
-function _computeMaxRank(paretoRank: number[]): number {
-	return Math.max(...paretoRank);
-}
-
 function _assignCrowdingForAllFronts(
 	paretoRank: number[],
 	objectives: ObjectiveVector[],
 	crowdingDist: number[]
 ): void {
-	for (let rankIdx = 0; rankIdx <= _computeMaxRank(paretoRank); rankIdx++) {
-		assignCrowding(
-			_collectFront(paretoRank, rankIdx),
-			objectives,
-			crowdingDist
-		);
+	// One pass buckets indices by rank, ascending inside each front.
+	const fronts: number[][] = [];
+	paretoRank.forEach((rank, index) => {
+		fronts[rank] ??= [];
+		fronts[rank].push(index);
+	});
+	for (const front of fronts) {
+		if (front) {
+			assignCrowding(front, objectives, crowdingDist);
+		}
 	}
 }
 

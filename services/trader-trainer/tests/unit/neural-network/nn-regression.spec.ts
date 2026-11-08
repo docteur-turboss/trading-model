@@ -1,12 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { ACTIVATIONS } from "../../../src/domain/neural-network/activation";
-import { LOSSES } from "../../../src/domain/neural-network/losses";
 import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
+import { mseLoss } from "../../../src/domain/neural-network/output-delta-computer";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
-	LossFunctionType,
 	NormalisationType,
 } from "../../../src/domain/neural-network/type";
 
@@ -24,7 +23,6 @@ describe("NN Regression — Forward Pass", () => {
 			useBias: true,
 			normalisationType: NormalisationType.None,
 			connectionType: ConnectionType.FullyConnected,
-			lossFunctionType: LossFunctionType.MeanSquaredError,
 		});
 
 		const weights = new Float32Array([0.5, 0.3]);
@@ -77,75 +75,19 @@ describe("NN Regression — Forward Pass", () => {
 	});
 });
 
-describe("NN Regression — Loss Functions", () => {
-	const config = {
-		lossFunctionType: LossFunctionType.MeanSquaredError,
-		deltaHuber: 1,
-		neuronsByLayer: [2, 1],
-		useBias: true,
-		normalisationType: NormalisationType.None,
-		connectionType: ConnectionType.FullyConnected,
-		initialisationType: InitialisationType.Zeros,
-	};
-
+describe("NN Regression — Loss", () => {
 	it("MSE of identical vectors is zero", () => {
 		const output = new Float32Array([0.5, 0.3]);
-		const target = new Float32Array([0.5, 0.3]);
-		const loss = LOSSES[LossFunctionType.MeanSquaredError].loss(
-			output,
-			target,
-			config
-		);
-		expect(loss).toBe(0);
+		expect(mseLoss(output, new Float32Array([0.5, 0.3]))).toBe(0);
 	});
 
 	it("MSE of known vectors computes correct value", () => {
 		const output = new Float32Array([0.5, 0.3]);
 		const target = new Float32Array([0.7, 0.1]);
-		const loss = LOSSES[LossFunctionType.MeanSquaredError].loss(
-			output,
-			target,
-			config
-		);
+		const loss = mseLoss(output, target);
 		const expected = ((0.5 - 0.7) ** 2 + (0.3 - 0.1) ** 2) / 2;
 		expect(loss).toBeCloseTo(expected, 5);
 		expect(loss).toBeCloseTo(0.04, 5);
-	});
-
-	it("MAE of known vectors computes correct value", () => {
-		const output = new Float32Array([10, 20]);
-		const target = new Float32Array([12, 18]);
-		const loss = LOSSES[LossFunctionType.MeanAbsoluteError].loss(
-			output,
-			target,
-			config
-		);
-		const expected = (Math.abs(10 - 12) + Math.abs(20 - 18)) / 2;
-		expect(loss).toBeCloseTo(expected, 5);
-		expect(loss).toBe(2);
-	});
-
-	it("cross-entropy loss is finite for valid probabilities", () => {
-		const output = new Float32Array([0.7, 0.3]);
-		const target = new Float32Array([1, 0]);
-		const loss = LOSSES[LossFunctionType.CrossEntropy].loss(
-			output,
-			target,
-			config
-		);
-		expect(loss).toBeGreaterThan(0);
-		expect(Number.isFinite(loss)).toBe(true);
-	});
-
-	it("binary-cross-entropy loss is zero for perfect prediction", () => {
-		const output = new Float32Array([1]);
-		const target = new Float32Array([1]);
-		const loss = LOSSES[LossFunctionType.BinaryCrossEntropy].loss(
-			output,
-			target,
-			config
-		);
-		expect(loss).toBeCloseTo(0, 5);
 	});
 });
 

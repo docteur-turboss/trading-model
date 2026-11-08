@@ -1,22 +1,21 @@
-import { GENOME_SECTIONS } from "../genome-sections";
+import { mutateNetworkStructure } from "../genome-network/mutation";
+import { mutateRL } from "../genome-rl/mutation";
 import type { LamarckGenome } from "../genome-types";
 import { mutateSelfAdaptiveParams } from "./self-adaptive-mutation";
-import { adaptSigma } from "./sigma-adapters";
-
-export { mutateLayer } from "../genome-network";
 
 export function mutateGenome(
 	genome: LamarckGenome,
 	rng: () => number
 ): LamarckGenome {
 	const mutationConfig = genome.mutation;
-	const sigma = adaptSigma(mutationConfig, rng);
-
-	const next: LamarckGenome = {
+	return {
 		...genome,
-		network: GENOME_SECTIONS.network.mutate(genome, mutationConfig, sigma, rng),
-		rl: GENOME_SECTIONS.rl.mutate(genome, mutationConfig, sigma, rng),
-		mutation: mutateSelfAdaptiveParams(mutationConfig, sigma, rng),
+		network: mutateNetworkStructure({ genome, mutationConfig, rng }),
+		rl: mutateRL({ rl: genome.rl, rng }),
+		mutation: mutateSelfAdaptiveParams(
+			mutationConfig,
+			mutationConfig.rates.sigma,
+			rng
+		),
 	};
-	return next;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { buildPopulationMeta } from "../../../src/domain/genetic-algorithm/pareto";
+import { buildPopulationMeta } from "../../../src/domain/genetic-algorithm/pareto/nsga2";
 
 function linearRng(): () => number {
 	let s = 0.1;

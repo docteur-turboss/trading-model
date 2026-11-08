@@ -1,5 +1,4 @@
 import type { PositiveInt, Reward } from "@trading-model/primitives/primitives";
-import type { OptimizerState } from "../optimizer";
 import type { ExperienceKind } from "./enums";
 
 interface ExperienceBase {
@@ -50,7 +49,4 @@ export interface LayerMemory
 	extends LayerWeights,
 		LayerDimensions,
 		LayerActivations,
-		LayerGradients {
-	wState: OptimizerState;
-	bState: OptimizerState;
-}
+		LayerGradients {}

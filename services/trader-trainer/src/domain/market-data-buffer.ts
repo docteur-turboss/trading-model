@@ -45,11 +45,7 @@ export class MarketDataBuffer {
 		return this._stateManager.getMaxSize();
 	}
 
-	addData(
-		dataType: import("./data-handlers/data-handler").DataType,
-		symbol: TradingSymbol,
-		data: unknown
-	): void {
+	addData(dataType: DataType, symbol: TradingSymbol, data: unknown): void {
 		this._stateManager.addData(dataType, symbol, data);
 		this._onDataAdded?.(
 			symbol,

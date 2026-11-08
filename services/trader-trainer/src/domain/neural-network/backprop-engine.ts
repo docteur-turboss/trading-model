@@ -17,14 +17,6 @@ export interface LayerGradientContext {
 	layerInput: Float32Array;
 }
 
-export interface WeightGradientContext {
-	weightBuf: Float32Array;
-	rowOffset: number;
-	deltaJ: number;
-	input: Float32Array;
-	fanIn: number;
-}
-
 export class BackpropEngine {
 	private readonly _outputDeltaComputer: OutputDeltaComputer;
 	private readonly _hiddenDeltaComputer: HiddenDeltaComputer;

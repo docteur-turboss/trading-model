@@ -5,13 +5,11 @@ import type {
 } from "../market-data-types";
 import { bookTickerHandler } from "./book-ticker-handler";
 import { candleHandler } from "./candle-handler";
-import { DataType } from "./data-types";
+import type { DataType } from "./data-types";
 import { orderBookHandler } from "./order-book-handler";
 import { priceHandler } from "./price-handler";
 import { tickerHandler } from "./ticker-handler";
 import { tradeHandler } from "./trade-handler";
-
-export { DataType };
 
 interface MutateStateContext<TData = unknown> {
 	symbol: import("../market-data-types").TradingSymbol;

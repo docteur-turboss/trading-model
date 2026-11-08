@@ -14,7 +14,6 @@ import {
 	ConnectionType,
 	ExperienceKind,
 	InitialisationType,
-	LossFunctionType,
 	NormalisationType,
 } from "../../../src/domain/neural-network/type";
 
@@ -27,7 +26,6 @@ function makeConfig(
 			neuronsByLayer: [5, 6, 3],
 			activationType: [ActivationType.Relu, ActivationType.Sigmoid],
 			initialisationType: InitialisationType.Zeros,
-			lossFunctionType: LossFunctionType.MeanSquaredError,
 			normalisationType: NormalisationType.None,
 			connectionType: ConnectionType.FullyConnected,
 			learningRate: 0.01,
@@ -212,7 +210,7 @@ describe("TradingAgent", () => {
 			expect(agent.wallet.getPrice()).toBe(105);
 		});
 
-		it("should return an action, reward, and metrics", () => {
+		it("should return an action and a reward", () => {
 			const result = agent.step(
 				new Float32Array([0.5, -0.3, 0.1, 0.8]),
 				Price.of(105)
@@ -220,7 +218,6 @@ describe("TradingAgent", () => {
 
 			expect(result).toHaveProperty("action");
 			expect(result).toHaveProperty("reward");
-			expect(result).toHaveProperty("metrics");
 		});
 
 		it("should decay epsilon after step", () => {
@@ -239,13 +236,6 @@ describe("TradingAgent", () => {
 			const epsilonAfter = epsilonAgent.state.getEpsilon();
 
 			expect(epsilonAfter).toBeLessThan(epsilonBefore);
-		});
-
-		it("should execute a trade and record it in wallet history", () => {
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
-
-			const history = agent.wallet.getHistory();
-			expect(history.length).toBeGreaterThanOrEqual(0);
 		});
 
 		it("should not update wallet price when price is not provided", () => {

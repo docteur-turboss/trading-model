@@ -25,14 +25,6 @@ function _crossoverRates(
 	return {
 		rate: _coinField(left.rates, right.rates, "rate", rng),
 		sigma: _coinField(left.rates, right.rates, "sigma", rng),
-		noiseStd: _coinField(left.rates, right.rates, "noiseStd", rng),
-		selfSigma: _coinField(left.rates, right.rates, "selfSigma", rng),
-		activationMutationRate: _coinField(
-			left.rates,
-			right.rates,
-			"activationMutationRate",
-			rng
-		),
 	};
 }
 
@@ -66,18 +58,6 @@ function _crossoverStructural(
 			"removeLayerRate",
 			rng
 		),
-		addConnectionRate: _coinField(
-			left.structural,
-			right.structural,
-			"addConnectionRate",
-			rng
-		),
-		removeConnectionRate: _coinField(
-			left.structural,
-			right.structural,
-			"removeConnectionRate",
-			rng
-		),
 	};
 }
 
@@ -89,18 +69,5 @@ export function crossoverMutation(
 	return {
 		rates: _crossoverRates(left, right, rng),
 		structural: _crossoverStructural(left, right, rng),
-		distribution: _coin(left.distribution, right.distribution, rng),
-		adaptation: _coin(left.adaptation, right.adaptation, rng),
-		scope: _coin(left.scope, right.scope, rng),
-		mutateActivations: _coin(
-			left.mutateActivations,
-			right.mutateActivations,
-			rng
-		),
-		mutateHyperparams: _coin(
-			left.mutateHyperparams,
-			right.mutateHyperparams,
-			rng
-		),
 	};
 }

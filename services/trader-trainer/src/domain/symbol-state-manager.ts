@@ -57,11 +57,7 @@ export class SymbolStateManager {
 		};
 	}
 
-	addData(
-		dataType: import("./data-handlers/data-handler").DataType,
-		symbol: TradingSymbol,
-		data: unknown
-	): void {
+	addData(dataType: DataType, symbol: TradingSymbol, data: unknown): void {
 		const maxSize = this._memoryManager.getMaxSize();
 		const state = this._getOrCreate(symbol);
 		const handler = this._handlerMap[dataType];

@@ -1,3 +1,4 @@
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import {
 	Cash,
 	Percentage,
@@ -12,7 +13,6 @@ import {
 	ExperienceKind,
 	InitialisationType,
 } from "../neural-network/type";
-import { makePRNG } from "./prng";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 interface StepInput {

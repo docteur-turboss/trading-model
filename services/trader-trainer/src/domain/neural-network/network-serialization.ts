@@ -1,7 +1,6 @@
 import { agentError } from "../../shared/errors";
-
+import { sampleGaussian } from "../genetic-algorithm/noise";
 import type { LayerMemory } from "./type";
-import { GAUSSIAN_NOISE as gaussianNoise } from "./utils";
 
 /**
  * Count total trainable parameters (weights + biases) across all layers.
@@ -87,7 +86,7 @@ function _resolveReference(
 function _perturbWeights(mean: Float32Array, sigma: number): Float32Array {
 	const childBuffer = new Float32Array(mean.length);
 	for (let i = 0; i < mean.length; i++) {
-		childBuffer[i] = mean[i] + gaussianNoise(sigma);
+		childBuffer[i] = mean[i] + sampleGaussian(Math.random, sigma);
 	}
 	return childBuffer;
 }

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import { Price } from "@trading-model/primitives/primitives";
 import { FeatureVector } from "../../../src/domain/feature-vector";
 import { FEATURE_DIM } from "../../../src/domain/feature-vector-codec";
 import type { MarketStep } from "../../../src/domain/genetic-algorithm/genome-types";
-import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
 import {
 	makeSeededBackendFactory,
 	makeTradingAgentBackend,
