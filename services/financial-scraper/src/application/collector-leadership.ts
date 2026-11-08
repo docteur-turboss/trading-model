@@ -33,10 +33,12 @@ export const DEFAULT_LEADERSHIP_TIMING: LeadershipTiming = {
  */
 export class CollectorLeadership {
 	private _leading = false;
-	private _renewedAt = 0;
 	private _stopped = false;
 	private _timer?: NodeJS.Timeout;
+	/** Fires `renewDeadlineMs` after the start of the last successful attempt. */
+	private _deadline?: NodeJS.Timeout;
 	private _tick?: Promise<void>;
+	private _draining?: Promise<void>;
 
 	constructor(
 		private readonly _lease: LeaderLeasePort,
@@ -61,21 +63,15 @@ export class CollectorLeadership {
 		this._stopped = true;
 		clearTimeout(this._timer);
 		await this._tick;
+		await this._draining;
 		if (!this._leading) {
 			return;
 		}
+		clearTimeout(this._deadline);
 		this._leading = false;
 		COLLECTOR_LEADER.set(0);
 		await this._collection.stop();
-		try {
-			await this._lease.release();
-			getLogger().info("Collector lease released");
-		} catch (err) {
-			// The rest of the shutdown goes on: the successor waits for the expiry.
-			getLogger().error("Collector lease not released: it expires on its own", {
-				error: err,
-			});
-		}
+		await this._release();
 	}
 
 	private _schedule(delayMs: number): void {
@@ -90,6 +86,13 @@ export class CollectorLeadership {
 	}
 
 	private async _attempt(): Promise<void> {
+		if (this._draining !== undefined) {
+			// Leadership was lost by the deadline: finish that drain before trying again.
+			await this._draining;
+			return;
+		}
+		// The write may have landed as early as this: renewals count from here.
+		const startedAt = this._now();
 		let held: boolean | undefined;
 		try {
 			held = await this._lease.tryAcquireOrRenew();
@@ -97,10 +100,21 @@ export class CollectorLeadership {
 			getLogger().warn("Collector lease unreachable", { error: err });
 		}
 		if (this._stopped) {
+			if (held && !this._leading) {
+				await this._release();
+			}
 			return;
 		}
 		if (held) {
-			this._renewedAt = this._now();
+			const deadlineIn = startedAt + this._timing.renewDeadlineMs - this._now();
+			if (deadlineIn <= 0) {
+				return; // Answered too late to count; the deadline timer stops a leader.
+			}
+			clearTimeout(this._deadline);
+			this._deadline = setTimeout(() => {
+				// Never rejects: _lose logs a failed drain.
+				void this._lose("lease not renewed within the deadline");
+			}, deadlineIn);
 			if (!this._leading) {
 				this._leading = true;
 				COLLECTOR_LEADER.set(1);
@@ -109,21 +123,43 @@ export class CollectorLeadership {
 			}
 			return;
 		}
-		if (!this._leading) {
-			return;
-		}
-		if (held === false) {
+		if (this._leading && held === false) {
 			await this._lose("lease held by another instance");
-		} else if (this._now() - this._renewedAt >= this._timing.renewDeadlineMs) {
-			await this._lose("lease not renewed within the deadline");
 		}
 	}
 
-	private async _lose(reason: string): Promise<void> {
+	/**
+	 * Stops collecting at once. Called from the deadline timer too, so it
+	 * never waits on the API call in flight: the stop is bounded by real time.
+	 */
+	private _lose(reason: string): Promise<void> {
+		clearTimeout(this._deadline);
 		this._leading = false;
 		COLLECTOR_LEADER.set(0);
 		getLogger().warn("Collector stops collecting", { reason });
-		await this._collection.stop();
+		this._draining = this._collection
+			.stop()
+			.catch((err: unknown) => {
+				getLogger().error("Collector drain failed after losing the lease", {
+					error: err,
+				});
+			})
+			.finally(() => {
+				this._draining = undefined;
+			});
+		return this._draining;
+	}
+
+	private async _release(): Promise<void> {
+		try {
+			await this._lease.release();
+			getLogger().info("Collector lease released");
+		} catch (err) {
+			// The rest of the shutdown goes on: the successor waits for the expiry.
+			getLogger().error("Collector lease not released: it expires on its own", {
+				error: err,
+			});
+		}
 	}
 }
 

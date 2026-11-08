@@ -316,4 +316,78 @@ describe("two collectors on one Kubernetes Lease", () => {
 		await a.leadership.stop();
 		await b.leadership.stop();
 	});
+
+	it("a holder whose API calls hang stops at the renew deadline, before the successor starts", async () => {
+		const api = memoryLeaseApi();
+		const events: string[] = [];
+		// pod-a's calls stay pending far past the deadline (slow API server, no error).
+		let hanging = false;
+		const slow = <T>(call: () => Promise<T>): Promise<T> =>
+			hanging
+				? new Promise((resolve) => setTimeout(() => resolve(call()), 60_000))
+				: call();
+		const aApi: LeaseApi = {
+			get: () => slow(() => api.get()),
+			update: (lease) => slow(() => api.update(lease)),
+		};
+		const a = instance("pod-a", aApi, events);
+		a.leadership.start();
+		await jest.advanceTimersByTimeAsync(0);
+		expect(a.leadership.leading).toBe(true);
+		const lastRenewal = Date.now();
+
+		hanging = true;
+		const b = instance("pod-b", api, events);
+		b.leadership.start();
+		let aStoppedAt = -1;
+		let bLeadingAt = -1;
+		let overlaps = 0;
+		for (let t = 100; t <= 30_000; t += 100) {
+			await jest.advanceTimersByTimeAsync(100);
+			if (a.collection.active && b.collection.active) {
+				overlaps++;
+			}
+			if (aStoppedAt < 0 && !a.collection.active) {
+				aStoppedAt = t;
+			}
+			if (bLeadingAt < 0 && b.leadership.leading) {
+				bLeadingAt = t;
+			}
+		}
+		expect(overlaps).toBe(0);
+		expect(aStoppedAt).toBeGreaterThan(0);
+		expect(aStoppedAt - lastRenewal).toBeLessThanOrEqual(
+			TIMING.renewDeadlineMs
+		);
+		expect(bLeadingAt).toBeGreaterThan(aStoppedAt);
+		hanging = false; // let the pending calls end so stop() can await them
+		await jest.advanceTimersByTimeAsync(60_000);
+		await a.leadership.stop();
+		await b.leadership.stop();
+	});
+
+	it("releases a lease acquired while stopping", async () => {
+		const events: string[] = [];
+		let acquire: (held: boolean) => void = () => undefined;
+		const lease: LeaderLeasePort = {
+			tryAcquireOrRenew: () =>
+				new Promise<boolean>((resolve) => {
+					acquire = resolve;
+				}),
+			release: jest.fn(async () => {
+				events.push("release");
+			}),
+		};
+		const collection = fakeCollection(events);
+		const leadership = new CollectorLeadership(lease, collection, TIMING);
+		leadership.start();
+		await jest.advanceTimersByTimeAsync(0);
+
+		const stopping = leadership.stop();
+		acquire(true);
+		await stopping;
+
+		expect(collection.start).not.toHaveBeenCalled();
+		expect(events).toEqual(["release"]);
+	});
 });
