@@ -12,6 +12,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 export COMPOSE_PROJECT_NAME="backupdrill"
 export MYSQL_ROOT_PASSWORD="drill-root"
+export GRAFANA_PASSWORD="drill-grafana"
 SERVICES="mongo mysql redis spire-server"
 WORK="$(mktemp -d)"
 # Git Bash: a C:/... path is understood by bash and by the native age/docker.
