@@ -9,7 +9,7 @@ overlay `production`.
 |-------|-------|
 | Cluster `trading-staging` (kind v0.27.0, as the CI `k8s` job) | `deploy/staging-local/kind.yaml` |
 | MinIO (audit anchors, off-site backups) and the runner | `deploy/staging-local/docker-compose.yml`, project `trading-staging`, both on the Docker network `kind` |
-| Overlay | `deploy/k8s/overlays/staging-local`: `staging` + self-signed TLS (`selfsigned-local`), Ingress allow-list `172.18.0.0/16`, audit-logger egress to MinIO `172.18.0.200:9000`, SealedSecret sealed for the kind controller |
+| Overlay | `deploy/k8s/overlays/staging-local`: `staging` + self-signed TLS (`selfsigned-local`), Ingress allow-list `172.18.0.0/16`, audit-logger egress to MinIO `172.18.0.200:9000`, SealedSecret sealed for the kind controller, data StatefulSets held by a partition ([below](#database-pods-across-releases)) |
 | Local secrets | `~/.trading-staging/env` (MinIO root, S3 users) and `~/.trading-staging/backup-age-identity.txt` (private age key of the staging backups): never committed |
 
 The Ingress answers on `https://localhost:9443` (self-signed certificate).
@@ -83,6 +83,48 @@ the `staging-backup` MinIO user and the `BACKUP_*` variables of `staging`,
 MinIO, on the same machine: it survives the loss of the cluster, not of the
 laptop. For production, delete `SEALED_SECRETS_BACKUP_RUNNER` and
 `BACKUP_MIN_RECIPIENTS`, then fill the environment with the production values.
+
+## Database pods across releases
+
+The staging overlay runs one pod per data StatefulSet (`mysql`, `redis`,
+`redis-sentinel`, `mongo-dlq`, `mongo-audit`). A rolling update deletes that pod
+before its replacement starts, so a release that changes their pod template
+(3.1.0: exporter sidecars) would cut the database for the stop, the image pull
+and the start (up to 30 min for MySQL here). The `staging-local` overlay sets
+`updateStrategy.rollingUpdate.partition: 1` on these five (issue #700,
+enforced by `tests/k8s/check-overlays.mjs`):
+
+- a deploy never restarts them: their pods keep UID, restart count and the pod
+  template of their revision; `kubectl rollout status` reports the partitioned
+  rollout complete, so `deploy-release.sh wait` and the first-deploy migration
+  step go on;
+- a new cluster (or a deleted StatefulSet) gets the current template;
+- a pod deleted or evicted comes back with the template of its revision, not
+  the newest one;
+- until restarted, the pods lack what the new template adds. 3.1.0: no
+  exporter, so no Prometheus target and no `mysql_up` / `redis_up` /
+  `mongodb_up` series. `MySQLDown`, `RedisDown` and `MongoDBDown` stay silent
+  (no series, no alert): a database outage is then only seen by the services'
+  own alerts.
+
+To take a new template, plan the restart (database down meanwhile) outside a
+deploy. Release `redis` and `redis-sentinel` together: a Redis node restarted
+alone waits for the master its sentinel still names, the dead pod (PR #579).
+
+```bash
+NS=trading-model-staging
+for sts in redis redis-sentinel; do   # or: mysql, mongo-dlq, mongo-audit (one at a time)
+  kubectl -n "$NS" patch sts "$sts" -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":0}}}}'
+done
+for sts in redis redis-sentinel; do kubectl -n "$NS" rollout status "sts/$sts" --timeout=1800s; done
+for sts in redis redis-sentinel; do
+  kubectl -n "$NS" patch sts "$sts" -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":1}}}}'
+done
+```
+
+The next deploy sets the partition back to 1 anyway (it is in the overlay).
+Check the result: `kubectl -n "$NS" get sts <x> -o jsonpath='{.status.currentRevision} {.status.updateRevision}'`
+prints the same revision twice.
 
 ## Renewal and teardown
 
