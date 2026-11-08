@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -432,6 +432,8 @@ verify() {
 	wait_for 120 "curl -sf -H 'x-api-key: $API_KEY' $url | grep -q financial-scraper"
 	log "  registered: $(curl -s -H "x-api-key: $API_KEY" "$url")"
 
+	verify_traces
+
 	log "Prometheus scrapes every target over mTLS (SVID)"
 	wait_for 180 prometheus_targets_down
 
@@ -443,6 +445,42 @@ verify() {
 	verify_backup
 
 	log "OK: the staging overlay works on Kubernetes"
+}
+
+# Requests through edge-proxy must leave in Jaeger a trace that spans
+# api-gateway and the service it called (issue #599: telemetry started after
+# Express recorded nothing). Jaeger is read through a port-forward, which the
+# NetworkPolicies do not filter.
+traces_span_services() {
+	curl -sf "http://localhost:18686/api/traces?service=api-gateway&limit=50&lookback=1h" |
+		node -e '
+			const traces = JSON.parse(require("fs").readFileSync(0, "utf8")).data ?? [];
+			const best = traces
+				.map((t) => [...new Set(Object.values(t.processes).map((p) => p.serviceName))])
+				.sort((a, b) => b.length - a.length)[0] ?? [];
+			console.error(`traces=${traces.length} widest=${best.join(",")}`);
+			process.exit(best.length >= 2 ? 0 : 1)'
+}
+
+verify_traces() {
+	log "a request through edge-proxy gives a Jaeger trace with 2+ services"
+	$K -n "$NS" port-forward svc/edge-proxy 18451:8080 >/dev/null 2>&1 &
+	local edge=$!
+	$K -n "$NS" port-forward svc/jaeger 18686:16686 >/dev/null 2>&1 &
+	local jaeger=$!
+	local result=0
+	wait_for 30 'curl -s -o /dev/null http://localhost:18451/ && curl -s -o /dev/null http://localhost:18686/' || result=1
+	[ "$result" = 0 ] && curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/discovery-server/services
+	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
+	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
+		log "  $(traces_span_services 2>&1)"
+	else
+		traces_span_services || true
+		result=1
+	fi
+	# No RETURN trap: it would replace the one of verify (traps are global).
+	kill "$edge" "$jaeger" 2>/dev/null || true
+	return "$result"
 }
 
 # ci-render.mjs drops every internet egress rule: kind must enforce the
@@ -1125,7 +1163,7 @@ all)
 	verify
 	verify_canary
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_canary | verify_release | verify_alerts | verify_backup | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
 	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64

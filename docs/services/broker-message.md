@@ -222,6 +222,7 @@ interface MessageMetadata {
   routing?: RoutingType;
   delivery?: DeliveryType;
   security?: SecurityType;
+  traceparent?: string; // W3C trace context of the publish, set by the client (ADR-0048)
 }
 
 interface Message<T = unknown> {

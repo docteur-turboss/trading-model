@@ -454,6 +454,9 @@
       "version": "1.0.0",
       "devDependencies": {
         "@jest/globals": "^30.5.2",
+        "@opentelemetry/api": "^1.10.0",
+        "@opentelemetry/context-async-hooks": "^3.0.0",
+        "@opentelemetry/core": "^3.0.0",
         "@trading-model/broker-message": "*",
         "@trading-model/contracts": "*",
         "@trading-model/crypto": "*",

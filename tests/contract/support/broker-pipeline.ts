@@ -1,3 +1,4 @@
+import { context, propagation } from "@opentelemetry/api";
 import type { Message } from "@trading-model/contracts/message-types";
 import { toJsonWire } from "@trading-model/http/infrastructure/json-wire";
 import { MessageManagerClient } from "../../../packages/broker-message/src/adapters/outbound/message-manager-client";
@@ -64,6 +65,8 @@ export async function relayThroughMessageManager(
 			accepted: true;
 			message: Message;
 			delivered: unknown;
+			/** `traceparent` of the context the delivery request was sent in. */
+			deliveryTraceparent?: string;
 			/** Replay only: the services the journal entry was written for. */
 			journaledFor?: { services: readonly string[]; onlyFor?: string };
 	  }
@@ -104,10 +107,14 @@ export async function relayThroughMessageManager(
 		message = createMessage(parsed.data.payload, parsed.data.metadata as never);
 	}
 	let delivered: unknown;
+	let deliveryTraceparent: string | undefined;
 	const delivery = new HttpMessageDelivery(
 		{
 			post: async (_url: string, body: unknown) => {
 				delivered = overTheWire(body);
+				const carrier: Record<string, string> = {};
+				propagation.inject(context.active(), carrier);
+				deliveryTraceparent = carrier.traceparent;
 			},
 		} as never,
 		{} as never
@@ -117,5 +124,11 @@ export async function relayThroughMessageManager(
 		message,
 		context: { deliveryAttempt: 1 },
 	} as never);
-	return { accepted: true, message, delivered, journaledFor };
+	return {
+		accepted: true,
+		message,
+		delivered,
+		deliveryTraceparent,
+		journaledFor,
+	};
 }

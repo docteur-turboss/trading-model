@@ -1,11 +1,7 @@
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import "./telemetry";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import {
-	initializeTelemetry,
-	shutdownTelemetry,
-} from "@trading-model/server-utils/infrastructure/telemetry";
+import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { type AuditLoggerApp, createAuditLoggerApp } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
@@ -25,12 +21,6 @@ createBootstrap({
 		return server;
 	},
 	onStart: () => {
-		initializeTelemetry({
-			serviceName: ServiceInstanceName.AuditLoggerService,
-			serviceVersion: ENV.APP_VERSION,
-			instanceId: toInstanceId(ENV.INSTANCE_ID),
-			otlpEndpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
-		});
 		if (!_context) {
 			return;
 		}
