@@ -55,6 +55,7 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `ScrapeCyclesFailing` | more than half of the scrape cycles fail | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | no candle of one symbol persisted for 15 min while the others may still flow (`fs_candles_persisted_total{symbol}`): symbol rejected, klines failing or candles refused by the normalizer, by symbol | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
 | `SignalCollectionFailing` | a signal source (ADR-0036) failed a collection in the last 24 h, by source: fetch error (403 from SEC EDGAR without contact e-mail), changed format or MySQL | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
+| `CandleDeliveryLagging` | under 50% of the candles persisted by the scraper reached the trainer over 30 min, for 15 min (data freshness SLO, `slo.md`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `MessageDeliveryLowSuccessRate` | less than 99.5% of the messages delivered (the rest dead-lettered) | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `MessagesDeadLettered` | message-manager gave up on messages: they are in dlq-service (`GET /dlq`) to inspect and replay | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DeadLettersNotForwarded` | dead letters have waited 15 min in a message-manager pod's local file (`mm_dlq_fallback_pending`): dlq-service cannot take them; lost if the pod is deleted | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
@@ -136,6 +137,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `SignalCollectionFailing` | warning | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `MarketDataUnpublished` | warning | [runbook-message-bus-outage#5-scraper-publish-backlog](runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog) |
 | `TrainerMarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `CandleDeliveryLagging` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |
 | `AlertmanagerNotificationsFailing` | critical | [ALERTING#alerts-on-the-alerting-path](ALERTING.md#alerts-on-the-alerting-path) |
 | `PrometheusRuleEvaluationFailures` | critical | [ALERTING#alerts-on-the-alerting-path](ALERTING.md#alerts-on-the-alerting-path) |

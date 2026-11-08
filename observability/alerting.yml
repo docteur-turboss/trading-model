@@ -5,25 +5,25 @@ groups:
 
       # ── Burn Rate Alerts (SLO-based) ─────────────────────────────
       - alert: SLOAvailabilityFastBurn
-        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.02
+        expr: slo:sli_error:ratio_rate1h > 0.0144 and slo:sli_error:ratio_rate5m > 0.0144
         for: 2m
         labels:
           severity: critical
           slo: availability
         annotations:
           summary: 'Availability SLO fast burn rate exceeded'
-          description: 'Error rate > 2% over 5m — burning through 99.9% error budget rapidly.'
+          description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: SLOAvailabilitySlowBurn
-        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[1h])) / sum by (job) (rate(http_requests_total[1h])) > 0.005
-        for: 10m
+        expr: slo:sli_error:ratio_rate6h > 0.006 and slo:sli_error:ratio_rate30m > 0.006
+        for: 15m
         labels:
           severity: warning
           slo: availability
         annotations:
           summary: 'Availability SLO slow burn rate exceeded'
-          description: 'Error rate > 0.5% over 1h — burning through 99.9% error budget.'
+          description: '5xx ratio > 0.6% over both 6h and 30m (6x the 0.1% budget of the 99.9% SLO). Probes are not counted.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: SLOLatencyFastBurn
@@ -49,25 +49,25 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
 
       - alert: SLOErrorRateFastBurn
-        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.05
+        expr: slo:sli_error:ratio_rate1h > 0.144 and slo:sli_error:ratio_rate5m > 0.144
         for: 2m
         labels:
           severity: critical
           slo: error_rate
         annotations:
           summary: 'Error rate SLO fast burn rate exceeded'
-          description: 'Error rate > 5% over 5m — exceeding 1% SLO target.'
+          description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the error rate SLO). Probes are not counted.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: SLOErrorRateSlowBurn
-        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[1h])) / sum by (job) (rate(http_requests_total[1h])) > 0.02
-        for: 10m
+        expr: slo:sli_error:ratio_rate6h > 0.06 and slo:sli_error:ratio_rate30m > 0.06
+        for: 15m
         labels:
           severity: warning
           slo: error_rate
         annotations:
           summary: 'Error rate SLO slow burn rate exceeded'
-          description: 'Error rate > 2% over 1h — approaching 1% SLO target breach.'
+          description: '5xx ratio > 6% over both 6h and 30m (6x the 1% budget of the error rate SLO). Probes are not counted.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: ServiceDown
@@ -564,6 +564,17 @@ groups:
           description: '{{ $value | humanize }} persisted {{ $labels.symbol }} candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
 
+      - alert: CandleDeliveryLagging
+        expr: sum(increase(fs_candles_persisted_total[30m])) > 0 and sum(increase(tt_market_data_received_total[30m])) < 0.5 * sum(increase(fs_candles_persisted_total[30m]))
+        for: 15m
+        labels:
+          severity: warning
+          slo: data_freshness
+        annotations:
+          summary: 'Less than half of the persisted candles reach the trainer'
+          description: 'financial-scraper persisted candles over the last 30m but trader-trainer received under 50% of them: the scraper to trainer path is lagging or dropping data.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
+
       - alert: TrainerMarketDataStale
         expr: sum(increase(tt_market_data_received_total[15m])) == 0
         for: 5m
@@ -622,14 +633,16 @@ groups:
     interval: 1m
     rules:
       - record: slo:sli_error:ratio_rate5m
-        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m]))
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[5m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[5m]))
       - record: slo:sli_error:ratio_rate1h
-        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[1h])) / sum by (job) (rate(http_requests_total[1h]))
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h]))
+      - record: slo:sli_error:ratio_rate30m
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30m]))
       - record: slo:sli_error:ratio_rate6h
-        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[6h])) / sum by (job) (rate(http_requests_total[6h]))
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[6h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[6h]))
       # Numerator guarded: a job with no 5xx series yet has a ratio of 0, not no data.
       - record: slo:sli_error:ratio_rate30d
-        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[30d])) / sum by (job) (rate(http_requests_total[30d])) or sum by (job) (rate(http_requests_total[30d])) * 0
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30d])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30d])) or sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30d])) * 0
 
   - name: trading-model-slo-budget
     interval: 5m
