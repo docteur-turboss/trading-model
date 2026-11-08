@@ -315,6 +315,29 @@ tests:
         alertname: ServiceDown
         exp_alerts: []
 
+  # ADR-0057: the HTTP replica reports 0, the collector 1 until it loses the
+  # Lease at 10m and nobody takes it. A rollout handover (one minute without
+  # leader, at 4m) stays below the 2 min of CollectorNoLeader.
+  - name: no collector holds the Lease for 2 minutes
+    interval: 1m
+    input_series:
+      - series: 'fs_collector_leader{job="financial-scraper",instance="http"}'
+        values: '0x20'
+      - series: 'fs_collector_leader{job="financial-scraper-collector",instance="c"}'
+        values: '1 1 1 1 0 1 1 1 1 1 0x10'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: CollectorNoLeader
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: CollectorNoLeader
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'No financial-scraper collector holds the Lease'
+              description: 'No pod has collected market data for 2 minutes: no collector pod holds the Lease financial-scraper-collector (API server unreachable, RBAC, collector down or collection disabled). Trades, tickers and order books of the window are lost.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#collectornoleader'
+
   # absent(): no series at all, which `up == 0` never sees. dlq-service has
   # a target at 0 (ServiceDown's job), so only the series-less job fires.
   - name: a job with no up series fires ServiceTargetsMissing, a present one does not
