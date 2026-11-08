@@ -86,7 +86,7 @@ The `--production` flag in the `deps` stage omits all `devDependencies`, so the 
 
 ## Edge proxy
 
-The gateway only accepts SPIFFE mTLS clients, so nothing outside the mesh can call it directly. `edge-proxy` is the external entry point ([ADR-0018](../adr/0018-temporary-frontend-removal.md)): the official nginx image with `deploy/edge-proxy/default.conf` mounted, run as uid 101 on a read-only filesystem. It answers `/ping` and `/health/ready` itself and forwards `/v1/*` to `https://api-gateway:3000` with its own SVID (`spiffe-helper-edge`, volume `svid-edge`), read on each handshake so the hourly rotation needs no reload.
+The gateway only accepts SPIFFE mTLS clients, so nothing outside the mesh can call it directly. `edge-proxy` is the external entry point ([ADR-0018](../adr/0018-temporary-frontend-removal.md)): the official nginx image with `deploy/edge-proxy/default.conf` mounted, run as uid 101 on a read-only filesystem. It answers `/ping` and `/health/ready` itself and forwards `/v<major>/*` (`/v1`, `/v2`) to `https://api-gateway:3000` with its own SVID (`spiffe-helper-edge`, volume `svid-edge`), read on each handshake so the hourly rotation needs no reload.
 
 ```bash
 curl -s http://localhost:8449/v1/discovery-server/services -H "x-api-key: <AUTH_TOKENS value>"

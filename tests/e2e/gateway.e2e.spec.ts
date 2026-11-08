@@ -31,16 +31,24 @@ describe("API Gateway E2E", () => {
 	it("routes a canonical service name to its legacy registration name", async () => {
 		// financial-scraper registers under its canonical name.
 		const { status, body } = await externalRequest(
-			"/v1/financial-scraper/candles/symbols/BTCUSDT",
+			"/v2/financial-scraper/candles/symbols/BTCUSDT",
 			{ headers: AUTH }
 		);
 		expect(status).toBe(200);
 		expect(body).toContain("BTCUSDT");
 	});
 
+	it("no longer serves financial-scraper under /v1 (breaking change of 3.0.0)", async () => {
+		const { status } = await externalRequest(
+			"/v1/financial-scraper/candles/symbols/BTCUSDT",
+			{ headers: AUTH }
+		);
+		expect(status).toBe(404);
+	});
+
 	it("serves the signals of an asset, every dimension (ADR-0036)", async () => {
 		const { status, body } = await externalRequest(
-			"/v1/financial-scraper/signals/assets/WHEAT?from=2026-01-01&to=2100-01-01",
+			"/v2/financial-scraper/signals/assets/WHEAT?from=2026-01-01&to=2100-01-01",
 			{ headers: AUTH }
 		);
 		expect(status).toBe(200);
