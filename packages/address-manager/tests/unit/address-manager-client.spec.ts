@@ -64,6 +64,7 @@ describe("AddressManagerClient", () => {
 		config = {
 			addressManagerUrl: "http://localhost:8443",
 			servicePort: Port.of(8080),
+			serviceVersion: "2.0.0",
 			tokenRefreshIntervalMs: 300_000,
 			ttlRefreshIntervalMs: 300_000,
 			servicePingTimeoutMs: 2000,
@@ -181,6 +182,8 @@ describe("AddressManagerClient", () => {
 					serviceName: config.identity.serviceName,
 					instanceId: config.identity.instanceId,
 					port: config.servicePort,
+					// The major routes the gateway prefix /v<major> to this instance.
+					version: "2.0.0",
 					ip: expect.any(String),
 				},
 				{ idempotent: true },
@@ -213,6 +216,7 @@ describe("AddressManagerClient", () => {
 					serviceName: config.identity.serviceName,
 					instanceId: config.identity.instanceId,
 					port: config.servicePort,
+					version: "2.0.0",
 					ip: "192.168.1.100",
 				},
 				{ idempotent: true },

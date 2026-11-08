@@ -41,6 +41,7 @@ export class AddressManagerClient {
 			// generates another instanceId and every later call is rejected (401).
 			instanceId: this._config.identity.instanceId,
 			port: this._config.servicePort,
+			version: this._config.serviceVersion,
 			ip: LocalIPDetector.getIP() as import("@trading-model/primitives/primitives").IPAddress,
 		};
 	}
