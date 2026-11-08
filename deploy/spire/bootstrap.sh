@@ -23,7 +23,7 @@ done
 for pair in \
   discovery:discovery-server message:message-manager scraper:financial-scraper \
   trainer:trader-trainer gateway:api-gateway audit:audit-logger dlq:dlq-service \
-  edge:edge-proxy prometheus:prometheus; do
+  edge:edge-proxy prometheus:prometheus blackbox:blackbox-exporter; do
   helper=${pair%%:*}
   service=${pair#*:}
   id="spiffe://${TD}/ns/${NS}/sa/${service}"

@@ -1,0 +1,17 @@
+# blackbox-exporter for docker-compose: one probe per service, presenting the
+# blackbox-exporter SVID (spiffe-helper-blackbox), like
+# deploy/k8s/infra/blackbox-exporter.yaml. Services only accept SPIFFE mTLS
+# clients, and probe_ssl_earliest_cert_expiry feeds the CertificateExpiry alert.
+modules:
+  http_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      valid_status_codes: [200]
+      method: GET
+      fail_if_not_ssl: true
+      tls_config:
+        insecure_skip_verify: false
+        ca_file: /run/spire/svid/bundle.pem
+        cert_file: /run/spire/svid/svid.pem
+        key_file: /run/spire/svid/svid_key.pem

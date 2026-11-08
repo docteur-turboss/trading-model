@@ -157,3 +157,11 @@ file absent from the repository, or on an anchor that matches no heading.
   their annotations, and Alertmanager config), checks that every metric a rule
   reads is emitted and that every `runbook_url` leads to an existing file and
   heading, and refuses inline receiver credentials.
+
+## Compose observability stack (parity with K8s)
+
+Compose runs the same datasources as K8s, each one fed:
+
+- **Logs**: `promtail` reads the compose containers through the Docker API (`/var/run/docker.sock`, read-only mount: dev only, the socket is root-equivalent) and pushes to Loki with the K8s `json` pipeline (labels `component`, `job`, `container`, `level`). Check: Grafana → Explore → Loki → `{component="api-gateway"}`.
+- **Traces**: services export OTLP/HTTP straight to `jaeger:4318` (`OTEL_EXPORTER_OTLP_ENDPOINT`); there is no OTel collector in compose. UI on `JAEGER_PORT` (default 16686).
+- **SVID expiry**: `blackbox-exporter` probes `/ping` of the 7 services with its own SVID (`spiffe-helper-blackbox`, SPIRE entry `blackbox-exporter` made by `spire-bootstrap`). `/ping` answers before the ACL, so any valid SVID passes. `CertificateExpiry` carries the `service` label in both environments (one target per service in `observability/prometheus.yml` and `deploy/k8s/infra/prometheus.yaml`).
