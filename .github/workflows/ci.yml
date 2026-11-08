@@ -2,9 +2,10 @@ name: CI
 
 on:
   pull_request:
-  # Merge commits get verified too, not only at release time.
+  # Merge commits to main get verified too, not only at release time.
+  # development is not listed: every change reaches it through a PR already run by pull_request.
   push:
-    branches: [main, development]
+    branches: [main]
   # release.yml runs the whole CI on the tagged commit before pushing images.
   workflow_call:
 
