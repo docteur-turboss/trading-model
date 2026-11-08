@@ -24,6 +24,7 @@ import {
 	type WorkerOrchestratorDeps,
 } from "../../../../src/application/worker-orchestrator";
 import {
+	CANDLES_PERSISTED_TOTAL,
 	PUBLISHES_SKIPPED_TOTAL,
 	SYMBOLS_FAILED_TOTAL,
 	SYMBOLS_SCRAPED_TOTAL,
@@ -161,6 +162,7 @@ describe("WorkerOrchestrator", () => {
 		};
 		SYMBOLS_FAILED_TOTAL.reset();
 		SYMBOLS_SCRAPED_TOTAL.reset();
+		CANDLES_PERSISTED_TOTAL.reset();
 		PUBLISHES_SKIPPED_TOTAL.reset();
 		UNPUBLISHED_CANDLES.reset();
 		orchestrator = newOrchestrator();
@@ -168,7 +170,7 @@ describe("WorkerOrchestrator", () => {
 
 	/** Value of a per-symbol counter (undefined: no series for that symbol). */
 	const symbolCount = async (
-		metric: typeof SYMBOLS_FAILED_TOTAL,
+		metric: typeof SYMBOLS_FAILED_TOTAL | typeof CANDLES_PERSISTED_TOTAL,
 		symbol: TradingSymbol
 	): Promise<number | undefined> =>
 		(await metric.get()).values.find((v) => v.labels.symbol === symbol)?.value;
@@ -300,6 +302,7 @@ describe("WorkerOrchestrator", () => {
 			for (const symbol of [BTC, ETH]) {
 				expect(await symbolCount(SYMBOLS_FAILED_TOTAL, symbol)).toBe(0);
 				expect(await symbolCount(SYMBOLS_SCRAPED_TOTAL, symbol)).toBe(0);
+				expect(await symbolCount(CANDLES_PERSISTED_TOTAL, symbol)).toBe(0);
 			}
 		});
 	});

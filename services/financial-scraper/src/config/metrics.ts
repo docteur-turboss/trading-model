@@ -21,7 +21,7 @@ export const SYMBOLS_SCRAPED_TOTAL = new promClient.Counter({
 
 export const SYMBOLS_FAILED_TOTAL = new promClient.Counter({
 	name: "fs_symbols_failed_total",
-	help: "Symbol scrapes that failed, per symbol (series born at 0 for every tracked symbol; alert SymbolScrapeFailing)",
+	help: "Symbol scrapes that failed, per symbol (series born at 0 for every tracked symbol; see SymbolMarketDataStale)",
 	labelNames: ["symbol"] as const,
 });
 
@@ -57,7 +57,8 @@ export const BINANCE_REQUEST_DURATION_SECONDS = new promClient.Histogram({
 
 export const CANDLES_PERSISTED_TOTAL = new promClient.Counter({
 	name: "fs_candles_persisted_total",
-	help: "Total candle rows persisted to MySQL",
+	help: "Candle rows persisted to MySQL, per symbol (series born at 0 for every tracked symbol; alerts MarketDataStale, SymbolMarketDataStale)",
+	labelNames: ["symbol"] as const,
 });
 
 export const TRADES_PERSISTED_TOTAL = new promClient.Counter({
