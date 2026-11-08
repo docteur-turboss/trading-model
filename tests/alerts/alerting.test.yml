@@ -306,6 +306,73 @@ tests:
               description: 'More than half of the financial-scraper cycles failed over 15 minutes (66.67%).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
+  # Issue #598, after #618: the BTCUSDT candles are refused by the normalizer
+  # (or its klines endpoint fails) every cycle, so only that part is dropped
+  # and BTCUSDT still counts "scraped"; SOLUSDT is rejected every cycle; ETHUSDT
+  # flows. Cycles stay "success" and the global candle sum grows. Series start at 0.
+  - name: symbols without candles alert by symbol while another symbol flows
+    interval: 1m
+    input_series:
+      - series: 'fs_symbols_scraped_total{job="financial-scraper-collector",instance="c",symbol="BTCUSDT"}'
+        values: '0+1x40'
+      - series: 'fs_snapshot_parts_failed_total{job="financial-scraper-collector",instance="c",part="candles"}'
+        values: '0+1x40'
+      - series: 'fs_candles_persisted_total{job="financial-scraper-collector",instance="c",symbol="BTCUSDT"}'
+        values: '0x40'
+      - series: 'fs_symbols_failed_total{job="financial-scraper-collector",instance="c",symbol="SOLUSDT"}'
+        values: '0+1x40'
+      - series: 'fs_candles_persisted_total{job="financial-scraper-collector",instance="c",symbol="SOLUSDT"}'
+        values: '0x40'
+      - series: 'fs_symbols_scraped_total{job="financial-scraper-collector",instance="c",symbol="ETHUSDT"}'
+        values: '0+1x40'
+      - series: 'fs_candles_persisted_total{job="financial-scraper-collector",instance="c",symbol="ETHUSDT"}'
+        values: '0+1x40'
+      - series: 'fs_scrape_cycles_total{job="financial-scraper-collector",instance="c",result="success"}'
+        values: '0+1x40'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: SymbolMarketDataStale
+        exp_alerts:
+          - exp_labels: {severity: critical, symbol: BTCUSDT}
+            exp_annotations:
+              summary: 'No candle persisted for BTCUSDT for 15 minutes'
+              description: 'financial-scraper persisted no BTCUSDT candle in 15 minutes, while the other symbols may still flow. The error is in the "Symbol scrape failed", "Market data part fetch failed" or "Market data part normalization failed" logs of that symbol.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#symbolmarketdatastale'
+          - exp_labels: {severity: critical, symbol: SOLUSDT}
+            exp_annotations:
+              summary: 'No candle persisted for SOLUSDT for 15 minutes'
+              description: 'financial-scraper persisted no SOLUSDT candle in 15 minutes, while the other symbols may still flow. The error is in the "Symbol scrape failed", "Market data part fetch failed" or "Market data part normalization failed" logs of that symbol.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#symbolmarketdatastale'
+      - eval_time: 25m
+        alertname: ScrapeCyclesFailing
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: MarketDataStale
+        exp_alerts: []
+
+  # K8s: the HTTP-only replicas export the series at 0 too; the collector
+  # candles of the symbol keep it quiet (sum across jobs). A candle at 11m
+  # keeps the symbol quiet until it leaves the 15m window, then it fires.
+  - name: a symbol alerts only once its last candle leaves the 15 minute window
+    interval: 1m
+    input_series:
+      - series: 'fs_candles_persisted_total{job="financial-scraper",instance="s",symbol="BTCUSDT"}'
+        values: '0x40'
+      - series: 'fs_candles_persisted_total{job="financial-scraper-collector",instance="c",symbol="BTCUSDT"}'
+        values: '0x10 1x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: SymbolMarketDataStale
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: SymbolMarketDataStale
+        exp_alerts:
+          - exp_labels: {severity: critical, symbol: BTCUSDT}
+            exp_annotations:
+              summary: 'No candle persisted for BTCUSDT for 15 minutes'
+              description: 'financial-scraper persisted no BTCUSDT candle in 15 minutes, while the other symbols may still flow. The error is in the "Symbol scrape failed", "Market data part fetch failed" or "Market data part normalization failed" logs of that symbol.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#symbolmarketdatastale'
+
   # ADR-0036: a source that failed once in 24 hours alerts, by source, then
   # resolves a day later; a source that only succeeds does not. The failure
   # series start at 0 (zeroCollectionFailures).

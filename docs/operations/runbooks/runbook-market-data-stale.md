@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
 **Severity:** SEV2 (the platform runs, but trades and training work on old data)
-**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `BinanceRestrictedLocation`, `SignalCollectionFailing`
+**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -13,6 +13,7 @@ dependencies (MySQL, Redis), not that candles arrive.
 | --- | --- |
 | `MarketDataStale` (+ `TrainerMarketDataStale`) | collection: nothing is persisted, so nothing is published |
 | `ScrapeCyclesFailing` | cycles run but fail (Binance, MySQL) |
+| `SymbolMarketDataStale` | one symbol gets no candle, the others do: see [SymbolMarketDataStale](#symbolmarketdatastale) |
 | `BinanceRestrictedLocation` | Binance geo-blocks the collector (451): apply the ADR-0026 fallback |
 | `TrainerMarketDataStale` alone | delivery: the scraper persists, the trainer receives nothing (message-manager, subscription) |
 
@@ -89,6 +90,45 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
 `sum(increase(fs_candles_persisted_total[15m]))` and
 `sum(increase(tt_market_data_received_total[15m]))` grow again; the alerts
 resolve within 15 minutes.
+
+## SymbolMarketDataStale
+
+**Severity:** SEV2 (critical). No candle of one tracked symbol was persisted
+for 15 minutes while the others may still flow: the cycle counts as `success`
+and `MarketDataStale` (global sum) stays silent, but that symbol gets no new
+data and the trainer stops training it (`TRAINER_MAX_DATA_AGE_MS`). The
+`symbol` label of the alert names it (issue #598: BTCUSDT failed 689 times in
+33 hours unseen). It reads `fs_candles_persisted_total{symbol}`, so it fires
+whatever the cause: the whole symbol fails (`fs_symbols_failed_total{symbol}`),
+or only its candles part does while the symbol still counts as scraped
+(`fs_snapshot_parts_failed_total{part="candles"}`, no `symbol` label: read the
+logs).
+
+```bash
+NS=trading-model
+# Candles persisted, failed and successful scrapes by symbol over 15 minutes
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO-   'http://localhost:9090/api/v1/query?query=sum by (symbol) (increase(fs_candles_persisted_total[15m]))'
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO-   'http://localhost:9090/api/v1/query?query=sum by (symbol) (increase(fs_symbols_failed_total[15m]))'
+# The error, for the whole symbol or for its candles part only
+kubectl -n $NS logs deploy/financial-scraper-collector --since=30m   | grep -E "Symbol scrape failed|Market data part (fetch|normalization) failed" | grep <SYMBOL>
+```
+
+Read the `error` of the log line:
+
+- **Binance error for that symbol only** (400 `Invalid symbol`: delisted or
+  misspelled): fix `SYMBOLS_TO_TRACK`. Whole symbol: `Symbol scrape failed`.
+- **klines endpoint failing for that symbol** (`Market data part fetch
+  failed`, `part: candles`): the other parts are still kept; see the Binance
+  checks above.
+- **Validation error** (`Market data part normalization failed`, `part:
+  candles`, e.g. `RangeError: ... must be ...`): Binance sent candles the
+  normalizer refuses. Only the candles are dropped, the symbol still counts as
+  scraped. A code fix; the candles are fetched again from the same cursor
+  until then (it only moves past persisted candles).
+- **MySQL error**: see [runbook-database-failover](runbook-database-failover.md).
+
+The alert resolves within 15 minutes once a candle of the symbol is persisted
+again.
 
 ## SignalCollectionFailing
 
