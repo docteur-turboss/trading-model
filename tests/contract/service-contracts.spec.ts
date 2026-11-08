@@ -341,7 +341,6 @@ describe("service message contracts", () => {
 			const { buffer } = trainer;
 			return JSON.stringify({
 				states: buffer.getSymbols().map((s) => buffer.getSymbolState(s)),
-				prices: buffer.getPriceSnapshot(),
 			});
 		}
 
