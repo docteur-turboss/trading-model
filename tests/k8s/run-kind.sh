@@ -322,7 +322,9 @@ release_under_probe() {
 	probe_availability "$stop" "$out" &
 	pid=$!
 	# A failing command under errexit must not leave the probe running.
-	trap 'touch "$stop"; kill $pid 2>/dev/null || true' RETURN
+	# Expanded now: the locals are gone when a RETURN trap runs.
+	# shellcheck disable=SC2064
+	trap "touch '$stop'; kill $pid 2>/dev/null || true; trap - RETURN" RETURN
 	start="$(mysql_root "SELECT UTC_TIMESTAMP(3)" | tr -d '\r')"
 	[ -n "$start" ] || {
 		log "could not read the window start from MySQL"
@@ -349,15 +351,23 @@ release_under_probe() {
 	# stored by the collector. shortcut: it sees candle open times only, and the
 	# collector backfills, so a missed scrape that heals is not seen; measure the
 	# write delay (created_at) if that ever matters.
-	row="$(mysql_root "SELECT COUNT(CASE WHEN timestamp >= '$start' THEN 1 END), COALESCE(MAX(TIMESTAMPDIFF(SECOND, prev, timestamp)), 0) FROM (SELECT timestamp, LAG(timestamp) OVER (ORDER BY timestamp) AS prev FROM financial_scraper.market_candles WHERE symbol='BTCUSDT' AND interval_value='1m' AND timestamp >= '$start' - INTERVAL 2 MINUTE) c" | tr -d '\r')"
-	read -r candles gap <<<"$row"
-	[[ "$candles" =~ ^[0-9]+$ && "$gap" =~ ^[0-9]+$ ]] || {
-		log "candle check failed: MySQL answered '$row'"
-		return 1
-	}
-	# One candle per minute: expect floor(window / 60) - 1, at least 1.
+	# One candle per minute: expect floor(window / 60) - 1, at least 1. A
+	# collector pod replaced by the rollout can miss the :00 scrape (CI run
+	# 42528580742: 0 candles in a 72 s window), so wait up to 90 s after the
+	# window for it to write (it backfills) before judging.
 	need=$(((SECONDS - began) / 60 - 1))
 	[ "$need" -ge 1 ] || need=1
+	local deadline=$((SECONDS + 90))
+	while :; do
+		row="$(mysql_root "SELECT COUNT(CASE WHEN timestamp >= '$start' THEN 1 END), COALESCE(MAX(TIMESTAMPDIFF(SECOND, prev, timestamp)), 0) FROM (SELECT timestamp, LAG(timestamp) OVER (ORDER BY timestamp) AS prev FROM financial_scraper.market_candles WHERE symbol='BTCUSDT' AND interval_value='1m' AND timestamp >= '$start' - INTERVAL 2 MINUTE) c" | tr -d '\r')"
+		read -r candles gap <<<"$row"
+		[[ "$candles" =~ ^[0-9]+$ && "$gap" =~ ^[0-9]+$ ]] || {
+			log "candle check failed: MySQL answered '$row'"
+			return 1
+		}
+		{ [ "$candles" -lt "$need" ] && [ "$SECONDS" -lt "$deadline" ]; } || break
+		sleep 5
+	done
 	log "  BTCUSDT 1m candles during the upgrade: $candles (need $need), largest gap ${gap}s"
 	[ "$candles" -ge "$need" ] || {
 		log "too few market candles during the upgrade: $candles < $need"
