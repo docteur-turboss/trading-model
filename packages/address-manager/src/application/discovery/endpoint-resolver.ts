@@ -39,6 +39,10 @@ interface CachedTarget {
  */
 export class EndpointResolver {
 	private readonly _cache = new Map<string, CachedTarget>();
+	private readonly _inFlight = new Map<
+		string,
+		Promise<ResolvedTarget | null>
+	>();
 	private readonly _discoveryUrl: string;
 	private readonly _httpClient: HttpClient;
 
@@ -52,15 +56,36 @@ export class EndpointResolver {
 		this._httpClient = httpClient ?? new HttpClient();
 	}
 
-	async resolve(
+	resolve(
 		serviceName: ServiceId,
 		majorVersion?: number
 	): Promise<ResolvedTarget | null> {
 		const key = `${serviceName}:v${majorVersion}`;
 		const cached = this._cache.get(key);
 		if (cached && Date.now() < cached.expiresAt) {
-			return cached.target;
+			return Promise.resolve(cached.target);
 		}
+		// One lookup in flight per key: concurrent callers on an expired entry share it.
+		const pending = this._inFlight.get(key);
+		if (pending !== undefined) {
+			return pending;
+		}
+		const lookup = this._refresh(
+			key,
+			serviceName,
+			majorVersion,
+			cached
+		).finally(() => this._inFlight.delete(key));
+		this._inFlight.set(key, lookup);
+		return lookup;
+	}
+
+	private async _refresh(
+		key: string,
+		serviceName: ServiceId,
+		majorVersion: number | undefined,
+		cached: CachedTarget | undefined
+	): Promise<ResolvedTarget | null> {
 		let alive: ServiceInstance | undefined;
 		try {
 			alive = await this._aliveInstance(serviceName, majorVersion);
