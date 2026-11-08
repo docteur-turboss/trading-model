@@ -40,6 +40,7 @@ function logServerError(
 		context: {
 			message: originalError?.message,
 			stack: originalError?.stack,
+			correlationId: req.correlationId,
 			url: req.originalUrl,
 			method: req.method,
 			ip: anonymizeIp(req.ip),
