@@ -9,6 +9,7 @@
   "concurrency": 2,
   "coverageAnalysis": "perTest",
   "ignoreStatic": true,
+  "dryRunTimeoutMinutes": 30,
   "timeoutMS": 10000,
   "reporters": ["clear-text", "progress", "html", "json"],
   "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
