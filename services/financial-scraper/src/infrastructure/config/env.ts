@@ -74,6 +74,12 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 	 * Binance collection.
 	 */
 	SIGNAL_CONTACT_EMAIL: z.string().trim().default(""),
+	/**
+	 * Kubernetes Lease the collector pods compete for (ADR-0057): only its
+	 * holder runs the crons. Empty: no election, this instance collects
+	 * (compose, dev: a single collector).
+	 */
+	COLLECTOR_LEASE_NAME: z.string().trim().default(""),
 });
 
 export const ENV = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);

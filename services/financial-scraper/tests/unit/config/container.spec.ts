@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 const MOCK_CRON_CONSTRUCTOR = jest.fn((config: unknown) => ({
 	config,
 	start: jest.fn<(...args: any[]) => any>(),
+	stop: jest.fn(async () => undefined),
 }));
 
 const MOCK_LOGGER = {
@@ -53,8 +54,19 @@ jest.mock("../../../src/adapters/outbound/persistence/signal-store", () => ({
 	MySqlSignalStore: { kind: "mysql-signals" },
 }));
 
+const MOCK_LEASE_API = jest.fn((name: string) => ({ name }));
+jest.mock("../../../src/adapters/outbound/kubernetes/kubernetes-lease", () => ({
+	KubernetesLease: jest.fn((identity: string, api: unknown) => ({
+		identity,
+		api,
+	})),
+	kubernetesLeaseApi: MOCK_LEASE_API,
+}));
+
 import { SignalCronScheduler } from "../../../src/adapters/inbound/cron/signal.cron";
+import { CollectorLeadership } from "../../../src/application/collector-leadership";
 import {
+	createCollector,
 	createScrapeScheduler,
 	createSignalScheduler,
 	signalUserAgent,
@@ -184,5 +196,67 @@ describe("config/container — signalUserAgent", () => {
 		expect(signalUserAgent("")).toBe(
 			"automated news analysis (+https://github.com/docteur-turboss/trading-model)"
 		);
+	});
+});
+
+describe("config/container — createCollector", () => {
+	const COLLECTING = {
+		SCRAPE_INTERVAL: "*/1 * * * *",
+		SYMBOLS_TO_TRACK: ["BTCUSDT"],
+		SCRAPE_SCHEDULER_ENABLED: true,
+		SIGNAL_COLLECTION_ENABLED: false,
+		SIGNAL_CONTACT_EMAIL: "",
+		COLLECTOR_LEASE_NAME: "",
+		INSTANCE_ID: "pod-a",
+	};
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
+
+	it("returns null on an HTTP-only replica: no lease is even read", async () => {
+		await expect(
+			createCollector({
+				...COLLECTING,
+				SCRAPE_SCHEDULER_ENABLED: false,
+				COLLECTOR_LEASE_NAME: "lease",
+			})
+		).resolves.toBeNull();
+		expect(MOCK_LEASE_API).not.toHaveBeenCalled();
+	});
+
+	it("collects without election when no lease is named", async () => {
+		const collector = await createCollector(COLLECTING);
+		expect(collector).toBeInstanceOf(CollectorLeadership);
+		expect(MOCK_LEASE_API).not.toHaveBeenCalled();
+	});
+
+	it("elects through the named Kubernetes Lease, as INSTANCE_ID", async () => {
+		const collector = await createCollector({
+			...COLLECTING,
+			COLLECTOR_LEASE_NAME: "financial-scraper-collector",
+		});
+		expect(collector).toBeInstanceOf(CollectorLeadership);
+		expect(MOCK_LEASE_API).toHaveBeenCalledWith("financial-scraper-collector");
+		expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
+			"Collector leader election enabled",
+			{
+				lease: "financial-scraper-collector",
+				identity: "pod-a",
+			}
+		);
+	});
+
+	it("starts and stops every scheduler with the leadership", async () => {
+		const collector = await createCollector(COLLECTING);
+		const cron = MOCK_CRON_CONSTRUCTOR.mock.results[0].value as {
+			start: jest.Mock;
+			stop: jest.Mock;
+		};
+		collector?.start();
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(cron.start).toHaveBeenCalledTimes(1);
+		await collector?.stop();
+		expect(cron.stop).toHaveBeenCalledTimes(1);
 	});
 });

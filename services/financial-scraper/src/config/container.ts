@@ -7,6 +7,10 @@ import { MarketDataModel } from "../adapters/outbound/persistence/market-data.mo
 import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store";
 import { createProtocolWorkers } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
+import {
+	CollectorLeadership,
+	SOLE_INSTANCE_LEASE,
+} from "../application/collector-leadership";
 import { createMarketDataController } from "../application/market-data.controller";
 import {
 	SignalCollector,
@@ -146,4 +150,57 @@ export function createSignalScheduler(
 	});
 	zeroCollectionFailures(SIGNAL_REGISTRY.sources);
 	return new SignalCronScheduler(SIGNAL_REGISTRY.sources, collector);
+}
+
+export interface CollectorSettings
+	extends ScrapeSchedulerSettings,
+		SignalSchedulerSettings {
+	/** Empty: no election, this instance collects. */
+	COLLECTOR_LEASE_NAME: string;
+	/** Holder identity in the Lease (the pod name in Kubernetes). */
+	INSTANCE_ID: string;
+}
+
+/**
+ * The scrape and signal crons behind the collector leadership (ADR-0057):
+ * they run only while this instance holds the Lease COLLECTOR_LEASE_NAME, or
+ * always without one. Null when this instance collects nothing.
+ */
+export async function createCollector(
+	settings: CollectorSettings
+): Promise<CollectorLeadership | null> {
+	const schedulers = [
+		await createScrapeScheduler(settings),
+		createSignalScheduler(settings),
+	].filter((scheduler) => scheduler !== null);
+	if (schedulers.length === 0) {
+		return null;
+	}
+	const collection = {
+		start: () => {
+			for (const scheduler of schedulers) {
+				scheduler.start();
+			}
+		},
+		stop: async () => {
+			await Promise.all(schedulers.map((scheduler) => scheduler.stop()));
+		},
+	};
+	if (!settings.COLLECTOR_LEASE_NAME) {
+		return new CollectorLeadership(SOLE_INSTANCE_LEASE, collection);
+	}
+	logger.info("Collector leader election enabled", {
+		lease: settings.COLLECTOR_LEASE_NAME,
+		identity: settings.INSTANCE_ID,
+	});
+	const { KubernetesLease, kubernetesLeaseApi } = await import(
+		"../adapters/outbound/kubernetes/kubernetes-lease.js"
+	);
+	return new CollectorLeadership(
+		new KubernetesLease(
+			settings.INSTANCE_ID,
+			kubernetesLeaseApi(settings.COLLECTOR_LEASE_NAME)
+		),
+		collection
+	);
 }
