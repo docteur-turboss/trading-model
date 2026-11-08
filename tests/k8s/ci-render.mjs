@@ -8,6 +8,7 @@
 //   - divides CPU requests by 4: the stack must fit a 4-vCPU CI runner; this
 //     test checks behaviour, not capacity
 //   - points the scraper at the in-cluster Binance stub
+//   - scrapes every 10 s instead of every minute (collector handover gap)
 //   - turns off the collection of the signal registry sources (real public
 //     APIs, ADR-0036)
 //   - sends the Pushover pages to the in-cluster alert sink (webhook)
@@ -83,6 +84,9 @@ function adapt(manifest) {
 				`${i}webhook_configs:\n${i}  - ${PUSHOVER_SINK}\n` +
 				`${i}    send_resolved: true\n`
 		)
+		// A cycle every 10 s (the E2E overlay's), so the collector handover gap
+		// measured by run-kind.sh (ADR-0057, < 30 s) is not hidden by the 1 min cadence.
+		.replace(/SCRAPE_INTERVAL: '\*\/1 \* \* \* \*'/g, "SCRAPE_INTERVAL: '*/10 * * * * *'")
 		.replace(
 			/SIGNAL_COLLECTION_ENABLED: "?true"?/g,
 			'SIGNAL_COLLECTION_ENABLED: "false"'

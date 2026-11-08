@@ -52,6 +52,10 @@ rules:
   - apiGroups: [autoscaling.k8s.io]
     resources: [verticalpodautoscalers]
     verbs: [get, list, watch, create, update, patch, delete]
+  # The collector Lease (ADR-0057); also needed to grant its Role.
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [roles, rolebindings]
     verbs: [get, list, watch, create, update, patch, delete]

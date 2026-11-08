@@ -19,8 +19,12 @@
 //     minReplicas 1) has an effective maxUnavailable of 0: it surges first
 //     instead of leaving no ready pod during a rollout (issue #699)
 //   - singleton Deployments (SINGLETONS) run exactly one pod: replicas: 1,
-//     strategy Recreate, no HPA, no canary in deploy.yml (ADR-0042 collector,
-//     ADR-0044 trainer)
+//     strategy Recreate, no HPA, no canary in deploy.yml (ADR-0044 trainer)
+//   - leased singletons (LEASED) run one pod and work only while holding a
+//     Lease: replicas: 1, RollingUpdate maxUnavailable 0 / maxSurge 1, no HPA,
+//     no canary, the Lease exists, its name is in COLLECTOR_LEASE_NAME, and the
+//     Role bound to the pod's ServiceAccount grants only get/update on it
+//     (ADR-0057 collector)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -33,8 +37,11 @@ const OVERLAYS = ["staging", "staging-local", "production"];
 const SEALED_ONLY = ["trading-model-secrets"];
 // Deployments that must never run two pods -> the ADR that says why.
 const SINGLETONS = {
-	"financial-scraper-collector": "ADR-0042",
 	"trader-trainer": "ADR-0044",
+};
+// One pod at rest, two during a rollout; only the holder of the Lease works.
+const LEASED = {
+	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector" },
 };
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 
@@ -120,6 +127,7 @@ const RESOURCES = {
 	PodDisruptionBudget: ["policy", "poddisruptionbudgets"],
 	HorizontalPodAutoscaler: ["autoscaling", "horizontalpodautoscalers"],
 	VerticalPodAutoscaler: ["autoscaling.k8s.io", "verticalpodautoscalers"],
+	Lease: ["coordination.k8s.io", "leases"],
 	Role: ["rbac.authorization.k8s.io", "roles"], RoleBinding: ["rbac.authorization.k8s.io", "rolebindings"],
 	ClusterRole: ["rbac.authorization.k8s.io", "clusterroles"],
 	ClusterRoleBinding: ["rbac.authorization.k8s.io", "clusterrolebindings"],
@@ -161,10 +169,44 @@ function replicasUnderHpa(docs) {
 		.map((doc) => doc.name);
 }
 
+/** Why a leased singleton could work twice at once or leave a gap during a rollout. */
+function leaseViolations(docs, deployment, lease, adr) {
+	const errors = [];
+	const name = deployment.name;
+	if (!/^ {2}strategy:\n {4}rollingUpdate:\n {6}maxSurge: 1\n {6}maxUnavailable: 0\n {4}type: RollingUpdate$/m.test(deployment.text)) {
+		errors.push(`Deployment ${name} must use RollingUpdate maxUnavailable 0 / maxSurge 1 (${adr}: the new pod is ready before the old one releases the Lease)`);
+	}
+	if (!new RegExp(`- name: COLLECTOR_LEASE_NAME\\n\\s+value: "?${lease}"?$`, "m").test(deployment.text)) {
+		errors.push(`Deployment ${name} must set COLLECTOR_LEASE_NAME=${lease} (${adr}: without it every pod works)`);
+	}
+	if (!docs.some((doc) => doc.kind === "Lease" && doc.name === lease)) {
+		errors.push(`Lease ${lease} not found (${adr}: the Role grants no create)`);
+	}
+	const account = deployment.text.match(/^ {6}serviceAccountName: (\S+)$/m)?.[1];
+	const bound = docs
+		.filter((doc) => doc.kind === "RoleBinding" && new RegExp(`- kind: ServiceAccount\\n\\s+name: ${account}$`, "m").test(doc.text))
+		.map((doc) => doc.text.match(/^roleRef:\n(?: {2}.*\n)*? {2}name: (\S+)$/m)?.[1]);
+	// kustomize layout: one rule = "- apiGroups:" at column 0 under "rules:".
+	const limited = docs.some((doc) => {
+		const rules = doc.text.match(/^rules:\n((?:[- ].*\n?)+)/m)?.[1] ?? "";
+		return (
+			doc.kind === "Role" &&
+			bound.includes(doc.name) &&
+			(rules.match(/^- /gm) ?? []).length === 1 &&
+			rules.trimEnd().endsWith(`resourceNames:\n  - ${lease}\n  resources:\n  - leases\n  verbs:\n  - get\n  - update`)
+		);
+	});
+	if (!limited) {
+		errors.push(`ServiceAccount ${account} of ${name} needs a Role limited to get/update on Lease ${lease} (${adr})`);
+	}
+	return errors;
+}
+
 /** Why each singleton Deployment could run more than one pod (empty when sound). */
 function singletonViolations(docs) {
 	const errors = [];
-	for (const [name, adr] of Object.entries(SINGLETONS)) {
+	const all = [...Object.entries(SINGLETONS).map(([name, adr]) => [name, { adr }]), ...Object.entries(LEASED)];
+	for (const [name, { adr, lease }] of all) {
 		const deployment = docs.find((doc) => doc.kind === "Deployment" && doc.name === name);
 		if (!deployment) {
 			errors.push(`singleton Deployment ${name} not found (${adr})`);
@@ -173,7 +215,9 @@ function singletonViolations(docs) {
 		if (!/^ {2}replicas: 1$/m.test(deployment.text)) {
 			errors.push(`Deployment ${name} must set replicas: 1 (${adr}: singleton)`);
 		}
-		if (!/^ {2}strategy:\n {4}type: Recreate$/m.test(deployment.text)) {
+		if (lease) {
+			errors.push(...leaseViolations(docs, deployment, lease, adr));
+		} else if (!/^ {2}strategy:\n {4}type: Recreate$/m.test(deployment.text)) {
 			errors.push(`Deployment ${name} must use strategy Recreate (${adr}: a rollout must never run two pods)`);
 		}
 		const scaled = docs.some(
@@ -218,7 +262,8 @@ function canarySingletons() {
 	const errors = [];
 	for (const step of workflow.split(/^ {6}- name: /m).filter((text) => /deploy-k8s\.sh canary/.test(text))) {
 		const code = step.replace(/#.*$/gm, "");
-		for (const [name, adr] of Object.entries(SINGLETONS)) {
+		const singletons = { ...SINGLETONS, ...Object.fromEntries(Object.entries(LEASED).map(([n, l]) => [n, l.adr])) };
+		for (const [name, adr] of Object.entries(singletons)) {
 			if (new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(code)) {
 				errors.push(`deploy.yml step "${step.split("\n")[0]}": singleton ${name} must get no canary (${adr}: it would run a second pod)`);
 			}
