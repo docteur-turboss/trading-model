@@ -23,6 +23,10 @@ and Error Budgets for the trading-model microservices platform.
 - **Definition:** 95th percentile of HTTP request duration.
 - **Measurement:** Prometheus `histogram_quantile(0.95,
 rate(http_request_duration_seconds_bucket[5m]))`.
+  The histogram has a `status_class` label (`2xx`..`5xx`); the SLO and alert
+  rules aggregate it away (`sum by (job, le)`), so the P95 counts every
+  response, errors included. For successes only, add
+  `{status_class="2xx"}` to the selector.
 - **Source:** All HTTP-serving services.
 
 ### 3. Error Rate
