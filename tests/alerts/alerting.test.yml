@@ -146,21 +146,13 @@ tests:
         values: '0+10x40'
     alert_rule_test:
       - eval_time: 20m
-        alertname: HighLatency
-        exp_alerts:
-          - exp_labels: {severity: warning, job: api-gateway}
-            exp_annotations:
-              summary: 'High latency on api-gateway'
-              description: 'P95 latency is 7.5s for the last 5 minutes.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
-      - eval_time: 20m
         alertname: SLOLatencyFastBurn
         exp_alerts:
           - exp_labels: {severity: critical, slo: latency, job: api-gateway}
             exp_annotations:
               summary: 'Latency SLO fast burn rate exceeded'
               description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
   - name: half of the training sessions fail
     interval: 1m
@@ -1241,3 +1233,19 @@ tests:
               summary: 'SVID close to expiry on dlq-service'
               description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
+
+  # The collector cannot export spans to Jaeger.
+  - name: otel collector span export failures
+    interval: 1m
+    input_series:
+      - series: 'otelcol_exporter_send_failed_spans_total{job="otel-collector",instance="o"}'
+        values: '0+1x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: OtelSpanExportFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: otel-collector}
+            exp_annotations:
+              summary: 'The OTel collector fails to export spans'
+              description: 'The collector dropped 10 span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'

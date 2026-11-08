@@ -40,6 +40,21 @@ describe("correlationIdMiddleware", () => {
 		);
 	});
 
+	it.each([
+		["too long", "a".repeat(65)],
+		["with forbidden characters", 'bad id"\n{x}'],
+	])("should replace an incoming id %s", (_label, bad) => {
+		const req = {
+			headers: { [HTTP_HEADERS.CORRELATION_ID]: bad },
+		} as unknown as Request;
+		const res = { setHeader: jest.fn() } as unknown as Response;
+
+		correlationIdMiddleware(req, res, jest.fn() as NextFunction);
+
+		expect(req.correlationId).not.toBe(bad);
+		expect(req.correlationId).toMatch(/^[0-9a-f-]{36}$/);
+	});
+
 	it("should use x-request-id as fallback header", () => {
 		const req = {
 			headers: { [HTTP_HEADERS.X_REQUEST_ID]: "req-123" },

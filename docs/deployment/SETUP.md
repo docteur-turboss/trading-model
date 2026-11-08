@@ -80,6 +80,7 @@ cp .env.example .env
 Before the first `docker compose up`, set these variables in `.env` and replace their example values with your own secrets (`openssl rand -hex 32`):
 
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
+- `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
@@ -361,6 +362,7 @@ Customize per server role:
 | `SCRAPER_PORT`        | 8445 — Financial Scraper                      |
 | `TRAINER_PORT`        | 8446 — Trader Trainer                         |
 | `MYSQL_ROOT_PASSWORD` | MySQL root password (change it!)              |
+| `GRAFANA_PASSWORD`    | Grafana admin password (required)             |
 | `IMAGE_TAG`           | `latest` or a specific version tag            |
 | `LOG_LEVEL`           | `info` (or `debug` for diagnostics)           |
 

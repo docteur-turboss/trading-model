@@ -1,7 +1,9 @@
 import { safeStringify as baseSafeStringify } from "@trading-model/common/utils/safe-stringify";
 import { sanitizeForLog } from "@trading-model/common/utils/sanitize";
 
+// Partial, case-insensitive: catches accessToken, x-api-key, X-Signature. False positives (e.g. tokenCount) are accepted; bare /key/ is not matched (cacheKey, idempotencyKey stay readable).
 const SENSITIVE_KEY_PATTERNS = [
+	/token|secret|password|passwd|signature|hmac|authorization|cookie|api[-_]?key|private[-_]?key/i,
 	/^password$/i,
 	/^token$/i,
 	/^secret$/i,

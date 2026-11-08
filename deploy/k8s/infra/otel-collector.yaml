@@ -146,9 +146,6 @@ data:
         endpoint: jaeger:4317
         tls:
           insecure: true
-      prometheus:
-        endpoint: 0.0.0.0:8888
-        namespace: trading
 
     extensions:
       health_check:
@@ -156,20 +153,18 @@ data:
 
     service:
       extensions: [health_check]
-      # The collector's own metrics default to :8888, the port of the
-      # prometheus exporter above: two listeners on one port crash the pod.
+      # The collector's own metrics (otelcol_*) on :8888, scraped by the
+      # `otel-collector` job. No metrics pipeline: the services only export
+      # traces (telemetry.ts has no metric reader).
       telemetry:
         metrics:
-          level: none
+          level: basic
+          address: 0.0.0.0:8888
       pipelines:
         traces:
           receivers: [otlp]
           processors: [memory_limiter, batch]
           exporters: [otlp]
-        metrics:
-          receivers: [otlp]
-          processors: [memory_limiter, batch]
-          exporters: [prometheus]
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

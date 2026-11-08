@@ -219,9 +219,13 @@ data:
             send_resolved: false
 
     inhibit_rules:
-      - source_matchers: ['severity="critical"']
-        target_matchers: ['severity="warning"']
-        equal: ['alertname']
+      # Same job only; `job=~".+"` keeps job-less alerts (backups, audit chain) out.
+      - source_matchers: ['severity="critical"', 'job=~".+"']
+        target_matchers: ['severity="warning"', 'job=~".+"']
+        equal: ['job']
+      - source_matchers: ['alertname="ServiceDown"']
+        target_matchers: ['alertname=~"HighErrorRate|SLO.*"']
+        equal: ['job']
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

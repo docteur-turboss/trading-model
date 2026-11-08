@@ -41,7 +41,8 @@ function logServerError(
 			message: originalError?.message,
 			stack: originalError?.stack,
 			correlationId: req.correlationId,
-			url: req.originalUrl,
+			// path only: the query string may carry secrets
+			url: req.originalUrl.split("?")[0],
 			method: req.method,
 			ip: anonymizeIp(req.ip),
 		},

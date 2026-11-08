@@ -228,6 +228,8 @@ const EXPORTER_PREFIXES = [
   "alertmanager_", "prometheus_",
   // Loki (scrape job `loki`)
   "loki_",
+  // OTel collector self-telemetry (deploy/k8s/infra/otel-collector.yaml, job `otel-collector`)
+  "otelcol_",
 ];
 
 function isEmitted(metric, emitted) {

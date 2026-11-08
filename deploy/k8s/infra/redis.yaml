@@ -179,6 +179,10 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_DLQ_PASSWORD
+            # Expand step of 3.0.0 (redis-ha.sh): the 2.x clients, which use no
+            # ACL user, keep working during the upgrade. Remove in the next release.
+            - name: REDIS_ALLOW_LEGACY_CLIENTS
+              value: "true"
             - name: SENTINEL_HOSTS
               value: "redis-sentinel-0.redis-sentinel-headless redis-sentinel-1.redis-sentinel-headless redis-sentinel-2.redis-sentinel-headless"
           ports:
@@ -333,6 +337,10 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_INTERNAL_PASSWORD
+            # Expand step of 3.0.0 (redis-ha.sh): the 2.x clients, which use no
+            # ACL user, keep working during the upgrade. Remove in the next release.
+            - name: REDIS_ALLOW_LEGACY_CLIENTS
+              value: "true"
             - name: SENTINEL_HOSTS
               value: "redis-sentinel-0.redis-sentinel-headless redis-sentinel-1.redis-sentinel-headless redis-sentinel-2.redis-sentinel-headless"
             - name: SENTINEL_CONF

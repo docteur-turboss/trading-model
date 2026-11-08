@@ -61,6 +61,16 @@ Loki is already reported by `ServiceDown`.
 The PVC fill ratio (`kubelet_volume_stats_*`) is not alerted: the kubelet is
 not scraped yet, only Loki's own metrics are.
 
+### OtelSpanExportFailing
+
+The collector (K8s only; compose exports straight to Jaeger, so the rule stays
+silent there) reports `otelcol_exporter_send_failed_spans` on `:8888`. Spans
+are being dropped between collector and Jaeger.
+
+1. `kubectl logs deploy/otel-collector`: look for export errors to `jaeger:4317`.
+2. Check the `jaeger` Service has ready endpoints.
+3. Once Jaeger answers, the alert clears after 10 minutes; dropped spans are not replayed.
+
 ## Business alerts that health checks miss
 
 A service can answer `/health/ready` while doing nothing useful: from launch to
@@ -106,15 +116,14 @@ file absent from the repository, or on an anchor that matches no heading.
 | --- | --- | --- |
 | `SLOAvailabilityFastBurn` | critical | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOAvailabilitySlowBurn` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
-| `SLOLatencyFastBurn` | critical | [runbook-latency-and-errors#highlatency](runbooks/runbook-latency-and-errors.md#highlatency) |
-| `SLOLatencySlowBurn` | warning | [runbook-latency-and-errors#highlatency](runbooks/runbook-latency-and-errors.md#highlatency) |
+| `SLOLatencyFastBurn` | critical | [runbook-latency-and-errors#slolatencyfastburn](runbooks/runbook-latency-and-errors.md#slolatencyfastburn) |
+| `SLOLatencySlowBurn` | warning | [runbook-latency-and-errors#slolatencyfastburn](runbooks/runbook-latency-and-errors.md#slolatencyfastburn) |
 | `SLOErrorRateFastBurn` | critical | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOErrorRateSlowBurn` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOErrorBudgetLow` | warning | [runbook-latency-and-errors#slo-error-budget-low](runbooks/runbook-latency-and-errors.md#slo-error-budget-low) |
 | `ServiceDown` | critical | [runbook-service-down](runbooks/runbook-service-down.md) |
 | `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
 | `HighErrorRate` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
-| `HighLatency` | warning | [runbook-latency-and-errors#highlatency](runbooks/runbook-latency-and-errors.md#highlatency) |
 | `CertificateExpiry` | warning | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
 | `CircuitBreakerOpen` | critical | [runbook-circuit-breaker-open](runbooks/runbook-circuit-breaker-open.md) |
 | `DLQSizeGrowing` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
@@ -162,6 +171,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `PrometheusRuleEvaluationFailures` | critical | [ALERTING#alerts-on-the-alerting-path](ALERTING.md#alerts-on-the-alerting-path) |
 | `LokiPushFailing` | warning | [ALERTING#loki-and-the-trace-pipeline](ALERTING.md#loki-and-the-trace-pipeline) |
 | `LokiRetentionStale` | warning | [ALERTING#loki-and-the-trace-pipeline](ALERTING.md#loki-and-the-trace-pipeline) |
+| `OtelSpanExportFailing` | warning | [ALERTING#otelspanexportfailing](ALERTING.md#otelspanexportfailing) |
 | `Watchdog` | none | [ALERTING#dead-mans-switch](ALERTING.md#dead-mans-switch) |
 
 ## Writing a rule

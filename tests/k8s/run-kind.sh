@@ -40,6 +40,7 @@ WORK="$(dirname "$ROOT")/.kind-${CLUSTER}"
 PREVIOUS="$WORK/previous"
 export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
+export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 
 log() { echo "[kind] $*"; }
 

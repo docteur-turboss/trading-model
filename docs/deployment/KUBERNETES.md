@@ -236,8 +236,8 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 
 ### Observability Stack
 
-- **OpenTelemetry Collector:** 2 replicas, accepts OTLP HTTP, exports metrics
-  on :8888 (its own telemetry is off: it would bind the same port), health on
+- **OpenTelemetry Collector:** 2 replicas, accepts OTLP HTTP (traces only, no metrics
+  pipeline), exposes its own telemetry on :8888 (`OtelSpanExportFailing`), health on
   :13133
 - **Jaeger:** 1 replica, OTLP gRPC receiver
 - **Prometheus:** StatefulSet, 50Gi PVC, 30d retention, mTLS scrape
