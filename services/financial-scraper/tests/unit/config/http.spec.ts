@@ -5,7 +5,7 @@ let mockResponseFulfilledHandler: (...args: any[]) => any;
 let mockResponseRejectedHandler: (...args: any[]) => Promise<any>;
 
 jest.mock("axios", () => {
-	const mockInstance: any = jest.fn();
+	const mockInstance: any = jest.fn<(...args: any[]) => any>();
 	mockInstance.interceptors = {
 		request: {
 			use: jest.fn((fulfilled: any) => {
@@ -21,7 +21,7 @@ jest.mock("axios", () => {
 	};
 	mockInstance.defaults = {};
 	return {
-		create: jest.fn(() => mockInstance),
+		create: jest.fn((..._args: any[]) => mockInstance),
 	};
 });
 
@@ -39,7 +39,9 @@ describe("createHttpClient", () => {
 	});
 
 	it("should create axios instance with baseURL and default timeout", () => {
-		const axiosMock = jest.requireMock("axios") as { create: jest.Mock };
+		const axiosMock = jest.requireMock("axios") as {
+			create: jest.Mock<(...args: any[]) => any>;
+		};
 		createHttpClient("https://api.example.com");
 		expect(axiosMock.create).toHaveBeenCalledWith({
 			baseURL: "https://api.example.com",
@@ -109,8 +111,12 @@ describe("createHttpClient", () => {
 		"response rejected interceptor should not retry on %i (Binance WAF, IP ban, restricted location)",
 		async (status) => {
 			createHttpClient("https://api.example.com");
-			const axiosMock = jest.requireMock("axios") as { create: jest.Mock };
-			const instance = axiosMock.create.mock.results.at(-1)?.value as jest.Mock;
+			const axiosMock = jest.requireMock("axios") as {
+				create: jest.Mock<(...args: any[]) => any>;
+			};
+			const instance = axiosMock.create.mock.results.at(-1)?.value as jest.Mock<
+				(...args: any[]) => any
+			>;
 			instance.mockClear();
 
 			const error = { config: { retryCount: 0 }, response: { status } };
@@ -192,7 +198,9 @@ describe("createHttpClient", () => {
 	});
 
 	it("should build the binance http client on BINANCE_BASE_URL", () => {
-		const axiosMock = jest.requireMock("axios") as { create: jest.Mock };
+		const axiosMock = jest.requireMock("axios") as {
+			create: jest.Mock<(...args: any[]) => any>;
+		};
 		expect(axiosMock.create).toHaveBeenCalledWith({
 			baseURL: "http://binance-stub:8080",
 			timeout: 7000,

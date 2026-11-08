@@ -8,6 +8,7 @@ import {
 	jest,
 } from "@jest/globals";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
+import type { CorrelationId } from "@trading-model/primitives/primitives";
 import {
 	type DurationMs,
 	type FilePath,
@@ -18,12 +19,14 @@ import { z } from "zod";
 jest.mock("https");
 jest.mock("fs", () => ({
 	promises: {
-		access: jest.fn(() => Promise.resolve()),
+		access: jest.fn((..._args: any[]) => Promise.resolve()),
 		readFile: jest.fn((path: string) => Promise.resolve(`content-of-${path}`)),
 	},
 	constants: { R_OK: 4 },
-	readFileSync: jest.fn(() => "-----BEGIN CERTIFICATE-----\nmock-content"),
-	statSync: jest.fn(() => ({ mtimeMs: 1, ino: 1, size: 1 })),
+	readFileSync: jest.fn(
+		(..._args: any[]) => "-----BEGIN CERTIFICATE-----\nmock-content"
+	),
+	statSync: jest.fn((..._args: any[]) => ({ mtimeMs: 1, ino: 1, size: 1 })),
 }));
 
 jest.mock("@opentelemetry/api", () => {
@@ -35,7 +38,7 @@ jest.mock("@opentelemetry/api", () => {
 		...actual,
 		context: {
 			...actual.context,
-			active: jest.fn(() => actual.ROOT_CONTEXT),
+			active: jest.fn((..._args: any[]) => actual.ROOT_CONTEXT),
 		},
 		propagation: {
 			...actual.propagation,
@@ -91,8 +94,8 @@ describe("HttpClient", () => {
 		errorHandler = null;
 		lastRequestOptions = null;
 		mockReq = {
-			write: jest.fn(),
-			end: jest.fn(),
+			write: jest.fn<(...args: any[]) => any>(),
+			end: jest.fn<(...args: any[]) => any>(),
 			on: jest.fn((event: string, cb: (...args: any[]) => void) => {
 				if (event === "error") {
 					errorHandler = cb as (err: Error) => void;
@@ -103,14 +106,16 @@ describe("HttpClient", () => {
 				mockReq._timeoutCb = cb;
 				return mockReq;
 			}),
-			destroy: jest.fn(),
+			destroy: jest.fn<(...args: any[]) => any>(),
 		};
 
-		(https.request as jest.Mock).mockImplementation((opts: any, cb: any) => {
-			requestCallback = cb;
-			lastRequestOptions = opts;
-			return mockReq;
-		});
+		(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
+			(opts: any, cb: any) => {
+				requestCallback = cb;
+				lastRequestOptions = opts;
+				return mockReq;
+			}
+		);
 
 		client = new HttpClient();
 	});
@@ -175,8 +180,9 @@ describe("HttpClient", () => {
 
 	describe("outgoing propagation", () => {
 		it("should inject x-correlation-id from the async context", async () => {
-			const promise: Promise<void> = runWithCorrelationId("corr-123", () =>
-				client.get(URLString.of("https://example.com/api"))
+			const promise: Promise<void> = runWithCorrelationId(
+				"corr-123" as CorrelationId,
+				() => client.get(URLString.of("https://example.com/api"))
 			);
 			simulateResponse(200, "{}", "application/json");
 
@@ -188,10 +194,12 @@ describe("HttpClient", () => {
 		});
 
 		it("should prefer an explicit x-correlation-id header over the context", async () => {
-			const promise: Promise<void> = runWithCorrelationId("ctx-id", () =>
-				client.get(URLString.of("https://example.com/api"), {
-					headers: { [HTTP_HEADERS.CORRELATION_ID]: "explicit-id" },
-				})
+			const promise: Promise<void> = runWithCorrelationId(
+				"ctx-id" as CorrelationId,
+				() =>
+					client.get(URLString.of("https://example.com/api"), {
+						headers: { [HTTP_HEADERS.CORRELATION_ID]: "explicit-id" },
+					})
 			);
 			simulateResponse(200, "{}", "application/json");
 
@@ -453,7 +461,9 @@ describe("HttpClient", () => {
 		});
 
 		it("should throw descriptive error when TLS file cannot be read (Error thrown)", () => {
-			(fs.readFileSync as jest.Mock).mockImplementationOnce(() => {
+			(
+				fs.readFileSync as jest.Mock<(...args: any[]) => any>
+			).mockImplementationOnce(() => {
 				throw new Error("ENOENT: no such file");
 			});
 
@@ -463,7 +473,9 @@ describe("HttpClient", () => {
 		});
 
 		it("should handle non-Error rejection from TLS file read", () => {
-			(fs.readFileSync as jest.Mock).mockImplementationOnce(() => {
+			(
+				fs.readFileSync as jest.Mock<(...args: any[]) => any>
+			).mockImplementationOnce(() => {
 				throw new Error("string error");
 			});
 
@@ -480,7 +492,7 @@ describe("HttpClient", () => {
 				certPath: "/etc/cert.pem" as FilePath,
 				keyPath: "/etc/key.pem" as FilePath,
 			});
-			(fs.readFileSync as jest.Mock).mockClear();
+			(fs.readFileSync as jest.Mock<(...args: any[]) => any>).mockClear();
 
 			const promise = tlsClient.get(URLString.of("https://example.com/api"));
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
@@ -492,7 +504,7 @@ describe("HttpClient", () => {
 
 	describe("request close handling", () => {
 		it("should clean up timeout listener on request close after normal completion", async () => {
-			mockReq.removeListener = jest.fn();
+			mockReq.removeListener = jest.fn<(...args: any[]) => any>();
 			mockReq.destroyed = false;
 
 			const promise = client.get(URLString.of("https://example.com/api"), {
@@ -515,7 +527,7 @@ describe("HttpClient", () => {
 		});
 
 		it("should not clean up timeout listener when request was destroyed", async () => {
-			mockReq.removeListener = jest.fn();
+			mockReq.removeListener = jest.fn<(...args: any[]) => any>();
 			mockReq.destroyed = true;
 
 			const promise = client.get(URLString.of("https://example.com/api"), {
@@ -551,7 +563,7 @@ describe("HttpClient", () => {
 
 	describe("circuit breaker (hostname)", () => {
 		beforeEach(() => {
-			(https.request as jest.Mock).mockClear();
+			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
 			jest.useFakeTimers();
 		});
 
@@ -616,7 +628,7 @@ describe("HttpClient", () => {
 
 	describe("circuit breaker (service)", () => {
 		beforeEach(() => {
-			(https.request as jest.Mock).mockClear();
+			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
 			jest.useFakeTimers();
 		});
 
@@ -696,14 +708,59 @@ describe("HttpClient", () => {
 
 	describe("retry logic", () => {
 		beforeEach(() => {
-			(https.request as jest.Mock).mockClear();
+			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
 		});
 
 		it("should retry on 503 status and eventually succeed", async () => {
 			let callCount = 0;
-			(https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
-				callCount++;
-				if (callCount <= 2) {
+			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
+				(_opts: any, cb: any) => {
+					callCount++;
+					if (callCount <= 2) {
+						cb({
+							on: jest.fn((e: string, cb2: any) => {
+								if (e === "data") {
+									cb2("");
+								}
+								if (e === "end") {
+									cb2();
+								}
+							}),
+							statusCode: 503,
+							headers: { "content-type": "text/plain" },
+						});
+					} else {
+						cb({
+							on: jest.fn((e: string, cb2: any) => {
+								if (e === "data") {
+									cb2(JSON.stringify({ ok: true }));
+								}
+								if (e === "end") {
+									cb2();
+								}
+							}),
+							statusCode: 200,
+							headers: { "content-type": "application/json" },
+						});
+					}
+					return {
+						write: jest.fn<(...args: any[]) => any>(),
+						end: jest.fn<(...args: any[]) => any>(),
+						on: jest.fn<(...args: any[]) => any>(),
+						setTimeout: jest.fn<(...args: any[]) => any>(),
+						destroy: jest.fn<(...args: any[]) => any>(),
+					};
+				}
+			);
+
+			const result = await client.get(URLString.of("https://example.com/api"));
+			expect(result).toEqual({ ok: true });
+			expect(callCount).toBe(3);
+		});
+
+		it("should exhaust retries and throw the last error", async () => {
+			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
+				(_opts: any, cb: any) => {
 					cb({
 						on: jest.fn((e: string, cb2: any) => {
 							if (e === "data") {
@@ -716,56 +773,15 @@ describe("HttpClient", () => {
 						statusCode: 503,
 						headers: { "content-type": "text/plain" },
 					});
-				} else {
-					cb({
-						on: jest.fn((e: string, cb2: any) => {
-							if (e === "data") {
-								cb2(JSON.stringify({ ok: true }));
-							}
-							if (e === "end") {
-								cb2();
-							}
-						}),
-						statusCode: 200,
-						headers: { "content-type": "application/json" },
-					});
+					return {
+						write: jest.fn<(...args: any[]) => any>(),
+						end: jest.fn<(...args: any[]) => any>(),
+						on: jest.fn<(...args: any[]) => any>(),
+						setTimeout: jest.fn<(...args: any[]) => any>(),
+						destroy: jest.fn<(...args: any[]) => any>(),
+					};
 				}
-				return {
-					write: jest.fn(),
-					end: jest.fn(),
-					on: jest.fn(),
-					setTimeout: jest.fn(),
-					destroy: jest.fn(),
-				};
-			});
-
-			const result = await client.get(URLString.of("https://example.com/api"));
-			expect(result).toEqual({ ok: true });
-			expect(callCount).toBe(3);
-		});
-
-		it("should exhaust retries and throw the last error", async () => {
-			(https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
-				cb({
-					on: jest.fn((e: string, cb2: any) => {
-						if (e === "data") {
-							cb2("");
-						}
-						if (e === "end") {
-							cb2();
-						}
-					}),
-					statusCode: 503,
-					headers: { "content-type": "text/plain" },
-				});
-				return {
-					write: jest.fn(),
-					end: jest.fn(),
-					on: jest.fn(),
-					setTimeout: jest.fn(),
-					destroy: jest.fn(),
-				};
-			});
+			);
 
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				retryCount: 1 as PositiveInt,
@@ -776,7 +792,7 @@ describe("HttpClient", () => {
 
 	describe("service circuit open rejection", () => {
 		beforeEach(() => {
-			(https.request as jest.Mock).mockClear();
+			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
 			jest.useFakeTimers();
 		});
 
@@ -812,7 +828,7 @@ describe("HttpClient", () => {
 
 	describe("isServiceCircuitOpen half-open transitions", () => {
 		beforeEach(() => {
-			(https.request as jest.Mock).mockClear();
+			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
 			jest.useFakeTimers();
 		});
 
@@ -908,7 +924,9 @@ describe("HttpClient", () => {
 	});
 
 	describe("POST: not idempotent unless marked", () => {
-		beforeEach(() => (https.request as jest.Mock).mockClear());
+		beforeEach(() => {
+			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
+		});
 
 		it("should not re-send a request that timed out", async () => {
 			const promise = client.post(
@@ -949,7 +967,9 @@ describe("HttpClient", () => {
 	});
 
 	describe("retryCount 0", () => {
-		beforeEach(() => (https.request as jest.Mock).mockClear());
+		beforeEach(() => {
+			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
+		});
 
 		it("should send the request once", async () => {
 			const promise = client.get(URLString.of("https://example.com/api"), {
@@ -965,35 +985,37 @@ describe("HttpClient", () => {
 	describe("gzip and deflate content encoding", () => {
 		it("should handle gzip-encoded response", async () => {
 			const gzipData = "gzip-compressed-data";
-			const mockGunzip = { on: jest.fn() };
+			const mockGunzip = { on: jest.fn<(...args: any[]) => any>() };
 
-			(mockGunzip.on as unknown as jest.Mock).mockImplementation(
-				(e: unknown, cb2: unknown) => {
-					if (e === "data") {
-						(cb2 as (d: string) => void)(gzipData);
-					}
-					if (e === "end") {
-						(cb2 as () => void)();
-					}
+			(
+				mockGunzip.on as unknown as jest.Mock<(...args: any[]) => any>
+			).mockImplementation((e: unknown, cb2: unknown) => {
+				if (e === "data") {
+					(cb2 as (d: string) => void)(gzipData);
 				}
-			);
+				if (e === "end") {
+					(cb2 as () => void)();
+				}
+			});
 
 			const mockRes = {
-				pipe: jest.fn(() => mockGunzip),
+				pipe: jest.fn((..._args: any[]) => mockGunzip),
 				statusCode: 200,
 				headers: { "content-type": "text/plain", "content-encoding": "gzip" },
 			};
 
-			(https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
-				cb(mockRes);
-				return {
-					write: jest.fn(),
-					end: jest.fn(),
-					on: jest.fn(),
-					setTimeout: jest.fn(),
-					destroy: jest.fn(),
-				};
-			});
+			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
+				(_opts: any, cb: any) => {
+					cb(mockRes);
+					return {
+						write: jest.fn<(...args: any[]) => any>(),
+						end: jest.fn<(...args: any[]) => any>(),
+						on: jest.fn<(...args: any[]) => any>(),
+						setTimeout: jest.fn<(...args: any[]) => any>(),
+						destroy: jest.fn<(...args: any[]) => any>(),
+					};
+				}
+			);
 
 			const result = await client.get(URLString.of("https://example.com/data"));
 			expect(result).toBe("gzip-compressed-data");
@@ -1001,21 +1023,21 @@ describe("HttpClient", () => {
 
 		it("should handle deflate-encoded response", async () => {
 			const deflateData = "deflate-compressed-data";
-			const mockInflate = { on: jest.fn() };
+			const mockInflate = { on: jest.fn<(...args: any[]) => any>() };
 
-			(mockInflate.on as unknown as jest.Mock).mockImplementation(
-				(e: unknown, cb2: unknown) => {
-					if (e === "data") {
-						(cb2 as (d: string) => void)(deflateData);
-					}
-					if (e === "end") {
-						(cb2 as () => void)();
-					}
+			(
+				mockInflate.on as unknown as jest.Mock<(...args: any[]) => any>
+			).mockImplementation((e: unknown, cb2: unknown) => {
+				if (e === "data") {
+					(cb2 as (d: string) => void)(deflateData);
 				}
-			);
+				if (e === "end") {
+					(cb2 as () => void)();
+				}
+			});
 
 			const mockRes = {
-				pipe: jest.fn(() => mockInflate),
+				pipe: jest.fn((..._args: any[]) => mockInflate),
 				statusCode: 200,
 				headers: {
 					"content-type": "text/plain",
@@ -1023,16 +1045,18 @@ describe("HttpClient", () => {
 				},
 			};
 
-			(https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
-				cb(mockRes);
-				return {
-					write: jest.fn(),
-					end: jest.fn(),
-					on: jest.fn(),
-					setTimeout: jest.fn(),
-					destroy: jest.fn(),
-				};
-			});
+			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
+				(_opts: any, cb: any) => {
+					cb(mockRes);
+					return {
+						write: jest.fn<(...args: any[]) => any>(),
+						end: jest.fn<(...args: any[]) => any>(),
+						on: jest.fn<(...args: any[]) => any>(),
+						setTimeout: jest.fn<(...args: any[]) => any>(),
+						destroy: jest.fn<(...args: any[]) => any>(),
+					};
+				}
+			);
 
 			const result = await client.get(URLString.of("https://example.com/data"));
 			expect(result).toBe("deflate-compressed-data");

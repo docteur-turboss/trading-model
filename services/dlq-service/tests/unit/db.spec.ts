@@ -1,14 +1,14 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_GET_DB = jest.fn();
-const MOCK_GET_COLLECTION = jest.fn();
-const MOCK_IS_CONNECTED = jest.fn();
-const MOCK_GET_MISSING_INDEXES = jest.fn();
-const MOCK_RESET_STATE = jest.fn();
-const MOCK_CLOSE = jest.fn();
+const MOCK_GET_DB = jest.fn<(...args: any[]) => any>();
+const MOCK_GET_COLLECTION = jest.fn<(...args: any[]) => any>();
+const MOCK_IS_CONNECTED = jest.fn<(...args: any[]) => any>();
+const MOCK_GET_MISSING_INDEXES = jest.fn<(...args: any[]) => any>();
+const MOCK_RESET_STATE = jest.fn<(...args: any[]) => any>();
+const MOCK_CLOSE = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/config/mongo-connection-manager", () => ({
-	MongoConnectionManager: jest.fn(() => ({
+	MongoConnectionManager: jest.fn((..._args: any[]) => ({
 		getDb: MOCK_GET_DB,
 		getCollection: MOCK_GET_COLLECTION,
 		isConnected: MOCK_IS_CONNECTED,

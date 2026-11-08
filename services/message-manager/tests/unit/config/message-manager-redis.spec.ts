@@ -1,15 +1,15 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_FORWARD = jest.fn(async () => undefined);
-const MOCK_START = jest.fn();
-const MOCK_STOP = jest.fn(async () => undefined);
+const MOCK_FORWARD = jest.fn(async (..._args: any[]) => undefined);
+const MOCK_START = jest.fn<(...args: any[]) => any>();
+const MOCK_STOP = jest.fn(async (..._args: any[]) => undefined);
 const MOCK_BROKER_MODULE = jest.fn((..._args: unknown[]) => ({
-	listen: jest.fn(),
+	listen: jest.fn<(...args: any[]) => any>(),
 	forwardDeadLetters: MOCK_FORWARD,
 	startDelivery: MOCK_START,
 	stopDelivery: MOCK_STOP,
 }));
-const MOCK_REDIS = { disconnect: jest.fn() };
+const MOCK_REDIS = { disconnect: jest.fn<(...args: any[]) => any>() };
 
 jest.mock("../../../src/config/container", () => ({
 	__esModule: true,
@@ -17,7 +17,7 @@ jest.mock("../../../src/config/container", () => ({
 }));
 
 jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
-	createRedisClient: jest.fn(() => MOCK_REDIS),
+	createRedisClient: jest.fn((..._args: any[]) => MOCK_REDIS),
 }));
 
 jest.mock("../../../src/infrastructure/config/env", () => ({

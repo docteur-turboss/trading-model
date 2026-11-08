@@ -1,10 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_RELEASE_CLAIMS = jest.fn();
-const MOCK_RELEASE_STALE = jest.fn();
-const MOCK_LIST_QUEUABLE = jest.fn();
-const MOCK_PUSH = jest.fn();
-const MOCK_IS_AVAILABLE = jest.fn();
+const MOCK_RELEASE_CLAIMS = jest.fn<(...args: any[]) => any>();
+const MOCK_RELEASE_STALE = jest.fn<(...args: any[]) => any>();
+const MOCK_LIST_QUEUABLE = jest.fn<(...args: any[]) => any>();
+const MOCK_PUSH = jest.fn<(...args: any[]) => any>();
+const MOCK_IS_AVAILABLE = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 	dlqClaimManager: {},
@@ -44,11 +44,18 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 const { logger: MOCK_LOGGER } = jest.requireMock("../../src/config/logger") as {
-	logger: { info: jest.Mock; warn: jest.Mock };
+	logger: {
+		info: jest.Mock<(...args: any[]) => any>;
+		warn: jest.Mock<(...args: any[]) => any>;
+	};
 };
 
 /** Ports wired to the module-level mocks above. */

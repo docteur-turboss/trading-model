@@ -22,7 +22,7 @@ jest.mock("../../../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../../../src/config/message-manager", () => ({
-	MessageManager: { post: { indirect: jest.fn() } },
+	MessageManager: { post: { indirect: jest.fn<(...args: any[]) => any>() } },
 }));
 
 import { buildResponse } from "../../../../src/adapters/outbound/binance/binance-data-fetcher";

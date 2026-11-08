@@ -8,7 +8,11 @@ import {
 } from "@jest/globals";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 
-const MOCK_LOGGER = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+const MOCK_LOGGER = {
+	info: jest.fn<(...args: any[]) => any>(),
+	warn: jest.fn<(...args: any[]) => any>(),
+	error: jest.fn<(...args: any[]) => any>(),
+};
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => MOCK_LOGGER,
 }));
@@ -42,7 +46,7 @@ describe("TrainingLoop", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		jest.spyOn(Date, "now").mockReturnValue(NOW);
-		train = jest.fn(async () => {});
+		train = jest.fn(async (..._args: any[]) => {});
 		lastClose = new Map();
 		candleCount = 1000;
 		const trainer = { train, isTraining: () => false } as unknown as Trainer;

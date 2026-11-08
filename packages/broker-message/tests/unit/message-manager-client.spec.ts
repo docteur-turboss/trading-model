@@ -23,13 +23,13 @@ describe("MessageManagerClient", () => {
 
 	beforeEach(() => {
 		httpClient = {
-			post: jest.fn(),
-			delete: jest.fn(),
+			post: jest.fn<(...args: any[]) => any>(),
+			delete: jest.fn<(...args: any[]) => any>(),
 		};
 		addressManagerClient = {
-			findService: jest.fn(),
-			recordCallSuccess: jest.fn(),
-			recordCallFailure: jest.fn(),
+			findService: jest.fn<(...args: any[]) => any>(),
+			recordCallSuccess: jest.fn<(...args: any[]) => any>(),
+			recordCallFailure: jest.fn<(...args: any[]) => any>(),
 		};
 		client = new MessageManagerClient(
 			httpClient,

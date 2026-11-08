@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_LOGGER = { info: jest.fn(), warn: jest.fn() };
+const MOCK_LOGGER = {
+	info: jest.fn<(...args: any[]) => any>(),
+	warn: jest.fn<(...args: any[]) => any>(),
+};
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => MOCK_LOGGER,
 }));
@@ -19,7 +22,7 @@ function fakeDb(collections: Record<string, number>) {
 		collection: jest.fn((name: string) => ({
 			countDocuments: async () => collections[name],
 		})),
-		dropCollection: jest.fn<any>(async () => true),
+		dropCollection: jest.fn<(...args: any[]) => any>(async () => true),
 	};
 }
 

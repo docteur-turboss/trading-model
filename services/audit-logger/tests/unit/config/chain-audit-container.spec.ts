@@ -1,14 +1,14 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_LOGGER = {
-	info: jest.fn(),
-	warn: jest.fn(),
-	error: jest.fn(),
-	debug: jest.fn(),
+	info: jest.fn<(...args: any[]) => any>(),
+	warn: jest.fn<(...args: any[]) => any>(),
+	error: jest.fn<(...args: any[]) => any>(),
+	debug: jest.fn<(...args: any[]) => any>(),
 };
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => MOCK_LOGGER,
-	setLogger: jest.fn(),
+	setLogger: jest.fn<(...args: any[]) => any>(),
 }));
 jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -32,7 +32,7 @@ import {
 } from "../../../src/config/container";
 import { chainOf } from "../../fixtures/audit-chain";
 
-const DB = { collection: jest.fn(() => ({})) } as unknown as Db;
+const DB = { collection: jest.fn((..._args: any[]) => ({})) } as unknown as Db;
 const SETTINGS: ChainAuditSettings = {
 	retentionDays: 1827,
 	anchorPrefix: "audit-chain/",

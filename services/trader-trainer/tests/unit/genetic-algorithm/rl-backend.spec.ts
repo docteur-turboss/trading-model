@@ -174,7 +174,7 @@ describe("makeTradingAgentBackend", () => {
 			);
 
 			const child = makeTradingAgentBackend(
-				{ ...genome, trainedWeights: parentWeights },
+				{ ...genome, trainedWeights: new Float32Array(parentWeights) },
 				makePRNG(7)
 			);
 

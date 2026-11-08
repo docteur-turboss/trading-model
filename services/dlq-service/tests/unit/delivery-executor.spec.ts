@@ -1,12 +1,16 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_MARK_RETRIED = jest.fn();
-const MOCK_INCREMENT_RETRY = jest.fn();
-const MOCK_RELEASE_CLAIM = jest.fn();
-const MOCK_IS_SHUTTING_DOWN = jest.fn();
+const MOCK_MARK_RETRIED = jest.fn<(...args: any[]) => any>();
+const MOCK_INCREMENT_RETRY = jest.fn<(...args: any[]) => any>();
+const MOCK_RELEASE_CLAIM = jest.fn<(...args: any[]) => any>();
+const MOCK_IS_SHUTTING_DOWN = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/adapters/outbound/claim-manager", () => ({
@@ -33,13 +37,13 @@ describe("delivery-executor", () => {
 		ctx: {
 			instanceId: string;
 			batchId: string;
-			client: { post: jest.Mock };
+			client: { post: jest.Mock<(...args: any[]) => any> };
 			messageManagerUrl: string;
 		}
 	) => Promise<void>;
 
 	const mockClient = {
-		post: jest.fn(),
+		post: jest.fn<(...args: any[]) => any>(),
 	};
 
 	const baseCtx = {

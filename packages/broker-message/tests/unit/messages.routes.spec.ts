@@ -54,8 +54,8 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 
 	// The sender waits for this answer: no response = timeout, retries, DLQ.
 	it("acknowledges the delivery and emits the payload to the topic's listeners", async () => {
-		const listener = jest.fn();
-		EVENT_MANAGER.on("example.debug.create", listener);
+		const listener = jest.fn<(...args: any[]) => any>();
+		EVENT_MANAGER.on("example.debug.create" as never, listener);
 
 		const { status, body } = await deliver("message", "/message");
 
@@ -65,8 +65,8 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 	});
 
 	it("delivers a void event (no payload)", async () => {
-		const listener = jest.fn();
-		EVENT_MANAGER.on("example.show.create", listener);
+		const listener = jest.fn<(...args: any[]) => any>();
+		EVENT_MANAGER.on("example.show.create" as never, listener);
 
 		const { status } = await deliver("message", "/message", {
 			metadata: {

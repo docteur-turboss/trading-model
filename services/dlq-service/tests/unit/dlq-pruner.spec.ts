@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_PRUNE = jest.fn();
+const MOCK_PRUNE = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -10,13 +10,17 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/metrics", () => ({
 	metrics: {
-		entriesPruned: { inc: jest.fn() },
-		pruneErrors: { inc: jest.fn() },
+		entriesPruned: { inc: jest.fn<(...args: any[]) => any>() },
+		pruneErrors: { inc: jest.fn<(...args: any[]) => any>() },
 	},
 }));
 
@@ -47,10 +51,10 @@ describe("DlqPruner", () => {
 	it("should prune and log when pruned > 0", async () => {
 		MOCK_PRUNE.mockResolvedValue(5);
 		const logger = jest.requireMock("../../src/config/logger") as {
-			logger: { info: jest.Mock };
+			logger: { info: jest.Mock<(...args: any[]) => any> };
 		};
 		const metrics = jest.requireMock("../../src/config/metrics") as {
-			metrics: { entriesPruned: { inc: jest.Mock } };
+			metrics: { entriesPruned: { inc: jest.Mock<(...args: any[]) => any> } };
 		};
 
 		const pruner = new DlqPrunerClass();
@@ -64,7 +68,7 @@ describe("DlqPruner", () => {
 	it("should prune and not log when pruned is 0", async () => {
 		MOCK_PRUNE.mockResolvedValue(0);
 		const logger = jest.requireMock("../../src/config/logger") as {
-			logger: { info: jest.Mock };
+			logger: { info: jest.Mock<(...args: any[]) => any> };
 		};
 
 		const pruner = new DlqPrunerClass();
@@ -77,7 +81,7 @@ describe("DlqPruner", () => {
 	it("should handle prune errors", async () => {
 		MOCK_PRUNE.mockRejectedValue(new Error("prune error"));
 		const logger = jest.requireMock("../../src/config/logger") as {
-			logger: { error: jest.Mock };
+			logger: { error: jest.Mock<(...args: any[]) => any> };
 		};
 
 		const pruner = new DlqPrunerClass();

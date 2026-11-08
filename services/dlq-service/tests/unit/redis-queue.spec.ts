@@ -1,9 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_GET_CLIENT = jest.fn();
-const MOCK_IS_AVAILABLE = jest.fn();
-const MOCK_CONNECT = jest.fn();
-const MOCK_CLOSE = jest.fn();
+const MOCK_GET_CLIENT = jest.fn<(...args: any[]) => any>();
+const MOCK_IS_AVAILABLE = jest.fn<(...args: any[]) => any>();
+const MOCK_CONNECT = jest.fn<(...args: any[]) => any>();
+const MOCK_CLOSE = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -12,11 +12,15 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/redis-connection", () => ({
-	RedisConnection: jest.fn(() => ({
+	RedisConnection: jest.fn((..._args: any[]) => ({
 		getClient: MOCK_GET_CLIENT,
 		isAvailable: MOCK_IS_AVAILABLE,
 		connect: MOCK_CONNECT,
@@ -25,7 +29,7 @@ jest.mock("../../src/config/redis-connection", () => ({
 }));
 
 const { logger: MOCK_LOGGER } = jest.requireMock("../../src/config/logger") as {
-	logger: { error: jest.Mock };
+	logger: { error: jest.Mock<(...args: any[]) => any> };
 };
 
 describe("DlqRedisQueue", () => {
@@ -40,7 +44,9 @@ describe("DlqRedisQueue", () => {
 	};
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/config/redis-queue");
+		const mod = jest.requireActual<
+			typeof import("../../src/config/redis-queue")
+		>("../../src/config/redis-queue");
 		DlqRedisQueueClass = mod.DlqRedisQueue;
 	});
 
@@ -77,7 +83,7 @@ describe("DlqRedisQueue", () => {
 
 		it("should push entry to redis queue", async () => {
 			const mockClient = {
-				eval: jest.fn().mockResolvedValue([1, 10]),
+				eval: jest.fn<(...args: any[]) => any>().mockResolvedValue([1, 10]),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);
@@ -97,7 +103,7 @@ describe("DlqRedisQueue", () => {
 
 		it("should return false when queue size limit is reached", async () => {
 			const mockClient = {
-				eval: jest.fn().mockResolvedValue([0, 50_000]),
+				eval: jest.fn<(...args: any[]) => any>().mockResolvedValue([0, 50_000]),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);
@@ -110,7 +116,9 @@ describe("DlqRedisQueue", () => {
 
 		it("should handle redis error gracefully", async () => {
 			const mockClient = {
-				eval: jest.fn().mockRejectedValue(new Error("redis down")),
+				eval: jest
+					.fn<(...args: any[]) => any>()
+					.mockRejectedValue(new Error("redis down")),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);
@@ -137,7 +145,7 @@ describe("DlqRedisQueue", () => {
 
 		it("should return entry from redis queue", async () => {
 			const mockClient = {
-				eval: jest.fn().mockResolvedValue(["entry-1"]),
+				eval: jest.fn<(...args: any[]) => any>().mockResolvedValue(["entry-1"]),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);
@@ -155,7 +163,7 @@ describe("DlqRedisQueue", () => {
 
 		it("should return null when no entries", async () => {
 			const mockClient = {
-				eval: jest.fn().mockResolvedValue([]),
+				eval: jest.fn<(...args: any[]) => any>().mockResolvedValue([]),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);
@@ -168,7 +176,9 @@ describe("DlqRedisQueue", () => {
 
 		it("should handle redis error gracefully", async () => {
 			const mockClient = {
-				eval: jest.fn().mockRejectedValue(new Error("script error")),
+				eval: jest
+					.fn<(...args: any[]) => any>()
+					.mockRejectedValue(new Error("script error")),
 			};
 			MOCK_GET_CLIENT.mockReturnValue(mockClient);
 			MOCK_IS_AVAILABLE.mockReturnValue(true);

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
-	createBootstrap: jest.fn(),
+	createBootstrap: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/application/server", () => ({
-	createServer: jest.fn(),
+	createServer: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -34,19 +34,21 @@ jest.mock("../../src/domain/lease-manager", () => {
 });
 
 const mockRedisClient = {
-	connect: jest.fn().mockResolvedValue(undefined),
-	ping: jest.fn().mockResolvedValue("PONG"),
-	disconnect: jest.fn(),
+	connect: jest.fn<(...args: any[]) => any>().mockResolvedValue(undefined),
+	ping: jest.fn<(...args: any[]) => any>().mockResolvedValue("PONG"),
+	disconnect: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
-	createRedisClient: jest.fn(() => mockRedisClient),
+	createRedisClient: jest.fn((..._args: any[]) => mockRedisClient),
 }));
 
 jest.mock("../../src/adapters/outbound/redis-instance-store", () => ({
-	RedisInstanceStore: jest.fn().mockImplementation(() => ({
-		deps: { redis: mockRedisClient, keyPrefix: "trading-model:discovery:" },
-	})),
+	RedisInstanceStore: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => ({
+			deps: { redis: mockRedisClient, keyPrefix: "trading-model:discovery:" },
+		})),
 }));
 
 describe("app/index", () => {
@@ -58,12 +60,12 @@ describe("app/index", () => {
 		const { createBootstrap } = jest.requireMock(
 			"@trading-model/server-utils/application/services/bootstrap"
 		) as {
-			createBootstrap: jest.Mock;
+			createBootstrap: jest.Mock<(...args: any[]) => any>;
 		};
 		const { createServer } = jest.requireMock(
 			"../../src/application/server"
 		) as {
-			createServer: jest.Mock;
+			createServer: jest.Mock<(...args: any[]) => any>;
 		};
 
 		require("../../src/application/index");
@@ -98,7 +100,7 @@ describe("app/index", () => {
 		const { createBootstrap } = jest.requireMock(
 			"@trading-model/server-utils/application/services/bootstrap"
 		) as {
-			createBootstrap: jest.Mock;
+			createBootstrap: jest.Mock<(...args: any[]) => any>;
 		};
 
 		const opts = createBootstrap.mock.calls.at(-1)![0] as {

@@ -3,6 +3,11 @@ import type {
 	Message,
 	MessageMetadata,
 } from "@trading-model/contracts/message-types";
+import type {
+	DurationMs,
+	MessageId,
+	Topic,
+} from "@trading-model/primitives/primitives";
 
 export const mockServiceIdentity = {
 	serviceName: "financial-scraper-service" as const,
@@ -17,15 +22,15 @@ export const mockSubscriberIdentity = {
 const createMockMessageMetadata = (
 	overrides?: Partial<MessageMetadata>
 ): MessageMetadata => ({
-	messageId: "msg-123",
+	messageId: "msg-123" as MessageId,
 	emittedAt: new Date(Date.now() + 86400000),
 	schemaVersion: "1.0",
 	eventType: "TestEvent",
-	topic: "test.topic",
+	topic: "test.topic" as Topic,
 	publisher: mockServiceIdentity,
 	delivery: {
 		mode: DeliveryMode.AT_LEAST_ONCE,
-		ttl: 60000,
+		ttl: 60000 as DurationMs,
 	},
 	...overrides,
 });

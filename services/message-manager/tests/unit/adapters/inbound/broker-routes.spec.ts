@@ -33,7 +33,7 @@ describe("message-manager API (BROKER_API)", () => {
 		app.use(express.json());
 		app.use(BROKER_ROUTES(dispatcher as never));
 		await new Promise<void>((resolve) => {
-			server = app.listen(0, resolve);
+			server = app.listen(0, () => resolve());
 		});
 		baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 	});

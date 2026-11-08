@@ -11,7 +11,11 @@ import type { TrainingSettings } from "../../../src/domain/training-settings";
 import { feedCandles } from "../../fixtures/market-data.fixture";
 
 jest.mock("../../../src/config/metrics", () => {
-	const metric = { set: jest.fn(), inc: jest.fn(), observe: jest.fn() };
+	const metric = {
+		set: jest.fn<(...args: any[]) => any>(),
+		inc: jest.fn<(...args: any[]) => any>(),
+		observe: jest.fn<(...args: any[]) => any>(),
+	};
 	return new Proxy({}, { get: () => metric });
 });
 
@@ -53,14 +57,14 @@ function makeTrainer(runner: typeof runInProcess, telemetry?: object): Trainer {
 
 describe("worker training runner", () => {
 	it("gives the same result as in-process with a fixed seed, and relays telemetry", async () => {
-		const evaluated = jest.fn();
+		const evaluated = jest.fn<(...args: any[]) => any>();
 		const inProcess = await makeTrainer(runInProcess).train(SYMBOL);
 		const inWorker = await makeTrainer(workerRunner, {
-			generationStarted: jest.fn(),
-			stagnationUpdated: jest.fn(),
-			evaluationFailed: jest.fn(),
+			generationStarted: jest.fn<(...args: any[]) => any>(),
+			stagnationUpdated: jest.fn<(...args: any[]) => any>(),
+			evaluationFailed: jest.fn<(...args: any[]) => any>(),
 			genomeEvaluated: evaluated,
-			crossoverFallbacks: jest.fn(),
+			crossoverFallbacks: jest.fn<(...args: any[]) => any>(),
 		}).train(SYMBOL);
 
 		expect(inProcess.success).toBe(true);

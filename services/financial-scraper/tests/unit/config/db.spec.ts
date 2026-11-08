@@ -8,7 +8,7 @@ process.env.SERVICE_NAME = "financial-scraper-service";
 process.env.INSTANCE_ID = "instance-1";
 process.env.ADDRESS_MANAGER_URL = "https://address-manager.example.com";
 
-const MOCK_CREATE_POOL = jest.fn<any>().mockReturnValue({});
+const MOCK_CREATE_POOL = jest.fn<(...args: any[]) => any>().mockReturnValue({});
 
 jest.mock("mysql2", () => ({
 	createPool: MOCK_CREATE_POOL,
@@ -19,7 +19,7 @@ jest.mock("ts-sql-query/connections/MySqlConnection", () => ({
 }));
 
 jest.mock("ts-sql-query/queryRunners/MySql2PoolQueryRunner", () => ({
-	MySql2PoolQueryRunner: jest.fn(),
+	MySql2PoolQueryRunner: jest.fn<(...args: any[]) => any>(),
 }));
 
 import { createDBConnection, DATABASE } from "../../../src/config/db";

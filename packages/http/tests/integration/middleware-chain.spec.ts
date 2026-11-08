@@ -5,16 +5,16 @@ import { ResponseException } from "@trading-model/http/adapters/inbound/response
 describe("Middleware chain integration", () => {
 	let req: any;
 	let res: any;
-	let next: jest.Mock;
+	let next: jest.Mock<(...args: any[]) => any>;
 
 	beforeEach(() => {
 		req = {};
 		res = {
-			status: jest.fn().mockReturnThis(),
-			json: jest.fn().mockReturnThis(),
-			cookie: jest.fn().mockReturnThis(),
+			status: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			json: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			cookie: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 		};
-		next = jest.fn();
+		next = jest.fn<(...args: any[]) => any>();
 	});
 
 	it("should handle errors through catchSync", async () => {

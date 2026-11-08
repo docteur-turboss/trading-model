@@ -6,13 +6,13 @@ jest.mock("express-rate-limit", () => {
 			string,
 			unknown
 		>;
-		fn.resetKey = jest.fn();
-		return fn as ReturnType<typeof import("express-rate-limit")>;
+		fn.resetKey = jest.fn<(...args: any[]) => any>();
+		return fn;
 	};
 });
 
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
-	HttpClient: jest.fn(),
+	HttpClient: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
@@ -24,50 +24,54 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	publishDlqEvent: jest.fn(),
+	publishDlqEvent: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/config/db", () => ({
 	isDbConnected: () => true,
-	getCollection: jest.fn(),
+	getCollection: jest.fn<(...args: any[]) => any>(),
 	getMissingCriticalIndexes: () => [],
 }));
 
 jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: {
-		insert: jest.fn(),
-		query: jest.fn(),
-		delete: jest.fn(),
-		count: jest.fn(),
-		prune: jest.fn(),
-		listQueuable: jest.fn(),
+		insert: jest.fn<(...args: any[]) => any>(),
+		query: jest.fn<(...args: any[]) => any>(),
+		delete: jest.fn<(...args: any[]) => any>(),
+		count: jest.fn<(...args: any[]) => any>(),
+		prune: jest.fn<(...args: any[]) => any>(),
+		listQueuable: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
 jest.mock("../../src/adapters/outbound/claim-manager", () => ({
 	dlqClaimManager: {
-		claimEntriesForRetry: jest.fn(),
-		releaseStaleClaims: jest.fn(),
-		releaseClaimWithoutCount: jest.fn(),
-		incrementRetryCount: jest.fn(),
-		releaseClaimsByInstance: jest.fn(),
+		claimEntriesForRetry: jest.fn<(...args: any[]) => any>(),
+		releaseStaleClaims: jest.fn<(...args: any[]) => any>(),
+		releaseClaimWithoutCount: jest.fn<(...args: any[]) => any>(),
+		incrementRetryCount: jest.fn<(...args: any[]) => any>(),
+		releaseClaimsByInstance: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
 jest.mock("../../src/adapters/outbound/retry-manager", () => ({
 	dlqRetryManager: {
-		markRetried: jest.fn(),
-		abandonExhaustedEntries: jest.fn(),
+		markRetried: jest.fn<(...args: any[]) => any>(),
+		abandonExhaustedEntries: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	FIND_A_SERVICE: jest.fn(),
-	AddressManager: { start: jest.fn() },
+	FIND_A_SERVICE: jest.fn<(...args: any[]) => any>(),
+	AddressManager: { start: jest.fn<(...args: any[]) => any>() },
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -92,66 +96,66 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/metrics", () => ({
-	metricsHandler: jest.fn(),
+	metricsHandler: jest.fn<(...args: any[]) => any>(),
 	metrics: {
-		entriesAdded: { inc: jest.fn() },
-		entriesDeleted: { inc: jest.fn() },
-		entriesReplayed: { inc: jest.fn() },
-		entriesReplayFailed: { inc: jest.fn() },
-		entriesPruned: { inc: jest.fn() },
-		pruneErrors: { inc: jest.fn() },
-		entrySizeBytes: { observe: jest.fn() },
-		collectionSize: { set: jest.fn() },
+		entriesAdded: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesDeleted: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesPruned: { inc: jest.fn<(...args: any[]) => any>() },
+		pruneErrors: { inc: jest.fn<(...args: any[]) => any>() },
+		entrySizeBytes: { observe: jest.fn<(...args: any[]) => any>() },
+		collectionSize: { set: jest.fn<(...args: any[]) => any>() },
 	},
 }));
 
 jest.mock("@trading-model/validation/application/services/validate-env", () => {
-	const actual = jest.requireActual(
+	const actual = jest.requireActual<Record<string, unknown>>(
 		"@trading-model/validation/application/services/validate-env"
 	);
 	return {
 		...actual,
 		validateEnv: (schema: unknown) => {
-			const result = (schema as { parse: (...args: never[]) => unknown }).parse(
-				{
-					APP_NAME: "dlq-service:test",
-					APP_VERSION: "1.0.0",
-					PORT: 0,
-					SERVICE_NAME: "dlq-service",
-					TLS_KEY_PATH: "",
-					TLS_CERT_PATH: "",
-					TLS_CA_PATH: "",
-					CERT_CLIENT_CA_URL: "",
-					CERT_CLIENT_SERVICE_ID: "",
-					CERT_CLIENT_SANS: "",
-					CERT_CLIENT_BOOTSTRAP_TOKEN: "",
-					CA_CLIENT_TLS_KEY: "",
-					CA_CLIENT_TLS_CERT: "",
-					CA_CLIENT_TLS_CA: "",
-					ADDRESS_MANAGER_URL: "https://localhost:8443",
-					CACHE_TTL_MS: 84000000,
-					SERVICE_PING_TIMEOUT_MS: 84000000,
-					TOKEN_REFRESH_INTERVAL_MS: 84000000,
-					TTL_REFRESH_INTERVAL_MS: 84000000,
-					MESSAGE_BUS_INIT_TIMEOUT_MS: 5000,
-					MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: 5000,
-					MESSAGE_CALLBACK_PATH: "message",
-					MONGO_URI: "mongodb://localhost:27017/test",
-					MONGO_DB: "test",
-					MONGO_COLLECTION: "test",
-					MAX_ENTRIES: 100,
-					DLQ_RETRY_MAX_ATTEMPTS: 3,
-					MESSAGE_MANAGER_URL: "https://message-manager:3000",
-					DLQ_AUTH_HMAC_SECRET: "test-secret-16-chars",
-					DLQ_ALLOWED_SERVICES: "message-manager,admin",
-					REDIS_URL: "",
-					DLQ_PRUNE_INTERVAL_MS: 60000,
-					DLQ_AUTO_RETRY_ENABLED: false,
-					DLQ_AUTO_RETRY_INTERVAL_MS: 30000,
-					DLQ_AUTO_RETRY_LIMIT: 50,
-					INSTANCE_ID: "test-dlq-1",
-				}
-			);
+			const result = (
+				schema as { parse: (...args: unknown[]) => unknown }
+			).parse({
+				APP_NAME: "dlq-service:test",
+				APP_VERSION: "1.0.0",
+				PORT: 0,
+				SERVICE_NAME: "dlq-service",
+				TLS_KEY_PATH: "",
+				TLS_CERT_PATH: "",
+				TLS_CA_PATH: "",
+				CERT_CLIENT_CA_URL: "",
+				CERT_CLIENT_SERVICE_ID: "",
+				CERT_CLIENT_SANS: "",
+				CERT_CLIENT_BOOTSTRAP_TOKEN: "",
+				CA_CLIENT_TLS_KEY: "",
+				CA_CLIENT_TLS_CERT: "",
+				CA_CLIENT_TLS_CA: "",
+				ADDRESS_MANAGER_URL: "https://localhost:8443",
+				CACHE_TTL_MS: 84000000,
+				SERVICE_PING_TIMEOUT_MS: 84000000,
+				TOKEN_REFRESH_INTERVAL_MS: 84000000,
+				TTL_REFRESH_INTERVAL_MS: 84000000,
+				MESSAGE_BUS_INIT_TIMEOUT_MS: 5000,
+				MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: 5000,
+				MESSAGE_CALLBACK_PATH: "message",
+				MONGO_URI: "mongodb://localhost:27017/test",
+				MONGO_DB: "test",
+				MONGO_COLLECTION: "test",
+				MAX_ENTRIES: 100,
+				DLQ_RETRY_MAX_ATTEMPTS: 3,
+				MESSAGE_MANAGER_URL: "https://message-manager:3000",
+				DLQ_AUTH_HMAC_SECRET: "test-secret-16-chars",
+				DLQ_ALLOWED_SERVICES: "message-manager,admin",
+				REDIS_URL: "",
+				DLQ_PRUNE_INTERVAL_MS: 60000,
+				DLQ_AUTO_RETRY_ENABLED: false,
+				DLQ_AUTO_RETRY_INTERVAL_MS: 30000,
+				DLQ_AUTO_RETRY_LIMIT: 50,
+				INSTANCE_ID: "test-dlq-1",
+			});
 			return result;
 		},
 	};
@@ -161,7 +165,9 @@ describe("DLQ Routes", () => {
 	let DlqRoutes: () => ReturnType<typeof import("express").Router>;
 
 	beforeAll(() => {
-		const routes = jest.requireActual("../../src/adapters/inbound/routes");
+		const routes = jest.requireActual<
+			typeof import("../../src/adapters/inbound/routes")
+		>("../../src/adapters/inbound/routes");
 		DlqRoutes = routes.DlqRoutes;
 	});
 
@@ -180,14 +186,13 @@ describe("DLQ Routes", () => {
 					route?: { path?: string; methods?: Record<string, boolean> };
 				}) => layer.route
 			)
-			.map(
-				(layer: {
-					route: { path: string; methods: Record<string, boolean> };
-				}) => ({
-					path: layer.route.path,
-					methods: Object.keys(layer.route.methods),
-				})
-			);
+			.map((layer) => {
+				const route = layer.route as unknown as {
+					path: string;
+					methods: Record<string, boolean>;
+				};
+				return { path: route.path, methods: Object.keys(route.methods) };
+			});
 
 		expect(paths).toEqual(
 			expect.arrayContaining([

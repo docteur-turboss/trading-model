@@ -86,17 +86,17 @@ async function runGA(seed: number): Promise<RunSummary> {
 			ctx.population.map((genome) => genome.id)
 		),
 		bestId: best.id,
-		bestWeights: [...(best.trainedWeights ?? [])],
+		bestWeights: Array.from((best.trainedWeights ?? []) as ArrayLike<number>),
 		failures,
 	};
 }
 
 describe("GA end-to-end replay", () => {
 	setLogger({
-		debug: jest.fn(),
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
+		debug: jest.fn<(...args: any[]) => any>(),
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
 	} as never);
 
 	afterEach(() => {

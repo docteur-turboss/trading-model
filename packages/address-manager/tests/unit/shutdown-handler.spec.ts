@@ -104,8 +104,9 @@ describe("ShutdownHandler", () => {
 		const {
 			setupProcessHandlers,
 		} = require("@trading-model/server-utils/infrastructure/signal-handler");
-		const shutdownFn = (setupProcessHandlers as jest.Mock).mock
-			.calls[0][0] as () => Promise<void>;
+		const shutdownFn = (
+			setupProcessHandlers as jest.Mock<(...args: any[]) => any>
+		).mock.calls[0][0] as () => Promise<void>;
 		await shutdownFn();
 		expect(scheduler.stop).toHaveBeenCalled();
 		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalled();

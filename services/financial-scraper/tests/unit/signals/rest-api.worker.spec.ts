@@ -22,7 +22,7 @@ describe("rest_api worker", () => {
 			const [status, body] = ROUTES[req.url ?? ""] ?? [404, ""];
 			res.writeHead(status).end(body);
 		});
-		await new Promise<void>((resolve) => server.listen(0, resolve));
+		await new Promise<void>((resolve) => server.listen(0, () => resolve()));
 		base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 	});
 
@@ -33,6 +33,7 @@ describe("rest_api worker", () => {
 	function fetchPath(path: string) {
 		return createRestApiWorker("trading-model-test ops@example.org")({
 			subject: { assetId: "BTC" },
+			dimension: "market",
 			url: `${base}${path}`,
 			params: {},
 		});

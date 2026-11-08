@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_LOGGER = {
-	info: jest.fn(),
-	warn: jest.fn(),
-	error: jest.fn(),
-	debug: jest.fn(),
+	info: jest.fn<(...args: any[]) => any>(),
+	warn: jest.fn<(...args: any[]) => any>(),
+	error: jest.fn<(...args: any[]) => any>(),
+	debug: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
@@ -13,7 +13,7 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => MOCK_LOGGER,
-	setLogger: jest.fn(),
+	setLogger: jest.fn<(...args: any[]) => any>(),
 }));
 
 let capturedOptions: any;
@@ -21,13 +21,13 @@ let capturedOptions: any;
 jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 	createBootstrap: jest.fn((options: any) => {
 		capturedOptions = options;
-		return { server: null, shutdown: jest.fn() };
+		return { server: null, shutdown: jest.fn<(...args: any[]) => any>() };
 	}),
 }));
 
 jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
-	startTelemetry: jest.fn(),
-	shutdownTelemetry: jest.fn(),
+	startTelemetry: jest.fn<(...args: any[]) => any>(),
+	shutdownTelemetry: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../../src/infrastructure/config/env", () => ({
@@ -47,64 +47,71 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-const MOCK_CHAIN_AUDIT_SCHEDULER = { start: jest.fn(), stop: jest.fn() };
+const MOCK_CHAIN_AUDIT_SCHEDULER = {
+	start: jest.fn<(...args: any[]) => any>(),
+	stop: jest.fn<(...args: any[]) => any>(),
+};
 jest.mock("../../../src/application/audit-chain/chain-audit-scheduler", () => ({
-	ChainAuditScheduler: jest.fn(() => MOCK_CHAIN_AUDIT_SCHEDULER),
+	ChainAuditScheduler: jest.fn((..._args: any[]) => MOCK_CHAIN_AUDIT_SCHEDULER),
 }));
 
-const MOCK_ADDRESS_MANAGER = { stop: jest.fn() };
+const MOCK_ADDRESS_MANAGER = { stop: jest.fn<(...args: any[]) => any>() };
 jest.mock("../../../src/config/address-manager", () => ({
-	BOOTSTRAP_ADDRESS_MANAGER: jest.fn(() => MOCK_ADDRESS_MANAGER),
-	AddressManager: { stop: jest.fn() },
-	ADDRESS_MANAGER_ROUTES: jest.fn(),
+	BOOTSTRAP_ADDRESS_MANAGER: jest.fn((..._args: any[]) => MOCK_ADDRESS_MANAGER),
+	AddressManager: { stop: jest.fn<(...args: any[]) => any>() },
+	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
 }));
 
 const MOCK_AUDIT_REPOSITORY_INSTANCE = {
-	insert: jest.fn<any>(),
-	findById: jest.fn<any>(),
-	query: jest.fn<any>(),
-	getStats: jest.fn<any>(),
-	ensureIndexes: jest.fn<any>(),
+	insert: jest.fn<(...args: any[]) => any>(),
+	findById: jest.fn<(...args: any[]) => any>(),
+	query: jest.fn<(...args: any[]) => any>(),
+	getStats: jest.fn<(...args: any[]) => any>(),
+	ensureIndexes: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock(
 	"../../../src/adapters/outbound/persistence/audit-repository",
 	() => ({
-		AuditRepository: jest.fn(() => MOCK_AUDIT_REPOSITORY_INSTANCE),
+		AuditRepository: jest.fn(
+			(..._args: any[]) => MOCK_AUDIT_REPOSITORY_INSTANCE
+		),
 	})
 );
 
 jest.mock(
 	"../../../src/adapters/outbound/persistence/retired-collections",
-	() => ({ dropRetiredCollections: jest.fn<any>() })
+	() => ({ dropRetiredCollections: jest.fn<(...args: any[]) => any>() })
 );
 
 const MOCK_HTTP_SERVER = {};
 jest.mock("../../../src/application/server", () => ({
-	createServer: jest.fn(() => MOCK_HTTP_SERVER),
+	createServer: jest.fn((..._args: any[]) => MOCK_HTTP_SERVER),
 }));
 
-const MOCK_DB = { collection: jest.fn() };
+const MOCK_DB = { collection: jest.fn<(...args: any[]) => any>() };
 const MOCK_MONGO_CLIENT = {
-	connect: jest.fn<any>(),
-	db: jest.fn(() => MOCK_DB),
-	close: jest.fn<any>(),
-	on: jest.fn(),
+	connect: jest.fn<(...args: any[]) => any>(),
+	db: jest.fn((..._args: any[]) => MOCK_DB),
+	close: jest.fn<(...args: any[]) => any>(),
+	on: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("mongodb", () => ({
-	MongoClient: jest.fn(() => MOCK_MONGO_CLIENT),
+	MongoClient: jest.fn((..._args: any[]) => MOCK_MONGO_CLIENT),
 }));
 
 const MOCK_BROKER_MESSAGE_INSTANCE = {
-	intents: jest.fn<any>(),
-	stopMessageManager: jest.fn<any>(),
+	intents: jest.fn<(...args: any[]) => any>(),
+	stopMessageManager: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("@trading-model/broker-message", () => {
 	return {
 		__esModule: true,
-		default: jest.fn().mockImplementation(() => MOCK_BROKER_MESSAGE_INSTANCE),
+		default: jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementation(() => MOCK_BROKER_MESSAGE_INSTANCE),
 	};
 });
 
@@ -121,7 +128,9 @@ import { dropRetiredCollections } from "../../../src/adapters/outbound/persisten
 import { createServer } from "../../../src/application/server";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../../../src/config/address-manager";
 
-const MOCK_CREATE_BOOTSTRAP = createBootstrap as jest.Mock;
+const MOCK_CREATE_BOOTSTRAP = createBootstrap as jest.Mock<
+	(...args: any[]) => any
+>;
 
 import "../../../src/application/index";
 
@@ -154,7 +163,7 @@ describe("Audit Logger entry point (index.ts)", () => {
 			expect(
 				MOCK_AUDIT_REPOSITORY_INSTANCE.ensureIndexes
 			).toHaveBeenCalledTimes(1);
-			expect(dropRetiredCollections).toHaveBeenCalledWith(MOCK_DB);
+			expect(dropRetiredCollections).toHaveBeenCalledWith(MOCK_DB as never);
 			expect(createServer).toHaveBeenCalledWith(
 				MOCK_AUDIT_REPOSITORY_INSTANCE,
 				expect.anything(),
