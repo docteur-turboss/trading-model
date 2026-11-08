@@ -35,9 +35,17 @@ const LAG_INTERVAL_MS = 15_000;
 export async function publishJournalLag(
 	journal: MessageJournalPort
 ): Promise<void> {
-	const lags = await journal.lag?.();
-	if (!lags) {
+	if (!journal.lag) {
 		return;
+	}
+	let lags: Awaited<ReturnType<NonNullable<MessageJournalPort["lag"]>>>;
+	try {
+		lags = await journal.lag();
+	} catch (err) {
+		// No frozen series on a Redis outage: stale values would hide or fake a backlog.
+		JOURNAL_PENDING_ENTRIES.reset();
+		JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
+		throw err;
 	}
 	JOURNAL_PENDING_ENTRIES.reset();
 	JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();

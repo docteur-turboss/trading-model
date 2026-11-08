@@ -131,6 +131,21 @@ describe("publishJournalLag", () => {
 		expect(pending[0]?.labels).toEqual({ topic: "t", service: "a" });
 	});
 
+	it("should clear the gauges when the read fails", async () => {
+		JOURNAL_PENDING_ENTRIES.set({ topic: "t", service: "a" }, 3);
+		JOURNAL_OLDEST_PENDING_AGE_SECONDS.set({ topic: "t", service: "a" }, 9);
+		const journal = {
+			lag: jest.fn().mockRejectedValue(new Error("down")),
+		} as unknown as MessageJournalPort;
+
+		await expect(publishJournalLag(journal)).rejects.toThrow("down");
+
+		expect((await JOURNAL_PENDING_ENTRIES.get()).values).toHaveLength(0);
+		expect(
+			(await JOURNAL_OLDEST_PENDING_AGE_SECONDS.get()).values
+		).toHaveLength(0);
+	});
+
 	it("should do nothing for a journal that cannot tell", async () => {
 		await expect(
 			publishJournalLag({} as MessageJournalPort)

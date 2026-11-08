@@ -435,6 +435,17 @@ describe("RedisMessageJournal", () => {
 			await expect(journal.lag()).resolves.toEqual([]);
 		});
 
+		it("should skip a group that vanished between XINFO and XPENDING", async () => {
+			const { journal } = setup(async (name) => {
+				if (name === "XINFO") {
+					return [info(["lag", 0])];
+				}
+				throw new Error("NOGROUP No such consumer group");
+			});
+
+			await expect(journal.lag()).resolves.toEqual([]);
+		});
+
 		it("should rethrow any other Redis error", async () => {
 			const { journal } = setup(async () => {
 				throw new Error("NOPERM");

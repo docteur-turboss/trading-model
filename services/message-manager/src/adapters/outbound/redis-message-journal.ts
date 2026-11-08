@@ -245,19 +245,30 @@ export class RedisMessageJournal implements MessageJournalPort {
 				continue;
 			}
 			const stream = this._stream(group.topic);
-			const [count, oldestPending] = (await this._deps.redis.call(
-				"XPENDING",
-				stream,
-				group.service
-			)) as [number, string | null];
-			const unread = (await this._deps.redis.call(
-				"XRANGE",
-				stream,
-				`(${info["last-delivered-id"]}`,
-				"+",
-				"COUNT",
-				"1"
-			)) as [string, unknown][];
+			let count: number;
+			let oldestPending: string | null;
+			let unread: [string, unknown][];
+			try {
+				[count, oldestPending] = (await this._deps.redis.call(
+					"XPENDING",
+					stream,
+					group.service
+				)) as [number, string | null];
+				unread = (await this._deps.redis.call(
+					"XRANGE",
+					stream,
+					`(${info["last-delivered-id"]}`,
+					"+",
+					"COUNT",
+					"1"
+				)) as [string, unknown][];
+			} catch (err) {
+				// The group vanished since XINFO: skip it, keep the others.
+				if (err instanceof Error && err.message.includes("NOGROUP")) {
+					continue;
+				}
+				throw err;
+			}
 			// shortcut: a nil `lag` (Redis cannot tell after an XDEL) counts the one unread entry seen, upgrade with a XLEN walk if it ever matters.
 			const unreadCount = Number(info.lag ?? unread.length);
 			const oldest = [oldestPending, unread[0]?.[0]]
