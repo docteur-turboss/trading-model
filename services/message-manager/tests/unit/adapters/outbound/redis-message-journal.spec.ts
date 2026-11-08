@@ -380,4 +380,78 @@ describe("RedisMessageJournal", () => {
 			"1-0"
 		);
 	});
+
+	describe("lag", () => {
+		const info = (extra: unknown[]) => [
+			"name",
+			"trader-trainer",
+			"last-delivered-id",
+			`${NOW - 5000}-0`,
+			...extra,
+		];
+
+		it("should count the pending and unread entries and age the oldest of them", async () => {
+			const { journal, redis } = setup(async (name) => {
+				if (name === "XINFO") {
+					return [info(["lag", 3])];
+				}
+				if (name === "XPENDING") {
+					return [2, `${NOW - 60_000}-0`, "x", []];
+				}
+				return [[`${NOW - 4000}-0`, ["message", "{}"]]];
+			});
+
+			await expect(journal.lag()).resolves.toEqual([
+				{
+					topic: "test.topic",
+					service: "trader-trainer",
+					pending: 5,
+					oldestPendingAgeMs: 60_000,
+				},
+			]);
+			expect(redis.call.mock.calls.filter(([n]) => n === "XINFO")).toHaveLength(
+				1
+			);
+		});
+
+		it("should report an empty group as no backlog", async () => {
+			const { journal } = setup(async (name) => {
+				if (name === "XINFO") {
+					return [info(["lag", 0])];
+				}
+				return name === "XPENDING" ? [0, null] : [];
+			});
+
+			await expect(journal.lag()).resolves.toEqual([
+				expect.objectContaining({ pending: 0, oldestPendingAgeMs: 0 }),
+			]);
+		});
+
+		it("should skip a topic whose stream is gone", async () => {
+			const { journal } = setup(async () => {
+				throw new Error("ERR no such key");
+			});
+
+			await expect(journal.lag()).resolves.toEqual([]);
+		});
+
+		it("should skip a group that vanished between XINFO and XPENDING", async () => {
+			const { journal } = setup(async (name) => {
+				if (name === "XINFO") {
+					return [info(["lag", 0])];
+				}
+				throw new Error("NOGROUP No such consumer group");
+			});
+
+			await expect(journal.lag()).resolves.toEqual([]);
+		});
+
+		it("should rethrow any other Redis error", async () => {
+			const { journal } = setup(async () => {
+				throw new Error("NOPERM");
+			});
+
+			await expect(journal.lag()).rejects.toThrow("NOPERM");
+		});
+	});
 });

@@ -118,7 +118,7 @@ acl_args() {
 	print_args +role +info +multi +exec +slaveof +replicaof +subscribe +publish
 	print_args "+config|rewrite" "+client|setname" "+client|kill" "+script|kill"
 	service_user discovery "${REDIS_DISCOVERY_PASSWORD:-}" "trading-model:discovery:*" +get +set +del +mget +sadd +srem +smembers +sismember +scard +eval +evalsha "+script|load"
-	service_user message-manager "${REDIS_MESSAGE_MANAGER_PASSWORD:-}" "trading-model:message-manager:*" +hset +hgetall +hdel +pexpire +sadd +smembers +exists +xadd +xdel +xreadgroup +xpending +xclaim +xack +xgroup +wait
+	service_user message-manager "${REDIS_MESSAGE_MANAGER_PASSWORD:-}" "trading-model:message-manager:*" +hset +hgetall +hdel +pexpire +sadd +smembers +exists +xadd +xdel +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
 	service_user dlq-service "${REDIS_DLQ_PASSWORD:-}" "dlq:queue" +llen +lpush +lrange +ltrim +eval +evalsha "+script|load"
 }
 

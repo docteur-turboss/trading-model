@@ -42,6 +42,18 @@ export const JOURNAL_TRIMMED_PENDING_TOTAL = new promClient.Counter({
 	labelNames: ["topic", "service"] as const,
 });
 
+export const JOURNAL_PENDING_ENTRIES = new promClient.Gauge({
+	name: "mm_journal_pending_entries",
+	help: "Journal entries of a topic not yet acknowledged by a subscriber service (delivered or not)",
+	labelNames: ["topic", "service"] as const,
+});
+
+export const JOURNAL_OLDEST_PENDING_AGE_SECONDS = new promClient.Gauge({
+	name: "mm_journal_oldest_pending_age_seconds",
+	help: "Age of the oldest journal entry a subscriber service has not acknowledged (trimmed after 24 h)",
+	labelNames: ["topic", "service"] as const,
+});
+
 export const DLQ_FORWARD_FAILURES_TOTAL = new promClient.Counter({
 	name: "mm_dlq_forward_failures_total",
 	help: "Dead letters dlq-service could not take, kept in the local file",

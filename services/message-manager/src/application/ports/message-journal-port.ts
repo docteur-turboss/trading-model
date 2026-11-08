@@ -15,6 +15,14 @@ export interface JournalEntry {
 	deliveries: number;
 }
 
+/** Backlog of one group: entries not yet acknowledged, read or not. */
+export interface JournalGroupLag extends JournalGroup {
+	/** Entries delivered and not acknowledged, plus entries never read. */
+	pending: number;
+	/** Age of the oldest of them, 0 when there is none. */
+	oldestPendingAgeMs: number;
+}
+
 /**
  * Durable log of the accepted messages (ADR-0048). A message is written once
  * per topic and delivered once per subscriber service: each group keeps its
@@ -59,6 +67,11 @@ export interface MessageJournalPort {
 		retry: { floorMs: number; dueAfterMs: (deliveries: number) => number },
 		count: number
 	): Promise<JournalEntry[]>;
+	/**
+	 * Backlog of every group: a bounded number of calls per group, none per
+	 * message. Absent when the journal cannot tell (in memory).
+	 */
+	lag?(): Promise<JournalGroupLag[]>;
 	/** The entry is settled (delivered, dead-lettered or dropped for good). */
 	ack(group: JournalGroup, id: string): Promise<void>;
 }

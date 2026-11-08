@@ -744,6 +744,31 @@ tests:
         alertname: JournalEntriesTrimmed
         exp_alerts: []
 
+  # A subscriber that stops acknowledging: the oldest entry passes 15 min and
+  # stays there for 10 min. Two replicas expose the same value (max by). A
+  # short-lived peak (b) and a drained backlog (c) do not fire.
+  - name: journal backlog of a subscriber
+    interval: 1m
+    input_series:
+      - series: 'mm_journal_oldest_pending_age_seconds{job="message-manager",instance="m1",topic="market.candle",service="trader-trainer"}'
+        values: '0+60x40'
+      - series: 'mm_journal_oldest_pending_age_seconds{job="message-manager",instance="m2",topic="market.candle",service="trader-trainer"}'
+        values: '0+60x40'
+      - series: 'mm_journal_oldest_pending_age_seconds{job="message-manager",instance="m1",topic="market.candle",service="audit-logger"}'
+        values: '0 0 1000 1000 0x37'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: JournalBacklogOld
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: JournalBacklogOld
+        exp_alerts:
+          - exp_labels: {severity: warning, topic: market.candle, service: trader-trainer}
+            exp_annotations:
+              summary: 'Journal backlog on market.candle for trader-trainer: oldest entry waiting for more than 15 min'
+              description: 'trader-trainer has not acknowledged a market.candle entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber'
+
   # V8 keeps the allocated heap close to the used one (95% here): no alert.
   # 92% of the heap limit: out of memory is close.
   - name: heap usage is measured against the V8 limit
