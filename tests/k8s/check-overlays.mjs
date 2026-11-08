@@ -15,6 +15,9 @@
 //   - every Deployment that can run more than one pod (replicas or its HPA)
 //     spreads them across nodes (ADR-0024): otherwise one node can hold every
 //     replica and its loss takes the whole service down
+//   - every RollingUpdate Deployment that can run one pod (replicas 1 or HPA
+//     minReplicas 1) has an effective maxUnavailable of 0: it surges first
+//     instead of leaving no ready pod during a rollout (issue #699)
 //   - singleton Deployments (SINGLETONS) run exactly one pod: replicas: 1,
 //     strategy Recreate, no HPA, no canary in deploy.yml (ADR-0042 collector,
 //     ADR-0044 trainer)
@@ -65,15 +68,32 @@ function spreadsAcrossNodes(text) {
 		);
 }
 
-/** Deployment name -> maxReplicas of the HPA that drives it. */
-function hpaTargets(docs) {
-	const maxReplicas = new Map();
+/** Deployment name -> maxReplicas (or `field`) of the HPA that drives it. */
+function hpaTargets(docs, field = "maxReplicas") {
+	const replicas = new Map();
 	for (const doc of docs.filter((d) => d.kind === "HorizontalPodAutoscaler")) {
 		const target = doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1];
-		const max = Number(doc.text.match(/^ {2}maxReplicas: (\d+)$/m)?.[1] ?? 1);
-		if (target) maxReplicas.set(target, max);
+		const count = Number(doc.text.match(new RegExp(`^ {2}${field}: (\\d+)$`, "m"))?.[1] ?? 1);
+		if (target) replicas.set(target, count);
 	}
-	return maxReplicas;
+	return replicas;
+}
+
+/**
+ * RollingUpdate Deployments that can run one pod and would take it down before
+ * its replacement is ready (issue #699). Kubernetes rounds a percentage
+ * maxUnavailable down (default 25%), so only its effective value counts.
+ */
+function unavailableSinglePods(docs) {
+	const minReplicas = hpaTargets(docs, "minReplicas");
+	return docs
+		.filter((doc) => doc.kind === "Deployment" && !/^ {4}type: Recreate$/m.test(doc.text))
+		.filter((doc) => (minReplicas.get(doc.name) ?? Number(doc.text.match(/^ {2}replicas: (\d+)$/m)?.[1] ?? 1)) === 1)
+		.filter((doc) => {
+			const value = doc.text.match(/^ {6}maxUnavailable: (\S+)$/m)?.[1]?.replace(/["']/g, "") ?? "25%";
+			return value.endsWith("%") ? Number.parseInt(value, 10) >= 100 : Number(value) > 0;
+		})
+		.map((doc) => doc.name);
 }
 
 /** Deployments that may run several pods without a hard spread across nodes. */
@@ -251,6 +271,10 @@ for (const env of OVERLAYS) {
 
 	for (const name of unspreadDeployments(docs)) {
 		errors.push(`${env}: Deployment ${name} can run several pods without topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
+	}
+
+	for (const name of unavailableSinglePods(docs)) {
+		errors.push(`${env}: Deployment ${name} can run one pod but its rollingUpdate.maxUnavailable is not 0 (no ready pod during each rollout)`);
 	}
 
 	for (const name of replicasUnderHpa(docs)) {
