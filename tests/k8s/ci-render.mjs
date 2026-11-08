@@ -43,6 +43,7 @@ stringData:
   MYSQL_PASSWORD: dev-mysql
   MYSQL_MIGRATE_PASSWORD: dev-mysql-migrate
   MYSQL_RETENTION_PASSWORD: dev-mysql-retention
+  MYSQL_EXPORTER_PASSWORD: dev-mysql-exporter
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
   GRAFANA_PASSWORD: dev-grafana
   HMAC_SECRET: dev-hmac
@@ -50,6 +51,7 @@ stringData:
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
   REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
   REDIS_DLQ_PASSWORD: dev-redis-dlq-password
+  REDIS_EXPORTER_PASSWORD: dev-redis-exporter-password
 `;
 
 function adapt(manifest) {
