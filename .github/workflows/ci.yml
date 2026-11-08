@@ -19,6 +19,8 @@ concurrency:
 
 jobs:
   lint:
+    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,6 +38,8 @@ jobs:
         run: python3 scripts/check-workflows.py
 
   typecheck:
+    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,6 +60,8 @@ jobs:
           bun run --filter dlq-service build
 
   test:
+    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -79,6 +85,8 @@ jobs:
           fail_ci_if_error: ${{ github.event_name == 'pull_request' }}
 
   db-integration:
+    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -91,6 +99,8 @@ jobs:
         run: bun run test:db
 
   observability:
+    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -107,6 +117,8 @@ jobs:
 
   # The k8s job only deploys staging: production is checked by rendering.
   k8s-overlays:
+    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -132,6 +144,8 @@ jobs:
         run: bash tests/k8s/deploy-release.test.sh
 
   contract:
+    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -143,6 +157,8 @@ jobs:
       - run: bun run test:contract
 
   e2e:
+    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
     runs-on: ubuntu-latest
     env:
       MYSQL_ROOT_PASSWORD: ci-password
@@ -200,6 +216,8 @@ jobs:
   # deploy.yml's smoke test and canary gate, and check SPIRE identities, the
   # data flow, the external path and observability.
   k8s:
+    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
     runs-on: ubuntu-latest
     # 48 min on PR #460: the upgrade scenario drains the collector (360 s grace) 3 times.
     timeout-minutes: 75
