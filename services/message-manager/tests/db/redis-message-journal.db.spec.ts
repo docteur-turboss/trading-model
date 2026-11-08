@@ -272,4 +272,20 @@ describe("accepted message interrupted by a process stop — real Redis", () => 
 		};
 		expect(body.metadata.messageId).toBe(messageId);
 	});
+
+	it("should measure the backlog of a group that does not read", async () => {
+		const journal = journalOn(replica());
+		await journal.append(createMockMessage("m1"), [GROUP.service, "reader"]);
+		await journal.append(createMockMessage("m2"), [GROUP.service, "reader"]);
+		await journal.readNew({ ...GROUP, service: "reader" }, "r", 10);
+		const [one] = await journal.readNew(GROUP, "a", 1);
+		await journal.ack(GROUP, one?.id as string);
+
+		const lags = await journal.lag();
+
+		const of = (service: string) => lags.find((l) => l.service === service);
+		expect(of(GROUP.service)?.pending).toBe(1);
+		expect(of("reader")?.pending).toBe(2);
+		expect(of(GROUP.service)?.oldestPendingAgeMs).toBeGreaterThanOrEqual(0);
+	});
 });

@@ -6,7 +6,17 @@ jest.mock("express-rate-limit", () => {
 	);
 });
 
-import createBrokerModule from "../../../src/config/container";
+import type {
+	JournalGroupLag,
+	MessageJournalPort,
+} from "../../../src/application/ports/message-journal-port";
+import createBrokerModule, {
+	publishJournalLag,
+} from "../../../src/config/container";
+import {
+	JOURNAL_OLDEST_PENDING_AGE_SECONDS,
+	JOURNAL_PENDING_ENTRIES,
+} from "../../../src/config/metrics";
 
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn(),
@@ -80,5 +90,50 @@ describe("createBrokerModule", () => {
 
 		expect(mockApp.use).toHaveBeenCalled();
 		expect(mockApp.use).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("publishJournalLag", () => {
+	it("should set both gauges per group and drop a group that left", async () => {
+		const lag = jest
+			.fn<() => Promise<JournalGroupLag[]>>()
+			.mockResolvedValueOnce([
+				{
+					topic: "t" as never,
+					service: "a",
+					pending: 4,
+					oldestPendingAgeMs: 90_000,
+				},
+				{
+					topic: "t" as never,
+					service: "b",
+					pending: 1,
+					oldestPendingAgeMs: 0,
+				},
+			])
+			.mockResolvedValueOnce([
+				{
+					topic: "t" as never,
+					service: "a",
+					pending: 0,
+					oldestPendingAgeMs: 0,
+				},
+			]);
+		const journal = { lag } as unknown as MessageJournalPort;
+
+		await publishJournalLag(journal);
+		const first = await JOURNAL_OLDEST_PENDING_AGE_SECONDS.get();
+		await publishJournalLag(journal);
+
+		expect(first.values.find((v) => v.labels.service === "a")?.value).toBe(90);
+		const pending = (await JOURNAL_PENDING_ENTRIES.get()).values;
+		expect(pending).toHaveLength(1);
+		expect(pending[0]?.labels).toEqual({ topic: "t", service: "a" });
+	});
+
+	it("should do nothing for a journal that cannot tell", async () => {
+		await expect(
+			publishJournalLag({} as MessageJournalPort)
+		).resolves.toBeUndefined();
 	});
 });

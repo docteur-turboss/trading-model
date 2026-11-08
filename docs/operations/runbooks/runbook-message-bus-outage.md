@@ -1,6 +1,6 @@
 # Runbook: Message Bus Outage
 
-**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `DeadLettersNotForwarded`, `DeadLettersRejected`, `MessagesLost`, `MessagesUnrouted`, `JournalEntriesTrimmed`  
+**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `DeadLettersNotForwarded`, `DeadLettersRejected`, `MessagesLost`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
 **Severity:** SEV1
 
 ## Architecture Context
@@ -25,6 +25,7 @@ An outage affects:
 - `MessagesDeadLettered`: messages given up, now in dlq-service.
 - `DeadLettersNotForwarded` / `DeadLettersRejected` / `MessagesLost`: dead letters stuck in a pod, refused by dlq-service, or gone.
 - `MessagesUnrouted`: a topic has had no subscriber for 10 min.
+- `JournalBacklogOld`: a subscriber has not acknowledged an entry for 15 min (see 7).
 - `JournalEntriesTrimmed`: undelivered journal entries were trimmed after 24 h: messages lost (see 6).
 - Publishers log timeouts or connection errors to message-manager.
 - `MarketDataUnpublished`: candles persisted by the scraper have waited 15 min for the bus (see 5).
@@ -109,6 +110,12 @@ Nothing is lost: the candles persisted while the bus is down stay in MySQL past 
 **Symptoms:** `JournalEntriesTrimmed` (critical) with `topic` and `service`; message-manager logs `Journal entry trimmed before delivery: message lost` with the entry id.
 **Cause:** `service` did not receive its messages for more than 24 h (ADR-0048). They are gone from the journal and not dead-lettered. Only the named `service` is affected: the other groups of the topic keep their own entries.
 **Fix:** bring `service` back up. Then recover what it missed from the source: re-scrape the candles for `market.*` topics; for `audit-logger`, accept the gap and run `chain-cli.js acknowledge-loss` if its chain reports a loss (runbook-audit-chain-broken).
+
+### 7. Journal backlog of a subscriber
+
+**Symptoms:** `JournalBacklogOld` (warning) with `topic` and `service`: the oldest entry that `service` has not acknowledged is more than 15 min old (`mm_journal_oldest_pending_age_seconds`; `mm_journal_pending_entries` is the size of the backlog, unread entries included). Hours before the 24 h trim of 6.
+**Cause:** `service` is down or refuses the callback, or its circuit breaker is open in message-manager (`mm_circuit_breaker_state`).
+**Fix:** check `service` (health, logs) and the message-manager delivery logs for it. Once it answers, the backlog drains by itself, oldest first; both gauges fall. Past 24 h the entries are lost (6).
 
 ## Recovery Verification
 
