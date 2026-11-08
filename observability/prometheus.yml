@@ -60,12 +60,12 @@ scrape_configs:
     static_configs:
       - targets: ['trader-trainer:3000']
 
-  # Self-monitoring of the alerting path (AlertmanagerNotificationsFailing,
-  # PrometheusRuleEvaluationFailures).
   - job_name: 'loki'
     static_configs:
       - targets: ['loki:3100']
 
+  # Self-monitoring of the alerting path (AlertmanagerNotificationsFailing,
+  # PrometheusRuleEvaluationFailures).
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']

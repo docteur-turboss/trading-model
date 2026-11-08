@@ -54,6 +54,10 @@ data is not backed up (`BACKUP_DR.md`).
 | `LokiPushFailing` | Loki answers 5xx on push or discards samples for 10 min | `kubectl logs sts/loki`; `kubectl exec sts/loki -- df -h /loki` (full PVC: check `LokiRetentionStale`) |
 | `LokiRetentionStale` | the compactor has not applied retention for 3 h | `kubectl logs sts/loki`, look for compactor errors; the PVC drains at the next successful run |
 
+`LokiRetentionStale` has no `absent()` twin: if Loki is down or the compactor
+metric disappears, the expression is empty and the alert stays silent. A down
+Loki is already reported by `ServiceDown`.
+
 The PVC fill ratio (`kubelet_volume_stats_*`) is not alerted: the kubelet is
 not scraped yet, only Loki's own metrics are.
 
