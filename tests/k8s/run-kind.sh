@@ -62,16 +62,33 @@ wait_for() {
 	done
 }
 
+# Runs the command `"${@:2}"` up to `$1` times, 10 s apart. For calls that pull
+# from an external registry (transient 504 / EOF): bounded and logged, the last
+# failure is the caller's failure (set -e), never swallowed.
+retry() {
+	local tries="$1" n=1
+	shift
+	until "$@"; do
+		if [ "$n" -ge "$tries" ]; then
+			log "failed after $n attempts: $*"
+			return 1
+		fi
+		log "attempt $n/$tries failed, retrying in 10 s: $*"
+		n=$((n + 1))
+		sleep 10
+	done
+}
+
 # Builds the 10 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
 build_images() {
 	local root="$1" tag="$2" svc
 	# shellcheck disable=SC2086
-	docker compose -f "$root/docker-compose.yml" build $SERVICES spire-bootstrap
-	docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
+	retry 3 docker compose -f "$root/docker-compose.yml" build $SERVICES spire-bootstrap
+	retry 3 docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
 	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
 	local mroot="$root"
 	[ -f "$root/deploy/migrate/Dockerfile" ] || mroot="$ROOT"
-	docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
+	retry 3 docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
 	docker tag "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
 	for svc in $SERVICES; do
 		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
@@ -144,7 +161,8 @@ cluster() {
 	if "$KIND" get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
 		log "cluster $CLUSTER already exists"
 	else
-		"$KIND" create cluster --name "$CLUSTER" --wait 180s
+		# A failed create (kindest/node pull) leaves a half-made cluster: drop it between attempts.
+		retry 3 bash -c '"$0" delete cluster --name "$1" >/dev/null 2>&1; "$0" create cluster --name "$1" --wait 180s' "$KIND" "$CLUSTER"
 	fi
 }
 
@@ -248,6 +266,9 @@ deploy() {
 	$K -n "$NS" apply -f "$ROOT/tests/k8s/binance-stub.yaml"
 
 	log "waiting for MySQL, then applying the migrations of release N-1"
+	# 600 s/300 s: run 42498902230, cold deploy of N-1 took 4 m 25 s in all, slowest Deployment
+	# (collector) ~65 s, api-gateway ~77 s; DaemonSets ready within 3 s. Verify rollouts (3 replicas,
+	# rolling restart): message-manager 89 s, discovery-server 35 s. Margins kept for slower runners.
 	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
 	migrations "$PREVIOUS"
 
@@ -541,7 +562,7 @@ verify_traces() {
 verify_egress() {
 	local url="https://example.com"
 	log "internet egress: refused to the collector, allowed without policy"
-	$K run egress-control -n default --rm -i --restart=Never --quiet \
+	retry 3 $K run egress-control -n default --rm -i --restart=Never --quiet \
 		--image=curlimages/curl:8.11.1 -- curl -s -o /dev/null -m 10 "$url" || {
 		log "  the control pod has no internet: the check proves nothing"
 		return 1
