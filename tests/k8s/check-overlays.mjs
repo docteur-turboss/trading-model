@@ -26,7 +26,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-const OVERLAYS = ["staging", "production"];
+const OVERLAYS = ["staging", "staging-local", "production"];
 const SEALED_ONLY = ["trading-model-secrets"];
 // Deployments that must never run two pods -> the ADR that says why.
 const SINGLETONS = {
@@ -258,7 +258,7 @@ for (const env of OVERLAYS) {
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
 
-	if (env === "staging") {
+	if (env.startsWith("staging")) {
 		for (const pdb of docs.filter((doc) => doc.kind === "PodDisruptionBudget")) {
 			if (/^ {2}minAvailable: [1-9]/m.test(pdb.text)) {
 				errors.push(`staging: PodDisruptionBudget ${pdb.name} keeps minAvailable (one replica: drains would block)`);

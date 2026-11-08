@@ -79,8 +79,8 @@ if [ -z "$NAMESPACE" ] || [ "$NAMESPACE" = kube-system ]; then
 	exit 1
 fi
 case "$ENVIRONMENT" in
-staging | production) ;;
-*) fail "Unknown environment '${ENVIRONMENT}': staging or production"; exit 1 ;;
+staging | staging-local | production) ;;
+*) fail "Unknown environment '${ENVIRONMENT}': staging, staging-local or production"; exit 1 ;;
 esac
 if ! command -v kubectl >/dev/null; then
 	fail "kubectl is not installed"

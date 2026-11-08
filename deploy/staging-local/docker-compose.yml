@@ -1,0 +1,66 @@
+# Side services of the local staging cluster (docs/deployment/STAGING_LOCAL.md):
+# the S3 store (MinIO) of the audit anchors and off-site backups, and the
+# GitHub Actions runner that runs deploy.yml for the `staging` environment.
+#   docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml --env-file ~/.trading-staging/env up -d
+# Both join the `kind` network made by `kind create cluster`: the pods reach
+# MinIO at a fixed address (egress rule of the staging-local overlay), the
+# runner reaches the API server at https://trading-staging-control-plane:6443.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  minio:
+    # MinIO no longer publishes binaries or images (dl.min.io 410, minio/minio
+    # gone from Docker Hub): community build of Pigsty, pinned by digest.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
+    container_name: trading-staging-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set in ~/.trading-staging/env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set in ~/.trading-staging/env}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      kind:
+        ipv4_address: ${MINIO_IP:-172.18.0.200}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *default-logging
+
+  runner:
+    # Ephemeral: one job per registration, then the container restarts and
+    # registers again (ACCESS_TOKEN fetches the registration token). No Docker
+    # socket: the host Docker also runs other production stacks.
+    image: myoung34/github-runner:2.338.2-ubuntu-noble@sha256:23e3a4a1da30de5b462ad0ae13d901288e803a688075c3b9b5bb79b7148c07fa
+    container_name: trading-staging-runner
+    environment:
+      REPO_URL: https://github.com/docteur-turboss/trading-model
+      RUNNER_SCOPE: repo
+      ACCESS_TOKEN: ${RUNNER_ACCESS_TOKEN:?set in ~/.trading-staging/env}
+      RUNNER_NAME_PREFIX: trading-staging
+      LABELS: trading-staging
+      EPHEMERAL: "true"
+      DISABLE_AUTOMATIC_DEREGISTRATION: "false"
+      RUNNER_WORKDIR: /tmp/runner
+    networks:
+      - kind
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  minio-data:
+
+networks:
+  kind:
+    external: true
