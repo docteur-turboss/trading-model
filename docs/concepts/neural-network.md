@@ -43,24 +43,11 @@ Activations introduce non-linearity — without them, deep networks would collap
 
 ### Loss Functions
 
-Loss measures the error between the network's prediction and the target. The optimizer minimizes this loss.
-
-| Loss | Formula | Use case |
-| ---- | ------- | -------- |
-| **MSE** | `½(ŷ - y)²` | Regression |
-| **Cross-Entropy** | `-Σ y·log(ŷ)` | Multi-class classification |
-| **Huber** | Squared for small errors, linear for large | Robust regression |
-| **Hinge** | `max(0, 1 - y·ŷ)` | SVM-style classification |
+Loss measures the error between the network's prediction and the target. The optimizer minimizes this loss. The trainer regresses Q-values, so it uses the **mean squared error**: `mean((ŷ - y)²)`.
 
 ### Optimizers
 
-Optimizers update network weights to minimize the loss.
-
-| Optimizer | Update rule | Characteristics |
-| --------- | ----------- | --------------- |
-| **SGD** | `θ = θ - lr · ∇θ` | Simple, needs careful learning rate tuning |
-| **Adam** | Adaptive moments + bias correction | Default choice, works well across problems |
-| **RMSProp** | Adaptive per-parameter learning rates | Good for non-stationary objectives |
+Optimizers update network weights to minimize the loss. The trainer uses plain **SGD**: `θ = θ - lr · ∇θ`, with the learning rate evolved by the GA.
 
 ### Backpropagation
 

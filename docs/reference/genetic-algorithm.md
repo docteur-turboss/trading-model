@@ -38,7 +38,7 @@ LamarckGenome {
 
 ### RLGenome
 
-Controls Q-learning behavior. Every field is evolved by the GA (mutation when `mutation.mutateHyperparams`, crossover always; switches flip with a 5 % chance per mutation) and every field changes what the agent learns (`dqn-learning.spec.ts`, ADR-0025):
+Controls Q-learning behavior. Every field is evolved by the GA (mutation and crossover always; switches flip with a 5 % chance per mutation) and every field changes what the agent learns (`dqn-learning.spec.ts`, ADR-0025):
 
 | Sub-module       | Key fields                                                | Purpose                                    |
 | ---------------- | --------------------------------------------------------- | ------------------------------------------ |
@@ -97,12 +97,7 @@ The top `elitismFraction * populationSize` individuals (by Pareto rank + crowdin
 
 ### 5. Parent Selection
 
-Parents are selected using the configured strategy:
-
-- **Tournament** (default): Pick k=3 random individuals, return the fittest
-- **Roulette**: Fitness-proportionate selection
-- **Rank**: Rank-based selection
-- **Truncation / SUS**: Random from top fraction
+Parents are selected by **tournament**: pick k=3 random individuals (with replacement), return the fittest.
 
 ### 6. Crossover
 
@@ -111,8 +106,8 @@ Two types of crossover applied sequentially:
 **Structural crossover** (`crossover.ts`): Mixes network topology and RL hyperparameters:
 
 - Hidden layer counts: blend or inherit from longer parent
-- Per-layer: neuron count (scalar crossover), activation/connection/bias (uniform)
-- RL params: scalar crossover (arithmetic, BLX-α, SBX, or uniform)
+- Per-layer: neuron count, activation, connection and bias types (uniform)
+- RL params: uniform, each value comes from either parent with probability 0.5
 
 **Weight-level crossover** (`evolution-engine.ts`): Uniform crossover of trained weight arrays from both parents.
 
@@ -121,11 +116,10 @@ Two types of crossover applied sequentially:
 **Structural mutation** (`mutation.ts`): Perturbs:
 
 - Neuron counts per layer (Gaussian noise rounded to integer)
-- Activation functions (random swap from pool)
 - Connection types, bias types
 - RL hyperparameters (gamma, learningRate, epsilon\*)
 - Layer add/remove, neuron add/remove
-- Mutation parameters themselves (self-adaptive sigma, rate)
+- Mutation parameters themselves (sigma, rate)
 
 **Weight-level mutation** (`evolution-engine.ts`): Gaussian perturbation of trained weights.
 
@@ -155,32 +149,13 @@ Loop exits when any condition is met (checked each generation):
 
 ## Genetic Operators Reference
 
-### Mutation Distributions (`noise.ts`)
+### Mutation noise (`noise.ts`)
 
-| Distribution | PDF                | Use case                  |
-| ------------ | ------------------ | ------------------------- |
-| **Gaussian** | `N(0, σ²)`         | Fine-grained local search |
-| **Lévy**     | Heavy-tailed α=0.5 | Escaping local optima     |
-| **Cauchy**   | Heavy-tailed       | Rare large jumps          |
-| **Uniform**  | `U(−σ, σ)`         | Uniform exploration       |
+Gaussian `N(0, σ²)` (Box-Muller). σ is the genome's `mutation.rates.sigma`; each mutation perturbs sigma itself with `N(0, (0.1·σ)²)` (floor 1e-5) and the rate with `N(0, 0.01²)` (clamped to [0.001, 0.5]).
 
-### Sigma Adaptation (`mutation.ts:53-69`)
+### Crossover (`genome-network/crossover.ts`, `genome-rl/crossover.ts`)
 
-| Strategy         | Behavior                             |
-| ---------------- | ------------------------------------ |
-| `fixed`          | Constant sigma                       |
-| `sigma_adaptive` | `sigma * (0.9 + 0.2 * random)`       |
-| `self_adaptive`  | Log-normal perturbation via 1/5-rule |
-| `cma`            | External CMA-ES step-size control    |
-
-### Crossover Types (`crossover.ts`)
-
-| Type           | Formula                          | Use case                   |
-| -------------- | -------------------------------- | -------------------------- |
-| **Uniform**    | Randomly pick from either parent | Topology mixing            |
-| **Arithmetic** | `lerp(a, b, α)`                  | Smooth blending            |
-| **BLX-α**      | `U(min-α·d, max+α·d)`            | Extended range exploration |
-| **SBX**        | Simulated Binary Crossover       | Real-valued optimization   |
+Uniform: each scalar comes from either parent with probability 0.5. `crossover.probability` (0.7) gates the whole structural crossover.
 
 ---
 

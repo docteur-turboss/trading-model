@@ -18,9 +18,9 @@ This document describes the neural network module (`src/domain/neural-network/`)
 | `network-serialization.ts` | Weight serialization: `getWeights`, `setWeights`, `parameterCount`, `distributeAroundWeights` |
 | `activation.ts`            | Activation functions                                                                          |
 | `initializers.ts`          | Weight/bias initializers                                                                      |
-| `losses.ts`                | Loss functions                                                                                |
-| `normalize.ts`             | Input normalization strategies                                                                |
-| `optimizer.ts`             | Optimizers (SGD, Adam, RMSprop)                                                               |
+| `output-delta-computer.ts` | Mean squared error loss and output deltas                                                     |
+| `gradient-applier.ts`      | Weight gradients and the SGD step                                                             |
+| `normalizers.ts`           | Input normalization strategies                                                                |
 | `type.ts`                  | Shared types                                                                                  |
 | `utils.ts`                 | Utilities                                                                                     |
 
@@ -34,8 +34,6 @@ The core network class. Structure: `Input → Hidden Layer × N → Output`.
 interface NeuralNetworkConfig {
   neuronsByLayer: number[]; // [input, hidden1, ..., output]
   activationType: ActivationType[]; // one per hidden+output layer
-  lossFunctionType: string; // 'mean-squared-error' | 'cross-entropy' | 'huber'
-  optimizerType: string; // 'sgd' | 'adam' | 'rmsprop'
   learningRate: number; // default 0.001
   initialisationType: string; // 'random' | 'he' | 'xavier' | 'lecun' | 'zeros'
   normalisationType: string; // 'none' | 'minmax' | 'zscore' | ...
@@ -130,27 +128,15 @@ replay(batchSize, discount)   # minibatch Q-learning update (PER weights when pr
 
 ---
 
-### Optimizers (`optimizer.ts`)
+### Optimizer (`gradient-applier.ts`)
 
-| Optimizer   | Update rule                                      |
-| ----------- | ------------------------------------------------ |
-| **SGD**     | `θ = θ - lr · ∇θ`                                |
-| **Adam**    | `θ = θ - lr · m̂ / (√v̂ + ε)` with bias correction |
-| **RMSProp** | `θ = θ - lr · ∇θ / √(v + ε)`                     |
+Plain SGD: `θ = θ - lr · ∇θ`, on the weights and, when `useBias`, on the biases.
 
 ---
 
-### Loss Functions (`losses.ts`)
+### Loss (`output-delta-computer.ts`)
 
-| Loss | Formula | When to use |
-| ------------------------ | ---------------------------- | -------------------------- | ------------- | --- | --------- | ----------------- |
-| **MSE** | `½(ŷ - y)²` | Regression |
-| **Cross-Entropy** | `-Σ y·log(ŷ)` | Multi-class classification |
-| **Binary Cross-Entropy** | `-y·log(ŷ) - (1-y)·log(1-ŷ)` | Binary classification |
-| **Huber** | `0.5·d²` if `                | d                          | <δ`, else `δ· | d   | - 0.5·δ²` | Robust regression |
-| **Smooth L1** | Same as Huber | Object detection style |
-| **Hinge** | `max(0, 1 - y·ŷ)` | SVM-style |
-| **Log-Cosh** | `log(cosh(ŷ - y))` | Smooth L1 alternative |
+Mean squared error: `mean((t - o)²)`, gradient `2 (o - t) / n`. Output and target lengths must match (`RangeError` otherwise).
 
 ---
 
