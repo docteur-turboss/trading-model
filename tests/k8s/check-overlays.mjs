@@ -18,6 +18,9 @@
 //   - singleton Deployments (SINGLETONS) run exactly one pod: replicas: 1,
 //     strategy Recreate, no HPA, no canary in deploy.yml (ADR-0042 collector,
 //     ADR-0044 trainer)
+//   - the data StatefulSets of staging-local (DATA_STATEFULSETS) set a
+//     partition >= replicas, so a release never restarts their single pods;
+//     staging and production set none (issue #700)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -33,6 +36,8 @@ const SINGLETONS = {
 	"financial-scraper-collector": "ADR-0042",
 	"trader-trainer": "ADR-0044",
 };
+// Data StatefulSets of staging-local held by a partition (issue #700).
+const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 
 function render(dir) {
@@ -258,6 +263,24 @@ for (const env of OVERLAYS) {
 	}
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
+
+	// Issue #700: staging-local keeps its single data pods across releases
+	// (partition >= replicas); the others roll them, so CI keeps testing restarts.
+	for (const name of DATA_STATEFULSETS) {
+		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
+		if (!sts) {
+			errors.push(`${env}: StatefulSet ${name} not found`);
+			continue;
+		}
+		const replicas = Number(sts.text.match(/^ {2}replicas: (\d+)$/m)?.[1] ?? 1);
+		const partition = Number(sts.text.match(/^ {6}partition: (\d+)$/m)?.[1] ?? 0);
+		if (env === "staging-local" && partition < replicas) {
+			errors.push(`${env}: StatefulSet ${name} needs updateStrategy.rollingUpdate.partition >= replicas (${replicas}): a release would restart its pods`);
+		}
+		if (env !== "staging-local" && partition > 0) {
+			errors.push(`${env}: StatefulSet ${name} must not set a partition: its pods would keep the old template`);
+		}
+	}
 
 	if (env.startsWith("staging")) {
 		for (const pdb of docs.filter((doc) => doc.kind === "PodDisruptionBudget")) {

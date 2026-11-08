@@ -63,6 +63,23 @@ patches:
           periodSeconds: 10
           failureThreshold: 180
 
+  # One pod per data StatefulSet (../staging): a rolling update deletes it
+  # before its replacement starts, so every release that changes the pod
+  # template would cut MySQL, Redis, Sentinel or MongoDB (issue #700). A
+  # partition >= replicas keeps the running pods on their revision; a new
+  # cluster gets the current template. New templates are taken by the planned
+  # restart of STAGING_LOCAL.md. tests/k8s/check-overlays.mjs keeps it.
+  - target:
+      kind: StatefulSet
+      name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$
+    patch: |-
+      - op: add
+        path: /spec/updateStrategy
+        value:
+          type: RollingUpdate
+          rollingUpdate:
+            partition: 1
+
   # Secrets sealed with the key of the kind cluster's controller, not the
   # placeholders of ../staging (OVERLAY=staging-local bash scripts/init-sealed-secrets.sh).
   - path: sealed-secrets.yaml
