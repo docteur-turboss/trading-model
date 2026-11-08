@@ -100,12 +100,12 @@
         }
       },
       {
-        "title": "Error Budget Remaining",
+        "title": "Error Budget Remaining (worst job, 30d)",
         "type": "gauge",
         "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
         "targets": [
           {
-            "expr": "(1 - sum(rate(http_requests_total{status=~\"5..\"}[28d])) / sum(rate(http_requests_total[28d]))) / 0.001 * 100",
+            "expr": "clamp_max((1 - max(slo:sli_error:ratio_rate30d) / 0.001) * 100, 100)",
             "legendFormat": "Budget %"
           }
         ],

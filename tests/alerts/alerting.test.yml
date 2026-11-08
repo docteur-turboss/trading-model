@@ -929,3 +929,32 @@ tests:
               summary: 'MySQL retention job has not succeeded for 36 hours'
               description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
+
+  # Budget remaining = (1 - error ratio / 0.001) * 100 over the window:
+  # no 5xx = 100% (no alert), 0.09% of 5xx = 10% (fires, with the real job).
+  - name: error budget alert fires below 20% remaining
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="api-gateway",instance="a",path="/a",status="200"}'
+        values: '0+1000x300'
+      - series: 'http_requests_total{job="dlq-service",instance="d",path="/c",status="200"}'
+        values: '0+1000x300'
+      - series: 'http_requests_total{job="dlq-service",instance="d",path="/c",status="500"}'
+        values: '0+0.9x300'
+    promql_expr_test:
+      - expr: round((1 - slo:sli_error:ratio_rate30d / 0.001) * 100)
+        eval_time: 200m
+        exp_samples:
+          - labels: '{job="api-gateway"}'
+            value: 100
+          - labels: '{job="dlq-service"}'
+            value: 10.0
+    alert_rule_test:
+      - eval_time: 200m
+        alertname: SLOErrorBudgetLow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: availability, job: dlq-service}
+            exp_annotations:
+              summary: 'Error budget of dlq-service below 20%'
+              description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'

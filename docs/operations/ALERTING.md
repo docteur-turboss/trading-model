@@ -88,6 +88,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `SLOLatencySlowBurn` | warning | [runbook-latency-and-errors#highlatency](runbooks/runbook-latency-and-errors.md#highlatency) |
 | `SLOErrorRateFastBurn` | critical | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOErrorRateSlowBurn` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
+| `SLOErrorBudgetLow` | warning | [runbook-latency-and-errors#slo-error-budget-low](runbooks/runbook-latency-and-errors.md#slo-error-budget-low) |
 | `ServiceDown` | critical | [runbook-service-down](runbooks/runbook-service-down.md) |
 | `HighErrorRate` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `HighLatency` | warning | [runbook-latency-and-errors#highlatency](runbooks/runbook-latency-and-errors.md#highlatency) |
