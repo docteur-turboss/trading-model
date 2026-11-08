@@ -12,6 +12,11 @@ import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../config/metrics";
 
 export interface RedisMessageJournalDeps {
 	redis: Pick<Redis, "call" | "sadd" | "smembers">;
+	/**
+	 * Opens a connection of its own for a blocking read (`XREADGROUP BLOCK`
+	 * holds its connection, so one per group); absent: reads never block.
+	 */
+	openBlockingRedis?: () => Pick<Redis, "call" | "disconnect">;
 	keyPrefix: string;
 	/**
 	 * Replicas that must hold a write before it is accepted (`WAIT`): Sentinel
@@ -36,17 +41,33 @@ type StreamReply = [id: string, fields: string[] | null][] | null;
  */
 export class RedisMessageJournal implements MessageJournalPort {
 	private readonly _now: () => number;
+	/** Groups this process already created and listed: `append` skips them (invalidated on NOGROUP). */
+	private readonly _registered = new Set<string>();
+	private readonly _readers = new Map<
+		string,
+		Pick<Redis, "call" | "disconnect">
+	>();
 
 	constructor(private readonly _deps: RedisMessageJournalDeps) {
 		this._now = _deps.now ?? Date.now;
 	}
 
 	async register(group: JournalGroup): Promise<void> {
+		const key = `${group.topic}|${group.service}`;
+		if (this._registered.has(key)) {
+			return;
+		}
 		await this._ensureGroup(group);
-		await this._deps.redis.sadd(
-			this._groupsKey(),
-			`${group.topic}|${group.service}`
-		);
+		await this._deps.redis.sadd(this._groupsKey(), key);
+		this._registered.add(key);
+	}
+
+	/** Closes the blocking connections, which ends the reads waiting on them. */
+	close(): void {
+		for (const reader of this._readers.values()) {
+			reader.disconnect();
+		}
+		this._readers.clear();
 	}
 
 	async append(
@@ -55,9 +76,18 @@ export class RedisMessageJournal implements MessageJournalPort {
 		onlyFor?: string
 	): Promise<void> {
 		const { topic } = message.metadata;
-		for (const service of services) {
-			await this.register({ topic, service });
+		// A stream Redis lost (restart without AOF) has no groups left: XADD would recreate it bare and the
+		// groups, created later at "$", would miss this message. Re-register before writing (ADR-0048 §1).
+		if (
+			Number(await this._deps.redis.call("EXISTS", this._stream(topic))) === 0
+		) {
+			for (const service of services) {
+				this._registered.delete(`${topic}|${service}`);
+			}
 		}
+		await Promise.all(
+			services.map((service) => this.register({ topic, service }))
+		);
 		const entryId = (await this._deps.redis.call(
 			"XADD",
 			this._stream(topic),
@@ -100,19 +130,27 @@ export class RedisMessageJournal implements MessageJournalPort {
 	async readNew(
 		group: JournalGroup,
 		consumer: string,
-		count: number
+		count: number,
+		blockMs?: number
 	): Promise<JournalEntry[]> {
-		const reply = (await this._deps.redis.call(
-			"XREADGROUP",
-			"GROUP",
-			group.service,
-			consumer,
-			"COUNT",
-			String(count),
-			"STREAMS",
-			this._stream(group.topic),
-			">"
-		)) as [stream: string, entries: StreamReply] | null;
+		let reply: [stream: string, entries: StreamReply] | null;
+		try {
+			reply = (await this._reader(group, blockMs).call(
+				"XREADGROUP",
+				"GROUP",
+				group.service,
+				consumer,
+				"COUNT",
+				String(count),
+				...(blockMs ? ["BLOCK", String(blockMs)] : []),
+				"STREAMS",
+				this._stream(group.topic),
+				">"
+			)) as typeof reply;
+		} catch (err) {
+			await this._recoverNoGroup(err, group);
+			return [];
+		}
 		// ioredis `call` hands one stream back as [name, entries], not [[name, entries]].
 		return this._parse(group, reply?.[1] ?? null, () => 1);
 	}
@@ -124,16 +162,27 @@ export class RedisMessageJournal implements MessageJournalPort {
 		count: number
 	): Promise<JournalEntry[]> {
 		const stream = this._stream(group.topic);
-		const pending = (await this._deps.redis.call(
-			"XPENDING",
-			stream,
-			group.service,
-			"IDLE",
-			String(retry.floorMs),
-			"-",
-			"+",
-			String(count)
-		)) as [id: string, consumer: string, idleMs: number, deliveries: number][];
+		let pending: [
+			id: string,
+			consumer: string,
+			idleMs: number,
+			deliveries: number,
+		][];
+		try {
+			pending = (await this._deps.redis.call(
+				"XPENDING",
+				stream,
+				group.service,
+				"IDLE",
+				String(retry.floorMs),
+				"-",
+				"+",
+				String(count)
+			)) as typeof pending;
+		} catch (err) {
+			await this._recoverNoGroup(err, group);
+			return [];
+		}
 		const entries: JournalEntry[] = [];
 		for (const [id, , idleMs, deliveries] of pending) {
 			const due = retry.dueAfterMs(deliveries);
@@ -199,6 +248,31 @@ export class RedisMessageJournal implements MessageJournalPort {
 			}
 		}
 		return entries;
+	}
+
+	/** NOGROUP: Redis lost the stream (restart without AOF), create the group again; any other error is rethrown. */
+	private async _recoverNoGroup(
+		err: unknown,
+		group: JournalGroup
+	): Promise<void> {
+		if (!(err instanceof Error && err.message.includes("NOGROUP"))) {
+			throw err;
+		}
+		this._registered.delete(`${group.topic}|${group.service}`);
+		await this.register(group);
+	}
+
+	private _reader(group: JournalGroup, blockMs?: number) {
+		if (!(blockMs && this._deps.openBlockingRedis)) {
+			return this._deps.redis;
+		}
+		const key = `${group.topic}|${group.service}`;
+		let reader = this._readers.get(key);
+		if (!reader) {
+			reader = this._deps.openBlockingRedis();
+			this._readers.set(key, reader);
+		}
+		return reader;
 	}
 
 	private async _ensureGroup(group: JournalGroup): Promise<void> {

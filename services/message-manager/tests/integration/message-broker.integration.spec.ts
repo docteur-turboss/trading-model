@@ -222,4 +222,20 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		);
 		expect(new Set(ids).size).toBe(2);
 	});
+
+	it("should deliver as the message arrives to a started worker, and stop cleanly", async () => {
+		await dispatcher.subscribe(subscribeParams());
+		const worker = newWorker();
+		worker.start();
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		await dispatcher.publish({ data: 1 }, PRICE);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(httpClient.post).toHaveBeenCalledTimes(1);
+		await worker.stop();
+		await dispatcher.publish({ data: 2 }, PRICE);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(httpClient.post).toHaveBeenCalledTimes(1);
+	});
 });

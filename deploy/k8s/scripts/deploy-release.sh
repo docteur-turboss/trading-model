@@ -142,8 +142,11 @@ wait_rollout() {
 # (issue #410). Only Deployments and the Redis StatefulSets (first in the
 # file) are rolled back: docs/deployment/DEPLOY.md lists what is not. Every deployment is tried: one without a previous
 # revision (first deploy) must not leave the others on the failed release.
+# Every undo is issued before any wait, as apply does: a Redis server rolled
+# back alone restarts while the sentinels still name its old pod IP, waits for
+# that dead master and fails its startup probe (PR #579).
 rollback() {
-	local ns="$1" file="$2" dep rev failed=0 target
+	local ns="$1" file="$2" dep rev failed=0 target entry undone=()
 	while read -r dep rev; do
 		target="$dep"
 		[[ $dep == */* ]] || target="deployment/$dep"
@@ -153,11 +156,17 @@ rollback() {
 		elif ! kubectl rollout undo "$target" -n "$ns" --to-revision="$rev"; then
 			echo "::error::Could not roll back $dep to revision $rev"
 			failed=1
-		elif ! kubectl rollout status "$target" -n "$ns" --timeout=180s; then
+		else
+			undone+=("$target $dep $rev")
+		fi
+	done <"$file"
+	for entry in "${undone[@]}"; do
+		read -r target dep rev <<<"$entry"
+		if ! kubectl rollout status "$target" -n "$ns" --timeout=180s; then
 			echo "::error::$dep did not finish rolling back to revision $rev"
 			failed=1
 		fi
-	done <"$file"
+	done
 	return "$failed"
 }
 
