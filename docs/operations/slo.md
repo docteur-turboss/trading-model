@@ -92,6 +92,7 @@ The following burn rate alerts are configured in `observability/alerting.yml`:
 
 - `SLOAvailabilityFastBurn`: 99.9% SLO, 5m window, multi-window multi-burn-rate.
 - `SLOAvailabilitySlowBurn`: 99.9% SLO, 1h window.
+- `SLOErrorBudgetLow`: less than 20% of the 30d budget left (recording rule `slo:sli_error:ratio_rate30d`).
 - `SLOLatencyFastBurn`: P95 ≤ 2s SLO, 5m window.
 - `SLOLatencySlowBurn`: P95 ≤ 2s SLO, 1h window.
 - `SLOErrorRateFastBurn`: < 1% error rate SLO, 5m window.
