@@ -90,6 +90,14 @@ laptop. For production, delete `SEALED_SECRETS_BACKUP_RUNNER` and
   deploy once they have expired ("Configure kubeconfigs" fails otherwise).
 - A new kind cluster has a new Sealed Secrets key: seal again
   (`init-sealed-secrets.sh`) and commit.
+- A release that adds a key to `trading-model-secrets` (3.1.0:
+  `MYSQL_EXPORTER_PASSWORD`, `REDIS_EXPORTER_PASSWORD`) must add it here too,
+  or "Check sealed secrets" stops the deploy on the `staging` placeholder. Seal
+  only the new keys into the existing file, never `init-sealed-secrets.sh`
+  (it draws new values for every key, which no longer match the initialized
+  databases):
+  `kubectl create secret generic trading-model-secrets -n trading-model-staging --from-literal=<KEY>="$(openssl rand -hex 24)" --dry-run=client -o yaml | kubeseal --controller-namespace sealed-secrets --merge-into deploy/k8s/overlays/staging-local/sealed-secrets.yaml`.
+  kubeseal 0.27 rewrites the file as JSON: keep the YAML, add only the new lines.
 - Teardown (Docker Desktop's disk image lives on C: and never shrinks):
   `kind delete cluster --name trading-staging` and
   `docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml down`
