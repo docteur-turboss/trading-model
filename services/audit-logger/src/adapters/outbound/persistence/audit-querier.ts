@@ -28,7 +28,10 @@ export class AuditQuerier {
 
 		const [data, total] = await Promise.all([
 			findPaginated(this._collection, filter, { receivedAt: -1 }, skip, limit),
-			this._collection.countDocuments(filter),
+			// No filter: the collection counter, not a scan (estimate, exact once TTL settles).
+			Object.keys(filter).length === 0
+				? this._collection.estimatedDocumentCount()
+				: this._collection.countDocuments(filter),
 		]);
 
 		return {
