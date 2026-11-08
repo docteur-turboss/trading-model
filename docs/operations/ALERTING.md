@@ -87,15 +87,14 @@ file absent from the repository, or on an anchor that matches no heading.
 | --- | --- | --- |
 | `SLOAvailabilityFastBurn` | critical | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOAvailabilitySlowBurn` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
-| `SLOLatencyFastBurn` | critical | [runbook-latency-and-errors#highlatency](runbooks/runbook-latency-and-errors.md#highlatency) |
-| `SLOLatencySlowBurn` | warning | [runbook-latency-and-errors#highlatency](runbooks/runbook-latency-and-errors.md#highlatency) |
+| `SLOLatencyFastBurn` | critical | [runbook-latency-and-errors#slolatencyfastburn](runbooks/runbook-latency-and-errors.md#slolatencyfastburn) |
+| `SLOLatencySlowBurn` | warning | [runbook-latency-and-errors#slolatencyfastburn](runbooks/runbook-latency-and-errors.md#slolatencyfastburn) |
 | `SLOErrorRateFastBurn` | critical | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOErrorRateSlowBurn` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOErrorBudgetLow` | warning | [runbook-latency-and-errors#slo-error-budget-low](runbooks/runbook-latency-and-errors.md#slo-error-budget-low) |
 | `ServiceDown` | critical | [runbook-service-down](runbooks/runbook-service-down.md) |
 | `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
 | `HighErrorRate` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
-| `HighLatency` | warning | [runbook-latency-and-errors#highlatency](runbooks/runbook-latency-and-errors.md#highlatency) |
 | `CertificateExpiry` | warning | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
 | `CircuitBreakerOpen` | critical | [runbook-circuit-breaker-open](runbooks/runbook-circuit-breaker-open.md) |
 | `DLQSizeGrowing` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |

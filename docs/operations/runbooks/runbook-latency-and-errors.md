@@ -1,6 +1,6 @@
 # Runbook: High Latency or Error Rate
 
-**Alerts:** `HighLatency` (warning), `SLOLatencyFastBurn` (critical),
+**Alerts:** `SLOLatencyFastBurn` (critical),
 `SLOLatencySlowBurn` (warning), `HighErrorRate` (warning),
 `SLOAvailabilityFastBurn` / `SLOErrorRateFastBurn` (critical),
 `SLOAvailabilitySlowBurn` / `SLOErrorRateSlowBurn` (warning).
@@ -14,7 +14,7 @@ All of them read the shared HTTP middleware metrics of every service
 
 | Alert | Fires when |
 | --- | --- |
-| `HighLatency`, `SLOLatencyFastBurn` | P95 of a job above 5 s over 5 min, for 2 min |
+| `SLOLatencyFastBurn` | P95 of a job above 5 s over 5 min, for 2 min |
 | `SLOLatencySlowBurn` | P95 above 3 s over 1 h, for 10 min |
 | `HighErrorRate` | more than 5% of 5xx over 5 min, for 2 min |
 | `SLOAvailabilityFastBurn` / `SLOErrorRateFastBurn` | 5xx ratio above 1.44% / 14.4% over 1 h **and** 5 min, for 2 min |
@@ -25,7 +25,7 @@ All of them read the shared HTTP middleware metrics of every service
 The histogram stops at 30 s (largest finite bucket): a P95 of 30 s means
 "30 s or more", usually timeouts.
 
-## HighLatency
+## SLOLatencyFastBurn
 
 ### Symptom
 
@@ -100,7 +100,7 @@ kubectl -n $NS logs deploy/$JOB --tail=200 | grep -iE "\"level\":\"error\"|error
 - `503` on `/health/ready` or every route: a dependency is down (readiness
   check names it in the response body).
 - `502` / `504` from api-gateway: the target service is down or slow
-  (`ServiceDown`, `HighLatency` on that job).
+  (`ServiceDown`, `SLOLatencyFastBurn` on that job).
 - `500` on one route: a bug; the log line carries the stack.
 
 ### Remediation

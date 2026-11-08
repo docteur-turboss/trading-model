@@ -56,7 +56,7 @@ Common causes:
 
 1. **The target instance is down or restarting**: `ServiceDown` or a
    `CrashLoopBackOff` pod ([runbook-service-down](runbook-service-down.md)).
-2. **The target is slow**: its P95 is high (`HighLatency`); the latency
+2. **The target is slow**: its P95 is high (`SLOLatencyFastBurn`); the latency
    threshold opened the breaker.
 3. **mTLS refusal**: the caller's SPIFFE ID is not allowed by the target, or an
    SVID expired (`CertificateExpiry`,
