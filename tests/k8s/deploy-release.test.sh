@@ -84,6 +84,7 @@ out="$(STUB_STATUS_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs
 	ko "rollback succeeded though a rollout did not come back" ||
 	{ grep -q "rollout status deployment/api-gateway -n ns --timeout=180s" "$WORK/log" &&
 		[[ $out == *"discovery-server did not finish rolling back"* ]] &&
+		grep -q "describe deployment/discovery-server -n ns" "$WORK/log" &&
 		ok "rollback waits for each rollout and fails if one does not come back" || ko "rollback status: $out"; }
 
 printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\ndiscovery-server 4\n' >"$WORK/revs"

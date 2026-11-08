@@ -242,7 +242,8 @@ jobs:
           fetch-depth: 2
       - name: Install kind
         run: |
-          curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+          # GitHub Releases answers 504 now and then (issue #660): retry, checksum still checked.
+          curl -fsSLo kind --retry 5 --retry-all-errors --retry-delay 5 "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
           echo "${KIND_SHA256}  kind" | sha256sum -c -
           chmod +x kind
       # The runner ships MySQL with the AppArmor profile usr.sbin.mysqld, which
