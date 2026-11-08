@@ -109,7 +109,10 @@ spec:
                 - mongosh
                 - --quiet
                 - --eval
-                - "try { rs.status().ok } catch { 0 }"
+                # Fails only when the member left its own config ("not a member":
+                # its name did not resolve at start, mongod never retries), so the
+                # container restarts; a not yet initiated set stays alive.
+                - "try { rs.status().ok } catch (e) { if (e.codeName === 'InvalidReplicaSetConfig') quit(1) }"
             initialDelaySeconds: 30
             periodSeconds: 15
             timeoutSeconds: 5
