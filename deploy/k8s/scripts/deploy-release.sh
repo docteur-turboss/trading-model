@@ -21,7 +21,16 @@
 #   deploy-release.sh rollback <namespace> <revisions-file>
 #       Returns every Deployment to the revision `record` wrote and waits for
 #       each rollout (180s); fails if any did not come back.
+#
+# DEPLOY_TIMEOUT_FACTOR: integer the wait and rollback timeouts are multiplied
+# by (default 1; a slow cluster such as the local kind staging).
 set -euo pipefail
+
+FACTOR="${DEPLOY_TIMEOUT_FACTOR:-1}"
+[[ $FACTOR =~ ^[1-9][0-9]*$ ]] || {
+	echo "deploy-release.sh: DEPLOY_TIMEOUT_FACTOR must be a positive integer, got $FACTOR" >&2
+	exit 64
+}
 
 # Deployments a release rolls out and a failed release rolls back.
 DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
@@ -116,6 +125,7 @@ wait_rollout() {
 		echo "deploy-release.sh: timeout must be in seconds (e.g. 180s), got $2" >&2
 		return 64
 	}
+	base=$((base * FACTOR))
 	# Redis first: a service that starts before its nodes accept its ACL user
 	# only fails its readiness and burns its own timeout.
 	for dep in $STATEFULSETS; do
@@ -162,7 +172,7 @@ rollback() {
 	done <"$file"
 	for entry in "${undone[@]}"; do
 		read -r target dep rev <<<"$entry"
-		if ! kubectl rollout status "$target" -n "$ns" --timeout=180s; then
+		if ! kubectl rollout status "$target" -n "$ns" --timeout="$((180 * FACTOR))s"; then
 			echo "::error::$dep did not finish rolling back to revision $rev"
 			failed=1
 		fi

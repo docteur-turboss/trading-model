@@ -89,6 +89,11 @@ jobs:
     # (docs/deployment/STAGING_LOCAL.md). Production always runs on GitHub.
     runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-latest' }}
     environment: ${{ inputs.environment }}
+    env:
+      # DEPLOY_TIMEOUT_FACTOR (variable of the GitHub environment): integer the
+      # MySQL, migration and rollout timeouts are multiplied by, for a slow
+      # cluster (local kind staging). Unset: 1.
+      DEPLOY_TIMEOUT_FACTOR: ${{ vars.DEPLOY_TIMEOUT_FACTOR || '1' }}
     steps:
       # Manifests, node agents and migrations come from the released tag, not
       # from the branch picked at dispatch: production only deploys a vX.Y.Z
@@ -142,6 +147,7 @@ jobs:
           [ -d "deploy/k8s/overlays/$OVERLAY" ] || { echo "::error::No overlay deploy/k8s/overlays/$OVERLAY"; exit 1; }
           echo "OVERLAY=$OVERLAY" >> "$GITHUB_ENV"
           echo "Overlay: $OVERLAY"
+          [[ $DEPLOY_TIMEOUT_FACTOR =~ ^[1-9][0-9]*$ ]] || { echo "::error::DEPLOY_TIMEOUT_FACTOR must be a positive integer"; exit 1; }
 
       # An alert nobody receives is no alert: production needs a real Slack
       # webhook and a dead man's switch before anything is deployed.
@@ -168,7 +174,9 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5.2.0
         with:
-          version: 'stable'
+          # v5 refuses 'stable'. Same minor as the kind node of the CI k8s job
+          # (kind v0.27.0); keep within one minor of the target clusters.
+          version: 'v1.32.2'
 
       # Two identities (ADR-0041, scripts/deploy-identity.sh): `app` (default
       # kubeconfig) is limited to the application namespace; `cluster`
@@ -715,7 +723,7 @@ jobs:
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
-          kubectl rollout status statefulset/mysql -n "$NS" --timeout=300s
+          kubectl rollout status statefulset/mysql -n "$NS" --timeout="$((300 * DEPLOY_TIMEOUT_FACTOR))s"
           # The migrations job runs the released db-migrate image, by digest.
           digest=$(awk '$1 == "db-migrate" { print $2 }' "$RUNNER_TEMP/image-digests")
           MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
