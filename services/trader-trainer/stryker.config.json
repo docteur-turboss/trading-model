@@ -1,15 +1,17 @@
 {
   "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "mutate": ["src/**/*.ts", "!src/**/*.d.ts"],
+  "mutate": ["src/domain/**/*.ts", "!src/**/*.spec.ts", "!src/**/*.d.ts"],
   "testRunner": "jest",
   "plugins": ["@stryker-mutator/jest-runner", "@stryker-mutator/typescript-checker"],
-  "jest": { "configFile": "jest.config.ts" },
+  "jest": { "configFile": "jest.config.js" },
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
-  "concurrency": 4,
+  "concurrency": 2,
   "coverageAnalysis": "perTest",
-  "reporters": ["clear-text", "progress"],
-  "tempDirName": "stryker-tmp",
+  "reporters": ["clear-text", "progress", "html", "json"],
+  "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "tempDirName": "../../.stryker-tmp",
   "cleanTempDir": true,
   "thresholds": { "high": 80, "low": 60, "break": 50 }
 }

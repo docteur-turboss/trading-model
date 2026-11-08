@@ -64,7 +64,7 @@ This document provides a consolidated map of all regulatory obligations applicab
 |---|---|---|
 | **Art. 5-8** | ICT risk management framework | ISMS aligned with ISO 27001 (see [Information Security Policy](information-security-policy.md)) |
 | **Art. 9-10** | ICT incident management | [Incident Response Policy](incident-response-policy.md) with classification levels |
-| **Art. 11-13** | Digital operational resilience testing | CI/CD pipeline, contract tests, E2E tests (mutation testing via Stryker available on demand) |
+| **Art. 11-13** | Digital operational resilience testing | CI/CD pipeline, contract tests, E2E tests (weekly Stryker mutation run (`mutation-testing.yml`) on trader-trainer `src/domain` and dlq-service `src/application`, `break: 50`, HTML/JSON report as artifact) |
 | **Art. 14-16** | Third-party ICT risk | [Third-Party DPAs](third-party-dpas.md) assessment |
 | **Art. 17-23** | Information sharing, register of information | Processing register maintained |
 | **Art. 24-26** | Oversight framework for critical third parties | Binance API assessed as non-critical data source; its availability from the EU after Binance's MiCA exit is tracked in [ADR-0026](../adr/0026-binance-public-market-data-kept.md) |

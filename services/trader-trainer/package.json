@@ -22,7 +22,8 @@
     "build": "tsc",
     "test:coverage": "jest --coverage",
     "dev": "ts-node src/application/index.ts",
-    "test": "jest"
+    "test": "jest",
+    "stryker": "stryker run"
   },
   "dependencies": {
     "@trading-model/primitives": "*",

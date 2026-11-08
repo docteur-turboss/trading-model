@@ -1,0 +1,47 @@
+name: Mutation Testing
+
+# Weekly Stryker run (issue #656). Not part of the PR gates or pre-push:
+# a run takes several minutes per workspace. Scope: trader-trainer
+# `src/domain/**` and dlq-service `src/application/**`, `break: 50`.
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Weekly: Sunday 3 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  stryker:
+    name: stryker (${{ matrix.workspace }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: trader-service
+            dir: services/trader-trainer
+          - workspace: dlq-service
+            dir: services/dlq-service
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      # The TypeScript checker resolves @trading-model/* through the built packages
+      - run: bun run build
+      - run: bun run --filter ${{ matrix.workspace }} stryker
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report-${{ matrix.workspace }}
+          path: ${{ matrix.dir }}/reports/mutation/
+          if-no-files-found: warn
+          retention-days: 30
