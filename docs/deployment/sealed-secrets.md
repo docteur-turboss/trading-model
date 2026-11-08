@@ -53,6 +53,7 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=MYSQL_PASSWORD='your-mysql-password' \
   --from-literal=MYSQL_MIGRATE_PASSWORD='your-migration-user-password' \
   --from-literal=MYSQL_RETENTION_PASSWORD='your-retention-user-password' \
+  --from-literal=MYSQL_EXPORTER_PASSWORD='your-mysql-exporter-password' \
   --from-literal=DLQ_AUTH_HMAC_SECRET='your-dlq-hmac-secret' \
   --from-literal=GRAFANA_PASSWORD='your-grafana-password' \
   --from-literal=HMAC_SECRET='your-hmac-secret' \
@@ -60,6 +61,7 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=REDIS_DISCOVERY_PASSWORD='your-discovery-redis-password' \
   --from-literal=REDIS_MESSAGE_MANAGER_PASSWORD='your-message-manager-redis-password' \
   --from-literal=REDIS_DLQ_PASSWORD='your-dlq-redis-password' \
+  --from-literal=REDIS_EXPORTER_PASSWORD='your-exporter-redis-password' \
   --dry-run=client -o yaml > /tmp/plaintext-secret.yaml
 
 # Seal it (requires kubeseal CLI)

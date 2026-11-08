@@ -770,6 +770,97 @@ services:
     networks:
       - backend-net
 
+  # ---------------------------------------------------------------------------
+  #  Infrastructure exporters (issue #601, ADR-0056): databases and the host.
+  #  On Docker Desktop node-exporter sees the Windows drives (C: holds the
+  #  Docker disk image, which filled it up on 2026-10-28).
+  # ---------------------------------------------------------------------------
+  # Read-only MySQL user of mysqld-exporter, as the K8s Job db-migrate-user
+  # creates it. Idempotent: runs at every `up`.
+  mysql-exporter-user:
+    logging: *default-logging
+    image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+    container_name: trading-mysql-exporter-user
+    restart: "no"
+    environment:
+      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD}
+      EXPORTER_PASSWORD: ${MYSQL_EXPORTER_PASSWORD:?MYSQL_EXPORTER_PASSWORD must be set (MySQL exporter user)}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        case "$$EXPORTER_PASSWORD" in
+          *[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_EXPORTER_PASSWORD must match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
+        esac
+        mysql -h mysql -u root -e "CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '$$EXPORTER_PASSWORD' WITH MAX_USER_CONNECTIONS 3; ALTER USER 'exporter'@'%' IDENTIFIED BY '$$EXPORTER_PASSWORD' WITH MAX_USER_CONNECTIONS 3; GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'exporter'@'%'; GRANT SELECT ON performance_schema.* TO 'exporter'@'%';"
+    networks:
+      - data-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysqld-exporter:
+    logging: *default-logging
+    image: quay.io/prometheus/mysqld-exporter:v0.18.0@sha256:2598c0571f383708e19016d119bb45c06128a9ebc962c9f49483278ac5a94c41
+    container_name: trading-mysqld-exporter
+    restart: unless-stopped
+    command:
+      - --mysqld.address=mysql:3306
+      - --mysqld.username=exporter
+    environment:
+      MYSQLD_EXPORTER_PASSWORD: ${MYSQL_EXPORTER_PASSWORD:?MYSQL_EXPORTER_PASSWORD must be set (MySQL exporter user)}
+    networks:
+      - data-net
+      - backend-net
+    depends_on:
+      mysql-exporter-user:
+        condition: service_completed_successfully
+
+  # One mongod serves audit-logger and dlq-service in compose; standalone, so
+  # no replica set collector.
+  mongodb-exporter:
+    logging: *default-logging
+    image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
+    container_name: trading-mongodb-exporter
+    restart: unless-stopped
+    command:
+      - --mongodb.uri=mongodb://mongo:27017/?directConnection=true
+    networks:
+      - data-net
+      - backend-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  # Compose Redis has no ACL (single dev node): no exporter user.
+  redis-exporter:
+    logging: *default-logging
+    image: oliver006/redis_exporter:v1.80.0@sha256:cd5fad1591e585db5b58beec7fca427027c61a4349f50109af67cf2f07964d02
+    container_name: trading-redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    networks:
+      - backend-net
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  node-exporter:
+    logging: *default-logging
+    image: quay.io/prometheus/node-exporter:v1.10.2@sha256:337ff1d356b68d39cef853e8c6345de11ce7556bb34cda8bd205bcf2ed30b565
+    container_name: trading-node-exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.rootfs=/host
+    # Read-only. No `rslave`: Docker Desktop refuses it on `/`. On Docker
+    # Desktop the host drives show up as /mnt/host/<letter> (9p).
+    volumes:
+      - /:/host:ro
+    networks:
+      - backend-net
+
   alertmanager:
     logging: *default-logging
     image: prom/alertmanager@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5

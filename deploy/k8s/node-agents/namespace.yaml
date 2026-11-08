@@ -1,4 +1,4 @@
-# Node-level agents (SPIRE agent, SPIFFE CSI driver, promtail). They need the
+# Node-level agents (SPIRE agent, SPIFFE CSI driver, promtail, node-exporter). They need the
 # host (hostPID, hostNetwork, hostPath, a privileged CSI plugin, root to read
 # the node's pod logs), which the restricted profile of the application
 # namespace forbids, so they live apart. The application pods only receive

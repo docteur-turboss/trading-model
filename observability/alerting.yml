@@ -676,3 +676,130 @@ groups:
           summary: 'Error budget of {{ $labels.job }} below 20%'
           description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
+
+  # ── Infrastructure (issue #601, ADR-0056): exporters, kubelet ──────────
+  # kube_* (kube-state-metrics), kubelet_* and the Redis Sentinel rules only
+  # have data in K8s; compose has the database and node exporters.
+  - name: trading-model-infrastructure
+    interval: 30s
+    rules:
+      - alert: KubePodCrashLooping
+        expr: max by (namespace, pod, container) (kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"}) == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.pod }} ({{ $labels.container }}) is crash looping'
+          description: 'Container {{ $labels.container }} of {{ $labels.pod }} has been in CrashLoopBackOff for 5 minutes: it starts, exits and is restarted with a growing delay.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubepodcrashlooping'
+
+      # The reason stays on the last termination until the next one: only a
+      # restart in the last 15 min fires, not an OOMKill of last week.
+      - alert: KubeContainerOOMKilled
+        expr: max by (namespace, pod, container) (kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}) == 1 and on (namespace, pod, container) max by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total[15m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.pod }} ({{ $labels.container }}) was OOMKilled'
+          description: 'Container {{ $labels.container }} of {{ $labels.pod }} was killed for exceeding its memory limit and restarted in the last 15 minutes. HighMemoryUsage only sees the V8 heap of the services; this is the container.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubecontaineroomkilled'
+
+      - alert: KubePersistentVolumeFillingUp
+        expr: max by (namespace, persistentvolumeclaim) (kubelet_volume_stats_used_bytes) / max by (namespace, persistentvolumeclaim) (kubelet_volume_stats_capacity_bytes) > 0.8
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'PVC {{ $labels.persistentvolumeclaim }} is over 80% full'
+          description: 'Volume {{ $labels.persistentvolumeclaim }} is {{ $value | humanizePercentage }} full: a full MySQL, MongoDB, Redis, Prometheus or Loki volume stops writes.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup'
+
+      - alert: NodeFilesystemAlmostFull
+        expr: max by (instance, device) (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs|nsfs"}) / max by (instance, device) (node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs|nsfs"}) < 0.15
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Disk {{ $labels.device }} of {{ $labels.instance }} is over 85% full'
+          description: 'Only {{ $value | humanizePercentage }} of {{ $labels.device }} is free on {{ $labels.instance }} (one alert per device, whatever its mount points). A full node disk evicts pods; a full Docker Desktop host disk froze the whole VM (2026-10-28).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#nodefilesystemalmostfull'
+
+      - alert: MySQLDown
+        expr: mysql_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'MySQL {{ $labels.instance }} does not answer its exporter'
+          description: 'mysqld-exporter of {{ $labels.instance }} cannot query MySQL for 5 minutes: MySQL is down or refuses connections, or the exporter user is missing (Access denied in the mysqld-exporter logs).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqldown'
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $labels.job }} {{ $labels.instance }} does not answer its exporter'
+          description: 'redis_exporter of {{ $labels.instance }} ({{ $labels.job }}) cannot query Redis for 5 minutes: the node or sentinel is down, or the exporter ACL user is missing (WRONGPASS in the redis-exporter logs).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redisdown'
+
+      # Expected replicas = the StatefulSet size minus the master: single-node
+      # environments (compose, staging) never fire.
+      - alert: RedisReplicasMissing
+        expr: max(redis_connected_slaves{job="redis"}) < max(kube_statefulset_replicas{statefulset="redis"}) - 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Redis master has fewer replicas than the StatefulSet'
+          description: 'The Redis master has {{ $value }} connected replica(s), fewer than the redis StatefulSet runs minus one: a failover has fewer (or no) candidates and the journal (ADR-0048) fewer copies.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redisreplicasmissing'
+
+      # CKQUORUM: enough sentinels reachable to agree on a failover. Staging
+      # runs one sentinel (quorum never reachable): environments with fewer
+      # than 2 sentinels never fire.
+      - alert: RedisSentinelQuorumLost
+        expr: max by (master_name) (redis_sentinel_master_ckquorum_status) == 0 unless on () max(kube_statefulset_replicas{statefulset="redis-sentinel"}) < 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Redis Sentinel cannot fail over {{ $labels.master_name }}'
+          description: 'No sentinel can reach a quorum for {{ $labels.master_name }} (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and discovery, message-manager and dlq-service lose Redis.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redissentinelquorumlost'
+
+      - alert: MongoDBDown
+        expr: mongodb_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'MongoDB {{ $labels.job }} {{ $labels.instance }} does not answer its exporter'
+          description: 'mongodb_exporter of {{ $labels.instance }} ({{ $labels.job }}) cannot reach mongod for 5 minutes.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbdown'
+
+      # Each member's exporter reports every member: max by member dedupes.
+      # State 1 PRIMARY, 2 SECONDARY; anything else (RECOVERING, DOWN...) does not serve.
+      - alert: MongoDBReplicaSetMemberUnhealthy
+        expr: max by (job, member_idx) (mongodb_members_health) == 0 or max by (job, member_idx) (mongodb_members_state != 1 and mongodb_members_state != 2)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'MongoDB {{ $labels.job }} member {{ $labels.member_idx }} is not healthy'
+          description: 'Replica set member {{ $labels.member_idx }} of {{ $labels.job }} is unreachable, or neither primary nor secondary, for 5 minutes: one more failure and the replica set loses its majority.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetmemberunhealthy'
+
+      # mongodb_myState exists only where replSetGetStatus answers (not the
+      # standalone compose mongod).
+      - alert: MongoDBReplicaSetNoPrimary
+        expr: count by (job) (mongodb_myState) unless on (job) count by (job) (mongodb_members_state == 1)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'MongoDB {{ $labels.job }} has no primary'
+          description: 'No member of the {{ $labels.job }} replica set is primary for 2 minutes: writes fail (audit events for mongo-audit, dead letters for mongo-dlq).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetnoprimary'

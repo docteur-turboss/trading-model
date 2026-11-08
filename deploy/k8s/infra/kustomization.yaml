@@ -10,6 +10,7 @@ resources:
   - otel-collector.yaml
   - jaeger.yaml
   - prometheus.yaml
+  - kube-state-metrics.yaml
   - alertmanager.yaml
   - blackbox-exporter.yaml
   - grafana.yaml
