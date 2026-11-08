@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 spec:
   clusterIP: None
+  # A restarted member must resolve its own name before it is Ready, or it
+  # never finds itself in the replica set config ("not a member of it").
+  publishNotReadyAddresses: true
   ports:
     - port: 27017
       targetPort: 27017
