@@ -252,6 +252,55 @@ tests:
         alertname: ServiceDown
         exp_alerts: []
 
+  # absent(): no series at all, which `up == 0` never sees. dlq-service has
+  # a target at 0 (ServiceDown's job), so only the series-less job fires.
+  - name: a job with no up series fires ServiceTargetsMissing, a present one does not
+    interval: 1m
+    input_series:
+      - series: 'up{job="message-manager",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="discovery-server",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="api-gateway",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="audit-logger",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="financial-scraper",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="trader-trainer",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="dlq-service",instance="i"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ServiceTargetsMissing
+        exp_alerts: []
+
+  - name: a job whose up series vanished fires ServiceTargetsMissing
+    interval: 1m
+    input_series:
+      - series: 'up{job="message-manager",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="discovery-server",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="api-gateway",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="audit-logger",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="financial-scraper",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="trader-trainer",instance="i"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ServiceTargetsMissing
+        exp_alerts:
+          - exp_labels: {severity: critical, job: dlq-service}
+            exp_annotations:
+              summary: 'dlq-service has no scrape target'
+              description: 'Prometheus has had no up series for dlq-service for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
+
   # Series shape of the real gauge: one series per target instanceId, exported
   # by the caller (job). 1 = open, held for the 1m 'for'.
   - name: an open address-manager breaker fires CircuitBreakerOpen
