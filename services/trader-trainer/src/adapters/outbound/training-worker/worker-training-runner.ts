@@ -4,7 +4,23 @@ import type {
 	TrainingRunner,
 	TrainingSessionResult,
 } from "../../../application/training-session";
+import { EpisodeScores } from "../../../domain/genetic-algorithm/episode-scores";
+import type { GenomeFitnessMeta } from "../../../domain/genetic-algorithm/genome-fitness";
 import { encodeWindowSets, type WorkerMessage } from "./messages";
+
+/** `postMessage` clones data only: the `EpisodeScores` come back without methods. */
+function reviveMeta(
+	meta: GenomeFitnessMeta | undefined
+): GenomeFitnessMeta | undefined {
+	if (!meta) {
+		return meta;
+	}
+	return {
+		...meta,
+		rawScores: EpisodeScores.revive(meta.rawScores),
+		...(meta.pnlCurve ? { pnlCurve: EpisodeScores.revive(meta.pnlCurve) } : {}),
+	};
+}
 
 /**
  * Runs a training session in a worker thread so the CPU-bound GA never blocks
@@ -41,7 +57,13 @@ export function createWorkerRunner(overrides?: {
 						| undefined;
 					hook?.(...message.args);
 				} else if (message.type === "result") {
-					settle(() => resolve(message.result as TrainingSessionResult));
+					settle(() => {
+						const result = message.result as TrainingSessionResult;
+						resolve({
+							...result,
+							bestFitnessMeta: reviveMeta(result.bestFitnessMeta),
+						});
+					});
 				} else {
 					const err = new Error(message.message);
 					err.stack = message.stack ?? err.stack;

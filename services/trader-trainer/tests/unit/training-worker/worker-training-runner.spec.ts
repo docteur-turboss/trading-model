@@ -74,6 +74,10 @@ describe("worker training runner", () => {
 			inProcess.bestGenome.trainedWeights
 		);
 		expect(evaluated).toHaveBeenCalled();
+		// Structured clone drops methods: the summary needs them (E2E regression).
+		expect(inWorker.bestFitnessMeta?.pnlCurve?.sharpe()).toBe(
+			inProcess.bestFitnessMeta?.pnlCurve?.sharpe()
+		);
 	}, 120_000);
 
 	it("keeps serving HTTP while a session trains", async () => {
