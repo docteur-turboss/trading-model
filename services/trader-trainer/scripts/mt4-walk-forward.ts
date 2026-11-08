@@ -35,7 +35,7 @@ import {
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import { TrainingSession } from "../src/application/training-session";
+import { runInProcess } from "../src/application/training-session";
 import { DataType } from "../src/domain/data-handlers/data-types";
 import { EpisodeScores } from "../src/domain/genetic-algorithm/episode-scores";
 import { evalPhase } from "../src/domain/genetic-algorithm/evaluation-phase";
@@ -267,12 +267,14 @@ async function runSegment(
 	const split = Math.floor(trainSteps.length * 0.8);
 
 	const t0 = Date.now();
-	const session = new TrainingSession(
-		{
-			id: `${symbol}-${run.segment}`,
-			train: trainSteps.slice(0, split),
-			validation: trainSteps.slice(split),
-		},
+	const { bestGenome } = await runInProcess(
+		[
+			{
+				id: `${symbol}-${run.segment}`,
+				train: trainSteps.slice(0, split),
+				validation: trainSteps.slice(split),
+			},
+		],
 		{
 			validationSplit: 0.2,
 			walkForwardFolds: 1,
@@ -285,7 +287,6 @@ async function runSegment(
 			seedOffset: run.seed,
 		}
 	);
-	const { bestGenome } = await session.run();
 	const trainSeconds = (Date.now() - t0) / 1000;
 
 	const { episodePnl, pnlCurve } = evalPhase({
