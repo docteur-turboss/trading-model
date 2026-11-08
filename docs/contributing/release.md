@@ -31,6 +31,8 @@ A green run therefore means `deploy.yml` can resolve **and** verify every image 
 
 Deployment is separate: the manual `deploy.yml` (`workflow_dispatch`) takes an image tag (`1.2.3` or `v1.2.3`), resolves it to digests and applies by digest. See [DEPLOY.md](../deployment/DEPLOY.md).
 
+A release that adds or changes a ClusterRole or ClusterRoleBinding of an overlay (3.1.0: `prometheus-nodes`, ADR-0056) needs an admin step before its deployment, in each environment: the deploy-cluster identity may only read them (ADR-0041). From a checkout of the release, run `bash scripts/deploy-identity.sh cluster --namespace <namespace> --environment <overlay>` as cluster admin (staging-local: `bash deploy/staging-local/bootstrap.sh identities`), then deploy. Without it, the deploy step "Check overlay ClusterRoles" (`deploy/k8s/scripts/check-cluster-rbac.sh`) stops before any apply and prints that command with the missing or different objects.
+
 ## 4. First release of the current pipeline
 
 No release has been published by the current `release.yml` yet. The tags `v2.0.0` to `v2.0.3` are **not deployable** by `deploy.yml`: `v2.0.0`, `v2.0.1` and `v2.0.2` have failed Release runs, and `v2.0.3` was published by the old workflow under `ghcr.io/docteur-turboss/trading-model/<service>`, without `spire-tools` and `backup-tools`. `deploy.yml` reads `<registry>/<image>:<tag>`, so it stops at "Resolve image digests" for each of these tags. Even republished under the right path, these images would fail "Verify image signatures": they carry no cosign signature from `release.yml`. `image_tag: latest` fails the same way until the first release below is published.
