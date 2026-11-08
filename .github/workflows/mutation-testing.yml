@@ -6,7 +6,7 @@ name: Mutation Testing
 # after 1 h (genetic-algorithm / neural-network mutants are slow), so the
 # domain is sharded: one job, and one time budget, per shard.
 on:
-  # TEMPORARY (issue #656): proves the shards finish on a GitHub runner. Remove before merge.
+  # TEMPORARY (issue #656): proves the shards finish on a GitHub runner (round 3: dryRunTimeoutMinutes 30). Remove before merge.
   push:
     branches: [chore/issue-656-make-the-stryker-mutation-testing-config]
     paths: ['.github/workflows/mutation-testing.yml']
