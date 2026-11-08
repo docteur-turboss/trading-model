@@ -109,12 +109,12 @@ export class CollectorLeadership {
 			}
 			return;
 		}
-		if (held === false && this._leading) {
+		if (!this._leading) {
+			return;
+		}
+		if (held === false) {
 			await this._lose("lease held by another instance");
-		} else if (
-			this._leading &&
-			this._now() - this._renewedAt >= this._timing.renewDeadlineMs
-		) {
+		} else if (this._now() - this._renewedAt >= this._timing.renewDeadlineMs) {
 			await this._lose("lease not renewed within the deadline");
 		}
 	}

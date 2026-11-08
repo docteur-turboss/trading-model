@@ -20,7 +20,7 @@
 //     instead of leaving no ready pod during a rollout (issue #699)
 //   - singleton Deployments (SINGLETONS) run exactly one pod: replicas: 1,
 //     strategy Recreate, no HPA, no canary in deploy.yml (ADR-0044 trainer)
-//   - leased singletons (LEASED) run one pod and work only while holding a
+//   - singletons with a `lease` run one pod and work only while holding a
 //     Lease: replicas: 1, RollingUpdate maxUnavailable 0 / maxSurge 1, no HPA,
 //     no canary, the Lease exists, its name is in COLLECTOR_LEASE_NAME, and the
 //     Role bound to the pod's ServiceAccount grants only get/update on it
@@ -39,12 +39,10 @@ import { readFileSync } from "node:fs";
 
 const OVERLAYS = ["staging", "staging-local", "production"];
 const SEALED_ONLY = ["trading-model-secrets"];
-// Deployments that must never run two pods -> the ADR that says why.
+// Deployments that must never work twice at once -> the ADR that says why. With
+// a `lease`: one pod at rest, two during a rollout, only the Lease holder works.
 const SINGLETONS = {
-	"trader-trainer": "ADR-0044",
-};
-// One pod at rest, two during a rollout; only the holder of the Lease works.
-const LEASED = {
+	"trader-trainer": { adr: "ADR-0044" },
 	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector" },
 };
 // Data StatefulSets of staging-local held by a partition (issue #700).
@@ -211,8 +209,7 @@ function leaseViolations(docs, deployment, lease, adr) {
 /** Why each singleton Deployment could run more than one pod (empty when sound). */
 function singletonViolations(docs) {
 	const errors = [];
-	const all = [...Object.entries(SINGLETONS).map(([name, adr]) => [name, { adr }]), ...Object.entries(LEASED)];
-	for (const [name, { adr, lease }] of all) {
+	for (const [name, { adr, lease }] of Object.entries(SINGLETONS)) {
 		const deployment = docs.find((doc) => doc.kind === "Deployment" && doc.name === name);
 		if (!deployment) {
 			errors.push(`singleton Deployment ${name} not found (${adr})`);
@@ -268,8 +265,7 @@ function canarySingletons() {
 	const errors = [];
 	for (const step of workflow.split(/^ {6}- name: /m).filter((text) => /deploy-k8s\.sh canary/.test(text))) {
 		const code = step.replace(/#.*$/gm, "");
-		const singletons = { ...SINGLETONS, ...Object.fromEntries(Object.entries(LEASED).map(([n, l]) => [n, l.adr])) };
-		for (const [name, adr] of Object.entries(singletons)) {
+		for (const [name, { adr }] of Object.entries(SINGLETONS)) {
 			if (new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(code)) {
 				errors.push(`deploy.yml step "${step.split("\n")[0]}": singleton ${name} must get no canary (${adr}: it would run a second pod)`);
 			}

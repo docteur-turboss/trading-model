@@ -8,6 +8,7 @@ import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store"
 import { createProtocolWorkers } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
 import {
+	type Collection,
 	CollectorLeadership,
 	SOLE_INSTANCE_LEASE,
 } from "../application/collector-leadership";
@@ -58,15 +59,9 @@ export interface ScrapeSchedulerSettings {
  * (scheduler disabled, or no symbol tracked — the latter logged as a warning).
  * Lazy: the cron pulls in node-cron and the worker pipeline only when needed.
  */
-export interface ScrapeScheduler {
-	start(): void;
-	/** Stops the cron and waits for the publishes in flight. */
-	stop(): Promise<void>;
-}
-
 export async function createScrapeScheduler(
 	settings: ScrapeSchedulerSettings
-): Promise<ScrapeScheduler | null> {
+): Promise<Collection | null> {
 	if (!settings.SCRAPE_SCHEDULER_ENABLED) {
 		logger.info(
 			"Scrape scheduler disabled (SCRAPE_SCHEDULER_ENABLED=false): serving HTTP only"
@@ -123,7 +118,7 @@ export function signalUserAgent(contactEmail: string): string {
  */
 export function createSignalScheduler(
 	settings: SignalSchedulerSettings
-): ScrapeScheduler | null {
+): Collection | null {
 	if (!settings.SCRAPE_SCHEDULER_ENABLED) {
 		return null;
 	}
