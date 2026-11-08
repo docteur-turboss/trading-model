@@ -1118,7 +1118,7 @@ tests:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
 
   # Budget remaining = (1 - error ratio / 0.001) * 100 over the window:
-  # no 5xx = 100% (no alert), 0.09% of 5xx = 10% (fires, with the real job).
+  # no 5xx = 100% (no alert; 5xx on /ping ignored), 0.09% of 5xx = 10% (fires, with the real job).
   - name: error budget alert fires below 20% remaining
     interval: 1m
     input_series:
@@ -1126,6 +1126,9 @@ tests:
         values: '0+1000x300'
       - series: 'http_requests_total{job="dlq-service",instance="d",path="/c",status="200"}'
         values: '0+1000x300'
+      # 5xx on a probe path must not move the SLI.
+      - series: 'http_requests_total{job="api-gateway",instance="a",path="/ping",status="500"}'
+        values: '0+500x300'
       - series: 'http_requests_total{job="dlq-service",instance="d",path="/c",status="500"}'
         values: '0+0.9x300'
     promql_expr_test:

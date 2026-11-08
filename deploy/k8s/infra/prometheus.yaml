@@ -451,7 +451,7 @@ data:
 
           # ── Burn Rate Alerts (SLO-based) ─────────────────────────────
           - alert: SLOAvailabilityFastBurn
-            expr: (sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h])) > 0.0144) and (sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[5m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[5m])) > 0.0144)
+            expr: slo:sli_error:ratio_rate1h > 0.0144 and slo:sli_error:ratio_rate5m > 0.0144
             for: 2m
             labels:
               severity: critical
@@ -462,7 +462,7 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
           - alert: SLOAvailabilitySlowBurn
-            expr: (sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[6h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[6h])) > 0.006) and (sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30m])) > 0.006)
+            expr: slo:sli_error:ratio_rate6h > 0.006 and slo:sli_error:ratio_rate30m > 0.006
             for: 15m
             labels:
               severity: warning
@@ -495,7 +495,7 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#highlatency'
 
           - alert: SLOErrorRateFastBurn
-            expr: (sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h])) > 0.144) and (sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[5m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[5m])) > 0.144)
+            expr: slo:sli_error:ratio_rate1h > 0.144 and slo:sli_error:ratio_rate5m > 0.144
             for: 2m
             labels:
               severity: critical
@@ -506,7 +506,7 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
           - alert: SLOErrorRateSlowBurn
-            expr: (sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[6h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[6h])) > 0.06) and (sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30m])) > 0.06)
+            expr: slo:sli_error:ratio_rate6h > 0.06 and slo:sli_error:ratio_rate30m > 0.06
             for: 15m
             labels:
               severity: warning
@@ -1069,14 +1069,16 @@ data:
         interval: 1m
         rules:
           - record: slo:sli_error:ratio_rate5m
-            expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m]))
+            expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[5m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[5m]))
           - record: slo:sli_error:ratio_rate1h
-            expr: sum by (job) (rate(http_requests_total{status=~"5.."}[1h])) / sum by (job) (rate(http_requests_total[1h]))
+            expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h]))
+          - record: slo:sli_error:ratio_rate30m
+            expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30m]))
           - record: slo:sli_error:ratio_rate6h
-            expr: sum by (job) (rate(http_requests_total{status=~"5.."}[6h])) / sum by (job) (rate(http_requests_total[6h]))
+            expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[6h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[6h]))
           # Numerator guarded: a job with no 5xx series yet has a ratio of 0, not no data.
           - record: slo:sli_error:ratio_rate30d
-            expr: sum by (job) (rate(http_requests_total{status=~"5.."}[30d])) / sum by (job) (rate(http_requests_total[30d])) or sum by (job) (rate(http_requests_total[30d])) * 0
+            expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30d])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30d])) or sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30d])) * 0
 
       - name: trading-model-slo-budget
         interval: 5m

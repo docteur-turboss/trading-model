@@ -115,7 +115,7 @@ into `deploy/k8s/infra/prometheus.yaml`):
 - `MessageDeliveryLowSuccessRate`, `DLQDrainRateLow`, `TrainingCompletionRateLow`: one alert per SLI.
 - `CandleDeliveryLagging`: data freshness SLO.
 
-The burn-rate rules compute the ratios inline; only the 30d budget uses a recording rule.
+The burn-rate rules and the budget read the recording rules `slo:sli_error:ratio_rate{5m,30m,1h,6h,30d}`, which exclude `/ping`, `/health/ready` and `/metrics`.
 
 ## Dashboard Alignment
 
