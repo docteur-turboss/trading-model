@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { HttpMethod } from "@trading-model/contracts/signed-request";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type {
+	DurationMs,
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
@@ -113,7 +114,7 @@ describe("MetricsCollector", () => {
 					endpoint: Endpoint.of("/test"),
 					method: HttpMethod.Get,
 					timestamp: 0 as unknown as UnixTimestamp,
-					durationMs: 10,
+					durationMs: 10 as DurationMs,
 					status: CallStatus.Success,
 				});
 			}
@@ -178,8 +179,8 @@ describe("MetricsCollector", () => {
 		test("sets up app locals and routes", () => {
 			const app = {
 				locals: {} as Record<string, unknown>,
-				use: jest.fn(),
-				get: jest.fn(),
+				use: jest.fn<(...args: any[]) => any>(),
+				get: jest.fn<(...args: any[]) => any>(),
 			};
 
 			collector.listenExpress(app as never);
@@ -193,8 +194,8 @@ describe("MetricsCollector", () => {
 		test("metricsSnapshot returns combined system metrics and call tracker snapshot", () => {
 			const app = {
 				locals: {} as Record<string, unknown>,
-				use: jest.fn(),
-				get: jest.fn(),
+				use: jest.fn<(...args: any[]) => any>(),
+				get: jest.fn<(...args: any[]) => any>(),
 			};
 
 			collector.listenExpress(app as never);
@@ -222,17 +223,23 @@ describe("MetricsCollector", () => {
 		test("prometheus endpoint handler returns metrics", async () => {
 			const app = {
 				locals: {} as Record<string, unknown>,
-				use: jest.fn(),
-				get: jest.fn(),
+				use: jest.fn<(...args: any[]) => any>(),
+				get: jest.fn<(...args: any[]) => any>(),
 			};
 
 			collector.listenExpress(app as never);
 
 			const handler = app.get.mock.calls[0][1] as (
 				_req: unknown,
-				res: { set: jest.Mock; end: jest.Mock }
+				res: {
+					set: jest.Mock<(...args: any[]) => any>;
+					end: jest.Mock<(...args: any[]) => any>;
+				}
 			) => Promise<void>;
-			const res = { set: jest.fn(), end: jest.fn() };
+			const res = {
+				set: jest.fn<(...args: any[]) => any>(),
+				end: jest.fn<(...args: any[]) => any>(),
+			};
 
 			await handler({}, res);
 

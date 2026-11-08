@@ -1,55 +1,71 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type { Protocol } from "@trading-model/contracts/service-registry-types";
+import type {
+	DurationMs,
+	InstanceId,
+	IPAddress,
+	Port,
+	ServiceId,
+	UnixTimestamp,
+	Version,
+} from "@trading-model/primitives/primitives";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
-		debug: jest.fn(),
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
 jest.mock("ioredis", () => ({
 	__esModule: true,
-	default: jest.fn(),
-	Redis: jest.fn(),
+	default: jest.fn<(...args: any[]) => any>(),
+	Redis: jest.fn<(...args: any[]) => any>(),
 }));
 
-const mockGetMetadata = jest.fn();
-const mockGetServiceInstanceIds = jest.fn();
-const mockGetMetadatas = jest.fn();
-const mockListServiceNames = jest.fn();
+const mockGetMetadata = jest.fn<(...args: any[]) => any>();
+const mockGetServiceInstanceIds = jest.fn<(...args: any[]) => any>();
+const mockGetMetadatas = jest.fn<(...args: any[]) => any>();
+const mockListServiceNames = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/adapters/outbound/instance-metadata-reader", () => ({
-	InstanceMetadataReader: jest.fn().mockImplementation(() => ({
-		getMetadata: mockGetMetadata,
-		getServiceInstanceIds: mockGetServiceInstanceIds,
-		getMetadatas: mockGetMetadatas,
-		listServiceNames: mockListServiceNames,
-	})),
+	InstanceMetadataReader: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => ({
+			getMetadata: mockGetMetadata,
+			getServiceInstanceIds: mockGetServiceInstanceIds,
+			getMetadatas: mockGetMetadatas,
+			listServiceNames: mockListServiceNames,
+		})),
 }));
 
-const mockResolveToken = jest.fn();
-const mockBuildStoredInstance = jest.fn();
-const mockRegisterInstance = jest.fn();
+const mockResolveToken = jest.fn<(...args: any[]) => any>();
+const mockBuildStoredInstance = jest.fn<(...args: any[]) => any>();
+const mockRegisterInstance = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/adapters/outbound/instance-registrar", () => ({
-	InstanceRegistrar: jest.fn().mockImplementation(() => ({
-		resolveToken: mockResolveToken,
-		buildStoredInstance: mockBuildStoredInstance,
-		registerInstance: mockRegisterInstance,
-	})),
+	InstanceRegistrar: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => ({
+			resolveToken: mockResolveToken,
+			buildStoredInstance: mockBuildStoredInstance,
+			registerInstance: mockRegisterInstance,
+		})),
 }));
 
-const mockHeartbeatUpdate = jest.fn();
+const mockHeartbeatUpdate = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/adapters/outbound/instance-heartbeat-handler", () => ({
-	InstanceHeartbeatHandler: jest.fn().mockImplementation(() => ({
-		updateHeartbeat: mockHeartbeatUpdate,
-	})),
+	InstanceHeartbeatHandler: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => ({
+			updateHeartbeat: mockHeartbeatUpdate,
+		})),
 }));
 
-const mockRemoveInstanceSetAndMetadata = jest.fn();
+const mockRemoveInstanceSetAndMetadata = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/adapters/outbound/instance-cleanup-handler", () => ({
 	removeInstanceSetAndMetadata: mockRemoveInstanceSetAndMetadata,
@@ -61,15 +77,15 @@ import type { RedisDeps } from "../../src/shared/redis-deps";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
-		serviceName: "financial-scraper-service",
-		instanceId: "test-instance-1",
-		host: "192.168.1.10",
-		port: 8444,
-		version: "1.0.0",
-		ttl: 30_000,
-		protocol: "mtls",
-		registeredAt: Date.now() - 1000,
-		lastHeartbeat: Date.now() - 500,
+		serviceName: "financial-scraper-service" as ServiceId,
+		instanceId: "test-instance-1" as InstanceId,
+		host: "192.168.1.10" as IPAddress,
+		port: 8444 as Port,
+		version: "1.0.0" as Version,
+		ttl: 30_000 as DurationMs,
+		protocol: "mtls" as unknown as Protocol,
+		registeredAt: (Date.now() - 1000) as UnixTimestamp,
+		lastHeartbeat: (Date.now() - 500) as UnixTimestamp,
 		...overrides,
 	};
 }

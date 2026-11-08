@@ -7,32 +7,32 @@ import {
 } from "@trading-model/primitives/primitives";
 
 jest.mock("os", () => ({
-	cpus: jest.fn(() => new Array(4).fill({})),
+	cpus: jest.fn((..._args: any[]) => new Array(4).fill({})),
 }));
 
-const MOCK_CRON_SCHEDULE = jest.fn<any>();
+const MOCK_CRON_SCHEDULE = jest.fn<(...args: any[]) => any>();
 jest.mock("node-cron", () => ({
 	schedule: MOCK_CRON_SCHEDULE,
 }));
 
 const MOCK_LIMIT = jest.fn((fn: (...args: unknown[]) => unknown) => fn());
 jest.mock("p-limit", () => {
-	const pLimit = jest.fn(() => MOCK_LIMIT);
+	const pLimit = jest.fn((..._args: any[]) => MOCK_LIMIT);
 	return pLimit;
 });
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
-		debug: jest.fn(),
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
-const MOCK_FETCH_SNAPSHOT = jest.fn<any>();
-const MOCK_PUBLISH = jest.fn<any>();
-const MOCK_PERSIST = jest.fn<any>();
+const MOCK_FETCH_SNAPSHOT = jest.fn<(...args: any[]) => any>();
+const MOCK_PUBLISH = jest.fn<(...args: any[]) => any>();
+const MOCK_PERSIST = jest.fn<(...args: any[]) => any>();
 
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () =>
@@ -52,6 +52,8 @@ const DEPS = {
 	source: { id: DataSource.Binance, fetchSnapshot: MOCK_FETCH_SNAPSHOT },
 	publisher: { publish: MOCK_PUBLISH },
 	persist: MOCK_PERSIST,
+	// These tests never reach the publish backlog.
+	backlog: {} as never,
 };
 
 const GET_CRON_HANDLER = (): ((...args: unknown[]) => Promise<unknown>) =>
@@ -236,7 +238,7 @@ describe("ScrapeCronOrchestrator", () => {
 
 	describe("stop", () => {
 		it("should stop the cron, then wait for the running cycle and its publishes", async () => {
-			const task = { stop: jest.fn() };
+			const task = { stop: jest.fn<(...args: any[]) => any>() };
 			MOCK_CRON_SCHEDULE.mockReturnValue(task);
 			let release: (failed: unknown[]) => void = () => undefined;
 			MOCK_PUBLISH.mockImplementation(

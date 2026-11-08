@@ -7,8 +7,8 @@ jest.mock("../src/adapters/inbound/create-secure-server", () => ({
 		certPath: env.TLS_CERT_PATH,
 		caPath: env.TLS_CA_PATH,
 	})),
-	createSecureServer: jest.fn(() =>
-		Promise.resolve({ raw: {}, close: jest.fn() })
+	createSecureServer: jest.fn((..._args: any[]) =>
+		Promise.resolve({ raw: {}, close: jest.fn<(...args: any[]) => any>() })
 	),
 }));
 
@@ -31,7 +31,7 @@ describe("createServiceServer", () => {
 		await createServiceServer({
 			env: { ...ENV, ENFORCE_MTLS_STRICT: false },
 			serviceId: ServiceId.of("api-gateway"),
-			routes: jest.fn(),
+			routes: jest.fn<(...args: any[]) => any>(),
 		});
 
 		expect(createSecureServer).toHaveBeenCalledWith(
@@ -43,7 +43,7 @@ describe("createServiceServer", () => {
 		await createServiceServer({
 			env: { ...ENV },
 			serviceId: ServiceId.of("api-gateway"),
-			routes: jest.fn(),
+			routes: jest.fn<(...args: any[]) => any>(),
 		});
 
 		expect(createSecureServer).toHaveBeenCalledWith(
@@ -57,7 +57,7 @@ describe("createServiceServer", () => {
 		await createServiceServer({
 			env: { ...ENV, ENFORCE_MTLS_STRICT: true },
 			serviceId: ServiceId.of("api-gateway"),
-			routes: jest.fn(),
+			routes: jest.fn<(...args: any[]) => any>(),
 		});
 
 		expect(createSecureServer).toHaveBeenCalledWith(
@@ -71,7 +71,7 @@ describe("createServiceServer", () => {
 		expect(() =>
 			createServiceServer({
 				env: { ...ENV },
-				routes: jest.fn(),
+				routes: jest.fn<(...args: any[]) => any>(),
 			})
 		).toThrow(/serviceId/);
 	});

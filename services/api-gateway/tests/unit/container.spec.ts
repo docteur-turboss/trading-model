@@ -8,7 +8,9 @@ const TLS_ENV = {
 
 jest.mock("../../src/infrastructure/config/env", () => ({ ENV: TLS_ENV }));
 
-const mockCreateWithTls = jest.fn(() => ({ get: jest.fn() }));
+const mockCreateWithTls = jest.fn((..._args: any[]) => ({
+	get: jest.fn<(...args: any[]) => any>(),
+}));
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	HttpClient: { createWithTls: mockCreateWithTls },
 }));

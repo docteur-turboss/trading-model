@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
-import type { JsonObject, LoggerPort } from "../../src/logger-registry";
+import type { JsonObject } from "@trading-model/primitives/primitives";
+import type { LoggerPort } from "../../src/logger-registry";
 import { getLogger, setLogger } from "../../src/logger-registry";
 
 describe("logger-registry", () => {

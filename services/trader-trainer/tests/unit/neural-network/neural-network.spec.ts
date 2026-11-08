@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import type {
+	Percentage,
+	PositiveInt,
+} from "@trading-model/primitives/primitives";
 import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
 import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
 import {
@@ -13,7 +17,7 @@ function makeConfig(
 	overrides?: Partial<NeuralNetworkConfig>
 ): NeuralNetworkConfig {
 	return {
-		neuronsByLayer: [4, 6, 3],
+		neuronsByLayer: [4 as PositiveInt, 6 as PositiveInt, 3 as PositiveInt],
 		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
 		initialisationType: InitialisationType.Zeros,
 		normalisationType: NormalisationType.None,
@@ -33,19 +37,38 @@ describe("NeuralNetwork", () => {
 
 		it("should throw when fewer than 2 layers are provided", () => {
 			expect(
-				() => new NeuralNetwork(makeConfig({ neuronsByLayer: [4] }))
+				() =>
+					new NeuralNetwork(makeConfig({ neuronsByLayer: [4 as PositiveInt] }))
 			).toThrow();
 		});
 
 		it("should throw when a layer size is zero", () => {
 			expect(
-				() => new NeuralNetwork(makeConfig({ neuronsByLayer: [4, 0, 3] }))
+				() =>
+					new NeuralNetwork(
+						makeConfig({
+							neuronsByLayer: [
+								4 as PositiveInt,
+								0 as PositiveInt,
+								3 as PositiveInt,
+							],
+						})
+					)
 			).toThrow();
 		});
 
 		it("should throw when a layer size is negative", () => {
 			expect(
-				() => new NeuralNetwork(makeConfig({ neuronsByLayer: [4, -2, 3] }))
+				() =>
+					new NeuralNetwork(
+						makeConfig({
+							neuronsByLayer: [
+								4 as PositiveInt,
+								-2 as PositiveInt,
+								3 as PositiveInt,
+							],
+						})
+					)
 			).toThrow();
 		});
 
@@ -65,7 +88,9 @@ describe("NeuralNetwork", () => {
 		});
 
 		it("should use default values when optional fields are omitted", () => {
-			const nn = new NeuralNetwork({ neuronsByLayer: [3, 2] });
+			const nn = new NeuralNetwork({
+				neuronsByLayer: [3 as PositiveInt, 2 as PositiveInt],
+			});
 
 			expect(nn.parameterCount()).toBe(8);
 		});
@@ -112,7 +137,9 @@ describe("NeuralNetwork", () => {
 
 	describe("train", () => {
 		it("should return a finite loss value", () => {
-			const nn = new NeuralNetwork(makeConfig({ learningRate: 0.01 }));
+			const nn = new NeuralNetwork(
+				makeConfig({ learningRate: 0.01 as Percentage })
+			);
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 			const target = new Float32Array([1, 0, 0]);
 
@@ -143,7 +170,7 @@ describe("NeuralNetwork", () => {
 
 		it("should clip gradients when norm exceeds gradientClipNorm", () => {
 			const nn = new NeuralNetwork({
-				neuronsByLayer: [1, 1],
+				neuronsByLayer: [1 as PositiveInt, 1 as PositiveInt],
 				activationType: [ActivationType.Relu],
 				initialisationType: InitialisationType.Zeros,
 				normalisationType: NormalisationType.None,
@@ -234,7 +261,7 @@ describe("NeuralNetwork", () => {
 			const nn = new NeuralNetwork(makeConfig());
 			const reference = new NeuralNetwork(
 				makeConfig({
-					neuronsByLayer: [4, 3],
+					neuronsByLayer: [4 as PositiveInt, 3 as PositiveInt],
 					activationType: [ActivationType.Relu],
 				})
 			);
@@ -246,7 +273,7 @@ describe("NeuralNetwork", () => {
 	describe("single layer network", () => {
 		it("should handle input-to-output direct connection", () => {
 			const nn = new NeuralNetwork({
-				neuronsByLayer: [4, 2],
+				neuronsByLayer: [4 as PositiveInt, 2 as PositiveInt],
 				activationType: [ActivationType.Sigmoid],
 				initialisationType: InitialisationType.Zeros,
 				normalisationType: NormalisationType.None,
@@ -284,7 +311,7 @@ describe("NeuralNetwork", () => {
 	describe("dense-skip connection", () => {
 		it("should add skip connection when input matches output size", () => {
 			const nn = new NeuralNetwork({
-				neuronsByLayer: [4, 4],
+				neuronsByLayer: [4 as PositiveInt, 4 as PositiveInt],
 				activationType: [ActivationType.Relu],
 				initialisationType: InitialisationType.Zeros,
 				normalisationType: NormalisationType.None,

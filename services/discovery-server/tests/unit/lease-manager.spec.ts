@@ -7,6 +7,17 @@ import {
 	jest,
 } from "@jest/globals";
 import type { LoggerPort } from "@trading-model/contracts/logger-registry";
+import type { Protocol } from "@trading-model/contracts/service-registry-types";
+import type {
+	DurationMs,
+	InstanceId,
+	IPAddress,
+	Port,
+	ServiceId,
+	UnixTimestamp,
+	Version,
+} from "@trading-model/primitives/primitives";
+import type { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import type { ServiceInstance } from "../../src/shared/types";
 
 jest.useFakeTimers();
@@ -115,45 +126,45 @@ describe("LeaseManager", () => {
 	describe("isAliveInstance", () => {
 		it("should return true for recent heartbeat", () => {
 			const instance: ServiceInstance = {
-				serviceName: "test",
-				instanceId: "i1",
-				host: "1.1.1.1",
-				port: 8080,
-				ttl: 30000,
-				protocol: "mtls",
-				version: "1.0.0",
-				registeredAt: Date.now() - 1000,
-				lastHeartbeat: Date.now(),
+				serviceName: "test" as ServiceId,
+				instanceId: "i1" as InstanceId,
+				host: "1.1.1.1" as IPAddress,
+				port: 8080 as Port,
+				ttl: 30000 as DurationMs,
+				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: (Date.now() - 1000) as UnixTimestamp,
+				lastHeartbeat: Date.now() as UnixTimestamp,
 			};
 			expect(isAliveInstance(instance)).toBe(true);
 		});
 
 		it("should return false for expired heartbeat", () => {
 			const instance: ServiceInstance = {
-				serviceName: "test",
-				instanceId: "i1",
-				host: "1.1.1.1",
-				port: 8080,
-				ttl: 30000,
-				protocol: "mtls",
-				version: "1.0.0",
-				registeredAt: Date.now() - 120_000,
-				lastHeartbeat: Date.now() - 60_000,
+				serviceName: "test" as ServiceId,
+				instanceId: "i1" as InstanceId,
+				host: "1.1.1.1" as IPAddress,
+				port: 8080 as Port,
+				ttl: 30000 as DurationMs,
+				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: (Date.now() - 120_000) as UnixTimestamp,
+				lastHeartbeat: (Date.now() - 60_000) as UnixTimestamp,
 			};
 			expect(isAliveInstance(instance)).toBe(false);
 		});
 
 		it("should return true at TTL boundary", () => {
 			const instance: ServiceInstance = {
-				serviceName: "test",
-				instanceId: "i1",
-				host: "1.1.1.1",
-				port: 8080,
-				ttl: 30000,
-				protocol: "mtls",
-				version: "1.0.0",
-				registeredAt: Date.now() - 60_000,
-				lastHeartbeat: Date.now() - 30_000,
+				serviceName: "test" as ServiceId,
+				instanceId: "i1" as InstanceId,
+				host: "1.1.1.1" as IPAddress,
+				port: 8080 as Port,
+				ttl: 30000 as DurationMs,
+				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: (Date.now() - 60_000) as UnixTimestamp,
+				lastHeartbeat: (Date.now() - 30_000) as UnixTimestamp,
 			};
 			expect(isAliveInstance(instance)).toBe(true);
 		});
@@ -164,21 +175,21 @@ describe("LeaseManager", () => {
 			const registry = createServiceRegistry();
 
 			await registry.registerInstance({
-				serviceName: "financial-scraper-service",
-				instanceId: "expired-id",
-				host: "1.1.1.1",
-				port: 8080,
-				ttl: 1,
-				protocol: "mtls",
+				serviceName: "financial-scraper-service" as ServiceId,
+				instanceId: "expired-id" as InstanceId,
+				host: "1.1.1.1" as IPAddress,
+				port: 8080 as Port,
+				ttl: 1 as DurationMs,
+				protocol: "mtls" as unknown as Protocol,
 			});
 
 			await registry.registerInstance({
-				serviceName: "financial-scraper-service",
-				instanceId: "alive-id",
+				serviceName: "financial-scraper-service" as ServiceId,
+				instanceId: "alive-id" as InstanceId,
 				ip: "1.1.1.2",
-				port: 8081,
-				ttl: 60000,
-				protocol: "mtls",
+				port: 8081 as Port,
+				ttl: 60000 as DurationMs,
+				protocol: "mtls" as unknown as Protocol,
 			});
 
 			const lm = new LeaseManager(registry);
@@ -186,7 +197,7 @@ describe("LeaseManager", () => {
 			await jest.advanceTimersByTimeAsync(10000);
 
 			const remaining = registry.instanceStore.getInstances(
-				"financial-scraper-service"
+				"financial-scraper-service" as unknown as ServiceInstanceName
 			);
 			expect(remaining).toHaveLength(1);
 			expect(remaining[0].instanceId).toBe("alive-id");
@@ -197,12 +208,12 @@ describe("LeaseManager", () => {
 			const lm = new LeaseManager(registry, { logger });
 
 			await registry.registerInstance({
-				serviceName: "trader-trainer",
-				instanceId: "test-id",
-				host: "1.1.1.1",
-				port: 8080,
-				ttl: 1,
-				protocol: "mtls",
+				serviceName: "trader-trainer" as ServiceId,
+				instanceId: "test-id" as InstanceId,
+				host: "1.1.1.1" as IPAddress,
+				port: 8080 as Port,
+				ttl: 1 as DurationMs,
+				protocol: "mtls" as unknown as Protocol,
 			});
 
 			jest.spyOn(registry, "removeInstance").mockImplementation(() => {

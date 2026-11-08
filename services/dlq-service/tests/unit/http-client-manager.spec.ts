@@ -1,17 +1,17 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_HTTP_CLIENT_INSTANCE = {
-	reloadTlsPaths: jest.fn(),
+	reloadTlsPaths: jest.fn<(...args: any[]) => any>(),
 };
 
-let mockBuildTlsFromEnv: jest.Mock;
+let mockBuildTlsFromEnv: jest.Mock<(...args: any[]) => any>;
 
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
-	HttpClient: jest.fn(() => MOCK_HTTP_CLIENT_INSTANCE),
+	HttpClient: jest.fn((..._args: any[]) => MOCK_HTTP_CLIENT_INSTANCE),
 }));
 
 jest.mock("@trading-model/common/config/tls-paths", () => {
-	mockBuildTlsFromEnv = jest.fn(() => ({}));
+	mockBuildTlsFromEnv = jest.fn((..._args: any[]) => ({}));
 	return { buildTlsFromEnv: mockBuildTlsFromEnv };
 });
 
@@ -24,7 +24,11 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 describe("http-client-manager", () => {
@@ -77,7 +81,7 @@ describe("http-client-manager", () => {
 			reloadHttpClientTls: () => Promise<void>;
 		};
 		const logger = jest.requireMock("../../src/config/logger") as {
-			logger: { error: jest.Mock };
+			logger: { error: jest.Mock<(...args: any[]) => any> };
 		};
 
 		await mod.getHttpClient();

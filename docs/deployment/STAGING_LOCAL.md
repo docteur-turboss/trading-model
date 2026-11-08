@@ -64,6 +64,20 @@ The repository is public: keep **Settings → Actions → General → "Require a
 for all external contributors"**, so that a fork pull request cannot run a
 workflow that targets the `trading-staging` label without a maintainer's approval.
 
+## SealedSecrets key backup
+
+Until a production cluster exists, `sealed-secrets-key-backup.yml` (ADR-0035)
+backs up the controller keys of this cluster, on the same runner (repository
+variable `SEALED_SECRETS_BACKUP_RUNNER=trading-staging`; kubectl, age and
+rclone are installed on it, no Docker). Environment `sealed-secrets-key-backup`:
+`SEALED_SECRETS_BACKUP_KUBECONFIG` from
+`bash scripts/sealed-secrets-backup-identity.sh --server https://trading-staging-control-plane:6443`,
+the `staging-backup` MinIO user and the `BACKUP_*` variables of `staging`,
+`BACKUP_MIN_RECIPIENTS=1` (one age key here). The copy lands in the local
+MinIO, on the same machine: it survives the loss of the cluster, not of the
+laptop. For production, delete `SEALED_SECRETS_BACKUP_RUNNER` and
+`BACKUP_MIN_RECIPIENTS`, then fill the environment with the production values.
+
 ## Renewal and teardown
 
 - The deploy tokens last 168 h: run `bootstrap.sh identities` again before a

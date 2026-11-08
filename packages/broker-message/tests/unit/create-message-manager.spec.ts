@@ -1,14 +1,20 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type {
+	FilePath,
+	InstanceId,
+} from "@trading-model/primitives/primitives";
 
-const MOCK_LISTEN_EXPRESS = jest.fn();
+const MOCK_LISTEN_EXPRESS = jest.fn<(...args: any[]) => any>();
 const MOCK_MESSAGE_MANAGER_INSTANCE = {
 	listenExpress: MOCK_LISTEN_EXPRESS,
 };
 
 jest.mock("../../src/application/services/broker-message", () => ({
 	__esModule: true,
-	default: jest.fn().mockImplementation(() => MOCK_MESSAGE_MANAGER_INSTANCE),
+	default: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => MOCK_MESSAGE_MANAGER_INSTANCE),
 }));
 
 jest.mock("@trading-model/address-manager", () => ({}));
@@ -19,11 +25,11 @@ describe("createMessageManager", () => {
 	const options = {
 		addressManagerClient: {} as any,
 		tlsPaths: {
-			certPath: "/path/to/cert.pem",
-			keyPath: "/path/to/key.pem",
-			caPath: "/path/to/ca.pem",
+			certPath: "/path/to/cert.pem" as FilePath,
+			keyPath: "/path/to/key.pem" as FilePath,
+			caPath: "/path/to/ca.pem" as FilePath,
 		},
-		instanceId: "550e8400-e29b-41d4-a716-446655440000",
+		instanceId: "550e8400-e29b-41d4-a716-446655440000" as InstanceId,
 		serviceName: ServiceInstanceName.MessageManagerService,
 		callbackPath: "/callback",
 	};

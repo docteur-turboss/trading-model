@@ -9,7 +9,11 @@ import {
 
 let mockMtime = 1;
 jest.mock("node:fs", () => ({
-	statSync: jest.fn(() => ({ mtimeMs: mockMtime, ino: 1, size: 1 })),
+	statSync: jest.fn((..._args: any[]) => ({
+		mtimeMs: mockMtime,
+		ino: 1,
+		size: 1,
+	})),
 	readFileSync: jest.fn((path: string) => {
 		if (path.includes("ca")) {
 			return "-----BEGIN CERTIFICATE-----\nmock-ca";
@@ -113,12 +117,14 @@ describe("loadTlsPemBundleSync cache", () => {
 		certPath: "/rot/cert.pem" as unknown as FilePath,
 		keyPath: "/rot/key.pem" as unknown as FilePath,
 	};
-	const read = fs.readFileSync as unknown as jest.Mock;
+	const read = fs.readFileSync as unknown as jest.Mock<(...args: any[]) => any>;
 	let now = 1_000_000;
 	beforeEach(() => {
 		jest.spyOn(Date, "now").mockImplementation(() => now);
 	});
-	afterEach(() => jest.restoreAllMocks());
+	afterEach(() => {
+		jest.restoreAllMocks();
+	});
 
 	it("reads once, rereads all three after mtime change past the interval, keeps old bundle on failure", () => {
 		read.mockClear();

@@ -3,8 +3,8 @@ import { describe, expect, it, jest } from "@jest/globals";
 jest.mock(
 	"@trading-model/broker-message/application/services/broker-message",
 	() =>
-		jest.fn(() => ({
-			listenExpress: jest.fn(),
+		jest.fn((..._args: any[]) => ({
+			listenExpress: jest.fn<(...args: any[]) => any>(),
 		}))
 );
 

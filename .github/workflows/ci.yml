@@ -58,6 +58,8 @@ jobs:
           bun run --filter api-gateway build
           bun run --filter audit-logger build
           bun run --filter dlq-service build
+      - name: Type-check the test files of every workspace
+        run: bun run typecheck:tests
 
   test:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
@@ -163,6 +165,7 @@ jobs:
     env:
       MYSQL_ROOT_PASSWORD: ci-password
       GRAFANA_PASSWORD: ci-grafana-password
+      MYSQL_EXPORTER_PASSWORD: ci-mysql-exporter-password
       DLQ_AUTH_HMAC_SECRET: test-hmac-secret
       DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
     steps:

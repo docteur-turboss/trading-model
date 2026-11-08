@@ -1,4 +1,8 @@
 import { describe, expect, it } from "@jest/globals";
+import type {
+	Percentage,
+	PositiveInt,
+} from "@trading-model/primitives/primitives";
 import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
 import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
 import {
@@ -12,7 +16,7 @@ function makeConfig(
 	overrides?: Partial<NeuralNetworkConfig>
 ): NeuralNetworkConfig {
 	return {
-		neuronsByLayer: [4, 6, 3],
+		neuronsByLayer: [4 as PositiveInt, 6 as PositiveInt, 3 as PositiveInt],
 		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
 		initialisationType: InitialisationType.Zeros,
 		normalisationType: NormalisationType.None,
@@ -26,7 +30,7 @@ describe("NeuralNetwork - Edge Cases", () => {
 	describe("gradient clipping", () => {
 		it("should clip large gradients", () => {
 			const nn = new NeuralNetwork(
-				makeConfig({ gradientClipNorm: 1.0, learningRate: 0.01 })
+				makeConfig({ gradientClipNorm: 1.0, learningRate: 0.01 as Percentage })
 			);
 			const input = new Float32Array([100, -200, 300, -400]);
 			const target = new Float32Array([1, 0, 0]);
@@ -37,7 +41,7 @@ describe("NeuralNetwork - Edge Cases", () => {
 
 		it("should work with gradientClipNorm set to 0", () => {
 			const nn = new NeuralNetwork(
-				makeConfig({ gradientClipNorm: 0, learningRate: 0.01 })
+				makeConfig({ gradientClipNorm: 0, learningRate: 0.01 as Percentage })
 			);
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 			const target = new Float32Array([1, 0, 0]);
@@ -71,7 +75,7 @@ describe("NeuralNetwork - Edge Cases", () => {
 	describe("dense-skip with matching size", () => {
 		it("should add skip connection output", () => {
 			const nn = new NeuralNetwork({
-				neuronsByLayer: [4, 4],
+				neuronsByLayer: [4 as PositiveInt, 4 as PositiveInt],
 				activationType: [ActivationType.Relu],
 				initialisationType: InitialisationType.Zeros,
 				normalisationType: NormalisationType.None,

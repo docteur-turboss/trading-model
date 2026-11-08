@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 import { HeartbeatFailureHandler } from "../../src/application/heartbeat-failure-handler";
@@ -13,7 +17,7 @@ function httpError(statusCode: number): Error {
 
 describe("HeartbeatFailureHandler", () => {
 	const registerService = jest.fn<() => Promise<{ token: string }>>();
-	const setToken = jest.fn();
+	const setToken = jest.fn<(...args: any[]) => any>();
 	let handler: HeartbeatFailureHandler;
 
 	beforeEach(() => {

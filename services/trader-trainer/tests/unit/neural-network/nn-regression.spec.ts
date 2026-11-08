@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { ACTIVATIONS } from "../../../src/domain/neural-network/activation";
 import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
 import { mseLoss } from "../../../src/domain/neural-network/output-delta-computer";
@@ -16,7 +17,7 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 describe("NN Regression — Forward Pass", () => {
 	it("forward pass with known weights produces deterministic output", () => {
 		const nn = new NeuralNetwork({
-			neuronsByLayer: [2, 1],
+			neuronsByLayer: [2 as PositiveInt, 1 as PositiveInt],
 			activationType: [ActivationType.Relu],
 			initialisationType: InitialisationType.Zeros,
 			biasInitialisationType: InitialisationType.Zeros,
@@ -41,7 +42,7 @@ describe("NN Regression — Forward Pass", () => {
 
 	it("forward pass with different weights produces different output", () => {
 		const nn = new NeuralNetwork({
-			neuronsByLayer: [2, 1],
+			neuronsByLayer: [2 as PositiveInt, 1 as PositiveInt],
 			activationType: [ActivationType.Relu],
 			initialisationType: InitialisationType.Zeros,
 			biasInitialisationType: InitialisationType.Zeros,
@@ -59,7 +60,7 @@ describe("NN Regression — Forward Pass", () => {
 
 	it("forward pass with negative weights produces negative ReLu output (clamps to zero)", () => {
 		const nn = new NeuralNetwork({
-			neuronsByLayer: [1, 1],
+			neuronsByLayer: [1 as PositiveInt, 1 as PositiveInt],
 			activationType: [ActivationType.Relu],
 			initialisationType: InitialisationType.Zeros,
 			biasInitialisationType: InitialisationType.Zeros,

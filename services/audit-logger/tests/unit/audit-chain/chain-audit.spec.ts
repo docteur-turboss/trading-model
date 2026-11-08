@@ -64,7 +64,10 @@ describe("ChainAudit", () => {
 	let trail: FakeTrail;
 	let state: FakeState;
 	let anchors: FakeAnchors;
-	const metrics = { verified: jest.fn(), anchored: jest.fn() };
+	const metrics = {
+		verified: jest.fn<(...args: any[]) => any>(),
+		anchored: jest.fn<(...args: any[]) => any>(),
+	};
 
 	function audit(withAnchors = true) {
 		return new ChainAudit({

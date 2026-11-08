@@ -94,7 +94,11 @@ describe("httpMetricsMiddleware", () => {
 
 		const histogram = await metric("http_request_duration_seconds");
 		const bounds = histogram.values
-			.filter((v) => v.metricName === "http_request_duration_seconds_bucket")
+			.filter(
+				(v) =>
+					(v as unknown as { metricName: string }).metricName ===
+					"http_request_duration_seconds_bucket"
+			)
 			.map((v) => v.labels.le);
 		expect(bounds).toEqual(expect.arrayContaining([10, 30, "+Inf"]));
 	});
@@ -106,7 +110,11 @@ describe("httpMetricsMiddleware", () => {
 
 		const histogram = await metric("http_request_duration_seconds");
 		const classes = histogram.values
-			.filter((v) => v.metricName === "http_request_duration_seconds_count")
+			.filter(
+				(v) =>
+					(v as unknown as { metricName: string }).metricName ===
+					"http_request_duration_seconds_count"
+			)
 			.map((v) => v.labels.status_class)
 			.sort();
 		expect(classes).toEqual(["2xx", "5xx"]);

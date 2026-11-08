@@ -41,6 +41,7 @@ PREVIOUS="$WORK/previous"
 export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
+export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
 
 log() { echo "[kind] $*"; }
 
@@ -208,6 +209,10 @@ apply_release() {
 	fi
 	# As deploy.yml: cluster-scope documents with deploy-cluster, the rest with deploy-app.
 	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" cluster |
+		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
+	# "Apply SPIFFE node components": the node agents of this checkout
+	# (node-exporter is new in it, ADR-0056), with deploy-cluster.
+	$K kustomize "$1/deploy/k8s/overlays/staging/node-agents" |
 		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
 	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app |
 		kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f -
@@ -1105,6 +1110,15 @@ dump() {
 	for pod in $($K -n "$NS" get pods --no-headers | awk '{split($2, r, "/")} r[1] != r[2] || $3 != "Running" {print $1}'); do
 		echo "===== $pod"
 		$K -n "$NS" logs "$pod" --all-containers --tail=60 || true
+		# Why the last container died (exit code, reason) and what it said.
+		$K -n "$NS" describe pod "$pod" | grep -E -A6 "Last State:" || true
+		$K -n "$NS" logs "$pod" --all-containers --previous --tail=30 2>&1 || true
+	done
+	# The databases of pods that look healthy: a restarted member may not serve.
+	for pod in mongo-audit-0 mongo-dlq-0; do
+		echo "===== $pod"
+		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
+		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
 	done
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
 	# The market data path, even when its pods look healthy (verify checks it).

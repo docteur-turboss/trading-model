@@ -1,11 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_GET_DB = jest.fn();
-const MOCK_IS_CONNECTED = jest.fn();
-const MOCK_RESET_STATE_SUPER = jest.fn();
-const MOCK_CLOSE_SUPER = jest.fn();
-const MOCK_CLEAR_STATE_SUPER = jest.fn();
-const MOCK_CREATE_COLLECTION_INDEXES = jest.fn();
+const MOCK_GET_DB = jest.fn<(...args: any[]) => any>();
+const MOCK_IS_CONNECTED = jest.fn<(...args: any[]) => any>();
+const MOCK_RESET_STATE_SUPER = jest.fn<(...args: any[]) => any>();
+const MOCK_CLOSE_SUPER = jest.fn<(...args: any[]) => any>();
+const MOCK_CLEAR_STATE_SUPER = jest.fn<(...args: any[]) => any>();
+const MOCK_CREATE_COLLECTION_INDEXES = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -16,11 +16,15 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/index-manager", () => ({
-	IndexManager: jest.fn(() => ({
+	IndexManager: jest.fn((..._args: any[]) => ({
 		createCollectionIndexes: MOCK_CREATE_COLLECTION_INDEXES,
 	})),
 }));
@@ -72,7 +76,9 @@ describe("MongoConnectionManager", () => {
 	it("should return collection via getCollection on first call", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
@@ -88,7 +94,9 @@ describe("MongoConnectionManager", () => {
 	it("should return cached collection on subsequent calls", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
@@ -104,7 +112,9 @@ describe("MongoConnectionManager", () => {
 	it("should return existing collection from in-flight promise", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
@@ -129,7 +139,9 @@ describe("MongoConnectionManager", () => {
 	it("should get missing critical indexes after initialization", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue(["missing-idx-1"]);
@@ -143,7 +155,9 @@ describe("MongoConnectionManager", () => {
 	it("should clear state on resetState", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
@@ -160,7 +174,9 @@ describe("MongoConnectionManager", () => {
 	it("should clear state on close", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);

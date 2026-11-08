@@ -14,9 +14,9 @@ function cli(broken: string | null = null) {
 					verification: { broken, count: 3, verifiedUpTo: null },
 				}) as unknown as ChainReport
 		),
-		acknowledgeLoss: jest.fn(async () => undefined),
+		acknowledgeLoss: jest.fn(async (..._args: any[]) => undefined),
 	};
-	const close = jest.fn(async () => undefined);
+	const close = jest.fn(async (..._args: any[]) => undefined);
 	const out: string[] = [];
 	const err: string[] = [];
 	const deps = {

@@ -1,3 +1,5 @@
+import type { FilePath } from "@trading-model/primitives/primitives";
+
 jest.mock("../src/adapters/inbound/configure-app", () => ({
 	configureApp: jest.fn(),
 }));
@@ -25,7 +27,7 @@ import { configureApp } from "../src/adapters/inbound/configure-app";
 import { createSecureServer } from "../src/adapters/inbound/create-secure-server";
 import { createAndStartHttpsServer } from "../src/adapters/inbound/server-factory";
 
-const mockApp = { use: jest.fn() } as never;
+const mockApp = { use: jest.fn() };
 const mockServer = {
 	raw: {} as never,
 	close: jest.fn().mockResolvedValue(undefined),
@@ -34,7 +36,7 @@ const mockServer = {
 describe("createSecureServer", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		(configureApp as jest.Mock).mockReturnValue(mockApp);
+		(configureApp as jest.Mock).mockReturnValue(mockApp as never);
 		(createAndStartHttpsServer as jest.Mock).mockResolvedValue(mockServer);
 	});
 
@@ -42,9 +44,9 @@ describe("createSecureServer", () => {
 		const options = {
 			port: 443 as never,
 			tls: {
-				keyPath: "key.pem",
-				certPath: "cert.pem",
-				caPath: "ca.pem",
+				keyPath: "key.pem" as FilePath,
+				certPath: "cert.pem" as FilePath,
+				caPath: "ca.pem" as FilePath,
 			},
 			routes: jest.fn(),
 			rateLimit: {
@@ -66,9 +68,9 @@ describe("createSecureServer", () => {
 		const options = {
 			port: 443 as never,
 			tls: {
-				keyPath: "key.pem",
-				certPath: "cert.pem",
-				caPath: "ca.pem",
+				keyPath: "key.pem" as FilePath,
+				certPath: "cert.pem" as FilePath,
+				caPath: "ca.pem" as FilePath,
 			},
 			routes: jest.fn(),
 		};
@@ -83,9 +85,9 @@ describe("createSecureServer", () => {
 		const options = {
 			port: 443 as never,
 			tls: {
-				keyPath: "key.pem",
-				certPath: "cert.pem",
-				caPath: "ca.pem",
+				keyPath: "key.pem" as FilePath,
+				certPath: "cert.pem" as FilePath,
+				caPath: "ca.pem" as FilePath,
 			},
 			routes,
 		};
@@ -99,9 +101,9 @@ describe("createSecureServer", () => {
 		const options = {
 			port: 443 as never,
 			tls: {
-				keyPath: "key.pem",
-				certPath: "cert.pem",
-				caPath: "ca.pem",
+				keyPath: "key.pem" as FilePath,
+				certPath: "cert.pem" as FilePath,
+				caPath: "ca.pem" as FilePath,
 			},
 			routes: jest.fn(),
 			authorize: {
@@ -123,9 +125,9 @@ describe("createSecureServer", () => {
 		const options = {
 			port: 443 as never,
 			tls: {
-				keyPath: "key.pem",
-				certPath: "cert.pem",
-				caPath: "ca.pem",
+				keyPath: "key.pem" as FilePath,
+				certPath: "cert.pem" as FilePath,
+				caPath: "ca.pem" as FilePath,
 			},
 			routes: jest.fn(),
 		};
@@ -139,9 +141,9 @@ describe("createSecureServer", () => {
 		const options = {
 			port: 443 as never,
 			tls: {
-				keyPath: "key.pem",
-				certPath: "cert.pem",
-				caPath: "ca.pem",
+				keyPath: "key.pem" as FilePath,
+				certPath: "cert.pem" as FilePath,
+				caPath: "ca.pem" as FilePath,
 			},
 			routes: jest.fn(),
 		};
@@ -155,9 +157,9 @@ describe("createSecureServer", () => {
 		const options = {
 			port: 443 as never,
 			tls: {
-				keyPath: "key.pem",
-				certPath: "cert.pem",
-				caPath: "ca.pem",
+				keyPath: "key.pem" as FilePath,
+				certPath: "cert.pem" as FilePath,
+				caPath: "ca.pem" as FilePath,
 			},
 			routes: jest.fn(),
 		};
@@ -175,9 +177,9 @@ describe("createSecureServer", () => {
 		const options = {
 			port: 443 as never,
 			tls: {
-				keyPath: "key.pem",
-				certPath: "cert.pem",
-				caPath: "ca.pem",
+				keyPath: "key.pem" as FilePath,
+				certPath: "cert.pem" as FilePath,
+				caPath: "ca.pem" as FilePath,
 			},
 			routes: jest.fn(),
 		};
@@ -191,9 +193,9 @@ describe("createSecureServer", () => {
 		const options = {
 			port: 443 as never,
 			tls: {
-				keyPath: "key.pem",
-				certPath: "cert.pem",
-				caPath: "ca.pem",
+				keyPath: "key.pem" as FilePath,
+				certPath: "cert.pem" as FilePath,
+				caPath: "ca.pem" as FilePath,
 			},
 			routes: jest.fn(),
 			watchTls: false,

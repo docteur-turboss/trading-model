@@ -15,6 +15,7 @@ Before the first `docker compose up`, set these variables in `.env` and replace 
 
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
 - `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
+- `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
@@ -108,7 +109,7 @@ GitHub Actions workflows:
 - **deploy.yml** — manual staging/production deploy with rollback
 - **backup-test.yml** — weekly restore drill of the Docker backup scripts
 
-Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:check` → `reach:check` → `config:check` → observability gate → `build` → `test` → `test:contract` (see `.husky/pre-push`).
+Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:check` → `reach:check` → `config:check` → observability gate → `build` → `typecheck:tests` → `test` → `test:contract` (see `.husky/pre-push`).
 
 ## Documentation
 

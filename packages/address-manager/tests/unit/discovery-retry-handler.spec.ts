@@ -16,11 +16,12 @@ import type { ServiceDiscovery } from "../../src/application/discovery/service-d
 import type { ServiceInstance } from "../../src/domain/client/type";
 import type { DiscoveryContext } from "../../src/domain/discovery/discovery-context";
 import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
+import type { DiscoveryResult } from "../../src/infrastructure/metrics";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		warn: jest.fn(),
-		debug: jest.fn(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 jest.mock("@trading-model/common/utils/sleep", () => ({
@@ -32,7 +33,7 @@ jest.mock("../../src/infrastructure/metrics", () => ({
 		Failure: "failure",
 		Degraded: "degraded",
 	},
-	recordDiscoveryMetrics: jest.fn(),
+	recordDiscoveryMetrics: jest.fn<(...args: any[]) => any>(),
 }));
 
 import { sleep } from "@trading-model/common/utils/sleep";
@@ -69,7 +70,7 @@ describe("DiscoveryRetryHandler", () => {
 		return {
 			findService:
 				jest.fn<(name: ServiceInstanceName) => Promise<ServiceInstance>>(),
-			findAllServices: jest.fn(),
+			findAllServices: jest.fn<(...args: any[]) => any>(),
 		} as unknown as jest.Mocked<ServiceDiscovery>;
 	}
 
@@ -91,7 +92,7 @@ describe("DiscoveryRetryHandler", () => {
 			deleteCircuitState: jest
 				.fn<() => Promise<void>>()
 				.mockResolvedValue(undefined),
-			close: jest.fn(),
+			close: jest.fn<(...args: any[]) => any>(),
 		} as unknown as jest.Mocked<IServiceCache>;
 	}
 
@@ -101,16 +102,16 @@ describe("DiscoveryRetryHandler", () => {
 				.fn<() => Promise<void>>()
 				.mockResolvedValue(undefined),
 			isOpen: jest.fn<() => boolean>().mockReturnValue(false),
-			check: jest.fn(),
-			isAllowed: jest.fn(),
-			recordFailure: jest.fn(),
-			recordSuccess: jest.fn(),
-			recordLatency: jest.fn(),
-			getState: jest.fn(),
-			getFailureCount: jest.fn(),
-			getStateSummary: jest.fn(),
-			call: jest.fn(),
-			clear: jest.fn(),
+			check: jest.fn<(...args: any[]) => any>(),
+			isAllowed: jest.fn<(...args: any[]) => any>(),
+			recordFailure: jest.fn<(...args: any[]) => any>(),
+			recordSuccess: jest.fn<(...args: any[]) => any>(),
+			recordLatency: jest.fn<(...args: any[]) => any>(),
+			getState: jest.fn<(...args: any[]) => any>(),
+			getFailureCount: jest.fn<(...args: any[]) => any>(),
+			getStateSummary: jest.fn<(...args: any[]) => any>(),
+			call: jest.fn<(...args: any[]) => any>(),
+			clear: jest.fn<(...args: any[]) => any>(),
 		} as unknown as jest.Mocked<DiscoveryCircuitBreaker>;
 	}
 
@@ -144,7 +145,7 @@ describe("DiscoveryRetryHandler", () => {
 			);
 			expect(recordDiscoveryMetrics).toHaveBeenCalledWith(
 				{ serviceName: serviceId, startTime },
-				"success"
+				"success" as DiscoveryResult
 			);
 			expect(mockCache.delete).not.toHaveBeenCalled();
 			expect(sleep).not.toHaveBeenCalled();
@@ -167,7 +168,7 @@ describe("DiscoveryRetryHandler", () => {
 			expect(sleep).toHaveBeenCalledWith(100);
 			expect(recordDiscoveryMetrics).toHaveBeenCalledWith(
 				{ serviceName: serviceId, startTime },
-				"success"
+				"success" as DiscoveryResult
 			);
 		});
 
@@ -202,7 +203,7 @@ describe("DiscoveryRetryHandler", () => {
 			expect(sleep).toHaveBeenCalledWith(100);
 			expect(recordDiscoveryMetrics).toHaveBeenCalledWith(
 				{ serviceName: serviceId, startTime },
-				"success"
+				"success" as DiscoveryResult
 			);
 		});
 
@@ -257,7 +258,7 @@ describe("DiscoveryRetryHandler", () => {
 			);
 			expect(recordDiscoveryMetrics).toHaveBeenCalledWith(
 				{ serviceName: serviceId, startTime },
-				"degraded"
+				"degraded" as DiscoveryResult
 			);
 		});
 
