@@ -54,9 +54,11 @@ docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f rate
 | `scenarios/discovery-services.js`| `/v1/discovery-server/services`                  | SLO        |
 | `scenarios/audit-events.js`      | `/v1/audit-logger/events`                        | SLO        |
 | `k6/smoke-test.js`               | the three above                                  | SLO        |
-| `k6/stress-test.js`              | the three above, up to 100 VUs                   | stress target (P95 < 5 s, errors < 5 %; objective, not measured), not the SLO |
+| `k6/stress-test.js`              | the three above, up to 100 VUs                   | stress (see below; objective, not measured), not the SLO |
 
-SLO thresholds (`docs/operations/slo.md`): `checks rate>0.99`, `http_req_duration p(95)<2000`, `http_req_failed rate<0.01`.
+**SLO thresholds** (`docs/operations/slo.md`, shared as `SLO_THRESHOLDS` in `lib/public-api.js`): `checks rate>0.99`, `http_req_duration p(95)<2000`, `http_req_failed rate<0.01`. A run that breaks them violates the SLO.
+
+**Stress thresholds** (`k6/stress-test.js`, declared in its header comment): `checks rate>0.95`, `http_req_duration p(95)<5000` and `p(99)<10000`, `http_req_failed rate<0.05`. They are deliberately looser: the stress test finds the load at which the system breaks, not whether it meets the SLO. A stress run that passes them can still violate the SLO, so never report it as SLO evidence.
 
 ## CI
 
