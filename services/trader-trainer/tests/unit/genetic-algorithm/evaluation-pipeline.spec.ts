@@ -88,7 +88,7 @@ const MINIMAL_GENOME = {
 			timeBudgetMs: 60000,
 		},
 		seeding: { envSeed: 1, mutationSeed: 1, networkSeed: 1 },
-		evaluation: { episodesPerIndividual: 2, seedsPerEval: 1 },
+		evaluation: { episodesPerIndividual: 2 },
 		selectionType: SelectionType.Tournament,
 		fitnessType: FitnessType.TotalPnl,
 		mutationRate: 0.1,

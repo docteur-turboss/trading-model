@@ -9,7 +9,7 @@ import type { SymbolState, TradingSymbol } from "./market-data-types";
 import type { MemoryConfig } from "./memory-config";
 import { NormalizationManager } from "./normalization-manager";
 
-export type SymbolStateManagerConfig = MemoryConfig;
+type SymbolStateManagerConfig = MemoryConfig;
 
 export class SymbolStateManager {
 	readonly states: Map<TradingSymbol, SymbolState> = new Map();

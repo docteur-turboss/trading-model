@@ -67,7 +67,7 @@ export const orderBookHandler: DataHandler<OrderBookData> = {
  * averages and quantities the features read are unchanged, and a history of
  * a few thousand snapshots stays small.
  */
-export function compactOrderBook(orderBook: OrderBookData): OrderBookData {
+function compactOrderBook(orderBook: OrderBookData): OrderBookData {
 	return {
 		...orderBook,
 		bids: new Set([

@@ -28,7 +28,7 @@ const TMP_PREFIX = ".tmp-";
 /** A temporary directory older than this was left by a crash mid-write. */
 const STALE_TMP_MS = 60 * 60 * 1000;
 
-export interface FileModelArtifactStoreOptions {
+interface FileModelArtifactStoreOptions {
 	/** `TRAINER_MODEL_DIR`: one directory per symbol, one per version. */
 	root: string;
 	/** Versions kept per symbol (`TRAINER_MODEL_RETENTION`). */

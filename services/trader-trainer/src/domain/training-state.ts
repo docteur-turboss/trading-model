@@ -48,7 +48,7 @@ export interface BestAgentSummary {
 	};
 }
 
-export interface LastTrainingInfoData {
+interface LastTrainingInfoData {
 	symbol: TradingSymbol;
 	bestGenome: DeepReadonly<LamarckGenome>;
 	bestFitness: Fitness;

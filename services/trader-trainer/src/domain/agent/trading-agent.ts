@@ -44,7 +44,7 @@ const ACTION_EXECUTORS: Record<TradeAction, ActionExecutor> = {
 	[TradeAction.None]: () => false,
 };
 
-export interface StepResult {
+interface StepResult {
 	/** What the network saw: market features followed by the agent state. */
 	state: Float32Array;
 	action: TradeAction;

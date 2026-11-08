@@ -68,7 +68,6 @@ interface GASeedingConfig {
 
 interface GAEvaluationConfig {
 	episodesPerIndividual: PositiveInt;
-	seedsPerEval: PositiveInt;
 }
 
 export interface GAControlGenome {
@@ -111,7 +110,6 @@ export function createGAControlGenome(): GAControlGenome {
 		},
 		evaluation: {
 			episodesPerIndividual: PositiveInt.of(MinAdaptiveEpisodes),
-			seedsPerEval: PositiveInt.of(2),
 		},
 		selectionType: SelectionType.Tournament,
 		fitnessType: FitnessType.TotalPnl,
@@ -219,11 +217,11 @@ export function adaptGAControl(
 	);
 }
 
-export type StopCondition =
+type StopCondition =
 	| { shouldStop: true; reason: string }
 	| { shouldStop: false };
 
-export interface TerminationCheckContext {
+interface TerminationCheckContext {
 	generation: number;
 	bestFitness: number;
 	stagnation: number;

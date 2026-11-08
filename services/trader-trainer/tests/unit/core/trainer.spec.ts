@@ -92,7 +92,6 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 					},
 					evaluation: {
 						episodesPerIndividual: 3,
-						seedsPerEval: 2,
 					},
 					seeding: { envSeed: 42, mutationSeed: 1337, networkSeed: 7 },
 					termination: {

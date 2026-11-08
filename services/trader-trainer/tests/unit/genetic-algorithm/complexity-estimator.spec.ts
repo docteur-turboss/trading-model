@@ -81,7 +81,6 @@ describe("estimateComplexity", () => {
 			selectionType: SelectionType.Tournament,
 			fitnessType: FitnessType.TotalPnl,
 			episodesPerIndividual: 2,
-			seedsPerEval: 1,
 			rewardThreshold: Number.POSITIVE_INFINITY,
 			stagnationPatience: 10,
 			maxGenerations: 10,

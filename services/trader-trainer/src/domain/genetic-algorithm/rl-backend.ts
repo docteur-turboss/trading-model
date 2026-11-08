@@ -101,7 +101,7 @@ function _buildStateManagerCfg(
 }
 
 /** Run-level options of the backends, outside the genome. */
-export interface BackendOptions {
+interface BackendOptions {
 	/** Show the agent its position (default true, ADR-0025). */
 	observePosition?: boolean;
 }

@@ -19,7 +19,7 @@ function _maybeFlip(value: boolean, rng: () => number): boolean {
 	return rng() < BooleanFlipRate ? !value : value;
 }
 
-export interface MutateRLContext {
+interface MutateRLContext {
 	rl: RLGenome;
 	mutation: MutationGenome;
 	sigma: number;

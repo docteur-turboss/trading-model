@@ -12,7 +12,7 @@ import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 import { StagnationTracker, type TrackResult } from "./stagnation-tracker";
 
-export interface FitnessEvaluatorConfig {
+interface FitnessEvaluatorConfig {
 	windowSets: WindowSet[];
 	backendFactory: BackendFactory;
 	telemetry?: GaTelemetry;

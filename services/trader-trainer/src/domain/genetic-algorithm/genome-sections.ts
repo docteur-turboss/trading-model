@@ -51,8 +51,8 @@ const network: GenomeSection<NetworkGenome> = {
 	create: createNetworkGenome,
 	crossover: (left, right, co, rng) =>
 		crossoverNetwork({ left, right, co, rng }),
-	mutate: (genome, mutation, sigma, rng) =>
-		mutateNetworkStructure({ genome, mutationConfig: mutation, sigma, rng }),
+	mutate: (genome, mutation, _sigma, rng) =>
+		mutateNetworkStructure({ genome, mutationConfig: mutation, rng }),
 };
 
 const rl: GenomeSection<RLGenome> = {

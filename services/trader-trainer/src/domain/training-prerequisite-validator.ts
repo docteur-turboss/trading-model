@@ -8,7 +8,7 @@ import {
 import type { TradingSymbol } from "./market-data-types";
 import type { TrainingFailure } from "./training-types";
 
-export interface WindowingSettings {
+interface WindowingSettings {
 	validationSplit: number;
 	walkForwardFolds: number;
 }

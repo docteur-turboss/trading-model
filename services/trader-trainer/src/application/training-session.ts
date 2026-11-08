@@ -41,7 +41,7 @@ export type TrainingRunner = (
 export const runInProcess: TrainingRunner = (windowSets, settings, telemetry) =>
 	new TrainingSession(windowSets, settings, telemetry).run();
 
-export class TrainingSession {
+class TrainingSession {
 	private readonly _windowSets: WindowSet[];
 
 	constructor(

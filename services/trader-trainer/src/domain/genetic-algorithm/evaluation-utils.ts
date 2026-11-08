@@ -76,7 +76,7 @@ export function barsPerYear(steps: readonly MarketStep[]): number | undefined {
 	return MS_PER_YEAR / gaps[Math.floor(gaps.length / 2)];
 }
 
-export interface ComputeAllResultsContext extends EvaluationPnl {
+interface ComputeAllResultsContext extends EvaluationPnl {
 	currentGenome: DeepReadonly<LamarckGenome>;
 	/** Annualises the published ratios; fitness itself stays per bar. */
 	barsPerYear?: number;

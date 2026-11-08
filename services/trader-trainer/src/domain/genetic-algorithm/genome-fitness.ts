@@ -71,7 +71,7 @@ const ACT_COST: Record<ActivationName, number> = {
 	swish: 6,
 };
 
-export interface ComplexityProfile {
+interface ComplexityProfile {
 	inferenceFLOPs: number;
 	penalty: number;
 }

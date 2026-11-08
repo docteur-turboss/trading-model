@@ -49,7 +49,7 @@ const PROMETHEUS_GA_TELEMETRY: GaTelemetry = {
 	},
 };
 
-export interface AppContainerConfig {
+interface AppContainerConfig {
 	bufferSize: number;
 	symbols: TradingSymbol[];
 	validationSplit: number;
@@ -66,7 +66,7 @@ export interface AppContainerConfig {
 	instanceId: string;
 }
 
-export class ApplicationContainer {
+class ApplicationContainer {
 	public readonly symbols: TradingSymbol[];
 	public readonly dataBuffer: MarketDataBuffer;
 	public readonly eventHandler: DataEventHandler;
@@ -123,7 +123,7 @@ export class ApplicationContainer {
 	}
 }
 
-export interface TraderTrainerSettings {
+interface TraderTrainerSettings {
 	TRAINER_DATA_WINDOW: number;
 	/** Comma-separated symbols, e.g. "BTCUSDT,ETHUSDT". */
 	TRAINER_SYMBOLS: string;

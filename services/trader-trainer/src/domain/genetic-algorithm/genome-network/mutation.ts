@@ -199,10 +199,9 @@ function _maybeMutateNormalization(
 		: genome.network.normalization;
 }
 
-export interface MutateNetworkContext {
+interface MutateNetworkContext {
 	genome: LamarckGenome;
 	mutationConfig: MutationGenome;
-	sigma: number;
 	rng: () => number;
 }
 

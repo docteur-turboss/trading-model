@@ -9,7 +9,7 @@ export interface LayerComputationContext {
 	originalInput: Float32Array;
 }
 
-export interface LayerComputerConfig {
+interface LayerComputerConfig {
 	activationType: ActivationType[];
 	connectionType: ConnectionType;
 	useBias: boolean;

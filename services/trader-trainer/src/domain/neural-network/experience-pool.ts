@@ -10,7 +10,7 @@ export interface IExperiencePool {
 	clearPool(): void;
 }
 
-export interface PrioritizedSample {
+interface PrioritizedSample {
 	experiences: Experience[];
 	/** Pool ids of the sampled experiences, to feed back into `updatePriorities`. */
 	ids: number[];
@@ -65,18 +65,10 @@ class ExperiencePool implements IExperiencePool {
 	}
 
 	private _evictOldest(): void {
-		const firstKey = this._firstMapKey();
+		// Map keeps insertion order: the first key is the oldest; add() calls this only when non-empty.
+		const firstKey = this._poolMap.keys().next().value as number;
 		this._poolMap.delete(firstKey);
 		this._onRemoved(firstKey);
-	}
-
-	private _firstMapKey(): number {
-		for (const key of this._poolMap.keys()) {
-			return key;
-		}
-		throw new Error(
-			"unreachable: caller checks poolMap.size > 0 before eviction"
-		);
 	}
 
 	public add(experience: Experience): void {
