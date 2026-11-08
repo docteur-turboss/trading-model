@@ -77,7 +77,7 @@ For each genome in the population:
 3. **Validation pass**: Create a fresh backend with Lamarckian weights, evaluate on held-out validation data at a fixed epsilon of 0.05
 4. **Scoring**: Compute fitness from the wallet PnL (`TRAINER_FITNESS_TYPE`), apply complexity penalty
 
-All genomes are evaluated in parallel using a bounded thread pool (`pooledEval`).
+Genomes are evaluated one after the other on the training worker thread (`sequentialEval`): the evaluation is CPU-bound, so nothing runs in parallel.
 
 ### 2. NSGA-II Sorting
 
@@ -230,7 +230,7 @@ import { crossoverGenomes } from './crossover';
 import { selectParent } from './selection';
 
 // Evaluation
-import { evaluateGenomeAllWindows, pooledEval } from './evaluation-pipeline';
+import { evaluateGenomeAllWindows, sequentialEval } from './evaluation-pipeline';
 
 // Fitness and reward shaping
 import { computeFitness } from './evaluation-utils';

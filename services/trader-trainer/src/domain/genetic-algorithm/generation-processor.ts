@@ -31,7 +31,6 @@ export class GenerationProcessor {
 		this._evaluator = new FitnessEvaluator({
 			windowSets: _cfg.windowSets,
 			backendFactory: _cfg.backendFactory,
-			evalConcurrency: _cfg.evalConcurrency ?? 4,
 			telemetry: this._telemetry,
 		});
 	}
