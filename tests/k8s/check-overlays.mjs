@@ -68,26 +68,15 @@ function spreadsAcrossNodes(text) {
 		);
 }
 
-/** Deployment name -> maxReplicas of the HPA that drives it. */
-function hpaTargets(docs) {
-	const maxReplicas = new Map();
+/** Deployment name -> maxReplicas (or `field`) of the HPA that drives it. */
+function hpaTargets(docs, field = "maxReplicas") {
+	const replicas = new Map();
 	for (const doc of docs.filter((d) => d.kind === "HorizontalPodAutoscaler")) {
 		const target = doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1];
-		const max = Number(doc.text.match(/^ {2}maxReplicas: (\d+)$/m)?.[1] ?? 1);
-		if (target) maxReplicas.set(target, max);
+		const count = Number(doc.text.match(new RegExp(`^ {2}${field}: (\\d+)$`, "m"))?.[1] ?? 1);
+		if (target) replicas.set(target, count);
 	}
-	return maxReplicas;
-}
-
-/** Deployment name -> minReplicas of the HPA that drives it. */
-function hpaMinReplicas(docs) {
-	const minReplicas = new Map();
-	for (const doc of docs.filter((d) => d.kind === "HorizontalPodAutoscaler")) {
-		const target = doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1];
-		const min = Number(doc.text.match(/^ {2}minReplicas: (\d+)$/m)?.[1] ?? 1);
-		if (target) minReplicas.set(target, min);
-	}
-	return minReplicas;
+	return replicas;
 }
 
 /**
@@ -96,7 +85,7 @@ function hpaMinReplicas(docs) {
  * maxUnavailable down (default 25%), so only its effective value counts.
  */
 function unavailableSinglePods(docs) {
-	const minReplicas = hpaMinReplicas(docs);
+	const minReplicas = hpaTargets(docs, "minReplicas");
 	return docs
 		.filter((doc) => doc.kind === "Deployment" && !/^ {4}type: Recreate$/m.test(doc.text))
 		.filter((doc) => (minReplicas.get(doc.name) ?? Number(doc.text.match(/^ {2}replicas: (\d+)$/m)?.[1] ?? 1)) === 1)
