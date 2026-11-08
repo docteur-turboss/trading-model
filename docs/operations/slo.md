@@ -108,23 +108,14 @@ A quantile has no error budget to burn, so the alerts stay single-window:
 The following alerts are configured in `observability/alerting.yml` (copied
 into `deploy/k8s/infra/prometheus.yaml`):
 
-<<<<<<< HEAD
 - `SLOAvailabilityFastBurn`, `SLOAvailabilitySlowBurn`: 99.9% SLO, multi-window multi-burn-rate (1h/5m at 14.4x, 6h/30m at 6x).
 - `SLOErrorRateFastBurn`, `SLOErrorRateSlowBurn`: < 1% error rate SLO, same windows.
+- `SLOErrorBudgetLow`: less than 20% of the 30d budget left (recording rule `slo:sli_error:ratio_rate30d`).
 - `SLOLatencyFastBurn`, `SLOLatencySlowBurn`: P95 ≤ 2s SLO, 5m and 1h windows.
 - `MessageDeliveryLowSuccessRate`, `DLQDrainRateLow`, `TrainingCompletionRateLow`: one alert per SLI.
 - `CandleDeliveryLagging`: data freshness SLO.
 
-The rules compute the ratios inline (no recording rules).
-=======
-- `SLOAvailabilityFastBurn`: 99.9% SLO, 5m window, multi-window multi-burn-rate.
-- `SLOAvailabilitySlowBurn`: 99.9% SLO, 1h window.
-- `SLOErrorBudgetLow`: less than 20% of the 30d budget left (recording rule `slo:sli_error:ratio_rate30d`).
-- `SLOLatencyFastBurn`: P95 ≤ 2s SLO, 5m window.
-- `SLOLatencySlowBurn`: P95 ≤ 2s SLO, 1h window.
-- `SLOErrorRateFastBurn`: < 1% error rate SLO, 5m window.
-- `SLOErrorRateSlowBurn`: < 1% error rate SLO, 1h window.
->>>>>>> origin/development
+The burn-rate rules compute the ratios inline; only the 30d budget uses a recording rule.
 
 ## Dashboard Alignment
 
