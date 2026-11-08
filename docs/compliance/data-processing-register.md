@@ -108,7 +108,7 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None (application logs truncate IPs and redact sensitive keys). Backups contain no personal data since activities 1–4 hold none |
 | **Recipients**           | Internal: operators. Alerts: Slack (alert names and labels only). Backups: off-site S3 store, age-encrypted before upload |
 | **Transfers outside EU** | Depends on the region of the off-site S3 store and of Slack — to be recorded by the operating entity               |
-| **Retention period**     | Loki: 31 days. Prometheus: 30 days. Jaeger: in memory until restart. Backups (ADR-0032): 30 days locally (`RETENTION_DAYS`, dailies only); off-site daily 31 days, plus for the audit trail and the MySQL dump weekly 12 weeks and monthly 60 months (bucket lifecycle rules per prefix) |
+| **Retention period**     | Loki: 31 days. Prometheus: 30 days. Jaeger: 72 hours (Badger on the PVC `jaeger-data`, `BADGER_SPAN_STORE_TTL`, ADR-0055). Backups (ADR-0032): 30 days locally (`RETENTION_DAYS`, dailies only); off-site daily 31 days, plus for the audit trail and the MySQL dump weekly 12 weeks and monthly 60 months (bucket lifecycle rules per prefix) |
 | **Technical measures**   | LUKS2 data disks, age encryption of every dump before it is written, only `.age` files copied off-site             |
 | **System**               | Promtail → Loki, Prometheus, Jaeger, Alertmanager; `db-backup` CronJob / `scripts/backup*.sh`                      |
 

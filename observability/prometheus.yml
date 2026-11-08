@@ -60,6 +60,9 @@ scrape_configs:
     static_configs:
       - targets: ['trader-trainer:3000']
 
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
   # SVID expiry of every service: GET /ping with the blackbox-exporter SVID
   # (spiffe-helper-blackbox). /ping answers before the ACL: any valid SVID passes.
   - job_name: 'blackbox-exporter'

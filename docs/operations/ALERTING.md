@@ -42,6 +42,25 @@ Slack is down: configure that external check to notify someone directly
 | `ServiceDown` | a scrape target that is down, Alertmanager and Prometheus included |
 | `ServiceTargetsMissing` | an application service with no `up` series at all (0 replicas, Pending pods, broken scrape config), which `up == 0` cannot see |
 
+## Loki and the trace pipeline
+
+K8s retention is bounded like the compose: Loki's compactor deletes logs older
+than 744 h (31 days), Jaeger keeps traces 72 h on its PVC (Badger), and the
+OTel collector refuses data (`memory_limiter`) before an OOM kill. Observability
+data is not backed up (`BACKUP_DR.md`).
+
+| Alert | Fires when | What to do |
+| --- | --- | --- |
+| `LokiPushFailing` | Loki answers 5xx on push or discards samples for 10 min | `kubectl logs sts/loki`; `kubectl exec sts/loki -- df -h /loki` (full PVC: check `LokiRetentionStale`) |
+| `LokiRetentionStale` | the compactor has not applied retention for 3 h | `kubectl logs sts/loki`, look for compactor errors; the PVC drains at the next successful run |
+
+`LokiRetentionStale` has no `absent()` twin: if Loki is down or the compactor
+metric disappears, the expression is empty and the alert stays silent. A down
+Loki is already reported by `ServiceDown`.
+
+The PVC fill ratio (`kubelet_volume_stats_*`) is not alerted: the kubelet is
+not scraped yet, only Loki's own metrics are.
+
 ### OtelSpanExportFailing
 
 The collector (K8s only; compose exports straight to Jaeger, so the rule stays
@@ -150,6 +169,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |
 | `AlertmanagerNotificationsFailing` | critical | [ALERTING#alerts-on-the-alerting-path](ALERTING.md#alerts-on-the-alerting-path) |
 | `PrometheusRuleEvaluationFailures` | critical | [ALERTING#alerts-on-the-alerting-path](ALERTING.md#alerts-on-the-alerting-path) |
+| `LokiPushFailing` | warning | [ALERTING#loki-and-the-trace-pipeline](ALERTING.md#loki-and-the-trace-pipeline) |
+| `LokiRetentionStale` | warning | [ALERTING#loki-and-the-trace-pipeline](ALERTING.md#loki-and-the-trace-pipeline) |
 | `OtelSpanExportFailing` | warning | [ALERTING#otelspanexportfailing](ALERTING.md#otelspanexportfailing) |
 | `Watchdog` | none | [ALERTING#dead-mans-switch](ALERTING.md#dead-mans-switch) |
 
