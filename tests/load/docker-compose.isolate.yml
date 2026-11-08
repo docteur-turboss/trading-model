@@ -1,0 +1,109 @@
+# Isolates a second stack: no fixed container/network names, no host port except edge.
+services:
+  mongo:
+    container_name: !reset null
+    ports: !reset []
+  redis:
+    container_name: !reset null
+    ports: !reset []
+  mysql:
+    container_name: !reset null
+    ports: !reset []
+  migrate:
+    container_name: !reset null
+    ports: !reset []
+  discovery-server:
+    container_name: !reset null
+    ports: !reset []
+  spire-server:
+    container_name: !reset null
+    ports: !reset []
+  spire-bootstrap:
+    container_name: !reset null
+    ports: !reset []
+  spire-agent:
+    container_name: !reset null
+    ports: !reset []
+  message-manager:
+    container_name: !reset null
+    ports: !reset []
+  financial-scraper:
+    container_name: !reset null
+    ports: !reset []
+  trader-trainer:
+    container_name: !reset null
+    ports: !reset []
+  api-gateway:
+    container_name: !reset null
+    ports: !reset []
+  audit-logger:
+    container_name: !reset null
+    ports: !reset []
+  dlq-service:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-discovery:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-message:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-scraper:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-trainer:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-gateway:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-audit:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-dlq:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-edge:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-prometheus:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-blackbox:
+    container_name: !reset null
+    ports: !reset []
+  prometheus:
+    container_name: !reset null
+    ports: !reset []
+  backup-metrics-exporter:
+    container_name: !reset null
+    ports: !reset []
+  alertmanager:
+    container_name: !reset null
+    ports: !reset []
+  grafana:
+    container_name: !reset null
+    ports: !reset []
+  loki:
+    container_name: !reset null
+    ports: !reset []
+  blackbox-exporter:
+    container_name: !reset null
+    ports: !reset []
+  jaeger:
+    container_name: !reset null
+    ports: !reset []
+  promtail:
+    container_name: !reset null
+    ports: !reset []
+  binance-stub:
+    container_name: !reset null
+    ports: !reset []
+  edge-proxy:
+    container_name: !reset null
+    ports: !override ['18449:8080']
+networks:
+  data-net:
+    name: !reset null
+  backend-net:
+    name: !reset null

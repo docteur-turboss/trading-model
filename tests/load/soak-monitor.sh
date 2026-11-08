@@ -2,6 +2,8 @@
 # Samples container RSS and the message-manager journal every N minutes into a CSV,
 # during a soak (tests/load/README.md, "Soak"). Stop with Ctrl-C.
 #   soak-monitor.sh <out.csv> [interval-minutes=5] [compose-project-prefix=trading-]
+#   MM_CONTAINER overrides the message-manager container (default <prefix>message), e.g.
+#   MM_CONTAINER=soak647-message-manager-1 for a stack without the fixed container names.
 # Columns: timestamp,kind,name,value
 #   kind=rss_bytes            value = container memory usage (docker stats)
 #   kind=journal_pending      name = topic/service, value = mm_journal_pending_entries
