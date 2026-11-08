@@ -10,7 +10,7 @@ overlay `production`.
 | Cluster `trading-staging` (kind v0.27.0, as the CI `k8s` job) | `deploy/staging-local/kind.yaml` |
 | MinIO (audit anchors, off-site backups) and the runner | `deploy/staging-local/docker-compose.yml`, project `trading-staging`, both on the Docker network `kind` |
 | Overlay | `deploy/k8s/overlays/staging-local`: `staging` + self-signed TLS (`selfsigned-local`), Ingress allow-list `172.18.0.0/16`, audit-logger egress to MinIO `172.18.0.200:9000`, SealedSecret sealed for the kind controller |
-| Local secrets | `~/.trading-staging/env` (MinIO root, S3 users, runner token) and `~/.trading-staging/backup-age-identity.txt` (private age key of the staging backups): never committed |
+| Local secrets | `~/.trading-staging/env` (MinIO root, S3 users) and `~/.trading-staging/backup-age-identity.txt` (private age key of the staging backups): never committed |
 
 The Ingress answers on `https://localhost:9443` (self-signed certificate).
 The compose stack keeps `https://localhost:8449`.
@@ -47,14 +47,18 @@ MinIO no longer publishes binaries or images: the compose file pins the
 
 ## Runner
 
-Ephemeral (one job, then it registers again), in a container, without the
-Docker socket. It reads a fine-grained personal access token restricted to this
-repository with **Administration: read and write** (registration tokens), as
-`RUNNER_ACCESS_TOKEN` in `~/.trading-staging/env`, then:
+In a container, without the Docker socket. Registered once with a
+registration token (valid 1 h): GitHub has no API to create the fine-grained
+token an ephemeral runner needs, and no long-lived token is stored. Its
+credentials stay in the volume `runner-data`, so restarts keep the registration:
 
 ```bash
-docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml --env-file ~/.trading-staging/env up -d runner
+RUNNER_TOKEN=$(gh api -X POST repos/docteur-turboss/trading-model/actions/runners/registration-token -q .token) \
+  docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml --env-file ~/.trading-staging/env up -d runner
 ```
+
+Register again (same command, after `docker volume rm trading-staging_runner-data`)
+if the runner is removed in Settings → Actions → Runners.
 
 The repository is public: keep **Settings → Actions → General → "Require approval
 for all external contributors"**, so that a fork pull request cannot run a
