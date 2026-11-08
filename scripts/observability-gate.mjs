@@ -239,6 +239,8 @@ const EXPORTER_PREFIXES = [
 
 // Infrastructure exporters (ADR-0056): family prefix -> the K8s scrape job that
 // collects it. A prefix counts as emitted only while its job is configured.
+// shortcut: any name under a prefix passes (a typo like `mongodb_member_state` too),
+// upgrade to a list of exporter metric names if a typo ever slips through.
 const INFRA_EXPORTER_JOBS = {
   kube_: "kube-state-metrics",
   kubelet_: "kubelet",
