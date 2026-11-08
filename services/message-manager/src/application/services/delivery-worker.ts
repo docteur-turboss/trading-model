@@ -108,7 +108,7 @@ export class DeliveryWorker {
 					return;
 				}
 				getLogger().error("Delivery loop failed", {
-					context: { topic: group.topic, service: group.service },
+					context: { topic: group.topic, targetService: group.service },
 					error: normalizeError(err),
 				});
 			}
@@ -212,7 +212,7 @@ export class DeliveryWorker {
 			getLogger().error("Message delivery failed", {
 				context: {
 					topic: group.topic,
-					service: group.service,
+					targetService: group.service,
 					messageId: entry.message.metadata.messageId,
 					error: normalizeError(err),
 				},
