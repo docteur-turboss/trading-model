@@ -5,7 +5,7 @@ import { FeatureVector } from "../../../src/domain/feature-vector";
 import {
 	evaluateFitness,
 	evaluateGenomeAllWindows,
-	pooledEval,
+	sequentialEval,
 } from "../../../src/domain/genetic-algorithm/evaluation-pipeline";
 import {
 	ActivationType,
@@ -334,25 +334,25 @@ describe("evaluateGenomeAllWindows", () => {
 	});
 });
 
-describe("pooledEval", () => {
-	it("should process all items with bounded concurrency", async () => {
+describe("sequentialEval", () => {
+	it("should process all items in order", async () => {
 		const items = [1, 2, 3, 4, 5];
 		const fn = jest.fn(async (x: number) => x * 2);
-		const results = await pooledEval(items, 2, fn);
+		const results = await sequentialEval(items, fn);
 		expect(results).toEqual([2, 4, 6, 8, 10]);
 		expect(fn).toHaveBeenCalledTimes(5);
 	});
 
 	it("should handle empty items array", async () => {
 		const fn = jest.fn(async (x: number) => x);
-		const results = await pooledEval([], 2, fn);
+		const results = await sequentialEval([], fn);
 		expect(results).toEqual([]);
 		expect(fn).not.toHaveBeenCalled();
 	});
 
 	it("should handle single item", async () => {
 		const fn = jest.fn(async (x: number) => x * 3);
-		const results = await pooledEval([7], 5, fn);
+		const results = await sequentialEval([7], fn);
 		expect(results).toEqual([21]);
 	});
 
@@ -362,15 +362,15 @@ describe("pooledEval", () => {
 			ticked = true;
 		});
 		const seen: boolean[] = [];
-		await pooledEval([1, 2], 1, async () => {
+		await sequentialEval([1, 2], async () => {
 			seen.push(ticked);
 		});
 		expect(seen).toEqual([false, true]);
 	});
 
-	it("should handle items count less than concurrency", async () => {
+	it("should keep input order", async () => {
 		const fn = jest.fn(async (x: number) => x);
-		const results = await pooledEval([1, 2], 10, fn);
+		const results = await sequentialEval([1, 2], fn);
 		expect(results).toEqual([1, 2]);
 		expect(fn).toHaveBeenCalledTimes(2);
 	});
@@ -422,7 +422,6 @@ describe("evaluateGenomeAllWindows — failure reporting", () => {
 			backendFactory: jest.fn(() => {
 				throw new Error("backend exploded");
 			}) as any,
-			concurrency: 1,
 			telemetry,
 		});
 		expect(telemetry.genomeEvaluated).toHaveBeenCalledTimes(2);

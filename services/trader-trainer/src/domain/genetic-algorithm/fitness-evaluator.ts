@@ -15,7 +15,6 @@ import { StagnationTracker, type TrackResult } from "./stagnation-tracker";
 export interface FitnessEvaluatorConfig {
 	windowSets: WindowSet[];
 	backendFactory: BackendFactory;
-	evalConcurrency: number;
 	telemetry?: GaTelemetry;
 }
 
@@ -24,13 +23,11 @@ export class FitnessEvaluator {
 	private _stagnationTracker = new StagnationTracker();
 	private readonly _windowSets: WindowSet[];
 	private readonly _backendFactory: BackendFactory;
-	private readonly _evalConcurrency: number;
 	private readonly _telemetry: GaTelemetry | undefined;
 
 	constructor(config: FitnessEvaluatorConfig) {
 		this._windowSets = config.windowSets;
 		this._backendFactory = config.backendFactory;
-		this._evalConcurrency = config.evalConcurrency;
 		this._telemetry = config.telemetry;
 	}
 
@@ -76,7 +73,6 @@ export class FitnessEvaluator {
 			population,
 			windowSets: this._windowSets,
 			backendFactory: this._backendFactory,
-			concurrency: this._evalConcurrency,
 			telemetry: this._telemetry,
 		});
 	}

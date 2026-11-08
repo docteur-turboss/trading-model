@@ -146,7 +146,6 @@ describe("fitnessType drives the published genome (ADR-0025)", () => {
 		const processor = new GenerationProcessor({
 			windowSets: [{ id: "w1", train: steps(4), validation: steps(20) }],
 			backendFactory: backendFor,
-			evalConcurrency: 1,
 		});
 		const ctrl = createGAControlGenome();
 		processor.initialise({
@@ -173,7 +172,6 @@ describe("fitnessType drives the published genome (ADR-0025)", () => {
 		const processor = new GenerationProcessor({
 			windowSets: [{ id: "w1", train: steps(4), validation: steps(20) }],
 			backendFactory: backendFor,
-			evalConcurrency: 1,
 		});
 		const ctrl = createGAControlGenome();
 		processor.initialise({

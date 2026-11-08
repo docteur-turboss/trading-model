@@ -17,7 +17,6 @@ export interface WindowSet {
 export interface GARunnerConfig {
 	windowSets: WindowSet[];
 	backendFactory: BackendFactory;
-	evalConcurrency?: number;
 	onGeneration?: (ctx: GenerationContext) => void;
 	onArchiveUpdate?: (archive: DeepReadonly<LamarckGenome>[]) => void;
 	initialControl?: Partial<GAControlGenome>;
