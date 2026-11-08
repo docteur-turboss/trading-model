@@ -10,15 +10,6 @@ export interface FormatLogEntryParams {
 	context?: JsonObject;
 }
 
-/**
- * Formats a log entry as a single-line JSON object (promtail `json` stage
- * compatible). Emits `{ ts, level, msg, ...ambient, ...context }`. Ambient
- * fields: `service` / `instance` (`SERVICE_NAME` / `INSTANCE_ID`), `correlationId`
- * (AsyncLocalStorage) and `trace_id` / `span_id` (active OpenTelemetry span);
- * each is omitted when unknown. A field of the same name in `context` wins.
- * Circular references are rendered as `[Circular]` and sensitive keys are
- * redacted.
- */
 function ambientFields(): JsonObject {
 	const span = trace.getActiveSpan()?.spanContext();
 	const fields: Record<string, string | undefined> = {
@@ -35,13 +26,33 @@ function ambientFields(): JsonObject {
 	) as JsonObject;
 }
 
+/**
+ * Formats a log entry as a single-line JSON object (promtail `json` stage
+ * compatible). Emits `{ ts, level, msg, ...ambient, ...context }`. Ambient
+ * fields: `service` / `instance` (`SERVICE_NAME` / `INSTANCE_ID`), `correlationId`
+ * (AsyncLocalStorage) and `trace_id` / `span_id` (active OpenTelemetry span);
+ * each is omitted when unknown. A field of the same name in `context` wins,
+ * except `service` / `instance`, which always identify the emitting process
+ * (use e.g. `targetService` for another one). An `undefined` context value
+ * never erases an ambient field.
+ * Circular references are rendered as `[Circular]` and sensitive keys are
+ * redacted.
+ */
 export function formatLogEntry(params: FormatLogEntryParams): string {
+	const ambient = ambientFields();
+	const context = Object.fromEntries(
+		Object.entries(params.context ?? {}).filter(
+			([, value]) => value !== undefined
+		)
+	) as JsonObject;
 	const record: JsonObject = {
 		ts: new Date(params.timestamp).toISOString(),
 		level: params.label,
 		msg: params.message,
-		...ambientFields(),
-		...(params.context ?? {}),
+		...ambient,
+		...context,
+		service: ambient.service ?? context.service,
+		instance: ambient.instance ?? context.instance,
 	};
 	return safeStringify(record);
 }

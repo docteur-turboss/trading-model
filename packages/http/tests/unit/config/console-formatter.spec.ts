@@ -77,8 +77,33 @@ describe("formatLogEntry", () => {
 		});
 
 		it("lets an explicit context field win over the ambient one", () => {
-			process.env.SERVICE_NAME = "api-gateway";
+			const id = toCorrelationId("corr-1");
+			const out = runWithCorrelationId(id, () => parse({ correlationId: "x" }));
+			expect(out.correlationId).toBe("x");
+		});
+
+		it("never lets context override service and instance", () => {
+			process.env.SERVICE_NAME = "message-manager";
+			process.env.INSTANCE_ID = "mm-1";
+			expect(parse({ service: "dest", instance: "other" })).toMatchObject({
+				service: "message-manager",
+				instance: "mm-1",
+			});
+		});
+
+		it("keeps context service when SERVICE_NAME is unset", () => {
 			expect(parse({ service: "explicit" }).service).toBe("explicit");
+		});
+
+		it("does not let an undefined context value erase an ambient field", () => {
+			const id = toCorrelationId("corr-1");
+			const out = runWithCorrelationId(id, () =>
+				formatLogEntry({
+					...base,
+					context: { correlationId: undefined as unknown as string },
+				})
+			);
+			expect(JSON.parse(out).correlationId).toBe("corr-1");
 		});
 	});
 });
