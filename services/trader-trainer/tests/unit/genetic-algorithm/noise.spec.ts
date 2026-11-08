@@ -1,11 +1,8 @@
 import { describe, expect, test } from "@jest/globals";
 import { MutationDistribution } from "../../../src/domain/genetic-algorithm/genome";
 import {
-	sampleCauchy,
 	sampleGaussian,
-	sampleLevy,
 	sampleNoise,
-	sampleUniform,
 } from "../../../src/domain/genetic-algorithm/noise";
 
 describe("Noise Samplers", () => {
@@ -19,27 +16,6 @@ describe("Noise Samplers", () => {
 	test("sampleGaussian with sigma=0 should return 0", () => {
 		const result = sampleGaussian(rng, 0);
 		expect(Object.is(result, 0) || Object.is(result, -0)).toBe(true);
-	});
-
-	test("sampleCauchy should return finite value", () => {
-		const result = sampleCauchy(rng, 1);
-		expect(Number.isFinite(result)).toBe(true);
-	});
-
-	test("sampleUniform should return value in range", () => {
-		const result = sampleUniform(rng, 1);
-		expect(result).toBeGreaterThanOrEqual(-1);
-		expect(result).toBeLessThanOrEqual(1);
-	});
-
-	test("sampleUniform with sigma=0 should return 0", () => {
-		const result = sampleUniform(rng, 0);
-		expect(result).toBe(0);
-	});
-
-	test("sampleLevy should return finite value", () => {
-		const result = sampleLevy(rng, 1);
-		expect(Number.isFinite(result)).toBe(true);
 	});
 
 	describe("sampleNoise dispatcher", () => {

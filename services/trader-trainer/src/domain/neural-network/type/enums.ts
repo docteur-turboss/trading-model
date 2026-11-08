@@ -31,7 +31,6 @@ export enum ActivationType {
 	Relu = "relu",
 	LeakyReLu = "leakyReLu",
 	Gelu = "gelu",
-	Softmax = "softmax",
 	Elu = "elu",
 	Mish = "mish",
 	Linear = "linear",
@@ -52,7 +51,5 @@ export enum InitialisationType {
 }
 
 export enum ExperienceKind {
-	Bare = "bare",
 	QLearning = "qlearning",
-	Supervised = "supervised",
 }

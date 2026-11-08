@@ -1,6 +1,6 @@
 import { ActivationComputer } from "./activation-computer";
 import type { LayerMemory } from "./type";
-import { ActivationType, ConnectionType } from "./type";
+import { type ActivationType, ConnectionType } from "./type";
 
 export interface LayerComputationContext {
 	layer: LayerMemory;
@@ -49,9 +49,6 @@ export class LayerComputer {
 		preActivations: Float32Array,
 		activation: ActivationType
 	): Float32Array {
-		if (activation === ActivationType.Softmax) {
-			return this._activationComputer.applySoftmax(preActivations);
-		}
 		return this._activationComputer.applyElementWiseActivation(
 			preActivations,
 			activation

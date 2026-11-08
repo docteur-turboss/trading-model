@@ -38,7 +38,6 @@ Activations introduce non-linearity — without them, deep networks would collap
 | **Sigmoid** | (0, 1) | Smooth, used for binary output |
 | **Tanh** | (-1, 1) | Zero-centered, mitigates vanishing gradient vs sigmoid |
 | **GELU** | ≈(-0.5, ∞) | Transformer-style, smooth ReLU variant |
-| **Softmax** | (0, 1), sum=1 | Multi-class probability output |
 | **ELU** | (-α, ∞) | Smooth ReLU alternative with negative values |
 | **LeakyReLU** | (-∞, ∞) | Avoids dead neurons (small negative slope) |
 

@@ -8,7 +8,7 @@ import {
 	OPTIMIZERS,
 	type OptimizerHyperparams,
 } from "./optimizer";
-import type { LayerMemory, LayerWeights, NeuralNetworkConfig } from "./type";
+import type { LayerMemory, NeuralNetworkConfig } from "./type";
 import { ActivationType, LossFunctionType } from "./type";
 
 export { mergeConfig } from "./type";
@@ -41,16 +41,6 @@ function _initializeBiases(
 	return bias;
 }
 
-function _initLayerParams(
-	dims: LayerDims,
-	config: Required<NeuralNetworkConfig>
-): LayerWeights {
-	return {
-		weights: _initializeWeights(dims, config),
-		bias: _initializeBiases(dims, config),
-	};
-}
-
 function _buildLayerMemory(
 	dims: LayerDims,
 	config: Required<NeuralNetworkConfig>,
@@ -66,8 +56,6 @@ function _buildLayerMemory(
 		delta: new Float32Array(dims.fanOut),
 		gradW: new Float32Array(dims.fanIn * dims.fanOut),
 		gradB: new Float32Array(dims.fanOut),
-		accumGradW: new Float32Array(dims.fanIn * dims.fanOut),
-		accumGradB: new Float32Array(dims.fanOut),
 		wState: opt.initState(dims.fanIn * dims.fanOut),
 		bState: opt.initState(dims.fanOut),
 	};
@@ -91,19 +79,6 @@ function _warnSigmoidLoss(config: Required<NeuralNetworkConfig>): void {
 	}
 }
 
-function _validateSoftmaxLoss(config: Required<NeuralNetworkConfig>): void {
-	if (
-		config.activationType[config.activationType.length - 1] ===
-			ActivationType.Softmax &&
-		config.lossFunctionType !== LossFunctionType.CrossEntropy &&
-		config.lossFunctionType !== LossFunctionType.BinaryCrossEntropy
-	) {
-		throw agentError(
-			`Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`
-		);
-	}
-}
-
 function _validateActivationCount(
 	config: Required<NeuralNetworkConfig>,
 	layerCount: number
@@ -120,7 +95,6 @@ export function validateActivationLoss(
 	layerCount: number
 ): void {
 	_warnSigmoidLoss(config);
-	_validateSoftmaxLoss(config);
 	_validateActivationCount(config, layerCount);
 }
 

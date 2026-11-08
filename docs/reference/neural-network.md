@@ -57,25 +57,18 @@ Stateless computation returning a `ForwardContext` containing all intermediate v
    - Apply connection strategy (skip/residual if configured)
 3. Return output + layerZValues + layerOutputs
 
-Supports **softmax** activation with numerical stability (max subtraction).
-
-#### Backward Pass (`backprop`, `backpropAccumulate`)
+#### Backward Pass (`backprop`)
 
 Standard backpropagation via chain rule:
 
 1. Compute output layer deltas from loss gradient × activation derivative
-2. Special case: softmax + cross-entropy → `δ = ŷ - y`
-3. Propagate deltas backward through hidden layers
-4. Compute weight gradients (outer product of delta × layer input)
-5. Apply gradients via optimizer (immediate or accumulated for mini-batch)
+2. Propagate deltas backward through hidden layers
+3. Compute weight gradients (outer product of delta × layer input)
+4. Apply gradients via optimizer
 
-#### Training Modes
+#### Training
 
-| Method                          | Description                                           |
-| ------------------------------- | ----------------------------------------------------- |
-| `train(input, target)`          | Single-sample forward + backprop                      |
-| `forwardAndPool(input, target)` | Forward + store in pool for batch training            |
-| `trainPooled()`                 | Accumulate gradients from pool, apply averaged update |
+`train(input, target)`: single-sample forward + backprop, returns the loss before the step.
 
 #### Weight Serialization
 
@@ -87,19 +80,15 @@ Standard backpropagation via chain rule:
 
 ### `Agent` (`agent.ts`)
 
-High-level wrapper around `NeuralNetwork` adding:
+Pairs a `NeuralNetwork` (`agent.nn`) with its experience replay pool (`agent.experience`):
 
-- **Experience replay pool**: Stores `{input, output, reward, nextState, done}` tuples
-- **Score tracking**: `addScore()`, `getAverageScore()`, `getTotalScore()`
-- **Q-learning update**: `learnQLearning(experience, gamma)` applies Bellman update:
+- `experience.remember(transition)`: stores a `{input, output, reward, nextState, done, action}` transition
+- `experience.replay(nn, batchSize, discount)`: samples `batchSize` transitions (by TD error when prioritized, uniformly otherwise) and trains on each, moving the played action towards:
 
 ```
 target[a] = r + γ · max_a' Q(s', a')   (non-terminal)
 target[a] = r                            (terminal)
 ```
-
-- **Supervised learning**: `learnSupervised(input, target)`, `learnFromPool()`
-- **Pool sampling**: `samplePool(batchSize)` for mini-batch DQN
 
 ---
 
@@ -135,7 +124,6 @@ replay(batchSize, discount)   # minibatch Q-learning update (PER weights when pr
 | **Sigmoid**   | (0, 1)        | Binary output           |
 | **Tanh**      | (-1, 1)       | Zero-centered hidden    |
 | **GELU**      | ≈(-0.5, ∞)    | Transformer-style       |
-| **Softmax**   | (0, 1), sum=1 | Multi-class output      |
 | **ELU**       | (-α, ∞)       | Smooth ReLU alternative |
 | **Mish**      | ≈(-0.3, ∞)    | Self-regularized        |
 | **LeakyReLU** | (-∞, ∞)       | Avoids dead neurons     |
@@ -227,8 +215,6 @@ interface LayerMemory {
   delta: Float32Array;
   gradW: Float32Array;
   gradB: Float32Array;
-  accumGradW: Float32Array;
-  accumGradB: Float32Array;
   wState: Record<string, Float32Array | number>;
   bState: Record<string, Float32Array | number>;
 }

@@ -62,21 +62,6 @@ export function sampleGaussian(rng: () => number, sigma: number): number {
 	return GAUSSIAN_SAMPLER.sample(rng, sigma);
 }
 
-/** Sample from a Cauchy distribution with the given scale. */
-export function sampleCauchy(rng: () => number, sigma: number): number {
-	return CAUCHY_SAMPLER.sample(rng, sigma);
-}
-
-/** Sample uniform noise in the range (-sigma, +sigma). */
-export function sampleUniform(rng: () => number, sigma: number): number {
-	return UNIFORM_SAMPLER.sample(rng, sigma);
-}
-
-/** Sample Lévy-stable noise (alpha=0.5) with heavy tails for escaping local optima. */
-export function sampleLevy(rng: () => number, sigma: number): number {
-	return LEVY_SAMPLER.sample(rng, sigma);
-}
-
 /** Sample noise from the chosen distribution with the given sigma. */
 export function sampleNoise(
 	dist: MutationDistribution,

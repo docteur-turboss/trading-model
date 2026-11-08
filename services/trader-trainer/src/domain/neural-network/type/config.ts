@@ -1,4 +1,3 @@
-import { NumericRange } from "@trading-model/primitives/numeric-range";
 import {
 	Percentage,
 	type PositiveInt,
@@ -20,7 +19,6 @@ export interface NetworkArchitecture {
 	activationType?: ActivationType[];
 	connectionType?: ConnectionType;
 	normalisationType?: NormalisationType;
-	normalizedInputRange?: NumericRange;
 	enablePool?: boolean;
 	poolMaxSize?: PositiveInt;
 	perEnabled?: boolean;
@@ -49,17 +47,11 @@ interface NetworkInitConfig {
 	biasInitialisationType?: InitialisationType;
 }
 
-interface MutationConfig {
-	biasMutationScale?: Percentage;
-	weightMutationScale?: Percentage;
-}
-
 export interface NeuralNetworkConfig
 	extends NetworkArchitecture,
 		LossConfig,
 		OptimizerConfig,
-		NetworkInitConfig,
-		MutationConfig {}
+		NetworkInitConfig {}
 
 function _resolveActivationType(
 	cfg: NeuralNetworkConfig
@@ -92,16 +84,11 @@ export function mergeConfig(
 		learningRate: cfg.learningRate ?? Percentage.of(0.001),
 		optimizerType: cfg.optimizerType ?? OptimizerType.Sgd,
 		gradientClipNorm: cfg.gradientClipNorm ?? 5.0,
-		biasMutationScale: Percentage.of(cfg.biasMutationScale ?? 0.05),
 		normalisationType: cfg.normalisationType ?? NormalisationType.None,
-		weightMutationScale: Percentage.of(cfg.weightMutationScale ?? 0.1),
 		optimizerHyperparams: cfg.optimizerHyperparams ?? {},
 		initialisationType: cfg.initialisationType ?? InitialisationType.Random,
 		connectionType: cfg.connectionType ?? ConnectionType.FullyConnected,
 		lossFunctionType: cfg.lossFunctionType ?? LossFunctionType.MeanSquaredError,
-		normalizedInputRange:
-			cfg.normalizedInputRange ??
-			new NumericRange(0, cfg.neuronsByLayer[0] - 1),
 		biasInitialisationType: _resolveBiasInit(cfg),
 		activationType: _resolveActivationType(cfg),
 		perEnabled: cfg.perEnabled ?? false,

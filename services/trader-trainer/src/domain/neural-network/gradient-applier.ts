@@ -1,45 +1,28 @@
-import type { LayerGradientContext } from "./backprop-engine";
-import {
-	computeWeightGradient,
-	GradientAccumulator,
-} from "./gradient-accumulator";
+import type {
+	LayerGradientContext,
+	WeightGradientContext,
+} from "./backprop-engine";
 import type { NnTrainingDeps } from "./nn-training-deps";
 import { OPTIMIZERS } from "./optimizer";
 import type { LayerMemory } from "./type";
 
-export class GradientApplier {
-	private readonly _accumulator: GradientAccumulator;
-
-	constructor(private readonly _deps: NnTrainingDeps) {
-		this._accumulator = new GradientAccumulator(this._deps);
+function computeWeightGradient(ctx: WeightGradientContext): void {
+	const { weightBuf, rowOffset, deltaJ, input, fanIn } = ctx;
+	for (let idxK = 0; idxK < fanIn; idxK++) {
+		weightBuf[rowOffset + idxK] += deltaJ * input[idxK];
 	}
+}
+
+export class GradientApplier {
+	constructor(private readonly _deps: NnTrainingDeps) {}
 
 	computeGradients(ctx: LayerGradientContext): void {
-		const { layerIndex, delta, layerInput, applyImmediately } = ctx;
-		const layer = this._deps.layers[layerIndex];
-
-		if (applyImmediately) {
-			this._applyGradientsToLayer(layer, delta, layerInput);
-		} else {
-			this._accumulator.accumulate(layer, delta, layerInput);
-		}
-	}
-
-	applyAccumulatedGradients(numSamples: number): void {
-		if (numSamples === 0) {
-			return;
-		}
-
-		for (let layerIdx = 0; layerIdx < this._deps.layers.length; layerIdx++) {
-			this._accumulator.averageAndApply(
-				this._deps.layers[layerIdx],
-				numSamples
-			);
-		}
-	}
-
-	resetAccumulators(): void {
-		this._accumulator.resetAccumulators();
+		const { layerIndex, delta, layerInput } = ctx;
+		this._applyGradientsToLayer(
+			this._deps.layers[layerIndex],
+			delta,
+			layerInput
+		);
 	}
 
 	private _computeGradientsForLayer(

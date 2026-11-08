@@ -15,7 +15,6 @@ export interface LayerGradientContext {
 	layerIndex: number;
 	delta: Float32Array;
 	layerInput: Float32Array;
-	applyImmediately: boolean;
 }
 
 export interface WeightGradientContext {
@@ -55,8 +54,7 @@ export class BackpropEngine {
 
 	private _applyGradients(
 		context: ForwardContext,
-		allDeltas: Float32Array[],
-		applyImmediately: boolean
+		allDeltas: Float32Array[]
 	): void {
 		for (let layerIdx = 0; layerIdx < this._deps.layers.length; layerIdx++) {
 			const layerInput =
@@ -65,16 +63,11 @@ export class BackpropEngine {
 				layerIndex: layerIdx,
 				delta: allDeltas[layerIdx],
 				layerInput,
-				applyImmediately,
 			});
 		}
 	}
 
-	private _backpropImpl(
-		context: ForwardContext,
-		target: Float32Array,
-		applyImmediately: boolean
-	): void {
+	backprop(context: ForwardContext, target: Float32Array): void {
 		const outputDelta = this._computeOutputDelta(context, target);
 		const lastLayerIndex = this._deps.layers.length - 1;
 		const hiddenDeltas = this._hiddenDeltaComputer.compute(
@@ -82,27 +75,7 @@ export class BackpropEngine {
 			outputDelta,
 			context
 		);
-		this._applyGradients(
-			context,
-			[...hiddenDeltas, outputDelta],
-			applyImmediately
-		);
-	}
-
-	backprop(context: ForwardContext, target: Float32Array): void {
-		this._backpropImpl(context, target, true);
-	}
-
-	backpropAccumulate(context: ForwardContext, target: Float32Array): void {
-		this._backpropImpl(context, target, false);
-	}
-
-	applyAccumulatedGradients(numSamples: number): void {
-		this._gradientApplier.applyAccumulatedGradients(numSamples);
-	}
-
-	resetAccumulators(): void {
-		this._gradientApplier.resetAccumulators();
+		this._applyGradients(context, [...hiddenDeltas, outputDelta]);
 	}
 
 	computeLoss(output: Float32Array, target: Float32Array): number {

@@ -34,13 +34,11 @@ describe("createExperiencePool", () => {
 		it("should ignore every operation", () => {
 			const pool = createExperiencePool(false, 10);
 			pool.add(makeExperience(1));
-			pool.remove(new Float32Array([1]));
 			pool.clearPool();
 
 			expect(pool.getPoolSize()).toBe(0);
 			expect(pool.getPool()).toEqual([]);
 			expect(pool.samplePool(3)).toEqual([]);
-			expect([...pool.values()]).toEqual([]);
 		});
 	});
 
@@ -66,22 +64,10 @@ describe("createExperiencePool", () => {
 			expect(() => pool.samplePool(6)).toThrow(/exceeds pool size/);
 		});
 
-		it("should remove an experience by its input and ignore unknown inputs", () => {
-			const pool = createExperiencePool(true, 10);
-			const exp = makeExperience(1);
-			pool.add(exp);
-			pool.remove(new Float32Array([1]));
-			expect(pool.getPoolSize()).toBe(1);
-
-			pool.remove(exp.input);
-			expect(pool.getPoolSize()).toBe(0);
-		});
-
-		it("should clear the pool and expose its values", () => {
+		it("should clear the pool", () => {
 			const pool = createExperiencePool(true, 10);
 			pool.add(makeExperience(1));
 			pool.add(makeExperience(2));
-			expect([...pool.values()]).toHaveLength(2);
 
 			pool.clearPool();
 			expect(pool.getPoolSize()).toBe(0);
@@ -290,16 +276,14 @@ describe("createExperiencePool", () => {
 			expect(() => pool.updatePriorities([0, 1], [1])).toThrow(/2 experiences/);
 		});
 
-		it("should forget the priority of evicted and removed experiences", () => {
+		it("should forget the priority of evicted experiences", () => {
 			const pool = createPrioritizedExperiencePool(2, PER, makePRNG(3));
 			const evicted = makeExperience(0);
-			const removed = makeExperience(1);
 			pool.add(evicted);
-			pool.add(removed);
+			pool.add(makeExperience(1));
 			pool.updatePriorities([0, 1], [100, 100]);
 			pool.add(makeExperience(2));
 			pool.add(makeExperience(3));
-			pool.remove(removed.input);
 
 			const { ids, weights } = pool.sampleWithWeights(100);
 

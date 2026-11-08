@@ -67,18 +67,6 @@ describe("NeuralNetwork", () => {
 			).toThrow();
 		});
 
-		it("should throw when softmax output is not paired with cross-entropy loss", () => {
-			expect(
-				() =>
-					new NeuralNetwork(
-						makeConfig({
-							activationType: [ActivationType.Relu, ActivationType.Softmax],
-							lossFunctionType: LossFunctionType.MeanSquaredError,
-						})
-					)
-			).toThrow();
-		});
-
 		it("should warn when sigmoid output is not paired with binary cross-entropy", () => {
 			const warn = jest.fn();
 			setLogger({ debug: jest.fn(), info: jest.fn(), warn, error: jest.fn() });
@@ -137,17 +125,6 @@ describe("NeuralNetwork", () => {
 			expect(result.layerOutputs.length).toBe(2);
 			expect(result.layerOutputs[0].length).toBe(6);
 			expect(result.layerOutputs[1].length).toBe(3);
-		});
-	});
-
-	describe("predict", () => {
-		it("should return only the output vector", () => {
-			const nn = new NeuralNetwork(makeConfig());
-			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-
-			const result = nn.predict(input);
-
-			expect(result.length).toBe(3);
 		});
 	});
 
@@ -285,73 +262,6 @@ describe("NeuralNetwork", () => {
 		});
 	});
 
-	describe("pool operations", () => {
-		it("forwardAndPool should throw when pool is disabled", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: false }));
-			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			const target = new Float32Array([1, 0, 0]);
-
-			expect(() => nn.forwardAndPool(input, target)).toThrow();
-		});
-
-		it("forwardAndPool should store experience in pool", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
-			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			const target = new Float32Array([1, 0, 0]);
-
-			nn.forwardAndPool(input, target);
-
-			expect(nn.getPoolSize()).toBe(1);
-		});
-
-		it("trainPooled should return 0 when pool is empty", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
-
-			const loss = nn.trainPooled();
-
-			expect(loss).toBe(0);
-		});
-
-		it("trainPooled should throw when pool is disabled", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: false }));
-
-			expect(() => nn.trainPooled()).toThrow();
-		});
-
-		it("trainPooled should clear pool after training", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
-			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			const target = new Float32Array([1, 0, 0]);
-			nn.forwardAndPool(input, target);
-
-			nn.trainPooled();
-
-			expect(nn.getPoolSize()).toBe(0);
-		});
-
-		it("trainPooled should return finite loss", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
-			nn.forwardAndPool(
-				new Float32Array([0.5, -0.3, 0.1, 0.8]),
-				new Float32Array([1, 0, 0])
-			);
-			const loss = nn.trainPooled();
-			expect(Number.isFinite(loss)).toBe(true);
-		});
-
-		it("clearPool should remove all experiences", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
-			nn.forwardAndPool(
-				new Float32Array([0.5, -0.3, 0.1, 0.8]),
-				new Float32Array([1, 0, 0])
-			);
-
-			nn.clearPool();
-
-			expect(nn.getPoolSize()).toBe(0);
-		});
-	});
-
 	describe("single layer network", () => {
 		it("should handle input-to-output direct connection", () => {
 			const nn = new NeuralNetwork({
@@ -371,27 +281,6 @@ describe("NeuralNetwork", () => {
 		});
 	});
 
-	describe("softmax activation", () => {
-		it("should produce non-equal Z values with random init covering max-finding branch", () => {
-			const nn = new NeuralNetwork({
-				neuronsByLayer: [4, 3],
-				activationType: [ActivationType.Softmax],
-				initialisationType: InitialisationType.Random,
-				lossFunctionType: LossFunctionType.CrossEntropy,
-				normalisationType: NormalisationType.None,
-				connectionType: ConnectionType.FullyConnected,
-				enablePool: false,
-			});
-
-			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			const result = nn.forward(input);
-
-			expect(result.output.length).toBe(3);
-			const sum = result.output.reduce((s, v) => s + v, 0);
-			expect(sum).toBeCloseTo(1, 3);
-		});
-	});
-
 	describe("useBias disabled", () => {
 		it("should create network with bias disabled", () => {
 			const nn = new NeuralNetwork(makeConfig({ useBias: false }));
@@ -402,15 +291,12 @@ describe("NeuralNetwork", () => {
 			expect(result.output.length).toBe(3);
 		});
 
-		it("should train pooled without bias", () => {
-			const nn = new NeuralNetwork(
-				makeConfig({ useBias: false, enablePool: true })
-			);
-			nn.forwardAndPool(
+		it("should train without bias", () => {
+			const nn = new NeuralNetwork(makeConfig({ useBias: false }));
+			const loss = nn.train(
 				new Float32Array([0.5, -0.3, 0.1, 0.8]),
 				new Float32Array([1, 0, 0])
 			);
-			const loss = nn.trainPooled();
 			expect(Number.isFinite(loss)).toBe(true);
 		});
 	});

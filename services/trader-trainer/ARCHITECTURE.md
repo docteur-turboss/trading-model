@@ -235,7 +235,7 @@ Sell: cash += amount * price - fees; position -= amount
 Fully-connected feedforward network with configurable:
 
 - **Layers**: Input → Hidden Layers... → Output
-- **Activations**: ReLU, Tanh, Sigmoid, GELU, Softmax, ELU, Mish, LeakyReLU
+- **Activations**: ReLU, Tanh, Sigmoid, GELU, ELU, Mish, LeakyReLU, Linear
 - **Optimizers**: SGD, Adam, RMSProp
 - **Loss Functions**: MSE, Cross-Entropy, Huber, Smooth L1
 - **Normalizations**: MinMax, Z-score, Robust, Batch Norm, Layer Norm
@@ -566,7 +566,7 @@ function calculateMaxPopulation(): number {
 ```typescript
 // Activation functions
 type ActivationType =
-  'sigmoid' | 'tanh' | 'relu' | 'gelu' | 'softmax' | 'elu' | 'mish' | 'leakyRelu';
+  'sigmoid' | 'tanh' | 'relu' | 'gelu' | 'elu' | 'mish' | 'leakyReLu' | 'linear';
 
 // Connection types
 type ConnectionType = 'fully-connected' | 'dense-skip' | 'residual-connection';

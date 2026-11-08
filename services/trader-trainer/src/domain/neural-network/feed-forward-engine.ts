@@ -73,11 +73,6 @@ export class FeedForwardEngine {
 		return { current, layerZValues, layerOutputs };
 	}
 
-	predict(input: Float32Array): Float32Array {
-		const context = this.forward(input);
-		return context.output;
-	}
-
 	private _normalize(
 		input: Float32Array,
 		params?: NormalizeParams

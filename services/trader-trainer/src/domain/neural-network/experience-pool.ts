@@ -8,8 +8,6 @@ export interface IExperiencePool {
 	getPoolSize(): number;
 	samplePool(batchSize: number): Experience[];
 	clearPool(): void;
-	remove(input: Float32Array): void;
-	values(): MapIterator<Experience>;
 }
 
 export interface PrioritizedSample {
@@ -48,15 +46,10 @@ const DISABLED_POOL: IExperiencePool = {
 	clearPool: () => {
 		// Intentional no-op.
 	},
-	remove: () => {
-		// Intentional no-op.
-	},
-	values: () => new Map().values(),
 };
 
 class ExperiencePool implements IExperiencePool {
 	private _poolMap = new Map<number, Experience>();
-	private _poolInputToId = new WeakMap<Float32Array, number>();
 	protected _nextPoolId = 0;
 	private readonly _poolMaxSize: number;
 	protected readonly _rng: () => number;
@@ -73,9 +66,7 @@ class ExperiencePool implements IExperiencePool {
 
 	private _evictOldest(): void {
 		const firstKey = this._firstMapKey();
-		const oldest = this._poolMap.get(firstKey);
 		this._poolMap.delete(firstKey);
-		this._poolInputToId.delete(oldest!.input);
 		this._onRemoved(firstKey);
 	}
 
@@ -91,7 +82,6 @@ class ExperiencePool implements IExperiencePool {
 	public add(experience: Experience): void {
 		const id = this._nextPoolId++;
 		this._poolMap.set(id, experience);
-		this._poolInputToId.set(experience.input, id);
 		if (this._poolMap.size > this._poolMaxSize) {
 			this._evictOldest();
 		}
@@ -133,20 +123,6 @@ class ExperiencePool implements IExperiencePool {
 
 	public clearPool(): void {
 		this._poolMap.clear();
-		this._poolInputToId = new WeakMap();
-	}
-
-	public remove(input: Float32Array): void {
-		const id = this._poolInputToId.get(input);
-		if (id !== undefined) {
-			this._poolMap.delete(id);
-			this._poolInputToId.delete(input);
-			this._onRemoved(id);
-		}
-	}
-
-	public values(): MapIterator<Experience> {
-		return this._poolMap.values();
 	}
 }
 

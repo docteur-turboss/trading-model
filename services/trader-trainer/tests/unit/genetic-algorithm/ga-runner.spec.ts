@@ -66,23 +66,10 @@ jest.mock("../../../src/domain/neural-network/agent", () => ({
 			setWeights: jest.fn(),
 			distributeAroundWeights: jest.fn(),
 		},
-		scores: {
-			addScore: jest.fn(),
-			getAverageScore: jest.fn(() => 0),
-			getTotalScore: jest.fn(() => 0),
-			resetScores: jest.fn(),
-		},
 		experience: {
 			getPool: jest.fn(() => []),
-			getPoolSize: jest.fn(() => 0),
 			clearPool: jest.fn(),
-			samplePool: jest.fn(() => []),
-			learnFromPool: jest.fn(),
-			learnExperience: jest.fn(),
-			recordExperience: jest.fn(),
-			removeFromPool: jest.fn(),
 		},
-		fastForward: jest.fn(() => new Float32Array([0.5, 0.5, 0.5])),
 	})),
 }));
 

@@ -170,28 +170,4 @@ describe("NN Regression — Activations", () => {
 		const result = ACTIVATIONS.leakyReLu.fn(-2);
 		expect(result).toBeCloseTo(-2 * 0.01, 5);
 	});
-
-	it("softmax sums to 1", () => {
-		const z = new Float32Array([1, 2, 3]);
-		const out = new Float32Array(3);
-		let max = z[0];
-		for (let i = 1; i < 3; i++) {
-			if (z[i] > max) {
-				max = z[i];
-			}
-		}
-		let expSum = 0;
-		for (let i = 0; i < 3; i++) {
-			const e = Math.exp(z[i] - max);
-			out[i] = e;
-			expSum += e;
-		}
-		const inv = 1 / expSum;
-		let sum = 0;
-		for (let i = 0; i < 3; i++) {
-			out[i] *= inv;
-			sum += out[i];
-		}
-		expect(sum).toBeCloseTo(1, 5);
-	});
 });

@@ -75,21 +75,6 @@ const Linear: ActivationDefinition = {
 	derivative: () => 1,
 };
 
-const Softmax: ActivationDefinition = {
-	fn: () => {
-		throw new Error(
-			"SoftmaxActivation.fn() should not be called directly. " +
-				"Softmax is computed across the full output vector via ActivationComputer.applySoftmax()."
-		);
-	},
-	derivative: () => {
-		throw new Error(
-			"SoftmaxActivation.derivative() should not be called directly. " +
-				"Softmax backpropagation is handled by OutputDeltaComputer."
-		);
-	},
-};
-
 const SIGMOID = Sigmoid;
 const TANH = Tanh;
 const RELU = Relu;
@@ -98,7 +83,6 @@ const ELU = Elu;
 const GELU = Gelu;
 const MISH = Mish;
 const LINEAR = Linear;
-const SOFTMAX = Softmax;
 
 export const ACTIVATIONS: Record<ActivationType, ActivationDefinition> = {
 	[ActivationType.Sigmoid]: SIGMOID,
@@ -109,5 +93,4 @@ export const ACTIVATIONS: Record<ActivationType, ActivationDefinition> = {
 	[ActivationType.Gelu]: GELU,
 	[ActivationType.Mish]: MISH,
 	[ActivationType.Linear]: LINEAR,
-	[ActivationType.Softmax]: SOFTMAX,
 };

@@ -81,7 +81,6 @@ const ACT_COST: Record<ActivationName, number> = {
 	[ActivationType.Tanh]: 4,
 	[ActivationType.LeakyReLu]: 2,
 	[ActivationType.Gelu]: 8,
-	[ActivationType.Softmax]: 10,
 	[ActivationType.Elu]: 3,
 	[ActivationType.Mish]: 8,
 	[ActivationType.Linear]: 1,

@@ -1,8 +1,7 @@
 import { ACTIVATIONS } from "./activation";
 import type { OutputDeltasContext } from "./backprop-engine";
 import { LOSSES } from "./losses";
-import type { NeuralNetworkConfig } from "./type";
-import { ActivationType } from "./type";
+import type { ActivationType, NeuralNetworkConfig } from "./type";
 import { clipGradients } from "./utils";
 
 interface OutputDeltaNeuronContext {
@@ -20,9 +19,6 @@ export class OutputDeltaComputer {
 		idx: number,
 		ctx: OutputDeltaNeuronContext
 	): number {
-		if (ctx.activation === ActivationType.Softmax) {
-			return ctx.output[idx] - ctx.target[idx];
-		}
 		return (
 			ctx.lossGrad[idx] *
 			this._activationDerivative(

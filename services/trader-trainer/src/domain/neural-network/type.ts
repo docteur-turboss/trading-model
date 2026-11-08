@@ -18,6 +18,5 @@ export type {
 	ForwardContext,
 	LayerMemory,
 	LayerWeights,
-	PooledExperience,
 	QLearningExperience,
 } from "./type/experience";

@@ -10,20 +10,6 @@ function _assertActionInRange(action: number, actionCount: number): void {
 	}
 }
 
-export function computeQLearningTarget(
-	nn: NeuralNetwork,
-	exp: QLearningExperience,
-	gamma: number
-): Float32Array {
-	const target = exp.output.slice();
-	_assertActionInRange(exp.action, target.length);
-	const nextQ = nn.forward(exp.nextState).output;
-	const maxNextQ = exp.done ? 0 : Math.max(...nextQ);
-
-	target[exp.action] = exp.reward + gamma * maxNextQ;
-	return target;
-}
-
 /**
  * Replay target of a stored transition: the network's current Q-values, the
  * played action moved towards `reward + discount · max Q(next)` by `weight`

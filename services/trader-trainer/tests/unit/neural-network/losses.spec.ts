@@ -1,5 +1,4 @@
 import { describe, expect, test } from "@jest/globals";
-import { NumericRange } from "@trading-model/primitives/numeric-range";
 import { LOSSES } from "../../../src/domain/neural-network/losses";
 import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
 import {
@@ -28,11 +27,8 @@ function makeConfig(
 		poolMaxSize: 10000,
 		optimizerType: OptimizerType.Sgd,
 		gradientClipNorm: 5.0,
-		biasMutationScale: 0.05,
-		weightMutationScale: 0.1,
 		optimizerHyperparams: {},
 		biasInitialisationType: InitialisationType.Zeros,
-		normalizedInputRange: new NumericRange(0, 3),
 	};
 }
 
