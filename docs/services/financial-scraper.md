@@ -20,19 +20,7 @@ parameter. Their parameters and responses are declared in
 published in the [OpenAPI](openapi/api-gateway.yaml); through the gateway they
 are reached under the service prefix `financial-scraper` of the gateway API (v2 since release 3.0.0).
 
-**Migrating from `/v1` (release 3.0.0).** The service registers in discovery with
-major version 2 (`APP_VERSION=2.0.0`), so the gateway serves it under the
-version prefix `v2` only: the same route under `v1` answers 404. Two
-breaking changes came with it:
-
-- The 9 trade, ticker and candle routes below return one page
-  `{ rows, nextCursor, truncated }` (500 rows by default) instead of the whole
-  array (ADR-0054). Follow `nextCursor` to read everything.
-- The 4 order book routes are gone (ADR-0053): `/orderbook/after/timestamp/:timestamp`,
-  `/orderbook/before/timestamp/:timestamp`, `/orderbook/sources/:source`,
-  `/orderbook/symbols/:symbol`.
-
-The signals route (`/signals/assets/:assetId`) is unchanged, but it moves to `/v2` too.
+A client of 2.x must migrate: see [Breaking changes in 3.0.0](#breaking-changes-in-300-gateway-api-v2).
 
 | Route                                    | Returns                                           | Parameter                                   |
 | ---------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
@@ -88,10 +76,13 @@ Order books have no route (ADR-0053): the collector writes each snapshot to
 `market_order_books` for historical replay and publishes it on the bus, where
 the trainer reads it. No process keeps them in memory.
 
-### Breaking changes of the gateway API v1 in 3.0.0
+### Breaking changes in 3.0.0 (gateway API v2)
 
-Release 3.0.0 changes the public routes `/v1/financial-scraper/*` without a new
-API version. A client of 2.x must change:
+Release 3.0.0 moves the public routes of the service from the version prefix
+`v1` to `v2`: it registers in discovery with major version 2
+(`APP_VERSION=2.0.0`), so the gateway serves it under `v2` only and the same
+route under `v1` answers 404. The signals route is unchanged apart from that
+prefix. A client of 2.x must change:
 
 - **Removed** (#577, ADR-0053), answer 404: `/orderbook/after/timestamp/{timestamp}`,
   `/orderbook/before/timestamp/{timestamp}`, `/orderbook/sources/{source}`,
