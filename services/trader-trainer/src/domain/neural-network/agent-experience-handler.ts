@@ -28,8 +28,13 @@ function _trainReplayed(
 	if (exp.kind !== ExperienceKind.QLearning) {
 		throw agentError("Only Q-learning transitions can be replayed.");
 	}
-	const { target, tdError } = computeReplayTarget(nn, exp, discount, weight);
-	nn.train(exp.input, target);
+	const { target, tdError, context } = computeReplayTarget(
+		nn,
+		exp,
+		discount,
+		weight
+	);
+	nn.trainFrom(context, target);
 	return tdError;
 }
 

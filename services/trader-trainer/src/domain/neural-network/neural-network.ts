@@ -39,7 +39,13 @@ export class NeuralNetwork {
 		const sizes = this._config.neuronsByLayer;
 		_validateSize("input", inputs.length, sizes[0]);
 		_validateSize("target", targets.length, sizes[sizes.length - 1]);
-		const context = this._feedForward.forward(inputs);
+		return this.trainFrom(this._feedForward.forward(inputs), targets);
+	}
+
+	/** `train` on a forward pass already made with the current weights. */
+	public trainFrom(context: ForwardContext, targets: Float32Array): number {
+		const sizes = this._config.neuronsByLayer;
+		_validateSize("target", targets.length, sizes[sizes.length - 1]);
 		this._backprop.backprop(context, targets);
 		return this._backprop.computeLoss(context.output, targets);
 	}

@@ -1,6 +1,5 @@
 import type { BookTickerData } from "@trading-model/contracts/market-data.types";
-import type { SymbolState } from "../market-data-types";
-import { type DataHandler, lastOf, pushWithMaxSize } from "./data-handler";
+import { type DataHandler, isAfterLast, pushWithMaxSize } from "./data-handler";
 import { DataType } from "./data-types";
 
 export const bookTickerHandler: DataHandler<BookTickerData> = {
@@ -23,10 +22,10 @@ export const bookTickerHandler: DataHandler<BookTickerData> = {
 		}
 	},
 	isNew(state, bt) {
-		return isNewBookTicker(state, bt);
+		return isAfterLast(state.bookTickers, bt, "timestamp");
 	},
 	mutateState({ data, state, maxSize }) {
-		if (isNewBookTicker(state, data)) {
+		if (isAfterLast(state.bookTickers, data, "timestamp")) {
 			state.bookTickers = pushWithMaxSize(state.bookTickers, data, maxSize);
 		}
 	},
@@ -37,11 +36,3 @@ export const bookTickerHandler: DataHandler<BookTickerData> = {
 		return {};
 	},
 };
-
-function isNewBookTicker(
-	state: Pick<SymbolState, "bookTickers">,
-	bt: BookTickerData
-): boolean {
-	const last = lastOf(state.bookTickers);
-	return last === undefined || bt.timestamp > last.timestamp;
-}

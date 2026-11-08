@@ -1,7 +1,7 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { NormalizationStats } from "../normalization-stats";
 import type { DataHandler } from "./data-handler";
-import { pushWithMaxSize } from "./data-handler";
+import { isAfterLast, pushWithMaxSize } from "./data-handler";
 import { DataType } from "./data-types";
 
 export const candleHandler: DataHandler<CandleData> = {
@@ -28,13 +28,13 @@ export const candleHandler: DataHandler<CandleData> = {
 		state.norm.candle.low.update(candle.low);
 	},
 	isNew(state, candle) {
-		return isAfterLastCandle(state.candles, candle);
+		return isAfterLast(state.candles, candle, "timestamp");
 	},
 	mutateState({ data, state, maxSize }) {
 		// The scraper re-sends candles it already published (overlapping fetch
 		// windows, retries): keep the series strictly increasing in time, or the
 		// same candle lands in both the training and the validation windows.
-		if (isAfterLastCandle(state.candles, data)) {
+		if (isAfterLast(state.candles, data, "timestamp")) {
 			state.candles = pushWithMaxSize(state.candles, data, maxSize);
 		} else if (
 			state.candles[state.candles.length - 1]?.timestamp === data.timestamp
@@ -58,8 +58,3 @@ export const candleHandler: DataHandler<CandleData> = {
 		};
 	},
 };
-
-function isAfterLastCandle(candles: CandleData[], candle: CandleData): boolean {
-	const last = candles[candles.length - 1] as CandleData | undefined;
-	return last === undefined || candle.timestamp > last.timestamp;
-}

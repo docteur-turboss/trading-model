@@ -26,12 +26,10 @@ export function getWeights(layers: LayerMemory[]): Float32Array {
 	const buffer = new Float32Array(total);
 	let cursor = 0;
 	for (const layer of layers) {
-		for (let i = 0; i < layer.weights.length; i++) {
-			buffer[cursor++] = layer.weights[i];
-		}
-		for (let i = 0; i < layer.bias.length; i++) {
-			buffer[cursor++] = layer.bias[i];
-		}
+		buffer.set(layer.weights, cursor);
+		cursor += layer.weights.length;
+		buffer.set(layer.bias, cursor);
+		cursor += layer.bias.length;
 	}
 	return buffer;
 }
@@ -57,12 +55,10 @@ export function setWeights(layers: LayerMemory[], buffer: Float32Array): void {
 	_validateBufferLength(layers, buffer);
 	let cursor = 0;
 	for (const layer of layers) {
-		for (let i = 0; i < layer.weights.length; i++) {
-			layer.weights[i] = buffer[cursor++];
-		}
-		for (let i = 0; i < layer.bias.length; i++) {
-			layer.bias[i] = buffer[cursor++];
-		}
+		layer.weights.set(buffer.subarray(cursor, cursor + layer.weights.length));
+		cursor += layer.weights.length;
+		layer.bias.set(buffer.subarray(cursor, cursor + layer.bias.length));
+		cursor += layer.bias.length;
 	}
 }
 

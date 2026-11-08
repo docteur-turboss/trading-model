@@ -13,13 +13,7 @@ export interface TrackResult {
 export class StagnationTracker {
 	private _bestFitness = Number.NEGATIVE_INFINITY;
 	private _stagnation = 0;
-	private _efficiencyHistory: number[] = [];
-
-	reset(): void {
-		this._bestFitness = Number.NEGATIVE_INFINITY;
-		this._stagnation = 0;
-		this._efficiencyHistory = [];
-	}
+	private readonly _efficiencyHistory: number[] = [];
 
 	private _findBestMember(popWithMeta: PopMember[]): PopMember {
 		return popWithMeta.reduce((best, member) =>
@@ -44,11 +38,7 @@ export class StagnationTracker {
 		this._efficiencyHistory.push(avgEff);
 	}
 
-	track(
-		popWithMeta: PopMember[],
-		_metas: GenomeFitnessMeta[],
-		avgEff: number
-	): TrackResult | undefined {
+	track(popWithMeta: PopMember[], avgEff: number): TrackResult | undefined {
 		const bestScalar = Math.max(...popWithMeta.map((member) => member.fitness));
 		if (bestScalar > this._bestFitness + 1e-6) {
 			return this._handleImprovement(bestScalar, popWithMeta, avgEff);

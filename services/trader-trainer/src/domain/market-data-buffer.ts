@@ -28,10 +28,6 @@ export interface MarketDataBufferConfig {
 
 export class MarketDataBuffer {
 	private readonly _stateManager: SymbolStateManager;
-	private _priceSnapshot: Record<TradingSymbol, Price> = {} as Record<
-		TradingSymbol,
-		Price
-	>;
 	private readonly _windowSplitter: WindowSplitter;
 	private readonly _onDataAdded: MarketDataBufferConfig["onDataAdded"];
 
@@ -70,7 +66,6 @@ export class MarketDataBuffer {
 		prices: Record<TradingSymbol, Price>,
 		at: number = Date.now()
 	): void {
-		this._priceSnapshot = { ...this._priceSnapshot, ...prices };
 		for (const [symbol, price] of Object.entries(prices) as [
 			TradingSymbol,
 			Price,
@@ -82,10 +77,6 @@ export class MarketDataBuffer {
 				});
 			}
 		}
-	}
-
-	getPriceSnapshot(): Record<TradingSymbol, Price> {
-		return this._priceSnapshot;
 	}
 
 	getSymbols(): TradingSymbol[] {

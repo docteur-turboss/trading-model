@@ -18,11 +18,9 @@ export class GradientApplier {
 
 	computeGradients(ctx: LayerGradientContext): void {
 		const { layerIndex, delta, layerInput } = ctx;
-		this._applyGradientsToLayer(
-			this._deps.layers[layerIndex],
-			delta,
-			layerInput
-		);
+		const layer = this._deps.layers[layerIndex];
+		this._computeGradientsForLayer(layer, delta, layerInput);
+		this._applyOptimizerStepToLayer(layer);
 	}
 
 	private _computeGradientsForLayer(
@@ -66,14 +64,5 @@ export class GradientApplier {
 				hp: this._deps.optimizerHp,
 			});
 		}
-	}
-
-	private _applyGradientsToLayer(
-		layer: LayerMemory,
-		delta: Float32Array,
-		layerInput: Float32Array
-	): void {
-		this._computeGradientsForLayer(layer, delta, layerInput);
-		this._applyOptimizerStepToLayer(layer);
 	}
 }

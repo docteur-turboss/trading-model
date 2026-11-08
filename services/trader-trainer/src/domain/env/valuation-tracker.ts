@@ -6,23 +6,20 @@ import type { PortfolioState, ValuationConfig } from "./portfolio-state";
 import { computePnL, computeValuation } from "./portfolio-valuation";
 
 export class ValuationTracker {
-	private readonly _history: Cash[] = [];
+	// Running peak: keeping every valuation made each step O(T).
+	private _peak: number;
 
 	constructor(config: ValuationConfig) {
 		this._initialCash = config.initialCash;
 		this._decimals = config.decimals;
-		this._history.push(config.initialCash);
+		this._peak = config.initialCash;
 	}
 
 	private readonly _initialCash: Cash;
 	private readonly _decimals: DecimalPrecision;
 
-	get history(): readonly Cash[] {
-		return this._history;
-	}
-
 	record(state: PortfolioState): void {
-		this._history.push(this.computeValuation(state));
+		this._peak = Math.max(this._peak, this.computeValuation(state));
 	}
 
 	computeValuation(state: PortfolioState): Cash {
@@ -43,13 +40,10 @@ export class ValuationTracker {
 	}
 
 	getPeakValuation(): Cash {
-		return this._history.length > 0
-			? Cash.of(Math.max(...this._history))
-			: this._initialCash;
+		return Cash.of(this._peak);
 	}
 
 	reset(): void {
-		this._history.length = 0;
-		this._history.push(this._initialCash);
+		this._peak = this._initialCash;
 	}
 }

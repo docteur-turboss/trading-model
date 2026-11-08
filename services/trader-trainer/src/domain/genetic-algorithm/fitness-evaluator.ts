@@ -40,10 +40,6 @@ export class FitnessEvaluator {
 		return this._archive.best();
 	}
 
-	getArchiveSize(): number {
-		return this._archive.size;
-	}
-
 	getBestFitness(): number {
 		return this._stagnationTracker.bestFitness;
 	}
@@ -58,10 +54,9 @@ export class FitnessEvaluator {
 
 	trackStagnation(
 		popWithMeta: PopMember[],
-		metas: GenomeFitnessMeta[],
 		avgEff: number
 	): TrackResult | undefined {
-		return this._stagnationTracker.track(popWithMeta, metas, avgEff);
+		return this._stagnationTracker.track(popWithMeta, avgEff);
 	}
 
 	evaluate(population: DeepReadonly<LamarckGenome>[]): Promise<{

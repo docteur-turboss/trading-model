@@ -91,7 +91,6 @@ export class GenerationProcessor {
 		const newCtrl = this._adaptControl(ctrl);
 		const trackResult = this._evaluator.trackStagnation(
 			paretoResult.popWithMeta,
-			evalResult.metas,
 			paretoResult.avgEff
 		);
 		this._evolvePopulation({ result: paretoResult, newCtrl, ctrl, rng });

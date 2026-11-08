@@ -50,20 +50,6 @@ export class EpisodeScores {
 		);
 	}
 
-	best(): number {
-		if (this._scores.length === 0) {
-			return Number.NEGATIVE_INFINITY;
-		}
-		return Math.max(...this._scores);
-	}
-
-	worst(): number {
-		if (this._scores.length === 0) {
-			return Number.POSITIVE_INFINITY;
-		}
-		return Math.min(...this._scores);
-	}
-
 	sharpe(): number {
 		if (this._scores.length < 2) {
 			return 0;

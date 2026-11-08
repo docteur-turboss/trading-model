@@ -1,7 +1,6 @@
 import type { TickerData } from "@trading-model/contracts/market-data.types";
-import type { SymbolState } from "../market-data-types";
 import { NormalizationStats } from "../normalization-stats";
-import { type DataHandler, lastOf, pushWithMaxSize } from "./data-handler";
+import { type DataHandler, isAfterLast, pushWithMaxSize } from "./data-handler";
 import { DataType } from "./data-types";
 
 export const tickerHandler: DataHandler<TickerData> = {
@@ -19,10 +18,10 @@ export const tickerHandler: DataHandler<TickerData> = {
 	},
 	// A 24h ticker is known at its close; its timestamp is the window open.
 	isNew(state, ticker) {
-		return isNewTicker(state, ticker);
+		return isAfterLast(state.tickers24h, ticker, "closeTimestamp");
 	},
 	mutateState({ data, state, maxSize }) {
-		if (isNewTicker(state, data)) {
+		if (isAfterLast(state.tickers24h, data, "closeTimestamp")) {
 			state.tickers24h = pushWithMaxSize(state.tickers24h, data, maxSize);
 		}
 	},
@@ -37,11 +36,3 @@ export const tickerHandler: DataHandler<TickerData> = {
 		};
 	},
 };
-
-function isNewTicker(
-	state: Pick<SymbolState, "tickers24h">,
-	ticker: TickerData
-): boolean {
-	const last = lastOf(state.tickers24h);
-	return last === undefined || ticker.closeTimestamp > last.closeTimestamp;
-}

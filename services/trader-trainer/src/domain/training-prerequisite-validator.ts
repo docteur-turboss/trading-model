@@ -21,26 +21,20 @@ export function validateTrainingPrerequisites(
 ):
 	| { ok: true; windowSets: WindowSet[] }
 	| { ok: false; error: TrainingFailure } {
+	const fail = (message: string) => ({
+		ok: false as const,
+		error: { success: false as const, symbol, error: new Error(message) },
+	});
 	if (isTraining()) {
-		return {
-			ok: false,
-			error: { success: false, symbol, error: new Error("Already training") },
-		};
+		return fail("Already training");
 	}
 	const candles = dataBuffer.getSymbolState(symbol)?.candles ?? [];
 	if (!isStrictlyIncreasing(candles)) {
 		// A repeated candle would sit in both a training and a validation window
 		// and inflate the out-of-sample metrics: refuse rather than train on it.
-		return {
-			ok: false,
-			error: {
-				success: false,
-				symbol,
-				error: new Error(
-					`Candle series for ${symbol} has duplicated or out-of-order timestamps`
-				),
-			},
-		};
+		return fail(
+			`Candle series for ${symbol} has duplicated or out-of-order timestamps`
+		);
 	}
 	const result = hasEnoughTrainingData(
 		candles.length,
@@ -54,32 +48,18 @@ export function validateTrainingPrerequisites(
 			)
 		: null;
 	if (!result) {
-		return {
-			ok: false,
-			error: {
-				success: false,
-				symbol,
-				error: new Error(
-					`Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
-				),
-			},
-		};
+		return fail(
+			`Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
+		);
 	}
 	const windowSets: WindowSet[] = Array.isArray(result) ? result : [result];
 	const hasInsufficientTrain = windowSets.some(
 		(ws) => ws.train.length < MIN_TRAINING_STEPS
 	);
 	if (hasInsufficientTrain) {
-		return {
-			ok: false,
-			error: {
-				success: false,
-				symbol,
-				error: new Error(
-					`Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps per training window`
-				),
-			},
-		};
+		return fail(
+			`Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps per training window`
+		);
 	}
 	return { ok: true, windowSets };
 }

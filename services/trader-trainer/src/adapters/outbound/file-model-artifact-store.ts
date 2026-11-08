@@ -49,6 +49,20 @@ function isMissing(err: unknown): boolean {
 	return (err as NodeJS.ErrnoException)?.code === "ENOENT";
 }
 
+/** `undefined` when the path is missing; any other error is rethrown. */
+async function unlessMissing<TValue>(
+	op: Promise<TValue>
+): Promise<TValue | undefined> {
+	try {
+		return await op;
+	} catch (err) {
+		if (isMissing(err)) {
+			return;
+		}
+		throw err;
+	}
+}
+
 /**
  * Model artifacts on a filesystem that outlives the trainer pod (the
  * ReadWriteMany checkpoint volume, ADR-0022). A version is written in a
@@ -142,55 +156,29 @@ export class FileModelArtifactStore implements ModelArtifactStorePort {
 		if (!(symbolDir && MODEL_VERSION_PATTERN.test(version))) {
 			return;
 		}
-		try {
-			return await readFile(join(symbolDir, version, file));
-		} catch (err) {
-			if (isMissing(err)) {
-				return;
-			}
-			throw err;
-		}
+		return await unlessMissing(readFile(join(symbolDir, version, file)));
 	}
 
 	/** Another replica may have written the same version (same weights, same second). */
 	private async _moveIntoPlace(tmp: string, target: string): Promise<void> {
-		try {
-			await stat(target);
+		if (await unlessMissing(stat(target))) {
 			return;
-		} catch (err) {
-			if (!isMissing(err)) {
-				throw err;
-			}
 		}
 		await rename(tmp, target);
 	}
 
 	/** Versions of a symbol directory, newest first. */
 	private async _versions(symbolDir: string): Promise<string[]> {
-		try {
-			const names = await readdir(symbolDir);
-			return names
-				.filter((name) => MODEL_VERSION_PATTERN.test(name))
-				.sort()
-				.reverse();
-		} catch (err) {
-			if (isMissing(err)) {
-				return [];
-			}
-			throw err;
-		}
+		const names = (await unlessMissing(readdir(symbolDir))) ?? [];
+		return names
+			.filter((name) => MODEL_VERSION_PATTERN.test(name))
+			.sort()
+			.reverse();
 	}
 
 	/** `undefined` once another replica renamed or removed it meanwhile. */
 	private async _modifiedAt(path: string): Promise<number | undefined> {
-		try {
-			return (await stat(path)).mtimeMs;
-		} catch (err) {
-			if (isMissing(err)) {
-				return;
-			}
-			throw err;
-		}
+		return (await unlessMissing(stat(path)))?.mtimeMs;
 	}
 
 	/** Keeps the newest versions, and removes what a crash mid-write left. */

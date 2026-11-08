@@ -1,4 +1,4 @@
-import { ActivationComputer } from "./activation-computer";
+import { ACTIVATIONS } from "./activation";
 import type { LayerMemory } from "./type";
 import { type ActivationType, ConnectionType } from "./type";
 
@@ -19,7 +19,6 @@ export class LayerComputer {
 	private readonly _activationType: ActivationType[];
 	private readonly _connectionType: ConnectionType;
 	private readonly _useBias: boolean;
-	private readonly _activationComputer = new ActivationComputer();
 
 	constructor(config: LayerComputerConfig) {
 		this._activationType = config.activationType;
@@ -49,10 +48,8 @@ export class LayerComputer {
 		preActivations: Float32Array,
 		activation: ActivationType
 	): Float32Array {
-		return this._activationComputer.applyElementWiseActivation(
-			preActivations,
-			activation
-		);
+		const { fn } = ACTIVATIONS[activation];
+		return preActivations.map((value) => fn(value));
 	}
 
 	private _applySkipConnection(

@@ -5,9 +5,8 @@ import {
 	getBidTotalQty,
 	type OrderBookData,
 } from "@trading-model/contracts/market-data.types";
-import type { SymbolState } from "../market-data-types";
 import { NormalizationStats } from "../normalization-stats";
-import { type DataHandler, lastOf, pushWithMaxSize } from "./data-handler";
+import { type DataHandler, isAfterLast, pushWithMaxSize } from "./data-handler";
 import { DataType } from "./data-types";
 
 export const orderBookHandler: DataHandler<OrderBookData> = {
@@ -38,10 +37,10 @@ export const orderBookHandler: DataHandler<OrderBookData> = {
 		}
 	},
 	isNew(state, orderBook) {
-		return isNewOrderBook(state, orderBook);
+		return isAfterLast(state.orderBooks, orderBook, "timestamp");
 	},
 	mutateState({ data, state, maxSize }) {
-		if (isNewOrderBook(state, data)) {
+		if (isAfterLast(state.orderBooks, data, "timestamp")) {
 			state.orderBooks = pushWithMaxSize(
 				state.orderBooks,
 				compactOrderBook(data),
@@ -78,12 +77,4 @@ export function compactOrderBook(orderBook: OrderBookData): OrderBookData {
 			{ price: getAvgAsk(orderBook), quantity: getAskTotalQty(orderBook) },
 		]),
 	};
-}
-
-function isNewOrderBook(
-	state: Pick<SymbolState, "orderBooks">,
-	orderBook: OrderBookData
-): boolean {
-	const last = lastOf(state.orderBooks);
-	return last === undefined || orderBook.timestamp > last.timestamp;
 }
