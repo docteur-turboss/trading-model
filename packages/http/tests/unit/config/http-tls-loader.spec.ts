@@ -1,6 +1,15 @@
-import { describe, expect, it, jest } from "@jest/globals";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
 
+let mockMtime = 1;
 jest.mock("node:fs", () => ({
+	statSync: jest.fn(() => ({ mtimeMs: mockMtime, ino: 1, size: 1 })),
 	readFileSync: jest.fn((path: string) => {
 		if (path.includes("ca")) {
 			return "-----BEGIN CERTIFICATE-----\nmock-ca";
@@ -15,9 +24,11 @@ jest.mock("node:fs", () => ({
 	}),
 }));
 
+import fs from "node:fs";
 import {
 	buildHttpsAgentOptions,
 	loadTlsPemBundleSync,
+	TLS_RELOAD_CHECK_INTERVAL_MS,
 } from "@trading-model/http/infrastructure/http-tls-loader";
 import type { FilePath } from "@trading-model/primitives/primitives/file-path";
 
@@ -93,5 +104,44 @@ describe("buildHttpsAgentOptions", () => {
 	it("should keep hostname verification when verifyHostname is true", () => {
 		const opts = buildHttpsAgentOptions({ caPath, certPath, keyPath }, true);
 		expect(opts!.checkServerIdentity).toBeUndefined();
+	});
+});
+
+describe("loadTlsPemBundleSync cache", () => {
+	const paths = {
+		caPath: "/rot/ca.pem" as unknown as FilePath,
+		certPath: "/rot/cert.pem" as unknown as FilePath,
+		keyPath: "/rot/key.pem" as unknown as FilePath,
+	};
+	const read = fs.readFileSync as unknown as jest.Mock;
+	let now = 1_000_000;
+	beforeEach(() => {
+		jest.spyOn(Date, "now").mockImplementation(() => now);
+	});
+	afterEach(() => jest.restoreAllMocks());
+
+	it("reads once, rereads all three after mtime change past the interval, keeps old bundle on failure", () => {
+		read.mockClear();
+		const first = loadTlsPemBundleSync(paths);
+		loadTlsPemBundleSync(paths);
+		expect(read).toHaveBeenCalledTimes(3);
+
+		mockMtime = 2;
+		now += 1000;
+		expect(loadTlsPemBundleSync(paths)).toBe(first); // inside interval
+		expect(read).toHaveBeenCalledTimes(3);
+
+		now += TLS_RELOAD_CHECK_INTERVAL_MS;
+		const second = loadTlsPemBundleSync(paths);
+		expect(second).not.toBe(first);
+		expect(read).toHaveBeenCalledTimes(6);
+
+		mockMtime = 3;
+		now += TLS_RELOAD_CHECK_INTERVAL_MS;
+		read.mockImplementationOnce(() => {
+			throw new Error("boom");
+		});
+		jest.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+		expect(loadTlsPemBundleSync(paths)).toBe(second);
 	});
 });
