@@ -1,6 +1,6 @@
 # ADR-0042: Singleton Collector Kept, Recovery Verified After Each Deploy
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0057](./0057-collector-handover-through-a-lease.md)
 **Date:** 2026-11
 **Related:** [ADR-0024](./0024-pod-spread-across-nodes.md) (read only), [ADR-0017](./0017-no-swallowed-errors.md)
 **Verified by:** `deploy/k8s/scripts/deploy-k8s.sh`

@@ -78,6 +78,7 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 
 | Alert | Fires when | Runbook |
 | --- | --- | --- |
+| `CollectorNoLeader` | no scraper pod reports `fs_collector_leader` = 1 for 2 min: no collector holds the Lease, nothing is collected (ADR-0057) | [runbook-market-data-stale#collectornoleader](runbooks/runbook-market-data-stale.md#collectornoleader) |
 | `MarketDataStale` | no candle persisted for 15 min, all scraper replicas together | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerMarketDataStale` | no candle reached the trainer for 15 min (`tt_market_data_received_total`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `MarketDataUnpublished` | persisted candles of a symbol have waited 15 min for the bus (`fs_unpublished_candles`): sent from MySQL once message-manager answers, the trainer lags meanwhile | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |

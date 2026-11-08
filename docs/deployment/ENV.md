@@ -146,6 +146,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `SYMBOLS_TO_TRACK`         | string  | `[]`                      | no       | Symbols to scrape, JSON array (`["BTCUSDT","ETHUSDT"]`) or CSV. Empty: no market data collected | FS       |
 | `SCRAPE_INTERVAL`          | string  | `*/1 * * * *`             | no       | Cron expression of the scrape                                               | FS       |
 | `SCRAPE_SCHEDULER_ENABLED` | boolean (`true`/`1`) | `true`       | no       | Runs the scrape cron in this instance; `false` on HTTP-only replicas (K8s runs a single cron instance) | FS       |
+| `COLLECTOR_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the collector pods compete for; only its holder runs the crons (ADR-0057). Set on `financial-scraper-collector` in K8s; empty (compose, dev): this instance collects | FS |
 | `SIGNAL_COLLECTION_ENABLED` | boolean (`true`/`1`) | `true` | no | Collects the signal registry sources (ADR-0036) where the scrape cron runs; `false` in CI, which must not call the real sources | FS |
 | `SIGNAL_CONTACT_EMAIL` | string (e-mail) | empty | no | Contact e-mail in the User-Agent of the signal sources (SEC EDGAR answers 403 without one); never committed: `.env` for compose, GitHub environment secret for K8s. A value that is no e-mail disables the signal collection only | FS |
 
