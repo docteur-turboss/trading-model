@@ -36,4 +36,11 @@ out="$(run '' 2)" && rc=0 || rc=$?
 [ "$rc" = 2 ] && [[ $out == *"timed out"* && $out == *JOB-LOGS* ]] &&
 	ok "no condition -> exit 2 at the timeout, logs shown" || ko "timeout: rc=$rc $out"
 
+out="$(DEPLOY_TIMEOUT_FACTOR=2 run '' 1)" && rc=0 || rc=$?
+[ "$rc" = 2 ] && [[ $out == *"timed out after 2s"* ]] &&
+	ok "DEPLOY_TIMEOUT_FACTOR multiplies the timeout" || ko "factor: rc=$rc $out"
+
+out="$(DEPLOY_TIMEOUT_FACTOR=0 run 'Complete ')" && rc=0 || rc=$?
+[ "$rc" = 64 ] && ok "DEPLOY_TIMEOUT_FACTOR not a positive integer: refused" || ko "bad factor: rc=$rc $out"
+
 exit "$FAILED"
