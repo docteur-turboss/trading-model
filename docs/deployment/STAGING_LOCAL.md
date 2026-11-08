@@ -88,6 +88,11 @@ laptop. For production, delete `SEALED_SECRETS_BACKUP_RUNNER` and
 
 - The deploy tokens last 168 h: run `bootstrap.sh identities` again before a
   deploy once they have expired ("Configure kubeconfigs" fails otherwise).
+- A release that adds or changes a ClusterRole or ClusterRoleBinding (3.1.0:
+  `prometheus-nodes`) needs `bootstrap.sh identities` again, from a checkout
+  of that release, before its deploy, even with valid tokens: deploy-cluster
+  may only read them, and the admin applies them (ADR-0041). Otherwise "Check
+  overlay ClusterRoles" stops the deploy before any apply and names the objects.
 - A new kind cluster has a new Sealed Secrets key: seal again
   (`init-sealed-secrets.sh`) and commit.
 - A release that adds a key to `trading-model-secrets` (3.1.0:

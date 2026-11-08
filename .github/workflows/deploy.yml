@@ -392,6 +392,21 @@ jobs:
             echo "::warning::$ENV Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/$OVERLAY/ingress-hosts.yaml"
           fi
 
+      # The cluster identity may only read ClusterRoles and their bindings: an
+      # admin applies them (deploy-identity.sh cluster). A release that adds or
+      # changes one (3.1.0: prometheus-nodes) would make the next steps fail
+      # Forbidden half way: stop here with the admin command (issue #701).
+      - name: Check overlay ClusterRoles
+        shell: bash
+        run: |
+          {
+            kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY"
+            echo ---
+            kubectl kustomize "deploy/k8s/overlays/$OVERLAY/node-agents"
+          } | bash scripts/split-cluster-scope.sh cluster |
+            KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-cluster-rbac.sh \
+              --namespace "${{ steps.ns.outputs.namespace }}" --environment "$OVERLAY"
+
       # Anchor store of the audit chain (ADR-0027): an S3 bucket with Object
       # Lock (compliance mode), its own write-only credentials, not the backup
       # ones. Bucket, region and endpoint are variables of the GitHub
