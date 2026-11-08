@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
 **Severity:** SEV2 (the platform runs, but trades and training work on old data)
-**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `BinanceRestrictedLocation`, `SignalCollectionFailing`
+**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `CandleDeliveryLagging`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -14,6 +14,7 @@ dependencies (MySQL, Redis), not that candles arrive.
 | `MarketDataStale` (+ `TrainerMarketDataStale`) | collection: nothing is persisted, so nothing is published |
 | `ScrapeCyclesFailing` | cycles run but fail (Binance, MySQL) |
 | `BinanceRestrictedLocation` | Binance geo-blocks the collector (451): apply the ADR-0026 fallback |
+| `CandleDeliveryLagging` | delivery is partial: under half of the persisted candles reach the trainer (message-manager backlog, dead letters, subscription) |
 | `TrainerMarketDataStale` alone | delivery: the scraper persists, the trainer receives nothing (message-manager, subscription) |
 
 ## Triage (Kubernetes)
