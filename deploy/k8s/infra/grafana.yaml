@@ -132,11 +132,19 @@ data:
       - name: Jaeger
         type: jaeger
         access: proxy
+        uid: jaeger
         url: http://jaeger:16686
       - name: Loki
         type: loki
         access: proxy
         url: http://loki:3100
+        jsonData:
+          derivedFields:
+            - name: trace_id
+              matcherType: regex
+              matcherRegex: '"trace_id":"([0-9a-f]+)"'
+              datasourceUid: jaeger
+              url: "$${__value.raw}"
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

@@ -6,6 +6,7 @@ import {
 	makeErrorCode,
 } from "@trading-model/common/utils/errors";
 import { ResponseProtocol } from "@trading-model/http/adapters/inbound/response-protocol";
+import { logger } from "@trading-model/http/application/services/logger";
 
 const addressManagerError = makeErrorCode(ErrorCode.AddressManager, 503);
 const serviceNotFoundError = makeErrorCode(ErrorCode.ServiceNotFound, 404);
@@ -28,6 +29,19 @@ describe("ResponseProtocol", () => {
 			send: jest.fn().mockReturnThis(),
 		};
 		next = jest.fn();
+	});
+
+	it("logs Server error with the request correlationId on a 5xx", () => {
+		const spy = jest.spyOn(logger, "error").mockImplementation(() => {});
+		req.correlationId = "corr-5xx";
+		ResponseProtocol(new Error("boom"), req, res, next);
+		expect(spy).toHaveBeenCalledWith(
+			"Server error",
+			expect.objectContaining({
+				context: expect.objectContaining({ correlationId: "corr-5xx" }),
+			})
+		);
+		spy.mockRestore();
 	});
 
 	it("should map SERVICE_NOT_FOUND to 404", () => {
