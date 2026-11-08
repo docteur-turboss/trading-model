@@ -63,6 +63,41 @@ scrape_configs:
   - job_name: 'loki'
     static_configs:
       - targets: ['loki:3100']
+  # SVID expiry of every service: GET /ping with the blackbox-exporter SVID
+  # (spiffe-helper-blackbox). /ping answers before the ACL: any valid SVID passes.
+  - job_name: 'blackbox-exporter'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ['https://discovery-server:3000/ping']
+        labels:
+          service: discovery-server
+      - targets: ['https://message-manager:3000/ping']
+        labels:
+          service: message-manager
+      - targets: ['https://financial-scraper:3000/ping']
+        labels:
+          service: financial-scraper
+      - targets: ['https://trader-trainer:3000/ping']
+        labels:
+          service: trader-trainer
+      - targets: ['https://api-gateway:3000/ping']
+        labels:
+          service: api-gateway
+      - targets: ['https://audit-logger:3000/ping']
+        labels:
+          service: audit-logger
+      - targets: ['https://dlq-service:3000/ping']
+        labels:
+          service: dlq-service
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
 
   # Self-monitoring of the alerting path (AlertmanagerNotificationsFailing,
   # PrometheusRuleEvaluationFailures).
