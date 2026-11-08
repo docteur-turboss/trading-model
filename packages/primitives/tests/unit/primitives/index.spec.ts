@@ -11,6 +11,7 @@ describe("domain/primitives/index", () => {
 		"Hostname",
 		"IPAddress",
 		"Limit",
+		"NonNegativeInt",
 		"PageNumber",
 		"Percentage",
 		"Port",
