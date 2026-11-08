@@ -120,6 +120,34 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 3
+        # Exporter of this member (issue #601, ADR-0055): server status and
+        # replica set state through localhost. No database user: MongoDB runs
+        # without authentication (ADR-0055 defers it to its own issue).
+        - name: mongodb-exporter
+          image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
+          args:
+            - --mongodb.uri=mongodb://127.0.0.1:27017/?directConnection=true
+            - --collector.replicasetstatus
+            - --web.listen-address=:9216
+          ports:
+            - containerPort: 9216
+              name: metrics
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
   volumeClaimTemplates:
     - metadata:
         name: mongo-dlq-data
@@ -204,4 +232,12 @@ spec:
         - podSelector: {}
       ports:
         - port: 27017
+          protocol: TCP
+    # The exporter sidecar: Prometheus only.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: prometheus
+      ports:
+        - port: 9216
           protocol: TCP

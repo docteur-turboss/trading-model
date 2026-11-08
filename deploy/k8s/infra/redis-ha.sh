@@ -23,7 +23,9 @@
 # plus the `ha` user (replication, Sentinel, probes) that reaches no key.
 # Sentinels require the same password. Each service password is optional: a
 # service without one gets no user. Without REDIS_INTERNAL_PASSWORD nothing is
-# protected (dev, tests).
+# protected (dev, tests). With REDIS_EXPORTER_PASSWORD, data nodes and
+# sentinels also get the read-only `exporter` user of the metrics sidecars
+# (ADR-0055).
 #
 # REDIS_ALLOW_LEGACY_CLIENTS=true (expand step of release 3.0.0): the default
 # user stays on without a password and the sentinels require none, so the
@@ -132,6 +134,14 @@ acl_args() {
 	service_user discovery "${REDIS_DISCOVERY_PASSWORD:-}" "trading-model:discovery:*" +get +set +del +mget +sadd +srem +smembers +sismember +scard +eval +evalsha "+script|load"
 	service_user message-manager "${REDIS_MESSAGE_MANAGER_PASSWORD:-}" "trading-model:message-manager:*" +hset +hgetall +hdel +pexpire +sadd +smembers +exists +xadd +xdel +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
 	service_user dlq-service "${REDIS_DLQ_PASSWORD:-}" "dlq:queue" +llen +lpush +lrange +ltrim +eval +evalsha "+script|load"
+	exporter_user
+}
+
+# The redis_exporter sidecar (issue #601): INFO, latency and slowlog, no key,
+# no CONFIG GET (it would hand out masterauth). Optional, like the services.
+exporter_user() {
+	[ -n "${REDIS_EXPORTER_PASSWORD:-}" ] || return 0
+	print_args --user exporter on ">$REDIS_EXPORTER_PASSWORD" -@all +ping +info "+client|setname" "+slowlog|get" "+slowlog|len" "+latency|latest" "+latency|histogram"
 }
 
 print_args() {
@@ -208,6 +218,12 @@ EOF
 		cat >>"$SENTINEL_CONF" <<EOF
 sentinel auth-user $MASTER_NAME ha
 sentinel auth-pass $MASTER_NAME $REDIS_INTERNAL_PASSWORD
+EOF
+	fi
+	# The exporter reads the master, replica and sentinel lists, changes nothing.
+	if [ -n "${REDIS_EXPORTER_PASSWORD:-}" ]; then
+		cat >>"$SENTINEL_CONF" <<EOF
+user exporter on >$REDIS_EXPORTER_PASSWORD -@all +ping +info +client|setname +sentinel|masters +sentinel|sentinels +sentinel|slaves +sentinel|replicas +sentinel|ckquorum
 EOF
 	fi
 	log "monitoring $master"

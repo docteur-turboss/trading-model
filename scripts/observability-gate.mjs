@@ -228,6 +228,23 @@ const EXPORTER_PREFIXES = [
   "alertmanager_", "prometheus_",
 ];
 
+// Infrastructure exporters (ADR-0055): family prefix -> the K8s scrape job that
+// collects it. A prefix counts as emitted only while its job is configured.
+const INFRA_EXPORTER_JOBS = {
+  kube_: "kube-state-metrics",
+  kubelet_: "kubelet",
+  container_: "cadvisor",
+  node_: "node-exporter",
+  mysql_: "mysql",
+  redis_: "redis",
+  mongodb_: "mongo-dlq",
+};
+const k8sPrometheus = readFileSync(join(ROOT, "deploy", "k8s", "infra", "prometheus.yaml"), "utf-8");
+for (const [prefix, job] of Object.entries(INFRA_EXPORTER_JOBS)) {
+  if (k8sPrometheus.includes(`job_name: '${job}'`)) EXPORTER_PREFIXES.push(prefix);
+  else errors.push(`deploy/k8s/infra/prometheus.yaml: no scrape job '${job}' for the ${prefix}* metrics`);
+}
+
 function isEmitted(metric, emitted) {
   const base = metric.replace(/_(bucket|sum|count)$/, "");
   return (

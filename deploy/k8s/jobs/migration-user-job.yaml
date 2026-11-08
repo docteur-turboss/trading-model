@@ -13,6 +13,11 @@
 #  SELECT and DELETE on the four purged tables, nothing else. Its password is
 #  MYSQL_RETENTION_PASSWORD (optional key: a cluster whose Secret does not have
 #  it yet skips the user, and db-retention then fails visibly).
+#
+#  And the `exporter` user of the mysqld-exporter sidecars (ADR-0055): PROCESS,
+#  REPLICATION CLIENT, SELECT on performance_schema, 3 connections at most, no
+#  application data. Password MYSQL_EXPORTER_PASSWORD (optional key, skipped
+#  when absent: the exporters then report mysql_up 0).
 # =============================================================================
 apiVersion: batch/v1
 kind: Job
@@ -62,6 +67,10 @@ spec:
               case "$rpw" in
                 *[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_RETENTION_PASSWORD must match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
               esac
+              epw="${EXPORTER_PASSWORD:-}"
+              case "$epw" in
+                *[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_EXPORTER_PASSWORD must match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
+              esac
               export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
               mysql -h mysql-primary -u root <<EOSQL
               CREATE USER IF NOT EXISTS 'migrator'@'%' IDENTIFIED BY '${pw}';
@@ -70,6 +79,17 @@ spec:
                 ON financial_scraper.* TO 'migrator'@'%';
               EOSQL
               echo "migrator user ready"
+              if [ -n "$epw" ]; then
+                mysql -h mysql-primary -u root <<EOSQL
+              CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '${epw}' WITH MAX_USER_CONNECTIONS 3;
+              ALTER USER 'exporter'@'%' IDENTIFIED BY '${epw}' WITH MAX_USER_CONNECTIONS 3;
+              GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'exporter'@'%';
+              GRANT SELECT ON performance_schema.* TO 'exporter'@'%';
+              EOSQL
+                echo "exporter user ready"
+              else
+                echo "MYSQL_EXPORTER_PASSWORD not set: exporter user skipped (mysql_up stays 0 until it is)"
+              fi
               if [ -z "$rpw" ]; then
                 echo "MYSQL_RETENTION_PASSWORD not set: retention user skipped (db-retention will fail until it is)"
                 exit 0
@@ -104,6 +124,12 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: MYSQL_RETENTION_PASSWORD
+                  optional: true
+            - name: EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_EXPORTER_PASSWORD
                   optional: true
           resources:
             requests:

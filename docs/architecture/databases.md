@@ -39,10 +39,21 @@ Inventory (issue #506). Address-manager caches in memory per process, so only th
 | message-manager | `trading-model:message-manager:subscriptions:<topic>` | `HSET HGETALL HDEL PEXPIRE` | Broker subscriptions |
 | message-manager | `trading-model:message-manager:journal:<topic>`, `trading-model:message-manager:journal-groups` | `EXISTS XADD XDEL XREADGROUP XPENDING XCLAIM XACK XGROUP XINFO XRANGE WAIT SADD SMEMBERS` | Durable message journal (ADR-0048) |
 | dlq-service | `dlq:queue` | `LLEN LPUSH LRANGE LTRIM EVAL EVALSHA SCRIPT LOAD` | Replay queue, a cache of the MongoDB entries (rebuilt from MongoDB; the HTTP rate limiter is in memory) |
+| redis_exporter sidecar (user `exporter`) | none | `PING INFO CLIENT SETNAME SLOWLOG GET/LEN LATENCY LATEST/HISTOGRAM`; on the sentinels `SENTINEL MASTERS/SENTINELS/SLAVES/REPLICAS/CKQUORUM` | Metrics (ADR-0055): never `CONFIG GET`, which would hand out `masterauth` |
 
 Dead letters live in MongoDB, not Redis.
 
-Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off (release 3.0.0 keeps it on without a password, with sentinels open, through `REDIS_ALLOW_LEGACY_CLIENTS=true` in `deploy/k8s/infra/redis.yaml`, so 2.x clients survive the upgrade: removed in the next release); the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix. Compose runs one unauthenticated Redis (dev).
+Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off (release 3.0.0 keeps it on without a password, with sentinels open, through `REDIS_ALLOW_LEGACY_CLIENTS=true` in `deploy/k8s/infra/redis.yaml`, so 2.x clients survive the upgrade: removed in the next release); the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix, and the `exporter` user outside its read-only commands. Compose runs one unauthenticated Redis (dev).
+
+## Monitoring users (ADR-0055)
+
+Each database pod runs an exporter sidecar scraped by Prometheus (port `metrics`, reachable from the Prometheus pod only):
+
+| Database | Exporter | Identity |
+| -------- | -------- | -------- |
+| MySQL (every member) | `mysqld-exporter` | MySQL user `exporter`: `PROCESS, REPLICATION CLIENT` on `*.*`, `SELECT` on `performance_schema.*`, 3 connections at most; created by Job `db-migrate-user` (password `MYSQL_EXPORTER_PASSWORD`; compose: one-shot `mysql-exporter-user`) |
+| Redis data nodes and sentinels | `redis_exporter` | ACL user `exporter` above (`REDIS_EXPORTER_PASSWORD`, K8s); compose Redis has no ACL |
+| MongoDB `mongo-dlq` and `mongo-audit` (every member) | `mongodb_exporter` | None: MongoDB runs without authentication, so a read-only user would protect nothing. A `clusterMonitor` user comes with MongoDB authentication (its own issue) |
 
 ## Schema Validation
 

@@ -198,6 +198,17 @@ Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host 
 
 ---
 
+## Database exporters (ADR-0055)
+
+Passwords of the read-only users of the exporter sidecars (`docs/architecture/databases.md`, "Monitoring users"). K8s: keys of Secret `trading-model-secrets`, checked by `deploy.yml` (without them the exporters cannot log in, `MySQLDown` / `RedisDown` fire and the release rolls back). Compose: `.env`.
+
+| Variable                  | Type   | Default | Required | Description | Services |
+| ------------------------- | ------ | ------- | -------- | ----------- | -------- |
+| `MYSQL_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** (K8s and compose) | Password of MySQL user `exporter`, created by `db-migrate-user` (K8s) or `mysql-exporter-user` (compose), read by the `mysqld-exporter` sidecars | mysqld-exporter |
+| `REDIS_EXPORTER_PASSWORD` | string | — | **yes** in K8s | Password of the Redis ACL user `exporter` (`redis-ha.sh`, data nodes and sentinels), read by the `redis-exporter` sidecars | redis-exporter |
+
+---
+
 ## Audit Logger — Audit chain (ADR-0027)
 
 | Variable                  | Type    | Default          | Required | Description | Services |
@@ -256,6 +267,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
+| `MYSQL_EXPORTER_PASSWORD` | string | (required)          | Password of the read-only MySQL user `exporter` of mysqld-exporter (ADR-0055) | DC |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
 | `IMAGE_TAG`           | string | `latest`                | Image tag to pull                  | DC       |
@@ -302,6 +314,7 @@ AUDIT_PORT=8450
 # MySQL
 MYSQL_ROOT_PASSWORD=changeme
 GRAFANA_PASSWORD=change-me-grafana-admin-password
+MYSQL_EXPORTER_PASSWORD=change-me-mysql-exporter-password
 MYSQL_DATABASE=financial_scraper
 
 # Trader-Trainer

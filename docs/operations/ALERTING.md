@@ -138,6 +138,17 @@ file absent from the repository, or on an anchor that matches no heading.
 | `TrainerMarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `CandleDeliveryLagging` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |
+| `KubePodCrashLooping` | warning | [runbook-infrastructure#kubepodcrashlooping](runbooks/runbook-infrastructure.md#kubepodcrashlooping) |
+| `KubeContainerOOMKilled` | warning | [runbook-infrastructure#kubecontaineroomkilled](runbooks/runbook-infrastructure.md#kubecontaineroomkilled) |
+| `KubePersistentVolumeFillingUp` | warning | [runbook-infrastructure#kubepersistentvolumefillingup](runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup) |
+| `NodeFilesystemAlmostFull` | warning | [runbook-infrastructure#nodefilesystemalmostfull](runbooks/runbook-infrastructure.md#nodefilesystemalmostfull) |
+| `MySQLDown` | critical | [runbook-infrastructure#mysqldown](runbooks/runbook-infrastructure.md#mysqldown) |
+| `RedisDown` | critical | [runbook-infrastructure#redisdown](runbooks/runbook-infrastructure.md#redisdown) |
+| `RedisReplicasMissing` | warning | [runbook-infrastructure#redisreplicasmissing](runbooks/runbook-infrastructure.md#redisreplicasmissing) |
+| `RedisSentinelQuorumLost` | critical | [runbook-infrastructure#redissentinelquorumlost](runbooks/runbook-infrastructure.md#redissentinelquorumlost) |
+| `MongoDBDown` | critical | [runbook-infrastructure#mongodbdown](runbooks/runbook-infrastructure.md#mongodbdown) |
+| `MongoDBReplicaSetMemberUnhealthy` | warning | [runbook-infrastructure#mongodbreplicasetmemberunhealthy](runbooks/runbook-infrastructure.md#mongodbreplicasetmemberunhealthy) |
+| `MongoDBReplicaSetNoPrimary` | critical | [runbook-infrastructure#mongodbreplicasetnoprimary](runbooks/runbook-infrastructure.md#mongodbreplicasetnoprimary) |
 | `AlertmanagerNotificationsFailing` | critical | [ALERTING#alerts-on-the-alerting-path](ALERTING.md#alerts-on-the-alerting-path) |
 | `PrometheusRuleEvaluationFailures` | critical | [ALERTING#alerts-on-the-alerting-path](ALERTING.md#alerts-on-the-alerting-path) |
 | `Watchdog` | none | [ALERTING#dead-mans-switch](ALERTING.md#dead-mans-switch) |

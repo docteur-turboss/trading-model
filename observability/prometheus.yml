@@ -111,3 +111,20 @@ scrape_configs:
     static_configs:
       - targets: ['backup-metrics-exporter:9118']
     scrape_interval: 60s
+
+  # Infrastructure exporters (issue #601, ADR-0055).
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysqld-exporter:9104']
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']

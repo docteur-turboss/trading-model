@@ -163,6 +163,7 @@ jobs:
     env:
       MYSQL_ROOT_PASSWORD: ci-password
       GRAFANA_PASSWORD: ci-grafana-password
+      MYSQL_EXPORTER_PASSWORD: ci-mysql-exporter-password
       DLQ_AUTH_HMAC_SECRET: test-hmac-secret
       DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
     steps:

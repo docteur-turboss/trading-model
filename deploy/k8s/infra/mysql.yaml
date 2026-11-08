@@ -181,6 +181,41 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 3
+        # Exporter of this member (issue #601, ADR-0055), as MySQL user
+        # `exporter` (PROCESS, REPLICATION CLIENT, SELECT on performance_schema),
+        # created by the db-migrate-user Job. Without its password key the
+        # exporter reports mysql_up 0 (MySQLDown), the database is unaffected.
+        - name: mysqld-exporter
+          image: quay.io/prometheus/mysqld-exporter:v0.18.0@sha256:2598c0571f383708e19016d119bb45c06128a9ebc962c9f49483278ac5a94c41
+          args:
+            - --mysqld.address=127.0.0.1:3306
+            - --mysqld.username=exporter
+          env:
+            - name: MYSQLD_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_EXPORTER_PASSWORD
+                  optional: true
+          ports:
+            - containerPort: 9104
+              name: metrics
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: mysql-config
           configMap:
@@ -341,6 +376,14 @@ spec:
         - port: 3306
           protocol: TCP
         - port: 33061
+          protocol: TCP
+    # The exporter sidecar: Prometheus only.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: prometheus
+      ports:
+        - port: 9104
           protocol: TCP
   egress:
     - to:

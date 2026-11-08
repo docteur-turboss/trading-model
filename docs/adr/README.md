@@ -62,6 +62,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0052](./0052-audit-chain-amortized-lease-batched-writes.md) | Amortized Audit Chain Lease and Batched Writes | Accepted | 2026-11 |
 | [ADR-0053](./0053-order-books-persisted-not-served.md) | Order Books Persisted in MySQL for Replay, Not Served by the API | Accepted | 2026-11 |
 | [ADR-0054](./0054-public-read-pagination-and-proxy-response-cap.md) | Keyset Pagination of the Public Market Data Reads, Capped Proxied Answers | Accepted | 2026-11 |
+| [ADR-0055](./0055-infrastructure-metrics-exporters.md) | Infrastructure Metrics: kube-state-metrics, node-exporter, Kubelet and Database Exporter Sidecars | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

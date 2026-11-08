@@ -30,6 +30,7 @@ const PASSWORDS = {
 	discovery: "discovery-pw",
 	"message-manager": "message-manager-pw",
 	"dlq-service": "dlq-pw",
+	exporter: "exporter-pw",
 };
 const DISCOVERY_KEY = "trading-model:discovery:spec";
 const HA_ENV = {
@@ -37,6 +38,7 @@ const HA_ENV = {
 	REDIS_DISCOVERY_PASSWORD: PASSWORDS.discovery,
 	REDIS_MESSAGE_MANAGER_PASSWORD: PASSWORDS["message-manager"],
 	REDIS_DLQ_PASSWORD: PASSWORDS["dlq-service"],
+	REDIS_EXPORTER_PASSWORD: PASSWORDS.exporter,
 	REDIS_HOSTS: ORDINALS.map((n) => `redis-${n}`).join(" "),
 	SENTINEL_HOSTS: ORDINALS.map((n) => `redis-sentinel-${n}`).join(" "),
 	DOWN_AFTER_MS: "1000",
@@ -299,6 +301,51 @@ describe("K8s Redis HA start script — real failovers", () => {
 			/NOAUTH|WRONGPASS/
 		);
 		expect((await cli(master, "GET", foreign))[0]).toMatch(/^NOPERM/);
+	});
+
+	// The redis_exporter sidecars (ADR-0055): metrics only, on nodes and sentinels.
+	it("should let the exporter user read metrics and nothing else", async () => {
+		const master = await masterNode();
+		const exporter = async (node: StartedTestContainer, ...args: string[]) =>
+			(await cliAs(node, "exporter", PASSWORDS.exporter, ...args))[0];
+
+		await expect(exporter(master, "INFO", "replication")).resolves.toMatch(
+			/^# Replication/
+		);
+		await expect(exporter(master, "SLOWLOG", "LEN")).resolves.toMatch(/^\d+$/);
+		await expect(
+			exporter(master, "GET", `${DISCOVERY_KEY}:before-failover`)
+		).resolves.toMatch(/^NOPERM/);
+		// CONFIG GET would hand out masterauth, the internal password.
+		await expect(
+			exporter(master, "CONFIG", "GET", "masterauth")
+		).resolves.toMatch(/^NOPERM/);
+		await expect(exporter(master, "REPLICAOF", "NO", "ONE")).resolves.toMatch(
+			/^NOPERM/
+		);
+
+		const port = String(SENTINEL_PORT);
+		await expect(
+			exporter(sentinels[0], "-p", port, "SENTINEL", "CKQUORUM", "mymaster")
+		).resolves.toMatch(/^OK 3 usable Sentinels/);
+		await expect(
+			exporter(sentinels[0], "-p", port, "SENTINEL", "MASTERS")
+		).resolves.toBe("name");
+		await expect(
+			exporter(sentinels[0], "-p", port, "SENTINEL", "FAILOVER", "mymaster")
+		).resolves.toMatch(/^NOPERM/);
+		await expect(
+			exporter(
+				sentinels[0],
+				"-p",
+				port,
+				"SENTINEL",
+				"SET",
+				"mymaster",
+				"quorum",
+				"1"
+			)
+		).resolves.toMatch(/^NOPERM/);
 	});
 
 	it("should fail over when the master pod is deleted, then rejoin it as a replica", async () => {

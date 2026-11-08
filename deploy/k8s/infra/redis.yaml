@@ -179,6 +179,13 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_DLQ_PASSWORD
+            # ACL user of the exporter sidecar (redis-ha.sh exporter_user).
+            - name: REDIS_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_EXPORTER_PASSWORD
+                  optional: true
             # Expand step of 3.0.0 (redis-ha.sh): the 2.x clients, which use no
             # ACL user, keep working during the upgrade. Remove in the next release.
             - name: REDIS_ALLOW_LEGACY_CLIENTS
@@ -237,6 +244,42 @@ spec:
                 - server
             periodSeconds: 5
             timeoutSeconds: 2
+        # Exporter of this node (issue #601, ADR-0055), as ACL user `exporter`:
+        # INFO and read-only commands, no key, no CONFIG GET (masterauth).
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.80.0@sha256:cd5fad1591e585db5b58beec7fca427027c61a4349f50109af67cf2f07964d02
+          env:
+            - name: REDIS_ADDR
+              value: redis://127.0.0.1:6379
+            - name: REDIS_USER
+              value: exporter
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_EXPORTER_PASSWORD
+                  optional: true
+            - name: REDIS_EXPORTER_CONFIG_COMMAND
+              value: "-"
+          ports:
+            - containerPort: 9121
+              name: metrics
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: redis-ha-scripts
           configMap:
@@ -345,6 +388,13 @@ spec:
               value: "redis-sentinel-0.redis-sentinel-headless redis-sentinel-1.redis-sentinel-headless redis-sentinel-2.redis-sentinel-headless"
             - name: SENTINEL_CONF
               value: /sentinel/sentinel.conf
+            # ACL user of the exporter sidecar (user exporter of sentinel.conf, redis-ha.sh).
+            - name: REDIS_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_EXPORTER_PASSWORD
+                  optional: true
           ports:
             - containerPort: 26379
               name: sentinel
@@ -397,6 +447,42 @@ spec:
                 - sentinel
             periodSeconds: 5
             timeoutSeconds: 2
+        # Exporter of this sentinel (issue #601, ADR-0055), as ACL user `exporter`:
+        # INFO and read-only commands, no key, no CONFIG GET (masterauth).
+        - name: redis-exporter
+          image: oliver006/redis_exporter:v1.80.0@sha256:cd5fad1591e585db5b58beec7fca427027c61a4349f50109af67cf2f07964d02
+          env:
+            - name: REDIS_ADDR
+              value: redis://127.0.0.1:26379
+            - name: REDIS_USER
+              value: exporter
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_EXPORTER_PASSWORD
+                  optional: true
+            - name: REDIS_EXPORTER_CONFIG_COMMAND
+              value: "-"
+          ports:
+            - containerPort: 9121
+              name: metrics
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: sentinel-config
           emptyDir: {}
@@ -442,4 +528,12 @@ spec:
         - port: 6379
           protocol: TCP
         - port: 26379
+          protocol: TCP
+    # The exporter sidecars: Prometheus only.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: prometheus
+      ports:
+        - port: 9121
           protocol: TCP
