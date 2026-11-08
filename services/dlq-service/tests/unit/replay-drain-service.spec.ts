@@ -3,7 +3,11 @@ import { describe, expect, it, jest } from "@jest/globals";
 let mockActiveReplaysCount = 0;
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/application/services/active-replay-counter", () => ({

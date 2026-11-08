@@ -1,9 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_AUTO_RETRY_TICK = jest.fn();
-const MOCK_START_REDIS_WORKER = jest.fn();
-const MOCK_STOP_REDIS_WORKER = jest.fn();
-const MOCK_IS_SHUTTING_DOWN = jest.fn();
+const MOCK_AUTO_RETRY_TICK = jest.fn<(...args: any[]) => any>();
+const MOCK_START_REDIS_WORKER = jest.fn<(...args: any[]) => any>();
+const MOCK_STOP_REDIS_WORKER = jest.fn<(...args: any[]) => any>();
+const MOCK_IS_SHUTTING_DOWN = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -13,7 +13,11 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/container", () => ({
@@ -81,7 +85,7 @@ describe("auto-retry-scheduler", () => {
 		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
 		MOCK_AUTO_RETRY_TICK.mockRejectedValue(new Error("tick failed"));
 		const logger = jest.requireMock("../../src/config/logger") as {
-			logger: { error: jest.Mock };
+			logger: { error: jest.Mock<(...args: any[]) => any> };
 		};
 
 		const { stopAutoRetry } = jest.requireActual(

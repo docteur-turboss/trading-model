@@ -48,21 +48,22 @@ describe("signal-handler", () => {
 			const hardShutdown = jest.fn();
 
 			const handlers: Array<() => void> = [];
-			jest
-				.spyOn(process, "on")
-				.mockImplementation((event: string, handler: () => void) => {
-					if (
-						[
-							"SIGTERM",
-							"SIGINT",
-							"uncaughtException",
-							"unhandledRejection",
-						].includes(event)
-					) {
-						handlers.push(handler);
-					}
-					return process;
-				});
+			jest.spyOn(process, "on").mockImplementation(((
+				event: string | symbol,
+				handler: () => void
+			) => {
+				if (
+					[
+						"SIGTERM",
+						"SIGINT",
+						"uncaughtException",
+						"unhandledRejection",
+					].includes(event as string)
+				) {
+					handlers.push(handler);
+				}
+				return process;
+			}) as never);
 
 			setupProcessHandlers(shutdown, hardShutdown);
 
@@ -80,14 +81,14 @@ describe("signal-handler", () => {
 			jest
 				.spyOn(process, "on")
 				.mockImplementation(
-					(event: string, handler: (arg?: unknown) => void) => {
+					(event: string | symbol, handler: (arg?: unknown) => void) => {
 						if (
 							[
 								"SIGTERM",
 								"SIGINT",
 								"uncaughtException",
 								"unhandledRejection",
-							].includes(event)
+							].includes(event as string)
 						) {
 							handlers.push(handler);
 						}
@@ -114,14 +115,14 @@ describe("signal-handler", () => {
 			jest
 				.spyOn(process, "on")
 				.mockImplementation(
-					(event: string, handler: (arg?: unknown) => void) => {
+					(event: string | symbol, handler: (arg?: unknown) => void) => {
 						if (
 							[
 								"SIGTERM",
 								"SIGINT",
 								"uncaughtException",
 								"unhandledRejection",
-							].includes(event)
+							].includes(event as string)
 						) {
 							handlers.push(handler);
 						}

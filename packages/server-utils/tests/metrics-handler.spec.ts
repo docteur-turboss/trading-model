@@ -18,7 +18,7 @@ describe("metricsHandler", () => {
 			send: jest.fn(),
 		};
 
-		metricsHandler({} as never, res as never);
+		metricsHandler({} as never, res as never, jest.fn());
 
 		expect(res.set).toHaveBeenCalledWith(
 			"Content-Type",

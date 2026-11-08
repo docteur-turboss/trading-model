@@ -1,4 +1,13 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import type { Protocol } from "@trading-model/contracts/service-registry-types";
+import type {
+	DurationMs,
+	InstanceId,
+	Port,
+	ServiceId,
+	UnixTimestamp,
+	Version,
+} from "@trading-model/primitives/primitives";
 
 jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	ResponseException: jest.fn((body: any) => ({
@@ -36,31 +45,39 @@ describe("helpers", () => {
 
 		it("should throw Unauthorized if token header is empty string", async () => {
 			await expect(
-				validateInstanceToken(registry, "", "instance-1")
+				validateInstanceToken(registry, "", "instance-1" as InstanceId)
 			).rejects.toThrow();
 		});
 
 		it("should throw Unauthorized if token is invalid", async () => {
 			await expect(
-				validateInstanceToken(registry, "invalid-token", "instance-1")
+				validateInstanceToken(
+					registry,
+					"invalid-token",
+					"instance-1" as InstanceId
+				)
 			).rejects.toThrow();
 		});
 
 		it("should not throw if token is valid", async () => {
 			const registered = await registry.registerInstance({
-				serviceName: "financial-scraper-service",
-				instanceId: "instance-1",
+				serviceName: "financial-scraper-service" as ServiceId,
+				instanceId: "instance-1" as InstanceId,
 				ip: "1.1.1.1",
-				port: 8080,
-				ttl: 30000,
-				protocol: "mtls",
-				version: "1.0.0",
-				registeredAt: Date.now(),
-				lastHeartbeat: Date.now(),
+				port: 8080 as Port,
+				ttl: 30000 as DurationMs,
+				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: Date.now() as UnixTimestamp,
+				lastHeartbeat: Date.now() as UnixTimestamp,
 			});
 
 			await expect(
-				validateInstanceToken(registry, registered.token, "instance-1")
+				validateInstanceToken(
+					registry,
+					registered.token,
+					"instance-1" as InstanceId
+				)
 			).resolves.toBeUndefined();
 		});
 
@@ -75,19 +92,23 @@ describe("helpers", () => {
 				tokenStore,
 			});
 			const registered = await replicaA.registerInstance({
-				serviceName: "financial-scraper-service",
-				instanceId: "instance-1",
+				serviceName: "financial-scraper-service" as ServiceId,
+				instanceId: "instance-1" as InstanceId,
 				ip: "1.1.1.1",
-				port: 8080,
-				ttl: 30000,
-				protocol: "mtls",
-				version: "1.0.0",
-				registeredAt: Date.now(),
-				lastHeartbeat: Date.now(),
+				port: 8080 as Port,
+				ttl: 30000 as DurationMs,
+				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: Date.now() as UnixTimestamp,
+				lastHeartbeat: Date.now() as UnixTimestamp,
 			});
 
 			await expect(
-				validateInstanceToken(replicaB, registered.token, "instance-1")
+				validateInstanceToken(
+					replicaB,
+					registered.token,
+					"instance-1" as InstanceId
+				)
 			).resolves.toBeUndefined();
 		});
 	});

@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_RESOLVE_MESSAGE_MANAGER_URL = jest.fn();
+const MOCK_RESOLVE_MESSAGE_MANAGER_URL = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/config/dlq-adapters", () => ({
 	resolveMessageManagerUrl: MOCK_RESOLVE_MESSAGE_MANAGER_URL,
@@ -12,8 +12,8 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 
 describe("dlq-replay-resolver", () => {
 	const mockSpan = {
-		setStatus: jest.fn(),
-		end: jest.fn(),
+		setStatus: jest.fn<(...args: any[]) => any>(),
+		end: jest.fn<(...args: any[]) => any>(),
 	};
 
 	beforeEach(() => {

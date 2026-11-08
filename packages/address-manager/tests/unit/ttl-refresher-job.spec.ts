@@ -7,7 +7,7 @@ describe("createRefreshJob<AddressManagerClient>", () => {
 
 	beforeEach(() => {
 		mockClient = {
-			refreshTTL: jest.fn(),
+			refreshTTL: jest.fn<(...args: any[]) => any>(),
 		} as unknown as jest.Mocked<AddressManagerClient>;
 	});
 

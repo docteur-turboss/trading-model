@@ -17,6 +17,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
 import {
 	type DlqEntry,
 	DrainOutcome,
@@ -24,7 +25,7 @@ import {
 } from "../../../../src/infrastructure/fallback/dlq-repository";
 
 jest.mock("../../../../src/config/metrics", () => ({
-	MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.fn() },
+	MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.fn<(...args: any[]) => any>() },
 }));
 
 describe("FileDlqRepository", () => {
@@ -43,7 +44,7 @@ describe("FileDlqRepository", () => {
 			const entry: DlqEntry = {
 				message: { payload: "test", metadata: { topic: "test.topic" } },
 				reason: "DeadLetterError",
-				deliveryAttempt: 3,
+				deliveryAttempt: 3 as PositiveInt,
 				timestamp: "2026-06-06T12:00:00.000Z",
 			};
 
@@ -64,14 +65,14 @@ describe("FileDlqRepository", () => {
 
 			await repo.insert({
 				message: { id: 1 },
-				deliveryAttempt: 1,
+				deliveryAttempt: 1 as PositiveInt,
 				timestamp: "2026-06-06T12:00:01.000Z",
 			});
 
 			await repo.insert({
 				message: { id: 2 },
 				reason: "TTL_EXPIRED",
-				deliveryAttempt: 2,
+				deliveryAttempt: 2 as PositiveInt,
 				timestamp: "2026-06-06T12:00:02.000Z",
 			});
 
@@ -96,7 +97,7 @@ describe("FileDlqRepository", () => {
 
 			await repo.insert({
 				message: "plain string payload",
-				deliveryAttempt: 0,
+				deliveryAttempt: 0 as PositiveInt,
 				timestamp: "2026-06-06T12:00:03.000Z",
 			});
 
@@ -119,13 +120,13 @@ describe("FileDlqRepository", () => {
 				.mockRejectedValue(new Error("disk full"));
 			const repo = new FileDlqRepository(testFilePath);
 			const { MESSAGES_DLQ_ERROR_TOTAL } = jest.requireMock<{
-				MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.Mock };
+				MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.Mock<(...args: any[]) => any> };
 			}>("../../../../src/config/metrics");
 
 			await expect(
 				repo.insert({
 					message: { payload: "test" },
-					deliveryAttempt: 1,
+					deliveryAttempt: 1 as PositiveInt,
 					timestamp: "2026-06-06T12:00:04.000Z",
 				})
 			).rejects.toThrow("disk full");

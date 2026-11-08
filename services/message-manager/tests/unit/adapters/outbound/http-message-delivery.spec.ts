@@ -6,6 +6,10 @@ import {
 	createHttpClientError,
 	createHttpClientTimeoutError,
 } from "@trading-model/http/adapters/outbound/http-client-errors";
+import type {
+	SequenceNumber,
+	URLString,
+} from "@trading-model/primitives/primitives";
 import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
 import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "../../../../src/domain/backoff-calculator";
 import { FileDlqRepository } from "../../../../src/infrastructure/fallback/dlq-repository";
@@ -31,7 +35,7 @@ describe("HttpMessageDelivery", () => {
 			const context = { deliveryAttempt: 1 };
 
 			await delivery.send({
-				url: "http://example.com/callback",
+				url: "http://example.com/callback" as URLString,
 				message,
 				context,
 			});
@@ -52,9 +56,9 @@ describe("HttpMessageDelivery", () => {
 			mockHttpClient.post.mockRejectedValue(error as never);
 			return delivery
 				.send({
-					url: "http://example.com/callback",
+					url: "http://example.com/callback" as URLString,
 					message: createMockMessage({ key: "value" }),
-					context: { deliveryAttempt: 1 },
+					context: { deliveryAttempt: 1 as SequenceNumber },
 				})
 				.then(
 					() => undefined,
@@ -102,7 +106,7 @@ describe("HttpMessageDelivery", () => {
 			await delivery.markDeadLetter({
 				message,
 				reason: "REASON",
-				deliveryAttempt: 3,
+				deliveryAttempt: 3 as SequenceNumber,
 			});
 
 			expect(appendFile).toHaveBeenCalledWith(
@@ -111,7 +115,8 @@ describe("HttpMessageDelivery", () => {
 				"utf-8"
 			);
 			const written = JSON.parse(
-				(appendFile as unknown as jest.Mock).mock.calls[0][1]
+				(appendFile as unknown as jest.Mock<(...args: any[]) => any>).mock
+					.calls[0][1]
 			);
 			expect(written.topic).toBe(message.metadata.topic);
 			expect(written.reason).toBe("REASON");

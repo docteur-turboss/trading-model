@@ -21,17 +21,17 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-const mockIsDbConnected = jest.fn();
+const mockIsDbConnected = jest.fn<(...args: any[]) => any>();
 jest.mock("../../src/config/db", () => ({
 	isDbConnected: mockIsDbConnected,
 }));
 
 function createMockSpan() {
 	return {
-		setStatus: jest.fn(),
-		end: jest.fn(),
-		setAttribute: jest.fn(),
-		recordException: jest.fn(),
+		setStatus: jest.fn<(...args: any[]) => any>(),
+		end: jest.fn<(...args: any[]) => any>(),
+		setAttribute: jest.fn<(...args: any[]) => any>(),
+		recordException: jest.fn<(...args: any[]) => any>(),
 	};
 }
 

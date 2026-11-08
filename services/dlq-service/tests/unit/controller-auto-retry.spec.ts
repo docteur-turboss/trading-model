@@ -1,17 +1,17 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_INSERT = jest.fn();
-const MOCK_QUERY = jest.fn();
-const MOCK_DELETE = jest.fn();
-const MOCK_COUNT = jest.fn();
-const MOCK_PRUNE = jest.fn();
-const MOCK_CLAIM_ENTRIES_FOR_RETRY = jest.fn();
-const MOCK_RELEASE_STALE_CLAIMS = jest.fn();
-const MOCK_LIST_QUEUABLE = jest.fn();
-const MOCK_MARK_RETRIED = jest.fn();
-const MOCK_ABANDON_EXHAUSTED = jest.fn();
-const MOCK_RELEASE_CLAIM_WITHOUT_COUNT = jest.fn();
-const MOCK_RELEASE_CLAIMS_BY_INSTANCE = jest.fn();
+const MOCK_INSERT = jest.fn<(...args: any[]) => any>();
+const MOCK_QUERY = jest.fn<(...args: any[]) => any>();
+const MOCK_DELETE = jest.fn<(...args: any[]) => any>();
+const MOCK_COUNT = jest.fn<(...args: any[]) => any>();
+const MOCK_PRUNE = jest.fn<(...args: any[]) => any>();
+const MOCK_CLAIM_ENTRIES_FOR_RETRY = jest.fn<(...args: any[]) => any>();
+const MOCK_RELEASE_STALE_CLAIMS = jest.fn<(...args: any[]) => any>();
+const MOCK_LIST_QUEUABLE = jest.fn<(...args: any[]) => any>();
+const MOCK_MARK_RETRIED = jest.fn<(...args: any[]) => any>();
+const MOCK_ABANDON_EXHAUSTED = jest.fn<(...args: any[]) => any>();
+const MOCK_RELEASE_CLAIM_WITHOUT_COUNT = jest.fn<(...args: any[]) => any>();
+const MOCK_RELEASE_CLAIMS_BY_INSTANCE = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/adapters/outbound/repository", () => ({
 	dlqRepository: {
@@ -62,42 +62,46 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 
 jest.mock("../../src/config/db", () => ({
 	isDbConnected: () => true,
-	getCollection: jest.fn(),
+	getCollection: jest.fn<(...args: any[]) => any>(),
 	getMissingCriticalIndexes: () => [],
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	FIND_A_SERVICE: jest.fn(),
+	FIND_A_SERVICE: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	publishDlqEvent: jest.fn(),
+	publishDlqEvent: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: {
-		push: jest.fn(() => Promise.resolve(true)),
-		pop: jest.fn(() => Promise.resolve(null)),
-		isAvailable: jest.fn(() => true),
-		connect: jest.fn(() => Promise.resolve(true)),
-		close: jest.fn(() => Promise.resolve()),
+		push: jest.fn((..._args: any[]) => Promise.resolve(true)),
+		pop: jest.fn((..._args: any[]) => Promise.resolve(null)),
+		isAvailable: jest.fn((..._args: any[]) => true),
+		connect: jest.fn((..._args: any[]) => Promise.resolve(true)),
+		close: jest.fn((..._args: any[]) => Promise.resolve()),
 	},
 }));
 
 jest.mock("../../src/config/metrics", () => ({
 	metrics: {
-		entriesAdded: { inc: jest.fn() },
-		entriesDeleted: { inc: jest.fn() },
-		entriesReplayed: { inc: jest.fn() },
-		entriesReplayFailed: { inc: jest.fn() },
-		entriesPruned: { inc: jest.fn() },
-		pruneErrors: { inc: jest.fn() },
-		entrySizeBytes: { observe: jest.fn() },
-		collectionSize: { set: jest.fn() },
+		entriesAdded: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesDeleted: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesPruned: { inc: jest.fn<(...args: any[]) => any>() },
+		pruneErrors: { inc: jest.fn<(...args: any[]) => any>() },
+		entrySizeBytes: { observe: jest.fn<(...args: any[]) => any>() },
+		collectionSize: { set: jest.fn<(...args: any[]) => any>() },
 	},
 }));
 
@@ -109,9 +113,9 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	sendResponse: (data: unknown, statusCode: number) => ({ data, statusCode }),
 }));
 
-const MOCK_HTTP_POST = jest.fn();
+const MOCK_HTTP_POST = jest.fn<(...args: any[]) => any>();
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
-	HttpClient: jest.fn().mockImplementation(() => ({
+	HttpClient: jest.fn<(...args: any[]) => any>().mockImplementation(() => ({
 		post: MOCK_HTTP_POST,
 	})),
 }));

@@ -12,7 +12,7 @@ describe("MTLSAuthorizationMiddleware", () => {
 			clientIdentity: "spiffe://cluster.local/ns/default/sa/any-service",
 		} as unknown as Request;
 		const res = {} as unknown as Response;
-		const next = jest.fn() as NextFunction;
+		const next = jest.fn<(...args: any[]) => any>() as NextFunction;
 
 		void middleware(req, res, next);
 		expect(next).toHaveBeenCalled();
@@ -24,7 +24,7 @@ describe("MTLSAuthorizationMiddleware", () => {
 			clientIdentity: "spiffe://cluster.local/ns/default/sa/unknown-service",
 		} as unknown as Request;
 		const res = {} as unknown as Response;
-		const next = jest.fn() as NextFunction;
+		const next = jest.fn<(...args: any[]) => any>() as NextFunction;
 
 		void middleware(req, res, next);
 		expect(next).toHaveBeenCalled();
@@ -49,7 +49,7 @@ describe("MTLSAuthorizationMiddleware", () => {
 				[ServiceId.of("message-manager")]
 			);
 			const req = { clientIdentity, method, path } as Request;
-			const next = jest.fn() as NextFunction;
+			const next = jest.fn<(...args: any[]) => any>() as NextFunction;
 			void middleware(req, {} as Response, next);
 			return next;
 		}

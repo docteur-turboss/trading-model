@@ -95,7 +95,7 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 			})
 		);
 		await new Promise<void>((resolve) => {
-			server = app.listen(0, resolve);
+			server = app.listen(0, () => resolve());
 		});
 		baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 	});
@@ -108,7 +108,7 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 	/** GET the path, check the JSON response against the route's entry. */
 	async function get(route: ApiRoute, path: string) {
 		const res = await fetch(`${baseUrl}${path}`);
-		const body = await res.json();
+		const body = (await res.json()) as any;
 		expect(responseIssues(route, res.status, body)).toEqual([]);
 		return { status: res.status, body };
 	}

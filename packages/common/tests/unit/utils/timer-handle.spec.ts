@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { DurationMs } from "@trading-model/primitives/primitives";
 import { TimerHandle } from "../../../src/utils/timer-handle";
 
 describe("TimerHandle", () => {
@@ -10,7 +11,10 @@ describe("TimerHandle", () => {
 	it("should be running after startInterval", () => {
 		jest.useFakeTimers();
 		const handle = new TimerHandle();
-		handle.startInterval(jest.fn(), 1000);
+		handle.startInterval(
+			jest.fn<(...args: any[]) => any>(),
+			1000 as DurationMs
+		);
 		expect(handle.isRunning).toBe(true);
 		handle.stop();
 		jest.useRealTimers();
@@ -19,7 +23,7 @@ describe("TimerHandle", () => {
 	it("should be running after startTimeout", () => {
 		jest.useFakeTimers();
 		const handle = new TimerHandle();
-		handle.startTimeout(jest.fn(), 1000);
+		handle.startTimeout(jest.fn<(...args: any[]) => any>(), 1000 as DurationMs);
 		expect(handle.isRunning).toBe(true);
 		handle.stop();
 		jest.useRealTimers();
@@ -28,7 +32,10 @@ describe("TimerHandle", () => {
 	it("should stop and clear handle", () => {
 		jest.useFakeTimers();
 		const handle = new TimerHandle();
-		handle.startInterval(jest.fn(), 1000);
+		handle.startInterval(
+			jest.fn<(...args: any[]) => any>(),
+			1000 as DurationMs
+		);
 		handle.stop();
 		expect(handle.isRunning).toBe(false);
 		jest.useRealTimers();

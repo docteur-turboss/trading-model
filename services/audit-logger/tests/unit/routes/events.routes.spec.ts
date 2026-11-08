@@ -17,7 +17,9 @@ import express from "express";
 
 jest.mock("../../../src/config/metrics", () => ({
 	EVENTS_QUERY_DURATION_SECONDS: {
-		startTimer: jest.fn().mockReturnValue(jest.fn()),
+		startTimer: jest
+			.fn<(...args: any[]) => any>()
+			.mockReturnValue(jest.fn<(...args: any[]) => any>()),
 	},
 }));
 
@@ -47,9 +49,9 @@ const EVENT = {
 };
 
 const auditRepo = {
-	query: jest.fn<any>(),
-	findById: jest.fn<any>(),
-	getStats: jest.fn<any>(),
+	query: jest.fn<(...args: any[]) => any>(),
+	findById: jest.fn<(...args: any[]) => any>(),
+	getStats: jest.fn<(...args: any[]) => any>(),
 };
 
 describe("audit-logger HTTP API (AUDIT_API)", () => {
@@ -60,7 +62,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 		const app = express();
 		app.use(eventsRoutes(auditRepo as never));
 		await new Promise<void>((resolve) => {
-			server = app.listen(0, resolve);
+			server = app.listen(0, () => resolve());
 		});
 		baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 	});
@@ -113,7 +115,9 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 				limit: 10,
 				withTotal: true,
 			});
-			const startTimer = EVENTS_QUERY_DURATION_SECONDS.startTimer as jest.Mock;
+			const startTimer = EVENTS_QUERY_DURATION_SECONDS.startTimer as jest.Mock<
+				(...args: any[]) => any
+			>;
 			expect(startTimer).toHaveBeenCalledTimes(1);
 			expect(startTimer.mock.results[0].value).toHaveBeenCalledTimes(1);
 		});

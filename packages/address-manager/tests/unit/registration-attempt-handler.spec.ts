@@ -2,15 +2,18 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { RegistrationAttemptHandler } from "../../src/application/registration-attempt-handler";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { error: jest.fn(), info: jest.fn() },
+	logger: {
+		error: jest.fn<(...args: any[]) => any>(),
+		info: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 function setup(registerService: () => Promise<{ token?: string }>) {
 	const deps = {
 		addressManagerClient: { registerService },
-		tokenManager: { setToken: jest.fn() },
-		onSuccess: jest.fn(),
-		onFailure: jest.fn(),
+		tokenManager: { setToken: jest.fn<(...args: any[]) => any>() },
+		onSuccess: jest.fn<(...args: any[]) => any>(),
+		onFailure: jest.fn<(...args: any[]) => any>(),
 	};
 	return { deps, handler: new RegistrationAttemptHandler(deps as never) };
 }

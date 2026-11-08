@@ -68,10 +68,10 @@ describe("BROKER_ROUTES", () => {
 			}
 		).route.stack;
 
-		const setTimeout = jest.fn();
+		const setTimeout = jest.fn<(...args: any[]) => any>();
 		const req = { setTimeout } as unknown as Request;
 		const res = {} as Response;
-		const next = jest.fn();
+		const next = jest.fn<(...args: any[]) => any>();
 
 		const timeoutMiddleware = routeStack[0].handle as (
 			req: Request,

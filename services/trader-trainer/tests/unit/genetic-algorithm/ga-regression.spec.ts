@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { crossoverGenomes } from "../../../src/domain/genetic-algorithm/crossover/genome-crossover";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome-types";
@@ -8,8 +9,14 @@ describe("GA Regression — Crossover", () => {
 		it("offspring preserves parent A structure when crossover is skipped", () => {
 			const rng = jest.fn<() => number>();
 			rng.mockReturnValue(1);
-			const parentA = createDefaultGenome("parent-a", 3) as LamarckGenome;
-			const parentB = createDefaultGenome("parent-b", 3) as LamarckGenome;
+			const parentA = createDefaultGenome(
+				"parent-a",
+				3 as PositiveInt
+			) as LamarckGenome;
+			const parentB = createDefaultGenome(
+				"parent-b",
+				3 as PositiveInt
+			) as LamarckGenome;
 			const child = crossoverGenomes(parentA, parentB, rng);
 			expect(child.id).toBe(parentA.id);
 			expect(child.network.inputDim).toBe(parentA.network.inputDim);
@@ -20,8 +27,14 @@ describe("GA Regression — Crossover", () => {
 		it("produces valid genome after crossover with deterministic RNG", () => {
 			const rng = jest.fn<() => number>();
 			rng.mockReturnValue(0);
-			const parentA = createDefaultGenome("parent-a", 3) as LamarckGenome;
-			const parentB = createDefaultGenome("parent-b", 3) as LamarckGenome;
+			const parentA = createDefaultGenome(
+				"parent-a",
+				3 as PositiveInt
+			) as LamarckGenome;
+			const parentB = createDefaultGenome(
+				"parent-b",
+				3 as PositiveInt
+			) as LamarckGenome;
 			const child = crossoverGenomes(parentA, parentB, rng);
 			expect(child).toBeDefined();
 			expect(child.id).toBe(parentA.id);
@@ -36,7 +49,10 @@ describe("GA Regression — Crossover", () => {
 		it("identical parents produce identical offspring", () => {
 			const rng = jest.fn<() => number>();
 			rng.mockReturnValue(0);
-			const parent = createDefaultGenome("parent", 3) as LamarckGenome;
+			const parent = createDefaultGenome(
+				"parent",
+				3 as PositiveInt
+			) as LamarckGenome;
 			const child1 = crossoverGenomes(parent, parent, rng);
 			rng.mockClear();
 			rng.mockReturnValue(0);

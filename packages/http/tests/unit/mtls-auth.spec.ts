@@ -32,12 +32,12 @@ import { MTLSAuthMiddleware } from "@trading-model/http/adapters/inbound/mtls-au
 describe("MTLSAuthMiddleware", () => {
 	let req: any;
 	let res: any;
-	let next: jest.Mock;
+	let next: jest.Mock<(...args: any[]) => any>;
 
 	beforeEach(() => {
 		req = { socket: {} };
 		res = {};
-		next = jest.fn();
+		next = jest.fn<(...args: any[]) => any>();
 	});
 
 	it("should throw Forbidden when socket is not a TLSSocket", () => {
@@ -50,7 +50,7 @@ describe("MTLSAuthMiddleware", () => {
 		req.socket = {
 			authorized: false,
 			authorizationError: "unauthorized client",
-			getPeerCertificate: jest.fn(),
+			getPeerCertificate: jest.fn<(...args: any[]) => any>(),
 		};
 
 		expect(() => MTLSAuthMiddleware(req, res, next)).toThrow();
@@ -60,7 +60,7 @@ describe("MTLSAuthMiddleware", () => {
 		req.socket = {
 			authorized: true,
 			authorizationError: undefined,
-			getPeerCertificate: jest.fn(() => ({})),
+			getPeerCertificate: jest.fn((..._args: any[]) => ({})),
 		};
 
 		expect(() => MTLSAuthMiddleware(req, res, next)).toThrow();
@@ -74,7 +74,7 @@ describe("MTLSAuthMiddleware", () => {
 		req.socket = {
 			authorized: true,
 			authorizationError: undefined,
-			getPeerCertificate: jest.fn(() => cert),
+			getPeerCertificate: jest.fn((..._args: any[]) => cert),
 		};
 
 		void MTLSAuthMiddleware(req, res, next);
@@ -91,7 +91,7 @@ describe("MTLSAuthMiddleware", () => {
 		req.socket = {
 			authorized: true,
 			authorizationError: undefined,
-			getPeerCertificate: jest.fn(() => cert),
+			getPeerCertificate: jest.fn((..._args: any[]) => cert),
 		};
 
 		void MTLSAuthMiddleware(req, res, next);
@@ -108,7 +108,7 @@ describe("MTLSAuthMiddleware", () => {
 		req.socket = {
 			authorized: true,
 			authorizationError: undefined,
-			getPeerCertificate: jest.fn(() => cert),
+			getPeerCertificate: jest.fn((..._args: any[]) => cert),
 		};
 
 		void MTLSAuthMiddleware(req, res, next);
@@ -125,7 +125,7 @@ describe("MTLSAuthMiddleware", () => {
 		req.socket = {
 			authorized: true,
 			authorizationError: undefined,
-			getPeerCertificate: jest.fn(() => cert),
+			getPeerCertificate: jest.fn((..._args: any[]) => cert),
 		};
 
 		expect(() => MTLSAuthMiddleware(req, res, next)).toThrow();

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_APP = {
-	use: jest.fn(),
-	post: jest.fn(),
-	get: jest.fn(),
+	use: jest.fn<(...args: any[]) => any>(),
+	post: jest.fn<(...args: any[]) => any>(),
+	get: jest.fn<(...args: any[]) => any>(),
 };
 
 const MOCK_SERVER = {
@@ -16,14 +16,16 @@ const MOCK_TLS_CONFIG = {
 	ca: "/some/ca.pem",
 };
 
-const MOCK_MESSAGE_HANDLER = jest.fn();
-const MOCK_HEALTH_ROUTES = jest.fn();
-const MOCK_EVENTS_ROUTES = jest.fn();
+const MOCK_MESSAGE_HANDLER = jest.fn<(...args: any[]) => any>();
+const MOCK_HEALTH_ROUTES = jest.fn<(...args: any[]) => any>();
+const MOCK_EVENTS_ROUTES = jest.fn<(...args: any[]) => any>();
 jest.mock(
 	"@trading-model/server-utils/adapters/inbound/create-secure-server",
 	() => ({
-		createSecureServer: jest.fn(() => Promise.resolve(MOCK_SERVER)),
-		buildTlsFromEnv: jest.fn(() => MOCK_TLS_CONFIG),
+		createSecureServer: jest.fn((..._args: any[]) =>
+			Promise.resolve(MOCK_SERVER)
+		),
+		buildTlsFromEnv: jest.fn((..._args: any[]) => MOCK_TLS_CONFIG),
 	})
 );
 
@@ -42,21 +44,21 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../../src/adapters/inbound/http/health.routes", () => ({
-	healthRoutes: jest.fn(() => MOCK_HEALTH_ROUTES),
+	healthRoutes: jest.fn((..._args: any[]) => MOCK_HEALTH_ROUTES),
 }));
 
 jest.mock("../../../src/adapters/inbound/http/events.routes", () => ({
-	eventsRoutes: jest.fn(() => MOCK_EVENTS_ROUTES),
+	eventsRoutes: jest.fn((..._args: any[]) => MOCK_EVENTS_ROUTES),
 }));
 
 jest.mock("../../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: jest.fn(),
+	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock(
 	"../../../src/adapters/inbound/subscription/audit-subscriber",
 	() => ({
-		createMessageHandler: jest.fn(() => MOCK_MESSAGE_HANDLER),
+		createMessageHandler: jest.fn((..._args: any[]) => MOCK_MESSAGE_HANDLER),
 	})
 );
 
@@ -71,8 +73,10 @@ describe("createServer", () => {
 	});
 
 	it("should create a secure server and register all routes", async () => {
-		const auditRepo = { insert: jest.fn() } as any;
-		const mongoManager = { isConnected: jest.fn(() => true) } as any;
+		const auditRepo = { insert: jest.fn<(...args: any[]) => any>() } as any;
+		const mongoManager = {
+			isConnected: jest.fn((..._args: any[]) => true),
+		} as any;
 
 		const server = await createServer(
 			auditRepo,
@@ -88,8 +92,9 @@ describe("createServer", () => {
 			})
 		);
 
-		const secureServerOptions = (createSecureServer as jest.Mock).mock
-			.calls[0][0] as any;
+		const secureServerOptions = (
+			createSecureServer as jest.Mock<(...args: any[]) => any>
+		).mock.calls[0][0] as any;
 
 		secureServerOptions.routes(MOCK_APP);
 
@@ -101,7 +106,9 @@ describe("createServer", () => {
 		// POST /message is mounted from AUDIT_API.receive on its own router.
 		const brokerRouter = MOCK_APP.use.mock.calls
 			.map((call) => call[0] as { stack?: Array<{ route?: { path: string } }> })
-			.find((arg) => typeof arg === "function" && arg.stack);
+			.find(
+				(arg) => typeof arg === "function" && (arg as { stack?: unknown }).stack
+			);
 		expect(brokerRouter?.stack?.[0]?.route?.path).toBe("/message");
 	});
 });

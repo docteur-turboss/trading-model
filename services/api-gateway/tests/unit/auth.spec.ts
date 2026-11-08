@@ -11,10 +11,10 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		warn: jest.fn(),
-		info: jest.fn(),
-		error: jest.fn(),
-		debug: jest.fn(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		info: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 

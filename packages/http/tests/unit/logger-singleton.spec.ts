@@ -8,9 +8,9 @@ import {
 } from "@jest/globals";
 
 jest.mock("fs", () => ({
-	existsSync: jest.fn().mockReturnValue(false),
-	mkdirSync: jest.fn(),
-	writeFile: jest.fn(),
+	existsSync: jest.fn<(...args: any[]) => any>().mockReturnValue(false),
+	mkdirSync: jest.fn<(...args: any[]) => any>(),
+	writeFile: jest.fn<(...args: any[]) => any>(),
 }));
 
 const OLD_ENV = process.env.NODE_ENV;

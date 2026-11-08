@@ -13,11 +13,11 @@ import {
 } from "../../src/infrastructure/scheduler/scheduler";
 
 jest.mock("node-cron", () => ({
-	schedule: jest.fn(),
+	schedule: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { error: jest.fn() },
+	logger: { error: jest.fn<(...args: any[]) => any>() },
 }));
 
 import { logger } from "@trading-model/http/infrastructure/logger";
@@ -27,7 +27,10 @@ const MOCK_LOGGER_ERROR = jest.mocked(logger.error);
 describe("Scheduler", () => {
 	let scheduler: Scheduler;
 	let mockJob: jest.Mocked<ScheduledJob>;
-	let mockTask: { start: jest.Mock; stop: jest.Mock };
+	let mockTask: {
+		start: jest.Mock<(...args: any[]) => any>;
+		stop: jest.Mock<(...args: any[]) => any>;
+	};
 
 	beforeEach(() => {
 		scheduler = new Scheduler();
@@ -35,18 +38,20 @@ describe("Scheduler", () => {
 		mockJob = {
 			schedule: "*/1 * * * *",
 			execute: jest
-				.fn()
+				.fn<(...args: any[]) => any>()
 				.mockResolvedValue(
 					undefined as never
 				) as unknown as jest.MockedFunction<() => Promise<void>>,
 		};
 
 		mockTask = {
-			start: jest.fn(),
-			stop: jest.fn(),
+			start: jest.fn<(...args: any[]) => any>(),
+			stop: jest.fn<(...args: any[]) => any>(),
 		};
 
-		(cron.schedule as jest.Mock).mockReturnValue(mockTask);
+		(cron.schedule as jest.Mock<(...args: any[]) => any>).mockReturnValue(
+			mockTask
+		);
 	});
 
 	afterEach(() => {
@@ -64,7 +69,7 @@ describe("Scheduler", () => {
 
 			const anotherJob: ScheduledJob = {
 				schedule: "*/5 * * * *",
-				execute: jest.fn() as () => Promise<void>,
+				execute: jest.fn<(...args: any[]) => any>() as () => Promise<void>,
 			};
 			expect(() => scheduler.register(anotherJob)).toThrow(
 				"Cannot register job after scheduler has started"
@@ -89,8 +94,8 @@ describe("Scheduler", () => {
 			scheduler.register(mockJob);
 			scheduler.start();
 
-			const callback = (cron.schedule as jest.Mock).mock
-				.calls[0][1] as () => Promise<void>;
+			const callback = (cron.schedule as jest.Mock<(...args: any[]) => any>)
+				.mock.calls[0][1] as () => Promise<void>;
 
 			await callback();
 			expect(mockJob.execute).toHaveBeenCalledTimes(1);
@@ -100,7 +105,7 @@ describe("Scheduler", () => {
 			const errorJob: ScheduledJob = {
 				schedule: "*/1 * * * *",
 				execute: jest
-					.fn()
+					.fn<(...args: any[]) => any>()
 					.mockRejectedValue(
 						"raw string error" as never
 					) as unknown as jest.MockedFunction<() => Promise<void>>,
@@ -108,8 +113,8 @@ describe("Scheduler", () => {
 			scheduler.register(errorJob);
 			scheduler.start();
 
-			const callback = (cron.schedule as jest.Mock).mock
-				.calls[0][1] as () => Promise<void>;
+			const callback = (cron.schedule as jest.Mock<(...args: any[]) => any>)
+				.mock.calls[0][1] as () => Promise<void>;
 
 			await expect(callback()).resolves.toBeUndefined();
 			expect(MOCK_LOGGER_ERROR).toHaveBeenCalledWith(
@@ -125,7 +130,7 @@ describe("Scheduler", () => {
 			const errorJob: ScheduledJob = {
 				schedule: "*/1 * * * *",
 				execute: jest
-					.fn()
+					.fn<(...args: any[]) => any>()
 					.mockRejectedValue(
 						new Error("fail") as never
 					) as unknown as jest.MockedFunction<() => Promise<void>>,
@@ -133,8 +138,8 @@ describe("Scheduler", () => {
 			scheduler.register(errorJob);
 			scheduler.start();
 
-			const callback = (cron.schedule as jest.Mock).mock
-				.calls[0][1] as () => Promise<void>;
+			const callback = (cron.schedule as jest.Mock<(...args: any[]) => any>)
+				.mock.calls[0][1] as () => Promise<void>;
 
 			await expect(callback()).resolves.toBeUndefined();
 			expect(MOCK_LOGGER_ERROR).toHaveBeenCalledWith(
@@ -150,8 +155,8 @@ describe("Scheduler", () => {
 			scheduler.register(mockJob);
 			scheduler.start();
 
-			const callback = (cron.schedule as jest.Mock).mock
-				.calls[0][1] as () => Promise<void>;
+			const callback = (cron.schedule as jest.Mock<(...args: any[]) => any>)
+				.mock.calls[0][1] as () => Promise<void>;
 
 			await callback();
 			expect(MOCK_LOGGER_ERROR).not.toHaveBeenCalled();
@@ -177,7 +182,7 @@ describe("Scheduler", () => {
 
 			const newJob: ScheduledJob = {
 				schedule: "*/2 * * * *",
-				execute: jest.fn() as () => Promise<void>,
+				execute: jest.fn<(...args: any[]) => any>() as () => Promise<void>,
 			};
 			expect(() => scheduler.register(newJob)).not.toThrow();
 		});

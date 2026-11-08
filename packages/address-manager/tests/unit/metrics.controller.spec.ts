@@ -4,8 +4,8 @@ import { metricsController } from "../../src/adapters/inbound/metrics.controller
 
 describe("metricsController", () => {
 	function mockReqRes(snapshot?: () => Record<string, unknown>) {
-		const json = jest.fn();
-		const status = jest.fn(() => ({ json }));
+		const json = jest.fn<(...args: any[]) => any>();
+		const status = jest.fn((..._args: any[]) => ({ json }));
 		const req = {
 			app: {
 				locals: {

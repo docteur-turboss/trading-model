@@ -1,12 +1,16 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_PUSH = jest.fn();
+const MOCK_PUSH = jest.fn<(...args: any[]) => any>();
 jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: { push: MOCK_PUSH },
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 describe("dlq-redis-pusher", () => {

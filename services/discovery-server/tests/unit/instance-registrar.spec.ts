@@ -1,22 +1,34 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
+import type {
+	Protocol,
+	ServiceInstance,
+} from "@trading-model/contracts/service-registry-types";
+import type {
+	DurationMs,
+	InstanceId,
+	IPAddress,
+	Port,
+	ServiceId,
+	UnixTimestamp,
+	Version,
+} from "@trading-model/primitives/primitives";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
-		debug: jest.fn(),
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
-const mockSet = jest.fn();
-const mockGet = jest.fn();
-const mockSadd = jest.fn();
-const mockDel = jest.fn();
-const mockSrem = jest.fn();
-const mockExec = jest.fn();
-const mockMulti = jest.fn(() => ({
+const mockSet = jest.fn<(...args: any[]) => any>();
+const mockGet = jest.fn<(...args: any[]) => any>();
+const mockSadd = jest.fn<(...args: any[]) => any>();
+const mockDel = jest.fn<(...args: any[]) => any>();
+const mockSrem = jest.fn<(...args: any[]) => any>();
+const mockExec = jest.fn<(...args: any[]) => any>();
+const mockMulti = jest.fn((..._args: any[]) => ({
 	sadd: mockSadd,
 	set: mockSet,
 	del: mockDel,
@@ -35,15 +47,15 @@ import type { RedisDeps } from "../../src/shared/redis-deps";
 
 function makeInstance(): ServiceInstance {
 	return {
-		serviceName: "financial-scraper-service",
-		instanceId: "i1",
-		host: "192.168.1.10",
-		port: 8444,
-		version: "1.0.0",
-		ttl: 30_000,
-		protocol: "mtls",
-		registeredAt: Date.now() - 1000,
-		lastHeartbeat: Date.now() - 500,
+		serviceName: "financial-scraper-service" as ServiceId,
+		instanceId: "i1" as InstanceId,
+		host: "192.168.1.10" as IPAddress,
+		port: 8444 as Port,
+		version: "1.0.0" as Version,
+		ttl: 30_000 as DurationMs,
+		protocol: "mtls" as unknown as Protocol,
+		registeredAt: (Date.now() - 1000) as UnixTimestamp,
+		lastHeartbeat: (Date.now() - 500) as UnixTimestamp,
 	};
 }
 
@@ -114,7 +126,7 @@ describe("InstanceRegistrar", () => {
 			expect(result.instanceId).toBe("i1");
 			const { logger } = jest.requireMock(
 				"@trading-model/http/infrastructure/logger"
-			) as { logger: { warn: jest.Mock } };
+			) as { logger: { warn: jest.Mock<(...args: any[]) => any> } };
 			expect(logger.warn).toHaveBeenCalled();
 		});
 	});

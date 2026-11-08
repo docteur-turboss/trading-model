@@ -7,20 +7,22 @@ import {
 import { chainOf } from "../../fixtures/audit-chain";
 
 function dbWith(collection: Record<string, unknown>): Db {
-	return { collection: jest.fn(() => collection) } as unknown as Db;
+	return {
+		collection: jest.fn((..._args: any[]) => collection),
+	} as unknown as Db;
 }
 
 describe("MongoAuditChainReader", () => {
 	it("reads the events after a sequence, in order, by batches", async () => {
 		const events = chainOf(3);
 		const cursor = {
-			sort: jest.fn().mockReturnThis(),
-			batchSize: jest.fn().mockReturnThis(),
+			sort: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			batchSize: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 			async *[Symbol.asyncIterator]() {
 				yield* events;
 			},
 		};
-		const find = jest.fn(() => cursor);
+		const find = jest.fn((..._args: any[]) => cursor);
 		const reader = new MongoAuditChainReader(dbWith({ find }));
 
 		const read = [];
@@ -69,7 +71,9 @@ describe("MongoChainState", () => {
 			.fn<() => Promise<unknown>>()
 			.mockResolvedValueOnce(null)
 			.mockResolvedValueOnce({ _id: "chain", ...saved });
-		const replaceOne = jest.fn<() => Promise<unknown>>().mockResolvedValue({});
+		const replaceOne = jest
+			.fn<(...args: any[]) => Promise<unknown>>()
+			.mockResolvedValue({});
 		const state = new MongoChainState(dbWith({ findOne, replaceOne }));
 
 		await expect(state.load()).resolves.toEqual({

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import type { UnixTimestamp } from "@trading-model/primitives/primitives";
 import { DateRange } from "../../src/date-range";
 
 describe("DateRange", () => {
@@ -124,8 +125,8 @@ describe("DateRange", () => {
 	describe("fromUnixTimestamps", () => {
 		it("should create range from unix timestamps", () => {
 			const range = DateRange.fromUnixTimestamps({
-				fromMs: 1704067200000,
-				toMs: 1735689599999,
+				fromMs: 1704067200000 as UnixTimestamp,
+				toMs: 1735689599999 as UnixTimestamp,
 			});
 			expect(range.start).toEqual(new Date(1704067200000));
 			expect(range.end).toEqual(new Date(1735689599999));

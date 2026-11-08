@@ -4,11 +4,14 @@ jest.mock(
 	"@trading-model/server-utils/adapters/inbound/service-server-factory",
 	() => ({
 		createServiceServer: jest
-			.fn()
+			.fn<(...args: any[]) => any>()
 			.mockImplementation(
 				(opts: { env: unknown; routes: (app: any) => void }) => {
-					opts.routes({ use: jest.fn() });
-					return Promise.resolve({ close: jest.fn(), raw: {} });
+					opts.routes({ use: jest.fn<(...args: any[]) => any>() });
+					return Promise.resolve({
+						close: jest.fn<(...args: any[]) => any>(),
+						raw: {},
+					});
 				}
 			),
 	})
@@ -16,7 +19,7 @@ jest.mock(
 
 // The mTLS discovery client loads the SVID files at construction.
 jest.mock("../../src/config/container", () => ({
-	discoveryClient: { get: jest.fn() },
+	discoveryClient: { get: jest.fn<(...args: any[]) => any>() },
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -36,7 +39,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/adapters/inbound/router", () => ({
-	createRouter: jest.fn(() => ({ stack: [] })),
+	createRouter: jest.fn((..._args: any[]) => ({ stack: [] })),
 }));
 
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";

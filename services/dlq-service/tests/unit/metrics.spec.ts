@@ -2,24 +2,33 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("prom-client", () => {
 	const mockMetric = {
-		inc: jest.fn(),
-		set: jest.fn(),
-		observe: jest.fn(),
+		inc: jest.fn<(...args: any[]) => any>(),
+		set: jest.fn<(...args: any[]) => any>(),
+		observe: jest.fn<(...args: any[]) => any>(),
 	};
-	const MockRegistry = jest.fn(() => ({
+	const MockRegistry = jest.fn((..._args: any[]) => ({
 		contentType: "text/plain",
-		metrics: jest.fn(() => Promise.resolve("metrics data")),
+		metrics: jest.fn((..._args: any[]) => Promise.resolve("metrics data")),
 	}));
 	return {
 		Registry: MockRegistry,
 		register: {
 			contentType: "text/plain",
-			metrics: jest.fn(() => Promise.resolve("metrics data")),
+			metrics: jest.fn((..._args: any[]) => Promise.resolve("metrics data")),
 		},
-		collectDefaultMetrics: jest.fn(),
-		Counter: jest.fn(() => ({ ...mockMetric, inc: jest.fn() })),
-		Histogram: jest.fn(() => ({ ...mockMetric, observe: jest.fn() })),
-		Gauge: jest.fn(() => ({ ...mockMetric, set: jest.fn() })),
+		collectDefaultMetrics: jest.fn<(...args: any[]) => any>(),
+		Counter: jest.fn((..._args: any[]) => ({
+			...mockMetric,
+			inc: jest.fn<(...args: any[]) => any>(),
+		})),
+		Histogram: jest.fn((..._args: any[]) => ({
+			...mockMetric,
+			observe: jest.fn<(...args: any[]) => any>(),
+		})),
+		Gauge: jest.fn((..._args: any[]) => ({
+			...mockMetric,
+			set: jest.fn<(...args: any[]) => any>(),
+		})),
 	};
 });
 
@@ -44,8 +53,8 @@ describe("metrics", () => {
 	it("metricsHandler should respond with metrics data", async () => {
 		const { metricsHandler } = require("../../src/config/metrics");
 		const res = {
-			set: jest.fn(),
-			send: jest.fn(),
+			set: jest.fn<(...args: any[]) => any>(),
+			send: jest.fn<(...args: any[]) => any>(),
 		};
 		metricsHandler(null, res);
 		expect(res.set).toHaveBeenCalledWith("Content-Type", "text/plain");

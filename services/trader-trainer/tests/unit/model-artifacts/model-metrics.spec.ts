@@ -1,4 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
+import type {
+	Fitness,
+	PositiveInt,
+	Ratio,
+} from "@trading-model/primitives/primitives";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
@@ -14,14 +19,17 @@ import { buildModelManifest } from "../../../src/domain/model-artifact";
 const EPISODES = [3, -5, 2, -4, 10];
 
 function summaryOf(scores?: number[]) {
-	const genome = createDefaultGenome("g-1", 4) as DeepReadonly<LamarckGenome>;
+	const genome = createDefaultGenome(
+		"g-1",
+		4 as PositiveInt
+	) as DeepReadonly<LamarckGenome>;
 	return buildSummary(
 		genome,
 		1.5 as never,
 		scores && {
-			episodesRun: scores.length,
+			episodesRun: scores.length as PositiveInt,
 			computeMs: DurationMs.of(1000),
-			efficiencyScore: 1,
+			efficiencyScore: 1 as Ratio,
 			variance: 0,
 			rawScores: new EpisodeScores(scores),
 		}
@@ -79,12 +87,15 @@ describe("metrics of a trained model", () => {
 	});
 
 	it("annualises the Sharpe of the bar curve with the bars per year", () => {
-		const genome = createDefaultGenome("g-1", 4) as DeepReadonly<LamarckGenome>;
+		const genome = createDefaultGenome(
+			"g-1",
+			4 as PositiveInt
+		) as DeepReadonly<LamarckGenome>;
 		const curve = new EpisodeScores([1, -0.5, 2, 0.5, -1]);
 		const meta = {
 			episodesRun: 1,
 			computeMs: DurationMs.of(1),
-			efficiencyScore: 1,
+			efficiencyScore: 1 as Ratio,
 			variance: 0,
 			rawScores: new EpisodeScores([2]),
 			pnlCurve: curve,
@@ -109,7 +120,7 @@ describe("metrics of a trained model", () => {
 			{
 				symbol: "BTCUSDT",
 				instanceId: "trader-trainer-1",
-				bestGenome: createDefaultGenome("g-1", 4) as never,
+				bestGenome: createDefaultGenome("g-1", 4 as PositiveInt) as never,
 				weights: new Float32Array([1]),
 				features: { dim: 1, fields: ["close"] },
 				normalization: {},
@@ -121,7 +132,7 @@ describe("metrics of a trained model", () => {
 		expect(manifest.metrics).toEqual({
 			metricsVersion: 3,
 			generation: 4,
-			fitness: 1.5,
+			fitness: 1.5 as Fitness,
 			sharpe: expect.any(Number),
 			avgPnl: 1.2,
 			maxDrawdown: 7,

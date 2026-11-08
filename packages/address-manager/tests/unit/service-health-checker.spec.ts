@@ -14,8 +14,10 @@ import {
 import { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../src/domain/client/type";
 
+type MockHttp = Record<"get" | "post", jest.Mock<(...args: any[]) => any>>;
+
 describe("ServiceHealthChecker", () => {
-	let httpClient: jest.Mocked<HttpClient>;
+	let httpClient: MockHttp;
 	let checker: ServiceHealthChecker;
 
 	const instance: ServiceInstance = {
@@ -32,11 +34,11 @@ describe("ServiceHealthChecker", () => {
 
 	beforeEach(() => {
 		httpClient = {
-			get: jest.fn(),
-		} as unknown as jest.Mocked<HttpClient>;
+			get: jest.fn<(...args: any[]) => any>(),
+		} as unknown as MockHttp;
 
 		checker = new ServiceHealthChecker({
-			httpClient,
+			httpClient: httpClient as unknown as HttpClient,
 			timeoutMs: DurationMs.of(2000),
 		});
 	});
@@ -87,7 +89,7 @@ describe("ServiceHealthChecker", () => {
 
 	test("a host-based locator uses instance.host for URL construction", () => {
 		checker = new ServiceHealthChecker({
-			httpClient,
+			httpClient: httpClient as unknown as HttpClient,
 			timeoutMs: DurationMs.of(2000),
 			serviceLocator: {
 				locate: (target) => target.host,
@@ -106,7 +108,7 @@ describe("ServiceHealthChecker", () => {
 
 	test("constructor defaults to ServiceNameLocator when no serviceLocator provided", () => {
 		const defaultChecker = new ServiceHealthChecker({
-			httpClient,
+			httpClient: httpClient as unknown as HttpClient,
 			timeoutMs: DurationMs.of(2000),
 		});
 		const url = (defaultChecker as any)._buildPingUrl(instance);

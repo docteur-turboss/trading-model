@@ -16,7 +16,7 @@ import {
 } from "@trading-model/contracts/market-data.types";
 import {
 	DataSource,
-	PositiveInt,
+	NonNegativeInt,
 	Price,
 	TradingSymbol,
 	UnixTimestamp,
@@ -98,7 +98,7 @@ function candle(overrides: Partial<CandleData> = {}): CandleData {
 		low: Price.of(99.125),
 		close: Price.of(105.0625),
 		volume: Volume.of(12.5),
-		trades: PositiveInt.of(42),
+		trades: NonNegativeInt.of(42),
 		timestamp: T0,
 		closeTimestamp: UnixTimestamp.of(T0 + 59_999),
 		...overrides,
