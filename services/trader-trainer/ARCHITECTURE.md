@@ -453,7 +453,7 @@ GA meta-parameters (population size, elitism fraction, episodes per individual, 
 
 ### 5. Immutable Genome Architecture
 
-All genome operations produce **new frozen objects** using `deepFreeze`. This eliminates mutation bugs and enables safe concurrent evaluation across the population.
+All genome operations produce **new frozen objects** using `deepFreeze`. This eliminates mutation bugs and keeps each evaluation free of shared mutable state.
 
 ### 6. Sequential Evaluation
 
