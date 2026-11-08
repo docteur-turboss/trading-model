@@ -8,11 +8,9 @@ export interface IExperiencePool {
 	getPoolSize(): number;
 	samplePool(batchSize: number): Experience[];
 	clearPool(): void;
-	remove(input: Float32Array): void;
-	values(): MapIterator<Experience>;
 }
 
-export interface PrioritizedSample {
+interface PrioritizedSample {
 	experiences: Experience[];
 	/** Pool ids of the sampled experiences, to feed back into `updatePriorities`. */
 	ids: number[];
@@ -48,15 +46,10 @@ const DISABLED_POOL: IExperiencePool = {
 	clearPool: () => {
 		// Intentional no-op.
 	},
-	remove: () => {
-		// Intentional no-op.
-	},
-	values: () => new Map().values(),
 };
 
 class ExperiencePool implements IExperiencePool {
 	private _poolMap = new Map<number, Experience>();
-	private _poolInputToId = new WeakMap<Float32Array, number>();
 	protected _nextPoolId = 0;
 	private readonly _poolMaxSize: number;
 	protected readonly _rng: () => number;
@@ -72,26 +65,15 @@ class ExperiencePool implements IExperiencePool {
 	}
 
 	private _evictOldest(): void {
-		const firstKey = this._firstMapKey();
-		const oldest = this._poolMap.get(firstKey);
+		// Map keeps insertion order: the first key is the oldest; add() calls this only when non-empty.
+		const firstKey = this._poolMap.keys().next().value as number;
 		this._poolMap.delete(firstKey);
-		this._poolInputToId.delete(oldest!.input);
 		this._onRemoved(firstKey);
-	}
-
-	private _firstMapKey(): number {
-		for (const key of this._poolMap.keys()) {
-			return key;
-		}
-		throw new Error(
-			"unreachable: caller checks poolMap.size > 0 before eviction"
-		);
 	}
 
 	public add(experience: Experience): void {
 		const id = this._nextPoolId++;
 		this._poolMap.set(id, experience);
-		this._poolInputToId.set(experience.input, id);
 		if (this._poolMap.size > this._poolMaxSize) {
 			this._evictOldest();
 		}
@@ -133,20 +115,6 @@ class ExperiencePool implements IExperiencePool {
 
 	public clearPool(): void {
 		this._poolMap.clear();
-		this._poolInputToId = new WeakMap();
-	}
-
-	public remove(input: Float32Array): void {
-		const id = this._poolInputToId.get(input);
-		if (id !== undefined) {
-			this._poolMap.delete(id);
-			this._poolInputToId.delete(input);
-			this._onRemoved(id);
-		}
-	}
-
-	public values(): MapIterator<Experience> {
-		return this._poolMap.values();
 	}
 }
 
@@ -168,6 +136,7 @@ class PrioritizedExperiencePool
 	extends ExperiencePool
 	implements IPrioritizedExperiencePool
 {
+	/** p_i^α per pool id, scaled once when the priority changes. */
 	private readonly _priorities = new Map<number, number>();
 	private _maxPriority = 1.0;
 	private _beta: number;
@@ -183,7 +152,10 @@ class PrioritizedExperiencePool
 
 	public add(experience: Experience): void {
 		super.add(experience);
-		this._priorities.set(this._nextPoolId - 1, this._maxPriority);
+		this._priorities.set(
+			this._nextPoolId - 1,
+			this._maxPriority ** this._per.alpha
+		);
 	}
 
 	public updatePriorities(
@@ -200,7 +172,7 @@ class PrioritizedExperiencePool
 				return;
 			}
 			const priority = Math.abs(tdErrors[idx]) + PRIORITY_EPSILON;
-			this._priorities.set(id, priority);
+			this._priorities.set(id, priority ** this._per.alpha);
 			this._maxPriority = Math.max(this._maxPriority, priority);
 		});
 	}
@@ -211,10 +183,7 @@ class PrioritizedExperiencePool
 			return { experiences: [], ids: [], weights: new Float32Array(0) };
 		}
 
-		const scaled = entries.map(
-			([id]) =>
-				(this._priorities.get(id) ?? this._maxPriority) ** this._per.alpha
-		);
+		const scaled = entries.map(([id]) => this._priorities.get(id) as number);
 		// Running sums in pool order: the same bounds the linear scan used.
 		const bounds = new Float64Array(scaled.length);
 		let total = 0;

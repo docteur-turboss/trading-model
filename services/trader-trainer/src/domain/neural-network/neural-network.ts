@@ -1,3 +1,4 @@
+import { agentError } from "../../shared/errors";
 import { BackpropEngine } from "./backprop-engine";
 import { FeedForwardEngine } from "./feed-forward-engine";
 import {
@@ -7,56 +8,43 @@ import {
 	setWeights as setWeightsFn,
 } from "./network-serialization";
 import { NeuralNetworkBuilder } from "./neural-network-builder";
-import { LearningPool } from "./pool-manager";
-import { PooledTrainer } from "./pooled-trainer";
 import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
+
+function _validateSize(kind: string, actual: number, expected: number): void {
+	if (actual !== expected) {
+		throw agentError(`Expected ${kind} size ${expected}, got ${actual}`);
+	}
+}
 
 export class NeuralNetwork {
 	private readonly _layers: LayerMemory[];
 	private readonly _feedForward: FeedForwardEngine;
 	private readonly _backprop: BackpropEngine;
-	private readonly _trainer: PooledTrainer;
-	private readonly _poolManager: LearningPool = new LearningPool();
+	private readonly _config: Required<NeuralNetworkConfig>;
 
 	constructor(cfg: NeuralNetworkConfig) {
-		const { config, layers, optimizerHp } = NeuralNetworkBuilder.build(cfg);
+		const { config, layers } = NeuralNetworkBuilder.build(cfg);
+		this._config = config;
 		this._layers = layers;
 		this._feedForward = new FeedForwardEngine(config, layers);
-		this._backprop = new BackpropEngine({ config, layers, optimizerHp });
-		this._trainer = new PooledTrainer(
-			this._feedForward,
-			this._backprop,
-			this._poolManager,
-			config
-		);
+		this._backprop = new BackpropEngine({ config, layers });
 	}
 
 	public forward(input: Float32Array): ForwardContext {
 		return this._feedForward.forward(input);
 	}
 
-	public predict(input: Float32Array): Float32Array {
-		return this._feedForward.predict(input);
-	}
-
+	/** One gradient step on (inputs, targets); returns the loss before the step. */
 	public train(inputs: Float32Array, targets: Float32Array): number {
-		return this._trainer.train(inputs, targets);
+		return this.trainFrom(this._feedForward.forward(inputs), targets);
 	}
 
-	public forwardAndPool(input: Float32Array, target: Float32Array): number {
-		return this._trainer.forwardAndPool(input, target);
-	}
-
-	public trainPooled(): number {
-		return this._trainer.trainPooled();
-	}
-
-	public getPoolSize(): number {
-		return this._poolManager.getSize();
-	}
-
-	public clearPool(): void {
-		this._poolManager.clear();
+	/** `train` on a forward pass already made with the current weights. */
+	public trainFrom(context: ForwardContext, targets: Float32Array): number {
+		const sizes = this._config.neuronsByLayer;
+		_validateSize("target", targets.length, sizes[sizes.length - 1]);
+		this._backprop.backprop(context, targets);
+		return this._backprop.computeLoss(context.output, targets);
 	}
 
 	public getWeights(): Float32Array {

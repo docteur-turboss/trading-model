@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { buildPopulationMeta } from "../../../src/domain/genetic-algorithm/pareto";
+import { buildPopulationMeta } from "../../../src/domain/genetic-algorithm/pareto/nsga2";
 
 function linearRng(): () => number {
 	let s = 0.1;
@@ -98,5 +98,22 @@ describe("buildPopulationMeta", () => {
 		const meta = buildPopulationMeta(objs, rng);
 		expect(meta.paretoRank).toHaveLength(350);
 		expect(meta.crowdingDist).toHaveLength(350);
+	});
+
+	test("breaks objective ties by ascending index inside a front", () => {
+		// Indices 1 and 2 tie on both objectives: the stable sorts keep them in
+		// front order, so the lower index gets the larger crowding distance.
+		const meta = buildPopulationMeta(
+			[
+				{ avgPnl: 1, sharpe: 4, negFlops: 0 },
+				{ avgPnl: 2, sharpe: 3, negFlops: 0 },
+				{ avgPnl: 2, sharpe: 3, negFlops: 0 },
+				{ avgPnl: 3, sharpe: 1, negFlops: 0 },
+			],
+			linearRng()
+		);
+		expect(meta.paretoRank).toEqual([0, 0, 0, 0]);
+		expect(meta.crowdingDist[1]).toBeCloseTo(0.5 + 2 / 3, 10);
+		expect(meta.crowdingDist[2]).toBeCloseTo(0.5 + 1 / 3, 10);
 	});
 });

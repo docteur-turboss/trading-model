@@ -5,7 +5,8 @@ import type {
 import { createCrossoverGenome, createGAControlGenome } from "./genome-control";
 import type { Genome } from "./genome-fitness";
 import { createMutationGenome } from "./genome-mutation";
-import { GENOME_SECTIONS } from "./genome-sections";
+import { createNetworkGenome } from "./genome-network/create";
+import { createRLGenome } from "./genome-rl/create";
 
 export function createDefaultGenome(
 	id: string,
@@ -14,8 +15,8 @@ export function createDefaultGenome(
 	return {
 		id: id as GenomeId,
 		generation: generation as PositiveInt,
-		network: GENOME_SECTIONS.network.create(),
-		rl: GENOME_SECTIONS.rl.create(),
+		network: createNetworkGenome(),
+		rl: createRLGenome(),
 		mutation: createMutationGenome(),
 		crossover: createCrossoverGenome(),
 		gaControl: createGAControlGenome(),

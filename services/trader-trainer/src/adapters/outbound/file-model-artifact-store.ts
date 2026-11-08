@@ -28,7 +28,7 @@ const TMP_PREFIX = ".tmp-";
 /** A temporary directory older than this was left by a crash mid-write. */
 const STALE_TMP_MS = 60 * 60 * 1000;
 
-export interface FileModelArtifactStoreOptions {
+interface FileModelArtifactStoreOptions {
 	/** `TRAINER_MODEL_DIR`: one directory per symbol, one per version. */
 	root: string;
 	/** Versions kept per symbol (`TRAINER_MODEL_RETENTION`). */
@@ -47,6 +47,20 @@ function toLittleEndian(weights: Float32Array): Buffer {
 
 function isMissing(err: unknown): boolean {
 	return (err as NodeJS.ErrnoException)?.code === "ENOENT";
+}
+
+/** `undefined` when the path is missing; any other error is rethrown. */
+async function unlessMissing<TValue>(
+	op: Promise<TValue>
+): Promise<TValue | undefined> {
+	try {
+		return await op;
+	} catch (err) {
+		if (isMissing(err)) {
+			return;
+		}
+		throw err;
+	}
 }
 
 /**
@@ -99,14 +113,14 @@ export class FileModelArtifactStore implements ModelArtifactStorePort {
 		if (!symbolDir) {
 			return [];
 		}
-		const summaries: ModelSummary[] = [];
-		for (const version of await this._versions(symbolDir)) {
-			const manifest = await this.manifest(symbol, version);
-			if (manifest) {
-				summaries.push(summarizeModel(manifest));
-			}
-		}
-		return summaries;
+		const manifests = await Promise.all(
+			(await this._versions(symbolDir)).map((version) =>
+				this.manifest(symbol, version)
+			)
+		);
+		return manifests
+			.filter((manifest): manifest is ModelManifest => manifest !== undefined)
+			.map(summarizeModel);
 	}
 
 	async manifest(
@@ -142,55 +156,29 @@ export class FileModelArtifactStore implements ModelArtifactStorePort {
 		if (!(symbolDir && MODEL_VERSION_PATTERN.test(version))) {
 			return;
 		}
-		try {
-			return await readFile(join(symbolDir, version, file));
-		} catch (err) {
-			if (isMissing(err)) {
-				return;
-			}
-			throw err;
-		}
+		return await unlessMissing(readFile(join(symbolDir, version, file)));
 	}
 
 	/** Another replica may have written the same version (same weights, same second). */
 	private async _moveIntoPlace(tmp: string, target: string): Promise<void> {
-		try {
-			await stat(target);
+		if (await unlessMissing(stat(target))) {
 			return;
-		} catch (err) {
-			if (!isMissing(err)) {
-				throw err;
-			}
 		}
 		await rename(tmp, target);
 	}
 
 	/** Versions of a symbol directory, newest first. */
 	private async _versions(symbolDir: string): Promise<string[]> {
-		try {
-			const names = await readdir(symbolDir);
-			return names
-				.filter((name) => MODEL_VERSION_PATTERN.test(name))
-				.sort()
-				.reverse();
-		} catch (err) {
-			if (isMissing(err)) {
-				return [];
-			}
-			throw err;
-		}
+		const names = (await unlessMissing(readdir(symbolDir))) ?? [];
+		return names
+			.filter((name) => MODEL_VERSION_PATTERN.test(name))
+			.sort()
+			.reverse();
 	}
 
 	/** `undefined` once another replica renamed or removed it meanwhile. */
 	private async _modifiedAt(path: string): Promise<number | undefined> {
-		try {
-			return (await stat(path)).mtimeMs;
-		} catch (err) {
-			if (isMissing(err)) {
-				return;
-			}
-			throw err;
-		}
+		return (await unlessMissing(stat(path)))?.mtimeMs;
 	}
 
 	/** Keeps the newest versions, and removes what a crash mid-write left. */

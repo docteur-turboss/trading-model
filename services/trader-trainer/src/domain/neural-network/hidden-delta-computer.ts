@@ -38,10 +38,9 @@ export class HiddenDeltaComputer {
 		ctx: NeuronDeltaContext
 	): number {
 		const sum = this._backpropagateDelta(neuronIdx, ctx.next, ctx.nextDeltas);
-		const grad = this._activationDerivative(
+		const grad = ACTIVATIONS[ctx.activation].derivative(
 			ctx.currentOutput[neuronIdx],
-			ctx.currentZ[neuronIdx],
-			ctx.activation
+			ctx.currentZ[neuronIdx]
 		);
 		return sum * grad;
 	}
@@ -67,7 +66,7 @@ export class HiddenDeltaComputer {
 		for (let i = 0; i < current.fanOut; i++) {
 			delta[i] = this._computeNeuronDelta(i, neuronCtx);
 		}
-		return this._clipGradients(delta);
+		return clipGradients(delta, this._config.gradientClipNorm);
 	}
 
 	compute(
@@ -82,23 +81,5 @@ export class HiddenDeltaComputer {
 			nextDeltas = delta;
 		}
 		return deltas;
-	}
-
-	private _clipGradients(
-		delta: Float32Array,
-		maxNorm: number = this._config.gradientClipNorm
-	): Float32Array {
-		return clipGradients(delta, maxNorm);
-	}
-
-	private _activationDerivative(
-		postActivation: number,
-		preActivation: number,
-		activationType: ActivationType
-	): number {
-		return ACTIVATIONS[activationType].derivative(
-			postActivation,
-			preActivation
-		);
 	}
 }

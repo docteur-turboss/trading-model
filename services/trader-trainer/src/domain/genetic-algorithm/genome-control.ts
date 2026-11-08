@@ -7,28 +7,14 @@ import {
 } from "@trading-model/primitives/primitives";
 import { type DeepReadonly, deepFreeze } from "./shared-types";
 
-export enum CrossoverType {
-	OnePoint = "one_point",
-	TwoPoint = "two_point",
-	Uniform = "uniform",
-	Arithmetic = "arithmetic",
-	Blend = "blend",
-	Sbx = "sbx",
-}
-
+/** Crossover is uniform: each gene comes from either parent with probability 0.5. */
 export interface CrossoverGenome {
-	type: CrossoverType;
 	probability: Probability;
-	blendAlpha: Percentage;
-	sbxEta: PositiveInt;
 }
 
+/** Parents are picked by tournament; the field is published with the model. */
 export enum SelectionType {
 	Tournament = "tournament",
-	Roulette = "roulette",
-	Rank = "rank",
-	Truncation = "truncation",
-	Sus = "sus",
 }
 
 export enum FitnessType {
@@ -68,7 +54,6 @@ interface GASeedingConfig {
 
 interface GAEvaluationConfig {
 	episodesPerIndividual: PositiveInt;
-	seedsPerEval: PositiveInt;
 }
 
 export interface GAControlGenome {
@@ -84,10 +69,7 @@ export interface GAControlGenome {
 
 export function createCrossoverGenome(): CrossoverGenome {
 	return {
-		type: CrossoverType.Uniform,
 		probability: Probability.of(0.7),
-		blendAlpha: Percentage.of(0.5),
-		sbxEta: PositiveInt.of(2),
 	};
 }
 
@@ -111,7 +93,6 @@ export function createGAControlGenome(): GAControlGenome {
 		},
 		evaluation: {
 			episodesPerIndividual: PositiveInt.of(MinAdaptiveEpisodes),
-			seedsPerEval: PositiveInt.of(2),
 		},
 		selectionType: SelectionType.Tournament,
 		fitnessType: FitnessType.TotalPnl,
@@ -219,11 +200,11 @@ export function adaptGAControl(
 	);
 }
 
-export type StopCondition =
+type StopCondition =
 	| { shouldStop: true; reason: string }
 	| { shouldStop: false };
 
-export interface TerminationCheckContext {
+interface TerminationCheckContext {
 	generation: number;
 	bestFitness: number;
 	stagnation: number;

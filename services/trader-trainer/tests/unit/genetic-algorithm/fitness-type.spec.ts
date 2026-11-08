@@ -111,7 +111,7 @@ describe("evaluation reads the wallet PnL, not the shaped reward", () => {
 			...createDefaultGenome("g0_0"),
 			gaControl: {
 				...createGAControlGenome(),
-				evaluation: { episodesPerIndividual: 2, seedsPerEval: 1 },
+				evaluation: { episodesPerIndividual: 2 },
 			},
 		} as DeepReadonly<LamarckGenome>;
 

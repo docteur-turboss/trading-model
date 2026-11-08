@@ -3,7 +3,6 @@ import {
 	createWallet,
 	type WalletAPI,
 	type WalletConfig,
-	type WalletMetrics,
 } from "../env/wallet-manager";
 import { Agent } from "../neural-network/agent";
 import type {
@@ -44,7 +43,7 @@ const ACTION_EXECUTORS: Record<TradeAction, ActionExecutor> = {
 	[TradeAction.None]: () => false,
 };
 
-export interface StepResult {
+interface StepResult {
 	/** What the network saw: market features followed by the agent state. */
 	state: Float32Array;
 	action: TradeAction;
@@ -56,7 +55,6 @@ export interface StepResult {
 	 * move on the position it left). 0 at the first step of an episode.
 	 */
 	reward: number;
-	metrics: WalletMetrics;
 }
 
 export class TradingAgent {
@@ -127,7 +125,6 @@ export class TradingAgent {
 			action: executed ? action : TradeAction.None,
 			actionIndex: outputIndex,
 			reward,
-			metrics: this.wallet.getMetrics(),
 		};
 	}
 

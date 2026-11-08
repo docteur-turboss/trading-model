@@ -1,93 +1,57 @@
 import { ACTIVATIONS } from "./activation";
 import type { OutputDeltasContext } from "./backprop-engine";
-import { LOSSES } from "./losses";
 import type { NeuralNetworkConfig } from "./type";
-import { ActivationType } from "./type";
 import { clipGradients } from "./utils";
 
-interface OutputDeltaNeuronContext {
-	output: Float32Array;
-	target: Float32Array;
-	outputZ: Float32Array;
-	lossGrad: Float32Array;
-	activation: ActivationType;
+function validateLengths(output: Float32Array, target: Float32Array): void {
+	if (output.length !== target.length) {
+		throw new RangeError(
+			`Loss function input/output length mismatch: output.length=${output.length}, target.length=${target.length}`
+		);
+	}
+}
+
+/** Mean squared error: the only loss training uses. */
+export function mseLoss(output: Float32Array, target: Float32Array): number {
+	validateLengths(output, target);
+	let sum = 0;
+	for (let i = 0; i < output.length; i++) {
+		const err = target[i] - output[i];
+		sum += err * err;
+	}
+	return sum / output.length;
+}
+
+/** Gradient of {@link mseLoss}: 2 (o - t) / n. */
+export function mseGradient(
+	output: Float32Array,
+	target: Float32Array
+): Float32Array {
+	validateLengths(output, target);
+	const len = output.length;
+	const invN = 1 / len;
+	const out = new Float32Array(len);
+	for (let i = 0; i < len; i++) {
+		out[i] = 2 * (output[i] - target[i]) * invN;
+	}
+	return out;
 }
 
 export class OutputDeltaComputer {
 	constructor(private readonly _config: Required<NeuralNetworkConfig>) {}
 
-	private _computeOutputDeltaForNeuron(
-		idx: number,
-		ctx: OutputDeltaNeuronContext
-	): number {
-		if (ctx.activation === ActivationType.Softmax) {
-			return ctx.output[idx] - ctx.target[idx];
-		}
-		return (
-			ctx.lossGrad[idx] *
-			this._activationDerivative(
-				ctx.output[idx],
-				ctx.outputZ[idx],
-				ctx.activation
-			)
-		);
-	}
-
-	private _computeOutputDeltas(ctx: OutputDeltaNeuronContext): Float32Array {
-		const delta = new Float32Array(ctx.output.length);
-		for (let j = 0; j < ctx.output.length; j++) {
-			delta[j] = this._computeOutputDeltaForNeuron(j, ctx);
-		}
-		return delta;
-	}
-
 	compute(ctx: OutputDeltasContext): Float32Array {
 		const { outputZ, output, target, activation } = ctx;
-		const lossGrad = this._computeLossGradient(output, target);
-		const delta = this._computeOutputDeltas({
-			outputZ,
-			output,
-			target,
-			lossGrad,
-			activation,
-		});
-		return this._clipGradients(delta);
+		const lossGrad = mseGradient(output, target);
+		const delta = new Float32Array(output.length);
+		for (let j = 0; j < output.length; j++) {
+			delta[j] =
+				lossGrad[j] * ACTIVATIONS[activation].derivative(output[j], outputZ[j]);
+		}
+		return clipGradients(delta, this._config.gradientClipNorm);
 	}
 
 	computeLoss(output: Float32Array, target: Float32Array): number {
-		return LOSSES[this._config.lossFunctionType].loss(
-			output,
-			target,
-			this._config
-		);
-	}
-
-	private _computeLossGradient(
-		output: Float32Array,
-		target: Float32Array
-	): Float32Array {
-		return LOSSES[this._config.lossFunctionType].gradient(
-			output,
-			target,
-			this._config
-		);
-	}
-
-	private _clipGradients(
-		delta: Float32Array,
-		maxNorm: number = this._config.gradientClipNorm
-	): Float32Array {
-		return clipGradients(delta, maxNorm);
-	}
-
-	private _activationDerivative(
-		postActivation: number,
-		preActivation: number,
-		activationType: ActivationType
-	): number {
-		return ACTIVATIONS[activationType].derivative(
-			postActivation,
-			preActivation
-		);
+		return mseLoss(output, target);
 	}
 }

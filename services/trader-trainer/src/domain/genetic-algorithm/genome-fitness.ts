@@ -10,9 +10,9 @@ import type { FeatureVector } from "../feature-vector.js";
 import type { EpisodeScores } from "./episode-scores";
 import type { CrossoverGenome, GAControlGenome } from "./genome-control";
 import type { MutationGenome } from "./genome-mutation";
-import type { NetworkGenome } from "./genome-network";
-import { ActivationType } from "./genome-network";
-import type { RLGenome } from "./genome-rl";
+import type { NetworkGenome } from "./genome-network/types";
+import { ActivationType } from "./genome-network/types";
+import type { RLGenome } from "./genome-rl/types";
 import type { DeepReadonly } from "./shared-types";
 
 export interface GenomeFitnessMeta {
@@ -54,22 +54,6 @@ export interface MarketStep {
 	timestamp?: number;
 }
 
-export interface ValidationError {
-	path: string;
-	message: string;
-	actual: unknown;
-}
-
-export interface ValidationResult {
-	valid: boolean;
-	errors: ValidationError[];
-}
-
-export interface ValidationContext {
-	errors: ValidationError[];
-	path: string;
-}
-
 const FlopSoftCapMacs = 5_000_000;
 const MemSoftCapMb = 200_000_000;
 
@@ -81,14 +65,13 @@ const ACT_COST: Record<ActivationName, number> = {
 	[ActivationType.Tanh]: 4,
 	[ActivationType.LeakyReLu]: 2,
 	[ActivationType.Gelu]: 8,
-	[ActivationType.Softmax]: 10,
 	[ActivationType.Elu]: 3,
 	[ActivationType.Mish]: 8,
 	[ActivationType.Linear]: 1,
 	swish: 6,
 };
 
-export interface ComplexityProfile {
+interface ComplexityProfile {
 	inferenceFLOPs: number;
 	penalty: number;
 }

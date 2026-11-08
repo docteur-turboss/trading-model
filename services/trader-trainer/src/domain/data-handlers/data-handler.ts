@@ -5,13 +5,11 @@ import type {
 } from "../market-data-types";
 import { bookTickerHandler } from "./book-ticker-handler";
 import { candleHandler } from "./candle-handler";
-import { DataType } from "./data-types";
+import type { DataType } from "./data-types";
 import { orderBookHandler } from "./order-book-handler";
 import { priceHandler } from "./price-handler";
 import { tickerHandler } from "./ticker-handler";
 import { tradeHandler } from "./trade-handler";
-
-export { DataType };
 
 interface MutateStateContext<TData = unknown> {
 	symbol: import("../market-data-types").TradingSymbol;
@@ -50,9 +48,14 @@ export function pushWithMaxSize<TData>(
 	return array;
 }
 
-/** Last item of a series kept in time order. */
-export function lastOf<TData>(array: readonly TData[]): TData | undefined {
-	return array[array.length - 1];
+/** True when `item` comes after the last item of a series kept in time order. */
+export function isAfterLast<TData extends object, TKey extends keyof TData>(
+	series: readonly TData[],
+	item: Pick<TData, TKey>,
+	key: TKey
+): boolean {
+	const last = series[series.length - 1] as TData | undefined;
+	return last === undefined || item[key] > last[key];
 }
 
 export function createDefaultHandlers(): DataHandler[] {

@@ -4,8 +4,6 @@ import type {
 	PositiveInt,
 	Probability,
 } from "@trading-model/primitives/primitives";
-import { crossoverScalar } from "../crossover/strategies";
-import type { CrossoverGenome } from "../genome-control";
 import type {
 	DiscretePolicyGenome,
 	HorizonGenome,
@@ -112,12 +110,12 @@ function _crossoverGammaAndLR(
 export function crossoverRL(ctx: {
 	left: RLGenome;
 	right: RLGenome;
-	co: CrossoverGenome;
 	rng: () => number;
 }): RLGenome {
-	const { left, right, co, rng } = ctx;
+	const { left, right, rng } = ctx;
+	// Uniform crossover: each gene comes from either parent with probability 0.5.
 	const crossoverFn = (valueA: number, valueB: number) =>
-		crossoverScalar({ left: valueA, right: valueB, co, rng });
+		rng() < 0.5 ? valueA : valueB;
 	const section = <TLeft, TRight>(left: TLeft, right: TRight) => ({
 		left,
 		right,

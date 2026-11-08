@@ -8,8 +8,8 @@ import { FEATURE_LAYOUT } from "../feature-vector-codec";
  *   cash) to 1 (all invested), centred to [-1, 1] like the other inputs: the
  *   raw [0, 1] value learned measurably worse (ADR-0025).
  */
-export const AGENT_STATE_FIELDS = ["AgentExposure"] as const;
-export const AGENT_STATE_DIM = AGENT_STATE_FIELDS.length;
+const AGENT_STATE_FIELDS = ["AgentExposure"] as const;
+const AGENT_STATE_DIM = AGENT_STATE_FIELDS.length;
 
 /** Inputs of the trading network (model artifacts, ADR-0022, ADR-0025). */
 export const NETWORK_INPUT_LAYOUT: { dim: number; fields: string[] } = {
@@ -20,7 +20,7 @@ export const NETWORK_INPUT_LAYOUT: { dim: number; fields: string[] } = {
 /** Exposure shown when the position is hidden: always "flat". */
 const HIDDEN_EXPOSURE = -1;
 
-export function agentState(wallet: WalletAPI): Float32Array {
+function agentState(wallet: WalletAPI): Float32Array {
 	const valuation = Number(wallet.getValuation());
 	const held = Number(wallet.getPosition()) * Number(wallet.getPrice());
 	const exposure = valuation > 0 ? held / valuation : 0;

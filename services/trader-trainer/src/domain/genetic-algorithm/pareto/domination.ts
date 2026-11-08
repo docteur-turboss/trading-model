@@ -18,40 +18,26 @@ export function dominates(
 	);
 }
 
-interface DominationState {
-	objectives: ObjectiveVector[];
-	dominatedCount: Int32Array;
-	dominateMap: number[][];
-}
-
-function _comparePair(idx: number, jdx: number, state: DominationState): void {
-	if (dominates(state.objectives[idx], state.objectives[jdx])) {
-		state.dominateMap[idx].push(jdx);
-	} else if (dominates(state.objectives[jdx], state.objectives[idx])) {
-		state.dominatedCount[idx]++;
-	}
-}
-
 export function buildDominationMatrix(objectives: ObjectiveVector[]): {
 	dominated: Int32Array;
 	dominates: number[][];
 } {
 	const length = objectives.length;
 	const dominated = new Int32Array(length);
-	const dominates = Array.from({ length }, () => [] as number[]);
-	const state: DominationState = {
-		objectives,
-		dominatedCount: dominated,
-		dominateMap: dominates,
-	};
+	const dominatesList = Array.from({ length }, () => [] as number[]);
 
+	// Each pair once: every dominates list still fills in ascending index order.
 	for (let i = 0; i < length; i++) {
-		for (let j = 0; j < length; j++) {
-			if (i !== j) {
-				_comparePair(i, j, state);
+		for (let j = i + 1; j < length; j++) {
+			if (dominates(objectives[i], objectives[j])) {
+				dominatesList[i].push(j);
+				dominated[j]++;
+			} else if (dominates(objectives[j], objectives[i])) {
+				dominatesList[j].push(i);
+				dominated[i]++;
 			}
 		}
 	}
 
-	return { dominated, dominates };
+	return { dominated, dominates: dominatesList };
 }

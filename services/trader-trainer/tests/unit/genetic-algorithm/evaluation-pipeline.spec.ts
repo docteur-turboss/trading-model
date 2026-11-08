@@ -9,11 +9,7 @@ import {
 } from "../../../src/domain/genetic-algorithm/evaluation-pipeline";
 import {
 	ActivationType,
-	CrossoverType,
 	FitnessType,
-	MutationAdaptation,
-	MutationDistribution,
-	MutationScope,
 	NormalisationType,
 	SelectionType,
 } from "../../../src/domain/genetic-algorithm/genome";
@@ -58,26 +54,13 @@ const MINIMAL_GENOME = {
 	mutation: {
 		rate: 0.1,
 		sigma: 0.5,
-		noiseStd: 0.1,
-		distribution: MutationDistribution.Gaussian,
-		adaptation: MutationAdaptation.Fixed,
-		scope: MutationScope.Global,
-		selfSigma: 0.5,
-		mutateActivations: false,
-		activationMutationRate: 0.1,
-		mutateHyperparams: false,
 		addNeuronRate: 0.1,
 		removeNeuronRate: 0.1,
 		addLayerRate: 0.1,
 		removeLayerRate: 0.1,
-		addConnectionRate: 0.1,
-		removeConnectionRate: 0.1,
 	},
 	crossover: {
-		type: CrossoverType.Uniform,
 		probability: 0.5,
-		blendAlpha: 0.5,
-		sbxEta: 15,
 	},
 	gaControl: {
 		population: { size: 20, elitismFraction: 0.1, survivorFraction: 0.5 },
@@ -88,7 +71,7 @@ const MINIMAL_GENOME = {
 			timeBudgetMs: 60000,
 		},
 		seeding: { envSeed: 1, mutationSeed: 1, networkSeed: 1 },
-		evaluation: { episodesPerIndividual: 2, seedsPerEval: 1 },
+		evaluation: { episodesPerIndividual: 2 },
 		selectionType: SelectionType.Tournament,
 		fitnessType: FitnessType.TotalPnl,
 		mutationRate: 0.1,

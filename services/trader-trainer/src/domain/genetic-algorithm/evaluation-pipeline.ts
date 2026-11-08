@@ -141,7 +141,7 @@ export async function sequentialEval<TItem, TResult>(
 	return results;
 }
 
-export interface EvaluateFitnessContext {
+interface EvaluateFitnessContext {
 	population: DeepReadonly<LamarckGenome>[];
 	windowSets: WindowSet[];
 	backendFactory: BackendFactory;

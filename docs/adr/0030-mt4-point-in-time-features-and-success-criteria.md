@@ -77,3 +77,5 @@ Run of 2026-10-31: BTCUSDT and ETHUSDT 1h candles from 2026-08-04 to 2026-10-31,
 - **The seed decides more than the fitness.** With `total_pnl`, the six track records range from a Sharpe of −3.73 to +1.38 (ETH seed 0: +27.6 % a year, Calmar 3.8); the same data with another seed loses 41.7 % a year. Nothing here separates an edge from luck.
 - **Buy and hold:** the mean `total_pnl` Sharpe beats it on ETH (+0.03 against −1.09: a falling market, the agent is less exposed) but not on BTC (−1.38 against −0.21).
 - The paper trading criterion stays open.
+
+> **Reproducibility note (2026-11-08, PR #589):** the trainer simplification removed genes that never changed (mutation distribution, adaptation, scope, `selfSigma`, …) and with them some RNG draws of the mutation-genome crossover and of the self-adaptive mutation. Same-seed runs stay deterministic, but from that PR on they no longer replay the figures above. Re-run `scripts/mt4-walk-forward.ts` before comparing a new result with this table.

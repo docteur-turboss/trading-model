@@ -1,7 +1,5 @@
-import { TradeSide } from "@trading-model/contracts/market-data.types";
 import { Cash, type Price, Volume } from "@trading-model/primitives/primitives";
 import type { PortfolioState } from "./portfolio-state";
-import type { TradeRecorder } from "./trade-recorder";
 import type { WalletConfig } from "./wallet-config";
 
 export class TradeExecutor {
@@ -9,7 +7,6 @@ export class TradeExecutor {
 
 	constructor(
 		private readonly _config: WalletConfig,
-		private readonly _recorder: TradeRecorder,
 		initialState: PortfolioState
 	) {
 		this._state = initialState;
@@ -35,7 +32,7 @@ export class TradeExecutor {
 		if (Volume.gt(newPosition, this._config.maxPosition)) {
 			return false;
 		}
-		const { totalCost, fee } = this._config.computeBuyCosts(
+		const { totalCost } = this._config.computeBuyCosts(
 			amount,
 			this._state.price
 		);
@@ -45,20 +42,15 @@ export class TradeExecutor {
 		const cashAfterBuy = Cash.of(
 			this._config.roundValue(Cash.sub(this._state.cash, totalCost))
 		);
-		return this._commitTrade(
-			TradeSide.Buy,
-			amount,
-			fee,
-			newPosition,
-			cashAfterBuy
-		);
+		this._commitTrade(newPosition, cashAfterBuy);
+		return true;
 	}
 	sell(amount: Volume): boolean {
 		const amt = Volume.toNumber(amount);
 		if (!Number.isFinite(amt) || amt <= 0 || amt > this._state.position) {
 			return false;
 		}
-		const { netProceeds, fee } = this._config.computeSellProceeds(
+		const { netProceeds } = this._config.computeSellProceeds(
 			amount,
 			this._state.price
 		);
@@ -68,40 +60,18 @@ export class TradeExecutor {
 		const cashAfterSell = Cash.of(
 			this._config.roundValue(Cash.add(this._state.cash, netProceeds))
 		);
-		return this._commitTrade(
-			TradeSide.Sell,
-			amount,
-			fee,
-			positionAfterSell,
-			cashAfterSell
-		);
+		this._commitTrade(positionAfterSell, cashAfterSell);
+		return true;
 	}
 
-	private _commitTrade(
-		action: TradeSide,
-		amount: Volume,
-		fee: Cash,
-		positionAfter: Volume,
-		cashAfter: Cash
-	): boolean {
+	private _commitTrade(positionAfter: Volume, cashAfter: Cash): void {
 		this._state = { ...this._state, position: positionAfter, cash: cashAfter };
-		this._recorder.recordTrade({
-			action,
-			amount,
-			fee: Cash.of(this._config.roundValue(fee)),
-			price: this._state.price,
-			cashAfter: this._state.cash,
-			positionAfter: this._state.position,
-		});
-		return true;
 	}
 	setPrice(newPrice: Price): void {
 		if (!Number.isFinite(newPrice) || newPrice <= 0) {
 			throw new Error(`setPrice received invalid value: ${newPrice}`);
 		}
 		this._state = { ...this._state, price: newPrice };
-		this._recorder.incrementStep();
-		this._recorder.recordValuation(this._state);
 	}
 	reset(): void {
 		this._state = {
@@ -109,6 +79,5 @@ export class TradeExecutor {
 			cash: this._config.initialCash,
 			position: Volume.zero(),
 		};
-		this._recorder.reset();
 	}
 }

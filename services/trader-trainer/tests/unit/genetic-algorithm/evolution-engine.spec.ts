@@ -6,7 +6,6 @@ import {
 	mutateWeights,
 } from "../../../src/domain/genetic-algorithm/evolution-engine";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
-import { SelectionType } from "../../../src/domain/genetic-algorithm/genome";
 import type { PopMember } from "../../../src/domain/genetic-algorithm/genome-types";
 import { createOffspring } from "../../../src/domain/genetic-algorithm/offspring-factory";
 import { selectParent } from "../../../src/domain/genetic-algorithm/selection";
@@ -174,24 +173,14 @@ describe("EvolutionEngine", () => {
 
 		it("should select a parent from population", () => {
 			const population = makePop([10, 20, 30]);
-			const parent = selectParent(population, SelectionType.Tournament, rng);
+			const parent = selectParent(population, rng);
 			expect(parent).toBeDefined();
 		});
 
 		it("should return a member of the population", () => {
 			const population = makePop([10]);
-			const parent = selectParent(population, SelectionType.Tournament, rng);
+			const parent = selectParent(population, rng);
 			expect(parent).toBe(population[0].genome);
-		});
-
-		it("should work with random selection type", () => {
-			const population = makePop([10, 20]);
-			const parent = selectParent(
-				population,
-				"unknown-type" as SelectionType,
-				rng
-			);
-			expect(population.map((m) => m.genome)).toContain(parent);
 		});
 
 		it("should pick a candidate with higher fitness over a lower one", () => {
@@ -241,11 +230,7 @@ describe("EvolutionEngine", () => {
 				}
 				return 0;
 			};
-			const parent = selectParent(
-				population,
-				SelectionType.Tournament,
-				controlledRng
-			);
+			const parent = selectParent(population, controlledRng);
 			expect(parent.id).toBe("high");
 		});
 	});

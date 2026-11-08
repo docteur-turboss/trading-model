@@ -1,16 +1,16 @@
 import { describe, expect, it } from "@jest/globals";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import { Price } from "@trading-model/primitives/primitives";
 import { FeatureVector } from "../../../src/domain/feature-vector";
 import { FEATURE_DIM } from "../../../src/domain/feature-vector-codec";
 import { evalPhase } from "../../../src/domain/genetic-algorithm/evaluation-phase";
 import { lamarckianUpdate } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
-import { mutateRL } from "../../../src/domain/genetic-algorithm/genome-rl";
+import { mutateRL } from "../../../src/domain/genetic-algorithm/genome-rl/mutation";
 import type {
 	LamarckGenome,
 	MarketStep,
 } from "../../../src/domain/genetic-algorithm/genome-types";
-import { makePRNG } from "../../../src/domain/genetic-algorithm/prng";
 import {
 	type BackendFactory,
 	makeTradingAgentBackend,
@@ -165,16 +165,7 @@ describe("the GA evolves the switches of the RL genome", () => {
 		const rng = makePRNG(3);
 		const seen = new Set<boolean>();
 		for (let round = 0; round < 200; round++) {
-			seen.add(
-				read(
-					mutateRL({
-						rl: genome.rl,
-						mutation: genome.mutation,
-						sigma: 0.1,
-						rng,
-					})
-				)
-			);
+			seen.add(read(mutateRL({ rl: genome.rl, rng })));
 		}
 
 		expect(seen).toEqual(new Set([true, false]));

@@ -101,7 +101,7 @@ Repeated until termination:
 2. **NSGA-II sort** the population by Pareto rank + crowding distance
 3. **Update archive** with non-dominated solutions
 4. **Select elites** (top `elitismFraction`)
-5. **Select parents** (tournament/roulette/rank)
+5. **Select parents** (tournament)
 6. **Crossover** parents → child genomes (structural + weight-level)
 7. **Mutate** children (structural + weight-level)
 8. **Adapt** GA control parameters

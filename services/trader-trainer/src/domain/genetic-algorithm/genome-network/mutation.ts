@@ -1,9 +1,7 @@
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import type { LamarckGenome } from "../genome-fitness";
 import type { MutationGenome } from "../genome-mutation";
-import { MutationScope } from "../genome-mutation";
-import { adaptSigma } from "../mutation/sigma-adapters";
-import { sampleNoise } from "../noise";
+import { sampleGaussian } from "../noise";
 import {
 	ActivationType,
 	ConnectionType,
@@ -58,26 +56,10 @@ function _mutateNeuronCount(
 	rng: () => number
 ): number {
 	if (rng() < mutation.rates.rate) {
-		const delta = Math.round(
-			sampleNoise(mutation.distribution, sigma * 10, rng)
-		);
+		const delta = Math.round(sampleGaussian(rng, sigma * 10));
 		return Math.max(1, layer.neurons + delta);
 	}
 	return layer.neurons;
-}
-
-function _mutateActivation(
-	layer: LayerGenome,
-	mutation: MutationGenome,
-	rng: () => number
-): ActivationType {
-	if (
-		mutation.mutateActivations &&
-		rng() < mutation.rates.activationMutationRate
-	) {
-		return pick(ACTIVATIONS, rng);
-	}
-	return layer.activation;
 }
 
 function _mutateConnectionType(
@@ -105,11 +87,10 @@ export function mutateLayer(
 	mutation: MutationGenome,
 	rng: () => number
 ): LayerGenome {
-	const sigma = adaptSigma(mutation, rng);
+	const sigma = mutation.rates.sigma;
 	return {
 		...layer,
 		neurons: _mutateNeuronCount(layer, sigma, mutation, rng) as PositiveInt,
-		activation: _mutateActivation(layer, mutation, rng),
 		connectionType: _mutateConnectionType(layer, mutation, rng),
 		biasType: _mutateBiasType(layer, mutation, rng),
 	};
@@ -120,9 +101,8 @@ function _mutateLayers(
 	mutationConfig: MutationGenome,
 	rng: () => number
 ): LayerGenome[] {
-	const perLayerMode = mutationConfig.scope === MutationScope.PerLayer;
 	return layers.map((layer) =>
-		perLayerMode || rng() < mutationConfig.rates.rate
+		rng() < mutationConfig.rates.rate
 			? mutateLayer(layer, mutationConfig, rng)
 			: { ...layer }
 	);
@@ -199,10 +179,9 @@ function _maybeMutateNormalization(
 		: genome.network.normalization;
 }
 
-export interface MutateNetworkContext {
+interface MutateNetworkContext {
 	genome: LamarckGenome;
 	mutationConfig: MutationGenome;
-	sigma: number;
 	rng: () => number;
 }
 

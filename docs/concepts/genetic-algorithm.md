@@ -51,14 +51,7 @@ A complexity penalty discourages overly large networks: `adjusted_fitness = fitn
 
 ### Selection
 
-Selects parents for reproduction. Strategies:
-
-| Strategy | Behavior |
-| -------- | -------- |
-| **Tournament** (default) | Pick k=3 random individuals, return the fittest |
-| **Roulette** | Fitness-proportionate probability |
-| **Rank** | Rank-based probability |
-| **Truncation / SUS** | Random from top fraction |
+Selects parents for reproduction by **tournament**: pick k=3 random individuals (with replacement) and return the fittest.
 
 ### Crossover
 
@@ -67,28 +60,16 @@ Combines two parent genomes to produce offspring. Two levels:
 - **Structural crossover**: mixes network topology (layer counts, neuron counts) and RL hyperparameters
 - **Weight-level crossover**: mixes trained weight arrays from both parents
 
-| Type | Formula | Use case |
-| ---- | ------- | -------- |
-| Uniform | Randomly pick from either parent | Topology mixing |
-| Arithmetic | `lerp(a, b, α)` | Smooth blending |
-| BLX-α | Extended range exploration | Escaping local optima |
-| SBX | Simulated Binary Crossover | Real-valued optimization |
+Structural crossover is **uniform**: each gene comes from either parent with probability 0.5.
 
 ### Mutation
 
 Random perturbations to maintain diversity. Two levels:
 
-- **Structural mutation**: neuron counts, activation functions, RL hyperparameters, layer add/remove
+- **Structural mutation**: neuron counts, connection and bias types, RL hyperparameters, layer add/remove
 - **Weight-level mutation**: Gaussian noise on trained weights
 
-Mutation can use different noise distributions:
-
-| Distribution | Characteristics | Use case |
-| ------------ | --------------- | -------- |
-| Gaussian | Fine-grained, local | Fine-tuning |
-| Lévy | Heavy-tailed | Escaping local optima |
-| Cauchy | Heavy-tailed | Rare large jumps |
-| Uniform | Flat exploration | Broad search |
+The noise is Gaussian, scaled by the genome's `mutation.rates.sigma`, which itself evolves with the genome.
 
 ### Elitism
 

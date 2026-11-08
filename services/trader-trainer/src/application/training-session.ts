@@ -41,16 +41,12 @@ export type TrainingRunner = (
 export const runInProcess: TrainingRunner = (windowSets, settings, telemetry) =>
 	new TrainingSession(windowSets, settings, telemetry).run();
 
-export class TrainingSession {
-	private readonly _windowSets: WindowSet[];
-
+class TrainingSession {
 	constructor(
-		windowSets: WindowSet | WindowSet[],
+		private readonly _windowSets: WindowSet[],
 		private readonly _settings: TrainingSettings,
 		private readonly _telemetry?: GaTelemetry
-	) {
-		this._windowSets = Array.isArray(windowSets) ? windowSets : [windowSets];
-	}
+	) {}
 
 	async run(): Promise<TrainingSessionResult> {
 		let lastCtx: GenerationContext | null = null;

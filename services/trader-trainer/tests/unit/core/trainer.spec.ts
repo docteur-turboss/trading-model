@@ -10,12 +10,8 @@ import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/facto
 import {
 	ActivationType,
 	ConnectionType,
-	CrossoverType,
 	FitnessType,
 	InitialisationType,
-	MutationAdaptation,
-	MutationDistribution,
-	MutationScope,
 	NormalisationType,
 	SelectionType,
 } from "../../../src/domain/genetic-algorithm/genome";
@@ -92,7 +88,6 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 					},
 					evaluation: {
 						episodesPerIndividual: 3,
-						seedsPerEval: 2,
 					},
 					seeding: { envSeed: 42, mutationSeed: 1337, networkSeed: 7 },
 					termination: {
@@ -147,26 +142,13 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 				mutation: {
 					rate: 0.1,
 					sigma: 0.05,
-					noiseStd: 0.02,
-					distribution: MutationDistribution.Gaussian,
-					adaptation: MutationAdaptation.Fixed,
-					scope: MutationScope.Global,
-					selfSigma: 0.05,
-					mutateActivations: false,
-					activationMutationRate: 0.05,
-					mutateHyperparams: true,
 					addNeuronRate: 0.01,
 					removeNeuronRate: 0.01,
 					addLayerRate: 0.005,
 					removeLayerRate: 0.005,
-					addConnectionRate: 0.01,
-					removeConnectionRate: 0.01,
 				},
 				crossover: {
-					type: CrossoverType.Uniform,
 					probability: 0.7,
-					blendAlpha: 0.5,
-					sbxEta: 2,
 				},
 			});
 		}),

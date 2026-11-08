@@ -132,14 +132,4 @@ describe("Activation Functions", () => {
 			expect(Number.isFinite(ACTIVATIONS.mish.derivative(1, 1))).toBe(true);
 		});
 	});
-
-	describe("softmax", () => {
-		test("fn should throw when called directly (use ActivationComputer.applySoftmax instead)", () => {
-			expect(() => ACTIVATIONS.softmax.fn(5)).toThrow();
-		});
-
-		test("derivative should throw when called directly (use OutputDeltaComputer instead)", () => {
-			expect(() => ACTIVATIONS.softmax.derivative(0, 0)).toThrow();
-		});
-	});
 });

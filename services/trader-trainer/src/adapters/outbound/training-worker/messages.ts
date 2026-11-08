@@ -13,7 +13,7 @@ export type WorkerMessage =
 	| { type: "error"; message: string; stack?: string };
 
 /** A market step as it crosses the thread boundary: `FeatureVector` is a class, a structured clone would drop its methods. */
-export interface WireMarketStep {
+interface WireMarketStep {
 	price: MarketStep["price"];
 	timestamp?: number;
 	features: Float32Array;

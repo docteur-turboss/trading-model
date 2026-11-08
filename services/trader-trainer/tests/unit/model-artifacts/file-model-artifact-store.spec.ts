@@ -6,6 +6,7 @@ import {
 	readFile,
 	rm,
 	utimes,
+	writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -162,6 +163,14 @@ describe("FileModelArtifactStore", () => {
 		expect(
 			await store.weights("BTCUSDT", "20261029T101530Z-0123456789ab")
 		).toBeUndefined();
+	});
+
+	it("rethrows a filesystem error other than a missing path", async () => {
+		// A file where the symbol directory belongs: readdir fails with ENOTDIR.
+		await writeFile(join(root, "BTCUSDT"), "");
+		await expect(store.list("BTCUSDT")).rejects.toMatchObject({
+			code: "ENOTDIR",
+		});
 	});
 
 	it("removes what a crash mid-write left once it is stale, not a write in progress", async () => {

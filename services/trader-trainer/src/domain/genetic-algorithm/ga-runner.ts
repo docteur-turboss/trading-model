@@ -1,6 +1,6 @@
-import { checkTerminationConditions } from "./adaptive-control-system";
 import type { GARunnerConfig, GenerationContext } from "./generation-processor";
 import { GenerationProcessor } from "./generation-processor";
+import { checkTerminationConditions } from "./genome-control";
 import type { LamarckGenome } from "./genome-types";
 import type { DeepReadonly } from "./shared-types";
 

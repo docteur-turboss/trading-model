@@ -4,8 +4,7 @@ import type {
 	PositiveInt,
 	Probability,
 } from "@trading-model/primitives/primitives";
-import type { MutationGenome } from "../genome-mutation";
-import { sampleGaussian, sampleNoise } from "../noise";
+import { sampleGaussian } from "../noise";
 import { clamp } from "../utils";
 import { MaxBatchSize, type RLGenome, type RLScalars } from "./types";
 
@@ -19,10 +18,8 @@ function _maybeFlip(value: boolean, rng: () => number): boolean {
 	return rng() < BooleanFlipRate ? !value : value;
 }
 
-export interface MutateRLContext {
+interface MutateRLContext {
 	rl: RLGenome;
-	mutation: MutationGenome;
-	sigma: number;
 	rng: () => number;
 }
 
@@ -41,19 +38,13 @@ export function mutateDiscreteStepParam(
 }
 
 function _perturbFn(
-	mutation: MutationGenome,
 	rng: () => number
 ): (value: number, scale: number) => number {
-	return (value: number, scale: number) =>
-		value + sampleNoise(mutation.distribution, scale, rng);
+	return (value: number, scale: number) => value + sampleGaussian(rng, scale);
 }
 
-function _mutateGammaAndLR(
-	rl: RLGenome,
-	mutation: MutationGenome,
-	rng: () => number
-): RLScalars {
-	const perturb = _perturbFn(mutation, rng);
+function _mutateGammaAndLR(rl: RLGenome, rng: () => number): RLScalars {
+	const perturb = _perturbFn(rng);
 
 	return {
 		gamma: clamp(perturb(rl.gamma, 0.01), 0.8, 0.9999) as Probability,
@@ -67,10 +58,9 @@ function _mutateGammaAndLR(
 
 function _mutateRewardShaping(
 	rl: RLGenome,
-	mutation: MutationGenome,
 	rng: () => number
 ): Pick<RLGenome, "rewardShaping"> {
-	const perturb = _perturbFn(mutation, rng);
+	const perturb = _perturbFn(rng);
 
 	return {
 		rewardShaping: {
@@ -97,29 +87,21 @@ function _mutateRewardShaping(
 
 function _mutateMaxEpisodeLength(
 	horizon: RLGenome["horizon"],
-	mutation: MutationGenome,
 	rng: () => number
 ): number {
 	return Math.max(
 		10,
-		Math.round(
-			horizon.maxEpisodeLength + sampleNoise(mutation.distribution, 20, rng)
-		)
+		Math.round(horizon.maxEpisodeLength + sampleGaussian(rng, 20))
 	);
 }
 
 function _mutateHorizon(
 	rl: RLGenome,
-	mutation: MutationGenome,
 	rng: () => number
 ): Pick<RLGenome, "horizon"> {
 	return {
 		horizon: {
-			maxEpisodeLength: _mutateMaxEpisodeLength(
-				rl.horizon,
-				mutation,
-				rng
-			) as PositiveInt,
+			maxEpisodeLength: _mutateMaxEpisodeLength(rl.horizon, rng) as PositiveInt,
 			nStepReturn: mutateDiscreteStepParam(
 				rl.horizon.nStepReturn,
 				rng
@@ -134,10 +116,9 @@ function _mutateHorizon(
 
 function _mutateDiscretePolicy(
 	rl: RLGenome,
-	mutation: MutationGenome,
 	rng: () => number
 ): Pick<RLGenome, "discretePolicy"> {
-	const perturb = _perturbFn(mutation, rng);
+	const perturb = _perturbFn(rng);
 	return {
 		discretePolicy: {
 			...rl.discretePolicy,
@@ -169,10 +150,9 @@ function _mutateReplayBufferSize(
 
 function _mutateReplayBuffer(
 	rl: RLGenome,
-	mutation: MutationGenome,
 	rng: () => number
 ): Pick<RLGenome, "replayBuffer"> {
-	const perturb = _perturbFn(mutation, rng);
+	const perturb = _perturbFn(rng);
 	return {
 		replayBuffer: {
 			...rl.replayBuffer,
@@ -204,12 +184,12 @@ function _mutateReplayBuffer(
 }
 
 export function mutateRL(ctx: MutateRLContext): RLGenome {
-	const { rl, mutation, rng } = ctx;
+	const { rl, rng } = ctx;
 	return {
-		..._mutateGammaAndLR(rl, mutation, rng),
-		..._mutateRewardShaping(rl, mutation, rng),
-		..._mutateHorizon(rl, mutation, rng),
-		..._mutateDiscretePolicy(rl, mutation, rng),
-		..._mutateReplayBuffer(rl, mutation, rng),
+		..._mutateGammaAndLR(rl, rng),
+		..._mutateRewardShaping(rl, rng),
+		..._mutateHorizon(rl, rng),
+		..._mutateDiscretePolicy(rl, rng),
+		..._mutateReplayBuffer(rl, rng),
 	};
 }

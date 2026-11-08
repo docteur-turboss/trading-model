@@ -1,20 +1,3 @@
-import { Optimizer as OptimizerType } from "@trading-model/contracts/training-events";
-
-export { OptimizerType };
-
-export enum LossFunctionType {
-	MeanSquaredError = "mean-squared-error",
-	CrossEntropy = "cross-entropy",
-	MeanBiaisError = "mean-biais-error",
-	MeanAbsoluteError = "mean-absolute-error",
-	RootMeanSquaredError = "root-mean-squared-error",
-	HuberLoss = "huber-loss",
-	LogCoshLoss = "log-cosh-loss",
-	BinaryCrossEntropy = "binary-cross-entropy",
-	HingeLoss = "hinge-loss",
-	KullbackLeiblerDivergence = "kullback-leibler",
-}
-
 export enum NormalisationType {
 	MinMax = "min-max",
 	ZScore = "z-score",
@@ -31,7 +14,6 @@ export enum ActivationType {
 	Relu = "relu",
 	LeakyReLu = "leakyReLu",
 	Gelu = "gelu",
-	Softmax = "softmax",
 	Elu = "elu",
 	Mish = "mish",
 	Linear = "linear",
@@ -52,7 +34,5 @@ export enum InitialisationType {
 }
 
 export enum ExperienceKind {
-	Bare = "bare",
 	QLearning = "qlearning",
-	Supervised = "supervised",
 }

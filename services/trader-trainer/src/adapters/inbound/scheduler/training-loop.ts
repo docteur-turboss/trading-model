@@ -7,7 +7,7 @@ import { hasEnoughTrainingData } from "../../../domain/market-data/window-splitt
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
 import type { TradingSymbol } from "../../../domain/market-data-types";
 
-export interface TrainingLoopConfig {
+interface TrainingLoopConfig {
 	symbols: TradingSymbol[];
 	intervalMs: number;
 	/**

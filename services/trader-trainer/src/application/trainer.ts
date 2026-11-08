@@ -41,7 +41,7 @@ import {
 
 export type { BestAgentSummary };
 
-export interface TrainerDeps {
+interface TrainerDeps {
 	settings: TrainingSettings;
 	publisher?: ModelPublisherPort;
 	telemetry?: GaTelemetry;

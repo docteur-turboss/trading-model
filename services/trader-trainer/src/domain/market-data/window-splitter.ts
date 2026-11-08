@@ -14,7 +14,7 @@ export const MIN_TRAINING_STEPS = PositiveInt.of(10);
 export const DEFAULT_VALIDATION_SPLIT = Percentage.of(0.2);
 
 /** Default number of walk-forward folds (1 = single split, no rolling). */
-export const DEFAULT_WALK_FORWARD_FOLDS = 1;
+const DEFAULT_WALK_FORWARD_FOLDS = 1;
 
 /**
  * Whether `candleCount` candles give windows the training validator accepts.

@@ -4,7 +4,7 @@ import { RewardShaper } from "./reward-shaping";
 import type { RLBackend, Transition } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 
-export interface TrainPhaseContext {
+interface TrainPhaseContext {
 	backend: RLBackend;
 	trainData: MarketStep[];
 	genome: DeepReadonly<LamarckGenome>;

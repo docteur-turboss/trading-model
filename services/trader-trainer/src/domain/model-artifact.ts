@@ -21,7 +21,7 @@ export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9._-]+$/;
  * the bar curve, evaluation at a fixed epsilon. Absent on older manifests,
  * whose metrics came from the shaped reward: never compare the two.
  */
-export const MODEL_METRICS_VERSION = 3;
+const MODEL_METRICS_VERSION = 3;
 
 export interface ModelMetrics {
 	metricsVersion?: number;
