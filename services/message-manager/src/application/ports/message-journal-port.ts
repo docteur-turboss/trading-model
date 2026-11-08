@@ -36,12 +36,18 @@ export interface MessageJournalPort {
 	): Promise<void>;
 	/** Every group any replica registered. */
 	groups(): Promise<JournalGroup[]>;
-	/** Entries never delivered to the group, now pending for `consumer`. */
+	/**
+	 * Entries never delivered to the group, now pending for `consumer`. With
+	 * `blockMs`, waits up to that long for one when there is none yet.
+	 */
 	readNew(
 		group: JournalGroup,
 		consumer: string,
-		count: number
+		count: number,
+		blockMs?: number
 	): Promise<JournalEntry[]>;
+	/** Ends the reads waiting in `blockMs` and frees their connections. */
+	close?(): void;
 	/**
 	 * Pending entries whose last attempt is older than `dueAfterMs(deliveries)`
 	 * (never below `floorMs`), taken over by `consumer`: whichever replica

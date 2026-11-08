@@ -26,6 +26,8 @@ export class InMemoryMessageJournal implements MessageJournalPort {
 	private readonly _logs = new Map<string, Message[]>();
 	private readonly _groups = new Map<string, GroupState>();
 	private readonly _known = new Map<string, JournalGroup>();
+	/** Blocked reads, woken by an append or by `close`. */
+	private readonly _waiters = new Set<() => void>();
 
 	constructor(private readonly _now: () => number = Date.now) {}
 
@@ -46,17 +48,43 @@ export class InMemoryMessageJournal implements MessageJournalPort {
 			await this.register({ topic, service });
 		}
 		this._log(topic).push(message);
+		this.close();
+	}
+
+	/** Wakes the blocked reads (they re-read, or return empty when stopped). */
+	close(): void {
+		for (const wake of [...this._waiters]) {
+			wake();
+		}
 	}
 
 	groups(): Promise<JournalGroup[]> {
 		return Promise.resolve([...this._known.values()]);
 	}
 
-	readNew(
+	async readNew(
 		group: JournalGroup,
 		_consumer: string,
-		count: number
+		count: number,
+		blockMs?: number
 	): Promise<JournalEntry[]> {
+		const entries = this._take(group, count);
+		if (entries.length > 0 || !blockMs) {
+			return entries;
+		}
+		await new Promise<void>((resolve) => {
+			const wake = () => {
+				clearTimeout(timer);
+				this._waiters.delete(wake);
+				resolve();
+			};
+			const timer = setTimeout(wake, blockMs);
+			this._waiters.add(wake);
+		});
+		return this._take(group, count);
+	}
+
+	private _take(group: JournalGroup, count: number): JournalEntry[] {
 		const state = this._groups.get(keyOf(group));
 		const log = this._log(group.topic);
 		const entries: JournalEntry[] = [];
@@ -68,7 +96,7 @@ export class InMemoryMessageJournal implements MessageJournalPort {
 			});
 			entries.push(this._entry(log, position, 1));
 		}
-		return Promise.resolve(entries);
+		return entries;
 	}
 
 	claimDue(

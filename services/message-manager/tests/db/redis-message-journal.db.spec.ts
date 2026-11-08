@@ -60,7 +60,11 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-	await Promise.all(clients.map((client) => client.quit()));
+	await Promise.all(
+		clients.map((client) =>
+			client.status === "end" ? undefined : client.quit()
+		)
+	);
 });
 
 describe("RedisMessageJournal — real Redis", () => {
@@ -172,6 +176,56 @@ describe("RedisMessageJournal — real Redis", () => {
 			number,
 		];
 		expect(pending[0]).toBe(0);
+	});
+});
+
+describe("RedisMessageJournal blocking reads — real Redis", () => {
+	it("should not register a known group again, and wake a blocked read on append", async () => {
+		const redis = replica();
+		const spy = jest.spyOn(redis, "call");
+		const journal = new RedisMessageJournal({
+			redis,
+			openBlockingRedis: () => replica(),
+			keyPrefix: KEY_PREFIX,
+		});
+		await journal.append(createMockMessage("m1"), [GROUP.service]);
+		spy.mockClear();
+
+		const read = journal.readNew(GROUP, "c1", 100, 5000);
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		const startedAt = Date.now();
+		await journal.append(createMockMessage("m2"), [GROUP.service]);
+		const entries = await read;
+
+		expect(entries).toHaveLength(1);
+		const latencyMs = Date.now() - startedAt;
+		process.stdout.write(`publish -> blocked read latency: ${latencyMs} ms
+`);
+		expect(latencyMs).toBeLessThan(500);
+		const names = spy.mock.calls.map(([name]) => name);
+		expect(names).toEqual(["EXISTS", "XADD"]);
+		journal.close();
+	});
+
+	it("should create the group again when Redis lost it", async () => {
+		const journal = journalOn(replica());
+		await journal.register(GROUP);
+		await replica().flushdb();
+
+		await expect(journal.readNew(GROUP, "c1", 10)).resolves.toEqual([]);
+		await journal.append(createMockMessage("m1"), [GROUP.service]);
+
+		await expect(journal.readNew(GROUP, "c1", 10)).resolves.toHaveLength(1);
+	});
+
+	it("should deliver a message published after Redis lost everything, with no read in between", async () => {
+		const journal = journalOn(replica());
+		await journal.register(GROUP);
+		await replica().flushdb();
+
+		await journal.append(createMockMessage("m1"), [GROUP.service]);
+
+		await expect(journal.readNew(GROUP, "c1", 10)).resolves.toHaveLength(1);
 	});
 });
 
