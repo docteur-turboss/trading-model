@@ -115,7 +115,7 @@ diagnose() {
 	kubectl describe "$target" -n "$ns" 2>&1 | tail -40 || true
 	kubectl get events -n "$ns" --field-selector type=Warning --sort-by=.lastTimestamp 2>&1 | tail -20 || true
 	for pod in $(kubectl get pods -n "$ns" --no-headers 2>/dev/null |
-		awk '{split($2, r, "/")} r[1] != r[2] || $3 != "Running" {print $1}'); do
+		awk '{split($2, r, "/")} $3 != "Completed" && (r[1] != r[2] || $3 != "Running") {print $1}'); do
 		echo "===== $pod"
 		kubectl logs "$pod" -n "$ns" --all-containers --tail=30 2>&1 || true
 	done
@@ -126,6 +126,8 @@ diagnose() {
 # a draining pod may use its whole grace (collector and message-manager: 360 s
 # for in-flight publishes). The grace is added to each wait, or a healthy
 # release whose drain outlasts the timeout would be rolled back (PR #460).
+# Base timeout (180 s) measured in kind run 42498902230: forward rollout of the upgrade, slowest
+# healthy Deployment 33 s (discovery-server drain), the others 1 to 5 s; plus each grace.
 wait_rollout() {
 	local ns="$1" base="${2%s}" dep grace
 	[[ $base =~ ^[0-9]+$ ]] || {
@@ -180,6 +182,8 @@ rollback() {
 	done <"$file"
 	for entry in "${undone[@]}"; do
 		read -r target dep rev <<<"$entry"
+		# 180 s: measured in kind run 42498902230 (PR #685): the whole rollback settled in 47 s, slowest
+		# discovery-server at 33 s (drain). Kept: lowering it would also cut the real deploy.
 		if ! kubectl rollout status "$target" -n "$ns" --timeout=180s; then
 			echo "::error::$dep did not finish rolling back to revision $rev"
 			diagnose "$ns" "$target"
