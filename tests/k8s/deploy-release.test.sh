@@ -103,6 +103,14 @@ STUB_GRACE="financial-scraper-collector=360 api-gateway=30" bash "$SCRIPT" wait 
 	ok "wait adds each template's termination grace to the timeout" || ko "wait: $(cat "$WORK/log")"
 bash "$SCRIPT" wait ns 3m >/dev/null 2>&1 && ko "wait accepted a timeout not in seconds" || ok "wait refuses a timeout not in seconds"
 
+: >"$WORK/log"
+DEPLOY_TIMEOUT_FACTOR=4 STUB_GRACE="api-gateway=30" bash "$SCRIPT" wait ns >/dev/null &&
+	grep -q "rollout status statefulset/redis -n ns --timeout=720s" "$WORK/log" &&
+	grep -q "rollout status deployment/api-gateway -n ns --timeout=750s" "$WORK/log" &&
+	ok "DEPLOY_TIMEOUT_FACTOR multiplies the wait, not the grace" || ko "factor: $(cat "$WORK/log")"
+DEPLOY_TIMEOUT_FACTOR=x bash "$SCRIPT" wait ns >/dev/null 2>&1 && ko "bad DEPLOY_TIMEOUT_FACTOR accepted" ||
+	ok "DEPLOY_TIMEOUT_FACTOR not a positive integer: refused"
+
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 
 exit "$FAILED"
