@@ -54,11 +54,7 @@ docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f rate
 | `scenarios/discovery-services.js`| `/v1/discovery-server/services`                  | SLO        |
 | `scenarios/audit-events.js`      | `/v1/audit-logger/events`                        | SLO        |
 | `k6/smoke-test.js`               | the three above                                  | SLO        |
-<<<<<<< HEAD
-| `k6/stress-test.js`              | the three above, up to 100 VUs                   | stress (see below), not the SLO |
-=======
-| `k6/stress-test.js`              | the three above, up to 100 VUs                   | stress target (P95 < 5 s, errors < 5 %; objective, not measured), not the SLO |
->>>>>>> origin/development
+| `k6/stress-test.js`              | the three above, up to 100 VUs                   | stress (see below; objective, not measured), not the SLO |
 
 **SLO thresholds** (`docs/operations/slo.md`, shared as `SLO_THRESHOLDS` in `lib/public-api.js`): `checks rate>0.99`, `http_req_duration p(95)<2000`, `http_req_failed rate<0.01`. A run that breaks them violates the SLO.
 
