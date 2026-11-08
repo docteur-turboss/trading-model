@@ -39,20 +39,26 @@ services:
     logging: *default-logging
 
   runner:
-    # Ephemeral: one job per registration, then the container restarts and
-    # registers again (ACCESS_TOKEN fetches the registration token). No Docker
-    # socket: the host Docker also runs other production stacks.
+    # Registered once with a registration token (valid 1 h, from
+    # `gh api -X POST repos/docteur-turboss/trading-model/actions/runners/registration-token`):
+    # GitHub has no API to mint the fine-grained PAT that ephemeral mode needs,
+    # and no long-lived token is stored. The runner credentials stay in the
+    # volume runner-data, so restarts reuse the registration. No Docker socket:
+    # the host Docker also runs other production stacks.
     image: myoung34/github-runner:2.338.2-ubuntu-noble@sha256:23e3a4a1da30de5b462ad0ae13d901288e803a688075c3b9b5bb79b7148c07fa
     container_name: trading-staging-runner
     environment:
       REPO_URL: https://github.com/docteur-turboss/trading-model
       RUNNER_SCOPE: repo
-      ACCESS_TOKEN: ${RUNNER_ACCESS_TOKEN:?set in ~/.trading-staging/env}
-      RUNNER_NAME_PREFIX: trading-staging
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      RUNNER_NAME: trading-staging
       LABELS: trading-staging
-      EPHEMERAL: "true"
-      DISABLE_AUTOMATIC_DEREGISTRATION: "false"
+      EPHEMERAL: "false"
+      DISABLE_AUTOMATIC_DEREGISTRATION: "true"
+      CONFIGURED_ACTIONS_RUNNER_FILES_DIR: /runner/data
       RUNNER_WORKDIR: /tmp/runner
+    volumes:
+      - runner-data:/runner/data
     networks:
       - kind
     restart: unless-stopped
@@ -60,6 +66,7 @@ services:
 
 volumes:
   minio-data:
+  runner-data:
 
 networks:
   kind:
