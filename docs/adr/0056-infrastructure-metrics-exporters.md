@@ -27,7 +27,7 @@ Constraints: no Helm (kube-prometheus-stack is out), the application namespace e
 ## Consequences
 
 - Before the first deploy that contains it: an admin runs `scripts/deploy-identity.sh cluster` (ClusterRole `prometheus-nodes`), and both password keys are sealed into `trading-model-secrets` (merge, `docs/deployment/sealed-secrets.md`). Compose hosts add `MYSQL_EXPORTER_PASSWORD` to `.env`.
-- The first deploy restarts the MySQL, MongoDB and Redis StatefulSets one pod at a time (new sidecar).
+- The first deploy restarts the MySQL, MongoDB and Redis StatefulSets one pod at a time (new sidecar). `run-migrations.sh` applies the SealedSecret before the migrations whenever it carries a key the live Secret lacks, and waits for the controller (issue #698): `db-migrate-user` then creates the MySQL `exporter` user and the restarted Redis pods read `REDIS_EXPORTER_PASSWORD`. The kind CI job upgrades an N-1 without the keys and checks `min(mysql_up)` and `min(redis_up)`.
 - An exporter that cannot log in reports its database down (`MySQLDown`, `RedisDown`): the runbook starts with the exporter logs.
 - PVC usage needs a volume driver that reports statistics (`local-path` on kind does not: no series, no alert).
 - kube-state-metrics sees one namespace: node conditions, PVs and the agents of `trading-model-node` stay out (node-exporter covers the node disks). Option 3 of the issue (cluster-wide kube-state-metrics) was declined.

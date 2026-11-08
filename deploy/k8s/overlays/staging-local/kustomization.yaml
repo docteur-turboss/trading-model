@@ -63,6 +63,19 @@ patches:
           periodSeconds: 10
           failureThreshold: 180
 
+  # One pod per data StatefulSet: a release must not restart it (issue #700).
+  # Planned restart for a new template: docs/deployment/STAGING_LOCAL.md.
+  - target:
+      kind: StatefulSet
+      name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$
+    patch: |-
+      - op: add
+        path: /spec/updateStrategy
+        value:
+          type: RollingUpdate
+          rollingUpdate:
+            partition: 1
+
   # Secrets sealed with the key of the kind cluster's controller, not the
   # placeholders of ../staging (OVERLAY=staging-local bash scripts/init-sealed-secrets.sh).
   - path: sealed-secrets.yaml

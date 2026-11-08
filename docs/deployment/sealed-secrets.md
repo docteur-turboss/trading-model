@@ -79,7 +79,7 @@ The controller rewrites `Secret.data` from the SealedSecret it owns: a file with
 kubectl create secret generic trading-model-secrets -n trading-model   --from-literal=MYSQL_MIGRATE_PASSWORD='value' --dry-run=client -o yaml   | kubeseal --controller-namespace sealed-secrets --merge-into deploy/k8s/secrets/trading-model-sealed-secrets.yaml
 ```
 
-The final file must list ALL keys. `run-migrations.sh` refuses to apply a file that lacks a key of the live Secret.
+The final file must list ALL keys. `run-migrations.sh` refuses to apply a file that lacks a key of the live Secret. A file that adds a key is applied by `run-migrations.sh` before the migrations, which then wait for the controller to write the key: `db-migrate-user` and the database pods the overlay restarts see it (issue #698).
 
 ### 3. Apply
 

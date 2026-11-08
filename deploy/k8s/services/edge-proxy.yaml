@@ -25,8 +25,11 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 spec:
   strategy:
+    # Surge first: with one replica (staging), maxUnavailable 1 left no ready
+    # pod until the new one was ready (issue #699, as discovery-server #486).
     rollingUpdate:
-      maxUnavailable: 1
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/component: edge-proxy

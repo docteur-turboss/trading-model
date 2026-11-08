@@ -15,9 +15,16 @@
 //   - every Deployment that can run more than one pod (replicas or its HPA)
 //     spreads them across nodes (ADR-0024): otherwise one node can hold every
 //     replica and its loss takes the whole service down
+//   - every RollingUpdate Deployment that can run one pod (replicas 1 or HPA
+//     minReplicas 1) has an effective maxUnavailable of 0: it surges first
+//     instead of leaving no ready pod during a rollout (issue #699)
 //   - singleton Deployments (SINGLETONS) run exactly one pod: replicas: 1,
 //     strategy Recreate, no HPA, no canary in deploy.yml (ADR-0042 collector,
 //     ADR-0044 trainer)
+//   - the data StatefulSets of staging-local (DATA_STATEFULSETS) set a
+//     partition >= replicas, so a release never restarts their single pods;
+//     staging (CI keeps testing their restarts) and production set none
+//     (issue #700)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -33,6 +40,8 @@ const SINGLETONS = {
 	"financial-scraper-collector": "ADR-0042",
 	"trader-trainer": "ADR-0044",
 };
+// Data StatefulSets of staging-local held by a partition (issue #700).
+const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 
 function render(dir) {
@@ -65,15 +74,32 @@ function spreadsAcrossNodes(text) {
 		);
 }
 
-/** Deployment name -> maxReplicas of the HPA that drives it. */
-function hpaTargets(docs) {
-	const maxReplicas = new Map();
+/** Deployment name -> maxReplicas (or `field`) of the HPA that drives it. */
+function hpaTargets(docs, field = "maxReplicas") {
+	const replicas = new Map();
 	for (const doc of docs.filter((d) => d.kind === "HorizontalPodAutoscaler")) {
 		const target = doc.text.match(/scaleTargetRef:\n(?: {4}.*\n)*? {4}name: (\S+)$/m)?.[1];
-		const max = Number(doc.text.match(/^ {2}maxReplicas: (\d+)$/m)?.[1] ?? 1);
-		if (target) maxReplicas.set(target, max);
+		const count = Number(doc.text.match(new RegExp(`^ {2}${field}: (\\d+)$`, "m"))?.[1] ?? 1);
+		if (target) replicas.set(target, count);
 	}
-	return maxReplicas;
+	return replicas;
+}
+
+/**
+ * RollingUpdate Deployments that can run one pod and would take it down before
+ * its replacement is ready (issue #699). Kubernetes rounds a percentage
+ * maxUnavailable down (default 25%), so only its effective value counts.
+ */
+function unavailableSinglePods(docs) {
+	const minReplicas = hpaTargets(docs, "minReplicas");
+	return docs
+		.filter((doc) => doc.kind === "Deployment" && !/^ {4}type: Recreate$/m.test(doc.text))
+		.filter((doc) => (minReplicas.get(doc.name) ?? Number(doc.text.match(/^ {2}replicas: (\d+)$/m)?.[1] ?? 1)) === 1)
+		.filter((doc) => {
+			const value = doc.text.match(/^ {6}maxUnavailable: (\S+)$/m)?.[1]?.replace(/["']/g, "") ?? "25%";
+			return value.endsWith("%") ? Number.parseInt(value, 10) >= 100 : Number(value) > 0;
+		})
+		.map((doc) => doc.name);
 }
 
 /** Deployments that may run several pods without a hard spread across nodes. */
@@ -253,11 +279,31 @@ for (const env of OVERLAYS) {
 		errors.push(`${env}: Deployment ${name} can run several pods without topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
 	}
 
+	for (const name of unavailableSinglePods(docs)) {
+		errors.push(`${env}: Deployment ${name} can run one pod but its rollingUpdate.maxUnavailable is not 0 (no ready pod during each rollout)`);
+	}
+
 	for (const name of replicasUnderHpa(docs)) {
 		errors.push(`${env}: Deployment ${name} is driven by an HPA but sets spec.replicas (each apply would reset it)`);
 	}
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
+
+	for (const name of DATA_STATEFULSETS) {
+		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
+		if (!sts) {
+			errors.push(`${env}: StatefulSet ${name} not found`);
+			continue;
+		}
+		const replicas = Number(sts.text.match(/^ {2}replicas: (\d+)$/m)?.[1] ?? 1);
+		const partition = Number(sts.text.match(/^ {6}partition: (\d+)$/m)?.[1] ?? 0);
+		if (env === "staging-local" && partition < replicas) {
+			errors.push(`${env}: StatefulSet ${name} needs updateStrategy.rollingUpdate.partition >= replicas (${replicas}): a release would restart its pods`);
+		}
+		if (env !== "staging-local" && partition > 0) {
+			errors.push(`${env}: StatefulSet ${name} must not set a partition: its pods would keep the old template`);
+		}
+	}
 
 	if (env.startsWith("staging")) {
 		for (const pdb of docs.filter((doc) => doc.kind === "PodDisruptionBudget")) {

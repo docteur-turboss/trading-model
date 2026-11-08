@@ -54,6 +54,13 @@ stringData:
   REDIS_EXPORTER_PASSWORD: dev-redis-exporter-password
 `;
 
+// `--secret`: that Secret alone, the stand-in for the SealedSecret file deploy.yml
+// passes to run-migrations.sh as SEALED_SECRETS_FILE (run-kind.sh, issue #698).
+if (process.argv.includes("--secret")) {
+	process.stdout.write(TEST_SECRET);
+	process.exit(0);
+}
+
 function adapt(manifest) {
 	return manifest
 		.replace(/imagePullPolicy: Always/g, "imagePullPolicy: IfNotPresent")
