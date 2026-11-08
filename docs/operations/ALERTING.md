@@ -42,6 +42,16 @@ Slack is down: configure that external check to notify someone directly
 | `ServiceDown` | a scrape target that is down, Alertmanager and Prometheus included |
 | `ServiceTargetsMissing` | an application service with no `up` series at all (0 replicas, Pending pods, broken scrape config), which `up == 0` cannot see |
 
+### OtelSpanExportFailing
+
+The collector (K8s only; compose exports straight to Jaeger, so the rule stays
+silent there) reports `otelcol_exporter_send_failed_spans` on `:8888`. Spans
+are being dropped between collector and Jaeger.
+
+1. `kubectl logs deploy/otel-collector`: look for export errors to `jaeger:4317`.
+2. Check the `jaeger` Service has ready endpoints.
+3. Once Jaeger answers, the alert clears after 10 minutes; dropped spans are not replayed.
+
 ## Business alerts that health checks miss
 
 A service can answer `/health/ready` while doing nothing useful: from launch to
@@ -140,6 +150,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |
 | `AlertmanagerNotificationsFailing` | critical | [ALERTING#alerts-on-the-alerting-path](ALERTING.md#alerts-on-the-alerting-path) |
 | `PrometheusRuleEvaluationFailures` | critical | [ALERTING#alerts-on-the-alerting-path](ALERTING.md#alerts-on-the-alerting-path) |
+| `OtelSpanExportFailing` | warning | [ALERTING#otelspanexportfailing](ALERTING.md#otelspanexportfailing) |
 | `Watchdog` | none | [ALERTING#dead-mans-switch](ALERTING.md#dead-mans-switch) |
 
 ## Writing a rule

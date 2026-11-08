@@ -1184,3 +1184,19 @@ tests:
               summary: 'SVID close to expiry on dlq-service'
               description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
+
+  # The collector cannot export spans to Jaeger.
+  - name: otel collector span export failures
+    interval: 1m
+    input_series:
+      - series: 'otelcol_exporter_send_failed_spans_total{job="otel-collector",instance="o"}'
+        values: '0+1x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: OtelSpanExportFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: otel-collector}
+            exp_annotations:
+              summary: 'The OTel collector fails to export spans'
+              description: 'The collector dropped 10 span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'
