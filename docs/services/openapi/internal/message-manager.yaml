@@ -141,6 +141,9 @@ paths:
                             - "tenantId"
                         signature:
                           type: "string"
+                    traceparent:
+                      type: "string"
+                      pattern: "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
                   required:
                     - "schemaVersion"
                     - "eventType"
@@ -286,6 +289,9 @@ paths:
                                 - "tenantId"
                             signature:
                               type: "string"
+                        traceparent:
+                          type: "string"
+                          pattern: "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
                         messageId:
                           type: "string"
                           minLength: 1

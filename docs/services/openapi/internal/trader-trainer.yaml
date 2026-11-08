@@ -159,6 +159,9 @@ paths:
                       type: "string"
                       enum:
                         - "1.0.0"
+                    traceparent:
+                      type: "string"
+                      pattern: "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
                   required:
                     - "topic"
                     - "eventType"

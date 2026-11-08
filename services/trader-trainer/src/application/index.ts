@@ -1,11 +1,7 @@
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import "./telemetry";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
-import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import {
-	initializeTelemetry,
-	shutdownTelemetry,
-} from "@trading-model/server-utils/infrastructure/telemetry";
+import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { createTraderTrainerContainer } from "../config/container";
 import { MessageManager } from "../config/message-manager";
@@ -33,12 +29,6 @@ createBootstrap({
 	createServer: () =>
 		createServer(trainer, { models, downloadCallers: MODEL_DOWNLOAD_CALLERS }),
 	onStart: async () => {
-		initializeTelemetry({
-			serviceName: ServiceInstanceName.TraderTrainerService,
-			serviceVersion: ENV.APP_VERSION,
-			instanceId: toInstanceId(ENV.INSTANCE_ID),
-			otlpEndpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
-		});
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 
 		// Broker messages are emitted under their topic (the MarketEvent value).

@@ -1,12 +1,8 @@
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import "./telemetry";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import {
-	initializeTelemetry,
-	shutdownTelemetry,
-} from "@trading-model/server-utils/infrastructure/telemetry";
+import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
 import { AddressManager } from "../config/address-manager";
 import { closeDb, getDb, resetDbState } from "../config/db";
 import {
@@ -42,12 +38,6 @@ async function _onBeforeServer(): Promise<void> {
 }
 
 function _onStart(): void {
-	initializeTelemetry({
-		serviceName: ServiceInstanceName.DlqService,
-		serviceVersion: ENV.APP_VERSION,
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
-		otlpEndpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
-	});
 	AddressManager.lifecycleManager.start();
 	void ensureRedisQueue();
 	startPeriodicPrune();

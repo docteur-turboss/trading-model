@@ -27,6 +27,7 @@ import type {
 	UnSubscribesTopicsPayload,
 } from "../../domain/types/payloads";
 import { messageManagerError } from "../../shared/errors";
+import { withTraceparent } from "../../shared/trace-context";
 
 /**
  * message-manager answers 202 once the message is journaled (ADR-0048); the
@@ -117,7 +118,7 @@ export class MessageManagerClient implements IMessageClient {
 		try {
 			await this._httpClient.post(
 				URLString.of(`https://${HostPort.toAddress(target)}/message`),
-				{ payload, metadata },
+				{ payload, metadata: withTraceparent(metadata) },
 				PUBLISH_OPTIONS
 			);
 		} catch (error) {

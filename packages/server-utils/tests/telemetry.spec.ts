@@ -7,13 +7,15 @@ jest.mock("@opentelemetry/sdk-node", () => ({
 	NodeSDK: mockNodeSDK,
 }));
 
+const mockOtlpExporter = jest.fn();
 jest.mock("@opentelemetry/exporter-trace-otlp-http", () => ({
-	OTLPTraceExporter: jest.fn(),
+	OTLPTraceExporter: mockOtlpExporter,
 }));
 
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
+	startTelemetry,
 } from "../src/infrastructure/telemetry";
 
 const BASE_CONFIG = {
@@ -57,6 +59,35 @@ describe("telemetry", () => {
 
 			const instance = mockNodeSDK.mock.results[0].value;
 			expect(instance.start).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe("startTelemetry", () => {
+		const SAVED_ENV = { ...process.env };
+
+		afterEach(() => {
+			process.env = { ...SAVED_ENV };
+		});
+
+		it("stays off when OTEL_EXPORTER_OTLP_ENDPOINT is unset or empty", () => {
+			delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+			startTelemetry("api-gateway" as never);
+			process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "";
+			startTelemetry("api-gateway" as never);
+
+			expect(mockNodeSDK).not.toHaveBeenCalled();
+		});
+
+		it("starts traces only, to the endpoint of the environment", () => {
+			process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://collector:4318";
+			startTelemetry("api-gateway" as never);
+
+			expect(mockNodeSDK).toHaveBeenCalledWith(
+				expect.objectContaining({ metricReaders: [], logRecordProcessors: [] })
+			);
+			expect(mockOtlpExporter).toHaveBeenCalledWith({
+				url: "http://collector:4318/v1/traces",
+			});
 		});
 	});
 
