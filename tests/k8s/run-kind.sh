@@ -306,6 +306,78 @@ release() {
 	deploy_script smoke-test
 }
 
+# Availability probe (issue #703). One request per second to a public route
+# through edge-proxy, with the gateway key, until the file `$1` exists; writes
+# "<requests> <failures>" to `$2`. A failure is a non-2xx answer or a timeout.
+# `kubectl port-forward` follows one pod and exits when it is replaced: the
+# tunnel is restarted, and a request counts as failed only when it still fails
+# after 3 retries (~3 s), so a restart of the tunnel is not an outage but a
+# route without a ready pod is. The key goes through a curl config on stdin,
+# never on a command line or in a log.
+probe_availability() {
+	local stop="$1" out="$2" port=18452 forward="" requests=0 failures=0 try code
+	while [ ! -e "$stop" ]; do
+		code=000
+		for try in 1 2 3; do
+			if [ -z "$forward" ] || ! kill -0 "$forward" 2>/dev/null; then
+				$K -n "$NS" port-forward svc/edge-proxy "$port:8080" >/dev/null 2>&1 &
+				forward=$!
+				sleep 1
+			fi
+			code="$(printf 'header = "x-api-key: %s"\n' "$API_KEY" |
+				curl -s -o /dev/null -w '%{http_code}' --max-time 2 -K - \
+					"http://localhost:$port/v1/discovery-server/services" || true)"
+			[[ "$code" =~ ^2 ]] && break
+			kill "$forward" 2>/dev/null || true
+			forward=""
+		done
+		requests=$((requests + 1))
+		[[ "$code" =~ ^2 ]] || failures=$((failures + 1))
+		echo "$requests $failures" >"$out"
+		sleep 1
+	done
+	kill "$forward" 2>/dev/null || true
+}
+
+# The final upgrade to N under the probe: `release` runs while requests flow
+# through edge-proxy and market candles are written. Fails above
+# PROBE_MAX_FAILURES (default 0: a release must not drop a request) failed
+# requests or when a candle of BTCUSDT is missing (gap above one interval,
+# 1 minute: the stub serves 1m klines) during the window.
+release_under_probe() {
+	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0
+	rm -f "$stop" "$out"
+	echo "0 0" >"$out"
+	probe_availability "$stop" "$out" &
+	pid=$!
+	start="$(mysql_root "SELECT NOW(3)" | tr -d '\r')"
+	release "$WORK/digests-current" || rc=$?
+	touch "$stop"
+	wait "$pid" || true
+	local requests failures gap
+	read -r requests failures <"$out"
+	log "  availability during the upgrade: $requests requests, $failures failed (threshold $max)"
+	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
+		echo "Availability probe during the upgrade to N (edge-proxy): $requests requests, $failures failed (threshold $max)" >>"$GITHUB_STEP_SUMMARY"
+	[ "$rc" = 0 ] || return "$rc"
+	[ "$requests" -gt 0 ] || {
+		log "the availability probe sent no request"
+		return 1
+	}
+	[ "$failures" -le "$max" ] || {
+		log "the upgrade dropped $failures request(s) (threshold $max): a Deployment went to 0 ready pods"
+		return 1
+	}
+	# Largest gap between consecutive candles written since the start of the
+	# window, the last one before it included.
+	gap="$(mysql_root "SELECT COALESCE(MAX(TIMESTAMPDIFF(SECOND, prev, timestamp)), 0) FROM (SELECT timestamp, LAG(timestamp) OVER (ORDER BY timestamp) AS prev FROM financial_scraper.market_candles WHERE symbol='BTCUSDT' AND interval_value='1m' AND timestamp >= '$start' - INTERVAL 2 MINUTE) c" | tr -d '\r')"
+	log "  largest gap between BTCUSDT 1m candles during the upgrade: ${gap}s"
+	[ "${gap:-0}" -le 60 ] || {
+		log "a market candle was missed during the upgrade (gap ${gap}s > 60 s)"
+		return 1
+	}
+}
+
 # Upgrade N-1 to N the way deploy.yml does it (issue #413):
 #   1. a failed upgrade (api-gateway pinned to a digest no registry has: its
 #      rollout never completes) and "Rollback on failure"; every Deployment
@@ -411,8 +483,8 @@ upgrade() {
 	}
 	log "  $last rolled back and applied again, same checksums"
 
-	log "upgrade N-1 → N"
-	release "$WORK/digests-current" || {
+	log "upgrade N-1 → N, availability probed through edge-proxy"
+	release_under_probe || {
 		log "the upgrade to release N failed"
 		return 1
 	}
