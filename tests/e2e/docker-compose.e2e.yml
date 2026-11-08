@@ -60,3 +60,23 @@ services:
       # The suites replay dead letters by hand (dead-letter-flow, dlq): an
       # automatic replay could claim the entry first and race their assertions.
       DLQ_AUTO_RETRY_ENABLED: "false"
+
+  # Short training run so model-training-flow.e2e.spec.ts sees a published model.
+  # The loop checks every 60 s once a symbol has data; the run itself must stay
+  # well under that so the first model lands within ~2 min of startup.
+  trader-trainer:
+    environment:
+      # One symbol: one run is enough, and the loop trains one symbol per cycle.
+      TRAINER_SYMBOLS: BTCUSDT
+      # 2 generations x 6 individuals: smallest GA that still selects and breeds.
+      TRAINER_GENERATIONS: '2'
+      TRAINER_POPULATION_SIZE: '6'
+      # Left at the default 10: the risk ratios and drawdown need several episodes.
+      TRAINER_EPISODES_PER_INDIVIDUAL: '10'
+      # Hard stop in case a run is slower than expected on a CI runner.
+      TRAINER_TIME_BUDGET_MS: '60000'
+      # The stub serves 1-min candles for the current minute: allow a few of them.
+      TRAINER_MAX_DATA_AGE_MS: '300000'
+      # Only the scraper may download weights; message-manager (also in the
+      # trainer ACL) is deliberately not listed, to prove the 403.
+      MODEL_DOWNLOAD_CALLERS: financial-scraper
