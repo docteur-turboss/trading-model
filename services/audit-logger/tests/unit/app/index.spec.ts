@@ -26,7 +26,7 @@ jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 }));
 
 jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
-	initializeTelemetry: jest.fn(),
+	startTelemetry: jest.fn(),
 	shutdownTelemetry: jest.fn(),
 }));
 
