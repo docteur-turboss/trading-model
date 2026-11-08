@@ -20,6 +20,7 @@ x-core-env: &core-env
   # Enforce the service-to-service ACL using attested SVID identities (ADR-0011).
   ENFORCE_MTLS_STRICT: ${ENFORCE_MTLS_STRICT:-true}
   LOG_LEVEL: ${LOG_LEVEL:-info}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
 
 # Rotated json-file logs: without a cap a looping service fills the Docker
 # Desktop disk image, which freezes every container on the host.
@@ -664,6 +665,21 @@ services:
       spire-agent:
         condition: service_healthy
 
+  spiffe-helper-blackbox:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    container_name: trading-helper-blackbox
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-blackbox:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
   # ---------------------------------------------------------------------------
   #  Edge proxy — external entry point to the api-gateway (ADR-0018)
   #  Plain HTTP from the host, /v1 forwarded to the gateway with the edge-proxy
@@ -808,6 +824,51 @@ services:
       - backend-net
     command: -config.file=/etc/loki/local-config.yaml
 
+  # Probes /ping of every service with its own SVID (CertificateExpiry).
+  blackbox-exporter:
+    logging: *default-logging
+    image: prom/blackbox-exporter@sha256:b04a9fef4fa086a02fc7fcd8dcdbc4b7b35cc30cdee860fdc6a19dd8b208d63e
+    container_name: trading-blackbox
+    restart: unless-stopped
+    volumes:
+      - ./observability/blackbox.yml:/etc/blackbox-exporter/config.yml:ro
+      - svid-blackbox:/run/spire/svid:ro
+    networks:
+      - backend-net
+    depends_on:
+      spiffe-helper-blackbox:
+        condition: service_started
+    command: ['--config.file=/etc/blackbox-exporter/config.yml']
+
+  # Traces: services export OTLP/HTTP straight to Jaeger (no collector in compose).
+  jaeger:
+    logging: *default-logging
+    image: jaegertracing/all-in-one@sha256:7e9591218e7ddd51e568ef892e3ea190ae420ecf97c4d718910a3f57e076c216
+    container_name: trading-jaeger
+    restart: unless-stopped
+    ports:
+      - '${JAEGER_PORT:-16686}:16686'
+    environment:
+      COLLECTOR_OTLP_ENABLED: 'true'
+    networks:
+      - backend-net
+
+  # Logs: reads the container logs through the Docker API (needs the socket).
+  promtail:
+    logging: *default-logging
+    image: grafana/promtail@sha256:b3db8e7b1cba0e8c45ce2ae72ebddfd88ebdcae86383f1680edf0074e9010ff6
+    container_name: trading-promtail
+    restart: unless-stopped
+    volumes:
+      - ./observability/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/run/promtail
+    networks:
+      - backend-net
+    depends_on:
+      - loki
+    command: -config.file=/etc/promtail/promtail.yml
+
 networks:
   data-net:
     name: trading-data-network
@@ -836,6 +897,8 @@ volumes:
   svid-dlq:
   svid-edge:
   svid-prometheus:
+  svid-blackbox:
+  promtail-positions:
   prometheus-data:
   grafana-data:
   loki-data:

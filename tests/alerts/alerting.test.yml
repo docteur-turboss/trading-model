@@ -35,22 +35,93 @@ tests:
               summary: 'High error rate on dlq-service'
               description: 'Error rate is 10% for the last 5 minutes.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
+      # 10% is under the 14.4% fast-burn threshold of the 1% error-rate SLO.
       - eval_time: 20m
         alertname: SLOErrorRateFastBurn
-        exp_alerts:
-          - exp_labels: {severity: critical, slo: error_rate, job: dlq-service}
-            exp_annotations:
-              summary: 'Error rate SLO fast burn rate exceeded'
-              description: 'Error rate > 5% over 5m — exceeding 1% SLO target.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
+        exp_alerts: []
       - eval_time: 20m
         alertname: SLOAvailabilityFastBurn
         exp_alerts:
           - exp_labels: {severity: critical, slo: availability, job: dlq-service}
             exp_annotations:
               summary: 'Availability SLO fast burn rate exceeded'
-              description: 'Error rate > 2% over 5m — burning through 99.9% error budget rapidly.'
+              description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
+
+  # Multi-window burn rate. "steady": 20% of 5xx for 7 h, long and short
+  # windows over every threshold: all four fire. "spike": 5xx only during the
+  # last 5 min, the 1h window stays under 1.44%: nothing fires. "probes": the
+  # only 5xx are on /ping and /health/ready, which the SLI ignores.
+  - name: burn rate needs both windows and ignores probes
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="steady",path="/a",status="200"}'
+        values: '0+80x420'
+      - series: 'http_requests_total{job="steady",path="/a",status="500"}'
+        values: '0+20x420'
+      - series: 'http_requests_total{job="spike",path="/a",status="200"}'
+        values: '0+100x420'
+      - series: 'http_requests_total{job="spike",path="/a",status="500"}'
+        values: '0x415 10+10x4'
+      - series: 'http_requests_total{job="probes",path="/a",status="200"}'
+        values: '0+100x420'
+      - series: 'http_requests_total{job="probes",path="/ping",status="500"}'
+        values: '0+100x420'
+      - series: 'http_requests_total{job="probes",path="/health/ready",status="503"}'
+        values: '0+100x420'
+    alert_rule_test:
+      - eval_time: 419m
+        alertname: SLOAvailabilityFastBurn
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: availability, job: steady}
+            exp_annotations:
+              summary: 'Availability SLO fast burn rate exceeded'
+              description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
+      - eval_time: 419m
+        alertname: SLOAvailabilitySlowBurn
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: availability, job: steady}
+            exp_annotations:
+              summary: 'Availability SLO slow burn rate exceeded'
+              description: '5xx ratio > 0.6% over both 6h and 30m (6x the 0.1% budget of the 99.9% SLO). Probes are not counted.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
+      - eval_time: 419m
+        alertname: SLOErrorRateFastBurn
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: error_rate, job: steady}
+            exp_annotations:
+              summary: 'Error rate SLO fast burn rate exceeded'
+              description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the error rate SLO). Probes are not counted.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
+      - eval_time: 419m
+        alertname: SLOErrorRateSlowBurn
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: error_rate, job: steady}
+            exp_annotations:
+              summary: 'Error rate SLO slow burn rate exceeded'
+              description: '5xx ratio > 6% over both 6h and 30m (6x the 1% budget of the error rate SLO). Probes are not counted.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
+      # Only "steady" is expected above: "spike" (9% over 5m, 0.8% over 1h) and
+      # "probes" (all 5xx on /ping, /health/ready) must not fire.
+
+  # 1000 candles persisted per 30 min, 100 reach the trainer: freshness SLO.
+  - name: candles persisted but not delivered to the trainer
+    interval: 1m
+    input_series:
+      - series: 'fs_candles_persisted_total{job="financial-scraper",instance="s"}'
+        values: '0+33x60'
+      - series: 'tt_market_data_received_total{job="trader-trainer",instance="t"}'
+        values: '0+3x60'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: CandleDeliveryLagging
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: data_freshness}
+            exp_annotations:
+              summary: 'Less than half of the persisted candles reach the trainer'
+              description: 'financial-scraper persisted candles over the last 30m but trader-trainer received under 50% of them: the scraper to trainer path is lagging or dropping data.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
   # 90% of the requests in < 0.1s, 10% between 5s and 10s: p95 = 7.5s, over
   # the job (all paths together).
@@ -1072,7 +1143,7 @@ tests:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
 
   # Budget remaining = (1 - error ratio / 0.001) * 100 over the window:
-  # no 5xx = 100% (no alert), 0.09% of 5xx = 10% (fires, with the real job).
+  # no 5xx = 100% (no alert; 5xx on /ping ignored), 0.09% of 5xx = 10% (fires, with the real job).
   - name: error budget alert fires below 20% remaining
     interval: 1m
     input_series:
@@ -1080,6 +1151,9 @@ tests:
         values: '0+1000x300'
       - series: 'http_requests_total{job="dlq-service",instance="d",path="/c",status="200"}'
         values: '0+1000x300'
+      # 5xx on a probe path must not move the SLI.
+      - series: 'http_requests_total{job="api-gateway",instance="a",path="/ping",status="500"}'
+        values: '0+500x300'
       - series: 'http_requests_total{job="dlq-service",instance="d",path="/c",status="500"}'
         values: '0+0.9x300'
     promql_expr_test:
@@ -1099,3 +1173,22 @@ tests:
               summary: 'Error budget of dlq-service below 20%'
               description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
+
+  # One probe per service (compose and K8s): the alert names the service whose
+  # SVID is about to expire, and only that one.
+  - name: certificate expiry is reported per service
+    interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://api-gateway:3000/ping",service="api-gateway"}'
+        values: '3600+0x20'
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://dlq-service:3000/ping",service="dlq-service"}'
+        values: '900+0x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: CertificateExpiry
+        exp_alerts:
+          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+            exp_annotations:
+              summary: 'SVID close to expiry on dlq-service'
+              description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'

@@ -16,9 +16,11 @@ All of them read the shared HTTP middleware metrics of every service
 | --- | --- |
 | `HighLatency`, `SLOLatencyFastBurn` | P95 of a job above 5 s over 5 min, for 2 min |
 | `SLOLatencySlowBurn` | P95 above 3 s over 1 h, for 10 min |
-| `HighErrorRate`, `SLOErrorRateFastBurn` | more than 5% of 5xx over 5 min, for 2 min |
-| `SLOAvailabilityFastBurn` | more than 2% of 5xx over 5 min, for 2 min |
-| `SLOAvailabilitySlowBurn` / `SLOErrorRateSlowBurn` | more than 0.5% / 2% of 5xx over 1 h, for 10 min |
+| `HighErrorRate` | more than 5% of 5xx over 5 min, for 2 min |
+| `SLOAvailabilityFastBurn` / `SLOErrorRateFastBurn` | 5xx ratio above 1.44% / 14.4% over 1 h **and** 5 min, for 2 min |
+| `SLOAvailabilitySlowBurn` / `SLOErrorRateSlowBurn` | 5xx ratio above 0.6% / 6% over 6 h **and** 30 min, for 15 min |
+
+`/ping`, `/health/ready` and `/metrics` are excluded from the SLO ratios.
 
 The histogram stops at 30 s (largest finite bucket): a P95 of 30 s means
 "30 s or more", usually timeouts.
