@@ -35,6 +35,7 @@
  *
  * Usage: node scripts/adr-check.mjs
  */
+import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -195,6 +196,12 @@ function checkMarkdownLinks() {
   }
 }
 
+/** A PascalCase symbol in backticks, acronym segments included (`FooBAR`); linear, no nested quantifier (CodeQL). */
+const SYMBOL_PATTERN = /`([A-Z][a-z0-9]+[A-Z][A-Za-z0-9]*)`/g;
+// Self-check: a narrower pattern silently stops checking the symbols it misses.
+const cites = (text) => [...text.matchAll(SYMBOL_PATTERN)].map(([, name]) => name);
+assert.deepEqual(cites('`EndpointResolver` `FooBAR` `S3AnchorStore` `Foo` `HTTP` `fooBar`'), ['EndpointResolver', 'FooBAR', 'S3AnchorStore']);
+
 /** Names an architecture page may cite in code that are not symbols of services/ or packages/. */
 const SYMBOL_EXCEPTIONS = new Set(['EnumEventMessage']); // historical enum, named on purpose as removed
 /** Fails on a PascalCase `Name` cited in docs/architecture/*.md that no file of services/ or packages/ mentions. */
@@ -204,7 +211,7 @@ function checkArchitectureSymbols() {
   const cited = new Map();
   for (const page of pages) {
     const text = readFileSync(join(dir, page), 'utf8');
-    for (const [, name] of text.matchAll(/`([A-Z][a-z0-9]+[A-Z][A-Za-z0-9]*)`/g)) {
+    for (const [, name] of text.matchAll(SYMBOL_PATTERN)) {
       if (!SYMBOL_EXCEPTIONS.has(name)) cited.set(name, `docs/architecture/${page}`);
     }
   }
