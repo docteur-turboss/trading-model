@@ -172,6 +172,8 @@ data:
       - name: default-receiver
         slack_configs:
           - channel: '#alerts'
+            # Empty: the default link uses the pod hostname, an URL Discord's /slack webhook rejects (400).
+            title_link: ''
             send_resolved: true
             title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
             text: |
@@ -203,6 +205,8 @@ data:
       - name: warning-receiver
         slack_configs:
           - channel: '#alerts-warning'
+            # Empty: the default link uses the pod hostname, an URL Discord's /slack webhook rejects (400).
+            title_link: ''
             send_resolved: true
             title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
             text: |
