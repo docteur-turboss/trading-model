@@ -1,7 +1,7 @@
 import type { CrossoverGenome } from "../genome-control";
 import { CrossoverType } from "../genome-control";
 
-interface CrossoverStrategyContext {
+export interface CrossoverStrategyContext {
 	left: number;
 	right: number;
 	co: CrossoverGenome;
@@ -47,19 +47,6 @@ const CROSSOVER_STRATEGIES: Record<CrossoverGenome["type"], CrossoverFn> = {
 	[CrossoverType.TwoPoint]: uniformLike,
 };
 
-export interface CrossoverScalarContext {
-	left: number;
-	right: number;
-	co: CrossoverGenome;
-	rng: () => number;
-}
-
-export function crossoverScalar(ctx: CrossoverScalarContext): number {
-	const { left, right, co, rng } = ctx;
-	const crossover = CROSSOVER_STRATEGIES[co.type];
-	return crossover
-		? crossover({ left, right, co, rng })
-		: rng() < 0.5
-			? left
-			: right;
+export function crossoverScalar(ctx: CrossoverStrategyContext): number {
+	return (CROSSOVER_STRATEGIES[ctx.co.type] ?? uniformLike)(ctx);
 }

@@ -11,6 +11,4 @@ export {
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
-	repairNetwork,
-	validateNetwork,
 } from "./genome-network/types";

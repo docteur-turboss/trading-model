@@ -100,38 +100,25 @@ export function computeAllResults(ctx: ComputeAllResultsContext): {
 				0.15
 			);
 
+	const scores = new EpisodeScores(ctx.episodePnl);
+	const curve = new EpisodeScores(ctx.pnlCurve);
 	return {
 		updatedGenome: currentGenome,
-		meta: _buildFitnessMeta(ctx, adjFitness, t0),
-		objectives: _buildObjectives(ctx, failed, complexity),
-	};
-}
-
-function _buildFitnessMeta(
-	pnl: ComputeAllResultsContext,
-	adjFitness: number,
-	t0: number
-): GenomeFitnessMeta {
-	const scores = new EpisodeScores(pnl.episodePnl);
-	return {
-		episodesRun: PositiveInt.of(Math.max(1, scores.length)),
-		computeMs: DurationMs.of(Date.now() - t0),
-		efficiencyScore: Ratio.of(Number.isFinite(adjFitness) ? adjFitness : 0),
-		variance: scores.variance(),
-		rawScores: scores,
-		pnlCurve: new EpisodeScores(pnl.pnlCurve),
-		...(pnl.barsPerYear === undefined ? {} : { barsPerYear: pnl.barsPerYear }),
-	};
-}
-
-function _buildObjectives(
-	pnl: EvaluationPnl,
-	failed: boolean,
-	complexity: { inferenceFLOPs: number }
-): { avgPnl: number; sharpe: number; negFlops: number } {
-	return {
-		avgPnl: failed ? FAILED_FITNESS : new EpisodeScores(pnl.episodePnl).mean(),
-		sharpe: failed ? FAILED_FITNESS : new EpisodeScores(pnl.pnlCurve).sharpe(),
-		negFlops: -complexity.inferenceFLOPs,
+		meta: {
+			episodesRun: PositiveInt.of(Math.max(1, scores.length)),
+			computeMs: DurationMs.of(Date.now() - t0),
+			efficiencyScore: Ratio.of(Number.isFinite(adjFitness) ? adjFitness : 0),
+			variance: scores.variance(),
+			rawScores: scores,
+			pnlCurve: curve,
+			...(ctx.barsPerYear === undefined
+				? {}
+				: { barsPerYear: ctx.barsPerYear }),
+		},
+		objectives: {
+			avgPnl: failed ? FAILED_FITNESS : scores.mean(),
+			sharpe: failed ? FAILED_FITNESS : curve.sharpe(),
+			negFlops: -complexity.inferenceFLOPs,
+		},
 	};
 }

@@ -99,14 +99,14 @@ export class FileModelArtifactStore implements ModelArtifactStorePort {
 		if (!symbolDir) {
 			return [];
 		}
-		const summaries: ModelSummary[] = [];
-		for (const version of await this._versions(symbolDir)) {
-			const manifest = await this.manifest(symbol, version);
-			if (manifest) {
-				summaries.push(summarizeModel(manifest));
-			}
-		}
-		return summaries;
+		const manifests = await Promise.all(
+			(await this._versions(symbolDir)).map((version) =>
+				this.manifest(symbol, version)
+			)
+		);
+		return manifests
+			.filter((manifest): manifest is ModelManifest => manifest !== undefined)
+			.map(summarizeModel);
 	}
 
 	async manifest(

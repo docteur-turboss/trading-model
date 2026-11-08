@@ -13,9 +13,6 @@ export type {
 	LamarckGenome,
 	MarketStep,
 	PopMember,
-	ValidationContext,
-	ValidationError,
-	ValidationResult,
 } from "./genome-fitness";
 export type { MutationGenome } from "./genome-mutation";
 export {

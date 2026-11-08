@@ -54,22 +54,6 @@ export interface MarketStep {
 	timestamp?: number;
 }
 
-export interface ValidationError {
-	path: string;
-	message: string;
-	actual: unknown;
-}
-
-export interface ValidationResult {
-	valid: boolean;
-	errors: ValidationError[];
-}
-
-export interface ValidationContext {
-	errors: ValidationError[];
-	path: string;
-}
-
 const FlopSoftCapMacs = 5_000_000;
 const MemSoftCapMb = 200_000_000;
 

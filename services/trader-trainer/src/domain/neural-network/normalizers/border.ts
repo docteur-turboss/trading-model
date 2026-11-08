@@ -3,6 +3,7 @@ import type {
 	NormalizeParams,
 	Normalizer,
 } from "./normalizer-interface";
+import { _findMinMax } from "./shared";
 
 export const BORDER: Normalizer = {
 	normalize(slice: DataSlice, params?: NormalizeParams): Float32Array {
@@ -12,24 +13,9 @@ export const BORDER: Normalizer = {
 		let hi = params?.hi ?? par?.max;
 
 		if (lo === undefined || hi === undefined) {
-			let min = data[0];
-			let max = data[0];
-
-			for (const value of data) {
-				if (value < min) {
-					min = value;
-				}
-				if (value > max) {
-					max = value;
-				}
-			}
-
-			if (lo === undefined) {
-				lo = min;
-			}
-			if (hi === undefined) {
-				hi = max;
-			}
+			const range = _findMinMax(data);
+			lo ??= range.lo;
+			hi ??= range.hi;
 		}
 
 		for (let i = 0; i < len; i++) {

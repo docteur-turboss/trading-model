@@ -1,14 +1,12 @@
 import { Percentage, Probability } from "@trading-model/primitives/primitives";
 import type { CrossoverGenome } from "./genome-control";
-import type { LamarckGenome, ValidationContext } from "./genome-fitness";
+import type { LamarckGenome } from "./genome-fitness";
 import type { MutationGenome } from "./genome-mutation";
 import type { NetworkGenome } from "./genome-network";
 import {
 	createNetworkGenome,
 	crossoverNetwork,
 	mutateNetworkStructure,
-	repairNetwork,
-	validateNetwork,
 } from "./genome-network";
 import type { RLGenome } from "./genome-rl";
 import {
@@ -18,8 +16,6 @@ import {
 	createRewardShapingGenome,
 	crossoverRL,
 	mutateRL,
-	repairRL,
-	validateRL,
 } from "./genome-rl";
 
 interface GenomeSection<TValue> {
@@ -36,8 +32,6 @@ interface GenomeSection<TValue> {
 		sigma: number,
 		rng: () => number
 	): TValue;
-	validate(ctx: ValidationContext, value: TValue): void;
-	repair(value: TValue): TValue;
 }
 
 function createRLGenome(): RLGenome {
@@ -59,8 +53,6 @@ const network: GenomeSection<NetworkGenome> = {
 		crossoverNetwork({ left, right, co, rng }),
 	mutate: (genome, mutation, sigma, rng) =>
 		mutateNetworkStructure({ genome, mutationConfig: mutation, sigma, rng }),
-	validate: validateNetwork,
-	repair: repairNetwork,
 };
 
 const rl: GenomeSection<RLGenome> = {
@@ -70,8 +62,6 @@ const rl: GenomeSection<RLGenome> = {
 		mutation.mutateHyperparams
 			? mutateRL({ rl: genome.rl, mutation, sigma, rng })
 			: { ...genome.rl },
-	validate: validateRL,
-	repair: repairRL,
 };
 
 export const GENOME_SECTIONS = { network, rl };

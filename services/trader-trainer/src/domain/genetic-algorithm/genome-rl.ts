@@ -10,4 +10,3 @@ export type {
 	RewardShapingGenome,
 	RLGenome,
 } from "./genome-rl/types";
-export { repairRL, validateRL } from "./genome-rl/types";
