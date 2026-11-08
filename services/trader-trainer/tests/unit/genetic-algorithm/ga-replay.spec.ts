@@ -64,7 +64,6 @@ async function runGA(seed: number): Promise<RunSummary> {
 	const runner = new GeneticAlgorithmRunner({
 		windowSets: WINDOW_SETS,
 		backendFactory: makeSeededBackendFactory(seed),
-		evalConcurrency: 2,
 		telemetry,
 		onGeneration: (ctx) => contexts.push(ctx),
 		initialControl: {

@@ -395,7 +395,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
@@ -410,7 +409,6 @@ describe("GeneticAlgorithmRunner", () => {
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [{ id: "w1", train: [], validation: [] }],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise();
 		const pop = runner.processor.population;
@@ -449,7 +447,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
@@ -474,7 +471,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
@@ -500,7 +496,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 			onArchiveUpdate,
 		});
 		runner.processor.initialise({
@@ -528,7 +523,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
@@ -552,7 +546,6 @@ describe("GeneticAlgorithmRunner", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 		});
 		runner.processor.initialise({
 			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
@@ -578,7 +571,6 @@ describe("GeneticAlgorithmRunner", () => {
 		const runner = new GeneticAlgorithmRunner({
 			windowSets,
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 			onGeneration,
 		});
 		runner.processor.initialise({
@@ -657,7 +649,6 @@ describe("full GA loop", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 			initialControl: { populationSize: 2, maxGenerations: 4 } as any,
 		});
 		const result = await runner.run();
@@ -768,7 +759,6 @@ describe("full GA loop", () => {
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
 			})) as any,
-			evalConcurrency: 1,
 			initialControl: {
 				populationSize: 2,
 				maxGenerations: 100,
@@ -812,7 +802,6 @@ describe("full GA loop", () => {
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
 			})) as any,
-			evalConcurrency: 1,
 			initialControl: {
 				populationSize: 2,
 				maxGenerations: 100,
@@ -856,7 +845,6 @@ describe("full GA loop", () => {
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
 			})) as any,
-			evalConcurrency: 1,
 			initialControl: {
 				populationSize: 2,
 				maxGenerations: 100,
@@ -927,7 +915,6 @@ describe("full GA loop", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			evalConcurrency: 1,
 			initialControl: { populationSize: 2, maxGenerations: 4 } as any,
 		});
 		await runner.run();
