@@ -1,4 +1,5 @@
 import { deadLetterError } from "@trading-model/broker-message/shared/errors";
+import { runInMessageTraceContext } from "@trading-model/broker-message/shared/trace-context";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { isHttpClientError } from "@trading-model/http/adapters/outbound/http-client-errors";
@@ -40,10 +41,13 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 		// Subscribers (broker-message MESSAGE_CONTROLLER) read `metadata` and
 		// `payload` at the top level of the body: wrapping them got every delivery a 400.
 		try {
-			await this._httpClient.post(
-				url,
-				{ metadata: message.metadata, payload: message.payload, context },
-				{ timeoutMs: DELIVERY_ATTEMPT_TIMEOUT_MS, retryCount: 0 }
+			// The delivery request joins the publisher's trace (W3C `traceparent`).
+			await runInMessageTraceContext(message.metadata, () =>
+				this._httpClient.post(
+					url,
+					{ metadata: message.metadata, payload: message.payload, context },
+					{ timeoutMs: DELIVERY_ATTEMPT_TIMEOUT_MS, retryCount: 0 }
+				)
 			);
 		} catch (err) {
 			if (
