@@ -51,7 +51,7 @@ docker inspect --format '{{.State.Health.Status}}' trading-discovery
 
 ## Step 2: Start the API Gateway
 
-The gateway is the single entry point for all external requests. It only accepts mTLS clients with a SPIRE identity, so the host reaches it through the `edge-proxy` (plain HTTP on port 8449, `/v1` forwarded to the gateway):
+The gateway is the single entry point for all external requests. It only accepts mTLS clients with a SPIRE identity, so the host reaches it through the `edge-proxy` (plain HTTP on port 8449, `/v1` and `/v2` forwarded to the gateway):
 
 ```bash
 docker compose up -d api-gateway edge-proxy

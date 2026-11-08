@@ -11,7 +11,7 @@
 
 The doc/runtime drift guard added on 2026-10-27 (`bun run api:check`, `scripts/api-contract.mjs`) checks every `request("METHOD", path)` call of the SPA against the routes the gateway really serves. **None of the 24 calls reached a route.** They were frozen as known gaps in `scripts/api-contract-known-gaps.json`:
 
-- **Wrong path prefix (10 calls):** the SPA prefixed its calls with `scraper`, `trainer`, `audit`, `discovery` and `messages/dlq`. The gateway proxies by service name: `/v1/financial-scraper/*`, `/v1/trader-trainer/*`, `/v1/audit-logger/*`, `/v1/discovery-server/*`, `/v1/dlq-service/*`.
+- **Wrong path prefix (10 calls):** the SPA prefixed its calls with `scraper`, `trainer`, `audit`, `discovery` and `messages/dlq`. The gateway proxies by service name: `/v2/financial-scraper/*`, `/v1/trader-trainer/*`, `/v1/audit-logger/*`, `/v1/discovery-server/*`, `/v1/dlq-service/*`.
 - **Endpoints that no service exposes (14 calls):** jobs and workers, gateway cache administration, discovery config/stats and instance removal, training results and training start/stop.
 
 So the frontend did not work against any deployed backend. Its tests stayed green because they mocked the API client. On top of that, it cost the rest of the monorepo:

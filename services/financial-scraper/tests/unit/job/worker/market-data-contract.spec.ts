@@ -71,4 +71,17 @@ describe("published market data contract", () => {
 			candle: [expect.objectContaining({ symbol: "BTCUSDT" })],
 		});
 	});
+
+	it("loses only the part a payload cannot be normalized, not the symbol", () => {
+		const snapshot = buildResponse(
+			{ symbol: toSymbol("BTCUSDT"), interval: CandleInterval.Min1 },
+			{
+				candlesRaw: [{ ...mockCandlestickResponse[0], open: "-1" as never }],
+				priceTickerRaw: mockPriceTickerResponse,
+			}
+		);
+
+		expect(snapshot.candles).toBeUndefined();
+		expect(snapshot.priceTicker).toEqual({ BTCUSDT: 50000 });
+	});
 });

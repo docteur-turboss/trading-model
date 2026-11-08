@@ -4,7 +4,7 @@ import type {
 	SourceType,
 } from "@trading-model/contracts/market-data.types";
 import {
-	PositiveInt,
+	NonNegativeInt,
 	Price,
 	type TradingSymbol,
 	UnixTimestamp,
@@ -74,8 +74,8 @@ function toCandle(row: CandleRow): CandleData {
 		timestamp: UnixTimestamp.of(row.timestamp.getTime()),
 		closeTimestamp: UnixTimestamp.of(row.close_timestamp.getTime()),
 	};
-	if (row.trades !== null && row.trades > 0) {
-		candle.trades = PositiveInt.of(row.trades);
+	if (row.trades !== null) {
+		candle.trades = NonNegativeInt.of(row.trades);
 	}
 	return candle;
 }

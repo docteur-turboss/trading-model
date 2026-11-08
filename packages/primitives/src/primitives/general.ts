@@ -13,6 +13,7 @@ export {
 	toVersion,
 	Version,
 } from "./general-ids";
+export { NonNegativeInt } from "./non-negative-int";
 export {
 	Limit,
 	PageNumber,
