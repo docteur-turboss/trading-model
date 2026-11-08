@@ -303,7 +303,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 		expect((await cli(master, "GET", foreign))[0]).toMatch(/^NOPERM/);
 	});
 
-	// The redis_exporter sidecars (ADR-0055): metrics only, on nodes and sentinels.
+	// The redis_exporter sidecars (ADR-0056): metrics only, on nodes and sentinels.
 	it("should let the exporter user read metrics and nothing else", async () => {
 		const master = await masterNode();
 		const exporter = async (node: StartedTestContainer, ...args: string[]) =>

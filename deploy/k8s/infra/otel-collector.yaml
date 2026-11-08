@@ -131,6 +131,12 @@ data:
             endpoint: 0.0.0.0:4318
 
     processors:
+      # First processor of every pipeline. The limit sits below the container's
+      # 512Mi so the collector refuses data before the kernel kills it.
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 400
+        spike_limit_mib: 100
       batch:
         timeout: 1s
         send_batch_size: 1024
@@ -157,7 +163,7 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [batch]
+          processors: [memory_limiter, batch]
           exporters: [otlp]
 ---
 apiVersion: policy/v1

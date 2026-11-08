@@ -771,7 +771,7 @@ services:
       - backend-net
 
   # ---------------------------------------------------------------------------
-  #  Infrastructure exporters (issue #601, ADR-0055): databases and the host.
+  #  Infrastructure exporters (issue #601, ADR-0056): databases and the host.
   #  On Docker Desktop node-exporter sees the Windows drives (C: holds the
   #  Docker disk image, which filled it up on 2026-10-28).
   # ---------------------------------------------------------------------------

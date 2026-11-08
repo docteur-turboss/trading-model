@@ -25,7 +25,7 @@
 # service without one gets no user. Without REDIS_INTERNAL_PASSWORD nothing is
 # protected (dev, tests). With REDIS_EXPORTER_PASSWORD, data nodes and
 # sentinels also get the read-only `exporter` user of the metrics sidecars
-# (ADR-0055).
+# (ADR-0056).
 #
 # REDIS_ALLOW_LEGACY_CLIENTS=true (expand step of release 3.0.0): the default
 # user stays on without a password and the sentinels require none, so the

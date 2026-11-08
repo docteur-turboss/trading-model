@@ -16,6 +16,20 @@ spec:
   selector:
     app.kubernetes.io/component: jaeger
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jaeger-data
+  labels:
+    app.kubernetes.io/component: jaeger
+    app.kubernetes.io/part-of: trading-model
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -63,6 +77,21 @@ spec:
           env:
             - name: COLLECTOR_OTLP_ENABLED
               value: "true"
+            # Traces survive a restart (Badger on the PVC below); 72 h keeps
+            # the volume bounded.
+            - name: SPAN_STORAGE_TYPE
+              value: badger
+            - name: BADGER_EPHEMERAL
+              value: "false"
+            - name: BADGER_DIRECTORY_VALUE
+              value: /badger/data
+            - name: BADGER_DIRECTORY_KEY
+              value: /badger/key
+            - name: BADGER_SPAN_STORE_TTL
+              value: 72h
+          volumeMounts:
+            - name: badger
+              mountPath: /badger
           resources:
             requests:
               cpu: 100m
@@ -82,6 +111,10 @@ spec:
               port: 16686
             initialDelaySeconds: 5
             periodSeconds: 10
+      volumes:
+        - name: badger
+          persistentVolumeClaim:
+            claimName: jaeger-data
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

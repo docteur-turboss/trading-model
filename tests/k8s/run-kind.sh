@@ -211,7 +211,7 @@ apply_release() {
 	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" cluster |
 		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
 	# "Apply SPIFFE node components": the node agents of this checkout
-	# (node-exporter is new in it, ADR-0055), with deploy-cluster.
+	# (node-exporter is new in it, ADR-0056), with deploy-cluster.
 	$K kustomize "$1/deploy/k8s/overlays/staging/node-agents" |
 		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
 	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app |

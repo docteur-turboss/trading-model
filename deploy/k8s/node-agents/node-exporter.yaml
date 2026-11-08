@@ -1,5 +1,5 @@
 # node-exporter — disk, memory, CPU and network of each node (issue #601,
-# ADR-0055). Reads the host's /proc, /sys and root filesystem (hostPath, host
+# ADR-0056). Reads the host's /proc, /sys and root filesystem (hostPath, host
 # network and PID namespace): it runs here, in the privileged node namespace,
 # never in the restricted application namespace. Prometheus (application
 # namespace) finds the nodes through its ClusterRole prometheus-nodes and

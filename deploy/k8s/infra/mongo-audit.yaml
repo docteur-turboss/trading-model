@@ -123,9 +123,9 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 3
-        # Exporter of this member (issue #601, ADR-0055): server status and
+        # Exporter of this member (issue #601, ADR-0056): server status and
         # replica set state through localhost. No database user: MongoDB runs
-        # without authentication (ADR-0055 defers it to its own issue).
+        # without authentication (ADR-0056 defers it to its own issue).
         - name: mongodb-exporter
           image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
           args:

@@ -35,7 +35,7 @@ subjects:
     name: prometheus
 ---
 # Kubelet metrics (cAdvisor containers, PVC usage) and the node list of the
-# node-exporter and kubelet jobs (issue #601, ADR-0055). `nodes/metrics` lets
+# node-exporter and kubelet jobs (issue #601, ADR-0056). `nodes/metrics` lets
 # the kubelet serve /metrics only, unlike `nodes/proxy` (exec in any pod).
 # Cluster-scope RBAC: applied by an admin with scripts/deploy-identity.sh
 # cluster (ADR-0041), never by the deploy identities.
@@ -444,6 +444,10 @@ data:
           - source_labels: [__meta_kubernetes_pod_name]
             target_label: pod
 
+      - job_name: 'loki'
+        static_configs:
+          - targets: ['loki:3100']
+
       - job_name: 'otel-collector'
         scheme: http
         static_configs:
@@ -498,7 +502,7 @@ data:
         static_configs:
           - targets: ['alertmanager:9093']
 
-      # ── Infrastructure (issue #601, ADR-0055) ──────────────────────
+      # ── Infrastructure (issue #601, ADR-0056) ──────────────────────
       # Kubelet of every node, with this pod's ServiceAccount token and
       # nodes/metrics (ClusterRole prometheus-nodes). The kubelet serving
       # certificate is self-signed on most clusters (kind included), so it
@@ -1267,6 +1271,25 @@ data:
               description: 'Some alert rules cannot be evaluated: alerts may be silently missing.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'
 
+          - alert: LokiPushFailing
+            expr: sum(rate(loki_request_duration_seconds_count{job="loki",route="loki_api_v1_push",status_code=~"5.."}[5m])) > 0 or sum(rate(loki_discarded_samples_total{job="loki"}[5m])) > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'Loki rejects or drops log lines'
+              description: 'Loki answers 5xx on push or discards samples: logs are being lost. Check the Loki pod and its PVC (full disk, rate limits).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#loki-and-the-trace-pipeline'
+
+          - alert: LokiRetentionStale
+            expr: time() - max(loki_compactor_apply_retention_last_successful_run_timestamp_seconds{job="loki"}) > 3 * 3600
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'Loki retention has not run for 3 hours'
+              description: 'The compactor has not applied retention (744h): the Loki PVC fills up and ingestion will stop. Check the Loki logs for compactor errors and the PVC usage.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#loki-and-the-trace-pipeline'
           - alert: OtelSpanExportFailing
             expr: sum by (job) (increase(otelcol_exporter_send_failed_spans_total[10m]) or increase(otelcol_exporter_send_failed_spans[10m])) > 0
             for: 5m
@@ -1317,7 +1340,7 @@ data:
               description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
 
-      # ── Infrastructure (issue #601, ADR-0055): exporters, kubelet ──────────
+      # ── Infrastructure (issue #601, ADR-0056): exporters, kubelet ──────────
       # kube_* (kube-state-metrics), kubelet_* and the Redis Sentinel rules only
       # have data in K8s; compose has the database and node exporters.
       - name: trading-model-infrastructure

@@ -1,3 +1,136 @@
+## [3.0.0] - 2026-11-08
+
+### @trading-model/http (1.0.0 → 1.1.0)
+
+#### Feat
+
+- 7d207c0 **http:** add correlationId, trace_id, span_id, service and instance to every log line (#624)
+
+#### Fix
+
+- ca9a8d8 **http:** apply LOG_LEVEL to the global logger instead of forcing WARN in production (#617)
+
+#### Perf
+
+- d5ac60a **http:** cache the SVID PEM bundle and reread only when a file changes (#581)
+
+#### Security
+
+- 7305a4c **http:** mask partial sensitive keys and log the path only on server errors (#639)
+
+### @trading-model/server-utils (1.0.0 → 1.1.0)
+
+#### Feat
+
+- 4c8962e **server-utils:** add a status_class label to http_request_duration_seconds (#634)
+
+#### Fix
+
+- 2ef7a92 **server-utils:** start the OpenTelemetry SDK before Express and https load, carry traceparent on the bus (#622)
+
+### @trading-model/address-manager (1.3.0 → 1.3.1)
+
+#### Fix
+
+- b98a191 **address-manager:** register the service's APP_VERSION in discovery
+
+#### Perf
+
+- bd73ce9 **address-manager:** share one in-flight discovery lookup per key in EndpointResolver (#586)
+
+#### Refactor
+
+- 7d84c20 **address-manager:** use a single service resolution strategy shared by the gateway and address-manager (#518)
+
+#### Security
+
+- 4bc1eea **address-manager:** strip the trailing slashes of the discovery URL with a loop, not a polynomial regex
+
+### @trading-model/common (1.3.0 → 1.3.1)
+
+#### Refactor
+
+- f2644e8 **common:** move domain error factories to their owning package or service (#520)
+
+### Root
+
+#### Feat
+
+- 1a1e6c4 **k8s:** log edge-proxy requests as JSON with a request id forwarded as X-Correlation-Id (#638)
+- b1ad6f3 **k8s:** deploy the staging environment to a local kind cluster through a self-hosted runner (#591)
+- 3bad8a6 **k8s:** verify API, fresh data and critical alerts over a window before declaring a deploy successful (#457)
+- 42b96c4 **database:** add the out-of-schema retention job for market data and signals (#549)
+
+#### Fix
+
+- 1bd0a0c **scripts:** let adr:check see symbols with an acronym segment again
+- 8c0185d **release:** pass the Dockerfile path to the scan build of the tool images (#491)
+- e9a9247 **k8s:** keep 2.x Redis clients working through the 3.0.0 upgrade (expand step of the ACL users)
+- dbaa5fd **k8s:** run trader-trainer as a singleton: no HPA, one replica, Recreate (#509)
+- 00b5bc7 **k8s:** detect failed migration Jobs at once and wait for each rollback rollout (#469)
+- 6177e5e **k8s:** shorten the kind job: discovery-server surge-first, forced upgrade fails after 90 s (#487)
+- b315353 **observability:** drop HighLatency duplicate of SLOLatencyFastBurn, inhibit per job and on ServiceDown (#633)
+- c6cf3bc **observability:** burn-rate SLO alerts over two windows without probes, data freshness SLO (#626)
+- c06e2db **observability:** feed every compose datasource and probe the SVID expiry of each service (#629)
+- 92b20e0 **observability:** alert when an application service has no scrape target left (#627)
+- 73967d2 **observability:** compute the error budget gauge from recording rules and alert below 20% (#625)
+- d60ead9 **observability:** make every Grafana dashboard query a metric and label services emit (#623)
+- 56d6748 **observability:** empty the Alertmanager title_link so Discord's /slack webhook accepts the alerts (#590)
+- a725a82 **observability:** scrape every pod of the K8s services with pod discovery (#578)
+
+#### Perf
+
+- 46b4bed **k8s:** enable gzip compression of JSON responses at the edge-proxy (#584)
+- 0605c25 **k8s:** keep edge-proxy connections to the api-gateway alive (#575)
+- df5f759 **k8s:** short rollout timeout for the forced-failure leg (#486) (#488)
+- 24127ee **database:** make the market data timestamp indexes visible (#572)
+
+#### Refactor
+
+- 2093566 **core:** Remove dead code, unused dependencies and unwired telemetry (#515)
+- 200f14f **primitives:** register services under their canonical name, keep legacy aliases readable (release N) (#519)
+
+#### Docs
+
+- 1c2a7ca **tests:** document the k6 SLO and stress thresholds in the load README (#571) (#588)
+- 9c3398e **tests:** mark load test rate and stress figures as unmeasured estimates (#587)
+- bdc92bd **docs:** correct the trader-trainer rate limit to 1 000 per minute per IP (#550)
+- 31bb942 **docs:** propose ADR-0049 downstream context for models and signals without consumer (#511)
+- 8394c77 **docs:** Propose a simplification trajectory (ADR-0043, Proposed) (#510)
+- 3e9abd6 **docs:** place dlq-service in the messaging context and gate symbols cited in architecture pages (#521)
+
+#### Test
+
+- 3e01786 **scripts:** pin the architecture symbol pattern of adr:check with a self-check (#621)
+- 2a1615d **tests:** rewrite the k6 load tests against public routes through the edge-proxy and run a k6 smoke in CI (#573)
+
+#### Chore
+
+- 95cad07 Bump @aws-sdk/client-s3 from 3.1161.0 to 3.1162.0 (#636)
+- 4aa8c7a Bump docker/login-action from 4.7.0 to 4.8.0 (#635)
+- 8b095de Bump @biomejs/biome from 2.6.4 to 2.6.5 (#637)
+- 64fbac4 **scripts:** make the observability gate check dashboard queries, datasources and probe jobs (#632)
+- acb3b50 **k8s:** drop the unfed OTel collector metrics pipeline and alert on failed span exports (#642)
+- d073261 **k8s:** register the local staging runner once with a registration token (#593)
+
+#### Ci
+
+- 4b61f59 **k8s:** send the kind Pushover pages to the alert sink through a webhook (#514)
+- ddac942 **ci:** stop running the CI on push to development, the PR already ran it (#631)
+
+#### Security
+
+- f6c7c20 **k8s:** isolate Redis per service with ACL users, address cache in process, DLQ rate limiter in memory (#516)
+- 22c8225 **k8s:** pin SPIRE, spiffe-helper and CSI images by digest (#468)
+- 6b32dd0 **docker:** require GRAFANA_PASSWORD in the compose, no admin/admin default (#641)
+
+#### Other
+
+- fac221c **release:** merge development into main — Redis Streams journal, local kind staging, trainer worker thread (#592)
+- fdf6a8a **observability:** alert on long trainer event loop blocks (#485)
+- fb211fe **github-actions:** refuse a deploy whose trading-model-secrets lacks a Redis ACL password
+
+
 ## [2.2.0] - 2026-11-06
 
 ### Root

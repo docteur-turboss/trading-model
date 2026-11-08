@@ -1,5 +1,5 @@
 # kube-state-metrics — state of the pods, containers, PVCs, Deployments and
-# StatefulSets of this namespace (issue #601, ADR-0055): CrashLoopBackOff,
+# StatefulSets of this namespace (issue #601, ADR-0056): CrashLoopBackOff,
 # OOMKilled, replicas. Limited to its own namespace by a Role: no ClusterRole,
 # no node, no other namespace (node-exporter covers the nodes).
 apiVersion: v1

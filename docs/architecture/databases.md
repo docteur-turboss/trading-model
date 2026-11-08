@@ -39,13 +39,13 @@ Inventory (issue #506). Address-manager caches in memory per process, so only th
 | message-manager | `trading-model:message-manager:subscriptions:<topic>` | `HSET HGETALL HDEL PEXPIRE` | Broker subscriptions |
 | message-manager | `trading-model:message-manager:journal:<topic>`, `trading-model:message-manager:journal-groups` | `EXISTS XADD XDEL XREADGROUP XPENDING XCLAIM XACK XGROUP XINFO XRANGE WAIT SADD SMEMBERS` | Durable message journal (ADR-0048) |
 | dlq-service | `dlq:queue` | `LLEN LPUSH LRANGE LTRIM EVAL EVALSHA SCRIPT LOAD` | Replay queue, a cache of the MongoDB entries (rebuilt from MongoDB; the HTTP rate limiter is in memory) |
-| redis_exporter sidecar (user `exporter`) | none | `PING INFO CLIENT SETNAME SLOWLOG GET/LEN LATENCY LATEST/HISTOGRAM`; on the sentinels `SENTINEL MASTERS/SENTINELS/SLAVES/REPLICAS/CKQUORUM` | Metrics (ADR-0055): never `CONFIG GET`, which would hand out `masterauth` |
+| redis_exporter sidecar (user `exporter`) | none | `PING INFO CLIENT SETNAME SLOWLOG GET/LEN LATENCY LATEST/HISTOGRAM`; on the sentinels `SENTINEL MASTERS/SENTINELS/SLAVES/REPLICAS/CKQUORUM` | Metrics (ADR-0056): never `CONFIG GET`, which would hand out `masterauth` |
 
 Dead letters live in MongoDB, not Redis.
 
 Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off (release 3.0.0 keeps it on without a password, with sentinels open, through `REDIS_ALLOW_LEGACY_CLIENTS=true` in `deploy/k8s/infra/redis.yaml`, so 2.x clients survive the upgrade: removed in the next release); the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix, and the `exporter` user outside its read-only commands. Compose runs one unauthenticated Redis (dev).
 
-## Monitoring users (ADR-0055)
+## Monitoring users (ADR-0056)
 
 Each database pod runs an exporter sidecar scraped by Prometheus (port `metrics`, reachable from the Prometheus pod only):
 

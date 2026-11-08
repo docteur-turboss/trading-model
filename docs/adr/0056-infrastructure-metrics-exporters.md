@@ -1,4 +1,4 @@
-# ADR-0055: Infrastructure Metrics: kube-state-metrics, node-exporter, Kubelet and Database Exporter Sidecars
+# ADR-0056: Infrastructure Metrics: kube-state-metrics, node-exporter, Kubelet and Database Exporter Sidecars
 
 **Status:** Accepted
 **Date:** 2026-11

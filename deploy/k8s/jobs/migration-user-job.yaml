@@ -14,7 +14,7 @@
 #  MYSQL_RETENTION_PASSWORD (optional key: a cluster whose Secret does not have
 #  it yet skips the user, and db-retention then fails visibly).
 #
-#  And the `exporter` user of the mysqld-exporter sidecars (ADR-0055): PROCESS,
+#  And the `exporter` user of the mysqld-exporter sidecars (ADR-0056): PROCESS,
 #  REPLICATION CLIENT, SELECT on performance_schema, 3 connections at most, no
 #  application data. Password MYSQL_EXPORTER_PASSWORD (optional key, skipped
 #  when absent: the exporters then report mysql_up 0).

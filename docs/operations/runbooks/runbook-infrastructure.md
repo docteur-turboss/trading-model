@@ -8,7 +8,7 @@
 
 ## Where the metrics come from
 
-ADR-0055. Prometheus scrapes, in K8s:
+ADR-0056. Prometheus scrapes, in K8s:
 
 | Job | Source | Metrics |
 | --- | --- | --- |
@@ -172,7 +172,7 @@ stable id, a restart of the StatefulSet clears them
 
 `mongodb_up == 0` for 5 minutes: the exporter sidecar cannot reach `mongod` on
 `127.0.0.1:27017` of its pod (no user involved: MongoDB runs without
-authentication, ADR-0055). The `mongod` container is down, restarting or
+authentication, ADR-0056). The `mongod` container is down, restarting or
 stuck: [runbook-database-failover#mongodb-dlq-and-audit-trail](runbook-database-failover.md#mongodb-dlq-and-audit-trail).
 
 ## MongoDBReplicaSetMemberUnhealthy

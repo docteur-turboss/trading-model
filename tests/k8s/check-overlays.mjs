@@ -238,7 +238,7 @@ for (const env of OVERLAYS) {
 	}
 
 	// Issue #433: the images that deliver mTLS identities are pinned by digest;
-	// so are the infrastructure exporters (ADR-0055), which read the databases.
+	// so are the infrastructure exporters (ADR-0056), which read the databases.
 	for (const [, image] of rendered.matchAll(/image: (\S*(?:spiffe-helper|spire-server|spire-agent|spiffe-csi-driver|csi-node-driver-registrar|kube-state-metrics|node-exporter|mysqld-exporter|mongodb_exporter|redis_exporter):\S+)/g)) {
 		if (!image.includes("@sha256:")) errors.push(`${env}: image ${image} is not pinned by digest`);
 	}

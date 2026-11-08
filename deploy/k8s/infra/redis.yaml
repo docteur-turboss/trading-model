@@ -244,7 +244,7 @@ spec:
                 - server
             periodSeconds: 5
             timeoutSeconds: 2
-        # Exporter of this node (issue #601, ADR-0055), as ACL user `exporter`:
+        # Exporter of this node (issue #601, ADR-0056), as ACL user `exporter`:
         # INFO and read-only commands, no key, no CONFIG GET (masterauth).
         - name: redis-exporter
           image: oliver006/redis_exporter:v1.80.0@sha256:cd5fad1591e585db5b58beec7fca427027c61a4349f50109af67cf2f07964d02
@@ -447,7 +447,7 @@ spec:
                 - sentinel
             periodSeconds: 5
             timeoutSeconds: 2
-        # Exporter of this sentinel (issue #601, ADR-0055), as ACL user `exporter`:
+        # Exporter of this sentinel (issue #601, ADR-0056), as ACL user `exporter`:
         # INFO and read-only commands, no key, no CONFIG GET (masterauth).
         - name: redis-exporter
           image: oliver006/redis_exporter:v1.80.0@sha256:cd5fad1591e585db5b58beec7fca427027c61a4349f50109af67cf2f07964d02

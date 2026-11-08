@@ -328,7 +328,7 @@ Each service has a dedicated ServiceAccount with `automountServiceAccountToken: 
    bootstrapped on the first member only; joining others is not automated
    (ADR-0020)
 3. **Grafana is single-instance** — dashboard provisioning but no HA
-4. **Jaeger is single-instance** — in-memory storage (not Elasticsearch/Cassandra)
+4. **Jaeger is single-instance** — Badger storage on the 5Gi PVC `jaeger-data`, traces kept 72 h (not Elasticsearch/Cassandra, ADR-0055)
 5. **Off-site backups need a bucket** — the `db-backup` CronJob copies the
    age-encrypted files with rclone once the `trading-model-backup-s3` secret
    exists; without it they stay on the in-cluster `backup-data` volume

@@ -60,6 +60,9 @@ scrape_configs:
     static_configs:
       - targets: ['trader-trainer:3000']
 
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
   # SVID expiry of every service: GET /ping with the blackbox-exporter SVID
   # (spiffe-helper-blackbox). /ping answers before the ACL: any valid SVID passes.
   - job_name: 'blackbox-exporter'
@@ -112,7 +115,7 @@ scrape_configs:
       - targets: ['backup-metrics-exporter:9118']
     scrape_interval: 60s
 
-  # Infrastructure exporters (issue #601, ADR-0055).
+  # Infrastructure exporters (issue #601, ADR-0056).
   - job_name: 'mysql'
     static_configs:
       - targets: ['mysqld-exporter:9104']
