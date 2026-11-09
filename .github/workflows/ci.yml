@@ -263,12 +263,18 @@ jobs:
       # and not representative of production, the RTO is judged in
       # docs/compliance/dr-exercise-log.md.
       DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
+      # shortcut: N-1 pinned to the parent of #771 because development cannot
+      # install (mysql-cluster-init pod unlabelled, fixed by #781); remove this
+      # line and the fetch step below in the PR that follows #781.
+      KIND_PREVIOUS_REF: 28e1b371e4fcb1d874536519f1e0a93727d040e3
     steps:
       # Depth 2: release N-1 is HEAD^1 (the base branch of the PR merge
       # commit, the previous commit on a push), built and deployed first.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
+      - name: Fetch the pinned release N-1
+        run: git fetch --no-tags --depth=1 origin "$KIND_PREVIOUS_REF"
       - name: Install kind
         run: |
           # GitHub Releases answers 504 now and then (issue #660): retry, checksum still checked.

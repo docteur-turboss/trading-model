@@ -79,9 +79,9 @@ release_replicas() {
 	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501).
 	kubectl delete hpa/trader-trainer-hpa -n "$ns" --ignore-not-found
 	# A Job's pod template is immutable: apply fails on a finished init Job
-	# whose template changed (labels, issue #727). Both are idempotent and
+	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.
-	kubectl delete job mongo-audit-init mongo-dlq-init -n "$ns" --ignore-not-found
+	kubectl delete job mongo-audit-init mongo-dlq-init mysql-cluster-init -n "$ns" --ignore-not-found
 	for dep in $(kubectl get hpa -n "$ns" \
 		-o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
 		last=$(kubectl get deployment "$dep" -n "$ns" -o json | jq -r --arg a "$ann" '.metadata.annotations[$a] // empty')
