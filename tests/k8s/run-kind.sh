@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -613,6 +613,7 @@ verify() {
 
 	verify_replicas
 	verify_egress
+	verify_mongo_ingress
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -694,6 +695,45 @@ verify_egress() {
 		log "  the collector reached $url: NetworkPolicy not enforced"
 		return 1
 	fi
+}
+
+# mongosh ping of `$3` from a throwaway pod `$1` with labels `$2` (none when
+# empty). Restricted Pod Security: the security context is spelled out.
+mongo_ping() {
+	local img uri
+	img="$(grep -m1 -o 'mongo@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
+	uri="mongodb://$3:27017/?directConnection=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
+	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
+		\"apiVersion\": \"v1\",
+		\"spec\": {
+			\"securityContext\": {\"runAsNonRoot\": true, \"runAsUser\": 999, \"seccompProfile\": {\"type\": \"RuntimeDefault\"}},
+			\"containers\": [{
+				\"name\": \"$1\", \"image\": \"$img\",
+				\"command\": [\"mongosh\", \"--quiet\", \"$uri\", \"--eval\", \"db.adminCommand({ping: 1}).ok\"],
+				\"securityContext\": {\"allowPrivilegeEscalation\": false, \"capabilities\": {\"drop\": [\"ALL\"]}}
+			}]
+		}
+	}"
+}
+
+# Only the listed components reach 27017 of the Mongo replica sets (issue
+# #727). Control: the same pod labelled as the init Job connects, so the
+# refusal comes from the NetworkPolicy, not from the image or the name.
+verify_mongo_ingress() {
+	local host component
+	log "MongoDB 27017: refused to an unlisted pod, allowed to the init Job label"
+	for host in mongo-audit-0.mongo-audit-headless:mongodb-audit-init mongo-dlq-0.mongo-dlq-headless:mongodb-init; do
+		component="${host#*:}"
+		host="${host%%:*}"
+		retry 3 mongo_ping mongo-probe-allowed "app.kubernetes.io/component=$component" "$host" >/dev/null || {
+			log "  a $component pod could not reach $host: the check proves nothing"
+			return 1
+		}
+		if mongo_ping mongo-probe-denied "" "$host" >/dev/null 2>&1; then
+			log "  a pod without component label reached $host:27017"
+			return 1
+		fi
+	done
 }
 
 # Production runs message-manager and discovery with 3 replicas (staging: 1).
@@ -1367,9 +1407,9 @@ all)
 	verify
 	verify_canary
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

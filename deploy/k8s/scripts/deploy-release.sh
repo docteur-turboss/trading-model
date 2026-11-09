@@ -10,7 +10,8 @@
 #       Revision each Deployment runs before the overlay ("<deployment> <rev>",
 #       `none` when it does not exist yet).
 #   deploy-release.sh release-replicas <namespace>
-#       Deletes retired HPAs, then drops spec.replicas from
+#       Deletes retired HPAs and the finished Mongo init Jobs (immutable pod
+#       template, recreated by the apply), then drops spec.replicas from
 #       last-applied-configuration of HPA-driven Deployments (needs jq).
 #   deploy-release.sh render <overlay-dir> <registry> <digests-file>
 #       Prints the overlay with every first-party image pinned by digest
@@ -77,6 +78,10 @@ release_replicas() {
 	# Retired HPAs: apply never prunes, and a live one would keep scaling its
 	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501).
 	kubectl delete hpa/trader-trainer-hpa -n "$ns" --ignore-not-found
+	# A Job's pod template is immutable: apply fails on a finished init Job
+	# whose template changed (labels, issue #727). Both are idempotent and
+	# run again from the overlay.
+	kubectl delete job mongo-audit-init mongo-dlq-init -n "$ns" --ignore-not-found
 	for dep in $(kubectl get hpa -n "$ns" \
 		-o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
 		last=$(kubectl get deployment "$dep" -n "$ns" -o json | jq -r --arg a "$ann" '.metadata.annotations[$a] // empty')
