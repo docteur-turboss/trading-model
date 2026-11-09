@@ -43,7 +43,7 @@ This register documents the processing activities of the trading-model platform,
 | **Recipients**           | Internal platform services only                                                                           |
 | **Transfers outside EU** | None — all services are self-hosted                                                                       |
 | **Retention period**     | message-manager: payloads journaled 24 h in Redis Streams (`JOURNAL_RETENTION_MS` = 24 h, `XADD … MINID` trim; AOF + replication; ACL user `message-manager`, ADR-0048), no personal data by design. DLQ: 30 days (TTL index on `createdAt`), capped at `MAX_ENTRIES` (100 000) |
-| **Technical measures**   | mTLS everywhere, payload sanitization, deduplication                                                      |
+| **Technical measures**   | mTLS between services (not toward databases, ADR-0060), payload sanitization, deduplication                                                      |
 | **System**               | message-manager (HTTP push) → dlq-service → MongoDB (`dlq_entries`)                                       |
 
 ## Processing Activity 3: Audit Logging

@@ -57,13 +57,14 @@ const CHECKS = [
   [POLICY, `${keyPatterns} patterns`],
 ];
 
-const FORBIDDEN = /not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer/i;
+// Last three: database TLS that does not exist (ADR-0060).
+const FORBIDDEN = /not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer|mTLS everywhere|[|] TLS connection [|]|All inter-service communication/i;
 
 const errors = [];
 for (const [file, text] of CHECKS) {
   if (!read(file).includes(text)) errors.push(`${file}: missing "${text}"`);
 }
-for (const f of ['data-processing-register', 'dpia', 'compliance-framework', 'information-security-policy']) {
+for (const f of ['data-processing-register', 'dpia', 'compliance-framework', 'information-security-policy', 'access-control-policy']) {
   const file = `docs/compliance/${f}.md`;
   read(file).split('\n').forEach((l, i) => {
     if (FORBIDDEN.test(l)) errors.push(`${file}:${i + 1}: stale wording "${l.match(FORBIDDEN)[0]}"`);
