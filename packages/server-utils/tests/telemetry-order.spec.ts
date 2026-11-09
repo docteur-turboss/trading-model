@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
@@ -12,7 +11,7 @@ import { join } from "node:path";
  */
 
 const FIXTURE = join(__dirname, "fixtures", "traced-server.js");
-const BUILT = join(__dirname, "..", "dist", "infrastructure", "telemetry.js");
+const RESOLVER = join(__dirname, "support", "resolve-workspace-src.cjs");
 
 interface ExportedSpan {
 	name: string;
@@ -27,9 +26,6 @@ let endpoint: string;
 let spans: ExportedSpan[] = [];
 
 beforeAll(async () => {
-	if (!existsSync(BUILT)) {
-		throw new Error(`${BUILT} missing: run \`bun run build\` first`);
-	}
 	receiver = createServer((req, res) => {
 		let body = "";
 		req.on("data", (chunk) => {
@@ -66,10 +62,14 @@ beforeEach(() => {
 
 function runFixture(mode: "early" | "late"): Promise<number | null> {
 	return new Promise((resolve, reject) => {
-		const child = spawn(process.execPath, [FIXTURE, mode], {
-			env: { ...process.env, OTEL_EXPORTER_OTLP_ENDPOINT: endpoint },
-			stdio: "inherit",
-		});
+		const child = spawn(
+			process.execPath,
+			["-r", "ts-node/register/transpile-only", "-r", RESOLVER, FIXTURE, mode],
+			{
+				env: { ...process.env, OTEL_EXPORTER_OTLP_ENDPOINT: endpoint },
+				stdio: "inherit",
+			}
+		);
 		child.on("error", reject);
 		child.on("exit", resolve);
 	});
