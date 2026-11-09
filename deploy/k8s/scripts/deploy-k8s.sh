@@ -95,7 +95,7 @@ cmd_apply() {
     kustomize_build "${K8S_DIR}/node-agents" | kubectl apply -f -
     log "Applying all Trading Model manifests..."
     # Immutable pod template: recreated (idempotent) by the apply (issue #727).
-    kubectl delete job -n "$NAMESPACE" mongo-audit-init mongo-dlq-init --ignore-not-found
+    kubectl delete job -n "$NAMESPACE" mongo-audit-init mongo-dlq-init mysql-cluster-init --ignore-not-found
     kustomize_build "${K8S_DIR}/" | kubectl apply -f -
   fi
 
