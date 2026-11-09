@@ -41,6 +41,7 @@
     "reach:check": "node scripts/reachability.mjs --max-lines 0",
     "arch:check": "node --test tests/architecture/architecture-check.test.mjs && node scripts/architecture-check.mjs",
     "config:check": "node scripts/config-flags-check.mjs",
+    "compliance:check": "node scripts/compliance-check.mjs && node --test scripts/compliance-check.test.mjs",
     "test": "bun run --filter '*' test",
     "test:coverage": "bun run --filter '*' test --coverage",
     "test:db": "bun run --filter '*' test:db",
