@@ -14,6 +14,8 @@ export COMPOSE_PROJECT_NAME="backupdrill"
 export MYSQL_ROOT_PASSWORD="drill-root"
 export GRAFANA_PASSWORD="drill-grafana"
 export MYSQL_EXPORTER_PASSWORD="drill-exporter"
+export MONGO_ROOT_PASSWORD="drill-mongo-root" MONGO_EXPORTER_PASSWORD="drill-mongo-exporter" MONGO_BACKUP_PASSWORD="drill-mongo-backup"
+export MONGO_AUDIT_PASSWORD="drill-mongo-audit" MONGO_DLQ_PASSWORD="drill-mongo-dlq"
 SERVICES="mongo mysql redis spire-server"
 WORK="$(mktemp -d)"
 # Git Bash: a C:/... path is understood by bash and by the native age/docker.
@@ -46,9 +48,11 @@ trap cleanup EXIT
 start() {
 	# shellcheck disable=SC2086
 	$COMPOSE up -d --wait --wait-timeout 300 $SERVICES >/dev/null
+	# One user per client (ADR-0058): the backup script dumps as `backup`.
+	$COMPOSE run --rm -T mongo-users >/dev/null
 }
 
-mongo_eval() { docker exec trading-mongo mongosh --quiet --eval "$1"; }
+mongo_eval() { docker exec -e Q="$1" trading-mongo sh -c 'mongosh --quiet -u root -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "$Q"'; }
 mysql_q() { docker exec trading-mysql sh -c "MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql --user=root -N -e \"$1\""; }
 # The audit trail: tests/backup/audit-chain.js on audit-logger's database.
 audit_chain() { mongo_eval "const AUDIT_DB = 'audit-logger'; $(cat tests/backup/audit-chain.js)"; }

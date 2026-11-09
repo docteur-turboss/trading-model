@@ -27,6 +27,18 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 | **audit-logger** | Audit event persistence |
 | **dlq-service** | Dead letter entries |
 
+Authentication (ADR-0058): a `keyFile` per replica set, and one user per client, all in `admin` (clients connect with `authSource=admin`), created by `deploy/mongo/users.js` (Jobs `mongo-*-users`, compose `mongo-users`):
+
+| User | Roles | Used by |
+| ---- | ----- | ------- |
+| `audit-logger` | `readWrite` on the audit database | audit-logger (`MONGO_USERNAME` / `MONGO_PASSWORD`) |
+| `dlq-service` | `readWrite` on `dlq` | dlq-service |
+| `exporter` | `clusterMonitor` | `mongodb_exporter` sidecars |
+| `backup` | `backup` | `mongodump` and the hourly oplog archives |
+| `root` | `root` | restore (oplog replay), user administration |
+
+Release 3.1.0 starts mongod with `--transitionToAuth` (clients without credentials still accepted, so the rolling restart never breaks the set); the next release removes the flag. `packages/persistence/tests/db/mongo-users.db.spec.ts` proves each user gets `Unauthorized` outside its scope.
+
 > SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database).
 
 ## Redis — who uses it, with which keys
@@ -53,7 +65,7 @@ Each database pod runs an exporter sidecar scraped by Prometheus (port `metrics`
 | -------- | -------- | -------- |
 | MySQL (every member) | `mysqld-exporter` | MySQL user `exporter`: `PROCESS, REPLICATION CLIENT` on `*.*`, `SELECT` on `performance_schema.*`, 3 connections at most; created by Job `db-migrate-user` (password `MYSQL_EXPORTER_PASSWORD`; compose: one-shot `mysql-exporter-user`) |
 | Redis data nodes and sentinels | `redis_exporter` | ACL user `exporter` above (`REDIS_EXPORTER_PASSWORD`, K8s); compose Redis has no ACL |
-| MongoDB `mongo-dlq` and `mongo-audit` (every member) | `mongodb_exporter` | None: MongoDB runs without authentication, so a read-only user would protect nothing. A `clusterMonitor` user comes with MongoDB authentication (its own issue) |
+| MongoDB `mongo-dlq` and `mongo-audit` (every member) | `mongodb_exporter` | MongoDB user `exporter`: `clusterMonitor` only (`MONGO_EXPORTER_PASSWORD`, ADR-0058) |
 
 ## Schema Validation
 

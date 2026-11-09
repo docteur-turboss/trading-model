@@ -96,7 +96,7 @@ archive_binlogs() {
 
 # stdout: oplog entries `$2` to `$3` (inclusive) of MongoDB pod `$1`, gzipped BSON.
 oplog_stream() {
-  kubectl_exec "$1" -c mongodb -- mongodump --quiet --db local --collection oplog.rs \
+  mongo_tool backup "$1" mongodump --quiet --db local --collection oplog.rs \
     --query "{\"ts\":{\"\$gte\":$(oplog_json "$2"),\"\$lte\":$(oplog_json "$3")}}" --out - | gzip
 }
 

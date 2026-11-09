@@ -170,6 +170,11 @@ jobs:
       MYSQL_ROOT_PASSWORD: ci-password
       GRAFANA_PASSWORD: ci-grafana-password
       MYSQL_EXPORTER_PASSWORD: ci-mysql-exporter-password
+      MONGO_ROOT_PASSWORD: ci-mongo-root
+      MONGO_EXPORTER_PASSWORD: ci-mongo-exporter
+      MONGO_BACKUP_PASSWORD: ci-mongo-backup
+      MONGO_AUDIT_PASSWORD: ci-mongo-audit
+      MONGO_DLQ_PASSWORD: ci-mongo-dlq
       DLQ_AUTH_HMAC_SECRET: test-hmac-secret
       DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
     steps:

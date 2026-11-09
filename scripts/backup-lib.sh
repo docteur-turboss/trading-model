@@ -1023,6 +1023,21 @@ mongo_primary() {
 	return 1
 }
 
+# Runs MongoDB tool `$3...` (mongodump, mongorestore, mongosh) in pod `$2` as
+# MongoDB user `$1` (ADR-0058): `backup` (dumps, oplog reads) or `root`
+# (restores need every action). The password comes from the pod's own env
+# (MONGO_BACKUP_PASSWORD / MONGO_ROOT_PASSWORD), never from the caller. With
+# MONGO_TOOL_STDIN=true stdin reaches the tool (restores).
+mongo_tool() {
+	local user="$1" pod="$2" var
+	shift 2
+	if [ "$user" = root ]; then var=MONGO_ROOT_PASSWORD; else var=MONGO_BACKUP_PASSWORD; fi
+	local flags=()
+	[ "${MONGO_TOOL_STDIN:-false}" = true ] && flags+=(-i)
+	kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- sh -c \
+		'u=$1; v=$2; shift 2; exec "$@" --username "$u" --password "$(printenv "$v")" --authenticationDatabase admin' sh "$user" "$var" "$@"
+}
+
 # Oplog point (`seconds.increment`) of the newest (`-1`) or oldest (`1`)
 # entry of the oplog of MongoDB pod `$1`.
 oplog_edge() {
