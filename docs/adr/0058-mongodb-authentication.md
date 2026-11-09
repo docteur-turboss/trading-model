@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0056](./0056-infrastructure-metrics-exporters.md) (§4: the `exporter` user it deferred), [ADR-0047](./0047-redis-isolation-per-service.md) (same model for Redis), [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) and [ADR-0050](./0050-audit-chain-single-writer-lease.md) (the audit trail this protects), [ADR-0031](./0031-point-in-time-recovery-hourly-archives.md) (oplog archives), [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) (expand / contract)
-**Verified by:** `packages/persistence/tests/db/mongo-users.db.spec.ts`, `packages/persistence/tests/unit/mongo-connection-manager.spec.ts`, `tests/backup/compose-restore-drill.sh`, `tests/k8s/check-overlays.mjs`, `tests/k8s/run-kind.sh`
+**Verified by:** `packages/persistence/tests/db/mongo-users.db.spec.ts`, `packages/persistence/tests/unit/mongo-connection-manager.spec.ts`, `tests/backup/compose-restore-drill.sh`, `tests/k8s/check-overlays.mjs`
 
 ## Context
 
@@ -24,7 +24,7 @@ MongoDB ran without authentication in K8s (`mongo-dlq`, `mongo-audit`) and in co
 
    `read` on `local` is not granted to the exporter: the collectors in use (`replSetGetStatus`, server status) need `clusterMonitor` only. The `backup` role reads the oplog (verified on the pinned image).
 3. **Credentials of the services** come from `MONGO_USERNAME` / `MONGO_PASSWORD` (the password from the Secret), passed to the driver as the `auth` option, never in the URI, which is logged and sits in a ConfigMap. Both or none (`mongoAuthFromEnv`): unset means no authentication, for dev.
-4. **Passwords in the pods.** The mongod container carries `MONGO_BACKUP_PASSWORD` and `MONGO_ROOT_PASSWORD`: backup and restore scripts run the tools inside the pod (`mongo_tool` in `backup-lib.sh`, `docker exec` in compose) and read the password there, so it appears in no script argument or CronJob.
+4. **Passwords in the pods.** The mongod container carries `MONGO_BACKUP_PASSWORD` and `MONGO_ROOT_PASSWORD`: backup and restore scripts run the tools inside the pod (`mongo_tool` in `backup-lib.sh`, `docker exec` in compose) and read the password there, so it appears in no CronJob, manifest, host script argument or log. Inside the pod the tools receive it as `--password` on their own command line (visible in `/proc/<pid>/cmdline` of that pod for the length of the dump); the pod is reachable only through `exec`, so this is accepted, and moving it to `--config` is a later hardening.
 5. **Switch in two releases, no downtime** (expand / contract, like ADR-0040). Release N starts mongod with `--keyFile --transitionToAuth`: members authenticate each other, clients with or without credentials are accepted, so a rolling restart of the StatefulSets and of the services never breaks the set. The Jobs `mongo-dlq-users` / `mongo-audit-users` create the users (idempotent, re-run by every release, they apply a rotated password) while no authentication is required yet. Release N+1 removes `--transitionToAuth`: mongod enforces authentication. The audit chain is untouched: it is data, and the one writer on its head (ADR-0050) only changes its credentials; the 15 min verifier keeps running across both steps.
 6. **A new cluster** must go through release N before N+1: users can only be created without credentials while `--transitionToAuth` is on (or from localhost). The Job fails with `Unauthorized` otherwise.
 7. **Compose** runs one standalone mongod with `--auth`: the image creates `root` on an empty volume (`MONGO_INITDB_ROOT_*`), the one-shot `mongo-users` runs the same script for the others. All five passwords are required by compose (`:?`).
@@ -46,3 +46,7 @@ MongoDB ran without authentication in K8s (`mongo-dlq`, `mongo-audit`) and in co
 | x.509 client authentication from the SPIRE SVIDs | MongoDB maps a certificate subject to a user, not a SPIFFE ID, and the SVIDs rotate hourly: more work, a possible later step |
 | Enforce authentication in one release | A rolling restart mixes members with and without `keyFile` (the set breaks), and the services restart before their users exist |
 | Credentials in the connection string | The URI is logged at start and stored in a ConfigMap |
+
+## Limits
+
+- Until release N+1, K8s mongod still runs with `--transitionToAuth`: a client without credentials keeps all rights. The "anonymous refused" and "`Unauthorized` outside the scope" checks on a replica set with a keyFile are only run by hand (see Consequences); `tests/k8s/run-kind.sh` checks `mongodb_up` and uses `root`, nothing more. The automated kind case for the enforced state ships with release N+1.
