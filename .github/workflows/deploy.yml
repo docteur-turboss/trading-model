@@ -473,6 +473,8 @@ jobs:
       # the namespace (e.g. a SealedSecret). Production fails, other
       # environments warn; BACKUP_S3_IMMUTABILITY_CHECK=warn downgrades
       # production while the bucket is set up (docs/deployment/BACKUP_DR.md).
+      # The bucket's region must also be in BACKUP_S3_ALLOWED_REGIONS (EU by
+      # default, GDPR art. 44).
       - name: Check off-site backup bucket immutability
         shell: bash
         env:
@@ -482,6 +484,8 @@ jobs:
           BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
           BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
           BACKUP_S3_IMMUTABILITY_CHECK: ${{ vars.BACKUP_S3_IMMUTABILITY_CHECK }}
+          # Empty: the script's default list of EU regions.
+          BACKUP_S3_ALLOWED_REGIONS: ${{ vars.BACKUP_S3_ALLOWED_REGIONS }}
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           bucket="$BACKUP_S3_BUCKET" endpoint="$BACKUP_S3_ENDPOINT" region="$BACKUP_S3_REGION"
