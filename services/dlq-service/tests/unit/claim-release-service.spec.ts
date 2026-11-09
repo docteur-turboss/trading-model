@@ -43,7 +43,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-jest.mock("../../src/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -51,7 +51,9 @@ jest.mock("../../src/config/logger", () => ({
 	},
 }));
 
-const { logger: MOCK_LOGGER } = jest.requireMock("../../src/config/logger") as {
+const { logger: MOCK_LOGGER } = jest.requireMock(
+	"@trading-model/http/infrastructure/logger"
+) as {
 	logger: {
 		info: jest.Mock<(...args: any[]) => any>;
 		warn: jest.Mock<(...args: any[]) => any>;

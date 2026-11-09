@@ -1,6 +1,9 @@
-import { getCollection } from "../../config/db";
+import type { CollectionProvider } from "./collection-provider";
 
-export async function pruneEntries(maxEntries: number): Promise<number> {
+export async function pruneEntries(
+	getCollection: CollectionProvider,
+	maxEntries: number
+): Promise<number> {
 	const col = await getCollection();
 	const cutoff = await _findEldestCutoff(col, maxEntries);
 	if (!cutoff) {

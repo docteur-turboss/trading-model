@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
-import {
-	closeDb,
-	getCollection,
-	getDb,
-	getMissingCriticalIndexes,
-} from "../../src/config/db";
+import { MongoConnectionManager } from "../../src/config/mongo-connection-manager";
+import { ENV } from "../../src/infrastructure/config/env";
+
+const mongo = new MongoConnectionManager(ENV);
+const getDb = () => mongo.getDb();
+const getCollection = () => mongo.getCollection();
+const getMissingCriticalIndexes = () => mongo.getMissingCriticalIndexes();
+const closeDb = () => mongo.close();
 
 const EXPECTED_INDEX_KEYS = [
 	{ _id: 1 },

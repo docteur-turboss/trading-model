@@ -1,16 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { createAutoRetryScheduler } from "../../src/infrastructure/auto-retry-scheduler";
 
-const MOCK_AUTO_RETRY_TICK = jest.fn<(...args: any[]) => any>();
-const MOCK_START_REDIS_WORKER = jest.fn<(...args: any[]) => any>();
-const MOCK_STOP_REDIS_WORKER = jest.fn<(...args: any[]) => any>();
-const MOCK_IS_SHUTTING_DOWN = jest.fn<(...args: any[]) => any>();
-
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		DLQ_AUTO_RETRY_ENABLED: true,
-		DLQ_AUTO_RETRY_INTERVAL_MS: 30000,
-	},
-}));
+const MOCK_IS_SHUTTING_DOWN = jest.fn<() => boolean>();
 
 jest.mock("../../src/config/logger", () => ({
 	logger: {
@@ -20,80 +11,64 @@ jest.mock("../../src/config/logger", () => ({
 	},
 }));
 
-jest.mock("../../src/config/container", () => ({
-	autoRetryTick: MOCK_AUTO_RETRY_TICK,
-}));
-
-jest.mock("../../src/application/use-cases/redis-queue-processor", () => ({
-	startRedisWorkerLoop: MOCK_START_REDIS_WORKER,
-	stopRedisWorkerTimer: MOCK_STOP_REDIS_WORKER,
-}));
-
 jest.mock("../../src/shared/shutdown-flag", () => ({
-	isShuttingDown: MOCK_IS_SHUTTING_DOWN,
+	isShuttingDown: () => MOCK_IS_SHUTTING_DOWN(),
 }));
+
+function setup(enabled = true) {
+	const tick = jest.fn<() => Promise<void>>(async () => undefined);
+	const start = jest.fn<() => void>();
+	const stop = jest.fn<() => void>();
+	const scheduler = createAutoRetryScheduler({
+		env: {
+			DLQ_AUTO_RETRY_ENABLED: enabled,
+			DLQ_AUTO_RETRY_INTERVAL_MS: 30000,
+		},
+		tick,
+		redisWorker: { start, stop },
+	});
+	return { scheduler, tick, start, stop };
+}
 
 describe("auto-retry-scheduler", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		jest.useFakeTimers();
+		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
 	});
 
 	afterEach(() => {
 		jest.useRealTimers();
 	});
 
-	it("should start auto retry when enabled", () => {
-		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
-		MOCK_AUTO_RETRY_TICK.mockResolvedValue(undefined);
-
-		const { startAutoRetry } = jest.requireActual(
-			"../../src/infrastructure/auto-retry-scheduler"
-		) as { startAutoRetry: () => void; stopAutoRetry: () => void };
-
-		startAutoRetry();
-
-		expect(MOCK_START_REDIS_WORKER).toHaveBeenCalled();
+	it("starts the Redis worker when enabled", () => {
+		const t = setup();
+		t.scheduler.start();
+		expect(t.start).toHaveBeenCalled();
+		t.scheduler.stop();
 	});
 
-	it("should not start auto retry when disabled", () => {
-		const envMock = jest.requireMock("../../src/infrastructure/config/env") as {
-			ENV: { DLQ_AUTO_RETRY_ENABLED: boolean };
-		};
-		envMock.ENV.DLQ_AUTO_RETRY_ENABLED = false;
-
-		const { startAutoRetry } = jest.requireActual(
-			"../../src/infrastructure/auto-retry-scheduler"
-		) as { startAutoRetry: () => void };
-
-		startAutoRetry();
-
-		expect(MOCK_START_REDIS_WORKER).not.toHaveBeenCalled();
+	it("starts nothing when disabled", () => {
+		const t = setup(false);
+		t.scheduler.start();
+		expect(t.start).not.toHaveBeenCalled();
 	});
 
-	it("should stop auto retry", () => {
-		const { stopAutoRetry } = jest.requireActual(
-			"../../src/infrastructure/auto-retry-scheduler"
-		) as { stopAutoRetry: () => void };
-
-		stopAutoRetry();
-
-		expect(MOCK_STOP_REDIS_WORKER).toHaveBeenCalled();
+	it("stops the Redis worker", () => {
+		const t = setup();
+		t.scheduler.start();
+		t.scheduler.stop();
+		expect(t.stop).toHaveBeenCalled();
 	});
 
-	it("should handle auto retry tick errors", async () => {
-		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
-		MOCK_AUTO_RETRY_TICK.mockRejectedValue(new Error("tick failed"));
-		const logger = jest.requireMock("../../src/config/logger") as {
-			logger: { error: jest.Mock<(...args: any[]) => any> };
-		};
+	it("runs a tick after the jittered delay, even when a tick fails", async () => {
+		const t = setup();
+		t.tick.mockRejectedValueOnce(new Error("tick failed"));
+		t.scheduler.start();
 
-		const { stopAutoRetry } = jest.requireActual(
-			"../../src/infrastructure/auto-retry-scheduler"
-		) as { stopAutoRetry: () => void };
+		await jest.advanceTimersByTimeAsync(30000 * 2);
 
-		stopAutoRetry();
-
-		expect(logger.logger.error).not.toHaveBeenCalled();
+		expect(t.tick).toHaveBeenCalled();
+		t.scheduler.stop();
 	});
 });

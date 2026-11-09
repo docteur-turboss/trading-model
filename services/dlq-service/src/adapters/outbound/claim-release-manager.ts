@@ -1,20 +1,22 @@
 ﻿import type { InstanceId } from "@trading-model/primitives/primitives";
 import { ObjectId } from "mongodb";
-import { getCollection } from "../../config/db";
 import {
 	CLAIM_PROJECTION,
 	RELEASE_CLAIM,
 	STALE_CLAIM_MS,
 } from "../../domain/dlq-constants";
+import type { CollectionProvider } from "./collection-provider";
 import { DlqQueryBuilder } from "./dlq-query-builder";
 import { toStoredDlqEntry } from "./repository";
 
 export class ClaimReleaseManager {
+	constructor(private readonly _getCollection: CollectionProvider) {}
+
 	async claimEntry(
 		id: string,
 		ctx: import("../../shared/types").BatchContext
 	): Promise<import("./repository").StoredDlqEntry | null> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const result = await col.findOneAndUpdate(
 			{
 				_id: new ObjectId(id),
@@ -39,7 +41,7 @@ export class ClaimReleaseManager {
 	}
 
 	async releaseStaleClaims(staleThresholdMs = STALE_CLAIM_MS): Promise<number> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const staleThreshold = new Date(Date.now() - staleThresholdMs);
 		const result = await col.updateMany(
 			{ processingAt: { $lt: staleThreshold } },
@@ -49,7 +51,7 @@ export class ClaimReleaseManager {
 	}
 
 	async releaseClaimsByInstance(instanceId: InstanceId): Promise<number> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const result = await col.updateMany(
 			{ processingInstance: instanceId },
 			RELEASE_CLAIM
@@ -58,12 +60,12 @@ export class ClaimReleaseManager {
 	}
 
 	async releaseClaimWithoutCount(id: string): Promise<void> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		await col.updateOne({ _id: new ObjectId(id) }, RELEASE_CLAIM);
 	}
 
 	async incrementRetryCount(id: string): Promise<boolean> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const result = await col.updateOne(
 			{ _id: new ObjectId(id) },
 			{ $inc: { retryCount: 1 } }
@@ -71,5 +73,3 @@ export class ClaimReleaseManager {
 		return result.modifiedCount > 0;
 	}
 }
-
-export const claimReleaseManager = new ClaimReleaseManager();

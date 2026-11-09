@@ -8,10 +8,6 @@ const mockCollection = jest.fn((..._args: any[]) => ({
 	deleteMany: mockDeleteMany,
 }));
 
-jest.mock("../../src/config/db", () => ({
-	getCollection: mockCollection,
-}));
-
 describe("dlq-eviction-policy", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -22,8 +18,10 @@ describe("dlq-eviction-policy", () => {
 
 		const { pruneEntries } = jest.requireActual(
 			"../../src/adapters/outbound/dlq-eviction-policy"
-		) as { pruneEntries: (max: number) => Promise<number> };
-		const result = await pruneEntries(100);
+		) as {
+			pruneEntries: (getCollection: never, max: number) => Promise<number>;
+		};
+		const result = await pruneEntries(mockCollection as never, 100);
 		expect(result).toBe(0);
 	});
 
@@ -34,8 +32,10 @@ describe("dlq-eviction-policy", () => {
 
 		const { pruneEntries } = jest.requireActual(
 			"../../src/adapters/outbound/dlq-eviction-policy"
-		) as { pruneEntries: (max: number) => Promise<number> };
-		const result = await pruneEntries(100);
+		) as {
+			pruneEntries: (getCollection: never, max: number) => Promise<number>;
+		};
+		const result = await pruneEntries(mockCollection as never, 100);
 		expect(result).toBe(50);
 		expect(mockDeleteMany).toHaveBeenCalledWith({
 			createdAt: { $lt: eldestDate },

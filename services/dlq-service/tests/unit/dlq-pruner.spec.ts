@@ -24,14 +24,11 @@ jest.mock("../../src/config/metrics", () => ({
 	},
 }));
 
-jest.mock("../../src/adapters/outbound/repository", () => ({
-	dlqRepository: {
-		prune: MOCK_PRUNE,
-	},
-}));
-
 describe("DlqPruner", () => {
-	let DlqPrunerClass: new () => {
+	let DlqPrunerClass: new (
+		entries: unknown,
+		env: unknown
+	) => {
 		start: () => void;
 		stop: () => void;
 		prune: () => Promise<number>;
@@ -57,7 +54,10 @@ describe("DlqPruner", () => {
 			metrics: { entriesPruned: { inc: jest.Mock<(...args: any[]) => any> } };
 		};
 
-		const pruner = new DlqPrunerClass();
+		const pruner = new DlqPrunerClass(
+			{ prune: MOCK_PRUNE },
+			{ MAX_ENTRIES: 100, DLQ_PRUNE_INTERVAL_MS: 60000 }
+		);
 		const result = await pruner.prune();
 
 		expect(result).toBe(5);
@@ -71,7 +71,10 @@ describe("DlqPruner", () => {
 			logger: { info: jest.Mock<(...args: any[]) => any> };
 		};
 
-		const pruner = new DlqPrunerClass();
+		const pruner = new DlqPrunerClass(
+			{ prune: MOCK_PRUNE },
+			{ MAX_ENTRIES: 100, DLQ_PRUNE_INTERVAL_MS: 60000 }
+		);
 		const result = await pruner.prune();
 
 		expect(result).toBe(0);
@@ -84,7 +87,10 @@ describe("DlqPruner", () => {
 			logger: { error: jest.Mock<(...args: any[]) => any> };
 		};
 
-		const pruner = new DlqPrunerClass();
+		const pruner = new DlqPrunerClass(
+			{ prune: MOCK_PRUNE },
+			{ MAX_ENTRIES: 100, DLQ_PRUNE_INTERVAL_MS: 60000 }
+		);
 		const result = await pruner.prune();
 
 		expect(result).toBe(0);
@@ -95,18 +101,27 @@ describe("DlqPruner", () => {
 	});
 
 	it("should start the timer", () => {
-		const pruner = new DlqPrunerClass();
+		const pruner = new DlqPrunerClass(
+			{ prune: MOCK_PRUNE },
+			{ MAX_ENTRIES: 100, DLQ_PRUNE_INTERVAL_MS: 60000 }
+		);
 		pruner.start();
 	});
 
 	it("should not start the timer twice", () => {
-		const pruner = new DlqPrunerClass();
+		const pruner = new DlqPrunerClass(
+			{ prune: MOCK_PRUNE },
+			{ MAX_ENTRIES: 100, DLQ_PRUNE_INTERVAL_MS: 60000 }
+		);
 		pruner.start();
 		pruner.start();
 	});
 
 	it("should stop the timer", () => {
-		const pruner = new DlqPrunerClass();
+		const pruner = new DlqPrunerClass(
+			{ prune: MOCK_PRUNE },
+			{ MAX_ENTRIES: 100, DLQ_PRUNE_INTERVAL_MS: 60000 }
+		);
 		pruner.stop();
 	});
 });

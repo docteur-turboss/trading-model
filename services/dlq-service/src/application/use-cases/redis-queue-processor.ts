@@ -1,37 +1,43 @@
-import { claimReplayOrchestrator } from "../../config/container";
-import {
-	claimReleaseManager,
-	queuePopService,
-	resolveMessageManagerUrl,
-} from "../../config/dlq-adapters";
-import { RedisWorkerTimer } from "../../infrastructure/redis-worker-timer";
+import type { URLString } from "@trading-model/primitives/primitives";
+import type { QueuePopPort } from "../../domain/ports/dlq.ports";
+import type {
+	ClaimReleasePort,
+	MessageManagerLocatorPort,
+} from "../../domain/ports/replay.ports";
 
-export async function processRedisQueue(): Promise<void> {
-	if (queuePopService.shouldSkip()) {
-		return;
-	}
-
-	const messageManagerUrl = await resolveMessageManagerUrl();
-	if (!messageManagerUrl) {
-		return;
-	}
-
-	await claimReleaseManager.releaseStaleClaims();
-
-	const entryIds = await queuePopService.popEntries();
-	if (entryIds.length === 0) {
-		return;
-	}
-
-	await claimReplayOrchestrator.claimAndReplay(entryIds, messageManagerUrl);
+export interface RedisQueueProcessorDeps {
+	queue: QueuePopPort;
+	messageManager: MessageManagerLocatorPort;
+	claimRelease: Pick<ClaimReleasePort, "releaseStaleClaims">;
+	orchestrator: {
+		claimAndReplay(
+			entryIds: string[],
+			messageManagerUrl: URLString
+		): Promise<void>;
+	};
 }
 
-export const redisWorkerTimer = new RedisWorkerTimer(processRedisQueue);
+/** One pass of the Redis worker: pop the queued ids, claim them, replay them. */
+export function createRedisQueueProcessor(
+	deps: RedisQueueProcessorDeps
+): () => Promise<void> {
+	return async () => {
+		if (deps.queue.shouldSkip()) {
+			return;
+		}
 
-export function startRedisWorkerLoop(): void {
-	redisWorkerTimer.start();
-}
+		const messageManagerUrl = await deps.messageManager.resolve();
+		if (!messageManagerUrl) {
+			return;
+		}
 
-export function stopRedisWorkerTimer(): void {
-	redisWorkerTimer.stop();
+		await deps.claimRelease.releaseStaleClaims();
+
+		const entryIds = await deps.queue.popEntries();
+		if (entryIds.length === 0) {
+			return;
+		}
+
+		await deps.orchestrator.claimAndReplay(entryIds, messageManagerUrl);
+	};
 }

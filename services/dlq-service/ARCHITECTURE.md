@@ -23,22 +23,25 @@ services/dlq-service/
 ├── src/
 │   ├── domain/
 │   │   ├── dlq-status.ts, dlq-constants.ts
-│   │   └── ports/replay.ports.ts   # Claim, release, retry ledger, queue, delivery, audit ports + settings
+│   │   └── ports/            # replay.ports.ts (claim, release, retry ledger, queue, delivery, audit, settings),
+│   │                         # dlq.ports.ts (entry store, storage availability, enqueue, metrics, audit, queue pop)
 │   ├── application/
-│   │   ├── index.ts      # Bootstrap: MongoDB connect, Redis queue, periodic prune
+│   │   ├── index.ts      # Bootstrap: builds the app with createDlqApp(ENV), then connect, start, stop
 │   │   ├── server.ts     # Express server factory
-│   │   └── services/     # Replay use cases: auto-retry cycle, batch replay, Redis claim replay,
+│   │   ├── use-cases/    # addEntry, deleteEntries, replayEntries, Redis queue processor: factories over
+│   │   │                 # ports, return business results (no HTTP status, no config/adapters import)
+│   │   └── services/     # Replay services: auto-retry cycle, batch replay, Redis claim replay,
 │   │                     # queue rebuild, claim release, replay drain, batch concurrency guard
 │   ├── adapters/
-│   │   ├── inbound/      # HTTP handlers (add, list, delete, replay, health), routes, auth,
-│   │   │                 # rate limiting, Redis queue processor (timer-driven consumer)
-│   │   └── outbound/     # MongoDB repository & claim managers, retry manager, delivery executor,
+│   │   ├── inbound/      # HTTP handlers (createDlqHandlers: result to status code), routes, auth,
+│   │   │                 # rate limiting
+│   │   └── outbound/     # MongoDB repository & claim managers (given a CollectionProvider), retry manager, delivery executor,
 │   │                     # HTTP client, message-manager resolver, audit notifier, Redis pusher
 │   ├── infrastructure/   # env, auto-retry scheduler, pruner, Redis init/worker timer, rate-limiter store
 │   ├── config/
-│   │   ├── container.ts  # Composition root: wires the replay use cases to their adapters
-│   │   ├── shutdown-manager.ts # Graceful shutdown: drain replays, release claims, close resources
-│   │   ├── address-manager.ts, db.ts, redis-queue.ts, metrics.ts, audit.ts, logger.ts
+│   │   ├── container.ts  # createDlqApp(env): the only composition root; nothing is built at import time.
+│   │   │                 # Also start() and shutdownSchedulers() (drain replays, release claims, close resources)
+│   │   ├── address-manager.ts, mongo-connection-manager.ts, redis-queue.ts, metrics.ts, audit.ts, logger.ts
 │   └── shared/           # Types, schemas, shutdown flag, active replay counter, re-export facades
 ├── tests/
 ├── Dockerfile

@@ -51,7 +51,9 @@ jest.mock("@trading-model/persistence/mongo-connection-manager", () => {
 });
 
 describe("MongoConnectionManager", () => {
-	let MongoConnectionManagerClass: new () => {
+	let MongoConnectionManagerClass: new (
+		env: unknown
+	) => {
 		getCollection: () => Promise<unknown>;
 		getDb: () => Promise<unknown>;
 		isConnected: () => boolean;
@@ -83,7 +85,11 @@ describe("MongoConnectionManager", () => {
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		const result = await manager.getCollection();
 
 		expect(result).toBe(mockCollection);
@@ -101,7 +107,11 @@ describe("MongoConnectionManager", () => {
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		const first = await manager.getCollection();
 		const second = await manager.getCollection();
 
@@ -119,7 +129,11 @@ describe("MongoConnectionManager", () => {
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		const results = await Promise.all([
 			manager.getCollection(),
 			manager.getCollection(),
@@ -132,7 +146,11 @@ describe("MongoConnectionManager", () => {
 	it("should return missing critical indexes", () => {
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue(["index1"]);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		expect(manager.getMissingCriticalIndexes()).toEqual([]);
 	});
 
@@ -146,7 +164,11 @@ describe("MongoConnectionManager", () => {
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue(["missing-idx-1"]);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		await manager.getCollection();
 
 		expect(manager.getMissingCriticalIndexes()).toEqual(["missing-idx-1"]);
@@ -163,7 +185,11 @@ describe("MongoConnectionManager", () => {
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
 		MOCK_RESET_STATE_SUPER.mockResolvedValue(undefined as never);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		await manager.getCollection();
 		await manager.resetState();
 
@@ -182,7 +208,11 @@ describe("MongoConnectionManager", () => {
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
 		MOCK_CLOSE_SUPER.mockResolvedValue(undefined as never);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		await manager.getCollection();
 		await manager.close();
 

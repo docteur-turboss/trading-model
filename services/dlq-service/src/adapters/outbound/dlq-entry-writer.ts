@@ -3,11 +3,11 @@
 	createAppError,
 	ErrorCode,
 } from "@trading-model/common/utils/errors";
-import { getCollection } from "../../config/db";
 import { DLQ_MAX_PASS_COUNT } from "../../domain/dlq-constants";
 import { DlqStatus } from "../../domain/dlq-status";
 import { ENV } from "../../infrastructure/config/env";
 import { EntrySerializer } from "../../shared/entry-serializer";
+import type { CollectionProvider } from "./collection-provider";
 import { DedupInserter } from "./dedup-inserter";
 import type { DlqEntry } from "./repository";
 
@@ -79,8 +79,10 @@ export class DlqEntryWriter {
 	private readonly _serializer = new EntrySerializer();
 	private readonly _inserter = new DedupInserter();
 
+	constructor(private readonly _getCollection: CollectionProvider) {}
+
 	async insert(entry: DlqEntry): Promise<string> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 
 		const hash = this._serializer.computeHash(entry);
 		// Independent reads: one round trip of latency instead of two.

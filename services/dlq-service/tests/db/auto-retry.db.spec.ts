@@ -54,14 +54,13 @@ import {
 import { ObjectId } from "mongodb";
 
 interface Modules {
-	dlqRepository: typeof import("../../src/adapters/outbound/repository").dlqRepository;
+	/** Seeds and inspects the collection, through its own connection. */
+	dlqRepository: import("../../src/adapters/outbound/repository").DlqRepository;
+	getCollection: () => Promise<import("mongodb").Collection>;
+	mongo: import("../../src/config/mongo-connection-manager").MongoConnectionManager;
 	DlqStatus: typeof import("../../src/adapters/outbound/repository").DlqStatus;
-	getCollection: typeof import("../../src/config/db").getCollection;
-	closeDb: typeof import("../../src/config/db").closeDb;
 	dlqRedisQueue: typeof import("../../src/config/redis-queue").dlqRedisQueue;
-	autoRetryTick: typeof import("../../src/config/container").autoRetryTick;
-	rebuildQueueFromMongo: typeof import("../../src/config/container").rebuildQueueFromMongo;
-	processRedisQueue: typeof import("../../src/application/use-cases/redis-queue-processor").processRedisQueue;
+	app: import("../../src/config/container").DlqApp;
 }
 let m: Modules;
 
@@ -80,12 +79,24 @@ async function entry(id: string) {
 }
 
 beforeAll(async () => {
+	const { ENV } = require("../../src/infrastructure/config/env");
+	const {
+		MongoConnectionManager,
+	} = require("../../src/config/mongo-connection-manager");
+	const {
+		DlqRepository,
+		DlqStatus,
+	} = require("../../src/adapters/outbound/repository");
+	const { createDlqApp } = require("../../src/config/container");
+	const mongo = new MongoConnectionManager(ENV);
+	const getCollection = () => mongo.getCollection();
 	m = {
-		...require("../../src/adapters/outbound/repository"),
-		...require("../../src/config/db"),
-		...require("../../src/config/redis-queue"),
-		...require("../../src/config/container"),
-		...require("../../src/application/use-cases/redis-queue-processor"),
+		dlqRepository: new DlqRepository(getCollection),
+		getCollection,
+		mongo,
+		DlqStatus,
+		dlqRedisQueue: require("../../src/config/redis-queue").dlqRedisQueue,
+		app: createDlqApp(ENV),
 	};
 	await expect(m.dlqRedisQueue.connect()).resolves.toBe(true);
 });
@@ -102,14 +113,15 @@ beforeEach(async () => {
 
 afterAll(async () => {
 	await m.dlqRedisQueue.close();
-	await m.closeDb();
+	await m.app.closeDb();
+	await m.mongo.close();
 });
 
 describe("DLQ auto-retry — real MongoDB and Redis", () => {
 	it("replays a stored dead letter to message-manager and completes it", async () => {
 		const id = await seed("o-1");
 
-		await m.autoRetryTick();
+		await m.app.jobs.autoRetryTick();
 
 		expect(delivered).toEqual([
 			{ url: `${MESSAGE_MANAGER}/message`, body: { orderId: "o-1" } },
@@ -123,15 +135,15 @@ describe("DLQ auto-retry — real MongoDB and Redis", () => {
 		const id = await seed("o-2");
 		failDelivery = true;
 
-		await m.autoRetryTick();
+		await m.app.jobs.autoRetryTick();
 
 		const afterFirst = await entry(id);
 		expect(afterFirst?.retryCount).toBe(1);
 		expect(afterFirst?.processingAt).toBeUndefined();
 		expect(afterFirst?.status).not.toBe(m.DlqStatus.Completed);
 
-		await m.autoRetryTick();
-		await m.autoRetryTick();
+		await m.app.jobs.autoRetryTick();
+		await m.app.jobs.autoRetryTick();
 
 		expect((await entry(id))?.status).toBe(m.DlqStatus.Abandoned);
 		expect(fakeClient.post).toHaveBeenCalledTimes(2);
@@ -140,8 +152,8 @@ describe("DLQ auto-retry — real MongoDB and Redis", () => {
 	it("replays through the Redis worker loop what the queue rebuild pushed", async () => {
 		const id = await seed("o-3");
 
-		await m.rebuildQueueFromMongo();
-		await m.processRedisQueue();
+		await m.app.jobs.rebuildQueueFromMongo();
+		await m.app.jobs.processRedisQueue();
 
 		expect(delivered.map((d) => d.body)).toEqual([{ orderId: "o-3" }]);
 		expect((await entry(id))?.status).toBe(m.DlqStatus.Completed);
