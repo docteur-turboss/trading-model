@@ -46,16 +46,16 @@ export async function publishDlqEvent<TEvent extends DlqEvent>(
 	event: TEvent,
 	payload: DlqEventMap[TEvent]
 ): Promise<boolean> {
-	const metadata = new HELPER.metadataBuilder(toTopic(event), event, {
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
-		serviceName: toServiceId(ServiceInstanceName.DlqService),
-	})
-		.setDelivery({
-			mode: DeliveryMode.AtLeastOnce,
-			deduplicationId: toMessageId(randomUUID()),
-		})
-		.toJSON();
 	try {
+		const metadata = new HELPER.metadataBuilder(toTopic(event), event, {
+			instanceId: toInstanceId(ENV.INSTANCE_ID),
+			serviceName: toServiceId(ServiceInstanceName.DlqService),
+		})
+			.setDelivery({
+				mode: DeliveryMode.AtLeastOnce,
+				deduplicationId: toMessageId(randomUUID()),
+			})
+			.toJSON();
 		await _messageManager().post.indirect(payload, metadata);
 		return true;
 	} catch (err: unknown) {

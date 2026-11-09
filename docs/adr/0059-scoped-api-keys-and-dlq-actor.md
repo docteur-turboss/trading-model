@@ -32,4 +32,4 @@ The owner chose, in the issue: the 502 on a refused audit event (option A1) and 
 - A read-only key (`grafana:read:…`) can no longer touch the DLQ. Who deleted or replayed what is in the audit chain, by key name.
 - A delete or replay answered 502 is done but not in the chain: the error log and the alert are its only record; the runbook asks to note it in the incident report (the chain cannot be patched afterwards, ADR-0027).
 - Key names reach dlq-service and the audit trail: they must not hold personal data beyond an operator handle.
-- Old-format keys keep every scope for one release; the warning at each start lists them.
+- Old-format keys keep every scope for one release; the gateway logs a warning naming them at the first authenticated request after each start.

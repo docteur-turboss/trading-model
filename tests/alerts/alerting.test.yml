@@ -1557,6 +1557,8 @@ tests:
 
   # A delete whose audit event message-manager refused fires (ADR-0059); a
   # refused dlq.entry.added (bus down while dead letters arrive) does not.
+  # The series start at 0: dlq-service exposes every event at 0 from startup
+  # (metrics.ts), so increase() sees the first loss.
   - name: DLQ action missing from the audit trail
     interval: 1m
     input_series:

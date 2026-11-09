@@ -1,3 +1,4 @@
+import { DlqEvent } from "@trading-model/contracts/dlq-events";
 import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 import promClient from "prom-client";
 
@@ -41,5 +42,10 @@ export const metrics = {
 		help: "Current number of entries in the DLQ collection",
 	}),
 };
+
+// Exposed at 0 from start: a series born at 1 is invisible to increase() and DlqAuditEventLost would miss the first loss.
+for (const event of Object.values(DlqEvent)) {
+	metrics.auditPublishFailures.inc({ event }, 0);
+}
 
 export { metricsHandler };
