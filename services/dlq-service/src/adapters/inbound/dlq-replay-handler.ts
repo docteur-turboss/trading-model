@@ -29,7 +29,13 @@ function _toResponse(result: ReplayResult): ResponseObject {
 				HTTP_STATUS.OK
 			);
 		default:
-			return sendResponse(result.details, HTTP_STATUS.OK);
+			// Replayed but not in the audit trail: no silent success (ADR-0059).
+			return result.auditRecorded
+				? sendResponse(result.details, HTTP_STATUS.OK)
+				: sendResponse(
+						{ ...result.details, auditRecorded: false },
+						HTTP_STATUS.BAD_GATEWAY
+					);
 	}
 }
 
@@ -38,11 +44,14 @@ export function createReplayEntries(
 		request: ReplayRequest,
 		span: import("@opentelemetry/api").Span
 	) => Promise<ReplayResult>
-): (query: ReplayEntriesQuery) => Promise<ResponseObject> {
-	return (query) =>
+): (
+	query: ReplayEntriesQuery,
+	actor: string | null
+) => Promise<ResponseObject> {
+	return (query, actor) =>
 		tracer.startActiveSpan("dlq-replay-entries", async (span) => {
 			try {
-				return _toResponse(await replay(query, span));
+				return _toResponse(await replay({ ...query, actor }, span));
 			} catch (err) {
 				span.recordException(err as Error);
 				span.setStatus({

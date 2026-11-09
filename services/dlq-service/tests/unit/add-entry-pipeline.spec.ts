@@ -43,19 +43,24 @@ describe("addEntry use case", () => {
 	it("stores, counts, enqueues and audits the entry", async () => {
 		const { addEntry, entryAdded, enqueue, notifyAdd } = setup();
 
-		await expect(addEntry(ENTRY)).resolves.toEqual({
+		await expect(addEntry(ENTRY, "ops-alice")).resolves.toEqual({
 			status: "added",
 			id: "entry-id-123",
 		});
 		expect(entryAdded).toHaveBeenCalled();
 		expect(enqueue).toHaveBeenCalledWith("entry-id-123");
-		expect(notifyAdd).toHaveBeenCalledWith("entry-id-123", "test", "testing");
+		expect(notifyAdd).toHaveBeenCalledWith(
+			"entry-id-123",
+			"test",
+			"testing",
+			"ops-alice"
+		);
 	});
 
 	it("rejects without writing when storage is unavailable", async () => {
 		const { addEntry, insert } = setup(false);
 
-		await expect(addEntry(ENTRY)).resolves.toEqual({
+		await expect(addEntry(ENTRY, null)).resolves.toEqual({
 			status: "rejected",
 			reason: "storage-unavailable",
 		});
@@ -66,7 +71,10 @@ describe("addEntry use case", () => {
 		const { addEntry, insert } = setup();
 
 		await expect(
-			addEntry({ ...ENTRY, message: "x".repeat(5 * 1024 * 1024 + 1) } as never)
+			addEntry(
+				{ ...ENTRY, message: "x".repeat(5 * 1024 * 1024 + 1) } as never,
+				null
+			)
 		).resolves.toEqual({ status: "rejected", reason: "too-large" });
 		expect(insert).not.toHaveBeenCalled();
 	});
@@ -77,7 +85,7 @@ describe("addEntry use case", () => {
 			createAppError("full", { code: ErrorCode.DlqCapacity })
 		);
 
-		await expect(addEntry(ENTRY)).resolves.toEqual({
+		await expect(addEntry(ENTRY, null)).resolves.toEqual({
 			status: "capacity-reached",
 		});
 		expect(enqueue).not.toHaveBeenCalled();
@@ -87,7 +95,9 @@ describe("addEntry use case", () => {
 		const { addEntry, insert, entryAdded } = setup();
 		insert.mockRejectedValue(new Error("db error"));
 
-		await expect(addEntry(ENTRY)).resolves.toEqual({ status: "storage-error" });
+		await expect(addEntry(ENTRY, null)).resolves.toEqual({
+			status: "storage-error",
+		});
 		expect(entryAdded).not.toHaveBeenCalled();
 	});
 });

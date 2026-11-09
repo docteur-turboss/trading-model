@@ -34,6 +34,13 @@ const StorageUnavailable = ErrorResponse.extend({
 	code: z.literal("STORAGE_UNAVAILABLE"),
 });
 
+const REPLAYED = z.object({
+	batchId: z.string(),
+	replayed: z.number().int(),
+	failed: z.number().int(),
+	errors: z.array(z.object({ id: z.string(), error: z.string() })).optional(),
+});
+
 /** Rejections of `serviceAuth`: unknown caller (403), bad signature (401). */
 const SIGNED = { 401: ErrorResponse, 403: ErrorResponse } as const;
 
@@ -88,10 +95,18 @@ export const DLQ_API = {
 		security: ["SignedRequest"],
 		body: z.object({ ids: z.array(z.string()).min(1).max(1000) }),
 		responses: {
-			200: z.object({ deleted: z.number().int() }),
+			200: z.object({
+				deleted: z.number().int(),
+				auditRecorded: z.literal(true),
+			}),
 			400: ErrorResponse,
 			...SIGNED,
 			429: ErrorResponse,
+			/** Deleted, but message-manager refused the audit event (ADR-0059). */
+			502: z.object({
+				deleted: z.number().int(),
+				auditRecorded: z.literal(false),
+			}),
 		},
 	}),
 	replayEntries: defineRoute({
@@ -106,20 +121,15 @@ export const DLQ_API = {
 		}),
 		responses: {
 			200: z.union([
-				z.object({
-					batchId: z.string(),
-					replayed: z.number().int(),
-					failed: z.number().int(),
-					errors: z
-						.array(z.object({ id: z.string(), error: z.string() }))
-						.optional(),
-				}),
+				REPLAYED,
 				z.object({ replayed: z.literal(0), message: z.string() }),
 			]),
 			400: ErrorResponse,
 			...SIGNED,
 			429: ErrorResponse,
 			500: ErrorResponse,
+			/** Replayed, but message-manager refused the audit event (ADR-0059). */
+			502: REPLAYED.extend({ auditRecorded: z.literal(false) }),
 		},
 	}),
 } as const;

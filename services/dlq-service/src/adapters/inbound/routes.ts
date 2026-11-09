@@ -2,6 +2,7 @@ import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount
 import { Router } from "express";
 import type rateLimit from "express-rate-limit";
 import { metricsHandler } from "../../config/metrics";
+import { actorOf } from "./actor";
 import { DLQ_API } from "./api-routes";
 import { serviceAuth } from "./auth";
 import { createHealthControllers } from "./controller";
@@ -21,9 +22,14 @@ function _registerDlqRoutes(
 	healthLimiter: ReturnType<typeof rateLimit>
 ): void {
 	// The signature covers the raw body: serviceAuth runs before validation.
-	mountRoute(router, DLQ_API.addEntry, ({ body }) => handlers.addEntry(body), {
-		middlewares: [serviceAuth, writeLimiter],
-	});
+	mountRoute(
+		router,
+		DLQ_API.addEntry,
+		({ body }, req) => handlers.addEntry(body, actorOf(req)),
+		{
+			middlewares: [serviceAuth, writeLimiter],
+		}
+	);
 	mountRoute(
 		router,
 		DLQ_API.listEntries,
@@ -35,7 +41,7 @@ function _registerDlqRoutes(
 	mountRoute(
 		router,
 		DLQ_API.deleteEntries,
-		({ body }) => handlers.deleteEntries(body),
+		({ body }, req) => handlers.deleteEntries(body, actorOf(req)),
 		{
 			middlewares: [serviceAuth, writeLimiter],
 		}
@@ -43,7 +49,7 @@ function _registerDlqRoutes(
 	mountRoute(
 		router,
 		DLQ_API.replayEntries,
-		({ query }) => handlers.replayEntries(query),
+		({ query }, req) => handlers.replayEntries(query, actorOf(req)),
 		{ middlewares: [serviceAuth, replayLimiter] }
 	);
 	const { HealthCheck, ReadyCheck } = createHealthControllers(handlers);

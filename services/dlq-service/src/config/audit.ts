@@ -17,6 +17,7 @@ import { ServiceInstanceName } from "@trading-model/primitives/service-instance-
 import { ENV } from "../infrastructure/config/env";
 import { AddressManager } from "./address-manager";
 import { logger } from "./logger";
+import { metrics } from "./metrics";
 
 type MessageManager = ReturnType<
 	typeof createServiceMessageManager
@@ -35,12 +36,16 @@ function _messageManager(): MessageManager {
 
 /**
  * Publishes a DLQ event on the bus, where audit-logger records it like every
- * topic. Does not wait: the DLQ request must not depend on the bus.
+ * topic. Never rejects: resolves true once message-manager has journaled it
+ * (202, ADR-0048), false when it did not, after an error log and
+ * `dlq_audit_publish_failures_total{event}`. The human actions (delete,
+ * manual replay) wait for it and report a refused event (ADR-0059); the
+ * others do not wait, so a DLQ request never depends on the bus.
  */
-export function publishDlqEvent<TEvent extends DlqEvent>(
+export async function publishDlqEvent<TEvent extends DlqEvent>(
 	event: TEvent,
 	payload: DlqEventMap[TEvent]
-): void {
+): Promise<boolean> {
 	const metadata = new HELPER.metadataBuilder(toTopic(event), event, {
 		instanceId: toInstanceId(ENV.INSTANCE_ID),
 		serviceName: toServiceId(ServiceInstanceName.DlqService),
@@ -50,12 +55,16 @@ export function publishDlqEvent<TEvent extends DlqEvent>(
 			deduplicationId: toMessageId(randomUUID()),
 		})
 		.toJSON();
-	_messageManager()
-		.post.indirect(payload, metadata)
-		.catch((err: unknown) => {
-			logger.warn("DLQ event not published: the audit trail misses it", {
-				topic: event,
-				error: normalizeError(err),
-			});
+	try {
+		await _messageManager().post.indirect(payload, metadata);
+		return true;
+	} catch (err: unknown) {
+		metrics.auditPublishFailures.inc({ event });
+		logger.error("DLQ event not published: the audit trail misses it", {
+			topic: event,
+			payload,
+			error: normalizeError(err),
 		});
+		return false;
+	}
 }

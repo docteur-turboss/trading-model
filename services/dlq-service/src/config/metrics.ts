@@ -31,6 +31,11 @@ export const metrics = {
 		help: "Size distribution of DLQ entry payloads in bytes",
 		buckets: [1024, 5120, 10240, 51200, 102400, 512000, 1048576, 5242880],
 	}),
+	auditPublishFailures: new promClient.Counter({
+		name: "dlq_audit_publish_failures_total",
+		help: "DLQ events message-manager did not accept: missing from the audit trail (ADR-0059)",
+		labelNames: ["event"] as const,
+	}),
 	collectionSize: new promClient.Gauge({
 		name: "dlq_collection_size",
 		help: "Current number of entries in the DLQ collection",
