@@ -182,6 +182,19 @@ export function signedDlqHeaders(
 	};
 }
 
+/** Runs one step of a journey; a failure is prefixed with the step name so it points at the faulty step. */
+export async function step<T>(
+	name: string,
+	run: () => T | Promise<T>
+): Promise<T> {
+	try {
+		return await run();
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`step "${name}" failed: ${message}`, { cause: error });
+	}
+}
+
 /** Polls `probe` until it returns a value; a throwing probe counts as not ready yet. */
 export async function eventually<T>(
 	description: string,
