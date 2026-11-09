@@ -7,7 +7,7 @@
 # financial-scraper. PROBE_ROUTES (space-separated paths) overrides them.
 PROBE_ROUTES="${PROBE_ROUTES:-/v1/discovery-server/services /v1/trader-trainer/training-status /v2/financial-scraper/candles/symbols/BTCUSDT?limit=1}"
 
-# Availability probe (issue #703). Every second, one request to each of
+# Availability probe (issue #703). Every 3 s, one request to each of
 # PROBE_ROUTES through edge-proxy, with the gateway key, until the file `$1`
 # exists; writes "<requests> <failures>" to `$2` and each failure (route and
 # status) to stderr. A failure is a non-2xx answer or a timeout.
@@ -43,7 +43,9 @@ probe_availability() {
 			fi
 			echo "$requests $failures" >"$out"
 		done
-		sleep 1
+		# 3 routes / 3 s = 60 req/min, under the gateway RATE_LIMIT_MAX of 100
+		# per 60 s: at 1 s the probe itself got 429.
+		sleep 3
 	done
 	kill "$forward" 2>/dev/null || true
 }
