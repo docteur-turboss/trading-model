@@ -1,9 +1,9 @@
+import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	toMessageId,
 	toTopic,
 	type URLString,
 } from "@trading-model/primitives/primitives";
-import { logger } from "../../config/logger";
 import type {
 	ClaimedEntry,
 	ClaimReleasePort,

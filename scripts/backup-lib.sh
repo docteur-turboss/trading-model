@@ -1024,7 +1024,7 @@ mongo_primary() {
 }
 
 # Runs MongoDB tool `$3...` (mongodump, mongorestore, mongosh) in pod `$2` as
-# MongoDB user `$1` (ADR-0058): `backup` (dumps, oplog reads) or `root`
+# MongoDB user `$1` (ADR-0059): `backup` (dumps, oplog reads) or `root`
 # (restores need every action). The password comes from the pod's own env
 # (MONGO_BACKUP_PASSWORD / MONGO_ROOT_PASSWORD), never from the caller. With
 # MONGO_TOOL_STDIN=true stdin reaches the tool (restores).

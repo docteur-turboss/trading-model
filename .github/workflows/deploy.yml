@@ -362,7 +362,7 @@ jobs:
           fi
           # Redis ACL users (ADR-0047): a SealedSecret sealed before they existed
           # only fails at rollout (CreateContainerConfigError), then rolls back.
-          # MongoDB users and keyFiles (ADR-0058): the pods and Jobs read them.
+          # MongoDB users and keyFiles (ADR-0059): the pods and Jobs read them.
           # Exporter users (ADR-0056): optional keys for the pods, but without
           # them MySQLDown / RedisDown fire and verify-release rolls back.
           missing=""
@@ -407,6 +407,14 @@ jobs:
           } | bash scripts/split-cluster-scope.sh cluster |
             KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-cluster-rbac.sh \
               --namespace "${{ steps.ns.outputs.namespace }}" --environment "$OVERLAY"
+
+      # The app identity cannot grant itself rights: a Role deploy-app created
+      # by an older deploy-identity.sh app lacks what the release needs (3.1.0:
+      # leases). Compared with app-role.yaml before any apply (issue #717).
+      - name: Check deploy-app Role
+        shell: bash
+        run: |
+          bash deploy/k8s/scripts/check-app-rbac.sh             --namespace "${{ steps.ns.outputs.namespace }}" --environment "$OVERLAY"
 
       # Anchor store of the audit chain (ADR-0027): an S3 bucket with Object
       # Lock (compliance mode), its own write-only credentials, not the backup
@@ -649,7 +657,7 @@ jobs:
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
-          # No singleton here (trader-trainer ADR-0044, collector ADR-0057): a canary is a second pod.
+          # No singleton here (trader-trainer ADR-0058, collector ADR-0057): a canary is a second pod.
           ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
             discovery-server message-manager financial-scraper \
             api-gateway audit-logger dlq-service

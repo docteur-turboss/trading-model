@@ -23,7 +23,7 @@ export class GeneticAlgorithmRunner {
 
 		while (true) {
 			const ctx = await this.processor.runGeneration(startTime);
-			if (this._shouldTerminate(ctx)) {
+			if (this._cfg.signal?.aborted || this._shouldTerminate(ctx)) {
 				break;
 			}
 		}

@@ -66,6 +66,8 @@ export class Trainer {
 		TradingSymbol,
 		TrainingSnapshot
 	>();
+	/** The session in flight, and how to end it early (ADR-0058). */
+	private _session?: { abort: AbortController; done: Promise<TrainingResult> };
 
 	constructor(
 		private readonly _dataBuffer: MarketDataBuffer,
@@ -138,13 +140,37 @@ export class Trainer {
 		if (!validation.ok) {
 			return validation.error;
 		}
+		const abort = new AbortController();
+		const done = this._train(symbol, validation.windowSets, abort.signal);
+		this._session = { abort, done };
+		return await done;
+	}
 
+	/**
+	 * Ends the session in flight after its current generation; resolves once
+	 * its best agent is stored and published (at once when idle). ADR-0058:
+	 * the trainer that hands over its Lease keeps the work done so far.
+	 */
+	async stopTraining(): Promise<void> {
+		const session = this._session;
+		if (!session) {
+			return;
+		}
+		session.abort.abort();
+		await session.done;
+	}
+
+	private async _train(
+		symbol: TradingSymbol,
+		windowSets: import("../domain/genetic-algorithm/ga-runner").WindowSet[],
+		signal: AbortSignal
+	): Promise<TrainingResult> {
 		this._status = TrainerStatus.Training;
 		TRAINING_STATUS.set(1);
 		const start = performance.now();
 
 		try {
-			const result = await this._runSession(symbol, validation.windowSets);
+			const result = await this._runSession(symbol, windowSets, signal);
 			TRAINING_SESSIONS_TOTAL.inc({ result: "success" });
 			BEST_FITNESS.set({ symbol }, result.bestFitness);
 			await this._storeModel(result);
@@ -158,18 +184,21 @@ export class Trainer {
 			TRAINING_DURATION_SECONDS.observe(duration);
 			TRAINING_STATUS.set(0);
 			this._status = TrainerStatus.Idle;
+			this._session = undefined;
 		}
 	}
 
 	private async _runSession(
 		symbol: TradingSymbol,
-		windowSets: import("../domain/genetic-algorithm/ga-runner").WindowSet[]
+		windowSets: import("../domain/genetic-algorithm/ga-runner").WindowSet[],
+		signal: AbortSignal
 	): Promise<TrainingSuccess> {
 		const run: TrainingRunner = this._deps.runner ?? runInProcess;
 		const result: TrainingSessionResult = await run(
 			windowSets,
 			this._deps.settings,
-			this._deps.telemetry
+			this._deps.telemetry,
+			signal
 		);
 		const outcome = {
 			symbol,

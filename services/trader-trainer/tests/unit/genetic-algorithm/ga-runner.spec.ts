@@ -867,6 +867,52 @@ describe("full GA loop", () => {
 		expect(typeof result.id).toBe("string");
 	});
 
+	it("should end after the current generation once its signal is aborted (ADR-0058)", async () => {
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
+		const stop = new AbortController();
+		const runner = new GeneticAlgorithmRunner({
+			windowSets: [
+				{
+					id: "w1",
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
+				},
+			],
+			backendFactory: (() => ({
+				step: jest.fn((..._args: any[]) => ({ reward: 1, action: 0 })),
+				remember: jest.fn<(...args: any[]) => any>(),
+				replay: jest.fn<(...args: any[]) => any>(),
+				getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
+				setWeights: jest.fn<(...args: any[]) => any>(),
+				getPnL: jest.fn((..._args: any[]) => 50),
+				resetEpisode: jest.fn<(...args: any[]) => any>(),
+				getExperiencePool: jest.fn((..._args: any[]) => []),
+				forwardPass: jest.fn(
+					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
+				),
+			})) as any,
+			initialControl: {
+				termination: {
+					rewardThreshold: Number.POSITIVE_INFINITY,
+					stagnationPatience: 1000,
+					maxGenerations: 100,
+					timeBudgetMs: 3_600_000,
+				},
+			} as any,
+			onGeneration: (ctx) => {
+				if (ctx.generation === 2) {
+					stop.abort();
+				}
+			},
+			signal: stop.signal,
+		});
+		const result = await runner.run();
+		expect(runner.processor.generation).toBe(2);
+		expect(result).toBe(runner.processor.lastBestGenome);
+	});
+
 	it("should replay transitions while training", async () => {
 		const trainMock = jest.fn<(...args: any[]) => any>();
 		const mockBackendFactory = () => ({

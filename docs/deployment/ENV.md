@@ -134,6 +134,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |
 | `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas | TT       |
 | `TRAINER_MODEL_RETENTION`         | number (≥1)  | `20`              | no       | Model versions kept per symbol           | TT       |
+| `TRAINER_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the trainer pods compete for; only its holder trains, every pod serves the read routes (ADR-0058). Set on `trader-trainer` in K8s; empty (compose, dev): this instance trains | TT |
 | `MODEL_DOWNLOAD_CALLERS`          | string       | _(empty)_         | no       | Comma-separated services allowed to download model weights (ADR-0022). Empty: nobody | TT       |
 
 ---
@@ -207,9 +208,9 @@ Passwords of the read-only users of the exporter sidecars (`docs/architecture/da
 | ------------------------- | ------ | ------- | -------- | ----------- | -------- |
 | `MYSQL_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** (K8s and compose) | Password of MySQL user `exporter`, created by `db-migrate-user` (K8s) or `mysql-exporter-user` (compose), read by the `mysqld-exporter` sidecars | mysqld-exporter |
 | `REDIS_EXPORTER_PASSWORD` | string | — | **yes** in K8s | Password of the Redis ACL user `exporter` (`redis-ha.sh`, data nodes and sentinels), read by the `redis-exporter` sidecars | redis-exporter |
-| `MONGO_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.-]`) | — | **yes** (K8s and compose) | Password of MongoDB user `exporter` (`clusterMonitor`, ADR-0058), read by the `mongodb_exporter` sidecars | mongodb-exporter |
+| `MONGO_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.-]`) | — | **yes** (K8s and compose) | Password of MongoDB user `exporter` (`clusterMonitor`, ADR-0059), read by the `mongodb_exporter` sidecars | mongodb-exporter |
 
-## MongoDB users (ADR-0058)
+## MongoDB users (ADR-0059)
 
 One user per client, created by `deploy/mongo/users.js` (K8s Jobs `mongo-dlq-users` / `mongo-audit-users`, compose `mongo-users`). K8s: keys of Secret `trading-model-secrets`, all checked by `deploy.yml`. Compose: `.env` (characters `[A-Za-z0-9_.-]`, all required).
 
@@ -285,7 +286,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
 | `MYSQL_EXPORTER_PASSWORD` | string | (required)          | Password of the read-only MySQL user `exporter` of mysqld-exporter (ADR-0056) | DC |
-| `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` | string | (required) | MongoDB users (ADR-0058), see "MongoDB users" above | DC |
+| `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` | string | (required) | MongoDB users (ADR-0059), see "MongoDB users" above | DC |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
 | `IMAGE_TAG`           | string | `latest`                | Image tag to pull                  | DC       |

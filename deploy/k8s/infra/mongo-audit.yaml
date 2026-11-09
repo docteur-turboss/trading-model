@@ -68,7 +68,7 @@ spec:
         fsGroup: 999
         seccompProfile:
           type: RuntimeDefault
-      # Replica set internal authentication (issue #669, ADR-0058). mongod
+      # Replica set internal authentication (issue #669, ADR-0059). mongod
       # refuses a keyFile readable by its group, and the data volume's fsGroup
       # adds group read to a mounted Secret file: the key is copied to a 0400
       # file of the mongod user instead.
@@ -117,7 +117,7 @@ spec:
             - "0.0.0.0"
             - "--keyFile"
             - "/keyfile/keyfile"
-            # Expand step of the switch (ADR-0058): members authenticate each
+            # Expand step of the switch (ADR-0059): members authenticate each
             # other, clients may still connect without credentials. Remove in
             # the release after the one that adds the users and the client
             # credentials: mongod then enforces authentication.
@@ -183,7 +183,7 @@ spec:
             timeoutSeconds: 3
         # Exporter of this member (issue #601, ADR-0056): server status and
         # replica set state through localhost, as the `exporter` user
-        # (clusterMonitor only, ADR-0058).
+        # (clusterMonitor only, ADR-0059).
         - name: mongodb-exporter
           image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
           env:
@@ -238,6 +238,12 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   template:
+    metadata:
+      # Own component: the StatefulSet's would put this pod behind the Services,
+      # the PDB and the database NetworkPolicy. Allowed in by that policy.
+      labels:
+        app.kubernetes.io/component: mongodb-audit-init
+        app.kubernetes.io/part-of: trading-model
     spec:
       restartPolicy: OnFailure
       securityContext:
@@ -268,7 +274,7 @@ spec:
                 .filter((h) => { try { return new Mongo(h).getDB("admin").runCommand({ ping: 1 }).ok === 1; } catch (e) { return false; } });
               rs.initiate({ _id: "rs0-audit", members: hosts.map((host, _id) => ({ _id, host })) });
 ---
-# Users of the replica set (issue #669, ADR-0058): root, exporter, backup and the
+# Users of the replica set (issue #669, ADR-0059): root, exporter, backup and the
 # client of this database, from deploy/mongo/users.js. Idempotent, so it runs
 # again on every release (ttl: the finished Job is removed, a later apply
 # creates it again) and applies a rotated password. Needs a primary, which
@@ -366,9 +372,15 @@ spec:
     - Ingress
     - Egress
   ingress:
+    # Clients of 27017 (issue #727): the owner service, the replica set peers
+    # and the init Job. Backups and restores go through `kubectl exec`, not
+    # the network. A new client must be added here.
     - from:
-        # Same namespace as the policy, whatever the overlay's namespace.
-        - podSelector: {}
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["audit-logger", "mongodb-audit", "mongodb-audit-init"]
       ports:
         - port: 27017
           protocol: TCP
@@ -381,9 +393,11 @@ spec:
         - port: 9216
           protocol: TCP
   egress:
+    # Replica set peers only (DNS comes from allow-dns-and-telemetry-egress).
     - to:
-        # Same namespace as the policy, whatever the overlay's namespace.
-        - podSelector: {}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: mongodb-audit
       ports:
         - port: 27017
           protocol: TCP

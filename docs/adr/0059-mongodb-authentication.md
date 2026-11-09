@@ -1,4 +1,4 @@
-# ADR-0058: MongoDB Authentication: keyFile, One User per Client, Switch in Two Releases
+# ADR-0059: MongoDB Authentication: keyFile, One User per Client, Switch in Two Releases
 
 **Status:** Accepted
 **Date:** 2026-11

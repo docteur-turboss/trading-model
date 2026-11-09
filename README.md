@@ -16,7 +16,7 @@ Before the first `docker compose up`, set these variables in `.env` and replace 
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
 - `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
 - `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
-- `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` — MongoDB users, one per client (required, no default; ADR-0058). A Mongo volume created before authentication needs `docker compose down -v` (or the localhost exception, see the `mongo` service)
+- `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` — MongoDB users, one per client (required, no default; ADR-0059). A Mongo volume created before authentication needs `docker compose down -v` (or the localhost exception, see the `mongo` service)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
@@ -39,7 +39,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | Security      | mTLS everywhere (TLS 1.3)                                  |
 | Databases     | MongoDB 7, MySQL 8 (single primary, no failover, [ADR-0020](docs/adr/0020-database-topology-as-deployed.md)), Redis 7 (Sentinel) |
 | Validation    | Zod                                                        |
-| Testing       | Jest + Stryker (mutation)                                  |
+| Testing       | Jest + Stryker (weekly mutation run)                       |
 | Observability | Prometheus + Grafana + Jaeger + Loki                       |
 
 ### Services

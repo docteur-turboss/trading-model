@@ -1,79 +1,93 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { createAppError, ErrorCode } from "@trading-model/common/utils/errors";
+import type { DlqEntry } from "@trading-model/contracts/dlq-types";
+import {
+	type AddEntryDeps,
+	createAddEntry,
+} from "../../src/application/use-cases/add-entry-pipeline";
 
-const MOCK_INSERT = jest.fn<(...args: any[]) => any>();
-const MOCK_VALIDATE = jest.fn<(...args: any[]) => any>();
-
-jest.mock("../../src/config/dlq-adapters", () => ({
-	dlqRepository: { insert: MOCK_INSERT },
-	pushToRedisQueue: jest.fn<(...args: any[]) => any>(),
-	notifyAddAudit: jest.fn<(...args: any[]) => any>(),
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
+	logger: { error: jest.fn<(...args: any[]) => any>() },
 }));
 
-jest.mock("../../src/application/use-cases/dlq-validator", () => ({
-	checkEntryAcceptable: MOCK_VALIDATE,
-}));
+const ENTRY = {
+	topic: "test",
+	reason: "testing",
+	message: { a: 1 },
+} as never as DlqEntry;
 
-jest.mock("../../src/config/metrics", () => ({
-	metrics: {
-		entriesAdded: { inc: jest.fn<(...args: any[]) => any>() },
-	},
-}));
+function setup(storageAvailable = true) {
+	const insert = jest.fn<(entry: DlqEntry) => Promise<string>>(
+		async () => "entry-id-123"
+	);
+	const enqueue = jest.fn<(id: string) => Promise<void>>(async () => undefined);
+	const entryAdded = jest.fn<() => void>();
+	const notifyAdd = jest.fn<(...args: any[]) => void>();
+	const deps: AddEntryDeps = {
+		entries: { insert, delete: async () => 0 },
+		storage: { isAvailable: () => storageAvailable },
+		queue: { enqueue },
+		metrics: { entryAdded },
+		audit: { notifyAdd },
+	};
+	return {
+		addEntry: createAddEntry(deps),
+		insert,
+		enqueue,
+		entryAdded,
+		notifyAdd,
+	};
+}
 
-jest.mock("../../src/shared/dlq-error-builder", () => ({
-	handleAddEntryError: jest.fn((err: unknown) => ({
-		data: { error: (err as Error).message },
-		status: 500,
-	})),
-}));
+describe("addEntry use case", () => {
+	it("stores, counts, enqueues and audits the entry", async () => {
+		const { addEntry, entryAdded, enqueue, notifyAdd } = setup();
 
-jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
-	sendResponse: (data: unknown, status: number) => ({ data, status }),
-}));
-
-describe("add-entry-pipeline", () => {
-	beforeEach(() => {
-		jest.clearAllMocks();
-	});
-
-	it("should add entry successfully", async () => {
-		MOCK_VALIDATE.mockReturnValue({ valid: true });
-		MOCK_INSERT.mockResolvedValue("entry-id-123");
-
-		const { addEntry } = jest.requireActual(
-			"../../src/application/use-cases/add-entry-pipeline"
-		) as { addEntry: (entry: unknown) => Promise<unknown> };
-
-		const result = await addEntry({ topic: "test", reason: "testing" });
-
-		expect(result).toEqual({ data: { id: "entry-id-123" }, status: 201 });
-	});
-
-	it("should return the rejection of the size or storage check", async () => {
-		MOCK_VALIDATE.mockReturnValue({
-			valid: false,
-			response: { data: { error: "invalid" }, status: 400 },
+		await expect(addEntry(ENTRY)).resolves.toEqual({
+			status: "added",
+			id: "entry-id-123",
 		});
-
-		const { addEntry } = jest.requireActual(
-			"../../src/application/use-cases/add-entry-pipeline"
-		) as { addEntry: (entry: unknown) => Promise<unknown> };
-
-		const result = await addEntry({ topic: "test", reason: "testing" });
-
-		expect(result).toEqual({ data: { error: "invalid" }, status: 400 });
-		expect(MOCK_INSERT).not.toHaveBeenCalled();
+		expect(entryAdded).toHaveBeenCalled();
+		expect(enqueue).toHaveBeenCalledWith("entry-id-123");
+		expect(notifyAdd).toHaveBeenCalledWith("entry-id-123", "test", "testing");
 	});
 
-	it("should handle insert error", async () => {
-		MOCK_VALIDATE.mockReturnValue({ valid: true });
-		MOCK_INSERT.mockRejectedValue(new Error("db error"));
+	it("rejects without writing when storage is unavailable", async () => {
+		const { addEntry, insert } = setup(false);
 
-		const { addEntry } = jest.requireActual(
-			"../../src/application/use-cases/add-entry-pipeline"
-		) as { addEntry: (entry: unknown) => Promise<unknown> };
+		await expect(addEntry(ENTRY)).resolves.toEqual({
+			status: "rejected",
+			reason: "storage-unavailable",
+		});
+		expect(insert).not.toHaveBeenCalled();
+	});
 
-		const result = await addEntry({ topic: "test", reason: "testing" });
+	it("rejects a payload over 5MB", async () => {
+		const { addEntry, insert } = setup();
 
-		expect(result).toEqual({ data: { error: "db error" }, status: 500 });
+		await expect(
+			addEntry({ ...ENTRY, message: "x".repeat(5 * 1024 * 1024 + 1) } as never)
+		).resolves.toEqual({ status: "rejected", reason: "too-large" });
+		expect(insert).not.toHaveBeenCalled();
+	});
+
+	it("reports a full DLQ", async () => {
+		const { addEntry, insert, enqueue } = setup();
+		insert.mockRejectedValue(
+			createAppError("full", { code: ErrorCode.DlqCapacity })
+		);
+
+		await expect(addEntry(ENTRY)).resolves.toEqual({
+			status: "capacity-reached",
+		});
+		expect(enqueue).not.toHaveBeenCalled();
+	});
+
+	it("reports any other storage failure", async () => {
+		const { addEntry, insert, entryAdded } = setup();
+		insert.mockRejectedValue(new Error("db error"));
+
+		await expect(addEntry(ENTRY)).resolves.toEqual({ status: "storage-error" });
+		expect(entryAdded).not.toHaveBeenCalled();
 	});
 });

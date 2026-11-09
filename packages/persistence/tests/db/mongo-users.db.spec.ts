@@ -11,7 +11,7 @@ const { composeImage } = require("../../../../scripts/compose-image.cjs") as {
 	composeImage: (service: string) => string;
 };
 
-// deploy/mongo/users.js (ADR-0058) run against a mongod with authentication
+// deploy/mongo/users.js (ADR-0059) run against a mongod with authentication
 // on, as the compose service `mongo-users` and the K8s Jobs run it.
 const USERS_SCRIPT = join(__dirname, "../../../../deploy/mongo/users.js");
 const PASSWORDS = {

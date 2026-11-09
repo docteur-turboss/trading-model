@@ -1,4 +1,4 @@
-// MongoDB users of the platform (issue #669, ADR-0058). Run with mongosh against
+// MongoDB users of the platform (issue #669, ADR-0059). Run with mongosh against
 // a member of the replica set (K8s Jobs `mongo-*-init`) or the standalone mongod
 // (compose `mongo-users`). Idempotent: a user is created, or updated to the
 // password and roles below, so a rotated password is applied by running it again.

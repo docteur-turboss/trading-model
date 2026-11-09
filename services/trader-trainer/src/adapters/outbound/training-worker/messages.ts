@@ -12,6 +12,11 @@ export type WorkerMessage =
 	| { type: "result"; result: unknown }
 	| { type: "error"; message: string; stack?: string };
 
+/** Main thread to worker: end the session after its current generation (ADR-0058). */
+export interface StopMessage {
+	type: "stop";
+}
+
 /** A market step as it crosses the thread boundary: `FeatureVector` is a class, a structured clone would drop its methods. */
 interface WireMarketStep {
 	price: MarketStep["price"];

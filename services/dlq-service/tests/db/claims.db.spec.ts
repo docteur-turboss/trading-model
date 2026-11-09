@@ -7,16 +7,23 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import { ObjectId } from "mongodb";
+import { DlqClaimManager } from "../../src/adapters/outbound/claim-manager";
+import { ClaimReleaseManager } from "../../src/adapters/outbound/claim-release-manager";
 import {
-	claimReleaseManager,
-	dlqClaimManager,
-} from "../../src/adapters/outbound/claim-manager";
-import {
+	DlqRepository,
 	DlqStatus,
-	dlqRepository,
 } from "../../src/adapters/outbound/repository";
-import { dlqRetryManager } from "../../src/adapters/outbound/retry-manager";
-import { closeDb, getCollection } from "../../src/config/db";
+import { DlqRetryManager } from "../../src/adapters/outbound/retry-manager";
+import { MongoConnectionManager } from "../../src/config/mongo-connection-manager";
+import { ENV } from "../../src/infrastructure/config/env";
+
+const mongo = new MongoConnectionManager(ENV);
+const getCollection = () => mongo.getCollection();
+const closeDb = () => mongo.close();
+const dlqRepository = new DlqRepository(getCollection);
+const dlqClaimManager = new DlqClaimManager(getCollection);
+const claimReleaseManager = new ClaimReleaseManager(getCollection);
+const dlqRetryManager = new DlqRetryManager(getCollection);
 
 const TOPIC = Topic.of("orders");
 const INSTANCES = Array.from({ length: 8 }, (_, i) =>

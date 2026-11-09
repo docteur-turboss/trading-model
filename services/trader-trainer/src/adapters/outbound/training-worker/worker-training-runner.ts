@@ -6,7 +6,11 @@ import type {
 } from "../../../application/training-session";
 import { EpisodeScores } from "../../../domain/genetic-algorithm/episode-scores";
 import type { GenomeFitnessMeta } from "../../../domain/genetic-algorithm/genome-fitness";
-import { encodeWindowSets, type WorkerMessage } from "./messages";
+import {
+	encodeWindowSets,
+	type StopMessage,
+	type WorkerMessage,
+} from "./messages";
 
 /** `postMessage` clones data only: the `EpisodeScores` come back without methods. */
 function reviveMeta(
@@ -35,7 +39,7 @@ export function createWorkerRunner(overrides?: {
 	file: string;
 	options?: WorkerOptions;
 }): TrainingRunner {
-	return (windowSets, settings, telemetry) =>
+	return (windowSets, settings, telemetry, signal) =>
 		new Promise<TrainingSessionResult>((resolve, reject) => {
 			const workerData = { windowSets: encodeWindowSets(windowSets), settings };
 			const worker = overrides
@@ -43,10 +47,17 @@ export function createWorkerRunner(overrides?: {
 				: new Worker(path.join(__dirname, "training-worker.js"), {
 						workerData,
 					});
+			const stop = (): void =>
+				worker.postMessage({ type: "stop" } satisfies StopMessage);
+			signal?.addEventListener("abort", stop, { once: true });
+			if (signal?.aborted) {
+				stop();
+			}
 			let settled = false;
 			const settle = (fn: () => void): void => {
 				if (!settled) {
 					settled = true;
+					signal?.removeEventListener("abort", stop);
 					fn();
 				}
 			};

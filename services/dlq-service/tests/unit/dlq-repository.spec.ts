@@ -39,10 +39,6 @@ const mockCollection = jest.fn((..._args: any[]) => ({
 	estimatedDocumentCount: mockEstimatedDocumentCount,
 }));
 
-jest.mock("../../src/config/db", () => ({
-	getCollection: mockCollection,
-}));
-
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		DLQ_RETRY_MAX_ATTEMPTS: 3,
@@ -80,7 +76,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should insert a new document and return the id", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFindOne.mockResolvedValue(null);
 			mockInsertOne.mockResolvedValue({
 				insertedId: { toHexString: () => "abc123" },
@@ -101,7 +97,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should detect ping-pong and increment dlqPassCount", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFindOne.mockResolvedValueOnce({
 				_id: { toHexString: () => "prev-id" },
 				dlqPassCount: 1,
@@ -128,7 +124,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should auto-abandon on excessive ping-pong cycles", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFindOne.mockResolvedValueOnce({
 				_id: { toHexString: () => "prev-id" },
 				dlqPassCount: 3,
@@ -151,7 +147,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should return existing id on duplicate (dedup via findOne)", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFindOne.mockResolvedValueOnce(null);
 			mockFindOne.mockResolvedValue({
 				_id: { toHexString: () => "existing-id" },
@@ -165,7 +161,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should handle race condition on duplicate insert (E11000)", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFindOne.mockResolvedValueOnce(null);
 			mockFindOne.mockResolvedValueOnce(null);
 			const duplicateError = new Error("E11000 duplicate key");
@@ -190,7 +186,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should return mapped documents with offset", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			const fakeDoc = {
 				_id: { toHexString: () => "id1" },
 				topic: "t1",
@@ -218,7 +214,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should support cursor-based pagination with before parameter", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			const fakeDocs = [
 				{
 					_id: { toHexString: () => "id2" },
@@ -258,7 +254,7 @@ describe("DlqRepository", () => {
 
 	describe("delete", () => {
 		it("should delete only non-processing documents and return count", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockDeleteMany.mockResolvedValueOnce({ deletedCount: 3 });
 			return repo
 				.delete([
@@ -280,7 +276,7 @@ describe("DlqRepository", () => {
 
 	describe("count", () => {
 		it("should return document count", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockEstimatedDocumentCount.mockResolvedValueOnce(42);
 
 			return repo.count().then((result: number) => {
@@ -291,7 +287,7 @@ describe("DlqRepository", () => {
 
 	describe("prune", () => {
 		it("should return 0 if no documents to prune", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFind.mockReturnValueOnce(createCursor([]));
 
 			return repo.prune(100).then((result: number) => {
@@ -300,7 +296,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should delete documents older than the eldest kept entry by createdAt", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			const eldestDate = new Date("2024-06-01");
 			mockFind.mockReturnValueOnce(createCursor([{ createdAt: eldestDate }]));
 			mockDeleteMany.mockResolvedValueOnce({ deletedCount: 50 });
@@ -335,7 +331,7 @@ describe("DlqClaimManager", () => {
 		});
 
 		it("should claim entries via bulkWrite (2 round-trips instead of N)", () => {
-			const cm = new DlqClaimManagerClass();
+			const cm = new DlqClaimManagerClass(mockCollection as never);
 			const fakeDoc1 = {
 				_id: { toHexString: () => "id1" },
 				topic: "t1",
@@ -383,7 +379,7 @@ describe("DlqClaimManager", () => {
 		});
 
 		it("should return empty if no candidates found", () => {
-			const cm = new DlqClaimManagerClass();
+			const cm = new DlqClaimManagerClass(mockCollection as never);
 
 			return cm
 				.claimEntriesForRetry({
@@ -398,7 +394,7 @@ describe("DlqClaimManager", () => {
 		});
 
 		it("should skip documents already claimed (bulkWrite modifiedCount < candidates)", () => {
-			const cm = new DlqClaimManagerClass();
+			const cm = new DlqClaimManagerClass(mockCollection as never);
 			const fakeDoc1 = {
 				_id: { toHexString: () => "id1" },
 				topic: "t1",
@@ -448,7 +444,7 @@ describe("DlqRetryManager", () => {
 
 	describe("abandonExhaustedEntries", () => {
 		it("should mark entries as abandoned", () => {
-			const rm = new DlqRetryManagerClass();
+			const rm = new DlqRetryManagerClass(mockCollection as never);
 			mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 3 });
 
 			return rm.abandonExhaustedEntries().then((result: number) => {
@@ -481,7 +477,7 @@ describe("DlqRetryManager", () => {
 		});
 
 		it("should set completed status on success without incrementing retryCount", () => {
-			const rm = new DlqRetryManagerClass();
+			const rm = new DlqRetryManagerClass(mockCollection as never);
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
 			return rm
@@ -511,7 +507,7 @@ describe("DlqRetryManager", () => {
 		});
 
 		it("should increment retryCount and set lastError on failure via aggregation pipeline", () => {
-			const rm = new DlqRetryManagerClass();
+			const rm = new DlqRetryManagerClass(mockCollection as never);
 			mockFindOneAndUpdate.mockResolvedValue({ _id: "id1" });
 
 			return rm
@@ -543,7 +539,7 @@ describe("DlqRetryManager", () => {
 		});
 
 		it("should release claim on failure when retryCount already at max", () => {
-			const rm = new DlqRetryManagerClass();
+			const rm = new DlqRetryManagerClass(mockCollection as never);
 			mockFindOneAndUpdate.mockResolvedValue(null);
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 

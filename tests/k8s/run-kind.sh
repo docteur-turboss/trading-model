@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -42,7 +42,7 @@ export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
-# compose interpolates these (ADR-0058) even for `build`
+# compose interpolates these (ADR-0059) even for `build`
 for v in MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD; do
 	export "$v=${!v:-kind-ci}"
 done
@@ -314,7 +314,9 @@ release() {
 . "$(dirname "${BASH_SOURCE[0]}")/probe-availability.sh"
 
 # The final upgrade to N under the probe: `release` runs while requests flow
-# through edge-proxy and market candles are written. Fails above
+# through edge-proxy to discovery-server, trader-trainer (Lease handover,
+# ADR-0059) and financial-scraper (PROBE_ROUTES) and market candles are
+# written. Fails above
 # PROBE_MAX_FAILURES (default 0: a release must not drop a request) failed
 # requests or when a candle of BTCUSDT is missing (gap above one interval,
 # 1 minute: the stub serves 1m klines) during the window.
@@ -340,7 +342,7 @@ release_under_probe() {
 	read -r requests failures <"$out"
 	log "  availability during the upgrade: $requests requests, $failures failed (threshold $max)"
 	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
-		echo "Availability probe during the upgrade to N (edge-proxy): $requests requests, $failures failed (threshold $max)" >>"$GITHUB_STEP_SUMMARY"
+		echo "Availability probe during the upgrade to N (edge-proxy, $PROBE_ROUTES): $requests requests, $failures failed (threshold $max)" >>"$GITHUB_STEP_SUMMARY"
 	[ "$rc" = 0 ] || return "$rc"
 	[ "$requests" -gt 0 ] || {
 		log "the availability probe sent no request"
@@ -497,7 +499,7 @@ upgrade() {
 	verify_collection_gap "restart N → N" collector_handover || return 1
 	# Every exporter reaches its database, so neither MySQLDown nor RedisDown
 	# (critical, verify-release rolls back on them) fires (issue #698).
-	# mongodb_up = 1 means the `exporter` user (clusterMonitor, ADR-0058) exists on
+	# mongodb_up = 1 means the `exporter` user (clusterMonitor, ADR-0059) exists on
 	# every member: the Jobs mongo-*-users ran after the transition step.
 	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = min(mongodb_up) = 1, no MySQLDown / RedisDown / MongoDBDown"
 	wait_for 180 '[ "$(prometheus_value "min(mysql_up)")" = 1 ] && [ "$(prometheus_value "min(redis_up)")" = 1 ] &&
@@ -618,6 +620,7 @@ verify() {
 
 	verify_replicas
 	verify_egress
+	verify_mongo_ingress
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -701,6 +704,45 @@ verify_egress() {
 	fi
 }
 
+# mongosh ping of `$3` from a throwaway pod `$1` with labels `$2` (none when
+# empty). Restricted Pod Security: the security context is spelled out.
+mongo_ping() {
+	local img uri
+	img="$(grep -m1 -o 'mongo@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
+	uri="mongodb://$3:27017/?directConnection=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
+	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
+		\"apiVersion\": \"v1\",
+		\"spec\": {
+			\"securityContext\": {\"runAsNonRoot\": true, \"runAsUser\": 999, \"seccompProfile\": {\"type\": \"RuntimeDefault\"}},
+			\"containers\": [{
+				\"name\": \"$1\", \"image\": \"$img\",
+				\"command\": [\"mongosh\", \"--quiet\", \"$uri\", \"--eval\", \"db.adminCommand({ping: 1}).ok\"],
+				\"securityContext\": {\"allowPrivilegeEscalation\": false, \"capabilities\": {\"drop\": [\"ALL\"]}}
+			}]
+		}
+	}"
+}
+
+# Only the listed components reach 27017 of the Mongo replica sets (issue
+# #727). Control: the same pod labelled as the init Job connects, so the
+# refusal comes from the NetworkPolicy, not from the image or the name.
+verify_mongo_ingress() {
+	local host component
+	log "MongoDB 27017: refused to an unlisted pod, allowed to the init Job label"
+	for host in mongo-audit-0.mongo-audit-headless:mongodb-audit-init mongo-dlq-0.mongo-dlq-headless:mongodb-init; do
+		component="${host#*:}"
+		host="${host%%:*}"
+		retry 3 mongo_ping mongo-probe-allowed "app.kubernetes.io/component=$component" "$host" >/dev/null || {
+			log "  a $component pod could not reach $host: the check proves nothing"
+			return 1
+		}
+		if mongo_ping mongo-probe-denied "" "$host" >/dev/null 2>&1; then
+			log "  a pod without component label reached $host:27017"
+			return 1
+		fi
+	done
+}
+
 # Production runs message-manager and discovery with 3 replicas (staging: 1).
 # Subscriptions and instance tokens live in Redis: a subscription made on one
 # replica routes the messages published on another, and a replica that just
@@ -769,10 +811,18 @@ verify_canary() {
 	local forward=$! traffic=""
 	trap 'kill $traffic $forward 2>/dev/null || true; deploy_script canary-cleanup api-gateway >/dev/null 2>&1 || true' RETURN
 	wait_for 30 'curl -s -o /dev/null http://localhost:18450/'
-	# 2 requests/s: the gateway limits each API client to 100/min per pod.
+	# 2.4 requests/s in bursts of 12 every 5 s (the gateway limits each API client
+	# to 100/min per pod: ~72/min each here). edge-proxy keeps a keep-alive pool to the gateway and
+	# kube-proxy picks the pod only when a connection opens: a request every
+	# 0.5 s reuses one connection for minutes (13 canary requests in 60 s, issue
+	# #724). A burst needs 12 connections and the 5 s pause outlives the pool's
+	# keepalive_timeout (4 s), so each burst draws 12 new pod picks (~50% canary).
 	(while :; do
-		curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18450/v1/discovery-server/services
-		sleep 0.5
+		for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18450/v1/discovery-server/services &
+		done
+		wait
+		sleep 5
 	done) >/dev/null 2>&1 &
 	traffic=$!
 	export CANARY_IMAGE_REPO=ghcr.io/trading-model CANARY_GATE_SECONDS=60 CANARY_MIN_REQUESTS=20
@@ -834,7 +884,7 @@ mongo_primary() {
 }
 
 mongo_eval() {
-	# As `root` (ADR-0058); the password is in the pod's env.
+	# As `root` (ADR-0059); the password is in the pod's env.
 	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
@@ -1373,9 +1423,9 @@ all)
 	verify
 	verify_canary
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

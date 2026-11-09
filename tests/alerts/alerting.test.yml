@@ -318,6 +318,29 @@ tests:
   # ADR-0057: the HTTP replica reports 0, the collector 1 until it loses the
   # Lease at 10m and nobody takes it. A rollout handover (one minute without
   # leader, at 4m) stays below the 2 min of CollectorNoLeader.
+  # ADR-0058: the trainer holds the Lease, hands it over during a rollout (two
+  # minutes without leader, at 4m: below the 5 min of TrainerNoLeader), then
+  # loses it at 12m and nobody takes it. The new pod reports 0 until it holds it.
+  - name: no trainer holds the Lease for 5 minutes
+    interval: 1m
+    input_series:
+      - series: 'tt_training_leader{job="trader-trainer",instance="old"}'
+        values: '1 1 1 1 0 0 _x20'
+      - series: 'tt_training_leader{job="trader-trainer",instance="new"}'
+        values: '_ _ _ 0 0 0 1 1 1 1 1 1 0x12'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: TrainerNoLeader
+        exp_alerts: []
+      - eval_time: 18m
+        alertname: TrainerNoLeader
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'No trader-trainer pod holds the Lease'
+              description: 'No pod has trained for 5 minutes: no trainer pod holds the Lease trader-trainer (API server unreachable, RBAC, NetworkPolicy). The read routes still answer the last stored models; no new model is produced.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernoleader'
+
   - name: no collector holds the Lease for 2 minutes
     interval: 1m
     input_series:

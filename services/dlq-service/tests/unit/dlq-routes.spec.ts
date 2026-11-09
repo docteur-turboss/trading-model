@@ -35,40 +35,6 @@ jest.mock("../../src/config/audit", () => ({
 	publishDlqEvent: jest.fn<(...args: any[]) => any>(),
 }));
 
-jest.mock("../../src/config/db", () => ({
-	isDbConnected: () => true,
-	getCollection: jest.fn<(...args: any[]) => any>(),
-	getMissingCriticalIndexes: () => [],
-}));
-
-jest.mock("../../src/adapters/outbound/repository", () => ({
-	dlqRepository: {
-		insert: jest.fn<(...args: any[]) => any>(),
-		query: jest.fn<(...args: any[]) => any>(),
-		delete: jest.fn<(...args: any[]) => any>(),
-		count: jest.fn<(...args: any[]) => any>(),
-		prune: jest.fn<(...args: any[]) => any>(),
-		listQueuable: jest.fn<(...args: any[]) => any>(),
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/claim-manager", () => ({
-	dlqClaimManager: {
-		claimEntriesForRetry: jest.fn<(...args: any[]) => any>(),
-		releaseStaleClaims: jest.fn<(...args: any[]) => any>(),
-		releaseClaimWithoutCount: jest.fn<(...args: any[]) => any>(),
-		incrementRetryCount: jest.fn<(...args: any[]) => any>(),
-		releaseClaimsByInstance: jest.fn<(...args: any[]) => any>(),
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/retry-manager", () => ({
-	dlqRetryManager: {
-		markRetried: jest.fn<(...args: any[]) => any>(),
-		abandonExhaustedEntries: jest.fn<(...args: any[]) => any>(),
-	},
-}));
-
 jest.mock("../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: jest.fn<(...args: any[]) => any>(),
 	AddressManager: { start: jest.fn<(...args: any[]) => any>() },
@@ -162,7 +128,9 @@ jest.mock("@trading-model/validation/application/services/validate-env", () => {
 });
 
 describe("DLQ Routes", () => {
-	let DlqRoutes: () => ReturnType<typeof import("express").Router>;
+	let DlqRoutes: (
+		handlers: never
+	) => ReturnType<typeof import("express").Router>;
 
 	beforeAll(() => {
 		const routes = jest.requireActual<
@@ -176,7 +144,7 @@ describe("DLQ Routes", () => {
 	});
 
 	it("should create a router with all endpoints", () => {
-		const router = DlqRoutes();
+		const router = DlqRoutes({} as never);
 		expect(router).toBeDefined();
 
 		const stack = router.stack || [];

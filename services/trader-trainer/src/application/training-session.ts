@@ -34,18 +34,25 @@ export interface TrainingSessionResult {
 export type TrainingRunner = (
 	windowSets: WindowSet[],
 	settings: TrainingSettings,
-	telemetry?: GaTelemetry
+	telemetry?: GaTelemetry,
+	/** Aborted: the session ends after its current generation (ADR-0058). */
+	signal?: AbortSignal
 ) => Promise<TrainingSessionResult>;
 
 /** Runs the session on the calling thread. */
-export const runInProcess: TrainingRunner = (windowSets, settings, telemetry) =>
-	new TrainingSession(windowSets, settings, telemetry).run();
+export const runInProcess: TrainingRunner = (
+	windowSets,
+	settings,
+	telemetry,
+	signal
+) => new TrainingSession(windowSets, settings, telemetry, signal).run();
 
 class TrainingSession {
 	constructor(
 		private readonly _windowSets: WindowSet[],
 		private readonly _settings: TrainingSettings,
-		private readonly _telemetry?: GaTelemetry
+		private readonly _telemetry?: GaTelemetry,
+		private readonly _signal?: AbortSignal
 	) {}
 
 	async run(): Promise<TrainingSessionResult> {
@@ -120,6 +127,7 @@ class TrainingSession {
 			initialControl,
 			onGeneration,
 			telemetry: this._telemetry,
+			signal: this._signal,
 		});
 	}
 }

@@ -1,8 +1,8 @@
+import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	toMessageId,
 	type URLString,
 } from "@trading-model/primitives/primitives";
-import { logger } from "../../config/logger";
 import type {
 	ClaimedEntry,
 	DlqReplaySettings,

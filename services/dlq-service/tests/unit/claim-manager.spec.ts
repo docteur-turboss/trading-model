@@ -14,10 +14,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-jest.mock("../../src/config/db", () => ({
-	getCollection: MOCK_GET_COLLECTION,
-}));
-
 jest.mock("../../src/adapters/outbound/dlq-query-builder", () => ({
 	DlqQueryBuilder: jest.fn((..._args: any[]) => ({
 		buildClaimFilter: jest.fn((..._args: any[]) => ({ status: "pending" })),
@@ -28,7 +24,9 @@ jest.mock("../../src/adapters/outbound/dlq-query-builder", () => ({
 }));
 
 describe("DlqClaimManager", () => {
-	let DlqClaimManagerClass: new () => {
+	let DlqClaimManagerClass: new (
+		getCollection: never
+	) => {
 		claimEntriesForRetry: (opts: Record<string, unknown>) => Promise<unknown[]>;
 		claimEntriesByIds: (
 			ids: string[],
@@ -71,7 +69,7 @@ describe("DlqClaimManager", () => {
 		const col = mockCol([[]], 0);
 		MOCK_GET_COLLECTION.mockResolvedValue(col);
 
-		const manager = new DlqClaimManagerClass();
+		const manager = new DlqClaimManagerClass(MOCK_GET_COLLECTION as never);
 		const result = await manager.claimEntriesForRetry({
 			limit: 10,
 			batchId: "b-1",
@@ -86,7 +84,7 @@ describe("DlqClaimManager", () => {
 		const col = mockCol([[doc("a")]], 0);
 		MOCK_GET_COLLECTION.mockResolvedValue(col);
 
-		const manager = new DlqClaimManagerClass();
+		const manager = new DlqClaimManagerClass(MOCK_GET_COLLECTION as never);
 		const result = await manager.claimEntriesForRetry({
 			limit: 10,
 			batchId: "b-1",
@@ -100,7 +98,7 @@ describe("DlqClaimManager", () => {
 		const col = mockCol([[doc("a"), doc("b")]], 2);
 		MOCK_GET_COLLECTION.mockResolvedValue(col);
 
-		const manager = new DlqClaimManagerClass();
+		const manager = new DlqClaimManagerClass(MOCK_GET_COLLECTION as never);
 		const result = await manager.claimEntriesForRetry({
 			limit: 10,
 			batchId: "b-1",
@@ -120,7 +118,7 @@ describe("DlqClaimManager", () => {
 		const col = mockCol([[doc("a"), doc("b")], [doc("b")]], 1);
 		MOCK_GET_COLLECTION.mockResolvedValue(col);
 
-		const manager = new DlqClaimManagerClass();
+		const manager = new DlqClaimManagerClass(MOCK_GET_COLLECTION as never);
 		const result = (await manager.claimEntriesForRetry({
 			limit: 10,
 			batchId: "b-1",
@@ -138,7 +136,7 @@ describe("DlqClaimManager", () => {
 		const col = mockCol([[doc("a")]], 1);
 		MOCK_GET_COLLECTION.mockResolvedValue(col);
 
-		const manager = new DlqClaimManagerClass();
+		const manager = new DlqClaimManagerClass(MOCK_GET_COLLECTION as never);
 		const result = await manager.claimEntriesByIds(["a"], {
 			batchId: "b-1",
 			instanceId: "i-1",
@@ -155,7 +153,7 @@ describe("DlqClaimManager", () => {
 	it("should return empty when claimEntriesByIds has no ids", async () => {
 		MOCK_GET_COLLECTION.mockResolvedValue(mockCol([], 0));
 
-		const manager = new DlqClaimManagerClass();
+		const manager = new DlqClaimManagerClass(MOCK_GET_COLLECTION as never);
 		const result = await manager.claimEntriesByIds([], {
 			batchId: "b-1",
 			instanceId: "i-1",
@@ -167,7 +165,7 @@ describe("DlqClaimManager", () => {
 	it("should return empty when claimEntriesByIds has no valid ids", async () => {
 		MOCK_GET_COLLECTION.mockResolvedValue(mockCol([], 0));
 
-		const manager = new DlqClaimManagerClass();
+		const manager = new DlqClaimManagerClass(MOCK_GET_COLLECTION as never);
 		const result = await manager.claimEntriesByIds(["", null] as string[], {
 			batchId: "b-1",
 			instanceId: "i-1",

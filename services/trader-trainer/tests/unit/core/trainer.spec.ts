@@ -681,6 +681,59 @@ describe("Trainer — model publication", () => {
 			expect(artifact.normalization.candle.close.count).toBeGreaterThan(0);
 		});
 
+		it("stopTraining ends the session in flight, then stores and publishes its model (ADR-0058)", async () => {
+			const genome = await trainedGenome();
+			const models = fakeStore();
+			const publisher = {
+				publish: jest
+					.fn<(...args: any[]) => any>()
+					.mockResolvedValue(undefined),
+			};
+			let signal: AbortSignal | undefined;
+			const runner = (
+				_windows: unknown,
+				_settings: unknown,
+				_telemetry: unknown,
+				received?: AbortSignal
+			) =>
+				new Promise<any>((resolve) => {
+					signal = received;
+					received?.addEventListener("abort", () =>
+						resolve({
+							bestGenome: genome,
+							bestFitness: 1,
+							generation: 1,
+							generationContext: null,
+						})
+					);
+				});
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+				publisher,
+				runner,
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			const training = trainer.train(TradingSymbol.of("BTCUSDT"));
+			expect(trainer.isTraining()).toBe(true);
+			await trainer.stopTraining();
+
+			expect(signal?.aborted).toBe(true);
+			expect(models.save).toHaveBeenCalledTimes(1);
+			expect(publisher.publish).toHaveBeenCalledTimes(1);
+			expect(trainer.isTraining()).toBe(false);
+			await expect(training).resolves.toMatchObject({ success: true });
+		});
+
+		it("stopTraining resolves at once when no session runs", async () => {
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
+
+			await expect(trainer.stopTraining()).resolves.toBeUndefined();
+		});
+
 		describe("rehydrate", () => {
 			const sym = TradingSymbol.of("BTCUSDT");
 			async function storedManifest() {

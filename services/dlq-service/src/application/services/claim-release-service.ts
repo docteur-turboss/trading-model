@@ -1,4 +1,4 @@
-import { logger } from "../../config/logger";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import type {
 	ClaimReleasePort,
 	DlqReplaySettings,

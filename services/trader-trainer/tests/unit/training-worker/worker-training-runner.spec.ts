@@ -7,6 +7,7 @@ import { Trainer } from "../../../src/application/trainer";
 import { runInProcess } from "../../../src/application/training-session";
 import { FitnessType } from "../../../src/domain/genetic-algorithm/genome";
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
+import { validateTrainingPrerequisites } from "../../../src/domain/training-prerequisite-validator";
 import type { TrainingSettings } from "../../../src/domain/training-settings";
 import { feedCandles } from "../../fixtures/market-data.fixture";
 
@@ -110,6 +111,41 @@ describe("worker training runner", () => {
 		await probe;
 		server.close();
 		expect(worst).toBeLessThan(250);
+	}, 120_000);
+
+	it("ends the session after the current generation once aborted (ADR-0058)", async () => {
+		const buffer = new MarketDataBuffer({ maxSize: 600 } as never);
+		feedCandles(buffer, "BTCUSDT", 500);
+		const settings = { ...SETTINGS, generations: 1000 };
+		const validation = validateTrainingPrerequisites(
+			buffer,
+			() => false,
+			SYMBOL,
+			settings
+		);
+		if (!validation.ok) {
+			throw new Error("not enough data");
+		}
+		const stop = new AbortController();
+		const noop = (): void => {
+			// Not observed.
+		};
+		const result = await workerRunner(
+			validation.windowSets,
+			settings,
+			{
+				generationStarted: () => stop.abort(),
+				stagnationUpdated: noop,
+				evaluationFailed: noop,
+				genomeEvaluated: noop,
+				crossoverFallbacks: noop,
+			},
+			stop.signal
+		);
+
+		expect(result.generation).toBeGreaterThanOrEqual(1);
+		expect(result.generation).toBeLessThan(1000);
+		expect(result.bestGenome).toBeDefined();
 	}, 120_000);
 
 	it("rejects when the worker fails", async () => {

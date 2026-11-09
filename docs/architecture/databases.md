@@ -23,11 +23,12 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 
 | Service | Stores |
 | ------- | ------ |
-| **message-manager** | Message archival data |
-| **audit-logger** | Audit event persistence |
-| **dlq-service** | Dead letter entries |
+| **audit-logger** | Audit event persistence (replica set `mongo-audit`) |
+| **dlq-service** | Dead letter entries (replica set `mongo-dlq`) |
 
-Authentication (ADR-0058): a `keyFile` per replica set, and one user per client, all in `admin` (clients connect with `authSource=admin`), created by `deploy/mongo/users.js` (Jobs `mongo-*-users`, compose `mongo-users`):
+Network access (K8s, issue #727): MongoDB runs without authentication (issue #669) and without TLS, so the NetworkPolicies are the only barrier. Port 27017 of each replica set accepts only its owner service, its own members and its init Job (`mongo-audit-network-policy`: `audit-logger`, `mongodb-audit`, `mongodb-audit-init`; `mongodb-network-policy`: `dlq-service`, `mongodb`, `mongodb-init`), and port 9216 (exporter) only Prometheus. Backups and restores go through `kubectl exec` into the members, not the network. A new client is a label in that policy, checked on kind by `verify_mongo_ingress` (`tests/k8s/run-kind.sh`).
+
+Authentication (ADR-0059): a `keyFile` per replica set, and one user per client, all in `admin` (clients connect with `authSource=admin`), created by `deploy/mongo/users.js` (Jobs `mongo-*-users`, compose `mongo-users`):
 
 | User | Roles | Used by |
 | ---- | ----- | ------- |
@@ -65,7 +66,7 @@ Each database pod runs an exporter sidecar scraped by Prometheus (port `metrics`
 | -------- | -------- | -------- |
 | MySQL (every member) | `mysqld-exporter` | MySQL user `exporter`: `PROCESS, REPLICATION CLIENT` on `*.*`, `SELECT` on `performance_schema.*`, 3 connections at most; created by Job `db-migrate-user` (password `MYSQL_EXPORTER_PASSWORD`; compose: one-shot `mysql-exporter-user`) |
 | Redis data nodes and sentinels | `redis_exporter` | ACL user `exporter` above (`REDIS_EXPORTER_PASSWORD`, K8s); compose Redis has no ACL |
-| MongoDB `mongo-dlq` and `mongo-audit` (every member) | `mongodb_exporter` | MongoDB user `exporter`: `clusterMonitor` only (`MONGO_EXPORTER_PASSWORD`, ADR-0058) |
+| MongoDB `mongo-dlq` and `mongo-audit` (every member) | `mongodb_exporter` | MongoDB user `exporter`: `clusterMonitor` only (`MONGO_EXPORTER_PASSWORD`, ADR-0059) |
 
 ## Schema Validation
 

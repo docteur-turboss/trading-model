@@ -1,9 +1,9 @@
 ﻿import type { InstanceId } from "@trading-model/primitives/primitives";
 import { ObjectId } from "mongodb";
-import { getCollection } from "../../config/db";
 import { RELEASE_CLAIM } from "../../domain/dlq-constants";
 import { DlqStatus } from "../../domain/dlq-status";
 import { ENV } from "../../infrastructure/config/env";
+import type { CollectionProvider } from "./collection-provider";
 import { RetryPipelineBuilder } from "./retry-pipeline-builder";
 
 async function _updateEntryCompleted(
@@ -34,6 +34,8 @@ export interface MarkRetriedParams {
 export class DlqRetryManager {
 	private readonly _pipelineBuilder = new RetryPipelineBuilder();
 
+	constructor(private readonly _getCollection: CollectionProvider) {}
+
 	async markRetried(params: MarkRetriedParams): Promise<void> {
 		const { id, instanceId, batchId, success = true, errorMsg } = params;
 		if (success) {
@@ -44,7 +46,7 @@ export class DlqRetryManager {
 	}
 
 	async abandonExhaustedEntries(): Promise<number> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const result = await col.updateMany(
 			this._pipelineBuilder.buildAbandonFilter(),
 			{
@@ -59,7 +61,7 @@ export class DlqRetryManager {
 		instanceId: InstanceId,
 		batchId?: string
 	): Promise<void> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		await _updateEntryCompleted(col, id, instanceId, batchId);
 	}
 
@@ -68,7 +70,7 @@ export class DlqRetryManager {
 		instanceId: InstanceId,
 		errorMsg?: string
 	): Promise<void> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const failFilter: Record<string, unknown> = {
 			_id: new ObjectId(id),
 			processingInstance: instanceId,
@@ -88,5 +90,3 @@ export class DlqRetryManager {
 		}
 	}
 }
-
-export const dlqRetryManager = new DlqRetryManager();
