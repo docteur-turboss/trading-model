@@ -31,7 +31,7 @@ jobs:
             mutate: 'src/domain/**/*.ts,!src/domain/genetic-algorithm/**,!src/domain/neural-network/**'
           - name: trader-service-neural-network-a
             dir: services/trader-trainer
-            mutate: 'src/domain/neural-network/{activation,experience-pool,normalizers}.ts'
+            mutate: 'src/domain/neural-network/activation.ts,src/domain/neural-network/experience-pool.ts,src/domain/neural-network/normalizers.ts'
           - name: trader-service-neural-network-b
             dir: services/trader-trainer
             mutate: 'src/domain/neural-network/**/*.ts,!src/domain/neural-network/activation.ts,!src/domain/neural-network/experience-pool.ts,!src/domain/neural-network/normalizers.ts'
