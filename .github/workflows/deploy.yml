@@ -89,25 +89,31 @@ jobs:
   # rights, which GITHUB_TOKEN lacks: secret ENVIRONMENT_READ_TOKEN
   # (fine-grained PAT, repository permission "Administration: read") is required.
   check-environment:
-    if: ${{ inputs.environment == 'production' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Check the production environment protection
+      - name: Check the environment protection
+        # Only production blocks: staging gets warnings (a failing check there must not stop the deploy).
+        continue-on-error: ${{ inputs.environment != 'production' }}
         env:
           GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+          TARGET: ${{ inputs.environment }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "::error::Secret ENVIRONMENT_READ_TOKEN is not set: the production protection cannot be checked. See docs/deployment/DEPLOY.md (Protect the production environment)."
-            exit 1
+            if [ "$TARGET" = production ]; then
+              echo "::error::Secret ENVIRONMENT_READ_TOKEN is not set: the production protection cannot be checked. See docs/deployment/DEPLOY.md (Protect the production environment)."
+              exit 1
+            fi
+            echo "::warning::Secret ENVIRONMENT_READ_TOKEN is not set: the '$TARGET' protection is not checked. See docs/deployment/DEPLOY.md (Protect the production environment)."
+            exit 0
           fi
-          node scripts/check-environment-protection.mjs production "$GITHUB_REPOSITORY"
+          node scripts/check-environment-protection.mjs "$TARGET" "$GITHUB_REPOSITORY"
 
   deploy:
     needs: check-environment
-    # always(): the check is skipped for staging, which must still deploy.
+    # Not skipped-aware `success()`: a failed staging check is tolerated (continue-on-error), a failed production one blocks.
     if: ${{ !failure() && !cancelled() }}
     # STAGING_RUNNER (repository variable): label of the self-hosted runner next
     # to a cluster GitHub cannot reach, e.g. the local kind staging

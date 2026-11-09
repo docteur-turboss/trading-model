@@ -96,8 +96,9 @@ required reviewer, allows self-review or has no `v*` tag rule
 (`scripts/check-environment-protection.mjs`). Reading these settings needs
 admin rights, so create the repository secret `ENVIRONMENT_READ_TOKEN`
 (fine-grained PAT, repository permission "Administration: read", this
-repository only). Also protect `staging` (required reviewer); a staging deploy
-only logs a warning.
+repository only). Also protect `staging` (required reviewer): the same check
+runs for a staging deploy but only logs warnings (a missing token or a failed
+check never blocks it).
 
 **Before the first production deploy**, the operating entity fills the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a)); the [privacy notice](../compliance/privacy-notice.md) points to them. The repository is public: commit no personal data, name the entity as your legal process requires.
 

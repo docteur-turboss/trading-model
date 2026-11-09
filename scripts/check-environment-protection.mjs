@@ -43,7 +43,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   const base = `repos/${repo}/environments/${name}`;
   const env = api(base);
-  const policies = env ? (api(`${base}/deployment-branch-policies`)?.branch_policies ?? []) : [];
+  const policies = env ? (api(`${base}/deployment-branch-policies?per_page=100`)?.branch_policies ?? []) : [];
   const problems = checkEnvironment(env, policies);
   const level = name === 'production' ? 'error' : 'warning';
   for (const p of problems) console.log(`::${level}::GitHub environment '${name}': ${p}. See ${DOC} (Protect the production environment).`);
