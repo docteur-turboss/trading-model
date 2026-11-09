@@ -1,3 +1,4 @@
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
 import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import { ServiceId } from "@trading-model/primitives/primitives";
@@ -46,7 +47,11 @@ export function createServer() {
 					// must not fail the probe; a second failure propagates (503).
 					try {
 						return await pingOnce();
-					} catch {
+					} catch (error) {
+						// Logged so a Redis failing every other probe stays visible.
+						logger.warn("Redis readiness ping failed, retrying once", {
+							error: error instanceof Error ? error.message : String(error),
+						});
 						return pingOnce();
 					}
 				},

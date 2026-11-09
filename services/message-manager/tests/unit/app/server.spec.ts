@@ -42,6 +42,11 @@ jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
 	createRedisClient: MOCK_CREATE_REDIS_CLIENT,
 }));
 
+const MOCK_LOGGER = { warn: jest.fn<(...args: any[]) => any>() };
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
+	logger: MOCK_LOGGER,
+}));
+
 import { createServer } from "../../../src/application/server";
 
 function redisReadinessCheck(): () => Promise<boolean> {
@@ -134,6 +139,10 @@ describe("app/server", () => {
 
 			await expect(redisReadinessCheck()()).resolves.toBe(true);
 			expect(MOCK_REDIS.connect).toHaveBeenCalledTimes(2);
+			expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
+				"Redis readiness ping failed, retrying once",
+				{ error: "connect ETIMEDOUT" }
+			);
 		});
 	});
 });
