@@ -43,6 +43,8 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 
 \*All routes except `/ping` require authentication via `x-api-key: <token>` or `Authorization: Bearer <token>` (the `Bearer ` prefix is case-insensitive and also stripped from the configured header). Validated against `AUTH_TOKENS` by SHA-256 digests compared with `timingSafeEqual`; the rate-limit identity is `client:` + 32 hex chars of that digest (one quota per token, no token material in logs).
 
+**Scopes (ADR-0059).** Each key of `AUTH_TOKENS` is `name:scope1+scope2:secret`. `read` opens the `GET` routes; `dlq:write` opens the other public routes, all of dlq-service: store, delete and replay entries. A key without the scope a route needs gets `403`. The gateway drops any client `x-actor` header and sends `x-actor: <key name>` (never the secret) to the service; dlq-service trusts it only from the gateway SVID and records it as `actor` of its audit events. A bare secret (old format) is accepted for one release with every scope, named `legacy-<8 hex of its sha256>`, with a warning at startup.
+
 **Response (success):** Proxied response from target service (status code and body forwarded as-is).
 
 **Response (errors):**
@@ -51,6 +53,7 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 | ------ | -------------------- | ----------------------------------------------------------- |
 | `400`  | Invalid route        | `{ "error": "Invalid route format" }`                       |
 | `401`  | Missing/invalid auth | `{ "error": "Unauthorized" }`                               |
+| `403`  | Key lacks the scope  | `{ "error": "Forbidden", "reason": "API key lacks the <scope> scope" }` |
 | `429`  | Rate limited         | `{ "error": "Too many requests", "retryAfter": <seconds> }` |
 | `404`  | Not a public route   | `{ "error": "Route not found" }`                            |
 | `404`  | Service not found    | `{ "error": "Service not found" }`                          |
@@ -91,6 +94,6 @@ Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-lim
 | `CACHE_TTL_MS`          | `30000`                         | In-memory cache TTL (ms)     |
 | `AUTH_TOKEN_HEADER`     | `x-api-key`                     | Header name for auth token   |
 | `AUTH_STRICT`           | `true`                          | `false` accepts any key when `AUTH_TOKENS` is empty; refused in production |
-| `AUTH_TOKENS`           | `''`                            | Comma-separated valid tokens; required in production (the gateway refuses to start) |
+| `AUTH_TOKENS`           | `''`                            | Comma-separated API keys `name:scope1+scope2:secret` (ADR-0059); required in production (the gateway refuses to start, as with a malformed key) |
 | `PROXY_TIMEOUT_MS`      | `10000`                         | Proxy request timeout (ms)   |
 | `PROXY_MAX_RESPONSE_BYTES` | `8388608` (8 MiB)          | Largest upstream answer; past it 502 `Upstream response too large` (ADR-0054) |

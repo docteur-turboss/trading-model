@@ -529,6 +529,8 @@ release_checks_once() {
   local strict="$1" key code critical fresh
 
   key="$(kubectl get secret -n "$NAMESPACE" trading-model-secrets -o jsonpath='{.data.AUTH_TOKENS}' | base64 -d | cut -d, -f1)"
+  # A key is name:scopes:secret (ADR-0059): the secret is after the last colon.
+  key="${key##*:}"
   if [[ -z "$key" ]]; then
     err "  ✗ no gateway API key in Secret trading-model-secrets (AUTH_TOKENS)"
     return 1

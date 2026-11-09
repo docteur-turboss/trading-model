@@ -66,6 +66,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0056](./0056-infrastructure-metrics-exporters.md) | Infrastructure Metrics: kube-state-metrics, node-exporter, Kubelet and Database Exporter Sidecars | Accepted | 2026-11 |
 | [ADR-0057](./0057-collector-handover-through-a-lease.md) | Collector Handed Over Through a Kubernetes Lease | Accepted | 2026-11 |
 | [ADR-0058](./0058-trainer-handover-through-a-lease.md) | trader-trainer Handed Over Through a Kubernetes Lease | Accepted | 2026-11 |
+| [ADR-0059](./0059-scoped-api-keys-and-dlq-actor.md) | Scoped API Keys, and the Key Name as Actor of DLQ Audit Events | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

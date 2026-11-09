@@ -65,7 +65,7 @@ curl -s http://localhost:8449/ping
 
 ## Step 3: See the Service Registry
 
-Set your admin token (one of the `GATEWAY_AUTH_TOKENS` values in your `.env` file):
+Set your admin token: the secret of one of the `GATEWAY_AUTH_TOKENS` keys in your `.env` file (what follows the last `:` of `name:scopes:secret`):
 
 ```bash
 export ADMIN_TOKEN="change-me-to-a-long-random-key"  # Use your .env value
