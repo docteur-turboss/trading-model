@@ -29,6 +29,7 @@
     "release:bump": "bun scripts/release.mjs --bump",
     "release:version": "bun scripts/release.mjs --version",
     "release:publish": "bun scripts/release.mjs --publish",
+    "release:test": "node --test tests/release/release.test.mjs",
     "lint": "bunx @biomejs/biome check .",
     "lint:fix": "bunx @biomejs/biome check . --write",
     "deps:check": "node scripts/check-deps.mjs",
