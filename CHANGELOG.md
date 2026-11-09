@@ -1,3 +1,50 @@
+## [3.1.0-rc.1] - 2026-11-09
+
+### Root
+
+#### Feat
+
+- 07adabb **release:** publish vX.Y.Z-rc.N pre-releases with release.mjs --prerelease (#754)
+- 29f2a22 **observability:** scrape and alert on pods, nodes, MySQL, MongoDB and Redis (#643)
+
+#### Fix
+
+- 39b1345 **k8s:** send the kind canary gate traffic in bursts so it gets a stable share through the edge-proxy keep-alive pool (#726)
+- 212babb **k8s:** keep the single-replica data StatefulSets of staging-local running across releases (#707)
+- d505627 **k8s:** apply the SealedSecret before the migrations whenever it adds a key (#705)
+- 0e57abb **k8s:** surge before removing a pod in every single-replica-capable Deployment (#706)
+- 5821e3a **github-actions:** stop the deploy before any apply when the live deploy-app Role is older than app-role.yaml (#721)
+- 289e1a6 **github-actions:** fail early with the admin command when the overlay's ClusterRoles are not in the cluster (#710)
+- be756e8 **github-actions:** make the first staging deploy pass: kubectl version, persistent runner, timeouts of the local kind staging (#686)
+- 711b7dd **observability:** bound Loki retention, persist Jaeger traces, limit collector memory and alert on Loki (#630)
+
+#### Docs
+
+- 558db75 **docs:** publish the Art. 13 notice for API callers and make the controller fields a production prerequisite (#752)
+
+#### Test
+
+- c4c718f **k8s:** measure service continuity during the kind upgrade N-1 to N (#712)
+- 860cdf3 **tests:** add an E2E suite from a short training run to the model download (#692)
+- ffd932e **tests:** add a soak scenario, a GA generation benchmark and a capacity procedure (#666)
+
+#### Chore
+
+- dced237 **scripts:** reinstate a ratcheted gate for import cycles and application layer isolation (#723)
+- 563072f **tests:** make Stryker mutation testing runnable and run it weekly (#687)
+
+#### Ci
+
+- 7aa2080 **github-actions:** retry the kind download and print rollout diagnostics (#685)
+- 619e627 **github-actions:** back up the SealedSecrets keys of the local kind staging on its self-hosted runner (#689)
+- 8532d70 **github-actions:** type-check the test files of every workspace (#688)
+
+#### Security
+
+- 051bce5 **k8s:** restrict MongoDB audit and DLQ port 27017 to their listed clients (#727) (#746)
+- 9297676 **k8s:** seal MYSQL_EXPORTER_PASSWORD and REDIS_EXPORTER_PASSWORD into the staging-local SealedSecret (#704)
+
+
 ## [3.0.0] - 2026-11-08
 
 ### @trading-model/http (1.0.0 → 1.1.0)
