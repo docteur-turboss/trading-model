@@ -83,7 +83,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # No `environment:` here, on purpose: a job that names an unknown environment
+  # makes GitHub create it unprotected, and one that names a protected one waits
+  # for approval before running. Reading the settings needs repository admin
+  # rights, which GITHUB_TOKEN lacks: secret ENVIRONMENT_READ_TOKEN
+  # (fine-grained PAT, repository permission "Administration: read") is required.
+  check-environment:
+    if: ${{ inputs.environment == 'production' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check the production environment protection
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret ENVIRONMENT_READ_TOKEN is not set: the production protection cannot be checked. See docs/deployment/DEPLOY.md (Protect the production environment)."
+            exit 1
+          fi
+          node scripts/check-environment-protection.mjs production "$GITHUB_REPOSITORY"
+
   deploy:
+    needs: check-environment
+    # always(): the check is skipped for staging, which must still deploy.
+    if: ${{ !failure() && !cancelled() }}
     # STAGING_RUNNER (repository variable): label of the self-hosted runner next
     # to a cluster GitHub cannot reach, e.g. the local kind staging
     # (docs/deployment/STAGING_LOCAL.md). Production always runs on GitHub.

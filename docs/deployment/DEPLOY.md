@@ -89,7 +89,15 @@ Protect the `production` environment (Settings → Environments → `production`
   rule `v*` only. A deploy dispatched from a working branch is then refused
   before any secret is read: pick the release tag in "Use workflow from".
 
-These settings are made by hand in GitHub; the workflow cannot check them.
+These settings are made by hand in GitHub, then checked: the `check-environment`
+job of `deploy.yml` (no `environment:`, so it runs before any approval or
+secret) fails a production deploy when the environment is missing, has no
+required reviewer, allows self-review or has no `v*` tag rule
+(`scripts/check-environment-protection.mjs`). Reading these settings needs
+admin rights, so create the repository secret `ENVIRONMENT_READ_TOKEN`
+(fine-grained PAT, repository permission "Administration: read", this
+repository only). Also protect `staging` (required reviewer); a staging deploy
+only logs a warning.
 
 **Before the first production deploy**, the operating entity fills the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a)); the [privacy notice](../compliance/privacy-notice.md) points to them. The repository is public: commit no personal data, name the entity as your legal process requires.
 
