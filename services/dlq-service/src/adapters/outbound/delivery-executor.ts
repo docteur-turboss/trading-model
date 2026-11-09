@@ -8,10 +8,19 @@ import { logger } from "../../config/logger";
 import { REPLAY_DELIVERY_TIMEOUT_MS } from "../../domain/dlq-constants";
 import { isShuttingDown } from "../../shared/shutdown-flag";
 import type { BatchContext, DlqEntryRef } from "../../shared/types";
-import { claimReleaseManager } from "./claim-manager";
-import { dlqRetryManager } from "./retry-manager";
+import type { ClaimReleaseManager } from "./claim-release-manager";
+import type { DlqRetryManager } from "./retry-manager";
 
-export interface DeliveryContext extends BatchContext {
+/** The Mongo bookkeeping a delivery updates: injected, not imported. */
+export interface DeliveryBookkeeping {
+	retryManager: Pick<DlqRetryManager, "markRetried">;
+	claimRelease: Pick<
+		ClaimReleaseManager,
+		"incrementRetryCount" | "releaseClaimWithoutCount"
+	>;
+}
+
+export interface DeliveryContext extends BatchContext, DeliveryBookkeeping {
 	client: import("@trading-model/http/adapters/outbound/http-client").HttpClient;
 	messageManagerUrl: string;
 }
@@ -42,11 +51,15 @@ async function _deliverMessage(
 }
 
 async function _handleDeliveryMarkFailed(
-	options: BatchContext & { entryId: string; httpError: string }
+	options: BatchContext & {
+		entryId: string;
+		httpError: string;
+		bookkeeping: DeliveryBookkeeping;
+	}
 ): Promise<void> {
-	const { entryId, instanceId, batchId, httpError } = options;
+	const { entryId, instanceId, batchId, httpError, bookkeeping } = options;
 	try {
-		await dlqRetryManager.markRetried({
+		await bookkeeping.retryManager.markRetried({
 			id: entryId,
 			instanceId,
 			batchId,
@@ -54,24 +67,28 @@ async function _handleDeliveryMarkFailed(
 			errorMsg: httpError,
 		});
 	} catch (markErr) {
-		await _forceReleaseClaim(entryId, markErr);
+		await _forceReleaseClaim(entryId, markErr, bookkeeping.claimRelease);
 	}
 }
 
 async function _forceReleaseClaim(
 	entryId: string,
-	markErr: unknown
+	markErr: unknown,
+	claimRelease: DeliveryBookkeeping["claimRelease"]
 ): Promise<void> {
 	logger.error(
 		"Failed to mark entry as failed — releasing claim without count",
 		{ entryId, error: (markErr as Error).message }
 	);
-	await _forceIncrementRetry(entryId);
-	await _forceReleaseClaimWithoutCount(entryId);
+	await _forceIncrementRetry(entryId, claimRelease);
+	await _forceReleaseClaimWithoutCount(entryId, claimRelease);
 }
 
-async function _forceIncrementRetry(entryId: string): Promise<void> {
-	await claimReleaseManager.incrementRetryCount(entryId).catch((err) => {
+async function _forceIncrementRetry(
+	entryId: string,
+	claimRelease: DeliveryBookkeeping["claimRelease"]
+): Promise<void> {
+	await claimRelease.incrementRetryCount(entryId).catch((err) => {
 		logger.error(
 			"CRITICAL: Failed to increment retryCount after markRetried failure",
 			{ entryId, error: (err as Error).message }
@@ -79,8 +96,11 @@ async function _forceIncrementRetry(entryId: string): Promise<void> {
 	});
 }
 
-async function _forceReleaseClaimWithoutCount(entryId: string): Promise<void> {
-	await claimReleaseManager.releaseClaimWithoutCount(entryId).catch((err) => {
+async function _forceReleaseClaimWithoutCount(
+	entryId: string,
+	claimRelease: DeliveryBookkeeping["claimRelease"]
+): Promise<void> {
+	await claimRelease.releaseClaimWithoutCount(entryId).catch((err) => {
 		logger.error("CRITICAL: Failed to release claim after error", {
 			entryId,
 			error: (err as Error).message,
@@ -92,7 +112,7 @@ async function _markEntrySuccess(
 	entry: DlqEntryRef,
 	ctx: DeliveryContext
 ): Promise<void> {
-	await dlqRetryManager.markRetried({
+	await ctx.retryManager.markRetried({
 		id: entry.id,
 		instanceId: ctx.instanceId,
 		batchId: ctx.batchId,
@@ -114,6 +134,7 @@ export async function deliverEntry(
 			instanceId: ctx.instanceId,
 			batchId: ctx.batchId,
 			httpError,
+			bookkeeping: ctx,
 		});
 		throw err;
 	}

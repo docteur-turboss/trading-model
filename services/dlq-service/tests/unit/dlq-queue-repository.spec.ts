@@ -6,10 +6,6 @@ const MOCK_TO_ARRAY = jest.fn<(...args: any[]) => any>();
 const MOCK_BUILD_QUEUABLE_QUERY = jest.fn<(...args: any[]) => any>();
 const MOCK_BUILD_ACTIVE_CLAIM_QUERY = jest.fn<(...args: any[]) => any>();
 
-jest.mock("../../src/config/db", () => ({
-	getCollection: MOCK_GET_COLLECTION,
-}));
-
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		DLQ_AUTO_RETRY_LIMIT: 50,
@@ -24,7 +20,9 @@ jest.mock("../../src/adapters/outbound/dlq-query-builder", () => ({
 }));
 
 describe("DlqQueueRepository", () => {
-	let DlqQueueRepositoryClass: new () => {
+	let DlqQueueRepositoryClass: new (
+		getCollection: never
+	) => {
 		listQueuable: () => Promise<string[]>;
 		listActiveClaimIds: () => Promise<string[]>;
 	};
@@ -51,7 +49,7 @@ describe("DlqQueueRepository", () => {
 		});
 		MOCK_BUILD_QUEUABLE_QUERY.mockReturnValue({ queuable: true });
 
-		const repo = new DlqQueueRepositoryClass();
+		const repo = new DlqQueueRepositoryClass(MOCK_GET_COLLECTION as never);
 		const result = await repo.listQueuable();
 
 		expect(result).toEqual(["id-1"]);
@@ -74,7 +72,7 @@ describe("DlqQueueRepository", () => {
 		});
 		MOCK_BUILD_ACTIVE_CLAIM_QUERY.mockReturnValue({ claimed: true });
 
-		const repo = new DlqQueueRepositoryClass();
+		const repo = new DlqQueueRepositoryClass(MOCK_GET_COLLECTION as never);
 		const result = await repo.listActiveClaimIds();
 
 		expect(result).toEqual(["claim-id-1"]);

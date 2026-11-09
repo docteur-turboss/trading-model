@@ -58,12 +58,6 @@ jest.mock("../../src/config/audit", () => ({
 	publishDlqEvent: jest.fn<(...args: any[]) => any>(),
 }));
 
-jest.mock("../../src/config/db", () => ({
-	isDbConnected: () => true,
-	getCollection: jest.fn<(...args: any[]) => any>(),
-	getMissingCriticalIndexes: () => [],
-}));
-
 jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: {
 		push: jest.fn<(...args: any[]) => any>().mockResolvedValue(true),
@@ -82,37 +76,6 @@ jest.mock("../../src/config/metrics", () => ({
 		pruneErrors: { inc: jest.fn<(...args: any[]) => any>() },
 		entrySizeBytes: { observe: jest.fn<(...args: any[]) => any>() },
 		collectionSize: { set: jest.fn<(...args: any[]) => any>() },
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/repository", () => ({
-	dlqRepository: {
-		insert: jest.fn<(...args: any[]) => any>(),
-		query: jest.fn<(...args: any[]) => any>(),
-		delete: jest.fn<(...args: any[]) => any>(),
-		count: jest.fn<(...args: any[]) => any>(),
-		prune: jest.fn<(...args: any[]) => any>(),
-		listQueuable: jest.fn<(...args: any[]) => any>(),
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/claim-manager", () => ({
-	dlqClaimManager: {
-		claimEntriesForRetry: jest.fn<(...args: any[]) => any>(),
-		releaseStaleClaims: jest.fn<(...args: any[]) => any>(),
-		releaseClaimWithoutCount: jest.fn<(...args: any[]) => any>(),
-		incrementRetryCount: jest.fn<(...args: any[]) => any>(),
-		releaseClaimsByInstance: jest.fn<(...args: any[]) => any>(),
-	},
-	claimReleaseManager: {
-		releaseStaleClaims: jest.fn<(...args: any[]) => any>(),
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/retry-manager", () => ({
-	dlqRetryManager: {
-		markRetried: jest.fn<(...args: any[]) => any>(),
-		abandonExhaustedEntries: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
@@ -145,9 +108,62 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 import { DLQ_API } from "../../src/adapters/inbound/api-routes";
+import { createDlqHandlers } from "../../src/adapters/inbound/dlq-service";
 import { DlqRoutes } from "../../src/adapters/inbound/routes";
-import { dlqClaimManager } from "../../src/adapters/outbound/claim-manager";
-import { dlqRepository } from "../../src/adapters/outbound/repository";
+import { createAddEntry } from "../../src/application/use-cases/add-entry-pipeline";
+import { createDeleteEntries } from "../../src/application/use-cases/dlq-delete-handler";
+import { createReplayEntries } from "../../src/application/use-cases/dlq-replay-service";
+
+const dlqRepository = {
+	insert: jest.fn<(...args: any[]) => any>(),
+	query: jest.fn<(...args: any[]) => any>(),
+	delete: jest.fn<(...args: any[]) => any>(),
+	count: jest.fn<(...args: any[]) => any>(),
+};
+const dlqClaimManager = {
+	claimEntriesForRetry: jest.fn<(...args: any[]) => any>(),
+};
+const metricsPort = {
+	entryAdded: () => undefined,
+	entriesDeleted: () => undefined,
+	batchReplayed: () => undefined,
+};
+const auditPort = {
+	notifyAdd: () => undefined,
+	notifyDelete: () => undefined,
+	notifyReplay: () => undefined,
+};
+const handlers = createDlqHandlers({
+	entries: dlqRepository,
+	db: { isConnected: () => true, getMissingCriticalIndexes: () => [] },
+	queue: { isAvailable: () => true },
+	useCases: {
+		addEntry: createAddEntry({
+			entries: dlqRepository,
+			storage: { isAvailable: () => true },
+			queue: { enqueue: async () => undefined },
+			metrics: metricsPort,
+			audit: auditPort,
+		}),
+		deleteEntries: createDeleteEntries({
+			entries: dlqRepository,
+			metrics: metricsPort,
+			audit: auditPort,
+		}),
+		replayEntries: createReplayEntries({
+			messageManager: {
+				resolve: async () => "https://message-manager:3000" as never,
+			},
+			claimRelease: { releaseStaleClaims: async () => 0 },
+			claims: dlqClaimManager,
+			retryLedger: { abandonExhaustedEntries: async () => 0 },
+			replayBatch: async () => ({ success: 0, errors: [] }),
+			audit: auditPort,
+			metrics: metricsPort,
+			settings: { instanceId: "dlq-service-test-1" as never },
+		}),
+	},
+});
 
 /** Every API response must match its registry entry (ADR-0021). */
 function expectDocumented(
@@ -193,7 +209,7 @@ interface RequestOptions {
 function createApp(): express.Application {
 	const app = express();
 	app.use(express.json());
-	app.use("/", DlqRoutes());
+	app.use("/", DlqRoutes(handlers));
 	return app;
 }
 

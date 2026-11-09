@@ -9,7 +9,7 @@ import {
 
 const MOCK_DELIVER_ENTRY = jest.fn<(entry: { id: string }) => Promise<void>>();
 
-jest.mock("../../src/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		debug: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -94,7 +94,9 @@ describe("replay-batch", () => {
 		const clear = jest
 			.spyOn(global, "clearTimeout")
 			.mockImplementation(() => undefined);
-		const { logger } = jest.requireMock("../../src/config/logger") as {
+		const { logger } = jest.requireMock(
+			"@trading-model/http/infrastructure/logger"
+		) as {
 			logger: { warn: jest.Mock<(...args: any[]) => any> };
 		};
 
@@ -111,7 +113,9 @@ describe("replay-batch", () => {
 			return 7;
 		}) as never);
 		jest.spyOn(global, "clearTimeout").mockImplementation(() => undefined);
-		const { logger } = jest.requireMock("../../src/config/logger") as {
+		const { logger } = jest.requireMock(
+			"@trading-model/http/infrastructure/logger"
+		) as {
 			logger: { warn: jest.Mock<(...args: any[]) => any> };
 		};
 		let release: () => void = () => undefined;

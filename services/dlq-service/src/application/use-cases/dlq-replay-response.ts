@@ -1,4 +1,3 @@
-import { emitReplayMetrics } from "../../shared/replay-metrics";
 import type { DlqError } from "../services/replay-batch";
 
 export function buildReplayResponse(
@@ -6,7 +5,6 @@ export function buildReplayResponse(
 	successCount: number,
 	errors: DlqError[]
 ): Record<string, unknown> {
-	emitReplayMetrics(successCount, errors.length);
 	return {
 		batchId,
 		replayed: successCount,

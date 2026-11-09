@@ -1,37 +1,18 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { createAppError, ErrorCode } from "@trading-model/common/utils/errors";
+import {
+	failSpanOnStorageError,
+	isDlqCapacityError,
+	rejectSpan,
+	STORAGE_UNAVAILABLE,
+} from "../../src/shared/dlq-error-builder";
 
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		MONGO_URI: "mongodb://localhost:27017",
-		MONGO_DB: "test",
-		MONGO_COLLECTION: "dlq",
-		DLQ_RETRY_MAX_ATTEMPTS: 3,
-		MAX_ENTRIES: 100,
-		DLQ_AUTO_RETRY_LIMIT: 50,
-		MESSAGE_MANAGER_URL: "https://message-manager:3000",
-		INSTANCE_ID: "test",
-		TLS_CA_PATH: "",
-		TLS_CERT_PATH: "",
-		TLS_KEY_PATH: "",
-		DLQ_ALLOWED_SERVICES: "message-manager,admin",
-		DLQ_AUTH_HMAC_SECRET: "test-secret-16-chars",
-		DLQ_PRUNE_INTERVAL_MS: 60000,
-		DLQ_AUTO_RETRY_ENABLED: true,
-		DLQ_AUTO_RETRY_INTERVAL_MS: 30000,
-	},
-}));
-
-jest.mock("../../src/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
 		error: jest.fn<(...args: any[]) => any>(),
 	},
-}));
-
-jest.mock("../../src/config/db", () => ({
-	getCollection: jest.fn<(...args: any[]) => any>(),
 }));
 
 function createMockSpan() {
@@ -43,85 +24,42 @@ function createMockSpan() {
 }
 
 describe("dlq-error-builder", () => {
-	beforeEach(() => {
-		jest.clearAllMocks();
+	it("names the storage failure the same for clients", () => {
+		expect(STORAGE_UNAVAILABLE.code).toBe("STORAGE_UNAVAILABLE");
 	});
 
-	describe("validationFail", () => {
-		it("should return validation failure response", () => {
-			const { validationFail } = jest.requireActual(
-				"../../src/shared/dlq-error-builder"
-			) as {
-				validationFail: (...args: unknown[]) => {
-					valid: false;
-					response: Record<string, unknown>;
-				};
-			};
-			const span = createMockSpan();
-			const result = validationFail(span, "Invalid input", 400);
+	describe("isDlqCapacityError", () => {
+		it("recognises the capacity error only", () => {
+			expect(
+				isDlqCapacityError(
+					createAppError("full", { code: ErrorCode.DlqCapacity })
+				)
+			).toBe(true);
+			expect(isDlqCapacityError(new Error("full"))).toBe(false);
+		});
+	});
 
-			expect(result.valid).toBe(false);
-			expect((result.response as Record<string, unknown>).status).toBe(400);
-			expect(span.setStatus).toHaveBeenCalled();
+	describe("rejectSpan", () => {
+		it("marks the span as failed and ends it", () => {
+			const span = createMockSpan();
+			rejectSpan(span as never, "too big");
+			expect(span.setStatus).toHaveBeenCalledWith(
+				expect.objectContaining({ message: "too big" })
+			);
 			expect(span.end).toHaveBeenCalled();
 		});
-
-		it("should include extra fields in response", () => {
-			const { validationFail } = jest.requireActual(
-				"../../src/shared/dlq-error-builder"
-			) as {
-				validationFail: (...args: unknown[]) => {
-					valid: false;
-					response: Record<string, unknown>;
-				};
-			};
-			const span = createMockSpan();
-			const result = validationFail(span, "Invalid", 422, {
-				code: "VALIDATION_ERROR",
-			});
-
-			expect(result.valid).toBe(false);
-			expect((result.response as Record<string, unknown>).data).toEqual({
-				error: "Invalid",
-				code: "VALIDATION_ERROR",
-			});
-		});
 	});
 
-	describe("handleAddEntryError", () => {
-		it("should handle capacity error", () => {
-			const { handleAddEntryError } = jest.requireActual(
-				"../../src/shared/dlq-error-builder"
-			) as {
-				handleAddEntryError: (
-					err: unknown,
-					span: Record<string, unknown>
-				) => Record<string, unknown>;
-			};
+	describe("failSpanOnStorageError", () => {
+		it("records the exception and ends the span", () => {
 			const span = createMockSpan();
-			const capacityErr = createAppError("capacity", {
-				code: ErrorCode.DlqCapacity,
-			});
-
-			const result = handleAddEntryError(capacityErr, span);
-			expect(result.status).toBe(429);
-		});
-
-		it("should handle storage error", () => {
-			const { handleAddEntryError } = jest.requireActual(
-				"../../src/shared/dlq-error-builder"
-			) as {
-				handleAddEntryError: (
-					err: unknown,
-					span: Record<string, unknown>
-				) => Record<string, unknown>;
-			};
-			const span = createMockSpan();
-			const storageErr = new Error("MongoDB down");
-
-			const result = handleAddEntryError(storageErr, span);
-			expect(result.status).toBe(503);
-			expect(span.recordException).toHaveBeenCalledWith(storageErr);
+			const err = new Error("db down");
+			failSpanOnStorageError(span as never, err);
+			expect(span.recordException).toHaveBeenCalledWith(err);
+			expect(span.setStatus).toHaveBeenCalledWith(
+				expect.objectContaining({ message: "db down" })
+			);
+			expect(span.end).toHaveBeenCalled();
 		});
 	});
 });

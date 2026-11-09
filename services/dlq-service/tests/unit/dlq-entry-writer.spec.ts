@@ -6,10 +6,6 @@ const MOCK_FIND_ONE = jest.fn<(...args: any[]) => any>();
 const MOCK_INSERT = jest.fn<(...args: any[]) => any>();
 const MOCK_COMPUTE_HASH = jest.fn<(...args: any[]) => any>();
 
-jest.mock("../../src/config/db", () => ({
-	getCollection: MOCK_GET_COLLECTION,
-}));
-
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		MAX_ENTRIES: 100,
@@ -67,12 +63,14 @@ describe("dlq-entry-writer", () => {
 		const { DlqEntryWriter } = jest.requireActual(
 			"../../src/adapters/outbound/dlq-entry-writer"
 		) as {
-			DlqEntryWriter: new () => {
+			DlqEntryWriter: new (
+				getCollection: never
+			) => {
 				insert: (entry: Record<string, unknown>) => Promise<string>;
 			};
 		};
 
-		const writer = new DlqEntryWriter();
+		const writer = new DlqEntryWriter(MOCK_GET_COLLECTION as never);
 		const result = await writer.insert({
 			topic: "test",
 			message: { text: "hello" },
@@ -96,12 +94,14 @@ describe("dlq-entry-writer", () => {
 		const { DlqEntryWriter } = jest.requireActual(
 			"../../src/adapters/outbound/dlq-entry-writer"
 		) as {
-			DlqEntryWriter: new () => {
+			DlqEntryWriter: new (
+				getCollection: never
+			) => {
 				insert: (entry: Record<string, unknown>) => Promise<string>;
 			};
 		};
 
-		const writer = new DlqEntryWriter();
+		const writer = new DlqEntryWriter(MOCK_GET_COLLECTION as never);
 		await expect(
 			writer.insert({
 				topic: "test",
@@ -130,12 +130,14 @@ describe("dlq-entry-writer", () => {
 		const { DlqEntryWriter } = jest.requireActual(
 			"../../src/adapters/outbound/dlq-entry-writer"
 		) as {
-			DlqEntryWriter: new () => {
+			DlqEntryWriter: new (
+				getCollection: never
+			) => {
 				insert: (entry: Record<string, unknown>) => Promise<string>;
 			};
 		};
 
-		const writer = new DlqEntryWriter();
+		const writer = new DlqEntryWriter(MOCK_GET_COLLECTION as never);
 		const result = await writer.insert({
 			topic: "test",
 			message: { text: "hello" },

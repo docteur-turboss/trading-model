@@ -1,20 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("../../src/config/audit", () => ({
-	publishDlqEvent: jest.fn<(...args: any[]) => any>(),
-}));
-
-jest.mock("../../src/config/metrics", () => ({
-	metrics: {
-		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
-		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
-	},
-}));
-
-jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
-	sendResponse: (data: unknown, status: number) => ({ data, status }),
-}));
-
 describe("dlq-replay-response", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -62,56 +47,6 @@ describe("dlq-replay-response", () => {
 				failed: 0,
 			});
 			expect(result.errors).toBeUndefined();
-		});
-
-		it("should emit metrics with both counts", () => {
-			const { buildReplayResponse } = jest.requireActual(
-				"../../src/application/use-cases/dlq-replay-response"
-			) as {
-				buildReplayResponse: (
-					batchId: string,
-					successCount: number,
-					errors: { id: string; error: string }[]
-				) => Record<string, unknown>;
-			};
-			const metricsMock = jest.requireMock("../../src/config/metrics") as {
-				metrics: {
-					entriesReplayed: { inc: jest.Mock<(...args: any[]) => any> };
-					entriesReplayFailed: { inc: jest.Mock<(...args: any[]) => any> };
-				};
-			};
-
-			buildReplayResponse("batch-3", 3, [{ id: "1", error: "err" }]);
-
-			expect(metricsMock.metrics.entriesReplayed.inc).toHaveBeenCalledWith(3);
-			expect(metricsMock.metrics.entriesReplayFailed.inc).toHaveBeenCalledWith(
-				1
-			);
-		});
-
-		it("should not emit replay metrics when counts are zero", () => {
-			const { buildReplayResponse } = jest.requireActual(
-				"../../src/application/use-cases/dlq-replay-response"
-			) as {
-				buildReplayResponse: (
-					batchId: string,
-					successCount: number,
-					errors: { id: string; error: string }[]
-				) => Record<string, unknown>;
-			};
-			const metricsMock = jest.requireMock("../../src/config/metrics") as {
-				metrics: {
-					entriesReplayed: { inc: jest.Mock<(...args: any[]) => any> };
-					entriesReplayFailed: { inc: jest.Mock<(...args: any[]) => any> };
-				};
-			};
-
-			buildReplayResponse("batch-4", 0, []);
-
-			expect(metricsMock.metrics.entriesReplayed.inc).not.toHaveBeenCalled();
-			expect(
-				metricsMock.metrics.entriesReplayFailed.inc
-			).not.toHaveBeenCalled();
 		});
 	});
 });
