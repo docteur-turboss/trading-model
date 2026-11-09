@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -614,6 +614,7 @@ verify() {
 	verify_replicas
 	verify_egress
 	verify_mongo_ingress
+	verify_db_ingress
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -731,6 +732,44 @@ verify_mongo_ingress() {
 		}
 		if mongo_ping mongo-probe-denied "" "$host" >/dev/null 2>&1; then
 			log "  a pod without component label reached $host:27017"
+			return 1
+		fi
+	done
+}
+
+# TCP connect of `$3` (host:port) from a throwaway pod `$1` with labels `$2`
+# (none when empty), with bash of the MySQL image (issue #747).
+tcp_probe() {
+	local img
+	img="$(grep -m1 -o 'mysql@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mysql.yaml")"
+	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
+		\"apiVersion\": \"v1\",
+		\"spec\": {
+			\"securityContext\": {\"runAsNonRoot\": true, \"runAsUser\": 999, \"seccompProfile\": {\"type\": \"RuntimeDefault\"}},
+			\"containers\": [{
+				\"name\": \"$1\", \"image\": \"$img\",
+				\"command\": [\"timeout\", \"5\", \"bash\", \"-c\", \"exec 3<>/dev/tcp/${3%:*}/${3#*:}\"],
+				\"securityContext\": {\"allowPrivilegeEscalation\": false, \"capabilities\": {\"drop\": [\"ALL\"]}}
+			}]
+		}
+	}"
+}
+
+# Only the listed components reach MySQL and Redis (issue #747). Control: the
+# same pod labelled as a listed client connects, so the refusal comes from the
+# NetworkPolicy, not from the image or the name.
+verify_db_ingress() {
+	local target host label
+	log "MySQL 3306 and Redis 6379: refused to an unlisted pod, allowed to a listed component"
+	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:message-manager; do
+		label="${target##*:}"
+		host="${target%:*}"
+		retry 3 tcp_probe db-probe-allowed "app.kubernetes.io/component=$label" "$host" >/dev/null || {
+			log "  a $label pod could not reach $host: the check proves nothing"
+			return 1
+		}
+		if tcp_probe db-probe-denied "" "$host" >/dev/null 2>&1; then
+			log "  a pod without component label reached $host"
 			return 1
 		fi
 	done
@@ -1415,9 +1454,9 @@ all)
 	verify
 	verify_canary
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac
