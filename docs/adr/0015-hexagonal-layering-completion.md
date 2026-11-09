@@ -97,7 +97,7 @@ dlq-service and message-manager entry points already did startup only (connectio
 
 ## Enforcement
 
-`bun run arch:check` (`scripts/architecture-check.mjs`, spec `tests/architecture/architecture-check.test.mjs`; the CI `lint` job) reinstates, in a lighter form, the gate removed during this work. Over `packages/*/src` and `services/*/src` it reports:
+`bun run arch:check` (`scripts/architecture-check.mjs`, spec `tests/architecture/architecture-check.test.mjs`; `.husky/pre-push` and the CI `lint` job) reinstates, in a lighter form, the gate removed during this work. Over `packages/*/src` and `services/*/src` it reports:
 
 - **runtime import cycles** (strongly connected components; `import type` / `export type` are ignored);
 - **layer violations**: an `application/` file importing `adapters/` or `infrastructure/` (relative or `@trading-model/<pkg>/adapters|infrastructure/...`, type imports included). `application/index.ts`, `server.ts` and `telemetry.ts` are the startup files and are exempt.

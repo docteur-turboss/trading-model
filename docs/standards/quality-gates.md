@@ -32,6 +32,7 @@ Triggered on every `git push` — must pass before the push completes:
 ```bash
 # .husky/pre-push
 bunx @biomejs/biome check .
+bun run arch:check
 bun run build
 bun run test
 ```
