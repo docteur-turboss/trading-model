@@ -21,7 +21,7 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 echo "kubectl $*" >>"$STUB_LOG"
 case "$1" in
-create) [[ " $* " == *" --dry-run=client "* ]] || exit 3; cat >/dev/null; printf '%s' "$STUB_DESIRED" ;;
+create) [[ " $* " == *" --dry-run=client "* ]] || exit 3; [ -t 0 ] || cat >/dev/null; printf '%s' "$STUB_DESIRED" ;;
 get)
 	[ -z "${STUB_GET_ERROR:-}" ] || { echo "$STUB_GET_ERROR" >&2; exit 1; }
 	f="$STUB_LIVE/$2_$3.json"
@@ -89,4 +89,26 @@ STUB_GET_ERROR='error: You must be logged in to the server (Unauthorized)' check
 # 5. bad usage
 rc=0; bash "$CHECK" --namespace x </dev/null >/dev/null 2>&1 || rc=$?
 [ $rc = 1 ] && ok "missing --environment refused" || ko "usage: rc=$rc"
+
+# 6. check-app-rbac.sh (issue #717): live Role deploy-app against app-role.yaml.
+# The stub's `create --dry-run=client` prints the desired Role, `get role deploy-app`
+# the live one (file role_deploy-app.json).
+APP_CHECK="$ROOT/deploy/k8s/scripts/check-app-rbac.sh"
+APP_ROLE='{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"Role","metadata":{"name":"deploy-app"},"rules":[{"apiGroups":["coordination.k8s.io"],"resources":["leases"],"verbs":["get","update"]},{"apiGroups":[""],"resources":["pods"],"verbs":["get"]}]}'
+export STUB_DESIRED="$APP_ROLE"
+app_check() { : >"$STUB_LOG"; rc=0; out=$(bash "$APP_CHECK" --namespace trading-model-staging --environment "$1" 2>&1) || rc=$?; }
+rm -f "$WORK"/live/*
+app_check staging
+[ $rc = 1 ] && [[ $out == *"is missing"* ]] && ok "app: missing Role refused" || ko "app missing: rc=$rc $out"
+jq 'del(.rules[0]) | .metadata += {uid: "u3"}' <<<"$APP_ROLE" >"$WORK/live/role_deploy-app.json"
+app_check staging
+[ $rc = 1 ] && [[ $out == *"::error::"*"differs"*"bash scripts/deploy-identity.sh app --namespace trading-model-staging | base64 -w0 | gh secret set KUBECONFIG_STAGING_APP --env staging"* ]] && ok "app: Role without leases refused, gives the deploy-identity.sh app command" || ko "app differs: rc=$rc $out"
+no_write && ok "app: nothing written" || ko "write attempted: $(cat "$STUB_LOG")"
+app_check staging-local
+[[ $out == *"bash deploy/staging-local/bootstrap.sh identities"* ]] && ok "app staging-local: gives bootstrap.sh identities" || ko "app staging-local: $out"
+jq '.metadata += {uid: "u3", resourceVersion: "9"}' <<<"$APP_ROLE" >"$WORK/live/role_deploy-app.json"
+app_check production
+[ $rc = 0 ] && [[ $out == *"up to date"* ]] && ok "app: identical Role passes" || ko "app identical: rc=$rc $out"
+STUB_GET_ERROR='error: You must be logged in to the server (Unauthorized)' app_check production
+[ $rc = 2 ] && [[ $out != *"missing"* ]] && ok "app: API error surfaced" || ko "app API error: rc=$rc $out"
 exit $FAILED

@@ -101,6 +101,8 @@ bash scripts/deploy-identity.sh app     --namespace trading-model | base64 -w0 |
 bash scripts/deploy-identity.sh cluster --namespace trading-model --environment production | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_CLUSTER --env production
 ```
 
+**Upgrading to 3.1.0** (existing environment): run both commands again, not only `cluster`. The Role `deploy-app` gained `leases` (collector Lease, ADR-0057) and the identity cannot grant itself rights. The step "Check deploy-app Role" (`deploy/k8s/scripts/check-app-rbac.sh`) compares the live Role with `app-role.yaml` before any apply and stops with the command when they differ (staging-local: `bash deploy/staging-local/bootstrap.sh identities`).
+
 | Identity | Rights | Used by |
 |----------|--------|---------|
 | `deploy-app` | Role `deploy/k8s/deploy-identity/app-role.yaml` in the application namespace | every step except the four below |
