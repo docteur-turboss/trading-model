@@ -1,25 +1,16 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { createAutoRetryScheduler } from "../../src/infrastructure/auto-retry-scheduler";
-
-const MOCK_IS_SHUTTING_DOWN = jest.fn<() => boolean>();
-
-jest.mock("../../src/config/logger", () => ({
-	logger: {
-		info: jest.fn<(...args: any[]) => any>(),
-		warn: jest.fn<(...args: any[]) => any>(),
-		error: jest.fn<(...args: any[]) => any>(),
-	},
-}));
-
-jest.mock("../../src/shared/shutdown-flag", () => ({
-	isShuttingDown: () => MOCK_IS_SHUTTING_DOWN(),
-}));
+import { FakeLogger, FakeShutdown } from "../support/fakes";
 
 function setup(enabled = true) {
 	const tick = jest.fn<() => Promise<void>>(async () => undefined);
 	const start = jest.fn<() => void>();
 	const stop = jest.fn<() => void>();
+	const logger = new FakeLogger();
+	const shutdown = new FakeShutdown();
 	const scheduler = createAutoRetryScheduler({
+		logger,
+		isShuttingDown: shutdown.probe,
 		env: {
 			DLQ_AUTO_RETRY_ENABLED: enabled,
 			DLQ_AUTO_RETRY_INTERVAL_MS: 30000,
@@ -27,14 +18,13 @@ function setup(enabled = true) {
 		tick,
 		redisWorker: { start, stop },
 	});
-	return { scheduler, tick, start, stop };
+	return { scheduler, tick, start, stop, logger, shutdown };
 }
 
 describe("auto-retry-scheduler", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		jest.useFakeTimers();
-		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
 	});
 
 	afterEach(() => {
@@ -70,6 +60,7 @@ describe("auto-retry-scheduler", () => {
 		await jest.advanceTimersByTimeAsync(30000 * 2.1);
 
 		expect(t.tick).toHaveBeenCalled();
+		expect(t.logger.messages("error")).toContain("DLQ auto-retry tick failed");
 		t.scheduler.stop();
 	});
 });

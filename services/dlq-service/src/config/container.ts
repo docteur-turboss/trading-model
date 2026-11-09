@@ -44,7 +44,8 @@ import { DlqPruner } from "../infrastructure/dlq-pruner";
 import { ensureRedisQueue } from "../infrastructure/redis-init";
 import { RedisWorkerTimer } from "../infrastructure/redis-worker-timer";
 import { emitReplayMetrics } from "../shared/replay-metrics";
-import { setShuttingDown } from "../shared/shutdown-flag";
+import { isShuttingDown, setShuttingDown } from "../shared/shutdown-flag";
+import { logger } from "./logger";
 import { metrics } from "./metrics";
 import { MongoConnectionManager } from "./mongo-connection-manager";
 import { dlqRedisQueue } from "./redis-queue";
@@ -137,6 +138,9 @@ export function createDlqApp(env: Env): DlqApp {
 		audit: auditPort,
 		replayBatch,
 		settings,
+		logger,
+		isShuttingDown,
+		emitReplayMetrics,
 	});
 	const rebuildQueueFromMongo = createQueueRebuilder({
 		entries: repository,
@@ -167,6 +171,8 @@ export function createDlqApp(env: Env): DlqApp {
 	const autoRetry = createAutoRetryScheduler({
 		env,
 		tick: autoRetryCycle.tick,
+		logger,
+		isShuttingDown,
 		redisWorker: {
 			start: () => redisWorkerTimer.start(),
 			stop: () => redisWorkerTimer.stop(),

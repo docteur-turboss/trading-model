@@ -26,7 +26,7 @@ run() { # run <event> [version]; env: SLACK, STUB_CURL_RC
 }
 export SLACK=https://hooks.example/SECRET
 
-for pair in "started:Deploy started:" "succeeded:Deploy succeeded:" "failed:Deploy FAILED: staging" "rolled-back:Deploy FAILED, rolled back:"; do
+for pair in "started:Deploy started:" "succeeded:Deploy succeeded:" "failed:Deploy FAILED: staging" "rolled-back:Deploy FAILED, rolled back:" "failed-before-overlay:Deployments unchanged, nothing to roll back"; do
   ev="${pair%%:*}"; want="${pair#*:}"
   out="$(run "$ev")"
   if grep -qF "$want" "$WORK/log" && [ "$(grep -c '^https://hooks.example/SECRET$' "$WORK/log")" = 1 ] && [ -z "$out" ]; then ok "$ev"; else ko "$ev: $out"; fi

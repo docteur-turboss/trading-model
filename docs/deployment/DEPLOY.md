@@ -192,6 +192,19 @@ revision it ran before the overlay (`rollout undo --to-revision`, see
 [Rollback](#rollback)). The overlay is applied by digest, so this returns to the
 previous image even when both deploys used `latest`.
 
+Two cases:
+
+- **Failure or cancellation after "Apply overlay" started** (a cancel by hand,
+  by `concurrency` or a lost runner counts): the rollback runs; the Slack event
+  is `rolled-back`.
+- **Failure before "Apply overlay"** (checks, migrations, canary, record): the
+  Deployments were not touched, so no rollback runs. The run summary says so
+  (step "Report state left before the overlay") and the Slack event is
+  `failed-before-overlay`. Never undone automatically: cluster-scope objects,
+  SPIFFE node components (`trading-model-node`), a SealedSecret applied for new
+  keys, expand migrations (ADR-0040), Mongo init Jobs deleted by
+  "Release replicas of autoscaled Deployments".
+
 ---
 
 ## Using pre-built images (development Compose host)

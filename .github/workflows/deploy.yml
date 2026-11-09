@@ -457,6 +457,7 @@ jobs:
       # ClusterRoles of the SPIRE server): the cluster identity applies them,
       # the application identity applies the rest ("Apply overlay").
       - name: Apply cluster-scope objects
+        id: cluster_scope
         shell: bash
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
@@ -644,6 +645,7 @@ jobs:
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
       # namespace: the application namespace (restricted) cannot host them.
       - name: Apply SPIFFE node components
+        id: node_agents
         shell: bash
         run: |
           kubectl kustomize "deploy/k8s/overlays/$OVERLAY/node-agents" |
@@ -862,15 +864,37 @@ jobs:
 
       # Only once the overlay was (even partially) applied: after a failed canary or
       # migration the primaries still run the current release, and undo would
-      # roll them back to the one before it.
+      # roll them back to the one before it. A cancelled run (manual, concurrency,
+      # lost runner) is not a failure() but leaves the cluster half on N: it rolls back too.
       - name: Rollback on failure
         id: rollback
-        if: ${{ failure() && steps.apply.outcome != 'skipped' }}
+        if: ${{ (failure() || cancelled()) && steps.apply.outcome != 'skipped' }}
         shell: bash
         run: |
           # Every Deployment back to the revision recorded before the overlay
           # (image and hashed ConfigMaps of the previous release, issue #410).
           bash deploy/k8s/scripts/deploy-release.sh rollback "${{ steps.ns.outputs.namespace }}" "$RUNNER_TEMP/deploy-revisions"
+
+      # No rollback ran because the overlay was never applied: say so, and list
+      # what the earlier steps already changed (none of it is undone automatically).
+      - name: Report state left before the overlay
+        id: prestate
+        if: ${{ (failure() || cancelled()) && steps.apply.outcome == 'skipped' }}
+        shell: bash
+        env:
+          CLUSTER_SCOPE: ${{ steps.cluster_scope.outcome }}
+          NODE_AGENTS: ${{ steps.node_agents.outcome }}
+          MIGRATE: ${{ steps.migrate.outcome }}
+        run: |
+          {
+            echo "### Deploy stopped before \"Apply overlay\""
+            echo "Overlay not applied, Deployments unchanged (still on the previous release): nothing to roll back."
+            echo "Already changed by earlier steps, never undone automatically:"
+            echo "- cluster-scope objects: $CLUSTER_SCOPE"
+            echo "- SPIFFE node components (trading-model-node): $NODE_AGENTS"
+            echo "- database migrations (expand only, ADR-0040) and SealedSecret keys: $MIGRATE"
+            echo "- Mongo init Jobs may be deleted by \"Release replicas of autoscaled Deployments\""
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # Deploy events in the alert channel (issue #435). The webhook stays in env:
       # never in the command line or the log; curl output is discarded.
@@ -879,7 +903,7 @@ jobs:
         shell: bash
         env:
           SLACK: ${{ secrets.ALERTMANAGER_SLACK_WEBHOOK_URL }}
-          EVENT: ${{ steps.rollback.outcome == 'success' && 'rolled-back' || (job.status == 'success' && 'succeeded' || 'failed') }}
+          EVENT: ${{ steps.rollback.outcome == 'success' && 'rolled-back' || (steps.prestate.outcome == 'success' && 'failed-before-overlay' || (job.status == 'success' && 'succeeded' || 'failed')) }}
           DEPLOY_ENV: ${{ inputs.environment }}
           VERSION: ${{ steps.tag.outputs.version }}
           SHA: ${{ steps.src.outputs.sha }}

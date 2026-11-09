@@ -1,7 +1,6 @@
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { DurationMs } from "@trading-model/primitives/primitives";
-import { logger } from "../config/logger";
-import { isShuttingDown } from "../shared/shutdown-flag";
+import type { LogPort, ShutdownProbe } from "../domain/ports/replay.ports";
 import type { Env } from "./config/env";
 
 /** What the scheduler reads from the environment. */
@@ -16,6 +15,8 @@ export interface AutoRetrySchedulerDeps {
 	tick(): Promise<void>;
 	/** The Redis worker loop that runs alongside the cycle. */
 	redisWorker: { start(): void; stop(): void };
+	logger: LogPort;
+	isShuttingDown: ShutdownProbe;
 }
 
 export interface AutoRetryScheduler {
@@ -26,7 +27,7 @@ export interface AutoRetryScheduler {
 export function createAutoRetryScheduler(
 	deps: AutoRetrySchedulerDeps
 ): AutoRetryScheduler {
-	const { env } = deps;
+	const { env, logger, isShuttingDown } = deps;
 	const autoRetryTimer = new TimerHandle();
 	const autoRetryStartTimer = new TimerHandle();
 

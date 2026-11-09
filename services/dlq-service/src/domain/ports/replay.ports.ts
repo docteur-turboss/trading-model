@@ -83,3 +83,13 @@ export interface DlqReplaySettings {
 	readonly autoRetryEnabled: boolean;
 	readonly autoRetryLimit: Limit;
 }
+
+/** Log sink of the auto-retry cycle and scheduler. */
+export interface LogPort {
+	info(message: string, meta?: Record<string, unknown>): void;
+	warn(message: string, meta?: Record<string, unknown>): void;
+	error(message: string, meta?: Record<string, unknown>): void;
+}
+
+/** True once the service has started its graceful shutdown. */
+export type ShutdownProbe = () => boolean;
