@@ -103,8 +103,8 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 | Resource | Access Method | Authentication | Authorisation |
 |---|---|---|
 | API gateway admin endpoints (DLQ delete, replay, store) | HTTPS + API key | `x-api-key` header | scope `dlq:write` of the key in `AUTH_TOKENS` (403 without it); the key name is recorded as `actor` of the DLQ audit events (ADR-0059) |
-| Database (MongoDB) | Plain TCP in the cluster (no TLS); operators through `kubectl exec` | None until issue #669 ships MongoDB authentication | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--message-manager-and-audit)); `kubectl exec` through Kubernetes RBAC |
 | Database (MySQL) | TLS 1.2+ (cert-manager server certificate, host name verified; plain TCP refused: `require_secure_transport=ON`, issue #767) | Username/password + SealedSecret **and** a cert-manager client certificate per user (`REQUIRE ISSUER / SUBJECT`) | NetworkPolicy: ports 3306 / 33061 only from the listed client components ([databases.md](../architecture/databases.md)); SQL grants |
+| Database (MongoDB) | Plain TCP in the cluster (no TLS, ADR-0060); operators through `kubectl exec` | None until issue #669 ships MongoDB authentication | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--message-manager-and-audit)); `kubectl exec` through Kubernetes RBAC |
 | Kubernetes API | kubectl + client cert | mTLS certificate | RBAC roles + SealedSecrets |
 
 ### 5.2 Emergency Access (Break-Glass)

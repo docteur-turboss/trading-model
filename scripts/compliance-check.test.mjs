@@ -15,6 +15,7 @@ function run(mutate) {
   try {
     // Docs are copied (the tests mutate them); code is linked read-only (the script only reads it).
     cpSync(join(REPO, 'docker-compose.yml'), join(dir, 'docker-compose.yml'));
+    cpSync(join(REPO, 'README.md'), join(dir, 'README.md'));
     cpSync(join(REPO, 'docs/compliance'), join(dir, 'docs/compliance'), { recursive: true });
     for (const d of CODE_DIRS) symlinkSync(join(REPO, d), join(dir, d), 'junction');
     mutate?.(dir);
@@ -67,4 +68,21 @@ test('fails on a code identifier that exists nowhere', () => {
   });
   assert.equal(r.status, 1);
   for (const id of ids) assert.ok(r.stderr.includes(id), id);
+});
+
+test('fails on database TLS claims, in the README too', () => {
+  for (const [file, claim] of [
+    ['README.md', 'mTLS ' + 'everywhere'],
+    ['docs/compliance/access-control-policy.md', '| TLS ' + 'connection |'],
+    ['docs/compliance/dpia.md', 'All inter-service ' + 'communication'],
+  ]) {
+    const r = run((dir) => {
+      const f = join(dir, file);
+      writeFileSync(f, `${readFileSync(f, 'utf8')}
+${claim}
+`);
+    });
+    assert.equal(r.status, 1, claim);
+    assert.match(r.stderr, /stale wording/, claim);
+  }
 });
