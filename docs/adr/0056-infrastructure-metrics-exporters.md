@@ -38,3 +38,7 @@ Constraints: no Helm (kube-prometheus-stack is out), the application namespace e
 ## Amendment 2026-11 (issue #767): MySQL client TLS
 
 The `mysqld-exporter` sidecars still reach `127.0.0.1:3306`, now over TLS: `--config.my-cnf` points to `exporter.cnf` (ConfigMap `mysql-client-tls`, `ssl-ca` only), and the server certificate carries `127.0.0.1` and `localhost` as SANs. The health probes use the local socket.
+
+## Amendment 2026-11 (issue #768): Redis TLS
+
+The `redis_exporter` sidecars read `ca.crt` of `redis-tls` (`REDIS_EXPORTER_TLS_CA_CERT_FILE`) and keep `redis://127.0.0.1` in release N; from the required step they use `rediss://127.0.0.1:6380` / `26380` (the certificate carries `127.0.0.1`).

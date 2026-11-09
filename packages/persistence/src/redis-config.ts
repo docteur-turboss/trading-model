@@ -11,6 +11,17 @@ export interface RedisNodeAddress {
 	port: Port;
 }
 
+/**
+ * TLS towards Redis and the sentinels (issue #768, ADR-0047). `servername` is
+ * the name the server certificate must carry: nodes are reached by the IP
+ * Sentinel announces, which no certificate can list.
+ */
+export interface RedisTlsConfig {
+	/** Path of the PEM CA that signed the server certificates. */
+	caPath: string;
+	servername: string;
+}
+
 export interface RedisSentinelConfig {
 	sentinels: RedisNodeAddress[];
 	name: string;
@@ -19,10 +30,11 @@ export interface RedisSentinelConfig {
 	password?: string;
 	/** Password the sentinels themselves require (`requirepass` on a sentinel). */
 	sentinelPassword?: string;
+	tls?: RedisTlsConfig;
 }
 
 export type RedisConnectionMode = RedisConnectionConfig["mode"];
 
 export type RedisConnectionConfig =
-	| { mode: "single"; url: URLString }
+	| { mode: "single"; url: URLString; tls?: RedisTlsConfig }
 	| { mode: "sentinel"; config: RedisSentinelConfig };

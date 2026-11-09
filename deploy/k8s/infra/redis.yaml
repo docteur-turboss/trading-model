@@ -188,6 +188,10 @@ spec:
                   optional: true
             # Expand step of 3.0.0 (redis-ha.sh): the 2.x clients, which use no
             # ACL user, keep working during the upgrade. Remove in the next release.
+            # TLS step of the expand/contract (redis-ha.sh, ADR-0047): optional =
+            # clear text and TLS (release N); required = TLS only (release N+1).
+            - name: REDIS_TLS_MODE
+              value: optional
             - name: REDIS_ALLOW_LEGACY_CLIENTS
               value: "true"
             - name: SENTINEL_HOSTS
@@ -195,6 +199,8 @@ spec:
           ports:
             - containerPort: 6379
               name: redis
+            - containerPort: 6380
+              name: redis-tls
           resources:
             requests:
               cpu: 100m
@@ -215,6 +221,9 @@ spec:
               mountPath: /data
             - name: redis-ha-scripts
               mountPath: /scripts
+              readOnly: true
+            - name: redis-tls
+              mountPath: /etc/redis-tls
               readOnly: true
           # The start script waits up to 120s for a master to answer.
           startupProbe:
@@ -261,6 +270,10 @@ spec:
                   optional: true
             - name: REDIS_EXPORTER_CONFIG_COMMAND
               value: "-"
+            # Needed from the required step (REDIS_ADDR=rediss://127.0.0.1:6380 /
+            # 26380); the certificate carries 127.0.0.1.
+            - name: REDIS_EXPORTER_TLS_CA_CERT_FILE
+              value: /etc/redis-tls/ca.crt
           ports:
             - containerPort: 9121
               name: metrics
@@ -280,7 +293,21 @@ spec:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
+          volumeMounts:
+            - name: redis-ca
+              mountPath: /etc/redis-tls
+              readOnly: true
       volumes:
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+        # The exporter sidecars read the CA only, never the private key.
+        - name: redis-ca
+          secret:
+            secretName: redis-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         - name: redis-ha-scripts
           configMap:
             name: redis-ha-scripts
@@ -382,6 +409,10 @@ spec:
                   key: REDIS_INTERNAL_PASSWORD
             # Expand step of 3.0.0 (redis-ha.sh): the 2.x clients, which use no
             # ACL user, keep working during the upgrade. Remove in the next release.
+            # TLS step of the expand/contract (redis-ha.sh, ADR-0047): optional =
+            # clear text and TLS (release N); required = TLS only (release N+1).
+            - name: REDIS_TLS_MODE
+              value: optional
             - name: REDIS_ALLOW_LEGACY_CLIENTS
               value: "true"
             - name: SENTINEL_HOSTS
@@ -398,6 +429,8 @@ spec:
           ports:
             - containerPort: 26379
               name: sentinel
+            - containerPort: 26380
+              name: sentinel-tls
           resources:
             requests:
               cpu: 50m
@@ -419,6 +452,9 @@ spec:
               mountPath: /sentinel
             - name: redis-ha-scripts
               mountPath: /scripts
+              readOnly: true
+            - name: redis-tls
+              mountPath: /etc/redis-tls
               readOnly: true
           startupProbe:
             exec:
@@ -464,6 +500,10 @@ spec:
                   optional: true
             - name: REDIS_EXPORTER_CONFIG_COMMAND
               value: "-"
+            # Needed from the required step (REDIS_ADDR=rediss://127.0.0.1:6380 /
+            # 26380); the certificate carries 127.0.0.1.
+            - name: REDIS_EXPORTER_TLS_CA_CERT_FILE
+              value: /etc/redis-tls/ca.crt
           ports:
             - containerPort: 9121
               name: metrics
@@ -483,7 +523,21 @@ spec:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
+          volumeMounts:
+            - name: redis-ca
+              mountPath: /etc/redis-tls
+              readOnly: true
       volumes:
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+        # The exporter sidecars read the CA only, never the private key.
+        - name: redis-ca
+          secret:
+            secretName: redis-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         - name: sentinel-config
           emptyDir: {}
         - name: redis-ha-scripts
@@ -543,6 +597,11 @@ spec:
         - port: 6379
           protocol: TCP
         - port: 26379
+          protocol: TCP
+        # TLS listeners (REDIS_TLS_MODE, ADR-0047).
+        - port: 6380
+          protocol: TCP
+        - port: 26380
           protocol: TCP
     # The exporter sidecars: Prometheus only.
     - from:

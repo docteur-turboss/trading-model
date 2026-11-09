@@ -130,6 +130,9 @@ spec:
               cpu: 500m
               memory: 512Mi
           volumeMounts:
+            - name: redis-tls
+              mountPath: /etc/redis-tls
+              readOnly: true
             - name: svid
               mountPath: /run/spire/svid
             - name: dlq-data
@@ -209,6 +212,12 @@ spec:
             seccompProfile:
               type: RuntimeDefault
       volumes:
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         - name: spiffe-helper-config
           configMap:
             name: spiffe-helper-config

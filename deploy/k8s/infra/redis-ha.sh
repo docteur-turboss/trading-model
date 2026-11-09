@@ -33,6 +33,16 @@
 # until the rollout replaces them. The service users exist all the same, and
 # the new clients use them (ioredis ignores the sentinel password a server
 # does not ask for). Remove it in the next release (contract step).
+#
+# TLS (issue #768, ADR-0047), REDIS_TLS_MODE with the Secret redis-tls mounted
+# at REDIS_TLS_DIR (tls.crt, tls.key, ca.crt; cert-manager):
+#   off       (default) no TLS.
+#   optional  release N: the nodes and sentinels also listen in TLS (6380 /
+#             26380), no client certificate asked. Replication and Sentinel stay
+#             in clear text on 6379 / 26379, the ports Sentinel announces, so
+#             the clients of release N-1 keep following it.
+#   required  release N+1: clear port closed (`port 0`), `tls-replication yes`,
+#             Sentinel monitors the TLS port. Every client must use TLS.
 set -eu
 
 MASTER_NAME="${MASTER_NAME:-mymaster}"
@@ -43,6 +53,22 @@ DOWN_AFTER_MS="${DOWN_AFTER_MS:-5000}"
 FAILOVER_TIMEOUT_MS="${FAILOVER_TIMEOUT_MS:-30000}"
 MASTER_WAIT_SECONDS="${MASTER_WAIT_SECONDS:-120}"
 SENTINEL_CONF="${SENTINEL_CONF:-/data/sentinel.conf}"
+REDIS_TLS_MODE="${REDIS_TLS_MODE:-off}"
+REDIS_TLS_DIR="${REDIS_TLS_DIR:-/etc/redis-tls}"
+REDIS_TLS_PORT="${REDIS_TLS_PORT:-6380}"
+SENTINEL_TLS_PORT="${SENTINEL_TLS_PORT:-26380}"
+case "$REDIS_TLS_MODE" in
+off | optional) ;;
+required)
+	# The scripts below only talk to the TLS ports.
+	REDIS_PORT="$REDIS_TLS_PORT"
+	SENTINEL_PORT="$SENTINEL_TLS_PORT"
+	;;
+*)
+	echo "[redis-ha] REDIS_TLS_MODE must be off, optional or required, got $REDIS_TLS_MODE" >&2
+	exit 64
+	;;
+esac
 SELF_IP="${POD_IP:-$(hostname -i | awk '{print $1}')}"
 SELF_NAME="$(hostname)"
 
@@ -62,20 +88,27 @@ resolve() {
 	[ -n "$ip" ] && echo "$ip"
 }
 
+# redis-cli flags: the certificate carries `redis`, not the IP the scripts use.
+tls_cli_args() {
+	[ "$REDIS_TLS_MODE" = required ] && printf '%s
+' --tls --cacert "$REDIS_TLS_DIR/ca.crt" --sni redis
+	return 0
+}
+
 # redis-cli against a data node / a sentinel, authenticated when ACLs are on.
 node_cli() {
 	if [ -n "${REDIS_INTERNAL_PASSWORD:-}" ]; then
-		REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli --user ha "$@"
+		REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli $(tls_cli_args) --user ha "$@"
 	else
-		redis-cli "$@"
+		redis-cli $(tls_cli_args) "$@"
 	fi
 }
 
 sentinel_cli() {
 	if [ -n "${REDIS_INTERNAL_PASSWORD:-}" ] && [ "${REDIS_ALLOW_LEGACY_CLIENTS:-false}" != true ]; then
-		REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli "$@"
+		REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli $(tls_cli_args) "$@"
 	else
-		redis-cli "$@"
+		redis-cli $(tls_cli_args) "$@"
 	fi
 }
 
@@ -144,6 +177,14 @@ exporter_user() {
 	print_args --user exporter on ">$REDIS_EXPORTER_PASSWORD" -@all +ping +info "+client|setname" "+slowlog|get" "+slowlog|len" "+latency|latest" "+latency|histogram"
 }
 
+# redis-server arguments of the TLS listener (see REDIS_TLS_MODE above).
+tls_args() {
+	[ "$REDIS_TLS_MODE" != off ] || return 0
+	print_args --tls-port "$REDIS_TLS_PORT" --tls-cert-file "$REDIS_TLS_DIR/tls.crt" --tls-key-file "$REDIS_TLS_DIR/tls.key" --tls-ca-cert-file "$REDIS_TLS_DIR/ca.crt" --tls-auth-clients no
+	[ "$REDIS_TLS_MODE" = required ] && print_args --port 0 --tls-replication yes
+	return 0
+}
+
 print_args() {
 	printf "%s\n" "$@"
 }
@@ -164,7 +205,7 @@ start_server() {
 	while IFS= read -r line; do
 		[ -n "$line" ] && set -- "$@" "$line"
 	done <<ACL
-$(acl_args)
+$(acl_args; tls_args)
 ACL
 	waited=0
 	while :; do
@@ -200,8 +241,14 @@ start_sentinel() {
 	# Ghosts pile up with every rollout and count as voters: once they make
 	# the live sentinels a minority, no failover can be authorized.
 	myid=$(printf '%s' "$SELF_NAME" | sha1sum | cut -c1-40)
+	# Plain port stays open until the required step; `port 0` closes it.
+	if [ "$REDIS_TLS_MODE" = required ]; then
+		plain_port=0
+	else
+		plain_port="$SENTINEL_PORT"
+	fi
 	cat >"$SENTINEL_CONF" <<EOF
-port $SENTINEL_PORT
+port $plain_port
 sentinel myid $myid
 sentinel monitor $MASTER_NAME $master $REDIS_PORT $SENTINEL_QUORUM
 sentinel down-after-milliseconds $MASTER_NAME $DOWN_AFTER_MS
@@ -225,6 +272,18 @@ EOF
 		cat >>"$SENTINEL_CONF" <<EOF
 user exporter on >$REDIS_EXPORTER_PASSWORD -@all +ping +info +client|setname +sentinel|masters +sentinel|sentinels +sentinel|slaves +sentinel|replicas +sentinel|ckquorum
 EOF
+	fi
+	if [ "$REDIS_TLS_MODE" != off ]; then
+		cat >>"$SENTINEL_CONF" <<EOF
+tls-port $SENTINEL_TLS_PORT
+tls-cert-file $REDIS_TLS_DIR/tls.crt
+tls-key-file $REDIS_TLS_DIR/tls.key
+tls-ca-cert-file $REDIS_TLS_DIR/ca.crt
+tls-auth-clients no
+EOF
+	fi
+	if [ "$REDIS_TLS_MODE" = required ]; then
+		echo "tls-replication yes" >>"$SENTINEL_CONF"
 	fi
 	log "monitoring $master"
 	exec redis-server "$SENTINEL_CONF" --sentinel
