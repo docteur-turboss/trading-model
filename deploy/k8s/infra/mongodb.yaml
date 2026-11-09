@@ -176,6 +176,12 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   template:
+    metadata:
+      # Own component: the StatefulSet's would put this pod behind the Services,
+      # the PDB and the database NetworkPolicy. Allowed in by that policy.
+      labels:
+        app.kubernetes.io/component: mongodb-init
+        app.kubernetes.io/part-of: trading-model
     spec:
       restartPolicy: OnFailure
       securityContext:
@@ -233,9 +239,15 @@ spec:
   policyTypes:
     - Ingress
   ingress:
+    # Clients of 27017 (issue #727): the owner service, the replica set peers
+    # and the init Job. Backups and restores go through `kubectl exec`, not
+    # the network. A new client must be added here.
     - from:
-        # Same namespace as the policy, whatever the overlay's namespace.
-        - podSelector: {}
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["dlq-service", "mongodb", "mongodb-init"]
       ports:
         - port: 27017
           protocol: TCP
