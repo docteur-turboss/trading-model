@@ -66,7 +66,8 @@ describe("auto-retry-scheduler", () => {
 		t.tick.mockRejectedValueOnce(new Error("tick failed"));
 		t.scheduler.start();
 
-		await jest.advanceTimersByTimeAsync(30000 * 2);
+		// Worst case: initial jitter < 30 s, then 30 s + up to 3 s of jitter.
+		await jest.advanceTimersByTimeAsync(30000 * 2.1);
 
 		expect(t.tick).toHaveBeenCalled();
 		t.scheduler.stop();
