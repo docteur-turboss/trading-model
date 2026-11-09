@@ -19,6 +19,7 @@ bun run reach:report            # Report src no service entry point (main/bin) r
 bun run reach:check             # Gate: fails on any unreachable src line or spec of dead code (ADR-0029)
 bun run arch:check              # Gate: fails on a new runtime import cycle or an application/ file importing adapters/infrastructure; ratcheted on scripts/architecture-baseline.json (ADR-0015)
 bun run config:check            # Gate: fails on an env var no deployment sets that gates code, read but never parsed, or missing from docs/deployment/ENV.md (ADR-0013)
+bun run compliance:check          # Gate: fails when a duration or count cited in docs/compliance/ differs from the code (retention, journal, redaction)
 bun run test:coverage           # All tests with coverage
 bun run test:db                 # Specs against real Mongo/Redis/MySQL (Testcontainers, needs Docker)
 bun run docs:generate           # TypeDoc HTML into docs/architecture/code/ (git-ignored, local only: ADR-0037)

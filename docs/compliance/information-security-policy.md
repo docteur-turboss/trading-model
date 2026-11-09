@@ -110,7 +110,7 @@ The platform is deployed as a containerised microservice architecture. Physical 
 
 | Component | Tool | Retention |
 |---|---|---|
-| Structured application logs | Pino → stdout → Promtail → Loki | 30 days |
+| Structured application logs | stdout → Promtail → Loki | 30 days |
 | Audit events | MongoDB (audit-logger) | 1827 days (5 years) |
 | Service metrics | Prometheus → Grafana | 15 days |
 | Distributed traces | OpenTelemetry → Jaeger | 7 days |
@@ -118,14 +118,12 @@ The platform is deployed as a containerised microservice architecture. Physical 
 
 ### 8.2 Log Redaction
 
-All logs pass through three layers of sensitive data redaction before persistence:
+All logs pass through two layers of sensitive data redaction before persistence:
 
-1. **Pino redact paths** — 16+ patterns for known sensitive fields
-2. **JSON stringifier regex** — 15+ patterns for credential-like strings
-3. **PEM sanitizer** — Strips certificate private keys from log output
-4. **Context key sanitization** — Sensitive keys (IP, password, token, etc.) redacted in context objects before MongoDB write
+1. **Sensitive-key patterns** — 24 patterns (token, password, IP keys, etc.) redacted in logged objects and in context objects before MongoDB write
+2. **PEM sanitizer** — Strips PEM blocks (certificates, private keys) from log output
 
-Implementation: `@trading-model/http/infrastructure/logger.ts`
+Implementation: `@trading-model/http/infrastructure/sensitive-data-sanitizer.ts`
 
 ## 9. Communications Security
 
