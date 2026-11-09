@@ -20,7 +20,7 @@ export class MongoConnectionManager extends CommonMongoConnectionManager {
 			| "MONGO_COLLECTION"
 			| "MONGO_USERNAME"
 			| "MONGO_PASSWORD"
-		>,
+		>
 	) {
 		super({
 			uri: env.MONGO_URI,
