@@ -92,6 +92,17 @@ or right after the overlay on a first deploy, when MySQL does not exist yet).
 > SPIRE SVID ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). The
 > controller needs no client certificate, and no request reaches a service
 > without going through the gateway (auth, rate limit per API client).
+>
+> **Controller prerequisites (personal data, register activity 6):** in
+> ConfigMap `ingress-nginx-controller` set `disable-access-log: "true"` (the
+> default format logs full caller IP, User-Agent and Referer to the node, with a
+> retention and access nobody controls; `deploy/staging-local/bootstrap.sh
+> prereqs` does it) and leave `use-forwarded-headers` unset, so the controller
+> overwrites any `X-Forwarded-For` sent by the caller. The edge-proxy trusts that
+> header only from private pod CIDRs (`deploy/edge-proxy/realip.k8s.inc`; narrow
+> them per overlay) and logs the caller IP truncated (31 days in Loki). The
+> controller's `error_log` keeps no request line but may show the peer IP: keep
+> node log rotation at 7 days or less.
 
 ### 2. Configure secrets
 
