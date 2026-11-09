@@ -95,6 +95,26 @@ Common causes:
   that are obsolete (`DELETE /dlq` with their ids). Never delete entries of the
   audit topics without checking that audit-logger has them.
 
+## DlqAuditEventLost
+
+A `DELETE /dlq` or a replay was done, but message-manager did not accept its
+audit event (`dlq.entries.deleted` or `dlq.replay.completed`), so the audit
+chain has no record of it (ADR-0059). For a manual action the API answered
+**502** with `auditRecorded: false`: the deletion or replay still happened.
+A refused auto-retry replay is counted too, with no operator waiting for it.
+
+1. Find the action: the dlq-service error log `DLQ event not published: the
+   audit trail misses it` holds the topic and the payload (`ids`, `deleted` or
+   `batchId`, and `actor`, the name of the API key).
+2. Fix message-manager first
+   ([runbook-message-bus-outage](runbook-message-bus-outage.md)): until it
+   accepts events, every DLQ action leaves no trace in the chain.
+3. Record the missing action in the incident report (time, actor, ids),
+   copied from the log: the audit chain cannot be completed afterwards
+   without breaking it (ADR-0027).
+4. Do not run the delete or the replay again to "re-send" the event: the
+   entries are already deleted or replayed.
+
 ## Escalation
 
 Warnings: handle within business hours. Escalate to the Engineering Manager if

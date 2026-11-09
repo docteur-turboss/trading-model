@@ -404,6 +404,18 @@ groups:
           description: 'dlq-service refused {{ $value | humanize }} dead letter(s) in the last hour (invalid or too large): they are in DLQ_LOCAL_FALLBACK_PATH.rejected on the message-manager pod, and in its logs.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
+      # A DLQ delete or replay was done but message-manager refused its audit
+      # event: the audit trail misses who did it (ADR-0059). The API answered 502.
+      - alert: DlqAuditEventLost
+        expr: sum by (event) (increase(dlq_audit_publish_failures_total{event=~"dlq.entries.deleted|dlq.replay.completed"}[1h])) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'DLQ action missing from the audit trail: {{ $labels.event }}'
+          description: 'message-manager refused {{ $value | humanize }} {{ $labels.event }} event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'
+
       # A topic nobody subscribes to drops its messages. Expected for a few
       # seconds at a cold start (publishers up before subscribers), so only a
       # drop lasting 10 minutes alerts.
