@@ -186,7 +186,9 @@ spec:
             timeoutSeconds: 3
         # Reloads the server certificate when cert-manager renews it (issue
         # #767): mysqld otherwise keeps serving the old one until it expires.
-        # Connects through 127.0.0.1 (SAN of mysql-tls) as root; a failed
+        # Connects through 127.0.0.1 (SAN of mysql-tls) as root with its client
+        # certificate (Secret mysql-client-root; also the `mysql` client of
+        # tests/k8s/run-kind.sh verify_mysql_tls); a failed
         # reload is logged and retried on the next tick.
         - name: tls-reload
           image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
@@ -198,7 +200,7 @@ spec:
               while sleep 60; do
                 now=$(sha256sum /etc/mysql-tls/tls.crt) || continue
                 [ "$now" = "$last" ] && continue
-                if mysql --protocol=tcp -h 127.0.0.1 -uroot --ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/mysql-tls/ca.crt -e 'ALTER INSTANCE RELOAD TLS'; then
+                if mysql --protocol=tcp -h 127.0.0.1 -uroot --ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/mysql-tls/ca.crt --ssl-cert=/etc/mysql-client-root/tls.crt --ssl-key=/etc/mysql-client-root/tls.key -e 'ALTER INSTANCE RELOAD TLS'; then
                   echo "server certificate reloaded"
                   last=$now
                 else
@@ -230,6 +232,9 @@ spec:
           volumeMounts:
             - name: mysql-tls
               mountPath: /etc/mysql-tls
+              readOnly: true
+            - name: mysql-client-root
+              mountPath: /etc/mysql-client-root
               readOnly: true
         # Exporter of this member (issue #601, ADR-0056), as MySQL user
         # `exporter` (PROCESS, REPLICATION CLIENT, SELECT on performance_schema),
@@ -271,8 +276,8 @@ spec:
             - name: mysql-client-tls
               mountPath: /etc/mysql-client
               readOnly: true
-            # ca.crt only: the exporter has no use for the server key.
-            - name: mysql-ca
+            # Client certificate of MySQL user `exporter` (not the server key).
+            - name: mysql-client-exporter
               mountPath: /etc/mysql-tls
               readOnly: true
       volumes:
@@ -282,12 +287,12 @@ spec:
         - name: mysql-tls
           secret:
             secretName: mysql-tls
-        - name: mysql-ca
+        - name: mysql-client-exporter
           secret:
-            secretName: mysql-tls
-            items:
-              - key: ca.crt
-                path: ca.crt
+            secretName: mysql-client-exporter
+        - name: mysql-client-root
+          secret:
+            secretName: mysql-client-root
         - name: mysql-client-tls
           configMap:
             name: mysql-client-tls
@@ -331,9 +336,11 @@ data:
     gtid-mode=ON
     loose-group_replication_recovery_use_ssl=ON
     loose-group_replication_ssl_mode=REQUIRED
-    # Client TLS (issue #767, ADR-0060): certificate of mysql-tls.yaml. Plain
-    # connections are still accepted during the expand release; the contract
-    # release adds require_secure_transport=ON (docs/deployment/MYSQL_TLS.md).
+    # Client TLS (issue #767, ADR-0060): certificate of mysql-tls.yaml. TCP
+    # connections without TLS are refused (the local socket of kubectl exec,
+    # backups and restores is not concerned); the user must also present its
+    # client certificate (REQUIRE ISSUER / SUBJECT, db-migrate-user).
+    require_secure_transport=ON
     ssl-ca=/etc/mysql-tls/ca.crt
     ssl-cert=/etc/mysql-tls/tls.crt
     ssl-key=/etc/mysql-tls/tls.key
@@ -435,10 +442,7 @@ spec:
       volumes:
         - name: mysql-tls
           secret:
-            secretName: mysql-tls
-            items:
-              - key: ca.crt
-                path: ca.crt
+            secretName: mysql-client-root
         - name: mysql-client-tls
           configMap:
             name: mysql-client-tls

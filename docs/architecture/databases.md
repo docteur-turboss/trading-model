@@ -30,7 +30,7 @@ Network access (K8s, issue #727): MongoDB runs without authentication (issue #66
 
 > SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database).
 
-MySQL client TLS (K8s, issue #767): server certificate from cert-manager, clients verify the host name; plain connections still accepted until the contract release (`docs/deployment/MYSQL_TLS.md`).
+MySQL client TLS (K8s, issue #767): server certificate from cert-manager, clients verify the host name; `require_secure_transport=ON`, and each user (`root`, `scraper`, `migrator`, `retention`, `exporter`) is bound to its own cert-manager client certificate (`REQUIRE ISSUER / SUBJECT`) (`docs/deployment/MYSQL_TLS.md`).
 
 Redis and Sentinel TLS (K8s, issue #768): listeners on 6380 / 26380 from release N, clear text closed from N+1 (`REDIS_TLS_MODE`, `docs/deployment/REDIS_TLS.md`).
 

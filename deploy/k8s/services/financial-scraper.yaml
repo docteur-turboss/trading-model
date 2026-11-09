@@ -208,10 +208,7 @@ spec:
           emptyDir: {}
         - name: mysql-tls
           secret:
-            secretName: mysql-tls
-            items:
-              - key: ca.crt
-                path: ca.crt
+            secretName: mysql-client-scraper
 ---
 # Scrape-cron instance (SCRAPE_SCHEDULER_ENABLED=true). It shares the
 # financial-scraper ServiceAccount (same SPIFFE ID) but not its Service: API
@@ -427,10 +424,7 @@ spec:
           emptyDir: {}
         - name: mysql-tls
           secret:
-            secretName: mysql-tls
-            items:
-              - key: ca.crt
-                path: ca.crt
+            secretName: mysql-client-scraper
 ---
 # Leader lease of the collector pods (ADR-0057). Created here, so the Role
 # below needs no `create` (which resourceNames cannot restrict). Applied

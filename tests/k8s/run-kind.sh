@@ -224,7 +224,7 @@ migrations() {
 		node "$ROOT/tests/k8s/ci-render.mjs" --secret >"$sealed" || return 1
 	fi
 	(cd "$1" && use_kube &&
-		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
+		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS" ${2:+"$2"})
 }
 
 # The overlay of the checkout `$1`, pinned to the digests of file `$2` as
@@ -308,6 +308,8 @@ release() {
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
 	release_script wait "$NS" "${2:-180s}" || return 1
+	# mysqld now serves the cert-manager certificate: bind the users to their client certificates.
+	migrations "$ROOT" user-only || return 1
 	deploy_script smoke-test
 }
 
@@ -812,31 +814,33 @@ verify_redis_tls() {
 	log "  REDIS_TLS_MODE=$mode, TLS session verified on the data node and the sentinel"
 }
 
-# MySQL TLS (issue #767, ADR-0060): the server certificate comes from
-# cert-manager, a client that verifies the host name against the internal CA
-# gets a TLS session, and plain connections are refused exactly when
-# require_secure_transport is ON (the contract release; OFF in the expand one).
+# MySQL TLS (issue #767, ADR-0060), run from the tls-reload sidecar of mysql-0
+# (mysql client, MYSQL_PWD = root password, client certificate of root):
+# the server certificate is verified by name, a plain TCP connection is
+# refused (require_secure_transport=ON), and so is a TLS connection of root
+# without its client certificate (the password alone does not open a session).
 verify_mysql_tls() {
-	local sql="mysql -h mysql-primary -uroot -p\$MYSQL_ROOT_PASSWORD -N -e" tls="--ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/mysql-tls/ca.crt" require
-	log "MySQL TLS: certificate verified by name, plain connections follow require_secure_transport"
-	$K -n "$NS" wait --for=condition=Ready certificate/mysql-tls --timeout=120s
-	[ -n "$($K -n "$NS" exec mysql-0 -c mysql -- sh -c "$sql \"SHOW STATUS LIKE 'Ssl_cipher'\" $tls | cut -f2")" ] || {
-		log "  no TLS session with --ssl-mode=VERIFY_IDENTITY on mysql-primary"
+	local tls="--ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/mysql-tls/ca.crt" cert="--ssl-cert=/etc/mysql-client-root/tls.crt --ssl-key=/etc/mysql-client-root/tls.key"
+	local run="$K -n $NS exec mysql-0 -c tls-reload -- mysql -h mysql-primary -N -e"
+	log "MySQL TLS: certificate verified by name, plain and certificate-less connections refused"
+	$K -n "$NS" wait --for=condition=Ready certificate/mysql-tls certificate/mysql-client-root certificate/mysql-client-scraper --timeout=120s
+	[ -n "$($run "SHOW STATUS LIKE 'Ssl_cipher'" -uroot $tls $cert | cut -f2)" ] || {
+		log "  no TLS session with a client certificate and --ssl-mode=VERIFY_IDENTITY on mysql-primary"
 		return 1
 	}
-	require="$($K -n "$NS" exec mysql-0 -c mysql -- sh -c "$sql 'SELECT @@require_secure_transport' $tls")"
-	if $K -n "$NS" exec mysql-0 -c mysql -- sh -c "$sql 'SELECT 1' --ssl-mode=DISABLED" >/dev/null 2>&1; then
-		[ "$require" = 0 ] || {
-			log "  plain connection accepted with require_secure_transport=$require"
-			return 1
-		}
-	else
-		[ "$require" = 1 ] || {
-			log "  plain connection refused with require_secure_transport=$require: the check proves nothing"
-			return 1
-		}
+	[ "$($run 'SELECT @@require_secure_transport' -uroot $tls $cert)" = 1 ] || {
+		log "  require_secure_transport is not ON"
+		return 1
+	}
+	if $run 'SELECT 1' -uroot --ssl-mode=DISABLED >/dev/null 2>&1; then
+		log "  plain connection accepted"
+		return 1
 	fi
-	log "  require_secure_transport=$require, TLS session verified"
+	if $run 'SELECT 1' -uroot $tls >/dev/null 2>&1; then
+		log "  TLS connection without client certificate accepted"
+		return 1
+	fi
+	log "  TLS session verified, plain and certificate-less connections refused"
 }
 
 # Production runs message-manager and discovery with 3 replicas (staging: 1).

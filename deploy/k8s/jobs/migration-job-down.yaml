@@ -82,6 +82,11 @@ spec:
             # Server certificate checked with the internal CA, host name included (ADR-0060).
             - name: DB_SSL_CA
               value: /etc/mysql-tls/ca.crt
+            # Client certificate of user `migrator` (Secret mysql-client-migrator).
+            - name: DB_SSL_CERT
+              value: /etc/mysql-tls/tls.crt
+            - name: DB_SSL_KEY
+              value: /etc/mysql-tls/tls.key
           volumeMounts:
             - name: mysql-tls
               mountPath: /etc/mysql-tls
@@ -96,10 +101,7 @@ spec:
       volumes:
         - name: mysql-tls
           secret:
-            secretName: mysql-tls
-            items:
-              - key: ca.crt
-                path: ca.crt
+            secretName: mysql-client-migrator
 ---
 apiVersion: v1
 kind: ServiceAccount

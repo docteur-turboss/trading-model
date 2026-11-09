@@ -63,6 +63,9 @@ data:
           max_open_conns = 10
           # Server certificate of the MySQL (ADR-0060); host name checked against mysql-primary.
           root_ca_path = "/etc/mysql-tls/ca.crt"
+          # Client certificate of MySQL user root (Secret mysql-client-root).
+          client_cert_path = "/etc/mysql-tls/tls.crt"
+          client_key_path = "/etc/mysql-tls/tls.key"
         }
       }
       KeyManager "disk" {
@@ -241,10 +244,7 @@ spec:
       volumes:
         - name: mysql-tls
           secret:
-            secretName: mysql-tls
-            items:
-              - key: ca.crt
-                path: ca.crt
+            secretName: mysql-client-root
         - name: mysql-client-tls
           configMap:
             name: mysql-client-tls

@@ -18,6 +18,10 @@
 #  REPLICATION CLIENT, SELECT on performance_schema, 3 connections at most, no
 #  application data. Password MYSQL_EXPORTER_PASSWORD (optional key, skipped
 #  when absent: the exporters then report mysql_up 0).
+#
+#  Every network user (migrator, retention, exporter, and the image users
+#  scraper and root) is bound to its cert-manager client certificate with
+#  REQUIRE ISSUER / SUBJECT (issue #767, mysql-tls.yaml): CN = user name.
 # =============================================================================
 apiVersion: batch/v1
 kind: Job
@@ -76,17 +80,30 @@ spec:
                 *[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_EXPORTER_PASSWORD must match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
               esac
               export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
+              # TLS_BIND=false (first upgrade, mysqld still on its auto-generated certificate, which
+              # rejects our client certificate): no REQUIRE yet; run-migrations.sh runs this job again
+              # once mysqld serves the cert-manager certificate (docs/deployment/MYSQL_TLS.md).
+              rq() { [ "${TLS_BIND:-true}" = false ] || echo "REQUIRE ISSUER '/CN=trading-model-mysql-ca' AND SUBJECT '/CN=$1'"; }
               mysql -h mysql-primary -u root <<EOSQL
               CREATE USER IF NOT EXISTS 'migrator'@'%' IDENTIFIED BY '${pw}';
-              ALTER USER 'migrator'@'%' IDENTIFIED BY '${pw}';
+              ALTER USER 'migrator'@'%' IDENTIFIED BY '${pw}' $(rq migrator);
               GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, REFERENCES, EVENT, TRIGGER
                 ON financial_scraper.* TO 'migrator'@'%';
               EOSQL
               echo "migrator user ready"
+              # Client certificates (issue #767): the password alone no longer opens a
+              # session for these users; this job itself presents the root one.
+              if [ "${TLS_BIND:-true}" != false ]; then
+                mysql -h mysql-primary -u root <<EOSQL
+              ALTER USER IF EXISTS 'scraper'@'%' $(rq scraper);
+              ALTER USER IF EXISTS 'root'@'%' $(rq root);
+              EOSQL
+              fi
+              echo "scraper and root require their client certificate"
               if [ -n "$epw" ]; then
                 mysql -h mysql-primary -u root <<EOSQL
               CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '${epw}' WITH MAX_USER_CONNECTIONS 3;
-              ALTER USER 'exporter'@'%' IDENTIFIED BY '${epw}' WITH MAX_USER_CONNECTIONS 3;
+              ALTER USER 'exporter'@'%' IDENTIFIED BY '${epw}' $(rq exporter) WITH MAX_USER_CONNECTIONS 3;
               GRANT PROCESS, REPLICATION CLIENT ON *.* TO 'exporter'@'%';
               GRANT SELECT ON performance_schema.* TO 'exporter'@'%';
               EOSQL
@@ -102,7 +119,7 @@ spec:
               # on a new database, so grant only when they are there.
               mysql -h mysql-primary -u root <<EOSQL
               CREATE USER IF NOT EXISTS 'retention'@'%' IDENTIFIED BY '${rpw}';
-              ALTER USER 'retention'@'%' IDENTIFIED BY '${rpw}';
+              ALTER USER 'retention'@'%' IDENTIFIED BY '${rpw}' $(rq retention);
               EOSQL
               for t in market_candles market_trades market_tickers market_order_books signals; do
                 if [ "$(mysql -h mysql-primary -u root -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='financial_scraper' AND table_name='$t'")" = 1 ]; then
@@ -155,10 +172,7 @@ spec:
       volumes:
         - name: mysql-tls
           secret:
-            secretName: mysql-tls
-            items:
-              - key: ca.crt
-                path: ca.crt
+            secretName: mysql-client-root
         - name: mysql-client-tls
           configMap:
             name: mysql-client-tls
