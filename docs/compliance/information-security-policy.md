@@ -110,9 +110,9 @@ The platform is deployed as a containerised microservice architecture. Physical 
 
 | Component | Tool | Retention |
 |---|---|---|
-| Structured application logs | stdout → Promtail → Loki | 30 days |
+| Structured application logs | stdout → Promtail → Loki | 31 days (`744h`) |
 | Audit events | MongoDB (audit-logger) | 1827 days (5 years) |
-| Service metrics | Prometheus → Grafana | 15 days |
+| Service metrics | Prometheus → Grafana | 30 days |
 | Distributed traces | OpenTelemetry → Jaeger | 7 days |
 | SVID lifecycle events | SPIRE + audit-logger | 1827 days (5 years) |
 

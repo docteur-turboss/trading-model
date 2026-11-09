@@ -27,6 +27,15 @@ const DPIA = 'docs/compliance/dpia.md';
 const auditDays = grab('services/audit-logger/src/infrastructure/config/env.ts', /AUDIT_RETENTION_DAYS: .*?\.default\((\d+)\)/)[1];
 const dlqDays = grab('services/dlq-service/src/config/index-manager.ts', /expireAfterSeconds: (\d+) \* 86400/)[1];
 const lokiHours = grab('observability/loki-config.yml', /retention_period: (\d+h)/)[1];
+const promDays = [
+  grab('docker-compose.yml', /--storage.tsdb.retention.time=(d+)d/)[1],
+  grab('deploy/k8s/infra/prometheus.yaml', /--storage.tsdb.retention.time=(d+)d/)[1],
+].reduce((a, b) => {
+  if (a !== b) throw new Error(`Prometheus retention differs: compose ${a}d, k8s ${b}d`);
+  return a;
+});
+const lokiDays = parseInt(lokiHours, 10) / 24;
+const POLICY = 'docs/compliance/information-security-policy.md';
 const journalH = grab('services/message-manager/src/application/ports/message-journal-port.ts', /JOURNAL_RETENTION_MS = (\d+) \* 60 \* 60 \* 1000/)[1];
 const mysqlDays = grab('scripts/retention-mysql.sh', /RETENTION_DAYS="\$\{RETENTION_DAYS:-(\d+)\}"/)[1];
 const keyPatterns = grab('packages/http/src/infrastructure/sensitive-data-sanitizer.ts', /SENSITIVE_KEY_PATTERNS = \[([\s\S]*?)\n\];/)[1]
@@ -42,7 +51,10 @@ const CHECKS = [
   [REGISTER, `${mysqlDays} days (5 years`],
   [DPIA, `${auditDays} days audit, ${dlqDays} days DLQ`],
   [DPIA, `${keyPatterns} sensitive-key patterns`],
-  ['docs/compliance/information-security-policy.md', `${keyPatterns} patterns`],
+  [DPIA, `Loki ${lokiDays} days, Prometheus ${promDays} days`],
+  [POLICY, `${lokiDays} days (\`${lokiHours}\`)`],
+  [POLICY, `Prometheus → Grafana | ${promDays} days`],
+  [POLICY, `${keyPatterns} patterns`],
 ];
 
 const FORBIDDEN = /not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer/i;

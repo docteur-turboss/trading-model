@@ -12,6 +12,8 @@ const FILES = [
   'services/audit-logger/src/infrastructure/config/env.ts',
   'services/dlq-service/src/config/index-manager.ts',
   'observability/loki-config.yml',
+  'docker-compose.yml',
+  'deploy/k8s/infra/prometheus.yaml',
   'services/message-manager/src/application/ports/message-journal-port.ts',
   'scripts/retention-mysql.sh',
   'packages/http/src/infrastructure/sensitive-data-sanitizer.ts',
@@ -55,4 +57,15 @@ test('fails on stale wording', () => {
   });
   assert.equal(r.status, 1);
   assert.match(r.stderr, /stale wording/);
+});
+
+test('fails when the security policy cites a wrong Loki or Prometheus duration', () => {
+  for (const [from, to] of [['31 days (`744h`)', '30 days (`744h`)'], ['Prometheus → Grafana | 30 days', 'Prometheus → Grafana | 15 days']]) {
+    const r = run((dir) => {
+      const f = join(dir, 'docs/compliance/information-security-policy.md');
+      writeFileSync(f, readFileSync(f, 'utf8').replace(from, to));
+    });
+    assert.equal(r.status, 1, from);
+    assert.match(r.stderr, /information-security-policy/);
+  }
 });
