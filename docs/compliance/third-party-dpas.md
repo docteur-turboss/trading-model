@@ -17,7 +17,7 @@ The financial-scraper service fetches **market data only** from Binance's public
 | `GET /api/v3/ticker/price`      | Current price ticker                           |
 | `GET /api/v3/ticker/bookTicker` | Best bid/ask                                   |
 
-The scraper also calls `historicalTrades`, `aggTrades` and `ticker/tradingDay`, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
+The six endpoints above are the only ones called, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
 
 ### Regulatory Status (MiCA)
 

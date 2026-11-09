@@ -9,8 +9,8 @@
  * Usage: node scripts/compliance-check.mjs [rootDir]
  * `rootDir` (default: the repo) lets the test point at a fake tree.
  */
-import { readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), '..'));
@@ -67,6 +67,43 @@ for (const f of ['data-processing-register', 'dpia', 'compliance-framework', 'in
   const file = `docs/compliance/${f}.md`;
   read(file).split('\n').forEach((l, i) => {
     if (FORBIDDEN.test(l)) errors.push(`${file}:${i + 1}: stale wording "${l.match(FORBIDDEN)[0]}"`);
+  });
+}
+
+// Code identifiers cited in docs/compliance/ must exist in the code (issue #733).
+// shortcut: whole-tree substring search, so a name used only in a comment still passes; upgrade if that bites.
+const CODE_DIRS = ['services', 'packages', 'deploy', 'scripts', 'observability', 'tests', '.github'];
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', '.git']);
+// Identifiers allowed without a match in code. Each needs a reason.
+const IDENTIFIER_EXCEPTIONS = new Set([
+  // none yet
+]);
+const files = [];
+const walk = (dir) => {
+  for (const e of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+    if (SKIP_DIRS.has(e.name)) continue;
+    if (e.isDirectory()) walk(join(dir, e.name));
+    else files.push(join(dir, e.name));
+  }
+};
+for (const d of CODE_DIRS) {
+  try {
+    walk(d);
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+  }
+}
+const corpus = files.map((f) => read(f)).join('\n');
+const baseNames = new Set(files.map((f) => basename(f)));
+const IDENT = /^(?:[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|[a-z]+(?:[A-Z][a-z0-9]*)+)$/;
+for (const doc of readdirSync(join(ROOT, 'docs/compliance')).filter((f) => f.endsWith('.md'))) {
+  const file = `docs/compliance/${doc}`;
+  read(file).split('\n').forEach((line, i) => {
+    for (const [, span] of line.matchAll(/`([^`\s]+)`/g)) {
+      if (IDENTIFIER_EXCEPTIONS.has(span)) continue;
+      const found = span.endsWith('.ts') ? baseNames.has(basename(span)) : !IDENT.test(span) || corpus.includes(span);
+      if (!found) errors.push(`${file}:${i + 1}: \`${span}\` not found in ${CODE_DIRS.join(', ')}`);
+    }
   });
 }
 

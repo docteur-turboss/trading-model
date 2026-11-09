@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,31 +8,19 @@ import { test } from 'node:test';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = join(REPO, 'scripts/compliance-check.mjs');
-const FILES = [
-  'services/audit-logger/src/infrastructure/config/env.ts',
-  'services/dlq-service/src/config/index-manager.ts',
-  'observability/loki-config.yml',
-  'docker-compose.yml',
-  'deploy/k8s/infra/prometheus.yaml',
-  'services/message-manager/src/application/ports/message-journal-port.ts',
-  'scripts/retention-mysql.sh',
-  'packages/http/src/infrastructure/sensitive-data-sanitizer.ts',
-  'docs/compliance/data-processing-register.md',
-  'docs/compliance/dpia.md',
-  'docs/compliance/compliance-framework.md',
-  'docs/compliance/information-security-policy.md',
-];
+const CODE_DIRS = ['services', 'packages', 'deploy', 'scripts', 'observability', 'tests', '.github'];
 
 function run(mutate) {
   const dir = mkdtempSync(join(tmpdir(), 'compliance-'));
   try {
-    for (const f of FILES) {
-      mkdirSync(dirname(join(dir, f)), { recursive: true });
-      cpSync(join(REPO, f), join(dir, f));
-    }
+    // Docs are copied (the tests mutate them); code is linked read-only (the script only reads it).
+    cpSync(join(REPO, 'docker-compose.yml'), join(dir, 'docker-compose.yml'));
+    cpSync(join(REPO, 'docs/compliance'), join(dir, 'docs/compliance'), { recursive: true });
+    for (const d of CODE_DIRS) symlinkSync(join(REPO, d), join(dir, d), 'junction');
     mutate?.(dir);
     return spawnSync('node', [SCRIPT, dir], { encoding: 'utf8' });
   } finally {
+    for (const d of CODE_DIRS) unlinkSync(join(dir, d)); // unlink only, never the real tree
     rmSync(dir, { recursive: true, force: true });
   }
 }
@@ -68,4 +56,15 @@ test('fails when the security policy cites a wrong Loki or Prometheus duration',
     assert.equal(r.status, 1, from);
     assert.match(r.stderr, /information-security-policy/);
   }
+});
+
+test('fails on a code identifier that exists nowhere', () => {
+  // Built at run time: scripts/ is searched code, a literal here would match itself.
+  const ids = ['FAKE_ORDER_' + 'LIMIT', 'fakeCadence' + 'Xyz', 'no-such-' + 'file.ts'];
+  const r = run((dir) => {
+    const f = join(dir, 'docs/compliance/algorithmic-trading-compliance.md');
+    writeFileSync(f, `${readFileSync(f, 'utf8')}\nLimit: ${ids.map((i) => `\`${i}\``).join(', ')}\n`);
+  });
+  assert.equal(r.status, 1);
+  for (const id of ids) assert.ok(r.stderr.includes(id), id);
 });
