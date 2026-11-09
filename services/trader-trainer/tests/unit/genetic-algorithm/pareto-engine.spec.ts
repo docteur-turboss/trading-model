@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import { ParetoArchive } from "../../../src/domain/genetic-algorithm/pareto/archive";
 import type { ObjectiveVector } from "../../../src/domain/genetic-algorithm/pareto/domination";
@@ -90,7 +91,7 @@ describe("buildPopulationMeta", () => {
 			sharpe: i * 0.1,
 			negFlops: -1000 + i,
 		}));
-		const meta = buildPopulationMeta(objs, Math.random);
+		const meta = buildPopulationMeta(objs, makePRNG(9102));
 		expect(meta.paretoRank).toHaveLength(count);
 	});
 

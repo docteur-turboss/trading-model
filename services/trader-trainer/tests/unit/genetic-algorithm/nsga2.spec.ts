@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import { buildPopulationMeta } from "../../../src/domain/genetic-algorithm/pareto/nsga2";
 
 function linearRng(): () => number {
@@ -90,10 +91,11 @@ describe("buildPopulationMeta", () => {
 
 	test("should handle many objectives (triggers approximate sort)", () => {
 		const rng = linearRng();
+		const seeded = makePRNG(9101);
 		const objs = Array.from({ length: 350 }, (_, _i) => ({
-			avgPnl: Math.random() * 100,
-			sharpe: Math.random() * 5,
-			negFlops: -Math.random() * 1000,
+			avgPnl: seeded() * 100,
+			sharpe: seeded() * 5,
+			negFlops: -seeded() * 1000,
 		}));
 		const meta = buildPopulationMeta(objs, rng);
 		expect(meta.paretoRank).toHaveLength(350);
