@@ -277,6 +277,11 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   template:
+    metadata:
+      # The pod needs these labels: mysql-network-policy only admits listed components.
+      labels:
+        app.kubernetes.io/component: mysql
+        app.kubernetes.io/part-of: trading-model
     spec:
       restartPolicy: OnFailure
       securityContext:
