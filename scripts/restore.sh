@@ -40,9 +40,10 @@ fail() { log "✗ $*"; RESTORE_FAILURES=$((RESTORE_FAILURES + 1)); }
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
 
-# Restore needs every action (oplog replay): the `root` user (ADR-0058); the
-# password stays in the container's env.
-MONGO_ROOT_RESTORE='mongorestore --gzip --drop --username root --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin'
+# Restore needs every action: the `root` user (ADR-0058); the password stays in
+# the container env. admin.* is excluded: restoring admin.system.users drops the
+# session of root mid-restore (createIndexes: Unauthorized); `mongo-users` recreates them.
+MONGO_ROOT_RESTORE='mongorestore --gzip --drop --username root --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --nsExclude "admin.*"'
 
 restore_mongodb() {
   log "Starting MongoDB restore..."
