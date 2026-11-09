@@ -43,12 +43,12 @@ Open the **Actions** tab → **Deploy** → **Run workflow**, then select:
 | Input | Description |
 |-------|-------------|
 | `environment` | `staging` or `production` |
-| `image_tag` | Required: release to deploy, `v1.2.3` or `1.2.3`. Staging also accepts `latest` (the highest stable release); production refuses anything but a release, before the cluster is reached. Resolved to image digests before anything is applied |
+| `image_tag` | Required: release to deploy, `v1.2.3` or `1.2.3` (prerelease `v1.2.3-rc.1` or `1.2.3-rc.1` too). Staging also accepts `latest` (the highest stable release); production refuses anything but a release, before the cluster is reached. Resolved to image digests before anything is applied |
 | `canary` | Run canary + smoke test with automatic rollback on failure |
 
 ### Source of the manifests and migrations
 
-When `image_tag` is a release (`v1.2.3` or `1.2.3`), the workflow checks out
+When `image_tag` is a release (`v1.2.3`, `1.2.3`, or a prerelease such as `v1.2.3-rc.1`), the workflow checks out
 the git tag `refs/tags/v1.2.3`, whatever branch it was dispatched from: the
 overlay, the node agents and the migrations applied are those of the release
 the images come from. The job log prints the commit (`Manifests and migrations
@@ -150,7 +150,7 @@ missing rule loses nothing, but those copies are then never expired.
 ### Deployment phases
 
 ```
-0. Resolve the release ref (production: vX.Y.Z only) and check out its tag
+0. Resolve the release ref (production: vX.Y.Z or vX.Y.Z-rc.N only) and check out its tag
 1. Configure kubectl (two kubeconfigs: application and cluster-scope, from secrets)
 2. Resolve every image tag to a digest (fails if the release was not published)
 3. Check sealed secrets (production: controller CRD present, no placeholder)
