@@ -219,6 +219,7 @@
         "@types/node": "^26.6.6",
         "jest": "^30.5.2",
         "ts-jest": "^29.4.15",
+        "ts-node": "^10.9.2",
         "typescript": "^6.0.3",
       },
     },
@@ -242,7 +243,7 @@
     },
     "services/api-gateway": {
       "name": "api-gateway",
-      "version": "3.0.0",
+      "version": "3.1.0-rc.1",
       "dependencies": {
         "@trading-model/address-manager": "*",
         "@trading-model/common": "*",
@@ -269,7 +270,7 @@
     },
     "services/audit-logger": {
       "name": "audit-logger",
-      "version": "3.0.0",
+      "version": "3.1.0-rc.1",
       "bin": {
         "audit-chain": "./dist/application/chain-cli.js",
       },
@@ -302,7 +303,7 @@
     },
     "services/discovery-server": {
       "name": "discovery-server",
-      "version": "3.0.0",
+      "version": "3.1.0-rc.1",
       "dependencies": {
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
@@ -331,7 +332,7 @@
     },
     "services/dlq-service": {
       "name": "dlq-service",
-      "version": "3.0.0",
+      "version": "3.1.0-rc.1",
       "dependencies": {
         "@opentelemetry/api": "^1.10.0",
         "@trading-model/address-manager": "^1.2.0",
@@ -365,7 +366,7 @@
     },
     "services/financial-scraper": {
       "name": "financial-scraper",
-      "version": "3.0.0",
+      "version": "3.1.0-rc.1",
       "dependencies": {
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
@@ -399,7 +400,7 @@
     },
     "services/message-manager": {
       "name": "message-manager",
-      "version": "3.0.0",
+      "version": "3.1.0-rc.1",
       "dependencies": {
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
@@ -431,7 +432,7 @@
     },
     "services/trader-trainer": {
       "name": "trader-service",
-      "version": "3.0.0",
+      "version": "3.1.0-rc.1",
       "dependencies": {
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
