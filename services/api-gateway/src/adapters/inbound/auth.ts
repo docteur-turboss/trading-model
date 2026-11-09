@@ -6,30 +6,62 @@ import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 
 import { ENV } from "../../infrastructure/config/env";
 import { AUTH_FAILURES_TOTAL } from "../../infrastructure/config/metrics";
+import {
+	API_SCOPES,
+	type ApiKey,
+	type ApiScope,
+	parseApiKey,
+} from "../../shared/api-keys";
 
-interface AuthRequest {
+/** What AUTH_MIDDLEWARE sets on an authenticated request. */
+export interface AuthenticatedRequest {
 	clientIdentity: ClientIdentity;
+	/** Name of the API key (ADR-0059), null in non-strict mode without keys. */
+	apiKeyName: string | null;
+	apiKeyScopes: readonly ApiScope[];
 }
 
-function getValidTokens(): string[] {
-	return parseCommaSeparated(ENV.AUTH_TOKENS);
+let parsedFrom: string | undefined;
+let parsedKeys: ApiKey[] = [];
+
+/** The valid keys of AUTH_TOKENS, parsed again only when it changes. */
+function getValidKeys(): ApiKey[] {
+	if (parsedFrom !== ENV.AUTH_TOKENS) {
+		parsedFrom = ENV.AUTH_TOKENS;
+		parsedKeys = parseCommaSeparated(ENV.AUTH_TOKENS)
+			.map(parseApiKey)
+			.filter((key): key is ApiKey => "secret" in key);
+		for (const key of parsedKeys.filter((candidate) => candidate.legacy)) {
+			logger.warn(
+				`AUTH_TOKENS: "${key.name}" uses the old format (bare secret), granted every scope; rewrite it as name:scopes:secret before the next release (ADR-0059)`
+			);
+		}
+	}
+	return parsedKeys;
 }
 
 const sha256 = (value: string): Buffer =>
 	createHash("sha256").update(value).digest();
 
 /** Fixed-length digests compared in constant time; no early exit on a match. */
-function isValidToken(token: string, validTokens: string[]): boolean {
+function findKey(token: string, keys: ApiKey[]): ApiKey | undefined {
 	const digest = sha256(token);
-	let ok = false;
-	for (const valid of validTokens) {
-		ok = timingSafeEqual(digest, sha256(valid)) || ok;
+	let found: ApiKey | undefined;
+	for (const key of keys) {
+		if (timingSafeEqual(digest, sha256(key.secret)) && !found) {
+			found = key;
+		}
 	}
-	return ok;
+	return found;
+}
+
+/** The scopes and key name AUTH_MIDDLEWARE set on the request. */
+export function authOf(req: Request): AuthenticatedRequest {
+	return req as unknown as AuthenticatedRequest;
 }
 
 export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
@@ -46,8 +78,9 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 		);
 	}
 
-	const validTokens = getValidTokens();
-	if (validTokens.length === 0) {
+	const validKeys = getValidKeys();
+	let key: ApiKey | undefined;
+	if (validKeys.length === 0) {
 		if (ENV.AUTH_STRICT) {
 			AUTH_FAILURES_TOTAL.inc();
 			return sendResponse(
@@ -56,16 +89,22 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 			);
 		}
 		logger.warn("AUTH_TOKENS is empty — accepting any token (non-strict mode)");
-	} else if (!isValidToken(token, validTokens)) {
-		AUTH_FAILURES_TOTAL.inc();
-		return sendResponse(
-			{ error: "Invalid authentication token" },
-			401 as HttpStatusCode
-		);
+	} else {
+		key = findKey(token, validKeys);
+		if (!key) {
+			AUTH_FAILURES_TOTAL.inc();
+			return sendResponse(
+				{ error: "Invalid authentication token" },
+				401 as HttpStatusCode
+			);
+		}
 	}
 
-	(req as unknown as AuthRequest).clientIdentity = ClientIdentity.of(
+	const auth = authOf(req);
+	auth.clientIdentity = ClientIdentity.of(
 		`client:${sha256(token).toString("hex").slice(0, 32)}`
 	);
+	auth.apiKeyName = key?.name ?? null;
+	auth.apiKeyScopes = key?.scopes ?? API_SCOPES;
 	next();
 });

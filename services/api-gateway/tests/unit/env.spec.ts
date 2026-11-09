@@ -123,6 +123,13 @@ describe("env", () => {
 			}
 		);
 
+		it("should refuse to start with a malformed API key, without logging its secret", () => {
+			process.env.AUTH_TOKENS = "ops:admin:top-secret-value";
+			const issues = refusal();
+			expect(issues).toContain("scopes must be among read, dlq:write");
+			expect(issues).not.toContain("top-secret-value");
+		});
+
 		it("should refuse to start with AUTH_STRICT=false", () => {
 			process.env.AUTH_STRICT = "false";
 			expect(refusal()).toContain("AUTH_STRICT cannot be false in production");

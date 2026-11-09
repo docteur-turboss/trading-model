@@ -95,6 +95,35 @@ describe("AUTH_MIDDLEWARE", () => {
 		expect(result).toMatchObject({ status: 401 });
 	});
 
+	it("sets the key name and scopes of a named key", async () => {
+		mockEnvTokens("ops-alice:read:alice-secret");
+		const req: any = createReq({ headers: { "x-api-key": "alice-secret" } });
+
+		await AUTH_MIDDLEWARE(req, createRes(), createNext);
+
+		expect(req.apiKeyName).toBe("ops-alice");
+		expect(req.apiKeyScopes).toEqual(["read"]);
+	});
+
+	it("grants every scope to an old-format key, with a warning that never quotes the secret", async () => {
+		const { logger } = require("@trading-model/http/infrastructure/logger");
+		mockEnvTokens("legacy-shared-secret");
+		const req: any = createReq({
+			headers: { "x-api-key": "legacy-shared-secret" },
+		});
+
+		await AUTH_MIDDLEWARE(req, createRes(), createNext);
+
+		expect(req.apiKeyName).toMatch(/^legacy-[0-9a-f]{8}$/);
+		expect(req.apiKeyScopes).toEqual(["read", "dlq:write"]);
+		expect(logger.warn).toHaveBeenCalledWith(
+			expect.stringContaining(req.apiKeyName)
+		);
+		const logged = JSON.stringify(logger.warn.mock.calls);
+		expect(logged).not.toContain("legacy-shared-secret");
+		expect(String(req.clientIdentity)).not.toContain("legacy-shared-secret");
+	});
+
 	it("should give distinct identities to tokens sharing an 8-char prefix", async () => {
 		mockEnvTokens("abcdefgh-1,abcdefgh-2");
 		const ids = [];

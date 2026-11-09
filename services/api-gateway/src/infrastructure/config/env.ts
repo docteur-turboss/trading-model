@@ -4,6 +4,8 @@ import { validateEnv } from "@trading-model/validation/application/services/vali
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { z } from "zod";
 
+import { parseApiKey } from "../../shared/api-keys";
+
 const API_GATEWAY_ENV_SHAPE = {
 	DISCOVERY_SERVICE_URL: z
 		.string()
@@ -38,6 +40,16 @@ const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(
 				"ALLOWED_PROXY_CIDRS cannot be empty in production — proxy target validation would be disabled",
 			path: ["ALLOWED_PROXY_CIDRS"],
 		});
+	}
+	for (const entry of parseCommaSeparated(data.AUTH_TOKENS)) {
+		const key = parseApiKey(entry);
+		if ("error" in key) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `AUTH_TOKENS: ${key.error} (format name:scope1+scope2:secret, ADR-0059)`,
+				path: ["AUTH_TOKENS"],
+			});
+		}
 	}
 	if (data.NODE_ENV !== "production") {
 		return;
