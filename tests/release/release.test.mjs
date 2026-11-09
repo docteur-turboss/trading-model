@@ -9,6 +9,13 @@ import { fileURLToPath } from 'node:url';
 // Runs the real scripts/release.mjs, copied into a throwaway git repository (it releases its parent directory).
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'scripts', 'release.mjs');
 const GIT_ID = ['-c', 'user.name=release-test', '-c', 'user.email=release-test@example.invalid'];
+// CI runners have no git identity and the script runs `git commit` itself.
+const GIT_IDENT_ENV = {
+  GIT_AUTHOR_NAME: 'release-test',
+  GIT_AUTHOR_EMAIL: 'release-test@example.invalid',
+  GIT_COMMITTER_NAME: 'release-test',
+  GIT_COMMITTER_EMAIL: 'release-test@example.invalid',
+};
 const GIT_NO_SIGN = ['-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false'];
 let repo;
 
@@ -28,7 +35,7 @@ function commit(message) {
 }
 
 function release(...args) {
-  const r = spawnSync(process.execPath, [join(repo, 'scripts', 'release.mjs'), ...args], { cwd: repo, encoding: 'utf-8' });
+  const r = spawnSync(process.execPath, [join(repo, 'scripts', 'release.mjs'), ...args], { cwd: repo, encoding: 'utf-8', env: { ...process.env, ...GIT_IDENT_ENV } });
   return { status: r.status, out: `${r.stdout}${r.stderr}` };
 }
 
