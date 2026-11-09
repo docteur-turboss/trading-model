@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // =============================================================================
 //  message-schemas.mjs — versioned JSON Schema snapshot of the bus messages
-//  (ADR-0060).
+//  (ADR-0061).
 //
 //    (default)  fail when docs/services/events/schemas.json is not up to date
 //    --write    regenerate it from EVENT_VALIDATORS (Zod 4 toJSONSchema)
@@ -72,7 +72,7 @@ if (mode === "--write") {
 			.filter((b) => !allowed.has(b));
 		if (failures.length) {
 			console.error(`contracts:compat: breaking changes against ${previous.tag}:\n  ${failures.join("\n  ")}`);
-			console.error('Intentional? Add {"break": "<exact line>", "reason": "..."} to docs/services/events/breaking-exceptions.json (ADR-0060).');
+			console.error('Intentional? Add {"break": "<exact line>", "reason": "..."} to docs/services/events/breaking-exceptions.json (ADR-0061).');
 			process.exit(1);
 		}
 		console.log(`contracts:compat: compatible with ${previous.tag}`);

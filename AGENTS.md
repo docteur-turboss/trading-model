@@ -13,7 +13,7 @@ bun run typecheck:tests         # tsc --noEmit of src + tests of every workspace
 bun run deps:check              # Verify @trading-model/* imports match package.json manifests (ADR-0016)
 bun run api:check               # OpenAPI up to date + documented routes reach real routes + every service-to-service route has a caller, no WebSocket server (ADR-0029)
 bun run api:write               # Regenerate docs/services/openapi/api-gateway.yaml from the routes
-bun run contracts:check          # Bus message JSON Schema snapshot (docs/services/events/schemas.json) up to date; contracts:write regenerates, contracts:compat compares with the last release tag (ADR-0060)
+bun run contracts:check          # Bus message JSON Schema snapshot (docs/services/events/schemas.json) up to date; contracts:write regenerates, contracts:compat compares with the last release tag (ADR-0061)
 bun run adr:check               # Every live ADR names its check; supersession + index consistent
 bun run test:contract           # Cross-service contracts, real code on both sides: messages (scraper/trainer → message-manager → trainer/audit-logger), dead letters, discovery (address-manager + gateway → discovery-server)
 bun run reach:report            # Report src no service entry point (main/bin) reaches (--list for files)

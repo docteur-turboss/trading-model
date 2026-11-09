@@ -1,4 +1,4 @@
-# ADR-0060: N-1 Compatibility of the Public API and the Bus Messages
+# ADR-0061: N-1 Compatibility of the Public API and the Bus Messages
 
 **Status:** Accepted
 **Date:** 2026-11

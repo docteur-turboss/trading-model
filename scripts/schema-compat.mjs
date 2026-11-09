@@ -1,5 +1,5 @@
 // Backward-compatibility rules between two JSON Schemas of the same message
-// (ADR-0060): what the previous release produced must still be accepted and
+// (ADR-0061): what the previous release produced must still be accepted and
 // understood by the current one. Pure function, no I/O.
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
