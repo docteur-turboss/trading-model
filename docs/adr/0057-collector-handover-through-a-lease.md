@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Supersedes:** [ADR-0042](./0042-singleton-collector-with-verified-recovery.md)
-**Related:** [ADR-0041](./0041-least-privilege-deploy-identities.md) (the deploy identity holds the rights of the new Role), [ADR-0044](./0044-singleton-trainer.md) (the trainer stays a `Recreate` singleton), [ADR-0017](./0017-no-swallowed-errors.md)
+**Related:** [ADR-0041](./0041-least-privilege-deploy-identities.md) (the deploy identity holds the rights of the new Role), [ADR-0044](./0044-singleton-trainer.md) and [ADR-0058](./0058-trainer-handover-through-a-lease.md) (the trainer got the same handover), [ADR-0017](./0017-no-swallowed-errors.md)
 **Verified by:** `services/financial-scraper/tests/unit/app/collector-leadership.spec.ts`, `tests/k8s/check-overlays.mjs`, `tests/k8s/run-kind.sh`, `tests/alerts/alerting.test.yml`
 
 ## Context

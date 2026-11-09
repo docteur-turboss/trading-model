@@ -4,7 +4,8 @@
 target in [slo.md](../slo.md#6-training-completion-rate)),
 `ModelArtifactWriteFailing` (warning),
 `TrainerEventLoopBlocked` (warning),
-`TrainerEventLoopLagHigh` (warning).
+`TrainerEventLoopLagHigh` (warning),
+`TrainerNoLeader` (warning).
 
 No market data reaching the trainer is a different alert,
 `TrainerMarketDataStale` ([runbook-market-data-stale](runbook-market-data-stale.md)):
@@ -130,6 +131,40 @@ smooths out, including blocks outside GA evaluation (DQN step, GC, JSON
 parsing). Same diagnosis and remediation as `TrainerEventLoopBlocked`: lag high
 while the p99 is low means the block is outside the GA (check the DQN step and
 memory pressure first).
+
+## TrainerNoLeader
+
+No pod reported `tt_training_leader` = 1 for 5 minutes: no trainer pod holds
+the Lease `trader-trainer`, so none trains (ADR-0058). The read routes still
+answer from the stored models and the summaries rehydrated at startup; no new
+model is produced. A rollout handover lasts the end of one generation plus a
+few seconds and never fires it.
+
+```bash
+NS=trading-model
+# Holder, last renewal, transitions. A holder that is no running pod: the
+# Lease expires 15 s after its last renewal and a running trainer takes it.
+kubectl -n $NS get lease trader-trainer -o yaml
+kubectl -n $NS get pods -l app.kubernetes.io/component=trader-trainer
+# Election logs: "Trainer lease acquired", "Trainer lease unreachable",
+# "Trainer stops training" (with the reason)
+kubectl -n $NS logs deploy/trader-trainer -c trader-trainer --tail=200 | grep -i lease
+```
+
+| Seen | Cause and fix |
+| --- | --- |
+| No trainer pod, or not ready | Deployment scaled to 0 or crash loop: `kubectl -n $NS describe deploy trader-trainer`, then its pod logs |
+| `Trainer lease unreachable` with 403 | RBAC: the Role `trader-trainer-lease` or its RoleBinding is missing, or the Lease name differs from `TRAINER_LEASE_NAME`. Apply the overlay again |
+| `Trainer lease unreachable` with 404 | The Lease object is missing (the Role grants no `create`). Apply the overlay again |
+| `Trainer lease unreachable` with a timeout or ECONNREFUSED | API server unreachable from the pod: NetworkPolicy `trader-trainer-apiserver` (private ranges, 443/6443), or the API server is down |
+| Startup error on `/var/run/secrets/kubernetes.io/serviceaccount` | The token is not mounted: `automountServiceAccountToken: true` is missing from the trainer pod template |
+
+A holder that stopped renewing (frozen pod) keeps the Lease for 15 s at most.
+To hand it over at once, delete that pod; never edit the Lease by hand while
+a trainer runs.
+
+**Resolution check:** `max(tt_training_leader)` is 1 again and
+`tt_training_sessions_total` grows.
 
 ## ModelArtifactWriteFailing
 

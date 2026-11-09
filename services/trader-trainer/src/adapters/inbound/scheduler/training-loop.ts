@@ -115,7 +115,12 @@ export class TrainingLoop {
 		}
 	}
 
-	stop(): void {
+	/**
+	 * Stops scheduling, then ends the session in flight early and waits until
+	 * its model is stored and published (ADR-0058).
+	 */
+	async stop(): Promise<void> {
 		this._trainingInterval.stop();
+		await this._trainer.stopTraining();
 	}
 }

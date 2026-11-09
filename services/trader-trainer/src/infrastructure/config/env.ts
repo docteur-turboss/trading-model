@@ -32,6 +32,11 @@ const TRAINER_ENV_SHAPE = {
 	FEATURE_RISK_ADJUSTED_FITNESS: featureFlag(true),
 	/** Show the agent its position; false to measure what it is worth (ADR-0025). */
 	TRAINER_OBSERVE_POSITION: z.stringbool().default(true),
+	/**
+	 * Kubernetes Lease the trainer pods compete for (ADR-0058): only its holder
+	 * trains. Empty: no election, this instance trains (compose, dev).
+	 */
+	TRAINER_LEASE_NAME: z.string().trim().default(""),
 } satisfies Record<string, z.ZodTypeAny>;
 
 const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(

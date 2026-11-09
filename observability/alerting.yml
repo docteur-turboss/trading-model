@@ -479,6 +479,18 @@ groups:
           description: 'Trainer event loop lag reached {{ $value | humanizeDuration }} (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
 
+      # ADR-0058: only the holder of the trainer Lease trains; the other pod of a
+      # rollout reports 0, so max() is 0 when no pod holds it.
+      - alert: TrainerNoLeader
+        expr: max(tt_training_leader) < 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'No trader-trainer pod holds the Lease'
+          description: 'No pod has trained for 5 minutes: no trainer pod holds the Lease trader-trainer (API server unreachable, RBAC, NetworkPolicy). The read routes still answer the last stored models; no new model is produced.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernoleader'
+
       - alert: MarketDataStale
         expr: sum(increase(fs_candles_persisted_total[15m])) == 0
         for: 5m

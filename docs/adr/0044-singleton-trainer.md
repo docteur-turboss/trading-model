@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Related:** [ADR-0042](./0042-singleton-collector-with-verified-recovery.md) (same pattern for the collector), [ADR-0024](./0024-pod-spread-across-nodes.md) (its trader-trainer row no longer applies), [ADR-0022](./0022-versioned-model-artifacts.md)
+**Related:** [ADR-0058](./0058-trainer-handover-through-a-lease.md) (amends it: decisions 1 and 5 superseded, the trainer rolls out through a Lease handover), [ADR-0042](./0042-singleton-collector-with-verified-recovery.md) (same pattern for the collector), [ADR-0024](./0024-pod-spread-across-nodes.md) (its trader-trainer row no longer applies), [ADR-0022](./0022-versioned-model-artifacts.md)
 **Verified by:** `tests/k8s/check-overlays.mjs`
 
 ## Context
@@ -11,17 +11,17 @@
 
 ## Decision
 
-1. `trader-trainer` runs exactly one pod: `replicas: 1`, no HorizontalPodAutoscaler, strategy `Recreate`, so a rollout never runs the old and the new trainer side by side.
+1. *(Superseded by ADR-0058: `RollingUpdate` with a Lease, only its holder trains.)* `trader-trainer` runs exactly one pod: `replicas: 1`, no HorizontalPodAutoscaler, strategy `Recreate`, so a rollout never runs the old and the new trainer side by side.
 2. Sizing stays vertical: the VPA `trader-trainer-vpa` (`updateMode: "Off"`) keeps recommending requests; raising them is a manifest change.
 3. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` before the overlay is applied (apply never prunes).
 4. The trainer has no canary, like the collector: `deploy-k8s.sh canary` copies the Deployment into a second pod, which would train beside the singleton. `deploy.yml` leaves it out of `canary-all` and `canary-cleanup`.
-5. `tests/k8s/check-overlays.mjs` fails when the trainer (or the collector, ADR-0042) gets an HPA, `replicas` other than 1, a strategy other than `Recreate`, or a canary in `deploy.yml`.
+5. *(Superseded by ADR-0058: the trainer is checked as a leased singleton.)* `tests/k8s/check-overlays.mjs` fails when the trainer (or the collector, ADR-0042) gets an HPA, `replicas` other than 1, a strategy other than `Recreate`, or a canary in `deploy.yml`.
 6. Several trainers need a new ADR first: partition by symbol (StatefulSet ordinal or a lease per symbol) and read the training state from a shared store.
 
 ## Consequences
 
 - No horizontal scaling: one trainer's CPU bounds training throughput.
-- Each release and each pod loss stops training and empties the read routes until the new pod is ready; the training state starts over, but at startup the trainer rehydrates each symbol's best-agent summary from its newest model manifest (issue #533), so the read routes answer with the last published agent (`model` carries its version) until a new training replaces it. The market buffer still starts empty. Published model artifacts stay on the checkpoint volume.
+- Each release and each pod loss stops training and empties the read routes until the new pod is ready (releases no longer since ADR-0058; a pod loss still does); the training state starts over, but at startup the trainer rehydrates each symbol's best-agent summary from its newest model manifest (issue #533), so the read routes answer with the last published agent (`model` carries its version) until a new training replaces it. The market buffer still starts empty. Published model artifacts stay on the checkpoint volume.
 - The read routes answer the same state whatever the call.
 - A canary release does not cover the trainer: its new image is first exercised by the rollout itself, and a failure there goes through the rollback step.
 

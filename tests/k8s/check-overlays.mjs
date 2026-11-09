@@ -18,13 +18,12 @@
 //   - every RollingUpdate Deployment that can run one pod (replicas 1 or HPA
 //     minReplicas 1) has an effective maxUnavailable of 0: it surges first
 //     instead of leaving no ready pod during a rollout (issue #699)
-//   - singleton Deployments (SINGLETONS) run exactly one pod: replicas: 1,
-//     strategy Recreate, no HPA, no canary in deploy.yml (ADR-0044 trainer)
-//   - singletons with a `lease` run one pod and work only while holding a
-//     Lease: replicas: 1, RollingUpdate maxUnavailable 0 / maxSurge 1, no HPA,
-//     no canary, the Lease exists, its name is in COLLECTOR_LEASE_NAME, and the
-//     Role bound to the pod's ServiceAccount grants only get/update on it
-//     (ADR-0057 collector)
+//   - singleton Deployments (SINGLETONS) run one pod and work only while
+//     holding a Lease: replicas: 1, RollingUpdate maxUnavailable 0 / maxSurge 1,
+//     no HPA, no canary in deploy.yml, the Lease exists, its name is in the
+//     singleton's lease variable, and the Role bound to the pod's
+//     ServiceAccount grants only get/update on it (ADR-0057 collector,
+//     ADR-0058 trainer)
 //   - the data StatefulSets of staging-local (DATA_STATEFULSETS) set a
 //     partition >= replicas, so a release never restarts their single pods;
 //     staging (CI keeps testing their restarts) and production set none
@@ -39,11 +38,12 @@ import { readFileSync } from "node:fs";
 
 const OVERLAYS = ["staging", "staging-local", "production"];
 const SEALED_ONLY = ["trading-model-secrets"];
-// Deployments that must never work twice at once -> the ADR that says why. With
-// a `lease`: one pod at rest, two during a rollout, only the Lease holder works.
+// Deployments that must never work twice at once -> the ADR that says why, their
+// Lease and the variable naming it: one pod at rest, two during a rollout, only
+// the Lease holder works.
 const SINGLETONS = {
-	"trader-trainer": { adr: "ADR-0044" },
-	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector" },
+	"trader-trainer": { adr: "ADR-0058", lease: "trader-trainer", env: "TRAINER_LEASE_NAME" },
+	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector", env: "COLLECTOR_LEASE_NAME" },
 };
 // Data StatefulSets of staging-local held by a partition (issue #700).
 const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
@@ -174,14 +174,14 @@ function replicasUnderHpa(docs) {
 }
 
 /** Why a leased singleton could work twice at once or leave a gap during a rollout. */
-function leaseViolations(docs, deployment, lease, adr) {
+function leaseViolations(docs, deployment, { adr, lease, env }) {
 	const errors = [];
 	const name = deployment.name;
 	if (!/^ {2}strategy:\n {4}rollingUpdate:\n {6}maxSurge: 1\n {6}maxUnavailable: 0\n {4}type: RollingUpdate$/m.test(deployment.text)) {
 		errors.push(`Deployment ${name} must use RollingUpdate maxUnavailable 0 / maxSurge 1 (${adr}: the new pod is ready before the old one releases the Lease)`);
 	}
-	if (!new RegExp(`- name: COLLECTOR_LEASE_NAME\\n\\s+value: "?${lease}"?$`, "m").test(deployment.text)) {
-		errors.push(`Deployment ${name} must set COLLECTOR_LEASE_NAME=${lease} (${adr}: without it every pod works)`);
+	if (!new RegExp(`- name: ${env}\\n\\s+value: "?${lease}"?$`, "m").test(deployment.text)) {
+		errors.push(`Deployment ${name} must set ${env}=${lease} (${adr}: without it every pod works)`);
 	}
 	if (!docs.some((doc) => doc.kind === "Lease" && doc.name === lease)) {
 		errors.push(`Lease ${lease} not found (${adr}: the Role grants no create)`);
@@ -209,7 +209,8 @@ function leaseViolations(docs, deployment, lease, adr) {
 /** Why each singleton Deployment could run more than one pod (empty when sound). */
 function singletonViolations(docs) {
 	const errors = [];
-	for (const [name, { adr, lease }] of Object.entries(SINGLETONS)) {
+	for (const [name, singleton] of Object.entries(SINGLETONS)) {
+		const { adr } = singleton;
 		const deployment = docs.find((doc) => doc.kind === "Deployment" && doc.name === name);
 		if (!deployment) {
 			errors.push(`singleton Deployment ${name} not found (${adr})`);
@@ -218,11 +219,7 @@ function singletonViolations(docs) {
 		if (!/^ {2}replicas: 1$/m.test(deployment.text)) {
 			errors.push(`Deployment ${name} must set replicas: 1 (${adr}: singleton)`);
 		}
-		if (lease) {
-			errors.push(...leaseViolations(docs, deployment, lease, adr));
-		} else if (!/^ {2}strategy:\n {4}type: Recreate$/m.test(deployment.text)) {
-			errors.push(`Deployment ${name} must use strategy Recreate (${adr}: a rollout must never run two pods)`);
-		}
+		errors.push(...leaseViolations(docs, deployment, singleton));
 		const scaled = docs.some(
 			(doc) =>
 				doc.kind === "HorizontalPodAutoscaler" &&
