@@ -27,18 +27,27 @@ export function createServer() {
 					if (!connection) {
 						return true;
 					}
-					// One attempt per check: the next probe retries.
-					const client = createRedisClient(connection, {
-						maxRetriesPerRequest: 1,
-						connectTimeout: 2000,
-						retryStrategy: () => null,
-						sentinelRetryStrategy: () => null,
-					});
+					const pingOnce = async () => {
+						// Fresh client per attempt, no internal retry.
+						const client = createRedisClient(connection, {
+							maxRetriesPerRequest: 1,
+							connectTimeout: 2000,
+							retryStrategy: () => null,
+							sentinelRetryStrategy: () => null,
+						});
+						try {
+							await client.connect();
+							return (await client.ping()) === "PONG";
+						} finally {
+							client.disconnect();
+						}
+					};
+					// One isolated connect timeout (CPU-starved runner, issue #725)
+					// must not fail the probe; a second failure propagates (503).
 					try {
-						await client.connect();
-						return (await client.ping()) === "PONG";
-					} finally {
-						client.disconnect();
+						return await pingOnce();
+					} catch {
+						return pingOnce();
 					}
 				},
 			},
