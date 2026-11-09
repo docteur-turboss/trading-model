@@ -292,6 +292,15 @@ reported and every canary is removed if one fails.
 | `CANARY_ERROR_THRESHOLD_PCT` | `5` | Maximum 4xx/5xx share |
 | `CANARY_READINESS_ONLY` | `dlq-service` | Comma-separated services whose gate checks readiness and routing only |
 
+Behind `edge-proxy` the canary share depends on connections, not requests: its
+keep-alive pool to `api-gateway` (`deploy/edge-proxy/gateway-upstream.k8s.conf`)
+pins a serial client to one pod, since kube-proxy picks the pod when a
+connection opens. Real traffic is concurrent and should open many connections,
+but this is not measured: the production `canary_check` can undercount the
+canary the same way (residual risk: a failure with a low count and no errors
+points here). The kind gate (`verify_canary`) sends bursts of 12 requests every 5 s for that
+reason.
+
 `dlq-service` is readiness-only: it only receives requests on a dead letter or an
 admin call, so a healthy environment gives it no traffic. Add a service to
 `CANARY_READINESS_ONLY` only for the same reason. Test of the gate:
