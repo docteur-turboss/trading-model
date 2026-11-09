@@ -76,7 +76,6 @@
     "services/api-gateway/src/application/proxy-dispatcher.ts -> @trading-model/http/infrastructure/logger",
     "services/api-gateway/src/application/proxy-dispatcher.ts -> @trading-model/validation/adapters/outbound/service-resolver.types",
     "services/audit-logger/src/application/chain-cli.ts -> ../infrastructure/config/env",
-    "services/dlq-service/src/application/services/auto-retry-cycle.ts -> @trading-model/http/infrastructure/logger",
     "services/dlq-service/src/application/services/auto-retry-queue.ts -> @trading-model/http/infrastructure/logger",
     "services/dlq-service/src/application/services/claim-release-service.ts -> @trading-model/http/infrastructure/logger",
     "services/dlq-service/src/application/services/redis-claim-replay-orchestrator.ts -> @trading-model/http/infrastructure/logger",

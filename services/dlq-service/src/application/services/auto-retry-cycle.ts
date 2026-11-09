@@ -1,4 +1,3 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	toMessageId,
 	toTopic,
@@ -9,13 +8,13 @@ import type {
 	ClaimReleasePort,
 	DlqReplaySettings,
 	EntryClaimPort,
+	LogPort,
 	MessageManagerLocatorPort,
 	ReplayAuditPort,
 	RetryLedgerPort,
+	ShutdownProbe,
 } from "../../domain/ports/replay.ports";
 import { generateBatchId } from "../../shared/batch-id";
-import { emitReplayMetrics } from "../../shared/replay-metrics";
-import { isShuttingDown } from "../../shared/shutdown-flag";
 import type {
 	BatchResults,
 	DlqEntryRef,
@@ -30,6 +29,10 @@ export interface AutoRetryCycleDeps {
 	audit: ReplayAuditPort;
 	replayBatch(options: ReplayBatchOptions): Promise<BatchResults>;
 	settings: DlqReplaySettings;
+	logger: LogPort;
+	isShuttingDown: ShutdownProbe;
+	/** Counts the outcome of a replay batch. */
+	emitReplayMetrics(success: number, failed: number): void;
 }
 
 export interface AutoRetryCycle {
@@ -39,6 +42,7 @@ export interface AutoRetryCycle {
 }
 
 export function createAutoRetryCycle(deps: AutoRetryCycleDeps): AutoRetryCycle {
+	const { logger, isShuttingDown, emitReplayMetrics } = deps;
 	async function handleAbandonedEntries(source: string): Promise<void> {
 		const abandoned = await deps.retryLedger.abandonExhaustedEntries();
 		if (abandoned > 0) {
