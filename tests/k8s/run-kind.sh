@@ -42,6 +42,10 @@ export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
+# compose interpolates these (ADR-0058) even for `build`
+for v in MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD; do
+	export "$v=${!v:-kind-ci}"
+done
 
 log() { echo "[kind] $*"; }
 
