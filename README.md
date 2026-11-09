@@ -35,7 +35,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | Language      | TypeScript (ES2020)                                        |
 | API           | Express 5                                                  |
 | Frontend      | None for now — removed, see ADR-0018                       |
-| Security      | mTLS everywhere (TLS 1.3)                                  |
+| Security      | mTLS between services (not toward databases, ADR-0060)     |
 | Databases     | MongoDB 7, MySQL 8 (single primary, no failover, [ADR-0020](docs/adr/0020-database-topology-as-deployed.md)), Redis 7 (Sentinel) |
 | Validation    | Zod                                                        |
 | Testing       | Jest + Stryker (weekly mutation run)                       |
@@ -126,7 +126,7 @@ Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:
 ## Security
 
 - **OWASP-hardened:** anti-noSQL injection, timed-safe token comparison, log redaction
-- **mTLS everywhere:** SPIFFE/SPIRE workload identity — short-lived X.509 SVIDs with automatic rotation (ADR-0011)
+- **mTLS between services (not toward databases, ADR-0060):** SPIFFE/SPIRE workload identity — short-lived X.509 SVIDs with automatic rotation (ADR-0011)
 - **Secrets:** SealedSecrets + HMAC-signed service-to-service requests (`@trading-model/crypto`), rotation via `scripts/rotate-secrets.sh`
 
 ## Monitoring

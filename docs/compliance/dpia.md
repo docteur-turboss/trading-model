@@ -40,7 +40,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 
 | Dimension       | Assessment                                                                                                        |
 | --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Likelihood**  | Low — mTLS everywhere, SecureKeyStore, AES-256-GCM at rest, automountServiceAccountToken: false                   |
+| **Likelihood**  | Low — mTLS between services, SecureKeyStore, AES-256-GCM at rest, automountServiceAccountToken: false                   |
 | **Impact**      | High — compromise of SPIRE CA keys / SVIDs or service tokens could disrupt platform security                                    |
 | **Severity**    | Tolerable (not PII-related)                                                                                       |
 | **Mitigations** | Automatic SVID rotation (1h TTL), backup CronJob daily, incident response procedure, SealedSecrets for K8s |
@@ -68,7 +68,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 | Measure                          | Status         | Details                                                |
 | -------------------------------- | -------------- | ------------------------------------------------------ |
 | Minimal PII architecture         | ✅ Implemented | No accounts or profiles. Caller IPs truncated by the edge-proxy before logging and forwarding; application logs truncate IPs; context fields sanitized before MongoDB persistence |
-| TLS 1.3 mTLS everywhere          | ✅ Implemented | All inter-service communication encrypted              |
+| TLS 1.3 mTLS between services    | ⚠️ Partial     | Service-to-service HTTP only. Database client traffic (MySQL, MongoDB, Redis) is plain TCP in the cluster; NetworkPolicies and per-service credentials protect it, residual risk accepted in ADR-0060, TLS planned (#767, #768, #769) |
 | AES-256-GCM encryption at rest   | ✅ Implemented | SPIRE datastore, discovery cache, filesystem fallback          |
 | Storage & backup encryption      | ✅ Implemented | LUKS2 data disks unlocked by Clevis/Tang (`deploy/host/`); every backup age-encrypted before it is written or copied off-site |
 | Log redaction                    | ✅ Implemented | `sensitive-data-sanitizer.ts`: 24 sensitive-key patterns (credentials, IP keys) redacted to `[REDACTED]`, plus PEM blocks stripped by `sanitizeForLog`, before persistence |
