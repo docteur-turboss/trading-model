@@ -36,4 +36,24 @@ describe("safeHeaders", () => {
 		);
 		expect(headers.accept).toBe("application/json");
 	});
+
+	it("replaces a client x-actor with the API key name, never the key", () => {
+		const headers = safeHeaders(
+			createReq({
+				apiKeyName: "ops-alice",
+				headers: { "x-actor": "someone-else", "x-api-key": "the-secret" },
+			})
+		);
+
+		expect(headers["x-actor"]).toBe("ops-alice");
+		expect(JSON.stringify(headers)).not.toContain("the-secret");
+	});
+
+	it("drops a client x-actor when the request has no key name", () => {
+		const headers = safeHeaders(
+			createReq({ apiKeyName: null, headers: { "x-actor": "forged" } })
+		);
+
+		expect(headers["x-actor"]).toBeUndefined();
+	});
 });

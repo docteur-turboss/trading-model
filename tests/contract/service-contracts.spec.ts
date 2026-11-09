@@ -173,10 +173,20 @@ async function publishScrapeCycle(): Promise<Publication[]> {
 }
 
 async function publishDlqEvents(): Promise<Publication[]> {
-	notifyAddAudit("entry-1", "market.trade.recent.fetch" as never, "OPEN");
-	notifyReplayAudit({ batchId: "batch-1", success: 3, failed: 1 });
-	notifyDeleteAudit(["entry-1"], 1);
-	// dlq-service does not wait for its publishes.
+	notifyAddAudit("entry-1", "market.trade.recent.fetch" as never, "OPEN", null);
+	// The human actions wait for message-manager to accept their event (ADR-0059).
+	await expect(
+		notifyReplayAudit({
+			batchId: "batch-1",
+			success: 3,
+			failed: 1,
+			actor: "ops-alice",
+		})
+	).resolves.toBe(true);
+	await expect(notifyDeleteAudit(["entry-1"], 1, "ops-alice")).resolves.toBe(
+		true
+	);
+	// The add does not wait for its publish.
 	await new Promise((resolve) => setImmediate(resolve));
 	return publicationsOf("dlq-service", mockDlqBroker.requests);
 }
@@ -359,6 +369,18 @@ describe("service message contracts", () => {
 					expect(Number.isNaN(document?.receivedAt.getTime())).toBe(false);
 					expect(document?.metadata.messageId).toEqual(expect.any(String));
 					expect(document?.metadata.publisher).toEqual(expect.any(String));
+				}
+			}
+		);
+
+		it.each([DlqEvent.EntriesDeleted, DlqEvent.ReplayCompleted])(
+			"audit-logger: %s records the API key name of the operator (ADR-0059)",
+			async (topic) => {
+				for (const body of await deliveredBodies(topic)) {
+					await audit.receive(body);
+					expect(audit.documents.at(-1)?.payload).toMatchObject({
+						actor: "ops-alice",
+					});
 				}
 			}
 		);

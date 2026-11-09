@@ -221,6 +221,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v1/audit-logger/events/stats:
@@ -271,6 +273,8 @@ paths:
                 additionalProperties: false
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v1/audit-logger/events/{messageId}:
@@ -350,6 +354,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           description: "Not found"
           content:
@@ -374,6 +380,8 @@ paths:
                   type: "string"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v1/discovery-server/services/{serviceName}:
@@ -445,6 +453,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           description: "Not found"
           content:
@@ -524,6 +534,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           description: "Not found"
           content:
@@ -567,8 +579,13 @@ paths:
                 properties:
                   deleted:
                     type: "integer"
+                  auditRecorded:
+                    type: "boolean"
+                    enum:
+                      - true
                 required:
                   - "deleted"
+                  - "auditRecorded"
                 additionalProperties: false
         "400":
           description: "Invalid request"
@@ -596,6 +613,23 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: "HTTP 502"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  deleted:
+                    type: "integer"
+                  auditRecorded:
+                    type: "boolean"
+                    enum:
+                      - false
+                required:
+                  - "deleted"
+                  - "auditRecorded"
+                additionalProperties: false
     get:
       operationId: "getV1DlqServiceDlq"
       tags:
@@ -931,6 +965,42 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: "HTTP 502"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  batchId:
+                    type: "string"
+                  replayed:
+                    type: "integer"
+                  failed:
+                    type: "integer"
+                  errors:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        id:
+                          type: "string"
+                        error:
+                          type: "string"
+                      required:
+                        - "id"
+                        - "error"
+                      additionalProperties: false
+                  auditRecorded:
+                    type: "boolean"
+                    enum:
+                      - false
+                required:
+                  - "batchId"
+                  - "replayed"
+                  - "failed"
+                  - "auditRecorded"
+                additionalProperties: false
   /v1/trader-trainer/best-agent:
     get:
       operationId: "getV1TraderTrainerBestAgent"
@@ -1061,6 +1131,8 @@ paths:
                 additionalProperties: false
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           description: "Not found"
           content:
@@ -1145,6 +1217,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v1/trader-trainer/models/{symbol}/{version}:
@@ -1284,6 +1358,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           description: "Not found"
           content:
@@ -1434,6 +1510,8 @@ paths:
                 additionalProperties: false
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v1/trader-trainer/training-agents/{symbol}:
@@ -1624,6 +1702,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           description: "Not found"
           content:
@@ -1664,6 +1744,8 @@ paths:
                 additionalProperties: false
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/candles/sources/{source}:
@@ -1786,6 +1868,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/candles/symbols/{symbol}:
@@ -1905,6 +1989,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/candles/timestamp/{timestamp}:
@@ -2028,6 +2114,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/signals/assets/{assetId}:
@@ -2775,6 +2863,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           description: "Not found"
           content:
@@ -2896,6 +2986,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/ticker/symbols/{symbol}:
@@ -3010,6 +3102,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/ticker/timestamp/{timestamp}:
@@ -3128,6 +3222,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/trade/sources/{source}:
@@ -3239,6 +3335,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/trade/symbols/{symbol}:
@@ -3347,6 +3445,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/trade/timestamp/{timestamp}:
@@ -3459,5 +3559,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"

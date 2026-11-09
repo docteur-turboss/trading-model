@@ -1,3 +1,4 @@
+import { DlqEvent } from "@trading-model/contracts/dlq-events";
 import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 import promClient from "prom-client";
 
@@ -31,10 +32,20 @@ export const metrics = {
 		help: "Size distribution of DLQ entry payloads in bytes",
 		buckets: [1024, 5120, 10240, 51200, 102400, 512000, 1048576, 5242880],
 	}),
+	auditPublishFailures: new promClient.Counter({
+		name: "dlq_audit_publish_failures_total",
+		help: "DLQ events message-manager did not accept: missing from the audit trail (ADR-0059)",
+		labelNames: ["event"] as const,
+	}),
 	collectionSize: new promClient.Gauge({
 		name: "dlq_collection_size",
 		help: "Current number of entries in the DLQ collection",
 	}),
 };
+
+// Exposed at 0 from start: a series born at 1 is invisible to increase() and DlqAuditEventLost would miss the first loss.
+for (const event of Object.values(DlqEvent)) {
+	metrics.auditPublishFailures.inc({ event }, 0);
+}
 
 export { metricsHandler };

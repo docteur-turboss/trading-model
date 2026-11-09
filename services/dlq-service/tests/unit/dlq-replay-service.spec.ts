@@ -37,6 +37,7 @@ function setup(
 		url?: URLString | null;
 		claimed?: ClaimedEntry[];
 		batch?: BatchResults;
+		auditRecorded?: boolean;
 	} = {}
 ) {
 	const resolve = jest.fn<() => Promise<URLString | null>>(async () =>
@@ -49,7 +50,9 @@ function setup(
 	const replayBatch = jest.fn<
 		(options: ReplayBatchOptions) => Promise<BatchResults>
 	>(async () => overrides.batch ?? { success: 1, errors: [] });
-	const notifyReplay = jest.fn<(...args: any[]) => void>();
+	const notifyReplay = jest.fn<(...args: any[]) => Promise<boolean>>(
+		async () => overrides.auditRecorded ?? true
+	);
 	const batchReplayed = jest.fn<(success: number, failed: number) => void>();
 	const deps: ReplayEntriesDeps = {
 		messageManager: { resolve },
@@ -75,11 +78,15 @@ describe("replay use case", () => {
 	it("claims, replays, counts and audits a batch", async () => {
 		const t = setup();
 
-		const result = await t.replay({ limit: 10, batchId: "b1" }, span);
+		const result = await t.replay(
+			{ limit: 10, batchId: "b1", actor: "ops-alice" },
+			span
+		);
 
 		expect(result).toEqual({
 			status: "replayed",
 			details: { batchId: "b1", replayed: 1, failed: 0 },
+			auditRecorded: true,
 		});
 		expect(t.claimEntriesForRetry).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -98,7 +105,12 @@ describe("replay use case", () => {
 		});
 		expect(t.batchReplayed).toHaveBeenCalledWith(1, 0);
 		expect(t.notifyReplay).toHaveBeenCalledWith(
-			expect.objectContaining({ batchId: "b1", success: 1, failed: 0 })
+			expect.objectContaining({
+				batchId: "b1",
+				success: 1,
+				failed: 0,
+				actor: "ops-alice",
+			})
 		);
 		expect(t.abandonExhaustedEntries).not.toHaveBeenCalled();
 	});
@@ -111,16 +123,24 @@ describe("replay use case", () => {
 			},
 		});
 
-		const result = await t.replay({ limit: 10 }, span);
+		const result = await t.replay({ limit: 10, actor: null }, span);
 
 		expect(result.status).toBe("replayed");
 		expect(t.abandonExhaustedEntries).toHaveBeenCalled();
 	});
 
+	it("reports a replay whose audit event message-manager refused", async () => {
+		const t = setup({ auditRecorded: false });
+
+		const result = await t.replay({ limit: 10, actor: "ops-alice" }, span);
+
+		expect(result).toMatchObject({ status: "replayed", auditRecorded: false });
+	});
+
 	it("reports an unresolved message-manager without claiming anything", async () => {
 		const t = setup({ url: null });
 
-		await expect(t.replay({ limit: 10 }, span)).resolves.toEqual({
+		await expect(t.replay({ limit: 10, actor: null }, span)).resolves.toEqual({
 			status: "message-manager-unresolved",
 		});
 		expect(t.claimEntriesForRetry).not.toHaveBeenCalled();
@@ -129,7 +149,7 @@ describe("replay use case", () => {
 	it("reports an empty claim without replaying", async () => {
 		const t = setup({ claimed: [] });
 
-		await expect(t.replay({ limit: 10 }, span)).resolves.toEqual({
+		await expect(t.replay({ limit: 10, actor: null }, span)).resolves.toEqual({
 			status: "no-entries",
 		});
 		expect(t.replayBatch).not.toHaveBeenCalled();

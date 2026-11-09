@@ -668,6 +668,8 @@ function schemaOperation(lines, method, path, { tag, entry, operation: key }, ga
 	}
 	if (gateway) {
 		responses["401"] ??= { $ref: "#/components/responses/Unauthorized" };
+		// The API key lacks the scope of the route: read for GET, dlq:write otherwise (ADR-0059).
+		responses["403"] ??= { description: "API key without the scope of the route (read for GET, dlq:write otherwise)" };
 		responses["404"] ??= { $ref: "#/components/responses/NotFound" };
 	}
 	op.responses = responses;

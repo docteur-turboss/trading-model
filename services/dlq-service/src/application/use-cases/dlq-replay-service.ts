@@ -23,13 +23,20 @@ export interface ReplayRequest {
 	topic?: Topic;
 	limit: number;
 	batchId?: string;
+	/** API key name of the operator (ADR-0059), null when not called through api-gateway. */
+	actor: string | null;
 }
 
 /** Outcome of a manual replay; the inbound adapter maps it to an HTTP response. */
 export type ReplayResult =
 	| { status: "message-manager-unresolved" }
 	| { status: "no-entries" }
-	| { status: "replayed"; details: Record<string, unknown> };
+	| {
+			status: "replayed";
+			details: Record<string, unknown>;
+			/** False: replayed, but message-manager refused the audit event (ADR-0059). */
+			auditRecorded: boolean;
+	  };
 
 export interface ReplayEntriesDeps {
 	messageManager: MessageManagerLocatorPort;
@@ -106,15 +113,17 @@ export function createReplayEntries(
 		span.setAttribute("failed", errors.length);
 
 		deps.metrics.batchReplayed(success, errors.length);
-		deps.audit.notifyReplay({
+		const auditRecorded = await deps.audit.notifyReplay({
 			batchId,
 			topic: request.topic,
 			success,
 			failed: errors.length,
+			actor: request.actor,
 		});
 		return {
 			status: "replayed",
 			details: buildReplayResponse(batchId, success, errors),
+			auditRecorded,
 		};
 	};
 }

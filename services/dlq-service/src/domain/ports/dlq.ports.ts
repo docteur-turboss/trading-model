@@ -29,9 +29,15 @@ export interface DlqAuditPort extends ReplayAuditPort {
 	notifyAdd(
 		id: string,
 		topic: Topic | undefined,
-		reason: string | undefined
+		reason: string | undefined,
+		actor: string | null
 	): void;
-	notifyDelete(ids: string[], deleted: number): void;
+	/** Never rejects; false when message-manager did not accept the event (ADR-0059). */
+	notifyDelete(
+		ids: string[],
+		deleted: number,
+		actor: string | null
+	): Promise<boolean>;
 }
 
 /** Pops entry ids from the fast replay queue. */

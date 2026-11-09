@@ -1554,3 +1554,24 @@ tests:
               summary: 'The OTel collector fails to export spans'
               description: 'The collector dropped 10 span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'
+
+  # A delete whose audit event message-manager refused fires (ADR-0059); a
+  # refused dlq.entry.added (bus down while dead letters arrive) does not.
+  # The series start at 0: dlq-service exposes every event at 0 from startup
+  # (metrics.ts), so increase() sees the first loss.
+  - name: DLQ action missing from the audit trail
+    interval: 1m
+    input_series:
+      - series: 'dlq_audit_publish_failures_total{job="dlq-service",instance="d1",event="dlq.entries.deleted"}'
+        values: '0 0 1x20'
+      - series: 'dlq_audit_publish_failures_total{job="dlq-service",instance="d1",event="dlq.entry.added"}'
+        values: '0 0 5x20'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: DlqAuditEventLost
+        exp_alerts:
+          - exp_labels: {severity: critical, event: dlq.entries.deleted}
+            exp_annotations:
+              summary: 'DLQ action missing from the audit trail: dlq.entries.deleted'
+              description: 'message-manager refused 1 dlq.entries.deleted event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'

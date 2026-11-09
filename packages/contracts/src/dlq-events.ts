@@ -14,6 +14,8 @@ export interface DlqEntryAddedPayload {
 	/** Topic of the dead-lettered message, null when unknown. */
 	topic: string | null;
 	reason: string | null;
+	/** Name of the API key that sent it through api-gateway (ADR-0059), null for internal callers. */
+	actor: string | null;
 }
 
 export interface DlqReplayCompletedPayload {
@@ -22,12 +24,16 @@ export interface DlqReplayCompletedPayload {
 	topic: string | null;
 	replayed: number;
 	failed: number;
+	/** API key name of a manual replay (ADR-0059), null for the auto-retry. */
+	actor: string | null;
 }
 
 export interface DlqEntriesDeletedPayload {
 	/** Ids the operator asked to delete. */
 	ids: string[];
 	deleted: number;
+	/** API key name of the operator (ADR-0059), null when not called through api-gateway. */
+	actor: string | null;
 }
 
 export interface DlqEventMap {

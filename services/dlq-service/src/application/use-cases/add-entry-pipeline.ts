@@ -40,20 +40,21 @@ const REJECTION_MESSAGES: Record<EntryRejection, string> = {
 async function _persist(
 	deps: AddEntryDeps,
 	entry: DlqEntry,
+	actor: string | null,
 	span: Span
 ): Promise<string> {
 	const id = await deps.entries.insert(entry);
 	span.setAttribute("entryId", id);
 	deps.metrics.entryAdded();
 	await deps.queue.enqueue(id);
-	deps.audit.notifyAdd(id, entry.topic, entry.reason);
+	deps.audit.notifyAdd(id, entry.topic, entry.reason, actor);
 	return id;
 }
 
 export function createAddEntry(
 	deps: AddEntryDeps
-): (entry: DlqEntry) => Promise<AddEntryResult> {
-	return (entry) =>
+): (entry: DlqEntry, actor: string | null) => Promise<AddEntryResult> {
+	return (entry, actor) =>
 		tracer.startActiveSpan(
 			"dlq-add-entry",
 			async (span): Promise<AddEntryResult> => {
@@ -68,7 +69,7 @@ export function createAddEntry(
 					return { status: "rejected", reason };
 				}
 				try {
-					const id = await _persist(deps, entry, span);
+					const id = await _persist(deps, entry, actor, span);
 					span.setStatus({ code: SpanStatusCode.OK });
 					span.end();
 					return { status: "added", id };

@@ -130,8 +130,8 @@ const metricsPort = {
 };
 const auditPort = {
 	notifyAdd: () => undefined,
-	notifyDelete: () => undefined,
-	notifyReplay: () => undefined,
+	notifyDelete: jest.fn<(...args: any[]) => Promise<boolean>>(async () => true),
+	notifyReplay: async () => true,
 };
 const handlers = createDlqHandlers({
 	entries: dlqRepository,
@@ -445,8 +445,26 @@ describe("DLQ Service — Routes Integration", () => {
 			headers: signHeaders(body, "DELETE", "/dlq"),
 		});
 		expect(result.status).toBe(200);
-		expect(result.body).toEqual({ deleted: 2 });
+		expect(result.body).toEqual({ deleted: 2, auditRecorded: true });
 		expectDocumented(DLQ_API.deleteEntries, result);
+	});
+
+	it("DELETE /dlq answers 502 when message-manager refused the audit event, and ignores x-actor from a caller that is not api-gateway", async () => {
+		(
+			dlqRepository.delete as jest.Mock<(...args: any[]) => any>
+		).mockResolvedValue(1);
+		auditPort.notifyDelete.mockResolvedValueOnce(false);
+		await start();
+		const body = { ids: ["a"] };
+		const result = await request(server, "/dlq", {
+			method: "DELETE",
+			body,
+			headers: { ...signHeaders(body, "DELETE", "/dlq"), "x-actor": "forged" },
+		});
+		expect(result.status).toBe(502);
+		expect(result.body).toEqual({ deleted: 1, auditRecorded: false });
+		expectDocumented(DLQ_API.deleteEntries, result);
+		expect(auditPort.notifyDelete).toHaveBeenLastCalledWith(["a"], 1, null);
 	});
 
 	it("DELETE /dlq should reject an empty id list with 400", async () => {

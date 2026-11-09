@@ -103,11 +103,13 @@ export function createAutoRetryCycle(deps: AutoRetryCycleDeps): AutoRetryCycle {
 			batchId
 		);
 
-		deps.audit.notifyReplay({
+		// Not awaited: no operator waits for the auto-retry; a refusal is logged and counted.
+		void deps.audit.notifyReplay({
 			batchId,
 			topic: toTopic("dlq-service"),
 			success,
 			failed: errors.length,
+			actor: null,
 		});
 
 		if (errors.length > 0) {

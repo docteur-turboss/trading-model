@@ -76,6 +76,10 @@ jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 
 jest.mock("../../src/adapters/inbound/auth", () => ({
 	AUTH_MIDDLEWARE: jest.fn((_req: any, _res: any, next: () => void) => next()),
+	// Every scope unless the request sets its own.
+	authOf: (req: any) => ({
+		apiKeyScopes: req.apiKeyScopes ?? ["read", "dlq:write"],
+	}),
 }));
 
 import { createRouter } from "../../src/adapters/inbound/router";
@@ -283,6 +287,61 @@ describe("router", () => {
 				})
 			);
 			expect(result).toEqual({ status: 200, data: { saved: true } });
+		});
+
+		it.each([
+			["POST", "/v1/dlq-service/dlq"],
+			["DELETE", "/v1/dlq-service/dlq"],
+			["POST", "/v1/dlq-service/dlq/replay"],
+		])(
+			"refuses %s %s with 403 to a key without dlq:write",
+			async (method, path) => {
+				const {
+					forwardRequest,
+				} = require("../../src/adapters/outbound/proxy-handler");
+				forwardRequest.mockClear();
+
+				const result = await getHandler()(
+					createReq({ method, path, url: path, apiKeyScopes: ["read"] })
+				);
+
+				expect(result).toEqual({
+					status: 403,
+					data: {
+						error: "Forbidden",
+						reason: "API key lacks the dlq:write scope",
+					},
+				});
+				expect(forwardRequest).not.toHaveBeenCalled();
+			}
+		);
+
+		it("lets a read-only key GET the DLQ", async () => {
+			mockForwardSuccess({ entries: [] });
+
+			const result = await getHandler()(
+				createReq({
+					method: "GET",
+					path: "/v1/dlq-service/dlq",
+					url: "/v1/dlq-service/dlq",
+					apiKeyScopes: ["read"],
+				})
+			);
+
+			expect(result.status).toBe(200);
+		});
+
+		it("refuses a GET to a key without read", async () => {
+			const result = await getHandler()(
+				createReq({
+					method: "GET",
+					path: "/v1/dlq-service/dlq",
+					url: "/v1/dlq-service/dlq",
+					apiKeyScopes: ["dlq:write"],
+				})
+			);
+
+			expect(result.status).toBe(403);
 		});
 
 		it("should handle non-JSON response body", async () => {

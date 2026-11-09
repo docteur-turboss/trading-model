@@ -67,11 +67,14 @@ export interface ReplayAuditResult {
 	topic?: Topic;
 	success: number;
 	failed: number;
+	/** API key name of a manual replay (ADR-0059), null for the auto-retry. */
+	actor: string | null;
 }
 
 /** Publishes the outcome of a replay batch to the audit trail. */
 export interface ReplayAuditPort {
-	notifyReplay(result: ReplayAuditResult): void;
+	/** Never rejects; false when message-manager did not accept the event (ADR-0059). */
+	notifyReplay(result: ReplayAuditResult): Promise<boolean>;
 }
 
 /** Runtime settings, read on every access so configuration changes apply. */
