@@ -137,6 +137,7 @@ const RESOURCES = {
 	ClusterRoleBinding: ["rbac.authorization.k8s.io", "clusterrolebindings"],
 	SealedSecret: ["bitnami.com", "sealedsecrets"], Namespace: ["", "namespaces"],
 	CSIDriver: ["storage.k8s.io", "csidrivers"],
+	Issuer: ["cert-manager.io", "issuers"], Certificate: ["cert-manager.io", "certificates"],
 };
 
 /** "group/resource" pairs of a flow-style rules file (deploy/k8s/deploy-identity). */

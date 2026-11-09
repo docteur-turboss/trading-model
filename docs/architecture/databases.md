@@ -30,6 +30,8 @@ Network access (K8s, issue #727): MongoDB runs without authentication (issue #66
 
 > SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database).
 
+MySQL client TLS (K8s, issue #767): server certificate from cert-manager, clients verify the host name; plain connections still accepted until the contract release (`docs/deployment/MYSQL_TLS.md`).
+
 Network access (K8s, issue #747): ports 3306 / 33061 of MySQL accept only `financial-scraper`, `financial-scraper-collector`, `spire-server`, the Jobs `db-migrate`, `db-migrate-down`, `db-migrate-user`, the `retention` CronJob and the `mysql` members; Redis ports 6379 / 26379 accept only `discovery-server`, `message-manager`, `dlq-service`, `audit-logger`, `financial-scraper`, `trader-trainer` (the last three only read Redis while a rollback to N-1 is possible) and the Redis pods. Backups go through `kubectl exec`. A new client is a label in `mysql-network-policy` / `redis-network-policy`, checked on kind by `verify_db_ingress`.
 
 ## Redis — who uses it, with which keys

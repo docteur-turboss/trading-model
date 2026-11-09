@@ -183,6 +183,8 @@ function getDbConfig() {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
+    // DB_SSL_CA: verify the server certificate and host name (ADR-0060).
+    ...(process.env.DB_SSL_CA ? { ssl: { ca: readFileSync(process.env.DB_SSL_CA, 'utf8') } } : {}),
   };
 }
 

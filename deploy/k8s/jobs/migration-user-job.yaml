@@ -135,6 +135,16 @@ spec:
                   name: trading-model-secrets
                   key: MYSQL_EXPORTER_PASSWORD
                   optional: true
+            # mysql client: TLS with host name check (my.cnf of ConfigMap mysql-client-tls, ADR-0060).
+            - name: MYSQL_HOME
+              value: /etc/mysql-client
+          volumeMounts:
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
+            - name: mysql-client-tls
+              mountPath: /etc/mysql-client
+              readOnly: true
           resources:
             requests:
               cpu: 50m
@@ -142,6 +152,16 @@ spec:
             limits:
               cpu: 250m
               memory: 128Mi
+      volumes:
+        - name: mysql-tls
+          secret:
+            secretName: mysql-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: mysql-client-tls
+          configMap:
+            name: mysql-client-tls
 ---
 apiVersion: v1
 kind: ServiceAccount

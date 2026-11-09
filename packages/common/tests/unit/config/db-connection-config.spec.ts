@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import { createDbConfigFromEnv } from "../../../src/config/db-connection-config";
 
@@ -11,6 +14,7 @@ describe("createDbConfigFromEnv", () => {
 		delete process.env.DB_USER;
 		delete process.env.DB_PASSWORD;
 		delete process.env.DB_NAME;
+		delete process.env.DB_SSL_CA;
 	});
 
 	afterEach(() => {
@@ -55,5 +59,23 @@ describe("createDbConfigFromEnv", () => {
 		expect(config.user).toBe("admin");
 		expect(config.password).toBe("secret");
 		expect(config.database).toBe("test_db");
+	});
+
+	it("should have no ssl option without DB_SSL_CA", () => {
+		expect(createDbConfigFromEnv().ssl).toBeUndefined();
+	});
+
+	it("should load the CA of DB_SSL_CA", () => {
+		const dir = mkdtempSync(join(tmpdir(), "db-ca-"));
+		const path = join(dir, "ca.crt");
+		writeFileSync(path, "PEM");
+		process.env.DB_SSL_CA = path;
+		expect(createDbConfigFromEnv().ssl).toEqual({ ca: "PEM" });
+		rmSync(dir, { recursive: true });
+	});
+
+	it("should throw when the CA file is unreadable", () => {
+		process.env.DB_SSL_CA = "/nonexistent/ca.crt";
+		expect(() => createDbConfigFromEnv()).toThrow(/ENOENT/);
 	});
 });

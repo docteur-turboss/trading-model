@@ -162,6 +162,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `DB_NAME`     | string | `financial_scraper` | **yes**  | MySQL database name              | FS       |
 | `DB_HOST`     | string | `mysql`             | no       | MySQL host (Docker service name) | FS       |
 | `DB_PORT`     | number | `3306`              | no       | MySQL port                       | FS       |
+| `DB_SSL_CA`   | path   | —                   | no       | PEM CA of the MySQL server certificate: TLS with certificate and host name check (K8s: Secret `mysql-tls`, ADR-0011) | FS, migrate |
 
 ---
 
