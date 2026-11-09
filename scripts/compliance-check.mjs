@@ -28,8 +28,8 @@ const auditDays = grab('services/audit-logger/src/infrastructure/config/env.ts',
 const dlqDays = grab('services/dlq-service/src/config/index-manager.ts', /expireAfterSeconds: (\d+) \* 86400/)[1];
 const lokiHours = grab('observability/loki-config.yml', /retention_period: (\d+h)/)[1];
 const promDays = [
-  grab('docker-compose.yml', /--storage.tsdb.retention.time=(d+)d/)[1],
-  grab('deploy/k8s/infra/prometheus.yaml', /--storage.tsdb.retention.time=(d+)d/)[1],
+  grab('docker-compose.yml', /--storage\.tsdb\.retention\.time=(\d+)d/)[1],
+  grab('deploy/k8s/infra/prometheus.yaml', /--storage\.tsdb\.retention\.time=(\d+)d/)[1],
 ].reduce((a, b) => {
   if (a !== b) throw new Error(`Prometheus retention differs: compose ${a}d, k8s ${b}d`);
   return a;
