@@ -114,10 +114,7 @@ spec:
                 defaultMode: 0555
             - name: mysql-tls
               secret:
-                secretName: mysql-tls
-                items:
-                  - key: ca.crt
-                    path: ca.crt
+                secretName: mysql-client-retention
             - name: mysql-client-tls
               configMap:
                 name: mysql-client-tls

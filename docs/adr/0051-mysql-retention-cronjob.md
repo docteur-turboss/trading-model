@@ -28,3 +28,5 @@ Migration 003 no longer holds the purge (a `DELETE` in a migration is irreversib
 ## Amendment 2026-11 (issue #767): MySQL client TLS
 
 The `retention` CronJob connects with `MYSQL_HOME=/etc/mysql-client` (ConfigMap `mysql-client-tls`: `ssl-mode=VERIFY_IDENTITY`, CA of Secret `mysql-tls`). `db-migrate-user` and the SPIRE init container use the same file.
+
+The CronJob presents the client certificate of user `retention` (`ssl-cert` / `ssl-key` of `my.cnf`, Secret `mysql-client-retention`).

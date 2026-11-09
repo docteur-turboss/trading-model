@@ -15,6 +15,8 @@ describe("createDbConfigFromEnv", () => {
 		delete process.env.DB_PASSWORD;
 		delete process.env.DB_NAME;
 		delete process.env.DB_SSL_CA;
+		delete process.env.DB_SSL_CERT;
+		delete process.env.DB_SSL_KEY;
 	});
 
 	afterEach(() => {
@@ -72,6 +74,31 @@ describe("createDbConfigFromEnv", () => {
 		process.env.DB_SSL_CA = path;
 		expect(createDbConfigFromEnv().ssl).toEqual({ ca: "PEM" });
 		rmSync(dir, { recursive: true });
+	});
+
+	it("should load the client certificate of DB_SSL_CERT / DB_SSL_KEY", () => {
+		const dir = mkdtempSync(join(tmpdir(), "db-cert-"));
+		for (const [name, body] of [
+			["ca.crt", "CA"],
+			["tls.crt", "CERT"],
+			["tls.key", "KEY"],
+		]) {
+			writeFileSync(join(dir, name), body);
+		}
+		process.env.DB_SSL_CA = join(dir, "ca.crt");
+		process.env.DB_SSL_CERT = join(dir, "tls.crt");
+		process.env.DB_SSL_KEY = join(dir, "tls.key");
+		expect(createDbConfigFromEnv().ssl).toEqual({
+			ca: "CA",
+			cert: "CERT",
+			key: "KEY",
+		});
+		rmSync(dir, { recursive: true });
+	});
+
+	it("should throw when only one of DB_SSL_CERT / DB_SSL_KEY is set", () => {
+		process.env.DB_SSL_CERT = "/x/tls.crt";
+		expect(() => createDbConfigFromEnv()).toThrow(/together/);
 	});
 
 	it("should throw when the CA file is unreadable", () => {
