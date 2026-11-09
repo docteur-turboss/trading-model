@@ -354,6 +354,17 @@ for (const env of OVERLAYS) {
 		}
 	}
 
+	// Issue #732: the rendered edge-proxy ConfigMap loads realip.inc from default.conf
+	// and carries the overlay's own trusted CIDRs (not the base ones).
+	const edge = docs.find((doc) => doc.kind === "ConfigMap" && doc.name?.startsWith("edge-proxy-nginx"));
+	if (!edge?.text.includes("include /etc/nginx/conf.d/realip.inc;")) {
+		errors.push(`${env}: edge-proxy-nginx does not include realip.inc in default.conf`);
+	}
+	const overlayCidrs = readFileSync(`deploy/k8s/overlays/${env}/realip.inc`, "utf8").match(/^set_real_ip_from .+;$/gm) ?? [];
+	if (overlayCidrs.length === 0 || !overlayCidrs.every((line) => edge?.text.includes(line))) {
+		errors.push(`${env}: edge-proxy-nginx realip.inc lacks the CIDRs of overlays/${env}/realip.inc`);
+	}
+
 	for (const name of SEALED_ONLY) {
 		if (docs.some((doc) => doc.kind === "Secret" && doc.name === name)) {
 			errors.push(`${env}: Secret ${name} must come from a SealedSecret`);

@@ -105,6 +105,14 @@ or right after the overlay on a first deploy, when MySQL does not exist yet).
 > `tests/k8s/realip.test.sh` checks trusted and untrusted peers) and logs the caller IP truncated (31 days in Loki). The
 > controller's `error_log` keeps no request line but may show the peer IP: keep
 > node log rotation at 7 days or less.
+>
+> **The controller must see the caller's address.** Behind a NodePort or a
+> Docker port mapping with `externalTrafficPolicy: Cluster` the source is
+> rewritten (SNAT): on staging-local the controller saw `10.244.0.1`, the node's
+> bridge, for every caller, so the edge-proxy truncates that address, not the
+> caller's. In production expose the controller with `externalTrafficPolicy:
+> Local` or a load balancer that keeps the source (PROXY protocol needs
+> `use-proxy-protocol`), and check once with a `curl` from a known address.
 
 ### 2. Configure secrets
 
