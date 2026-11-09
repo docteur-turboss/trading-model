@@ -21,6 +21,10 @@ describe("actorOf", () => {
 		expect(actorOf(request(SCRAPER, "ops-alice"))).toBeNull();
 	});
 
+	it("ignores a non-SPIFFE identity, even one mapped to the gateway (client:)", () => {
+		expect(actorOf(request("client:0123abcd", "ops-alice"))).toBeNull();
+	});
+
 	it("is null without an mTLS identity or without the header", () => {
 		expect(actorOf(request(undefined, "ops-alice"))).toBeNull();
 		expect(actorOf(request(GATEWAY))).toBeNull();
