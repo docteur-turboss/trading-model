@@ -7,8 +7,8 @@
 
 | Field                       | Value                                                                                       |
 | --------------------------- | ------------------------------------------------------------------------------------------- |
-| **Controller**              | _To be filled by the operating entity: legal name, address, registration number_            |
-| **Contact**                 | _To be filled: privacy contact address_                                                     |
+| **Controller**              | _To be filled by the operating entity: legal name, address, registration number. Production prerequisite ([DEPLOY.md](../deployment/DEPLOY.md))_            |
+| **Contact**                 | _To be filled: privacy contact address. Production prerequisite ([DEPLOY.md](../deployment/DEPLOY.md))_                                                     |
 | **Representative (Art. 27)**| Not applicable when the controller is established in the EU                                 |
 | **Data Protection Officer** | Not designated. Art. 37 requires one only for public bodies, or when the core activity is large-scale regular monitoring of individuals or large-scale processing of special categories; neither applies. (The 250-employee threshold of Art. 30(5) concerns the register, not the DPO: this register is kept regardless) |
 

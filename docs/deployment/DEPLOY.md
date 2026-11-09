@@ -91,6 +91,8 @@ Protect the `production` environment (Settings → Environments → `production`
 
 These settings are made by hand in GitHub; the workflow cannot check them.
 
+**Before the first production deploy**, the operating entity fills the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a)); the [privacy notice](../compliance/privacy-notice.md) points to them. The repository is public: commit no personal data, name the entity as your legal process requires.
+
 ### Deploy identities
 
 No admin kubeconfig is stored in GitHub (ADR-0041). With an admin kubeconfig,
