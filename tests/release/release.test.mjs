@@ -110,3 +110,12 @@ test('an option is never taken as the value of the option before it (a dry run s
     assert.equal(git('status', '--porcelain'), '', `${args.join(' ')} wrote files`);
   }
 });
+
+test('--publish exits 1 with the failing command when the push fails (no remote), never prints "published"', () => {
+  git('checkout', '-q', '-B', 'main');
+  git('branch', '-f', 'development', 'main');
+  const { status, out } = release('--publish', '--prerelease', 'beta');
+  assert.equal(status, 1, out);
+  assert.match(out, /Command failed: git push/);
+  assert.doesNotMatch(out, /published/);
+});
