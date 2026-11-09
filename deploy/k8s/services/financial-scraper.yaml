@@ -118,6 +118,9 @@ spec:
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -203,6 +206,12 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        - name: mysql-tls
+          secret:
+            secretName: mysql-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
 ---
 # Scrape-cron instance (SCRAPE_SCHEDULER_ENABLED=true). It shares the
 # financial-scraper ServiceAccount (same SPIFFE ID) but not its Service: API
@@ -328,6 +337,9 @@ spec:
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -413,6 +425,12 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        - name: mysql-tls
+          secret:
+            secretName: mysql-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
 ---
 # Leader lease of the collector pods (ADR-0057). Created here, so the Role
 # below needs no `create` (which resourceNames cannot restrict). Applied

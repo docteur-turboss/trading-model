@@ -34,3 +34,7 @@ Constraints: no Helm (kube-prometheus-stack is out), the application namespace e
 - node-exporter runs on the host network, where no NetworkPolicy applies: `:9100` is readable without authentication by anything that reaches the node address. Accepted: these metrics hold no secret.
 - `RedisReplicasMissing` and `RedisSentinelQuorumLost` read `kube_statefulset_replicas`: without kube-state-metrics they stay silent (`ServiceDown` still fires on its target; `absent(up)` alerts belong to their own issue).
 - `ServiceDown` (`up == 0`) now also covers the exporters and the kubelet targets.
+
+## Amendment 2026-11 (issue #767): MySQL client TLS
+
+The `mysqld-exporter` sidecars still reach `127.0.0.1:3306`, now over TLS: `--config.my-cnf` points to `exporter.cnf` (ConfigMap `mysql-client-tls`, `ssl-ca` only), and the server certificate carries `127.0.0.1` and `localhost` as SANs. The health probes use the local socket.

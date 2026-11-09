@@ -24,3 +24,7 @@ Migration 003 no longer holds the purge (a `DELETE` in a migration is irreversib
 - The MySQL dumps keep 5 years (ADR-0032), so a purged row stays restorable from older dumps until they expire.
 - A job that never ran has no metric: `RetentionStale` needs one run (success or failure) to exist.
 - Partitioning with `DROP PARTITION` stays an option at larger volume; out of scope.
+
+## Amendment 2026-11 (issue #767): MySQL client TLS
+
+The `retention` CronJob connects with `MYSQL_HOME=/etc/mysql-client` (ConfigMap `mysql-client-tls`: `ssl-mode=VERIFY_IDENTITY`, CA of Secret `mysql-tls`). `db-migrate-user` and the SPIRE init container use the same file.

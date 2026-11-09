@@ -74,3 +74,7 @@ Replace the in-house CA and the shared static certificate bundle with a **SPIRE*
 - File-based SVID consumption reuses the existing TLS watcher → minimal per-service code change.
 - `checkServerIdentity` override is centralized in the shared outbound TLS configuration.
 - Phased rollout: identity primitives → SVID file reload → SPIRE infra → decommission CA → enforce ACL.
+
+## Amendment 2026-11 (issue #767): MySQL client TLS
+
+MySQL client traffic is encrypted with a server certificate issued by cert-manager from an internal CA (`deploy/k8s/infra/mysql-tls.yaml`), not with SVIDs: an SVID carries a SPIFFE URI SAN and no DNS name, while MySQL clients verify the host name. The SPIRE server datastore connects with `root_ca_path` and the name `mysql-primary`; the SPIRE trust bundle is not added to the MySQL truststore and MySQL does not authenticate clients by certificate (users and passwords stay). cert-manager is a cluster prerequisite. Rotation and the move to `require_secure_transport=ON`: `docs/deployment/MYSQL_TLS.md`.

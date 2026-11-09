@@ -79,6 +79,13 @@ spec:
                   key: MYSQL_MIGRATE_PASSWORD
             - name: DB_NAME
               value: financial_scraper
+            # Server certificate checked with the internal CA, host name included (ADR-0060).
+            - name: DB_SSL_CA
+              value: /etc/mysql-tls/ca.crt
+          volumeMounts:
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
           resources:
             requests:
               cpu: 100m
@@ -86,6 +93,13 @@ spec:
             limits:
               cpu: 500m
               memory: 256Mi
+      volumes:
+        - name: mysql-tls
+          secret:
+            secretName: mysql-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
 ---
 apiVersion: v1
 kind: ServiceAccount

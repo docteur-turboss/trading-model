@@ -61,6 +61,8 @@ data:
           database_type = "mysql"
           connection_string = "root:${MYSQL_ROOT_PASSWORD}@tcp(mysql-primary:3306)/spire?parseTime=true"
           max_open_conns = 10
+          # Server certificate of the MySQL (ADR-0060); host name checked against mysql-primary.
+          root_ca_path = "/etc/mysql-tls/ca.crt"
         }
       }
       KeyManager "disk" {
@@ -130,12 +132,21 @@ spec:
                 sleep 5
               done
               mysql -h mysql-primary -u root -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS spire;"
+          volumeMounts:
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
+            - name: mysql-client-tls
+              mountPath: /etc/mysql-client
+              readOnly: true
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_HOME
+              value: /etc/mysql-client
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -164,6 +175,9 @@ spec:
               cpu: 500m
               memory: 512Mi
           volumeMounts:
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
             - name: spire-config
               mountPath: /etc/spire
               readOnly: true
@@ -225,6 +239,15 @@ spec:
               drop:
                 - ALL
       volumes:
+        - name: mysql-tls
+          secret:
+            secretName: mysql-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: mysql-client-tls
+          configMap:
+            name: mysql-client-tls
         - name: spire-config
           configMap:
             name: spire-server-config

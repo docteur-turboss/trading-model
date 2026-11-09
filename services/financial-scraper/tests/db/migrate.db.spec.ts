@@ -57,6 +57,17 @@ afterAll(async () => {
 });
 
 describe("scripts/migrate.mjs — real MySQL", () => {
+	it("should fail instead of connecting in plain when DB_SSL_CA is unreadable", async () => {
+		process.env.DB_SSL_CA = join(runner.migrationsDir, "missing-ca.crt");
+		try {
+			const result = await runner.runAsync("status");
+			expect(result.code).toBe(1);
+			expect(result.output).toContain("ENOENT");
+		} finally {
+			delete process.env.DB_SSL_CA;
+		}
+	});
+
 	it("should resume a migration that failed at its 2nd statement without replaying the 1st", async () => {
 		const create =
 			"-- a ; in a comment\nCREATE TABLE fx_a (id INT PRIMARY KEY, label VARCHAR(20) DEFAULT 'x;y');\n";

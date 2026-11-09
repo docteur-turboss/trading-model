@@ -84,11 +84,19 @@ spec:
                   value: "10000"
                 - name: RETENTION_PAUSE_SECONDS
                   value: "1"
+                - name: MYSQL_HOME
+                  value: /etc/mysql-client
                 - name: METRICS_FILE
                   value: /backups/metrics/retention.prom
               volumeMounts:
                 - name: scripts
                   mountPath: /scripts
+                  readOnly: true
+                - name: mysql-tls
+                  mountPath: /etc/mysql-tls
+                  readOnly: true
+                - name: mysql-client-tls
+                  mountPath: /etc/mysql-client
                   readOnly: true
                 - name: backup-data
                   mountPath: /backups
@@ -104,6 +112,15 @@ spec:
               configMap:
                 name: backup-scripts
                 defaultMode: 0555
+            - name: mysql-tls
+              secret:
+                secretName: mysql-tls
+                items:
+                  - key: ca.crt
+                    path: ca.crt
+            - name: mysql-client-tls
+              configMap:
+                name: mysql-client-tls
             - name: backup-data
               persistentVolumeClaim:
                 claimName: backup-data

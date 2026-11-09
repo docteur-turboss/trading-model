@@ -1,0 +1,105 @@
+# TLS of the MySQL client port (issue #767, ADR-0060): server certificate
+# issued by cert-manager from an internal CA, verified by every client.
+# cert-manager and its CRDs are a cluster prerequisite (check-prereqs.sh).
+#
+# Rotation: cert-manager renews the leaf 30 days before its 90-day end and
+# the CA 90 days before its 5-year end; the kubelet refreshes the mounted
+# Secret. the `tls-reload` sidecar of the mysql pods runs
+# `ALTER INSTANCE RELOAD TLS` (no restart); clients read the CA when they start. Runbook:
+# docs/deployment/MYSQL_TLS.md.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: mysql-selfsigned
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mysql-ca
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  isCA: true
+  commonName: trading-model-mysql-ca
+  secretName: mysql-ca
+  duration: 43800h
+  renewBefore: 2160h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: mysql-selfsigned
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: mysql-ca
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ca:
+    secretName: mysql-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mysql-tls
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  secretName: mysql-tls
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    # A renewed key replaces the old one: no stale key stays valid.
+    rotationPolicy: Always
+  usages:
+    - server auth
+    - digital signature
+    - key encipherment
+  # Short Service names, as the clients of the namespace use them; the
+  # exporter sidecar and the probes connect to 127.0.0.1 / localhost.
+  dnsNames:
+    - mysql
+    - mysql-primary
+    - mysql-headless
+    - "*.mysql-headless"
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  issuerRef:
+    name: mysql-ca
+    kind: Issuer
+---
+# Client side: mysql, mysqldump, mysqlbinlog and mysqladmin read
+# $MYSQL_HOME/my.cnf. Jobs mount this at /etc/mysql-client and set
+# MYSQL_HOME=/etc/mysql-client, together with the `mysql-tls` Secret at
+# /etc/mysql-tls (ca.crt only is read).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-client-tls
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+data:
+  my.cnf: |
+    [client]
+    ssl-mode=VERIFY_IDENTITY
+    ssl-ca=/etc/mysql-tls/ca.crt
+  # Read by the mysqld-exporter sidecars (--config.my-cnf): the CA only, the
+  # user and password come from its flag and environment.
+  exporter.cnf: |
+    [client]
+    ssl-ca=/etc/mysql-tls/ca.crt
