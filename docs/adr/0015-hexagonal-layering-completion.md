@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0010](./0010-clean-architecture-migration.md) (target layout, now Implemented), [ADR-0007](./0007-common-package-split.md) (common split, now Implemented), [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (hard-migration convention)
-**Verified by:** manual review 2026-10-22 (all phases validated by lint, typecheck and workspace tests; no automated layering check yet)
+**Verified by:** `bun run arch:check`
 
 ## Context
 
@@ -93,8 +93,13 @@ Applied the same day:
 | trader-trainer | ENV → container configuration → `createTraderTrainerContainer(ENV)` (also exposes the parsed symbols for the training loop) |
 | api-gateway | readiness HTTP client (was `new HttpClient()` in `server.ts`) → `config/container.ts` |
 
-dlq-service and message-manager entry points already did startup only (connection open/close, schedulers, readiness probes) and were left unchanged. No automated rule enforces this convention; see [Enforcement](#enforcement).
+dlq-service and message-manager entry points already did startup only (connection open/close, schedulers, readiness probes) and were left unchanged. `bun run arch:check` enforces the application boundary of this convention; see [Enforcement](#enforcement).
 
 ## Enforcement
 
-The automated architecture gate (`scripts/architecture-gate.mjs` with its ratcheted baseline) was removed from the repository during this work. The figures above were measured with an equivalent standalone run of the same rules. Until a gate is reinstated, these boundaries rely on review. The references to the gate in `docs/standards/` (architecture-standards, quality-gates, testing-standards, verification-protocol) describe tooling that is no longer present.
+`bun run arch:check` (`scripts/architecture-check.mjs`, spec `tests/architecture/architecture-check.test.mjs`; `.husky/pre-push` and the CI `lint` job) reinstates, in a lighter form, the gate removed during this work. Over `packages/*/src` and `services/*/src` it reports:
+
+- **runtime import cycles** (strongly connected components; `import type` / `export type` are ignored);
+- **layer violations**: an `application/` file importing `adapters/` or `infrastructure/` (relative or `@trading-model/<pkg>/adapters|infrastructure/...`, type imports included). `application/index.ts`, `server.ts` and `telemetry.ts` are the startup files and are exempt.
+
+The findings that existed when the gate came back are listed in `scripts/architecture-baseline.json` (ratchet): a finding absent from it fails, and a baseline entry that no longer exists fails too, so the baseline only shrinks. Never add an entry to let new code in: fix the import. Dynamic `import()` / `require()` edges are not followed.

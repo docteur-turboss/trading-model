@@ -67,6 +67,8 @@ All developers contributing to the codebase. Every architectural decision aims t
 | Formatting   | Biome                                                |
 | Linting      | Biome                                                |
 
+Layer boundaries (`application/` never imports `adapters/` or `infrastructure/`, except `index.ts`, `server.ts`, `telemetry.ts`) and the absence of runtime import cycles are enforced by `bun run arch:check`, ratcheted on `scripts/architecture-baseline.json` ([ADR-0015](../adr/0015-hexagonal-layering-completion.md)).
+
 ## Dependency Graph
 
 Shared packages (base → derived):

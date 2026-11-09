@@ -1,5 +1,6 @@
 import type { PriceSnapshotData } from "../market-data-types";
-import { type DataHandler, isAfterLast, pushWithMaxSize } from "./data-handler";
+import type { DataHandler } from "./data-handler";
+import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
 import { DataType } from "./data-types";
 
 /** Price tickers, stamped at reception (Binance sends no time with them). */

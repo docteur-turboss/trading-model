@@ -1,5 +1,6 @@
 import type { BookTickerData } from "@trading-model/contracts/market-data.types";
-import { type DataHandler, isAfterLast, pushWithMaxSize } from "./data-handler";
+import type { DataHandler } from "./data-handler";
+import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
 import { DataType } from "./data-types";
 
 export const bookTickerHandler: DataHandler<BookTickerData> = {

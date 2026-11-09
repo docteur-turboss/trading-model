@@ -38,6 +38,7 @@
     "api:write": "bun --tsconfig-override=scripts/api-contract.tsconfig.json scripts/api-contract.mjs --write",
     "reach:report": "node scripts/reachability.mjs",
     "reach:check": "node scripts/reachability.mjs --max-lines 0",
+    "arch:check": "node --test tests/architecture/architecture-check.test.mjs && node scripts/architecture-check.mjs",
     "config:check": "node scripts/config-flags-check.mjs",
     "test": "bun run --filter '*' test",
     "test:coverage": "bun run --filter '*' test --coverage",
