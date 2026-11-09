@@ -209,7 +209,7 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 
 ## Replicas and the HPA
 
-A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singleton `trader-trainer` (ADR-0044: training state in memory) has no HPA, keeps `replicas: 1` and `Recreate`; `financial-scraper-collector` has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which only collects once it holds the Lease (ADR-0057); `check-overlays.mjs` enforces both. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` of older releases. A release stops training until the new trainer pod is ready. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
+A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singleton `trader-trainer` (ADR-0044: training state in memory) has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which serves the read routes at once and only trains once it holds the Lease `trader-trainer` (ADR-0058: the old pod ends its session after the current generation, stores and publishes its model, then releases it); `financial-scraper-collector` has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which only collects once it holds the Lease (ADR-0057); `check-overlays.mjs` enforces both. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` of older releases. A release pauses training for the end of one generation plus up to 2 s; the read routes keep answering. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
 
 Moving an existing cluster over: `deploy.yml` (step "Release replicas of autoscaled Deployments") removes `spec.replicas` from `kubectl.kubernetes.io/last-applied-configuration` before the apply, otherwise the apply would drop the Deployment to 1 pod. By hand: `kubectl apply edit-last-applied deployment/<name> -n <ns>` and delete the `replicas` line, before applying the new overlay.
 
@@ -227,8 +227,8 @@ then upgrades to N (`tests/k8s/run-kind.sh upgrade`).
 
 "Wait for rollout" gives each Deployment 180 s plus the
 `terminationGracePeriodSeconds` of its pod template: a `Recreate` Deployment
-(`trader-trainer`) starts its new pod only once the old one has drained, and a
-draining pod may take its whole grace. A fixed 180 s declared such a healthy release
+starts its new pod only once the old one has drained, and a draining pod may
+take its whole grace. A fixed 180 s declared such a healthy release
 failed and rolled it back; the kind job found it (PR #460) and runs the same
 timeouts as production.
 
