@@ -79,3 +79,10 @@ patches:
       - op: add
         path: /metadata/annotations/nginx.ingress.kubernetes.io~1whitelist-source-range
         value: 192.0.2.0/24
+
+# Pod CIDR trusted by the edge-proxy for X-Forwarded-For (issue #732).
+configMapGenerator:
+  - name: edge-proxy-nginx
+    behavior: merge
+    files:
+      - realip.inc=realip.inc

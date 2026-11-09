@@ -97,6 +97,7 @@ This register documents the processing activities of the trading-model platform,
 | **Transfers outside EU** | None — Loki is self-hosted                                                                                         |
 | **Retention period**     | 31 days (Loki `retention_period: 744h`)                                                                            |
 | **Technical measures**   | Ingress controller in front (K8s): access log disabled (`disable-access-log`, prerequisite in `docs/deployment/KUBERNETES.md`), so no full IP, User-Agent or Referer is written on the node; node-level `error_log` rotated at 7 days or less. The edge-proxy takes the caller IP from `X-Forwarded-For` only when the connection comes from a pod CIDR (`deploy/edge-proxy/realip.k8s.inc`). Truncation in nginx before the log line is written (`log_format anonymized`, `deploy/edge-proxy/default.conf`); the gateway forwards only an anonymized `X-Forwarded-For` and drops `X-Real-IP` |
+| **Ingress controller (K8s)** | Access log disabled: no log line, so no retention. Format: none. Its `error_log` has no request line but may show the peer IP; node log rotation of 7 days or less is a production prerequisite (`docs/deployment/KUBERNETES.md`) |
 | **System**               | edge-proxy (stdout) → Promtail → Loki                                                                              |
 
 ## Processing Activity 7: Operational Telemetry and Backups

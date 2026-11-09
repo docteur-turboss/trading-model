@@ -39,7 +39,8 @@ prereqs() {
 	# No access log at the controller: it would hold the full caller IP, User-Agent
 	# and Referer on the node (data-processing register, activity 6; issue #732).
 	# The edge-proxy logs the truncated IP. The controller reloads on its own.
-	kubectl -n ingress-nginx patch configmap ingress-nginx-controller --type merge 		-p '{"data":{"disable-access-log":"true"}}'
+	kubectl -n ingress-nginx patch configmap ingress-nginx-controller --type merge \
+		-p '{"data":{"disable-access-log":"true"}}'
 	kubectl -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=300s
 	kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=300s
 	kubectl apply -f - <<'EOF'

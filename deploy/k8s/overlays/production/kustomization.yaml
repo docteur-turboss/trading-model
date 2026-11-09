@@ -48,3 +48,10 @@ patches:
       kind: CronJob
       name: db-backup-incremental
     patch: *min-recipients
+
+# Pod CIDR trusted by the edge-proxy for X-Forwarded-For (issue #732).
+configMapGenerator:
+  - name: edge-proxy-nginx
+    behavior: merge
+    files:
+      - realip.inc=realip.inc
