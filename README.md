@@ -38,7 +38,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | Security      | mTLS everywhere (TLS 1.3)                                  |
 | Databases     | MongoDB 7, MySQL 8 (single primary, no failover, [ADR-0020](docs/adr/0020-database-topology-as-deployed.md)), Redis 7 (Sentinel) |
 | Validation    | Zod                                                        |
-| Testing       | Jest + Stryker (mutation)                                  |
+| Testing       | Jest + Stryker (weekly mutation run)                       |
 | Observability | Prometheus + Grafana + Jaeger + Loki                       |
 
 ### Services
