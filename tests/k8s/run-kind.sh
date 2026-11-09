@@ -764,14 +764,14 @@ verify_canary() {
 	local forward=$! traffic=""
 	trap 'kill $traffic $forward 2>/dev/null || true; deploy_script canary-cleanup api-gateway >/dev/null 2>&1 || true' RETURN
 	wait_for 30 'curl -s -o /dev/null http://localhost:18450/'
-	# 2 requests/s in bursts of 10 every 5 s (the gateway limits each API client
-	# to 100/min per pod). edge-proxy keeps a keep-alive pool to the gateway and
+	# 2.4 requests/s in bursts of 12 every 5 s (the gateway limits each API client
+	# to 100/min per pod: ~72/min each here). edge-proxy keeps a keep-alive pool to the gateway and
 	# kube-proxy picks the pod only when a connection opens: a request every
 	# 0.5 s reuses one connection for minutes (13 canary requests in 60 s, issue
-	# #724). A burst needs 10 connections and the 5 s pause outlives the pool's
-	# keepalive_timeout (4 s), so each burst draws 10 new pod picks (~50% canary).
+	# #724). A burst needs 12 connections and the 5 s pause outlives the pool's
+	# keepalive_timeout (4 s), so each burst draws 12 new pod picks (~50% canary).
 	(while :; do
-		for _ in 1 2 3 4 5 6 7 8 9 10; do
+		for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
 			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18450/v1/discovery-server/services &
 		done
 		wait
