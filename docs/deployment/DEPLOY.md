@@ -91,6 +91,8 @@ Protect the `production` environment (Settings → Environments → `production`
 
 These settings are made by hand in GitHub; the workflow cannot check them.
 
+**Before the first production deploy**, the operating entity fills the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a)); the [privacy notice](../compliance/privacy-notice.md) points to them. The repository is public: commit no personal data, name the entity as your legal process requires.
+
 ### Deploy identities
 
 No admin kubeconfig is stored in GitHub (ADR-0041). With an admin kubeconfig,
@@ -203,9 +205,10 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 
 ## Production deployment
 
-1. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
-2. `release.yml` runs the whole CI on the tag, then publishes the 10 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them. First release of this pipeline: [release.md, section 4](../contributing/release.md#4-first-release-of-the-current-pipeline) (`v2.0.0` to `v2.0.3` are not deployable)
-3. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
+1. Fill the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a); first production deploy only, see "Before the first production deploy" above)
+2. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
+3. `release.yml` runs the whole CI on the tag, then publishes the 10 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them. First release of this pipeline: [release.md, section 4](../contributing/release.md#4-first-release-of-the-current-pipeline) (`v2.0.0` to `v2.0.3` are not deployable)
+4. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 
 ---
 
