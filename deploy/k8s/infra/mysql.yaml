@@ -184,6 +184,53 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 3
+        # Reloads the server certificate when cert-manager renews it (issue
+        # #767): mysqld otherwise keeps serving the old one until it expires.
+        # Connects through 127.0.0.1 (SAN of mysql-tls) as root; a failed
+        # reload is logged and retried on the next tick.
+        - name: tls-reload
+          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+          command:
+            - sh
+            - -c
+            - |
+              last=$(sha256sum /etc/mysql-tls/tls.crt)
+              while sleep 60; do
+                now=$(sha256sum /etc/mysql-tls/tls.crt) || continue
+                [ "$now" = "$last" ] && continue
+                if mysql --protocol=tcp -h 127.0.0.1 -uroot --ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/mysql-tls/ca.crt -e 'ALTER INSTANCE RELOAD TLS'; then
+                  echo "server certificate reloaded"
+                  last=$now
+                else
+                  echo "reload failed, retrying" >&2
+                fi
+              done
+          env:
+            - name: MYSQL_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
         # Exporter of this member (issue #601, ADR-0056), as MySQL user
         # `exporter` (PROCESS, REPLICATION CLIENT, SELECT on performance_schema),
         # created by the db-migrate-user Job. Without its password key the
@@ -224,7 +271,8 @@ spec:
             - name: mysql-client-tls
               mountPath: /etc/mysql-client
               readOnly: true
-            - name: mysql-tls
+            # ca.crt only: the exporter has no use for the server key.
+            - name: mysql-ca
               mountPath: /etc/mysql-tls
               readOnly: true
       volumes:
@@ -234,6 +282,12 @@ spec:
         - name: mysql-tls
           secret:
             secretName: mysql-tls
+        - name: mysql-ca
+          secret:
+            secretName: mysql-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         - name: mysql-client-tls
           configMap:
             name: mysql-client-tls
