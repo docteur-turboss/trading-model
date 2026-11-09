@@ -378,6 +378,16 @@ deploy fail too. There is no value that skips the check. Tested by
 `tests/backup/backup-bucket-check.test.sh` (stub `aws` CLI; workflow
 `backup-test.yml`).
 
+**Region.** The same script reads the bucket's region
+(`aws s3api get-bucket-location`; `null` is `us-east-1`, `EU` is
+`eu-west-1`) and checks it against `BACKUP_S3_ALLOWED_REGIONS`
+(GitHub environment variable, space-separated; default: EU regions of AWS,
+Scaleway and OVH, `docs/deployment/ENV.md`). A region outside the list, or one
+the store does not report (some S3-compatible stores), is an error in
+production and a warning elsewhere. The audit-anchor bucket
+(`AUDIT_ANCHOR_*`) has no such check yet: see
+`docs/compliance/third-party-dpas.md`.
+
 ### Retention
 
 Grandfather-father-son (ADR-0032), applied by `prune_old` and by the

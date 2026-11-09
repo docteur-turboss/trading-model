@@ -278,6 +278,14 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 
 ---
 
+## Deploy workflow (GitHub environment variables)
+
+| Variable | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `BACKUP_S3_ALLOWED_REGIONS` | space-separated list | EU regions of AWS (`eu-*`), Scaleway (`fr-par nl-ams pl-waw`), OVH (`gra sbg rbx par`) | Regions the off-site backup bucket may be in. `deploy.yml` runs `scripts/backup-bucket-check.sh`: a bucket elsewhere, or whose region cannot be read, is an error in production and a warning elsewhere (`BACKUP_S3_IMMUTABILITY_CHECK=warn` downgrades both). GDPR art. 44, `docs/compliance/third-party-dpas.md` |
+
+---
+
 ## Validation
 
 All environment variables are validated at startup via **Zod schemas**. If a required variable is missing or has an invalid value, the service exits immediately with a clear error message.
