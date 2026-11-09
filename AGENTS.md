@@ -25,6 +25,7 @@ bun run docs:generate           # TypeDoc HTML into docs/architecture/code/ (git
 bun run commit                  # Interactive gitmoji commit CLI
 bun run release                 # Bump versions + CHANGELOG only (scripts/release.mjs); no commit, tag or push
 bun run release:publish         # Same, then commit, tag vX.Y.Z and push it (on main; docs/contributing/release.md)
+bun run release:test            # Version/base cases of release.mjs (--prerelease <id>: vX.Y.Z-<id>.N from the last stable tag) on a throwaway git repo
 # The tag triggers the "Release" workflow: whole CI, then images :X.Y.Z (+ :latest if highest stable)
 ```
 

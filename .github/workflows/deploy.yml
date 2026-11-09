@@ -97,7 +97,8 @@ jobs:
     steps:
       # Manifests, node agents and migrations come from the released tag, not
       # from the branch picked at dispatch: production only deploys a vX.Y.Z
-      # release (refused here, before the cluster is reached). A tag older
+      # or vX.Y.Z-rc.N release (refused here, before the cluster is reached),
+      # the same tag forms release.yml publishes. A tag older
       # than a script this workflow calls fails the deploy, on purpose.
       - name: Resolve release ref
         id: ref
@@ -106,13 +107,13 @@ jobs:
           ENV: ${{ inputs.environment }}
           TAG: ${{ inputs.image_tag }}
         run: |
-          if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
             echo "ref=refs/tags/v${TAG#v}" >> "$GITHUB_OUTPUT"
             echo "Checking out refs/tags/v${TAG#v}"
             exit 0
           fi
           if [ "$ENV" = "production" ]; then
-            echo "::error::production deploys a release only: image_tag must be vX.Y.Z or X.Y.Z, got '$TAG'"
+            echo "::error::production deploys a release only: image_tag must be vX.Y.Z[-prerelease] or X.Y.Z[-prerelease], got '$TAG'"
             exit 1
           fi
           echo "::warning::image_tag '$TAG' is not a release: manifests and migrations come from the dispatch ref $GITHUB_REF, not from the image's release"
