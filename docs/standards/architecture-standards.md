@@ -122,7 +122,7 @@ There is no frontend workspace: `admin-interface` was removed until a new one is
 
 ## Workload Identity & Security Model
 
-- All inter-service communication uses **HTTPS with mutual TLS** (mTLS).
+- All service-to-service HTTP communication uses **HTTPS with mutual TLS** (mTLS); database client traffic is not encrypted (ADR-0060).
 - Workload identity is provided by **SPIFFE/SPIRE** (ADR-0011): each workload is
   attested and issued short-lived X.509-SVIDs (with a `spiffe://` URI SAN),
   consumed via `spiffe-helper` sidecars. The former in-house CA and

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import type {
 	Fitness,
 	PositiveInt,
@@ -19,7 +20,7 @@ describe("EvolutionEngine", () => {
 	let rng: () => number;
 
 	beforeEach(() => {
-		rng = Math.random;
+		rng = makePRNG(9103);
 	});
 
 	describe("crossoverWeights", () => {
@@ -112,7 +113,7 @@ describe("EvolutionEngine", () => {
 				ranked,
 				newCtrl: ctrl,
 				ctrl,
-				rng: Math.random,
+				rng: makePRNG(9104),
 				generation: 1,
 				telemetry: {
 					generationStarted: jest.fn<(...args: any[]) => any>(),
