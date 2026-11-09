@@ -1,5 +1,4 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import type { Span } from "@opentelemetry/api";
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import {
 	createDlqHandlers,
@@ -39,12 +38,6 @@ function setup(
 }
 
 const ENTRY = { topic: "t", message: {} } as never as DlqEntry;
-const SPAN = {
-	setAttribute: jest.fn(),
-	setStatus: jest.fn(),
-	recordException: jest.fn(),
-	end: jest.fn(),
-} as never as Span;
 
 async function call<T>(p: Promise<{ data?: unknown; status?: number }>) {
 	const r = await p;
@@ -114,7 +107,6 @@ describe("DLQ HTTP handlers", () => {
 				{ limit: 10 },
 				expect.anything()
 			);
-			void SPAN;
 		});
 	});
 
