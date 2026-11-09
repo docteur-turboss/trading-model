@@ -58,8 +58,8 @@ stringData:
   MONGO_BACKUP_PASSWORD: dev-mongo-backup-password
   MONGO_AUDIT_PASSWORD: dev-mongo-audit-password
   MONGO_DLQ_PASSWORD: dev-mongo-dlq-password
-  MONGO_AUDIT_KEYFILE: dev-mongo-audit-keyfile
-  MONGO_DLQ_KEYFILE: dev-mongo-dlq-keyfile
+  MONGO_AUDIT_KEYFILE: devMongoAuditKeyfile0123456789abcdefghij
+  MONGO_DLQ_KEYFILE: devMongoDlqKeyfile0123456789abcdefghijkl
 `;
 
 // `--secret`: that Secret alone, the stand-in for the SealedSecret file deploy.yml

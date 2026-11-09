@@ -42,7 +42,7 @@ source "$(dirname "$0")/backup-lib.sh"
 
 # Restore needs every action (oplog replay): the `root` user (ADR-0058); the
 # password stays in the container's env.
-MONGO_ROOT_RESTORE='mongorestore --quiet --gzip --drop --username root --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin'
+MONGO_ROOT_RESTORE='mongorestore --gzip --drop --username root --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin'
 
 restore_mongodb() {
   log "Starting MongoDB restore..."
