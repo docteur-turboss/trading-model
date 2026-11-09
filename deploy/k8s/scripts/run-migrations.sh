@@ -127,6 +127,19 @@ if kubectl get job mysql-cluster-init -n "$NS" >/dev/null 2>&1; then
   fi
 fi
 
+# The jobs below mount the client certificate Secrets of cert-manager (issue #767), which the
+# overlay (applied after the migrations) would otherwise create too late on an upgrade from a
+# release without them: the pod would wait on a missing Secret until the Job deadline.
+kubectl apply -n "$NS" -f "$JOBS/../infra/mysql-tls.yaml"
+for s in mysql-client-root mysql-client-migrator mysql-client-retention; do
+  for _ in $(seq 60); do
+    kubectl get secret "$s" -n "$NS" >/dev/null 2>&1 && continue 2
+    sleep 2
+  done
+  echo "::error::cert-manager did not issue Secret $s (kubectl describe certificate $s -n $NS)"
+  exit 1
+done
+
 apply_new_sealed_keys
 require_migrate_password
 run_job db-migrate-user "$JOBS/migration-user-job.yaml"
