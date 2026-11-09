@@ -58,16 +58,19 @@ const CHECKS = [
 ];
 
 // Last three: database TLS that does not exist (ADR-0060).
-const FORBIDDEN = /not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer|mTLS everywhere|[|] TLS connection [|]|All inter-service communication/i;
+const TLS_CLAIMS = 'mTLS everywhere|[|] TLS connection [|]|All inter-service communication';
+const FORBIDDEN = new RegExp(`not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer|${TLS_CLAIMS}`, 'i');
+// The README is prose: only the database TLS claims apply to it.
+const README_FORBIDDEN = new RegExp('mTLS everywhere|[|] TLS connection [|]', 'i');
 
 const errors = [];
 for (const [file, text] of CHECKS) {
   if (!read(file).includes(text)) errors.push(`${file}: missing "${text}"`);
 }
-for (const f of ['data-processing-register', 'dpia', 'compliance-framework', 'information-security-policy', 'access-control-policy']) {
-  const file = `docs/compliance/${f}.md`;
+const SCANNED = [['README.md', README_FORBIDDEN], ...['data-processing-register', 'dpia', 'compliance-framework', 'information-security-policy', 'access-control-policy'].map((f) => [`docs/compliance/${f}.md`, FORBIDDEN])];
+for (const [file, re] of SCANNED) {
   read(file).split('\n').forEach((l, i) => {
-    if (FORBIDDEN.test(l)) errors.push(`${file}:${i + 1}: stale wording "${l.match(FORBIDDEN)[0]}"`);
+    if (re.test(l)) errors.push(`${file}:${i + 1}: stale wording "${l.match(re)[0]}"`);
   });
 }
 
