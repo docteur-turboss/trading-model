@@ -13,6 +13,9 @@ info:
     registry entry (ADR-0021) also describe their parameters, request body
     and responses from the service's Zod schemas; the others do not yet
     (scripts/api-contract-known-gaps.json, `schemas`).
+
+    Privacy: the truncated caller IP is logged for 31 days, see the Art. 13
+    notice, https://github.com/docteur-turboss/trading-model/blob/main/docs/compliance/privacy-notice.md
   version: "audit-logger v1, discovery-server v1, dlq-service v1, financial-scraper v2, message-manager v1, trader-trainer v1"
 servers:
   - url: http://localhost:8449

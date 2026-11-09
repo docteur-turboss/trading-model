@@ -7,6 +7,7 @@ Regulatory compliance documentation covering GDPR, MiFID II, MAR, and DORA.
 | [Compliance Framework](compliance-framework.md) | Master regulatory map — controls mapped to each regulation |
 | [DPIA](dpia.md) | Data Protection Impact Assessment (CNIL PIA, Art. 35 GDPR) |
 | [Data Processing Register](data-processing-register.md) | Art. 30 GDPR register — 5 processing activities |
+| [Privacy Notice](privacy-notice.md) | Art. 13 GDPR information notice for API callers |
 | [Data Retention Policy](data-retention-policy.md) | Retention schedules, legal bases, and deletion mechanisms |
 | [Algorithmic Trading Compliance](algorithmic-trading-compliance.md) | MiFID II Art. 17 + RTS 6 + MAR for GA/DQN agents |
 | [Information Security Policy](information-security-policy.md) | ISMS framework aligned with ISO 27001:2022 |
