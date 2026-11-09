@@ -32,7 +32,6 @@ Triggered on every `git push` — must pass before the push completes:
 ```bash
 # .husky/pre-push
 bunx @biomejs/biome check .
-bun run arch:check    # new runtime import cycle / application -> adapters|infrastructure import (ADR-0015)
 bun run build
 bun run test
 ```
@@ -43,6 +42,7 @@ Triggered on every push and PR — full validation:
 
 ```bash
 bun run lint          # biome check
+bun run arch:check    # new runtime import cycle / application -> adapters|infrastructure import (ADR-0015)
 bun run build         # packages + services typecheck
 bun run test:coverage # tests + coverage (Codecov)
 bun run test:contract # contract tests
