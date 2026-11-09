@@ -12,7 +12,7 @@ A release is a git tag `vX.Y.Z` pushed to `origin`. The tag triggers the **Relea
 | `bun run release` | Read the gitmoji commits since the last tag, bump the root version, set every `services/*/package.json` to it (the root version is the tag and the image tag; services have no version of their own) and bump the touched `packages/*` versions, prepend `CHANGELOG.md`. Does not commit, tag or push |
 | `bun run release:publish` | Same, then commit `:rocket:(release): vX.Y.Z`, create the annotated tag, `git push --follow-tags`. Refuses to run off `main`; merges `development` into `main` first; runs `bun run docs:generate` before the commit |
 | `--bump major\|minor\|patch`, `--version X.Y.Z` | Force the bump (`release:bump`, `release:version`; `--version` edits the root and the services `package.json`) |
-| `--prerelease <id>` (with `--dry-run` or `--publish`) | Release `X.Y.Z-<id>.N` instead of `X.Y.Z`: commit `:rocket:(release): vX.Y.Z-<id>.N`, tag `vX.Y.Z-<id>.N`. `N` is 1 + the highest local tag `vX.Y.Z-<id>.N`: run `git fetch --tags` first. Cannot be combined with `--version` |
+| `--prerelease <id>` (alone, or also with `--dry-run` or `--publish`) | Release `X.Y.Z-<id>.N` instead of `X.Y.Z`: commit `:rocket:(release): vX.Y.Z-<id>.N`, tag `vX.Y.Z-<id>.N`. `N` is 1 + the highest tag `vX.Y.Z-<id>.N`; the script runs `git fetch --tags` first (its failure is ignored, so without a reachable remote only local tags count). Cannot be combined with `--version`. An option value that is missing or starts with `-` (`--prerelease --dry-run`) exits 1 before anything is written |
 
 Automatic bump: a breaking commit (`:boom:`, `!:`) is major, a feature commit (`:sparkles:`, `:tada:`, `:label:`) is minor, anything else is patch.
 

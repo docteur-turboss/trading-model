@@ -102,3 +102,11 @@ test('refuses a missing or invalid prerelease id, --prerelease with --version, a
     assert.equal(status, 1, `${args.join(' ')}: ${out}`);
   }
 });
+
+test('an option is never taken as the value of the option before it (a dry run stays a dry run)', () => {
+  for (const args of [['--prerelease', '--dry-run'], ['--prerelease', '--publish'], ['--version', '--dry-run'], ['--bump', '--dry-run']]) {
+    const { status, out } = release(...args);
+    assert.equal(status, 1, `${args.join(' ')}: ${out}`);
+    assert.equal(git('status', '--porcelain'), '', `${args.join(' ')} wrote files`);
+  }
+});

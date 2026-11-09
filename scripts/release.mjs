@@ -130,6 +130,7 @@ function baseVersion(pkgVersion, stableTag) {
 /** `<target>-<id>.N`, N = 1 + the highest existing tag `v<target>-<id>.N`. */
 function prereleaseVersion(target, id) {
   const prefix = `v${target}-${id}.`;
+  run('git fetch --tags --quiet'); // stale local tags would reuse an N already pushed (no-op without a remote)
   const taken = run('git tag --list')
     .split('\n')
     .filter(t => t.startsWith(prefix))
@@ -196,7 +197,13 @@ function parseArgs() {
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     if (flag in VALUE_FLAGS) {
-      args[VALUE_FLAGS[flag]] = argv[++i] || null;
+      const value = argv[++i];
+      // `--prerelease --dry-run` must not take "--dry-run" as the id and publish for real.
+      if (!value || value.startsWith('-')) {
+        console.error(`  Missing value for ${flag}.`);
+        process.exit(1);
+      }
+      args[VALUE_FLAGS[flag]] = value;
     } else if (flag in BOOLEAN_FLAGS) {
       args[BOOLEAN_FLAGS[flag]] = true;
     } else {
