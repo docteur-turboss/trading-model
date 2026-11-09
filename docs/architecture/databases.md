@@ -23,9 +23,10 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 
 | Service | Stores |
 | ------- | ------ |
-| **message-manager** | Message archival data |
-| **audit-logger** | Audit event persistence |
-| **dlq-service** | Dead letter entries |
+| **audit-logger** | Audit event persistence (replica set `mongo-audit`) |
+| **dlq-service** | Dead letter entries (replica set `mongo-dlq`) |
+
+Network access (K8s, issue #727): MongoDB runs without authentication (issue #669) and without TLS, so the NetworkPolicies are the only barrier. Port 27017 of each replica set accepts only its owner service, its own members and its init Job (`mongo-audit-network-policy`: `audit-logger`, `mongodb-audit`, `mongodb-audit-init`; `mongodb-network-policy`: `dlq-service`, `mongodb`, `mongodb-init`), and port 9216 (exporter) only Prometheus. Backups and restores go through `kubectl exec` into the members, not the network. A new client is a label in that policy, checked on kind by `verify_mongo_ingress` (`tests/k8s/run-kind.sh`).
 
 > SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database).
 
