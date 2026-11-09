@@ -224,7 +224,7 @@ migrations() {
 		node "$ROOT/tests/k8s/ci-render.mjs" --secret >"$sealed" || return 1
 	fi
 	(cd "$1" && use_kube &&
-		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
+		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS" ${2:+"$2"})
 }
 
 # The overlay of the checkout `$1`, pinned to the digests of file `$2` as
@@ -308,6 +308,8 @@ release() {
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
 	release_script wait "$NS" "${2:-180s}" || return 1
+	# mysqld now serves the cert-manager certificate: bind the users to their client certificates.
+	migrations "$ROOT" user-only || return 1
 	deploy_script smoke-test
 }
 

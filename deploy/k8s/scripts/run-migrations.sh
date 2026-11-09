@@ -28,7 +28,8 @@ JOBS="$(dirname "${BASH_SOURCE[0]}")/../jobs"
 run_job() { # <job> <manifest>
   kubectl delete job "$1" -n "$NS" --ignore-not-found
   sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" "$2" |
-    sed "s#^\( *\)- name: DB_SSL_CA\$#\1- name: DB_SSL_VERIFY\n\1  value: '${TLS_VERIFY:-true}'\n&#" |
+    sed -e "s#^\( *\)- name: DB_SSL_CA\$#\1- name: DB_SSL_VERIFY\n\1  value: '${TLS_VERIFY:-true}'\n&#" \
+      -e "s#^\( *\)- name: MYSQL_HOME\$#\1- name: TLS_BIND\n\1  value: '${TLS_VERIFY:-true}'\n&#" |
     awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
     kubectl apply -n "$NS" -f -
   bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" "$1" 180
@@ -143,8 +144,8 @@ kubectl get statefulset mysql -n "$NS" -o jsonpath='{.spec.template.spec.volumes
 if [ "$TLS_VERIFY" = true ]; then
   kubectl apply -n "$NS" -f "$JOBS/../infra/mysql-tls.yaml"
 else
-  echo "mysql still serves its auto-generated certificate: migration jobs use ssl-mode=REQUIRED"
-  sed 's/ssl-mode=VERIFY_IDENTITY/ssl-mode=REQUIRED/' "$JOBS/../infra/mysql-tls.yaml" | kubectl apply -n "$NS" -f -
+  echo "mysql still serves its auto-generated certificate: migration jobs use ssl-mode=REQUIRED, no client certificate, users not bound yet (run this script again, user-only, once the overlay rolled mysql)"
+  sed -e 's/ssl-mode=VERIFY_IDENTITY/ssl-mode=REQUIRED/' -e '/^ *ssl-\(cert\|key\)=/d' "$JOBS/../infra/mysql-tls.yaml" | kubectl apply -n "$NS" -f -
 fi
 for s in mysql-client-root mysql-client-migrator mysql-client-retention; do
   for _ in $(seq 60); do
