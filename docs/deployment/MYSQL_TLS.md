@@ -25,6 +25,8 @@ Every network client has its **own client certificate** (Certificate `mysql-clie
 
 `require_secure_transport=ON` is set in `group-replication.cnf` (`mysql.yaml`). The release that introduces it rolls the MySQL pods once and runs `db-migrate-user`, which binds the users to their certificates: pods of the previous release (plain, no client certificate) lose their MySQL connection until they are replaced by the rolling update (brief interruption, accepted by the owner, 2026-11-09). `tests/k8s/run-kind.sh verify_mysql_tls` proves in the `k8s` CI job that a plain connection and a TLS connection without client certificate are refused.
 
+On that first upgrade the migrations run before the overlay, while mysqld still serves its auto-generated certificate, which no client can verify. `run-migrations.sh` detects it (StatefulSet `mysql` without volume `mysql-tls`) and runs the `db-migrate-user` / `db-migrate` jobs encrypted but unverified for that one run (`ssl-mode=REQUIRED` in `mysql-client-tls`, `DB_SSL_VERIFY=false` for `migrate.mjs`); the overlay re-applies `VERIFY_IDENTITY`. Later releases verify the certificate in the migration jobs too.
+
 ## Not covered
 
 Redis, Sentinel and MongoDB are other issues (#768, #769). The SPIRE server still connects as `root` (own user: not in this issue).

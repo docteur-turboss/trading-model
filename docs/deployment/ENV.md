@@ -164,6 +164,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `DB_PORT`     | number | `3306`              | no       | MySQL port                       | FS       |
 | `DB_SSL_CA`   | path   | —                   | no       | PEM CA of the MySQL server certificate: TLS with certificate and host name check (K8s: Secret `mysql-tls`, ADR-0011) | FS, migrate |
 | `DB_SSL_CERT` / `DB_SSL_KEY` | path | — | no | PEM client certificate and key of the MySQL user, both or none (K8s: Secret `mysql-client-<user>`, issued by cert-manager; MySQL maps it to the user with `REQUIRE ISSUER / SUBJECT`) | FS, migrate |
+| `DB_SSL_VERIFY` | bool | `true` | no | `false` = TLS without certificate check; set only by `run-migrations.sh` during an upgrade from a release without TLS (mysqld not yet on the cert-manager certificate) | migrate |
 
 ---
 

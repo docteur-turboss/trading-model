@@ -188,6 +188,8 @@ function getDbConfig() {
       ? {
           ssl: {
             ca: readFileSync(process.env.DB_SSL_CA, 'utf8'),
+            // DB_SSL_VERIFY=false: encrypted, not verified; only run-migrations.sh sets it, while mysqld has no cert-manager certificate yet.
+            rejectUnauthorized: process.env.DB_SSL_VERIFY !== 'false',
             ...(process.env.DB_SSL_CERT
               ? { cert: readFileSync(process.env.DB_SSL_CERT, 'utf8'), key: readFileSync(process.env.DB_SSL_KEY, 'utf8') }
               : {}),
