@@ -68,6 +68,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0058](./0058-trainer-handover-through-a-lease.md) | trader-trainer Handed Over Through a Kubernetes Lease | Accepted | 2026-11 |
 | [ADR-0059](./0059-scoped-api-keys-and-dlq-actor.md) | Scoped API Keys, and the Key Name as Actor of DLQ Audit Events | Accepted | 2026-11 |
 | [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) | Database Client Traffic Is Not Encrypted in the Cluster (Accepted Residual Risk, TLS Planned) | Accepted | 2026-11 |
+| [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) | N-1 Compatibility of the Public API and the Bus Messages | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

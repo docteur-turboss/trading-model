@@ -98,3 +98,7 @@ A human runs every step: merging to `main`, pushing the tag and deploying are ne
    ```
 
    The run must pass "Resolve image digests", the rollout and the smoke test. Production follows the same way once staging is verified ([DEPLOY.md](../deployment/DEPLOY.md#production-deployment)).
+
+## Compatibility with the previous release (ADR-0061)
+
+CI fails a PR that breaks the public OpenAPI (`oasdiff breaking`) or a bus message schema against the last stable tag. Locally: `bun run contracts:write` after changing a message schema, then `bun run contracts:compat`. Allowed: optional fields, enum values, routes added. A forbidden change is split over two releases; an intentional break is declared in `docs/services/events/breaking-exceptions.json` (messages, the exact line printed) or `docs/services/openapi/oasdiff-ignore.txt` (OpenAPI), reviewed in the PR.

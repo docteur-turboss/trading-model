@@ -161,12 +161,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # release tags, for the compatibility checks below
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: bun run test:contract
+      - name: Message schema snapshot up to date (ADR-0061)
+        run: bun run contracts:check
+      - name: Message schemas compatible with the last release (ADR-0061)
+        run: bun run contracts:compat
+      - name: Public OpenAPI compatible with the last release (ADR-0061)
+        run: |
+          tag=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+          if [ -z "$tag" ] || ! git cat-file -e "$tag:docs/services/openapi/api-gateway.yaml" 2>/dev/null; then
+            echo "No stable release tag with a public OpenAPI: nothing to compare"
+            exit 0
+          fi
+          git show "$tag:docs/services/openapi/api-gateway.yaml" > "$RUNNER_TEMP/base.yaml"
+          v=1.37.0
+          curl -fsSL -o "$RUNNER_TEMP/oasdiff.tgz" "https://github.com/oasdiff/oasdiff/releases/download/v${v}/oasdiff_${v}_linux_amd64.tar.gz"
+          echo "eac87307d31d08c36800c58a409c247f1c5db37fbb72e2544402f22a87cbca3c  $RUNNER_TEMP/oasdiff.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/oasdiff.tgz" -C "$RUNNER_TEMP" oasdiff
+          ignore=()
+          [ -s docs/services/openapi/oasdiff-ignore.txt ] && ignore=(--err-ignore docs/services/openapi/oasdiff-ignore.txt)
+          echo "Comparing against $tag"
+          "$RUNNER_TEMP/oasdiff" breaking "$RUNNER_TEMP/base.yaml" docs/services/openapi/api-gateway.yaml --fail-on ERR "${ignore[@]}"
 
   e2e:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
