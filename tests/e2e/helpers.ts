@@ -191,7 +191,7 @@ export async function step<T>(
 		return await run();
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		throw new Error(`step "${name}" failed: ${message}`, { cause: error });
+		throw new Error(`step "${name}" failed: ${message}`);
 	}
 }
 
