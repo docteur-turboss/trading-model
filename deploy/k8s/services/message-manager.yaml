@@ -162,7 +162,8 @@ spec:
                 - https://localhost:3000/health/ready
             initialDelaySeconds: 10
             periodSeconds: 10
-            timeoutSeconds: 3
+            # Two ping attempts of connectTimeout 2 s (issue #725): 4 s < 5 s.
+            timeoutSeconds: 5
             successThreshold: 1
           startupProbe:
             exec:
