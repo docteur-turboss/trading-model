@@ -25,7 +25,8 @@ export interface CronConfig {
 }
 
 export class ScrapeCronOrchestrator {
-	private readonly _workerOrchestrator: WorkerOrchestrator;
+	private readonly _maxConcurrency: PositiveInt;
+	private _workerOrchestrator: WorkerOrchestrator;
 	/** Its run is a cycle: fetch and persist of every symbol (not the publishes). */
 	private _task?: NoOverlapTask;
 
@@ -35,15 +36,13 @@ export class ScrapeCronOrchestrator {
 			_config.maxConcurrency ??
 			PositiveInt.of(Math.min(cpuBased, _config.symbols.length));
 
-		this._workerOrchestrator = new WorkerOrchestrator(
-			maxConcurrency,
-			_config.symbols,
-			_config.candleInterval ?? CandleInterval.Min1,
-			_config.deps
-		);
+		this._maxConcurrency = maxConcurrency;
+		this._workerOrchestrator = this._createWorker();
 	}
 
 	public start(): void {
+		// Fresh cursors: after a lost lease, another collector moved them (ADR-0057).
+		this._workerOrchestrator = this._createWorker();
 		this._task = scheduleNoOverlap(
 			this._config.schedule,
 			() => this._runCycle(),
@@ -55,6 +54,15 @@ export class ScrapeCronOrchestrator {
 	public async stop(): Promise<void> {
 		await this._task?.stop();
 		await this._workerOrchestrator.drain();
+	}
+
+	private _createWorker(): WorkerOrchestrator {
+		return new WorkerOrchestrator(
+			this._maxConcurrency,
+			this._config.symbols,
+			this._config.candleInterval ?? CandleInterval.Min1,
+			this._config.deps
+		);
 	}
 
 	private async _runCycle(): Promise<void> {

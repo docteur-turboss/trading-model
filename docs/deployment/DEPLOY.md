@@ -157,21 +157,22 @@ missing rule loses nothing, but those copies are then never expired.
 7. Wait for rollout of all services, smoke test, `verify-market-data`, then `verify-release` (see "Release verification")
 ```
 
-**Ingestion during a release.** `financial-scraper-collector` is a singleton
-(`replicas: 1`, `Recreate`, ADR-0042): collection stops from the old pod's
-shutdown (up to `terminationGracePeriodSeconds`, 360 s) until the new pod is
-ready and has run a cycle. Expect a gap of up to ~6 min plus startup; candles
-the source can replay are caught up by the publish backlog and cursors. The
-`Verify market data resumed` step waits up to 10 min for
+**Ingestion during a release.** `financial-scraper-collector` keeps one pod
+(`replicas: 1`, no HPA) and rolls out with `RollingUpdate`, `maxUnavailable: 0`,
+`maxSurge: 1` (ADR-0057). The new pod starts next to the old one and becomes
+ready; only the holder of the Lease `financial-scraper-collector` runs the
+crons. On SIGTERM the old pod stops its crons, drains its publishes in flight,
+then releases the Lease; the new pod takes it within 2 s. The gap is the drain
+plus the next cron tick: seconds, measured under 30 s by the kind job. The
+`Verify market data resumed` step still waits up to 10 min for
 `fs_candles_persisted_total` > 0 on the new pod. Production: failure and
 rollback if it does not; staging: warning. Tune with
-`MARKET_DATA_RECOVERY_TIMEOUT` / `MARKET_DATA_RECOVERY_MODE=warn`. During the
-gap `MarketDataStale` may fire (15 min window): silence it for the release if
-it does not clear (runbook-market-data-stale.md).
+`MARKET_DATA_RECOVERY_TIMEOUT` / `MARKET_DATA_RECOVERY_MODE=warn`.
+`CollectorNoLeader` fires if no pod holds the Lease for 2 min.
 
-A production rollback recreates the collector (`Recreate`): it opens a second gap
-of the same size, and no market-data check runs after the rollback. Watch
-`MarketDataStale` until it clears.
+The first upgrade from a release without the Lease (3.0.x) runs the old
+collector, which has no Lease, next to the new one until the old pod stops:
+both collect for up to about 30 s (ADR-0057, Consequences).
 
 Rollback on failure is automatic: the workflow returns every Deployment to the
 revision it ran before the overlay (`rollout undo --to-revision`, see
@@ -208,7 +209,7 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 
 ## Replicas and the HPA
 
-A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singletons `financial-scraper-collector` (ADR-0042) and `trader-trainer` (ADR-0044: training state in memory) have no HPA, keep `replicas: 1` and `Recreate`; `check-overlays.mjs` enforces it. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` of older releases. A release stops training until the new trainer pod is ready. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
+A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singleton `trader-trainer` (ADR-0044: training state in memory) has no HPA, keeps `replicas: 1` and `Recreate`; `financial-scraper-collector` has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which only collects once it holds the Lease (ADR-0057); `check-overlays.mjs` enforces both. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` of older releases. A release stops training until the new trainer pod is ready. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
 
 Moving an existing cluster over: `deploy.yml` (step "Release replicas of autoscaled Deployments") removes `spec.replicas` from `kubectl.kubernetes.io/last-applied-configuration` before the apply, otherwise the apply would drop the Deployment to 1 pod. By hand: `kubectl apply edit-last-applied deployment/<name> -n <ns>` and delete the `replicas` line, before applying the new overlay.
 
@@ -225,9 +226,9 @@ N-1 migrations still applied, runs `migrate-down 1` and the migrations again,
 then upgrades to N (`tests/k8s/run-kind.sh upgrade`).
 
 "Wait for rollout" gives each Deployment 180 s plus the
-`terminationGracePeriodSeconds` of its pod template: `financial-scraper-collector`
-(strategy `Recreate`) starts its new pod only once the old one has drained, which
-may take its whole 360 s grace. A fixed 180 s declared such a healthy release
+`terminationGracePeriodSeconds` of its pod template: a `Recreate` Deployment
+(`trader-trainer`) starts its new pod only once the old one has drained, and a
+draining pod may take its whole grace. A fixed 180 s declared such a healthy release
 failed and rolled it back; the kind job found it (PR #460) and runs the same
 timeouts as production.
 
@@ -306,7 +307,7 @@ step and triggers "Rollback on failure". Market data may be missing until the fi
 that sees it, but must be present on the last pass and never disappear after. A critical
 alert already firing before the deploy also fails the gate. Staging skips the market-data
 check and ignores `MarketDataStale` (`VERIFY_REQUIRE_FRESH_DATA=false`, set by `deploy.yml`):
-there, missing market data only warns (ADR-0042, `Verify market data resumed`).
+there, missing market data only warns (`Verify market data resumed`).
 
 | Variable (GitHub environment) | Default | Role |
 |---|---|---|

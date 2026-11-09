@@ -485,10 +485,12 @@ upgrade() {
 	log "  $last rolled back and applied again, same checksums"
 
 	log "upgrade N-1 → N, availability probed through edge-proxy"
-	release_under_probe || {
-		log "the upgrade to release N failed"
+	verify_collection_gap "upgrade N-1 → N" release_under_probe || {
+		log "the upgrade to release N failed, dropped requests, or stopped the market data 30 s or more"
 		return 1
 	}
+	log "collector handover on release N: rolling restart, the Lease goes to the new pod (ADR-0057)"
+	verify_collection_gap "restart N → N" collector_handover || return 1
 	# Every exporter reaches its database, so neither MySQLDown nor RedisDown
 	# (critical, verify-release rolls back on them) fires (issue #698).
 	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = 1, no MySQLDown / RedisDown"
@@ -500,6 +502,51 @@ upgrade() {
 	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up in $((SECONDS - started)) s"
 	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
 		echo "Upgrade N-1 → N with forced failure and rollback: $((SECONDS - started)) s" >>"$GITHUB_STEP_SUMMARY"
+}
+
+# MySQL's clock (UTC, millisecond), the reference of collection_gap.
+mysql_now() {
+	mysql_root "SELECT UTC_TIMESTAMP(3)"
+}
+
+# Longest interval in seconds between two consecutive BTCUSDT order books (one
+# per scrape cycle, stamped with the collector's fetch time) from `$1` to the
+# newest one; empty while fewer than two. The collector handover of a rollout
+# (ADR-0057) must keep it under COLLECTION_MAX_GAP_SECONDS.
+collection_gap() {
+	mysql_root "SELECT MAX(TIMESTAMPDIFF(MICROSECOND, prev, ts)) / 1000000 FROM (SELECT timestamp AS ts, LAG(timestamp) OVER (ORDER BY timestamp) AS prev FROM financial_scraper.market_order_books WHERE symbol = 'BTCUSDT' AND timestamp >= '$1') AS cycles"
+}
+
+# Runs the rollout command `$2...` of the collector and fails when the market
+# data gap across it reaches 30 s (issue #702: the scrape runs every 10 s in
+# CI, see ci-render.mjs). `$1` names the rollout in the log.
+verify_collection_gap() {
+	local label="$1" since rolled gap
+	shift
+	since="$(mysql_now)"
+	"$@" || return 1
+	# The old pod gone, it drained and released the Lease: from now on only the new one collects.
+	wait_for 120 '[ "$($K -n "$NS" get pods -l app.kubernetes.io/component=financial-scraper-collector -o name | wc -l)" -eq 1 ]' || {
+		log "  $label: the old collector pod is still there"
+		return 1
+	}
+	rolled="$(mysql_now)"
+	# Two cycles of the new pod after the rollout: the gap is fully measured.
+	wait_for 120 "[ \"\$(mysql_root \"SELECT COUNT(*) FROM financial_scraper.market_order_books WHERE symbol = 'BTCUSDT' AND timestamp > '$rolled'\")\" -ge 2 ]" || {
+		log "  $label: no market data after the rollout"
+		return 1
+	}
+	gap="$(collection_gap "$since")"
+	log "  $label: longest market data gap ${gap} s (limit 30 s)"
+	[ -z "${GITHUB_STEP_SUMMARY:-}" ] || echo "Collector handover ($label): longest market data gap ${gap} s" >>"$GITHUB_STEP_SUMMARY"
+	awk -v g="${gap:-999}" 'BEGIN { exit !(g < 30) }'
+}
+
+# The holder of the collector Lease (ADR-0057) restarted as a release does:
+# the old pod drains and releases, the new one takes the Lease over.
+collector_handover() {
+	$K -n "$NS" rollout restart deployment/financial-scraper-collector &&
+		$K -n "$NS" rollout status deployment/financial-scraper-collector --timeout=300s
 }
 
 mysql_count() {

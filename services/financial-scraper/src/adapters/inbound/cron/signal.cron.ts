@@ -39,6 +39,7 @@ export class SignalCronScheduler {
 
 	/** Stops scheduling, then waits for the collections in progress. */
 	async stop(): Promise<void> {
-		await Promise.all(this._tasks.map((task) => task.stop()));
+		// Emptied: start() again after a lost lease schedules fresh tasks.
+		await Promise.all(this._tasks.splice(0).map((task) => task.stop()));
 	}
 }

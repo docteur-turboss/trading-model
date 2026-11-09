@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
 **Severity:** SEV2 (the platform runs, but trades and training work on old data)
-**Alerts:** `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `CandleDeliveryLagging`
+**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `CandleDeliveryLagging`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -11,6 +11,7 @@ dependencies (MySQL, Redis), not that candles arrive.
 
 | Firing | Broken part |
 | --- | --- |
+| `CollectorNoLeader` | no collector pod holds the Lease, so none collects: see [CollectorNoLeader](#collectornoleader) |
 | `MarketDataStale` (+ `TrainerMarketDataStale`) | collection: nothing is persisted, so nothing is published |
 | `ScrapeCyclesFailing` | cycles run but fail (Binance, MySQL) |
 | `SymbolMarketDataStale` | one symbol gets no candle, the others do: see [SymbolMarketDataStale](#symbolmarketdatastale) |
@@ -22,8 +23,10 @@ dependencies (MySQL, Redis), not that candles arrive.
 
 ```bash
 NS=trading-model
-# 1. One collector runs the scrape cron; the financial-scraper replicas serve HTTP only.
+# 1. The collector pod holding the Lease runs the crons (ADR-0057); the financial-scraper replicas serve HTTP only.
 kubectl -n $NS get deploy financial-scraper-collector
+kubectl -n $NS get lease financial-scraper-collector -o jsonpath='{.spec.holderIdentity}{"
+"}'
 kubectl -n $NS logs deploy/financial-scraper-collector --tail=100 | grep -iE "symbol|schedule|error"
 
 # 2. Symbols and schedule actually used
@@ -43,7 +46,8 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
    refuses to start on an invalid value and logs a warning when the list is
    empty (since 2026-10-26). Set it to the `TRAINER_SYMBOLS` list.
 2. **Scheduler disabled everywhere**: `SCRAPE_SCHEDULER_ENABLED=false` on the
-   collector too, or the collector scaled to 0.
+   collector too, or the collector scaled to 0, or no collector holds the
+   Lease (`CollectorNoLeader`).
 3. **Binance unreachable**: `fs_binance_requests_total{status!="200"}` growing.
    - **451** (`BinanceRestrictedLocation`): Binance refuses the region.
      Confirm from the collector pod, then apply the first fallback of
@@ -91,6 +95,39 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
 `sum(increase(fs_candles_persisted_total[15m]))` and
 `sum(increase(tt_market_data_received_total[15m]))` grow again; the alerts
 resolve within 15 minutes.
+
+## CollectorNoLeader
+
+No pod reported `fs_collector_leader` = 1 for 2 minutes: no collector holds
+the Lease `financial-scraper-collector`, so nothing is collected (ADR-0057).
+A rollout handover lasts seconds and never fires it.
+
+```bash
+NS=trading-model
+# Holder, last renewal, transitions. A holder that is no running pod: the
+# Lease expires 15 s after its last renewal and a running collector takes it.
+kubectl -n $NS get lease financial-scraper-collector -o yaml
+kubectl -n $NS get pods -l app.kubernetes.io/component=financial-scraper-collector
+# Election logs: "Collector lease acquired", "Collector lease unreachable",
+# "Collector stops collecting" (with the reason)
+kubectl -n $NS logs deploy/financial-scraper-collector -c financial-scraper-collector --tail=200 | grep -i lease
+```
+
+| Seen | Cause and fix |
+| --- | --- |
+| No collector pod, or not ready | Deployment scaled to 0 or crash loop: `kubectl -n $NS describe deploy financial-scraper-collector`, then its pod logs |
+| `Collector lease unreachable` with 403 | RBAC: the Role `financial-scraper-collector-lease` or its RoleBinding is missing, or the Lease name differs from `COLLECTOR_LEASE_NAME`. Apply the overlay again |
+| `Collector lease unreachable` with 404 | The Lease object is missing (the Role grants no `create`). Apply the overlay again |
+| `Collector lease unreachable` with a timeout or ECONNREFUSED | API server unreachable from the pod: NetworkPolicy `financial-scraper-collector-apiserver` (private ranges, 443/6443), or the API server is down |
+| Startup error on `/var/run/secrets/kubernetes.io/serviceaccount` | The token is not mounted: `automountServiceAccountToken: true` is missing from the collector pod template |
+| No lease log at all | Collection disabled on the collector (`SYMBOLS_TO_TRACK` empty and signals off): see Common causes 1 and 2 |
+
+A holder that stopped renewing (frozen pod) keeps the Lease for 15 s at most.
+To hand it over at once, delete that pod; never edit the Lease by hand while
+a collector runs.
+
+**Resolution check:** `max(fs_collector_leader)` is 1 again and
+`kubectl -n $NS get lease financial-scraper-collector` names a running pod.
 
 ## SymbolMarketDataStale
 

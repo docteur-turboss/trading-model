@@ -489,6 +489,18 @@ groups:
           description: 'financial-scraper persisted no candle in 15 minutes: collection is stopped (no symbol tracked, scheduler disabled everywhere, Binance or MySQL failing) while the service may still report healthy.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
+      # ADR-0057: only the holder of the collector Lease collects. The HTTP
+      # replicas report 0, so max() is 0 when no pod holds it.
+      - alert: CollectorNoLeader
+        expr: max(fs_collector_leader) < 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'No financial-scraper collector holds the Lease'
+          description: 'No pod has collected market data for 2 minutes: no collector pod holds the Lease financial-scraper-collector (API server unreachable, RBAC, collector down or collection disabled). Trades, tickers and order books of the window are lost.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#collectornoleader'
+
       - alert: ScrapeCyclesFailing
         expr: sum(rate(fs_scrape_cycles_total{result="error"}[15m])) / sum(rate(fs_scrape_cycles_total[15m])) > 0.5
         for: 15m

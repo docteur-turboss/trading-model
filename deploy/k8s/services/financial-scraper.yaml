@@ -204,7 +204,7 @@ spec:
         - name: tmp
           emptyDir: {}
 ---
-# Single scrape-cron instance (SCRAPE_SCHEDULER_ENABLED=true). It shares the
+# Scrape-cron instance (SCRAPE_SCHEDULER_ENABLED=true). It shares the
 # financial-scraper ServiceAccount (same SPIFFE ID) but not its Service: API
 # traffic stays on the HPA-scaled replicas. This Service only exposes /metrics.
 apiVersion: v1
@@ -230,10 +230,15 @@ metadata:
     app.kubernetes.io/component: financial-scraper-collector
     app.kubernetes.io/part-of: trading-model
 spec:
-  # Exactly one collector: Recreate never runs two crons side by side.
+  # One collector, no HPA. During a rollout the new pod starts next to the old
+  # one; only the holder of the Lease below runs the crons (ADR-0057). The old
+  # pod drains and releases it on SIGTERM, the new one takes it within 2 s.
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/component: financial-scraper-collector
@@ -248,6 +253,9 @@ spec:
         prometheus.io/scheme: "https"
     spec:
       serviceAccountName: financial-scraper
+      # The token reads and renews the Lease (Role financial-scraper-collector-lease);
+      # the ServiceAccount does not mount it for the HTTP replicas.
+      automountServiceAccountToken: true
       # On stop the collector waits for its publishes in flight, each bounded by
       # PUBLISH_ACCEPT_TIMEOUT_MS (15s + 5s; PUBLISH_COMPAT_TIMEOUT_MS for one release, the grace then cuts what remains: the cursor republishes).
       terminationGracePeriodSeconds: 60
@@ -280,6 +288,9 @@ spec:
           env:
             - name: SCRAPE_SCHEDULER_ENABLED
               value: "true"
+            # Only its holder collects (ADR-0057).
+            - name: COLLECTOR_LEASE_NAME
+              value: financial-scraper-collector
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
@@ -402,3 +413,42 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+---
+# Leader lease of the collector pods (ADR-0057). Created here, so the Role
+# below needs no `create` (which resourceNames cannot restrict). Applied
+# without spec: a release never overwrites the current holder.
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: financial-scraper-collector
+  labels:
+    app.kubernetes.io/component: financial-scraper-collector
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: financial-scraper-collector-lease
+  labels:
+    app.kubernetes.io/component: financial-scraper-collector
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    resourceNames: [financial-scraper-collector]
+    verbs: [get, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: financial-scraper-collector-lease
+  labels:
+    app.kubernetes.io/component: financial-scraper-collector
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: financial-scraper-collector-lease
+subjects:
+  - kind: ServiceAccount
+    name: financial-scraper

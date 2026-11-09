@@ -122,7 +122,7 @@ If the service does not recover within 15 minutes:
 
 ## No scrape target
 
-**Alert:** `ServiceTargetsMissing` (critical, 5 min). Fires when a job has no `up` series, so `ServiceDown` (`up == 0`) stays silent. Covers the 7 application services; the two alerts never fire together for a job (series absent vs series at 0). `financial-scraper-collector` (K8s only) is covered by `MarketDataStale`.
+**Alert:** `ServiceTargetsMissing` (critical, 5 min). Fires when a job has no `up` series, so `ServiceDown` (`up == 0`) stays silent. Covers the 7 application services; the two alerts never fire together for a job (series absent vs series at 0). `financial-scraper-collector` (K8s only) is covered by `CollectorNoLeader` and `MarketDataStale`.
 
 ```bash
 kubectl get deploy,pods -n trading-model -l app.kubernetes.io/component=<job>   # replicas 0? Pending?
