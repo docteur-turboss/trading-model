@@ -5,7 +5,7 @@
 # Public routes probed, one per service whose rollout must not cut its reads:
 # discovery-server, trader-trainer (Lease handover, ADR-0058) and
 # financial-scraper. PROBE_ROUTES (space-separated paths) overrides them.
-PROBE_ROUTES="${PROBE_ROUTES:-/v1/discovery-server/services /v1/trader-trainer/training-status /v1/financial-scraper/candles/symbols/BTCUSDT?limit=1}"
+PROBE_ROUTES="${PROBE_ROUTES:-/v1/discovery-server/services /v1/trader-trainer/training-status /v2/financial-scraper/candles/symbols/BTCUSDT?limit=1}"
 
 # Availability probe (issue #703). Every second, one request to each of
 # PROBE_ROUTES through edge-proxy, with the gateway key, until the file `$1`

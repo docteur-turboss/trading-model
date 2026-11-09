@@ -45,7 +45,7 @@ run() { # $1 = status code, $2 = seconds
 run 200 3
 [ "$requests" -ge 1 ] && [ "$failures" = 0 ] && ok "200: $requests requests, 0 failed" || ko "200: $requests requests, $failures failed"
 
-for route in /v1/discovery-server/services /v1/trader-trainer/training-status "/v1/financial-scraper/candles/symbols/BTCUSDT?limit=1"; do
+for route in /v1/discovery-server/services /v1/trader-trainer/training-status "/v2/financial-scraper/candles/symbols/BTCUSDT?limit=1"; do
 	grep -qxF "$route" "$WORK/paths" && ok "requested $route" || ko "never requested $route"
 done
 
