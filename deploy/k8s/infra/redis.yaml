@@ -521,9 +521,24 @@ spec:
   policyTypes:
     - Ingress
   ingress:
+    # Clients of 6379 / 26379 (issue #747): the services that use Redis, the
+    # ones that only read it while a rollback to N-1 is possible (expand/
+    # contract, ADR-0040) and the Redis pods themselves.
     - from:
-        # Same namespace as the policy, whatever the overlay's namespace.
-        - podSelector: {}
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - discovery-server
+                  - message-manager
+                  - dlq-service
+                  - audit-logger
+                  - financial-scraper
+                  - trader-trainer
+                  - redis
+                  - redis-sentinel
+                  - redis-cert-cache
       ports:
         - port: 6379
           protocol: TCP
