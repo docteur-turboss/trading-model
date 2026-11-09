@@ -36,6 +36,7 @@ jobs:
       - run: bun run arch:check
       - run: bun run release:test
       - run: bun run config:check
+      - run: bun run compliance:check
       - name: Workflows parse as YAML
         run: python3 scripts/check-workflows.py
 

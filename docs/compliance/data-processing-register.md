@@ -29,7 +29,7 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None                                                                                                                              |
 | **Recipients**           | Internal: trader-trainer, audit-logger, message-manager                                                                           |
 | **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. See third-party assessment |
-| **Retention period**     | **Not bounded yet.** Target 5 years (record-keeping, see [Data Retention Policy](data-retention-policy.md)); the former MySQL purge event was removed from migration 003 (audit A9) and its out-of-schema replacement is open (DPIA action #2) |
+| **Retention period**     | 1827 days (5 years, record-keeping, see [Data Retention Policy](data-retention-policy.md)): daily CronJob `db-retention` (`scripts/retention-mysql.sh`, `RETENTION_DAYS`; `signals` on `RETENTION_SIGNALS_DAYS`), ADR-0051 |
 | **Technical measures**   | mTLS (SPIFFE SVIDs), LUKS2 data disks, age-encrypted backups, RBAC service accounts                                               |
 | **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers, market_order_books, signals). `signals` (ADR-0036) holds numeric observations of public sources free for any use: bond yields (ECB), company filings (SEC EDGAR), weather observations (NWS), daily Wikipedia page views (Wikimedia, counts only); see [Third-Party DPAs](third-party-dpas.md#signal-sources-adr-0036) |
 
@@ -42,7 +42,7 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None                                                                                                      |
 | **Recipients**           | Internal platform services only                                                                           |
 | **Transfers outside EU** | None — all services are self-hosted                                                                       |
-| **Retention period**     | message-manager: in memory for the delivery only (Redis is used for readiness, not for messages). DLQ: 30 days (TTL index on `createdAt`), capped at `MAX_ENTRIES` (100 000) |
+| **Retention period**     | message-manager: payloads journaled 24 h in Redis Streams (`JOURNAL_RETENTION_MS` = 24 h, `XADD … MINID` trim; AOF + replication; ACL user `message-manager`, ADR-0048), no personal data by design. DLQ: 30 days (TTL index on `createdAt`), capped at `MAX_ENTRIES` (100 000) |
 | **Technical measures**   | mTLS everywhere, payload sanitization, deduplication                                                      |
 | **System**               | message-manager (HTTP push) → dlq-service → MongoDB (`dlq_entries`)                                       |
 
@@ -119,8 +119,8 @@ This register documents the processing activities of the trading-model platform,
 
 | Activity                 | Personal Data?      | Legal Basis         | Retention                    | Transfers                    |
 | ------------------------ | ------------------- | ------------------- | ---------------------------- | ---------------------------- |
-| Market Data Ingestion    | ❌ None             | —                   | Not bounded yet (target 5 y) | Received from Binance        |
-| Message Routing          | ❌ None             | —                   | In memory; DLQ 30 days       | None                         |
+| Market Data Ingestion    | ❌ None             | —                   | 1827 days (`db-retention`) | Received from Binance        |
+| Message Routing          | ❌ None             | —                   | Redis journal 24 h; DLQ 30 days       | None                         |
 | Audit Logging            | ❌ None             | —                   | 5 years (1827 days)          | None                         |
 | Workload Identity        | ❌ None             | —                   | 1h–168h                      | None                         |
 | ML Training              | ❌ None             | —                   | Per-agent                    | None                         |
