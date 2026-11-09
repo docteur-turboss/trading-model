@@ -290,6 +290,11 @@ metadata:
 spec:
   ttlSecondsAfterFinished: 600
   template:
+    metadata:
+      # Allowed in by the database NetworkPolicy (label of the init Job).
+      labels:
+        app.kubernetes.io/component: mongodb-init
+        app.kubernetes.io/part-of: trading-model
     spec:
       restartPolicy: OnFailure
       securityContext:
