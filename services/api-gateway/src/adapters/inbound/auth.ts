@@ -26,15 +26,22 @@ export interface AuthenticatedRequest {
 }
 
 let parsedFrom: string | undefined;
-let parsedKeys: ApiKey[] = [];
+const sha256 = (value: string): Buffer =>
+	createHash("sha256").update(value).digest();
+
+/** A key with the sha256 of its secret, computed once per AUTH_TOKENS value. */
+type HashedKey = ApiKey & { digest: Buffer };
+let parsedKeys: HashedKey[] = [];
 
 /** The valid keys of AUTH_TOKENS, parsed again only when it changes. */
-function getValidKeys(): ApiKey[] {
+function getValidKeys(): HashedKey[] {
 	if (parsedFrom !== ENV.AUTH_TOKENS) {
 		parsedFrom = ENV.AUTH_TOKENS;
 		parsedKeys = parseCommaSeparated(ENV.AUTH_TOKENS)
 			.map(parseApiKey)
-			.filter((key): key is ApiKey => "secret" in key);
+			// The env schema refuses a malformed entry at startup: none is left here.
+			.filter((key): key is ApiKey => "secret" in key)
+			.map((key) => ({ ...key, digest: sha256(key.secret) }));
 		for (const key of parsedKeys.filter((candidate) => candidate.legacy)) {
 			logger.warn(
 				`AUTH_TOKENS: "${key.name}" uses the old format (bare secret), granted every scope; rewrite it as name:scopes:secret before the next release (ADR-0059)`
@@ -44,15 +51,11 @@ function getValidKeys(): ApiKey[] {
 	return parsedKeys;
 }
 
-const sha256 = (value: string): Buffer =>
-	createHash("sha256").update(value).digest();
-
 /** Fixed-length digests compared in constant time; no early exit on a match. */
-function findKey(token: string, keys: ApiKey[]): ApiKey | undefined {
-	const digest = sha256(token);
+function findKey(digest: Buffer, keys: HashedKey[]): ApiKey | undefined {
 	let found: ApiKey | undefined;
 	for (const key of keys) {
-		if (timingSafeEqual(digest, sha256(key.secret)) && !found) {
+		if (timingSafeEqual(digest, key.digest) && !found) {
 			found = key;
 		}
 	}
@@ -78,6 +81,7 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 		);
 	}
 
+	const digest = sha256(token);
 	const validKeys = getValidKeys();
 	let key: ApiKey | undefined;
 	if (validKeys.length === 0) {
@@ -90,7 +94,7 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 		}
 		logger.warn("AUTH_TOKENS is empty — accepting any token (non-strict mode)");
 	} else {
-		key = findKey(token, validKeys);
+		key = findKey(digest, validKeys);
 		if (!key) {
 			AUTH_FAILURES_TOTAL.inc();
 			return sendResponse(
@@ -102,7 +106,7 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 
 	const auth = authOf(req);
 	auth.clientIdentity = ClientIdentity.of(
-		`client:${sha256(token).toString("hex").slice(0, 32)}`
+		`client:${digest.toString("hex").slice(0, 32)}`
 	);
 	auth.apiKeyName = key?.name ?? null;
 	auth.apiKeyScopes = key?.scopes ?? API_SCOPES;

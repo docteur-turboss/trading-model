@@ -34,6 +34,8 @@ const StorageUnavailable = ErrorResponse.extend({
 	code: z.literal("STORAGE_UNAVAILABLE"),
 });
 
+const DELETED = z.object({ deleted: z.number().int() });
+
 const REPLAYED = z.object({
 	batchId: z.string(),
 	replayed: z.number().int(),
@@ -95,18 +97,12 @@ export const DLQ_API = {
 		security: ["SignedRequest"],
 		body: z.object({ ids: z.array(z.string()).min(1).max(1000) }),
 		responses: {
-			200: z.object({
-				deleted: z.number().int(),
-				auditRecorded: z.literal(true),
-			}),
+			200: DELETED.extend({ auditRecorded: z.literal(true) }),
 			400: ErrorResponse,
 			...SIGNED,
 			429: ErrorResponse,
 			/** Deleted, but message-manager refused the audit event (ADR-0059). */
-			502: z.object({
-				deleted: z.number().int(),
-				auditRecorded: z.literal(false),
-			}),
+			502: DELETED.extend({ auditRecorded: z.literal(false) }),
 		},
 	}),
 	replayEntries: defineRoute({
