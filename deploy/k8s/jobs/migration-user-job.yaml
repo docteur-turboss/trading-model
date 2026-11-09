@@ -31,6 +31,10 @@ spec:
   backoffLimit: 2
   activeDeadlineSeconds: 180
   template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: db-migrate-user
+        app.kubernetes.io/part-of: trading-model
     spec:
       serviceAccountName: migration-runner
       restartPolicy: Never

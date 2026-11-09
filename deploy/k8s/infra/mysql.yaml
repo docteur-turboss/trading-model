@@ -369,9 +369,24 @@ spec:
     - Ingress
     - Egress
   ingress:
+    # Clients of 3306 / 33061 (issue #747): the market-data service and its
+    # collector, the SPIRE server datastore, the migration and retention Jobs
+    # and the group replication peers. Backups and restores go through
+    # `kubectl exec`, not the network. A new client must be added here.
     - from:
-        # Same namespace as the policy, whatever the overlay's namespace.
-        - podSelector: {}
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - financial-scraper
+                  - financial-scraper-collector
+                  - spire-server
+                  - db-migrate
+                  - db-migrate-down
+                  - db-migrate-user
+                  - retention
+                  - mysql
       ports:
         - port: 3306
           protocol: TCP
