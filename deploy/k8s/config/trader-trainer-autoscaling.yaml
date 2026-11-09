@@ -1,4 +1,4 @@
-# No HorizontalPodAutoscaler: trader-trainer is a singleton (ADR-0044).
+# No HorizontalPodAutoscaler: trader-trainer is a singleton (ADR-0044, ADR-0058).
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -44,6 +44,37 @@ spec:
         - port: 6379 # kept one release: rollback to N-1 still reads Redis (expand/contract, ADR-0040)
           protocol: TCP
         - port: 26379
+          protocol: TCP
+---
+# The trainer reads and renews its Lease on the Kubernetes API (ADR-0058).
+# Private ranges only: kept in CI (tests/k8s/ci-render.mjs drops 0.0.0.0/0),
+# where the API server is the kind node. The trainer has no internet egress: a
+# public API endpoint needs its address added here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: trader-trainer-apiserver
+  labels:
+    app.kubernetes.io/component: trader-trainer
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: trader-trainer
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+        - ipBlock:
+            cidr: 172.16.0.0/12
+        - ipBlock:
+            cidr: 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 6443
           protocol: TCP
 ---
 apiVersion: v1

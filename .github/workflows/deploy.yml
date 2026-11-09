@@ -648,7 +648,7 @@ jobs:
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="${{ steps.tag.outputs.tag }}"
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
-          # No singleton here (trader-trainer ADR-0044, collector ADR-0057): a canary is a second pod.
+          # No singleton here (trader-trainer ADR-0058, collector ADR-0057): a canary is a second pod.
           ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
             discovery-server message-manager financial-scraper \
             api-gateway audit-logger dlq-service

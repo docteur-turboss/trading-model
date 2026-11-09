@@ -310,7 +310,9 @@ release() {
 . "$(dirname "${BASH_SOURCE[0]}")/probe-availability.sh"
 
 # The final upgrade to N under the probe: `release` runs while requests flow
-# through edge-proxy and market candles are written. Fails above
+# through edge-proxy to discovery-server, trader-trainer (Lease handover,
+# ADR-0058) and financial-scraper (PROBE_ROUTES) and market candles are
+# written. Fails above
 # PROBE_MAX_FAILURES (default 0: a release must not drop a request) failed
 # requests or when a candle of BTCUSDT is missing (gap above one interval,
 # 1 minute: the stub serves 1m klines) during the window.
@@ -336,7 +338,7 @@ release_under_probe() {
 	read -r requests failures <"$out"
 	log "  availability during the upgrade: $requests requests, $failures failed (threshold $max)"
 	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
-		echo "Availability probe during the upgrade to N (edge-proxy): $requests requests, $failures failed (threshold $max)" >>"$GITHUB_STEP_SUMMARY"
+		echo "Availability probe during the upgrade to N (edge-proxy, $PROBE_ROUTES): $requests requests, $failures failed (threshold $max)" >>"$GITHUB_STEP_SUMMARY"
 	[ "$rc" = 0 ] || return "$rc"
 	[ "$requests" -gt 0 ] || {
 		log "the availability probe sent no request"
