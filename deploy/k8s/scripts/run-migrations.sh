@@ -22,13 +22,14 @@ JOBS="$(dirname "${BASH_SOURCE[0]}")/../jobs"
 # Jobs run once: drop the previous runs (kept ttlSecondsAfterFinished) so a new
 # deploy applies again. The user job is idempotent and runs as root; the
 # migrations themselves run as the least-privilege `migrator` user.
+# The Job's activeDeadlineSeconds is multiplied by DEPLOY_TIMEOUT_FACTOR like the
+# wait-job.sh timeout: otherwise a slow cluster has the Job killed at its base
+# deadline while still waited for (issue #760).
 run_job() { # <job> <manifest>
   kubectl delete job "$1" -n "$NS" --ignore-not-found
-  if [ -n "${MIGRATE_IMAGE:-}" ]; then
-    sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE}#" "$2" | kubectl apply -n "$NS" -f -
-  else
-    kubectl apply -n "$NS" -f "$2"
-  fi
+  sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" "$2" |
+    awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
+    kubectl apply -n "$NS" -f -
   bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" "$1" 180
 }
 

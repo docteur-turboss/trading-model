@@ -24,7 +24,17 @@ The compose stack keeps `http://localhost:8449` (edge-proxy).
 - Variable `DEPLOY_TIMEOUT_FACTOR` of the environment `staging` (`4`): integer
   the MySQL, migration Job and rollout timeouts are multiplied by. The kind
   cluster shares the laptop disk with the compose stack: MySQL's first start
-  and the image pulls outlast the production timeouts. Unset: 1.
+  and the image pulls outlast the production timeouts. Unset: 1. The migration
+  Jobs' own `activeDeadlineSeconds` is multiplied too (`run-migrations.sh`,
+  `deploy-k8s.sh migrate-down`): otherwise the Job dies at its base deadline
+  while the deploy still waits for it (issue #760).
+
+The cluster also shares the Docker VM's memory with the compose stack. Before a
+deploy, `docker stats --no-stream` must leave room: once the VM swaps, every
+probe of the cluster times out, the Mongo liveness probes restart their pods in
+a loop and audit-logger answers 503 (issue #760: the compose Jaeger held
+11.5 GiB of in-memory traces; it is now bounded by `MEMORY_MAX_TRACES` and
+`mem_limit`).
 
 `deploy.yml` checks out the release tag: a tag older than the `staging-local`
 overlay cannot be deployed this way. Its scripts come from the tag too, so

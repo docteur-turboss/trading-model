@@ -205,8 +205,11 @@ cmd_migrate_down() {
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
+  # activeDeadlineSeconds follows the wait-job.sh timeout (DEPLOY_TIMEOUT_FACTOR, issue #760).
   sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
-    "${K8S_DIR}/jobs/migration-job-down.yaml" | kubectl apply -n "$NAMESPACE" -f -
+    "${K8S_DIR}/jobs/migration-job-down.yaml" |
+    awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
+    kubectl apply -n "$NAMESPACE" -f -
 
   log "Waiting for migration rollback to complete..."
   bash "${K8S_DIR}/scripts/wait-job.sh" "$NAMESPACE" db-migrate-down 180
