@@ -1,11 +1,21 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import { DataEventHandler } from "../adapters/inbound/events/event-handlers";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
+import {
+	KubernetesLease,
+	kubernetesLeaseApi,
+} from "../adapters/outbound/kubernetes/kubernetes-lease";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
 import { runInWorker } from "../adapters/outbound/training-worker/worker-training-runner";
 import { Trainer } from "../application/trainer";
+import {
+	SOLE_INSTANCE_LEASE,
+	type Training,
+	TrainingLeadership,
+} from "../application/training-leadership";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
@@ -163,4 +173,38 @@ export function createTraderTrainerContainer(
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,
 	});
+}
+
+interface TrainingLeadershipSettings {
+	/** Empty: no election, this instance trains. */
+	TRAINER_LEASE_NAME: string;
+	/** Holder identity in the Lease (the pod name in Kubernetes). */
+	INSTANCE_ID: string;
+}
+
+/**
+ * The training loop behind the trainer leadership (ADR-0058): it runs only
+ * while this instance holds the Lease TRAINER_LEASE_NAME, or always without
+ * one. Every instance serves the read routes either way.
+ */
+export function createTrainingLeadership(
+	settings: TrainingLeadershipSettings,
+	training: Training
+): TrainingLeadership {
+	if (!settings.TRAINER_LEASE_NAME) {
+		return new TrainingLeadership(SOLE_INSTANCE_LEASE, training);
+	}
+	getLogger().info("Trainer leader election enabled", {
+		context: {
+			lease: settings.TRAINER_LEASE_NAME,
+			identity: settings.INSTANCE_ID,
+		},
+	});
+	return new TrainingLeadership(
+		new KubernetesLease(
+			settings.INSTANCE_ID,
+			kubernetesLeaseApi(settings.TRAINER_LEASE_NAME)
+		),
+		training
+	);
 }

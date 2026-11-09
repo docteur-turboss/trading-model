@@ -31,13 +31,14 @@ const WINDOWING = { validationSplit: 0.2, walkForwardFolds: 1 };
 
 describe("TrainingLoop", () => {
 	let train: jest.Mock<(symbol: TradingSymbol) => Promise<void>>;
+	let stopTraining: jest.Mock<() => Promise<void>>;
 	let lastClose: Map<TradingSymbol, number | undefined>;
 	let candleCount: number;
 	let loop: TrainingLoop;
 
 	const runOnce = async (symbols: TradingSymbol[] = [BTC]) => {
 		loop.start({ symbols, intervalMs: MINUTE, maxDataAgeMs: MAX_AGE });
-		loop.stop();
+		await loop.stop();
 		// start() fires the first cycle without awaiting it.
 		await Promise.resolve();
 		await Promise.resolve();
@@ -47,9 +48,14 @@ describe("TrainingLoop", () => {
 		jest.clearAllMocks();
 		jest.spyOn(Date, "now").mockReturnValue(NOW);
 		train = jest.fn(async (..._args: any[]) => {});
+		stopTraining = jest.fn(async () => {});
 		lastClose = new Map();
 		candleCount = 1000;
-		const trainer = { train, isTraining: () => false } as unknown as Trainer;
+		const trainer = {
+			train,
+			isTraining: () => false,
+			stopTraining,
+		} as unknown as Trainer;
 		const buffer = {
 			getMaxSize: () => 1000,
 			getCandleCount: () => candleCount,
@@ -153,10 +159,25 @@ describe("TrainingLoop", () => {
 		expect(train.mock.calls.map(([s]) => s)).toEqual([ETH, BTC]);
 	});
 
+	it("should end the session in flight and stop scheduling on stop (ADR-0058)", async () => {
+		jest.useFakeTimers({ now: NOW });
+		try {
+			lastClose.set(BTC, NOW - MINUTE);
+			loop.start({ symbols: [BTC], intervalMs: MINUTE, maxDataAgeMs: MAX_AGE });
+			await loop.stop();
+			jest.advanceTimersByTime(5 * MINUTE);
+
+			expect(stopTraining).toHaveBeenCalledTimes(1);
+			expect(train).toHaveBeenCalledTimes(1);
+		} finally {
+			jest.useRealTimers();
+		}
+	});
+
 	it("should not train while a session is already running", async () => {
 		lastClose.set(BTC, NOW - MINUTE);
 		const busy = new TrainingLoop(
-			{ train, isTraining: () => true } as unknown as Trainer,
+			{ train, isTraining: () => true, stopTraining } as unknown as Trainer,
 			{
 				getMaxSize: () => 1000,
 				getCandleCount: () => candleCount,
@@ -167,7 +188,7 @@ describe("TrainingLoop", () => {
 		);
 
 		busy.start({ symbols: [BTC], intervalMs: MINUTE, maxDataAgeMs: MAX_AGE });
-		busy.stop();
+		await busy.stop();
 		await Promise.resolve();
 
 		expect(train).not.toHaveBeenCalled();
@@ -187,7 +208,11 @@ describe("TrainingLoop", () => {
 
 	it("should follow the rule with walk-forward folds and a split other than 0.2", async () => {
 		const windowing = { validationSplit: 0.99, walkForwardFolds: 5 };
-		const trainer = { train, isTraining: () => false } as unknown as Trainer;
+		const trainer = {
+			train,
+			isTraining: () => false,
+			stopTraining,
+		} as unknown as Trainer;
 		const buffer = {
 			getMaxSize: () => 1000,
 			getCandleCount: () => candleCount,
