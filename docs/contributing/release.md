@@ -18,7 +18,7 @@ Automatic bump: a breaking commit (`:boom:`, `!:`) is major, a feature commit (`
 
 Prerelease tags never serve as a base. `X.Y.Z` is computed from the last **stable** tag (`git describe --exclude '*-*'`) and the commits since it, the release commits of earlier prereleases excluded; each touched `packages/*` is bumped from its version at that tag. So `v3.0.0` + a feature gives `3.1.0-rc.1`, then `3.1.0-rc.2`, then the stable `3.1.0`, and a library goes `1.0.0 → 1.1.0` once, not once per prerelease. An unknown option stops the script (exit 1) before anything is written. `bun run release:test` (CI `lint` job) runs these cases on a throwaway git repository.
 
-The script does not stop on a failed `commit`, `tag` or `push` and still prints "published". Check `git tag -l vX.Y.Z` and `git ls-remote --tags origin vX.Y.Z` afterwards.
+`--publish` stops with exit 1, the failing command and its stderr when `git add`, `commit`, `tag` or `push` fails, and checks with `git ls-remote --tags origin vX.Y.Z` that the tag reached `origin` before printing "published".
 
 ## 2. Workflow "Release"
 
@@ -66,7 +66,7 @@ A human runs every step: merging to `main`, pushing the tag and deploying are ne
    bun run release:publish
    ```
 
-3. Check that the tag reached `origin` (the script prints "published" even when a step failed):
+3. Check that the tag reached `origin` (the script already checks it; this is a second look):
 
    ```bash
    git tag -l vX.Y.Z
