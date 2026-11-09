@@ -17,6 +17,7 @@ bun run adr:check               # Every live ADR names its check; supersession +
 bun run test:contract           # Cross-service contracts, real code on both sides: messages (scraper/trainer → message-manager → trainer/audit-logger), dead letters, discovery (address-manager + gateway → discovery-server)
 bun run reach:report            # Report src no service entry point (main/bin) reaches (--list for files)
 bun run reach:check             # Gate: fails on any unreachable src line or spec of dead code (ADR-0029)
+bun run arch:check              # Gate: fails on a new runtime import cycle or an application/ file importing adapters/infrastructure; ratcheted on scripts/architecture-baseline.json (ADR-0015)
 bun run config:check            # Gate: fails on an env var no deployment sets that gates code, read but never parsed, or missing from docs/deployment/ENV.md (ADR-0013)
 bun run test:coverage           # All tests with coverage
 bun run test:db                 # Specs against real Mongo/Redis/MySQL (Testcontainers, needs Docker)
@@ -75,7 +76,7 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## Git hooks (Husky) & commit format
 
-- **`pre-push`** runs: biome check → deps:check → api:check → adr:check → reach:check → config:check → observability gate → build → typecheck:tests → test → test:contract (must all pass to push)
+- **`pre-push`** runs: biome check → deps:check → api:check → adr:check → reach:check → arch:check → config:check → observability gate → build → typecheck:tests → test → test:contract (must all pass to push)
 - **`commit-msg`** enforces gitmoji format via commitlint: `:emoji:(scope): subject`
 - Scopes are lowercased and must be from the allowed enum in `commitlint.config.mjs`
 - Use `bun run commit` for an interactive TUI that helps craft valid commits
