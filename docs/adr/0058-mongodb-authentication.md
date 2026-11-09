@@ -49,4 +49,4 @@ MongoDB ran without authentication in K8s (`mongo-dlq`, `mongo-audit`) and in co
 
 ## Limits
 
-- Until release N+1, K8s mongod still runs with `--transitionToAuth`: a client without credentials keeps all rights. The "anonymous refused" and "`Unauthorized` outside the scope" checks on a replica set with a keyFile are only run by hand (see Consequences); `tests/k8s/run-kind.sh` checks `mongodb_up` and uses `root`, nothing more. The automated kind case for the enforced state ships with release N+1.
+- Until release N+1, K8s mongod still runs with `--transitionToAuth`: a client without credentials keeps all rights. The "anonymous refused" and "`Unauthorized` outside the scope" checks on a replica set with a keyFile are only run by hand (see Consequences); `tests/k8s/run-kind.sh` checks `mongodb_up` and uses `root`, nothing more. The automated kind case for the enforced state ships with release N+1. Tracked by #751 (remove the flag, add the anonymous-refused kind case); #669 stays open until then.
