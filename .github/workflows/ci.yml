@@ -139,6 +139,8 @@ jobs:
         run: bash tests/k8s/verify-release.test.sh
       - name: Test the cluster prerequisites check
         run: bash tests/k8s/check-prereqs.test.sh
+      - name: Edge-proxy real client IP (X-Forwarded-For trust, per overlay)
+        run: bash tests/k8s/realip.test.sh
       - name: Test the overlay ClusterRoles check
         run: bash tests/k8s/check-cluster-rbac.test.sh
       - name: Test the Job wait helper

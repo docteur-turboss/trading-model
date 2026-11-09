@@ -82,3 +82,10 @@ patches:
     target:
       kind: SealedSecret
       name: trading-model-secrets
+
+# Pod CIDR trusted by the edge-proxy for X-Forwarded-For (issue #732).
+configMapGenerator:
+  - name: edge-proxy-nginx
+    behavior: merge
+    files:
+      - realip.inc=realip.inc
