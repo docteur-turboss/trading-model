@@ -1,14 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_GET_COLLECTION = jest.fn();
-const MOCK_ESTIMATED_DOC_COUNT = jest.fn();
-const MOCK_FIND_ONE = jest.fn();
-const MOCK_INSERT = jest.fn();
-const MOCK_COMPUTE_HASH = jest.fn();
-
-jest.mock("../../src/config/db", () => ({
-	getCollection: MOCK_GET_COLLECTION,
-}));
+const MOCK_GET_COLLECTION = jest.fn<(...args: any[]) => any>();
+const MOCK_ESTIMATED_DOC_COUNT = jest.fn<(...args: any[]) => any>();
+const MOCK_FIND_ONE = jest.fn<(...args: any[]) => any>();
+const MOCK_INSERT = jest.fn<(...args: any[]) => any>();
+const MOCK_COMPUTE_HASH = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -17,19 +13,23 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/shared/entry-serializer", () => ({
-	EntrySerializer: jest.fn(() => ({
+	EntrySerializer: jest.fn((..._args: any[]) => ({
 		computeHash: MOCK_COMPUTE_HASH,
 	})),
 }));
 
 jest.mock("../../src/adapters/outbound/dedup-inserter", () => ({
-	DedupInserter: jest.fn(() => ({
+	DedupInserter: jest.fn((..._args: any[]) => ({
 		insert: MOCK_INSERT,
 	})),
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 describe("dlq-entry-writer", () => {
@@ -63,12 +63,14 @@ describe("dlq-entry-writer", () => {
 		const { DlqEntryWriter } = jest.requireActual(
 			"../../src/adapters/outbound/dlq-entry-writer"
 		) as {
-			DlqEntryWriter: new () => {
+			DlqEntryWriter: new (
+				getCollection: never
+			) => {
 				insert: (entry: Record<string, unknown>) => Promise<string>;
 			};
 		};
 
-		const writer = new DlqEntryWriter();
+		const writer = new DlqEntryWriter(MOCK_GET_COLLECTION as never);
 		const result = await writer.insert({
 			topic: "test",
 			message: { text: "hello" },
@@ -80,10 +82,10 @@ describe("dlq-entry-writer", () => {
 	});
 
 	it("should throw when capacity is reached", async () => {
-		const insertOne = jest.fn();
+		const insertOne = jest.fn<(...args: any[]) => any>();
 		const mockCol = {
 			estimatedDocumentCount: MOCK_ESTIMATED_DOC_COUNT,
-			findOne: jest.fn<any>().mockResolvedValue(null),
+			findOne: jest.fn<(...args: any[]) => any>().mockResolvedValue(null),
 			insertOne,
 		};
 		MOCK_GET_COLLECTION.mockResolvedValue(mockCol);
@@ -92,12 +94,14 @@ describe("dlq-entry-writer", () => {
 		const { DlqEntryWriter } = jest.requireActual(
 			"../../src/adapters/outbound/dlq-entry-writer"
 		) as {
-			DlqEntryWriter: new () => {
+			DlqEntryWriter: new (
+				getCollection: never
+			) => {
 				insert: (entry: Record<string, unknown>) => Promise<string>;
 			};
 		};
 
-		const writer = new DlqEntryWriter();
+		const writer = new DlqEntryWriter(MOCK_GET_COLLECTION as never);
 		await expect(
 			writer.insert({
 				topic: "test",
@@ -126,12 +130,14 @@ describe("dlq-entry-writer", () => {
 		const { DlqEntryWriter } = jest.requireActual(
 			"../../src/adapters/outbound/dlq-entry-writer"
 		) as {
-			DlqEntryWriter: new () => {
+			DlqEntryWriter: new (
+				getCollection: never
+			) => {
 				insert: (entry: Record<string, unknown>) => Promise<string>;
 			};
 		};
 
-		const writer = new DlqEntryWriter();
+		const writer = new DlqEntryWriter(MOCK_GET_COLLECTION as never);
 		const result = await writer.insert({
 			topic: "test",
 			message: { text: "hello" },

@@ -11,7 +11,7 @@
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
 #    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
 #    ./deploy-k8s.sh [-n <namespace>] smoke-test      # Run smoke tests
-#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0042)
+#    ./deploy-k8s.sh [-n <namespace>] verify-market-data  # Wait until the collector persists candles again (ADR-0057)
 #    ./deploy-k8s.sh [-n <namespace>] verify-release  # API call, fresh data, no critical alert, over a window
 #  Namespace: K8S_NAMESPACE env or -n/--namespace (default: trading-model)
 # =============================================================================
@@ -94,6 +94,8 @@ cmd_apply() {
     log "Applying node agents (trading-model-node)..."
     kustomize_build "${K8S_DIR}/node-agents" | kubectl apply -f -
     log "Applying all Trading Model manifests..."
+    # Immutable pod template: recreated (idempotent) by the apply (issue #727).
+    kubectl delete job -n "$NAMESPACE" mongo-audit-init mongo-dlq-init --ignore-not-found
     kustomize_build "${K8S_DIR}/" | kubectl apply -f -
   fi
 
@@ -476,9 +478,9 @@ cmd_smoke_test() {
   fi
 }
 
-# ADR-0042: the collector is a singleton (Recreate), so a release stops
-# collection for up to terminationGracePeriodSeconds plus the startup. Success
-# is the new pod persisting candles again (fs_candles_persisted_total > 0: the
+# ADR-0057: the collector Lease passes from the old pod to the new one during
+# the rollout (a gap of seconds); this checks the result. Success is the new
+# pod persisting candles again (fs_candles_persisted_total > 0: the
 # counter starts at 0 in a new pod, and MarketDataStale watches its increase).
 # MARKET_DATA_RECOVERY_TIMEOUT seconds (default 600); on timeout exit 1, or only
 # warn with MARKET_DATA_RECOVERY_MODE=warn.
@@ -529,6 +531,8 @@ release_checks_once() {
   local strict="$1" key code critical fresh
 
   key="$(kubectl get secret -n "$NAMESPACE" trading-model-secrets -o jsonpath='{.data.AUTH_TOKENS}' | base64 -d | cut -d, -f1)"
+  # A key is name:scopes:secret (ADR-0059): the secret is after the last colon.
+  key="${key##*:}"
   if [[ -z "$key" ]]; then
     err "  ✗ no gateway API key in Secret trading-model-secrets (AUTH_TOKENS)"
     return 1

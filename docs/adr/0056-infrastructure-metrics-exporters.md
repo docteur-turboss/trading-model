@@ -1,0 +1,36 @@
+# ADR-0056: Infrastructure Metrics: kube-state-metrics, node-exporter, Kubelet and Database Exporter Sidecars
+
+**Status:** Accepted
+**Date:** 2026-11
+**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (exporters speak plain HTTP, no SVID), [ADR-0041](./0041-least-privilege-deploy-identities.md) (new ClusterRole applied by the admin, new DaemonSet in the node-agents identity), [ADR-0047](./0047-redis-isolation-per-service.md) (new ACL user `exporter`), [ADR-0051](./0051-mysql-retention-cronjob.md) (same model for the MySQL user), [ADR-0048](./0048-durable-message-journal-in-redis-streams.md)
+**Verified by:** `tests/alerts/alerting.test.yml`, `scripts/observability-gate.mjs`, `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts`, `tests/k8s/check-overlays.mjs`, `tests/k8s/run-kind.sh`
+
+## Context
+
+Prometheus scraped the services, otel-collector, blackbox, backup metrics, itself and Alertmanager, nothing else (issue #601, observability audit 2026-11-08, C5). A full MySQL disk, broken Redis replication or Sentinel quorum, a MongoDB replica set without primary, a full node disk, an OOMKill or a CrashLoopBackOff went unseen until the services failed, and diagnosing them needed privileged `kubectl`. `HighMemoryUsage` only sees the V8 heap. The owner chose option 1 of the issue (2026-11-08).
+
+Constraints: no Helm (kube-prometheus-stack is out), the application namespace enforces Pod Security `restricted`, the deploy identities hold no RBAC write at cluster scope (ADR-0041), and MongoDB runs without authentication.
+
+## Decision
+
+1. **Pods and workloads: kube-state-metrics** (Deployment, application namespace, `restricted`), limited by a **Role** to `list/watch` pods, PVCs, Deployments and StatefulSets of its own namespace (`--namespaces`, `--resources`). No ClusterRole: it sees neither nodes nor other namespaces.
+2. **Nodes: node-exporter** DaemonSet in the privileged node namespace `trading-model-node` (host network and PID, `/proc`, `/sys`, `/` read-only), listening on the node address, tolerating every taint. Never in the application namespace.
+3. **Containers and PVC usage: the kubelet.** Prometheus scrapes `/metrics` (`kubelet_volume_stats_*`) and `/metrics/cadvisor` (`container_*`) on port 10250 of each node with its ServiceAccount token. ClusterRole **`prometheus-nodes`**: `nodes` get/list/watch, **`nodes/metrics` get**: never `nodes/proxy` (exec in any pod). Cluster-scope RBAC, so applied by an admin with `scripts/deploy-identity.sh cluster` like the spire and promtail ones; `deploy-cluster` can only read it. The kubelet serving certificate is self-signed on most clusters, so it is not verified (the token still authenticates Prometheus). Only the series the rules use are kept (`metric_relabel_configs`).
+4. **Databases: one exporter sidecar per database pod**, so each member is seen (master and replicas, every replica set member), reached on `127.0.0.1`, port `metrics` open to the Prometheus pod only (NetworkPolicy), plain HTTP like otel-collector and backup-metrics (no SVID: ADR-0011 covers the services). Images pinned by digest (`check-overlays.mjs`). Adding them rolls the database StatefulSets once.
+   - `mysqld-exporter`, MySQL user **`exporter`**: `PROCESS, REPLICATION CLIENT` on `*.*`, `SELECT` on `performance_schema.*`, 3 connections at most; created by Job `db-migrate-user`, password `MYSQL_EXPORTER_PASSWORD` (same model as `retention`, ADR-0051).
+   - `redis_exporter` on the data nodes and the sentinels, ACL user **`exporter`** (`redis-ha.sh`): `PING INFO CLIENT SETNAME SLOWLOG GET/LEN LATENCY LATEST/HISTOGRAM`, no key, never `CONFIG GET` (it returns `masterauth`); on the sentinels `SENTINEL MASTERS/SENTINELS/SLAVES/REPLICAS/CKQUORUM`. Password `REDIS_EXPORTER_PASSWORD`.
+   - `mongodb_exporter` on `mongo-dlq` and `mongo-audit`, server status and `replSetGetStatus`, **no user**: MongoDB has no authentication, so a read-only user would protect nothing. A `clusterMonitor` user comes with MongoDB authentication, issue #669.
+   - Both password keys are optional for the pods (a missing key never blocks a database pod), and required by `deploy.yml` before any change: without them the exporters report the databases down, and the release would roll back.
+5. **Alerts** (`observability/alerting.yml`, K8s copy, runbook `runbook-infrastructure.md`, promtool cases): `KubePodCrashLooping`, `KubeContainerOOMKilled`, `KubePersistentVolumeFillingUp` (> 80 %), `NodeFilesystemAlmostFull` (> 85 %, per device) as warnings; `MySQLDown`, `RedisDown`, `RedisSentinelQuorumLost` (`SENTINEL CKQUORUM`), `MongoDBDown`, `MongoDBReplicaSetNoPrimary` as critical; `RedisReplicasMissing` (fewer replicas than the StatefulSet minus one) and `MongoDBReplicaSetMemberUnhealthy` as warnings. Expected sizes come from `kube_statefulset_replicas`, so single-node environments (compose, staging) stay silent. The observability gate accepts the `kube_ kubelet_ container_ node_ mysql_ redis_ mongodb_` families only while their K8s scrape job is configured.
+6. **Compose** runs the database exporters (one mongod there), node-exporter (on Docker Desktop it sees the Windows drives, including the C: that filled up on 2026-10-28) and a one-shot `mysql-exporter-user`; `MYSQL_EXPORTER_PASSWORD` is required. No cAdvisor or kube-state-metrics in compose (no Kubernetes; cAdvisor needs the Docker socket and `privileged`). Compose Redis has no ACL, so its exporter has no user.
+
+## Consequences
+
+- Before the first deploy that contains it: an admin runs `scripts/deploy-identity.sh cluster` (ClusterRole `prometheus-nodes`), and both password keys are sealed into `trading-model-secrets` (merge, `docs/deployment/sealed-secrets.md`). Compose hosts add `MYSQL_EXPORTER_PASSWORD` to `.env`.
+- The first deploy restarts the MySQL, MongoDB and Redis StatefulSets one pod at a time (new sidecar). `run-migrations.sh` applies the SealedSecret before the migrations whenever it carries a key the live Secret lacks, and waits for the controller (issue #698): `db-migrate-user` then creates the MySQL `exporter` user and the restarted Redis pods read `REDIS_EXPORTER_PASSWORD`. The kind CI job upgrades an N-1 without the keys and checks `min(mysql_up)` and `min(redis_up)`.
+- An exporter that cannot log in reports its database down (`MySQLDown`, `RedisDown`): the runbook starts with the exporter logs.
+- PVC usage needs a volume driver that reports statistics (`local-path` on kind does not: no series, no alert).
+- kube-state-metrics sees one namespace: node conditions, PVs and the agents of `trading-model-node` stay out (node-exporter covers the node disks). Option 3 of the issue (cluster-wide kube-state-metrics) was declined.
+- node-exporter runs on the host network, where no NetworkPolicy applies: `:9100` is readable without authentication by anything that reaches the node address. Accepted: these metrics hold no secret.
+- `RedisReplicasMissing` and `RedisSentinelQuorumLost` read `kube_statefulset_replicas`: without kube-state-metrics they stay silent (`ServiceDown` still fires on its target; `absent(up)` alerts belong to their own issue).
+- `ServiceDown` (`up == 0`) now also covers the exporters and the kubelet targets.

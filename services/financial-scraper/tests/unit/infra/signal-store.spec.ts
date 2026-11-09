@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_QUERY = jest.fn<any>();
+const MOCK_QUERY = jest.fn<(...args: any[]) => any>();
 jest.mock("../../../src/config/db", () => ({
 	DATABASE: { promise: () => ({ query: MOCK_QUERY }) },
 }));

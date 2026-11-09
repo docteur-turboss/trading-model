@@ -6,7 +6,8 @@ import {
 	type OrderBookData,
 } from "@trading-model/contracts/market-data.types";
 import { NormalizationStats } from "../normalization-stats";
-import { type DataHandler, isAfterLast, pushWithMaxSize } from "./data-handler";
+import type { DataHandler } from "./data-handler";
+import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
 import { DataType } from "./data-types";
 
 export const orderBookHandler: DataHandler<OrderBookData> = {

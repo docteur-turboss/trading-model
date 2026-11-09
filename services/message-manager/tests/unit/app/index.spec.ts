@@ -1,30 +1,34 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_CREATE_BOOTSTRAP = jest.fn<any>();
+const MOCK_CREATE_BOOTSTRAP = jest.fn<(...args: any[]) => any>();
 
 jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
 	createBootstrap: MOCK_CREATE_BOOTSTRAP,
 }));
 
 jest.mock("../../../src/application/server", () => ({
-	createServer: jest.fn(() => ({ close: jest.fn() })),
+	createServer: jest.fn((..._args: any[]) => ({
+		close: jest.fn<(...args: any[]) => any>(),
+	})),
 }));
 
 const CALLS: string[] = [];
-const MOCK_LEAVE = jest.fn(async () => {
+const MOCK_LEAVE = jest.fn(async (..._args: any[]) => {
 	CALLS.push("leave");
 });
 
 jest.mock("../../../src/config/address-manager", () => ({
-	BOOTSTRAP_ADDRESS_MANAGER: jest.fn(() => ({
-		stop: jest.fn(),
+	BOOTSTRAP_ADDRESS_MANAGER: jest.fn((..._args: any[]) => ({
+		stop: jest.fn<(...args: any[]) => any>(),
 		leave: MOCK_LEAVE,
 	})),
 }));
 
-const MOCK_CLOSE_MESSAGE_MANAGER = jest.fn(async () => undefined);
-const MOCK_START_FORWARDING = jest.fn();
-const MOCK_START_DELIVERY = jest.fn();
+const MOCK_CLOSE_MESSAGE_MANAGER = jest.fn(
+	async (..._args: any[]) => undefined
+);
+const MOCK_START_FORWARDING = jest.fn<(...args: any[]) => any>();
+const MOCK_START_DELIVERY = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../../src/config/message-manager", () => ({
 	closeMessageManager: MOCK_CLOSE_MESSAGE_MANAGER,
@@ -33,8 +37,8 @@ jest.mock("../../../src/config/message-manager", () => ({
 }));
 
 jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
-	startTelemetry: jest.fn(),
-	shutdownTelemetry: jest.fn(async () => undefined),
+	startTelemetry: jest.fn<(...args: any[]) => any>(),
+	shutdownTelemetry: jest.fn(async (..._args: any[]) => undefined),
 }));
 
 jest.mock("../../../src/infrastructure/config/env", () => ({

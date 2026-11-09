@@ -19,5 +19,3 @@ export class QueuePopService {
 		return isShuttingDown() || !dlqRedisQueue.isAvailable();
 	}
 }
-
-export const queuePopService = new QueuePopService();

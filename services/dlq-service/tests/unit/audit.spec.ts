@@ -1,17 +1,26 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_INDIRECT = jest.fn<(...args: unknown[]) => Promise<void>>();
-const MOCK_CREATE = jest.fn(() => ({
+const MOCK_CREATE = jest.fn((..._args: any[]) => ({
 	messageManager: { post: { indirect: MOCK_INDIRECT } },
 }));
-const MOCK_WARN = jest.fn();
+const MOCK_ERROR = jest.fn<(...args: any[]) => any>();
+const MOCK_FAILURES = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: MOCK_WARN, error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: MOCK_ERROR,
+	},
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: { INSTANCE_ID: "dlq-service-1" },
+}));
+
+jest.mock("../../src/config/metrics", () => ({
+	metrics: { auditPublishFailures: { inc: MOCK_FAILURES } },
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
@@ -74,17 +83,29 @@ describe("publishDlqEvent", () => {
 		expect(MOCK_CREATE).toHaveBeenCalledTimes(1);
 	});
 
-	it("logs a publish failure instead of throwing", async () => {
+	it("resolves true once message-manager accepted the event", async () => {
+		MOCK_INDIRECT.mockResolvedValue(undefined);
+
+		await expect(
+			load().publishDlqEvent("dlq.entries.deleted" as never, {} as never)
+		).resolves.toBe(true);
+		expect(MOCK_FAILURES).not.toHaveBeenCalled();
+	});
+
+	it("resolves false on a refusal: logged with the payload and counted, never thrown", async () => {
 		MOCK_INDIRECT.mockRejectedValue(new Error("message-manager down"));
+		const payload = { ids: ["id1"], deleted: 1, actor: "ops-alice" };
 
-		expect(() =>
-			load().publishDlqEvent("dlq.replay.completed" as never, {} as never)
-		).not.toThrow();
-		await new Promise((resolve) => setImmediate(resolve));
+		await expect(
+			load().publishDlqEvent("dlq.entries.deleted" as never, payload as never)
+		).resolves.toBe(false);
 
-		expect(MOCK_WARN).toHaveBeenCalledWith(
+		expect(MOCK_FAILURES).toHaveBeenCalledWith({
+			event: "dlq.entries.deleted",
+		});
+		expect(MOCK_ERROR).toHaveBeenCalledWith(
 			"DLQ event not published: the audit trail misses it",
-			expect.objectContaining({ topic: "dlq.replay.completed" })
+			expect.objectContaining({ topic: "dlq.entries.deleted", payload })
 		);
 	});
 });

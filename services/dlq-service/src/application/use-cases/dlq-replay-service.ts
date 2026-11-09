@@ -1,33 +1,62 @@
 import { randomUUID } from "node:crypto";
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
-import {
-	type ResponseObject,
-	sendResponse,
-} from "@trading-model/http/adapters/inbound/response-exception";
+import type { Span } from "@opentelemetry/api";
+import { SpanStatusCode } from "@opentelemetry/api";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	type Limit,
-	toInstanceId,
+	type Topic,
 	toMessageId,
 } from "@trading-model/primitives/primitives";
-import { doReplayBatch } from "../../config/container";
-import type { ReplayEntriesQuery } from "../../config/dlq-adapters";
-import {
-	claimReleaseManager,
-	dlqClaimManager,
-	dlqRetryManager,
-	notifyReplayAudit,
-} from "../../config/dlq-adapters";
-import { logger } from "../../config/logger";
-import { ENV } from "../../infrastructure/config/env";
-import type { DlqError } from "../services/replay-batch";
-import { mmResolveError, resolveMMUrlOrFail } from "./dlq-replay-resolver";
+import type { DlqMetricsPort } from "../../domain/ports/dlq.ports";
+import type {
+	ClaimReleasePort,
+	DlqReplaySettings,
+	EntryClaimPort,
+	MessageManagerLocatorPort,
+	ReplayAuditPort,
+	RetryLedgerPort,
+} from "../../domain/ports/replay.ports";
+import type { BatchResults, ReplayBatchOptions } from "../../shared/types";
 import { buildReplayResponse } from "./dlq-replay-response";
 
-async function _abandonExhaustedIfNeeded(errors: DlqError[]): Promise<void> {
-	if (errors.length === 0) {
+export interface ReplayRequest {
+	topic?: Topic;
+	limit: number;
+	batchId?: string;
+	/** API key name of the operator (ADR-0059), null when not called through api-gateway. */
+	actor: string | null;
+}
+
+/** Outcome of a manual replay; the inbound adapter maps it to an HTTP response. */
+export type ReplayResult =
+	| { status: "message-manager-unresolved" }
+	| { status: "no-entries" }
+	| {
+			status: "replayed";
+			details: Record<string, unknown>;
+			/** False: replayed, but message-manager refused the audit event (ADR-0059). */
+			auditRecorded: boolean;
+	  };
+
+export interface ReplayEntriesDeps {
+	messageManager: MessageManagerLocatorPort;
+	claimRelease: Pick<ClaimReleasePort, "releaseStaleClaims">;
+	claims: Pick<EntryClaimPort, "claimEntriesForRetry">;
+	retryLedger: RetryLedgerPort;
+	replayBatch(options: ReplayBatchOptions): Promise<BatchResults>;
+	audit: Pick<ReplayAuditPort, "notifyReplay">;
+	metrics: Pick<DlqMetricsPort, "batchReplayed">;
+	settings: Pick<DlqReplaySettings, "instanceId">;
+}
+
+async function _abandonExhaustedIfNeeded(
+	deps: ReplayEntriesDeps,
+	failed: number
+): Promise<void> {
+	if (failed === 0) {
 		return;
 	}
-	const abandoned = await dlqRetryManager.abandonExhaustedEntries();
+	const abandoned = await deps.retryLedger.abandonExhaustedEntries();
 	if (abandoned > 0) {
 		logger.warn(
 			`DLQ manual replay: ${abandoned} entries abandoned after max retries`
@@ -35,58 +64,66 @@ async function _abandonExhaustedIfNeeded(errors: DlqError[]): Promise<void> {
 	}
 }
 
-export async function executeReplayPipeline(
-	query: ReplayEntriesQuery,
-	span: import("@opentelemetry/api").Span
-): Promise<ResponseObject> {
-	span.setAttribute("topic", query.topic ?? "all");
-	span.setAttribute("limit", query.limit);
+export function createReplayEntries(
+	deps: ReplayEntriesDeps
+): (request: ReplayRequest, span: Span) => Promise<ReplayResult> {
+	return async (request, span) => {
+		span.setAttribute("topic", request.topic ?? "all");
+		span.setAttribute("limit", request.limit);
 
-	const messageManagerUrl = await resolveMMUrlOrFail(span);
-	if (!messageManagerUrl) {
-		return mmResolveError();
-	}
+		const messageManagerUrl = await deps.messageManager.resolve();
+		if (!messageManagerUrl) {
+			span.setStatus({
+				code: SpanStatusCode.ERROR,
+				message: "Cannot resolve message-manager URL",
+			});
+			span.end();
+			return { status: "message-manager-unresolved" };
+		}
 
-	const batchId = query.batchId || randomUUID();
-	span.setAttribute("batchId", batchId);
+		const batchId = request.batchId || randomUUID();
+		span.setAttribute("batchId", batchId);
 
-	await claimReleaseManager.releaseStaleClaims();
-	const instanceId = toInstanceId(ENV.INSTANCE_ID);
-	const entries = await dlqClaimManager.claimEntriesForRetry({
-		limit: query.limit as Limit,
-		batchId,
-		instanceId,
-		topic: query.topic,
-	});
-	if (entries.length === 0) {
-		return sendResponse(
-			{ replayed: 0, message: "No entries available for retry" },
-			200 as HttpStatusCode
-		);
-	}
-	span.setAttribute("entriesClaimed", entries.length);
+		await deps.claimRelease.releaseStaleClaims();
+		const instanceId = deps.settings.instanceId;
+		const entries = await deps.claims.claimEntriesForRetry({
+			limit: request.limit as Limit,
+			batchId,
+			instanceId,
+			topic: request.topic,
+		});
+		if (entries.length === 0) {
+			return { status: "no-entries" };
+		}
+		span.setAttribute("entriesClaimed", entries.length);
 
-	const { success, errors } = await doReplayBatch({
-		entries: entries.map((entry) => ({
-			id: toMessageId(entry.id),
-			message: entry.message,
-			service: entry.service,
-		})),
-		messageManagerUrl,
-		batchId,
-		instanceId,
-	});
-	await _abandonExhaustedIfNeeded(errors);
+		const { success, errors } = await deps.replayBatch({
+			entries: entries.map((entry) => ({
+				id: toMessageId(entry.id),
+				message: entry.message,
+				service: entry.service,
+			})),
+			messageManagerUrl,
+			batchId,
+			instanceId,
+		});
+		await _abandonExhaustedIfNeeded(deps, errors.length);
 
-	span.setAttribute("replayed", success);
-	span.setAttribute("failed", errors.length);
+		span.setAttribute("replayed", success);
+		span.setAttribute("failed", errors.length);
 
-	const details = buildReplayResponse(batchId, success, errors);
-	notifyReplayAudit({
-		batchId,
-		topic: query.topic,
-		success,
-		failed: errors.length,
-	});
-	return sendResponse(details, 200 as HttpStatusCode);
+		deps.metrics.batchReplayed(success, errors.length);
+		const auditRecorded = await deps.audit.notifyReplay({
+			batchId,
+			topic: request.topic,
+			success,
+			failed: errors.length,
+			actor: request.actor,
+		});
+		return {
+			status: "replayed",
+			details: buildReplayResponse(batchId, success, errors),
+			auditRecorded,
+		};
+	};
 }

@@ -3,7 +3,7 @@ import { createReq } from "../helpers/express";
 
 // The mTLS discovery client loads the SVID files at construction.
 jest.mock("../../src/config/container", () => ({
-	discoveryClient: { get: jest.fn() },
+	discoveryClient: { get: jest.fn<(...args: any[]) => any>() },
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -32,30 +32,38 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
 });
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock(
 	"@trading-model/address-manager/application/discovery/endpoint-resolver",
 	() => ({
-		EndpointResolver: jest.fn().mockImplementation(() => ({
-			resolve: jest.fn().mockImplementation((name: string) => {
-				// No trader-trainer instance is registered.
-				if (name === "trader-trainer") {
-					return Promise.resolve(null);
-				}
-				return Promise.resolve({
-					host: "10.0.1.5",
-					port: 3000,
-					version: "1.2.0",
-				});
-			}),
-		})),
+		EndpointResolver: jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementation(() => ({
+				resolve: jest
+					.fn<(...args: any[]) => any>()
+					.mockImplementation((name: string) => {
+						// No trader-trainer instance is registered.
+						if (name === "trader-trainer") {
+							return Promise.resolve(null);
+						}
+						return Promise.resolve({
+							host: "10.0.1.5",
+							port: 3000,
+							version: "1.2.0",
+						});
+					}),
+			})),
 	})
 );
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
-	forwardRequest: jest.fn().mockResolvedValue({
+	forwardRequest: jest.fn<(...args: any[]) => any>().mockResolvedValue({
 		status: 200,
 		body: JSON.stringify({ data: "ok" }),
 		headers: { "content-type": "application/json" },
@@ -68,6 +76,10 @@ jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 
 jest.mock("../../src/adapters/inbound/auth", () => ({
 	AUTH_MIDDLEWARE: jest.fn((_req: any, _res: any, next: () => void) => next()),
+	// Every scope unless the request sets its own.
+	authOf: (req: any) => ({
+		apiKeyScopes: req.apiKeyScopes ?? ["read", "dlq:write"],
+	}),
 }));
 
 import { createRouter } from "../../src/adapters/inbound/router";
@@ -101,7 +113,9 @@ describe("router", () => {
 	describe("catch-all handler", () => {
 		function getHandler() {
 			const nonRouteLayers = router.stack.filter((l: any) => !l.route);
-			return nonRouteLayers[nonRouteLayers.length - 1].handle;
+			return nonRouteLayers[nonRouteLayers.length - 1].handle as unknown as (
+				req: unknown
+			) => Promise<any>;
 		}
 
 		function mockForwardSuccess(body: unknown) {
@@ -273,6 +287,61 @@ describe("router", () => {
 				})
 			);
 			expect(result).toEqual({ status: 200, data: { saved: true } });
+		});
+
+		it.each([
+			["POST", "/v1/dlq-service/dlq"],
+			["DELETE", "/v1/dlq-service/dlq"],
+			["POST", "/v1/dlq-service/dlq/replay"],
+		])(
+			"refuses %s %s with 403 to a key without dlq:write",
+			async (method, path) => {
+				const {
+					forwardRequest,
+				} = require("../../src/adapters/outbound/proxy-handler");
+				forwardRequest.mockClear();
+
+				const result = await getHandler()(
+					createReq({ method, path, url: path, apiKeyScopes: ["read"] })
+				);
+
+				expect(result).toEqual({
+					status: 403,
+					data: {
+						error: "Forbidden",
+						reason: "API key lacks the dlq:write scope",
+					},
+				});
+				expect(forwardRequest).not.toHaveBeenCalled();
+			}
+		);
+
+		it("lets a read-only key GET the DLQ", async () => {
+			mockForwardSuccess({ entries: [] });
+
+			const result = await getHandler()(
+				createReq({
+					method: "GET",
+					path: "/v1/dlq-service/dlq",
+					url: "/v1/dlq-service/dlq",
+					apiKeyScopes: ["read"],
+				})
+			);
+
+			expect(result.status).toBe(200);
+		});
+
+		it("refuses a GET to a key without read", async () => {
+			const result = await getHandler()(
+				createReq({
+					method: "GET",
+					path: "/v1/dlq-service/dlq",
+					url: "/v1/dlq-service/dlq",
+					apiKeyScopes: ["dlq:write"],
+				})
+			);
+
+			expect(result.status).toBe(403);
 		});
 
 		it("should handle non-JSON response body", async () => {

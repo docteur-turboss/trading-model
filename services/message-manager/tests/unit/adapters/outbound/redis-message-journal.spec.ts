@@ -16,8 +16,8 @@ function setup(
 ) {
 	const redis = {
 		call: jest.fn(call),
-		sadd: jest.fn(async () => 1),
-		smembers: jest.fn(async () => ["test.topic|trader-trainer"]),
+		sadd: jest.fn(async (..._args: any[]) => 1),
+		smembers: jest.fn(async (..._args: any[]) => ["test.topic|trader-trainer"]),
 	};
 	return {
 		redis,
@@ -77,8 +77,8 @@ describe("RedisMessageJournal", () => {
 
 	it("should read with BLOCK on a connection of its own, and close it", async () => {
 		const blocking = {
-			call: jest.fn(async () => null),
-			disconnect: jest.fn(),
+			call: jest.fn(async (..._args: any[]) => null),
+			disconnect: jest.fn<(...args: any[]) => any>(),
 		};
 		const { redis } = setup();
 		const blocked = new RedisMessageJournal({

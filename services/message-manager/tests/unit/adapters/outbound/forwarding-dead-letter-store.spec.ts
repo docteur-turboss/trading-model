@@ -12,10 +12,13 @@ import {
 import { createHttpClientError } from "@trading-model/http/adapters/outbound/http-client-errors";
 
 const METRICS = {
-	DLQ_FALLBACK_PENDING: { inc: jest.fn(), set: jest.fn() },
-	DLQ_FORWARD_FAILURES_TOTAL: { inc: jest.fn() },
-	DLQ_REJECTED_TOTAL: { inc: jest.fn() },
-	MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.fn() },
+	DLQ_FALLBACK_PENDING: {
+		inc: jest.fn<(...args: any[]) => any>(),
+		set: jest.fn<(...args: any[]) => any>(),
+	},
+	DLQ_FORWARD_FAILURES_TOTAL: { inc: jest.fn<(...args: any[]) => any>() },
+	DLQ_REJECTED_TOTAL: { inc: jest.fn<(...args: any[]) => any>() },
+	MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.fn<(...args: any[]) => any>() },
 };
 jest.mock("../../../../src/config/metrics", () => METRICS);
 

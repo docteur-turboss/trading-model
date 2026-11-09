@@ -25,6 +25,7 @@ Edit `.env` and replace the example values of these variables with your own secr
 
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
 - `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
+- `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated; you use one in Step 3
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
@@ -64,7 +65,7 @@ curl -s http://localhost:8449/ping
 
 ## Step 3: See the Service Registry
 
-Set your admin token (one of the `GATEWAY_AUTH_TOKENS` values in your `.env` file):
+Set your admin token: the secret of one of the `GATEWAY_AUTH_TOKENS` keys in your `.env` file (what follows the last `:` of `name:scopes:secret`):
 
 ```bash
 export ADMIN_TOKEN="change-me-to-a-long-random-key"  # Use your .env value

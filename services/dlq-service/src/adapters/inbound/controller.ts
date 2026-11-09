@@ -1,8 +1,11 @@
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
-import { healthCheck, readyCheck } from "./dlq-service";
+import type { HealthHandlers } from "./dlq-health-handler";
 
 // The API routes are mounted from their registry entries (api-routes.ts).
 
-export const HealthCheck = catchSync((_req) => healthCheck());
-
-export const ReadyCheck = catchSync((_req) => readyCheck());
+export function createHealthControllers(handlers: HealthHandlers) {
+	return {
+		HealthCheck: catchSync((_req) => handlers.healthCheck()),
+		ReadyCheck: catchSync((_req) => handlers.readyCheck()),
+	};
+}

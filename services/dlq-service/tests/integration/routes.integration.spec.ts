@@ -25,8 +25,8 @@ jest.mock("express-rate-limit", () => {
 			string,
 			unknown
 		>;
-		fn.resetKey = jest.fn();
-		return fn as ReturnType<typeof import("express-rate-limit")>;
+		fn.resetKey = jest.fn<(...args: any[]) => any>();
+		return fn;
 	};
 });
 
@@ -39,80 +39,49 @@ jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 	_createHealthLimiter:
 		() => (_req: unknown, _res: unknown, next: () => void) =>
 			next(),
-	closeRateLimiters: jest.fn(),
+	closeRateLimiters: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
-	HttpClient: jest.fn(),
+	HttpClient: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/audit", () => ({
-	publishDlqEvent: jest.fn(),
-}));
-
-jest.mock("../../src/config/db", () => ({
-	isDbConnected: () => true,
-	getCollection: jest.fn(),
-	getMissingCriticalIndexes: () => [],
+	publishDlqEvent: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: {
-		push: jest.fn().mockResolvedValue(true),
+		push: jest.fn<(...args: any[]) => any>().mockResolvedValue(true),
 		isAvailable: () => true,
 	},
 }));
 
 jest.mock("../../src/config/metrics", () => ({
-	metricsHandler: jest.fn(),
+	metricsHandler: jest.fn<(...args: any[]) => any>(),
 	metrics: {
-		entriesAdded: { inc: jest.fn() },
-		entriesDeleted: { inc: jest.fn() },
-		entriesReplayed: { inc: jest.fn() },
-		entriesReplayFailed: { inc: jest.fn() },
-		entriesPruned: { inc: jest.fn() },
-		pruneErrors: { inc: jest.fn() },
-		entrySizeBytes: { observe: jest.fn() },
-		collectionSize: { set: jest.fn() },
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/repository", () => ({
-	dlqRepository: {
-		insert: jest.fn(),
-		query: jest.fn(),
-		delete: jest.fn(),
-		count: jest.fn(),
-		prune: jest.fn(),
-		listQueuable: jest.fn(),
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/claim-manager", () => ({
-	dlqClaimManager: {
-		claimEntriesForRetry: jest.fn(),
-		releaseStaleClaims: jest.fn(),
-		releaseClaimWithoutCount: jest.fn(),
-		incrementRetryCount: jest.fn(),
-		releaseClaimsByInstance: jest.fn(),
-	},
-	claimReleaseManager: { releaseStaleClaims: jest.fn() },
-}));
-
-jest.mock("../../src/adapters/outbound/retry-manager", () => ({
-	dlqRetryManager: {
-		markRetried: jest.fn(),
-		abandonExhaustedEntries: jest.fn(),
+		entriesAdded: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesDeleted: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesPruned: { inc: jest.fn<(...args: any[]) => any>() },
+		pruneErrors: { inc: jest.fn<(...args: any[]) => any>() },
+		entrySizeBytes: { observe: jest.fn<(...args: any[]) => any>() },
+		collectionSize: { set: jest.fn<(...args: any[]) => any>() },
 	},
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	FIND_A_SERVICE: jest.fn(),
-	AddressManager: { start: jest.fn() },
+	FIND_A_SERVICE: jest.fn<(...args: any[]) => any>(),
+	AddressManager: { start: jest.fn<(...args: any[]) => any>() },
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -139,9 +108,62 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 import { DLQ_API } from "../../src/adapters/inbound/api-routes";
+import { createDlqHandlers } from "../../src/adapters/inbound/dlq-service";
 import { DlqRoutes } from "../../src/adapters/inbound/routes";
-import { dlqClaimManager } from "../../src/adapters/outbound/claim-manager";
-import { dlqRepository } from "../../src/adapters/outbound/repository";
+import { createAddEntry } from "../../src/application/use-cases/add-entry-pipeline";
+import { createDeleteEntries } from "../../src/application/use-cases/dlq-delete-handler";
+import { createReplayEntries } from "../../src/application/use-cases/dlq-replay-service";
+
+const dlqRepository = {
+	insert: jest.fn<(...args: any[]) => any>(),
+	query: jest.fn<(...args: any[]) => any>(),
+	delete: jest.fn<(...args: any[]) => any>(),
+	count: jest.fn<(...args: any[]) => any>(),
+};
+const dlqClaimManager = {
+	claimEntriesForRetry: jest.fn<(...args: any[]) => any>(),
+};
+const metricsPort = {
+	entryAdded: () => undefined,
+	entriesDeleted: () => undefined,
+	batchReplayed: () => undefined,
+};
+const auditPort = {
+	notifyAdd: () => undefined,
+	notifyDelete: jest.fn<(...args: any[]) => Promise<boolean>>(async () => true),
+	notifyReplay: async () => true,
+};
+const handlers = createDlqHandlers({
+	entries: dlqRepository,
+	db: { isConnected: () => true, getMissingCriticalIndexes: () => [] },
+	queue: { isAvailable: () => true },
+	useCases: {
+		addEntry: createAddEntry({
+			entries: dlqRepository,
+			storage: { isAvailable: () => true },
+			queue: { enqueue: async () => undefined },
+			metrics: metricsPort,
+			audit: auditPort,
+		}),
+		deleteEntries: createDeleteEntries({
+			entries: dlqRepository,
+			metrics: metricsPort,
+			audit: auditPort,
+		}),
+		replayEntries: createReplayEntries({
+			messageManager: {
+				resolve: async () => "https://message-manager:3000" as never,
+			},
+			claimRelease: { releaseStaleClaims: async () => 0 },
+			claims: dlqClaimManager,
+			retryLedger: { abandonExhaustedEntries: async () => 0 },
+			replayBatch: async () => ({ success: 0, errors: [] }),
+			audit: auditPort,
+			metrics: metricsPort,
+			settings: { instanceId: "dlq-service-test-1" as never },
+		}),
+	},
+});
 
 /** Every API response must match its registry entry (ADR-0021). */
 function expectDocumented(
@@ -187,7 +209,7 @@ interface RequestOptions {
 function createApp(): express.Application {
 	const app = express();
 	app.use(express.json());
-	app.use("/", DlqRoutes());
+	app.use("/", DlqRoutes(handlers));
 	return app;
 }
 
@@ -244,9 +266,15 @@ describe("DLQ Service — Routes Integration", () => {
 	let server: http.Server;
 
 	beforeEach(() => {
-		(dlqRepository.insert as jest.Mock).mockResolvedValue("entry-1");
-		(dlqRepository.query as jest.Mock).mockResolvedValue([]);
-		(dlqRepository.count as jest.Mock).mockResolvedValue(5);
+		(
+			dlqRepository.insert as jest.Mock<(...args: any[]) => any>
+		).mockResolvedValue("entry-1");
+		(
+			dlqRepository.query as jest.Mock<(...args: any[]) => any>
+		).mockResolvedValue([]);
+		(
+			dlqRepository.count as jest.Mock<(...args: any[]) => any>
+		).mockResolvedValue(5);
 	});
 
 	afterEach(() => {
@@ -372,7 +400,9 @@ describe("DLQ Service — Routes Integration", () => {
 	});
 
 	it("GET /dlq should list entries for an allowed service", async () => {
-		(dlqRepository.query as jest.Mock).mockResolvedValue([
+		(
+			dlqRepository.query as jest.Mock<(...args: any[]) => any>
+		).mockResolvedValue([
 			{
 				id: "entry-1",
 				topic: "test.topic",
@@ -404,7 +434,9 @@ describe("DLQ Service — Routes Integration", () => {
 	});
 
 	it("DELETE /dlq should delete the given ids", async () => {
-		(dlqRepository.delete as jest.Mock).mockResolvedValue(2);
+		(
+			dlqRepository.delete as jest.Mock<(...args: any[]) => any>
+		).mockResolvedValue(2);
 		await start();
 		const body = { ids: ["a", "b"] };
 		const result = await request(server, "/dlq", {
@@ -413,8 +445,26 @@ describe("DLQ Service — Routes Integration", () => {
 			headers: signHeaders(body, "DELETE", "/dlq"),
 		});
 		expect(result.status).toBe(200);
-		expect(result.body).toEqual({ deleted: 2 });
+		expect(result.body).toEqual({ deleted: 2, auditRecorded: true });
 		expectDocumented(DLQ_API.deleteEntries, result);
+	});
+
+	it("DELETE /dlq answers 502 when message-manager refused the audit event, and ignores x-actor from a caller that is not api-gateway", async () => {
+		(
+			dlqRepository.delete as jest.Mock<(...args: any[]) => any>
+		).mockResolvedValue(1);
+		auditPort.notifyDelete.mockResolvedValueOnce(false);
+		await start();
+		const body = { ids: ["a"] };
+		const result = await request(server, "/dlq", {
+			method: "DELETE",
+			body,
+			headers: { ...signHeaders(body, "DELETE", "/dlq"), "x-actor": "forged" },
+		});
+		expect(result.status).toBe(502);
+		expect(result.body).toEqual({ deleted: 1, auditRecorded: false });
+		expectDocumented(DLQ_API.deleteEntries, result);
+		expect(auditPort.notifyDelete).toHaveBeenLastCalledWith(["a"], 1, null);
 	});
 
 	it("DELETE /dlq should reject an empty id list with 400", async () => {
@@ -431,7 +481,9 @@ describe("DLQ Service — Routes Integration", () => {
 	});
 
 	it("POST /dlq/replay should answer when nothing is waiting", async () => {
-		(dlqClaimManager.claimEntriesForRetry as jest.Mock).mockResolvedValue([]);
+		(
+			dlqClaimManager.claimEntriesForRetry as jest.Mock<(...args: any[]) => any>
+		).mockResolvedValue([]);
 		await start();
 		const result = await request(server, "/dlq/replay?limit=10", {
 			method: "POST",

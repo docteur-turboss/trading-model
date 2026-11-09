@@ -39,6 +39,43 @@ patches:
             - port: 9000
               protocol: TCP
 
+  # A laptop disk shared with other Docker stacks: MySQL's first initialisation
+  # and Grafana's schema migrations outlast the base probes, which then restart
+  # them for ever. Startup budget 30 min each (deploy.yml timeouts: the
+  # environment variable DEPLOY_TIMEOUT_FACTOR).
+  - target:
+      kind: StatefulSet
+      name: mysql
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe/failureThreshold
+        value: 180
+  - target:
+      kind: StatefulSet
+      name: grafana
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/startupProbe
+        value:
+          httpGet:
+            path: /api/health
+            port: 3000
+          periodSeconds: 10
+          failureThreshold: 180
+
+  # One pod per data StatefulSet: a release must not restart it (issue #700).
+  # Planned restart for a new template: docs/deployment/STAGING_LOCAL.md.
+  - target:
+      kind: StatefulSet
+      name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$
+    patch: |-
+      - op: add
+        path: /spec/updateStrategy
+        value:
+          type: RollingUpdate
+          rollingUpdate:
+            partition: 1
+
   # Secrets sealed with the key of the kind cluster's controller, not the
   # placeholders of ../staging (OVERLAY=staging-local bash scripts/init-sealed-secrets.sh).
   - path: sealed-secrets.yaml

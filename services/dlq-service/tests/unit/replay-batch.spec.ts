@@ -7,21 +7,25 @@ import {
 	jest,
 } from "@jest/globals";
 
-const MOCK_DELIVER_ENTRY = jest.fn<() => Promise<void>>();
+const MOCK_DELIVER_ENTRY = jest.fn<(entry: { id: string }) => Promise<void>>();
 
-jest.mock("../../src/config/logger", () => ({
-	logger: { debug: jest.fn(), warn: jest.fn(), error: jest.fn() },
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
+	logger: {
+		debug: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/application/services/batch-concurrency-guard", () => ({
 	checkBatchRejection: () => null,
-	recordBatchResult: jest.fn(),
+	recordBatchResult: jest.fn<(...args: any[]) => any>(),
 }));
 
 describe("replay-batch", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		jest.spyOn(global, "setTimeout").mockImplementation(() => 0);
+		jest.spyOn(global, "setTimeout").mockImplementation((() => 0) as never);
 	});
 
 	afterEach(() => {
@@ -87,9 +91,13 @@ describe("replay-batch", () => {
 
 	it("clears the timeout timer once the batch ends, even when delivery fails", async () => {
 		jest.spyOn(global, "setTimeout").mockImplementation((() => 42) as never);
-		const clear = jest.spyOn(global, "clearTimeout").mockImplementation();
-		const { logger } = jest.requireMock("../../src/config/logger") as {
-			logger: { warn: jest.Mock };
+		const clear = jest
+			.spyOn(global, "clearTimeout")
+			.mockImplementation(() => undefined);
+		const { logger } = jest.requireMock(
+			"@trading-model/http/infrastructure/logger"
+		) as {
+			logger: { warn: jest.Mock<(...args: any[]) => any> };
 		};
 
 		await runReplay(() => Promise.reject(new Error("boom")));
@@ -104,9 +112,11 @@ describe("replay-batch", () => {
 			fire = cb;
 			return 7;
 		}) as never);
-		jest.spyOn(global, "clearTimeout").mockImplementation();
-		const { logger } = jest.requireMock("../../src/config/logger") as {
-			logger: { warn: jest.Mock };
+		jest.spyOn(global, "clearTimeout").mockImplementation(() => undefined);
+		const { logger } = jest.requireMock(
+			"@trading-model/http/infrastructure/logger"
+		) as {
+			logger: { warn: jest.Mock<(...args: any[]) => any> };
 		};
 		let release: () => void = () => undefined;
 		const gate = new Promise<void>((r) => {

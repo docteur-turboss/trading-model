@@ -281,7 +281,9 @@ describe("Server routes", () => {
 		});
 		// Weights and populations never leave through this route (ADR-0022).
 		expect(JSON.stringify(result.body)).not.toContain("trainedWeights");
-		expect(trainer.getSnapshotForSymbol).toHaveBeenCalledWith("BTCUSDT");
+		expect(trainer.getSnapshotForSymbol).toHaveBeenCalledWith(
+			expect.stringMatching(/^BTCUSDT$/)
+		);
 	});
 
 	it("GET /training-agents/:symbol should return 404 for an untrained symbol", async () => {

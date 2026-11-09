@@ -49,7 +49,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0039](./0039-configuration-feature-flags.md) | Configuration Feature Flags (env booleans, kill switches) | Accepted | 2026-11 |
 | [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) | Locked, Resumable Schema Migrations and the Expand/Contract Rule | Accepted | 2026-11 |
 | [ADR-0041](./0041-least-privilege-deploy-identities.md) | Least-Privilege Deploy Identities — Application and Cluster-Scope, Bounded Tokens | Accepted | 2026-11 |
-| [ADR-0042](./0042-singleton-collector-with-verified-recovery.md) | Singleton Collector Kept, Recovery Verified After Each Deploy | Accepted | 2026-11 |
+| [ADR-0042](./0042-singleton-collector-with-verified-recovery.md) | Singleton Collector Kept, Recovery Verified After Each Deploy | Superseded by [ADR-0057](./0057-collector-handover-through-a-lease.md) | 2026-11 |
 | [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md) | Message Delivery Once per Subscribed Service (Consumer Group) | Accepted | 2026-11 |
 | [ADR-0044](./0044-singleton-trainer.md) | trader-trainer Runs as a Singleton | Accepted | 2026-11 |
 | [ADR-0045](./0045-single-service-resolution-strategy.md) | One Service Resolution Strategy: Registry Says Alive, Platform Says Where | Accepted | 2026-11 |
@@ -62,6 +62,11 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0052](./0052-audit-chain-amortized-lease-batched-writes.md) | Amortized Audit Chain Lease and Batched Writes | Accepted | 2026-11 |
 | [ADR-0053](./0053-order-books-persisted-not-served.md) | Order Books Persisted in MySQL for Replay, Not Served by the API | Accepted | 2026-11 |
 | [ADR-0054](./0054-public-read-pagination-and-proxy-response-cap.md) | Keyset Pagination of the Public Market Data Reads, Capped Proxied Answers | Accepted | 2026-11 |
+| [ADR-0055](./0055-observability-storage-retention.md) | Observability Storage on K8s: Jaeger Badger on a PVC, Bounded Loki Retention | Accepted | 2026-11 |
+| [ADR-0056](./0056-infrastructure-metrics-exporters.md) | Infrastructure Metrics: kube-state-metrics, node-exporter, Kubelet and Database Exporter Sidecars | Accepted | 2026-11 |
+| [ADR-0057](./0057-collector-handover-through-a-lease.md) | Collector Handed Over Through a Kubernetes Lease | Accepted | 2026-11 |
+| [ADR-0058](./0058-trainer-handover-through-a-lease.md) | trader-trainer Handed Over Through a Kubernetes Lease | Accepted | 2026-11 |
+| [ADR-0059](./0059-scoped-api-keys-and-dlq-actor.md) | Scoped API Keys, and the Key Name as Actor of DLQ Audit Events | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

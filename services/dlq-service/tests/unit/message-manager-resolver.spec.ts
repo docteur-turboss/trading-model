@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_FIND_A_SERVICE = jest.fn();
+const MOCK_FIND_A_SERVICE = jest.fn<(...args: any[]) => any>();
 const envMock = { ENV: { MESSAGE_MANAGER_URL: "https://mm:3000" } };
 
 jest.mock("../../src/config/address-manager", () => ({
@@ -10,7 +10,11 @@ jest.mock("../../src/config/address-manager", () => ({
 jest.mock("../../src/infrastructure/config/env", () => envMock);
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 describe("message-manager-resolver", () => {

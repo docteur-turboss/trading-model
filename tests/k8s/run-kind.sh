@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -41,6 +41,7 @@ PREVIOUS="$WORK/previous"
 export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
+export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
 
 log() { echo "[kind] $*"; }
 
@@ -61,16 +62,33 @@ wait_for() {
 	done
 }
 
+# Runs the command `"${@:2}"` up to `$1` times, 10 s apart. For calls that pull
+# from an external registry (transient 504 / EOF): bounded and logged, the last
+# failure is the caller's failure (set -e), never swallowed.
+retry() {
+	local tries="$1" n=1
+	shift
+	until "$@"; do
+		if [ "$n" -ge "$tries" ]; then
+			log "failed after $n attempts: $*"
+			return 1
+		fi
+		log "attempt $n/$tries failed, retrying in 10 s: $*"
+		n=$((n + 1))
+		sleep 10
+	done
+}
+
 # Builds the 10 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
 build_images() {
 	local root="$1" tag="$2" svc
 	# shellcheck disable=SC2086
-	docker compose -f "$root/docker-compose.yml" build $SERVICES spire-bootstrap
-	docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
+	retry 3 docker compose -f "$root/docker-compose.yml" build $SERVICES spire-bootstrap
+	retry 3 docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
 	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
 	local mroot="$root"
 	[ -f "$root/deploy/migrate/Dockerfile" ] || mroot="$ROOT"
-	docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
+	retry 3 docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
 	docker tag "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
 	for svc in $SERVICES; do
 		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
@@ -143,7 +161,8 @@ cluster() {
 	if "$KIND" get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
 		log "cluster $CLUSTER already exists"
 	else
-		"$KIND" create cluster --name "$CLUSTER" --wait 180s
+		# A failed create (kindest/node pull) leaves a half-made cluster: drop it between attempts.
+		retry 3 bash -c '"$0" delete cluster --name "$1" >/dev/null 2>&1; "$0" create cluster --name "$1" --wait 180s' "$KIND" "$CLUSTER"
 	fi
 }
 
@@ -190,24 +209,40 @@ release_script() {
 		bash deploy/k8s/scripts/deploy-release.sh "$@")
 }
 
-# The migrations of the checkout `$1`, through its own run-migrations.sh.
+# The migrations of the checkout `$1`, through its own run-migrations.sh. For
+# release N, the Secret of ci-render.mjs stands in for the SealedSecret file
+# deploy.yml passes: its new keys are applied before the Jobs (issue #698).
 migrations() {
+	local sealed=""
+	if [ "$1" = "$ROOT" ]; then
+		sealed="$WORK/secret.yaml"
+		node "$ROOT/tests/k8s/ci-render.mjs" --secret >"$sealed" || return 1
+	fi
 	(cd "$1" && use_kube &&
-		SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
+		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
 }
 
 # The overlay of the checkout `$1`, pinned to the digests of file `$2` as
 # deploy.yml's "Apply overlay", adapted to kind by ci-render.mjs.
+# Release N-1 runs as if it predated the exporter keys (ADR-0056): they are
+# dropped from its Secret and its exporters read another key, so N adds the
+# keys and restarts the database pods, as a real upgrade to 3.1.0 (issue #698).
 apply_release() {
 	local rendered
 	rendered="$(release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" |
 		node "$ROOT/tests/k8s/ci-render.mjs")" || return 1
+	[ "$1" != "$PREVIOUS" ] || rendered="$(sed -E -e '/^  (MYSQL|REDIS)_EXPORTER_PASSWORD: /d' \
+		-e 's/key: (MYSQL|REDIS)_EXPORTER_PASSWORD$/key: \1_EXPORTER_PASSWORD_BEFORE_ADR_0056/' <<<"$rendered")"
 	if [ ! -f "$WORK/app.kubeconfig" ]; then
 		echo "$rendered" | $K apply -f -
 		return
 	fi
 	# As deploy.yml: cluster-scope documents with deploy-cluster, the rest with deploy-app.
 	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" cluster |
+		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
+	# "Apply SPIFFE node components": the node agents of this checkout
+	# (node-exporter is new in it, ADR-0056), with deploy-cluster.
+	$K kustomize "$1/deploy/k8s/overlays/staging/node-agents" |
 		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
 	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app |
 		kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f -
@@ -231,6 +266,9 @@ deploy() {
 	$K -n "$NS" apply -f "$ROOT/tests/k8s/binance-stub.yaml"
 
 	log "waiting for MySQL, then applying the migrations of release N-1"
+	# 600 s/300 s: run 42498902230, cold deploy of N-1 took 4 m 25 s in all, slowest Deployment
+	# (collector) ~65 s, api-gateway ~77 s; DaemonSets ready within 3 s. Verify rollouts (3 replicas,
+	# rolling restart): message-manager 89 s, discovery-server 35 s. Margins kept for slower runners.
 	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
 	migrations "$PREVIOUS"
 
@@ -268,6 +306,81 @@ release() {
 	deploy_script smoke-test
 }
 
+# shellcheck source=tests/k8s/probe-availability.sh
+. "$(dirname "${BASH_SOURCE[0]}")/probe-availability.sh"
+
+# The final upgrade to N under the probe: `release` runs while requests flow
+# through edge-proxy to discovery-server, trader-trainer (Lease handover,
+# ADR-0058) and financial-scraper (PROBE_ROUTES) and market candles are
+# written. Fails above
+# PROBE_MAX_FAILURES (default 0: a release must not drop a request) failed
+# requests or when a candle of BTCUSDT is missing (gap above one interval,
+# 1 minute: the stub serves 1m klines) during the window.
+release_under_probe() {
+	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0 began=$SECONDS
+	local requests failures row candles gap need
+	rm -f "$stop" "$out"
+	echo "0 0" >"$out"
+	probe_availability "$stop" "$out" &
+	pid=$!
+	# A failing command under errexit must not leave the probe running.
+	# Expanded now: the locals are gone when a RETURN trap runs.
+	# shellcheck disable=SC2064
+	trap "touch '$stop'; kill $pid 2>/dev/null || true; trap - RETURN" RETURN
+	start="$(mysql_root "SELECT UTC_TIMESTAMP(3)" | tr -d '\r')"
+	[ -n "$start" ] || {
+		log "could not read the window start from MySQL"
+		return 1
+	}
+	release "$WORK/digests-current" || rc=$?
+	touch "$stop"
+	wait "$pid" || true
+	read -r requests failures <"$out"
+	log "  availability during the upgrade: $requests requests, $failures failed (threshold $max)"
+	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
+		echo "Availability probe during the upgrade to N (edge-proxy, $PROBE_ROUTES): $requests requests, $failures failed (threshold $max)" >>"$GITHUB_STEP_SUMMARY"
+	[ "$rc" = 0 ] || return "$rc"
+	[ "$requests" -gt 0 ] || {
+		log "the availability probe sent no request"
+		return 1
+	}
+	[ "$failures" -le "$max" ] || {
+		log "the upgrade dropped $failures request(s) (threshold $max): a Deployment went to 0 ready pods"
+		return 1
+	}
+	# Candles written in the window and the largest gap between consecutive ones
+	# (the last one before the window included). timestamp is the UTC open time
+	# stored by the collector. shortcut: it sees candle open times only, and the
+	# collector backfills, so a missed scrape that heals is not seen; measure the
+	# write delay (created_at) if that ever matters.
+	# One candle per minute: expect floor(window / 60) - 1, at least 1. A
+	# collector pod replaced by the rollout can miss the :00 scrape (CI run
+	# 42528580742: 0 candles in a 72 s window), so wait up to 90 s after the
+	# window for it to write (it backfills) before judging.
+	need=$(((SECONDS - began) / 60 - 1))
+	[ "$need" -ge 1 ] || need=1
+	local deadline=$((SECONDS + 90))
+	while :; do
+		row="$(mysql_root "SELECT COUNT(CASE WHEN timestamp >= '$start' THEN 1 END), COALESCE(MAX(TIMESTAMPDIFF(SECOND, prev, timestamp)), 0) FROM (SELECT timestamp, LAG(timestamp) OVER (ORDER BY timestamp) AS prev FROM financial_scraper.market_candles WHERE symbol='BTCUSDT' AND interval_value='1m' AND timestamp >= '$start' - INTERVAL 2 MINUTE) c" | tr -d '\r')"
+		read -r candles gap <<<"$row"
+		[[ "$candles" =~ ^[0-9]+$ && "$gap" =~ ^[0-9]+$ ]] || {
+			log "candle check failed: MySQL answered '$row'"
+			return 1
+		}
+		{ [ "$candles" -lt "$need" ] && [ "$SECONDS" -lt "$deadline" ]; } || break
+		sleep 5
+	done
+	log "  BTCUSDT 1m candles during the upgrade: $candles (need $need), largest gap ${gap}s"
+	[ "$candles" -ge "$need" ] || {
+		log "too few market candles during the upgrade: $candles < $need"
+		return 1
+	}
+	[ "$gap" -le 60 ] || {
+		log "a market candle was missed during the upgrade (gap ${gap}s > 60 s)"
+		return 1
+	}
+}
+
 # Upgrade N-1 to N the way deploy.yml does it (issue #413):
 #   1. a failed upgrade (api-gateway pinned to a digest no registry has: its
 #      rollout never completes) and "Rollback on failure"; every Deployment
@@ -286,6 +399,10 @@ upgrade() {
 		log "release N-1 applied no migration"
 		return 1
 	}
+	[ "$(exporter_users)" = 0 ] || {
+		log "release N-1 already has the MySQL exporter user: the upgrade would not prove issue #698"
+		return 1
+	}
 
 	log "upgrade N-1 → N with a forced failure: api-gateway pinned to a digest that does not exist"
 	sed 's/^api-gateway .*/api-gateway sha256:0000000000000000000000000000000000000000000000000000000000000000/' \
@@ -298,6 +415,15 @@ upgrade() {
 	log "  the upgrade failed: rollback on failure (deploy-release.sh rollback)"
 	release_script rollback "$NS" "$WORK/revisions"
 	release_script wait "$NS" 300s
+	# The first N-1 → N attempt ran db-migrate-user once, before the overlay that
+	# brings the exporter keys: the user exists only if their SealedSecret was
+	# applied before the Job (issue #698). MySQL stays on N (not rolled back).
+	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
+	[ "$(exporter_users)" = 1 ] || {
+		log "no MySQL exporter user after the first upgrade attempt: run-migrations.sh did not apply the new Secret keys before db-migrate-user"
+		return 1
+	}
+	log "  MySQL exporter user created before the overlay restarted MySQL"
 
 	local dep template expected
 	while read -r dep template; do
@@ -360,14 +486,69 @@ upgrade() {
 	}
 	log "  $last rolled back and applied again, same checksums"
 
-	log "upgrade N-1 → N"
-	release "$WORK/digests-current" || {
-		log "the upgrade to release N failed"
+	log "upgrade N-1 → N, availability probed through edge-proxy"
+	verify_collection_gap "upgrade N-1 → N" release_under_probe || {
+		log "the upgrade to release N failed, dropped requests, or stopped the market data 30 s or more"
+		return 1
+	}
+	log "collector handover on release N: rolling restart, the Lease goes to the new pod (ADR-0057)"
+	verify_collection_gap "restart N → N" collector_handover || return 1
+	# Every exporter reaches its database, so neither MySQLDown nor RedisDown
+	# (critical, verify-release rolls back on them) fires (issue #698).
+	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = 1, no MySQLDown / RedisDown"
+	wait_for 180 '[ "$(prometheus_value "min(mysql_up)")" = 1 ] && [ "$(prometheus_value "min(redis_up)")" = 1 ] &&
+		[ -z "$(prometheus_value "ALERTS{alertname=~\"MySQLDown|RedisDown\"}")" ]' || {
+		log "  min(mysql_up)=$(prometheus_value 'min(mysql_up)') min(redis_up)=$(prometheus_value 'min(redis_up)')"
 		return 1
 	}
 	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up in $((SECONDS - started)) s"
 	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
 		echo "Upgrade N-1 → N with forced failure and rollback: $((SECONDS - started)) s" >>"$GITHUB_STEP_SUMMARY"
+}
+
+# MySQL's clock (UTC, millisecond), the reference of collection_gap.
+mysql_now() {
+	mysql_root "SELECT UTC_TIMESTAMP(3)"
+}
+
+# Longest interval in seconds between two consecutive BTCUSDT order books (one
+# per scrape cycle, stamped with the collector's fetch time) from `$1` to the
+# newest one; empty while fewer than two. The collector handover of a rollout
+# (ADR-0057) must keep it under COLLECTION_MAX_GAP_SECONDS.
+collection_gap() {
+	mysql_root "SELECT MAX(TIMESTAMPDIFF(MICROSECOND, prev, ts)) / 1000000 FROM (SELECT timestamp AS ts, LAG(timestamp) OVER (ORDER BY timestamp) AS prev FROM financial_scraper.market_order_books WHERE symbol = 'BTCUSDT' AND timestamp >= '$1') AS cycles"
+}
+
+# Runs the rollout command `$2...` of the collector and fails when the market
+# data gap across it reaches 30 s (issue #702: the scrape runs every 10 s in
+# CI, see ci-render.mjs). `$1` names the rollout in the log.
+verify_collection_gap() {
+	local label="$1" since rolled gap
+	shift
+	since="$(mysql_now)"
+	"$@" || return 1
+	# The old pod gone, it drained and released the Lease: from now on only the new one collects.
+	wait_for 120 '[ "$($K -n "$NS" get pods -l app.kubernetes.io/component=financial-scraper-collector -o name | wc -l)" -eq 1 ]' || {
+		log "  $label: the old collector pod is still there"
+		return 1
+	}
+	rolled="$(mysql_now)"
+	# Two cycles of the new pod after the rollout: the gap is fully measured.
+	wait_for 120 "[ \"\$(mysql_root \"SELECT COUNT(*) FROM financial_scraper.market_order_books WHERE symbol = 'BTCUSDT' AND timestamp > '$rolled'\")\" -ge 2 ]" || {
+		log "  $label: no market data after the rollout"
+		return 1
+	}
+	gap="$(collection_gap "$since")"
+	log "  $label: longest market data gap ${gap} s (limit 30 s)"
+	[ -z "${GITHUB_STEP_SUMMARY:-}" ] || echo "Collector handover ($label): longest market data gap ${gap} s" >>"$GITHUB_STEP_SUMMARY"
+	awk -v g="${gap:-999}" 'BEGIN { exit !(g < 30) }'
+}
+
+# The holder of the collector Lease (ADR-0057) restarted as a release does:
+# the old pod drains and releases, the new one takes the Lease over.
+collector_handover() {
+	$K -n "$NS" rollout restart deployment/financial-scraper-collector &&
+		$K -n "$NS" rollout status deployment/financial-scraper-collector --timeout=300s
 }
 
 mysql_count() {
@@ -390,10 +571,23 @@ mm_dropped() {
 		grep -c "Message dropped: no subscriber for its topic" || true
 }
 
+# Value of the first series of the instant PromQL query `$1`, empty when none.
+prometheus_value() {
+	$K -n "$NS" exec prometheus-0 -c prometheus -- \
+		wget -qO- "http://localhost:9090/api/v1/query?query=$(jq -rn --arg q "$1" '$q | @uri')" |
+		jq -r '.data.result[0].value[1] // empty'
+}
+
 # Number of up targets of a job: one per pod since the pod discovery (issue #559).
 prometheus_up_count() {
-	$K -n "$NS" exec prometheus-0 -c prometheus -- 		wget -qO- "http://localhost:9090/api/v1/query?query=count(up%7Bjob%3D%22$1%22%7D%3D%3D1)" |
-		node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8")).data.result;console.log(r.length?r[0].value[1]:0)'
+	local n
+	n="$(prometheus_value "count(up{job=\"$1\"}==1)")"
+	echo "${n:-0}"
+}
+
+# MySQL accounts named `exporter` (ADR-0056, created by db-migrate-user).
+exporter_users() {
+	mysql_root "SELECT COUNT(*) FROM mysql.user WHERE user='exporter'"
 }
 
 # Every configured job must have active targets, all up: a scrape pool Prometheus
@@ -419,6 +613,7 @@ verify() {
 
 	verify_replicas
 	verify_egress
+	verify_mongo_ingress
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -490,7 +685,7 @@ verify_traces() {
 verify_egress() {
 	local url="https://example.com"
 	log "internet egress: refused to the collector, allowed without policy"
-	$K run egress-control -n default --rm -i --restart=Never --quiet \
+	retry 3 $K run egress-control -n default --rm -i --restart=Never --quiet \
 		--image=curlimages/curl:8.11.1 -- curl -s -o /dev/null -m 10 "$url" || {
 		log "  the control pod has no internet: the check proves nothing"
 		return 1
@@ -500,6 +695,45 @@ verify_egress() {
 		log "  the collector reached $url: NetworkPolicy not enforced"
 		return 1
 	fi
+}
+
+# mongosh ping of `$3` from a throwaway pod `$1` with labels `$2` (none when
+# empty). Restricted Pod Security: the security context is spelled out.
+mongo_ping() {
+	local img uri
+	img="$(grep -m1 -o 'mongo@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
+	uri="mongodb://$3:27017/?directConnection=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
+	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
+		\"apiVersion\": \"v1\",
+		\"spec\": {
+			\"securityContext\": {\"runAsNonRoot\": true, \"runAsUser\": 999, \"seccompProfile\": {\"type\": \"RuntimeDefault\"}},
+			\"containers\": [{
+				\"name\": \"$1\", \"image\": \"$img\",
+				\"command\": [\"mongosh\", \"--quiet\", \"$uri\", \"--eval\", \"db.adminCommand({ping: 1}).ok\"],
+				\"securityContext\": {\"allowPrivilegeEscalation\": false, \"capabilities\": {\"drop\": [\"ALL\"]}}
+			}]
+		}
+	}"
+}
+
+# Only the listed components reach 27017 of the Mongo replica sets (issue
+# #727). Control: the same pod labelled as the init Job connects, so the
+# refusal comes from the NetworkPolicy, not from the image or the name.
+verify_mongo_ingress() {
+	local host component
+	log "MongoDB 27017: refused to an unlisted pod, allowed to the init Job label"
+	for host in mongo-audit-0.mongo-audit-headless:mongodb-audit-init mongo-dlq-0.mongo-dlq-headless:mongodb-init; do
+		component="${host#*:}"
+		host="${host%%:*}"
+		retry 3 mongo_ping mongo-probe-allowed "app.kubernetes.io/component=$component" "$host" >/dev/null || {
+			log "  a $component pod could not reach $host: the check proves nothing"
+			return 1
+		}
+		if mongo_ping mongo-probe-denied "" "$host" >/dev/null 2>&1; then
+			log "  a pod without component label reached $host:27017"
+			return 1
+		fi
+	done
 }
 
 # Production runs message-manager and discovery with 3 replicas (staging: 1).
@@ -570,10 +804,18 @@ verify_canary() {
 	local forward=$! traffic=""
 	trap 'kill $traffic $forward 2>/dev/null || true; deploy_script canary-cleanup api-gateway >/dev/null 2>&1 || true' RETURN
 	wait_for 30 'curl -s -o /dev/null http://localhost:18450/'
-	# 2 requests/s: the gateway limits each API client to 100/min per pod.
+	# 2.4 requests/s in bursts of 12 every 5 s (the gateway limits each API client
+	# to 100/min per pod: ~72/min each here). edge-proxy keeps a keep-alive pool to the gateway and
+	# kube-proxy picks the pod only when a connection opens: a request every
+	# 0.5 s reuses one connection for minutes (13 canary requests in 60 s, issue
+	# #724). A burst needs 12 connections and the 5 s pause outlives the pool's
+	# keepalive_timeout (4 s), so each burst draws 12 new pod picks (~50% canary).
 	(while :; do
-		curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18450/v1/discovery-server/services
-		sleep 0.5
+		for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18450/v1/discovery-server/services &
+		done
+		wait
+		sleep 5
 	done) >/dev/null 2>&1 &
 	traffic=$!
 	export CANARY_IMAGE_REPO=ghcr.io/trading-model CANARY_GATE_SECONDS=60 CANARY_MIN_REQUESTS=20
@@ -1105,6 +1347,15 @@ dump() {
 	for pod in $($K -n "$NS" get pods --no-headers | awk '{split($2, r, "/")} r[1] != r[2] || $3 != "Running" {print $1}'); do
 		echo "===== $pod"
 		$K -n "$NS" logs "$pod" --all-containers --tail=60 || true
+		# Why the last container died (exit code, reason) and what it said.
+		$K -n "$NS" describe pod "$pod" | grep -E -A6 "Last State:" || true
+		$K -n "$NS" logs "$pod" --all-containers --previous --tail=30 2>&1 || true
+	done
+	# The databases of pods that look healthy: a restarted member may not serve.
+	for pod in mongo-audit-0 mongo-dlq-0; do
+		echo "===== $pod"
+		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
+		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
 	done
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
 	# The market data path, even when its pods look healthy (verify checks it).
@@ -1164,9 +1415,9 @@ all)
 	verify
 	verify_canary
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

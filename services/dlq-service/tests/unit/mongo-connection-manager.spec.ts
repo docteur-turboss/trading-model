@@ -1,11 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_GET_DB = jest.fn();
-const MOCK_IS_CONNECTED = jest.fn();
-const MOCK_RESET_STATE_SUPER = jest.fn();
-const MOCK_CLOSE_SUPER = jest.fn();
-const MOCK_CLEAR_STATE_SUPER = jest.fn();
-const MOCK_CREATE_COLLECTION_INDEXES = jest.fn();
+const MOCK_GET_DB = jest.fn<(...args: any[]) => any>();
+const MOCK_IS_CONNECTED = jest.fn<(...args: any[]) => any>();
+const MOCK_RESET_STATE_SUPER = jest.fn<(...args: any[]) => any>();
+const MOCK_CLOSE_SUPER = jest.fn<(...args: any[]) => any>();
+const MOCK_CLEAR_STATE_SUPER = jest.fn<(...args: any[]) => any>();
+const MOCK_CREATE_COLLECTION_INDEXES = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -16,11 +16,15 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/index-manager", () => ({
-	IndexManager: jest.fn(() => ({
+	IndexManager: jest.fn((..._args: any[]) => ({
 		createCollectionIndexes: MOCK_CREATE_COLLECTION_INDEXES,
 	})),
 }));
@@ -47,7 +51,9 @@ jest.mock("@trading-model/persistence/mongo-connection-manager", () => {
 });
 
 describe("MongoConnectionManager", () => {
-	let MongoConnectionManagerClass: new () => {
+	let MongoConnectionManagerClass: new (
+		env: unknown
+	) => {
 		getCollection: () => Promise<unknown>;
 		getDb: () => Promise<unknown>;
 		isConnected: () => boolean;
@@ -72,12 +78,18 @@ describe("MongoConnectionManager", () => {
 	it("should return collection via getCollection on first call", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		const result = await manager.getCollection();
 
 		expect(result).toBe(mockCollection);
@@ -88,12 +100,18 @@ describe("MongoConnectionManager", () => {
 	it("should return cached collection on subsequent calls", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		const first = await manager.getCollection();
 		const second = await manager.getCollection();
 
@@ -104,12 +122,18 @@ describe("MongoConnectionManager", () => {
 	it("should return existing collection from in-flight promise", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		const results = await Promise.all([
 			manager.getCollection(),
 			manager.getCollection(),
@@ -122,19 +146,29 @@ describe("MongoConnectionManager", () => {
 	it("should return missing critical indexes", () => {
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue(["index1"]);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		expect(manager.getMissingCriticalIndexes()).toEqual([]);
 	});
 
 	it("should get missing critical indexes after initialization", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue(["missing-idx-1"]);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		await manager.getCollection();
 
 		expect(manager.getMissingCriticalIndexes()).toEqual(["missing-idx-1"]);
@@ -143,13 +177,19 @@ describe("MongoConnectionManager", () => {
 	it("should clear state on resetState", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
 		MOCK_RESET_STATE_SUPER.mockResolvedValue(undefined as never);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		await manager.getCollection();
 		await manager.resetState();
 
@@ -160,13 +200,19 @@ describe("MongoConnectionManager", () => {
 	it("should clear state on close", async () => {
 		const mockCollection = { collectionName: "test" };
 		const mockDb = {
-			collection: jest.fn().mockReturnValue(mockCollection),
+			collection: jest
+				.fn<(...args: any[]) => any>()
+				.mockReturnValue(mockCollection),
 		};
 		MOCK_GET_DB.mockResolvedValue(mockDb as never);
 		MOCK_CREATE_COLLECTION_INDEXES.mockResolvedValue([]);
 		MOCK_CLOSE_SUPER.mockResolvedValue(undefined as never);
 
-		const manager = new MongoConnectionManagerClass();
+		const manager = new MongoConnectionManagerClass({
+			MONGO_URI: "mongodb://localhost:27017/test",
+			MONGO_DB: "test_db",
+			MONGO_COLLECTION: "test_collection",
+		});
 		await manager.getCollection();
 		await manager.close();
 

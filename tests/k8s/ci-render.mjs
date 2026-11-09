@@ -8,6 +8,7 @@
 //   - divides CPU requests by 4: the stack must fit a 4-vCPU CI runner; this
 //     test checks behaviour, not capacity
 //   - points the scraper at the in-cluster Binance stub
+//   - scrapes every 10 s instead of every minute (collector handover gap)
 //   - turns off the collection of the signal registry sources (real public
 //     APIs, ADR-0036)
 //   - sends the Pushover pages to the in-cluster alert sink (webhook)
@@ -43,6 +44,7 @@ stringData:
   MYSQL_PASSWORD: dev-mysql
   MYSQL_MIGRATE_PASSWORD: dev-mysql-migrate
   MYSQL_RETENTION_PASSWORD: dev-mysql-retention
+  MYSQL_EXPORTER_PASSWORD: dev-mysql-exporter
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
   GRAFANA_PASSWORD: dev-grafana
   HMAC_SECRET: dev-hmac
@@ -50,7 +52,15 @@ stringData:
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
   REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
   REDIS_DLQ_PASSWORD: dev-redis-dlq-password
+  REDIS_EXPORTER_PASSWORD: dev-redis-exporter-password
 `;
+
+// `--secret`: that Secret alone, the stand-in for the SealedSecret file deploy.yml
+// passes to run-migrations.sh as SEALED_SECRETS_FILE (run-kind.sh, issue #698).
+if (process.argv.includes("--secret")) {
+	process.stdout.write(TEST_SECRET);
+	process.exit(0);
+}
 
 function adapt(manifest) {
 	return manifest
@@ -74,6 +84,9 @@ function adapt(manifest) {
 				`${i}webhook_configs:\n${i}  - ${PUSHOVER_SINK}\n` +
 				`${i}    send_resolved: true\n`
 		)
+		// A cycle every 10 s (the E2E overlay's), so the collector handover gap
+		// measured by run-kind.sh (ADR-0057, < 30 s) is not hidden by the 1 min cadence.
+		.replace(/SCRAPE_INTERVAL: '\*\/1 \* \* \* \*'/g, "SCRAPE_INTERVAL: '*/10 * * * * *'")
 		.replace(
 			/SIGNAL_COLLECTION_ENABLED: "?true"?/g,
 			'SIGNAL_COLLECTION_ENABLED: "false"'

@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const STOP = jest.fn();
-const MOCK_SCHEDULE = jest.fn<any>(() => ({ stop: STOP }));
+const STOP = jest.fn<(...args: any[]) => any>();
+const MOCK_SCHEDULE = jest.fn<(...args: any[]) => any>(() => ({ stop: STOP }));
 jest.mock("node-cron", () => ({ schedule: MOCK_SCHEDULE }));
 
-const MOCK_LOGGER = { warn: jest.fn() };
+const MOCK_LOGGER = { warn: jest.fn<(...args: any[]) => any>() };
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: MOCK_LOGGER,
 }));

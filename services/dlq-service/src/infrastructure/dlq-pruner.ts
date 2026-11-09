@@ -1,25 +1,32 @@
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { DurationMs } from "@trading-model/primitives/primitives";
-import { dlqRepository } from "../adapters/outbound/repository";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
-import { ENV } from "./config/env";
+import type { Env } from "./config/env";
+
+/** What the pruner reads from the environment. */
+export type PrunerSettings = Pick<Env, "DLQ_PRUNE_INTERVAL_MS" | "MAX_ENTRIES">;
 
 export class DlqPruner {
 	private readonly _timer = new TimerHandle();
+
+	constructor(
+		private readonly _entries: { prune(maxEntries: number): Promise<number> },
+		private readonly _env: PrunerSettings
+	) {}
 
 	start(): void {
 		if (this._timer.isRunning) {
 			return;
 		}
 		logger.info("Starting periodic DLQ prune", {
-			intervalMs: ENV.DLQ_PRUNE_INTERVAL_MS,
+			intervalMs: this._env.DLQ_PRUNE_INTERVAL_MS,
 		});
 		this._timer.startInterval(() => {
 			this.prune().catch((err: unknown) => {
 				this._logIterationError(err);
 			});
-		}, DurationMs.of(ENV.DLQ_PRUNE_INTERVAL_MS));
+		}, DurationMs.of(this._env.DLQ_PRUNE_INTERVAL_MS));
 	}
 
 	stop(): void {
@@ -28,7 +35,7 @@ export class DlqPruner {
 
 	async prune(): Promise<number> {
 		try {
-			const pruned = await dlqRepository.prune(ENV.MAX_ENTRIES);
+			const pruned = await this._entries.prune(this._env.MAX_ENTRIES);
 			if (pruned > 0) {
 				metrics.entriesPruned.inc(pruned);
 				logger.info(`Pruned ${pruned} old DLQ entries`);

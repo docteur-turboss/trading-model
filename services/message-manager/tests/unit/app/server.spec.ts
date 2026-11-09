@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_APP = { use: jest.fn() };
+const MOCK_APP = { use: jest.fn<(...args: any[]) => any>() };
 const MOCK_CREATE_SECURE_SERVER = jest
-	.fn<any>()
-	.mockReturnValue({ close: jest.fn() });
+	.fn<(...args: any[]) => any>()
+	.mockReturnValue({ close: jest.fn<(...args: any[]) => any>() });
 
 jest.mock(
 	"@trading-model/server-utils/adapters/inbound/service-server-factory",
@@ -13,7 +13,7 @@ jest.mock(
 );
 
 jest.mock("config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: jest.fn(),
+	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("config/message-manager", () => ({
@@ -31,13 +31,20 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 }));
 
 const MOCK_REDIS = {
-	connect: jest.fn<any>(),
-	ping: jest.fn<any>(),
-	disconnect: jest.fn(),
+	connect: jest.fn<(...args: any[]) => any>(),
+	ping: jest.fn<(...args: any[]) => any>(),
+	disconnect: jest.fn<(...args: any[]) => any>(),
 };
-const MOCK_CREATE_REDIS_CLIENT = jest.fn<any>(() => MOCK_REDIS);
+const MOCK_CREATE_REDIS_CLIENT = jest.fn<(...args: any[]) => any>(
+	() => MOCK_REDIS
+);
 jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
 	createRedisClient: MOCK_CREATE_REDIS_CLIENT,
+}));
+
+const MOCK_LOGGER = { warn: jest.fn<(...args: any[]) => any>() };
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
+	logger: MOCK_LOGGER,
 }));
 
 import { createServer } from "../../../src/application/server";
@@ -114,11 +121,28 @@ describe("app/server", () => {
 
 		it("should not be ready when Redis cannot be reached", async () => {
 			MOCK_ENV.REDIS_URL = "redis://redis:6379";
+			MOCK_REDIS.connect.mockReset();
 			MOCK_REDIS.connect.mockRejectedValue(new Error("ECONNREFUSED"));
 
 			// The shared readiness handler reports a throwing check as "error".
 			await expect(redisReadinessCheck()()).rejects.toThrow("ECONNREFUSED");
+			expect(MOCK_REDIS.connect).toHaveBeenCalledTimes(2);
 			expect(MOCK_REDIS.disconnect).toHaveBeenCalled();
+		});
+
+		it("should stay ready after one isolated connect timeout", async () => {
+			MOCK_ENV.REDIS_URL = "redis://redis:6379";
+			MOCK_REDIS.connect.mockReset();
+			MOCK_REDIS.connect
+				.mockRejectedValueOnce(new Error("connect ETIMEDOUT"))
+				.mockResolvedValue(undefined);
+
+			await expect(redisReadinessCheck()()).resolves.toBe(true);
+			expect(MOCK_REDIS.connect).toHaveBeenCalledTimes(2);
+			expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
+				"Redis readiness ping failed, retrying once",
+				{ error: "connect ETIMEDOUT" }
+			);
 		});
 	});
 });

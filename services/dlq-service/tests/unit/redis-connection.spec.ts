@@ -1,11 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_CREATE_REDIS_CLIENT = jest.fn();
-const MOCK_CLIENT_CONNECT = jest.fn();
-const MOCK_CLIENT_QUIT = jest.fn();
-const MOCK_CLIENT_DISCONNECT = jest.fn();
-const MOCK_CLIENT_ON = jest.fn();
-const MOCK_CLIENT_REMOVE_ALL_LISTENERS = jest.fn();
+const MOCK_CREATE_REDIS_CLIENT = jest.fn<(...args: any[]) => any>();
+const MOCK_CLIENT_CONNECT = jest.fn<(...args: any[]) => any>();
+const MOCK_CLIENT_QUIT = jest.fn<(...args: any[]) => any>();
+const MOCK_CLIENT_DISCONNECT = jest.fn<(...args: any[]) => any>();
+const MOCK_CLIENT_ON = jest.fn<(...args: any[]) => any>();
+const MOCK_CLIENT_REMOVE_ALL_LISTENERS = jest.fn<(...args: any[]) => any>();
 
 jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
 	createRedisClient: MOCK_CREATE_REDIS_CLIENT,
@@ -18,7 +18,11 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 function makeMockClient(overrides?: Record<string, unknown>) {
@@ -215,11 +219,11 @@ describe("RedisConnection", () => {
 	});
 
 	it("should return false when already connecting", async () => {
-		const conn = new RedisConnectionClass() as {
+		const conn = new RedisConnectionClass() as unknown as {
 			connect: (onReconnect?: () => void) => Promise<boolean>;
 			_state: string;
 		};
-		(conn as Record<string, unknown>)._state = "Connecting";
+		(conn as unknown as Record<string, unknown>)._state = "Connecting";
 
 		const result = await conn.connect();
 
@@ -289,7 +293,7 @@ describe("RedisConnection", () => {
 			MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
 			MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 			const logger = jest.requireMock("../../src/config/logger") as {
-				logger: { error: jest.Mock };
+				logger: { error: jest.Mock<(...args: any[]) => any> };
 			};
 
 			const conn = new RedisConnectionClass();
@@ -319,7 +323,7 @@ describe("RedisConnection", () => {
 			MOCK_CREATE_REDIS_CLIENT.mockReturnValue(mockClient);
 			MOCK_CLIENT_CONNECT.mockResolvedValue(undefined);
 
-			const onReconnect = jest.fn();
+			const onReconnect = jest.fn<(...args: any[]) => any>();
 			const conn = new RedisConnectionClass();
 			await conn.connect(onReconnect);
 

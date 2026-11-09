@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const mockVerifySignature = jest.fn();
+const mockVerifySignature = jest.fn<(...args: any[]) => any>();
 
 jest.mock("@trading-model/crypto/application/services/request-signer", () => ({
 	verifySignature: (...args: unknown[]) => mockVerifySignature(...args),
@@ -34,12 +34,12 @@ function makeResponse() {
 	const res: Record<string, unknown> = {};
 	res.status = jest.fn((code: number) => {
 		res.statusCode = code;
-		res.json = jest.fn();
+		res.json = jest.fn<(...args: any[]) => any>();
 		return res;
 	});
 	return res as unknown as {
-		status: jest.Mock;
-		json?: jest.Mock;
+		status: jest.Mock<(...args: any[]) => any>;
+		json?: jest.Mock<(...args: any[]) => any>;
 		statusCode?: number;
 	};
 }
@@ -64,7 +64,7 @@ describe("serviceAuth", () => {
 
 		const req = makeRequest();
 		const res = makeResponse();
-		const next = jest.fn();
+		const next = jest.fn<(...args: any[]) => any>();
 
 		serviceAuth(req as never, res as never, next);
 
@@ -78,7 +78,11 @@ describe("serviceAuth", () => {
 			path: "/dlq/replay",
 			originalUrl: "/dlq/replay?limit=100",
 		});
-		serviceAuth(req as never, makeResponse() as never, jest.fn());
+		serviceAuth(
+			req as never,
+			makeResponse() as never,
+			jest.fn<(...args: any[]) => any>()
+		);
 
 		expect(mockVerifySignature).toHaveBeenLastCalledWith(
 			expect.objectContaining({ path: "/dlq/replay?limit=100" }),
@@ -93,7 +97,7 @@ describe("serviceAuth", () => {
 			headers: { "x-service-name": "unknown-service" },
 		});
 		const res = makeResponse();
-		const next = jest.fn();
+		const next = jest.fn<(...args: any[]) => any>();
 
 		serviceAuth(req as never, res as never, next);
 
@@ -106,7 +110,7 @@ describe("serviceAuth", () => {
 
 		const req = makeRequest();
 		const res = makeResponse();
-		const next = jest.fn();
+		const next = jest.fn<(...args: any[]) => any>();
 
 		serviceAuth(req as never, res as never, next);
 
@@ -119,7 +123,7 @@ describe("serviceAuth", () => {
 
 		const req = makeRequest({ headers: {} });
 		const res = makeResponse();
-		const next = jest.fn();
+		const next = jest.fn<(...args: any[]) => any>();
 
 		serviceAuth(req as never, res as never, next);
 
@@ -137,7 +141,7 @@ describe("serviceAuth", () => {
 			},
 		});
 		const res = makeResponse();
-		const next = jest.fn();
+		const next = jest.fn<(...args: any[]) => any>();
 
 		serviceAuth(req as never, res as never, next);
 

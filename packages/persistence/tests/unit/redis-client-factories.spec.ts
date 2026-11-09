@@ -80,7 +80,11 @@ describe("createSentinel", () => {
 			sentinels: [{ host: "127.0.0.1" as never, port: 26379 as never }],
 			name: "mymaster",
 		}) as unknown as {
-			connector?: { failoverDetector: { cleanup: jest.Mock } | null };
+			connector?: {
+				failoverDetector: {
+					cleanup: jest.Mock<(...args: any[]) => any>;
+				} | null;
+			};
 			listeners: Record<string, () => void>;
 		};
 		const cleanup = jest.fn();

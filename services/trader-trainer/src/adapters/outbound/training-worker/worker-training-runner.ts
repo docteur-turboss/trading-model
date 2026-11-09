@@ -4,7 +4,27 @@ import type {
 	TrainingRunner,
 	TrainingSessionResult,
 } from "../../../application/training-session";
-import { encodeWindowSets, type WorkerMessage } from "./messages";
+import { EpisodeScores } from "../../../domain/genetic-algorithm/episode-scores";
+import type { GenomeFitnessMeta } from "../../../domain/genetic-algorithm/genome-fitness";
+import {
+	encodeWindowSets,
+	type StopMessage,
+	type WorkerMessage,
+} from "./messages";
+
+/** `postMessage` clones data only: the `EpisodeScores` come back without methods. */
+function reviveMeta(
+	meta: GenomeFitnessMeta | undefined
+): GenomeFitnessMeta | undefined {
+	if (!meta) {
+		return meta;
+	}
+	return {
+		...meta,
+		rawScores: EpisodeScores.revive(meta.rawScores),
+		...(meta.pnlCurve ? { pnlCurve: EpisodeScores.revive(meta.pnlCurve) } : {}),
+	};
+}
 
 /**
  * Runs a training session in a worker thread so the CPU-bound GA never blocks
@@ -19,7 +39,7 @@ export function createWorkerRunner(overrides?: {
 	file: string;
 	options?: WorkerOptions;
 }): TrainingRunner {
-	return (windowSets, settings, telemetry) =>
+	return (windowSets, settings, telemetry, signal) =>
 		new Promise<TrainingSessionResult>((resolve, reject) => {
 			const workerData = { windowSets: encodeWindowSets(windowSets), settings };
 			const worker = overrides
@@ -27,10 +47,17 @@ export function createWorkerRunner(overrides?: {
 				: new Worker(path.join(__dirname, "training-worker.js"), {
 						workerData,
 					});
+			const stop = (): void =>
+				worker.postMessage({ type: "stop" } satisfies StopMessage);
+			signal?.addEventListener("abort", stop, { once: true });
+			if (signal?.aborted) {
+				stop();
+			}
 			let settled = false;
 			const settle = (fn: () => void): void => {
 				if (!settled) {
 					settled = true;
+					signal?.removeEventListener("abort", stop);
 					fn();
 				}
 			};
@@ -41,7 +68,13 @@ export function createWorkerRunner(overrides?: {
 						| undefined;
 					hook?.(...message.args);
 				} else if (message.type === "result") {
-					settle(() => resolve(message.result as TrainingSessionResult));
+					settle(() => {
+						const result = message.result as TrainingSessionResult;
+						resolve({
+							...result,
+							bestFitnessMeta: reviveMeta(result.bestFitnessMeta),
+						});
+					});
 				} else {
 					const err = new Error(message.message);
 					err.stack = message.stack ?? err.stack;

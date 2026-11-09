@@ -2,13 +2,10 @@ import "./telemetry";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
-import {
-	createScrapeScheduler,
-	createSignalScheduler,
-	type ScrapeScheduler,
-} from "../config/container";
+import { createCollector } from "../config/container";
 import { closeDatabase } from "../config/db";
 import { ENV } from "../infrastructure/config/env";
+import type { CollectorLeadership } from "./collector-leadership";
 import { createServer } from "./server";
 
 const NULL_ADDRESS_MANAGER = {
@@ -19,8 +16,7 @@ const NULL_ADDRESS_MANAGER = {
 
 let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> =
 	NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
-let scrapeScheduler: ScrapeScheduler | null = null;
-let signalScheduler: ScrapeScheduler | null = null;
+let collector: CollectorLeadership | null = null;
 
 createBootstrap({
 	name: "Financial Scraper",
@@ -28,14 +24,13 @@ createBootstrap({
 	onStart: async () => {
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 
-		scrapeScheduler = await createScrapeScheduler(ENV);
-		scrapeScheduler?.start();
-		signalScheduler = createSignalScheduler(ENV);
-		signalScheduler?.start();
+		collector = await createCollector(ENV);
+		collector?.start();
 	},
 	onStop: async () => {
 		// Before leaving discovery: the publishes in flight still need the bus.
-		await Promise.all([scrapeScheduler?.stop(), signalScheduler?.stop()]);
+		// Then the lease goes to the successor (ADR-0057).
+		await collector?.stop();
 		addressManager.stop();
 		await shutdownTelemetry();
 		// Last: the cycle and the publishes in flight used it.

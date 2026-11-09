@@ -3,8 +3,10 @@ bun run deps:check
 bun run api:check
 bun run adr:check
 bun run reach:check
+bun run arch:check
 bun run config:check
 bun scripts/observability-gate.mjs
 bun run build
+bun run typecheck:tests
 bun run test
 bun run test:contract

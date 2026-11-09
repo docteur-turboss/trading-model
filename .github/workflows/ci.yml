@@ -33,6 +33,8 @@ jobs:
       - run: bun run api:check
       - run: bun run adr:check
       - run: bun run reach:check
+      - run: bun run arch:check
+      - run: bun run release:test
       - run: bun run config:check
       - name: Workflows parse as YAML
         run: python3 scripts/check-workflows.py
@@ -58,6 +60,8 @@ jobs:
           bun run --filter api-gateway build
           bun run --filter audit-logger build
           bun run --filter dlq-service build
+      - name: Type-check the test files of every workspace
+        run: bun run typecheck:tests
 
   test:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
@@ -134,8 +138,12 @@ jobs:
         run: bash tests/k8s/verify-release.test.sh
       - name: Test the cluster prerequisites check
         run: bash tests/k8s/check-prereqs.test.sh
+      - name: Test the overlay ClusterRoles check
+        run: bash tests/k8s/check-cluster-rbac.test.sh
       - name: Test the Job wait helper
         run: bash tests/k8s/wait-job.test.sh
+      - name: Test the availability probe (stub kubectl)
+        run: bash tests/k8s/probe-availability.test.sh
       - name: Test the deploy Slack notification (stub curl)
         run: bash tests/k8s/notify-slack.test.sh
       - name: Test the migrations script (MYSQL_MIGRATE_PASSWORD guard)
@@ -163,6 +171,7 @@ jobs:
     env:
       MYSQL_ROOT_PASSWORD: ci-password
       GRAFANA_PASSWORD: ci-grafana-password
+      MYSQL_EXPORTER_PASSWORD: ci-mysql-exporter-password
       DLQ_AUTH_HMAC_SECRET: test-hmac-secret
       DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
     steps:
@@ -241,7 +250,8 @@ jobs:
           fetch-depth: 2
       - name: Install kind
         run: |
-          curl -fsSLo kind "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+          # GitHub Releases answers 504 now and then (issue #660): retry, checksum still checked.
+          curl -fsSLo kind --retry 5 --retry-all-errors --retry-delay 5 "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
           echo "${KIND_SHA256}  kind" | sha256sum -c -
           chmod +x kind
       # The runner ships MySQL with the AppArmor profile usr.sbin.mysqld, which

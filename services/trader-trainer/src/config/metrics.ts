@@ -40,6 +40,11 @@ export const CROSSOVER_FALLBACK_TOTAL = new promClient.Counter({
 	help: "Crossovers that copied a parent's weights because the parents' weight lengths differ",
 });
 
+export const TRAINING_LEADER = new promClient.Gauge({
+	name: "tt_training_leader",
+	help: "1 while this instance holds the trainer lease and trains, 0 otherwise (ADR-0058; alert TrainerNoLeader)",
+});
+
 export const TRAINING_STATUS = new promClient.Gauge({
 	name: "tt_training_status",
 	help: "Current training status (0=idle, 1=training)",

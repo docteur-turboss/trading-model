@@ -10,7 +10,8 @@
 #       Revision each Deployment runs before the overlay ("<deployment> <rev>",
 #       `none` when it does not exist yet).
 #   deploy-release.sh release-replicas <namespace>
-#       Deletes retired HPAs, then drops spec.replicas from
+#       Deletes retired HPAs and the finished Mongo init Jobs (immutable pod
+#       template, recreated by the apply), then drops spec.replicas from
 #       last-applied-configuration of HPA-driven Deployments (needs jq).
 #   deploy-release.sh render <overlay-dir> <registry> <digests-file>
 #       Prints the overlay with every first-party image pinned by digest
@@ -21,7 +22,16 @@
 #   deploy-release.sh rollback <namespace> <revisions-file>
 #       Returns every Deployment to the revision `record` wrote and waits for
 #       each rollout (180s); fails if any did not come back.
+#
+# DEPLOY_TIMEOUT_FACTOR: integer the wait and rollback timeouts are multiplied
+# by (default 1; a slow cluster such as the local kind staging).
 set -euo pipefail
+
+FACTOR="${DEPLOY_TIMEOUT_FACTOR:-1}"
+[[ $FACTOR =~ ^[1-9][0-9]*$ ]] || {
+	echo "deploy-release.sh: DEPLOY_TIMEOUT_FACTOR must be a positive integer, got $FACTOR" >&2
+	exit 64
+}
 
 # Deployments a release rolls out and a failed release rolls back.
 DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
@@ -68,6 +78,10 @@ release_replicas() {
 	# Retired HPAs: apply never prunes, and a live one would keep scaling its
 	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501).
 	kubectl delete hpa/trader-trainer-hpa -n "$ns" --ignore-not-found
+	# A Job's pod template is immutable: apply fails on a finished init Job
+	# whose template changed (labels, issue #727). Both are idempotent and
+	# run again from the overlay.
+	kubectl delete job mongo-audit-init mongo-dlq-init -n "$ns" --ignore-not-found
 	for dep in $(kubectl get hpa -n "$ns" \
 		-o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
 		last=$(kubectl get deployment "$dep" -n "$ns" -o json | jq -r --arg a "$ann" '.metadata.annotations[$a] // empty')
@@ -106,22 +120,42 @@ render() {
 	kubectl kustomize --load-restrictor LoadRestrictionsNone "$wrapper"
 }
 
+# Why a rollout did not finish (slow or broken), printed before the caller
+# fails: the workload's description, recent Warning events, and the last logs
+# of every pod that is not ready. Best effort: it never changes the exit code.
+diagnose() {
+	local ns="$1" target="$2" pod
+	echo "::group::Diagnostics for $target"
+	kubectl describe "$target" -n "$ns" 2>&1 | tail -40 || true
+	kubectl get events -n "$ns" --field-selector type=Warning --sort-by=.lastTimestamp 2>&1 | tail -20 || true
+	for pod in $(kubectl get pods -n "$ns" --no-headers 2>/dev/null |
+		awk '{split($2, r, "/")} $3 != "Completed" && (r[1] != r[2] || $3 != "Running") {print $1}'); do
+		echo "===== $pod"
+		kubectl logs "$pod" -n "$ns" --all-containers --tail=30 2>&1 || true
+	done
+	echo "::endgroup::"
+}
+
 # A Recreate Deployment starts its new pod only once the old one is gone, and
 # a draining pod may use its whole grace (collector and message-manager: 360 s
 # for in-flight publishes). The grace is added to each wait, or a healthy
 # release whose drain outlasts the timeout would be rolled back (PR #460).
+# Base timeout (180 s) measured in kind run 42498902230: forward rollout of the upgrade, slowest
+# healthy Deployment 33 s (discovery-server drain), the others 1 to 5 s; plus each grace.
 wait_rollout() {
 	local ns="$1" base="${2%s}" dep grace
 	[[ $base =~ ^[0-9]+$ ]] || {
 		echo "deploy-release.sh: timeout must be in seconds (e.g. 180s), got $2" >&2
 		return 64
 	}
+	base=$((base * FACTOR))
 	# Redis first: a service that starts before its nodes accept its ACL user
 	# only fails its readiness and burns its own timeout.
 	for dep in $STATEFULSETS; do
 		echo "Waiting for rollout of $dep (${base}s)..."
 		if ! kubectl rollout status "statefulset/$dep" -n "$ns" --timeout="${base}s"; then
 			echo "::error::Rollout of $dep failed or timed out"
+			diagnose "$ns" "statefulset/$dep"
 			return 1
 		fi
 	done
@@ -131,6 +165,7 @@ wait_rollout() {
 		echo "Waiting for rollout of $dep ($((base + ${grace:-30}))s)..."
 		if ! kubectl rollout status "deployment/$dep" -n "$ns" --timeout="$((base + ${grace:-30}))s"; then
 			echo "::error::Rollout of $dep failed or timed out"
+			diagnose "$ns" "deployment/$dep"
 			return 1
 		fi
 	done
@@ -162,8 +197,11 @@ rollback() {
 	done <"$file"
 	for entry in "${undone[@]}"; do
 		read -r target dep rev <<<"$entry"
-		if ! kubectl rollout status "$target" -n "$ns" --timeout=180s; then
+		# 180 s: measured in kind run 42498902230 (PR #685): the whole rollback settled in 47 s, slowest
+		# discovery-server at 33 s (drain). Kept: lowering it would also cut the real deploy.
+		if ! kubectl rollout status "$target" -n "$ns" --timeout="$((180 * FACTOR))s"; then
 			echo "::error::$dep did not finish rolling back to revision $rev"
+			diagnose "$ns" "$target"
 			failed=1
 		fi
 	done

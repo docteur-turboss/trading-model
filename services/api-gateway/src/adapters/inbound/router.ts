@@ -24,10 +24,11 @@ import {
 	metricsHandler,
 	SERVICE_ERRORS_TOTAL,
 } from "../../infrastructure/config/metrics";
+import { requiredScope } from "../../shared/api-keys";
 import { parseRequestPath } from "../../shared/path-parser";
 import { isPublicRoute } from "../../shared/public-routes";
 import { forwardRequest } from "../outbound/proxy-handler";
-import { AUTH_MIDDLEWARE } from "./auth";
+import { AUTH_MIDDLEWARE, authOf } from "./auth";
 import { DEFAULT_LIMITER } from "./rate-limiter";
 
 const RESOLVER = new EndpointResolver(
@@ -78,6 +79,14 @@ const catchAllRoute = catchSync(async (req) => {
 
 	if (!isPublicRoute(req.method, serviceName, path)) {
 		return sendResponse({ error: "Route not found" }, 404 as HttpStatusCode);
+	}
+
+	const scope = requiredScope(req.method);
+	if (!authOf(req).apiKeyScopes.includes(scope)) {
+		return sendResponse(
+			{ error: "Forbidden", reason: `API key lacks the ${scope} scope` },
+			HTTP_STATUS.FORBIDDEN
+		);
 	}
 
 	const target = await RESOLVER.resolve(serviceName, majorVersion);

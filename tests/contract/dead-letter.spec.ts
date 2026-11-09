@@ -34,9 +34,6 @@ jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
 	ENV: { DLQ_ALLOWED_SERVICES: "message-manager,admin" },
 	resolveAuthHmacSecret: () => "contract-test-hmac-secret",
 }));
-jest.mock("../../services/dlq-service/src/config/db", () => ({
-	isDbConnected: () => true,
-}));
 
 function sampleMessage() {
 	return createMessage({ close: 101.5 }, {
@@ -44,13 +41,6 @@ function sampleMessage() {
 		publisher: "financial-scraper-service",
 	} as never);
 }
-
-const span = {
-	setAttribute: () => span,
-	setStatus: () => span,
-	recordException: () => undefined,
-	end: () => undefined,
-} as never;
 
 describe("dead-letter contract: message-manager → dlq-service", () => {
 	let dir: string;
@@ -110,7 +100,7 @@ describe("dead-letter contract: message-manager → dlq-service", () => {
 				},
 			});
 			const entry = (parsed as { input: { body: never } }).input.body;
-			expect(checkEntryAcceptable(entry, span)).toEqual({ valid: true });
+			expect(checkEntryAcceptable(entry.message, true)).toBeNull();
 		}
 	);
 

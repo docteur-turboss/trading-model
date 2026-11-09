@@ -1,7 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("node:dns/promises", () => ({
-	lookup: jest.fn(async () => ({ address: "10.9.9.9", family: 4 })),
+	lookup: jest.fn(async (..._args: any[]) => ({
+		address: "10.9.9.9",
+		family: 4,
+	})),
 }));
 
 import { EndpointResolver } from "../../src/application/discovery/endpoint-resolver";
@@ -39,7 +42,10 @@ describe("one resolution strategy (ADR-0045)", () => {
 		const serviceResolver = new ServiceResolver({
 			httpClient,
 			config,
-			serviceCache: { set: jest.fn(), delete: jest.fn() },
+			serviceCache: {
+				set: jest.fn<(...args: any[]) => any>(),
+				delete: jest.fn<(...args: any[]) => any>(),
+			},
 			healthChecker: {
 				locate: () => "financial-scraper",
 				isHealthy: async () => true,

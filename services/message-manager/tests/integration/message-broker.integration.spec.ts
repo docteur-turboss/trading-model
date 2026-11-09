@@ -10,6 +10,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { InstanceId, Topic } from "@trading-model/primitives/primitives";
 import { HttpMessageDelivery } from "../../src/adapters/outbound/http-message-delivery";
 import { InMemoryMessageJournal } from "../../src/adapters/outbound/in-memory-message-journal";
 import { InMemorySubscriptionStore } from "../../src/adapters/outbound/in-memory-subscription-store";
@@ -135,12 +136,12 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 	it("should not deliver to unsubscribed services or to another topic", async () => {
 		await dispatcher.subscribe(subscribeParams());
 		await dispatcher.unsubscribe({
-			topic: "market.data",
-			instanceId: mockSubscriberIdentity.instanceId,
+			topic: "market.data" as Topic,
+			instanceId: mockSubscriberIdentity.instanceId as InstanceId,
 		});
 		await dispatcher.subscribe({
 			...subscribeParams("x"),
-			topic: "other.topic",
+			topic: "other.topic" as Topic,
 		});
 		await dispatcher.publish({ price: 50000 }, PRICE);
 
@@ -179,7 +180,10 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await dispatcher.subscribe(subscribeParams());
 		await dispatcher.publish({ price: 50000 }, PRICE);
 		await journal.readNew(
-			{ topic: "market.data", service: mockSubscriberIdentity.serviceName },
+			{
+				topic: "market.data" as Topic,
+				service: mockSubscriberIdentity.serviceName,
+			},
 			"dead-replica",
 			10
 		);
@@ -196,8 +200,8 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await dispatcher.subscribe(subscribeParams());
 		await dispatcher.publish({ price: 50000 }, PRICE);
 		await dispatcher.unsubscribe({
-			topic: "market.data",
-			instanceId: mockSubscriberIdentity.instanceId,
+			topic: "market.data" as Topic,
+			instanceId: mockSubscriberIdentity.instanceId as InstanceId,
 		});
 		const worker = newWorker();
 

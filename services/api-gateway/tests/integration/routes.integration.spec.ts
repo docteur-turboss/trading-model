@@ -14,7 +14,7 @@ jest.setTimeout(15000);
 
 // The mTLS discovery client loads the SVID files at construction.
 jest.mock("../../src/config/container", () => ({
-	discoveryClient: { get: jest.fn() },
+	discoveryClient: { get: jest.fn<(...args: any[]) => any>() },
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -29,42 +29,52 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		RATE_LIMIT_MAX: 1000,
 		CACHE_TTL_MS: 30000,
 		AUTH_TOKEN_HEADER: "x-api-key",
-		AUTH_TOKENS: "test-token,secondary-token",
+		AUTH_TOKENS:
+			"test-token,secondary-token,reader:read:reader-secret,ops-alice:read+dlq:write:alice-secret",
 		PROXY_TIMEOUT_MS: 5000,
 		ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
 	},
 }));
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock(
 	"@trading-model/address-manager/application/discovery/endpoint-resolver",
 	() => ({
-		EndpointResolver: jest.fn().mockImplementation(() => ({
-			resolve: jest.fn().mockImplementation((serviceName: string) => {
-				// No trader-trainer instance is registered.
-				if (serviceName === "trader-trainer") {
-					return Promise.resolve(null);
-				}
-				return Promise.resolve({
-					host: "10.0.0.5",
-					port: 3000,
-					version: "1.2.0",
-				});
-			}),
-		})),
+		EndpointResolver: jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementation(() => ({
+				resolve: jest
+					.fn<(...args: any[]) => any>()
+					.mockImplementation((serviceName: string) => {
+						// No trader-trainer instance is registered.
+						if (serviceName === "trader-trainer") {
+							return Promise.resolve(null);
+						}
+						return Promise.resolve({
+							host: "10.0.0.5",
+							port: 3000,
+							version: "1.2.0",
+						});
+					}),
+			})),
 	})
 );
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
-	forwardRequest: jest.fn(),
+	forwardRequest: jest.fn<(...args: any[]) => any>(),
 }));
 
 import { createRouter } from "../../src/adapters/inbound/router";
 import type { ProxyResult } from "../../src/adapters/outbound/proxy-handler";
 import { forwardRequest } from "../../src/adapters/outbound/proxy-handler";
+import { safeHeaders } from "../../src/shared/proxy-header-sanitizer";
 
 interface RequestOptions {
 	method?: string;
@@ -132,7 +142,7 @@ function request(
 const AUTH_HEADERS = { [HTTP_HEADERS.X_API_KEY]: "test-token" };
 
 function mockProxySuccess(result?: Partial<ProxyResult>): void {
-	(forwardRequest as jest.Mock).mockResolvedValue({
+	(forwardRequest as jest.Mock<(...args: any[]) => any>).mockResolvedValue({
 		status: 200,
 		body: JSON.stringify({ data: "ok" }),
 		headers: { "content-type": "application/json" },
@@ -202,7 +212,8 @@ describe("API Gateway — Routes Integration", () => {
 		await request(server, "/v1/audit-logger/events/stats", {
 			headers: AUTH_HEADERS,
 		});
-		const call = (forwardRequest as jest.Mock).mock.calls[0][0];
+		const call = (forwardRequest as jest.Mock<(...args: any[]) => any>).mock
+			.calls[0][0];
 		expect(call).toMatchObject({ path: "/events/stats" });
 	});
 
@@ -266,7 +277,7 @@ describe("API Gateway — Routes Integration", () => {
 	});
 
 	it("should return 503 when the target service is unreachable", async () => {
-		(forwardRequest as jest.Mock).mockRejectedValue(
+		(forwardRequest as jest.Mock<(...args: any[]) => any>).mockRejectedValue(
 			new Error("Connection timeout")
 		);
 
@@ -297,6 +308,59 @@ describe("API Gateway — Routes Integration", () => {
 		expect(result.status).toBe(200);
 		expect(result.body).toEqual({ saved: true });
 		expect(forwardRequest).toHaveBeenCalledTimes(1);
+	});
+
+	it.each([
+		["POST", "/v1/dlq-service/dlq"],
+		["DELETE", "/v1/dlq-service/dlq"],
+		["POST", "/v1/dlq-service/dlq/replay"],
+	])("refuses %s %s with 403 to a read-only key", async (method, path) => {
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const result = await request(server, path, {
+			method,
+			headers: { [HTTP_HEADERS.X_API_KEY]: "reader-secret" },
+			body: { ids: ["a"] },
+		});
+		expect(result.status).toBe(403);
+		expect(forwardRequest).not.toHaveBeenCalled();
+	});
+
+	it("lets a read-only key read the DLQ", async () => {
+		mockProxySuccess({ body: JSON.stringify({ entries: [] }) });
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const result = await request(server, "/v1/dlq-service/dlq", {
+			headers: { [HTTP_HEADERS.X_API_KEY]: "reader-secret" },
+		});
+		expect(result.status).toBe(200);
+	});
+
+	it("forwards a DLQ delete with the key name as x-actor, never the secret nor a client x-actor", async () => {
+		mockProxySuccess({ body: JSON.stringify({ deleted: 1 }) });
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const result = await request(server, "/v1/dlq-service/dlq", {
+			method: "DELETE",
+			headers: {
+				[HTTP_HEADERS.X_API_KEY]: "alice-secret",
+				"x-actor": "forged",
+			},
+			body: { ids: ["a"] },
+		});
+		expect(result.status).toBe(200);
+		const { req } = jest.mocked(forwardRequest).mock.calls[0][0] as {
+			req: express.Request;
+		};
+		const forwarded = safeHeaders(req);
+		expect(forwarded["x-actor"]).toBe("ops-alice");
+		expect(JSON.stringify(forwarded)).not.toContain("alice-secret");
 	});
 
 	it.each([

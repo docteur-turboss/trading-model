@@ -4,6 +4,7 @@ import type { GaTelemetry } from "../../../domain/genetic-algorithm/ga-telemetry
 import type { TrainingSettings } from "../../../domain/training-settings";
 import {
 	decodeWindowSets,
+	type StopMessage,
 	type TelemetryMethod,
 	type WireWindowSet,
 	type WorkerMessage,
@@ -34,7 +35,21 @@ const { windowSets, settings } = workerData as {
 	settings: TrainingSettings;
 };
 
-runInProcess(decodeWindowSets(windowSets), settings, telemetry).then(
+const stop = new AbortController();
+port.on("message", (message: StopMessage) => {
+	if (message.type === "stop") {
+		stop.abort();
+	}
+});
+// The listener must not keep the thread alive once the session has ended.
+port.unref();
+
+runInProcess(
+	decodeWindowSets(windowSets),
+	settings,
+	telemetry,
+	stop.signal
+).then(
 	(result) => send({ type: "result", result }),
 	(err: unknown) =>
 		send({

@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 spec:
   clusterIP: None
+  # A restarted member must resolve its own name before it is Ready, or it
+  # never finds itself in the replica set config ("not a member of it").
+  publishNotReadyAddresses: true
   ports:
     - port: 27017
       targetPort: 27017
@@ -106,7 +109,10 @@ spec:
                 - mongosh
                 - --quiet
                 - --eval
-                - "try { rs.status().ok } catch { 0 }"
+                # Fails only when the member left its own config ("not a member":
+                # its name did not resolve at start, mongod never retries), so the
+                # container restarts; a not yet initiated set stays alive.
+                - "try { rs.status().ok } catch (e) { if (e.codeName === 'InvalidReplicaSetConfig') quit(1) }"
             initialDelaySeconds: 30
             periodSeconds: 15
             timeoutSeconds: 5
@@ -120,6 +126,34 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 3
+        # Exporter of this member (issue #601, ADR-0056): server status and
+        # replica set state through localhost. No database user: MongoDB runs
+        # without authentication (ADR-0056 defers it to issue #669).
+        - name: mongodb-exporter
+          image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
+          args:
+            - --mongodb.uri=mongodb://127.0.0.1:27017/?directConnection=true
+            - --collector.replicasetstatus
+            - --web.listen-address=:9216
+          ports:
+            - containerPort: 9216
+              name: metrics
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
   volumeClaimTemplates:
     - metadata:
         name: mongo-dlq-data
@@ -142,6 +176,12 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   template:
+    metadata:
+      # Own component: the StatefulSet's would put this pod behind the Services,
+      # the PDB and the database NetworkPolicy. Allowed in by that policy.
+      labels:
+        app.kubernetes.io/component: mongodb-init
+        app.kubernetes.io/part-of: trading-model
     spec:
       restartPolicy: OnFailure
       securityContext:
@@ -199,9 +239,23 @@ spec:
   policyTypes:
     - Ingress
   ingress:
+    # Clients of 27017 (issue #727): the owner service, the replica set peers
+    # and the init Job. Backups and restores go through `kubectl exec`, not
+    # the network. A new client must be added here.
     - from:
-        # Same namespace as the policy, whatever the overlay's namespace.
-        - podSelector: {}
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["dlq-service", "mongodb", "mongodb-init"]
       ports:
         - port: 27017
+          protocol: TCP
+    # The exporter sidecar: Prometheus only.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: prometheus
+      ports:
+        - port: 9216
           protocol: TCP

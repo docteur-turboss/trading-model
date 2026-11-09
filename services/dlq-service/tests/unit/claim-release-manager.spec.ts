@@ -1,9 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_GET_COLLECTION = jest.fn();
-const MOCK_UPDATE_MANY = jest.fn();
-const MOCK_UPDATE_ONE = jest.fn();
-const MOCK_FIND_ONE_AND_UPDATE = jest.fn();
+const MOCK_GET_COLLECTION = jest.fn<(...args: any[]) => any>();
+const MOCK_UPDATE_MANY = jest.fn<(...args: any[]) => any>();
+const MOCK_UPDATE_ONE = jest.fn<(...args: any[]) => any>();
+const MOCK_FIND_ONE_AND_UPDATE = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -18,12 +18,10 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-jest.mock("../../src/config/db", () => ({
-	getCollection: MOCK_GET_COLLECTION,
-}));
-
 describe("ClaimReleaseManager", () => {
-	let ClaimReleaseManagerClass: new () => {
+	let ClaimReleaseManagerClass: new (
+		getCollection: never
+	) => {
 		releaseStaleClaims: (ms?: number) => Promise<number>;
 		releaseClaimsByInstance: (id: string) => Promise<number>;
 		releaseClaimWithoutCount: (id: string) => Promise<void>;
@@ -50,7 +48,7 @@ describe("ClaimReleaseManager", () => {
 
 	it("should release stale claims", async () => {
 		MOCK_UPDATE_MANY.mockResolvedValue({ modifiedCount: 5 });
-		const manager = new ClaimReleaseManagerClass();
+		const manager = new ClaimReleaseManagerClass(MOCK_GET_COLLECTION as never);
 		const result = await manager.releaseStaleClaims(30000);
 		expect(result).toBe(5);
 		expect(MOCK_UPDATE_MANY).toHaveBeenCalledTimes(1);
@@ -58,7 +56,7 @@ describe("ClaimReleaseManager", () => {
 
 	it("should release claims by instance", async () => {
 		MOCK_UPDATE_MANY.mockResolvedValue({ modifiedCount: 2 });
-		const manager = new ClaimReleaseManagerClass();
+		const manager = new ClaimReleaseManagerClass(MOCK_GET_COLLECTION as never);
 		const result = await manager.releaseClaimsByInstance("instance-1");
 		expect(result).toBe(2);
 		expect(MOCK_UPDATE_MANY).toHaveBeenCalledTimes(1);
@@ -66,14 +64,14 @@ describe("ClaimReleaseManager", () => {
 
 	it("should release claim without count", async () => {
 		MOCK_UPDATE_ONE.mockResolvedValue({ modifiedCount: 1 });
-		const manager = new ClaimReleaseManagerClass();
+		const manager = new ClaimReleaseManagerClass(MOCK_GET_COLLECTION as never);
 		await manager.releaseClaimWithoutCount("aaaaaaaaaaaaaaaaaaaaaaaa");
 		expect(MOCK_UPDATE_ONE).toHaveBeenCalledTimes(1);
 	});
 
 	it("should increment retry count", async () => {
 		MOCK_UPDATE_ONE.mockResolvedValue({ modifiedCount: 1 });
-		const manager = new ClaimReleaseManagerClass();
+		const manager = new ClaimReleaseManagerClass(MOCK_GET_COLLECTION as never);
 		const result = await manager.incrementRetryCount(
 			"aaaaaaaaaaaaaaaaaaaaaaaa"
 		);

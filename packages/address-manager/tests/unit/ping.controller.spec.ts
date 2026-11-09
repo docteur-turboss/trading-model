@@ -7,8 +7,8 @@ describe("pingController", () => {
 
 	beforeEach(() => {
 		mockRes = {
-			status: jest.fn().mockReturnThis(),
-			json: jest.fn().mockReturnThis(),
+			status: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			json: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 		} as Partial<Response>;
 
 		jest.clearAllMocks();

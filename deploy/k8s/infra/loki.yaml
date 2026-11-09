@@ -121,3 +121,11 @@ data:
           index:
             prefix: index_
             period: 24h
+    # Same retention as the compose (observability/loki-config.yml): 31 days,
+    # enforced by the compactor, so the PVC cannot fill up with old logs.
+    compactor:
+      working_directory: /loki/compactor
+      retention_enabled: true
+      delete_request_store: filesystem
+    limits_config:
+      retention_period: 744h

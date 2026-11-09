@@ -2,14 +2,18 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_IS_SHUTTING_DOWN = jest.fn<() => boolean>();
 
-jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+	},
 }));
 
 jest.mock("../../src/config/metrics", () => ({
 	metrics: {
-		entriesReplayed: { inc: jest.fn() },
-		entriesReplayFailed: { inc: jest.fn() },
+		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
+		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
 	},
 }));
 
@@ -26,21 +30,27 @@ import {
 function makeDeps(overrides?: { autoRetryEnabled?: boolean }) {
 	const deps = {
 		claims: {
-			claimEntriesForRetry: jest.fn<any>(),
-			claimEntriesByIds: jest.fn<any>(),
+			claimEntriesForRetry: jest.fn<(...args: any[]) => any>(),
+			claimEntriesByIds: jest.fn<(...args: any[]) => any>(),
 		},
 		claimRelease: {
-			releaseStaleClaims: jest.fn<any>().mockResolvedValue(0),
-			releaseClaimsByInstance: jest.fn<any>(),
+			releaseStaleClaims: jest
+				.fn<(...args: any[]) => any>()
+				.mockResolvedValue(0),
+			releaseClaimsByInstance: jest.fn<(...args: any[]) => any>(),
 		},
 		retryLedger: {
-			abandonExhaustedEntries: jest.fn<any>().mockResolvedValue(0),
+			abandonExhaustedEntries: jest
+				.fn<(...args: any[]) => any>()
+				.mockResolvedValue(0),
 		},
 		messageManager: {
-			resolve: jest.fn<any>().mockResolvedValue("https://10.0.0.5:3000"),
+			resolve: jest
+				.fn<(...args: any[]) => any>()
+				.mockResolvedValue("https://10.0.0.5:3000"),
 		},
-		audit: { notifyReplay: jest.fn() },
-		replayBatch: jest.fn<any>(),
+		audit: { notifyReplay: jest.fn<(...args: any[]) => any>() },
+		replayBatch: jest.fn<(...args: any[]) => any>(),
 		settings: {
 			instanceId: toInstanceId("test-instance"),
 			autoRetryEnabled: overrides?.autoRetryEnabled ?? true,

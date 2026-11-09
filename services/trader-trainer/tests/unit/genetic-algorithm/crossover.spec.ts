@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { crossoverGenomes } from "../../../src/domain/genetic-algorithm/crossover/genome-crossover";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import {
@@ -55,7 +56,7 @@ describe("Crossover - crossoverGenomes", () => {
 		const parentB = createDefaultGenome("b");
 		parentB.network.hiddenLayers = [
 			{
-				neurons: 128,
+				neurons: 128 as PositiveInt,
 				activation: ActivationType.Relu,
 				connectionType: ConnectionType.DenseSkip,
 				biasType: InitialisationType.Zeros,
@@ -70,7 +71,7 @@ describe("Crossover - crossoverGenomes", () => {
 		const parentB = createDefaultGenome("b");
 		parentB.network.hiddenLayers = [
 			{
-				neurons: 128,
+				neurons: 128 as PositiveInt,
 				activation: ActivationType.Relu,
 				connectionType: ConnectionType.DenseSkip,
 				biasType: InitialisationType.Zeros,
@@ -85,7 +86,7 @@ describe("Crossover - crossoverGenomes", () => {
 		const parentB = createDefaultGenome("b");
 		parentA.network.hiddenLayers = [
 			{
-				neurons: 32,
+				neurons: 32 as PositiveInt,
 				activation: ActivationType.Relu,
 				connectionType: ConnectionType.DenseSkip,
 				biasType: InitialisationType.Zeros,
@@ -100,7 +101,7 @@ describe("Crossover - crossoverGenomes", () => {
 		const parentB = createDefaultGenome("b");
 		parentB.network.hiddenLayers = [
 			{
-				neurons: 128,
+				neurons: 128 as PositiveInt,
 				activation: ActivationType.Relu,
 				connectionType: ConnectionType.DenseSkip,
 				biasType: InitialisationType.Zeros,

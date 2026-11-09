@@ -11,7 +11,9 @@ const NEXT_Q = [1, 3, 2];
 
 function makeNetwork(nextQ: number[] = NEXT_Q): NeuralNetwork {
 	return {
-		forward: jest.fn(() => ({ output: new Float32Array(nextQ) })),
+		forward: jest.fn((..._args: any[]) => ({
+			output: new Float32Array(nextQ),
+		})),
 	} as unknown as NeuralNetwork;
 }
 

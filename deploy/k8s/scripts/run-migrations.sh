@@ -7,8 +7,9 @@
 # The key MYSQL_MIGRATE_PASSWORD must be in Secret trading-model-secrets before
 # the user job runs: a cluster deployed before it existed does not have it
 # (the overlay that carries it is applied after the migrations).
-# SEALED_SECRETS_FILE=<SealedSecret manifest> (deploy.yml, both environments): applied first when the
-# key is missing, then waited for (the controller creates the Secret).
+# SEALED_SECRETS_FILE=<SealedSecret manifest> (deploy.yml, both environments): applied first when it
+# has a key the live Secret lacks, then waited for (the controller writes the Secret), so that
+# db-migrate-user and the database pods the overlay restarts see every new key (issue #698).
 # SEED_MIGRATE_PASSWORD=true (kind CI only: no Sealed Secrets controller) creates it with a random value when
 # missing; otherwise a missing key stops here with an explicit error.
 # MIGRATE_IMAGE pins the image (deploy.yml passes the digest of the release);
@@ -44,29 +45,57 @@ read_secret() {
   rm -f "$err"; return 1
 }
 
+live_keys() { # one key of trading-model-secrets per line, sorted
+  local out
+  out=$(read_secret -o go-template='{{range $k, $v := .data}}{{$k}} {{end}}') || return 1
+  tr ' ' '\n' <<<"$out" | sed '/^$/d' | sort
+}
+
+file_keys() { # keys of the data / stringData / encryptedData blocks of SEALED_SECRETS_FILE, sorted
+  awk '/^ *(encryptedData|stringData|data):[[:space:]]*$/ { match($0, /^ */); ind = RLENGTH; on = 1; next }
+    on && /^[[:space:]]*(#|$)/ { next }
+    on { match($0, /^ */); if (RLENGTH <= ind) { on = 0; next } sub(/^ */, ""); sub(/:.*/, ""); print }' "$SEALED_SECRETS_FILE" | sort
+}
+
+keys_not_in() { # <sorted keys> <sorted keys>: those of the first list absent from the second, space-separated
+  comm -23 <(echo "$1") <(echo "$2") | paste -sd ' ' -
+}
+
+# The SealedSecret is otherwise applied with the overlay, after the migrations:
+# a key it adds (MYSQL_MIGRATE_PASSWORD, MYSQL_EXPORTER_PASSWORD...) would be
+# missing when db-migrate-user runs, and missing from the database pods that the
+# overlay restarts before the controller decrypts it (issue #698). So it is
+# applied first whenever it carries a key the live Secret lacks, and waited for.
+apply_new_sealed_keys() {
+  [ -n "${SEALED_SECRETS_FILE:-}" ] || return 0
+  local live file gone new
+  live=$(live_keys) || exit 1
+  file=$(file_keys) || exit 1
+  # The controller rewrites Secret.data from this file: a key of the live Secret
+  # absent from encryptedData would be erased (MYSQL_ROOT_PASSWORD, SIGNING_SECRET...).
+  gone=$(keys_not_in "$live" "$file")
+  if [ -n "$gone" ]; then
+    echo "::error::$SEALED_SECRETS_FILE has no entry for live key $gone: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md)."
+    exit 1
+  fi
+  new=$(keys_not_in "$file" "$live")
+  [ -n "$new" ] || return 0
+  echo "trading-model-secrets lacks $new: applying $SEALED_SECRETS_FILE before the migrations"
+  kubectl apply -n "$NS" -f "$SEALED_SECRETS_FILE"
+  for _ in $(seq 1 "${SEALED_WAIT_TRIES:-30}"); do
+    live=$(live_keys) || exit 1
+    new=$(keys_not_in "$file" "$live")
+    [ -z "$new" ] && return 0
+    sleep 2
+  done
+  echo "::error::$new still missing from trading-model-secrets after applying $SEALED_SECRETS_FILE: the Sealed Secrets controller did not decrypt it (kubectl -n $NS describe sealedsecret trading-model-secrets)."
+  exit 1
+}
+
 require_migrate_password() {
-  local v i live
+  local v
   v=$(read_secret -o jsonpath='{.data.MYSQL_MIGRATE_PASSWORD}') || exit 1
   [ -n "$v" ] && return 0
-  if [ -n "${SEALED_SECRETS_FILE:-}" ]; then
-    # Production: the SealedSecret is otherwise applied with the overlay, after the migrations.
-    # The controller rewrites Secret.data from this file: a key of the live Secret
-    # absent from encryptedData would be erased (MYSQL_ROOT_PASSWORD, SIGNING_SECRET...).
-    live=$(read_secret -o go-template='{{range $k, $v := .data}}{{$k}} {{end}}') || exit 1
-    for k in $live; do
-      if ! grep -Eq "^[[:space:]]+$k:" "$SEALED_SECRETS_FILE"; then
-        echo "::error::$SEALED_SECRETS_FILE has no entry for live key $k: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md)."
-        exit 1
-      fi
-    done
-    echo "MYSQL_MIGRATE_PASSWORD missing: applying $SEALED_SECRETS_FILE before the migrations"
-    kubectl apply -n "$NS" -f "$SEALED_SECRETS_FILE"
-    for i in $(seq 1 "${SEALED_WAIT_TRIES:-30}"); do
-      v=$(read_secret -o jsonpath='{.data.MYSQL_MIGRATE_PASSWORD}') || exit 1
-      [ -n "$v" ] && return 0
-      sleep 2
-    done
-  fi
   if [ "${SEED_MIGRATE_PASSWORD:-}" = true ]; then
     echo "MYSQL_MIGRATE_PASSWORD missing from trading-model-secrets: seeding a random one (the overlay replaces it later, the user job follows)"
     kubectl patch secret trading-model-secrets -n "$NS" --type merge -p "{\"stringData\":{\"MYSQL_MIGRATE_PASSWORD\":\"$(openssl rand -hex 16)\"}}"
@@ -97,6 +126,7 @@ if kubectl get job mysql-cluster-init -n "$NS" >/dev/null 2>&1; then
   fi
 fi
 
+apply_new_sealed_keys
 require_migrate_password
 run_job db-migrate-user "$JOBS/migration-user-job.yaml"
 [ "${2:-}" = user-only ] && exit 0

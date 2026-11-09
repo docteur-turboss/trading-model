@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+import type { DecimalPrecision } from "@trading-model/primitives/primitives";
 import {
 	Cash,
 	Percentage,
@@ -84,21 +85,21 @@ describe("Wallet module", () => {
 				createWallet({
 					initialCash: Cash.of(1000),
 					initialPrice: Price.of(50),
-					decimals: 0,
+					decimals: 0 as DecimalPrecision,
 				})
 			).toThrow("Invalid decimals");
 			expect(() =>
 				createWallet({
 					initialCash: Cash.of(1000),
 					initialPrice: Price.of(50),
-					decimals: 16,
+					decimals: 16 as DecimalPrecision,
 				})
 			).toThrow("Invalid decimals");
 			expect(() =>
 				createWallet({
 					initialCash: Cash.of(1000),
 					initialPrice: Price.of(50),
-					decimals: 2.5,
+					decimals: 2.5 as DecimalPrecision,
 				})
 			).toThrow("Invalid decimals");
 		});
@@ -107,7 +108,7 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
-				decimals: 4,
+				decimals: 4 as DecimalPrecision,
 			});
 			expect(wallet.getCash()).toBe(1000);
 			expect(wallet.getPosition()).toBe(0);

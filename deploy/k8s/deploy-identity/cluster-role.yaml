@@ -9,8 +9,9 @@
 # it cannot grant itself their rights (`nodes/proxy`: kubelet API, exec in any
 # pod; `pods`; `tokenreviews`): no `bind`, no `escalate`, no create/update on
 # clusterroles or clusterrolebindings (tests/k8s/deploy-identity.test.sh). A
-# release that changes one of them fails the deploy (forbidden) until an admin
-# runs deploy-identity.sh cluster again. Anything else in the overlays fails
+# release that adds or changes one of them stops the deploy at "Check overlay
+# ClusterRoles" (check-cluster-rbac.sh, before any apply) until an admin runs
+# deploy-identity.sh cluster again. Anything else in the overlays fails
 # the deploy until this file is extended in review.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

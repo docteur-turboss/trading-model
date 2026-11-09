@@ -79,7 +79,7 @@ message-manager keeps its subscriptions and a durable message journal (Redis Str
 flowchart TB
   subgraph tm["namespace trading-model (Pod Security: restricted)"]
     ing["Ingress gateway / grafana"] --> edge["Deployment edge-proxy"]
-    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints);<br/>trader-trainer: 1 replica, Recreate (ADR-0044)"]
+    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints);<br/>trader-trainer: 1 replica, training on the Lease holder only (ADR-0058);<br/>financial-scraper-collector: 1 replica, crons on the Lease holder only (ADR-0057)"]
     svc --> mysql["StatefulSet mysql"]
     svc --> mA["StatefulSet mongo-audit"]
     svc --> mD["StatefulSet mongo-dlq"]
@@ -113,6 +113,7 @@ sequenceDiagram
   participant TT as trader-trainer
   participant AL as audit-logger
   participant DLQ as dlq-service
+  Note over FS: only the collector pod holding the Lease financial-scraper-collector runs the cycles (ADR-0057)
   loop each scrape cycle, per symbol
     FS->>B: fetch candles
     FS->>DB: persist candles

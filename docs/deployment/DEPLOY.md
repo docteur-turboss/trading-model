@@ -43,12 +43,12 @@ Open the **Actions** tab → **Deploy** → **Run workflow**, then select:
 | Input | Description |
 |-------|-------------|
 | `environment` | `staging` or `production` |
-| `image_tag` | Required: release to deploy, `v1.2.3` or `1.2.3`. Staging also accepts `latest` (the highest stable release); production refuses anything but a release, before the cluster is reached. Resolved to image digests before anything is applied |
+| `image_tag` | Required: release to deploy, `v1.2.3` or `1.2.3` (prerelease `v1.2.3-rc.1` or `1.2.3-rc.1` too). Staging also accepts `latest` (the highest stable release); production refuses anything but a release, before the cluster is reached. Resolved to image digests before anything is applied |
 | `canary` | Run canary + smoke test with automatic rollback on failure |
 
 ### Source of the manifests and migrations
 
-When `image_tag` is a release (`v1.2.3` or `1.2.3`), the workflow checks out
+When `image_tag` is a release (`v1.2.3`, `1.2.3`, or a prerelease such as `v1.2.3-rc.1`), the workflow checks out
 the git tag `refs/tags/v1.2.3`, whatever branch it was dispatched from: the
 overlay, the node agents and the migrations applied are those of the release
 the images come from. The job log prints the commit (`Manifests and migrations
@@ -91,6 +91,8 @@ Protect the `production` environment (Settings → Environments → `production`
 
 These settings are made by hand in GitHub; the workflow cannot check them.
 
+**Before the first production deploy**, the operating entity fills the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a)); the [privacy notice](../compliance/privacy-notice.md) points to them. The repository is public: commit no personal data, name the entity as your legal process requires.
+
 ### Deploy identities
 
 No admin kubeconfig is stored in GitHub (ADR-0041). With an admin kubeconfig,
@@ -100,6 +102,8 @@ once per environment and again before the token expires:
 bash scripts/deploy-identity.sh app     --namespace trading-model | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_APP     --env production
 bash scripts/deploy-identity.sh cluster --namespace trading-model --environment production | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_CLUSTER --env production
 ```
+
+**Upgrading to 3.1.0** (existing environment): run both commands again, not only `cluster`. The Role `deploy-app` gained `leases` (collector Lease, ADR-0057) and the identity cannot grant itself rights. The step "Check deploy-app Role" (`deploy/k8s/scripts/check-app-rbac.sh`) compares the live Role with `app-role.yaml` before any apply and stops with the command when they differ (staging-local: `bash deploy/staging-local/bootstrap.sh identities`).
 
 | Identity | Rights | Used by |
 |----------|--------|---------|
@@ -146,7 +150,7 @@ missing rule loses nothing, but those copies are then never expired.
 ### Deployment phases
 
 ```
-0. Resolve the release ref (production: vX.Y.Z only) and check out its tag
+0. Resolve the release ref (production: vX.Y.Z or vX.Y.Z-rc.N only) and check out its tag
 1. Configure kubectl (two kubeconfigs: application and cluster-scope, from secrets)
 2. Resolve every image tag to a digest (fails if the release was not published)
 3. Check sealed secrets (production: controller CRD present, no placeholder)
@@ -157,21 +161,22 @@ missing rule loses nothing, but those copies are then never expired.
 7. Wait for rollout of all services, smoke test, `verify-market-data`, then `verify-release` (see "Release verification")
 ```
 
-**Ingestion during a release.** `financial-scraper-collector` is a singleton
-(`replicas: 1`, `Recreate`, ADR-0042): collection stops from the old pod's
-shutdown (up to `terminationGracePeriodSeconds`, 360 s) until the new pod is
-ready and has run a cycle. Expect a gap of up to ~6 min plus startup; candles
-the source can replay are caught up by the publish backlog and cursors. The
-`Verify market data resumed` step waits up to 10 min for
+**Ingestion during a release.** `financial-scraper-collector` keeps one pod
+(`replicas: 1`, no HPA) and rolls out with `RollingUpdate`, `maxUnavailable: 0`,
+`maxSurge: 1` (ADR-0057). The new pod starts next to the old one and becomes
+ready; only the holder of the Lease `financial-scraper-collector` runs the
+crons. On SIGTERM the old pod stops its crons, drains its publishes in flight,
+then releases the Lease; the new pod takes it within 2 s. The gap is the drain
+plus the next cron tick: seconds, measured under 30 s by the kind job. The
+`Verify market data resumed` step still waits up to 10 min for
 `fs_candles_persisted_total` > 0 on the new pod. Production: failure and
 rollback if it does not; staging: warning. Tune with
-`MARKET_DATA_RECOVERY_TIMEOUT` / `MARKET_DATA_RECOVERY_MODE=warn`. During the
-gap `MarketDataStale` may fire (15 min window): silence it for the release if
-it does not clear (runbook-market-data-stale.md).
+`MARKET_DATA_RECOVERY_TIMEOUT` / `MARKET_DATA_RECOVERY_MODE=warn`.
+`CollectorNoLeader` fires if no pod holds the Lease for 2 min.
 
-A production rollback recreates the collector (`Recreate`): it opens a second gap
-of the same size, and no market-data check runs after the rollback. Watch
-`MarketDataStale` until it clears.
+The first upgrade from a release without the Lease (3.0.x) runs the old
+collector, which has no Lease, next to the new one until the old pod stops:
+both collect for up to about 30 s (ADR-0057, Consequences).
 
 Rollback on failure is automatic: the workflow returns every Deployment to the
 revision it ran before the overlay (`rollout undo --to-revision`, see
@@ -200,15 +205,16 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 
 ## Production deployment
 
-1. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
-2. `release.yml` runs the whole CI on the tag, then publishes the 10 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them. First release of this pipeline: [release.md, section 4](../contributing/release.md#4-first-release-of-the-current-pipeline) (`v2.0.0` to `v2.0.3` are not deployable)
-3. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
+1. Fill the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a); first production deploy only, see "Before the first production deploy" above)
+2. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
+3. `release.yml` runs the whole CI on the tag, then publishes the 10 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them. First release of this pipeline: [release.md, section 4](../contributing/release.md#4-first-release-of-the-current-pipeline) (`v2.0.0` to `v2.0.3` are not deployable)
+4. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 
 ---
 
 ## Replicas and the HPA
 
-A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singletons `financial-scraper-collector` (ADR-0042) and `trader-trainer` (ADR-0044: training state in memory) have no HPA, keep `replicas: 1` and `Recreate`; `check-overlays.mjs` enforces it. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` of older releases. A release stops training until the new trainer pod is ready. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
+A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singleton `trader-trainer` (ADR-0044: training state in memory) has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which serves the read routes at once and only trains once it holds the Lease `trader-trainer` (ADR-0058: the old pod ends its session after the current generation, stores and publishes its model, then releases it); `financial-scraper-collector` has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which only collects once it holds the Lease (ADR-0057); `check-overlays.mjs` enforces both. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` of older releases. A release pauses training for the end of one generation plus up to 2 s; the read routes keep answering. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
 
 Moving an existing cluster over: `deploy.yml` (step "Release replicas of autoscaled Deployments") removes `spec.replicas` from `kubectl.kubernetes.io/last-applied-configuration` before the apply, otherwise the apply would drop the Deployment to 1 pod. By hand: `kubectl apply edit-last-applied deployment/<name> -n <ns>` and delete the `replicas` line, before applying the new overlay.
 
@@ -225,9 +231,9 @@ N-1 migrations still applied, runs `migrate-down 1` and the migrations again,
 then upgrades to N (`tests/k8s/run-kind.sh upgrade`).
 
 "Wait for rollout" gives each Deployment 180 s plus the
-`terminationGracePeriodSeconds` of its pod template: `financial-scraper-collector`
-(strategy `Recreate`) starts its new pod only once the old one has drained, which
-may take its whole 360 s grace. A fixed 180 s declared such a healthy release
+`terminationGracePeriodSeconds` of its pod template: a `Recreate` Deployment
+starts its new pod only once the old one has drained, and a draining pod may
+take its whole grace. A fixed 180 s declared such a healthy release
 failed and rolled it back; the kind job found it (PR #460) and runs the same
 timeouts as production.
 
@@ -269,7 +275,7 @@ revision: the step reports an error for it and leaves it in place.
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
 the new image with the configuration of the current release, not the new one.
 
-`deploy-k8s.sh migrate-down` provisions `migrator` itself (job `db-migrate-user`) before rolling the schema back; pass `MIGRATE_IMAGE` of the release being rolled back. Outside `deploy.yml`, set `SEALED_SECRETS_FILE` (the environment's SealedSecret file) when the key is missing. `SEED_MIGRATE_PASSWORD=true` (random password) exists for the kind CI only, which has no Sealed Secrets controller.
+`deploy-k8s.sh migrate-down` provisions `migrator` itself (job `db-migrate-user`) before rolling the schema back; pass `MIGRATE_IMAGE` of the release being rolled back. Outside `deploy.yml`, set `SEALED_SECRETS_FILE` (the environment's SealedSecret file) when it carries a key the live Secret lacks: it is applied and waited for before the Jobs. `SEED_MIGRATE_PASSWORD=true` (random password) exists for the kind CI only, which has no Sealed Secrets controller.
 
 Redeploying a tag published before `db-migrate` existed works: the workflow checks out that tag, so its own `deploy.yml` (its own `IMAGES` list) and manifests (root migrations) are used. Only the `Deploy` workflow of the old tag matters, not the current one.
 
@@ -289,6 +295,15 @@ reported and every canary is removed if one fails.
 | `CANARY_ERROR_THRESHOLD_PCT` | `5` | Maximum 4xx/5xx share |
 | `CANARY_READINESS_ONLY` | `dlq-service` | Comma-separated services whose gate checks readiness and routing only |
 
+Behind `edge-proxy` the canary share depends on connections, not requests: its
+keep-alive pool to `api-gateway` (`deploy/edge-proxy/gateway-upstream.k8s.conf`)
+pins a serial client to one pod, since kube-proxy picks the pod when a
+connection opens. Real traffic is concurrent and should open many connections,
+but this is not measured: the production `canary_check` can undercount the
+canary the same way (residual risk: a failure with a low count and no errors
+points here). The kind gate (`verify_canary`) sends bursts of 12 requests every 5 s for that
+reason.
+
 `dlq-service` is readiness-only: it only receives requests on a dead letter or an
 admin call, so a healthy environment gives it no traffic. Add a service to
 `CANARY_READINESS_ONLY` only for the same reason. Test of the gate:
@@ -306,7 +321,7 @@ step and triggers "Rollback on failure". Market data may be missing until the fi
 that sees it, but must be present on the last pass and never disappear after. A critical
 alert already firing before the deploy also fails the gate. Staging skips the market-data
 check and ignores `MarketDataStale` (`VERIFY_REQUIRE_FRESH_DATA=false`, set by `deploy.yml`):
-there, missing market data only warns (ADR-0042, `Verify market data resumed`).
+there, missing market data only warns (`Verify market data resumed`).
 
 | Variable (GitHub environment) | Default | Role |
 |---|---|---|

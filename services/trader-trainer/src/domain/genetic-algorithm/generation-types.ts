@@ -22,6 +22,8 @@ export interface GARunnerConfig {
 	initialControl?: Partial<GAControlGenome>;
 	/** Observability hooks (no-op when omitted). */
 	telemetry?: GaTelemetry;
+	/** Aborted: the run ends after the current generation with its best genome so far (ADR-0058). */
+	signal?: AbortSignal;
 }
 
 export interface GenerationContext {

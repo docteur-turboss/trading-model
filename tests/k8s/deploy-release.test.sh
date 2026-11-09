@@ -41,9 +41,10 @@ if [ "$1" = get ] && [ "$2" = deployment ] && [[ $* == *terminationGracePeriodSe
 	for pair in $STUB_GRACE; do [ "${pair%%=*}" = "$3" ] && printf '%s' "${pair#*=}"; done
 	exit 0
 fi
+if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
-if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
+if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] || [ "$3" = "statefulset/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
 if [ "$1" = get ] && [ "$2" = deployment ]; then
 	for pair in $STUB_REVS; do [ "${pair%%=*}" = "$3" ] && printf '%s' "${pair#*=}"; done
 	exit 0
@@ -84,6 +85,7 @@ out="$(STUB_STATUS_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs
 	ko "rollback succeeded though a rollout did not come back" ||
 	{ grep -q "rollout status deployment/api-gateway -n ns --timeout=180s" "$WORK/log" &&
 		[[ $out == *"discovery-server did not finish rolling back"* ]] &&
+		grep -q "describe deployment/discovery-server -n ns" "$WORK/log" &&
 		ok "rollback waits for each rollout and fails if one does not come back" || ko "rollback status: $out"; }
 
 printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\ndiscovery-server 4\n' >"$WORK/revs"
@@ -102,6 +104,22 @@ STUB_GRACE="financial-scraper-collector=360 api-gateway=30" bash "$SCRIPT" wait 
 	grep -q "rollout status statefulset/redis-sentinel -n ns --timeout=180s" "$WORK/log" &&
 	ok "wait adds each template's termination grace to the timeout" || ko "wait: $(cat "$WORK/log")"
 bash "$SCRIPT" wait ns 3m >/dev/null 2>&1 && ko "wait accepted a timeout not in seconds" || ok "wait refuses a timeout not in seconds"
+for failing in deployment/api-gateway statefulset/redis; do
+	: >"$WORK/log"
+	out="$(STUB_STATUS_FAILS="${failing#*/}" STUB_PODS='api-1 0/1 CrashLoopBackOff 0 1m\njob-1 0/1 Completed 0 1m\n' bash "$SCRIPT" wait ns 2>&1)" &&
+		ko "wait succeeded though $failing did not roll out" ||
+		{ grep -q "describe $failing -n ns" "$WORK/log" && grep -q "logs api-1 -n ns" "$WORK/log" &&
+			! grep -q "logs job-1" "$WORK/log" && [[ $out == *"Rollout of ${failing#*/} failed"* ]] &&
+			ok "wait diagnoses $failing (describe, logs of non-ready pods, Completed skipped)" || ko "wait $failing: $out"; }
+done
+
+: >"$WORK/log"
+DEPLOY_TIMEOUT_FACTOR=4 STUB_GRACE="api-gateway=30" bash "$SCRIPT" wait ns >/dev/null &&
+	grep -q "rollout status statefulset/redis -n ns --timeout=720s" "$WORK/log" &&
+	grep -q "rollout status deployment/api-gateway -n ns --timeout=750s" "$WORK/log" &&
+	ok "DEPLOY_TIMEOUT_FACTOR multiplies the wait, not the grace" || ko "factor: $(cat "$WORK/log")"
+DEPLOY_TIMEOUT_FACTOR=x bash "$SCRIPT" wait ns >/dev/null 2>&1 && ko "bad DEPLOY_TIMEOUT_FACTOR accepted" ||
+	ok "DEPLOY_TIMEOUT_FACTOR not a positive integer: refused"
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 

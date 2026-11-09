@@ -315,6 +315,52 @@ tests:
         alertname: ServiceDown
         exp_alerts: []
 
+  # ADR-0057: the HTTP replica reports 0, the collector 1 until it loses the
+  # Lease at 10m and nobody takes it. A rollout handover (one minute without
+  # leader, at 4m) stays below the 2 min of CollectorNoLeader.
+  # ADR-0058: the trainer holds the Lease, hands it over during a rollout (two
+  # minutes without leader, at 4m: below the 5 min of TrainerNoLeader), then
+  # loses it at 12m and nobody takes it. The new pod reports 0 until it holds it.
+  - name: no trainer holds the Lease for 5 minutes
+    interval: 1m
+    input_series:
+      - series: 'tt_training_leader{job="trader-trainer",instance="old"}'
+        values: '1 1 1 1 0 0 _x20'
+      - series: 'tt_training_leader{job="trader-trainer",instance="new"}'
+        values: '_ _ _ 0 0 0 1 1 1 1 1 1 0x12'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: TrainerNoLeader
+        exp_alerts: []
+      - eval_time: 18m
+        alertname: TrainerNoLeader
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'No trader-trainer pod holds the Lease'
+              description: 'No pod has trained for 5 minutes: no trainer pod holds the Lease trader-trainer (API server unreachable, RBAC, NetworkPolicy). The read routes still answer the last stored models; no new model is produced.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernoleader'
+
+  - name: no collector holds the Lease for 2 minutes
+    interval: 1m
+    input_series:
+      - series: 'fs_collector_leader{job="financial-scraper",instance="http"}'
+        values: '0x20'
+      - series: 'fs_collector_leader{job="financial-scraper-collector",instance="c"}'
+        values: '1 1 1 1 0 1 1 1 1 1 0x10'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: CollectorNoLeader
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: CollectorNoLeader
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'No financial-scraper collector holds the Lease'
+              description: 'No pod has collected market data for 2 minutes: no collector pod holds the Lease financial-scraper-collector (API server unreachable, RBAC, collector down or collection disabled). Trades, tickers and order books of the window are lost.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#collectornoleader'
+
   # absent(): no series at all, which `up == 0` never sees. dlq-service has
   # a target at 0 (ServiceDown's job), so only the series-less job fires.
   - name: a job with no up series fires ServiceTargetsMissing, a present one does not
@@ -1166,6 +1212,55 @@ tests:
               description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
 
+  - name: loki push failures and stale retention
+    interval: 1m
+    input_series:
+      - series: 'loki_request_duration_seconds_count{job="loki",route="loki_api_v1_push",status_code="500"}'
+        values: '0+10x30'
+      - series: 'loki_compactor_apply_retention_last_successful_run_timestamp_seconds{job="loki"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: LokiPushFailing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'Loki rejects or drops log lines'
+              description: 'Loki answers 5xx on push or discards samples: logs are being lost. Check the Loki pod and its PVC (full disk, rate limits).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#loki-and-the-trace-pipeline'
+      # time() is 1500 s at 25m: under the 3 h threshold, no alert yet.
+      - eval_time: 25m
+        alertname: LokiRetentionStale
+        exp_alerts: []
+
+
+  # time() is 12000 s at 200m: 3 h 20 min past a timestamp of 0, over the
+  # 3 h threshold plus the 15 min `for`.
+  - name: loki retention stale fires and discarded samples fire
+    interval: 1m
+    input_series:
+      - series: 'loki_compactor_apply_retention_last_successful_run_timestamp_seconds{job="loki"}'
+        values: '0x250'
+      - series: 'loki_discarded_samples_total{job="loki",reason="rate_limited"}'
+        values: '0+1x250'
+    alert_rule_test:
+      - eval_time: 200m
+        alertname: LokiRetentionStale
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'Loki retention has not run for 3 hours'
+              description: 'The compactor has not applied retention (744h): the Loki PVC fills up and ingestion will stop. Check the Loki logs for compactor errors and the PVC usage.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#loki-and-the-trace-pipeline'
+      - eval_time: 25m
+        alertname: LokiPushFailing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'Loki rejects or drops log lines'
+              description: 'Loki answers 5xx on push or discards samples: logs are being lost. Check the Loki pod and its PVC (full disk, rate limits).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#loki-and-the-trace-pipeline'
+
   # One probe per service (compose and K8s): the alert names the service whose
   # SVID is about to expire, and only that one.
   - name: certificate expiry is reported per service
@@ -1185,6 +1280,265 @@ tests:
               description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
+  # ── Infrastructure (issue #601, ADR-0056) ────────────────────────────
+
+  - name: a container in CrashLoopBackOff for 5 minutes is reported, alone
+    interval: 1m
+    input_series:
+      - series: 'kube_pod_container_status_waiting_reason{job="kube-state-metrics",namespace="trading-model",pod="api-gateway-1",container="api-gateway",reason="CrashLoopBackOff"}'
+        values: '1x10'
+      - series: 'kube_pod_container_status_waiting_reason{job="kube-state-metrics",namespace="trading-model",pod="api-gateway-2",container="api-gateway",reason="CrashLoopBackOff"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: KubePodCrashLooping
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: KubePodCrashLooping
+        exp_alerts:
+          - exp_labels: {severity: warning, namespace: trading-model, pod: api-gateway-1, container: api-gateway}
+            exp_annotations:
+              summary: 'api-gateway-1 (api-gateway) is crash looping'
+              description: 'Container api-gateway of api-gateway-1 has been in CrashLoopBackOff for 5 minutes: it starts, exits and is restarted with a growing delay.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubepodcrashlooping'
+
+  # The OOMKilled reason stays until the next termination: only a recent
+  # restart fires (mysql-0 at 21m), never an old one (audit-logger).
+  - name: an OOMKill fires once, on the restart it caused
+    interval: 1m
+    input_series:
+      - series: 'kube_pod_container_status_last_terminated_reason{job="kube-state-metrics",namespace="trading-model",pod="mysql-0",container="mysql",reason="OOMKilled"}'
+        values: '1x60'
+      - series: 'kube_pod_container_status_restarts_total{job="kube-state-metrics",namespace="trading-model",pod="mysql-0",container="mysql"}'
+        values: '0x20 1x39'
+      - series: 'kube_pod_container_status_last_terminated_reason{job="kube-state-metrics",namespace="trading-model",pod="audit-logger-1",container="audit-logger",reason="OOMKilled"}'
+        values: '1x60'
+      - series: 'kube_pod_container_status_restarts_total{job="kube-state-metrics",namespace="trading-model",pod="audit-logger-1",container="audit-logger"}'
+        values: '3x60'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: KubeContainerOOMKilled
+        exp_alerts:
+          - exp_labels: {severity: warning, namespace: trading-model, pod: mysql-0, container: mysql}
+            exp_annotations:
+              summary: 'mysql-0 (mysql) was OOMKilled'
+              description: 'Container mysql of mysql-0 was killed for exceeding its memory limit and restarted in the last 15 minutes. HighMemoryUsage only sees the V8 heap of the services; this is the container.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubecontaineroomkilled'
+      - eval_time: 50m
+        alertname: KubeContainerOOMKilled
+        exp_alerts: []
+
+  - name: a PVC over 80% full is reported with its usage
+    interval: 1m
+    input_series:
+      - series: 'kubelet_volume_stats_used_bytes{job="kubelet",node="n1",namespace="trading-model",persistentvolumeclaim="mysql-data-mysql-0"}'
+        values: '90x20'
+      - series: 'kubelet_volume_stats_capacity_bytes{job="kubelet",node="n1",namespace="trading-model",persistentvolumeclaim="mysql-data-mysql-0"}'
+        values: '100x20'
+      - series: 'kubelet_volume_stats_used_bytes{job="kubelet",node="n1",namespace="trading-model",persistentvolumeclaim="redis-data-redis-0"}'
+        values: '50x20'
+      - series: 'kubelet_volume_stats_capacity_bytes{job="kubelet",node="n1",namespace="trading-model",persistentvolumeclaim="redis-data-redis-0"}'
+        values: '100x20'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: KubePersistentVolumeFillingUp
+        exp_alerts:
+          - exp_labels: {severity: warning, namespace: trading-model, persistentvolumeclaim: mysql-data-mysql-0}
+            exp_annotations:
+              summary: 'PVC mysql-data-mysql-0 is over 80% full'
+              description: 'Volume mysql-data-mysql-0 is 90% full: a full MySQL, MongoDB, Redis, Prometheus or Loki volume stops writes.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup'
+
+  # tmpfs is ignored however full it is.
+  # One alert per device, however many mount points show it (Docker Desktop
+  # mounts the same disk several times).
+  - name: a node disk with less than 15% free is reported once
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{job="node-exporter",instance="10.0.0.5:9100",mountpoint="/",fstype="ext4",device="/dev/sda1"}'
+        values: '10x20'
+      - series: 'node_filesystem_size_bytes{job="node-exporter",instance="10.0.0.5:9100",mountpoint="/",fstype="ext4",device="/dev/sda1"}'
+        values: '100x20'
+      - series: 'node_filesystem_avail_bytes{job="node-exporter",instance="10.0.0.5:9100",mountpoint="/var/lib",fstype="ext4",device="/dev/sda1"}'
+        values: '10x20'
+      - series: 'node_filesystem_size_bytes{job="node-exporter",instance="10.0.0.5:9100",mountpoint="/var/lib",fstype="ext4",device="/dev/sda1"}'
+        values: '100x20'
+      - series: 'node_filesystem_avail_bytes{job="node-exporter",instance="10.0.0.5:9100",mountpoint="/data",fstype="ext4",device="/dev/sdb"}'
+        values: '50x20'
+      - series: 'node_filesystem_size_bytes{job="node-exporter",instance="10.0.0.5:9100",mountpoint="/data",fstype="ext4",device="/dev/sdb"}'
+        values: '100x20'
+      - series: 'node_filesystem_avail_bytes{job="node-exporter",instance="10.0.0.5:9100",mountpoint="/run",fstype="tmpfs",device="tmpfs"}'
+        values: '1x20'
+      - series: 'node_filesystem_size_bytes{job="node-exporter",instance="10.0.0.5:9100",mountpoint="/run",fstype="tmpfs",device="tmpfs"}'
+        values: '100x20'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: NodeFilesystemAlmostFull
+        exp_alerts:
+          - exp_labels: {severity: warning, instance: '10.0.0.5:9100', device: /dev/sda1}
+            exp_annotations:
+              summary: 'Disk /dev/sda1 of 10.0.0.5:9100 is over 85% full'
+              description: 'Only 10% of /dev/sda1 is free on 10.0.0.5:9100 (one alert per device, whatever its mount points). A full node disk evicts pods; a full Docker Desktop host disk froze the whole VM (2026-10-28).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#nodefilesystemalmostfull'
+
+  - name: a database its exporter cannot query is reported per member
+    interval: 1m
+    input_series:
+      - series: 'mysql_up{job="mysql",instance="10.0.0.1:9104",pod="mysql-1"}'
+        values: '0x10'
+      - series: 'mysql_up{job="mysql",instance="10.0.0.2:9104",pod="mysql-0"}'
+        values: '1x10'
+      - series: 'redis_up{job="redis-sentinel",instance="10.0.0.3:9121",pod="redis-sentinel-1"}'
+        values: '0x10'
+      - series: 'mongodb_up{job="mongo-audit",instance="10.0.0.4:9216",pod="mongo-audit-0",cluster_role="mongod"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: MySQLDown
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: MySQLDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: mysql, instance: '10.0.0.1:9104', pod: mysql-1}
+            exp_annotations:
+              summary: 'MySQL 10.0.0.1:9104 does not answer its exporter'
+              description: 'mysqld-exporter of 10.0.0.1:9104 cannot query MySQL for 5 minutes: MySQL is down or refuses connections, or the exporter user is missing (Access denied in the mysqld-exporter logs).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqldown'
+      - eval_time: 6m
+        alertname: RedisDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: redis-sentinel, instance: '10.0.0.3:9121', pod: redis-sentinel-1}
+            exp_annotations:
+              summary: 'redis-sentinel 10.0.0.3:9121 does not answer its exporter'
+              description: 'redis_exporter of 10.0.0.3:9121 (redis-sentinel) cannot query Redis for 5 minutes: the node or sentinel is down, or the exporter ACL user is missing (WRONGPASS in the redis-exporter logs).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redisdown'
+      - eval_time: 6m
+        alertname: MongoDBDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: mongo-audit, instance: '10.0.0.4:9216', pod: mongo-audit-0, cluster_role: mongod}
+            exp_annotations:
+              summary: 'MongoDB mongo-audit 10.0.0.4:9216 does not answer its exporter'
+              description: 'mongodb_exporter of 10.0.0.4:9216 (mongo-audit) cannot reach mongod for 5 minutes.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbdown'
+
+  # 3 Redis nodes: the master must have 2 replicas; it has 1.
+  - name: a Redis master with fewer replicas than the StatefulSet is reported
+    interval: 1m
+    input_series:
+      - series: 'redis_connected_slaves{job="redis",instance="a",pod="redis-0"}'
+        values: '1x10'
+      - series: 'redis_connected_slaves{job="redis",instance="b",pod="redis-1"}'
+        values: '0x10'
+      - series: 'kube_statefulset_replicas{job="kube-state-metrics",namespace="trading-model",statefulset="redis"}'
+        values: '3x10'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: RedisReplicasMissing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'Redis master has fewer replicas than the StatefulSet'
+              description: 'The Redis master has 1 connected replica(s), fewer than the redis StatefulSet runs minus one: a failover has fewer (or no) candidates and the journal (ADR-0048) fewer copies.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redisreplicasmissing'
+
+  # Staging: one Redis node, one sentinel (quorum 2 never reachable): silent.
+  - name: single-node Redis and Sentinel never fire
+    interval: 1m
+    input_series:
+      - series: 'redis_connected_slaves{job="redis",instance="a",pod="redis-0"}'
+        values: '0x10'
+      - series: 'kube_statefulset_replicas{job="kube-state-metrics",namespace="trading-model-staging",statefulset="redis"}'
+        values: '1x10'
+      - series: 'redis_sentinel_master_ckquorum_status{job="redis-sentinel",instance="s",pod="redis-sentinel-0",master_name="mymaster",message="NOQUORUM 1 usable Sentinels"}'
+        values: '0x10'
+      - series: 'kube_statefulset_replicas{job="kube-state-metrics",namespace="trading-model-staging",statefulset="redis-sentinel"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: RedisReplicasMissing
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: RedisSentinelQuorumLost
+        exp_alerts: []
+
+  - name: three sentinels without quorum are reported once per master
+    interval: 1m
+    input_series:
+      - series: 'redis_sentinel_master_ckquorum_status{job="redis-sentinel",instance="s0",pod="redis-sentinel-0",master_name="mymaster",message="NOQUORUM 1 usable Sentinels"}'
+        values: '0x10'
+      - series: 'redis_sentinel_master_ckquorum_status{job="redis-sentinel",instance="s1",pod="redis-sentinel-1",master_name="mymaster",message="NOQUORUM 1 usable Sentinels"}'
+        values: '0x10'
+      - series: 'kube_statefulset_replicas{job="kube-state-metrics",namespace="trading-model",statefulset="redis-sentinel"}'
+        values: '3x10'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: RedisSentinelQuorumLost
+        exp_alerts:
+          - exp_labels: {severity: critical, master_name: mymaster}
+            exp_annotations:
+              summary: 'Redis Sentinel cannot fail over mymaster'
+              description: 'No sentinel can reach a quorum for mymaster (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and discovery, message-manager and dlq-service lose Redis.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redissentinelquorumlost'
+
+  # Two exporters report the same members (deduplicated): member 1 is down,
+  # member 2 is RECOVERING, member 0 is a healthy primary.
+  - name: unhealthy replica set members are reported once each
+    interval: 1m
+    input_series:
+      - series: 'mongodb_members_health{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-0:27017",member_state="PRIMARY",rs_nm="rs0"}'
+        values: '1x10'
+      - series: 'mongodb_members_state{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-0:27017",member_state="PRIMARY",rs_nm="rs0"}'
+        values: '1x10'
+      - series: 'mongodb_members_health{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-1:27017",member_state="(not reachable/healthy)",rs_nm="rs0"}'
+        values: '0x10'
+      - series: 'mongodb_members_state{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-1:27017",member_state="(not reachable/healthy)",rs_nm="rs0"}'
+        values: '8x10'
+      - series: 'mongodb_members_health{job="mongo-dlq",instance="c",pod="mongo-dlq-2",member_idx="mongo-dlq-1:27017",member_state="(not reachable/healthy)",rs_nm="rs0"}'
+        values: '0x10'
+      - series: 'mongodb_members_health{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-2:27017",member_state="RECOVERING",rs_nm="rs0"}'
+        values: '1x10'
+      - series: 'mongodb_members_state{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-2:27017",member_state="RECOVERING",rs_nm="rs0"}'
+        values: '3x10'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: MongoDBReplicaSetMemberUnhealthy
+        exp_alerts:
+          - exp_labels: {severity: warning, job: mongo-dlq, member_idx: 'mongo-dlq-1:27017'}
+            exp_annotations:
+              summary: 'MongoDB mongo-dlq member mongo-dlq-1:27017 is not healthy'
+              description: 'Replica set member mongo-dlq-1:27017 of mongo-dlq is unreachable, or neither primary nor secondary, for 5 minutes: one more failure and the replica set loses its majority.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetmemberunhealthy'
+          - exp_labels: {severity: warning, job: mongo-dlq, member_idx: 'mongo-dlq-2:27017'}
+            exp_annotations:
+              summary: 'MongoDB mongo-dlq member mongo-dlq-2:27017 is not healthy'
+              description: 'Replica set member mongo-dlq-2:27017 of mongo-dlq is unreachable, or neither primary nor secondary, for 5 minutes: one more failure and the replica set loses its majority.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetmemberunhealthy'
+
+  # mongo-dlq: only secondaries. mongo-audit: a primary. The standalone
+  # compose mongod has no replica set metric at all: silent.
+  - name: a replica set without primary is reported, a standalone mongod is not
+    interval: 1m
+    input_series:
+      - series: 'mongodb_myState{job="mongo-dlq",instance="a",pod="mongo-dlq-0",rs_nm="rs0"}'
+        values: '2x10'
+      - series: 'mongodb_members_state{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-0:27017",member_state="SECONDARY",rs_nm="rs0"}'
+        values: '2x10'
+      - series: 'mongodb_myState{job="mongo-audit",instance="b",pod="mongo-audit-0",rs_nm="rs0-audit"}'
+        values: '1x10'
+      - series: 'mongodb_members_state{job="mongo-audit",instance="b",pod="mongo-audit-0",member_idx="mongo-audit-0:27017",member_state="PRIMARY",rs_nm="rs0-audit"}'
+        values: '1x10'
+      - series: 'mongodb_up{job="mongodb",instance="mongodb-exporter:9216",cluster_role="mongod"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: MongoDBReplicaSetNoPrimary
+        exp_alerts:
+          - exp_labels: {severity: critical, job: mongo-dlq}
+            exp_annotations:
+              summary: 'MongoDB mongo-dlq has no primary'
+              description: 'No member of the mongo-dlq replica set is primary for 2 minutes: writes fail (audit events for mongo-audit, dead letters for mongo-dlq).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetnoprimary'
+
   # The collector cannot export spans to Jaeger.
   - name: otel collector span export failures
     interval: 1m
@@ -1200,3 +1554,24 @@ tests:
               summary: 'The OTel collector fails to export spans'
               description: 'The collector dropped 10 span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'
+
+  # A delete whose audit event message-manager refused fires (ADR-0059); a
+  # refused dlq.entry.added (bus down while dead letters arrive) does not.
+  # The series start at 0: dlq-service exposes every event at 0 from startup
+  # (metrics.ts), so increase() sees the first loss.
+  - name: DLQ action missing from the audit trail
+    interval: 1m
+    input_series:
+      - series: 'dlq_audit_publish_failures_total{job="dlq-service",instance="d1",event="dlq.entries.deleted"}'
+        values: '0 0 1x20'
+      - series: 'dlq_audit_publish_failures_total{job="dlq-service",instance="d1",event="dlq.entry.added"}'
+        values: '0 0 5x20'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: DlqAuditEventLost
+        exp_alerts:
+          - exp_labels: {severity: critical, event: dlq.entries.deleted}
+            exp_annotations:
+              summary: 'DLQ action missing from the audit trail: dlq.entries.deleted'
+              description: 'message-manager refused 1 dlq.entries.deleted event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'

@@ -9,8 +9,10 @@ import type { NextFunction, Request, Response } from "express";
 describe("correlationIdMiddleware", () => {
 	it("should generate a UUID when no header exists", () => {
 		const req = { headers: {} } as Request;
-		const res = { setHeader: jest.fn() } as unknown as Response;
-		const next = jest.fn() as NextFunction;
+		const res = {
+			setHeader: jest.fn<(...args: any[]) => any>(),
+		} as unknown as Response;
+		const next = jest.fn<(...args: any[]) => any>() as NextFunction;
 
 		correlationIdMiddleware(req, res, next);
 
@@ -28,8 +30,10 @@ describe("correlationIdMiddleware", () => {
 		const req = {
 			headers: { [HTTP_HEADERS.CORRELATION_ID]: "existing-id" },
 		} as unknown as Request;
-		const res = { setHeader: jest.fn() } as unknown as Response;
-		const next = jest.fn() as NextFunction;
+		const res = {
+			setHeader: jest.fn<(...args: any[]) => any>(),
+		} as unknown as Response;
+		const next = jest.fn<(...args: any[]) => any>() as NextFunction;
 
 		correlationIdMiddleware(req, res, next);
 
@@ -47,9 +51,15 @@ describe("correlationIdMiddleware", () => {
 		const req = {
 			headers: { [HTTP_HEADERS.CORRELATION_ID]: bad },
 		} as unknown as Request;
-		const res = { setHeader: jest.fn() } as unknown as Response;
+		const res = {
+			setHeader: jest.fn<(...args: any[]) => any>(),
+		} as unknown as Response;
 
-		correlationIdMiddleware(req, res, jest.fn() as NextFunction);
+		correlationIdMiddleware(
+			req,
+			res,
+			jest.fn<(...args: any[]) => any>() as NextFunction
+		);
 
 		expect(req.correlationId).not.toBe(bad);
 		expect(req.correlationId).toMatch(/^[0-9a-f-]{36}$/);
@@ -59,8 +69,10 @@ describe("correlationIdMiddleware", () => {
 		const req = {
 			headers: { [HTTP_HEADERS.X_REQUEST_ID]: "req-123" },
 		} as unknown as Request;
-		const res = { setHeader: jest.fn() } as unknown as Response;
-		const next = jest.fn() as NextFunction;
+		const res = {
+			setHeader: jest.fn<(...args: any[]) => any>(),
+		} as unknown as Response;
+		const next = jest.fn<(...args: any[]) => any>() as NextFunction;
 
 		correlationIdMiddleware(req, res, next);
 
@@ -71,9 +83,11 @@ describe("correlationIdMiddleware", () => {
 		const req = {
 			headers: { [HTTP_HEADERS.CORRELATION_ID]: "ctx-456" },
 		} as unknown as Request;
-		const res = { setHeader: jest.fn() } as unknown as Response;
+		const res = {
+			setHeader: jest.fn<(...args: any[]) => any>(),
+		} as unknown as Response;
 		let observed: string | undefined;
-		const next = jest.fn(() => {
+		const next = jest.fn((..._args: any[]) => {
 			observed = getCorrelationId();
 		}) as NextFunction;
 
@@ -86,9 +100,11 @@ describe("correlationIdMiddleware", () => {
 		const req = {
 			headers: { [HTTP_HEADERS.CORRELATION_ID]: "ctx-async" },
 		} as unknown as Request;
-		const res = { setHeader: jest.fn() } as unknown as Response;
+		const res = {
+			setHeader: jest.fn<(...args: any[]) => any>(),
+		} as unknown as Response;
 		let observed: string | undefined;
-		const next = jest.fn(() => {
+		const next = jest.fn((..._args: any[]) => {
 			void (async () => {
 				await Promise.resolve();
 				observed = getCorrelationId();

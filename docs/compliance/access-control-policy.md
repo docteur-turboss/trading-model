@@ -28,7 +28,7 @@ All access to trading-model platform resources shall be authenticated, authorise
 | **Transport** | mTLS TLS 1.3 | `@trading-model/server-utils/adapters/inbound/create-secure-server.ts` |
 | **Identity** | SPIFFE ID (SAN `spiffe://...`) | `@trading-model/http/adapters/inbound/mtls-auth.ts` |
 | **Bearer token** | HMAC-SHA256 (service registration) | `discovery-server` → `address-manager` |
-| **API key** | External admin access | `api-gateway` — `AUTH_TOKENS` env var |
+| **API key** | External access, one named key per client with its scopes (`read`, `dlq:write`; ADR-0059) | `api-gateway` — `AUTH_TOKENS` env var (`name:scopes:secret`) |
 
 ### 2.2 Authorisation Layers
 
@@ -102,8 +102,8 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 
 | Resource | Access Method | Authentication | Authorisation |
 |---|---|---|
-| API gateway admin endpoints | HTTPS + API key | `x-api-key` header | `AUTH_TOKENS` env var |
-| Database (MongoDB) | TLS connection | Username/password + SealedSecret | Service account RBAC |
+| API gateway admin endpoints (DLQ delete, replay, store) | HTTPS + API key | `x-api-key` header | scope `dlq:write` of the key in `AUTH_TOKENS` (403 without it); the key name is recorded as `actor` of the DLQ audit events (ADR-0059) |
+| Database (MongoDB) | Plain TCP in the cluster (no TLS); operators through `kubectl exec` | None until issue #669 ships MongoDB authentication | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--message-manager-and-audit)); `kubectl exec` through Kubernetes RBAC |
 | Database (MySQL) | TLS connection | Username/password + SealedSecret | SQL grants |
 | Kubernetes API | kubectl + client cert | mTLS certificate | RBAC roles + SealedSecrets |
 
@@ -124,6 +124,7 @@ In the event of SPIRE unavailability:
 | SVID audit | Continuous | All SVIDs auto-rotated (1h TTL); expired SVIDs rejected |
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
+| API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, keep `dlq:write` to operators who purge or replay the DLQ, rewrite old-format keys (bare secret, ADR-0059) |
 
 ## 7. Enforcement & Violations
 

@@ -118,6 +118,38 @@ function parseCommits(raw) {
     .filter(Boolean);
 }
 
+/**
+ * Version the bump starts from. A prerelease root (`3.1.0-rc.1`) starts from the last
+ * stable tag, so rc.1, rc.2 and the stable release all compute the same `X.Y.Z`.
+ */
+function baseVersion(pkgVersion, stableTag) {
+  if (!pkgVersion.includes('-')) return pkgVersion;
+  return stableTag ? stableTag.replace(/^v/, '') : pkgVersion.split('-')[0];
+}
+
+/** `<target>-<id>.N`, N = 1 + the highest existing tag `v<target>-<id>.N`. */
+function prereleaseVersion(target, id) {
+  const prefix = `v${target}-${id}.`;
+  run('git fetch --tags --quiet'); // stale local tags would reuse an N already pushed (no-op without a remote)
+  const taken = run('git tag --list')
+    .split('\n')
+    .filter(t => t.startsWith(prefix))
+    .map(t => Number(t.slice(prefix.length)))
+    .filter(Number.isInteger);
+  return `${target}-${id}.${Math.max(0, ...taken) + 1}`;
+}
+
+/** Newest stable tag `vX.Y.Z` reachable from HEAD (prerelease tags ignored), '' if none. */
+function lastStableTag() {
+  return run('git describe --tags --abbrev=0 --exclude "*-*"');
+}
+
+/** Version of `<pkgPath>/package.json` at `ref`, null if the file did not exist there. */
+function versionAt(ref, pkgPath) {
+  const raw = run(`git show ${ref}:${pkgPath}/package.json`);
+  return raw ? JSON.parse(raw).version : null;
+}
+
 function bumpVersion(version, type) {
   const [major, minor, patch] = version.split('.').map(Number);
   if (type === 'major') return `${major + 1}.0.0`;
@@ -158,17 +190,35 @@ const TYPE_ORDER = [
 ];
 
 function parseArgs() {
-  const args = { dryRun: false, bump: null, version: null, publish: false };
+  const args = { dryRun: false, bump: null, version: null, publish: false, prerelease: null };
   const argv = process.argv.slice(2);
   const BOOLEAN_FLAGS = { '--dry-run': 'dryRun', '--publish': 'publish' };
-  const VALUE_FLAGS = { '--bump': 'bump', '--version': 'version' };
+  const VALUE_FLAGS = { '--bump': 'bump', '--version': 'version', '--prerelease': 'prerelease' };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     if (flag in VALUE_FLAGS) {
-      args[VALUE_FLAGS[flag]] = argv[++i] || null;
+      const value = argv[++i];
+      // `--prerelease --dry-run` must not take "--dry-run" as the id and publish for real.
+      if (!value || value.startsWith('-')) {
+        console.error(`  Missing value for ${flag}.`);
+        process.exit(1);
+      }
+      args[VALUE_FLAGS[flag]] = value;
     } else if (flag in BOOLEAN_FLAGS) {
       args[BOOLEAN_FLAGS[flag]] = true;
+    } else {
+      // An ignored flag would release something else than asked (a stable release for a mistyped --prerelease).
+      console.error(`  Unknown option: "${flag}".`);
+      process.exit(1);
     }
+  }
+  if (argv.includes('--prerelease') && !/^[0-9A-Za-z-]+$/.test(args.prerelease || '')) {
+    console.error(`  Invalid prerelease id: "${args.prerelease}". Use letters, digits or "-" (e.g. rc).`);
+    process.exit(1);
+  }
+  if (args.prerelease && args.version) {
+    console.error('  --prerelease cannot be combined with --version.');
+    process.exit(1);
   }
   if (args.bump && !['major', 'minor', 'patch'].includes(args.bump)) {
     console.error(`  Invalid bump type: "${args.bump}". Use major, minor, or patch.`);
@@ -197,8 +247,7 @@ function handlePublishMerge(args) {
   console.log('  ✓ Merged development into main\n');
 }
 
-function collectCommits(args) {
-  const lastTag = run('git describe --tags --abbrev=0');
+function collectCommits(args, lastTag) {
   let rawCommits;
   if (args.version) {
     console.log(`\n  Explicit version: ${args.version} (skipping commit auto-detection)\n`);
@@ -209,7 +258,8 @@ function collectCommits(args) {
     rawCommits = run('git log --format="%H %s" --no-merges');
     console.log('\n  No tags found — using full history');
   }
-  return parseCommits(rawCommits);
+  // The release commits of earlier prereleases (`:rocket:(release): vX.Y.Z-rc.N`) are not changes.
+  return parseCommits(rawCommits).filter(c => !(c.scope === 'release' && /^v\d/.test(c.subject)));
 }
 
 function groupByScope(commits) {
@@ -236,15 +286,21 @@ function handleExplicitVersion(args) {
   console.log();
 }
 
-function resolveVersion(args, allCommits) {
+function resolveVersion(args, allCommits, stableTag) {
   const rootPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
   const oldRootVer = rootPkg.version;
   const rootBump = args.bump || getBumpType(allCommits);
-  const newVersion = bumpVersion(oldRootVer, rootBump);
+  const target = bumpVersion(baseVersion(oldRootVer, stableTag), rootBump);
+  const newVersion = args.prerelease ? prereleaseVersion(target, args.prerelease) : target;
   return { rootPkg, oldRootVer, rootBump, newVersion };
 }
 
-function bumpPackages(scoped, args, dryRun) {
+/**
+ * Bumps each touched package from its version at the last stable tag, not its current one:
+ * rc.1, rc.2 and the stable release give the same version (no double bump). A package
+ * absent from that tag keeps its declared version.
+ */
+function bumpPackages(scoped, args, dryRun, stableTag) {
   const bumps = [];
   for (const [scope, commits] of Object.entries(scoped)) {
     const pkgPath = SCOPE_TO_PACKAGE[scope];
@@ -252,8 +308,10 @@ function bumpPackages(scoped, args, dryRun) {
     if (!pkgPath || pkgPath.startsWith('services/')) continue;
     const type = args.bump || getBumpType(commits);
     const pkg = JSON.parse(readFileSync(join(ROOT, pkgPath, 'package.json'), 'utf-8'));
-    const newVersion = bumpVersion(pkg.version, type);
-    const oldVersion = dryRun ? pkg.version : updatePackageJson(pkgPath, newVersion);
+    const released = stableTag ? versionAt(stableTag, pkgPath) : pkg.version;
+    const oldVersion = released ?? pkg.version;
+    const newVersion = released ? bumpVersion(released, type) : pkg.version;
+    if (!dryRun) updatePackageJson(pkgPath, newVersion);
     bumps.push({ scope, pkg: pkg.name, path: pkgPath, oldVersion, newVersion, type });
   }
   return bumps;
@@ -348,7 +406,8 @@ function main() {
 
   handlePublishMerge(args);
 
-  const allCommits = collectCommits(args);
+  const stableTag = lastStableTag();
+  const allCommits = collectCommits(args, stableTag);
   if (!args.version && allCommits.length === 0) {
     console.log('  No new commits to release.\n');
     return;
@@ -360,8 +419,8 @@ function main() {
   }
 
   const { scoped, unscoped } = groupByScope(allCommits);
-  const { rootPkg, oldRootVer, rootBump, newVersion } = resolveVersion(args, allCommits);
-  const bumps = bumpPackages(scoped, args, args.dryRun);
+  const { rootPkg, oldRootVer, rootBump, newVersion } = resolveVersion(args, allCommits, stableTag);
+  const bumps = bumpPackages(scoped, args, args.dryRun, stableTag);
   bumpRoot(rootPkg, newVersion, args.dryRun);
   const changelog = buildChangelog(bumps, scoped, unscoped, newVersion, args.dryRun);
   if (args.dryRun) console.log(changelog);

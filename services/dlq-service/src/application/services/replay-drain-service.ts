@@ -1,5 +1,5 @@
 import { sleep } from "@trading-model/common/utils/sleep";
-import { logger } from "../../config/logger";
+import { logger } from "@trading-model/http/infrastructure/logger";
 import { STALE_CLAIM_MS } from "../../domain/dlq-constants";
 import { activeReplays } from "./active-replay-counter";
 

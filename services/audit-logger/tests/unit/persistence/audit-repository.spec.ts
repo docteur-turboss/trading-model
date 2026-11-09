@@ -1,25 +1,27 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_COLLECTION = {
-	insertOne: jest.fn<any>(),
-	insertMany: jest.fn<any>(),
-	findOne: jest.fn<any>(),
-	find: jest.fn<any>(),
-	createIndex: jest.fn<any>(),
-	createIndexes: jest.fn<any>(),
-	updateOne: jest.fn<any>(),
-	estimatedDocumentCount: jest.fn<any>(),
-	aggregate: jest.fn<any>(),
-	countDocuments: jest.fn<any>(),
+	insertOne: jest.fn<(...args: any[]) => any>(),
+	insertMany: jest.fn<(...args: any[]) => any>(),
+	findOne: jest.fn<(...args: any[]) => any>(),
+	find: jest.fn<(...args: any[]) => any>(),
+	createIndex: jest.fn<(...args: any[]) => any>(),
+	createIndexes: jest.fn<(...args: any[]) => any>(),
+	updateOne: jest.fn<(...args: any[]) => any>(),
+	estimatedDocumentCount: jest.fn<(...args: any[]) => any>(),
+	aggregate: jest.fn<(...args: any[]) => any>(),
+	countDocuments: jest.fn<(...args: any[]) => any>(),
 };
 
 const MOCK_DB = {
-	collection: jest.fn<any>().mockReturnValue(MOCK_COLLECTION),
+	collection: jest
+		.fn<(...args: any[]) => any>()
+		.mockReturnValue(MOCK_COLLECTION),
 };
 
 jest.mock("mongodb", () => ({
-	Db: jest.fn(),
-	Collection: jest.fn(),
+	Db: jest.fn<(...args: any[]) => any>(),
+	Collection: jest.fn<(...args: any[]) => any>(),
 }));
 
 import { DateRange } from "@trading-model/primitives/date-range";
@@ -52,7 +54,7 @@ function makeEvent(
 		},
 		payload: { key: "value" },
 		...overrides,
-	};
+	} as AuditEventDocument;
 }
 
 describe("AuditRepository", () => {
@@ -61,13 +63,15 @@ describe("AuditRepository", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		MOCK_COLLECTION.find.mockReturnValue({
-			sort: jest.fn<any>().mockReturnThis(),
-			skip: jest.fn<any>().mockReturnThis(),
-			limit: jest.fn<any>().mockReturnThis(),
-			toArray: jest.fn<any>().mockResolvedValue([]),
+			sort: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			skip: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			limit: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+			toArray: jest.fn<(...args: any[]) => any>().mockResolvedValue([]),
 		});
 		MOCK_COLLECTION.findOne.mockResolvedValue(null);
-		MOCK_COLLECTION.aggregate.mockReturnValue({ toArray: jest.fn<any>() });
+		MOCK_COLLECTION.aggregate.mockReturnValue({
+			toArray: jest.fn<(...args: any[]) => any>(),
+		});
 		MOCK_COLLECTION.updateOne.mockResolvedValue({ matchedCount: 1 });
 		repository = new AuditRepository(MOCK_DB as any);
 	});
@@ -330,10 +334,12 @@ describe("AuditRepository", () => {
 	describe("query", () => {
 		it("should apply filters and return paginated results", async () => {
 			MOCK_COLLECTION.find.mockReturnValue({
-				sort: jest.fn().mockReturnThis(),
-				skip: jest.fn().mockReturnThis(),
-				limit: jest.fn().mockReturnThis(),
-				toArray: jest.fn<any>().mockResolvedValue([makeEvent()]),
+				sort: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+				skip: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+				limit: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+				toArray: jest
+					.fn<(...args: any[]) => any>()
+					.mockResolvedValue([makeEvent()]),
 			});
 			MOCK_COLLECTION.countDocuments.mockResolvedValue(1);
 
@@ -361,8 +367,9 @@ describe("AuditRepository", () => {
 				dateRange: new DateRange(startDate, endDate),
 			});
 
-			const findFilter = (MOCK_COLLECTION.find as jest.Mock).mock
-				.calls[0][0] as any;
+			const findFilter = (
+				MOCK_COLLECTION.find as jest.Mock<(...args: any[]) => any>
+			).mock.calls[0][0] as any;
 			expect(findFilter.receivedAt).toMatchObject({
 				$gte: startDate,
 				$lte: endDate,
@@ -376,8 +383,9 @@ describe("AuditRepository", () => {
 				dateRange: new DateRange(startDate, undefined),
 			});
 
-			const findFilter = (MOCK_COLLECTION.find as jest.Mock).mock
-				.calls[0][0] as any;
+			const findFilter = (
+				MOCK_COLLECTION.find as jest.Mock<(...args: any[]) => any>
+			).mock.calls[0][0] as any;
 			expect(findFilter.receivedAt.$gte).toEqual(startDate);
 			expect(findFilter.receivedAt.$lte).toBeUndefined();
 		});
@@ -389,8 +397,9 @@ describe("AuditRepository", () => {
 				dateRange: new DateRange(undefined, endDate),
 			});
 
-			const findFilter = (MOCK_COLLECTION.find as jest.Mock).mock
-				.calls[0][0] as any;
+			const findFilter = (
+				MOCK_COLLECTION.find as jest.Mock<(...args: any[]) => any>
+			).mock.calls[0][0] as any;
 			expect(findFilter.receivedAt.$lte).toEqual(endDate);
 			expect(findFilter.receivedAt.$gte).toBeUndefined();
 		});
@@ -398,8 +407,9 @@ describe("AuditRepository", () => {
 		it("should apply correlationId filter", async () => {
 			await repository.query({ correlationId: "corr-1" as any });
 
-			const findFilter = (MOCK_COLLECTION.find as jest.Mock).mock
-				.calls[0][0] as any;
+			const findFilter = (
+				MOCK_COLLECTION.find as jest.Mock<(...args: any[]) => any>
+			).mock.calls[0][0] as any;
 			expect(findFilter["metadata.correlationId"]).toBe("corr-1");
 		});
 
@@ -414,10 +424,10 @@ describe("AuditRepository", () => {
 
 		it("should handle empty result set", async () => {
 			MOCK_COLLECTION.find.mockReturnValue({
-				sort: jest.fn().mockReturnThis(),
-				skip: jest.fn().mockReturnThis(),
-				limit: jest.fn().mockReturnThis(),
-				toArray: jest.fn<any>().mockResolvedValue([]),
+				sort: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+				skip: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+				limit: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+				toArray: jest.fn<(...args: any[]) => any>().mockResolvedValue([]),
 			});
 			MOCK_COLLECTION.estimatedDocumentCount.mockResolvedValue(0);
 
@@ -434,15 +444,17 @@ describe("AuditRepository", () => {
 
 	describe("getStats", () => {
 		function makeAggregateResult<T>(value: T[]) {
-			return { toArray: jest.fn<any>().mockResolvedValue(value) };
+			return {
+				toArray: jest.fn<(...args: any[]) => any>().mockResolvedValue(value),
+			};
 		}
 
 		function mockDateRange(oldest: Date | null, newest: Date | null) {
 			const page = (receivedAt: Date | null) => ({
-				sort: jest.fn().mockReturnThis(),
-				limit: jest.fn().mockReturnThis(),
+				sort: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+				limit: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 				toArray: jest
-					.fn<any>()
+					.fn<(...args: any[]) => any>()
 					.mockResolvedValue(receivedAt ? [{ receivedAt }] : []),
 			});
 			MOCK_COLLECTION.find

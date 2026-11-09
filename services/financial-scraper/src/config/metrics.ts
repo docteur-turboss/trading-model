@@ -1,6 +1,11 @@
 import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
 import promClient from "prom-client";
 
+export const COLLECTOR_LEADER = new promClient.Gauge({
+	name: "fs_collector_leader",
+	help: "1 while this instance holds the collector lease and collects, 0 otherwise (ADR-0057; alert CollectorNoLeader)",
+});
+
 export const SCRAPE_CYCLES_TOTAL = new promClient.Counter({
 	name: "fs_scrape_cycles_total",
 	help: "Total scrape cron cycles",

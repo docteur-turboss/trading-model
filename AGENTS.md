@@ -9,6 +9,7 @@ bun run build:ts                # Build everything (packages + all 7 services)
 bun run test                    # Run all workspace tests
 bun run --filter <name> test    # Run a single workspace's tests
 bun run lint                    # Biome check across the whole monorepo
+bun run typecheck:tests         # tsc --noEmit of src + tests of every workspace (tsconfig.test.json; needs bun run build first); stops at the first failing workspace
 bun run deps:check              # Verify @trading-model/* imports match package.json manifests (ADR-0016)
 bun run api:check               # OpenAPI up to date + documented routes reach real routes + every service-to-service route has a caller, no WebSocket server (ADR-0029)
 bun run api:write               # Regenerate docs/services/openapi/api-gateway.yaml from the routes
@@ -16,6 +17,7 @@ bun run adr:check               # Every live ADR names its check; supersession +
 bun run test:contract           # Cross-service contracts, real code on both sides: messages (scraper/trainer → message-manager → trainer/audit-logger), dead letters, discovery (address-manager + gateway → discovery-server)
 bun run reach:report            # Report src no service entry point (main/bin) reaches (--list for files)
 bun run reach:check             # Gate: fails on any unreachable src line or spec of dead code (ADR-0029)
+bun run arch:check              # Gate: fails on a new runtime import cycle or an application/ file importing adapters/infrastructure; ratcheted on scripts/architecture-baseline.json (ADR-0015)
 bun run config:check            # Gate: fails on an env var no deployment sets that gates code, read but never parsed, or missing from docs/deployment/ENV.md (ADR-0013)
 bun run test:coverage           # All tests with coverage
 bun run test:db                 # Specs against real Mongo/Redis/MySQL (Testcontainers, needs Docker)
@@ -23,6 +25,7 @@ bun run docs:generate           # TypeDoc HTML into docs/architecture/code/ (git
 bun run commit                  # Interactive gitmoji commit CLI
 bun run release                 # Bump versions + CHANGELOG only (scripts/release.mjs); no commit, tag or push
 bun run release:publish         # Same, then commit, tag vX.Y.Z and push it (on main; docs/contributing/release.md)
+bun run release:test            # Version/base cases of release.mjs (--prerelease <id>: vX.Y.Z-<id>.N from the last stable tag) on a throwaway git repo
 # The tag triggers the "Release" workflow: whole CI, then images :X.Y.Z (+ :latest if highest stable)
 ```
 
@@ -60,6 +63,7 @@ The root script references the package name too: `bun run --filter trader-servic
 - All tests use `**/?(*.)+(spec).ts` pattern
 - Jest configs use `ts-jest` preset; their `@trading-model/*` `moduleNameMapper` is generated from the workspace manifest by `scripts/jest-workspace-mapper.cjs` (declared deps + transitive runtime deps → package `src`) — packages don't need to be pre-built, and undeclared internal packages don't resolve
 - **Serial tests:** none currently require `maxWorkers: 1` (previously `certificate-utils` and `certificate-authority`, decommissioned per ADR-0011)
+- **Type-checked specs:** ts-jest runs with `diagnostics: false`, so `bun run typecheck:tests` (CI `typecheck` job, pre-push) is what fails a spec that calls `src` with a stale signature. Each workspace has a `tsconfig.test.json` (extends `tsconfig.json`, `noEmit`, `include` `src` + `tests`, `types` `node` + `jest`); a workspace with specs still failing sits in `EXCLUDED` of `scripts/typecheck-tests.mjs` with its error count (never `dlq-service` or `trader-trainer`). Type mocks with `jest.fn<(...args: any[]) => any>()` or `jest.Mocked<Port>`, never a bare `jest.fn()` imported from `@jest/globals` (its parameters are `never`)
 - **Coverage thresholds:** 80% (statements/functions/lines/branches) for all workspaces; branch-only exceptions: `broker-message` 75%, `message-manager` and `dlq-service` 79%
 - E2E tests: `testTimeout: 30000`, `forceExit: true`, `detectOpenHandles: true`. Run them against the compose stack with the overlay `tests/e2e/docker-compose.e2e.yml` (Binance stub, 10s scrape): `market-data-flow.e2e.spec.ts` asserts data reaches MySQL and the trainer. Services only accept SPIFFE mTLS clients, so assertions run inside the stack (`docker exec`); external calls go through the `edge-proxy` (host port 8449, `externalRequest`)
 - DB tests: `tests/db/**/*.db.spec.ts` run against real databases started by Testcontainers (images read from `docker-compose.yml`). Opt a workspace in with a `jest.db.config.js` built by `scripts/jest-db-config.cjs` (`dbJestConfig(base, { databases })`), add `DB_SPEC_IGNORE` to its default `testPathIgnorePatterns`, and a `test:db` script with `NODE_OPTIONS=--experimental-vm-modules` (the mongodb driver needs it under Jest). Connection strings: `TEST_MONGO_URI` (replica set), `TEST_REDIS_URL`, `TEST_MYSQL_URI`. Not part of `bun run test` / pre-push
@@ -69,10 +73,11 @@ The root script references the package name too: `bun run --filter trader-servic
 - Rules: `observability/alerting.yml`, copied by hand into the K8s ConfigMap in `deploy/k8s/infra/prometheus.yaml`; Alertmanager: `observability/alertmanager.yml`, copied into `deploy/k8s/infra/alertmanager.yaml`. `scripts/observability-gate.mjs` fails when the copies differ (annotations included), when a rule reads a metric nobody emits, when a rule has no `annotations.runbook_url` (`https://github.com/docteur-turboss/trading-model/blob/main/<file>[#heading]`, file and heading checked in the repo; new alert = runbook section + row in the `docs/operations/ALERTING.md` table), when a receiver has an inline credential, when a dashboard query reads a metric nobody emits, when the compose and K8s dashboards differ, when a Grafana datasource points to no compose service / K8s Service, or when a `probe_*` rule has no blackbox job in an environment
 - Every rule change needs a case in `tests/alerts/alerting.test.yml` (`bash tests/alerts/run.sh`: promtool, local or from the compose Prometheus image). Aggregate before dividing (`sum by (job)`), guard numerators that may not exist (`or denominator * 0`), `sum by (job, le)` for quantiles
 - Receivers read files only (Secret `alertmanager-credentials` from `deploy.yml`; compose `ALERTMANAGER_CREDENTIALS_DIR`). `Watchdog` always fires and goes to the dead man's switch (`DEADMAN_URL`). See `docs/operations/ALERTING.md`
+- Infrastructure metrics (ADR-0056): kube-state-metrics (own namespace, Role only), node-exporter (DaemonSet in `trading-model-node`), kubelet/cAdvisor (ClusterRole `prometheus-nodes`: `nodes/metrics`, never `nodes/proxy`; applied by `deploy-identity.sh cluster`), and one exporter sidecar per database pod (port `metrics`, Prometheus only), read-only users `exporter` (MySQL, `db-migrate-user`; Redis ACL, `redis-ha.sh`; Mongo has no auth, so none). Keys `MYSQL_EXPORTER_PASSWORD` / `REDIS_EXPORTER_PASSWORD` required by `deploy.yml`; compose needs `MYSQL_EXPORTER_PASSWORD`. Runbook `runbook-infrastructure.md`
 
 ## Git hooks (Husky) & commit format
 
-- **`pre-push`** runs: biome check → deps:check → api:check → adr:check → reach:check → config:check → observability gate → build → test → test:contract (must all pass to push)
+- **`pre-push`** runs: biome check → deps:check → api:check → adr:check → reach:check → arch:check → config:check → observability gate → build → typecheck:tests → test → test:contract (must all pass to push)
 - **`commit-msg`** enforces gitmoji format via commitlint: `:emoji:(scope): subject`
 - Scopes are lowercased and must be from the allowed enum in `commitlint.config.mjs`
 - Use `bun run commit` for an interactive TUI that helps craft valid commits

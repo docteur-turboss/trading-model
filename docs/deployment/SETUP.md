@@ -81,6 +81,7 @@ Before the first `docker compose up`, set these variables in `.env` and replace 
 
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
 - `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
+- `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
@@ -363,6 +364,7 @@ Customize per server role:
 | `TRAINER_PORT`        | 8446 — Trader Trainer                         |
 | `MYSQL_ROOT_PASSWORD` | MySQL root password (change it!)              |
 | `GRAFANA_PASSWORD`    | Grafana admin password (required)             |
+| `MYSQL_EXPORTER_PASSWORD` | MySQL exporter user password (required)   |
 | `IMAGE_TAG`           | `latest` or a specific version tag            |
 | `LOG_LEVEL`           | `info` (or `debug` for diagnostics)           |
 

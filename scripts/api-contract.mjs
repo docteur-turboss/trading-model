@@ -668,6 +668,8 @@ function schemaOperation(lines, method, path, { tag, entry, operation: key }, ga
 	}
 	if (gateway) {
 		responses["401"] ??= { $ref: "#/components/responses/Unauthorized" };
+		// The API key lacks the scope of the route: read for GET, dlq:write otherwise (ADR-0059).
+		responses["403"] ??= { description: "API key without the scope of the route (read for GET, dlq:write otherwise)" };
 		responses["404"] ??= { $ref: "#/components/responses/NotFound" };
 	}
 	op.responses = responses;
@@ -710,6 +712,9 @@ function buildSpec(routesByService, publicByService) {
 		"    registry entry (ADR-0021) also describe their parameters, request body",
 		"    and responses from the service's Zod schemas; the others do not yet",
 		"    (scripts/api-contract-known-gaps.json, `schemas`).",
+		"",
+		"    Privacy: the truncated caller IP is logged for 31 days, see the Art. 13",
+		"    notice, https://github.com/docteur-turboss/trading-model/blob/main/docs/compliance/privacy-notice.md",
 		`  version: ${JSON.stringify(PROXIED_SERVICES.map((service) => `${service} v${serviceMajor(service)}`).join(", "))}`,
 		"servers:",
 		"  - url: http://localhost:8449",

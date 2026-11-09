@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import type { DecimalPrecision } from "@trading-model/primitives/primitives";
 import { Percentage } from "../../../src/primitives/percentage";
 
 describe("Percentage", () => {
@@ -39,7 +40,7 @@ describe("Percentage", () => {
 	});
 
 	it("should round", () => {
-		expect(Percentage.round(0.5678 as never, 2)).toBe(0.57);
+		expect(Percentage.round(0.5678 as never, 2 as DecimalPrecision)).toBe(0.57);
 	});
 
 	it("should compare", () => {

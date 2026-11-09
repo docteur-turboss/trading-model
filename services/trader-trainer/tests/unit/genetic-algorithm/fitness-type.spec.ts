@@ -42,7 +42,7 @@ function scriptedBackend(deltas: number[]): RLBackend {
 		step: () => {
 			pnl += deltas[stepCount++ % deltas.length];
 			// The training reward is not the PnL: fitness must not read it.
-			return { reward: 1_000, action: 1 };
+			return { reward: 1_000, action: 1, state: new Float32Array(3) };
 		},
 		remember: () => undefined,
 		replay: () => undefined,
@@ -113,7 +113,7 @@ describe("evaluation reads the wallet PnL, not the shaped reward", () => {
 				...createGAControlGenome(),
 				evaluation: { episodesPerIndividual: 2 },
 			},
-		} as DeepReadonly<LamarckGenome>;
+		} as unknown as DeepReadonly<LamarckGenome>;
 
 		const result = await evaluateGenomeAllWindows(genome, windowSets, () =>
 			scriptedBackend(STEADY)

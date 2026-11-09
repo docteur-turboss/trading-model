@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
+import type { PositiveInt, Ratio } from "@trading-model/primitives/primitives";
 import {
 	DurationMs,
 	TradingSymbol,
@@ -155,12 +156,14 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 		processor: { generation: 5 },
 	};
 	return {
-		GeneticAlgorithmRunner: jest.fn().mockImplementation((opts: any) => {
-			capturedOnGeneration = opts.onGeneration || null;
-			capturedOnArchiveUpdate = opts.onArchiveUpdate || null;
-			return mockRunner;
-		}),
-		makeTradingAgentBackend: jest.fn(),
+		GeneticAlgorithmRunner: jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementation((opts: any) => {
+				capturedOnGeneration = opts.onGeneration || null;
+				capturedOnArchiveUpdate = opts.onArchiveUpdate || null;
+				return mockRunner;
+			}),
+		makeTradingAgentBackend: jest.fn<(...args: any[]) => any>(),
 	};
 });
 
@@ -438,15 +441,18 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
+			const g = createDefaultGenome(
+				"test",
+				3 as PositiveInt
+			) as DeepReadonly<LamarckGenome>;
 			(trainer as any)._lastInfo = new LastTrainingInfo({
 				symbol: "BTCUSDT" as never,
 				bestGenome: g,
 				bestFitness: 0.5 as never,
 				bestFitnessMeta: {
-					episodesRun: 5,
+					episodesRun: 5 as PositiveInt,
 					computeMs: DurationMs.of(2000),
-					efficiencyScore: 1.0,
+					efficiencyScore: 1.0 as Ratio,
 					variance: 0.05,
 					rawScores: new EpisodeScores([1]),
 				},
@@ -464,7 +470,10 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
+			const g = createDefaultGenome(
+				"test",
+				3 as PositiveInt
+			) as DeepReadonly<LamarckGenome>;
 			(trainer as any)._lastInfo = new LastTrainingInfo({
 				symbol: "BTCUSDT" as never,
 				bestGenome: g,
@@ -536,7 +545,9 @@ describe("Trainer — model publication", () => {
 	});
 
 	it("should publish the best agent after a successful training", async () => {
-		const publisher = { publish: jest.fn<any>().mockResolvedValue(undefined) };
+		const publisher = {
+			publish: jest.fn<(...args: any[]) => any>().mockResolvedValue(undefined),
+		};
 		const trainer = new Trainer(dataBuffer, {
 			settings: TEST_TRAINING_SETTINGS,
 			publisher,
@@ -553,7 +564,9 @@ describe("Trainer — model publication", () => {
 
 	it("should keep the training successful when publication fails", async () => {
 		const publisher = {
-			publish: jest.fn<any>().mockRejectedValue(new Error("bus down")),
+			publish: jest
+				.fn<(...args: any[]) => any>()
+				.mockRejectedValue(new Error("bus down")),
 		};
 		const trainer = new Trainer(dataBuffer, {
 			settings: TEST_TRAINING_SETTINGS,
@@ -567,7 +580,9 @@ describe("Trainer — model publication", () => {
 	});
 
 	it("should tolerate a non-Error publication failure", async () => {
-		const publisher = { publish: jest.fn<any>().mockRejectedValue("nope") };
+		const publisher = {
+			publish: jest.fn<(...args: any[]) => any>().mockRejectedValue("nope"),
+		};
 		const trainer = new Trainer(dataBuffer, {
 			settings: TEST_TRAINING_SETTINGS,
 			publisher,
@@ -580,11 +595,11 @@ describe("Trainer — model publication", () => {
 
 	it("should hand the GA telemetry and the settings to the training session", async () => {
 		const telemetry = {
-			generationStarted: jest.fn(),
-			stagnationUpdated: jest.fn(),
-			evaluationFailed: jest.fn(),
-			genomeEvaluated: jest.fn(),
-			crossoverFallbacks: jest.fn(),
+			generationStarted: jest.fn<(...args: any[]) => any>(),
+			stagnationUpdated: jest.fn<(...args: any[]) => any>(),
+			evaluationFailed: jest.fn<(...args: any[]) => any>(),
+			genomeEvaluated: jest.fn<(...args: any[]) => any>(),
+			crossoverFallbacks: jest.fn<(...args: any[]) => any>(),
 		};
 		const trainer = new Trainer(dataBuffer, {
 			settings: TEST_TRAINING_SETTINGS,
@@ -595,7 +610,7 @@ describe("Trainer — model publication", () => {
 
 		const { GeneticAlgorithmRunner } = jest.requireMock(
 			"../../../src/domain/genetic-algorithm/ga-runner"
-		) as { GeneticAlgorithmRunner: jest.Mock };
+		) as { GeneticAlgorithmRunner: jest.Mock<(...args: any[]) => any> };
 		const opts = GeneticAlgorithmRunner.mock.calls.at(-1)?.[0] as {
 			telemetry: unknown;
 			initialControl: { population: { size: number } };
@@ -628,9 +643,9 @@ describe("Trainer — model publication", () => {
 				save: jest.fn<(artifact: any) => Promise<any>>().mockResolvedValue({
 					version: "20261029T101530Z-0123456789ab",
 				}),
-				list: jest.fn(),
-				manifest: jest.fn(),
-				weights: jest.fn(),
+				list: jest.fn<(...args: any[]) => any>(),
+				manifest: jest.fn<(...args: any[]) => any>(),
+				weights: jest.fn<(...args: any[]) => any>(),
 			};
 		}
 
@@ -664,6 +679,59 @@ describe("Trainer — model publication", () => {
 				candle: { close: { count: expect.any(Number) } },
 			});
 			expect(artifact.normalization.candle.close.count).toBeGreaterThan(0);
+		});
+
+		it("stopTraining ends the session in flight, then stores and publishes its model (ADR-0058)", async () => {
+			const genome = await trainedGenome();
+			const models = fakeStore();
+			const publisher = {
+				publish: jest
+					.fn<(...args: any[]) => any>()
+					.mockResolvedValue(undefined),
+			};
+			let signal: AbortSignal | undefined;
+			const runner = (
+				_windows: unknown,
+				_settings: unknown,
+				_telemetry: unknown,
+				received?: AbortSignal
+			) =>
+				new Promise<any>((resolve) => {
+					signal = received;
+					received?.addEventListener("abort", () =>
+						resolve({
+							bestGenome: genome,
+							bestFitness: 1,
+							generation: 1,
+							generationContext: null,
+						})
+					);
+				});
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+				publisher,
+				runner,
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			const training = trainer.train(TradingSymbol.of("BTCUSDT"));
+			expect(trainer.isTraining()).toBe(true);
+			await trainer.stopTraining();
+
+			expect(signal?.aborted).toBe(true);
+			expect(models.save).toHaveBeenCalledTimes(1);
+			expect(publisher.publish).toHaveBeenCalledTimes(1);
+			expect(trainer.isTraining()).toBe(false);
+			await expect(training).resolves.toMatchObject({ success: true });
+		});
+
+		it("stopTraining resolves at once when no session runs", async () => {
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+			});
+
+			await expect(trainer.stopTraining()).resolves.toBeUndefined();
 		});
 
 		describe("rehydrate", () => {

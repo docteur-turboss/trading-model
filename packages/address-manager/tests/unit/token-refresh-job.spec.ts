@@ -7,7 +7,9 @@ describe("createRefreshJob<TokenManager>", () => {
 
 	beforeEach(() => {
 		mockTokenManager = {
-			refreshToken: jest.fn().mockResolvedValue(undefined as never),
+			refreshToken: jest
+				.fn<(...args: any[]) => any>()
+				.mockResolvedValue(undefined as never),
 		} as unknown as jest.Mocked<TokenManager>;
 	});
 

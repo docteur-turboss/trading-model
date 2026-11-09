@@ -72,7 +72,7 @@ bash deploy/k8s/scripts/run-migrations.sh trading-model-staging
 ### Staging secrets, PDBs and access (issue #417)
 
 - **Secrets:** staging reads a SealedSecret (`overlays/staging/sealed-secrets.yaml`, placeholders `AgCHANGE_ME` in git). Until a human seals it on the staging cluster with `OVERLAY=staging bash scripts/init-sealed-secrets.sh` (then commits the file), `deploy.yml` refuses to deploy staging ("placeholder SealedSecrets"). The CI `k8s` job replaces it with a Secret of public test values (`tests/k8s/ci-render.mjs`): kind has no controller.
-- **PDBs:** every PodDisruptionBudget uses `maxUnavailable: 1` in staging (single replicas: `minAvailable: 2` would block `kubectl drain`). HPAs are pinned to 1 pod.
+- **PDBs:** every PodDisruptionBudget uses `maxUnavailable: 1` in staging (single replicas: `minAvailable: 2` would block `kubectl drain`). HPAs are pinned to 1 pod, so every RollingUpdate Deployment surges first (`maxUnavailable: 0`, `maxSurge: 1`, issue #699): `maxUnavailable: 1` would stop the only pod before its replacement is ready. `tests/k8s/check-overlays.mjs` fails on a Deployment that can run one pod with an effective `maxUnavailable` above 0.
 - **Staging access:** both Ingresses carry `nginx.ingress.kubernetes.io/whitelist-source-range`, set in `overlays/staging/kustomization.yaml`. The committed value (`192.0.2.0/24`, TEST-NET-1) lets nobody in: replace it with the operators' CIDRs, comma separated.
 
 The CI `k8s` job runs the same sequence on kind for release N-1 (the commit
@@ -328,7 +328,7 @@ Each service has a dedicated ServiceAccount with `automountServiceAccountToken: 
    bootstrapped on the first member only; joining others is not automated
    (ADR-0020)
 3. **Grafana is single-instance** — dashboard provisioning but no HA
-4. **Jaeger is single-instance** — in-memory storage (not Elasticsearch/Cassandra)
+4. **Jaeger is single-instance** — Badger storage on the 5Gi PVC `jaeger-data`, traces kept 72 h (not Elasticsearch/Cassandra, ADR-0055)
 5. **Off-site backups need a bucket** — the `db-backup` CronJob copies the
    age-encrypted files with rclone once the `trading-model-backup-s3` secret
    exists; without it they stay on the in-cluster `backup-data` volume

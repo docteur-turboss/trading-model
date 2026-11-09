@@ -52,6 +52,9 @@ export async function deadLetterAndReplay(
 			instanceId: "dlq-service-1",
 			batchId: "batch-1",
 			messageManagerUrl: "https://10.0.0.3:3000",
+			// dlq-service's claim and retry bookkeeping (MongoDB) around a replay.
+			retryManager: { markRetried: async () => undefined },
+			claimRelease: {},
 			client: {
 				post: async (url: string, body: unknown) => {
 					replays.push({ method: "POST", url, body: overTheWire(body) });

@@ -2,16 +2,16 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
-		debug: jest.fn(),
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
-const mockGet = jest.fn();
-const mockSmembers = jest.fn();
-const mockMget = jest.fn();
+const mockGet = jest.fn<(...args: any[]) => any>();
+const mockSmembers = jest.fn<(...args: any[]) => any>();
+const mockMget = jest.fn<(...args: any[]) => any>();
 const mockScard = jest.fn<(key: string) => Promise<number>>();
 
 const MOCK_REDIS = {
@@ -55,7 +55,7 @@ describe("InstanceMetadataReader", () => {
 			expect(meta).toBeUndefined();
 			const { logger } = jest.requireMock(
 				"@trading-model/http/infrastructure/logger"
-			) as { logger: { warn: jest.Mock } };
+			) as { logger: { warn: jest.Mock<(...args: any[]) => any> } };
 			expect(logger.warn).toHaveBeenCalled();
 		});
 	});
@@ -84,7 +84,7 @@ describe("InstanceMetadataReader", () => {
 			expect(result).toEqual([{ instanceId: "i1" }]);
 			const { logger } = jest.requireMock(
 				"@trading-model/http/infrastructure/logger"
-			) as { logger: { warn: jest.Mock } };
+			) as { logger: { warn: jest.Mock<(...args: any[]) => any> } };
 			expect(logger.warn).toHaveBeenCalled();
 		});
 	});

@@ -3,10 +3,10 @@ import type { Request, Response } from "express";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
-		debug: jest.fn(),
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
+		debug: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
@@ -21,8 +21,8 @@ import { REGISTRATION_IP_ALLOWLIST } from "../../src/adapters/inbound/registrati
 
 function mockResponse(): Response {
 	const res = {
-		status: jest.fn().mockReturnThis(),
-		json: jest.fn().mockReturnThis(),
+		status: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+		json: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 	} as unknown as Response;
 	return res;
 }
@@ -38,7 +38,7 @@ describe("registration-ip-allowlist", () => {
 			socket: { remoteAddress: "203.0.113.10" },
 		} as unknown as Request;
 		const res = mockResponse();
-		const next = jest.fn();
+		const next = jest.fn<(...args: any[]) => any>();
 
 		REGISTRATION_IP_ALLOWLIST(req, res, next);
 
@@ -52,7 +52,7 @@ describe("registration-ip-allowlist", () => {
 			socket: { remoteAddress: "10.1.2.3" },
 		} as unknown as Request;
 		const res = mockResponse();
-		const next = jest.fn();
+		const next = jest.fn<(...args: any[]) => any>();
 
 		REGISTRATION_IP_ALLOWLIST(req, res, next);
 
@@ -65,7 +65,7 @@ describe("registration-ip-allowlist", () => {
 			socket: { remoteAddress: "::ffff:10.1.2.3" },
 		} as unknown as Request;
 		const res = mockResponse();
-		const next = jest.fn();
+		const next = jest.fn<(...args: any[]) => any>();
 
 		REGISTRATION_IP_ALLOWLIST(req, res, next);
 
@@ -78,7 +78,7 @@ describe("registration-ip-allowlist", () => {
 			socket: { remoteAddress: undefined },
 		} as unknown as Request;
 		const res = mockResponse();
-		const next = jest.fn();
+		const next = jest.fn<(...args: any[]) => any>();
 
 		REGISTRATION_IP_ALLOWLIST(req, res, next);
 

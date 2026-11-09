@@ -1,14 +1,16 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { DlqEntry as ContractDlqEntry } from "@trading-model/contracts/dlq-types";
+import { Limit, toInstanceId } from "@trading-model/primitives/primitives";
 
-const mockInsertOne = jest.fn();
-const mockFind = jest.fn();
-const mockFindOne = jest.fn();
-const mockFindOneAndUpdate = jest.fn();
-const mockBulkWrite = jest.fn();
-const mockDeleteMany = jest.fn();
-const mockUpdateOne = jest.fn();
-const mockUpdateMany = jest.fn();
-const mockEstimatedDocumentCount = jest.fn();
+const mockInsertOne = jest.fn<(...args: any[]) => any>();
+const mockFind = jest.fn<(...args: any[]) => any>();
+const mockFindOne = jest.fn<(...args: any[]) => any>();
+const mockFindOneAndUpdate = jest.fn<(...args: any[]) => any>();
+const mockBulkWrite = jest.fn<(...args: any[]) => any>();
+const mockDeleteMany = jest.fn<(...args: any[]) => any>();
+const mockUpdateOne = jest.fn<(...args: any[]) => any>();
+const mockUpdateMany = jest.fn<(...args: any[]) => any>();
+const mockEstimatedDocumentCount = jest.fn<(...args: any[]) => any>();
 
 function createCursor(docs: unknown[]) {
 	let i = 0;
@@ -25,7 +27,7 @@ function createCursor(docs: unknown[]) {
 	};
 }
 
-const mockCollection = jest.fn(() => ({
+const mockCollection = jest.fn((..._args: any[]) => ({
 	insertOne: mockInsertOne,
 	find: mockFind,
 	findOne: mockFindOne,
@@ -35,10 +37,6 @@ const mockCollection = jest.fn(() => ({
 	updateOne: mockUpdateOne,
 	updateMany: mockUpdateMany,
 	estimatedDocumentCount: mockEstimatedDocumentCount,
-}));
-
-jest.mock("../../src/config/db", () => ({
-	getCollection: mockCollection,
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -55,22 +53,15 @@ const DlqEntry = {
 	reason: "timeout",
 	deliveryAttempt: 2,
 	timestamp: new Date().toISOString(),
-};
+} as unknown as ContractDlqEntry;
 
 describe("DlqRepository", () => {
-	let DlqRepositoryClass: {
-		new (): {
-			insert: (...args: never[]) => Promise<string>;
-			query: (...args: never[]) => Promise<Record<string, unknown>[]>;
-			delete: (...args: never[]) => Promise<number>;
-			count: (...args: never[]) => Promise<number>;
-			prune: (...args: never[]) => Promise<number>;
-			listQueuable: (...args: never[]) => Promise<string[]>;
-		};
-	};
+	let DlqRepositoryClass: typeof import("../../src/adapters/outbound/repository").DlqRepository;
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/adapters/outbound/repository");
+		const mod = jest.requireActual<
+			typeof import("../../src/adapters/outbound/repository")
+		>("../../src/adapters/outbound/repository");
 		DlqRepositoryClass = mod.DlqRepository;
 	});
 
@@ -85,7 +76,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should insert a new document and return the id", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFindOne.mockResolvedValue(null);
 			mockInsertOne.mockResolvedValue({
 				insertedId: { toHexString: () => "abc123" },
@@ -106,7 +97,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should detect ping-pong and increment dlqPassCount", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFindOne.mockResolvedValueOnce({
 				_id: { toHexString: () => "prev-id" },
 				dlqPassCount: 1,
@@ -133,7 +124,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should auto-abandon on excessive ping-pong cycles", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFindOne.mockResolvedValueOnce({
 				_id: { toHexString: () => "prev-id" },
 				dlqPassCount: 3,
@@ -156,7 +147,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should return existing id on duplicate (dedup via findOne)", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFindOne.mockResolvedValueOnce(null);
 			mockFindOne.mockResolvedValue({
 				_id: { toHexString: () => "existing-id" },
@@ -170,11 +161,11 @@ describe("DlqRepository", () => {
 		});
 
 		it("should handle race condition on duplicate insert (E11000)", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFindOne.mockResolvedValueOnce(null);
 			mockFindOne.mockResolvedValueOnce(null);
 			const duplicateError = new Error("E11000 duplicate key");
-			(duplicateError as Record<string, unknown>).code = 11000;
+			(duplicateError as unknown as Record<string, unknown>).code = 11000;
 			mockInsertOne.mockRejectedValueOnce(duplicateError);
 			mockFindOne.mockResolvedValueOnce({
 				_id: { toHexString: () => "race-id" },
@@ -195,7 +186,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should return mapped documents with offset", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			const fakeDoc = {
 				_id: { toHexString: () => "id1" },
 				topic: "t1",
@@ -216,14 +207,14 @@ describe("DlqRepository", () => {
 						expect.objectContaining({
 							sort: { createdAt: -1 },
 							skip: 0,
-							limit: 10,
+							limit: Limit.of(10, 100),
 						})
 					);
 				});
 		});
 
 		it("should support cursor-based pagination with before parameter", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			const fakeDocs = [
 				{
 					_id: { toHexString: () => "id2" },
@@ -254,7 +245,7 @@ describe("DlqRepository", () => {
 						expect.objectContaining({
 							sort: { createdAt: -1 },
 							skip: 0,
-							limit: 10,
+							limit: Limit.of(10, 100),
 						})
 					);
 				});
@@ -263,7 +254,7 @@ describe("DlqRepository", () => {
 
 	describe("delete", () => {
 		it("should delete only non-processing documents and return count", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockDeleteMany.mockResolvedValueOnce({ deletedCount: 3 });
 			return repo
 				.delete([
@@ -285,7 +276,7 @@ describe("DlqRepository", () => {
 
 	describe("count", () => {
 		it("should return document count", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockEstimatedDocumentCount.mockResolvedValueOnce(42);
 
 			return repo.count().then((result: number) => {
@@ -296,7 +287,7 @@ describe("DlqRepository", () => {
 
 	describe("prune", () => {
 		it("should return 0 if no documents to prune", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			mockFind.mockReturnValueOnce(createCursor([]));
 
 			return repo.prune(100).then((result: number) => {
@@ -305,7 +296,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should delete documents older than the eldest kept entry by createdAt", () => {
-			const repo = new DlqRepositoryClass();
+			const repo = new DlqRepositoryClass(mockCollection as never);
 			const eldestDate = new Date("2024-06-01");
 			mockFind.mockReturnValueOnce(createCursor([{ createdAt: eldestDate }]));
 			mockDeleteMany.mockResolvedValueOnce({ deletedCount: 50 });
@@ -322,16 +313,12 @@ describe("DlqRepository", () => {
 });
 
 describe("DlqClaimManager", () => {
-	let DlqClaimManagerClass: {
-		new (): {
-			claimEntriesForRetry: (
-				...args: never[]
-			) => Promise<Record<string, unknown>[]>;
-		};
-	};
+	let DlqClaimManagerClass: typeof import("../../src/adapters/outbound/claim-manager").DlqClaimManager;
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/adapters/outbound/claim-manager");
+		const mod = jest.requireActual<
+			typeof import("../../src/adapters/outbound/claim-manager")
+		>("../../src/adapters/outbound/claim-manager");
 		DlqClaimManagerClass = mod.DlqClaimManager;
 	});
 
@@ -344,7 +331,7 @@ describe("DlqClaimManager", () => {
 		});
 
 		it("should claim entries via bulkWrite (2 round-trips instead of N)", () => {
-			const cm = new DlqClaimManagerClass();
+			const cm = new DlqClaimManagerClass(mockCollection as never);
 			const fakeDoc1 = {
 				_id: { toHexString: () => "id1" },
 				topic: "t1",
@@ -370,9 +357,9 @@ describe("DlqClaimManager", () => {
 
 			return cm
 				.claimEntriesForRetry({
-					limit: 10,
+					limit: Limit.of(10, 100),
 					batchId: "batch-1",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(2);
@@ -392,13 +379,13 @@ describe("DlqClaimManager", () => {
 		});
 
 		it("should return empty if no candidates found", () => {
-			const cm = new DlqClaimManagerClass();
+			const cm = new DlqClaimManagerClass(mockCollection as never);
 
 			return cm
 				.claimEntriesForRetry({
-					limit: 10,
+					limit: Limit.of(10, 100),
 					batchId: "batch-1",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(0);
@@ -407,7 +394,7 @@ describe("DlqClaimManager", () => {
 		});
 
 		it("should skip documents already claimed (bulkWrite modifiedCount < candidates)", () => {
-			const cm = new DlqClaimManagerClass();
+			const cm = new DlqClaimManagerClass(mockCollection as never);
 			const fakeDoc1 = {
 				_id: { toHexString: () => "id1" },
 				topic: "t1",
@@ -433,9 +420,9 @@ describe("DlqClaimManager", () => {
 
 			return cm
 				.claimEntriesForRetry({
-					limit: 10,
+					limit: Limit.of(10, 100),
 					batchId: "batch-1",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(1);
@@ -446,21 +433,18 @@ describe("DlqClaimManager", () => {
 });
 
 describe("DlqRetryManager", () => {
-	let DlqRetryManagerClass: {
-		new (): {
-			markRetried: (...args: never[]) => Promise<void>;
-			abandonExhaustedEntries: (...args: never[]) => Promise<number>;
-		};
-	};
+	let DlqRetryManagerClass: typeof import("../../src/adapters/outbound/retry-manager").DlqRetryManager;
 
 	beforeAll(() => {
-		const mod = jest.requireActual("../../src/adapters/outbound/retry-manager");
+		const mod = jest.requireActual<
+			typeof import("../../src/adapters/outbound/retry-manager")
+		>("../../src/adapters/outbound/retry-manager");
 		DlqRetryManagerClass = mod.DlqRetryManager;
 	});
 
 	describe("abandonExhaustedEntries", () => {
 		it("should mark entries as abandoned", () => {
-			const rm = new DlqRetryManagerClass();
+			const rm = new DlqRetryManagerClass(mockCollection as never);
 			mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 3 });
 
 			return rm.abandonExhaustedEntries().then((result: number) => {
@@ -493,13 +477,13 @@ describe("DlqRetryManager", () => {
 		});
 
 		it("should set completed status on success without incrementing retryCount", () => {
-			const rm = new DlqRetryManagerClass();
+			const rm = new DlqRetryManagerClass(mockCollection as never);
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
 			return rm
 				.markRetried({
 					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 					batchId: "batch-1",
 					success: true,
 				})
@@ -523,13 +507,13 @@ describe("DlqRetryManager", () => {
 		});
 
 		it("should increment retryCount and set lastError on failure via aggregation pipeline", () => {
-			const rm = new DlqRetryManagerClass();
+			const rm = new DlqRetryManagerClass(mockCollection as never);
 			mockFindOneAndUpdate.mockResolvedValue({ _id: "id1" });
 
 			return rm
 				.markRetried({
 					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 					batchId: "batch-1",
 					success: false,
 				})
@@ -555,14 +539,14 @@ describe("DlqRetryManager", () => {
 		});
 
 		it("should release claim on failure when retryCount already at max", () => {
-			const rm = new DlqRetryManagerClass();
+			const rm = new DlqRetryManagerClass(mockCollection as never);
 			mockFindOneAndUpdate.mockResolvedValue(null);
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
 			return rm
 				.markRetried({
 					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-					instanceId: "instance-1",
+					instanceId: toInstanceId("instance-1"),
 					batchId: "batch-1",
 					success: false,
 				})

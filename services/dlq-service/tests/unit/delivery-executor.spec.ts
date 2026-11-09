@@ -1,25 +1,15 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_MARK_RETRIED = jest.fn();
-const MOCK_INCREMENT_RETRY = jest.fn();
-const MOCK_RELEASE_CLAIM = jest.fn();
-const MOCK_IS_SHUTTING_DOWN = jest.fn();
+const MOCK_MARK_RETRIED = jest.fn<(...args: any[]) => any>();
+const MOCK_INCREMENT_RETRY = jest.fn<(...args: any[]) => any>();
+const MOCK_RELEASE_CLAIM = jest.fn<(...args: any[]) => any>();
+const MOCK_IS_SHUTTING_DOWN = jest.fn<(...args: any[]) => any>();
 
-jest.mock("../../src/config/logger", () => ({
-	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-}));
-
-jest.mock("../../src/adapters/outbound/claim-manager", () => ({
-	dlqClaimManager: {},
-	claimReleaseManager: {
-		incrementRetryCount: MOCK_INCREMENT_RETRY,
-		releaseClaimWithoutCount: MOCK_RELEASE_CLAIM,
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/retry-manager", () => ({
-	dlqRetryManager: {
-		markRetried: MOCK_MARK_RETRIED,
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
+	logger: {
+		info: jest.fn<(...args: any[]) => any>(),
+		warn: jest.fn<(...args: any[]) => any>(),
+		error: jest.fn<(...args: any[]) => any>(),
 	},
 }));
 
@@ -33,13 +23,18 @@ describe("delivery-executor", () => {
 		ctx: {
 			instanceId: string;
 			batchId: string;
-			client: { post: jest.Mock };
+			client: { post: jest.Mock<(...args: any[]) => any> };
 			messageManagerUrl: string;
+			retryManager: { markRetried: typeof MOCK_MARK_RETRIED };
+			claimRelease: {
+				incrementRetryCount: typeof MOCK_INCREMENT_RETRY;
+				releaseClaimWithoutCount: typeof MOCK_RELEASE_CLAIM;
+			};
 		}
 	) => Promise<void>;
 
 	const mockClient = {
-		post: jest.fn(),
+		post: jest.fn<(...args: any[]) => any>(),
 	};
 
 	const baseCtx = {
@@ -47,6 +42,11 @@ describe("delivery-executor", () => {
 		batchId: "batch-1",
 		client: mockClient,
 		messageManagerUrl: "https://mm:3000",
+		retryManager: { markRetried: MOCK_MARK_RETRIED },
+		claimRelease: {
+			incrementRetryCount: MOCK_INCREMENT_RETRY,
+			releaseClaimWithoutCount: MOCK_RELEASE_CLAIM,
+		},
 	};
 
 	beforeEach(() => {

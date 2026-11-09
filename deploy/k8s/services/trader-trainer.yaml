@@ -22,12 +22,16 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 spec:
   revisionHistoryLimit: 3
-  # Exactly one trainer (ADR-0044): its training state is in memory, so a second
-  # pod would train apart and answer the read routes differently. No HPA, and
-  # Recreate never runs the old and the new pod side by side.
+  # One trainer, no HPA (ADR-0044). During a rollout the new pod starts next to
+  # the old one and serves the read routes; only the holder of the Lease below
+  # trains (ADR-0058). On SIGTERM the old pod ends its session after the current
+  # generation, stores and publishes its model, then releases the Lease.
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/component: trader-trainer
@@ -42,7 +46,11 @@ spec:
         prometheus.io/scheme: "https"
     spec:
       serviceAccountName: trader-trainer
-      terminationGracePeriodSeconds: 60
+      # The token reads and renews the Lease (Role trader-trainer-lease).
+      automountServiceAccountToken: true
+      # preStop 10 s, then the end of the current generation, the model store
+      # and publish, and the Lease release (ADR-0058).
+      terminationGracePeriodSeconds: 120
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -91,6 +99,9 @@ spec:
             - configMapRef:
                 name: trader-trainer-config
           env:
+            # Only its holder trains (ADR-0058).
+            - name: TRAINER_LEASE_NAME
+              value: trader-trainer
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
@@ -214,3 +225,42 @@ spec:
     requests:
       storage: 50Gi
   storageClassName: rwx-csi
+---
+# Leader lease of the trainer pods (ADR-0058). Created here, so the Role below
+# needs no `create` (which resourceNames cannot restrict). Applied without
+# spec: a release never overwrites the current holder.
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: trader-trainer
+  labels:
+    app.kubernetes.io/component: trader-trainer
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: trader-trainer-lease
+  labels:
+    app.kubernetes.io/component: trader-trainer
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    resourceNames: [trader-trainer]
+    verbs: [get, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: trader-trainer-lease
+  labels:
+    app.kubernetes.io/component: trader-trainer
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: trader-trainer-lease
+subjects:
+  - kind: ServiceAccount
+    name: trader-trainer
