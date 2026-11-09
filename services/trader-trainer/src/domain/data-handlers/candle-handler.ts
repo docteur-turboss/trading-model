@@ -1,7 +1,7 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { NormalizationStats } from "../normalization-stats";
 import type { DataHandler } from "./data-handler";
-import { isAfterLast, pushWithMaxSize } from "./data-handler";
+import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
 import { DataType } from "./data-types";
 
 export const candleHandler: DataHandler<CandleData> = {
