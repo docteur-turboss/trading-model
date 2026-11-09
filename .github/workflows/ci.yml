@@ -237,6 +237,23 @@ jobs:
           name: k6-summary
           path: k6-out/k6-summary.json
           if-no-files-found: warn
+      # Passive ZAP baseline through the edge-proxy with the E2E API key (issue #648).
+      # Non-blocking (-I) for now; rules in tests/security/zap-baseline.conf.
+      - name: ZAP baseline (passive, edge-proxy)
+        run: >-
+          mkdir -p zap-out && chmod 777 zap-out && docker run --rm --network host
+          -v "$PWD/tests/security:/zap/wrk-conf:ro" -v "$PWD/zap-out:/zap/wrk:rw"
+          zaproxy/zap-stable:2.16.1@sha256:7840969c7c9fead565bf9734b12f49f6886db90b1d35b1f74d79710bbd081dab
+          zap-baseline.py -t http://localhost:8449/v1/audit-logger/events -I
+          -c /zap/wrk-conf/zap-baseline.conf -r zap-report.html
+          -z "-config replacer.full_list(0).description=key -config replacer.full_list(0).enabled=true -config replacer.full_list(0).matchtype=REQ_HEADER -config replacer.full_list(0).matchstr=x-api-key -config replacer.full_list(0).replacement=e2e-api-key"
+      - name: Archive the ZAP report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: zap-baseline-report
+          path: zap-out/zap-report.html
+          if-no-files-found: warn
       # Last: restarts message-manager and discovery to check the mesh heals.
       - name: Resilience (service restarts)
         run: bun run test:e2e -- resilience
