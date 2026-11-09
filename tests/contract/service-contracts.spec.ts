@@ -90,19 +90,6 @@ jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
 jest.mock("../../services/dlq-service/src/config/address-manager", () => ({
 	AddressManager: {},
 }));
-// dlq-service's claim and retry bookkeeping (MongoDB) around a replay.
-jest.mock(
-	"../../services/dlq-service/src/adapters/outbound/claim-manager",
-	() => ({
-		claimReleaseManager: {},
-	})
-);
-jest.mock(
-	"../../services/dlq-service/src/adapters/outbound/retry-manager",
-	() => ({
-		dlqRetryManager: { markRetried: async () => undefined },
-	})
-);
 
 import {
 	notifyAddAudit,

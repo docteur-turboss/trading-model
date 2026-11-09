@@ -5,25 +5,11 @@ const MOCK_INCREMENT_RETRY = jest.fn<(...args: any[]) => any>();
 const MOCK_RELEASE_CLAIM = jest.fn<(...args: any[]) => any>();
 const MOCK_IS_SHUTTING_DOWN = jest.fn<(...args: any[]) => any>();
 
-jest.mock("../../src/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
 		error: jest.fn<(...args: any[]) => any>(),
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/claim-manager", () => ({
-	dlqClaimManager: {},
-	claimReleaseManager: {
-		incrementRetryCount: MOCK_INCREMENT_RETRY,
-		releaseClaimWithoutCount: MOCK_RELEASE_CLAIM,
-	},
-}));
-
-jest.mock("../../src/adapters/outbound/retry-manager", () => ({
-	dlqRetryManager: {
-		markRetried: MOCK_MARK_RETRIED,
 	},
 }));
 
@@ -39,6 +25,11 @@ describe("delivery-executor", () => {
 			batchId: string;
 			client: { post: jest.Mock<(...args: any[]) => any> };
 			messageManagerUrl: string;
+			retryManager: { markRetried: typeof MOCK_MARK_RETRIED };
+			claimRelease: {
+				incrementRetryCount: typeof MOCK_INCREMENT_RETRY;
+				releaseClaimWithoutCount: typeof MOCK_RELEASE_CLAIM;
+			};
 		}
 	) => Promise<void>;
 
@@ -51,6 +42,11 @@ describe("delivery-executor", () => {
 		batchId: "batch-1",
 		client: mockClient,
 		messageManagerUrl: "https://mm:3000",
+		retryManager: { markRetried: MOCK_MARK_RETRIED },
+		claimRelease: {
+			incrementRetryCount: MOCK_INCREMENT_RETRY,
+			releaseClaimWithoutCount: MOCK_RELEASE_CLAIM,
+		},
 	};
 
 	beforeEach(() => {

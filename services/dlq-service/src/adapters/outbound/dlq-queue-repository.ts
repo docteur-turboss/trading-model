@@ -1,16 +1,19 @@
-import { getCollection } from "../../config/db";
 import { ENV } from "../../infrastructure/config/env";
+import type { CollectionProvider } from "./collection-provider";
 import { DlqQueryBuilder } from "./dlq-query-builder";
 
 export class DlqQueueRepository {
 	private readonly _queryBuilder: DlqQueryBuilder;
 
-	constructor(queryBuilder?: DlqQueryBuilder) {
+	constructor(
+		private readonly _getCollection: CollectionProvider,
+		queryBuilder?: DlqQueryBuilder
+	) {
 		this._queryBuilder = queryBuilder ?? new DlqQueryBuilder();
 	}
 
 	async listQueuable(): Promise<string[]> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const query = this._queryBuilder.buildQueuableQuery();
 		const docs = await col
 			.find(query, {
@@ -23,7 +26,7 @@ export class DlqQueueRepository {
 	}
 
 	async listActiveClaimIds(): Promise<string[]> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const query = this._queryBuilder.buildActiveClaimQuery();
 		const docs = await col.find(query, { projection: { _id: 1 } }).toArray();
 		return docs.map((doc) => doc._id.toHexString());

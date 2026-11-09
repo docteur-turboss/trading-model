@@ -1,17 +1,22 @@
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
-import {
-	type ResponseObject,
-	sendResponse,
-} from "@trading-model/http/adapters/inbound/response-exception";
-import type { DeleteEntriesBody } from "../../config/dlq-adapters";
-import { dlqRepository, notifyDeleteAudit } from "../../config/dlq-adapters";
-import { metrics } from "../../config/metrics";
+import type {
+	DlqAuditPort,
+	DlqEntryStorePort,
+	DlqMetricsPort,
+} from "../../domain/ports/dlq.ports";
 
-export async function deleteEntries({
-	ids,
-}: DeleteEntriesBody): Promise<ResponseObject> {
-	const deleted = await dlqRepository.delete(ids);
-	metrics.entriesDeleted.inc(deleted);
-	notifyDeleteAudit(ids, deleted);
-	return sendResponse({ deleted }, 200 as HttpStatusCode);
+export interface DeleteEntriesDeps {
+	entries: Pick<DlqEntryStorePort<unknown>, "delete">;
+	metrics: Pick<DlqMetricsPort, "entriesDeleted">;
+	audit: Pick<DlqAuditPort, "notifyDelete">;
+}
+
+export function createDeleteEntries(
+	deps: DeleteEntriesDeps
+): (ids: string[]) => Promise<{ deleted: number }> {
+	return async (ids) => {
+		const deleted = await deps.entries.delete(ids);
+		deps.metrics.entriesDeleted(deleted);
+		deps.audit.notifyDelete(ids, deleted);
+		return { deleted };
+	};
 }

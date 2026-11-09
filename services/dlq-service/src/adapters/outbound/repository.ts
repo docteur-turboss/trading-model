@@ -1,25 +1,16 @@
-import {
-	type AppError,
-	ErrorCode,
-	isAppError,
-} from "@trading-model/common/utils/errors";
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import { SequenceNumber, Topic } from "@trading-model/primitives/primitives";
 import type { Document, WithId } from "mongodb";
-import { getCollection } from "../../config/db";
+import type { CollectionProvider } from "./collection-provider";
 import { DlqEntryWriter } from "./dlq-entry-writer";
 import { pruneEntries } from "./dlq-eviction-policy";
 import { type DlqListOptions, DlqQueryBuilder } from "./dlq-query-builder";
 import { DlqQueueRepository } from "./dlq-queue-repository";
 
-export type { DlqListOptions };
-
-export function isDlqCapacityError(err: unknown): err is AppError {
-	return isAppError(err) && err.code === ErrorCode.DlqCapacity;
-}
-
 export { DlqStatus } from "../../domain/dlq-status";
-export type { DlqEntry };
+
+export { isDlqCapacityError } from "../../shared/dlq-error-builder";
+export type { DlqEntry, DlqListOptions };
 
 export interface StoredDlqEntry {
 	id: string;
@@ -48,9 +39,17 @@ export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 }
 
 export class DlqRepository {
-	private _entryWriter = new DlqEntryWriter();
-	private _queryBuilder = new DlqQueryBuilder();
-	private _queueRepository = new DlqQueueRepository(this._queryBuilder);
+	private readonly _entryWriter: DlqEntryWriter;
+	private readonly _queryBuilder = new DlqQueryBuilder();
+	private readonly _queueRepository: DlqQueueRepository;
+
+	constructor(private readonly _getCollection: CollectionProvider) {
+		this._entryWriter = new DlqEntryWriter(_getCollection);
+		this._queueRepository = new DlqQueueRepository(
+			_getCollection,
+			this._queryBuilder
+		);
+	}
 
 	insert(entry: DlqEntry): Promise<string> {
 		return this._entryWriter.insert(entry);
@@ -58,7 +57,7 @@ export class DlqRepository {
 
 	async query(options?: DlqListOptions): Promise<StoredDlqEntry[]> {
 		const { limit = 100, offset = 0 } = options ?? {};
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const query = this._queryBuilder.buildListQuery(options);
 
 		const docs = await col
@@ -73,19 +72,19 @@ export class DlqRepository {
 	}
 
 	async delete(ids: string[]): Promise<number> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const query = this._queryBuilder.buildDeleteQuery(ids);
 		const result = await col.deleteMany(query);
 		return result.deletedCount;
 	}
 
 	async count(): Promise<number> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		return col.estimatedDocumentCount();
 	}
 
 	prune(maxEntries: number): Promise<number> {
-		return pruneEntries(maxEntries);
+		return pruneEntries(this._getCollection, maxEntries);
 	}
 
 	listQueuable(): Promise<string[]> {
@@ -96,5 +95,3 @@ export class DlqRepository {
 		return this._queueRepository.listActiveClaimIds();
 	}
 }
-
-export const dlqRepository = new DlqRepository();

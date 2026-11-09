@@ -4,13 +4,8 @@ import type rateLimit from "express-rate-limit";
 import { metricsHandler } from "../../config/metrics";
 import { DLQ_API } from "./api-routes";
 import { serviceAuth } from "./auth";
-import { HealthCheck, ReadyCheck } from "./controller";
-import {
-	addEntry,
-	deleteEntries,
-	listEntries,
-	replayEntries,
-} from "./dlq-service";
+import { createHealthControllers } from "./controller";
+import type { DlqHandlers } from "./dlq-service";
 import {
 	_createHealthLimiter,
 	_createReplayLimiter,
@@ -20,36 +15,49 @@ import {
 
 function _registerDlqRoutes(
 	router: Router,
+	handlers: DlqHandlers,
 	replayLimiter: ReturnType<typeof rateLimit>,
 	writeLimiter: ReturnType<typeof rateLimit>,
 	healthLimiter: ReturnType<typeof rateLimit>
 ): void {
 	// The signature covers the raw body: serviceAuth runs before validation.
-	mountRoute(router, DLQ_API.addEntry, ({ body }) => addEntry(body), {
-		middlewares: [serviceAuth, writeLimiter],
-	});
-	mountRoute(router, DLQ_API.listEntries, ({ query }) => listEntries(query), {
-		middlewares: [serviceAuth],
-	});
-	mountRoute(router, DLQ_API.deleteEntries, ({ body }) => deleteEntries(body), {
+	mountRoute(router, DLQ_API.addEntry, ({ body }) => handlers.addEntry(body), {
 		middlewares: [serviceAuth, writeLimiter],
 	});
 	mountRoute(
 		router,
+		DLQ_API.listEntries,
+		({ query }) => handlers.listEntries(query),
+		{
+			middlewares: [serviceAuth],
+		}
+	);
+	mountRoute(
+		router,
+		DLQ_API.deleteEntries,
+		({ body }) => handlers.deleteEntries(body),
+		{
+			middlewares: [serviceAuth, writeLimiter],
+		}
+	);
+	mountRoute(
+		router,
 		DLQ_API.replayEntries,
-		({ query }) => replayEntries(query),
+		({ query }) => handlers.replayEntries(query),
 		{ middlewares: [serviceAuth, replayLimiter] }
 	);
+	const { HealthCheck, ReadyCheck } = createHealthControllers(handlers);
 	router.get("/health", healthLimiter, HealthCheck);
 	router.get("/health/ready", healthLimiter, ReadyCheck);
 	router.get("/metrics", metricsHandler);
 }
 
-export const DlqRoutes = (): Router => {
+export const DlqRoutes = (handlers: DlqHandlers): Router => {
 	const router = Router();
 
 	_registerDlqRoutes(
 		router,
+		handlers,
 		_createReplayLimiter(),
 		_createWriteLimiter(),
 		_createHealthLimiter()

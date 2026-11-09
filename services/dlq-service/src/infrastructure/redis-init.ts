@@ -1,11 +1,13 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import { rebuildQueueFromMongo } from "../config/container";
-import { dlqRedisQueue } from "../config/redis-queue";
 
-export async function ensureRedisQueue(): Promise<void> {
+/** Connects the Redis queue and re-seeds it from MongoDB on every reconnect. */
+export async function ensureRedisQueue(
+	queue: { connect(onReconnect?: () => void): Promise<boolean> },
+	rebuildQueueFromMongo: () => Promise<void>
+): Promise<void> {
 	try {
-		await dlqRedisQueue.connect(() => {
+		await queue.connect(() => {
 			void rebuildQueueFromMongo();
 		});
 	} catch (err) {

@@ -4,9 +4,9 @@ import type {
 	Topic,
 } from "@trading-model/primitives/primitives";
 import type { Collection, Document, ObjectId, WithId } from "mongodb";
-import { getCollection } from "../../config/db";
 import { CLAIM_PROJECTION } from "../../domain/dlq-constants";
 import type { BatchContext } from "../../shared/types";
+import type { CollectionProvider } from "./collection-provider";
 import { DlqQueryBuilder } from "./dlq-query-builder";
 import type { StoredDlqEntry } from "./repository";
 import { toStoredDlqEntry } from "./repository";
@@ -21,10 +21,12 @@ export interface ClaimEntriesOptions {
 export class DlqClaimManager {
 	private readonly _queryBuilder = new DlqQueryBuilder();
 
+	constructor(private readonly _getCollection: CollectionProvider) {}
+
 	async claimEntriesForRetry(
 		options: ClaimEntriesOptions
 	): Promise<StoredDlqEntry[]> {
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const candidates = await col
 			.find(this._queryBuilder.buildClaimFilter(options.topic), {
 				sort: { createdAt: -1 },
@@ -59,7 +61,7 @@ export class DlqClaimManager {
 		if (ids.length === 0) {
 			return [];
 		}
-		const col = await getCollection();
+		const col = await this._getCollection();
 		const objectIds = this._queryBuilder.toValidObjectIds(ids);
 		if (objectIds.length === 0) {
 			return [];
@@ -102,6 +104,3 @@ export class DlqClaimManager {
 			.toArray();
 	}
 }
-
-export const dlqClaimManager = new DlqClaimManager();
-export { claimReleaseManager } from "./claim-release-manager";

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_IS_SHUTTING_DOWN = jest.fn<() => boolean>();
 
-jest.mock("../../src/config/logger", () => ({
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),

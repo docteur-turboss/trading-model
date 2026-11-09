@@ -1,63 +1,85 @@
 import { type Span, SpanStatusCode, trace } from "@opentelemetry/api";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
-import type { ResponseObject } from "@trading-model/http/adapters/inbound/response-exception";
-import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import type { DlqEntry } from "@trading-model/contracts/dlq-types";
+import type {
+	DlqAuditPort,
+	DlqEntryStorePort,
+	DlqMetricsPort,
+	EntryEnqueuePort,
+	StorageAvailabilityPort,
+} from "../../domain/ports/dlq.ports";
 import {
-	type DlqEntry,
-	dlqRepository,
-	notifyAddAudit,
-	pushToRedisQueue,
-} from "../../config/dlq-adapters";
-import { metrics } from "../../config/metrics";
-import { handleAddEntryError } from "../../shared/dlq-error-builder";
-import { checkEntryAcceptable } from "./dlq-validator";
-
-type PostInsertStep = (id: string, data: DlqEntry) => Promise<void>;
+	failSpanOnStorageError,
+	isDlqCapacityError,
+	rejectSpan,
+} from "../../shared/dlq-error-builder";
+import { checkEntryAcceptable, type EntryRejection } from "./dlq-validator";
 
 const tracer = trace.getTracer(ServiceInstanceName.DlqService);
 
-const postInsertSteps: PostInsertStep[] = [
-	(_id) => {
-		metrics.entriesAdded.inc(1);
-		return Promise.resolve();
-	},
-	async (id) => {
-		await pushToRedisQueue(id);
-	},
-	(id, data) => {
-		notifyAddAudit(id, data.topic, data.reason);
-		return Promise.resolve();
-	},
-];
+/** Outcome of adding an entry; the inbound adapter maps it to an HTTP response. */
+export type AddEntryResult =
+	| { status: "added"; id: string }
+	| { status: "rejected"; reason: EntryRejection }
+	| { status: "capacity-reached" }
+	| { status: "storage-error" };
 
-async function runPostInsertSteps(
-	id: string,
-	data: DlqEntry,
-	span: Span
-): Promise<void> {
-	span.setAttribute("entryId", id);
-	for (const step of postInsertSteps) {
-		await step(id, data);
-	}
+export interface AddEntryDeps {
+	entries: DlqEntryStorePort<DlqEntry>;
+	storage: StorageAvailabilityPort;
+	queue: EntryEnqueuePort;
+	metrics: Pick<DlqMetricsPort, "entryAdded">;
+	audit: Pick<DlqAuditPort, "notifyAdd">;
 }
 
-export function addEntry(entry: DlqEntry): Promise<ResponseObject> {
-	return tracer.startActiveSpan("dlq-add-entry", async (span) => {
-		try {
-			const check = checkEntryAcceptable(entry, span);
-			if (!check.valid) {
-				return check.response;
+const REJECTION_MESSAGES: Record<EntryRejection, string> = {
+	"too-large": "Message payload exceeds maximum size of 5MB",
+	"storage-unavailable": "Storage unavailable",
+};
+
+async function _persist(
+	deps: AddEntryDeps,
+	entry: DlqEntry,
+	span: Span
+): Promise<string> {
+	const id = await deps.entries.insert(entry);
+	span.setAttribute("entryId", id);
+	deps.metrics.entryAdded();
+	await deps.queue.enqueue(id);
+	deps.audit.notifyAdd(id, entry.topic, entry.reason);
+	return id;
+}
+
+export function createAddEntry(
+	deps: AddEntryDeps
+): (entry: DlqEntry) => Promise<AddEntryResult> {
+	return (entry) =>
+		tracer.startActiveSpan(
+			"dlq-add-entry",
+			async (span): Promise<AddEntryResult> => {
+				span.setAttribute("topic", entry.topic ?? "");
+				span.setAttribute("reason", entry.reason ?? "");
+				const reason = checkEntryAcceptable(
+					entry.message,
+					deps.storage.isAvailable()
+				);
+				if (reason) {
+					rejectSpan(span, REJECTION_MESSAGES[reason]);
+					return { status: "rejected", reason };
+				}
+				try {
+					const id = await _persist(deps, entry, span);
+					span.setStatus({ code: SpanStatusCode.OK });
+					span.end();
+					return { status: "added", id };
+				} catch (err) {
+					if (isDlqCapacityError(err)) {
+						rejectSpan(span, "DLQ capacity limit reached");
+						return { status: "capacity-reached" };
+					}
+					failSpanOnStorageError(span, err);
+					return { status: "storage-error" };
+				}
 			}
-
-			const id = await dlqRepository.insert(entry);
-			await runPostInsertSteps(id, entry, span);
-
-			span.setStatus({ code: SpanStatusCode.OK });
-			span.end();
-			return sendResponse({ id }, 201 as HttpStatusCode);
-		} catch (err) {
-			return handleAddEntryError(err, span);
-		}
-	});
+		);
 }

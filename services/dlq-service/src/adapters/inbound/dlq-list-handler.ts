@@ -8,7 +8,7 @@ import type {
 	OffsetPagination,
 } from "@trading-model/primitives/pagination";
 import type { Topic } from "@trading-model/primitives/primitives";
-import { dlqRepository } from "../outbound/repository";
+import type { DlqListOptions, StoredDlqEntry } from "../outbound/repository";
 import type { ListEntriesQuery } from "./api-routes";
 
 export interface DlqPaginationQuery {
@@ -52,7 +52,14 @@ function _buildListResponse(params: DlqListResponse): Record<string, unknown> {
 	return response;
 }
 
-export async function listEntries(
+export function createListEntries(entriesStore: {
+	query(options: DlqListOptions): Promise<StoredDlqEntry[]>;
+}): (query: ListEntriesQuery) => Promise<ResponseObject> {
+	return (query) => _listEntries(entriesStore, query);
+}
+
+async function _listEntries(
+	entriesStore: { query(options: DlqListOptions): Promise<StoredDlqEntry[]> },
 	query: ListEntriesQuery
 ): Promise<ResponseObject> {
 	const { topic, pagination } = _buildPaginationQuery(query);
@@ -60,7 +67,7 @@ export async function listEntries(
 	const offset = "offset" in pagination ? pagination.offset : 0;
 	const cursor = "cursor" in pagination ? pagination.cursor : undefined;
 
-	const entries = await dlqRepository.query({
+	const entries = await entriesStore.query({
 		topic,
 		limit,
 		offset,
