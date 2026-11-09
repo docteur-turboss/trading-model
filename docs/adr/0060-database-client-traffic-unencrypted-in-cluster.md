@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (SPIRE without a mesh: covers service-to-service only), [ADR-0047](./0047-redis-isolated-per-service.md) (Redis ACL passwords), [ADR-0031](./0031-point-in-time-recovery.md), [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md), [ADR-0051](./0051-mysql-retention-cronjob.md), [ADR-0056](./0056-infrastructure-metrics-exporters.md)
+**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (SPIRE without a mesh: covers service-to-service only), [ADR-0047](./0047-redis-isolation-per-service.md) (Redis ACL passwords), [ADR-0031](./0031-point-in-time-recovery-hourly-archives.md), [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md), [ADR-0051](./0051-mysql-retention-cronjob.md), [ADR-0056](./0056-infrastructure-metrics-exporters.md)
 **Verified by:** `bun run compliance:check`, `bun run adr:check`
 
 ## Context
