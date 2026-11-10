@@ -82,6 +82,36 @@ kubectl create secret generic trading-model-secrets -n trading-model   --from-li
 
 The final file must list ALL keys. `run-migrations.sh` refuses to apply a file that lacks a key of the live Secret. A file that adds a key is applied by `run-migrations.sh` before the migrations, which then wait for the controller to write the key: `db-migrate-user` and the database pods the overlay restarts see it (issue #698).
 
+> `HMAC_SECRET` is no longer read by any service (the api-gateway Deployment stopped injecting it). Keep the key in a SealedSecret that already has it: release N-1 still mounts it, and `run-migrations.sh` refuses a file that drops a live key. A later release removes it (ADR-0040 contract step, issue #819).
+
+### Rotating secrets
+
+```bash
+bash scripts/rotate-secrets.sh --component signing|tokens|dlq|all
+DRY_RUN=true bash scripts/rotate-secrets.sh --component dlq   # no merge, apply or restart
+```
+Before `kubectl apply` the script compares the live Secret keys with the file: a live key missing from `SEALED_SECRETS_FILE` stops it (the controller would erase that key). The merged file stays on disk; add the key with `kubeseal --merge-into`, then rerun.
+
+| Component | Key | Restarted |
+|-----------|-----|-----------|
+| `signing` | `SIGNING_SECRET` | discovery-server (services re-register) |
+| `tokens` | `AUTH_TOKENS` (`name:scopes:secret`, ADR-0059): only the entry named `API_KEY_NAME` (default `ops`, scopes `API_KEY_SCOPES`) is replaced, the other keys are kept | api-gateway |
+| `dlq` | `DLQ_AUTH_HMAC_SECRET` | message-manager + dlq-service |
+
+The script merges the new key into `SEALED_SECRETS_FILE` (default `deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, commit the result), applies it, waits until the live Secret holds the value, then restarts the consumers. It never prints a value and never puts one on a command line. `SEALED_SECRETS_FILE` must be the real sealed file of the overlay: a file with `CHANGE_ME` placeholders is refused before any `kubeseal` or `apply`.
+
+For `tokens`, the new key is written to a `0600` temporary file whose path is logged: give the key to the client, then delete the file. Without that file, read it with `kubectl get secret trading-model-secrets -n trading-model -o jsonpath='{.data.AUTH_TOKENS}' | base64 -d`.
+
+`--component all` has no rollback: if `dlq` fails after `signing`, the local file and the live Secret keep the keys already rotated. Fix the cause and rerun the failed component.
+
+### Rotate a database password
+
+`rotate-secrets.sh` refuses `MYSQL_*` and `REDIS_*_PASSWORD`: the password must change in the database first, then in the Secret, then in the pods.
+
+1. Change it in the database (`ALTER USER ... IDENTIFIED BY` for MySQL; `ACL SETUSER <user> >new <-old` on every Redis node, or edit `redis-ha.sh` and rerun it).
+2. Merge the new value (`kubeseal --merge-into`, see above) and apply the file.
+3. Restart every consumer of the key (`kubectl rollout restart`), then the database pods for the exporter keys.
+
 ### 3. Apply
 
 ```bash
