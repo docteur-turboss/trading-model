@@ -814,7 +814,7 @@ the `spiffe-helper` sidecars, or wait for their rotation, if a workload
 still rejects peers after the restore. The CI drill checks that Prometheus scrapes every
 target over mTLS after the restore.
 
-Restore MySQL accounts first: dumps exclude the `mysql` schema, so after the loss of the MySQL volume run `bash deploy/k8s/scripts/run-migrations.sh trading-model user-only` (recreates `spire`, `migrator`, `retention`, `exporter`) before `restore-k8s.sh --components mysql,spire`. Otherwise the SPIRE server cannot log in and the SPIRE step times out.
+Restore MySQL accounts first: dumps exclude the `mysql` schema, so after the loss of the MySQL volume run `bash deploy/k8s/scripts/run-migrations.sh trading-model user-only` (recreates `migrator`, `retention`, `exporter`) before `restore-k8s.sh --components mysql`. Otherwise later migrations, the retention job and the MySQL exporters cannot log in. The SPIRE step does not need MySQL (ADR-0062).
 
 ## Disaster Recovery
 
