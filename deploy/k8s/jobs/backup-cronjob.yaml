@@ -25,7 +25,7 @@ metadata:
     app.kubernetes.io/component: backup
     app.kubernetes.io/part-of: trading-model
   annotations:
-    description: "Daily backup of MongoDB (dlq + audit), MySQL (incl. SPIRE datastore), SPIRE CA keys and checkpoints"
+    description: "Daily backup of MongoDB (dlq + audit), MySQL, SPIRE datastore and CA keys (SQLite, ADR-0062) and checkpoints"
 spec:
   schedule: "0 2 * * *"
   concurrencyPolicy: Forbid

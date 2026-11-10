@@ -1,5 +1,8 @@
 # SPIRE Server — workload identity issuance (ADR-0011).
-# Datastore: MySQL (existing trading-model MySQL, database `spire`).
+# Datastore: SQLite on the server's own PVC (ADR-0062): losing mysql-0 no
+# longer stops SVID issuance. keys-sqlite.json holds the CA keys of that
+# datastore; keys.json and the MySQL `spire` database belong to the releases
+# before ADR-0062 and are left untouched, so a rollback finds them (ADR-0040).
 # Agents (namespace trading-model-node, deploy/k8s/node-agents) attest with k8s_psat;
 # the server publishes its trust bundle into the `spire-bundle` ConfigMap of
 # trading-model-node (k8sbundle notifier) that the agents mount.
@@ -37,8 +40,8 @@ metadata:
     app.kubernetes.io/component: spire-server
     app.kubernetes.io/part-of: trading-model
 data:
-  # Rendered with -expandEnv: ${MYSQL_ROOT_PASSWORD} (Secret). The agents and
-  # the bundle ConfigMap live in trading-model-node (deploy/k8s/node-agents).
+  # Rendered with -expandEnv (no variable today). The agents and the bundle
+  # ConfigMap live in trading-model-node (deploy/k8s/node-agents).
   server.conf: |
     server {
       trust_domain = "trading-model.local"
@@ -46,7 +49,9 @@ data:
       log_level = "INFO"
       ca_key_type = "ec-p256"
       ca_ttl = "168h"
-      default_x509_svid_ttl = "1h"
+      # 4 h (ADR-0062): renewed at half-life, so a stopped server leaves
+      # about 2 h before the first SVID expires.
+      default_x509_svid_ttl = "4h"
       ca_subject = {
         country = ["FR"]
         organization = ["Trading Model"]
@@ -58,14 +63,13 @@ data:
     plugins {
       DataStore "sql" {
         plugin_data {
-          database_type = "mysql"
-          connection_string = "root:${MYSQL_ROOT_PASSWORD}@tcp(mysql-primary:3306)/spire?parseTime=true"
-          max_open_conns = 10
+          database_type = "sqlite3"
+          connection_string = "/run/spire/data/datastore.sqlite3"
         }
       }
       KeyManager "disk" {
         plugin_data {
-          keys_path = "/run/spire/data/keys.json"
+          keys_path = "/run/spire/data/keys-sqlite.json"
         }
       }
       NodeAttestor "k8s_psat" {
@@ -115,44 +119,12 @@ spec:
         fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
-      initContainers:
-        - name: spire-db-init
-          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-ec"]
-          args:
-            - |
-              for i in $(seq 1 30); do
-                if mysqladmin ping -h mysql-primary -u root -p"$MYSQL_ROOT_PASSWORD" 2>/dev/null; then
-                  break
-                fi
-                echo "Waiting for MySQL... ($i/30)"
-                sleep 5
-              done
-              mysql -h mysql-primary -u root -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS spire;"
-          env:
-            - name: MYSQL_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: MYSQL_ROOT_PASSWORD
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
       containers:
         - name: spire-server
           image: ghcr.io/spiffe/spire-server:1.15.5@sha256:584a9c5cc95b9457f5033e7e4488d603fffe5ec48a80c4dba14b05c5e1c2c384
           imagePullPolicy: IfNotPresent
           # The image entrypoint is `spire-server run`.
           args: ["-config", "/etc/spire/server.conf", "-expandEnv"]
-          env:
-            - name: MYSQL_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: MYSQL_ROOT_PASSWORD
           ports:
             - name: grpc
               containerPort: 8081
@@ -171,6 +143,9 @@ spec:
               mountPath: /run/spire/data
             - name: spire-server-sockets
               mountPath: /run/spire/server-sockets
+            # SQLite temporary files (large sorts): the root filesystem is read-only.
+            - name: spire-server-tmp
+              mountPath: /tmp
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -209,15 +184,19 @@ spec:
               memory: 16Mi
             limits:
               cpu: 100m
-              memory: 64Mi
+              # The backup snapshot in /tmp (memory) counts here.
+              memory: 128Mi
           volumeMounts:
             - name: spire-server-sockets
               mountPath: /run/spire/server-sockets
-            # Read-only: lets the backup job `kubectl cp` the CA key through
-            # this container (the spire-server image has no tar).
+            # The backup job snapshots the datastore (sqlite3 .backup) and
+            # reads the CA keys through this container: the spire-server image
+            # has no shell. Writable: a reader of a WAL-mode SQLite file needs
+            # its -shm file and locks.
             - name: spire-data
               mountPath: /run/spire/data
-              readOnly: true
+            - name: spire-backup-tmp
+              mountPath: /tmp
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -233,6 +212,14 @@ spec:
             claimName: spire-server-data
         - name: spire-server-sockets
           emptyDir: {}
+        - name: spire-server-tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        # Datastore snapshot of the backup job, deleted once streamed.
+        - name: spire-backup-tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Mi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -317,6 +304,9 @@ spec:
         - port: 8081
           protocol: TCP
   egress:
+    # MySQL: only for a rollback to a release before ADR-0062 (datastore in
+    # MySQL). Contract step: drop it, with the spire-server client of
+    # mysql-network-policy, in a later release (ADR-0040).
     - to:
         - podSelector: {}
       ports:

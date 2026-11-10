@@ -37,6 +37,12 @@ data:
       server_port = "8081"
       socket_path = "/run/spire/agent-sockets/api.sock"
       trust_bundle_path = "/run/spire/bundle/bundle.crt"
+      # A server whose CA no longer matches the stored bundle (move of the
+      # datastore to SQLite, ADR-0062; restore of an older CA): after 1 min the
+      # agent exits, bootstraps again from the spire-bundle ConfigMap and
+      # re-attests (k8s_psat). `always`: the agent fails if it cannot.
+      rebootstrap_mode = "always"
+      rebootstrap_delay = "1m"
     }
 
     plugins {
@@ -78,6 +84,10 @@ spec:
       labels:
         app.kubernetes.io/component: spire-agent
         app.kubernetes.io/part-of: trading-model
+      annotations:
+        # spire-agent-config has no hash suffix: bump this when agent.conf
+        # changes, or running agents keep the previous configuration.
+        trading-model/agent-config: rebootstrap-adr-0062
     spec:
       serviceAccountName: spire-agent
       # The k8s workload attestor maps a caller PID to its pod (hostPID) and
