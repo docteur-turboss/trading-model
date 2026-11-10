@@ -89,7 +89,7 @@ The final file must list ALL keys. `run-migrations.sh` refuses to apply a file t
 bash scripts/rotate-secrets.sh --component signing|tokens|dlq|all
 DRY_RUN=true bash scripts/rotate-secrets.sh --component dlq   # no merge, apply or restart
 ```
-nBefore `kubectl apply` the script compares the live Secret keys with the file: a live key missing from `SEALED_SECRETS_FILE` stops it (the controller would erase that key). The merged file stays on disk; add the key with `kubeseal --merge-into`, then rerun.
+Before `kubectl apply` the script compares the live Secret keys with the file: a live key missing from `SEALED_SECRETS_FILE` stops it (the controller would erase that key). The merged file stays on disk; add the key with `kubeseal --merge-into`, then rerun.
 
 | Component | Key | Restarted |
 |-----------|-----|-----------|
