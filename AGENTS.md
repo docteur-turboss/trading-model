@@ -11,6 +11,7 @@ bun run --filter <name> test    # Run a single workspace's tests
 bun run lint                    # Biome check across the whole monorepo
 bun run typecheck:tests         # tsc --noEmit of src + tests of every workspace (tsconfig.test.json; needs bun run build first); stops at the first failing workspace
 bun run deps:check              # Verify @trading-model/* imports match package.json manifests (ADR-0016)
+bun run deps:third-party          # knip: third-party deps declared = used (knip.json)
 bun run api:check               # OpenAPI up to date + documented routes reach real routes + every service-to-service route has a caller, no WebSocket server (ADR-0029)
 bun run api:write               # Regenerate docs/services/openapi/api-gateway.yaml from the routes
 bun run contracts:check          # Bus message JSON Schema snapshot (docs/services/events/schemas.json) up to date; contracts:write regenerates, contracts:compat compares with the last release tag (ADR-0061)
@@ -79,7 +80,7 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## Git hooks (Husky) & commit format
 
-- **`pre-push`** runs: biome check → deps:check → api:check → adr:check → reach:check → arch:check → config:check → observability gate → build → typecheck:tests → test → test:contract (must all pass to push)
+- **`pre-push`** runs: biome check → deps:check → deps:third-party → api:check → adr:check → reach:check → arch:check → config:check → observability gate → build → typecheck:tests → test → test:contract (must all pass to push)
 - **`commit-msg`** enforces gitmoji format via commitlint: `:emoji:(scope): subject`
 - Scopes are lowercased and must be from the allowed enum in `commitlint.config.mjs`
 - Use `bun run commit` for an interactive TUI that helps craft valid commits
