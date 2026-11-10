@@ -1,8 +1,8 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { Message } from "@trading-model/contracts/message-types";
-import type {
-	SequenceNumber,
-	ServiceId,
+import {
+	type SequenceNumber,
+	toServiceId,
 } from "@trading-model/primitives/primitives";
 import type { DeliveryParams } from "../../domain/delivery-params";
 import type { MessageDeliveryPort } from "../ports/message-delivery-port";
@@ -44,7 +44,7 @@ export class DeliveryAttemptHandler {
 	): Promise<AttemptOutcome> {
 		try {
 			const target = await resolveTarget(
-				this._serviceName as unknown as ServiceId,
+				toServiceId(this._serviceName),
 				this._callbackPath
 			);
 			await this._deliveryPort.send({

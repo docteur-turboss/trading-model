@@ -336,6 +336,7 @@ export class WorkerOrchestrator {
 async function _createLimiter(
 	maxConcurrency: PositiveInt
 ): Promise<LimitFunction> {
+	// as unknown as: dynamic ESM import of p-limit has no CJS typing
 	const { default: pLimit } = (await import("p-limit")) as unknown as {
 		default: (concurrency: number) => LimitFunction;
 	};

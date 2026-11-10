@@ -64,6 +64,7 @@ function findKey(digest: Buffer, keys: HashedKey[]): ApiKey | undefined {
 
 /** The scopes and key name AUTH_MIDDLEWARE set on the request. */
 export function authOf(req: Request): AuthenticatedRequest {
+	// as unknown as: Express request widened after the auth middleware set its fields
 	return req as unknown as AuthenticatedRequest;
 }
 

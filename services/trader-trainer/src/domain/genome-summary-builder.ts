@@ -1,5 +1,6 @@
 import {
 	type Fitness,
+	NonNegativeInt,
 	SharpeRatio,
 } from "@trading-model/primitives/primitives";
 import type { EpisodeScores } from "./genetic-algorithm/episode-scores";
@@ -68,7 +69,7 @@ export function buildSummary(
 	const curve = fitnessMeta?.pnlCurve ?? fitnessMeta?.rawScores;
 	return {
 		id: String(genome.id),
-		generation: genome.generation,
+		generation: NonNegativeInt.of(genome.generation),
 		fitness,
 		sharpe: SharpeRatio.of(curve ? annualisedSharpe(curve, fitnessMeta) : 0),
 		avgPnl: fitnessMeta?.rawScores ? fitnessMeta.rawScores.mean() : 0,
@@ -81,6 +82,7 @@ export function buildSummary(
 
 /** Summary of a stored version: metrics from the manifest, genes from its genome. */
 export function summaryFromManifest(manifest: ModelManifest): BestAgentSummary {
+	// as unknown as: manifest genome carries genes only, no weights (ADR-0022)
 	const genome = manifest.genome as unknown as DeepReadonly<LamarckGenome>;
 	const { metrics } = manifest;
 	return {

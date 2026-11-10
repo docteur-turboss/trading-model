@@ -11,6 +11,7 @@ function _scaleAndClip(raw: number, config: RewardShapingGenes): number {
 		shaped *= config.scaleFactor;
 	}
 	if (config.clip) {
+		// as unknown as: clipBounds is a NumericRange at runtime
 		shaped = (config.clipBounds as unknown as NumericRange).clamp(shaped);
 	}
 	return shaped;

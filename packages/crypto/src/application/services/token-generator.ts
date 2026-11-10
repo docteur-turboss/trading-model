@@ -1,4 +1,7 @@
-import type { InstanceId } from "@trading-model/primitives/primitives";
+import {
+	AuthToken,
+	type InstanceId,
+} from "@trading-model/primitives/primitives";
 import { createHmacSha256Formatted } from "../../adapters/outbound/node-hmac";
 import { generateRandomStr } from "../../adapters/outbound/node-random";
 import { CryptoAlg } from "../../domain/constants/crypto-constants";
@@ -7,7 +10,7 @@ import { CryptoAlg } from "../../domain/constants/crypto-constants";
 export function generateInstanceToken(
 	instanceId: InstanceId,
 	signingSecret: string
-): string {
+): AuthToken {
 	const encodedId = Buffer.from(instanceId, CryptoAlg.UTF8).toString(
 		CryptoAlg.BASE64URL
 	);
@@ -20,5 +23,5 @@ export function generateInstanceToken(
 		digest: CryptoAlg.BASE64URL,
 	});
 
-	return `${encodedId}.${nonce}.${hmac}`;
+	return AuthToken.of(`${encodedId}.${nonce}.${hmac}`);
 }

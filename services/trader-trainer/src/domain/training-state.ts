@@ -1,9 +1,10 @@
-import type {
-	Fitness,
-	Percentage,
-	PositiveInt,
-	Probability,
-	SharpeRatio,
+import {
+	type Fitness,
+	NonNegativeInt,
+	type Percentage,
+	type PositiveInt,
+	type Probability,
+	type SharpeRatio,
 } from "@trading-model/primitives/primitives";
 import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import type {
@@ -20,7 +21,7 @@ import type { TradingSymbol } from "./market-data-types";
 /** Summary of the best trained agent for API responses. */
 export interface BestAgentSummary {
 	id: string;
-	generation: PositiveInt;
+	generation: NonNegativeInt;
 	fitness: Fitness;
 	sharpe: SharpeRatio;
 	avgPnl: number;
@@ -53,20 +54,20 @@ interface LastTrainingInfoData {
 	bestGenome: DeepReadonly<LamarckGenome>;
 	bestFitness: Fitness;
 	bestFitnessMeta: GenomeFitnessMeta | undefined;
-	generation: PositiveInt;
+	generation: NonNegativeInt;
 	generationContext: GenerationContext | null;
 }
 
 export interface TrainingSnapshot {
 	readonly symbol: TradingSymbol;
-	readonly generation: PositiveInt;
+	readonly generation: NonNegativeInt;
 	readonly generationContext: GenerationContext | null;
 	buildBestAgentSummary(): BestAgentSummary | null;
 }
 
 export class NullLastTrainingInfo implements TrainingSnapshot {
 	readonly symbol: TradingSymbol = "" as TradingSymbol;
-	readonly generation: PositiveInt = 0 as unknown as PositiveInt;
+	readonly generation: NonNegativeInt = NonNegativeInt.of(0);
 	readonly generationContext: GenerationContext | null = null;
 
 	buildBestAgentSummary(): BestAgentSummary | null {
@@ -79,7 +80,7 @@ export class LastTrainingInfo implements TrainingSnapshot {
 	readonly bestGenome: DeepReadonly<LamarckGenome>;
 	readonly bestFitness: Fitness;
 	readonly bestFitnessMeta: GenomeFitnessMeta | undefined;
-	readonly generation: PositiveInt;
+	readonly generation: NonNegativeInt;
 	readonly generationContext: GenerationContext | null;
 
 	constructor(data: LastTrainingInfoData) {
@@ -107,7 +108,7 @@ export class LastTrainingInfo implements TrainingSnapshot {
  */
 export class ArtifactTrainingInfo implements TrainingSnapshot {
 	readonly generationContext: GenerationContext | null = null;
-	readonly generation: PositiveInt;
+	readonly generation: NonNegativeInt;
 	readonly symbol: TradingSymbol;
 
 	constructor(
