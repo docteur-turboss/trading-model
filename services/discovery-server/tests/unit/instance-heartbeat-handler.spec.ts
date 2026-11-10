@@ -171,7 +171,7 @@ describe("InstanceHeartbeatHandler", () => {
 			const futureTime = Date.now() + 5000;
 			const pastInstance = {
 				...mockInstance,
-				lastHeartbeat: futureTime,
+				lastHeartbeat: futureTime as UnixTimestamp,
 			};
 			mockReader.getMetadata.mockResolvedValue(pastInstance);
 
