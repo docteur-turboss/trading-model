@@ -30,6 +30,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run deps:check
+      - run: bun run deps:third-party
       - run: bun run api:check
       - run: bun run adr:check
       - run: bun run reach:check

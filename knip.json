@@ -1,0 +1,7 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreDependencies": ["typedoc", "@types/express-serve-static-core", "ts-node", "config", "k6"],
+  "ignore": ["**/dist/**"],
+  "ignoreBinaries": ["openssl", "kubectl"],
+  "ignoreIssues": { "**/*": ["files", "exports", "types", "duplicates"] }
+}
