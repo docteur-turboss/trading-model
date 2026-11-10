@@ -1,7 +1,7 @@
 import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
 import type { ServiceHealthChecker } from "../adapters/outbound/discovery/service-health-checker";
 import type { AddressManagerConfig } from "../domain/config/address-manager-config";
-import type { IServiceCache } from "../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../domain/ports/service-cache.port";
 import type { TokenManager } from "./client/token-manager";
 import type { DiscoveryCircuitBreaker } from "./discovery/circuit-breaker";
 import type { HeartbeatManager } from "./heartbeat-manager";
@@ -17,7 +17,7 @@ export interface ServiceClientDeps {
 export interface ShutdownHandlerDeps {
 	registrationManager: { stopRetrying: () => void };
 	addressManagerClient: AddressManagerClient;
-	serviceCache: IServiceCache;
+	serviceCache: ServiceCachePort;
 	circuitBreaker: DiscoveryCircuitBreaker;
 }
 
@@ -26,7 +26,7 @@ export interface LifecycleDeps {
 	circuitBreaker: DiscoveryCircuitBreaker;
 	registrationManager: RegistrationAttemptHandler;
 	heartbeatManager: HeartbeatManager;
-	serviceCache: IServiceCache;
+	serviceCache: ServiceCachePort;
 	tokenManager: TokenManager;
 	addressManagerClient: AddressManagerClient;
 	healthChecker: ServiceHealthChecker;

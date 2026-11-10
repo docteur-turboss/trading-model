@@ -5,7 +5,7 @@ import {
 	toServiceId,
 } from "@trading-model/primitives/primitives";
 import type { DeliveryParams } from "../../domain/delivery-params";
-import type { MessageDeliveryPort } from "../ports/message-delivery-port";
+import type { MessageDeliveryPort } from "../../domain/ports/message-delivery.port";
 import { resolveTarget } from "./address-resolver";
 import type { DeliveryErrorHandler } from "./delivery-error-handler";
 

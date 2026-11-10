@@ -2,14 +2,14 @@ import { messageManagerError } from "@trading-model/broker-message/shared/errors
 import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import type Redis from "ioredis";
+import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../config/metrics";
 import {
 	JOURNAL_RETENTION_MS,
 	type JournalEntry,
 	type JournalGroup,
 	type JournalGroupLag,
 	type MessageJournalPort,
-} from "../../application/ports/message-journal-port";
-import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../config/metrics";
+} from "../../domain/ports/message-journal.port";
 
 export interface RedisMessageJournalDeps {
 	redis: Pick<Redis, "call" | "sadd" | "smembers">;

@@ -9,12 +9,12 @@ import {
 	DELIVERY_ATTEMPT_TIMEOUT_MS,
 	retryDueMs,
 } from "../../domain/backoff-calculator";
-import type { MessageDeliveryPort } from "../ports/message-delivery-port";
+import type { MessageDeliveryPort } from "../../domain/ports/message-delivery.port";
 import type {
 	JournalEntry,
 	JournalGroup,
 	MessageJournalPort,
-} from "../ports/message-journal-port";
+} from "../../domain/ports/message-journal.port";
 import { Subscription } from "./subscription";
 import type { SubscriptionRegistry } from "./subscription-registry";
 

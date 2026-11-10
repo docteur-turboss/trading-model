@@ -11,7 +11,7 @@ import {
 	isDeliveryExhausted,
 } from "../../domain/delivery-error-classifier";
 import type { DeliveryParams } from "../../domain/delivery-params";
-import type { MessageDeliveryPort } from "../ports/message-delivery-port";
+import type { MessageDeliveryPort } from "../../domain/ports/message-delivery.port";
 
 export interface DeliveryErrorHandlerDeps {
 	deliveryPort: MessageDeliveryPort;

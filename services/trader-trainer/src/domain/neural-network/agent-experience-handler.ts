@@ -1,8 +1,8 @@
 import { agentError } from "../../shared/errors";
 import {
 	createExperiencePool,
-	type IExperiencePool,
-	type IPrioritizedExperiencePool,
+	type ExperiencePoolPort,
+	type PrioritizedExperiencePoolPort,
 } from "./experience-pool";
 import type { NeuralNetwork } from "./neural-network";
 import { computeReplayTarget } from "./q-value-computer";
@@ -14,8 +14,8 @@ import type {
 import { ExperienceKind } from "./type";
 
 function _isPrioritized(
-	pool: IExperiencePool
-): pool is IPrioritizedExperiencePool {
+	pool: ExperiencePoolPort
+): pool is PrioritizedExperiencePoolPort {
 	return "sampleWithWeights" in pool;
 }
 
@@ -39,7 +39,7 @@ function _trainReplayed(
 }
 
 export class AgentExperienceHandler {
-	private readonly _pool: IExperiencePool;
+	private readonly _pool: ExperiencePoolPort;
 
 	constructor(cfg: NetworkArchitecture) {
 		const enablePool = cfg.enablePool ?? true;

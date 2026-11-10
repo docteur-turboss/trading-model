@@ -7,7 +7,7 @@ import {
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { DiscoveryContext } from "../../domain/discovery/discovery-context";
-import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import {
 	DiscoveryResult,
 	recordDiscoveryMetrics,
@@ -18,7 +18,7 @@ import type { ServiceDiscovery } from "./service-discovery";
 
 export interface DiscoveryOrchestratorDeps {
 	serviceDiscovery: ServiceDiscovery;
-	serviceCache: IServiceCache;
+	serviceCache: ServiceCachePort;
 	circuitBreaker: DiscoveryCircuitBreaker;
 	healthChecker: ServiceHealthChecker;
 }

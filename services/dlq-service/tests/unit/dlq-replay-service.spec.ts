@@ -14,7 +14,7 @@ import {
 import type {
 	ClaimEntriesOptions,
 	ClaimedEntry,
-} from "../../src/domain/ports/replay.ports";
+} from "../../src/domain/ports/replay.port";
 import type { BatchResults, ReplayBatchOptions } from "../../src/shared/types";
 
 jest.mock("@trading-model/http/infrastructure/logger", () => ({

@@ -8,7 +8,7 @@ import type {
 	DlqReplaySettings,
 	EntryClaimPort,
 	ReplayQueuePort,
-} from "../../domain/ports/replay.ports";
+} from "../../domain/ports/replay.port";
 import { generateBatchId } from "../../shared/batch-id";
 import { emitReplayMetrics } from "../../shared/replay-metrics";
 import { isShuttingDown } from "../../shared/shutdown-flag";

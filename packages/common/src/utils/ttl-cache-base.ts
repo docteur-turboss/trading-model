@@ -1,11 +1,11 @@
-import type { ISyncCache } from "./cache";
+import type { SyncCachePort } from "./cache";
 
 interface CacheEntry<TValue> {
 	value: TValue;
 	expiresAt: number;
 }
 
-export class TtlCacheBase<TValue> implements ISyncCache<TValue> {
+export class TtlCacheBase<TValue> implements SyncCachePort<TValue> {
 	protected readonly _store = new Map<string, CacheEntry<TValue>>();
 	protected readonly _defaultTtlMs: number;
 

@@ -15,13 +15,13 @@ import { HttpDeadLetterStore } from "../adapters/outbound/http-dead-letter-store
 import { HttpMessageDelivery } from "../adapters/outbound/http-message-delivery";
 import { InMemoryMessageJournal } from "../adapters/outbound/in-memory-message-journal";
 import { InMemorySubscriptionStore } from "../adapters/outbound/in-memory-subscription-store";
-import type { DeadLetterStorePort } from "../application/ports/dead-letter-store-port";
-import type { MessageJournalPort } from "../application/ports/message-journal-port";
-import type { SubscriptionStorePort } from "../application/ports/subscription-store-port";
 import { resolveTarget } from "../application/services/address-resolver";
 import { DeliveryWorker } from "../application/services/delivery-worker";
 import { Dispatcher } from "../application/services/dispatcher";
 import { SubscriptionRegistry } from "../application/services/subscription-registry";
+import type { DeadLetterStorePort } from "../domain/ports/dead-letter-store.port";
+import type { MessageJournalPort } from "../domain/ports/message-journal.port";
+import type { SubscriptionStorePort } from "../domain/ports/subscription-store.port";
 import { FileDlqRepository } from "../infrastructure/fallback/dlq-repository";
 import {
 	JOURNAL_OLDEST_PENDING_AGE_SECONDS,
