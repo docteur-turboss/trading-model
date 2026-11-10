@@ -2,13 +2,13 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
 import {
-	type ProxyDeps,
-	UpstreamResponseTooLargeError,
-} from "../../src/application/ports";
-import {
 	proxyAndCache,
 	tryServeFromCache,
 } from "../../src/application/proxy-dispatcher";
+import {
+	type ProxyDeps,
+	UpstreamResponseTooLargeError,
+} from "../../src/domain/ports/gateway.port";
 
 const CTX = {
 	serviceName: "svc" as never,

@@ -14,8 +14,8 @@ import {
 	DEFAULT_LATENCY_WINDOW_SIZE,
 	DEFAULT_LOAD_CACHE_TTL_MS,
 } from "../../domain/discovery/circuit-breaker-constants";
-import type { ICircuitStateStore } from "../../domain/discovery/circuit-state-store.interface";
-import type { PersistedCircuitState } from "../../domain/discovery/service-cache.interface";
+import type { CircuitStateStorePort } from "../../domain/ports/circuit-state-store.port";
+import type { PersistedCircuitState } from "../../domain/ports/service-cache.port";
 import { STALE_OPEN_MS } from "../../infrastructure/discovery/circuit-breaker-sweeper";
 import {
 	CIRCUIT_BREAKER_STATE,
@@ -26,15 +26,15 @@ import { CircuitBreakerPersistenceHandler } from "./circuit-breaker-persistence-
 export interface CircuitBreakerOptions {
 	failureThreshold?: number;
 	halfOpenTimeoutMs?: number;
-	stateStore?: ICircuitStateStore;
+	stateStore?: CircuitStateStorePort;
 	loadFromStoreCacheTtlMs?: number;
 	latencyWindowSize?: number;
 	latencyP99ThresholdMs?: number;
 }
 
 function resolveStateStore(
-	stateStore?: ICircuitStateStore
-): ICircuitStateStore {
+	stateStore?: CircuitStateStorePort
+): CircuitStateStorePort {
 	if (stateStore) {
 		return stateStore;
 	}

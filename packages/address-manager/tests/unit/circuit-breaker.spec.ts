@@ -14,11 +14,11 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
-import type { ICircuitStateStore } from "../../src/domain/discovery/circuit-state-store.interface";
-import type { PersistedCircuitState } from "../../src/domain/discovery/service-cache.interface";
+import type { CircuitStateStorePort } from "../../src/domain/ports/circuit-state-store.port";
+import type { PersistedCircuitState } from "../../src/domain/ports/service-cache.port";
 import { CIRCUIT_BREAKER_STATE } from "../../src/infrastructure/metrics";
 
-function createMockStateStore(): jest.Mocked<ICircuitStateStore> {
+function createMockStateStore(): jest.Mocked<CircuitStateStorePort> {
 	return {
 		setCircuitState: jest
 			.fn<
@@ -140,7 +140,7 @@ describe("CircuitBreaker", () => {
 	});
 
 	describe("with stateStore", () => {
-		let mockCache: jest.Mocked<ICircuitStateStore>;
+		let mockCache: jest.Mocked<CircuitStateStorePort>;
 
 		beforeEach(() => {
 			mockCache = createMockStateStore();
@@ -351,7 +351,7 @@ describe("CircuitBreaker", () => {
 	});
 
 	describe("with stateStore error handling", () => {
-		let mockCache: jest.Mocked<ICircuitStateStore>;
+		let mockCache: jest.Mocked<CircuitStateStorePort>;
 
 		beforeEach(() => {
 			mockCache = createMockStateStore();
@@ -542,7 +542,7 @@ describe("CircuitBreaker", () => {
 	});
 
 	describe("CircuitBreakerPersistence branch coverage", () => {
-		let persistenceMock: jest.Mocked<ICircuitStateStore>;
+		let persistenceMock: jest.Mocked<CircuitStateStorePort>;
 		let cb: DiscoveryCircuitBreaker;
 
 		beforeEach(() => {

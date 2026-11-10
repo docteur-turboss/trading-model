@@ -5,7 +5,7 @@ import type {
 } from "@trading-model/primitives/primitives";
 import type { AddressManagerClient } from "../../adapters/outbound/client/address-manager-client";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
-import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import { createRefreshJob } from "../../infrastructure/scheduler/refresh-job";
 import { Scheduler } from "../../infrastructure/scheduler/scheduler";
 import type { TokenManager } from "../client/token-manager";
@@ -16,7 +16,7 @@ export interface SteadyStateSchedulerOptions {
 	tokenManager: TokenManager;
 	addressManagerClient: AddressManagerClient;
 	heartbeatManager: HeartbeatManager;
-	serviceCache: IServiceCache;
+	serviceCache: ServiceCachePort;
 	healthChecker: ServiceHealthChecker;
 	serviceName: ServiceId;
 	instanceId: InstanceId;

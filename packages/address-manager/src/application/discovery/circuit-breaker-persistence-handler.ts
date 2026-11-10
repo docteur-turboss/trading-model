@@ -5,7 +5,7 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
 import type { CircuitBreakerPersistence } from "../../adapters/outbound/discovery/circuit-breaker-persistence";
-import type { PersistedCircuitState } from "../../domain/discovery/service-cache.interface";
+import type { PersistedCircuitState } from "../../domain/ports/service-cache.port";
 import type { ForEachMachineFn } from "../../infrastructure/discovery/circuit-breaker-sweeper";
 import {
 	CircuitBreakerSweeper,

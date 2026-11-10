@@ -59,7 +59,6 @@
     "packages/server-utils/src/application/services/bootstrap-shutdown.ts -> ../../adapters/inbound/create-secure-server",
     "packages/server-utils/src/application/services/bootstrap.ts -> ../../adapters/inbound/create-secure-server",
     "packages/server-utils/src/application/services/bootstrap.ts -> ../../infrastructure/signal-handler",
-    "services/api-gateway/src/application/ports.ts -> @trading-model/validation/adapters/outbound/service-resolver.types",
     "services/api-gateway/src/application/proxy-dispatcher.ts -> ../infrastructure/config/metrics",
     "services/api-gateway/src/application/proxy-dispatcher.ts -> @trading-model/http/adapters/inbound/response-exception",
     "services/api-gateway/src/application/proxy-dispatcher.ts -> @trading-model/validation/adapters/outbound/service-resolver.types",

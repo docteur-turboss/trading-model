@@ -7,7 +7,7 @@ import { DurationMs, toServiceId } from "@trading-model/primitives/primitives";
 
 import type { ServiceInstance } from "../../domain/client/type";
 import type { DiscoveryContext } from "../../domain/discovery/discovery-context";
-import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import {
 	DiscoveryResult,
 	recordDiscoveryMetrics,
@@ -21,7 +21,7 @@ const RETRY_BASE_DELAY_MS = 100;
 export class DiscoveryRetryHandler {
 	constructor(
 		private readonly _serviceDiscovery: ServiceDiscovery,
-		private readonly _serviceCache: IServiceCache,
+		private readonly _serviceCache: ServiceCachePort,
 		readonly circuitBreaker: DiscoveryCircuitBreaker
 	) {}
 

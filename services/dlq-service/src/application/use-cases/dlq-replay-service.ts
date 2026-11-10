@@ -7,7 +7,7 @@ import {
 	type Topic,
 	toMessageId,
 } from "@trading-model/primitives/primitives";
-import type { DlqMetricsPort } from "../../domain/ports/dlq.ports";
+import type { DlqMetricsPort } from "../../domain/ports/dlq.port";
 import type {
 	ClaimReleasePort,
 	DlqReplaySettings,
@@ -15,7 +15,7 @@ import type {
 	MessageManagerLocatorPort,
 	ReplayAuditPort,
 	RetryLedgerPort,
-} from "../../domain/ports/replay.ports";
+} from "../../domain/ports/replay.port";
 import type { BatchResults, ReplayBatchOptions } from "../../shared/types";
 import { buildReplayResponse } from "./dlq-replay-response";
 

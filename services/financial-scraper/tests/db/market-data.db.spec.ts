@@ -27,7 +27,7 @@ import { MySqlCandlePublishBacklog } from "../../src/adapters/outbound/persisten
 import {
 	insertCandles,
 	selectCandlesBy,
-} from "../../src/adapters/outbound/persistence/schema/candles-schema";
+} from "../../src/adapters/outbound/persistence/schema/candles.schema";
 import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 import {
 	insertTicker,

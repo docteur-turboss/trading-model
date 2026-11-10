@@ -13,14 +13,14 @@ import { HostPort } from "@trading-model/primitives/service-identity";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
 import {
-	ACTIVE_REQUESTS,
-	PROXY_REQUEST_DURATION_SECONDS,
-} from "../infrastructure/config/metrics";
-import {
 	type ProxyDeps,
 	type ResponseCachePort,
 	UpstreamResponseTooLargeError,
-} from "./ports";
+} from "../domain/ports/gateway.port";
+import {
+	ACTIVE_REQUESTS,
+	PROXY_REQUEST_DURATION_SECONDS,
+} from "../infrastructure/config/metrics";
 
 interface ProxyContext {
 	serviceName: ServiceId;

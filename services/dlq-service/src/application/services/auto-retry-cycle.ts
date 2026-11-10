@@ -13,7 +13,7 @@ import type {
 	ReplayAuditPort,
 	RetryLedgerPort,
 	ShutdownProbe,
-} from "../../domain/ports/replay.ports";
+} from "../../domain/ports/replay.port";
 import { generateBatchId } from "../../shared/batch-id";
 import type {
 	BatchResults,

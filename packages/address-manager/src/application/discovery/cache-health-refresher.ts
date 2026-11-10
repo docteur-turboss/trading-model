@@ -6,7 +6,7 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
-import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import type { ScheduledJob } from "../../infrastructure/scheduler/scheduler";
 
 function selectBatchSlice(
@@ -32,7 +32,7 @@ export class CacheHealthRefresher implements ScheduledJob {
 	private _running = false;
 
 	constructor(
-		private readonly _serviceCache: IServiceCache,
+		private readonly _serviceCache: ServiceCachePort,
 		private readonly _healthChecker: ServiceHealthChecker,
 		checkIntervalMs: number
 	) {

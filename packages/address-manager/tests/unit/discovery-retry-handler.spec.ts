@@ -15,7 +15,7 @@ import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery
 import type { ServiceDiscovery } from "../../src/application/discovery/service-discovery";
 import type { ServiceInstance } from "../../src/domain/client/type";
 import type { DiscoveryContext } from "../../src/domain/discovery/discovery-context";
-import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../src/domain/ports/service-cache.port";
 import type { DiscoveryResult } from "../../src/infrastructure/metrics";
 
 jest.mock("@trading-model/contracts/logger-registry", () => {
@@ -64,7 +64,7 @@ describe("DiscoveryRetryHandler", () => {
 
 	let handler: DiscoveryRetryHandler;
 	let mockDiscovery: jest.Mocked<ServiceDiscovery>;
-	let mockCache: jest.Mocked<IServiceCache>;
+	let mockCache: jest.Mocked<ServiceCachePort>;
 	let mockCircuitBreaker: jest.Mocked<DiscoveryCircuitBreaker>;
 
 	function createMockDiscovery(): jest.Mocked<ServiceDiscovery> {
@@ -75,7 +75,7 @@ describe("DiscoveryRetryHandler", () => {
 		} as unknown as jest.Mocked<ServiceDiscovery>;
 	}
 
-	function createMockCache(): jest.Mocked<IServiceCache> {
+	function createMockCache(): jest.Mocked<ServiceCachePort> {
 		return {
 			get: jest
 				.fn<() => Promise<ServiceInstance | null>>()
@@ -94,7 +94,7 @@ describe("DiscoveryRetryHandler", () => {
 				.fn<() => Promise<void>>()
 				.mockResolvedValue(undefined),
 			close: jest.fn<(...args: any[]) => any>(),
-		} as unknown as jest.Mocked<IServiceCache>;
+		} as unknown as jest.Mocked<ServiceCachePort>;
 	}
 
 	function createMockCircuitBreaker(): jest.Mocked<DiscoveryCircuitBreaker> {

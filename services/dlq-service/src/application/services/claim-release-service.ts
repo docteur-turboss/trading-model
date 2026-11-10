@@ -4,7 +4,7 @@ import type {
 	DlqReplaySettings,
 	QueuableEntriesPort,
 	ReplayQueuePort,
-} from "../../domain/ports/replay.ports";
+} from "../../domain/ports/replay.port";
 
 export interface ClaimReleaseServiceDeps {
 	claimRelease: ClaimReleasePort;

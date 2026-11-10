@@ -2,8 +2,8 @@ import { describe, expect, it, jest } from "@jest/globals";
 import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { RedisMessageJournal } from "../../../../src/adapters/outbound/redis-message-journal";
-import { JOURNAL_RETENTION_MS } from "../../../../src/application/ports/message-journal-port";
 import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../../../src/config/metrics";
+import { JOURNAL_RETENTION_MS } from "../../../../src/domain/ports/message-journal.port";
 import { createMockMessage } from "../../../fixtures/broker.fixture";
 
 const GROUP = { topic: "test.topic", service: "trader-trainer" } as never;
