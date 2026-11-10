@@ -147,6 +147,8 @@ Variables expected inside the container:
 | `DLQ_PORT`       | `8452`  | dlq-service           |
 | `EDGE_PORT`      | `8449`  | edge-proxy (HTTP)     |
 
+Every published port (these seven, plus Prometheus 9090, Alertmanager 9093, Grafana 3001, Loki 3100 and Jaeger 16686) is bound to `127.0.0.1`: only the Docker host reaches them, never the LAN. Loki has no authentication and the edge speaks plain HTTP.
+
 ---
 
 ## Dependencies and health checks
