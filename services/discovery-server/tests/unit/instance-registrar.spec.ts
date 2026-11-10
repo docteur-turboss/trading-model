@@ -47,7 +47,7 @@ import type { RedisDeps } from "../../src/shared/redis-deps";
 
 function makeInstance(): ServiceInstance {
 	return {
-		serviceName: "financial-scraper-service" as ServiceId,
+		serviceName: "financial-scraper" as ServiceId,
 		instanceId: "i1" as InstanceId,
 		host: "192.168.1.10" as IPAddress,
 		port: 8444 as Port,
@@ -139,7 +139,7 @@ describe("InstanceRegistrar", () => {
 			const token = await registrar.registerInstance(makeInstance());
 
 			expect(mockSadd).toHaveBeenCalledWith(
-				"test:service:financial-scraper-service:instances",
+				"test:service:financial-scraper:instances",
 				"i1"
 			);
 			expect(mockSet).toHaveBeenCalledWith(

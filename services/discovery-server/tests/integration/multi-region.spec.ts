@@ -31,7 +31,7 @@ describe("Multi-Region Support", () => {
 
 	it("should register instances in different regions", async () => {
 		await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-us" as InstanceId,
 			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
@@ -44,7 +44,7 @@ describe("Multi-Region Support", () => {
 		});
 
 		await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-eu" as InstanceId,
 			host: "10.0.1.1" as IPAddress,
 			port: 8444 as Port,
@@ -57,7 +57,7 @@ describe("Multi-Region Support", () => {
 		});
 
 		const allInstances = await registry.instanceStore.getInstances(
-			"financial-scraper-service" as unknown as ServiceInstanceName
+			"financial-scraper" as unknown as ServiceInstanceName
 		);
 		expect(allInstances).toHaveLength(2);
 
@@ -69,7 +69,7 @@ describe("Multi-Region Support", () => {
 
 	it("should handle region-unspecified instances", async () => {
 		await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-legacy" as InstanceId,
 			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
@@ -81,14 +81,14 @@ describe("Multi-Region Support", () => {
 		});
 
 		const instances = await registry.instanceStore.getInstances(
-			"financial-scraper-service" as unknown as ServiceInstanceName
+			"financial-scraper" as unknown as ServiceInstanceName
 		);
 		expect(instances[0].region).toBeUndefined();
 	});
 
 	it("should preserve region across heartbeat updates", async () => {
 		await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-us" as InstanceId,
 			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
@@ -101,12 +101,12 @@ describe("Multi-Region Support", () => {
 		});
 
 		await registry.instanceStore.updateHeartbeat({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-us" as InstanceId,
 		});
 
 		const instance = await registry.instanceStore.getInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-us" as InstanceId,
 		});
 		expect(instance?.region).toBe("us-east-1");
@@ -114,7 +114,7 @@ describe("Multi-Region Support", () => {
 
 	it("should allow updating region on re-registration", async () => {
 		await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
 			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
@@ -127,7 +127,7 @@ describe("Multi-Region Support", () => {
 		});
 
 		await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
 			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
@@ -140,7 +140,7 @@ describe("Multi-Region Support", () => {
 		});
 
 		const instance = await registry.instanceStore.getInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
 		});
 		expect(instance?.region).toBe("eu-west-1");

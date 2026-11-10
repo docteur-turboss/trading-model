@@ -2,6 +2,7 @@
 
 **Alerts:** `TrainingCompletionRateLow` (warning, SLO `training_completion`,
 target in [slo.md](../slo.md#6-training-completion-rate)),
+`TrainerNoModelStored` (critical),
 `ModelArtifactWriteFailing` (warning),
 `TrainerEventLoopBlocked` (warning),
 `TrainerEventLoopLagHigh` (warning),
@@ -211,7 +212,50 @@ agent is written and the alert resolves after 30 min without error. The agent
 lost meanwhile is not recoverable; a restart before the next training loses
 the in-memory one too, so do not restart the trainer only to clear the alert.
 
+## TrainerNoModelStored
+
+**Critical (pages).** A trainer holds the Lease (`max(tt_training_leader)` = 1)
+but `tt_model_artifacts_total{result="stored"}` has not grown for 3 hours (2
+hours after a start: the series is born at 0). A session lasts at most
+`TRAINER_TIME_BUDGET_MS` (5 min) and the loop starts one every minute, so a
+healthy trainer stores a model every few minutes. This alert sees the useful
+output whatever stops it, including what the other trainer alerts miss: on
+2026-11-08/10 every session failed (`curve.sharpe is not a function`) for at
+least 40 h on the reference compose stack and nobody was paged. While it
+fires, the `warning` alerts of the same job (`TrainingCompletionRateLow`,
+`ModelArtifactWriteFailing`) are inhibited: look at them in Prometheus.
+
+### Diagnosis
+
+```bash
+NS=trading-model
+# 1. What the sessions end with: "Training failed" (with the error), "Training
+#    complete" then "Model stored" / "Failed to store model artifact" /
+#    "Model not stored", or "Market data is stale: training paused"
+kubectl -n $NS logs deploy/trader-trainer -c trader-trainer --tail=500 \
+  | grep -E "Training failed|Training complete|Model stored|Failed to store|Model not stored|training paused"
+
+# 2. The version that runs: compare it with the release that fixed the error
+#    (Prometheus: build_info{service="trader-trainer"}, labels version + git_sha)
+kubectl -n $NS get deploy trader-trainer -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+```
+
+Compose: `docker logs trading-trainer 2>&1 | grep ...` and
+`docker inspect trading-trainer --format '{{.Config.Image}} {{.Created}}'`.
+
+| Seen | Cause and fix |
+| --- | --- |
+| `Training failed` on every session | Code or data error: read the error, then [TrainingCompletionRateLow](#trainingcompletionratelow). A fix merged in the repository only acts once the environment runs an image built after it: redeploy (`deploy.yml`, or `docker compose pull && docker compose up -d trader-trainer`) and check `build_info` |
+| `Failed to store model artifact` | Volume: see [ModelArtifactWriteFailing](#modelartifactwritefailing) |
+| `Model not stored: the best genome has no trained weights` | Every session ends without trained weights (`result="skipped"`): a training regression, check the release notes of the running version |
+| `Market data is stale: training paused`, no session at all | No fresh candles: `TrainerMarketDataStale` fires too, follow [runbook-market-data-stale](runbook-market-data-stale.md) |
+| No line at all | The loop does not run on the leader: the holder of the Lease is stuck (event loop, see [TrainerEventLoopBlocked](#trainereventloopblocked)); delete that pod to hand the Lease over |
+
+**Resolution check:** `sum(increase(tt_model_artifacts_total{result="stored"}[1h]))`
+is above 0 again; the alert resolves at the next evaluation.
+
 ## Escalation
 
-Warnings: handle within business hours. Escalate to the Engineering Manager if
-no model has been stored for 24 hours (`increase(tt_model_artifacts_total{result="stored"}[24h]) == 0`).
+Warnings: handle within business hours. `TrainerNoModelStored` pages: handle it
+at once. Escalate to the Engineering Manager if no model has been stored for 24
+hours (`increase(tt_model_artifacts_total{result="stored"}[24h]) == 0`).

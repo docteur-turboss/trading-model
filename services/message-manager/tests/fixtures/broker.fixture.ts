@@ -10,7 +10,7 @@ import type {
 } from "@trading-model/primitives/primitives";
 
 export const mockServiceIdentity = {
-	serviceName: "financial-scraper-service" as const,
+	serviceName: "financial-scraper" as const,
 	instanceId: "instance-1",
 };
 

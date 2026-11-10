@@ -145,10 +145,6 @@ paths:
                             - "financial-scraper"
                             - "message-manager"
                             - "trader-trainer"
-                            - "audit-logger-service"
-                            - "discovery-service"
-                            - "financial-scraper-service"
-                            - "message-delivery-service"
                         instanceId:
                           type: "string"
                           minLength: 1

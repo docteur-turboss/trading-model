@@ -1274,6 +1274,22 @@ data:
               description: 'No candle reached the trainer buffer in 15 minutes: the scraper, message-manager or the trainer subscription is broken.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
+          # The useful output of the trainer is a stored model, whatever stops it
+          # (training failing, nothing to train, write failing). A session lasts at
+          # most TRAINER_TIME_BUDGET_MS (5 min) and the loop starts one every minute,
+          # so one hour without a stored model is already abnormal; the 2 h of "for"
+          # also covers a cold start (series born at 0). Fires only while a trainer
+          # holds the Lease (no leader: TrainerNoLeader; trainer down: ServiceDown).
+          - alert: TrainerNoModelStored
+            expr: sum by (job) (increase(tt_model_artifacts_total{result="stored"}[1h])) == 0 and on (job) max by (job) (tt_training_leader) == 1
+            for: 2h
+            labels:
+              severity: critical
+            annotations:
+              summary: 'trader-trainer has stored no model for hours'
+              description: 'No model artifact stored for at least 3 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernomodelstored'
+
           # A trained model could not be stored (ADR-0022): the best agent then
           # only lives in the trainer memory, lost at the next restart. The series
           # exist at 0 from startup, so the first failure is an increase.

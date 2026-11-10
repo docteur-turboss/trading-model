@@ -35,9 +35,7 @@ import {
  * what the code publishes and subscribes to.
  */
 
-const mockScraperBroker = createRecordingBrokerClient(
-	"financial-scraper-service"
-);
+const mockScraperBroker = createRecordingBrokerClient("financial-scraper");
 const mockTrainerBroker = createRecordingBrokerClient("trader-trainer");
 const mockDlqBroker = createRecordingBrokerClient("dlq-service");
 
@@ -45,7 +43,7 @@ jest.mock(
 	"../../services/financial-scraper/src/infrastructure/config/env",
 	() => ({
 		ENV: {
-			SERVICE_NAME: "financial-scraper-service",
+			SERVICE_NAME: "financial-scraper",
 			INSTANCE_ID: "financial-scraper-1",
 		},
 	})
@@ -413,8 +411,8 @@ describe("service message contracts", () => {
 					}
 					// ADR-0043: only the failed service, under the original messageId.
 					expect(replayed.journaledFor).toEqual({
-						services: ["audit-logger-service"],
-						onlyFor: "audit-logger-service",
+						services: ["audit-logger"],
+						onlyFor: "audit-logger",
 					});
 					expect(replayed.message.metadata.messageId).toBe(
 						first.message.metadata.messageId

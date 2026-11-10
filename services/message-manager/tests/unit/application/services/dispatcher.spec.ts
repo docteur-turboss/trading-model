@@ -79,7 +79,7 @@ describe("Dispatcher", () => {
 		await dispatcher.subscribe({
 			...mockSubscribeParams,
 			serviceIdentity: {
-				serviceName: "audit-logger-service",
+				serviceName: "audit-logger",
 				instanceId: "al-1",
 			},
 		} as never);
@@ -87,7 +87,7 @@ describe("Dispatcher", () => {
 		await dispatcher.publish({ price: 1 }, METADATA);
 
 		expect(await journaled()).toHaveLength(1);
-		expect(await journaled("audit-logger-service")).toHaveLength(1);
+		expect(await journaled("audit-logger")).toHaveLength(1);
 	});
 
 	it("should not journal for the subscribers of another topic", async () => {
