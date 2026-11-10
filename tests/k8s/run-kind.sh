@@ -682,14 +682,20 @@ verify_identity_without_mysql() {
 	log "  SPIRE server healthy without MySQL"
 	$K -n "$NS" rollout restart deployment/discovery-server
 	$K -n "$NS" rollout status deployment/discovery-server --timeout=300s
-	local pod
-	# Pods of the old ReplicaSet may still be terminating: skipped.
-	for pod in $($K -n "$NS" get pod -l app.kubernetes.io/component=discovery-server -o go-template 		--template '{{range .items}}{{if not .metadata.deletionTimestamp}}{{.metadata.name}}{{"
-"}}{{end}}{{end}}'); do
+	local pod pods
+	# Pods of the old ReplicaSet may still be terminating: skipped. Captured
+	# first so a kubectl failure stops the step (set -e) instead of an empty loop.
+	pods="$($K -n "$NS" get pod -l app.kubernetes.io/component=discovery-server -o go-template --template '{{range .items}}{{if not .metadata.deletionTimestamp}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}')"
+	[ -n "$pods" ] || {
+		log "no discovery-server pod found"
+		return 1
+	}
+	for pod in $pods; do
 		$K -n "$NS" exec "$pod" -c discovery-server -- test -s /run/spire/svid/svid.pem || {
 			log "$pod restarted without MySQL has no SVID"
 			return 1
 		}
+		log "  $pod has its SVID"
 	done
 	log "  restarted discovery-server pods got their SVID"
 	$K -n "$NS" scale statefulset mysql --replicas="$mysql_replicas"
