@@ -53,7 +53,7 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=MYSQL_PASSWORD='your-mysql-password' \
   --from-literal=MYSQL_MIGRATE_PASSWORD='your-migration-user-password' \
   --from-literal=MYSQL_RETENTION_PASSWORD='your-retention-user-password' \
-  --from-literal=MYSQL_EXPORTER_PASSWORD='your-mysql-exporter-password' \
+  --from-literal=MYSQL_SPIRE_PASSWORD='your-spire-user-password' \n  --from-literal=MYSQL_EXPORTER_PASSWORD='your-mysql-exporter-password' \
   --from-literal=DLQ_AUTH_HMAC_SECRET='your-dlq-hmac-secret' \
   --from-literal=GRAFANA_PASSWORD='your-grafana-password' \
   --from-literal=HMAC_SECRET='your-hmac-secret' \
