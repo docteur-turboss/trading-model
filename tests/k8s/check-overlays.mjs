@@ -386,6 +386,10 @@ for (const env of OVERLAYS) {
 	if (!edge?.text.includes("include /etc/nginx/conf.d/realip.inc;")) {
 		errors.push(`${env}: edge-proxy-nginx does not include realip.inc in default.conf`);
 	}
+	// Issue #739: error lines carry the full "client: <IP>"; only `crit` may reach stderr (promtail -> Loki).
+	if (!/^ *error_log \/dev\/stderr crit;$/m.test(edge?.text ?? "")) {
+		errors.push(`${env}: edge-proxy-nginx default.conf lacks "error_log /dev/stderr crit;" (full client IP in error log)`);
+	}
 	const overlayCidrs = readFileSync(`deploy/k8s/overlays/${env}/realip.inc`, "utf8").match(/^set_real_ip_from .+;$/gm) ?? [];
 	if (overlayCidrs.length === 0 || !overlayCidrs.every((line) => edge?.text.includes(line))) {
 		errors.push(`${env}: edge-proxy-nginx realip.inc lacks the CIDRs of overlays/${env}/realip.inc`);
