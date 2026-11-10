@@ -181,22 +181,28 @@ describe("LeaseManager", () => {
 				port: 8080 as Port,
 				ttl: 1 as DurationMs,
 				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: Date.now() as UnixTimestamp,
+				lastHeartbeat: Date.now() as UnixTimestamp,
 			});
 
 			await registry.registerInstance({
 				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "alive-id" as InstanceId,
-				ip: "1.1.1.2",
+				host: "1.1.1.2" as IPAddress,
 				port: 8081 as Port,
 				ttl: 60000 as DurationMs,
 				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: Date.now() as UnixTimestamp,
+				lastHeartbeat: Date.now() as UnixTimestamp,
 			});
 
 			const lm = new LeaseManager(registry);
 			lm.start();
 			await jest.advanceTimersByTimeAsync(10000);
 
-			const remaining = registry.instanceStore.getInstances(
+			const remaining = await registry.instanceStore.getInstances(
 				"financial-scraper" as unknown as ServiceInstanceName
 			);
 			expect(remaining).toHaveLength(1);
@@ -214,6 +220,9 @@ describe("LeaseManager", () => {
 				port: 8080 as Port,
 				ttl: 1 as DurationMs,
 				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: Date.now() as UnixTimestamp,
+				lastHeartbeat: Date.now() as UnixTimestamp,
 			});
 
 			jest.spyOn(registry, "removeInstance").mockImplementation(() => {

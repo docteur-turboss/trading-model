@@ -3,6 +3,7 @@ import type { Protocol } from "@trading-model/contracts/service-registry-types";
 import type {
 	DurationMs,
 	InstanceId,
+	IPAddress,
 	Port,
 	ServiceId,
 	UnixTimestamp,
@@ -36,7 +37,11 @@ describe("helpers", () => {
 	describe("validateInstanceToken", () => {
 		it("should throw Unauthorized if token header is missing", async () => {
 			await expect(
-				validateInstanceToken(registry, null, "instance-1")
+				validateInstanceToken(
+					registry,
+					null as unknown as undefined,
+					"instance-1" as InstanceId
+				)
 			).rejects.toThrow();
 			expect(ResponseException).toHaveBeenCalledWith(
 				"Missing or invalid instance token"
@@ -63,7 +68,7 @@ describe("helpers", () => {
 			const registered = await registry.registerInstance({
 				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "instance-1" as InstanceId,
-				ip: "1.1.1.1",
+				host: "1.1.1.1" as IPAddress,
 				port: 8080 as Port,
 				ttl: 30000 as DurationMs,
 				protocol: "mtls" as unknown as Protocol,
@@ -94,7 +99,7 @@ describe("helpers", () => {
 			const registered = await replicaA.registerInstance({
 				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "instance-1" as InstanceId,
-				ip: "1.1.1.1",
+				host: "1.1.1.1" as IPAddress,
 				port: 8080 as Port,
 				ttl: 30000 as DurationMs,
 				protocol: "mtls" as unknown as Protocol,

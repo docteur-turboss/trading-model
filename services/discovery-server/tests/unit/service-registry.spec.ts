@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "@jest/globals";
 import type {
 	AuthToken,
 	InstanceId,
+	IPAddress,
 	Port,
 	ServiceId,
 	UnixTimestamp,
@@ -129,14 +130,14 @@ describe("ServiceRegistry", () => {
 		it("should return all instances for a service", async () => {
 			await registry.registerInstance(validServiceInstance());
 			await registry.registerInstance(secondServiceInstance());
-			const instances = registry.instanceStore.getInstances(
+			const instances = await registry.instanceStore.getInstances(
 				"financial-scraper" as unknown as ServiceInstanceName
 			);
 			expect(instances).toHaveLength(2);
 		});
 
 		it("should return empty array for unknown service", async () => {
-			const instances = registry.instanceStore.getInstances(
+			const instances = await registry.instanceStore.getInstances(
 				"unknown-service" as unknown as ServiceInstanceName
 			);
 			expect(instances).toEqual([]);
@@ -146,7 +147,7 @@ describe("ServiceRegistry", () => {
 	describe("getInstance", () => {
 		it("should return a specific instance", async () => {
 			await registry.registerInstance(validServiceInstance());
-			const instance = registry.instanceStore.getInstance({
+			const instance = await registry.instanceStore.getInstance({
 				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "test-instance-1" as InstanceId,
 			});
@@ -155,7 +156,7 @@ describe("ServiceRegistry", () => {
 		});
 
 		it("should return undefined for unknown service", async () => {
-			const instance = registry.instanceStore.getInstance({
+			const instance = await registry.instanceStore.getInstance({
 				serviceName: "unknown-service" as ServiceId,
 				instanceId: "test-instance-1" as InstanceId,
 			});
@@ -164,7 +165,7 @@ describe("ServiceRegistry", () => {
 
 		it("should return undefined for unknown instance", async () => {
 			await registry.registerInstance(validServiceInstance());
-			const instance = registry.instanceStore.getInstance({
+			const instance = await registry.instanceStore.getInstance({
 				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "unknown-instance" as InstanceId,
 			});
@@ -267,7 +268,7 @@ describe("ServiceRegistry", () => {
 			await registry.registerInstance(validServiceInstance());
 			await registry.registerInstance(secondServiceInstance());
 			await registry.registerInstance(otherServiceInstance());
-			const snapshot = registry.instanceStore.dump();
+			const snapshot = await registry.instanceStore.dump();
 			expect(Object.keys(snapshot)).toHaveLength(2);
 			expect(snapshot["financial-scraper"]).toHaveLength(2);
 			expect(snapshot["message-manager"]).toHaveLength(1);
@@ -298,7 +299,7 @@ describe("ServiceRegistry", () => {
 		it("should return a non-empty base64 string", async () => {
 			const id = registry.tokenManager.generateInstanceId({
 				serviceName: "financial-scraper" as ServiceId,
-				address: "192.168.1.10",
+				host: "192.168.1.10" as IPAddress,
 				port: 8444 as Port,
 			});
 			expect(typeof id).toBe("string");

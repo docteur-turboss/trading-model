@@ -26,7 +26,6 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EXCLUDED = new Map([
   // Specs built on a stale model: `ip` instead of `host` on ServiceInstance, service names that no
   // longer exist, registry calls typed sync | Promise. 43 errors left (2026-11-08).
-  ['services/discovery-server', 43],
   // Specs call the broker with stale shapes: `serviceName` literals that are not ServiceId, `Date`
   // for UnixTimestamp, deprecated DeliveryMode keys. 68 errors left (2026-11-08).
   ['services/message-manager', 68],

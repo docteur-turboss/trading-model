@@ -52,7 +52,7 @@ describe("discovery-server internal API (registration and leases)", () => {
 		// Thrown 401s go through the platform error handler, as in production.
 		app.use(ResponseProtocol);
 		await new Promise<void>((resolve) => {
-			server = app.listen(0, resolve);
+			server = app.listen(0, () => resolve());
 		});
 		baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 	});
