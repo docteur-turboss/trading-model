@@ -1,8 +1,8 @@
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 /**
  * Handlers of the broker routes (BROKER_API): the body is parsed by the route.
  */
 
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import type {
 	Message,
 	MessageMetadata,
@@ -14,7 +14,7 @@ import type { BROKER_API } from "./api-routes";
 
 type Api = typeof BROKER_API;
 
-const NO_CONTENT = () => sendResponse(undefined, 204 as HttpStatusCode);
+const NO_CONTENT = () => sendResponse(undefined, HTTP_STATUS.NO_CONTENT);
 
 /** Journals a dead letter for the one service it failed for, keeping its `messageId`: 204 once durable. */
 export const REPLAY_A_MESSAGE =
@@ -48,5 +48,5 @@ export const PUBLISH_A_MESSAGE =
 			body.payload,
 			body.metadata as Omit<MessageMetadata, "emittedAt" | "messageId">
 		);
-		return sendResponse({ messageId }, 202 as HttpStatusCode);
+		return sendResponse({ messageId }, HTTP_STATUS.ACCEPTED);
 	};
