@@ -1469,6 +1469,8 @@ dump() {
 		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
 		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
 	done
+	echo "===== spire-server (spire-entries)"
+	$K -n "$NS" logs deploy/spire-server -c spire-entries --tail=40 2>&1 || true
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
 	# The market data path, even when its pods look healthy (verify checks it).
 	for workload in binance-stub financial-scraper-collector financial-scraper message-manager; do
