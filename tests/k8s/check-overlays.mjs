@@ -45,8 +45,8 @@ const SINGLETONS = {
 	"trader-trainer": { adr: "ADR-0058", lease: "trader-trainer", env: "TRAINER_LEASE_NAME" },
 	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector", env: "COLLECTOR_LEASE_NAME" },
 };
-// Data StatefulSets of staging-local held by a partition (issue #700).
-const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
+// Data and observability StatefulSets of staging-local held by a partition (issue #700).
+const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit", "alertmanager", "grafana", "loki", "prometheus"];
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 
 function render(dir) {
