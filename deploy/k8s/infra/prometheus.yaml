@@ -147,7 +147,8 @@ spec:
                 --config.file=/etc/prometheus/prometheus.yml \
                 --storage.tsdb.path=/prometheus \
                 --storage.tsdb.retention.time=30d \
-                --web.enable-lifecycle \n                --enable-feature=expand-external-labels
+                --web.enable-lifecycle \
+                --enable-feature=expand-external-labels
           ports:
             - containerPort: 9090
               name: http
