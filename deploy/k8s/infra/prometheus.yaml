@@ -1531,6 +1531,18 @@ data:
               description: 'mongodb_exporter of {{ $labels.instance }} ({{ $labels.job }}) cannot reach mongod for 5 minutes.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbdown'
 
+          # Partitioned StatefulSets (staging-local, issue #700) stay on the old pod
+          # template after `kubectl rollout status` reports success.
+          - alert: StatefulSetStuckOnOldRevision
+            expr: kube_statefulset_status_current_revision unless on (namespace, statefulset, revision) kube_statefulset_status_update_revision
+            for: 24h
+            labels:
+              severity: warning
+            annotations:
+              summary: 'StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} still runs an old revision'
+              description: 'StatefulSet {{ $labels.statefulset }} has pods on a revision other than its update revision for 24 hours: a partition holds the rollout back, so new sidecars (exporters) and their alerts are not running.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision'
+
           # Each member's exporter reports every member: max by member dedupes.
           # State 1 PRIMARY, 2 SECONDARY; anything else (RECOVERING, DOWN...) does not serve.
           - alert: MongoDBReplicaSetMemberUnhealthy
