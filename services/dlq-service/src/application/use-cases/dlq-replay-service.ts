@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Span } from "@opentelemetry/api";
 import { SpanStatusCode } from "@opentelemetry/api";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type Limit,
 	type Topic,
@@ -58,7 +58,7 @@ async function _abandonExhaustedIfNeeded(
 	}
 	const abandoned = await deps.retryLedger.abandonExhaustedEntries();
 	if (abandoned > 0) {
-		logger.warn(
+		getLogger().warn(
 			`DLQ manual replay: ${abandoned} entries abandoned after max retries`
 		);
 	}

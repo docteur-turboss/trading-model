@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { Span } from "@opentelemetry/api";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type InstanceId,
 	toInstanceId,
@@ -17,9 +17,10 @@ import type {
 } from "../../src/domain/ports/replay.ports";
 import type { BatchResults, ReplayBatchOptions } from "../../src/shared/types";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { warn: jest.fn<(...args: any[]) => any>() },
-}));
+jest.mock("@trading-model/contracts/logger-registry", () => {
+	const logger = { warn: jest.fn<(...args: any[]) => any>() };
+	return { getLogger: () => logger, logger };
+});
 
 const MM_URL = "https://mm:3000" as URLString;
 const INSTANCE = toInstanceId("dlq-1") as InstanceId;
@@ -196,7 +197,7 @@ describe("replay use case", () => {
 	});
 
 	it("warns with the abandoned count and audits the failures", async () => {
-		const warn = logger.warn as jest.Mock;
+		const warn = getLogger().warn as jest.Mock;
 		warn.mockClear();
 		const t = setup({
 			abandoned: 2,
@@ -218,7 +219,7 @@ describe("replay use case", () => {
 	});
 
 	it("does not warn when nothing was abandoned", async () => {
-		const warn = logger.warn as jest.Mock;
+		const warn = getLogger().warn as jest.Mock;
 		warn.mockClear();
 		const t = setup({
 			batch: { success: 0, errors: [{ id: toMessageId("e1"), error: "x" }] },

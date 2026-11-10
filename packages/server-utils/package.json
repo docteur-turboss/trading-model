@@ -20,6 +20,7 @@
     "@opentelemetry/sdk-node": "^0.300.0",
     "@opentelemetry/semantic-conventions": "^1.44.0",
     "@trading-model/common": "*",
+    "@trading-model/contracts": "*",
     "@trading-model/http": "*",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.3",

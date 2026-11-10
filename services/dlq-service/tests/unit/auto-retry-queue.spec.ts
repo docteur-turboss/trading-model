@@ -3,16 +3,17 @@ import { describe, expect, it, jest } from "@jest/globals";
 const MOCK_LIST_QUEUABLE = jest.fn<(...args: any[]) => any>();
 const MOCK_PUSH = jest.fn<(...args: any[]) => any>();
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: {
+jest.mock("@trading-model/contracts/logger-registry", () => {
+	const logger = {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
 		error: jest.fn<(...args: any[]) => any>(),
-	},
-}));
+	};
+	return { getLogger: () => logger, logger };
+});
 
 const { logger: MOCK_LOGGER } = jest.requireMock(
-	"@trading-model/http/infrastructure/logger"
+	"@trading-model/contracts/logger-registry"
 ) as {
 	logger: {
 		info: jest.Mock<(...args: any[]) => any>;

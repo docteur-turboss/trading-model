@@ -2,7 +2,7 @@ import {
 	configurationError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { z } from "zod";
 
 /**
@@ -25,7 +25,7 @@ function _treeifyErrors(error: z.ZodError): unknown {
 	try {
 		return z.treeifyError(error);
 	} catch (err) {
-		logger.warn("Failed to treeify Zod error, using raw format", {
+		getLogger().warn("Failed to treeify Zod error, using raw format", {
 			context: { err: normalizeError(err) },
 		});
 		return error;
