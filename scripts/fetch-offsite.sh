@@ -341,7 +341,7 @@ done
 echo ""
 ok "Run ${SELECTED} fetched in $((SECONDS - started)) s ($(du -sh "$DEST" | cut -f1))"
 echo "══════════════════════════════════════════════════"
-echo "  Restore it (MySQL before SPIRE, writers stopped):"
+echo "  Restore it (writers stopped):"
 echo "  BACKUP_DIR=${DEST} BACKUP_AGE_IDENTITY=<key file> \\"
 if $PITR; then
   echo "    bash scripts/restore-k8s.sh --until <instant, UTC> --components $(IFS=,; echo "${PARTS[*]}")"

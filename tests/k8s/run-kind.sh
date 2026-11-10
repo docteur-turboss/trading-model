@@ -1249,7 +1249,7 @@ verify_backup() {
 	drill_record fetch_offsite "$fetch_seconds"
 	# The run: 5 dumps + 3 PITR starting points + the run manifest, which
 	# restore-k8s.sh selects and verifies with; then the archives replayed.
-	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
+	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'data_*.tar.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
 	[ "$fetched" -eq 9 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
 		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 9 (5 dumps, 3 PITR starting points, run manifest)"
 		return 1
