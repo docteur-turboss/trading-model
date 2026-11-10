@@ -44,7 +44,7 @@ Slack is down: configure that external check to notify someone directly
 
 ## High availability (production)
 
-ADR-0062: production runs Prometheus ×2 and Alertmanager ×2 (cluster on port 9094), so a drain or a release does not stop evaluation or notifications. Check: `kubectl exec alertmanager-0 -- wget -qO- localhost:9093/api/v2/status` shows `cluster.status: ready` and 2 peers. Grafana, Loki, Jaeger, blackbox-exporter and kube-state-metrics stay at one replica (consultation or a missed scrape, not detection). Staging runs 1 of each.
+ADR-0062: production runs Prometheus ×2 and Alertmanager ×2 (cluster on port 9094), so a drain or a release does not stop evaluation or notifications. Check: `kubectl exec alertmanager-0 -- wget -qO- localhost:9093/api/v2/status` shows `cluster.status: ready` and 2 peers. Grafana, Loki, Jaeger, blackbox-exporter and kube-state-metrics stay at one replica (consultation or a missed scrape, not detection). Deduplication relies on `alert_relabel_configs` dropping the `replica` label (expanded by `--enable-feature=expand-external-labels`): both Prometheus send identical alerts to every ready pod (Service `alertmanager-ready`). Staging runs 1 of each.
 
 ## Loki and the trace pipeline
 

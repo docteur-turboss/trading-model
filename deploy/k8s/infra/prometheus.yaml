@@ -147,7 +147,7 @@ spec:
                 --config.file=/etc/prometheus/prometheus.yml \
                 --storage.tsdb.path=/prometheus \
                 --storage.tsdb.retention.time=30d \
-                --web.enable-lifecycle
+                --web.enable-lifecycle \n                --enable-feature=expand-external-labels
           ports:
             - containerPort: 9090
               name: http
@@ -257,7 +257,7 @@ data:
         # Every Alertmanager pod, not the Service (which picks one): each
         # instance gets every alert, the cluster deduplicates the notification.
         - dns_sd_configs:
-            - names: ['alertmanager-headless']
+            - names: ['alertmanager-ready']
               type: A
               port: 9093
 
@@ -512,7 +512,7 @@ data:
 
       - job_name: 'alertmanager'
         dns_sd_configs:
-          - names: ['alertmanager-headless']
+          - names: ['alertmanager-ready']
             type: A
             port: 9093
 

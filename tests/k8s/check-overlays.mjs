@@ -343,6 +343,13 @@ for (const env of OVERLAYS) {
 		if (name === "alertmanager" && sts && env === "production" && !/--cluster\.peer=alertmanager-headless:9094/.test(sts.text)) {
 			errors.push("production: alertmanager has no --cluster.peer (ADR-0062)");
 		}
+		if (name === "prometheus" && sts && env === "production") {
+			const config = docs.find((doc) => doc.kind === "ConfigMap" && doc.name === "prometheus-config")?.text ?? "";
+			if (!sts.text.includes("--enable-feature=expand-external-labels")) errors.push("production: prometheus lacks --enable-feature=expand-external-labels, so the replica label stays a literal ${HOSTNAME} (ADR-0062)");
+			if (!/external_labels:\s+replica: '\$\{HOSTNAME\}'/.test(config)) errors.push("production: prometheus external label replica: '${HOSTNAME}' missing (ADR-0062)");
+			if (!/alert_relabel_configs:\s+- action: labeldrop\s+regex: replica/.test(config)) errors.push("production: prometheus does not drop the replica label before sending alerts: both replicas' alerts would differ (ADR-0062)");
+			if (!/alertmanager-ready/.test(config) || /alertmanager-headless/.test(config)) errors.push("production: prometheus must discover Alertmanager through the ready-only Service alertmanager-ready (ADR-0062)");
+		}
 	}
 
 	for (const name of DATA_STATEFULSETS) {
