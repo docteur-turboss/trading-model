@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { test } from 'node:test';
@@ -30,10 +30,10 @@ writeFileSync(join(dir, 'gh'), '#!/bin/sh\nexec node "$(dirname "$0")/gh.js" "$@
 chmodSync(join(dir, 'gh'), 0o755);
 const script = fileURLToPath(new URL('./check-environment-protection.mjs', import.meta.url));
 const pathKey = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH'); // `Path` on Windows
-const run = (name, routes) => {
+const run = (name, routes, extra = {}) => {
   const r = spawnSync(process.execPath, [script, name, 'o/r'], {
     encoding: 'utf8',
-    env: { ...process.env, [pathKey]: dir + delimiter + process.env[pathKey], FAKE_ROUTES: JSON.stringify(routes) },
+    env: { ...process.env, [pathKey]: dir + delimiter + process.env[pathKey], FAKE_ROUTES: JSON.stringify(routes), ...extra },
   });
   return { code: r.status, out: r.stdout + r.stderr };
 };
@@ -59,4 +59,13 @@ test('cli: compliant -> exit 0, no output', { skip: process.platform === 'win32'
   const r = run('production', ok);
   assert.equal(r.code, 0, r.out);
   assert.equal(r.out.trim(), '');
+});
+test('cli: exists output for the deploy preflight', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+  const out = join(dir, 'github-output');
+  writeFileSync(out, '');
+  run('production', {}, { GITHUB_OUTPUT: out });
+  assert.equal(readFileSync(out, 'utf8').trim(), 'exists=false');
+  writeFileSync(out, '');
+  run('production', ok, { GITHUB_OUTPUT: out });
+  assert.equal(readFileSync(out, 'utf8').trim(), 'exists=true');
 });

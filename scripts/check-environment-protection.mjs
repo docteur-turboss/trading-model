@@ -2,7 +2,9 @@
 // (docs/deployment/DEPLOY.md "Protect the production environment").
 // Usage: node scripts/check-environment-protection.mjs <environment> [owner/repo]
 // Needs `gh` and GH_TOKEN. production: errors, exit 1. Any other environment: warnings only.
+// Writes exists=true|false to $GITHUB_OUTPUT when set (nothing when the API call fails).
 import { execFileSync } from 'node:child_process';
+import { appendFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const DOC = 'docs/deployment/DEPLOY.md';
@@ -43,6 +45,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   const base = `repos/${repo}/environments/${name}`;
   const env = api(base);
+  // deploy.yml preflight: a job naming a missing environment would create it unprotected.
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `exists=${env !== null}\n`);
   const policies = env ? (api(`${base}/deployment-branch-policies?per_page=100`)?.branch_policies ?? []) : [];
   const problems = checkEnvironment(env, policies);
   const level = name === 'production' ? 'error' : 'warning';
