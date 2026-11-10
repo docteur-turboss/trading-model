@@ -12,6 +12,7 @@ export function createMockHttpClient(): MockHttpClient {
 	return {
 		get: jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined),
 		post: jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined),
+		delete: jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined),
 	};
 }
 

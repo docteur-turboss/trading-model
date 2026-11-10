@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
-import type { DurationMs, Topic } from "@trading-model/primitives/primitives";
+import type {
+	DurationMs,
+	SequenceNumber,
+	Topic,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import { Subscription } from "../../../../src/application/services/subscription";
 import type { MessageDeliveryPort } from "../../../../src/domain/ports/message-delivery.port";
 import {
@@ -113,7 +118,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Timeout"));
 
 			const message = createMockMessage("payload", {
-				emittedAt: new Date("2026-01-01T00:00:00Z"),
+				emittedAt: Date.parse("2026-01-01T00:00:00Z") as UnixTimestamp,
 				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 1 as DurationMs },
 			});
 			await dispatchUntilSettled(subscription, message);
@@ -173,7 +178,7 @@ describe("Subscription", () => {
 				message,
 				service: expect.any(String),
 				reason: "SINGLE_ATTEMPT_FAILED",
-				deliveryAttempt: 1,
+				deliveryAttempt: 1 as SequenceNumber,
 			});
 		});
 
@@ -212,7 +217,7 @@ describe("Subscription", () => {
 				message,
 				service: expect.any(String),
 				reason: "OPEN",
-				deliveryAttempt: 5,
+				deliveryAttempt: 5 as SequenceNumber,
 			});
 		});
 

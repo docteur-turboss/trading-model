@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
-import type { InstanceId, Topic } from "@trading-model/primitives/primitives";
+import {
+	type InstanceId,
+	ServiceId,
+	type Topic,
+} from "@trading-model/primitives/primitives";
 import { InMemoryMessageJournal } from "../../../../src/adapters/outbound/in-memory-message-journal";
 import { InMemorySubscriptionStore } from "../../../../src/adapters/outbound/in-memory-subscription-store";
 import { Dispatcher } from "../../../../src/application/services/dispatcher";
@@ -87,7 +91,7 @@ describe("Dispatcher", () => {
 		await dispatcher.publish({ price: 1 }, METADATA);
 
 		expect(await journaled()).toHaveLength(1);
-		expect(await journaled("audit-logger")).toHaveLength(1);
+		expect(await journaled(ServiceId.of("audit-logger"))).toHaveLength(1);
 	});
 
 	it("should not journal for the subscribers of another topic", async () => {
