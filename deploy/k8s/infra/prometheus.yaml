@@ -764,13 +764,13 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
           - alert: CertificateExpiry
-            expr: probe_ssl_earliest_cert_expiry - time() < 1800
+            expr: probe_ssl_earliest_cert_expiry - time() < 3600
             for: 5m
             labels:
               severity: warning
             annotations:
               summary: 'SVID close to expiry on {{ $labels.service }}'
-              description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
           - alert: CircuitBreakerOpen

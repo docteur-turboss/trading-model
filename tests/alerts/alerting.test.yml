@@ -1267,9 +1267,9 @@ tests:
     interval: 1m
     input_series:
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://api-gateway:3000/ping",service="api-gateway"}'
-        values: '3600+0x20'
+        values: '7200+0x20'
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://dlq-service:3000/ping",service="dlq-service"}'
-        values: '900+0x20'
+        values: '3600+0x20'
     alert_rule_test:
       - eval_time: 10m
         alertname: CertificateExpiry
@@ -1277,7 +1277,7 @@ tests:
           - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
             exp_annotations:
               summary: 'SVID close to expiry on dlq-service'
-              description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
   # ── Infrastructure (issue #601, ADR-0056) ────────────────────────────
