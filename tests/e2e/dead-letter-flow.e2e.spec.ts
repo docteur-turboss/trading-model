@@ -5,6 +5,7 @@ import {
 	eventually,
 	meshRequest,
 	signedDlqHeaders,
+	step,
 } from "./helpers";
 
 /**
@@ -75,22 +76,31 @@ describe("Dead-letter flow E2E", () => {
 		});
 	});
 
-	it("subscribes a subscriber that cannot take the topic", () => {
-		const { status } = meshRequest(CALLER.trainer, `${MM}/subscribe`, {
-			method: "POST",
-			body: {
-				topic: TOPIC,
-				callbackPath: "e2e-no-such-route",
-				serviceIdentity: {
-					serviceName: "trader-trainer",
-					instanceId: INSTANCE_ID,
+	it("dead-letters, replays and audits an undeliverable message", async () => {
+		await step("subscribes a subscriber that cannot take the topic", () => {
+			const { status } = meshRequest(CALLER.trainer, `${MM}/subscribe`, {
+				method: "POST",
+				body: {
+					topic: TOPIC,
+					callbackPath: "e2e-no-such-route",
+					serviceIdentity: {
+						serviceName: "trader-trainer",
+						instanceId: INSTANCE_ID,
+					},
 				},
-			},
+			});
+			expect(status).toBeLessThan(300);
 		});
-		expect(status).toBeLessThan(300);
+
+		await step("stores the undeliverable message in dlq-service", storeMessage);
+		await step("replays it through message-manager", replay);
+		await step(
+			"records the dead letters and the replay in the audit trail",
+			audit
+		);
 	});
 
-	it("stores the undeliverable message in dlq-service", async () => {
+	async function storeMessage(): Promise<void> {
 		const { status } = meshRequest(CALLER.scraper, `${MM}/message`, {
 			method: "POST",
 			body: {
@@ -122,9 +132,9 @@ describe("Dead-letter flow E2E", () => {
 				payload: { e2e: "dead-letter" },
 			},
 		});
-	});
+	}
 
-	it("replays it through message-manager", async () => {
+	async function replay(): Promise<void> {
 		const { status, body } = signedDlqRequest(
 			"POST",
 			"/dlq/replay",
@@ -142,9 +152,9 @@ describe("Dead-letter flow E2E", () => {
 		for (const entry of entries) {
 			expect(entry.message.payload).toEqual({ e2e: "dead-letter" });
 		}
-	});
+	}
 
-	it("records the dead letters and the replay in the audit trail", async () => {
+	async function audit(): Promise<void> {
 		const added = await eventually("dlq.entry.added in audit-logger", () => {
 			const payloads = auditedPayloads("dlq.entry.added");
 			return payloads.length > 1 ? payloads : undefined;
@@ -162,5 +172,5 @@ describe("Dead-letter flow E2E", () => {
 		expect(replays).toEqual([
 			expect.objectContaining({ replayed: 1, failed: 0 }),
 		]);
-	});
+	}
 });
