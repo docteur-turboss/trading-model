@@ -188,7 +188,8 @@ wait_rollout() {
 # the ON of group-replication.cnf; the next deploy binds the users again.
 relax_mysql() {
 	local ns="$1" pod
-	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name); do
+	# Same label as the mysql-cluster-init Job pod (no mysql container): keep the StatefulSet pods.
+	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name | grep "^pod/mysql-[0-9]*$"); do
 		kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
 			m() { MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "$1"; }
 			m "SET GLOBAL require_secure_transport=OFF"
