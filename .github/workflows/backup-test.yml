@@ -15,6 +15,7 @@ on:
       - 'scripts/fetch-offsite.sh'
       - 'scripts/verify-backup-key.sh'
       - 'scripts/sealed-secrets-backup-identity.sh'
+      - 'scripts/rotate-secrets.sh'
       - 'deploy/backup/**'
       - 'tests/backup/**'
       - 'tests/k8s/sealed-secrets-key-drill.sh'
@@ -171,6 +172,9 @@ jobs:
 
       - name: Test the key backup and restore scripts
         run: bash tests/backup/sealed-secrets-key.test.sh
+
+      - name: Test rotate-secrets.sh
+        run: bash tests/backup/rotate-secrets.test.sh
 
       - name: Build backup-tools
         run: docker build -q -t backup-tools deploy/backup
