@@ -327,6 +327,32 @@ for (const env of OVERLAYS) {
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
 
+	// Issue #809 (ADR-0062): production runs the alerting path twice, Alertmanager as one cluster.
+	for (const name of ["alertmanager", "prometheus"]) {
+		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
+		const replicas = Number(sts?.text.match(/^ {2}replicas: (\d+)$/m)?.[1] ?? 1);
+		const wanted = env === "production" ? 2 : 1;
+		if (replicas !== wanted) errors.push(`${env}: StatefulSet ${name} must run ${wanted} replica(s), found ${replicas} (ADR-0062)`);
+		if (replicas > 1 && sts && !spreadsAcrossNodes(sts.text)) {
+			errors.push(`${env}: StatefulSet ${name} runs ${replicas} pods without topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
+		}
+		if (env === "production" && !docs.some((doc) => doc.kind === "PodDisruptionBudget" && doc.text.includes(`component: ${name}
+`) && /^ {2}minAvailable: 1$/m.test(doc.text))) {
+			errors.push(`production: no PodDisruptionBudget minAvailable: 1 for ${name} (ADR-0062)`);
+		}
+		if (name === "alertmanager" && sts && env === "production" && !/--cluster\.peer=alertmanager-headless:9094/.test(sts.text)) {
+			errors.push("production: alertmanager has no --cluster.peer (ADR-0062)");
+		}
+		if (name === "prometheus" && sts && env === "production") {
+			const config = docs.find((doc) => doc.kind === "ConfigMap" && doc.name === "prometheus-config")?.text ?? "";
+			if (!sts.text.includes("--enable-feature=expand-external-labels")) errors.push("production: prometheus lacks --enable-feature=expand-external-labels, so the replica label stays a literal ${HOSTNAME} (ADR-0062)");
+			if (/\\n\s+--/.test(sts.text)) errors.push("prometheus: literal backslash-n inside the launch command (merges two flags on one line)");
+			if (!/external_labels:\s+replica: '\$\{HOSTNAME\}'/.test(config)) errors.push("production: prometheus external label replica: '${HOSTNAME}' missing (ADR-0062)");
+			if (!/alert_relabel_configs:\s+- action: labeldrop\s+regex: replica/.test(config)) errors.push("production: prometheus does not drop the replica label before sending alerts: both replicas' alerts would differ (ADR-0062)");
+			if (!/alertmanager-ready/.test(config) || /alertmanager-headless/.test(config)) errors.push("production: prometheus must discover Alertmanager through the ready-only Service alertmanager-ready (ADR-0062)");
+		}
+	}
+
 	for (const name of DATA_STATEFULSETS) {
 		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
 		if (!sts) {

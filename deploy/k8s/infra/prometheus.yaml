@@ -147,7 +147,8 @@ spec:
                 --config.file=/etc/prometheus/prometheus.yml \
                 --storage.tsdb.path=/prometheus \
                 --storage.tsdb.retention.time=30d \
-                --web.enable-lifecycle
+                --web.enable-lifecycle \
+                --enable-feature=expand-external-labels
           ports:
             - containerPort: 9090
               name: http
@@ -240,14 +241,26 @@ data:
     global:
       scrape_interval: 15s
       evaluation_interval: 15s
+      # Pod name (expand-external-labels): the two production replicas differ by
+      # it. Dropped before sending (alert_relabel_configs), so both replicas'
+      # copy of an alert is one alert for Alertmanager (issue #809, ADR-0062).
+      external_labels:
+        replica: '${HOSTNAME}'
 
     rule_files:
       - /etc/prometheus/alerting.yml
 
     alerting:
+      alert_relabel_configs:
+        - action: labeldrop
+          regex: replica
       alertmanagers:
-        - static_configs:
-            - targets: ['alertmanager:9093']
+        # Every Alertmanager pod, not the Service (which picks one): each
+        # instance gets every alert, the cluster deduplicates the notification.
+        - dns_sd_configs:
+            - names: ['alertmanager-ready']
+              type: A
+              port: 9093
 
     scrape_configs:
       - job_name: 'message-manager'
@@ -499,8 +512,10 @@ data:
           - targets: ['localhost:9090']
 
       - job_name: 'alertmanager'
-        static_configs:
-          - targets: ['alertmanager:9093']
+        dns_sd_configs:
+          - names: ['alertmanager-ready']
+            type: A
+            port: 9093
 
       # ── Infrastructure (issue #601, ADR-0056) ──────────────────────
       # Kubelet of every node, with this pod's ServiceAccount token and
