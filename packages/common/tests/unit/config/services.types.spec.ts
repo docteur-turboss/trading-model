@@ -20,17 +20,19 @@ describe("ALL_SERVICE_NAMES", () => {
 describe("parseServiceName", () => {
 	it("should return valid core names", () => {
 		expect(parseServiceName("api-gateway")).toBe("api-gateway");
-		expect(parseServiceName("discovery-service")).toBe("discovery-service");
+		expect(parseServiceName("discovery-server")).toBe("discovery-server");
 	});
 
-	it("accepts the canonical and the legacy name of a service (release N)", () => {
+	it("rejects the removed release 3.0.0 transition names", () => {
 		for (const name of [
-			"financial-scraper",
+			"audit-logger-service",
+			"discovery-service",
 			"financial-scraper-service",
-			"message-manager",
 			"message-delivery-service",
 		]) {
-			expect(parseServiceName(name)).toBe(name);
+			expect(() => parseServiceName(name)).toThrow(
+				"Invalid ServiceInstanceName"
+			);
 		}
 	});
 

@@ -67,7 +67,7 @@ describe("LeaseManager", () => {
 			const replicaB = createServiceRegistry({ instanceStore });
 			await replicaA.registerInstance(validServiceInstance());
 			await replicaB.removeInstance({
-				serviceName: "financial-scraper-service",
+				serviceName: "financial-scraper",
 				instanceId: "test-instance-1",
 			} as never);
 			setRegisteredInstancesPerService.mockClear();
@@ -175,7 +175,7 @@ describe("LeaseManager", () => {
 			const registry = createServiceRegistry();
 
 			await registry.registerInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "expired-id" as InstanceId,
 				host: "1.1.1.1" as IPAddress,
 				port: 8080 as Port,
@@ -187,7 +187,7 @@ describe("LeaseManager", () => {
 			});
 
 			await registry.registerInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "alive-id" as InstanceId,
 				host: "1.1.1.2" as IPAddress,
 				port: 8081 as Port,
@@ -203,7 +203,7 @@ describe("LeaseManager", () => {
 			await jest.advanceTimersByTimeAsync(10000);
 
 			const remaining = await registry.instanceStore.getInstances(
-				"financial-scraper-service" as unknown as ServiceInstanceName
+				"financial-scraper" as unknown as ServiceInstanceName
 			);
 			expect(remaining).toHaveLength(1);
 			expect(remaining[0].instanceId).toBe("alive-id");
