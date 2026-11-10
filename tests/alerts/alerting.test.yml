@@ -170,6 +170,69 @@ tests:
               summary: 'Training completion rate below 95%'
               description: 'Trainer completion rate is 50% over 15m.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+      - eval_time: 40m
+        alertname: TrainingCompletionRateCritical
+        exp_alerts: []
+
+  - name: 40 percent of the training sessions succeed
+    interval: 1m
+    input_series:
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="success"}'
+        values: '0+2x60'
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="fail"}'
+        values: '0+3x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainingCompletionRateLow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
+            exp_annotations:
+              summary: 'Training completion rate below 95%'
+              description: 'Trainer completion rate is 40% over 15m.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+      - eval_time: 40m
+        alertname: TrainingCompletionRateCritical
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: training_completion, job: trader-trainer}
+            exp_annotations:
+              summary: 'Training completion rate below 50%'
+              description: 'Trainer completion rate is 40% over 15m: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+
+  - name: 80 percent of the training sessions succeed
+    interval: 1m
+    input_series:
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="success"}'
+        values: '0+4x60'
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="fail"}'
+        values: '0+1x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainingCompletionRateLow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
+            exp_annotations:
+              summary: 'Training completion rate below 95%'
+              description: 'Trainer completion rate is 80% over 15m.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+      - eval_time: 40m
+        alertname: TrainingCompletionRateCritical
+        exp_alerts: []
+
+  - name: every training session succeeds
+    interval: 1m
+    input_series:
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="success"}'
+        values: '0+1x60'
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="fail"}'
+        values: '0+0x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: TrainingCompletionRateLow
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: TrainingCompletionRateCritical
+        exp_alerts: []
 
   # Every genome evaluation takes 8 s: p99 above 5 s.
   - name: trainer genome evaluations block the event loop
@@ -254,6 +317,14 @@ tests:
               summary: 'Training completion rate below 95%'
               description: 'Trainer completion rate is 0% over 15m.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+      - eval_time: 40m
+        alertname: TrainingCompletionRateCritical
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: training_completion, job: trader-trainer}
+            exp_annotations:
+              summary: 'Training completion rate below 50%'
+              description: 'Trainer completion rate is 0% over 15m: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
   # Every message goes to the DLQ: no published series at all.
   - name: message-manager publishes nothing, everything goes to the DLQ
@@ -333,12 +404,35 @@ tests:
         alertname: TrainerNoLeader
         exp_alerts: []
       - eval_time: 18m
+        alertname: TrainerNoLeaderProlonged
+        exp_alerts: []
+      - eval_time: 18m
         alertname: TrainerNoLeader
         exp_alerts:
           - exp_labels: {severity: warning}
             exp_annotations:
               summary: 'No trader-trainer pod holds the Lease'
               description: 'No pod has trained for 5 minutes: no trainer pod holds the Lease trader-trainer (API server unreachable, RBAC, NetworkPolicy). The read routes still answer the last stored models; no new model is produced.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernoleader'
+
+  # ADR-0058: no leader from 5m on. At 20m the 5 min warning fires, the 30 min
+  # critical does not yet; at 40m it does.
+  - name: no trainer holds the Lease for 30 minutes
+    interval: 1m
+    input_series:
+      - series: 'tt_training_leader{job="trader-trainer",instance="a"}'
+        values: '1x5 0x60'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: TrainerNoLeaderProlonged
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: TrainerNoLeaderProlonged
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'No trader-trainer pod has held the Lease for 30 minutes'
+              description: 'No pod has trained for 30 minutes, far beyond a rollout handover (end of a generation plus a few seconds, ADR-0058): no trainer pod holds the Lease trader-trainer. No new model is produced.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernoleader'
 
   - name: no collector holds the Lease for 2 minutes
