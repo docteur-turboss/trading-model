@@ -1,4 +1,4 @@
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRoute } from "@trading-model/http/adapters/inbound/api-route/api-route";
 import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
@@ -51,16 +51,14 @@ export function eventsRoutes(auditRepo: AuditRepository): Router {
 		timed(async ({ query }) =>
 			sendResponse(
 				await auditRepo.query(toAuditEventQuery(query)),
-				200 as HttpStatusCode
+				HTTP_STATUS.OK
 			)
 		)
 	);
 	mountRoute(
 		router,
 		AUDIT_API.getStats,
-		timed(async () =>
-			sendResponse(await auditRepo.getStats(), 200 as HttpStatusCode)
-		)
+		timed(async () => sendResponse(await auditRepo.getStats(), HTTP_STATUS.OK))
 	);
 	mountRoute(
 		router,
@@ -68,8 +66,8 @@ export function eventsRoutes(auditRepo: AuditRepository): Router {
 		timed(async ({ params }) => {
 			const event = await auditRepo.findById(params.messageId);
 			return event
-				? sendResponse(event, 200 as HttpStatusCode)
-				: sendResponse({ error: "Event not found" }, 404 as HttpStatusCode);
+				? sendResponse(event, HTTP_STATUS.OK)
+				: sendResponse({ error: "Event not found" }, HTTP_STATUS.NOT_FOUND);
 		})
 	);
 

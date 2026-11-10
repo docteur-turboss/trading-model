@@ -1,7 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import { logger } from "@trading-model/http/infrastructure/logger";
@@ -77,7 +76,7 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 		AUTH_FAILURES_TOTAL.inc();
 		return sendResponse(
 			{ error: "Missing authentication token" },
-			401 as HttpStatusCode
+			HTTP_STATUS.UNAUTHORIZED
 		);
 	}
 
@@ -89,7 +88,7 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 			AUTH_FAILURES_TOTAL.inc();
 			return sendResponse(
 				{ error: "Server misconfiguration: no valid tokens configured" },
-				503 as HttpStatusCode
+				HTTP_STATUS.SERVICE_UNAVAILABLE
 			);
 		}
 		logger.warn("AUTH_TOKENS is empty — accepting any token (non-strict mode)");
@@ -99,7 +98,7 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 			AUTH_FAILURES_TOTAL.inc();
 			return sendResponse(
 				{ error: "Invalid authentication token" },
-				401 as HttpStatusCode
+				HTTP_STATUS.UNAUTHORIZED
 			);
 		}
 	}
