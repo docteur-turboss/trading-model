@@ -45,6 +45,30 @@ Open the **Actions** tab → **Deploy** → **Run workflow**, then select:
 | `environment` | `staging` or `production` |
 | `image_tag` | Required: release to deploy, `v1.2.3` or `1.2.3` (prerelease `v1.2.3-rc.1` or `1.2.3-rc.1` too). Staging also accepts `latest` (the highest stable release); production refuses anything but a release, before the cluster is reached. Resolved to image digests before anything is applied |
 | `canary` | Run canary + smoke test with automatic rollback on failure |
+| `preflight_only` | Run every prerequisite guard and a server-side dry-run of the apply, change nothing: see [Preflight](#preflight) |
+
+### Preflight
+
+`preflight_only: true` runs the same guard steps as a real deploy, but each one
+goes on after a failure, then sends what the three apply steps would send
+(cluster-scope objects and SPIFFE node components with `deploy-cluster`, the
+overlay with `deploy-app`, ADR-0041) through `kubectl apply --dry-run=server`
+(`deploy-release.sh dry-run`). Every step that writes (applies, Secrets and
+ConfigMaps, migrations, canary, rollback, annotations) and the Slack events are
+skipped. The run summary lists every guard with its result
+(`scripts/preflight-summary.sh`, names and outcomes only, never a secret
+value); the job fails when one of them would stop a real deploy, and the reason
+of each failure is the annotation of its step. Staging warnings stay warnings.
+
+- Missing GitHub environment (or production protection unreadable without
+  `ENVIRONMENT_READ_TOKEN`): the preflight stops in `check-environment`, since a
+  job naming the environment would make GitHub create it unprotected.
+- First deploy (namespace absent): the application part of the dry-run is
+  skipped with a warning; the cluster part and the node agents still run.
+- A protected environment still asks its reviewers to approve the preflight
+  job: it reads the environment secrets.
+- The CI `k8s` job runs `deploy-release.sh dry-run` with both identities before
+  the upgrade and checks that no Deployment changed.
 
 ### Source of the manifests and migrations
 
@@ -226,6 +250,44 @@ docker pull ghcr.io/<owner>/discovery-server:2.0.3
 ```
 
 ## Production deployment
+
+### Before the first production deploy
+
+Run the preflight (Actions → Deploy → `environment: production`, the release
+tag, `preflight_only: true`) until it passes: it checks everything below that
+the repository can check, and lists every gap in one run. What stays manual
+(owner, with admin rights):
+
+1. **GitHub environment `production`**: create it, required reviewers with
+   "Prevent self-review", deployment tag rule `v*` only, and the repository
+   secret `ENVIRONMENT_READ_TOKEN` ([Prerequisites](#prerequisites-secrets)).
+2. **Cluster**: the operators and classes of
+   [KUBERNETES.md](KUBERNETES.md) (CRDs, `rwx-csi`, IngressClass `nginx`,
+   ClusterIssuer), the Sealed Secrets controller in namespace `sealed-secrets`
+   (`scripts/install-sealed-secrets.sh`), the production pod CIDR in
+   `realip.inc` and the real Ingress hosts.
+3. **Deploy identities**: `bash scripts/deploy-identity.sh app` and
+   `bash scripts/deploy-identity.sh cluster` as admin, again before each
+   release that changes a ClusterRole; their kubeconfigs as the secrets
+   `KUBECONFIG_PRODUCTION_APP` / `KUBECONFIG_PRODUCTION_CLUSTER`
+   ([Deploy identities](#deploy-identities)).
+4. **Sealed secrets**: `bash scripts/init-sealed-secrets.sh` then commit
+   `deploy/k8s/secrets` (every key, including `MYSQL_MIGRATE_PASSWORD`,
+   `MYSQL_RETENTION_PASSWORD`, the Redis ACL and exporter passwords:
+   [sealed-secrets.md](sealed-secrets.md), [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0056).
+5. **Environment secrets and variables**: `ALERTMANAGER_SLACK_WEBHOOK_URL`,
+   `ALERTMANAGER_DEADMAN_URL` (Pushover optional), `SIGNAL_CONTACT_EMAIL`,
+   `BACKUP_AGE_RECIPIENTS` (two distinct keys), `BACKUP_S3_*` for an Object Lock
+   bucket ([Prerequisites (off-site backup bucket)](#prerequisites-off-site-backup-bucket),
+   lifecycle rules not checked by the preflight), `AUDIT_ANCHOR_*` for the audit
+   chain anchor bucket (ADR-0027).
+6. **Compliance**: the `Controller` and `Contact` fields of the
+   [data processing register](../compliance/data-processing-register.md).
+
+Not checked by the preflight: the bucket lifecycle rules, the register, a
+canary or a real rollout (the preflight never starts a pod).
+
+### Each production release
 
 1. Fill the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a); first production deploy only, see "Before the first production deploy" above)
 2. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))

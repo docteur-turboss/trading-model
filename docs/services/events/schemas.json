@@ -33,11 +33,7 @@
 					"dlq-service",
 					"financial-scraper",
 					"message-manager",
-					"trader-trainer",
-					"audit-logger-service",
-					"discovery-service",
-					"financial-scraper-service",
-					"message-delivery-service"
+					"trader-trainer"
 				]
 			},
 			"instanceId": {

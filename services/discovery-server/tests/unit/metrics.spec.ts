@@ -78,10 +78,10 @@ describe("metrics", () => {
 	describe("setRegisteredInstancesPerService", () => {
 		it("should set per-service gauge without throwing", () => {
 			expect(() => {
-				setRegisteredInstancesPerService("financial-scraper-service", 5);
+				setRegisteredInstancesPerService("financial-scraper", 5);
 			}).not.toThrow();
 			expect(MOCK_SET).toHaveBeenCalledWith(
-				{ service: "financial-scraper-service" },
+				{ service: "financial-scraper" },
 				5
 			);
 		});
@@ -90,10 +90,10 @@ describe("metrics", () => {
 	describe("incHeartbeatsTotal", () => {
 		it("should increment heartbeat counter without throwing", () => {
 			expect(() => {
-				incHeartbeatsTotal("financial-scraper-service");
+				incHeartbeatsTotal("financial-scraper");
 			}).not.toThrow();
 			expect(MOCK_INC).toHaveBeenCalledWith({
-				service: "financial-scraper-service",
+				service: "financial-scraper",
 			});
 		});
 	});

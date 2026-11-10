@@ -22,7 +22,7 @@ describe("removeInstanceSetAndMetadata", () => {
 		keyPrefix: "test:",
 	};
 	const identity = {
-		serviceName: "financial-scraper-service" as never,
+		serviceName: "financial-scraper" as never,
 		instanceId: "i1" as never,
 	};
 
@@ -36,7 +36,7 @@ describe("removeInstanceSetAndMetadata", () => {
 		const result = await removeInstanceSetAndMetadata(deps, identity);
 
 		expect(mockSrem).toHaveBeenCalledWith(
-			"test:service:financial-scraper-service:instances",
+			"test:service:financial-scraper:instances",
 			"i1"
 		);
 		expect(mockDel).toHaveBeenCalledWith("test:instance:i1:metadata");

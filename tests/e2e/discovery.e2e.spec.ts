@@ -3,7 +3,7 @@ import { CALLER, containerIp, meshRequest } from "./helpers";
 
 const DISCOVERY = "https://discovery-server:3000";
 /** The scraper's SVID only lets it register instances of its own service. */
-const SERVICE = "financial-scraper-service";
+const SERVICE = "financial-scraper";
 const INSTANCE = `e2e-instance-${Date.now()}`;
 
 function discovery(

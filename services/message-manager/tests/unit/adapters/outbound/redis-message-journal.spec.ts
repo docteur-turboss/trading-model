@@ -39,7 +39,7 @@ describe("RedisMessageJournal", () => {
 		const { redis, journal } = setup();
 		const message = createMockMessage("payload");
 
-		await journal.append(message, ["trader-trainer", "audit-logger-service"]);
+		await journal.append(message, ["trader-trainer", "audit-logger"]);
 
 		const commands = redis.call.mock.calls.map((args) => args.slice(0, 3));
 		expect(commands.map(([name]) => name)).toEqual([
@@ -219,11 +219,7 @@ describe("RedisMessageJournal", () => {
 		const { journal, redis } = setup();
 		const message = createMockMessage("payload");
 
-		await journal.append(
-			message,
-			["audit-logger-service"],
-			"audit-logger-service"
-		);
+		await journal.append(message, ["audit-logger"], "audit-logger");
 
 		const xadd = redis.call.mock.calls.find(
 			([name]) => name === "XADD"
@@ -232,7 +228,7 @@ describe("RedisMessageJournal", () => {
 			"message",
 			JSON.stringify(message),
 			"only",
-			"audit-logger-service",
+			"audit-logger",
 		]);
 		expect(
 			redis.call.mock.calls.filter(([name]) => name === "XGROUP")
@@ -245,7 +241,7 @@ describe("RedisMessageJournal", () => {
 			command === "XREADGROUP"
 				? [
 						"p:journal:test.topic",
-						[["1-0", [...stored(message), "only", "audit-logger-service"]]],
+						[["1-0", [...stored(message), "only", "audit-logger"]]],
 					]
 				: "OK"
 		);
