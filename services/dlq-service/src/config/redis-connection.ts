@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { disconnectRedis } from "@trading-model/persistence/redis-client-builder";
 import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
 import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
@@ -70,7 +71,7 @@ export class RedisConnection {
 	}
 	private _handleConnectError(err: unknown): void {
 		logger.warn("Redis queue unavailable — falling back to MongoDB polling", {
-			error: (err as Error).message,
+			error: normalizeError(err).message,
 		});
 		if (
 			this._state === ConnectionState.Connecting &&

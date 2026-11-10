@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { logger } from "../config/logger";
@@ -48,7 +49,7 @@ export class DlqPruner {
 
 	private _handleError(err: unknown): number {
 		logger.error("DLQ periodic prune failed", {
-			error: (err as Error)?.message,
+			error: normalizeError(err).message,
 		});
 		metrics.pruneErrors.inc(1);
 		return 0;
@@ -56,7 +57,7 @@ export class DlqPruner {
 
 	private _logIterationError(err: unknown): void {
 		logger.warn("Periodic prune iteration failed", {
-			error: (err as Error)?.message,
+			error: normalizeError(err).message,
 		});
 	}
 }
