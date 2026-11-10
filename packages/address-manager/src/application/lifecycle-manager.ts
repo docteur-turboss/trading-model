@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import type {
 	DurationMs,
 	InstanceId,
@@ -65,7 +65,9 @@ export class LifecycleManager {
 	}
 
 	private _returnExistingHandle(): LifecycleHandle {
-		logger.warn("AddressManager already started — returning existing handle");
+		getLogger().warn(
+			"AddressManager already started — returning existing handle"
+		);
 		return {
 			ready: Promise.resolve(),
 			stop: () => {

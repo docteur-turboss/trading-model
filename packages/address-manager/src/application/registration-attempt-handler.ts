@@ -1,6 +1,6 @@
 import { computeExponentialBackoffWithJitter } from "@trading-model/common/utils/backoff-config";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { ServiceClientDeps } from "./types";
 
@@ -33,7 +33,7 @@ export class RegistrationAttemptHandler {
 				return;
 			}
 		}
-		logger.error("Service registration failed after max retries", {
+		getLogger().error("Service registration failed after max retries", {
 			maxRetries: RETRY_CONFIG.maxRetries,
 		});
 	}
@@ -49,7 +49,7 @@ export class RegistrationAttemptHandler {
 			return true;
 		} catch (error) {
 			this._deps.onFailure?.();
-			logger.error("Service registration failed", {
+			getLogger().error("Service registration failed", {
 				attempt,
 				maxRetries: RETRY_CONFIG.maxRetries,
 				error: normalizeError(error),

@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import type {
 	ClaimReleasePort,
 	DlqReplaySettings,
@@ -29,7 +29,9 @@ export class ClaimReleaseService {
 		const released =
 			await this._deps.claimRelease.releaseStaleClaims(staleThresholdMs);
 		if (released > 0) {
-			logger.info(`Released ${released} stale claims from previous instance`);
+			getLogger().info(
+				`Released ${released} stale claims from previous instance`
+			);
 		}
 	}
 
@@ -39,9 +41,11 @@ export class ClaimReleaseService {
 			toPush.map((id) => this._deps.queue.push(id))
 		);
 		const queued = results.filter(Boolean).length;
-		logger.info(`Re-queued ${queued}/${toPush.length} entries after shutdown`);
+		getLogger().info(
+			`Re-queued ${queued}/${toPush.length} entries after shutdown`
+		);
 		if (queued < toPush.length) {
-			logger.warn(
+			getLogger().warn(
 				`${toPush.length - queued} released entries were not re-queued; they stay queuable in MongoDB until the next queue rebuild`
 			);
 		}
