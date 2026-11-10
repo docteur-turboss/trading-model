@@ -5,6 +5,7 @@ import {
 	Price,
 	Volume,
 } from "@trading-model/primitives/primitives";
+import type { BuyCostResult, SellProceedsResult } from "./wallet-costs";
 import { roundValue, TradeCostParams } from "./wallet-costs";
 import { validateConfig } from "./wallet-validation";
 
@@ -47,17 +48,11 @@ export class WalletConfig {
 		return new TradeCostParams(amount, price, this.feeRate, this.decimals);
 	}
 
-	computeBuyCosts(
-		amount: Volume,
-		price: Price
-	): import("./wallet-costs").BuyCostResult {
+	computeBuyCosts(amount: Volume, price: Price): BuyCostResult {
 		return this._buildTradeParams(amount, price).computeBuyCosts();
 	}
 
-	computeSellProceeds(
-		amount: Volume,
-		price: Price
-	): import("./wallet-costs").SellProceedsResult {
+	computeSellProceeds(amount: Volume, price: Price): SellProceedsResult {
 		return this._buildTradeParams(amount, price).computeSellProceeds();
 	}
 }
