@@ -28,7 +28,7 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 
 Network access (K8s, issue #727): MongoDB runs without authentication (issue #669) and without TLS, so the NetworkPolicies are the only barrier. Port 27017 of each replica set accepts only its owner service, its own members and its init Job (`mongo-audit-network-policy`: `audit-logger`, `mongodb-audit`, `mongodb-audit-init`; `mongodb-network-policy`: `dlq-service`, `mongodb`, `mongodb-init`), and port 9216 (exporter) only Prometheus. Backups and restores go through `kubectl exec` into the members, not the network. A new client is a label in that policy, checked on kind by `verify_mongo_ingress` (`tests/k8s/run-kind.sh`).
 
-> SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database).
+> SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database). K8s: MySQL user `spire`, `ALL PRIVILEGES` on `spire.*` only, created with the database by Job `db-migrate-user` (password `MYSQL_SPIRE_PASSWORD` of `trading-model-secrets`); the SPIRE pod never gets `MYSQL_ROOT_PASSWORD` (issue #807). The dump leaves out the `mysql` schema, so the account is not restored: after a volume loss, run the Job again (`run-migrations.sh <ns> user-only`) before `restore-k8s.sh` (runbook-database-failover.md).
 
 MySQL client TLS (K8s, issue #767): server certificate from cert-manager, clients verify the host name; `require_secure_transport=ON`, and each user (`root`, `scraper`, `migrator`, `retention`, `exporter`) is bound to its own cert-manager client certificate (`REQUIRE ISSUER / SUBJECT`) (`docs/deployment/MYSQL_TLS.md`).
 

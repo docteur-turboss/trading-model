@@ -63,6 +63,75 @@ spec:
                   key: GRAFANA_PASSWORD
             - name: GF_INSTALL_PLUGINS
               value: ""
+            # Per-person access (ADR-0063): no anonymous access, no local
+            # sign-up, Viewer by default. OIDC is on only when the optional
+            # Secret key GRAFANA_OIDC_ENABLED is "true" (an unset or empty
+            # variable leaves the Grafana default: off).
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_USERS_AUTO_ASSIGN_ORG_ROLE
+              value: Viewer
+            - name: GF_AUTH_GENERIC_OAUTH_NAME
+              value: OIDC
+            - name: GF_AUTH_GENERIC_OAUTH_SCOPES
+              value: openid email profile
+            - name: GF_AUTH_GENERIC_OAUTH_USE_PKCE
+              value: "true"
+            # Creates the Viewer account on first OIDC login (distinct from users.allow_sign_up).
+            - name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP
+              value: "true"
+            - name: GF_LOG_FILTERS
+              value: context:info
+            - name: GF_AUTH_GENERIC_OAUTH_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_ENABLED
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_CLIENT_ID
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_CLIENT_SECRET
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_AUTH_URL
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_TOKEN_URL
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_API_URL
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_ALLOWED_DOMAINS
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_ALLOWED_DOMAINS
+                  optional: true
+            - name: GF_SERVER_ROOT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_ROOT_URL
+                  optional: true
           resources:
             requests:
               cpu: 100m

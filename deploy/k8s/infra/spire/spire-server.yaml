@@ -37,7 +37,7 @@ metadata:
     app.kubernetes.io/component: spire-server
     app.kubernetes.io/part-of: trading-model
 data:
-  # Rendered with -expandEnv: ${MYSQL_ROOT_PASSWORD} (Secret). The agents and
+  # Rendered with -expandEnv: ${MYSQL_SPIRE_PASSWORD} (Secret). The agents and
   # the bundle ConfigMap live in trading-model-node (deploy/k8s/node-agents).
   server.conf: |
     server {
@@ -59,11 +59,11 @@ data:
       DataStore "sql" {
         plugin_data {
           database_type = "mysql"
-          connection_string = "root:${MYSQL_ROOT_PASSWORD}@tcp(mysql-primary:3306)/spire?parseTime=true"
+          connection_string = "spire:${MYSQL_SPIRE_PASSWORD}@tcp(mysql-primary:3306)/spire?parseTime=true"
           max_open_conns = 10
           # Server certificate of the MySQL (ADR-0060); host name checked against mysql-primary.
           root_ca_path = "/etc/mysql-tls/ca.crt"
-          # Client certificate of MySQL user root (Secret mysql-client-root).
+          # Client certificate of MySQL user spire (Secret mysql-client-spire).
           client_cert_path = "/etc/mysql-tls/tls.crt"
           client_key_path = "/etc/mysql-tls/tls.key"
         }
@@ -125,31 +125,19 @@ spec:
           image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-ec"]
+          # No credential: `mysqladmin ping` succeeds on "access denied" too. The
+          # `spire` database and user come from Job db-migrate-user (root, once).
           args:
             - |
               for i in $(seq 1 30); do
-                if mysqladmin ping -h mysql-primary -u root -p"$MYSQL_ROOT_PASSWORD" 2>/dev/null; then
-                  break
+                if mysqladmin ping -h mysql-primary --ssl-mode=REQUIRED 2>/dev/null; then
+                  exit 0
                 fi
                 echo "Waiting for MySQL... ($i/30)"
                 sleep 5
               done
-              mysql -h mysql-primary -u root -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS spire;"
-          volumeMounts:
-            - name: mysql-tls
-              mountPath: /etc/mysql-tls
-              readOnly: true
-            - name: mysql-client-tls
-              mountPath: /etc/mysql-client
-              readOnly: true
-          env:
-            - name: MYSQL_ROOT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: MYSQL_ROOT_PASSWORD
-            - name: MYSQL_HOME
-              value: /etc/mysql-client
+              echo "MySQL still unreachable" >&2
+              exit 1
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -162,11 +150,11 @@ spec:
           # The image entrypoint is `spire-server run`.
           args: ["-config", "/etc/spire/server.conf", "-expandEnv"]
           env:
-            - name: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_SPIRE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: trading-model-secrets
-                  key: MYSQL_ROOT_PASSWORD
+                  key: MYSQL_SPIRE_PASSWORD
           ports:
             - name: grpc
               containerPort: 8081
@@ -244,10 +232,7 @@ spec:
       volumes:
         - name: mysql-tls
           secret:
-            secretName: mysql-client-root
-        - name: mysql-client-tls
-          configMap:
-            name: mysql-client-tls
+            secretName: mysql-client-spire
         - name: spire-config
           configMap:
             name: spire-server-config

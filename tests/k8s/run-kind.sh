@@ -806,7 +806,7 @@ verify_mysql_tls() {
 	local tls="--ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/mysql-tls/ca.crt" cert="--ssl-cert=/etc/mysql-client-root/tls.crt --ssl-key=/etc/mysql-client-root/tls.key"
 	local run="$K -n $NS exec mysql-0 -c tls-reload -- mysql -h mysql-primary -N -e"
 	log "MySQL TLS: certificate verified by name, plain and certificate-less connections refused"
-	$K -n "$NS" wait --for=condition=Ready certificate/mysql-tls certificate/mysql-client-root certificate/mysql-client-scraper --timeout=120s
+	$K -n "$NS" wait --for=condition=Ready certificate/mysql-tls certificate/mysql-client-root certificate/mysql-client-scraper certificate/mysql-client-spire --timeout=120s
 	[ -n "$($run "SHOW STATUS LIKE 'Ssl_cipher'" -uroot $tls $cert | cut -f2)" ] || {
 		log "  no TLS session with a client certificate and --ssl-mode=VERIFY_IDENTITY on mysql-primary"
 		return 1
@@ -1280,6 +1280,11 @@ verify_backup() {
 	# restores: stopped now, restarted by restore-k8s.sh with its CA keys.
 	$K -n "$NS" scale deployment/spire-server --replicas=0
 	$K -n "$NS" wait --for=delete pod -l app.kubernetes.io/component=spire-server --timeout=120s || true
+
+	# Accounts are not in the dumps (`mysql` schema excluded): lose the SPIRE
+	# one too, and recreate it as the runbook does, or SPIRE cannot log in.
+	mysql_root "DROP USER 'spire'@'%';"
+	(cd "$ROOT" && use_kube && bash deploy/k8s/scripts/run-migrations.sh "$NS" user-only)
 
 	log "restore drill: scripts/restore-k8s.sh --until $until on the fetched run"
 	started=$SECONDS

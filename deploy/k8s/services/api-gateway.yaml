@@ -95,11 +95,6 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: AUTH_TOKENS
-            - name: HMAC_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: HMAC_SECRET
           resources:
             requests:
               cpu: 100m

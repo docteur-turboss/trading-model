@@ -163,6 +163,29 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
+  name: mysql-client-spire
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  secretName: mysql-client-spire
+  commonName: spire
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  usages:
+    - client auth
+    - digital signature
+  issuerRef:
+    name: mysql-ca
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
   name: mysql-client-migrator
   labels:
     app.kubernetes.io/component: mysql

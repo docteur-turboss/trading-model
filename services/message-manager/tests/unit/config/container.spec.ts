@@ -29,10 +29,10 @@ jest.mock("@trading-model/http/adapters/outbound/http-client", () => {
 		post: jest.fn<(...args: any[]) => any>(),
 		get: jest.fn<(...args: any[]) => any>(),
 	};
-	const MockHttpClient = jest
-		.fn<(...args: any[]) => any>()
-		.mockImplementation(() => mockInstance);
-	MockHttpClient.createWithTls = jest.fn((..._args: any[]) => mockInstance);
+	const MockHttpClient = Object.assign(
+		jest.fn<(...args: any[]) => any>().mockImplementation(() => mockInstance),
+		{ createWithTls: jest.fn((..._args: any[]) => mockInstance) }
+	);
 	return { HttpClient: MockHttpClient };
 });
 

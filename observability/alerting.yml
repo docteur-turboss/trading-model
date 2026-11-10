@@ -471,6 +471,17 @@ groups:
           description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
+      - alert: TrainingCompletionRateCritical
+        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[15m])) or sum by (job) (rate(tt_training_sessions_total[15m])) * 0) / sum by (job) (rate(tt_training_sessions_total[15m])) < 0.5
+        for: 15m
+        labels:
+          severity: critical
+          slo: training_completion
+        annotations:
+          summary: 'Training completion rate below 50%'
+          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+
       - alert: TrainerEventLoopBlocked
         expr: histogram_quantile(0.99, sum by (job, le) (rate(tt_genome_evaluation_seconds_bucket[15m]))) > 5
         for: 15m
@@ -501,6 +512,16 @@ groups:
         annotations:
           summary: 'No trader-trainer pod holds the Lease'
           description: 'No pod has trained for 5 minutes: no trainer pod holds the Lease trader-trainer (API server unreachable, RBAC, NetworkPolicy). The read routes still answer the last stored models; no new model is produced.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernoleader'
+
+      - alert: TrainerNoLeaderProlonged
+        expr: max(tt_training_leader) < 1
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'No trader-trainer pod has held the Lease for 30 minutes'
+          description: 'No pod has trained for 30 minutes, far beyond a rollout handover (end of a generation plus a few seconds, ADR-0058): no trainer pod holds the Lease trader-trainer. No new model is produced.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernoleader'
 
       - alert: MarketDataStale
@@ -831,6 +852,18 @@ groups:
           summary: 'MongoDB {{ $labels.job }} {{ $labels.instance }} does not answer its exporter'
           description: 'mongodb_exporter of {{ $labels.instance }} ({{ $labels.job }}) cannot reach mongod for 5 minutes.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbdown'
+
+      # Partitioned StatefulSets (staging-local, issue #700) stay on the old pod
+      # template after `kubectl rollout status` reports success.
+      - alert: StatefulSetStuckOnOldRevision
+        expr: kube_statefulset_status_current_revision unless on (namespace, statefulset, revision) kube_statefulset_status_update_revision
+        for: 24h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} still runs an old revision'
+          description: 'StatefulSet {{ $labels.statefulset }} has pods on a revision other than its update revision for 24 hours: a partition holds the rollout back, so new sidecars (exporters) and their alerts are not running.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision'
 
       # Each member's exporter reports every member: max by member dedupes.
       # State 1 PRIMARY, 2 SECONDARY; anything else (RECOVERING, DOWN...) does not serve.

@@ -440,13 +440,15 @@ jobs:
           # Exporter users (ADR-0056): optional keys for the pods, but without
           # them MySQLDown / RedisDown fire and verify-release rolls back.
           missing=""
-          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD; do
+          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD MYSQL_SPIRE_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD; do
             grep -qE "^ +$key: " <<<"$rendered" || missing="$missing $key"
           done
           if [ -n "$missing" ]; then
             echo "::error::trading-model-secrets of $ENV lacks:$missing (run bash scripts/init-sealed-secrets.sh and commit deploy/k8s/secrets)"
             exit 1
           fi
+          # Grafana OIDC (ADR-0063): production refuses a shared admin as the only access.
+          bash scripts/check-grafana-oidc.sh "$ENV" <<<"$rendered"
 
       # The Ingress hosts ship as example.com placeholders (issue #415): in
       # production they would leave the API unreachable from outside while

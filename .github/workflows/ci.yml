@@ -154,6 +154,8 @@ jobs:
         run: bash tests/k8s/canary-gate.test.sh
       - name: Test the release verification
         run: bash tests/k8s/verify-release.test.sh
+      - name: Test the Grafana OIDC deploy gate
+        run: bash tests/k8s/check-grafana-oidc.test.sh
       - name: Test the cluster prerequisites check
         run: bash tests/k8s/check-prereqs.test.sh
       - name: Edge-proxy real client IP (X-Forwarded-For trust, per overlay)

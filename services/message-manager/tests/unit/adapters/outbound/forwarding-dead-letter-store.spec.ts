@@ -21,6 +21,15 @@ const METRICS = {
 	MESSAGES_DLQ_ERROR_TOTAL: { inc: jest.fn<(...args: any[]) => any>() },
 };
 jest.mock("../../../../src/config/metrics", () => METRICS);
+// logger.error posts to ERROR_URL_WEBHOOK (jest.setup.ts): a real network call
+// that blew the 5 s timeout under load.
+jest.mock("@trading-model/http/infrastructure/logger", () => ({
+	logger: {
+		error: jest.fn(),
+		warn: jest.fn(),
+		info: jest.fn(),
+	},
+}));
 
 import { ForwardingDeadLetterStore } from "../../../../src/adapters/outbound/forwarding-dead-letter-store";
 import { FileDlqRepository } from "../../../../src/infrastructure/fallback/dlq-repository";

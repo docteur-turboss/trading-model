@@ -151,7 +151,7 @@ services:
     container_name: trading-discovery
     restart: unless-stopped
     ports:
-      - '${DISCOVERY_PORT:-8443}:3000'
+      - '127.0.0.1:${DISCOVERY_PORT:-8443}:3000'
     environment:
       <<: *core-env
       SERVICE_NAME: discovery-server
@@ -260,7 +260,7 @@ services:
     container_name: trading-message
     restart: unless-stopped
     ports:
-      - '${MESSAGE_PORT:-8444}:3000'
+      - '127.0.0.1:${MESSAGE_PORT:-8444}:3000'
     environment:
       <<: *message-env
       APP_NAME: message-manager
@@ -305,7 +305,7 @@ services:
     container_name: trading-scraper
     restart: unless-stopped
     ports:
-      - '${SCRAPER_PORT:-8445}:3000'
+      - '127.0.0.1:${SCRAPER_PORT:-8445}:3000'
     environment:
       <<: *message-env
       APP_NAME: financial-scraper
@@ -360,7 +360,7 @@ services:
     container_name: trading-trainer
     restart: unless-stopped
     ports:
-      - '${TRAINER_PORT:-8446}:3000'
+      - '127.0.0.1:${TRAINER_PORT:-8446}:3000'
     environment:
       <<: *message-env
       APP_NAME: trader-trainer
@@ -410,7 +410,7 @@ services:
     container_name: trading-gateway
     restart: unless-stopped
     ports:
-      - '${GATEWAY_PORT:-8448}:3000'
+      - '127.0.0.1:${GATEWAY_PORT:-8448}:3000'
     environment:
       <<: *core-env
       SERVICE_NAME: api-gateway
@@ -450,7 +450,7 @@ services:
     container_name: trading-audit
     restart: unless-stopped
     ports:
-      - '${AUDIT_PORT:-8450}:3000'
+      - '127.0.0.1:${AUDIT_PORT:-8450}:3000'
     environment:
       <<: *message-env
       APP_NAME: audit-logger
@@ -488,7 +488,7 @@ services:
     container_name: trading-dlq
     restart: unless-stopped
     ports:
-      - '${DLQ_PORT:-8452}:3000'
+      - '127.0.0.1:${DLQ_PORT:-8452}:3000'
     environment:
       <<: *message-env
       APP_NAME: dlq-service
@@ -697,7 +697,7 @@ services:
       - /var/run:mode=1777
       - /tmp:mode=1777
     ports:
-      - '${EDGE_PORT:-8449}:8080'
+      - '127.0.0.1:${EDGE_PORT:-8449}:8080'
     volumes:
       - ./deploy/edge-proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/edge-proxy/gateway.compose.inc:/etc/nginx/conf.d/gateway.inc:ro
@@ -725,7 +725,7 @@ services:
     container_name: trading-prometheus
     restart: unless-stopped
     ports:
-      - '${PROMETHEUS_PORT:-9090}:9090'
+      - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090'
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/alerting.yml:/etc/prometheus/alerting.yml:ro
@@ -868,7 +868,7 @@ services:
     container_name: trading-alertmanager
     restart: unless-stopped
     ports:
-      - '${ALERTMANAGER_PORT:-9093}:9093'
+      - '127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093'
     volumes:
       - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       # One file per key (SLACK_WEBHOOK_URL, PUSHOVER_USER_KEY, PUSHOVER_TOKEN, DEADMAN_URL),
@@ -889,7 +889,7 @@ services:
     container_name: trading-grafana
     restart: unless-stopped
     ports:
-      - '${GRAFANA_PORT:-3001}:3000'
+      - '127.0.0.1:${GRAFANA_PORT:-3001}:3000'
     volumes:
       - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
       - ./observability/grafana-dashboards-provisioning.yml:/etc/grafana/provisioning/dashboards/provider.yml:ro
@@ -901,6 +901,23 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set (Grafana admin password)}
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/services.json
+      # Per-person access (ADR-0063): OIDC only when GRAFANA_OIDC_ENABLED=true (off in dev).
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Viewer
+      GF_AUTH_GENERIC_OAUTH_NAME: OIDC
+      GF_AUTH_GENERIC_OAUTH_SCOPES: openid email profile
+      GF_AUTH_GENERIC_OAUTH_USE_PKCE: 'true'
+      GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: 'true'
+      GF_AUTH_GENERIC_OAUTH_ENABLED: ${GRAFANA_OIDC_ENABLED:-false}
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: ${GRAFANA_OIDC_CLIENT_ID:-}
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: ${GRAFANA_OIDC_CLIENT_SECRET:-}
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: ${GRAFANA_OIDC_AUTH_URL:-}
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: ${GRAFANA_OIDC_TOKEN_URL:-}
+      GF_AUTH_GENERIC_OAUTH_API_URL: ${GRAFANA_OIDC_API_URL:-}
+      GF_AUTH_GENERIC_OAUTH_ALLOWED_DOMAINS: ${GRAFANA_OIDC_ALLOWED_DOMAINS:-}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000/}
+      GF_LOG_FILTERS: context:info
 
   loki:
     logging: *default-logging
@@ -908,7 +925,7 @@ services:
     container_name: trading-loki
     restart: unless-stopped
     ports:
-      - '${LOKI_PORT:-3100}:3100'
+      - '127.0.0.1:${LOKI_PORT:-3100}:3100'
     volumes:
       - ./observability/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
@@ -939,7 +956,7 @@ services:
     container_name: trading-jaeger
     restart: unless-stopped
     ports:
-      - '${JAEGER_PORT:-16686}:16686'
+      - '127.0.0.1:${JAEGER_PORT:-16686}:16686'
     # In-memory storage keeps every trace by default: it reached 11.5 GiB in
     # 22 h and starved the kind staging cluster sharing the Docker VM (issue
     # #760). Oldest traces go first past MEMORY_MAX_TRACES; mem_limit is the

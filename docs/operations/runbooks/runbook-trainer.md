@@ -2,11 +2,12 @@
 
 **Alerts:** `TrainingCompletionRateLow` (warning, SLO `training_completion`,
 target in [slo.md](../slo.md#6-training-completion-rate)),
+`TrainingCompletionRateCritical` (critical, same SLO),
 `TrainerNoModelStored` (critical),
 `ModelArtifactWriteFailing` (warning),
 `TrainerEventLoopBlocked` (warning),
 `TrainerEventLoopLagHigh` (warning),
-`TrainerNoLeader` (warning).
+`TrainerNoLeader` (warning), `TrainerNoLeaderProlonged` (critical, 30 min).
 
 No market data reaching the trainer is a different alert,
 `TrainerMarketDataStale` ([runbook-market-data-stale](runbook-market-data-stale.md)):
@@ -14,6 +15,8 @@ without fresh data the training loop pauses the symbol (log `Market data is
 stale: training paused`) and no session is counted at all.
 
 ## TrainingCompletionRateLow
+
+`TrainingCompletionRateCritical` (critical, pages) is the same ratio under 50%; it inhibits the warning of the same job.
 
 `tt_training_sessions_total{result="success"}` over all sessions of a job is
 under 95% over 15 min, for 15 min. A session is counted only once it starts:

@@ -200,6 +200,7 @@ Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host 
 | `RETENTION_BATCH_SIZE`    | number (≥1) | `10000`           | no       | Rows per `DELETE ... LIMIT` | retention job |
 | `RETENTION_PAUSE_SECONDS` | number (≥0) | `1`               | no       | Pause between two batches | retention job |
 | `MYSQL_RETENTION_PASSWORD` | string | —                      | **yes** in K8s | Password of MySQL user `retention` (SELECT, DELETE on the five tables). Key of Secret `trading-model-secrets`, read by `db-migrate-user` and `db-retention` | retention job |
+| `MYSQL_SPIRE_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** in K8s | Password of MySQL user `spire` (`ALL PRIVILEGES` on `spire.*` only), created with the `spire` database by `db-migrate-user`, read by the SPIRE server (`-expandEnv`). The SPIRE pod no longer gets `MYSQL_ROOT_PASSWORD` (issue #807). Compose uses SQLite | spire-server |
 
 ---
 
@@ -272,6 +273,14 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
+| `GRAFANA_OIDC_ENABLED` | string | `false` (compose), unset (K8s) | `true` turns on Grafana OIDC login; off otherwise (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_CLIENT_ID` | string | (unset) | OIDC client id (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_CLIENT_SECRET` | string | (unset) | OIDC client secret (K8s: key of `trading-model-secrets`) (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_AUTH_URL` | string | (unset) | OIDC authorization endpoint (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_TOKEN_URL` | string | (unset) | OIDC token endpoint (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_API_URL` | string | (unset) | OIDC userinfo endpoint (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_ALLOWED_DOMAINS` | string | (unset) | E-mail domains allowed to log in; required in production K8s (ADR-0063) | DC, K8s |
+| `GRAFANA_ROOT_URL` | string | `http://localhost:3000/` (compose) | Public Grafana URL, base of the OIDC `redirect_uri`; K8s: `https://grafana.<host>/` of the ingress (ADR-0063) | DC, K8s |
 | `MYSQL_EXPORTER_PASSWORD` | string | (required)          | Password of the read-only MySQL user `exporter` of mysqld-exporter (ADR-0056) | DC |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |

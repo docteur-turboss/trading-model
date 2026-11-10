@@ -42,6 +42,10 @@ Slack is down: configure that external check to notify someone directly
 | `ServiceDown` | a scrape target that is down, Alertmanager and Prometheus included |
 | `ServiceTargetsMissing` | an application service with no `up` series at all (0 replicas, Pending pods, broken scrape config), which `up == 0` cannot see |
 
+## High availability (production)
+
+ADR-0062: production runs Prometheus ×2 and Alertmanager ×2 (cluster on port 9094), so a drain or a release does not stop evaluation or notifications. Check: `kubectl exec alertmanager-0 -- wget -qO- localhost:9093/api/v2/status` shows `cluster.status: ready` and 2 peers. Grafana, Loki, Jaeger, blackbox-exporter and kube-state-metrics stay at one replica (consultation or a missed scrape, not detection). Deduplication relies on `alert_relabel_configs` dropping the `replica` label (expanded by `--enable-feature=expand-external-labels`): both Prometheus send identical alerts to every ready pod (Service `alertmanager-ready`). Staging runs 1 of each.
+
 ## Loki and the trace pipeline
 
 K8s retention is bounded like the compose: Loki's compactor deletes logs older
@@ -81,6 +85,7 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `CollectorNoLeader` | no scraper pod reports `fs_collector_leader` = 1 for 2 min: no collector holds the Lease, nothing is collected (ADR-0057) | [runbook-market-data-stale#collectornoleader](runbooks/runbook-market-data-stale.md#collectornoleader) |
 | `MarketDataStale` | no candle persisted for 15 min, all scraper replicas together | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoLeader` | no trainer pod reports `tt_training_leader` = 1 for 5 min: no trainer holds the Lease, nothing is trained (ADR-0058); the read routes still answer | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
+| `TrainerNoLeaderProlonged` | `critical` (page): same condition as `TrainerNoLeader` for 30 min, far beyond a rollout handover (end of a generation plus a few seconds) | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoModelStored` | a trainer holds the Lease but no model was stored (`tt_model_artifacts_total{result="stored"}`) for 3 h (2 h after a start), whatever the cause: sessions failing, nothing trained, writes failing | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `TrainerMarketDataStale` | no candle reached the trainer for 15 min (`tt_market_data_received_total`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `MarketDataUnpublished` | persisted candles of a symbol have waited 15 min for the bus (`fs_unpublished_candles`): sent from MySQL once message-manager answers, the trainer lags meanwhile | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
@@ -161,9 +166,11 @@ file absent from the repository, or on an anchor that matches no heading.
 | `JournalBacklogOld` | warning | [runbook-message-bus-outage#7-journal-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber) |
 | `DLQDrainRateLow` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
 | `TrainingCompletionRateLow` | warning | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
+| `TrainingCompletionRateCritical` | critical | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainerEventLoopBlocked` | warning | [runbook-trainer#trainereventloopblocked](runbooks/runbook-trainer.md#trainereventloopblocked) |
 | `TrainerEventLoopLagHigh` | warning | [runbook-trainer#trainereventlooplaghigh](runbooks/runbook-trainer.md#trainereventlooplaghigh) |
 | `TrainerNoLeader` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
+| `TrainerNoLeaderProlonged` | critical | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `MarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ScrapeCyclesFailing` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | critical | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
@@ -181,6 +188,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `MySQLDown` | critical | [runbook-infrastructure#mysqldown](runbooks/runbook-infrastructure.md#mysqldown) |
 | `RedisDown` | critical | [runbook-infrastructure#redisdown](runbooks/runbook-infrastructure.md#redisdown) |
 | `RedisReplicasMissing` | warning | [runbook-infrastructure#redisreplicasmissing](runbooks/runbook-infrastructure.md#redisreplicasmissing) |
+| `StatefulSetStuckOnOldRevision` | warning | [runbook-infrastructure#statefulsetstuckonoldrevision](runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision) |
 | `RedisSentinelQuorumLost` | critical | [runbook-infrastructure#redissentinelquorumlost](runbooks/runbook-infrastructure.md#redissentinelquorumlost) |
 | `MongoDBDown` | critical | [runbook-infrastructure#mongodbdown](runbooks/runbook-infrastructure.md#mongodbdown) |
 | `MongoDBReplicaSetMemberUnhealthy` | warning | [runbook-infrastructure#mongodbreplicasetmemberunhealthy](runbooks/runbook-infrastructure.md#mongodbreplicasetmemberunhealthy) |

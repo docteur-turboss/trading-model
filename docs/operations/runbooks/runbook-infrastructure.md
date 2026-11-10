@@ -175,6 +175,22 @@ stable id, a restart of the StatefulSet clears them
 authentication, ADR-0056). The `mongod` container is down, restarting or
 stuck: [runbook-database-failover#mongodb-dlq-and-audit-trail](runbook-database-failover.md#mongodb-dlq-and-audit-trail).
 
+## StatefulSetStuckOnOldRevision
+
+`status.currentRevision` differs from `status.updateRevision` for 24 hours: the
+pods run an older pod template than the one applied. On `staging-local` this is
+the `partition: 1` of issue #700 (a deploy never restarts the data pods), so
+new sidecars such as the exporters do not run and `MySQLDown`, `RedisDown` and
+`MongoDBDown` stay silent.
+
+```bash
+kubectl -n $NS get sts -o custom-columns=NAME:.metadata.name,CUR:.status.currentRevision,UPD:.status.updateRevision
+```
+
+Do the planned restart of the section "Database pods across releases" of
+[STAGING_LOCAL](../../deployment/STAGING_LOCAL.md#database-pods-across-releases).
+Elsewhere (no partition), the rollout is blocked: look at the pod events.
+
 ## MongoDBReplicaSetMemberUnhealthy
 
 A member of `mongo-dlq` or `mongo-audit` (label `member_idx`) is unreachable or
