@@ -57,7 +57,7 @@ function makeLogger(): LoggerPort {
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
-		serviceName: "financial-scraper-service" as ServiceId,
+		serviceName: "financial-scraper" as ServiceId,
 		instanceId: "test-instance-1" as InstanceId,
 		host: "192.168.1.10" as IPAddress,
 		port: 8444 as Port,
@@ -166,7 +166,7 @@ describe("StaleInstanceCleaner", () => {
 				ttl: 5000 as DurationMs,
 			});
 			deps.listServiceNames.mockResolvedValue([
-				"financial-scraper-service" as ServiceInstanceName,
+				"financial-scraper" as ServiceInstanceName,
 			]);
 			deps.getInstances.mockResolvedValue([expired]);
 			deps.removeInstance.mockResolvedValue(true);
@@ -182,7 +182,7 @@ describe("StaleInstanceCleaner", () => {
 		it("should run afterCleanup once expired instances are removed", async () => {
 			const order: string[] = [];
 			deps.listServiceNames.mockResolvedValue([
-				"financial-scraper-service" as ServiceInstanceName,
+				"financial-scraper" as ServiceInstanceName,
 			]);
 			deps.getInstances.mockResolvedValue([
 				makeInstance({

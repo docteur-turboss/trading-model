@@ -4,7 +4,7 @@ import { MarketEvent } from "@trading-model/contracts/market-events";
 
 jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: {
-		SERVICE_NAME: "financial-scraper-service",
+		SERVICE_NAME: "financial-scraper",
 		INSTANCE_ID: "financial-scraper-1",
 	},
 }));
@@ -24,7 +24,7 @@ describe("createMarketDataMetadata", () => {
 			topic: MarketEvent.FetchCandlestickSeries,
 			eventType: MarketEvent.FetchCandlestickSeries,
 			publisher: {
-				serviceName: "financial-scraper-service",
+				serviceName: "financial-scraper",
 				instanceId: "financial-scraper-1",
 			},
 		});

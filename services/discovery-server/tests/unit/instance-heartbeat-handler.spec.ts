@@ -105,11 +105,11 @@ describe("InstanceHeartbeatHandler", () => {
 
 	describe("updateHeartbeat", () => {
 		const identity: ServiceIdentity = {
-			serviceName: "financial-scraper-service" as never,
+			serviceName: "financial-scraper" as never,
 			instanceId: "i1" as never,
 		};
 		const mockInstance: ServiceInstance = {
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "i1" as InstanceId,
 			host: "192.168.1.10" as IPAddress,
 			port: 8444 as Port,
@@ -147,7 +147,7 @@ describe("InstanceHeartbeatHandler", () => {
 			expect(MOCK_REDIS.eval).toHaveBeenCalledWith(
 				expect.stringContaining("SISMEMBER"),
 				3,
-				"service:financial-scraper-service:instances",
+				"service:financial-scraper:instances",
 				"instance:i1:metadata",
 				"instance:i1:updatedBy",
 				"i1",

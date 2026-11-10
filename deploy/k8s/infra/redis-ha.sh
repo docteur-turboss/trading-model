@@ -26,13 +26,6 @@
 # protected (dev, tests). With REDIS_EXPORTER_PASSWORD, data nodes and
 # sentinels also get the read-only `exporter` user of the metrics sidecars
 # (ADR-0056).
-#
-# REDIS_ALLOW_LEGACY_CLIENTS=true (expand step of release 3.0.0): the default
-# user stays on without a password and the sentinels require none, so the
-# clients of the previous release, which authenticate to nothing, keep working
-# until the rollout replaces them. The service users exist all the same, and
-# the new clients use them (ioredis ignores the sentinel password a server
-# does not ask for). Remove it in the next release (contract step).
 set -eu
 
 MASTER_NAME="${MASTER_NAME:-mymaster}"
@@ -72,7 +65,7 @@ node_cli() {
 }
 
 sentinel_cli() {
-	if [ -n "${REDIS_INTERNAL_PASSWORD:-}" ] && [ "${REDIS_ALLOW_LEGACY_CLIENTS:-false}" != true ]; then
+	if [ -n "${REDIS_INTERNAL_PASSWORD:-}" ]; then
 		REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli "$@"
 	else
 		redis-cli "$@"
@@ -122,11 +115,7 @@ give_up_after_wait() {
 # Prints, one per line, the redis-server arguments that create the users.
 acl_args() {
 	[ -n "${REDIS_INTERNAL_PASSWORD:-}" ] || return 0
-	if [ "${REDIS_ALLOW_LEGACY_CLIENTS:-false}" = true ]; then
-		print_args --user default on nopass "~*" "&*" +@all
-	else
-		print_args --user default off
-	fi
+	print_args --user default off
 	print_args --masteruser ha --masterauth "$REDIS_INTERNAL_PASSWORD"
 	print_args --user ha on ">$REDIS_INTERNAL_PASSWORD" allchannels -@all +psync +replconf +ping
 	print_args +role +info +multi +exec +slaveof +replicaof +subscribe +publish
@@ -208,7 +197,7 @@ sentinel down-after-milliseconds $MASTER_NAME $DOWN_AFTER_MS
 sentinel failover-timeout $MASTER_NAME $FAILOVER_TIMEOUT_MS
 sentinel parallel-syncs $MASTER_NAME 1
 EOF
-	if [ -n "${REDIS_INTERNAL_PASSWORD:-}" ] && [ "${REDIS_ALLOW_LEGACY_CLIENTS:-false}" != true ]; then
+	if [ -n "${REDIS_INTERNAL_PASSWORD:-}" ]; then
 		cat >>"$SENTINEL_CONF" <<EOF
 requirepass $REDIS_INTERNAL_PASSWORD
 sentinel sentinel-pass $REDIS_INTERNAL_PASSWORD

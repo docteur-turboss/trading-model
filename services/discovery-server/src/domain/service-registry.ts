@@ -1,9 +1,6 @@
 import type { InstanceId } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import {
-	ALL_SERVICE_NAMES,
-	LEGACY_SERVICE_INSTANCE_NAMES,
-} from "@trading-model/primitives/service-instance-name";
+import { ALL_SERVICE_NAMES } from "@trading-model/primitives/service-instance-name";
 import type { ServiceInstance } from "../shared/types";
 import type { InstanceTokenManager } from "./instance-token-manager";
 import {
@@ -68,14 +65,6 @@ export class ServiceRegistry {
 		let total = 0;
 		for (const serviceName of ALL_SERVICE_NAMES) {
 			const instances = await this.instanceStore.getInstances(serviceName);
-			// A legacy name with no instance is not exported: a 0 series would trip
-			// InstanceCountLow (it was >= 2 before the rename) on every upgrade.
-			if (
-				instances.length === 0 &&
-				LEGACY_SERVICE_INSTANCE_NAMES.has(serviceName)
-			) {
-				continue;
-			}
 			this._metrics.setRegisteredInstancesPerService(
 				serviceName,
 				instances.length

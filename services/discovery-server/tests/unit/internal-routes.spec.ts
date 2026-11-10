@@ -31,7 +31,7 @@ import { REGISTRY_ROUTES } from "../../src/adapters/inbound/http/register.routes
 import { createServiceRegistry } from "../../src/config/container";
 import type { ServiceRegistry } from "../../src/domain/service-registry";
 
-const SERVICE = "financial-scraper-service";
+const SERVICE = "financial-scraper";
 const REGISTRATION = {
 	serviceName: SERVICE,
 	instanceId: "scraper-1",

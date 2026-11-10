@@ -61,7 +61,7 @@ describe("helpers", () => {
 
 		it("should not throw if token is valid", async () => {
 			const registered = await registry.registerInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "instance-1" as InstanceId,
 				ip: "1.1.1.1",
 				port: 8080 as Port,
@@ -92,7 +92,7 @@ describe("helpers", () => {
 				tokenStore,
 			});
 			const registered = await replicaA.registerInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "instance-1" as InstanceId,
 				ip: "1.1.1.1",
 				port: 8080 as Port,

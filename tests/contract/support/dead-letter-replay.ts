@@ -16,7 +16,7 @@ import { overTheWire, type PublishedRequest } from "./broker-pipeline";
  */
 export async function deadLetterAndReplay(
 	message: Message,
-	service = "audit-logger-service"
+	service = "audit-logger"
 ): Promise<{ stored: DlqEntry; replay: PublishedRequest }> {
 	const deadLetters: DlqEntry[] = [];
 	const delivery = new HttpMessageDelivery({} as never, {
