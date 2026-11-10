@@ -197,6 +197,7 @@ Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host 
 | `RETENTION_BATCH_SIZE`    | number (≥1) | `10000`           | no       | Rows per `DELETE ... LIMIT` | retention job |
 | `RETENTION_PAUSE_SECONDS` | number (≥0) | `1`               | no       | Pause between two batches | retention job |
 | `MYSQL_RETENTION_PASSWORD` | string | —                      | **yes** in K8s | Password of MySQL user `retention` (SELECT, DELETE on the five tables). Key of Secret `trading-model-secrets`, read by `db-migrate-user` and `db-retention` | retention job |
+| `MYSQL_SPIRE_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** in K8s | Password of MySQL user `spire` (`ALL PRIVILEGES` on `spire.*` only), created with the `spire` database by `db-migrate-user`, read by the SPIRE server (`-expandEnv`). The SPIRE pod no longer gets `MYSQL_ROOT_PASSWORD` (issue #807). Compose uses SQLite | spire-server |
 
 ---
 
