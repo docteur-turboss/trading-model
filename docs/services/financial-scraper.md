@@ -193,7 +193,7 @@ retry), normalized by its adapter, checked against the schema and stored.
 nothing stored), `store_error`. Every request sends the User-Agent
 `automated news analysis <SIGNAL_CONTACT_EMAIL>`: SEC EDGAR answers 403
 without the e-mail; NWS and Wikimedia accept the repository URL sent when it
-is unset. The repository is public, so the e-mail is never committed: `.env`
+is unset. The address must be functional and non-nominative (project alias, never a person's e-mail: it is sent to US sources). The repository is public, so the e-mail is never committed: `.env`
 for compose, the GitHub environment secret `SIGNAL_CONTACT_EMAIL` for K8s
 (`deploy.yml` writes it into the `signal-contact` ConfigMap). A value that
 is no e-mail address disables the signal collection (error logged at start);
