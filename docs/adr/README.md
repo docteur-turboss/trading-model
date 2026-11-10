@@ -70,6 +70,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) | Database Client Traffic Is Not Encrypted in the Cluster (Accepted Residual Risk, TLS Planned) | Accepted | 2026-11 |
 | [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) | N-1 Compatibility of the Public API and the Bus Messages | Accepted | 2026-11 |
 | [ADR-0062](./0062-alerting-path-in-two-replicas-in-production.md) | Alerting Path in Two Replicas in Production | Accepted | 2026-11 |
+| [ADR-0063](./0063-grafana-per-person-access-through-oidc.md) | Grafana Per-Person Access Through OIDC | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

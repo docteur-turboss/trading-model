@@ -270,6 +270,12 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
+| `GRAFANA_OIDC_ENABLED` | string | (unset) | `true` turns on Grafana OIDC login; off otherwise (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_CLIENT_ID` | string | (unset) | OIDC client id (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_CLIENT_SECRET` | string | (unset) | OIDC client secret (K8s: key of `trading-model-secrets`) (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_AUTH_URL` | string | (unset) | OIDC authorization endpoint (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_TOKEN_URL` | string | (unset) | OIDC token endpoint (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_API_URL` | string | (unset) | OIDC userinfo endpoint (ADR-0063) | DC, K8s |
 | `MYSQL_EXPORTER_PASSWORD` | string | (required)          | Password of the read-only MySQL user `exporter` of mysqld-exporter (ADR-0056) | DC |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
