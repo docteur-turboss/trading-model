@@ -116,7 +116,10 @@ function buildProxyErrorResponse(
 	});
 	// The cause stays in the log: returned to the client, connection errors
 	// would map the internal network.
-	return sendResponse({ error: "Service unavailable" }, 503 as HttpStatusCode);
+	return sendResponse(
+		{ error: "Service unavailable" },
+		HTTP_STATUS.SERVICE_UNAVAILABLE
+	);
 }
 
 function tryParseJson(raw: string): unknown | null {

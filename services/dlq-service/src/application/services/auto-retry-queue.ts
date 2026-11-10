@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type {
 	QueuableEntriesPort,
@@ -28,7 +29,7 @@ export function createQueueRebuilder(
 			}
 		} catch (err) {
 			getLogger().warn("Failed to rebuild Redis queue from MongoDB", {
-				error: (err as Error)?.message,
+				error: normalizeError(err).message,
 			});
 		}
 	};

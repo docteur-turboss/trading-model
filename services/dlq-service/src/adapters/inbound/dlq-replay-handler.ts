@@ -1,5 +1,6 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	type ResponseObject,
@@ -53,10 +54,10 @@ export function createReplayEntries(
 			try {
 				return _toResponse(await replay({ ...query, actor }, span));
 			} catch (err) {
-				span.recordException(err as Error);
+				span.recordException(normalizeError(err));
 				span.setStatus({
 					code: SpanStatusCode.ERROR,
-					message: (err as Error).message,
+					message: normalizeError(err).message,
 				});
 				throw err;
 			} finally {

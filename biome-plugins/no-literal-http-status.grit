@@ -1,0 +1,10 @@
+language js
+
+// Use HTTP_STATUS.* from @trading-model/contracts/http-status instead of `NNN as HttpStatusCode`.
+`$code as HttpStatusCode` where {
+	$code <: r"[0-9]+",
+	register_diagnostic(
+		span = $code,
+		message = "Numeric literal cast to HttpStatusCode: use the HTTP_STATUS constant (add one in packages/contracts/src/http-status.ts if missing)."
+	)
+}

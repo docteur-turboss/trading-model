@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type Redis from "ioredis";
 
 import { logger } from "./logger";
@@ -46,7 +47,7 @@ export class DlqRedisQueue {
 			logger.error("Redis queue push failed", {
 				queueKey: this._queueKey,
 				entryId,
-				error: (err as Error)?.message,
+				error: normalizeError(err).message,
 			});
 			return false;
 		}
@@ -67,7 +68,7 @@ export class DlqRedisQueue {
 		} catch (err) {
 			logger.error("Redis queue pop failed", {
 				queueKey: this._queueKey,
-				error: (err as Error)?.message,
+				error: normalizeError(err).message,
 			});
 			return null;
 		}

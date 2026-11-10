@@ -5,6 +5,10 @@
 		{
 			"path": "./biome-plugins/no-swallowed-errors.grit",
 			"includes": ["**/src/**"]
+		},
+		{
+			"path": "./biome-plugins/no-literal-http-status.grit",
+			"includes": ["**/src/**", "!packages/contracts/**"]
 		}
 	],
 	"assist": {
