@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	InvalidPayloadError,
 	type ProtocolWorker,
@@ -29,7 +30,7 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 			return JSON.parse(body);
 		} catch (err) {
 			throw new InvalidPayloadError(
-				`Body from ${new URL(request.url).host} is not JSON: ${(err as Error).message}`
+				`Body from ${new URL(request.url).host} is not JSON: ${normalizeError(err).message}`
 			);
 		}
 	};

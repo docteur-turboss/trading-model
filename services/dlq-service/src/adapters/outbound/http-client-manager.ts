@@ -1,4 +1,5 @@
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { logger } from "../../config/logger";
 import { ENV } from "../../infrastructure/config/env";
@@ -24,7 +25,7 @@ class SharedHttpClientManager {
 				logger.info("HTTP client TLS certificates reloaded");
 			} catch (err) {
 				logger.error("Failed to reload HTTP client TLS certificates", {
-					error: (err as Error).message,
+					error: normalizeError(err).message,
 				});
 			}
 		}
