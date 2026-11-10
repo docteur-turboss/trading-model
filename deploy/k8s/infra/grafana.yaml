@@ -120,6 +120,18 @@ spec:
                   name: trading-model-secrets
                   key: GRAFANA_OIDC_API_URL
                   optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_ALLOWED_DOMAINS
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_ALLOWED_DOMAINS
+                  optional: true
+            - name: GF_SERVER_ROOT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_ROOT_URL
+                  optional: true
           resources:
             requests:
               cpu: 100m

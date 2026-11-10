@@ -448,13 +448,7 @@ jobs:
             exit 1
           fi
           # Grafana OIDC (ADR-0063): production refuses a shared admin as the only access.
-          if ! grep -qE "^ +GRAFANA_OIDC_ENABLED: " <<<"$rendered"; then
-            if [ "$ENV" = production ]; then
-              echo "::error::trading-model-secrets of production lacks GRAFANA_OIDC_ENABLED (and the GRAFANA_OIDC_* keys): Grafana would have only the shared admin account (ADR-0063)"
-              exit 1
-            fi
-            echo "::warning::trading-model-secrets of $ENV has no GRAFANA_OIDC_* keys: Grafana has only the shared admin account (ADR-0063)"
-          fi
+          bash scripts/check-grafana-oidc.sh "$ENV" <<<"$rendered"
 
       # The Ingress hosts ship as example.com placeholders (issue #415): in
       # production they would leave the API unreachable from outside while

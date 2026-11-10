@@ -400,7 +400,10 @@ for (const env of OVERLAYS) {
 	for (const [name, value] of [["GF_AUTH_ANONYMOUS_ENABLED", '"false"'], ["GF_USERS_ALLOW_SIGN_UP", '"false"'], ["GF_USERS_AUTO_ASSIGN_ORG_ROLE", "Viewer"]]) {
 		if (!new RegExp(`- name: ${name}\\n\\s+value: ${value}$`, "m").test(grafana)) errors.push(`${env}: grafana must set ${name}=${value} (ADR-0063)`);
 	}
-	if (!/- name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET\n(?:\s+.*\n)*?\s+optional: true/.test(grafana)) errors.push(`${env}: grafana OIDC client secret must come from an optional Secret key (ADR-0063)`);
+	// OIDC off in every render (CI kind has no egress): each key an optional Secret key, never a literal.
+	for (const name of ["ENABLED", "CLIENT_ID", "CLIENT_SECRET", "AUTH_URL", "TOKEN_URL", "API_URL", "ALLOWED_DOMAINS"].map((n) => `GF_AUTH_GENERIC_OAUTH_${n}`).concat("GF_SERVER_ROOT_URL")) {
+		if (!new RegExp(`- name: ${name}\\n\\s+valueFrom:\\n\\s+secretKeyRef:\\n(?:\\s+(?:name|key): \\S+\\n)*?\\s+optional: true`).test(grafana)) errors.push(`${env}: grafana ${name} must come from an optional Secret key (ADR-0063)`);
+	}
 
 	for (const name of SEALED_ONLY) {
 		if (docs.some((doc) => doc.kind === "Secret" && doc.name === name)) {
