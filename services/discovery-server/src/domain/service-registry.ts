@@ -1,7 +1,4 @@
-import type {
-	AuthToken,
-	InstanceId,
-} from "@trading-model/primitives/primitives";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import {
 	ALL_SERVICE_NAMES,
@@ -36,7 +33,7 @@ export class ServiceRegistry {
 		const { instanceId } = instance;
 		const token = this.tokenManager.generateToken(instanceId);
 		await this.instanceStore.registerInstance(instance);
-		await this.tokenManager.setToken(instanceId, token as unknown as AuthToken);
+		await this.tokenManager.setToken(instanceId, token);
 		const stored = await this.instanceStore.getInstance({
 			serviceName: instance.serviceName,
 			instanceId,
@@ -47,10 +44,7 @@ export class ServiceRegistry {
 
 	async updateToken(instanceId: InstanceId): Promise<string> {
 		const newToken = this.tokenManager.generateToken(instanceId);
-		await this.tokenManager.setToken(
-			instanceId,
-			newToken as unknown as AuthToken
-		);
+		await this.tokenManager.setToken(instanceId, newToken);
 		return newToken;
 	}
 

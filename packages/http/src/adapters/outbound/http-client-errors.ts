@@ -24,6 +24,7 @@ export function createHttpClientError(
 			name: "HttpClientError",
 			statusCode,
 		}
+		// as unknown as: Error subclass assembled with Object.assign
 	) as unknown as HttpClientError;
 }
 
@@ -58,6 +59,7 @@ export function createHttpClientTimeoutError(
 			name: "HttpClientTimeoutError",
 			timeoutMs,
 		}
+		// as unknown as: Error subclass assembled with Object.assign
 	) as unknown as HttpClientTimeoutError;
 }
 

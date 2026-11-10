@@ -96,6 +96,7 @@ export class DlqEntryWriter {
 
 		return this._inserter.insert(
 			col,
+			// as unknown as: Mongo driver document typing
 			doc as unknown as Record<string, unknown>,
 			hash.messageId
 		);
