@@ -194,7 +194,7 @@ relax_mysql() {
 			m "SET GLOBAL require_secure_transport=OFF"
 			# Only the writable member can alter users (replicated to the others).
 			if [ "$(m "SELECT @@super_read_only")" = 0 ]; then
-				m "ALTER USER IF EXISTS \"scraper\"@\"%\" REQUIRE NONE, \"root\"@\"%\" REQUIRE NONE"
+				m "ALTER USER IF EXISTS \"scraper\"@\"%\", \"root\"@\"%\" REQUIRE NONE"
 			fi' || return 1
 	done
 }
