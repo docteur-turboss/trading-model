@@ -3,7 +3,6 @@ import {
 	type HttpLayer,
 } from "../adapters/outbound/http-layer-builder";
 import type { AddressManagerConfig } from "../domain/config/address-manager-config";
-import type { MetricsCollector } from "../infrastructure/monitoring/metrics-collector";
 import type { TokenManager } from "./client/token-manager";
 import type { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
 import type { DiscoveryLayer } from "./discovery-layer-builder";
@@ -17,7 +16,7 @@ import { buildRegistrationAndHeartbeat } from "./registration-heartbeat-builder"
 interface AddressManagerDependencies {
 	tokenManager: TokenManager;
 	discoveryOrchestrator: DiscoveryOrchestrator;
-	metricsCollector: MetricsCollector;
+	metricsCollector: DiscoveryLayer["metricsCollector"];
 	lifecycleManager: LifecycleManager;
 }
 interface BuildLifecycleDeps {
