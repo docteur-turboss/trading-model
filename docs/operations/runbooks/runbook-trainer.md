@@ -1,8 +1,8 @@
 # Runbook: Trainer Failures
 
-**Alerts:** `TrainingCompletionRateLow` (warning, SLO `training_completion`),
-`TrainingCompletionRateCritical` (critical, same SLO),
+**Alerts:** `TrainingCompletionRateLow` (warning, SLO `training_completion`,
 target in [slo.md](../slo.md#6-training-completion-rate)),
+`TrainingCompletionRateCritical` (critical, same SLO),
 `TrainerNoModelStored` (critical),
 `ModelArtifactWriteFailing` (warning),
 `TrainerEventLoopBlocked` (warning),
