@@ -794,7 +794,7 @@ verify_redis_tls() {
 	mode="$($K -n "$NS" exec redis-0 -c redis -- printenv REDIS_TLS_MODE)"
 	for node in redis-0:redis:6379:6380 redis-sentinel-0:sentinel:26379:26380; do
 		IFS=: read -r pod container plain secure <<<"$node"
-		cli="REDISCLI_AUTH=$REDIS_INTERNAL_PASSWORD redis-cli --user ha"
+		cli='REDISCLI_AUTH=$REDIS_INTERNAL_PASSWORD redis-cli --user ha'
 		[ "$($K -n "$NS" exec "$pod" -c "$container" -- sh -c "$cli $tls -p $secure PING")" = PONG ] || {
 			log "  no TLS session verified by name on $pod:$secure"
 			return 1
