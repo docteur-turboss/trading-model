@@ -1,4 +1,4 @@
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
 import {
 	HEALTH_STATUS_OK,
@@ -10,7 +10,7 @@ export function createHealthController(): { health: RequestHandler } {
 	const health: RequestHandler = catchSync(() =>
 		sendResponse(
 			{ status: HEALTH_STATUS_OK, timestamp: new Date().toISOString() },
-			200 as HttpStatusCode
+			HTTP_STATUS.OK
 		)
 	);
 

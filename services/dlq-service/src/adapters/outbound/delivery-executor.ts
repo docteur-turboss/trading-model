@@ -1,4 +1,5 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	DurationMs,
 	toServiceId,
@@ -91,7 +92,7 @@ async function _forceIncrementRetry(
 	await claimRelease.incrementRetryCount(entryId).catch((err) => {
 		logger.error(
 			"CRITICAL: Failed to increment retryCount after markRetried failure",
-			{ entryId, error: (err as Error).message }
+			{ entryId, error: normalizeError(err).message }
 		);
 	});
 }
@@ -103,7 +104,7 @@ async function _forceReleaseClaimWithoutCount(
 	await claimRelease.releaseClaimWithoutCount(entryId).catch((err) => {
 		logger.error("CRITICAL: Failed to release claim after error", {
 			entryId,
-			error: (err as Error).message,
+			error: normalizeError(err).message,
 		});
 	});
 }
@@ -128,7 +129,7 @@ export async function deliverEntry(
 		await _deliverMessage(entry, ctx.client, ctx.messageManagerUrl);
 		await _markEntrySuccess(entry, ctx);
 	} catch (err) {
-		const httpError = (err as Error).message;
+		const httpError = normalizeError(err).message;
 		await _handleDeliveryMarkFailed({
 			entryId: entry.id,
 			instanceId: ctx.instanceId,

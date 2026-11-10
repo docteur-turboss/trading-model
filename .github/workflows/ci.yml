@@ -89,6 +89,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           # Blocking on PRs only: a Codecov outage must not block a release (workflow_call).
           fail_ci_if_error: ${{ github.event_name == 'pull_request' }}
+          flags: unit
 
   db-integration:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
@@ -102,7 +103,20 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - name: Run specs against real databases (Testcontainers)
-        run: bun run test:db
+        run: bun run test:db:coverage
+
+      - name: Import Codecov GPG key
+        run: |
+          gpg --import .github/keys/codecov.asc
+          gpg --fingerprint 27034E7FDB850E0BBC2C62FF806BB28AED779869
+
+      - name: Upload DB spec coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # Blocking on PRs only: a Codecov outage must not block a release (workflow_call).
+          fail_ci_if_error: ${{ github.event_name == 'pull_request' }}
+          flags: db
 
   observability:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.

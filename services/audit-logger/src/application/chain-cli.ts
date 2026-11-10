@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	chainAuditSettingsFromEnv,
 	createChainAudit,
@@ -69,7 +70,7 @@ if (require.main === module) {
 	}).then(
 		(code) => process.exit(code),
 		(err: unknown) => {
-			console.error((err as Error)?.message ?? err);
+			console.error(normalizeError(err).message ?? err);
 			process.exit(1);
 		}
 	);

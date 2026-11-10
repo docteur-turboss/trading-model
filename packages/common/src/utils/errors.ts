@@ -4,6 +4,8 @@ export {
 	type AppErrorData,
 	createAppError,
 	ErrorCode,
+	errorProp,
+	hasCode,
 	isAppError,
 	makeErrorCode,
 	makeGuard,

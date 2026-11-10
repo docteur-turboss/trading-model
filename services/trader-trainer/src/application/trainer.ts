@@ -1,9 +1,6 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type {
-	Fitness,
-	PositiveInt,
-} from "@trading-model/primitives/primitives";
+import { Fitness, NonNegativeInt } from "@trading-model/primitives/primitives";
 import {
 	BEST_FITNESS,
 	MODEL_ARTIFACTS_TOTAL,
@@ -203,9 +200,9 @@ export class Trainer {
 		const outcome = {
 			symbol,
 			bestGenome: result.bestGenome,
-			bestFitness: result.bestFitness as unknown as Fitness,
+			bestFitness: Fitness.of(result.bestFitness),
 			bestFitnessMeta: result.bestFitnessMeta,
-			generation: result.generation as unknown as PositiveInt,
+			generation: NonNegativeInt.of(result.generation),
 			generationContext: result.generationContext,
 		};
 		const snapshot = new LastTrainingInfo(outcome);

@@ -65,6 +65,7 @@ export function createSentinel(
 	// ("Connection is closed.") and leaves the client in `end` for good.
 	// Retiring it on close is safe: each new connection subscribes a new one.
 	client.on("close", () => {
+		// as unknown as: ioredis typings omit the sentinel event API
 		(
 			client as unknown as {
 				connector?: { failoverDetector?: { cleanup(): void } | null };

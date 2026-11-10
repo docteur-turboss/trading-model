@@ -1,5 +1,8 @@
 import { logger } from "@trading-model/http/infrastructure/logger";
-import type { InstanceId } from "@trading-model/primitives/primitives";
+import {
+	type InstanceId,
+	toInstanceId,
+} from "@trading-model/primitives/primitives";
 import type { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
 import type { CircuitBreakerPersistence } from "../../adapters/outbound/discovery/circuit-breaker-persistence";
 import type { PersistedCircuitState } from "../../domain/discovery/service-cache.interface";
@@ -62,7 +65,7 @@ export class CircuitBreakerPersistenceHandler {
 
 	clear(forEachMachine: (fn: (key: string) => void) => void): void {
 		forEachMachine((key) => {
-			this._persistence.deletePersistedState(key as unknown as InstanceId);
+			this._persistence.deletePersistedState(toInstanceId(key));
 		});
 		this._sweeper.stop();
 	}

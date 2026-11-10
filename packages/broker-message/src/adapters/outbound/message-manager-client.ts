@@ -4,7 +4,7 @@ import {
 	serviceUnreachableError,
 } from "@trading-model/address-manager/shared/errors";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { normalizeError } from "@trading-model/common/utils/errors";
+import { errorProp, normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { PUBLISH_COMPAT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
@@ -123,7 +123,7 @@ export class MessageManagerClient implements IMessageClient {
 			);
 		} catch (error) {
 			// A business 4xx proves the target is alive: it must not open the breaker.
-			const status = (error as { statusCode?: number }).statusCode;
+			const status = errorProp(error, "statusCode") as number | undefined;
 			const targetAnswered =
 				status !== undefined &&
 				isNonRetryableClientError(status) &&

@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { LogPort, ShutdownProbe } from "../domain/ports/replay.ports";
@@ -49,7 +50,7 @@ export function createAutoRetryScheduler(
 			await deps.tick();
 		} catch (err) {
 			logger.error("DLQ auto-retry tick failed", {
-				error: (err as Error)?.message,
+				error: normalizeError(err).message,
 			});
 		}
 		if (!isShuttingDown()) {

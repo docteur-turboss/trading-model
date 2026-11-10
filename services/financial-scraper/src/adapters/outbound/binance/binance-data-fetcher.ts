@@ -2,7 +2,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import type { SymbolInterval } from "@trading-model/contracts/candlestick-query";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import type { Limit, PositiveInt } from "@trading-model/primitives/primitives";
+import { type Limit, PositiveInt } from "@trading-model/primitives/primitives";
 import { SNAPSHOT_PARTS_FAILED_TOTAL } from "../../../config/metrics";
 import type {
 	MarketDataSnapshot,
@@ -56,12 +56,12 @@ export async function fetchAllRawData(
 		orderBookRaw: () =>
 			getOrderBook({
 				symbol,
-				limit: orderBookLimit ?? (100 as unknown as PositiveInt),
+				limit: orderBookLimit ?? PositiveInt.of(100),
 			}),
 		tradesRaw: () =>
 			getRecentTrades({
 				symbol,
-				limit: tradeLimit ?? (100 as unknown as PositiveInt),
+				limit: tradeLimit ?? PositiveInt.of(100),
 			}),
 		candlesRaw: () =>
 			getCandlestickData({

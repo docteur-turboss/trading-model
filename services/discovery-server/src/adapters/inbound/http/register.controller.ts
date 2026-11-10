@@ -1,5 +1,5 @@
 import { parseServiceName } from "@trading-model/common/config/services.types";
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import type { ServiceRegistry } from "../../../domain/service-registry";
@@ -27,13 +27,13 @@ export function createRegisterController(registry: ServiceRegistry): {
 			) {
 				return sendResponse(
 					{ error: "Invalid service name" },
-					400 as HttpStatusCode
+					HTTP_STATUS.BAD_REQUEST
 				);
 			}
 			const instance = buildServiceInstance(body, registry, _observedIPv4(req));
 			return sendResponse(
 				await registry.registerInstance(instance),
-				201 as HttpStatusCode
+				HTTP_STATUS.CREATED
 			);
 		},
 	};

@@ -1,8 +1,9 @@
 import { TtlCacheBase } from "@trading-model/common/utils/ttl-cache-base";
 import { MemoryStoreAdapter } from "@trading-model/persistence/memory-store-adapter";
-import type {
-	DurationMs,
-	ServiceId,
+import {
+	type DurationMs,
+	type ServiceId,
+	toServiceId,
 } from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../../../domain/client/type";
 import type { ICircuitStateStore } from "../../../domain/discovery/circuit-state-store.interface";
@@ -73,7 +74,7 @@ export class ServiceCache implements IServiceCache {
 	> {
 		return this._withLock(() =>
 			this._cacheStore.entries().map(({ key, value }) => ({
-				serviceName: key as unknown as ServiceId,
+				serviceName: toServiceId(key),
 				instance: value,
 			}))
 		);

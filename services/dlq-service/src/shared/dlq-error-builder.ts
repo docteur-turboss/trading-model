@@ -33,10 +33,10 @@ export function failSpanOnStorageError(
 	logger.error("Failed to persist DLQ entry — storage error", {
 		error: normalizeError(err).message,
 	});
-	span.recordException(err as Error);
+	span.recordException(normalizeError(err));
 	span.setStatus({
 		code: SpanStatusCode.ERROR,
-		message: (err as Error).message,
+		message: normalizeError(err).message,
 	});
 	span.end();
 }
