@@ -92,8 +92,8 @@ All platform assets are documented in:
 
 | Key Type | Storage | Rotation | Access |
 |---|---|---|
-| SPIRE CA keys / trust bundle | SPIRE datastore (MySQL `spire`) | Automated (SPIRE CA manager) | SPIRE Server only |
-| SVIDs | In-memory + `/run/spire/svid` (spiffe-helper) | Auto-renewal (TTL 1h) | Workload via Workload API |
+| SPIRE CA keys / trust bundle | SPIRE datastore (SQLite on the server volume, ADR-0062) | Automated (SPIRE CA manager) | SPIRE Server only |
+| SVIDs | In-memory + `/run/spire/svid` (spiffe-helper) | Auto-renewal (TTL 4h) | Workload via Workload API |
 | HMAC tokens | Address-manager cache | Refresh cycle via scheduler | Registered service only |
 | Database credentials | K8s SealedSecrets | Manual rotation via `scripts/rotate-secrets.sh` | Service accounts via RBAC |
 

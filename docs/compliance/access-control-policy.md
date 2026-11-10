@@ -121,7 +121,7 @@ In the event of SPIRE unavailability:
 | Review Type | Frequency | Scope |
 |---|---|---|
 | ACL audit | Annual | Verify service-to-service ACL mappings match current architecture |
-| SVID audit | Continuous | All SVIDs auto-rotated (1h TTL); expired SVIDs rejected |
+| SVID audit | Continuous | All SVIDs auto-rotated (4h TTL, ADR-0062); expired SVIDs rejected |
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
 | API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, keep `dlq:write` to operators who purge or replay the DLQ, rewrite old-format keys (bare secret, ADR-0059) |

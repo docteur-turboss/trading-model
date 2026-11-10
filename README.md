@@ -95,7 +95,7 @@ bun run commit               # Interactive gitmoji commit CLI
 
 - **Docker Compose:** `docker compose up -d` (all 20+ containers with health-check ordering)
 - **Kubernetes:** `kubectl apply -k deploy/k8s/overlays/production` (HPA, PDBs, NetworkPolicies, SealedSecrets)
-- **Backup:** Daily CronJob → MongoDB (dlq + audit) + MySQL (incl. SPIRE datastore) + SPIRE CA keys + checkpoints, age-encrypted, mandatory S3 off-site copy; restore drill in CI
+- **Backup:** Daily CronJob → MongoDB (dlq + audit) + MySQL + SPIRE datastore and CA keys (SQLite, ADR-0062) + checkpoints, age-encrypted, mandatory S3 off-site copy; restore drill in CI
 - **Secrets:** SealedSecrets (SealedSecret → controller decrypts → standard Secret)
 - **Probes:** `startupProbe` (90s window) + `livenessProbe` + `readinessProbe` on all services
 - **Identity/mTLS:** SPIRE Server + Agent (K8s PSAT / Docker attestor) issuing SVIDs to `spiffe-helper` sidecars (ADR-0011)

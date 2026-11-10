@@ -68,9 +68,9 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None — service identities only                                                                                                 |
 | **Recipients**           | All platform services (SVID distribution via `spiffe-helper` sidecars)                                                        |
 | **Transfers outside EU** | None                                                                                                                           |
-| **Retention period**     | SVIDs: 1h TTL (auto-rotated). Trust bundle: 168h (ca_ttl). SPIRE datastore entries: workload lifecycle                         |
+| **Retention period**     | SVIDs: 4h TTL (auto-rotated, ADR-0062). Trust bundle: 168h (ca_ttl). SPIRE datastore entries: workload lifecycle                         |
 | **Technical measures**   | Workload attestation (docker / k8s_psat), short-lived SVIDs, automatic rotation                                               |
-| **System**               | SPIRE Server → SPIRE Agent → spiffe-helper (datastore: MySQL `spire`)                                                           |
+| **System**               | SPIRE Server → SPIRE Agent → spiffe-helper (datastore: SQLite on its volume)                                                         |
 
 ## Processing Activity 5: ML Training Data
 
@@ -122,7 +122,7 @@ This register documents the processing activities of the trading-model platform,
 | Market Data Ingestion    | ❌ None             | —                   | 1827 days (`db-retention`) | Received from Binance        |
 | Message Routing          | ❌ None             | —                   | Redis journal 24 h; DLQ 30 days       | None                         |
 | Audit Logging            | ❌ None             | —                   | 5 years (1827 days)          | None                         |
-| Workload Identity        | ❌ None             | —                   | 1h–168h                      | None                         |
+| Workload Identity        | ❌ None             | —                   | 4h–168h                      | None                         |
 | ML Training              | ❌ None             | —                   | Per-agent                    | None                         |
 | API Access Logs          | ✅ Truncated IP     | Legitimate interest | 31 days                      | None                         |
 | Telemetry and Backups    | ❌ None             | —                   | 30–31 days                   | Off-site store / Slack (TBD) |

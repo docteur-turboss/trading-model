@@ -43,7 +43,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 | **Likelihood**  | Low — mTLS between services, SecureKeyStore, AES-256-GCM at rest, automountServiceAccountToken: false                   |
 | **Impact**      | High — compromise of SPIRE CA keys / SVIDs or service tokens could disrupt platform security                                    |
 | **Severity**    | Tolerable (not PII-related)                                                                                       |
-| **Mitigations** | Automatic SVID rotation (1h TTL), backup CronJob daily, incident response procedure, SealedSecrets for K8s |
+| **Mitigations** | Automatic SVID rotation (4h TTL), backup CronJob daily, incident response procedure, SealedSecrets for K8s |
 
 ### Risk 3: Binance Data Transfer (Cayman Islands)
 

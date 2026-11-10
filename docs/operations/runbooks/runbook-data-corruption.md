@@ -15,14 +15,14 @@
 
 ### 1. Isolate the affected data
 
-Stop every writer of the database you will restore (the SPIRE server too for
-MySQL: it writes into the `spire` schema). Note the replica counts first, to
-scale back to them afterwards.
+Stop every writer of the database you will restore (the SPIRE server no longer
+writes to MySQL: its datastore is SQLite on its own volume, ADR-0062). Note the
+replica counts first, to scale back to them afterwards.
 
 ```bash
 kubectl get deployment -n trading-model -o wide   # note the replica counts
-# MySQL: market data and SPIRE datastore
-kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector spire-server --replicas=0
+# MySQL: market data
+kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector --replicas=0
 # MongoDB DLQ
 kubectl scale deployment -n trading-model dlq-service --replicas=0
 # MongoDB audit trail
@@ -79,19 +79,18 @@ with `--until <instant>` (UTC, the instant itself excluded). It needs the
 archives of the last 72 h (ADR-0031). Older than that, no `--until`: use the
 newest daily run taken before the corruption with `--timestamp <TS>`.
 
-**MySQL** (`financial_scraper` and the `spire` schema share one volume, the
-whole instance is restored, never one table):
+**MySQL** (`financial_scraper`, plus the frozen `spire` schema of the releases
+before ADR-0062; the whole instance is restored, never one table):
 
 ```bash
 bash scripts/fetch-offsite.sh --dest ./restore --pitr
 BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
-  bash scripts/restore-k8s.sh --until 2026-11-03T13:45:00Z --components mysql,spire
+  bash scripts/restore-k8s.sh --until 2026-11-03T13:45:00Z --components mysql
 ```
 
-- Writers must be stopped (step 1), SPIRE server included: `restore-k8s.sh`
-  scales it to 0 only in its SPIRE step, after MySQL.
-- `--components mysql,spire` restores MySQL before the SPIRE CA keys, as the
-  datastore and the keys must come from the same run. Details and the
+- Writers must be stopped (step 1).
+- SPIRE is a component of its own (`--components spire`: datastore and CA keys
+  of one run, ADR-0062), unrelated to a MySQL corruption. Details and the
   empty-volume case:
   [runbook-database-failover.md, MySQL volume lost or corrupted](runbook-database-failover.md#mysql-volume-lost-or-corrupted-restore).
 - `--ns` and `--into-scratch` do not exist for MySQL. To recover a few rows,

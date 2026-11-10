@@ -46,9 +46,10 @@ needs up to 4 hours when its datastore and CA keys must be restored.
 
 **Data RPO, as committed (ADR-0031):** the databases are recovered to within
 **1 hour** of an incident: MongoDB `mongo-audit` and `mongo-dlq`, MySQL
-`financial_scraper` and the SPIRE datastore (hourly binlog / oplog archives,
+`financial_scraper` (hourly binlog / oplog archives,
 point-in-time restore over the last 72 hours, daily backups for 30 days before
-that). The SPIRE CA keys (`keys.json`) are backed up daily (24 h). This is the
+that). The SPIRE datastore and CA keys (SQLite on the server volume, ADR-0062)
+are backed up daily (24 h). This is the
 RPO of the data behind every tier: the ≤ 5 minutes of T2 (audit-logger) is not
 met for its data, which is recovered to within 1 hour.
 
@@ -91,7 +92,7 @@ met for its data, which is recovered to within 1 hour.
    - Diagnose SPIRE server (spire-server) and agent health
    - Reconcile workload entries (`spire-entries` sidecar in K8s, `spire-bootstrap` in compose)
    - Restart `spiffe-helper` sidecars to re-fetch SVIDs
-4. **Escalation:** If unrecoverable within 4 hours, restore the SPIRE datastore (MySQL `spire`) and then the CA keys (`keys.json`) from the daily backup: `restore-k8s.sh --components mysql,spire`
+4. **Escalation:** If unrecoverable within 2 hours (SVIDs live 4 hours and are renewed at half-life, ADR-0062), restore the SPIRE datastore and CA keys (one tar) from the daily backup: `restore-k8s.sh --components spire`
 5. **Recovery:** With both restored the trust bundle is unchanged and workloads keep their SVIDs; re-bootstrap with re-enrolment of all workloads only if no backup is usable
 
 #### 3.2.4 Full Platform Outage
@@ -101,7 +102,7 @@ met for its data, which is recovered to within 1 hour.
 3. **Recovery:**
    - Infrastructure rebuild via `docker-compose up -d` or `kubectl apply -f deploy/`
    - Database restoration from backup (MongoDB and MySQL: latest daily dump, then the hourly oplog / binlog archives up to the last one: `restore-k8s.sh --until`)
-   - SPIRE restore (datastore in MySQL, then CA keys) or re-bootstrap (SVID re-enrolment of all workloads)
+   - SPIRE restore (datastore and CA keys, independent of MySQL since ADR-0062) or re-bootstrap (SVID re-enrolment of all workloads)
    - Service restart in dependency order
 
 ## 4. Backup Strategy
@@ -110,11 +111,10 @@ met for its data, which is recovered to within 1 hour.
 
 | Data | Type | Frequency | Retention | Location |
 |---|---|---|---|---|
-| SPIRE datastore (MySQL `spire`) | Dump (inside the MySQL dump) | Daily (CronJob) | As the MySQL dump below | `backup-data` volume + S3-compatible store (mandatory) |
-| SPIRE CA keys (`keys.json`) | File copy | Daily (CronJob) | 30 days local, 31 days off-site (never promoted) | `backup-data` volume + S3-compatible store (mandatory) |
+| SPIRE datastore + CA keys (SQLite + `keys-sqlite.json`, ADR-0062) | Online SQLite snapshot + file copy, one tar | Daily (CronJob) | 30 days local, 31 days off-site (never promoted) | `backup-data` volume + S3-compatible store (mandatory) |
 | MongoDB (dlq, audit) | `mongodump --oplog` | Daily | 30 days local, 31 days off-site; audit dump also off-site weekly 12 weeks, monthly 60 months (ADR-0032) | `backup-data` volume + S3-compatible store (mandatory) |
 | MySQL (market data) | Dump | Daily | 30 days local, 31 days off-site; also off-site weekly 12 weeks, monthly 60 months (ADR-0032) | `backup-data` volume + S3-compatible store (mandatory) |
-| MySQL binlogs (market data + SPIRE datastore) | Closed binlogs (`backup-incremental-k8s.sh`) | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
+| MySQL binlogs (market data) | Closed binlogs (`backup-incremental-k8s.sh`) | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
 | MongoDB oplog (dlq, audit) | Oplog entries since the previous archive | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
 | Redis (discovery registrations, DLQ retry queue) | Not backed up | — | — | Derived state: rebuilt by the services (DLQ queue from MongoDB) |
 

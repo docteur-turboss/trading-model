@@ -276,8 +276,9 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 Per [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) the platform uses SPIFFE/SPIRE instead of the former
 in-house CA:
 
-- **SPIRE Server:** Deployment in the application namespace (MySQL datastore,
-  `spire` database). Config rendered with `-expandEnv` (the official images
+- **SPIRE Server:** Deployment in the application namespace (SQLite datastore
+  and CA keys on its PVC `spire-server-data`, ADR-0062; SVID TTL 4 h). Agents
+  bootstrap again by themselves when the server CA changes (`rebootstrap_mode`). Config rendered with `-expandEnv` (the official images
   have no shell). The `k8sbundle` notifier publishes the trust bundle into the
   `spire-bundle` ConfigMap of `trading-model-node`
 - **SPIRE Agent:** DaemonSet in `trading-model-node` (`hostPID` +
