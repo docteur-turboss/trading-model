@@ -77,6 +77,16 @@ rotate_secret() {
     kubeseal --controller-namespace "$CONTROLLER_NAMESPACE" \
       --controller-name "$CONTROLLER_NAME" \
       --merge-into "$SEALED_SECRETS_FILE"
+  # The controller rewrites Secret.data from encryptedData: a live key absent from the file is erased.
+  # (SEALED_SECRETS_FILE stays merged locally; add the missing keys with kubeseal --merge-into, then rerun.)
+  local live_keys file_keys gone
+  live_keys=$(kubectl get secret trading-model-secrets -n "$NAMESPACE" -o 'go-template={{range $k, $v := .data}}{{$k}} {{end}}' | tr ' ' '
+' | sed '/^$/d' | sort)
+  file_keys=$(awk '/^ *(encryptedData|stringData|data):[[:space:]]*$/ { match($0, /^ */); ind = RLENGTH; on = 1; next }
+    on && /^[[:space:]]*(#|$)/ { next }
+    on { match($0, /^ */); if (RLENGTH <= ind) { on = 0; next } sub(/^ */, ""); sub(/:.*/, ""); print }' "$SEALED_SECRETS_FILE" | sort)
+  gone=$(comm -23 <(echo "$live_keys") <(echo "$file_keys") | paste -sd ' ' -)
+  [ -z "$gone" ] || die "${SEALED_SECRETS_FILE} has no entry for live key ${gone}: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md); nothing applied"
   kubectl apply -n "$NAMESPACE" -f "$SEALED_SECRETS_FILE"
 
   # Restarting before the controller decrypts would reload the old value.

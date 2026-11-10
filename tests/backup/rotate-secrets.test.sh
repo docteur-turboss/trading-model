@@ -32,6 +32,7 @@ case " $* " in
 		case "$k" in [A-Z]*) printf '%s' "$v" >"$STUB_STATE/live_$k" ;; esac
 	done <"$f"
 	;;
+*" get secret "*"go-template"*) for f in "$STUB_STATE"/live_*; do [ -f "$f" ] && printf '%s ' "${f##*/live_}"; done; true ;;
 *" get secret "*) f="$STUB_STATE/live_$(sed -E 's/.*\{\.data\.([A-Z_]+)\}.*/\1/' <<<"$*")"; [ -f "$f" ] && cat "$f" || true ;;
 esac
 STUB
@@ -110,6 +111,11 @@ RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component d
 
 STUB_KUBESEAL_FAIL=1 run --component dlq
 [ "$RC" = 1 ] && ! calls | grep -q "kubectl apply" && pass "kubeseal failure stops before apply" || failed "kubeseal failure: rc=$RC"
+
+run --component dlq
+rm -f "$WORK/state/calls"; printf 'x' >"$WORK/state/live_MYSQL_MIGRATE_PASSWORD"
+RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component dlq 2>&1) || RC=$?
+[ "$RC" = 1 ] && grep -q "MYSQL_MIGRATE_PASSWORD" <<<"$OUT" && ! calls | grep -q "kubectl apply" && pass "live key absent from file refused before apply" || failed "live key guard: rc=$RC"
 
 run --component dlq
 RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/missing.yaml" bash "$SCRIPT" --component dlq 2>&1) || RC=$?
