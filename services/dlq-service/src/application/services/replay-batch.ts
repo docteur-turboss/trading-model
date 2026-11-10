@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { PositiveInt, toMessageId } from "@trading-model/primitives/primitives";
 import { REPLAY_BATCH_TIMEOUT_MS } from "../../domain/dlq-constants";
-import type { EntryDeliveryPort } from "../../domain/ports/replay.ports";
+import type { EntryDeliveryPort } from "../../domain/ports/replay.port";
 import type {
 	BatchReplayContext,
 	BatchResults,

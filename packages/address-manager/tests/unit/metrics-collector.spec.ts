@@ -40,7 +40,7 @@ jest.mock("prom-client", () => ({
 import { STATUS_ROUTES } from "../../src/adapters/inbound/routes/metrics.routes";
 import { PING_ROUTES } from "../../src/adapters/inbound/routes/ping.routes";
 import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
-import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../src/domain/ports/service-cache.port";
 import {
 	CACHE_ENTRY_COUNT,
 	CIRCUIT_BREAKER_INSTANCES_TOTAL,
@@ -53,7 +53,7 @@ describe("MetricsCollector", () => {
 	let circuitBreaker: jest.Mocked<
 		Pick<DiscoveryCircuitBreaker, "getStateSummary">
 	>;
-	let serviceCache: jest.Mocked<Pick<IServiceCache, "entries">>;
+	let serviceCache: jest.Mocked<Pick<ServiceCachePort, "entries">>;
 
 	function createMocks(): void {
 		circuitBreaker = {
@@ -66,14 +66,14 @@ describe("MetricsCollector", () => {
 
 		serviceCache = {
 			entries: jest.fn<() => Promise<never[]>>().mockResolvedValue([]),
-		} as unknown as jest.Mocked<Pick<IServiceCache, "entries">>;
+		} as unknown as jest.Mocked<Pick<ServiceCachePort, "entries">>;
 	}
 
 	beforeEach(() => {
 		createMocks();
 		collector = new MetricsCollector(
 			circuitBreaker as unknown as DiscoveryCircuitBreaker,
-			serviceCache as unknown as IServiceCache
+			serviceCache as unknown as ServiceCachePort
 		);
 	});
 
@@ -104,7 +104,7 @@ describe("MetricsCollector", () => {
 		test("creates ServiceCallTracker with custom maxCallRecords", () => {
 			const customCollector = new MetricsCollector(
 				circuitBreaker as unknown as DiscoveryCircuitBreaker,
-				serviceCache as unknown as IServiceCache,
+				serviceCache as unknown as ServiceCachePort,
 				3
 			);
 			const tracker = customCollector.getServiceCallTracker();

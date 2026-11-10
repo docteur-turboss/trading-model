@@ -1,11 +1,11 @@
-import type { IStoreAdapter } from "./store-adapter.interface";
+import type { StoreAdapterPort } from "./store-adapter.port";
 
 interface Entry<TValue> {
 	value: TValue;
 	expiresAt: number;
 }
 
-export class MemoryStoreAdapter<TValue> implements IStoreAdapter<TValue> {
+export class MemoryStoreAdapter<TValue> implements StoreAdapterPort<TValue> {
 	private readonly _store = new Map<string, Entry<TValue>>();
 
 	private _isExpired(entry: Entry<TValue>): boolean {

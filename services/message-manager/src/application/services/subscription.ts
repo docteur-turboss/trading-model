@@ -15,7 +15,7 @@ import {
 	SUBSCRIBER_DELIVERY_CONCURRENCY,
 } from "../../config/metrics";
 import { extractDeliveryParams } from "../../domain/delivery-metadata-extractor";
-import type { MessageDeliveryPort } from "../ports/message-delivery-port";
+import type { MessageDeliveryPort } from "../../domain/ports/message-delivery.port";
 import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
 

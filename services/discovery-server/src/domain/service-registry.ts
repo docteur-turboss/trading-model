@@ -10,17 +10,17 @@ import {
 	NoopDiscoveryMetrics,
 	type RegistryMetricsPort,
 } from "./ports/discovery-metrics.port";
-import type { IInstanceStore } from "./ports/instance-store.interface";
+import type { InstanceStorePort } from "./ports/instance-store.port";
 
 export interface ServiceRegistryDeps {
-	instanceStore: IInstanceStore;
+	instanceStore: InstanceStorePort;
 	tokenManager: InstanceTokenManager;
 	metrics?: RegistryMetricsPort;
 }
 
 export class ServiceRegistry {
 	public readonly tokenManager: InstanceTokenManager;
-	public readonly instanceStore: IInstanceStore;
+	public readonly instanceStore: InstanceStorePort;
 	private readonly _metrics: RegistryMetricsPort;
 
 	constructor(deps: ServiceRegistryDeps) {

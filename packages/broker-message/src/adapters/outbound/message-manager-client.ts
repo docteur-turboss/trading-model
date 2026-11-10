@@ -20,7 +20,7 @@ import {
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import type { IMessageClient } from "../../domain/ports/i-message-client";
+import type { MessageClientPort } from "../../domain/ports/message-client.port";
 import type { MessageManagerConfig } from "../../domain/types/config";
 import type {
 	SubscribesTopicsPayload,
@@ -40,7 +40,7 @@ const PUBLISH_OPTIONS = {
 };
 
 /** Client for interacting with the Message Delivery Service via HTTP. */
-export class MessageManagerClient implements IMessageClient {
+export class MessageManagerClient implements MessageClientPort {
 	constructor(
 		private readonly _httpClient: HttpClient,
 		readonly _config: MessageManagerConfig,

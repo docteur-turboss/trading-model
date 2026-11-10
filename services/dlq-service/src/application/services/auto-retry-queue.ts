@@ -3,7 +3,7 @@ import { logger } from "@trading-model/http/infrastructure/logger";
 import type {
 	QueuableEntriesPort,
 	ReplayQueuePort,
-} from "../../domain/ports/replay.ports";
+} from "../../domain/ports/replay.port";
 
 export interface QueueRebuilderDeps {
 	entries: QueuableEntriesPort;

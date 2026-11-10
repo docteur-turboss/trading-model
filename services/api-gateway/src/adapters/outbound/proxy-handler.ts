@@ -3,7 +3,7 @@ import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import { UpstreamResponseTooLargeError } from "../../application/ports";
+import { UpstreamResponseTooLargeError } from "../../domain/ports/gateway.port";
 import { ENV } from "../../infrastructure/config/env";
 import type { ProxyRequestOptions } from "./proxy-options-builder";
 import { buildProxyOptions } from "./proxy-options-builder";

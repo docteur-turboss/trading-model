@@ -5,7 +5,7 @@ import { toJsonWire } from "@trading-model/http/infrastructure/json-wire";
 import { Router } from "express";
 import { SIGNAL_REGISTRY } from "../../../config/signal-registry";
 import type { MarketDataPage } from "../../../domain/market-data.types";
-import { selectCandlesBy } from "../../outbound/persistence/schema/candles-schema";
+import { selectCandlesBy } from "../../outbound/persistence/schema/candles.schema";
 import { selectTickerBy } from "../../outbound/persistence/schema/ticker24h.schema";
 import { selectTradesBy } from "../../outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../../outbound/persistence/signal-store";
