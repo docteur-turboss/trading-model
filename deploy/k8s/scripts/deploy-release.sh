@@ -16,6 +16,12 @@
 #   deploy-release.sh render <overlay-dir> <registry> <digests-file>
 #       Prints the overlay with every first-party image pinned by digest
 #       ("<image> <sha256:...>" per line); the caller pipes it to kubectl apply.
+#   deploy-release.sh dry-run <namespace> <node-agents-dir> < rendered.yaml
+#       Preflight (issue #805): `kubectl apply --dry-run=server` of the render
+#       on stdin, cluster scope + node agents with CLUSTER_KUBECONFIG, the rest
+#       with the current context (ADR-0041), as the deploy applies them.
+#       Nothing is changed. A namespace that does not exist yet (first deploy)
+#       skips the application part with a warning.
 #   deploy-release.sh wait <namespace> [timeout]
 #       Waits for the rollout of every Deployment: timeout (default 180s) plus
 #       the terminationGracePeriodSeconds of its pod template.
@@ -41,8 +47,11 @@ DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scrape
 # against the nodes of their own release, so these roll out and back too.
 STATEFULSETS="redis redis-sentinel"
 
+# Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
+INIT_JOBS="mongo-audit-init mongo-dlq-init mysql-cluster-init"
+
 usage() {
-	echo "usage: $0 record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | wait <ns> [timeout] | rollback <ns> <file>" >&2
+	echo "usage: $0 record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file>" >&2
 	exit 64
 }
 
@@ -81,7 +90,8 @@ release_replicas() {
 	# A Job's pod template is immutable: apply fails on a finished init Job
 	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.
-	kubectl delete job mongo-audit-init mongo-dlq-init mysql-cluster-init -n "$ns" --ignore-not-found
+	# shellcheck disable=SC2086
+	kubectl delete job $INIT_JOBS -n "$ns" --ignore-not-found
 	for dep in $(kubectl get hpa -n "$ns" \
 		-o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
 		last=$(kubectl get deployment "$dep" -n "$ns" -o json | jq -r --arg a "$ann" '.metadata.annotations[$a] // empty')
@@ -118,6 +128,46 @@ render() {
 	# jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
 	# load restrictor rejects it and kubectl apply -k cannot relax it.
 	kubectl kustomize --load-restrictor LoadRestrictionsNone "$wrapper"
+}
+
+# Server-side dry-run of what "Apply cluster-scope objects", "Apply SPIFFE node
+# components" and "Apply overlay" send, each with its own identity: admission,
+# schemas, immutable fields and RBAC are checked by the API server, nothing is
+# persisted. The init Jobs are left out: the real deploy deletes them first.
+dry_run() {
+	local ns="$1" agents="$2" rendered split out
+	: "${CLUSTER_KUBECONFIG:?deploy-release.sh dry-run: CLUSTER_KUBECONFIG must name the deploy-cluster kubeconfig}"
+	split="$(dirname "$0")/../../../scripts/split-cluster-scope.sh"
+	rendered="$(cat)"
+	[ -n "$rendered" ] || {
+		echo "deploy-release.sh: no manifest on stdin" >&2
+		return 64
+	}
+	echo "Cluster-scope objects (deploy-cluster):"
+	bash "$split" cluster <<<"$rendered" | KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply --dry-run=server -f -
+	echo "SPIFFE node components (deploy-cluster):"
+	kubectl kustomize "$agents" | KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply --dry-run=server -f -
+	# Only NotFound means "first deploy": Forbidden or an unreachable API fails.
+	if ! out=$(KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl get namespace "$ns" -o name 2>&1); then
+		grep -q NotFound <<<"$out" || {
+			echo "$out" >&2
+			return 1
+		}
+		echo "::warning::Namespace $ns does not exist yet (first deploy): the application part is not dry-run, the deploy creates it"
+		return 0
+	fi
+	echo "Overlay (deploy-app):"
+	bash "$split" app <<<"$rendered" | awk -v jobs=" $INIT_JOBS " '
+function flush() {
+	if (doc != "" && !(kind == "Job" && index(jobs, " " name " "))) { printf "%s%s", sep, doc; sep = "---\n" }
+	doc = ""; kind = ""; name = ""
+}
+/^---[ \t]*$/ { flush(); next }
+/^kind:[ \t]/ && kind == "" { kind = $2 }
+/^  name:[ \t]/ && name == "" { name = $2 }
+{ doc = doc $0 "\n" }
+END { flush() }
+' | kubectl apply --dry-run=server -f -
 }
 
 # Why a rollout did not finish (slow or broken), printed before the caller
@@ -213,6 +263,7 @@ deployments) echo $DEPLOYMENTS ;;
 record) [ $# -eq 3 ] || usage; record "$2" "$3" ;;
 release-replicas) [ $# -eq 2 ] || usage; release_replicas "$2" ;;
 render) [ $# -eq 4 ] || usage; render "$2" "$3" "$4" ;;
+dry-run) [ $# -eq 3 ] || usage; dry_run "$2" "$3" ;;
 wait) [ $# -ge 2 ] || usage; wait_rollout "$2" "${3:-180s}" ;;
 rollback) [ $# -eq 3 ] || usage; rollback "$2" "$3" ;;
 *) usage ;;

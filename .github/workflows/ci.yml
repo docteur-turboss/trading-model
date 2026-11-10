@@ -39,6 +39,7 @@ jobs:
       - run: bun run config:check
       - run: bun run compliance:check
       - run: bun run env-protection:test
+      - run: bun run preflight:test
       - name: Workflows parse as YAML
         run: python3 scripts/check-workflows.py
 
