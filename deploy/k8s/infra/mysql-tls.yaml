@@ -80,7 +80,12 @@ spec:
     - mysql
     - mysql-primary
     - mysql-headless
-    - "*.mysql-headless"
+    # One name per member (replicas: 3, as group_replication_group_seeds):
+    # OpenSSL rejects "*.mysql-headless" (wildcard over a single label), so
+    # VERIFY_IDENTITY to mysql-0.mysql-headless failed (mysql-cluster-init).
+    - mysql-0.mysql-headless
+    - mysql-1.mysql-headless
+    - mysql-2.mysql-headless
     - localhost
   ipAddresses:
     - 127.0.0.1

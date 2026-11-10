@@ -389,7 +389,7 @@ spec:
             - -c
             - |
               for i in $(seq 1 30); do
-                if mysqladmin ping -h mysql-0.mysql-headless -u root -p"$MYSQL_ROOT_PASSWORD" 2>/dev/null; then
+                if mysqladmin ping -h mysql-0.mysql-headless -u root -p"$MYSQL_ROOT_PASSWORD"; then
                   echo "MySQL-0 is ready"
                   break
                 fi

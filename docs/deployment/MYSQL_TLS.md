@@ -7,7 +7,7 @@ Server certificate issued by **cert-manager** from an internal CA; every client 
 | Object | Role |
 |---|---|
 | Issuer `mysql-selfsigned`, Certificate `mysql-ca` (5 years, renewed 90 days before), Issuer `mysql-ca` | internal CA |
-| Certificate `mysql-tls` (90 days, renewed 30 days before, new key each time) → Secret `mysql-tls` | server certificate; SANs `mysql`, `mysql-primary`, `mysql-headless`, `*.mysql-headless`, `localhost`, `127.0.0.1` |
+| Certificate `mysql-tls` (90 days, renewed 30 days before, new key each time) → Secret `mysql-tls` | server certificate; SANs `mysql`, `mysql-primary`, `mysql-headless`, `mysql-0.mysql-headless` to `mysql-2.mysql-headless` (no wildcard: OpenSSL rejects `*.mysql-headless`), `localhost`, `127.0.0.1` |
 | Certificates `mysql-client-<user>` (90 days, renewed 30 days before) | client certificate of each MySQL user |
 | ConfigMap `mysql-client-tls` | `my.cnf` of the CLI clients (`MYSQL_HOME=/etc/mysql-client`: `ssl-mode=VERIFY_IDENTITY`, client certificate), `exporter.cnf` |
 
