@@ -1,3 +1,4 @@
+import type { Span } from "@opentelemetry/api";
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
@@ -32,10 +33,7 @@ export interface DlqUseCases {
 		ids: string[],
 		actor: string | null
 	): Promise<DeleteEntriesResult>;
-	replayEntries(
-		request: ReplayRequest,
-		span: import("@opentelemetry/api").Span
-	): Promise<ReplayResult>;
+	replayEntries(request: ReplayRequest, span: Span): Promise<ReplayResult>;
 }
 
 export interface DlqHandlerDeps extends HealthDeps {

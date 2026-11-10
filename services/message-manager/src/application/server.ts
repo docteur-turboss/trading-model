@@ -3,12 +3,13 @@ import { createRedisClient } from "@trading-model/persistence/redis-connection-m
 import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import type { Application } from "express";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { MESSAGE_MANAGER_ROUTES } from "../config/message-manager";
 import { ENV } from "../infrastructure/config/env";
 
-function mountRoutes(app: import("express").Application) {
+function mountRoutes(app: Application) {
 	ADDRESS_MANAGER_ROUTES(app);
 	MESSAGE_MANAGER_ROUTES(app);
 }

@@ -2,6 +2,7 @@ import type {
 	BaseSymbolState,
 	SymbolNormalizers,
 	SymbolState,
+	TradingSymbol,
 } from "../market-data-types";
 import { bookTickerHandler } from "./book-ticker-handler";
 import { candleHandler } from "./candle-handler";
@@ -12,7 +13,7 @@ import { tickerHandler } from "./ticker-handler";
 import { tradeHandler } from "./trade-handler";
 
 interface MutateStateContext<TData = unknown> {
-	symbol: import("../market-data-types").TradingSymbol;
+	symbol: TradingSymbol;
 	data: TData;
 	state: SymbolState;
 	maxSize?: number;

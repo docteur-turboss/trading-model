@@ -1,8 +1,9 @@
-﻿import {
+import {
 	type AppError,
 	createAppError,
 	ErrorCode,
 } from "@trading-model/common/utils/errors";
+import type { Collection } from "mongodb";
 import { DLQ_MAX_PASS_COUNT } from "../../domain/dlq-constants";
 import { DlqStatus } from "../../domain/dlq-status";
 import { ENV } from "../../infrastructure/config/env";
@@ -32,7 +33,7 @@ interface NewDlqDocument {
 }
 
 async function _computeDlqPassCount(
-	col: import("mongodb").Collection,
+	col: Collection,
 	contentHash: string
 ): Promise<number> {
 	const prevCompleted = await col.findOne(
@@ -102,15 +103,13 @@ export class DlqEntryWriter {
 		);
 	}
 
-	private async _isCapacityReached(
-		col: import("mongodb").Collection
-	): Promise<boolean> {
+	private async _isCapacityReached(col: Collection): Promise<boolean> {
 		const currentCount = await col.estimatedDocumentCount();
 		return currentCount >= ENV.MAX_ENTRIES;
 	}
 
 	private async _buildDoc(
-		col: import("mongodb").Collection,
+		col: Collection,
 		entry: DlqEntry,
 		hash: { messageId: string; contentHash: string }
 	): Promise<NewDlqDocument> {

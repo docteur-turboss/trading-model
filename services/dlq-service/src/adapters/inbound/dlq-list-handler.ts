@@ -31,7 +31,7 @@ function _buildPaginationQuery({
 }
 
 export interface DlqListResponse {
-	entries: import("../outbound/repository").StoredDlqEntry[];
+	entries: StoredDlqEntry[];
 	pagination: OffsetPagination & Partial<CursorPagination>;
 }
 

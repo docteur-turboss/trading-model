@@ -1,3 +1,5 @@
+import type { TLSSocket } from "node:tls";
+import type { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
 import { catchSync } from "./catch-error";
 import { resolveMtlsIdentity } from "./mtls-identity";
 import { ResponseException } from "./response-exception";
@@ -6,7 +8,7 @@ declare global {
 	namespace Express {
 		interface Request {
 			/** Logical client identity extracted from the mTLS client certificate. */
-			clientIdentity: import("@trading-model/primitives/primitives/auth-ids").ClientIdentity;
+			clientIdentity: ClientIdentity;
 		}
 	}
 }
@@ -33,7 +35,7 @@ export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
 	const result = resolveMtlsIdentity(req);
 
 	if (!result) {
-		const socket = req.socket as import("node:tls").TLSSocket;
+		const socket = req.socket as TLSSocket;
 		if (typeof socket?.getPeerCertificate !== "function") {
 			throw ResponseException({
 				error: "Non-TLS connection rejected",

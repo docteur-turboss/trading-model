@@ -1,0 +1,9 @@
+language js
+
+// Use a top-level import type instead of an inline import().X type (issue #680).
+TsImportType() as $imp where {
+	register_diagnostic(
+		span = $imp,
+		message = "Inline import() type expression: use a top-level import type instead."
+	)
+}

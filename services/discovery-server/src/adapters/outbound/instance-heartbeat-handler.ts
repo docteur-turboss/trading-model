@@ -1,4 +1,5 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import type { UnixTimestamp } from "@trading-model/primitives/primitives";
 import { ServiceIdentity } from "@trading-model/primitives/service-identity";
@@ -43,7 +44,7 @@ export class InstanceHeartbeatHandler {
 
 	private async _persistHeartbeat(
 		identity: ServiceIdentity,
-		instance: import("@trading-model/contracts/service-registry-types").ServiceInstance
+		instance: ServiceInstance
 	): Promise<boolean> {
 		const persisted = await this._deps.redis.eval(
 			PERSIST_IF_REGISTERED_SCRIPT,

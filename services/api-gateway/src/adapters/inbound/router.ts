@@ -9,6 +9,7 @@ import {
 	parseCIDRList,
 	type ServiceId,
 } from "@trading-model/primitives/primitives";
+import type { Request } from "express";
 import { Router } from "express";
 import {
 	proxyAndCache,
@@ -37,7 +38,7 @@ const CACHE = new ResponseCache(DurationMs.of(ENV.CACHE_TTL_MS));
 const ALLOWED_PROXY_RANGES = parseCIDRList(ENV.ALLOWED_PROXY_CIDRS);
 
 function _validatePath(
-	req: import("express").Request
+	req: Request
 ):
 	| ReturnType<typeof sendResponse>
 	| { majorVersion: number; serviceName: ServiceId; path: string } {
@@ -60,7 +61,7 @@ function _validatePath(
 }
 
 /** The query string ("" or "?a=1"): `req.path`, which routes are matched on, leaves it out. */
-function _search(req: import("express").Request): string {
+function _search(req: Request): string {
 	const url = req.originalUrl ?? req.url;
 	const index = url.indexOf("?");
 	return index === -1 ? "" : url.slice(index);

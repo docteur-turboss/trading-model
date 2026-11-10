@@ -3,6 +3,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import type { IPAddress } from "@trading-model/primitives/primitives";
 import { URLString } from "@trading-model/primitives/primitives";
 import { ServiceRegistrationWire } from "@trading-model/validation/wire/service-instance";
 import type { TokenManager } from "../../../application/client/token-manager";
@@ -42,7 +43,7 @@ export class AddressManagerClient {
 			instanceId: this._config.identity.instanceId,
 			port: this._config.servicePort,
 			version: this._config.serviceVersion,
-			ip: LocalIPDetector.getIP() as import("@trading-model/primitives/primitives").IPAddress,
+			ip: LocalIPDetector.getIP() as IPAddress,
 		};
 	}
 

@@ -2,12 +2,13 @@ import { parseServiceName } from "@trading-model/common/config/services.types";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import type { Request } from "express";
 import type { ServiceRegistry } from "../../../domain/service-registry";
 import type { DISCOVERY_API } from "./api-routes";
 import { buildServiceInstance } from "./register-builder";
 
 /** The caller's IPv4 address on the connection (IPv4-mapped IPv6 unwrapped). */
-function _observedIPv4(req: import("express").Request): string | undefined {
+function _observedIPv4(req: Request): string | undefined {
 	const address = req.socket?.remoteAddress?.replace(/^::ffff:/, "");
 	return address && /^\d{1,3}(\.\d{1,3}){3}$/.test(address)
 		? address
