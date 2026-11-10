@@ -1584,6 +1584,31 @@ tests:
               description: 'mongodb_exporter of 10.0.0.4:9216 (mongo-audit) cannot reach mongod for 5 minutes.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbdown'
 
+  # mysql is partitioned (current != update), redis is up to date.
+  - name: a StatefulSet stuck on an old revision is reported after 24h
+    interval: 1m
+    input_series:
+      - series: 'kube_statefulset_status_current_revision{job="kube-state-metrics",namespace="trading-model-staging",statefulset="mysql",revision="mysql-aaa"}'
+        values: '1x1560'
+      - series: 'kube_statefulset_status_update_revision{job="kube-state-metrics",namespace="trading-model-staging",statefulset="mysql",revision="mysql-bbb"}'
+        values: '1x1560'
+      - series: 'kube_statefulset_status_current_revision{job="kube-state-metrics",namespace="trading-model-staging",statefulset="redis",revision="redis-ccc"}'
+        values: '1x1560'
+      - series: 'kube_statefulset_status_update_revision{job="kube-state-metrics",namespace="trading-model-staging",statefulset="redis",revision="redis-ccc"}'
+        values: '1x1560'
+    alert_rule_test:
+      - eval_time: 23h
+        alertname: StatefulSetStuckOnOldRevision
+        exp_alerts: []
+      - eval_time: 25h
+        alertname: StatefulSetStuckOnOldRevision
+        exp_alerts:
+          - exp_labels: {severity: warning, job: kube-state-metrics, namespace: trading-model-staging, statefulset: mysql, revision: mysql-aaa}
+            exp_annotations:
+              summary: 'StatefulSet trading-model-staging/mysql still runs an old revision'
+              description: 'StatefulSet mysql has pods on a revision other than its update revision for 24 hours: a partition holds the rollout back, so new sidecars (exporters) and their alerts are not running.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision'
+
   # 3 Redis nodes: the master must have 2 replicas; it has 1.
   - name: a Redis master with fewer replicas than the StatefulSet is reported
     interval: 1m

@@ -188,6 +188,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `MySQLDown` | critical | [runbook-infrastructure#mysqldown](runbooks/runbook-infrastructure.md#mysqldown) |
 | `RedisDown` | critical | [runbook-infrastructure#redisdown](runbooks/runbook-infrastructure.md#redisdown) |
 | `RedisReplicasMissing` | warning | [runbook-infrastructure#redisreplicasmissing](runbooks/runbook-infrastructure.md#redisreplicasmissing) |
+| `StatefulSetStuckOnOldRevision` | warning | [runbook-infrastructure#statefulsetstuckonoldrevision](runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision) |
 | `RedisSentinelQuorumLost` | critical | [runbook-infrastructure#redissentinelquorumlost](runbooks/runbook-infrastructure.md#redissentinelquorumlost) |
 | `MongoDBDown` | critical | [runbook-infrastructure#mongodbdown](runbooks/runbook-infrastructure.md#mongodbdown) |
 | `MongoDBReplicaSetMemberUnhealthy` | warning | [runbook-infrastructure#mongodbreplicasetmemberunhealthy](runbooks/runbook-infrastructure.md#mongodbreplicasetmemberunhealthy) |
