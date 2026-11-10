@@ -10,7 +10,11 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { InstanceId, Topic } from "@trading-model/primitives/primitives";
+import {
+	InstanceId,
+	ServiceId,
+	Topic,
+} from "@trading-model/primitives/primitives";
 import { HttpMessageDelivery } from "../../src/adapters/outbound/http-message-delivery";
 import { InMemoryMessageJournal } from "../../src/adapters/outbound/in-memory-message-journal";
 import { InMemorySubscriptionStore } from "../../src/adapters/outbound/in-memory-subscription-store";
@@ -37,10 +41,13 @@ const PRICE = {
 	publisher: mockServiceIdentity,
 } as never;
 
-const subscribeParams = (instanceId = mockSubscriberIdentity.instanceId) => ({
-	topic: "market.data",
+const subscribeParams = (instanceId = "subscriber-1") => ({
+	topic: Topic.of("market.data"),
 	callbackPath: "message/receive",
-	serviceIdentity: { ...mockSubscriberIdentity, instanceId },
+	serviceIdentity: {
+		...mockSubscriberIdentity,
+		instanceId: InstanceId.of(instanceId),
+	},
 });
 
 describe("Message Broker Integration (journal + delivery worker)", () => {
@@ -122,8 +129,8 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await dispatcher.subscribe({
 			...subscribeParams("al-1"),
 			serviceIdentity: {
-				serviceName: "audit-logger",
-				instanceId: "al-1",
+				serviceName: ServiceId.of("audit-logger"),
+				instanceId: InstanceId.of("al-1"),
 			},
 		} as never);
 		await dispatcher.publish({ price: 50000 }, PRICE);

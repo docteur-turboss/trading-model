@@ -57,7 +57,7 @@ describe("metrics", () => {
 			set: jest.fn<(...args: any[]) => any>(),
 			send: jest.fn<(...args: any[]) => any>(),
 		} as any;
-		metricsHandler({} as any, res);
+		metricsHandler({} as any, res, jest.fn<(...args: any[]) => any>());
 		expect(res.set).toHaveBeenCalledWith("Content-Type", "text/plain");
 		expect(mockMetricsFn).toHaveBeenCalled();
 	});

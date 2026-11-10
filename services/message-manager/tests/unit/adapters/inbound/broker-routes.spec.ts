@@ -13,6 +13,7 @@ import {
 	type ApiRoute,
 	responseIssues,
 } from "@trading-model/http/adapters/inbound/api-route/api-route";
+import { InstanceId, Topic } from "@trading-model/primitives/primitives";
 import express from "express";
 import { BROKER_API } from "../../../../src/adapters/inbound/api-routes";
 import { BROKER_ROUTES } from "../../../../src/adapters/inbound/http.routes";
@@ -117,7 +118,7 @@ describe("message-manager API (BROKER_API)", () => {
 			const { status } = await call(BROKER_API.subscribe, subscription);
 
 			expect(status).toBe(204);
-			expect(dispatcher.subscribe).toHaveBeenCalledWith(subscription);
+			expect(dispatcher.subscribe).toHaveBeenCalledWith(subscription as never);
 		});
 
 		it("rejects a subscription without callback path with 400", async () => {
@@ -140,8 +141,8 @@ describe("message-manager API (BROKER_API)", () => {
 
 			expect(status).toBe(204);
 			expect(dispatcher.unsubscribe).toHaveBeenCalledWith({
-				topic: "market.candles.fetch",
-				instanceId: "scraper-1",
+				topic: Topic.of("market.candles.fetch"),
+				instanceId: InstanceId.of("scraper-1"),
 			});
 		});
 
