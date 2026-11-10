@@ -1,5 +1,5 @@
 import type { Topic } from "@trading-model/primitives/primitives";
-import type { ReplayAuditPort } from "./replay.ports";
+import type { ReplayAuditPort } from "./replay.port";
 
 /** What the use cases write to and read from the DLQ entry store (MongoDB). */
 export interface DlqEntryStorePort<TEntry> {

@@ -1,7 +1,7 @@
 import { DlqEvent, isDlqEventTopic } from "@trading-model/contracts/dlq-events";
 import type { Topic } from "@trading-model/primitives/primitives";
 import { publishDlqEvent } from "../../config/audit";
-import type { ReplayAuditResult } from "../../domain/ports/replay.ports";
+import type { ReplayAuditResult } from "../../domain/ports/replay.port";
 
 /** Does not wait: an incoming dead letter must not depend on the bus. */
 export function notifyAddAudit(

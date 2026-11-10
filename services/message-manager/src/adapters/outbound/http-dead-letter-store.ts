@@ -9,7 +9,7 @@ import {
 	ServiceId,
 	type URLString,
 } from "@trading-model/primitives/primitives";
-import type { DeadLetterStorePort } from "../../application/ports/dead-letter-store-port";
+import type { DeadLetterStorePort } from "../../domain/ports/dead-letter-store.port";
 
 const DLQ_PATH = "/dlq";
 const REQUEST_TIMEOUT_MS = DurationMs.of(5000);

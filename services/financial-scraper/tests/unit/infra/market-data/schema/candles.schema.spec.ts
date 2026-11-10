@@ -43,7 +43,7 @@ jest.mock("../../../../../src/config/db", () => {
 import {
 	insertCandles,
 	selectCandlesBy,
-} from "../../../../../src/adapters/outbound/persistence/schema/candles-schema";
+} from "../../../../../src/adapters/outbound/persistence/schema/candles.schema";
 
 const MAKE_CANDLE = (overrides: Record<string, unknown> = {}) => ({
 	symbol: "BTCUSDT",
@@ -61,7 +61,7 @@ const MAKE_CANDLE = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-describe("candles-schema", () => {
+describe("candles.schema", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 	});

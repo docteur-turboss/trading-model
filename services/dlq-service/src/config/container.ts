@@ -33,11 +33,11 @@ import { createAddEntry } from "../application/use-cases/add-entry-pipeline";
 import { createDeleteEntries } from "../application/use-cases/dlq-delete-handler";
 import { createReplayEntries } from "../application/use-cases/dlq-replay-service";
 import { createRedisQueueProcessor } from "../application/use-cases/redis-queue-processor";
-import type { DlqAuditPort, DlqMetricsPort } from "../domain/ports/dlq.ports";
+import type { DlqAuditPort, DlqMetricsPort } from "../domain/ports/dlq.port";
 import type {
 	DlqReplaySettings,
 	EntryDeliveryPort,
-} from "../domain/ports/replay.ports";
+} from "../domain/ports/replay.port";
 import { createAutoRetryScheduler } from "../infrastructure/auto-retry-scheduler";
 import type { Env } from "../infrastructure/config/env";
 import { DlqPruner } from "../infrastructure/dlq-pruner";

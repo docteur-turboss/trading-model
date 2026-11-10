@@ -1,10 +1,10 @@
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import type { IHeartbeatSender } from "@trading-model/reliability/heartbeat-interfaces";
+import type { HeartbeatSenderPort } from "@trading-model/reliability/heartbeat-sender.port";
 import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
 import { HeartbeatFailureHandler } from "./heartbeat-failure-handler";
 import type { ServiceClientDeps } from "./types";
 
-export class HeartbeatManager implements IHeartbeatSender {
+export class HeartbeatManager implements HeartbeatSenderPort {
 	private _addressManagerClient: AddressManagerClient;
 	private _onSuccess: () => void;
 	private readonly _failureHandler: HeartbeatFailureHandler;

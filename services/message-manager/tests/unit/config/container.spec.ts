@@ -7,10 +7,6 @@ jest.mock("express-rate-limit", () => {
 	);
 });
 
-import type {
-	JournalGroupLag,
-	MessageJournalPort,
-} from "../../../src/application/ports/message-journal-port";
 import createBrokerModule, {
 	publishJournalLag,
 } from "../../../src/config/container";
@@ -18,6 +14,10 @@ import {
 	JOURNAL_OLDEST_PENDING_AGE_SECONDS,
 	JOURNAL_PENDING_ENTRIES,
 } from "../../../src/config/metrics";
+import type {
+	JournalGroupLag,
+	MessageJournalPort,
+} from "../../../src/domain/ports/message-journal.port";
 
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),

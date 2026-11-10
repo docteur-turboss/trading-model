@@ -1,4 +1,4 @@
-export interface ISyncCache<TValue = unknown> {
+export interface SyncCachePort<TValue = unknown> {
 	get(key: string): TValue | undefined;
 	set(key: string, value: TValue, ttlMs?: number): void;
 	delete(key: string): void;

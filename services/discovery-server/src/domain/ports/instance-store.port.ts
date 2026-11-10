@@ -2,7 +2,7 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { ServiceInstance } from "../../shared/types";
 
-export interface IInstanceStore {
+export interface InstanceStorePort {
 	registerInstance(
 		instance: ServiceInstance
 	): ServiceInstance | Promise<string>;

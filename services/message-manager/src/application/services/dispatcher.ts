@@ -19,7 +19,7 @@ import type {
 	SubscriptionParams,
 	TopicSubscription,
 } from "../../domain/messaging-types";
-import type { MessageJournalPort } from "../ports/message-journal-port";
+import type { MessageJournalPort } from "../../domain/ports/message-journal.port";
 import type { SubscriptionRegistry } from "./subscription-registry";
 
 export interface DispatcherDeps {
