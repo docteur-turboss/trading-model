@@ -15,14 +15,16 @@ FAILED=0
 source "$ROOT/tests/backup/test-lib.sh"
 
 mkdir -p "$WORK/bin" "$WORK/state"
-# kubectl create secret prints "KEY=VALUE"; kubeseal merges it into the file as
+# kubectl create secret prints a Secret YAML (data: base64); kubeseal merges its key into the file as
 # "    KEY: VALUE" (replacing the line); apply copies the file's lines to the live
 # Secret (state/live_<KEY>, base64 like the API) when STUB_DECRYPT != 0.
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 echo "kubectl $*" >>"$STUB_STATE/calls"
 case " $* " in
-*" create secret "*) for a in "$@"; do case "$a" in --from-literal=*) echo "${a#--from-literal=}" ;; esac; done ;;
+*" create secret "*)
+	echo "apiVersion: v1"; echo "kind: Secret"; echo "data:"
+	for a in "$@"; do case "$a" in --from-file=*) kv="${a#--from-file=}"; echo "  ${kv%%=*}: $(base64 <"${kv#*=}" | tr -d '\n')" ;; esac; done ;;
 *" apply "*)
 	[ "${STUB_DECRYPT:-1}" = 1 ] || exit 0
 	f="${*: -1}"
@@ -38,14 +40,16 @@ cat >"$WORK/bin/kubeseal" <<'STUB'
 echo "kubeseal $*" >>"$STUB_STATE/calls"
 file=""
 while [ $# -gt 0 ]; do [ "$1" = --merge-into ] && file="$2"; shift; done
-IFS='=' read -r k v
+[ "${STUB_KUBESEAL_FAIL:-0}" = 0 ] || exit 1
+line=$(grep -E '^  [A-Z_]+: ' | tail -1)
+k=$(sed -E 's/^  ([A-Z_]+): .*/\1/' <<<"$line"); v=${line#*: }
 grep -v "^    $k: " "$file" >"$file.new" || true
-echo "    $k: $(printf '%s' "$v" | base64 | tr -d '\n')" >>"$file.new"
+echo "    $k: $v" >>"$file.new"
 mv "$file.new" "$file"
 STUB
 cat >"$WORK/bin/openssl" <<'STUB'
 #!/usr/bin/env bash
-echo "SECRETVALUE$2"
+echo "SECRETVALUE$3"
 STUB
 chmod +x "$WORK/bin/"*
 sleep() { :; }
@@ -54,6 +58,8 @@ export PATH="$WORK/bin:$PATH" STUB_STATE="$WORK/state" WAIT_TRIES=2
 
 run() { # <args...>: fresh state and sealed file; sets OUT and RC
 	rm -rf "$WORK/state" && mkdir "$WORK/state"
+	[ -z "${SEED_TOKENS:-}" ] || printf '%s' "$SEED_TOKENS" | base64 | tr -d '
+' >"$WORK/state/live_AUTH_TOKENS"
 	printf 'spec:\n  encryptedData:\n    MYSQL_ROOT_PASSWORD: b2xk\n    SIGNING_SECRET: b2xk\n' >"$WORK/sealed.yaml"
 	RC=0
 	OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" "$@" 2>&1) || RC=$?
@@ -79,13 +85,34 @@ grep -q "MYSQL_ROOT_PASSWORD: b2xk" "$WORK/sealed.yaml" && ! grep -q "SIGNING_SE
 run --component dlq
 [ "$(restarts)" = "dlq-service message-manager" ] && grep -q "DLQ_AUTH_HMAC_SECRET:" "$WORK/sealed.yaml" && pass "dlq restarts message-manager and dlq-service" || failed "dlq: restarts=$(restarts)"
 
-run --component tokens
-[ "$(restarts)" = "api-gateway" ] && base64 -d <<<"$(sed -n 's/^    AUTH_TOKENS: //p' "$WORK/sealed.yaml")" | grep -q '^ops:read+dlq:write:SECRETVALUE' && pass "tokens: name:scopes:secret, api-gateway restarted" || failed "tokens: restarts=$(restarts)"
+SEED_TOKENS='ops:read:old1,team:read+dlq:write:keep2' run --component tokens
+tok=$(base64 -d <<<"$(sed -n 's/^    AUTH_TOKENS: //p' "$WORK/sealed.yaml")")
+[ "$(restarts)" = "api-gateway" ] && [ "$tok" = "team:read+dlq:write:keep2,ops:read+dlq:write:SECRETVALUE24" ] && pass "tokens: other key kept, ops replaced, api-gateway restarted" || failed "tokens: restarts=$(restarts) value=$tok"
+vf=$(sed -n 's/.*written to \(.*\) (0600).*/\1/p' <<<"$OUT")
+[ -f "$vf" ] && grep -q '^ops:read+dlq:write:SECRETVALUE24$' "$vf" && pass "new API key delivered in a 0600 file" || failed "key file: '$vf'"
+rm -f "$vf"
+! grep -rq SECRETVALUE "$WORK/state/calls" && pass "no value in kubectl/kubeseal argv" || failed "value in argv"
 
 run
 [ "$(restarts)" = "api-gateway discovery-server dlq-service message-manager" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
 
 STUB_DECRYPT=0 run --component dlq
 [ "$RC" = 1 ] && [ -z "$(restarts)" ] && pass "no restart when the controller did not decrypt" || failed "undecrypted: rc=$RC restarts=$(restarts)"
+
+run --component signing
+rm -f "$WORK/state/calls"
+printf 'spec:
+  encryptedData:
+    A: AgCHANGE_ME_RUN_KUBESEAL_Ag==
+' >"$WORK/sealed.yaml"
+RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component dlq 2>&1) || RC=$?
+[ "$RC" = 1 ] && grep -q SEALED_SECRETS_FILE <<<"$OUT" && [ -z "$(calls)" ] && pass "placeholder file refused before kubeseal/apply" || failed "placeholders: rc=$RC calls=$(calls)"
+
+STUB_KUBESEAL_FAIL=1 run --component dlq
+[ "$RC" = 1 ] && ! calls | grep -q "kubectl apply" && pass "kubeseal failure stops before apply" || failed "kubeseal failure: rc=$RC"
+
+run --component dlq
+RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/missing.yaml" bash "$SCRIPT" --component dlq 2>&1) || RC=$?
+[ "$RC" = 1 ] && pass "missing sealed file refused" || failed "missing file: rc=$RC"
 
 exit "$FAILED"

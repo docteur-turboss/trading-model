@@ -2,7 +2,8 @@
 # Rotates application secrets of trading-model-secrets, by hand (no CronJob does it).
 # Usage: bash scripts/rotate-secrets.sh [--component signing|tokens|dlq|all]
 #   signing  SIGNING_SECRET        -> discovery-server (instance tokens: services re-register)
-#   tokens   AUTH_TOKENS           -> api-gateway (one `name:scopes:secret` key, ADR-0059)
+#   tokens   AUTH_TOKENS           -> api-gateway (only the key API_KEY_NAME is replaced, the others kept;
+#            ADR-0059 `name:scopes:secret`). The new key is written to a 0600 file, path logged.
 #   dlq      DLQ_AUTH_HMAC_SECRET  -> message-manager + dlq-service (restarted together)
 #   all      the three above
 # Database passwords (MYSQL_*, REDIS_*_PASSWORD) are refused: the change must also be made
@@ -19,12 +20,28 @@ CONTROLLER_NAMESPACE=${CONTROLLER_NAMESPACE:-sealed-secrets}
 CONTROLLER_NAME=${CONTROLLER_NAME:-sealed-secrets-controller}
 SEALED_SECRETS_FILE=${SEALED_SECRETS_FILE:-deploy/k8s/secrets/trading-model-sealed-secrets.yaml}
 WAIT_TRIES=${WAIT_TRIES:-30}
-# Gateway API key `name:scopes:secret` (ADR-0059); replaces every key of AUTH_TOKENS.
+# Gateway API key `name:scopes:secret` (ADR-0059); only the entry named API_KEY_NAME is replaced.
 API_KEY_NAME=${API_KEY_NAME:-ops}
 API_KEY_SCOPES=${API_KEY_SCOPES:-read+dlq:write}
 
 log() { echo "[rotate-secrets] $(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
 die() { echo "[rotate-secrets] ERROR: $*" >&2; exit 1; }
+
+# Secret values travel through 0600 files, never argv (visible in ps), removed on exit.
+TMP_FILES=()
+trap 'rm -f "${TMP_FILES[@]}"' EXIT
+tmpfile() { local f; f=$(umask 077; mktemp); TMP_FILES+=("$f"); echo "$f"; }
+
+# Keep every AUTH_TOKENS entry except the one named $API_KEY_NAME, then add the new key ($1).
+merge_tokens() {
+  local live entry kept=""
+  live=$(kubectl get secret trading-model-secrets -n "$NAMESPACE" -o 'jsonpath={.data.AUTH_TOKENS}' | base64 -d)
+  local IFS=,
+  for entry in $live; do
+    [ -z "$entry" ] || [ "${entry%%:*}" = "$API_KEY_NAME" ] || kept="${kept}${entry},"
+  done
+  printf '%s%s' "$kept" "$1"
+}
 
 # $1 Secret key, $2 random bytes, $3 value prefix, rest: Deployments that read the key
 rotate_secret() {
@@ -36,12 +53,26 @@ rotate_secret() {
     return
   fi
 
-  local new_value b64
-  new_value="${prefix}$(openssl rand -hex "$bytes")"
-  # The Secret goes through the pipe only; kubeseal merges its key into the versioned file.
+  [ -f "$SEALED_SECRETS_FILE" ] || die "${SEALED_SECRETS_FILE} not found: set SEALED_SECRETS_FILE to the sealed file of the overlay"
+  if grep -q CHANGE_ME "$SEALED_SECRETS_FILE"; then
+    die "${SEALED_SECRETS_FILE} holds placeholders, the controller cannot decrypt it: set SEALED_SECRETS_FILE to the sealed file of the overlay (docs/deployment/sealed-secrets.md)"
+  fi
+
+  local new_value b64 entry value_file secret_file
+  entry="${prefix}$(openssl rand -hex "$bytes")"
+  new_value="$entry"
+  if [ "$key" = AUTH_TOKENS ]; then
+    new_value=$(merge_tokens "$entry")
+    value_file=$(umask 077; mktemp)
+    printf '%s\n' "$entry" >"$value_file"
+    log "New API key (${API_KEY_NAME}) written to ${value_file} (0600): hand it over, then delete the file"
+  fi
+  secret_file=$(tmpfile)
+  printf '%s' "$new_value" >"$secret_file"
+  # kubeseal merges the key into the versioned file; the value never reaches argv.
   kubectl create secret generic trading-model-secrets \
     --namespace "$NAMESPACE" \
-    --from-literal="${key}=${new_value}" \
+    --from-file="${key}=${secret_file}" \
     --dry-run=client -o yaml |
     kubeseal --controller-namespace "$CONTROLLER_NAMESPACE" \
       --controller-name "$CONTROLLER_NAME" \
