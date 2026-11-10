@@ -96,6 +96,11 @@ backup_run() {
 			mkdir -p "$BACKUP_DIR/spire"
 			write_dump spire "$BACKUP_DIR/spire/keys_$ts.json.age" plain "{\"keys\": \"$ts\"}"
 			;;
+		spire-tar)
+			# Since ADR-0062: SQLite datastore + CA keys in one tar.
+			mkdir -p "$BACKUP_DIR/spire"
+			write_dump spire "$BACKUP_DIR/spire/data_$ts.tar.age" plain "spire tar $ts"
+			;;
 		esac
 	done
 	BACKUP_FAILURES=0
@@ -116,7 +121,7 @@ BROKEN=2026-11-01_020000
 NOMANIFEST=2026-11-02_020000
 backup_run "$OLD" mongodb,mysql,checkpoints,spire nomanifest
 backup_run "$GOOD" mongodb,mysql,checkpoints,spire,pitr
-backup_run "$BROKEN" mongodb-only,mysql,checkpoints,spire
+backup_run "$BROKEN" mongodb-only,mysql,checkpoints,spire-tar
 backup_run "$NOMANIFEST" mongodb,mysql,checkpoints,spire nomanifest
 # Binlog and oplog archives (backup-incremental-k8s.sh): one before GOOD
 # (never needed by it), two after.
@@ -229,8 +234,8 @@ echo "--components"
 if fetch --dest "$WORK/fetched-mysql" --components mysql,spire &&
 	[ "$(cd "$WORK/fetched-mysql" && find . -type f | sed 's|^\./||' | sort)" = "manifests/manifest_${BROKEN}.json.age
 mysql/financial_scraper_${BROKEN}.sql.gz.age
-spire/keys_${BROKEN}.json.age" ]; then
-	pass "a run complete for the requested components is enough (${BROKEN} for mysql,spire)"
+spire/data_${BROKEN}.tar.age" ]; then
+	pass "a run complete for the requested components is enough (${BROKEN} for mysql,spire; SPIRE tar of ADR-0062)"
 else
 	failed "--components mysql,spire: $(cat "$WORK/out")"
 fi

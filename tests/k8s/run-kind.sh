@@ -644,6 +644,36 @@ verify() {
 	log "OK: the staging overlay works on Kubernetes"
 }
 
+# Issue #802 (ADR-0062): with every MySQL pod gone (mysql-0 included), the
+# SPIRE server restarts on its SQLite datastore and a restarted application
+# pod still gets an SVID. MySQL is brought back afterwards.
+verify_identity_without_mysql() {
+	local mysql_replicas
+	mysql_replicas="$($K -n "$NS" get statefulset mysql -o jsonpath='{.spec.replicas}')"
+	log "SVIDs without MySQL: statefulset mysql scaled to 0 (was $mysql_replicas)"
+	$K -n "$NS" scale statefulset mysql --replicas=0
+	$K -n "$NS" wait --for=delete pod mysql-0 --timeout=300s
+	$K -n "$NS" rollout restart deployment/spire-server
+	$K -n "$NS" rollout status deployment/spire-server --timeout=300s
+	wait_for 60 "$K -n $NS exec deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock"
+	log "  SPIRE server healthy without MySQL"
+	$K -n "$NS" rollout restart deployment/discovery-server
+	$K -n "$NS" rollout status deployment/discovery-server --timeout=300s
+	local pod
+	# Pods of the old ReplicaSet may still be terminating: skipped.
+	for pod in $($K -n "$NS" get pod -l app.kubernetes.io/component=discovery-server -o go-template 		--template '{{range .items}}{{if not .metadata.deletionTimestamp}}{{.metadata.name}}{{"
+"}}{{end}}{{end}}'); do
+		$K -n "$NS" exec "$pod" -c discovery-server -- test -s /run/spire/svid/svid.pem || {
+			log "$pod restarted without MySQL has no SVID"
+			return 1
+		}
+	done
+	log "  restarted discovery-server pods got their SVID"
+	$K -n "$NS" scale statefulset mysql --replicas="$mysql_replicas"
+	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
+	log "  MySQL back ($mysql_replicas replicas)"
+}
+
 # Requests through edge-proxy must leave in Jaeger a trace that spans
 # api-gateway and the service it called (issue #599: telemetry started after
 # Express recorded nothing). Jaeger is read through a port-forward, which the
@@ -964,8 +994,8 @@ audit_metric() {
 
 # The services writing to the databases, stopped during a restore
 # (BACKUP_DR.md): a write between the dump restore and the binlog / oplog
-# replay would make the replay fail. The SPIRE server (MySQL `spire`
-# database) is stopped and restarted by restore-k8s.sh itself.
+# replay would make the replay fail. The SPIRE server (SQLite on its own
+# volume, ADR-0062) is stopped and restarted by restore-k8s.sh itself.
 MONGO_WRITERS="audit-logger dlq-service"
 MYSQL_WRITERS="financial-scraper financial-scraper-collector"
 
@@ -1225,11 +1255,6 @@ verify_backup() {
 	}
 	log "  run and archives fetched, an instant past the archives is refused"
 
-	# The SPIRE server writes to the `spire` database the binlog replay
-	# restores: stopped now, restarted by restore-k8s.sh with its CA keys.
-	$K -n "$NS" scale deployment/spire-server --replicas=0
-	$K -n "$NS" wait --for=delete pod -l app.kubernetes.io/component=spire-server --timeout=120s || true
-
 	log "restore drill: scripts/restore-k8s.sh --until $until on the fetched run"
 	started=$SECONDS
 	# The identity goes through stdin and is deleted after the restore. The
@@ -1318,9 +1343,10 @@ verify_backup() {
 	log "  verify-restore-k8s.sh passes on the restore and fails on an altered audit event"
 
 	# The SPIRE server came back with the restored CA: the agents still hold
-	# SVIDs from the CA of the wiped volume and crash-loop until they re-attest.
-	# Restart them and wait for the CSI driver, or the writers cannot mount the
-	# Workload API socket and never become ready.
+	# SVIDs from the CA of the wiped volume until they bootstrap again
+	# (rebootstrap_mode, 1 min, ADR-0062). Restart them now and wait for the
+	# CSI driver, or the writers cannot mount the Workload API socket and never
+	# become ready.
 	drill_record verify_data $((SECONDS - step_started))
 	step_started=$SECONDS
 	log "restore drill: SPIRE agents re-attested against the restored CA"
@@ -1453,10 +1479,11 @@ all)
 	smoke
 	verify
 	verify_canary
+	verify_identity_without_mysql
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

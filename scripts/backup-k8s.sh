@@ -144,12 +144,25 @@ backup_checkpoints() {
   fi
 }
 
-# keys.json is read AFTER the MySQL dump (default component order) on purpose:
-# SPIRE stores a new CA key here before journaling it in the datastore (inside
-# the dump), so this file holds every key that journal refers to. Do not run
-# spire before mysql (BACKUP_DR.md, issue #330).
+# One tar (spire/data_<TS>.tar), like the Docker backup: the SQLite datastore
+# (bundle, CA journal, entries), snapshotted with `sqlite3 .backup` while the
+# server runs, then keys-sqlite.json (CA private keys), read AFTER the
+# snapshot on purpose: SPIRE stores a new CA key before journaling it, so the
+# key file holds every key that journal refers to (ADR-0062, issue #330).
+# Through the spire-entries sidecar (alpine + sqlite): the spire-server image
+# has no shell. The snapshot sits in its /tmp (memory) until streamed.
+SPIRE_BACKUP_SH=$(cat <<'SH'
+set -e
+d=$(mktemp -d)
+trap 'rm -rf "$d"' EXIT
+sqlite3 /run/spire/data/datastore.sqlite3 ".backup $d/datastore.sqlite3"
+cp /run/spire/data/keys-sqlite.json "$d/"
+tar -C "$d" -cf - datastore.sqlite3 keys-sqlite.json
+SH
+)
+
 backup_spire() {
-  log "Starting SPIRE CA key backup..."
+  log "Starting SPIRE server backup (datastore + CA keys)..."
   local dest="${BACKUP_DIR}/spire"
   mkdir -p "$dest"
 
@@ -162,18 +175,16 @@ backup_spire() {
   fi
 
   if $DRY_RUN; then
-    warn "[DRY-RUN] Would backup SPIRE CA key from ${pod}"
+    warn "[DRY-RUN] Would backup the SPIRE datastore and CA keys from ${pod}"
     return
   fi
 
-  local file="${dest}/keys_${TIMESTAMP}.json${AGE_SUFFIX}"
-  # The official spire-server image has no shell: read the key through the
-  # spire-entries sidecar (alpine), which mounts the data volume read-only.
-  if write_dump spire "$file" kubectl_exec -c spire-entries "${pod}" -- cat /run/spire/data/keys.json; then
-    ok "SPIRE CA key backup complete: ${file}"
+  local file="${dest}/data_${TIMESTAMP}.tar${AGE_SUFFIX}"
+  if write_dump spire "$file" kubectl_exec -c spire-entries "${pod}" -- sh -c "$SPIRE_BACKUP_SH"; then
+    ok "SPIRE server backup complete: ${file}"
     write_metric "spire" 1
   else
-    fail "SPIRE CA key backup failed"
+    fail "SPIRE server backup failed"
     write_metric "spire" 0
   fi
 }
