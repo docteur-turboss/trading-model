@@ -1458,6 +1458,11 @@ dump() {
 		$K -n "$NS" describe pod "$pod" | grep -E -A6 "Last State:" || true
 		$K -n "$NS" logs "$pod" --all-containers --previous --tail=30 2>&1 || true
 	done
+	# A retrying Job pod stays Running 1/1 above: show what it says (mysql-cluster-init loops on a failing ping).
+	echo "===== mysql-cluster-init"
+	$K -n "$NS" logs job/mysql-cluster-init --tail=80 2>&1 || true
+	echo "===== mysql-0 (mysql)"
+	$K -n "$NS" logs mysql-0 -c mysql --tail=60 2>&1 | cut -c1-300 || true
 	# The databases of pods that look healthy: a restarted member may not serve.
 	for pod in mongo-audit-0 mongo-dlq-0; do
 		echo "===== $pod"
