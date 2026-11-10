@@ -447,6 +447,8 @@ jobs:
             echo "::error::trading-model-secrets of $ENV lacks:$missing (run bash scripts/init-sealed-secrets.sh and commit deploy/k8s/secrets)"
             exit 1
           fi
+          # Grafana OIDC (ADR-0063): production refuses a shared admin as the only access.
+          bash scripts/check-grafana-oidc.sh "$ENV" <<<"$rendered"
 
       # The Ingress hosts ship as example.com placeholders (issue #415): in
       # production they would leave the API unreachable from outside while
