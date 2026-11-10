@@ -3,24 +3,24 @@ import {
 	HTTP_STATUS,
 	type HttpStatusCode,
 } from "@trading-model/contracts/http-status";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
-import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ServiceId } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
 import {
-	ACTIVE_REQUESTS,
-	PROXY_REQUEST_DURATION_SECONDS,
-} from "../infrastructure/config/metrics";
-import {
 	type ProxyDeps,
 	type ResponseCachePort,
 	UpstreamResponseTooLargeError,
-} from "./ports";
+} from "../domain/ports/gateway.port";
+import {
+	ACTIVE_REQUESTS,
+	PROXY_REQUEST_DURATION_SECONDS,
+} from "../infrastructure/config/metrics";
 
 interface ProxyContext {
 	serviceName: ServiceId;
@@ -58,7 +58,7 @@ export async function proxyAndCache(
 			(performance.now() - start) / 1000
 		);
 		if (tooLarge) {
-			logger.warn("Upstream response too large", {
+			getLogger().warn("Upstream response too large", {
 				context: {
 					serviceName: ctx.serviceName,
 					path: ctx.path,
@@ -106,7 +106,7 @@ function buildProxyErrorResponse(
 	target: ResolvedEndpoint
 ): ResponseObject {
 	const message = err instanceof Error ? err.message : "Unknown error";
-	logger.error("Proxy error", {
+	getLogger().error("Proxy error", {
 		context: {
 			serviceName: ctx.serviceName,
 			majorVersion: ctx.majorVersion,
@@ -116,7 +116,10 @@ function buildProxyErrorResponse(
 	});
 	// The cause stays in the log: returned to the client, connection errors
 	// would map the internal network.
-	return sendResponse({ error: "Service unavailable" }, 503 as HttpStatusCode);
+	return sendResponse(
+		{ error: "Service unavailable" },
+		HTTP_STATUS.SERVICE_UNAVAILABLE
+	);
 }
 
 function tryParseJson(raw: string): unknown | null {

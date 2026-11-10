@@ -411,6 +411,20 @@ upgrade() {
 		return 1
 	}
 
+	# deploy.yml preflight (issue #805): server-side dry-run of release N with
+	# deploy-app / deploy-cluster; it must pass and leave every pod template as it was.
+	log "preflight: dry-run of release N with the deploy identities (deploy-release.sh dry-run)"
+	release_script render "$ROOT/deploy/k8s/overlays/staging" ghcr.io/trading-model "$WORK/digests-current" |
+		node "$ROOT/tests/k8s/ci-render.mjs" |
+		release_script dry-run "$NS" "$ROOT/deploy/k8s/overlays/staging/node-agents" || {
+		log "the preflight dry-run of release N failed"
+		return 1
+	}
+	[ "$(templates)" = "$before_templates" ] || {
+		log "the preflight dry-run changed a Deployment"
+		return 1
+	}
+
 	log "upgrade N-1 → N with a forced failure: api-gateway pinned to a digest that does not exist"
 	sed 's/^api-gateway .*/api-gateway sha256:0000000000000000000000000000000000000000000000000000000000000000/' \
 		"$WORK/digests-current" >"$WORK/digests-broken"

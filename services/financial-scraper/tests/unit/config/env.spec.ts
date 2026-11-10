@@ -17,7 +17,7 @@ describe("env", () => {
 		process.env.LOG_LEVEL = "debug";
 		process.env.APP_NAME = "financial-scraper";
 		process.env.APP_VERSION = "1.0.0";
-		process.env.SERVICE_NAME = "financial-scraper-service";
+		process.env.SERVICE_NAME = "financial-scraper";
 		process.env.INSTANCE_ID = "instance-1";
 		process.env.CACHE_TTL_MS = "30000";
 		process.env.SERVICE_PING_TIMEOUT_MS = "2000";
@@ -47,7 +47,7 @@ describe("env", () => {
 		expect(ENV.NODE_ENV).toBe("test");
 		expect(ENV.PORT).toBe(3000);
 		expect(ENV.LOG_LEVEL).toBe("debug");
-		expect(ENV.SERVICE_NAME).toBe("financial-scraper-service");
+		expect(ENV.SERVICE_NAME).toBe("financial-scraper");
 		expect(ENV.INSTANCE_ID).toBe("instance-1");
 		expect(ENV.APP_NAME).toBe("financial-scraper");
 	});

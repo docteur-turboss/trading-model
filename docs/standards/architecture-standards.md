@@ -187,6 +187,7 @@ Rules:
 
 - `index.ts` and `server.ts` are the **only** files of `application/` allowed to touch adapters/infrastructure, and only for startup concerns. They obtain their collaborators from `config/container.ts` and never `new` an adapter themselves.
 - Every other file of `application/` depends on ports only.
+- **Ports**: type `XxxPort` (never an `I` prefix), file `xxx.port.ts` (never `-port.ts` / `.ports.ts`), located in `domain/ports/` (several ports of one concern may share a file). Non-port interfaces: `xxx.interface.ts`; MySQL schemas: `xxx.schema.ts`.
 - Containers take environment values **as parameters** (`createDiscoveryApp(ENV)`, `createScrapeScheduler(ENV)`) rather than importing `ENV`, so they can be imported by tests without environment validation.
 
 ### Entry Point (`src/application/index.ts`)

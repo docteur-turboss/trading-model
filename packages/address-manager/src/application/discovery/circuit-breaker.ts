@@ -14,8 +14,8 @@ import {
 	DEFAULT_LATENCY_WINDOW_SIZE,
 	DEFAULT_LOAD_CACHE_TTL_MS,
 } from "../../domain/discovery/circuit-breaker-constants";
-import type { ICircuitStateStore } from "../../domain/discovery/circuit-state-store.interface";
-import type { PersistedCircuitState } from "../../domain/discovery/service-cache.interface";
+import type { CircuitStateStorePort } from "../../domain/ports/circuit-state-store.port";
+import type { PersistedCircuitState } from "../../domain/ports/service-cache.port";
 import { STALE_OPEN_MS } from "../../infrastructure/discovery/circuit-breaker-sweeper";
 import {
 	CIRCUIT_BREAKER_STATE,
@@ -26,15 +26,15 @@ import { CircuitBreakerPersistenceHandler } from "./circuit-breaker-persistence-
 export interface CircuitBreakerOptions {
 	failureThreshold?: number;
 	halfOpenTimeoutMs?: number;
-	stateStore?: ICircuitStateStore;
+	stateStore?: CircuitStateStorePort;
 	loadFromStoreCacheTtlMs?: number;
 	latencyWindowSize?: number;
 	latencyP99ThresholdMs?: number;
 }
 
 function resolveStateStore(
-	stateStore?: ICircuitStateStore
-): ICircuitStateStore {
+	stateStore?: CircuitStateStorePort
+): CircuitStateStorePort {
 	if (stateStore) {
 		return stateStore;
 	}
@@ -99,7 +99,7 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 	async loadFromStore(instanceId: InstanceId): Promise<void> {
 		const persisted = await this._persistenceHandler.loadFromStore(instanceId);
 		if (persisted) {
-			const machine = this.getMachine(instanceId as unknown as string);
+			const machine = this.getMachine(instanceId);
 			if (machine.failures >= persisted.failures) {
 				return;
 			}
@@ -117,21 +117,21 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 
 	/** Consulted by discovery before handing out an instance: also publishes open to half-open. */
 	isOpen(instanceId: InstanceId): boolean {
-		const open = super.isOpen(instanceId as unknown as string);
+		const open = super.isOpen(instanceId);
 		this._reportState(instanceId);
 		return open;
 	}
 
 	isAllowed(instanceId: InstanceId): boolean {
-		const machine = this.getMachine(instanceId as unknown as string);
+		const machine = this.getMachine(instanceId);
 		const currentState = machine.getState(Date.now());
 		this._reportState(instanceId, currentState);
 		return currentState !== CircuitState.OPEN;
 	}
 
 	recordSuccess(instanceId: InstanceId): void {
-		const machine = this.getMachine(instanceId as unknown as string);
-		super.recordSuccess(instanceId as unknown as string);
+		const machine = this.getMachine(instanceId);
+		super.recordSuccess(instanceId);
 		this._persistenceHandler.onRecordSuccess(instanceId, machine);
 		this._reportState(instanceId);
 	}
@@ -141,7 +141,7 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 		count?: number,
 		threshold?: number
 	): boolean {
-		const machine = this.getMachine(instanceId as unknown as string);
+		const machine = this.getMachine(instanceId);
 		const opened = machine.recordFailure(count ?? 1, threshold);
 		this._persistenceHandler.onRecordFailure(instanceId, machine, opened);
 		this._reportState(instanceId);
@@ -156,14 +156,10 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 
 	private _reportState(
 		instanceId: InstanceId,
-		state: CircuitState = this.getState(instanceId as unknown as string)
+		state: CircuitState = this.getState(instanceId)
 	): void {
-		this._lastActivity.set(instanceId as unknown as string, Date.now());
-		recordCircuitState(
-			instanceId as unknown as string,
-			state,
-			this.getStateSummary()
-		);
+		this._lastActivity.set(instanceId, Date.now());
+		recordCircuitState(instanceId, state, this.getStateSummary());
 	}
 
 	clear(): void {

@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { DurationMs, Topic } from "@trading-model/primitives/primitives";
-import type { MessageDeliveryPort } from "../../../../src/application/ports/message-delivery-port";
 import { Subscription } from "../../../../src/application/services/subscription";
+import type { MessageDeliveryPort } from "../../../../src/domain/ports/message-delivery.port";
 import {
 	createMockMessage,
 	mockServiceIdentity,

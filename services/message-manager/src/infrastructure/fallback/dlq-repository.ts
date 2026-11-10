@@ -1,7 +1,7 @@
 import { appendFile, readFile, rename, unlink } from "node:fs/promises";
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
-import type { DeadLetterStorePort } from "../../application/ports/dead-letter-store-port";
 import { MESSAGES_DLQ_ERROR_TOTAL } from "../../config/metrics";
+import type { DeadLetterStorePort } from "../../domain/ports/dead-letter-store.port";
 
 export type { DlqEntry };
 

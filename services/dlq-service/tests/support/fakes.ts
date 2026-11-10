@@ -1,7 +1,7 @@
 import type {
 	LogPort,
 	ShutdownProbe,
-} from "../../src/domain/ports/replay.ports";
+} from "../../src/domain/ports/replay.port";
 
 /** Log sink that records every call, typed by the port. */
 export class FakeLogger implements LogPort {

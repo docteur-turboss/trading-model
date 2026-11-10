@@ -2,7 +2,7 @@ import type {
 	DlqAuditPort,
 	DlqEntryStorePort,
 	DlqMetricsPort,
-} from "../../domain/ports/dlq.ports";
+} from "../../domain/ports/dlq.port";
 
 export interface DeleteEntriesDeps {
 	entries: Pick<DlqEntryStorePort<unknown>, "delete">;

@@ -15,15 +15,16 @@ import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery
 import type { ServiceDiscovery } from "../../src/application/discovery/service-discovery";
 import type { ServiceInstance } from "../../src/domain/client/type";
 import type { DiscoveryContext } from "../../src/domain/discovery/discovery-context";
-import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../src/domain/ports/service-cache.port";
 import type { DiscoveryResult } from "../../src/infrastructure/metrics";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: {
+jest.mock("@trading-model/contracts/logger-registry", () => {
+	const logger = {
 		warn: jest.fn<(...args: any[]) => any>(),
 		debug: jest.fn<(...args: any[]) => any>(),
-	},
-}));
+	};
+	return { getLogger: () => logger, logger };
+});
 jest.mock("@trading-model/common/utils/sleep", () => ({
 	sleep: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
@@ -37,7 +38,7 @@ jest.mock("../../src/infrastructure/metrics", () => ({
 }));
 
 import { sleep } from "@trading-model/common/utils/sleep";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { recordDiscoveryMetrics } from "../../src/infrastructure/metrics";
 
 describe("DiscoveryRetryHandler", () => {
@@ -63,7 +64,7 @@ describe("DiscoveryRetryHandler", () => {
 
 	let handler: DiscoveryRetryHandler;
 	let mockDiscovery: jest.Mocked<ServiceDiscovery>;
-	let mockCache: jest.Mocked<IServiceCache>;
+	let mockCache: jest.Mocked<ServiceCachePort>;
 	let mockCircuitBreaker: jest.Mocked<DiscoveryCircuitBreaker>;
 
 	function createMockDiscovery(): jest.Mocked<ServiceDiscovery> {
@@ -74,7 +75,7 @@ describe("DiscoveryRetryHandler", () => {
 		} as unknown as jest.Mocked<ServiceDiscovery>;
 	}
 
-	function createMockCache(): jest.Mocked<IServiceCache> {
+	function createMockCache(): jest.Mocked<ServiceCachePort> {
 		return {
 			get: jest
 				.fn<() => Promise<ServiceInstance | null>>()
@@ -93,7 +94,7 @@ describe("DiscoveryRetryHandler", () => {
 				.fn<() => Promise<void>>()
 				.mockResolvedValue(undefined),
 			close: jest.fn<(...args: any[]) => any>(),
-		} as unknown as jest.Mocked<IServiceCache>;
+		} as unknown as jest.Mocked<ServiceCachePort>;
 	}
 
 	function createMockCircuitBreaker(): jest.Mocked<DiscoveryCircuitBreaker> {
@@ -249,7 +250,7 @@ describe("DiscoveryRetryHandler", () => {
 
 			expect(result).toBe(instance);
 			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
-			expect(jest.mocked(logger.warn)).toHaveBeenCalledWith(
+			expect(jest.mocked(getLogger().warn)).toHaveBeenCalledWith(
 				"Circuit breaker exhausted — returning stale cached instance as fallback",
 				{
 					serviceName: svcInstanceName,
@@ -269,7 +270,7 @@ describe("DiscoveryRetryHandler", () => {
 
 			expect(result).toBeNull();
 			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
-			expect(jest.mocked(logger.warn)).not.toHaveBeenCalled();
+			expect(jest.mocked(getLogger().warn)).not.toHaveBeenCalled();
 			expect(recordDiscoveryMetrics).not.toHaveBeenCalled();
 		});
 
@@ -280,11 +281,11 @@ describe("DiscoveryRetryHandler", () => {
 
 			expect(result).toBeNull();
 			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
-			expect(jest.mocked(logger.debug)).toHaveBeenCalledWith(
+			expect(jest.mocked(getLogger().debug)).toHaveBeenCalledWith(
 				"Cache lookup failed in fallback path",
 				{ error: new Error("cache error") }
 			);
-			expect(jest.mocked(logger.warn)).not.toHaveBeenCalled();
+			expect(jest.mocked(getLogger().warn)).not.toHaveBeenCalled();
 			expect(recordDiscoveryMetrics).not.toHaveBeenCalled();
 		});
 	});
@@ -338,7 +339,7 @@ describe("DiscoveryRetryHandler", () => {
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledWith(
 				instance.instanceId
 			);
-			expect(jest.mocked(logger.warn)).toHaveBeenCalledWith(
+			expect(jest.mocked(getLogger().warn)).toHaveBeenCalledWith(
 				"Circuit state store unavailable — using local state",
 				{ instanceId: instance.instanceId, error: "store error" }
 			);

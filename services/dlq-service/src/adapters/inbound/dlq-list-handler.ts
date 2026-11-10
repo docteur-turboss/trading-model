@@ -1,4 +1,4 @@
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
@@ -31,7 +31,7 @@ function _buildPaginationQuery({
 }
 
 export interface DlqListResponse {
-	entries: import("../outbound/repository").StoredDlqEntry[];
+	entries: StoredDlqEntry[];
 	pagination: OffsetPagination & Partial<CursorPagination>;
 }
 
@@ -75,6 +75,6 @@ async function _listEntries(
 	});
 	return sendResponse(
 		_buildListResponse({ entries, pagination }),
-		200 as HttpStatusCode
+		HTTP_STATUS.OK
 	);
 }

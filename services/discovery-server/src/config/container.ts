@@ -15,7 +15,7 @@ import { RedisTokenStore } from "../adapters/outbound/redis-token-store";
 import { InstanceTokenManager } from "../domain/instance-token-manager";
 import { LeaseManager } from "../domain/lease-manager";
 import type { RegistryMetricsPort } from "../domain/ports/discovery-metrics.port";
-import type { IInstanceStore } from "../domain/ports/instance-store.interface";
+import type { InstanceStorePort } from "../domain/ports/instance-store.port";
 import type { InstanceTokenStorePort } from "../domain/ports/instance-token-store.port";
 import { ServiceRegistry } from "../domain/service-registry";
 import { prometheusDiscoveryMetrics } from "../infrastructure/monitoring/metrics";
@@ -27,7 +27,7 @@ export interface ServiceRegistryOptions {
 	/** HMAC secret for instance tokens; a random one is generated when absent. */
 	signingSecret?: string;
 	/** Defaults to the in-memory InstanceStore. */
-	instanceStore?: IInstanceStore;
+	instanceStore?: InstanceStorePort;
 	/** Defaults to an in-memory store: single replica only. */
 	tokenStore?: InstanceTokenStorePort;
 	/** Defaults to the Prometheus collectors. */
@@ -99,7 +99,7 @@ function _buildInstanceStore(
 	settings: DiscoveryAppSettings,
 	redisClient: Redis | undefined,
 	redisMode: RedisConnectionMode | undefined
-): IInstanceStore {
+): InstanceStorePort {
 	if (!redisClient) {
 		logger.info("Redis registry disabled — using in-memory InstanceStore");
 		return new InstanceStore();

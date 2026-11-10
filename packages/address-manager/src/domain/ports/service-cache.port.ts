@@ -6,7 +6,7 @@ import type {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../client/type";
-import type { ICircuitStateStore } from "./circuit-state-store.interface";
+import type { CircuitStateStorePort } from "./circuit-state-store.port";
 
 export interface PersistedCircuitState {
 	failures: PositiveInt;
@@ -20,10 +20,10 @@ export interface CacheSetEntry {
 	region?: Region;
 }
 
-export interface IServiceCache {
+export interface ServiceCachePort {
 	/** Circuit-breaker state store used by this cache, so the cache can
 	 * compose (rather than inherit) the parallel circuit-state hierarchy. */
-	readonly circuitStateStore: ICircuitStateStore;
+	readonly circuitStateStore: CircuitStateStorePort;
 	get(serviceName: ServiceId, region?: string): Promise<ServiceInstance | null>;
 	set(entry: CacheSetEntry): Promise<void>;
 	delete(serviceName: ServiceId, region?: string): Promise<void>;

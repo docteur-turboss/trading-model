@@ -1,3 +1,4 @@
+import type { Collection } from "mongodb";
 import type { CollectionProvider } from "./collection-provider";
 
 export async function pruneEntries(
@@ -13,7 +14,7 @@ export async function pruneEntries(
 }
 
 async function _findEldestCutoff(
-	col: import("mongodb").Collection,
+	col: Collection,
 	maxEntries: number
 ): Promise<Date | null> {
 	const eldest = await col
@@ -34,7 +35,7 @@ async function _findEldestCutoff(
 }
 
 async function _deleteExcessEntries(
-	col: import("mongodb").Collection,
+	col: Collection,
 	cutoff: Date
 ): Promise<number> {
 	const result = await col.deleteMany({

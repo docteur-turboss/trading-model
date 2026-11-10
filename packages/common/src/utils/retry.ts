@@ -1,8 +1,9 @@
-﻿import { DurationMs } from "@trading-model/primitives/primitives";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	type BackoffConfig,
 	computeExponentialBackoffWithJitter,
 } from "./backoff-config";
+import { normalizeError } from "./errors/base";
 import { sleep } from "./sleep";
 
 export interface RetryOptions extends BackoffConfig {
@@ -26,11 +27,10 @@ function _hasTimedOut(start: number, timeoutMs: DurationMs): boolean {
 async function _attemptOnce<TResult>(
 	fn: () => Promise<TResult>
 ): Promise<{ ok: true; result: TResult } | { ok: false; error: Error }> {
-	// biome-ignore lint/plugin: converts the rejection into a Result the retry loop inspects
 	try {
 		return { ok: true, result: await fn() };
 	} catch (err) {
-		return { ok: false, error: err as Error };
+		return { ok: false, error: normalizeError(err) };
 	}
 }
 

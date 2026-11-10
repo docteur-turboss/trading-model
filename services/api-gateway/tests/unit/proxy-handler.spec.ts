@@ -521,7 +521,7 @@ describe("proxy-handler", () => {
 		);
 		const {
 			UpstreamResponseTooLargeError,
-		} = require("../../src/application/ports");
+		} = require("../../src/domain/ports/gateway.port");
 		const req = createReq({ method: "GET" });
 		await expect(
 			forward({ req, target: MOCK_TARGET, path: "/test" })

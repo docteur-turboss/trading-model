@@ -1,21 +1,22 @@
 import { TtlCacheBase } from "@trading-model/common/utils/ttl-cache-base";
 import { MemoryStoreAdapter } from "@trading-model/persistence/memory-store-adapter";
-import type {
-	DurationMs,
-	ServiceId,
+import {
+	type DurationMs,
+	type ServiceId,
+	toServiceId,
 } from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../../../domain/client/type";
-import type { ICircuitStateStore } from "../../../domain/discovery/circuit-state-store.interface";
+import type { CircuitStateStorePort } from "../../../domain/ports/circuit-state-store.port";
 import type {
 	CacheSetEntry,
-	IServiceCache,
 	PersistedCircuitState,
-} from "../../../domain/discovery/service-cache.interface";
+	ServiceCachePort,
+} from "../../../domain/ports/service-cache.port";
 
-export class ServiceCache implements IServiceCache {
+export class ServiceCache implements ServiceCachePort {
 	private readonly _cacheStore: TtlCacheBase<ServiceInstance>;
 	private _mutexPromise: Promise<void> = Promise.resolve();
-	readonly circuitStateStore: ICircuitStateStore;
+	readonly circuitStateStore: CircuitStateStorePort;
 
 	constructor(ttlMs: DurationMs) {
 		this._cacheStore = new TtlCacheBase(ttlMs);
@@ -73,7 +74,7 @@ export class ServiceCache implements IServiceCache {
 	> {
 		return this._withLock(() =>
 			this._cacheStore.entries().map(({ key, value }) => ({
-				serviceName: key as unknown as ServiceId,
+				serviceName: toServiceId(key),
 				instance: value,
 			}))
 		);

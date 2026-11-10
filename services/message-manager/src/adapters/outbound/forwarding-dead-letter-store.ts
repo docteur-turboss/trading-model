@@ -1,12 +1,12 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import type { DeadLetterStorePort } from "../../application/ports/dead-letter-store-port";
 import {
 	DLQ_FALLBACK_PENDING,
 	DLQ_FORWARD_FAILURES_TOTAL,
 	DLQ_REJECTED_TOTAL,
 } from "../../config/metrics";
+import type { DeadLetterStorePort } from "../../domain/ports/dead-letter-store.port";
 import {
 	DrainOutcome,
 	type FileDlqRepository,

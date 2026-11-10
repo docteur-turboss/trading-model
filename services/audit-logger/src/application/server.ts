@@ -2,6 +2,7 @@ import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount
 import type { MongoConnectionManager } from "@trading-model/persistence/mongo-connection-manager";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import type { Application } from "express";
 import { Router } from "express";
 import { AUDIT_API } from "../adapters/inbound/http/api-routes";
 import { eventsRoutes } from "../adapters/inbound/http/events.routes";
@@ -42,7 +43,7 @@ export function createServer(
 }
 
 function _registerRoutes(
-	app: import("express").Application,
+	app: Application,
 	auditRepo: AuditRepository,
 	messageHandler: MessageHandler
 ): void {

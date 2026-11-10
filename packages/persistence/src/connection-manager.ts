@@ -1,4 +1,5 @@
 import type { BackoffConfig } from "@trading-model/common/utils/backoff-config";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
@@ -80,7 +81,7 @@ export class ConnectionManager<_TConnection> {
 			await this._disconnectFn(connection);
 		} catch (err) {
 			getLogger().warn("Disconnect failed, dropping the connection", {
-				error: (err as Error)?.message ?? String(err),
+				error: normalizeError(err).message,
 			});
 		}
 	}

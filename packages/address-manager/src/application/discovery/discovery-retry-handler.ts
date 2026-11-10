@@ -1,13 +1,13 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import { sleep } from "@trading-model/common/utils/sleep";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { UnixTimestamp } from "@trading-model/primitives/primitives";
 import { DurationMs, toServiceId } from "@trading-model/primitives/primitives";
 
 import type { ServiceInstance } from "../../domain/client/type";
 import type { DiscoveryContext } from "../../domain/discovery/discovery-context";
-import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import {
 	DiscoveryResult,
 	recordDiscoveryMetrics,
@@ -21,7 +21,7 @@ const RETRY_BASE_DELAY_MS = 100;
 export class DiscoveryRetryHandler {
 	constructor(
 		private readonly _serviceDiscovery: ServiceDiscovery,
-		private readonly _serviceCache: IServiceCache,
+		private readonly _serviceCache: ServiceCachePort,
 		readonly circuitBreaker: DiscoveryCircuitBreaker
 	) {}
 
@@ -95,7 +95,7 @@ export class DiscoveryRetryHandler {
 		try {
 			await this.circuitBreaker.loadFromStore(instance.instanceId);
 		} catch (err) {
-			logger.warn("Circuit state store unavailable — using local state", {
+			getLogger().warn("Circuit state store unavailable — using local state", {
 				instanceId: instance.instanceId,
 				error: this._captureError(err).message,
 			});
@@ -113,7 +113,7 @@ export class DiscoveryRetryHandler {
 				return this._returnStaleInstance(staleInstance, ctx);
 			}
 		} catch (err) {
-			logger.debug("Cache lookup failed in fallback path", { error: err });
+			getLogger().debug("Cache lookup failed in fallback path", { error: err });
 		}
 		return null;
 	}
@@ -122,7 +122,7 @@ export class DiscoveryRetryHandler {
 		staleInstance: ServiceInstance,
 		ctx: DiscoveryContext
 	): ServiceInstance {
-		logger.warn(
+		getLogger().warn(
 			"Circuit breaker exhausted — returning stale cached instance as fallback",
 			{
 				serviceName: ctx.serviceName,

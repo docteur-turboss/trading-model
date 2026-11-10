@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { Span } from "@opentelemetry/api";
 import { SpanStatusCode } from "@opentelemetry/api";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type Limit,
 	type Topic,
 	toMessageId,
 } from "@trading-model/primitives/primitives";
-import type { DlqMetricsPort } from "../../domain/ports/dlq.ports";
+import type { DlqMetricsPort } from "../../domain/ports/dlq.port";
 import type {
 	ClaimReleasePort,
 	DlqReplaySettings,
@@ -15,7 +15,7 @@ import type {
 	MessageManagerLocatorPort,
 	ReplayAuditPort,
 	RetryLedgerPort,
-} from "../../domain/ports/replay.ports";
+} from "../../domain/ports/replay.port";
 import type { BatchResults, ReplayBatchOptions } from "../../shared/types";
 import { buildReplayResponse } from "./dlq-replay-response";
 
@@ -58,7 +58,7 @@ async function _abandonExhaustedIfNeeded(
 	}
 	const abandoned = await deps.retryLedger.abandonExhaustedEntries();
 	if (abandoned > 0) {
-		logger.warn(
+		getLogger().warn(
 			`DLQ manual replay: ${abandoned} entries abandoned after max retries`
 		);
 	}

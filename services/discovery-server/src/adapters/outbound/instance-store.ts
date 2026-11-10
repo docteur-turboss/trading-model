@@ -8,7 +8,7 @@ import {
 	ALL_SERVICE_NAMES,
 	type ServiceInstanceName,
 } from "@trading-model/primitives/service-instance-name";
-import type { IInstanceStore } from "../../domain/ports/instance-store.interface";
+import type { InstanceStorePort } from "../../domain/ports/instance-store.port";
 import type { ServiceInstance } from "../../shared/types";
 
 /**
@@ -23,7 +23,7 @@ import type { ServiceInstance } from "../../shared/types";
  * @see RedisInstanceStore — Redis-backed counterpart
  * @see CacheStore — client-side cache (address-manager)
  */
-export class InstanceStore implements IInstanceStore {
+export class InstanceStore implements InstanceStorePort {
 	private _services: Map<
 		ServiceId | ServiceInstanceName,
 		Map<InstanceId, ServiceInstance>

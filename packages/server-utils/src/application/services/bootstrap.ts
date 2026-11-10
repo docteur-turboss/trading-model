@@ -1,5 +1,5 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { HttpServer } from "../../adapters/inbound/create-secure-server";
 import { setupProcessHandlers } from "../../infrastructure/signal-handler";
 import { gracefulShutdown, hardShutdown } from "./bootstrap-shutdown";
@@ -33,7 +33,7 @@ function _onBootstrapError(
 	onFatal: (code: number) => void,
 	err: unknown
 ): void {
-	logger.error("Fatal error during service bootstrap", {
+	getLogger().error("Fatal error during service bootstrap", {
 		context: { err: normalizeError(err) },
 	});
 	onFatal(1);
@@ -45,7 +45,9 @@ function runBootstrap(
 	onFatal: (code: number) => void
 ): void {
 	const onError = (err: unknown) => _onBootstrapError(onFatal, err);
-	logger.info("Bootstrapping service", { context: { name: options.name } });
+	getLogger().info("Bootstrapping service", {
+		context: { name: options.name },
+	});
 	runSyncOrAsync(
 		() => options.onBeforeServer?.(),
 		() => _finishCreateServer(options, setServer, onError),
@@ -87,7 +89,7 @@ function runSyncOrAsync<TValue>(
 
 function finishBootstrap(options: BootstrapOptions): void {
 	options.onStart?.();
-	logger.info("Service started successfully", {
+	getLogger().info("Service started successfully", {
 		context: { name: options.name },
 	});
 }

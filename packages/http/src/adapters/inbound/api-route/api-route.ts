@@ -132,6 +132,7 @@ export function parseRequest<Route extends ApiRoute>(
 	if (details.length > 0) {
 		return { success: false, error: { error: "Validation failed", details } };
 	}
+	// as unknown as: Zod-parsed input narrowed to the route generic
 	return { success: true, input: input as unknown as ApiRouteInput<Route> };
 }
 

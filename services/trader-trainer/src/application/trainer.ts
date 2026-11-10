@@ -1,9 +1,6 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type {
-	Fitness,
-	PositiveInt,
-} from "@trading-model/primitives/primitives";
+import { Fitness, NonNegativeInt } from "@trading-model/primitives/primitives";
 import {
 	BEST_FITNESS,
 	MODEL_ARTIFACTS_TOTAL,
@@ -12,7 +9,10 @@ import {
 	TRAINING_STATUS,
 } from "../config/metrics";
 import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
-import type { GenerationContext } from "../domain/genetic-algorithm/ga-runner";
+import type {
+	GenerationContext,
+	WindowSet,
+} from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
@@ -162,7 +162,7 @@ export class Trainer {
 
 	private async _train(
 		symbol: TradingSymbol,
-		windowSets: import("../domain/genetic-algorithm/ga-runner").WindowSet[],
+		windowSets: WindowSet[],
 		signal: AbortSignal
 	): Promise<TrainingResult> {
 		this._status = TrainerStatus.Training;
@@ -190,7 +190,7 @@ export class Trainer {
 
 	private async _runSession(
 		symbol: TradingSymbol,
-		windowSets: import("../domain/genetic-algorithm/ga-runner").WindowSet[],
+		windowSets: WindowSet[],
 		signal: AbortSignal
 	): Promise<TrainingSuccess> {
 		const run: TrainingRunner = this._deps.runner ?? runInProcess;
@@ -203,9 +203,9 @@ export class Trainer {
 		const outcome = {
 			symbol,
 			bestGenome: result.bestGenome,
-			bestFitness: result.bestFitness as unknown as Fitness,
+			bestFitness: Fitness.of(result.bestFitness),
 			bestFitnessMeta: result.bestFitnessMeta,
-			generation: result.generation as unknown as PositiveInt,
+			generation: NonNegativeInt.of(result.generation),
 			generationContext: result.generationContext,
 		};
 		const snapshot = new LastTrainingInfo(outcome);

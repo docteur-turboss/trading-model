@@ -15,7 +15,7 @@ jest.mock(
 );
 
 jest.mock(
-	"../../../../src/adapters/outbound/persistence/schema/candles-schema",
+	"../../../../src/adapters/outbound/persistence/schema/candles.schema",
 	() => ({
 		insertCandles: jest.fn<(...args: any[]) => any>(),
 	})
@@ -40,7 +40,7 @@ describe("MarketDataModel", () => {
 		await MarketDataModel.insertCandles(data);
 		const {
 			insertCandles,
-		} = require("../../../../src/adapters/outbound/persistence/schema/candles-schema");
+		} = require("../../../../src/adapters/outbound/persistence/schema/candles.schema");
 		expect(insertCandles).toHaveBeenCalledWith(data);
 	});
 

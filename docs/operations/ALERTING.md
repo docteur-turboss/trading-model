@@ -81,6 +81,7 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `CollectorNoLeader` | no scraper pod reports `fs_collector_leader` = 1 for 2 min: no collector holds the Lease, nothing is collected (ADR-0057) | [runbook-market-data-stale#collectornoleader](runbooks/runbook-market-data-stale.md#collectornoleader) |
 | `MarketDataStale` | no candle persisted for 15 min, all scraper replicas together | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoLeader` | no trainer pod reports `tt_training_leader` = 1 for 5 min: no trainer holds the Lease, nothing is trained (ADR-0058); the read routes still answer | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
+| `TrainerNoModelStored` | a trainer holds the Lease but no model was stored (`tt_model_artifacts_total{result="stored"}`) for 3 h (2 h after a start), whatever the cause: sessions failing, nothing trained, writes failing | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `TrainerMarketDataStale` | no candle reached the trainer for 15 min (`tt_market_data_received_total`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `MarketDataUnpublished` | persisted candles of a symbol have waited 15 min for the bus (`fs_unpublished_candles`): sent from MySQL once message-manager answers, the trainer lags meanwhile | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `ScrapeCyclesFailing` | more than half of the scrape cycles fail | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
@@ -171,6 +172,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `MarketDataUnpublished` | warning | [runbook-message-bus-outage#5-scraper-publish-backlog](runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog) |
 | `TrainerMarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `CandleDeliveryLagging` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `TrainerNoModelStored` | critical | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |
 | `KubePodCrashLooping` | warning | [runbook-infrastructure#kubepodcrashlooping](runbooks/runbook-infrastructure.md#kubepodcrashlooping) |
 | `KubeContainerOOMKilled` | warning | [runbook-infrastructure#kubecontaineroomkilled](runbooks/runbook-infrastructure.md#kubecontaineroomkilled) |

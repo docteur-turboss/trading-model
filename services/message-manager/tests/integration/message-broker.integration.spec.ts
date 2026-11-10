@@ -122,7 +122,7 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await dispatcher.subscribe({
 			...subscribeParams("al-1"),
 			serviceIdentity: {
-				serviceName: "audit-logger-service",
+				serviceName: "audit-logger",
 				instanceId: "al-1",
 			},
 		} as never);

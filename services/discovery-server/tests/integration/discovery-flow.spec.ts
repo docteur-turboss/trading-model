@@ -4,6 +4,7 @@ import type {
 	AuthToken,
 	DurationMs,
 	InstanceId,
+	IPAddress,
 	Port,
 	ServiceId,
 	UnixTimestamp,
@@ -38,9 +39,9 @@ describe("Discovery Service — Full Flow Integration", () => {
 
 	it("should register an instance and find it via getInstances", async () => {
 		const result = await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
-			ip: "10.0.0.1",
+			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
 			ttl: 30_000 as DurationMs,
 			protocol: "mtls" as unknown as Protocol,
@@ -52,18 +53,18 @@ describe("Discovery Service — Full Flow Integration", () => {
 		expect(result.instanceId).toBe("node-1");
 		expect(result.token).toBeDefined();
 
-		const instances = registry.instanceStore.getInstances(
-			"financial-scraper-service" as unknown as ServiceInstanceName
+		const instances = await registry.instanceStore.getInstances(
+			"financial-scraper" as unknown as ServiceInstanceName
 		);
 		expect(instances).toHaveLength(1);
-		expect(instances[0].ip).toBe("10.0.0.1");
+		expect(instances[0].host).toBe("10.0.0.1");
 	});
 
 	it("should register multiple instances for the same service", async () => {
 		await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
-			ip: "10.0.0.1",
+			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
 			ttl: 30_000 as DurationMs,
 			protocol: "mtls" as unknown as Protocol,
@@ -73,9 +74,9 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-2" as InstanceId,
-			ip: "10.0.0.2",
+			host: "10.0.0.2" as IPAddress,
 			port: 8444 as Port,
 			ttl: 30_000 as DurationMs,
 			protocol: "mtls" as unknown as Protocol,
@@ -86,16 +87,16 @@ describe("Discovery Service — Full Flow Integration", () => {
 
 		expect(
 			registry.instanceStore.getInstances(
-				"financial-scraper-service" as unknown as ServiceInstanceName
+				"financial-scraper" as unknown as ServiceInstanceName
 			)
 		).toHaveLength(2);
 	});
 
 	it("should validate instance tokens after registration", async () => {
 		const registered = await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
-			ip: "10.0.0.1",
+			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
 			ttl: 30_000 as DurationMs,
 			protocol: "mtls" as unknown as Protocol,
@@ -120,9 +121,9 @@ describe("Discovery Service — Full Flow Integration", () => {
 
 	it("should handle full heartbeat flow", async () => {
 		const registered = await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
-			ip: "10.0.0.1",
+			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
 			ttl: 30_000 as DurationMs,
 			protocol: "mtls" as unknown as Protocol,
@@ -131,7 +132,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 			lastHeartbeat: Date.now() as UnixTimestamp,
 		});
 
-		const token = registered.token as string;
+		const token = registered.token as string as AuthToken;
 		expect(
 			await registry.tokenManager.validInstanceToken({
 				token,
@@ -140,7 +141,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 		).toBe(true);
 
 		const ttl = registry.instanceStore.updateHeartbeat({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
 		});
 		expect(ttl).toBe(30_000);
@@ -163,9 +164,9 @@ describe("Discovery Service — Full Flow Integration", () => {
 
 	it("should remove instance and update token on removeInstance", async () => {
 		await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
-			ip: "10.0.0.1",
+			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
 			ttl: 30_000 as DurationMs,
 			protocol: "mtls" as unknown as Protocol,
@@ -175,9 +176,9 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		await registry.registerInstance({
-			serviceName: "message-delivery-service" as ServiceId,
+			serviceName: "message-manager" as ServiceId,
 			instanceId: "msg-1" as InstanceId,
-			ip: "10.0.0.2",
+			host: "10.0.0.2" as IPAddress,
 			port: 8445 as Port,
 			ttl: 60_000 as DurationMs,
 			protocol: "mtls" as unknown as Protocol,
@@ -187,13 +188,13 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		const removed = await registry.removeInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
 		});
 		expect(removed).toBe(true);
 		expect(
 			registry.instanceStore.getInstances(
-				"financial-scraper-service" as unknown as ServiceInstanceName
+				"financial-scraper" as unknown as ServiceInstanceName
 			)
 		).toHaveLength(0);
 		expect(
@@ -203,15 +204,15 @@ describe("Discovery Service — Full Flow Integration", () => {
 			})
 		).toBe(false);
 		expect(registry.instanceStore.listServiceNames()).toEqual([
-			"message-delivery-service",
+			"message-manager",
 		]);
 	});
 
 	it("should expose a dump of current registry state", async () => {
 		await registry.registerInstance({
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "node-1" as InstanceId,
-			ip: "10.0.0.1",
+			host: "10.0.0.1" as IPAddress,
 			port: 8444 as Port,
 			ttl: 30_000 as DurationMs,
 			protocol: "mtls" as unknown as Protocol,
@@ -220,25 +221,27 @@ describe("Discovery Service — Full Flow Integration", () => {
 			lastHeartbeat: Date.now() as UnixTimestamp,
 		});
 
-		const snapshot = registry.instanceStore.dump();
-		expect(snapshot["financial-scraper-service"]).toBeDefined();
-		expect(snapshot["financial-scraper-service"]).toHaveLength(1);
+		const snapshot = await registry.instanceStore.dump();
+		expect(snapshot["financial-scraper" as ServiceInstanceName]).toBeDefined();
+		expect(snapshot["financial-scraper" as ServiceInstanceName]).toHaveLength(
+			1
+		);
 	});
 
 	it("should verify instance names against known services", async () => {
 		expect(
 			registry.tokenManager.verifyInstanceName(
-				"financial-scraper-service" as unknown as ServiceInstanceName
+				"financial-scraper" as unknown as ServiceInstanceName
 			)
 		).toBe(true);
 		expect(
 			registry.tokenManager.verifyInstanceName(
-				"message-delivery-service" as unknown as ServiceInstanceName
+				"message-manager" as unknown as ServiceInstanceName
 			)
 		).toBe(true);
 		expect(
 			registry.tokenManager.verifyInstanceName(
-				"discovery-service" as unknown as ServiceInstanceName
+				"discovery-server" as unknown as ServiceInstanceName
 			)
 		).toBe(true);
 		expect(

@@ -31,7 +31,7 @@ import { REGISTRY_ROUTES } from "../../src/adapters/inbound/http/register.routes
 import { createServiceRegistry } from "../../src/config/container";
 import type { ServiceRegistry } from "../../src/domain/service-registry";
 
-const SERVICE = "financial-scraper-service";
+const SERVICE = "financial-scraper";
 const REGISTRATION = {
 	serviceName: SERVICE,
 	instanceId: "scraper-1",
@@ -52,7 +52,7 @@ describe("discovery-server internal API (registration and leases)", () => {
 		// Thrown 401s go through the platform error handler, as in production.
 		app.use(ResponseProtocol);
 		await new Promise<void>((resolve) => {
-			server = app.listen(0, resolve);
+			server = app.listen(0, () => resolve());
 		});
 		baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 	});

@@ -77,7 +77,7 @@ import type { RedisDeps } from "../../src/shared/redis-deps";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
-		serviceName: "financial-scraper-service" as ServiceId,
+		serviceName: "financial-scraper" as ServiceId,
 		instanceId: "test-instance-1" as InstanceId,
 		host: "192.168.1.10" as IPAddress,
 		port: 8444 as Port,
@@ -153,11 +153,11 @@ describe("RedisInstanceStore", () => {
 			mockGetServiceInstanceIds.mockResolvedValue(["i1", "i2"]);
 
 			const result = await store.reader.getServiceInstanceIds(
-				"financial-scraper-service" as never
+				"financial-scraper" as never
 			);
 
 			expect(mockGetServiceInstanceIds).toHaveBeenCalledWith(
-				"financial-scraper-service"
+				"financial-scraper"
 			);
 			expect(result).toEqual(["i1", "i2"]);
 		});
@@ -194,9 +194,7 @@ describe("RedisInstanceStore", () => {
 		it("should return empty array when no instance IDs exist", async () => {
 			mockGetServiceInstanceIds.mockResolvedValue([]);
 
-			const result = await store.getInstances(
-				"financial-scraper-service" as never
-			);
+			const result = await store.getInstances("financial-scraper" as never);
 
 			expect(result).toEqual([]);
 		});
@@ -206,9 +204,7 @@ describe("RedisInstanceStore", () => {
 			const instance = makeInstance();
 			mockGetMetadatas.mockResolvedValue([instance]);
 
-			const result = await store.getInstances(
-				"financial-scraper-service" as never
-			);
+			const result = await store.getInstances("financial-scraper" as never);
 
 			expect(mockGetMetadatas).toHaveBeenCalled();
 			expect(result).toEqual([instance]);
@@ -260,12 +256,12 @@ describe("RedisInstanceStore", () => {
 
 	describe("listServiceNames", () => {
 		it("should delegate to reader.listServiceNames", async () => {
-			mockListServiceNames.mockResolvedValue(["financial-scraper-service"]);
+			mockListServiceNames.mockResolvedValue(["financial-scraper"]);
 
 			const result = await store.listServiceNames();
 
 			expect(mockListServiceNames).toHaveBeenCalled();
-			expect(result).toEqual(["financial-scraper-service"]);
+			expect(result).toEqual(["financial-scraper"]);
 		});
 	});
 
@@ -280,16 +276,14 @@ describe("RedisInstanceStore", () => {
 
 		it("should return snapshot of all instances grouped by service", async () => {
 			const instances = [makeInstance()];
-			mockListServiceNames.mockResolvedValue([
-				"financial-scraper-service" as never,
-			]);
+			mockListServiceNames.mockResolvedValue(["financial-scraper" as never]);
 			mockGetServiceInstanceIds.mockResolvedValue(["i1"]);
 			mockGetMetadatas.mockResolvedValue(instances);
 
 			const snapshot = await store.dump();
 
-			expect(snapshot["financial-scraper-service"]).toHaveLength(1);
-			expect(snapshot["financial-scraper-service"]![0]).toBe(instances[0]);
+			expect(snapshot["financial-scraper"]).toHaveLength(1);
+			expect(snapshot["financial-scraper"]![0]).toBe(instances[0]);
 		});
 	});
 });

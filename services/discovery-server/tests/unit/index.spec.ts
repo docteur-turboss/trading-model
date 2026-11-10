@@ -22,14 +22,16 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/domain/service-registry", () => {
-	const { ServiceRegistry } = jest.requireActual(
+	const { ServiceRegistry } = jest.requireActual<any>(
 		"../../src/domain/service-registry"
 	);
 	return { ServiceRegistry };
 });
 
 jest.mock("../../src/domain/lease-manager", () => {
-	const { LeaseManager } = jest.requireActual("../../src/domain/lease-manager");
+	const { LeaseManager } = jest.requireActual<any>(
+		"../../src/domain/lease-manager"
+	);
 	return { LeaseManager };
 });
 

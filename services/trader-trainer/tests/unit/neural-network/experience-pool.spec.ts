@@ -3,8 +3,8 @@ import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import {
 	createExperiencePool,
 	createPrioritizedExperiencePool,
-	type IPrioritizedExperiencePool,
 	type PerConfig,
+	type PrioritizedExperiencePoolPort,
 } from "../../../src/domain/neural-network/experience-pool";
 import {
 	type Experience,
@@ -81,7 +81,7 @@ describe("createExperiencePool", () => {
 		function makePerPool(
 			overrides: Partial<PerConfig> = {},
 			seed = 7
-		): { pool: IPrioritizedExperiencePool; ids: number[] } {
+		): { pool: PrioritizedExperiencePoolPort; ids: number[] } {
 			const pool = createPrioritizedExperiencePool(
 				100,
 				{ alpha: ALPHA, beta: 0.4, betaAnneal: false, ...overrides },
