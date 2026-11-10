@@ -677,6 +677,8 @@ verify_identity_without_mysql() {
 	$K -n "$NS" rollout restart deployment/spire-server
 	$K -n "$NS" rollout status deployment/spire-server --timeout=300s
 	wait_for 60 "$K -n $NS exec deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock"
+	# A datastore read: the entries are served from SQLite, not MySQL.
+	wait_for 60 "$K -n $NS exec deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server entry count -socketPath /run/spire/server-sockets/api.sock | grep -Eq '[1-9]'"
 	log "  SPIRE server healthy without MySQL"
 	$K -n "$NS" rollout restart deployment/discovery-server
 	$K -n "$NS" rollout status deployment/discovery-server --timeout=300s
