@@ -49,6 +49,7 @@
     "test": "bun run --filter '*' test",
     "test:coverage": "bun run --filter '*' test --coverage",
     "test:db": "bun run --filter '*' test:db",
+    "test:db:coverage": "bun run --filter '*' test:db --coverage",
     "test:contract": "bun run --filter trading-model-contract-tests test:contract",
     "test:e2e": "bun run --filter trading-model-e2e test:e2e",
     "test:e2e:docker": "bun run --filter trading-model-e2e test:docker",
