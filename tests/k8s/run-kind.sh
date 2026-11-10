@@ -1244,6 +1244,11 @@ verify_backup() {
 	$K -n "$NS" scale deployment/spire-server --replicas=0
 	$K -n "$NS" wait --for=delete pod -l app.kubernetes.io/component=spire-server --timeout=120s || true
 
+	# Accounts are not in the dumps (`mysql` schema excluded): lose the SPIRE
+	# one too, and recreate it as the runbook does, or SPIRE cannot log in.
+	mysql_root "DROP USER 'spire'@'%';"
+	(cd "$ROOT" && use_kube && bash deploy/k8s/scripts/run-migrations.sh "$NS" user-only)
+
 	log "restore drill: scripts/restore-k8s.sh --until $until on the fetched run"
 	started=$SECONDS
 	# The identity goes through stdin and is deleted after the restore. The

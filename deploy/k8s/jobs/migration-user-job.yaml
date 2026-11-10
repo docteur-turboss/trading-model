@@ -18,6 +18,12 @@
 #  REPLICATION CLIENT, SELECT on performance_schema, 3 connections at most, no
 #  application data. Password MYSQL_EXPORTER_PASSWORD (optional key, skipped
 #  when absent: the exporters then report mysql_up 0).
+#
+#  And the `spire` database and user of the SPIRE server datastore (issue
+#  #807): ALL PRIVILEGES on spire.* only, so the SPIRE pod never holds
+#  MYSQL_ROOT_PASSWORD. Password MYSQL_SPIRE_PASSWORD (required key:
+#  run-migrations.sh applies the SealedSecret before this Job, and this Job
+#  before the overlay that starts the new SPIRE server).
 # =============================================================================
 apiVersion: batch/v1
 kind: Job
@@ -75,6 +81,9 @@ spec:
               case "$epw" in
                 *[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_EXPORTER_PASSWORD must match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
               esac
+              case "$SPIRE_PASSWORD" in
+                ""|*[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_SPIRE_PASSWORD must be non-empty and match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
+              esac
               export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
               mysql -h mysql-primary -u root <<EOSQL
               CREATE USER IF NOT EXISTS 'migrator'@'%' IDENTIFIED BY '${pw}';
@@ -83,6 +92,13 @@ spec:
                 ON financial_scraper.* TO 'migrator'@'%';
               EOSQL
               echo "migrator user ready"
+              mysql -h mysql-primary -u root <<EOSQL
+              CREATE DATABASE IF NOT EXISTS spire;
+              CREATE USER IF NOT EXISTS 'spire'@'%' IDENTIFIED BY '${SPIRE_PASSWORD}';
+              ALTER USER 'spire'@'%' IDENTIFIED BY '${SPIRE_PASSWORD}';
+              GRANT ALL PRIVILEGES ON spire.* TO 'spire'@'%';
+              EOSQL
+              echo "spire user ready"
               if [ -n "$epw" ]; then
                 mysql -h mysql-primary -u root <<EOSQL
               CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '${epw}' WITH MAX_USER_CONNECTIONS 3;
@@ -123,6 +139,11 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: MYSQL_MIGRATE_PASSWORD
+            - name: SPIRE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_SPIRE_PASSWORD
             - name: RETENTION_PASSWORD
               valueFrom:
                 secretKeyRef:
