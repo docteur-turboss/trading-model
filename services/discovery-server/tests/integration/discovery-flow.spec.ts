@@ -222,12 +222,10 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		const snapshot = await registry.instanceStore.dump();
-		expect(
-			snapshot["financial-scraper" as ServiceInstanceName]
-		).toBeDefined();
-		expect(
-			snapshot["financial-scraper" as ServiceInstanceName]
-		).toHaveLength(1);
+		expect(snapshot["financial-scraper" as ServiceInstanceName]).toBeDefined();
+		expect(snapshot["financial-scraper" as ServiceInstanceName]).toHaveLength(
+			1
+		);
 	});
 
 	it("should verify instance names against known services", async () => {
