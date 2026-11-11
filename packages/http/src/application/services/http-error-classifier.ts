@@ -4,6 +4,7 @@ import {
 } from "../../adapters/outbound/http-client-errors";
 import { isRetryableStatus } from "../../infrastructure/http-retry";
 
+/** Tells whether a failed outbound call is worth retrying. */
 export function shouldRetry(error: Error): boolean {
 	if (isHttpClientTimeoutError(error)) {
 		return true;

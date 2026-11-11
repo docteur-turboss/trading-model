@@ -28,7 +28,7 @@ const TRAINER_ENV_SHAPE = {
 		.default(10),
 	/** Scalar fitness of the GA (ADR-0025). */
 	TRAINER_FITNESS_TYPE: z.enum(FitnessType).default(FitnessType.TotalPnl),
-	/** Kill switch (ADR-0039): false forces `total_pnl` whatever TRAINER_FITNESS_TYPE says. */
+	/** Feature flag (ADR-0039, fitness override): false forces `total_pnl` whatever TRAINER_FITNESS_TYPE says. */
 	FEATURE_RISK_ADJUSTED_FITNESS: featureFlag(true),
 	/** Show the agent its position; false to measure what it is worth (ADR-0025). */
 	TRAINER_OBSERVE_POSITION: z.stringbool().default(true),

@@ -1,5 +1,6 @@
 import type { TlsEnvVars } from "@trading-model/common/config/tls-paths";
 
+/** Environment variables read by the address manager, with the TLS variables. */
 export interface AddressManagerEnv extends TlsEnvVars {
 	ADDRESS_MANAGER_URL: string;
 	/** Registered in discovery: its major is the gateway prefix /v<major>. */

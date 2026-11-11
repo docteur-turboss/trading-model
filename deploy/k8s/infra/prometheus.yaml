@@ -261,6 +261,9 @@ data:
               type: A
               port: 9093
 
+    scrape_config_files:
+      - /etc/prometheus/kubelet-scrape.yml
+
     scrape_configs:
       - job_name: 'message-manager'
         scheme: https
@@ -517,44 +520,6 @@ data:
             port: 9093
 
       # ── Infrastructure (issue #601, ADR-0056) ──────────────────────
-      # Kubelet of every node, with this pod's ServiceAccount token and
-      # nodes/metrics (ClusterRole prometheus-nodes). The kubelet serving
-      # certificate is self-signed on most clusters (kind included), so it
-      # is not verified. Only the series the alerts and dashboards read
-      # are kept: the kubelet and cAdvisor expose thousands.
-      - job_name: 'kubelet'
-        scheme: https
-        authorization:
-          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-        tls_config:
-          insecure_skip_verify: true
-        kubernetes_sd_configs:
-          - role: node
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_node_name]
-            target_label: node
-        metric_relabel_configs:
-          - source_labels: [__name__]
-            regex: 'kubelet_volume_stats_(used|capacity|available)_bytes'
-            action: keep
-
-      - job_name: 'cadvisor'
-        scheme: https
-        metrics_path: /metrics/cadvisor
-        authorization:
-          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-        tls_config:
-          insecure_skip_verify: true
-        kubernetes_sd_configs:
-          - role: node
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_node_name]
-            target_label: node
-        metric_relabel_configs:
-          - source_labels: [__name__]
-            regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
-            action: keep
-
       # DaemonSet node-exporter (trading-model-node), on the host network.
       - job_name: 'node-exporter'
         kubernetes_sd_configs:
@@ -673,6 +638,47 @@ data:
             action: keep
           - source_labels: [__meta_kubernetes_pod_name]
             target_label: pod
+
+  kubelet-scrape.yml: |
+    scrape_configs:
+      # Kubelet of every node, with this pod's ServiceAccount token and
+      # nodes/metrics (ClusterRole prometheus-nodes). The serving certificate is
+      # verified against the cluster CA: the nodes need serverTLSBootstrap and
+      # approved CSRs (docs/deployment/KUBERNETES.md). Staging overlays replace
+      # this key to skip verification (kubelet certificates self-signed on kind).
+      # Only the series the alerts and dashboards read are kept.
+      - job_name: 'kubelet'
+        scheme: https
+        authorization:
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+        metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: 'kubelet_volume_stats_(used|capacity|available)_bytes'
+            action: keep
+
+      - job_name: 'cadvisor'
+        scheme: https
+        metrics_path: /metrics/cadvisor
+        authorization:
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+        metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
+            action: keep
 
   alerting.yml: |
     groups:
@@ -985,6 +991,27 @@ data:
               summary: 'MySQL retention job has not succeeded for 36 hours'
               description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
+
+          # -- Authentication failures and ACL denials -------------------
+
+          - alert: ApiAuthFailuresHigh
+            expr: 'sum by (job) (rate(gw_auth_failures_total[5m])) > 0.1'
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'API key authentication failures above 6 per minute'
+              description: 'The gateway rejected more than 6 requests per minute for 5 minutes (bad or missing API key): key brute force, a leaked or rotated key still in use, or a misconfigured client (runbook-auth-failures).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#apiauthfailureshigh'
+
+          - alert: MtlsAclDenials
+            expr: 'sum by (job) (increase(http_mtls_denials_total[5m])) > 0'
+            labels:
+              severity: warning
+            annotations:
+              summary: 'A service denied an mTLS or ACL request'
+              description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#mtlsacldenials'
 
           # ── Audit trail integrity (ADR-0027) ──────────────────────────
 

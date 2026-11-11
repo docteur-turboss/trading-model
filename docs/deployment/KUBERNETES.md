@@ -272,6 +272,10 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   :13133
 - **Jaeger:** 1 replica, OTLP gRPC receiver
 - **Prometheus:** StatefulSet, 50Gi PVC, 30d retention, mTLS scrape
+  (`kubelet` / `cadvisor` jobs: the kubelet certificate is verified by the cluster
+  CA in production, so the nodes need `serverTLSBootstrap: true` and approved
+  `kubelet-serving` CSRs; staging overlays skip the check. See
+  [runbook-infrastructure](../operations/runbooks/runbook-infrastructure.md))
 - **Grafana:** StatefulSet, 10Gi PVC, Prometheus + Jaeger datasources
 - **Loki + promtail:** promtail is a node agent (`trading-model-node`) tailing
   `/var/log/pods` of the application namespace

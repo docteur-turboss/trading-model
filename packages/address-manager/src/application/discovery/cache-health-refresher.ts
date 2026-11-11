@@ -26,6 +26,7 @@ function selectBatchSlice(
 	return { batch, nextOffset };
 }
 
+/** Scheduled job that re-checks cached service instances in batches. */
 export class CacheHealthRefresher implements ScheduledJob {
 	public readonly schedule: string;
 	private _batchOffset = 0;

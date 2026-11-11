@@ -8,6 +8,7 @@ import {
 import type { ServiceId } from "@trading-model/primitives/primitives";
 import type { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
 
+/** Caller identity read from the verified client certificate of a request. */
 export interface MtlsIdentityResult {
 	/** The raw client identity from the certificate SAN/CN. */
 	identity: ClientIdentity;
