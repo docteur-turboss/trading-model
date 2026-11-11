@@ -37,10 +37,12 @@ Slack is down: configure that external check to notify someone directly
 | Alert | Catches |
 | --- | --- |
 | `Watchdog` | the whole pipeline (through the external dead man's switch) |
-| `AlertmanagerNotificationsFailing` | a receiver that rejects notifications (wrong webhook, missing Pushover key) |
+| `AlertmanagerNotificationsFailing` | a receiver that rejects notifications (wrong webhook, missing Pushover key): at least 50 % of an integration's attempts failed over 15 min. One transient failure (DNS timeout) retried by the next send does not fire; an integration with no traffic does not fire |
 | `PrometheusRuleEvaluationFailures` | a rule that cannot be evaluated |
 | `ServiceDown` | a scrape target that is down, Alertmanager and Prometheus included |
 | `ServiceTargetsMissing` | an application service with no `up` series at all (0 replicas, Pending pods, broken scrape config), which `up == 0` cannot see |
+
+Dead man's switch margin: `Watchdog` is re-sent every minute (`repeat_interval: 1m`), so an isolated failed send is made up the next minute. Configure the heartbeat service with a 1 min period and a grace period of at least 10 min, or one transient failure pages as a false positive.
 
 ## High availability (production)
 
