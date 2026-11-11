@@ -22,7 +22,7 @@ All endpoints are mTLS-secured and served on **container port 3000**:
 
 | Method   | Path            | Description                                                      |
 | -------- | --------------- | ---------------------------------------------------------------- |
-| `POST`   | `/dlq`          | Store a new dead letter entry (`DlqEntryWire`, `@trading-model/validation/wire/dlq-entry`) |
+| `POST`   | `/dlq`          | Store a new dead letter entry; internal callers only, the gateway does not expose it (ADR-0059, #845) (`DlqEntryWire`, `@trading-model/validation/wire/dlq-entry`) |
 | `GET`    | `/dlq`          | List dead letter entries (query `topic`, `limit` 1–1000, `offset` or `cursor`) |
 | `DELETE` | `/dlq`          | Delete entries by id (body `{ "ids": [...] }`, 1 to 1000 ids)    |
 | `POST`   | `/dlq/replay`   | Replay entries to message-manager (query `topic`, `limit`, `batchId`) |
