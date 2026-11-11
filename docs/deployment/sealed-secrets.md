@@ -81,6 +81,15 @@ kubectl create secret generic trading-model-secrets -n trading-model   --from-li
 
 The final file must list ALL keys. `run-migrations.sh` refuses to apply a file that lacks a key of the live Secret. A file that adds a key is applied by `run-migrations.sh` before the migrations, which then wait for the controller to write the key: `db-migrate-user` and the database pods the overlay restarts see it (issue #698).
 
+### Removing an obsolete key (contract step, ADR-0040)
+
+`run-migrations.sh` compares the keys of the LIVE Secret with the file, not with what the previous release mounts. Remove a key in this order:
+
+1. Release N stops mounting the key (no `secretKeyRef` in `deploy/k8s`: `grep -r KEY deploy/k8s`). Publish it.
+2. Release N+1 removes the key from the SealedSecret file(s), `ci-render.mjs` and `init-sealed-secrets.sh`. The previous release (N) must be a published tag that no longer mounts it, otherwise its pods fail with `CreateContainerConfigError` on restart.
+3. Deploy N+1 with the GitHub environment variable `RETIRED_SECRET_KEYS="KEY"` (space-separated, read by `deploy.yml`): the guard then accepts the file without that key. The controller erases the key when the overlay is applied.
+4. Next release: stop passing it.
+
 ### Rotating secrets
 
 ```bash

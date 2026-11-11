@@ -74,7 +74,11 @@ apply_new_sealed_keys() {
   file=$(file_keys) || exit 1
   # The controller rewrites Secret.data from this file: a key of the live Secret
   # absent from encryptedData would be erased (MYSQL_ROOT_PASSWORD, SIGNING_SECRET...).
+  # RETIRED_SECRET_KEYS (space-separated): keys no release mounts any more, whose
+  # removal is intended (ADR-0040 contract step, docs/deployment/sealed-secrets.md).
   gone=$(keys_not_in "$live" "$file")
+  for k in ${RETIRED_SECRET_KEYS:-}; do gone=$(tr ' ' '
+' <<<"$gone" | grep -vx "$k" | paste -sd ' ' -) || true; done
   if [ -n "$gone" ]; then
     echo "::error::$SEALED_SECRETS_FILE has no entry for live key $gone: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md)."
     exit 1
