@@ -29,7 +29,7 @@ The 2026-09-13 architecture audit put MT4 on the mid-term roadmap: once ingestio
 
    The symbol state keeps snapshot histories (`orderBooks`, `bookTickers`, `tickers24h`, `prices`, bounded like the candles; order books reduced to one level per side, which keeps the averages and quantities the features read). Snapshots and trades are kept in time order; one that is not newer than the last (same trade id, same timestamp) is dropped and not counted. Consequence: an order book fetched right after a candle closes first shows at the next candle. Models published before this change were trained on leaked inputs; their metrics are not comparable.
 
-2. **Success criteria.** MT4 passes when every criterion holds on the out-of-sample track records, after the 0.1 % taker fee:
+2. **Success criteria.** MT4 passes when every criterion holds on the out-of-sample track records, after the 0.1 % taker fee (and, from [ADR-0064](./0064-simulated-fills-at-next-bar-open-with-execution-costs.md), after the next-open fill and 5 bps of half-spread and slippage):
 
    | Criterion | Threshold |
    | --- | --- |

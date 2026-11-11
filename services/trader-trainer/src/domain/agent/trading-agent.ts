@@ -32,13 +32,17 @@ export interface TradingAgentConfig {
 
 const VolumeDecimals = 1e8;
 
-type ActionExecutor = (wallet: WalletAPI, amount: Volume) => boolean;
+type ActionExecutor = (
+	wallet: WalletAPI,
+	amount: Volume,
+	fillPrice?: Price
+) => boolean;
 
 const ACTION_EXECUTORS: Record<TradeAction, ActionExecutor> = {
-	[TradeAction.Buy]: (wallet: WalletAPI, amount: Volume) =>
-		wallet.buy(Volume.of(amount)),
-	[TradeAction.Sell]: (wallet: WalletAPI, amount: Volume) =>
-		wallet.sell(Volume.of(amount)),
+	[TradeAction.Buy]: (wallet, amount, fillPrice) =>
+		wallet.buy(Volume.of(amount), fillPrice),
+	[TradeAction.Sell]: (wallet, amount, fillPrice) =>
+		wallet.sell(Volume.of(amount), fillPrice),
 	[TradeAction.Hold]: () => false,
 	[TradeAction.None]: () => false,
 };
@@ -94,10 +98,16 @@ export class TradingAgent {
 
 	/**
 	 * Marks the wallet to `price`, settles the previous decision's reward,
-	 * then decides and trades. A decision's reward is only known one step
-	 * later: the price move it is exposed to comes with the next price.
+	 * then decides and trades at `fillPrice` (the next bar's open, ADR-0064;
+	 * the marked price when omitted). The trade is sized on the marked price,
+	 * the only one known at decision time. A decision's reward is only known
+	 * one step later: the price move it is exposed to comes with the next price.
 	 */
-	public step(input: Float32Array, price?: Price): StepResult {
+	public step(
+		input: Float32Array,
+		price?: Price,
+		fillPrice?: Price
+	): StepResult {
 		if (price !== undefined) {
 			this.wallet.setPrice(price);
 		}
@@ -115,7 +125,8 @@ export class TradingAgent {
 		);
 		const executed = ACTION_EXECUTORS[action](
 			this.wallet,
-			this._tradeSize(action, amount)
+			this._tradeSize(action, amount),
+			fillPrice
 		);
 		this._pnlBeforeLastTrade = markedPnl;
 		this.state.decayEpsilon();

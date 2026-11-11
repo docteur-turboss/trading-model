@@ -82,7 +82,11 @@ function _runEvalEpisode(
 }
 
 function _step(backend: RLBackend, step: MarketStep): void {
-	backend.step({ features: step.features, price: step.price });
+	backend.step({
+		features: step.features,
+		price: step.price,
+		fillPrice: step.fillPrice,
+	});
 }
 
 export function evalPhase(ctx: GenomeEvaluationContext): EvaluationPnl {

@@ -96,8 +96,12 @@ export function trainPhase(ctx: TrainPhaseContext): void {
 	const pending: PendingDecision[] = [];
 
 	for (let index = 0; index < maxT; index += horizon.frameSkip) {
-		const { features, price } = trainData[index];
-		const { reward, action, state } = backend.step({ features, price });
+		const { features, price, fillPrice } = trainData[index];
+		const { reward, action, state } = backend.step({
+			features,
+			price,
+			fillPrice,
+		});
 		const last = pending[pending.length - 1];
 		if (last) {
 			last.reward = shaper.shape(reward);
