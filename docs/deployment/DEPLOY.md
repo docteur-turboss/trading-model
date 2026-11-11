@@ -120,9 +120,28 @@ required reviewer, allows self-review or has no `v*` tag rule
 (`scripts/check-environment-protection.mjs`). Reading these settings needs
 admin rights, so create the repository secret `ENVIRONMENT_READ_TOKEN`
 (fine-grained PAT, repository permission "Administration: read", this
-repository only). Also protect `staging` (required reviewer): the same check
-runs for a staging deploy but only logs warnings (a missing token or a failed
-check never blocks it). Exception: a staging deploy on the self-hosted runner
+repository only).
+
+Also limit the other two environments that hold secrets (issue #847; without a
+branch rule anyone with write access can push a branch whose workflow names the
+environment and prints its secrets):
+
+- `staging` (`KUBECONFIG_STAGING_*`, `BACKUP_S3_*`, `AUDIT_ANCHOR_*`): "Selected
+  branches and tags" with exactly the branches `development` and `main`.
+  A required reviewer is advised, not checked.
+- `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
+  backup): "Selected branches and tags" with exactly the branch `main`, and at
+  least one required reviewer. Set both **before** storing the escrow key. The
+  weekly run then waits for the reviewer's approval.
+
+The expected rules are the `RULES` table of the script. `backup-key-check.yml`
+runs its own `check-environment` job first and `verify-escrow-key` (the only
+job that reads the key) depends on it: a missing rule, a missing
+`ENVIRONMENT_READ_TOKEN` or an unreadable setting fails the run before the key
+is released. For a staging deploy the same check reports `::error::` in the
+preflight summary but never blocks the deploy (the token or the rule may be
+missing on a first local setup; the runner-approval check below blocks).
+Exception: a staging deploy on the self-hosted runner
 (`STAGING_RUNNER` set) fails when fork pull request workflows do not need
 approval for all external contributors, or when the token cannot read that
 setting ([STAGING_LOCAL.md](STAGING_LOCAL.md#runner-isolation), issue #842).

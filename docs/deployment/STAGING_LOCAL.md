@@ -17,6 +17,12 @@ The compose stack keeps `http://localhost:8449` (edge-proxy).
 
 ## Selection in deploy.yml
 
+- Environment `staging`: deployment branches limited to `development` and `main`
+  (Settings → Environments → "Selected branches and tags", no other rule). It
+  holds `KUBECONFIG_STAGING_*`, `BACKUP_S3_*` and `AUDIT_ANCHOR_*`: without the rule
+  a branch pushed by anyone with write access can print them (issue #847).
+  `check-environment` reports a missing rule as `::error::` in the preflight
+  summary without blocking the deploy ([DEPLOY.md](DEPLOY.md#prerequisites-secrets)).
 - Repository variable `STAGING_RUNNER` (`trading-staging`): `runs-on` label of the
   staging job. Unset: `ubuntu-latest`.
 - Variable `K8S_OVERLAY` of the environment `staging` (`staging-local`): the
