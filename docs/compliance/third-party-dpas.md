@@ -69,8 +69,10 @@ The financial-scraper collector also reads the public sources of its signal
 registry (`services/financial-scraper/src/config/signal-registry.json`). Each
 request is an unsigned HTTPS GET without key; only the request itself and its
 User-Agent are sent: `automated news analysis <SIGNAL_CONTACT_EMAIL>`. That
-e-mail, a dedicated project address of the operator, reaches every source
-(SEC EDGAR in the United States included); it is kept out of the public
+e-mail must be a functional, non-nominative address (a dedicated project alias,
+never a person's e-mail), so no personal data is sent. It reaches every source
+(SEC EDGAR, NWS and Wikimedia in the United States included; see the
+[register](data-processing-register.md), activity 1); it is kept out of the public
 repository (`.env`, GitHub environment secret).
 
 Every source must be free for any use, trading included: the registry only

@@ -28,7 +28,7 @@ This register documents the processing activities of the trading-model platform,
 | **Data categories**      | Trading symbols (e.g., BTCUSDT), numeric price/volume data, timestamps, market identifiers                                        |
 | **Personal data**        | None                                                                                                                              |
 | **Recipients**           | Internal: trader-trainer, audit-logger, message-manager                                                                           |
-| **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. See third-party assessment |
+| **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. Signal sources (ADR-0036): each request sends the User-Agent `automated news analysis <SIGNAL_CONTACT_EMAIL>` to ECB, SEC EDGAR (United States), NWS (United States) and Wikimedia (United States, Art. 44 transfer). `SIGNAL_CONTACT_EMAIL` must be a functional, non-nominative address (project alias, never a person's e-mail): then no personal data is sent and no Art. 44 transfer of personal data occurs. The real address stays out of the repository. See third-party assessment |
 | **Retention period**     | 1827 days (5 years, record-keeping, see [Data Retention Policy](data-retention-policy.md)): daily CronJob `db-retention` (`scripts/retention-mysql.sh`, `RETENTION_DAYS`; `signals` on `RETENTION_SIGNALS_DAYS`), ADR-0051 |
 | **Technical measures**   | mTLS (SPIFFE SVIDs), LUKS2 data disks, age-encrypted backups, RBAC service accounts                                               |
 | **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers, market_order_books, signals). `signals` (ADR-0036) holds numeric observations of public sources free for any use: bond yields (ECB), company filings (SEC EDGAR), weather observations (NWS), daily Wikipedia page views (Wikimedia, counts only); see [Third-Party DPAs](third-party-dpas.md#signal-sources-adr-0036) |
@@ -119,7 +119,7 @@ This register documents the processing activities of the trading-model platform,
 
 | Activity                 | Personal Data?      | Legal Basis         | Retention                    | Transfers                    |
 | ------------------------ | ------------------- | ------------------- | ---------------------------- | ---------------------------- |
-| Market Data Ingestion    | ❌ None             | —                   | 1827 days (`db-retention`) | Received from Binance        |
+| Market Data Ingestion    | ❌ None             | —                   | 1827 days (`db-retention`) | Received from Binance; functional contact address sent to signal sources (US included) |
 | Message Routing          | ❌ None             | —                   | Redis journal 24 h; DLQ 30 days       | None                         |
 | Audit Logging            | ❌ None             | —                   | 5 years (1827 days)          | None                         |
 | Workload Identity        | ❌ None             | —                   | 1h–168h                      | None                         |
