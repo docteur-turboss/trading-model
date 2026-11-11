@@ -28,6 +28,7 @@ describe("auto-retry-scheduler", () => {
 	});
 
 	afterEach(() => {
+		jest.restoreAllMocks();
 		jest.useRealTimers();
 	});
 
@@ -52,12 +53,13 @@ describe("auto-retry-scheduler", () => {
 	});
 
 	it("runs a tick after the jittered delay, even when a tick fails", async () => {
+		// Pin the jitter: random 0 => initial delay 0, then 30 s - 3 s.
+		jest.spyOn(Math, "random").mockReturnValue(0);
 		const t = setup();
 		t.tick.mockRejectedValueOnce(new Error("tick failed"));
 		t.scheduler.start();
 
-		// Worst case: initial jitter < 30 s, then 30 s + up to 3 s of jitter.
-		await jest.advanceTimersByTimeAsync(30000 * 2.1);
+		await jest.advanceTimersByTimeAsync(30000);
 
 		expect(t.tick).toHaveBeenCalled();
 		expect(t.logger.messages("error")).toContain("DLQ auto-retry tick failed");

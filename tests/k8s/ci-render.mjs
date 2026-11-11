@@ -37,8 +37,8 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 type: Opaque
 stringData:
-  AUTH_TOKENS: dev-token-change-me
-  SIGNING_SECRET: dev-signing-change-me
+  AUTH_TOKENS: dev:read+dlq:write:dev-token-0123456789abcdef0123456789abcdef
+  SIGNING_SECRET: dev-signing-0123456789abcdef0123456789abcdef
   SERVICE_BOOTSTRAP_TOKEN: dev-bootstrap-change-me
   MYSQL_ROOT_PASSWORD: dev-mysql-root
   MYSQL_PASSWORD: dev-mysql
@@ -48,7 +48,6 @@ stringData:
   MYSQL_EXPORTER_PASSWORD: dev-mysql-exporter
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
   GRAFANA_PASSWORD: dev-grafana
-  HMAC_SECRET: dev-hmac
   REDIS_INTERNAL_PASSWORD: dev-redis-internal-password
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
   REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password

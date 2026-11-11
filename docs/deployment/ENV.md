@@ -81,7 +81,7 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 | ----------------------------- | ------ | ---------------- | -------- | ---------------------------------- | -------- |
 | `CLEANUP_SERVICE_INTERVAL_MS` | number | `600000` (10min) | no       | Interval for expired lease cleanup | DS       |
 | `ERROR_URL_WEBHOOK`           | URL    | —                | no       | Error notification webhook         | DS       |
-| `SIGNING_SECRET`              | string | —                | **yes** in production | HMAC secret of the instance tokens; shared by the replicas, stable across restarts (random per process otherwise) | DS |
+| `SIGNING_SECRET`              | string | —                | **yes** in production | HMAC secret of the instance tokens (in production: at least 32 characters, no `change-me`; start refused otherwise); shared by the replicas, stable across restarts (random per process otherwise) | DS |
 | `REDIS_URL`                   | string | —                | no       | Redis URL for distributed registry | DS       |
 | `ALLOWED_REGISTRATION_CIDRS`  | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs allowed to register. Empty: the check is off; in production the service refuses to start | DS |
 
@@ -105,10 +105,10 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | --------------------- | ------ | -------------------------------- | -------- | ------------------------------- | -------- |
 | `DISCOVERY_SERVICE_URL` | URL  | `https://discovery-server:3000`  | **yes**  | Discovery server URL            | GW       |
 | `RATE_LIMIT_WINDOW_MS` | number | `60000`                         | no       | Rate limit window (ms)          | GW       |
-| `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window         | GW       |
+| `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window, per pod: effective limit per client = value x replicas (HPA 2-8), i.e. 200 to 800 per 60 s by default (ADR-0047) | GW       |
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
-| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is accepted for one release with every scope, named `legacy-<8 hex>`, with a warning (ADR-0059) | GW |
+| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is accepted for one release with every scope, named `legacy-<8 hex>`, with a warning (ADR-0059) | GW |
 | `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy request timeout           | GW       |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
 | `AUTH_STRICT`         | boolean (only `false` turns it off) | `true`              | no (`false` refused in production) | Strict API key check. `false` with no `AUTH_TOKENS` accepts any API key: in production the gateway refuses to start with `false` | GW |
@@ -149,7 +149,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `SCRAPE_SCHEDULER_ENABLED` | boolean (`true`/`1`) | `true`       | no       | Runs the scrape cron in this instance; `false` on HTTP-only replicas (K8s runs a single cron instance) | FS       |
 | `COLLECTOR_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the collector pods compete for; only its holder runs the crons (ADR-0057). Set on `financial-scraper-collector` in K8s; empty (compose, dev): this instance collects | FS |
 | `SIGNAL_COLLECTION_ENABLED` | boolean (`true`/`1`) | `true` | no | Collects the signal registry sources (ADR-0036) where the scrape cron runs; `false` in CI, which must not call the real sources | FS |
-| `SIGNAL_CONTACT_EMAIL` | string (e-mail) | empty | no | Contact e-mail in the User-Agent of the signal sources (SEC EDGAR answers 403 without one); never committed: `.env` for compose, GitHub environment secret for K8s. A value that is no e-mail disables the signal collection only | FS |
+| `SIGNAL_CONTACT_EMAIL` | string (e-mail) | empty | no | Contact e-mail in the User-Agent of the signal sources (SEC EDGAR answers 403 without one); must be a functional, non-nominative address (project alias, no personal data sent to the US sources, see data-processing-register.md); never committed: `.env` for compose, GitHub environment secret for K8s. A value that is no e-mail disables the signal collection only | FS |
 
 ---
 
@@ -271,9 +271,11 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `AUDIT_PORT`          | number | `8450`                  | Host port for audit-logger         | DC       |
 | `DLQ_PORT`            | number | `8452`                  | Host port for dlq-service          | DC       |
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
+| `EDGE_LIMIT_KEY_INC`  | path   | `./deploy/edge-proxy/edge-limit-key.inc` | Edge rate-limit key file; `edge-limit-key.off.inc` disables the limit for k6 load runs | DC |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
-| `GRAFANA_OIDC_ENABLED` | string | `false` (compose), unset (K8s) | `true` turns on Grafana OIDC login; off otherwise (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_ENABLED` | string | `false` (compose), unset (K8s) | `true` turns on Grafana OIDC login and hides the local login form (`GF_AUTH_DISABLE_LOGIN_FORM`, K8s); off otherwise (ADR-0063) | DC, K8s |
+| `GRAFANA_BASIC_AUTH_ENABLED` | string | unset (K8s) | Set `false` together with `GRAFANA_OIDC_ENABLED=true`: refuses `Authorization: Basic` on the public Ingress (`GF_AUTH_BASIC_ENABLED`); unset keeps Grafana's default (on). Break-glass: `runbook-grafana-break-glass.md` | K8s |
 | `GRAFANA_OIDC_CLIENT_ID` | string | (unset) | OIDC client id (ADR-0063) | DC, K8s |
 | `GRAFANA_OIDC_CLIENT_SECRET` | string | (unset) | OIDC client secret (K8s: key of `trading-model-secrets`) (ADR-0063) | DC, K8s |
 | `GRAFANA_OIDC_AUTH_URL` | string | (unset) | OIDC authorization endpoint (ADR-0063) | DC, K8s |

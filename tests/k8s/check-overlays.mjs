@@ -406,6 +406,11 @@ for (const env of OVERLAYS) {
 		if (!new RegExp(`- name: ${name}\\n\\s+valueFrom:\\n\\s+secretKeyRef:\\n(?:\\s+(?:name|key): \\S+\\n)*?\\s+optional: true`).test(grafana)) errors.push(`${env}: grafana ${name} must come from an optional Secret key (ADR-0063)`);
 	}
 
+	// Same Secret key drives the OIDC switch and the hidden login form (issue #856); basic auth has its own optional key.
+	for (const [name, key] of [["GF_AUTH_GENERIC_OAUTH_ENABLED", "GRAFANA_OIDC_ENABLED"], ["GF_AUTH_DISABLE_LOGIN_FORM", "GRAFANA_OIDC_ENABLED"], ["GF_AUTH_BASIC_ENABLED", "GRAFANA_BASIC_AUTH_ENABLED"]]) {
+		if (!new RegExp(`- name: ${name}\\n\\s+valueFrom:\\n\\s+secretKeyRef:\\n(?:\\s+\\S+: \\S+\\n)*?\\s+key: ${key}\\n(?:\\s+\\S+: \\S+\\n)*?\\s+optional: true`).test(grafana)) errors.push(`${env}: grafana ${name} must read optional Secret key ${key} (issue #856)`);
+	}
+
 	for (const name of SEALED_ONLY) {
 		if (docs.some((doc) => doc.kind === "Secret" && doc.name === name)) {
 			errors.push(`${env}: Secret ${name} must come from a SealedSecret`);

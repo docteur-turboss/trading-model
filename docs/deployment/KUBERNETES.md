@@ -113,6 +113,15 @@ or right after the overlay on a first deploy, when MySQL does not exist yet).
 > caller's. In production expose the controller with `externalTrafficPolicy:
 > Local` or a load balancer that keeps the source (PROXY protocol needs
 > `use-proxy-protocol`), and check once with a `curl` from a known address.
+>
+> **Rate limit at the edge.** `default.conf` applies `limit_req` (20 r/s per real
+> client address, burst 60) and `limit_conn` (50) on `/v<n>/`, answering 429;
+> `/ping` and `/health/ready` are not limited. The limit is per edge-proxy pod:
+> the effective limit is 20 r/s × replicas (2 to 5), i.e. 40 to 100 r/s, never
+> above the Ingress `limit-rps: 100` (`deploy/k8s/ingress/gateway-ingress.yaml`,
+> per client address too): the edge limit is the tighter one for 1 to 5 replicas
+> and the only one in compose. The gateway keeps its own `RATE_LIMIT_*` per
+> client identity.
 
 ### 2. Configure secrets
 
@@ -263,6 +272,10 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   :13133
 - **Jaeger:** 1 replica, OTLP gRPC receiver
 - **Prometheus:** StatefulSet, 50Gi PVC, 30d retention, mTLS scrape
+  (`kubelet` / `cadvisor` jobs: the kubelet certificate is verified by the cluster
+  CA in production, so the nodes need `serverTLSBootstrap: true` and approved
+  `kubelet-serving` CSRs; staging overlays skip the check. See
+  [runbook-infrastructure](../operations/runbooks/runbook-infrastructure.md))
 - **Grafana:** StatefulSet, 10Gi PVC, Prometheus + Jaeger datasources
 - **Loki + promtail:** promtail is a node agent (`trading-model-node`) tailing
   `/var/log/pods` of the application namespace

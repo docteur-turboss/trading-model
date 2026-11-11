@@ -129,7 +129,8 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
-          severity: CRITICAL
+          severity: CRITICAL,HIGH
+          # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
           ignore-unfixed: true
           exit-code: "1"
           trivyignores: .trivyignore
@@ -215,7 +216,8 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.image }}:${{ needs.version.outputs.tag }}
-          severity: CRITICAL
+          severity: CRITICAL,HIGH
+          # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
           ignore-unfixed: true
           exit-code: "1"
           trivyignores: .trivyignore

@@ -68,14 +68,17 @@ describe("env configuration", () => {
 		process.env.TLS_CA_PATH = "/certs/ca.pem";
 		process.env.ERROR_URL_WEBHOOK = "https://hooks.example.com/error";
 		process.env.ALLOWED_REGISTRATION_CIDRS = "10.0.0.0/8";
-		process.env.SIGNING_SECRET = "a-long-random-secret";
+		process.env.SIGNING_SECRET =
+			"a-long-random-secret-0123456789abcdef0123456789abcdef";
 
 		const { ENV } = require("../../src/infrastructure/config/env") as {
 			ENV: Record<string, unknown>;
 		};
 		expect(ENV.NODE_ENV).toBe("production");
 		expect(ENV.ALLOWED_REGISTRATION_CIDRS).toBe("10.0.0.0/8");
-		expect(ENV.SIGNING_SECRET).toBe("a-long-random-secret");
+		expect(ENV.SIGNING_SECRET).toBe(
+			"a-long-random-secret-0123456789abcdef0123456789abcdef"
+		);
 	});
 
 	it("should refuse to start in production without SIGNING_SECRET", () => {
@@ -91,6 +94,28 @@ describe("env configuration", () => {
 		);
 		errorSpy.mockRestore();
 	});
+
+	it.each(["x", "change-me-0123456789abcdef0123456789abcdef"])(
+		"should refuse a weak SIGNING_SECRET in production without logging it",
+		(secret) => {
+			const errorSpy = jest
+				.spyOn(console, "error")
+				.mockImplementation(() => {});
+			process.env.NODE_ENV = "production";
+			process.env.TLS_KEY_PATH = "/certs/key.pem";
+			process.env.TLS_CERT_PATH = "/certs/cert.pem";
+			process.env.TLS_CA_PATH = "/certs/ca.pem";
+			process.env.SIGNING_SECRET = secret;
+
+			expect(() => require("../../src/infrastructure/config/env")).toThrow(
+				"Environment validation failed"
+			);
+			const logged = JSON.stringify(errorSpy.mock.calls);
+			expect(logged).toContain("SIGNING_SECRET");
+			expect(logged).not.toContain(secret);
+			errorSpy.mockRestore();
+		}
+	);
 
 	it("should treat an empty SIGNING_SECRET as unset outside production", () => {
 		process.env.NODE_ENV = "development";

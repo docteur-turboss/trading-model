@@ -12,6 +12,7 @@ import type { TokenManager } from "./client/token-manager";
 import type { HeartbeatManager } from "./heartbeat-manager";
 import { SteadyStateScheduler } from "./scheduler/steady-state-scheduler";
 
+/** Options of LifecycleManager: registration, heartbeat, cache and intervals. */
 export interface LifecycleManagerOptions {
 	registrationManager: { tryStickyRegistration(): Promise<void> };
 	heartbeatManager: HeartbeatManager;
@@ -27,6 +28,7 @@ export interface LifecycleManagerOptions {
 	healthChecker: ServiceHealthChecker;
 }
 
+/** Handle returned by start: wait for readiness, stop, or leave the discovery. */
 export interface LifecycleHandle {
 	ready: Promise<void>;
 	stop: () => void;
@@ -37,6 +39,7 @@ export interface LifecycleHandle {
 	leave: () => Promise<void>;
 }
 
+/** Runs the registration, heartbeat and scheduled jobs of the service, from start to shutdown. */
 export class LifecycleManager {
 	private _started = false;
 

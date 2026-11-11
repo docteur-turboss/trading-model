@@ -309,6 +309,27 @@ groups:
           description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
 
+      # -- Authentication failures and ACL denials -------------------
+
+      - alert: ApiAuthFailuresHigh
+        expr: 'sum by (job) (rate(gw_auth_failures_total[5m])) > 0.1'
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'API key authentication failures above 6 per minute'
+          description: 'The gateway rejected more than 6 requests per minute for 5 minutes (bad or missing API key): key brute force, a leaked or rotated key still in use, or a misconfigured client (runbook-auth-failures).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#apiauthfailureshigh'
+
+      - alert: MtlsAclDenials
+        expr: 'sum by (job) (increase(http_mtls_denials_total[5m])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A service denied an mTLS or ACL request'
+          description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#mtlsacldenials'
+
       # ── Audit trail integrity (ADR-0027) ──────────────────────────
 
       - alert: AuditChainBroken
@@ -662,7 +683,11 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelartifactwritefailing'
 
       - alert: AlertmanagerNotificationsFailing
-        expr: sum by (integration) (increase(alertmanager_notifications_failed_total[1h])) > 0
+        expr: |
+          (
+            sum by (integration) (increase(alertmanager_notifications_failed_total[15m]))
+            or sum by (integration) (increase(alertmanager_notifications_total[15m])) * 0
+          ) / sum by (integration) (increase(alertmanager_notifications_total[15m])) >= 0.5
         for: 5m
         labels:
           severity: critical

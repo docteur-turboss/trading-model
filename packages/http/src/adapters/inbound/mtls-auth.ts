@@ -1,5 +1,6 @@
 import type { TLSSocket } from "node:tls";
 import type { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
+import { mtlsDenialsTotal } from "../../infrastructure/outbound-metrics";
 import { catchSync } from "./catch-error";
 import { resolveMtlsIdentity } from "./mtls-identity";
 import { ResponseException } from "./response-exception";
@@ -37,12 +38,14 @@ export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
 	if (!result) {
 		const socket = req.socket as TLSSocket;
 		if (typeof socket?.getPeerCertificate !== "function") {
+			mtlsDenialsTotal.inc({ reason: "non_tls" });
 			throw ResponseException({
 				error: "Non-TLS connection rejected",
 				reason: "mTLS authentication requires a TLS socket",
 			}).forbidden();
 		}
 		if (!socket.authorized) {
+			mtlsDenialsTotal.inc({ reason: "unauthorized_handshake" });
 			throw ResponseException({
 				error: "mTLS authorization failed",
 				reason: socket.authorizationError,
@@ -50,10 +53,12 @@ export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
 		}
 		const cert = socket.getPeerCertificate();
 		if (!cert || Object.keys(cert).length === 0) {
+			mtlsDenialsTotal.inc({ reason: "no_client_certificate" });
 			throw ResponseException({
 				error: "Client certificate required",
 			}).unauthorized();
 		}
+		mtlsDenialsTotal.inc({ reason: "identity_unresolved" });
 		throw ResponseException({
 			error: "Client identity could not be resolved",
 			reason: "Certificate has no SAN or CN",

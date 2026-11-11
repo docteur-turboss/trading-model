@@ -7,6 +7,7 @@ import { HeartbeatManager } from "./heartbeat-manager";
 import { RegistrationAttemptHandler } from "./registration-attempt-handler";
 import type { ServiceClientDeps } from "./types";
 
+/** Builds the registration manager from its dependencies. */
 export function buildRegistrationManager(
 	deps: ServiceClientDeps
 ): RegistrationAttemptHandler {
@@ -19,6 +20,7 @@ export function buildRegistrationManager(
 	});
 }
 
+/** Builds the heartbeat manager from its dependencies. */
 export function buildHeartbeatManager(
 	deps: ServiceClientDeps
 ): HeartbeatManager {
@@ -29,11 +31,13 @@ export function buildHeartbeatManager(
 	});
 }
 
+/** Registration and heartbeat managers built together. */
 export interface RegistrationAndHeartbeat {
 	registrationManager: RegistrationAttemptHandler;
 	heartbeatManager: HeartbeatManager;
 }
 
+/** Builds the registration and heartbeat managers together. */
 export function buildRegistrationAndHeartbeat(
 	deps: ServiceClientDeps
 ): RegistrationAndHeartbeat {

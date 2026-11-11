@@ -14,3 +14,12 @@ resources:
   - spiffe-csi-driver.yaml
   - promtail.yaml
   - node-exporter.yaml
+
+# Hash suffix: a changed agent.conf changes the DaemonSet pod template, so the
+# agents roll (a plain ConfigMap would leave them on the old file). Rendered
+# with -expandEnv: ${SPIRE_SERVER_ADDRESS} is set per environment.
+configMapGenerator:
+  - name: spire-agent-config
+    files: [agent.conf]
+    options:
+      labels: {app.kubernetes.io/component: spire-agent, app.kubernetes.io/part-of: trading-model}

@@ -120,9 +120,31 @@ required reviewer, allows self-review or has no `v*` tag rule
 (`scripts/check-environment-protection.mjs`). Reading these settings needs
 admin rights, so create the repository secret `ENVIRONMENT_READ_TOKEN`
 (fine-grained PAT, repository permission "Administration: read", this
-repository only). Also protect `staging` (required reviewer): the same check
-runs for a staging deploy but only logs warnings (a missing token or a failed
-check never blocks it).
+repository only).
+
+Also limit the other two environments that hold secrets (issue #847; without a
+branch rule anyone with write access can push a branch whose workflow names the
+environment and prints its secrets):
+
+- `staging` (`KUBECONFIG_STAGING_*`, `BACKUP_S3_*`, `AUDIT_ANCHOR_*`): "Selected
+  branches and tags" with exactly the branches `development` and `main`.
+  A required reviewer is advised, not checked.
+- `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
+  backup): "Selected branches and tags" with exactly the branch `main`, and at
+  least one required reviewer. Set both **before** storing the escrow key. The
+  weekly run then waits for the reviewer's approval.
+
+The expected rules are the `RULES` table of the script. `backup-key-check.yml`
+runs its own `check-environment` job first and `verify-escrow-key` (the only
+job that reads the key) depends on it: a missing rule, a missing
+`ENVIRONMENT_READ_TOKEN` or an unreadable setting fails the run before the key
+is released. For a staging deploy the same check reports `::error::` in the
+preflight summary but never blocks the deploy (the token or the rule may be
+missing on a first local setup; the runner-approval check below blocks).
+Exception: a staging deploy on the self-hosted runner
+(`STAGING_RUNNER` set) fails when fork pull request workflows do not need
+approval for all external contributors, or when the token cannot read that
+setting ([STAGING_LOCAL.md](STAGING_LOCAL.md#runner-isolation), issue #842).
 
 **Before the first production deploy**, the operating entity fills the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a)); the [privacy notice](../compliance/privacy-notice.md) points to them. The repository is public: commit no personal data, name the entity as your legal process requires.
 
@@ -276,7 +298,8 @@ the repository can check, and lists every gap in one run. What stays manual
    `MYSQL_RETENTION_PASSWORD`, `MYSQL_SPIRE_PASSWORD`, the Redis ACL and exporter passwords:
    [sealed-secrets.md](sealed-secrets.md), [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0056).
 5. **Environment secrets and variables**: `ALERTMANAGER_SLACK_WEBHOOK_URL`,
-   `ALERTMANAGER_DEADMAN_URL` (Pushover optional), `SIGNAL_CONTACT_EMAIL`,
+   `ALERTMANAGER_DEADMAN_URL`, `ALERTMANAGER_PUSHOVER_USER_KEY`,
+   `ALERTMANAGER_PUSHOVER_TOKEN` (all four required in staging and production), `SIGNAL_CONTACT_EMAIL`,
    `BACKUP_AGE_RECIPIENTS` (two distinct keys), `BACKUP_S3_*` for an Object Lock
    bucket ([Prerequisites (off-site backup bucket)](#prerequisites-off-site-backup-bucket),
    lifecycle rules not checked by the preflight), `AUDIT_ANCHOR_*` for the audit

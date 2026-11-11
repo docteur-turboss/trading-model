@@ -45,6 +45,9 @@ services:
     # and no long-lived token is stored. The runner credentials stay in the
     # volume runner-data, so restarts reuse the registration. No Docker socket:
     # the host Docker also runs other production stacks.
+    # Persistent runner on a public repository: deploy.yml refuses staging unless
+    # fork runs need approval for all external contributors; purge runner-data
+    # after any doubt (docs/deployment/STAGING_LOCAL.md, Runner isolation).
     image: myoung34/github-runner:2.338.2-ubuntu-noble@sha256:23e3a4a1da30de5b462ad0ae13d901288e803a688075c3b9b5bb79b7148c07fa
     container_name: trading-staging-runner
     environment:

@@ -8,18 +8,21 @@ import type {
 import type { ServiceInstance } from "../client/type";
 import type { CircuitStateStorePort } from "./circuit-state-store.port";
 
+/** Circuit breaker state as persisted: failures, last failure time and state. */
 export interface PersistedCircuitState {
 	failures: PositiveInt;
 	lastFailureTime: UnixTimestamp;
 	state: CircuitStateEnum;
 }
 
+/** Entry stored in the service cache. */
 export interface CacheSetEntry {
 	serviceName: ServiceId;
 	instance: ServiceInstance;
 	region?: Region;
 }
 
+/** Port of the service cache of discovered instances. */
 export interface ServiceCachePort {
 	/** Circuit-breaker state store used by this cache, so the cache can
 	 * compose (rather than inherit) the parallel circuit-state hierarchy. */

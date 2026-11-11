@@ -18,6 +18,7 @@ import type { ServiceDiscovery } from "./service-discovery";
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY_MS = 100;
 
+/** Retries a failed discovery call, bounded by the retry policy. */
 export class DiscoveryRetryHandler {
 	constructor(
 		private readonly _serviceDiscovery: ServiceDiscovery,

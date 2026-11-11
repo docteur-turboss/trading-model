@@ -45,7 +45,7 @@ All access to trading-model platform resources shall be authenticated, authorise
 Every service instance is provisioned with an X.509 SVID issued by the SPIRE Server after workload attestation. The SVID Subject Alternative Name (SAN) carries the SPIFFE ID `spiffe://trading-model.local/ns/<namespace>/sa/<service>`.
 
 | Identity | SPIFFE ID (SAN) | Issued By | Validity |
-|---|---|---|
+|---|---|---|---|
 | `discovery-server` | `spiffe://trading-model.local/ns/trading-model/sa/discovery-server` | SPIRE Server | 1h TTL (auto-rotated) |
 | `message-manager` | `spiffe://trading-model.local/ns/trading-model/sa/message-manager` | SPIRE Server | 1h TTL (auto-rotated) |
 | `financial-scraper` | `spiffe://trading-model.local/ns/trading-model/sa/financial-scraper` | SPIRE Server | 1h TTL (auto-rotated) |
@@ -101,7 +101,7 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 ### 5.1 Administrator Access
 
 | Resource | Access Method | Authentication | Authorisation |
-|---|---|---|
+|---|---|---|---|
 | API gateway admin endpoints (DLQ delete, replay, store) | HTTPS + API key | `x-api-key` header | scope `dlq:write` of the key in `AUTH_TOKENS` (403 without it); the key name is recorded as `actor` of the DLQ audit events (ADR-0059) |
 | Database (MySQL) | TLS 1.2+ (cert-manager server certificate, host name verified; plain TCP refused: `require_secure_transport=ON`, issue #767) | Username/password + SealedSecret **and** a cert-manager client certificate per user (`REQUIRE ISSUER / SUBJECT`) | NetworkPolicy: ports 3306 / 33061 only from the listed client components ([databases.md](../architecture/databases.md)); SQL grants |
 | Database (MongoDB) | Plain TCP in the cluster (no TLS, ADR-0060); operators through `kubectl exec` | None until issue #669 ships MongoDB authentication | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--message-manager-and-audit)); `kubectl exec` through Kubernetes RBAC |
@@ -119,7 +119,7 @@ In the event of SPIRE unavailability:
 
 ### 5.3 Grafana Break-Glass
 
-The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity provider is down: see [ADR-0063](../adr/0063-grafana-per-person-access-through-oidc.md). Each use is written in the incident log (who, why, when); rotate `GRAFANA_PASSWORD` afterwards.
+The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity provider is down: see [ADR-0063](../adr/0063-grafana-per-person-access-through-oidc.md) and the [runbook](../operations/runbooks/runbook-grafana-break-glass.md). Each use is written in the incident log (who, why, when); rotate `GRAFANA_PASSWORD` afterwards.
 
 ## 6. Access Review
 
