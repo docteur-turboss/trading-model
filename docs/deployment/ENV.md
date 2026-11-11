@@ -268,6 +268,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `AUDIT_PORT`          | number | `8450`                  | Host port for audit-logger         | DC       |
 | `DLQ_PORT`            | number | `8452`                  | Host port for dlq-service          | DC       |
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
+| `EDGE_LIMIT_KEY_INC`  | path   | `./deploy/edge-proxy/edge-limit-key.inc` | Edge rate-limit key file; `edge-limit-key.off.inc` disables the limit for k6 load runs | DC |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
 | `GRAFANA_OIDC_ENABLED` | string | `false` (compose), unset (K8s) | `true` turns on Grafana OIDC login; off otherwise (ADR-0063) | DC, K8s |

@@ -9,6 +9,7 @@ configMapGenerator:
       - default.conf
       - gateway.inc=gateway.k8s.inc
       - realip.inc=realip.k8s.inc
+      - edge-limit-key.inc
       - gateway-upstream.conf=gateway-upstream.k8s.conf
     options:
       labels:
