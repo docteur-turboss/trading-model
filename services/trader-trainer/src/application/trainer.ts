@@ -18,7 +18,10 @@ import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
-import type { ModelPublisherPort } from "../domain/ports/model-publisher.port";
+import type {
+	ModelPublisherPort,
+	StoredModelRef,
+} from "../domain/ports/model-publisher.port";
 import { validateTrainingPrerequisites } from "../domain/training-prerequisite-validator";
 import type { TrainingSettings } from "../domain/training-settings";
 import {
@@ -173,8 +176,10 @@ export class Trainer {
 			const result = await this._runSession(symbol, windowSets, signal);
 			TRAINING_SESSIONS_TOTAL.inc({ result: "success" });
 			BEST_FITNESS.set({ symbol }, result.bestFitness);
-			await this._storeModel(result);
-			await this._publishModel(symbol);
+			const stored = await this._storeModel(result);
+			if (stored) {
+				await this._publishModel(symbol, stored);
+			}
 			return result;
 		} catch (err) {
 			TRAINING_SESSIONS_TOTAL.inc({ result: "fail" });
@@ -220,8 +225,12 @@ export class Trainer {
 	/**
 	 * Writes the best agent as a versioned artifact. A failed write is logged
 	 * and counted: the training itself succeeded, its result stays usable.
+	 * Returns the stored artifact's identity, `undefined` when nothing was
+	 * stored (nothing may then be published).
 	 */
-	private async _storeModel(result: TrainingSuccess): Promise<void> {
+	private async _storeModel(
+		result: TrainingSuccess
+	): Promise<StoredModelRef | undefined> {
 		const models = this._deps.models;
 		if (!models) {
 			return;
@@ -252,6 +261,7 @@ export class Trainer {
 			getLogger().info("Model stored", {
 				context: { symbol: result.symbol, version: stored.version },
 			});
+			return { version: stored.version, sha256: stored.sha256 };
 		} catch (err) {
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "error" });
 			getLogger().error("Failed to store model artifact", {
@@ -263,7 +273,10 @@ export class Trainer {
 		}
 	}
 
-	private async _publishModel(symbol: TradingSymbol): Promise<void> {
+	private async _publishModel(
+		symbol: TradingSymbol,
+		stored: StoredModelRef
+	): Promise<void> {
 		const publisher = this._deps.publisher;
 		if (!publisher) {
 			return;
@@ -273,7 +286,7 @@ export class Trainer {
 			return;
 		}
 		try {
-			await publisher.publish(symbol, summary);
+			await publisher.publish(symbol, summary, stored);
 			getLogger().info("Model published", {
 				context: { symbol, agentId: summary.id },
 			});
