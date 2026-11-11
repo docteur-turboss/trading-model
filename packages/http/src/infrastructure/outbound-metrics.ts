@@ -18,3 +18,10 @@ export const outboundRequestsInFlight = new Gauge({
 	help: "Number of outbound HTTP requests currently in flight",
 	labelNames: ["service"] as const,
 });
+
+/** Inbound mTLS / ACL denials; `reason` is one of a fixed set of codes (bounded cardinality). */
+export const mtlsDenialsTotal = new Counter({
+	name: "http_mtls_denials_total",
+	help: "Total inbound requests denied by mTLS authentication or the service ACL, by reason",
+	labelNames: ["reason"] as const,
+});
