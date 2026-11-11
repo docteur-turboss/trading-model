@@ -65,6 +65,9 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 - **Default:** 100 requests per 60s window (configurable via `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX`)
 - **Response:** `429 Too Many Requests` with `retryAfter` in seconds
 - **Key:** the authenticated API client (`clientIdentity` from the token), falling back to the remote address. External requests all arrive from the `edge-proxy`, so a per-address limit would put every client in one bucket
+- **Per pod:** the store is in memory (no Redis in the gateway), so each pod counts on its own. With the HPA (`minReplicas: 2`, `maxReplicas: 8`, `deploy/k8s/config/api-gateway-autoscaling.yaml`) the effective limit per client is `RATE_LIMIT_MAX` x pods: 200 to 800 requests per 60 s window by default (100 x 2 to 100 x 8), assuming requests spread evenly over the pods.
+- **Three layers:** (1) Ingress `limit-rps: 100` (`deploy/k8s/ingress/gateway-ingress.yaml`); (2) edge-proxy `limit_req` per client address, per edge-proxy replica (`deploy/edge-proxy/default.conf`); (3) this limiter, per gateway pod. The gateway limit is a last guard per API client, not an exact quota.
+- **Accepted trade-off:** same choice as the dlq-service limiter ([ADR-0047](../adr/0047-redis-isolation-per-service.md)). A shared store (Redis) would be justified only if an exact per-client quota becomes a requirement (billing, contractual limit); it needs its own architecture decision.
 
 ## Caching
 
