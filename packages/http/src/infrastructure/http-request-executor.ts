@@ -30,6 +30,7 @@ import {
 
 const DEFAULT_TIMEOUT_MS = 10_000 as DurationMs;
 
+/** Inputs of one outbound request attempt: method, URL, options and response parser. */
 export interface RequestContext<TResponse> {
 	method: HttpMethod;
 	urlStr: URLString;
@@ -38,6 +39,7 @@ export interface RequestContext<TResponse> {
 	schema?: z.ZodType<TResponse>;
 }
 
+/** Executes outbound HTTP requests and records each outcome in the circuit recorder. */
 export class HttpRequestExecutor {
 	private readonly _circuitRecorder: CircuitRecorder;
 

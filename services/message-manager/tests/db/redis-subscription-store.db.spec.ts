@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "@jest/globals";
 import type { TopicBinding } from "@trading-model/primitives/topic-binding";
 import Redis from "ioredis";
 import { RedisSubscriptionStore } from "../../src/adapters/outbound/redis-subscription-store";
-import { SUBSCRIPTION_TTL_MS } from "../../src/application/ports/subscription-store-port";
+import { SUBSCRIPTION_TTL_MS } from "../../src/domain/ports/subscription-store.port";
 import { mockSubscribeParams } from "../fixtures/broker.fixture";
 
 const KEY_PREFIX = "message-manager-db-spec";

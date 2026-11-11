@@ -12,6 +12,7 @@ export const ErrorResponse = z.object({
 		.array(z.object({ field: z.string(), message: z.string() }))
 		.optional(),
 });
+/** Body shape of an error response sent by an API route. */
 export type ErrorResponse = z.output<typeof ErrorResponse>;
 
 /**
@@ -38,6 +39,7 @@ export interface BinaryBody {
 	readonly binary: string;
 }
 
+/** Response schema marker: the route answers with a binary body of this media type. */
 export function binary(mediaType: string): BinaryBody {
 	return { binary: mediaType };
 }
@@ -46,6 +48,7 @@ function isBinaryBody(value: unknown): value is BinaryBody {
 	return typeof value === "object" && value !== null && "binary" in value;
 }
 
+/** HTTP methods an API route can be mounted on. */
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /**
@@ -91,6 +94,7 @@ export interface ApiRouteInput<Route extends ApiRoute> {
 	body: Parsed<Route["body"]>;
 }
 
+/** Request parts as received from Express, before validation. */
 export interface RawRequest {
 	params?: unknown;
 	query?: unknown;
@@ -132,6 +136,7 @@ export function parseRequest<Route extends ApiRoute>(
 	if (details.length > 0) {
 		return { success: false, error: { error: "Validation failed", details } };
 	}
+	// as unknown as: Zod-parsed input narrowed to the route generic
 	return { success: true, input: input as unknown as ApiRouteInput<Route> };
 }
 

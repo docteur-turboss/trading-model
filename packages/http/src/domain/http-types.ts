@@ -6,7 +6,9 @@ import type {
 	ServiceId,
 } from "@trading-model/primitives/primitives";
 
+/** Header value: a string checked by HttpHeaderValue.of. */
 export type HttpHeaderValue = string & { readonly brand: "HttpHeaderValue" };
+/** Constructor and validator of HttpHeaderValue. */
 export const HttpHeaderValue = {
 	of(value: string): HttpHeaderValue {
 		if (typeof value !== "string") {
@@ -18,6 +20,7 @@ export const HttpHeaderValue = {
 	},
 };
 
+/** Header map of an HTTP request or response. */
 export type HttpHeaders = Record<string, string>;
 
 /**

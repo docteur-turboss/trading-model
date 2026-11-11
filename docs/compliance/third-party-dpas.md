@@ -17,7 +17,7 @@ The financial-scraper service fetches **market data only** from Binance's public
 | `GET /api/v3/ticker/price`      | Current price ticker                           |
 | `GET /api/v3/ticker/bookTicker` | Best bid/ask                                   |
 
-The scraper also calls `historicalTrades`, `aggTrades` and `ticker/tradingDay`, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
+The six endpoints above are the only ones called, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
 
 ### Regulatory Status (MiCA)
 
@@ -69,8 +69,10 @@ The financial-scraper collector also reads the public sources of its signal
 registry (`services/financial-scraper/src/config/signal-registry.json`). Each
 request is an unsigned HTTPS GET without key; only the request itself and its
 User-Agent are sent: `automated news analysis <SIGNAL_CONTACT_EMAIL>`. That
-e-mail, a dedicated project address of the operator, reaches every source
-(SEC EDGAR in the United States included); it is kept out of the public
+e-mail must be a functional, non-nominative address (a dedicated project alias,
+never a person's e-mail), so no personal data is sent. It reaches every source
+(SEC EDGAR, NWS and Wikimedia in the United States included; see the
+[register](data-processing-register.md), activity 1); it is kept out of the public
 repository (`.env`, GitHub environment secret).
 
 Every source must be free for any use, trading included: the registry only
@@ -99,6 +101,71 @@ sources, not processors, and no personal data received.
 | ECB, SEC EDGAR, NWS, Wikimedia | Signal sources (ADR-0036) | No | No — documented above |
 | GitHub Actions     | CI/CD pipeline      | No   | No — no data processed             |
 | Docker Hub / GHCR  | Container registry  | No   | No — infrastructure only           |
+| Slack or Discord   | Alert notifications | No (alert text) | to be confirmed by the operator — sheet below |
+| Pushover           | Critical alert paging | No (alert text) | to be confirmed by the operator — sheet below |
+| Dead man's switch  | Heartbeat of Watchdog | No | to be confirmed by the operator — sheet below |
+| Off-site S3 store  | Encrypted backups   | No (age-encrypted) | to be confirmed by the operator — sheet below |
+| Audit-anchor S3 bucket | Audit chain anchors | No (hashes) | to be confirmed by the operator — sheet below |
 | Prometheus/Grafana | Internal monitoring | No   | No — self-hosted, no external data |
 
-All monitoring, tracing, and logging infrastructure (Prometheus, Grafana, Jaeger, Loki) is self-hosted within the platform's own infrastructure. No third-party observability services are used.
+Monitoring, tracing and logging infrastructure (Prometheus, Grafana, Jaeger, Loki) is self-hosted. The alert receivers, the dead man's switch and the S3 stores below are external services chosen and contracted by the operating entity; the repository holds no contract or DPA with any of them.
+
+## Operator-chosen Services
+
+The repository neither signs a DPA nor picks a provider. The operating entity signs and records provider, region and contract. "to be confirmed by the operator" marks an answer that depends on the provider chosen and is not invented here.
+
+### Slack or Discord (alert webhook)
+
+| Field | Value |
+| ----- | ----- |
+| Role | Receives alert notifications (`slack_configs` of `observability/alertmanager.yml`; the webhook may be a Discord `/slack` endpoint). Channels `#alerts`, `#alerts-warning` |
+| Data sent | Alert name, severity, job (service) name, summary, description, runbook URL. No personal data by design (labels carry pod and service names; application logs are not sent) |
+| Region | Slack: data region chosen by the workspace owner; Discord: to be confirmed by the operator |
+| Processor? | Only if a message ever contains personal data (an operator's name in a description); the operators' own accounts are the provider's own processing |
+| Mechanism | Slack: customer DPA, SCCs and EU-US Data Privacy Framework per its public terms (to be confirmed by the operator); Discord: to be confirmed by the operator |
+| Signed by | Operating entity |
+
+### Pushover (critical paging)
+
+| Field | Value |
+| ----- | ----- |
+| Role | Pages the on-call operator for `severity="critical"` (`pushover_configs`, emergency priority) |
+| Data sent | Alert title, description and runbook URL, with the operator's Pushover user key and application token |
+| Region | to be confirmed by the operator |
+| Processor? | to be confirmed by the operator. The user key identifies the operator's own account |
+| Mechanism | to be confirmed by the operator: DPA, SCCs or DPF as offered by Pushover |
+| Signed by | Operating entity |
+
+### Dead man's switch (`DEADMAN_URL`)
+
+| Field | Value |
+| ----- | ----- |
+| Role | Receives the always-firing `Watchdog` every minute and pages when it stops. Provider chosen by the operator (`alertmanager.yml` cites healthchecks.io, Dead Man's Snitch and Better Stack as examples) |
+| Data sent | Alertmanager webhook body of `Watchdog` (fixed alert, nothing about users). The ping URL is a secret |
+| Region | to be confirmed by the operator (depends on the provider) |
+| Processor? | No personal data except the notification contact of the operator's account |
+| Mechanism | to be confirmed by the operator |
+| Signed by | Operating entity |
+
+### Off-site S3 store (backups, up to 5 years)
+
+| Field | Value |
+| ----- | ----- |
+| Role | Off-site copy of every backup (ADR-0032, ADR-0033): `BACKUP_S3_BUCKET`, Object Lock compliance mode |
+| Data sent | `.age` files only, encrypted before upload; the provider holds no key. Contents: dumps of activities 1–4 (no personal data, see the register) and the audit trail |
+| Region | Operator-set (`BACKUP_S3_REGION`), must be an EU region: `scripts/backup-bucket-check.sh` refuses any region outside `BACKUP_S3_ALLOWED_REGIONS` in production (warning elsewhere). Provider and region: to be confirmed by the operator |
+| Processor? | Storage only; the data is ciphertext to the provider. The register's position is that the dumps hold no personal data |
+| Mechanism | Provider DPA (to be confirmed by the operator); no transfer mechanism with an EU region and an EU-established provider |
+| Signed by | Operating entity |
+
+### Audit-anchor S3 bucket (ADR-0027)
+
+| Field | Value |
+| ----- | ----- |
+| Role | Holds the verified head of the audit hash chain (`AUDIT_ANCHOR_*`), Object Lock |
+| Data sent | Chain head hash and sequence number, no event content |
+| Region | Operator-set (`AUDIT_ANCHOR_REGION`, **`us-east-1` when unset** in `deploy.yml`): set it to an EU region. No automatic region check for this bucket yet. Provider and region: to be confirmed by the operator |
+| Processor? | Hashes only, no personal data; a DPA is advised if the provider also hosts the backups |
+| Mechanism | Same as the off-site store (to be confirmed by the operator) |
+| Signed by | Operating entity |
+

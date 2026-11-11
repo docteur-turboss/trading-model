@@ -50,7 +50,7 @@ Use **mutual TLS (mTLS)** for all inter-service HTTPS communication, with a dedi
 - Automatic certificate rotation via `certificate-client` bootstrap
 - CRL enables fast revocation of compromised services
 - Single internal CA simplifies trust management
-- All traffic encrypted (no plaintext internal communication)
+- All service-to-service HTTP traffic encrypted (database client traffic is plain TCP: ADR-0060)
 
 ### Negative
 

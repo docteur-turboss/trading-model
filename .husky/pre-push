@@ -3,7 +3,9 @@ bun run deps:check
 bun run api:check
 bun run adr:check
 bun run reach:check
+bun run arch:check
 bun run config:check
+bun run compliance:check
 bun scripts/observability-gate.mjs
 bun run build
 bun run typecheck:tests

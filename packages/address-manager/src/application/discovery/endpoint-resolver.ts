@@ -3,9 +3,9 @@ import {
 	normalizeServiceName,
 	registryNamesFor,
 } from "@trading-model/common/utils/spiffe";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	type DurationMs,
 	IPAddress,
@@ -96,7 +96,7 @@ export class EndpointResolver {
 			alive = await this._aliveInstance(serviceName, majorVersion);
 		} catch (error) {
 			// Registry unreachable: the last known answer beats a 404 on a healthy service.
-			logger.warn("Registry unreachable, serving last known target", {
+			getLogger().warn("Registry unreachable, serving last known target", {
 				context: { serviceName, majorVersion, error: String(error) },
 			});
 			return cached?.target ?? null;
@@ -165,7 +165,7 @@ export class EndpointResolver {
 					ServiceInstancesWire
 				);
 				if (!Array.isArray(instances)) {
-					logger.warn("Registry answered with a malformed body", {
+					getLogger().warn("Registry answered with a malformed body", {
 						context: { serviceName, alias: name },
 					});
 					lastError = new Error(`Malformed registry answer for "${name}"`);

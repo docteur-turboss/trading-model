@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { Span } from "@opentelemetry/api";
 import { SpanStatusCode } from "@opentelemetry/api";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type Limit,
 	type Topic,
 	toMessageId,
 } from "@trading-model/primitives/primitives";
-import type { DlqMetricsPort } from "../../domain/ports/dlq.ports";
+import type { DlqMetricsPort } from "../../domain/ports/dlq.port";
 import type {
 	ClaimReleasePort,
 	DlqReplaySettings,
@@ -15,7 +15,7 @@ import type {
 	MessageManagerLocatorPort,
 	ReplayAuditPort,
 	RetryLedgerPort,
-} from "../../domain/ports/replay.ports";
+} from "../../domain/ports/replay.port";
 import type { BatchResults, ReplayBatchOptions } from "../../shared/types";
 import { buildReplayResponse } from "./dlq-replay-response";
 
@@ -23,13 +23,20 @@ export interface ReplayRequest {
 	topic?: Topic;
 	limit: number;
 	batchId?: string;
+	/** API key name of the operator (ADR-0059), null when not called through api-gateway. */
+	actor: string | null;
 }
 
 /** Outcome of a manual replay; the inbound adapter maps it to an HTTP response. */
 export type ReplayResult =
 	| { status: "message-manager-unresolved" }
 	| { status: "no-entries" }
-	| { status: "replayed"; details: Record<string, unknown> };
+	| {
+			status: "replayed";
+			details: Record<string, unknown>;
+			/** False: replayed, but message-manager refused the audit event (ADR-0059). */
+			auditRecorded: boolean;
+	  };
 
 export interface ReplayEntriesDeps {
 	messageManager: MessageManagerLocatorPort;
@@ -51,7 +58,7 @@ async function _abandonExhaustedIfNeeded(
 	}
 	const abandoned = await deps.retryLedger.abandonExhaustedEntries();
 	if (abandoned > 0) {
-		logger.warn(
+		getLogger().warn(
 			`DLQ manual replay: ${abandoned} entries abandoned after max retries`
 		);
 	}
@@ -106,15 +113,17 @@ export function createReplayEntries(
 		span.setAttribute("failed", errors.length);
 
 		deps.metrics.batchReplayed(success, errors.length);
-		deps.audit.notifyReplay({
+		const auditRecorded = await deps.audit.notifyReplay({
 			batchId,
 			topic: request.topic,
 			success,
 			failed: errors.length,
+			actor: request.actor,
 		});
 		return {
 			status: "replayed",
 			details: buildReplayResponse(batchId, success, errors),
+			auditRecorded,
 		};
 	};
 }

@@ -1,5 +1,5 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { PositiveInt } from "@trading-model/primitives/primitives";
 import type { ServiceClientDeps } from "./types";
 
@@ -20,6 +20,7 @@ function _isRejectedToken(err: unknown): boolean {
 	return false;
 }
 
+/** Handles a failed heartbeat: re-registers after a 401 or repeated failures. */
 export class HeartbeatFailureHandler {
 	private _consecutiveHeartbeatFailures = 0;
 
@@ -32,7 +33,7 @@ export class HeartbeatFailureHandler {
 	): Promise<void> {
 		onFailure?.();
 		this._consecutiveHeartbeatFailures++;
-		logger.error("Heartbeat failed", {
+		getLogger().error("Heartbeat failed", {
 			consecutiveFailures: this._consecutiveHeartbeatFailures,
 			error: normalizeError(err),
 		});
@@ -54,7 +55,7 @@ export class HeartbeatFailureHandler {
 	}
 
 	private async _forceReRegistration(onSuccess?: () => void): Promise<void> {
-		logger.warn("Too many heartbeat failures — forcing re-registration");
+		getLogger().warn("Too many heartbeat failures — forcing re-registration");
 		await this._tryReRegistration(onSuccess);
 	}
 
@@ -62,7 +63,7 @@ export class HeartbeatFailureHandler {
 		if (!this._deps.addressManagerClient.hasIpChanged()) {
 			return;
 		}
-		logger.warn("Local IP changed, re-registering service");
+		getLogger().warn("Local IP changed, re-registering service");
 		await this._tryReRegistration();
 	}
 
@@ -74,7 +75,9 @@ export class HeartbeatFailureHandler {
 				this._deps.tokenManager.setToken(res.token);
 			}
 		} catch (err) {
-			logger.error("Re-registration failed", { error: normalizeError(err) });
+			getLogger().error("Re-registration failed", {
+				error: normalizeError(err),
+			});
 		}
 	}
 }

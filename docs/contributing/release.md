@@ -12,10 +12,13 @@ A release is a git tag `vX.Y.Z` pushed to `origin`. The tag triggers the **Relea
 | `bun run release` | Read the gitmoji commits since the last tag, bump the root version, set every `services/*/package.json` to it (the root version is the tag and the image tag; services have no version of their own) and bump the touched `packages/*` versions, prepend `CHANGELOG.md`. Does not commit, tag or push |
 | `bun run release:publish` | Same, then commit `:rocket:(release): vX.Y.Z`, create the annotated tag, `git push --follow-tags`. Refuses to run off `main`; merges `development` into `main` first; runs `bun run docs:generate` before the commit |
 | `--bump major\|minor\|patch`, `--version X.Y.Z` | Force the bump (`release:bump`, `release:version`; `--version` edits the root and the services `package.json`) |
+| `--prerelease <id>` (alone, or also with `--dry-run` or `--publish`) | Release `X.Y.Z-<id>.N` instead of `X.Y.Z`: commit `:rocket:(release): vX.Y.Z-<id>.N`, tag `vX.Y.Z-<id>.N`. `N` is 1 + the highest tag `vX.Y.Z-<id>.N`; the script runs `git fetch --tags` first (its failure is ignored, so without a reachable remote only local tags count). Cannot be combined with `--version`. An option value that is missing or starts with `-` (`--prerelease --dry-run`) exits 1 before anything is written |
 
 Automatic bump: a breaking commit (`:boom:`, `!:`) is major, a feature commit (`:sparkles:`, `:tada:`, `:label:`) is minor, anything else is patch.
 
-The script does not stop on a failed `commit`, `tag` or `push` and still prints "published". Check `git tag -l vX.Y.Z` and `git ls-remote --tags origin vX.Y.Z` afterwards.
+Prerelease tags never serve as a base. `X.Y.Z` is computed from the last **stable** tag (`git describe --exclude '*-*'`) and the commits since it, the release commits of earlier prereleases excluded; each touched `packages/*` is bumped from its version at that tag. So `v3.0.0` + a feature gives `3.1.0-rc.1`, then `3.1.0-rc.2`, then the stable `3.1.0`, and a library goes `1.0.0 → 1.1.0` once, not once per prerelease. An unknown option stops the script (exit 1) before anything is written. `bun run release:test` (CI `lint` job) runs these cases on a throwaway git repository.
+
+`--publish` stops with exit 1, the failing command and its stderr when `git add`, `commit`, `tag` or `push` fails, and checks with `git ls-remote --tags origin vX.Y.Z` that the tag reached `origin` before printing "published".
 
 ## 2. Workflow "Release"
 
@@ -63,7 +66,7 @@ A human runs every step: merging to `main`, pushing the tag and deploying are ne
    bun run release:publish
    ```
 
-3. Check that the tag reached `origin` (the script prints "published" even when a step failed):
+3. Check that the tag reached `origin` (the script already checks it; this is a second look):
 
    ```bash
    git tag -l vX.Y.Z
@@ -95,3 +98,7 @@ A human runs every step: merging to `main`, pushing the tag and deploying are ne
    ```
 
    The run must pass "Resolve image digests", the rollout and the smoke test. Production follows the same way once staging is verified ([DEPLOY.md](../deployment/DEPLOY.md#production-deployment)).
+
+## Compatibility with the previous release (ADR-0061)
+
+CI fails a PR that breaks the public OpenAPI (`oasdiff breaking`) or a bus message schema against the last stable tag. Locally: `bun run contracts:write` after changing a message schema, then `bun run contracts:compat`. Allowed: optional fields, enum values, routes added. A forbidden change is split over two releases; an intentional break is declared in `docs/services/events/breaking-exceptions.json` (messages, the exact line printed) or `docs/services/openapi/oasdiff-ignore.txt` (OpenAPI), reviewed in the PR.

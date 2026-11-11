@@ -22,13 +22,14 @@ JOBS="$(dirname "${BASH_SOURCE[0]}")/../jobs"
 # Jobs run once: drop the previous runs (kept ttlSecondsAfterFinished) so a new
 # deploy applies again. The user job is idempotent and runs as root; the
 # migrations themselves run as the least-privilege `migrator` user.
+# The Job's activeDeadlineSeconds is multiplied by DEPLOY_TIMEOUT_FACTOR like the
+# wait-job.sh timeout: otherwise a slow cluster has the Job killed at its base
+# deadline while still waited for (issue #760).
 run_job() { # <job> <manifest>
   kubectl delete job "$1" -n "$NS" --ignore-not-found
-  if [ -n "${MIGRATE_IMAGE:-}" ]; then
-    sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE}#" "$2" | kubectl apply -n "$NS" -f -
-  else
-    kubectl apply -n "$NS" -f "$2"
-  fi
+  sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" "$2" |
+    awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
+    kubectl apply -n "$NS" -f -
   bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" "$1" 180
 }
 
@@ -73,7 +74,11 @@ apply_new_sealed_keys() {
   file=$(file_keys) || exit 1
   # The controller rewrites Secret.data from this file: a key of the live Secret
   # absent from encryptedData would be erased (MYSQL_ROOT_PASSWORD, SIGNING_SECRET...).
+  # RETIRED_SECRET_KEYS (space-separated): keys no release mounts any more, whose
+  # removal is intended (ADR-0040 contract step, docs/deployment/sealed-secrets.md).
   gone=$(keys_not_in "$live" "$file")
+  for k in ${RETIRED_SECRET_KEYS:-}; do gone=$(tr ' ' '
+' <<<"$gone" | grep -vx "$k" | paste -sd ' ' -) || true; done
   if [ -n "$gone" ]; then
     echo "::error::$SEALED_SECRETS_FILE has no entry for live key $gone: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md)."
     exit 1

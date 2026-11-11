@@ -67,6 +67,8 @@ All developers contributing to the codebase. Every architectural decision aims t
 | Formatting   | Biome                                                |
 | Linting      | Biome                                                |
 
+Layer boundaries (`application/` never imports `adapters/` or `infrastructure/`, except `index.ts`, `server.ts`, `telemetry.ts`) and the absence of runtime import cycles are enforced by `bun run arch:check`, ratcheted on `scripts/architecture-baseline.json` ([ADR-0015](../adr/0015-hexagonal-layering-completion.md)).
+
 ## Dependency Graph
 
 Shared packages (base → derived):
@@ -120,7 +122,7 @@ There is no frontend workspace: `admin-interface` was removed until a new one is
 
 ## Workload Identity & Security Model
 
-- All inter-service communication uses **HTTPS with mutual TLS** (mTLS).
+- All service-to-service HTTP communication uses **HTTPS with mutual TLS** (mTLS); database client traffic is not encrypted (ADR-0060).
 - Workload identity is provided by **SPIFFE/SPIRE** (ADR-0011): each workload is
   attested and issued short-lived X.509-SVIDs (with a `spiffe://` URI SAN),
   consumed via `spiffe-helper` sidecars. The former in-house CA and
@@ -185,6 +187,7 @@ Rules:
 
 - `index.ts` and `server.ts` are the **only** files of `application/` allowed to touch adapters/infrastructure, and only for startup concerns. They obtain their collaborators from `config/container.ts` and never `new` an adapter themselves.
 - Every other file of `application/` depends on ports only.
+- **Ports**: type `XxxPort` (never an `I` prefix), file `xxx.port.ts` (never `-port.ts` / `.ports.ts`), located in `domain/ports/` (several ports of one concern may share a file). Non-port interfaces: `xxx.interface.ts`; MySQL schemas: `xxx.schema.ts`.
 - Containers take environment values **as parameters** (`createDiscoveryApp(ENV)`, `createScrapeScheduler(ENV)`) rather than importing `ENV`, so they can be imported by tests without environment validation.
 
 ### Entry Point (`src/application/index.ts`)

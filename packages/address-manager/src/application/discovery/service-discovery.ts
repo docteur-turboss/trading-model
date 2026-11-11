@@ -4,18 +4,20 @@ import { toServiceId } from "@trading-model/primitives/primitives";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
-import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import { ServiceResolver } from "./service-resolver";
 
+/** Dependencies of ServiceDiscovery. */
 export interface ServiceDiscoveryDeps {
 	httpClient: HttpClient;
-	serviceCache: IServiceCache;
+	serviceCache: ServiceCachePort;
 	config: AddressManagerConfig;
 	healthChecker: ServiceHealthChecker;
 }
 
+/** Asks the discovery server for service instances and caches the answers. */
 export class ServiceDiscovery {
-	private readonly _serviceCache: IServiceCache;
+	private readonly _serviceCache: ServiceCachePort;
 	private readonly _healthChecker: ServiceHealthChecker;
 	private readonly _resolver: ServiceResolver;
 

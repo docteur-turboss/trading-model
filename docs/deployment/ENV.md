@@ -81,7 +81,7 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 | ----------------------------- | ------ | ---------------- | -------- | ---------------------------------- | -------- |
 | `CLEANUP_SERVICE_INTERVAL_MS` | number | `600000` (10min) | no       | Interval for expired lease cleanup | DS       |
 | `ERROR_URL_WEBHOOK`           | URL    | —                | no       | Error notification webhook         | DS       |
-| `SIGNING_SECRET`              | string | —                | **yes** in production | HMAC secret of the instance tokens; shared by the replicas, stable across restarts (random per process otherwise) | DS |
+| `SIGNING_SECRET`              | string | —                | **yes** in production | HMAC secret of the instance tokens (in production: at least 32 characters, no `change-me`; start refused otherwise); shared by the replicas, stable across restarts (random per process otherwise) | DS |
 | `REDIS_URL`                   | string | —                | no       | Redis URL for distributed registry | DS       |
 | `ALLOWED_REGISTRATION_CIDRS`  | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs allowed to register. Empty: the check is off; in production the service refuses to start | DS |
 
@@ -105,10 +105,10 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | --------------------- | ------ | -------------------------------- | -------- | ------------------------------- | -------- |
 | `DISCOVERY_SERVICE_URL` | URL  | `https://discovery-server:3000`  | **yes**  | Discovery server URL            | GW       |
 | `RATE_LIMIT_WINDOW_MS` | number | `60000`                         | no       | Rate limit window (ms)          | GW       |
-| `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window         | GW       |
+| `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window, per pod: effective limit per client = value x replicas (HPA 2-8), i.e. 200 to 800 per 60 s by default (ADR-0047) | GW       |
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
-| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma/whitespace-separated valid tokens | GW |
+| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is accepted for one release with every scope, named `legacy-<8 hex>`, with a warning (ADR-0059) | GW |
 | `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy request timeout           | GW       |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
 | `AUTH_STRICT`         | boolean (only `false` turns it off) | `true`              | no (`false` refused in production) | Strict API key check. `false` with no `AUTH_TOKENS` accepts any API key: in production the gateway refuses to start with `false` | GW |
@@ -149,7 +149,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `SCRAPE_SCHEDULER_ENABLED` | boolean (`true`/`1`) | `true`       | no       | Runs the scrape cron in this instance; `false` on HTTP-only replicas (K8s runs a single cron instance) | FS       |
 | `COLLECTOR_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the collector pods compete for; only its holder runs the crons (ADR-0057). Set on `financial-scraper-collector` in K8s; empty (compose, dev): this instance collects | FS |
 | `SIGNAL_COLLECTION_ENABLED` | boolean (`true`/`1`) | `true` | no | Collects the signal registry sources (ADR-0036) where the scrape cron runs; `false` in CI, which must not call the real sources | FS |
-| `SIGNAL_CONTACT_EMAIL` | string (e-mail) | empty | no | Contact e-mail in the User-Agent of the signal sources (SEC EDGAR answers 403 without one); never committed: `.env` for compose, GitHub environment secret for K8s. A value that is no e-mail disables the signal collection only | FS |
+| `SIGNAL_CONTACT_EMAIL` | string (e-mail) | empty | no | Contact e-mail in the User-Agent of the signal sources (SEC EDGAR answers 403 without one); must be a functional, non-nominative address (project alias, no personal data sent to the US sources, see data-processing-register.md); never committed: `.env` for compose, GitHub environment secret for K8s. A value that is no e-mail disables the signal collection only | FS |
 
 ---
 
@@ -197,6 +197,7 @@ Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host 
 | `RETENTION_BATCH_SIZE`    | number (≥1) | `10000`           | no       | Rows per `DELETE ... LIMIT` | retention job |
 | `RETENTION_PAUSE_SECONDS` | number (≥0) | `1`               | no       | Pause between two batches | retention job |
 | `MYSQL_RETENTION_PASSWORD` | string | —                      | **yes** in K8s | Password of MySQL user `retention` (SELECT, DELETE on the five tables). Key of Secret `trading-model-secrets`, read by `db-migrate-user` and `db-retention` | retention job |
+| `MYSQL_SPIRE_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** in K8s | Password of MySQL user `spire` (`ALL PRIVILEGES` on `spire.*` only), created with the `spire` database by `db-migrate-user`, read by the SPIRE server (`-expandEnv`). The SPIRE pod no longer gets `MYSQL_ROOT_PASSWORD` (issue #807). Compose uses SQLite | spire-server |
 
 ---
 
@@ -208,9 +209,9 @@ Passwords of the read-only users of the exporter sidecars (`docs/architecture/da
 | ------------------------- | ------ | ------- | -------- | ----------- | -------- |
 | `MYSQL_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** (K8s and compose) | Password of MySQL user `exporter`, created by `db-migrate-user` (K8s) or `mysql-exporter-user` (compose), read by the `mysqld-exporter` sidecars | mysqld-exporter |
 | `REDIS_EXPORTER_PASSWORD` | string | — | **yes** in K8s | Password of the Redis ACL user `exporter` (`redis-ha.sh`, data nodes and sentinels), read by the `redis-exporter` sidecars | redis-exporter |
-| `MONGO_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.-]`) | — | **yes** (K8s and compose) | Password of MongoDB user `exporter` (`clusterMonitor`, ADR-0059), read by the `mongodb_exporter` sidecars | mongodb-exporter |
+| `MONGO_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.-]`) | — | **yes** (K8s and compose) | Password of MongoDB user `exporter` (`clusterMonitor`, ADR-0066), read by the `mongodb_exporter` sidecars | mongodb-exporter |
 
-## MongoDB users (ADR-0059)
+## MongoDB users (ADR-0066)
 
 One user per client, created by `deploy/mongo/users.js` (K8s Jobs `mongo-dlq-users` / `mongo-audit-users`, compose `mongo-users`). K8s: keys of Secret `trading-model-secrets`, all checked by `deploy.yml`. Compose: `.env` (characters `[A-Za-z0-9_.-]`, all required).
 
@@ -283,15 +284,33 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `AUDIT_PORT`          | number | `8450`                  | Host port for audit-logger         | DC       |
 | `DLQ_PORT`            | number | `8452`                  | Host port for dlq-service          | DC       |
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
+| `EDGE_LIMIT_KEY_INC`  | path   | `./deploy/edge-proxy/edge-limit-key.inc` | Edge rate-limit key file; `edge-limit-key.off.inc` disables the limit for k6 load runs | DC |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
+| `GRAFANA_OIDC_ENABLED` | string | `false` (compose), unset (K8s) | `true` turns on Grafana OIDC login and hides the local login form (`GF_AUTH_DISABLE_LOGIN_FORM`, K8s); off otherwise (ADR-0063) | DC, K8s |
+| `GRAFANA_BASIC_AUTH_ENABLED` | string | unset (K8s) | Set `false` together with `GRAFANA_OIDC_ENABLED=true`: refuses `Authorization: Basic` on the public Ingress (`GF_AUTH_BASIC_ENABLED`); unset keeps Grafana's default (on). Break-glass: `runbook-grafana-break-glass.md` | K8s |
+| `GRAFANA_OIDC_CLIENT_ID` | string | (unset) | OIDC client id (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_CLIENT_SECRET` | string | (unset) | OIDC client secret (K8s: key of `trading-model-secrets`) (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_AUTH_URL` | string | (unset) | OIDC authorization endpoint (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_TOKEN_URL` | string | (unset) | OIDC token endpoint (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_API_URL` | string | (unset) | OIDC userinfo endpoint (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_ALLOWED_DOMAINS` | string | (unset) | E-mail domains allowed to log in; required in production K8s (ADR-0063) | DC, K8s |
+| `GRAFANA_ROOT_URL` | string | `http://localhost:3000/` (compose) | Public Grafana URL, base of the OIDC `redirect_uri`; K8s: `https://grafana.<host>/` of the ingress (ADR-0063) | DC, K8s |
 | `MYSQL_EXPORTER_PASSWORD` | string | (required)          | Password of the read-only MySQL user `exporter` of mysqld-exporter (ADR-0056) | DC |
-| `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` | string | (required) | MongoDB users (ADR-0059), see "MongoDB users" above | DC |
+| `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` | string | (required) | MongoDB users (ADR-0066), see "MongoDB users" above | DC |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
 | `IMAGE_TAG`           | string | `latest`                | Image tag to pull                  | DC       |
 | `APP_VERSION`         | string | `1.0.0`                 | Version tag for Docker images      | DC       |
 | `INSTANCE_ID`         | string | `instance-1`            | Instance identifier for deployment | DC       |
+
+---
+
+## Deploy workflow (GitHub environment variables)
+
+| Variable | Type | Default | Description |
+| -------- | ---- | ------- | ----------- |
+| `BACKUP_S3_ALLOWED_REGIONS` | space-separated list | EU regions of AWS (`eu-*`), Scaleway (`fr-par nl-ams pl-waw`), OVH (`gra sbg rbx par`) | Regions the off-site backup bucket may be in. `deploy.yml` runs `scripts/backup-bucket-check.sh`: a bucket elsewhere, or whose region cannot be read, is an error in production and a warning elsewhere (`BACKUP_S3_IMMUTABILITY_CHECK=warn` downgrades both). GDPR art. 44, `docs/compliance/third-party-dpas.md` |
 
 ---
 
@@ -354,7 +373,7 @@ TRAINER_FITNESS_TYPE=total_pnl
 TRAINER_OBSERVE_POSITION=true
 
 # API Gateway auth
-AUTH_TOKENS=token1 token2
+AUTH_TOKENS=ops-alice:read+dlq:write:token1,grafana:read:token2
 
 # Error webhook (optional)
 ERROR_URL_WEBHOOK=

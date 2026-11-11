@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "@jest/globals";
 import type {
 	AuthToken,
 	InstanceId,
+	IPAddress,
 	Port,
 	ServiceId,
 	UnixTimestamp,
@@ -39,13 +40,13 @@ describe("ServiceRegistry", () => {
 		it("should register a new instance and return it with a token", async () => {
 			const result = await registry.registerInstance(validServiceInstance());
 			expect(result.instanceId).toBe("test-instance-1");
-			expect(result.serviceName).toBe("financial-scraper-service");
+			expect(result.serviceName).toBe("financial-scraper");
 			expect(result.registeredAt).toBeGreaterThan(0);
 			expect(result.lastHeartbeat).toBeGreaterThan(0);
 			expect(result).toHaveProperty("token");
 			expect(setRegisteredInstances).toHaveBeenLastCalledWith(1);
 			expect(setRegisteredInstancesPerService).toHaveBeenCalledWith(
-				"financial-scraper-service",
+				"financial-scraper",
 				1
 			);
 		});
@@ -81,7 +82,7 @@ describe("ServiceRegistry", () => {
 		it("should update heartbeat and return TTL", async () => {
 			await registry.registerInstance(validServiceInstance());
 			const result = registry.instanceStore.updateHeartbeat({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "test-instance-1" as InstanceId,
 			});
 			expect(result).toBe(30_000);
@@ -98,7 +99,7 @@ describe("ServiceRegistry", () => {
 		it("should return false for unknown instance", async () => {
 			await registry.registerInstance(validServiceInstance());
 			const result = registry.instanceStore.updateHeartbeat({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "unknown-instance" as InstanceId,
 			});
 			expect(result).toBe(false);
@@ -129,14 +130,14 @@ describe("ServiceRegistry", () => {
 		it("should return all instances for a service", async () => {
 			await registry.registerInstance(validServiceInstance());
 			await registry.registerInstance(secondServiceInstance());
-			const instances = registry.instanceStore.getInstances(
-				"financial-scraper-service" as unknown as ServiceInstanceName
+			const instances = await registry.instanceStore.getInstances(
+				"financial-scraper" as unknown as ServiceInstanceName
 			);
 			expect(instances).toHaveLength(2);
 		});
 
 		it("should return empty array for unknown service", async () => {
-			const instances = registry.instanceStore.getInstances(
+			const instances = await registry.instanceStore.getInstances(
 				"unknown-service" as unknown as ServiceInstanceName
 			);
 			expect(instances).toEqual([]);
@@ -146,8 +147,8 @@ describe("ServiceRegistry", () => {
 	describe("getInstance", () => {
 		it("should return a specific instance", async () => {
 			await registry.registerInstance(validServiceInstance());
-			const instance = registry.instanceStore.getInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+			const instance = await registry.instanceStore.getInstance({
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "test-instance-1" as InstanceId,
 			});
 			expect(instance).toBeDefined();
@@ -155,7 +156,7 @@ describe("ServiceRegistry", () => {
 		});
 
 		it("should return undefined for unknown service", async () => {
-			const instance = registry.instanceStore.getInstance({
+			const instance = await registry.instanceStore.getInstance({
 				serviceName: "unknown-service" as ServiceId,
 				instanceId: "test-instance-1" as InstanceId,
 			});
@@ -164,8 +165,8 @@ describe("ServiceRegistry", () => {
 
 		it("should return undefined for unknown instance", async () => {
 			await registry.registerInstance(validServiceInstance());
-			const instance = registry.instanceStore.getInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+			const instance = await registry.instanceStore.getInstance({
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "unknown-instance" as InstanceId,
 			});
 			expect(instance).toBeUndefined();
@@ -176,13 +177,13 @@ describe("ServiceRegistry", () => {
 		it("should remove an instance and return true", async () => {
 			await registry.registerInstance(validServiceInstance());
 			const removed = await registry.removeInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "test-instance-1" as InstanceId,
 			});
 			expect(removed).toBe(true);
 			expect(
 				registry.instanceStore.getInstances(
-					"financial-scraper-service" as unknown as ServiceInstanceName
+					"financial-scraper" as unknown as ServiceInstanceName
 				)
 			).toHaveLength(0);
 			expect(setRegisteredInstances).toHaveBeenLastCalledWith(0);
@@ -191,11 +192,11 @@ describe("ServiceRegistry", () => {
 		it("should remove the service map when last instance is removed", async () => {
 			await registry.registerInstance(validServiceInstance());
 			await registry.removeInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "test-instance-1" as InstanceId,
 			});
 			expect(registry.instanceStore.listServiceNames()).not.toContain(
-				"financial-scraper-service"
+				"financial-scraper"
 			);
 		});
 
@@ -210,7 +211,7 @@ describe("ServiceRegistry", () => {
 		it("should return false for unknown instance", async () => {
 			await registry.registerInstance(validServiceInstance());
 			const removed = await registry.removeInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "unknown-instance" as InstanceId,
 			});
 			expect(removed).toBe(false);
@@ -227,7 +228,7 @@ describe("ServiceRegistry", () => {
 			const replicaB = createServiceRegistry({ instanceStore });
 			await replicaA.registerInstance(validServiceInstance());
 			await replicaB.removeInstance({
-				serviceName: "financial-scraper-service",
+				serviceName: "financial-scraper",
 				instanceId: "test-instance-1",
 			} as never);
 			jest.clearAllMocks();
@@ -237,11 +238,6 @@ describe("ServiceRegistry", () => {
 			expect(setRegisteredInstancesPerService).toHaveBeenCalledWith(
 				"financial-scraper",
 				0
-			);
-			// Empty legacy names are not exported (InstanceCountLow on upgrade).
-			expect(setRegisteredInstancesPerService).not.toHaveBeenCalledWith(
-				"financial-scraper-service",
-				expect.anything()
 			);
 			expect(setRegisteredInstances).toHaveBeenLastCalledWith(0);
 		});
@@ -257,8 +253,8 @@ describe("ServiceRegistry", () => {
 			await registry.registerInstance(secondServiceInstance());
 			await registry.registerInstance(otherServiceInstance());
 			const names = registry.instanceStore.listServiceNames();
-			expect(names).toContain("financial-scraper-service");
-			expect(names).toContain("message-delivery-service");
+			expect(names).toContain("financial-scraper");
+			expect(names).toContain("message-manager");
 			expect(names).toHaveLength(2);
 		});
 	});
@@ -272,10 +268,10 @@ describe("ServiceRegistry", () => {
 			await registry.registerInstance(validServiceInstance());
 			await registry.registerInstance(secondServiceInstance());
 			await registry.registerInstance(otherServiceInstance());
-			const snapshot = registry.instanceStore.dump();
+			const snapshot = await registry.instanceStore.dump();
 			expect(Object.keys(snapshot)).toHaveLength(2);
-			expect(snapshot["financial-scraper-service"]).toHaveLength(2);
-			expect(snapshot["message-delivery-service"]).toHaveLength(1);
+			expect(snapshot["financial-scraper"]).toHaveLength(2);
+			expect(snapshot["message-manager"]).toHaveLength(1);
 		});
 	});
 
@@ -302,8 +298,8 @@ describe("ServiceRegistry", () => {
 	describe("generateInstanceId", () => {
 		it("should return a non-empty base64 string", async () => {
 			const id = registry.tokenManager.generateInstanceId({
-				serviceName: "financial-scraper-service" as ServiceId,
-				address: "192.168.1.10",
+				serviceName: "financial-scraper" as ServiceId,
+				host: "192.168.1.10" as IPAddress,
 				port: 8444 as Port,
 			});
 			expect(typeof id).toBe("string");
@@ -378,7 +374,7 @@ describe("ServiceRegistry", () => {
 	describe("verifyInstanceName", () => {
 		it("should return true for known service names", async () => {
 			const result = registry.tokenManager.verifyInstanceName(
-				"financial-scraper-service" as unknown as ServiceInstanceName
+				"financial-scraper" as unknown as ServiceInstanceName
 			);
 			expect(result).toBe(true);
 		});

@@ -92,6 +92,36 @@ or right after the overlay on a first deploy, when MySQL does not exist yet).
 > SPIRE SVID ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). The
 > controller needs no client certificate, and no request reaches a service
 > without going through the gateway (auth, rate limit per API client).
+>
+> **Controller prerequisites (personal data, register activity 6):** in
+> ConfigMap `ingress-nginx-controller` set `disable-access-log: "true"` (the
+> default format logs full caller IP, User-Agent and Referer to the node, with a
+> retention and access nobody controls; `deploy/staging-local/bootstrap.sh
+> prereqs` does it) and leave `use-forwarded-headers` unset, so the controller
+> overwrites any `X-Forwarded-For` sent by the caller. The edge-proxy trusts that
+> header only from the pod CIDR of each overlay (`realip.inc` next to its
+> `kustomization.yaml`, merged into ConfigMap `edge-proxy-nginx`; set the
+> production one to the cluster's real pod CIDR before the first deploy;
+> `tests/k8s/realip.test.sh` checks trusted and untrusted peers) and logs the caller IP truncated (31 days in Loki). The
+> controller's `error_log` keeps no request line but may show the peer IP: keep
+> node log rotation at 7 days or less.
+>
+> **The controller must see the caller's address.** Behind a NodePort or a
+> Docker port mapping with `externalTrafficPolicy: Cluster` the source is
+> rewritten (SNAT): on staging-local the controller saw `10.244.0.1`, the node's
+> bridge, for every caller, so the edge-proxy truncates that address, not the
+> caller's. In production expose the controller with `externalTrafficPolicy:
+> Local` or a load balancer that keeps the source (PROXY protocol needs
+> `use-proxy-protocol`), and check once with a `curl` from a known address.
+>
+> **Rate limit at the edge.** `default.conf` applies `limit_req` (20 r/s per real
+> client address, burst 60) and `limit_conn` (50) on `/v<n>/`, answering 429;
+> `/ping` and `/health/ready` are not limited. The limit is per edge-proxy pod:
+> the effective limit is 20 r/s × replicas (2 to 5), i.e. 40 to 100 r/s, never
+> above the Ingress `limit-rps: 100` (`deploy/k8s/ingress/gateway-ingress.yaml`,
+> per client address too): the edge limit is the tighter one for 1 to 5 replicas
+> and the only one in compose. The gateway keeps its own `RATE_LIMIT_*` per
+> client identity.
 
 ### 2. Configure secrets
 
@@ -214,6 +244,7 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   by the `mysql-cluster-init` Job; per-pod `server_id` / local address passed
   as mysqld arguments
 - 20Gi PVC per replica
+- SPIRE datastore: MySQL user `spire` (key `MYSQL_SPIRE_PASSWORD` of `trading-model-secrets`, required, to seal before the first deploy; `db-migrate-user` creates it), issue #807
 - Retention: CronJob `db-retention` purges market data and signals older than `RETENTION_DAYS` as MySQL user `retention` (key `MYSQL_RETENTION_PASSWORD` of `trading-model-secrets`, to seal before the first production deploy; `db-migrate-user` runs again after the migrations to grant it per table). Operation: [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0051
 - Schema from the `db-migrate` Job (`run-migrations.sh`), the same migrations as compose: no second copy of the schema. The script waits for `mysql-cluster-init` first (during the bootstrap the server is `super_read_only`). The Job runs the released `db-migrate` image (`deploy/migrate`: `migrate.mjs`, `scripts/migrations`, `mysql2` locked by its `bun.lock`; pinned by digest by `deploy.yml`): nothing is installed at run time. It connects as the MySQL user `migrator` (DDL/DML on `financial_scraper` only, password `MYSQL_MIGRATE_PASSWORD`), created or updated on every deploy by the idempotent Job `db-migrate-user` (the only one that reads `MYSQL_ROOT_PASSWORD`; works on a database initialised before the user existed). The password must match `[A-Za-z0-9_.@%+=-]`
 - PodDisruptionBudget: minAvailable 1
@@ -241,6 +272,10 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   :13133
 - **Jaeger:** 1 replica, OTLP gRPC receiver
 - **Prometheus:** StatefulSet, 50Gi PVC, 30d retention, mTLS scrape
+  (`kubelet` / `cadvisor` jobs: the kubelet certificate is verified by the cluster
+  CA in production, so the nodes need `serverTLSBootstrap: true` and approved
+  `kubelet-serving` CSRs; staging overlays skip the check. See
+  [runbook-infrastructure](../operations/runbooks/runbook-infrastructure.md))
 - **Grafana:** StatefulSet, 10Gi PVC, Prometheus + Jaeger datasources
 - **Loki + promtail:** promtail is a node agent (`trading-model-node`) tailing
   `/var/log/pods` of the application namespace

@@ -36,6 +36,7 @@ export function buildAuditDocument(
 		metadata: {
 			topic: toTopic(metadata.topic),
 			eventType:
+				// as unknown as: topic string stands in for the event enum, as stored today
 				metadata.eventType ?? (metadata.topic as unknown as EventEnumMap),
 			publisher: toServiceId(metadata.publisher?.serviceName ?? "unknown"),
 			instanceId: toInstanceId(metadata.publisher?.instanceId ?? "unknown"),

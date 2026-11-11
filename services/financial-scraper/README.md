@@ -122,7 +122,7 @@ src/
 ├── infra/market-data/          # Persistence schemas
 │   ├── market-data.types.ts    # Re-exported entity types
 │   └── schema/                 # Per-entity storage implementations
-│       ├── candles-schema.ts   # Candlestick MySQL table & queries
+│       ├── candles.schema.ts   # Candlestick MySQL table & queries
 │       ├── orderBook.schema.ts # Order book in-memory storage
 │       ├── ticker24h.schema.ts # Ticker MySQL table & queries
 │       └── trades.schema.ts    # Trades MySQL table & queries

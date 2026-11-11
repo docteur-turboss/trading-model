@@ -1,3 +1,4 @@
+import type { Span } from "@opentelemetry/api";
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
@@ -5,6 +6,7 @@ import {
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
 import type { AddEntryResult } from "../../application/use-cases/add-entry-pipeline";
+import type { DeleteEntriesResult } from "../../application/use-cases/dlq-delete-handler";
 import type {
 	ReplayRequest,
 	ReplayResult,
@@ -26,12 +28,12 @@ import { createReplayEntries } from "./dlq-replay-handler";
 
 /** The use cases the HTTP handlers call; their results carry no status code. */
 export interface DlqUseCases {
-	addEntry(entry: DlqEntry): Promise<AddEntryResult>;
-	deleteEntries(ids: string[]): Promise<{ deleted: number }>;
-	replayEntries(
-		request: ReplayRequest,
-		span: import("@opentelemetry/api").Span
-	): Promise<ReplayResult>;
+	addEntry(entry: DlqEntry, actor: string | null): Promise<AddEntryResult>;
+	deleteEntries(
+		ids: string[],
+		actor: string | null
+	): Promise<DeleteEntriesResult>;
+	replayEntries(request: ReplayRequest, span: Span): Promise<ReplayResult>;
 }
 
 export interface DlqHandlerDeps extends HealthDeps {
@@ -42,10 +44,16 @@ export interface DlqHandlerDeps extends HealthDeps {
 }
 
 export interface DlqHandlers extends HealthHandlers {
-	addEntry(entry: DlqEntry): Promise<ResponseObject>;
-	deleteEntries(body: DeleteEntriesBody): Promise<ResponseObject>;
+	addEntry(entry: DlqEntry, actor: string | null): Promise<ResponseObject>;
+	deleteEntries(
+		body: DeleteEntriesBody,
+		actor: string | null
+	): Promise<ResponseObject>;
 	listEntries(query: ListEntriesQuery): Promise<ResponseObject>;
-	replayEntries(query: ReplayEntriesQuery): Promise<ResponseObject>;
+	replayEntries(
+		query: ReplayEntriesQuery,
+		actor: string | null
+	): Promise<ResponseObject>;
 }
 
 /** Maps the outcome of adding an entry to its HTTP response. */
@@ -75,11 +83,16 @@ export function createDlqHandlers(deps: DlqHandlerDeps): DlqHandlers {
 	const { useCases } = deps;
 	return {
 		...createHealthHandlers(deps),
-		async addEntry(entry) {
-			return _addEntryResponse(await useCases.addEntry(entry));
+		async addEntry(entry, actor) {
+			return _addEntryResponse(await useCases.addEntry(entry, actor));
 		},
-		async deleteEntries({ ids }) {
-			return sendResponse(await useCases.deleteEntries(ids), HTTP_STATUS.OK);
+		async deleteEntries({ ids }, actor) {
+			const result = await useCases.deleteEntries(ids, actor);
+			// Deleted but not in the audit trail: no silent success (ADR-0059).
+			return sendResponse(
+				result,
+				result.auditRecorded ? HTTP_STATUS.OK : HTTP_STATUS.BAD_GATEWAY
+			);
 		},
 		listEntries: createListEntries(deps.entries),
 		replayEntries: createReplayEntries(useCases.replayEntries),

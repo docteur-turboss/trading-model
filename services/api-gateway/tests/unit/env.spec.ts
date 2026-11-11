@@ -91,12 +91,14 @@ describe("env", () => {
 	});
 
 	describe("in production", () => {
+		const STRONG_KEY = "ops:read:0123456789abcdef0123456789abcdef";
+
 		beforeEach(() => {
 			process.env.TLS_KEY_PATH = "/certs/key.pem";
 			process.env.TLS_CERT_PATH = "/certs/cert.pem";
 			process.env.TLS_CA_PATH = "/certs/ca.pem";
 			process.env.NODE_ENV = "production";
-			process.env.AUTH_TOKENS = "tok1";
+			process.env.AUTH_TOKENS = STRONG_KEY;
 			delete process.env.AUTH_STRICT;
 		});
 
@@ -110,7 +112,7 @@ describe("env", () => {
 		}
 
 		it("should accept configured API keys", () => {
-			expect(loadEnv().AUTH_TOKENS).toBe("tok1");
+			expect(loadEnv().AUTH_TOKENS).toBe(STRONG_KEY);
 		});
 
 		it.each(["", " , "])(
@@ -120,6 +122,26 @@ describe("env", () => {
 				expect(refusal()).toContain(
 					"AUTH_TOKENS cannot be empty in production"
 				);
+			}
+		);
+
+		it("should refuse to start with a malformed API key, without logging its secret", () => {
+			process.env.AUTH_TOKENS = "ops:admin:top-secret-value";
+			const issues = refusal();
+			expect(issues).toContain("scopes must be among read, dlq:write");
+			expect(issues).not.toContain("top-secret-value");
+		});
+
+		it.each([
+			"ops:read:abc",
+			"ops:read:change-me-0123456789abcdef0123456789abcdef",
+		])(
+			"should refuse a weak API key secret without logging it: %#",
+			(entry) => {
+				process.env.AUTH_TOKENS = entry;
+				const issues = refusal();
+				expect(issues).toContain("secret");
+				expect(issues).not.toContain(entry.slice(entry.lastIndexOf(":") + 1));
 			}
 		);
 

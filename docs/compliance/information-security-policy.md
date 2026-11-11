@@ -16,8 +16,8 @@ The trading-model platform processes machine-generated financial market data and
 
 | Objective | Metric | Target |
 |---|---|---|
-| Prevent unauthorised access to platform services | mTLS authentication coverage | 100% of inter-service communication |
-| Ensure data integrity in transit and at rest | Encryption coverage | 100% (TLS 1.3 + AES-256-GCM) |
+| Prevent unauthorised access to platform services | mTLS authentication coverage | 100% of service-to-service HTTP communication (database clients excluded, ADR-0060) |
+| Ensure data integrity in transit and at rest | Encryption coverage | 100% of service-to-service HTTP in transit (TLS 1.3) and of the SPIRE datastore, backups and data disks at rest; database client traffic is not encrypted (ADR-0060) |
 | Maintain service availability | Uptime per service | ≥ 99.9% (production target) |
 | Detect and respond to security incidents | Time to detect (TTD) | ≤ 15 minutes |
 | Ensure secure software development lifecycle | Critical/high vulnerabilities in production | 0 |
@@ -63,7 +63,8 @@ All platform assets are documented in:
 
 ### 5.1 Network Access Control
 
-- **mTLS mandatory:** All inter-service communication requires mutual TLS 1.3 with X.509 SVIDs issued by SPIRE after workload attestation (ADR-0011)
+- **mTLS mandatory:** All service-to-service HTTP communication requires mutual TLS 1.3 with X.509 SVIDs issued by SPIRE after workload attestation (ADR-0011)
+- **Databases, not encrypted in transit:** client connections to MySQL, MongoDB, Redis and Sentinel are plain TCP inside the cluster, credentials included. Protection: NetworkPolicies, per-service credentials, LUKS2 on data disks. Residual risk accepted by the owner (ADR-0060); TLS is planned (issues #767, #768, #769)
 - **Service identity:** Extracted from the certificate SAN (SPIFFE ID `spiffe://...`) via `@trading-model/http/adapters/inbound/mtls-auth.ts`
 - **Authorization:** ACL-based service-to-service access control via `@trading-model/http/adapters/inbound/mtls-authorization.ts`
 
@@ -80,8 +81,8 @@ All platform assets are documented in:
 ### 6.1 Encryption Standards
 
 | Use Case | Algorithm | Key Length | Standard |
-|---|---|---|
-| Transport security | TLS 1.3 (mTLS) | EC P-256 / RSA 2048+ (SVIDs) | NIST SP 800-52 Rev. 2 |
+|---|---|---|---|
+| Transport security (service-to-service HTTP; not database clients) | TLS 1.3 (mTLS) | EC P-256 / RSA 2048+ (SVIDs) | NIST SP 800-52 Rev. 2 |
 | Data at rest (SPIRE datastore) | AES-256-GCM | 256-bit | NIST SP 800-38D |
 | SVID signing | EC P-256 (SPIRE CA) | 256-bit (EC) | NIST SP 800-186 |
 | Message integrity | HMAC-SHA256 | 256-bit | FIPS 180-4 |
@@ -90,7 +91,7 @@ All platform assets are documented in:
 ### 6.2 Key Management
 
 | Key Type | Storage | Rotation | Access |
-|---|---|---|
+|---|---|---|---|
 | SPIRE CA keys / trust bundle | SPIRE datastore (MySQL `spire`) | Automated (SPIRE CA manager) | SPIRE Server only |
 | SVIDs | In-memory + `/run/spire/svid` (spiffe-helper) | Auto-renewal (TTL 1h) | Workload via Workload API |
 | HMAC tokens | Address-manager cache | Refresh cycle via scheduler | Registered service only |
@@ -110,29 +111,27 @@ The platform is deployed as a containerised microservice architecture. Physical 
 
 | Component | Tool | Retention |
 |---|---|---|
-| Structured application logs | Pino → stdout → Promtail → Loki | 30 days |
+| Structured application logs | stdout → Promtail → Loki | 31 days (`744h`) |
 | Audit events | MongoDB (audit-logger) | 1827 days (5 years) |
-| Service metrics | Prometheus → Grafana | 15 days |
+| Service metrics | Prometheus → Grafana | 30 days |
 | Distributed traces | OpenTelemetry → Jaeger | 7 days |
 | SVID lifecycle events | SPIRE + audit-logger | 1827 days (5 years) |
 
 ### 8.2 Log Redaction
 
-All logs pass through three layers of sensitive data redaction before persistence:
+All logs pass through two layers of sensitive data redaction before persistence:
 
-1. **Pino redact paths** — 16+ patterns for known sensitive fields
-2. **JSON stringifier regex** — 15+ patterns for credential-like strings
-3. **PEM sanitizer** — Strips certificate private keys from log output
-4. **Context key sanitization** — Sensitive keys (IP, password, token, etc.) redacted in context objects before MongoDB write
+1. **Sensitive-key patterns** — 24 patterns (token, password, IP keys, etc.) redacted in logged objects and in context objects before MongoDB write
+2. **PEM sanitizer** — Strips PEM blocks (certificates, private keys) from log output
 
-Implementation: `@trading-model/http/infrastructure/logger.ts`
+Implementation: `@trading-model/http/infrastructure/sensitive-data-sanitizer.ts`
 
 ## 9. Communications Security
 
 | Requirement | Implementation |
 |---|---|
 | **Network segmentation** | Docker Compose networks (`backend-net`, internal `data-net`). K8s Network Policies |
-| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory. `ENFORCE_MTLS_STRICT` enables ACL enforcement on attested SVID identities |
+| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory between services (not toward databases, ADR-0060). `ENFORCE_MTLS_STRICT` enables ACL enforcement on attested SVID identities |
 | **Service mesh** | Not deployed; mTLS handled at application layer via Express middleware |
 | **API gateway isolation** | External traffic enters only through api-gateway (port 8448). All other ports are internal |
 

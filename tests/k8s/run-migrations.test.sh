@@ -16,6 +16,7 @@ mkdir -p "$WORK/bin"
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"$STUB_LOG"
+if [ "$1" = apply ] && [ "${*: -1}" = - ]; then cat >>"$STUB_LOG.manifests"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = job ]; then exit 1; fi # no mysql-cluster-init Job
 if [ "$1" = get ] && [[ "$2" == job/* ]]; then printf "Complete "; exit 0; fi # wait-job.sh: Job done
 if [ "$1" = get ] && [ "$2" = secret ] && [ -n "${STUB_GET_ERR:-}" ]; then echo "$STUB_GET_ERR" >&2; exit 1; fi
@@ -34,10 +35,17 @@ STUB
 chmod +x "$WORK/bin/kubectl"
 export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log"
 
-run() { : >"$STUB_LOG"; set +e; OUT=$("$@" 2>&1); RC=$?; set -e; }
+run() { : >"$STUB_LOG"; : >"$STUB_LOG.manifests"; set +e; OUT=$("$@" 2>&1); RC=$?; set -e; }
 
 STUB_KEY=c2VjcmV0 run bash "$RUN" ns
 { [ $RC = 0 ] && grep -q 'job/db-migrate ' "$STUB_LOG" && grep -q 'job/db-migrate-user ' "$STUB_LOG"; } && ok "key present: both jobs run" || ko "key present"
+{ [ "$(grep -c 'activeDeadlineSeconds: 180$' "$STUB_LOG.manifests")" = 3 ] && grep -q 'image: ghcr.io/trading-model/db-migrate:latest' "$STUB_LOG.manifests"; } &&
+  ok "no DEPLOY_TIMEOUT_FACTOR: base Job deadline, manifest image" || ko "default deadline: $(grep activeDeadlineSeconds "$STUB_LOG.manifests")"
+
+# Issue #760: wait-job.sh waited 180 s x 4 but the Job died at its own 180 s deadline.
+STUB_KEY=c2VjcmV0 DEPLOY_TIMEOUT_FACTOR=4 MIGRATE_IMAGE=reg/db-migrate@sha256:abc run bash "$RUN" ns
+{ [ $RC = 0 ] && [ "$(grep -c 'activeDeadlineSeconds: 720$' "$STUB_LOG.manifests")" = 3 ] && grep -q 'image: reg/db-migrate@sha256:abc' "$STUB_LOG.manifests"; } &&
+  ok "DEPLOY_TIMEOUT_FACTOR=4: Job deadline 720 s like the wait, pinned image" || ko "scaled deadline: $(grep activeDeadlineSeconds "$STUB_LOG.manifests")"
 
 STUB_KEY= run bash "$RUN" ns
 { [ $RC = 1 ] && grep -q 'no MYSQL_MIGRATE_PASSWORD' <<<"$OUT" && ! grep -q 'apply\|wait' "$STUB_LOG"; } && ok "key missing (production): explicit error, no Job" || ko "key missing"
@@ -100,6 +108,12 @@ STUB_KEY= STUB_LIVE_KEYS="MYSQL_ROOT_PASSWORD SIGNING_SECRET" SEALED_SECRETS_FIL
 
 STUB_KEY=c2VjcmV0 STUB_LIVE_KEYS="MYSQL_MIGRATE_PASSWORD SIGNING_SECRET" SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
 { [ $RC = 1 ] && grep -q 'no entry for live key SIGNING_SECRET' <<<"$OUT" && ! grep -q '^apply\|job db-' "$STUB_LOG"; } && ok "live key missing from the file, migrate key present: refused before apply" || ko "guard with migrate key present"
+
+STUB_KEY=c2VjcmV0 STUB_LIVE_KEYS="MYSQL_MIGRATE_PASSWORD HMAC_SECRET" RETIRED_SECRET_KEYS=HMAC_SECRET SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
+{ ! grep -q 'no entry for live key' <<<"$OUT"; } && ok "retired live key absent from the file: accepted" || ko "retired key"
+
+STUB_KEY=c2VjcmV0 STUB_LIVE_KEYS="MYSQL_MIGRATE_PASSWORD HMAC_SECRET SIGNING_SECRET" RETIRED_SECRET_KEYS=HMAC_SECRET SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
+{ [ $RC = 1 ] && grep -q 'no entry for live key SIGNING_SECRET' <<<"$OUT"; } && ok "retired list does not hide other missing keys" || ko "retired scope"
 
 STUB_GET_ERR='Error from server (Forbidden): secrets is forbidden' SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
 { [ $RC = 1 ] && grep -q 'cannot read Secret' <<<"$OUT" && ! grep -q '^apply\|job/' "$STUB_LOG"; } && ok "unreadable Secret: fatal, nothing applied" || ko "read error"

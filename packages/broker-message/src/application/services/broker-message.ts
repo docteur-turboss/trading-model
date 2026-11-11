@@ -7,8 +7,8 @@ import type {
 	EventMap,
 	EventMessagesArgs,
 } from "@trading-model/contracts/event-map";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { logger } from "@trading-model/http/infrastructure/logger";
 import type { InstanceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 import { CREATE_CALLBACK_ROUTE } from "../../adapters/inbound/messages.routes";
@@ -23,6 +23,7 @@ export const SUBSCRIPTION_REFRESH_MS = 15_000;
 /** Callback path a subscriber mounts when it names none (audit-logger). */
 export const DEFAULT_CALLBACK_PATH = "message";
 
+/** Publishes and subscribes to messages through the message manager. */
 export default class BrokerMessage {
 	private _messageManagerClient: MessageManagerClient;
 
@@ -82,7 +83,7 @@ export default class BrokerMessage {
 		try {
 			await this._messageManagerClient.subscribe(this._topics);
 		} catch (error) {
-			logger.warn("Topic subscription failed, retrying", {
+			getLogger().warn("Topic subscription failed, retrying", {
 				context: {
 					topics: this._topics,
 					retryInMs: SUBSCRIPTION_REFRESH_MS,

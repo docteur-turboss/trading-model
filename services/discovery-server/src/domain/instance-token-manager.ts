@@ -19,7 +19,7 @@ export class InstanceTokenManager {
 		return this._crypto.generateInstanceId(endpoint);
 	}
 
-	generateToken(instanceId: InstanceId): string {
+	generateToken(instanceId: InstanceId): AuthToken {
 		return this._crypto.generateInstanceToken(instanceId, this._signingSecret);
 	}
 

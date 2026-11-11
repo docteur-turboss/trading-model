@@ -9,5 +9,7 @@ export enum HTTP_HEADERS {
 	X_SERVICE_NAME = "x-service-name",
 	X_TIMESTAMP = "x-timestamp",
 	X_SIGNATURE = "x-signature",
+	/** API key name api-gateway sets on what it proxies; trusted from api-gateway only (ADR-0059). */
+	X_ACTOR = "x-actor",
 	CONTENT_TYPE = "Content-Type",
 }

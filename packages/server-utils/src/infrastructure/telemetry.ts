@@ -6,6 +6,7 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	type InstanceId,
@@ -88,7 +89,7 @@ export async function shutdownTelemetry(): Promise<void> {
 		logger.info("OpenTelemetry shut down");
 	} catch (err) {
 		logger.warn("OpenTelemetry shutdown error", {
-			context: { error: (err as Error).message },
+			context: { error: normalizeError(err).message },
 		});
 	}
 	sdk = null;

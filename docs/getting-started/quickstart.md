@@ -15,6 +15,25 @@ cd trading-model
 bun install --frozen-lockfile
 ```
 
+### Windows line endings
+
+Source files must keep LF line endings (`.gitattributes` forces `eol=lf` on `*.ts`, `*.json`, `*.md`, `*.yml`…). A global `core.autocrlf true` (common in Git for Windows installs) checks them out as CRLF, and `bun run lint` then fails on formatting while CI passes.
+
+```bash
+# Set the repo to not convert line endings
+git config core.autocrlf false
+
+# Diagnose: must print nothing for files that have eol=lf
+git ls-files --eol | grep "w/crlf" | grep "eol=lf"
+
+# Repair a clean checkout (commit or stash your work first: this rewrites the working tree)
+git status --short                     # must print nothing
+git rm -q --cached -r . && git reset -q --hard
+git ls-files --eol | grep "w/crlf" | grep "eol=lf"   # must print nothing
+```
+
+`text=auto` files without an `eol` attribute may stay CRLF on Windows: that is expected.
+
 ## Step 0: Create `.env`
 
 ```bash
@@ -65,7 +84,7 @@ curl -s http://localhost:8449/ping
 
 ## Step 3: See the Service Registry
 
-Set your admin token (one of the `GATEWAY_AUTH_TOKENS` values in your `.env` file):
+Set your admin token: the secret of one of the `GATEWAY_AUTH_TOKENS` keys in your `.env` file (what follows the last `:` of `name:scopes:secret`):
 
 ```bash
 export ADMIN_TOKEN="change-me-to-a-long-random-key"  # Use your .env value

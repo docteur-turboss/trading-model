@@ -1,8 +1,9 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import type {
 	QueuableEntriesPort,
 	ReplayQueuePort,
-} from "../../domain/ports/replay.ports";
+} from "../../domain/ports/replay.port";
 
 export interface QueueRebuilderDeps {
 	entries: QueuableEntriesPort;
@@ -22,13 +23,13 @@ export function createQueueRebuilder(
 			const pushedCount = results.filter(Boolean).length;
 			const context = { pushedCount, queuableCount: entries.length };
 			if (pushedCount < entries.length) {
-				logger.warn("Redis queue partially rebuilt from MongoDB", context);
+				getLogger().warn("Redis queue partially rebuilt from MongoDB", context);
 			} else {
-				logger.info("Redis queue rebuilt from MongoDB", context);
+				getLogger().info("Redis queue rebuilt from MongoDB", context);
 			}
 		} catch (err) {
-			logger.warn("Failed to rebuild Redis queue from MongoDB", {
-				error: (err as Error)?.message,
+			getLogger().warn("Failed to rebuild Redis queue from MongoDB", {
+				error: normalizeError(err).message,
 			});
 		}
 	};

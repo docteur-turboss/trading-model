@@ -28,7 +28,7 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 
 Network access (K8s, issue #727): MongoDB runs without authentication (issue #669) and without TLS, so the NetworkPolicies are the only barrier. Port 27017 of each replica set accepts only its owner service, its own members and its init Job (`mongo-audit-network-policy`: `audit-logger`, `mongodb-audit`, `mongodb-audit-init`; `mongodb-network-policy`: `dlq-service`, `mongodb`, `mongodb-init`), and port 9216 (exporter) only Prometheus. Backups and restores go through `kubectl exec` into the members, not the network. A new client is a label in that policy, checked on kind by `verify_mongo_ingress` (`tests/k8s/run-kind.sh`).
 
-Authentication (ADR-0059): a `keyFile` per replica set, and one user per client, all in `admin` (clients connect with `authSource=admin`), created by `deploy/mongo/users.js` (Jobs `mongo-*-users`, compose `mongo-users`):
+Authentication (ADR-0066): a `keyFile` per replica set, and one user per client, all in `admin` (clients connect with `authSource=admin`), created by `deploy/mongo/users.js` (Jobs `mongo-*-users`, compose `mongo-users`):
 
 | User | Roles | Used by |
 | ---- | ----- | ------- |
@@ -39,8 +39,9 @@ Authentication (ADR-0059): a `keyFile` per replica set, and one user per client,
 | `root` | `root` | restore (oplog replay), user administration |
 
 Release 3.1.0 starts mongod with `--transitionToAuth` (clients without credentials still accepted, so the rolling restart never breaks the set); the next release removes the flag. `packages/persistence/tests/db/mongo-users.db.spec.ts` proves each user gets `Unauthorized` outside its scope.
+> SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database). K8s: MySQL user `spire`, `ALL PRIVILEGES` on `spire.*` only, created with the database by Job `db-migrate-user` (password `MYSQL_SPIRE_PASSWORD` of `trading-model-secrets`); the SPIRE pod never gets `MYSQL_ROOT_PASSWORD` (issue #807). The dump leaves out the `mysql` schema, so the account is not restored: after a volume loss, run the Job again (`run-migrations.sh <ns> user-only`) before `restore-k8s.sh` (runbook-database-failover.md).
 
-> SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database).
+Network access (K8s, issue #747): ports 3306 / 33061 of MySQL accept only `financial-scraper`, `financial-scraper-collector`, `spire-server`, the Jobs `db-migrate`, `db-migrate-down`, `db-migrate-user`, the `retention` CronJob and the `mysql` members; Redis ports 6379 / 26379 accept only `discovery-server`, `message-manager`, `dlq-service`, `audit-logger`, `financial-scraper`, `trader-trainer` (the last three only read Redis while a rollback to N-1 is possible) and the Redis pods. Backups go through `kubectl exec`. A new client is a label in `mysql-network-policy` / `redis-network-policy`, checked on kind by `verify_db_ingress`.
 
 ## Redis — who uses it, with which keys
 
@@ -56,7 +57,7 @@ Inventory (issue #506). Address-manager caches in memory per process, so only th
 
 Dead letters live in MongoDB, not Redis.
 
-Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off (release 3.0.0 keeps it on without a password, with sentinels open, through `REDIS_ALLOW_LEGACY_CLIENTS=true` in `deploy/k8s/infra/redis.yaml`, so 2.x clients survive the upgrade: removed in the next release); the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix, and the `exporter` user outside its read-only commands. Compose runs one unauthenticated Redis (dev).
+Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off and the sentinels require the password (2.x clients, which used neither, are refused); the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix, and the `exporter` user outside its read-only commands. Compose runs one unauthenticated Redis (dev).
 
 ## Monitoring users (ADR-0056)
 
@@ -66,7 +67,7 @@ Each database pod runs an exporter sidecar scraped by Prometheus (port `metrics`
 | -------- | -------- | -------- |
 | MySQL (every member) | `mysqld-exporter` | MySQL user `exporter`: `PROCESS, REPLICATION CLIENT` on `*.*`, `SELECT` on `performance_schema.*`, 3 connections at most; created by Job `db-migrate-user` (password `MYSQL_EXPORTER_PASSWORD`; compose: one-shot `mysql-exporter-user`) |
 | Redis data nodes and sentinels | `redis_exporter` | ACL user `exporter` above (`REDIS_EXPORTER_PASSWORD`, K8s); compose Redis has no ACL |
-| MongoDB `mongo-dlq` and `mongo-audit` (every member) | `mongodb_exporter` | MongoDB user `exporter`: `clusterMonitor` only (`MONGO_EXPORTER_PASSWORD`, ADR-0059) |
+| MongoDB `mongo-dlq` and `mongo-audit` (every member) | `mongodb_exporter` | MongoDB user `exporter`: `clusterMonitor` only (`MONGO_EXPORTER_PASSWORD`, ADR-0066) |
 
 ## Schema Validation
 

@@ -30,10 +30,16 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run deps:check
+      - run: bun run deps:third-party
       - run: bun run api:check
       - run: bun run adr:check
       - run: bun run reach:check
+      - run: bun run arch:check
+      - run: bun run release:test
       - run: bun run config:check
+      - run: bun run compliance:check
+      - run: bun run env-protection:test
+      - run: bun run preflight:test
       - name: Workflows parse as YAML
         run: python3 scripts/check-workflows.py
 
@@ -74,18 +80,6 @@ jobs:
       - run: bun run build
       - run: bun run test:coverage
 
-      - name: Import Codecov GPG key
-        run: |
-          gpg --import .github/keys/codecov.asc
-          gpg --fingerprint 27034E7FDB850E0BBC2C62FF806BB28AED779869
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          # Blocking on PRs only: a Codecov outage must not block a release (workflow_call).
-          fail_ci_if_error: ${{ github.event_name == 'pull_request' }}
-
   db-integration:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
@@ -98,7 +92,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - name: Run specs against real databases (Testcontainers)
-        run: bun run test:db
+        run: bun run test:db:coverage
 
   observability:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
@@ -134,8 +128,12 @@ jobs:
         run: bash tests/k8s/canary-gate.test.sh
       - name: Test the release verification
         run: bash tests/k8s/verify-release.test.sh
+      - name: Test the Grafana OIDC deploy gate
+        run: bash tests/k8s/check-grafana-oidc.test.sh
       - name: Test the cluster prerequisites check
         run: bash tests/k8s/check-prereqs.test.sh
+      - name: Edge-proxy real client IP (X-Forwarded-For trust, per overlay)
+        run: bash tests/k8s/realip.test.sh
       - name: Test the overlay ClusterRoles check
         run: bash tests/k8s/check-cluster-rbac.test.sh
       - name: Test the Job wait helper
@@ -155,12 +153,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # release tags, for the compatibility checks below
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: bun run test:contract
+      - name: Message schema snapshot up to date (ADR-0061)
+        run: bun run contracts:check
+      - name: Message schemas compatible with the last release (ADR-0061)
+        run: bun run contracts:compat
+      - name: Public OpenAPI compatible with the last release (ADR-0061)
+        run: |
+          tag=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+          if [ -z "$tag" ] || ! git cat-file -e "$tag:docs/services/openapi/api-gateway.yaml" 2>/dev/null; then
+            echo "No stable release tag with a public OpenAPI: nothing to compare"
+            exit 0
+          fi
+          git show "$tag:docs/services/openapi/api-gateway.yaml" > "$RUNNER_TEMP/base.yaml"
+          v=1.37.0
+          curl -fsSL -o "$RUNNER_TEMP/oasdiff.tgz" "https://github.com/oasdiff/oasdiff/releases/download/v${v}/oasdiff_${v}_linux_amd64.tar.gz"
+          echo "eac87307d31d08c36800c58a409c247f1c5db37fbb72e2544402f22a87cbca3c  $RUNNER_TEMP/oasdiff.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/oasdiff.tgz" -C "$RUNNER_TEMP" oasdiff
+          ignore=()
+          [ -s docs/services/openapi/oasdiff-ignore.txt ] && ignore=(--err-ignore docs/services/openapi/oasdiff-ignore.txt)
+          echo "Comparing against $tag"
+          "$RUNNER_TEMP/oasdiff" breaking "$RUNNER_TEMP/base.yaml" docs/services/openapi/api-gateway.yaml --fail-on ERR "${ignore[@]}"
 
   e2e:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
@@ -204,7 +224,7 @@ jobs:
         run: >-
           mkdir -p k6-out && docker run --rm --network host --user "$(id -u):$(id -g)"
           -v "$PWD/tests/load:/load:ro" -v "$PWD/k6-out:/out"
-          -e API_KEY=e2e-api-key
+          -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef
           grafana/k6:1.4.0@sha256:6a3ee54ac0e9ff5527923f6295257453dd88012f32f40dadf0eb1b638cbb21c7
           run --summary-export /out/k6-summary.json /load/k6/smoke-test.js
       - name: Archive the k6 summary
@@ -213,6 +233,23 @@ jobs:
         with:
           name: k6-summary
           path: k6-out/k6-summary.json
+          if-no-files-found: warn
+      # Passive ZAP baseline through the edge-proxy with the E2E API key (issue #648).
+      # Non-blocking (-I) for now; rules in tests/security/zap-baseline.conf.
+      - name: ZAP baseline (passive, edge-proxy)
+        run: >-
+          mkdir -p zap-out && chmod 777 zap-out && docker run --rm --network host
+          -v "$PWD/tests/security:/zap/wrk-conf:ro" -v "$PWD/zap-out:/zap/wrk:rw"
+          zaproxy/zap-stable:2.16.1@sha256:7840969c7c9fead565bf9734b12f49f6886db90b1d35b1f74d79710bbd081dab
+          zap-baseline.py -t http://localhost:8449/v1/audit-logger/events -I
+          -c /zap/wrk-conf/zap-baseline.conf -r zap-report.html
+          -z "-config replacer.full_list(0).description=key -config replacer.full_list(0).enabled=true -config replacer.full_list(0).matchtype=REQ_HEADER -config replacer.full_list(0).matchstr=x-api-key -config replacer.full_list(0).replacement=e2e-api-key-0123456789abcdef0123456789abcdef"
+      - name: Archive the ZAP report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: zap-baseline-report
+          path: zap-out/zap-report.html
           if-no-files-found: warn
       # Last: restarts message-manager and discovery to check the mesh heals.
       - name: Resilience (service restarts)

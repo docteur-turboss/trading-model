@@ -5,7 +5,7 @@ import {
 	type StoredSubscription,
 	SUBSCRIPTION_TTL_MS,
 	type SubscriptionStorePort,
-} from "../../application/ports/subscription-store-port";
+} from "../../domain/ports/subscription-store.port";
 
 export interface RedisSubscriptionStoreDeps {
 	redis: Pick<Redis, "multi" | "hgetall" | "hdel">;

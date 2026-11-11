@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { Span } from "@opentelemetry/api";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type InstanceId,
 	toInstanceId,
@@ -13,12 +14,13 @@ import {
 import type {
 	ClaimEntriesOptions,
 	ClaimedEntry,
-} from "../../src/domain/ports/replay.ports";
+} from "../../src/domain/ports/replay.port";
 import type { BatchResults, ReplayBatchOptions } from "../../src/shared/types";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: { warn: jest.fn<(...args: any[]) => any>() },
-}));
+jest.mock("@trading-model/contracts/logger-registry", () => {
+	const logger = { warn: jest.fn<(...args: any[]) => any>() };
+	return { getLogger: () => logger, logger };
+});
 
 const MM_URL = "https://mm:3000" as URLString;
 const INSTANCE = toInstanceId("dlq-1") as InstanceId;
@@ -37,6 +39,8 @@ function setup(
 		url?: URLString | null;
 		claimed?: ClaimedEntry[];
 		batch?: BatchResults;
+		auditRecorded?: boolean;
+		abandoned?: number;
 	} = {}
 ) {
 	const resolve = jest.fn<() => Promise<URLString | null>>(async () =>
@@ -45,15 +49,20 @@ function setup(
 	const claimEntriesForRetry = jest.fn<
 		(options: ClaimEntriesOptions) => Promise<ClaimedEntry[]>
 	>(async () => overrides.claimed ?? CLAIMED);
-	const abandonExhaustedEntries = jest.fn<() => Promise<number>>(async () => 0);
+	const abandonExhaustedEntries = jest.fn<() => Promise<number>>(
+		async () => overrides.abandoned ?? 0
+	);
+	const releaseStaleClaims = jest.fn<() => Promise<number>>(async () => 0);
 	const replayBatch = jest.fn<
 		(options: ReplayBatchOptions) => Promise<BatchResults>
 	>(async () => overrides.batch ?? { success: 1, errors: [] });
-	const notifyReplay = jest.fn<(...args: any[]) => void>();
+	const notifyReplay = jest.fn<(...args: any[]) => Promise<boolean>>(
+		async () => overrides.auditRecorded ?? true
+	);
 	const batchReplayed = jest.fn<(success: number, failed: number) => void>();
 	const deps: ReplayEntriesDeps = {
 		messageManager: { resolve },
-		claimRelease: { releaseStaleClaims: async () => 0 },
+		claimRelease: { releaseStaleClaims },
 		claims: { claimEntriesForRetry },
 		retryLedger: { abandonExhaustedEntries },
 		replayBatch,
@@ -64,6 +73,7 @@ function setup(
 	return {
 		replay: createReplayEntries(deps),
 		claimEntriesForRetry,
+		releaseStaleClaims,
 		abandonExhaustedEntries,
 		replayBatch,
 		notifyReplay,
@@ -75,11 +85,15 @@ describe("replay use case", () => {
 	it("claims, replays, counts and audits a batch", async () => {
 		const t = setup();
 
-		const result = await t.replay({ limit: 10, batchId: "b1" }, span);
+		const result = await t.replay(
+			{ limit: 10, batchId: "b1", actor: "ops-alice" },
+			span
+		);
 
 		expect(result).toEqual({
 			status: "replayed",
 			details: { batchId: "b1", replayed: 1, failed: 0 },
+			auditRecorded: true,
 		});
 		expect(t.claimEntriesForRetry).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -98,7 +112,12 @@ describe("replay use case", () => {
 		});
 		expect(t.batchReplayed).toHaveBeenCalledWith(1, 0);
 		expect(t.notifyReplay).toHaveBeenCalledWith(
-			expect.objectContaining({ batchId: "b1", success: 1, failed: 0 })
+			expect.objectContaining({
+				batchId: "b1",
+				success: 1,
+				failed: 0,
+				actor: "ops-alice",
+			})
 		);
 		expect(t.abandonExhaustedEntries).not.toHaveBeenCalled();
 	});
@@ -111,16 +130,24 @@ describe("replay use case", () => {
 			},
 		});
 
-		const result = await t.replay({ limit: 10 }, span);
+		const result = await t.replay({ limit: 10, actor: null }, span);
 
 		expect(result.status).toBe("replayed");
 		expect(t.abandonExhaustedEntries).toHaveBeenCalled();
 	});
 
+	it("reports a replay whose audit event message-manager refused", async () => {
+		const t = setup({ auditRecorded: false });
+
+		const result = await t.replay({ limit: 10, actor: "ops-alice" }, span);
+
+		expect(result).toMatchObject({ status: "replayed", auditRecorded: false });
+	});
+
 	it("reports an unresolved message-manager without claiming anything", async () => {
 		const t = setup({ url: null });
 
-		await expect(t.replay({ limit: 10 }, span)).resolves.toEqual({
+		await expect(t.replay({ limit: 10, actor: null }, span)).resolves.toEqual({
 			status: "message-manager-unresolved",
 		});
 		expect(t.claimEntriesForRetry).not.toHaveBeenCalled();
@@ -129,10 +156,77 @@ describe("replay use case", () => {
 	it("reports an empty claim without replaying", async () => {
 		const t = setup({ claimed: [] });
 
-		await expect(t.replay({ limit: 10 }, span)).resolves.toEqual({
+		await expect(t.replay({ limit: 10, actor: null }, span)).resolves.toEqual({
 			status: "no-entries",
 		});
 		expect(t.replayBatch).not.toHaveBeenCalled();
 		expect(t.notifyReplay).not.toHaveBeenCalled();
+	});
+
+	it("generates a batchId when the request has none", async () => {
+		const t = setup();
+
+		const result = await t.replay({ limit: 10, actor: null }, span);
+
+		const batchId = (result as unknown as { details: { batchId: string } })
+			.details.batchId;
+		expect(batchId).toMatch(/^[0-9a-f-]{36}$/);
+		expect(t.replayBatch).toHaveBeenCalledWith(
+			expect.objectContaining({ batchId })
+		);
+	});
+
+	it("releases stale claims before claiming, for the requested topic", async () => {
+		const t = setup();
+		const order: string[] = [];
+		t.releaseStaleClaims.mockImplementation(async () => {
+			order.push("release");
+			return 0;
+		});
+		t.claimEntriesForRetry.mockImplementation(async () => {
+			order.push("claim");
+			return CLAIMED;
+		});
+
+		await t.replay({ limit: 10, topic: "t1" as never, actor: null }, span);
+
+		expect(order).toEqual(["release", "claim"]);
+		expect(t.claimEntriesForRetry).toHaveBeenCalledWith(
+			expect.objectContaining({ instanceId: INSTANCE, topic: "t1" })
+		);
+	});
+
+	it("warns with the abandoned count and audits the failures", async () => {
+		const warn = getLogger().warn as jest.Mock;
+		warn.mockClear();
+		const t = setup({
+			abandoned: 2,
+			batch: {
+				success: 0,
+				errors: [{ id: toMessageId("e1"), error: "timeout" }],
+			},
+		});
+
+		await t.replay({ limit: 10, batchId: "b2", actor: null }, span);
+
+		expect(t.abandonExhaustedEntries).toHaveBeenCalledTimes(1);
+		expect(warn).toHaveBeenCalledWith(
+			expect.stringContaining("2 entries abandoned after max retries")
+		);
+		expect(t.notifyReplay).toHaveBeenCalledWith(
+			expect.objectContaining({ batchId: "b2", success: 0, failed: 1 })
+		);
+	});
+
+	it("does not warn when nothing was abandoned", async () => {
+		const warn = getLogger().warn as jest.Mock;
+		warn.mockClear();
+		const t = setup({
+			batch: { success: 0, errors: [{ id: toMessageId("e1"), error: "x" }] },
+		});
+
+		await t.replay({ limit: 10, actor: null }, span);
+
+		expect(warn).not.toHaveBeenCalled();
 	});
 });

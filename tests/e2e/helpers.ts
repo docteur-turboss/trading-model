@@ -38,7 +38,8 @@ export const SERVICE_CONTAINERS = [
 export const EDGE_URL = `http://localhost:${process.env.EDGE_PORT ?? 8449}`;
 
 /** API key the E2E overlay configures on the gateway (AUTH_TOKENS). */
-export const GATEWAY_API_KEY = process.env.E2E_API_KEY ?? "e2e-api-key";
+export const GATEWAY_API_KEY =
+	process.env.E2E_API_KEY ?? "e2e-api-key-0123456789abcdef0123456789abcdef";
 
 const SVID_ARGS = [
 	"--cacert",
@@ -180,6 +181,19 @@ export function signedDlqHeaders(
 		"x-timestamp": timestamp,
 		"x-signature": createHmac("sha256", secret).update(payload).digest("hex"),
 	};
+}
+
+/** Runs one step of a journey; a failure is prefixed with the step name so it points at the faulty step. */
+export async function step<T>(
+	name: string,
+	run: () => T | Promise<T>
+): Promise<T> {
+	try {
+		return await run();
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`step "${name}" failed: ${message}`);
+	}
 }
 
 /** Polls `probe` until it returns a value; a throwing probe counts as not ready yet. */

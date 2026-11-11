@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type { DurationMs } from "@trading-model/primitives/primitives";
 import { logger } from "../config/logger";
 import { isShuttingDown } from "../shared/shutdown-flag";
@@ -28,7 +29,7 @@ export class RedisWorkerTimer {
 			await this._tick();
 		} catch (err) {
 			logger.error("DLQ Redis queue worker error", {
-				error: (err as Error)?.message,
+				error: normalizeError(err).message,
 			});
 		}
 		if (!isShuttingDown()) {

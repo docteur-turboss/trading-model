@@ -17,7 +17,10 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { PositiveInt } from "@trading-model/primitives/primitives";
+import type {
+	PositiveInt,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import {
 	type DlqEntry,
 	DrainOutcome,
@@ -45,7 +48,7 @@ describe("FileDlqRepository", () => {
 				message: { payload: "test", metadata: { topic: "test.topic" } },
 				reason: "DeadLetterError",
 				deliveryAttempt: 3 as PositiveInt,
-				timestamp: "2026-06-06T12:00:00.000Z",
+				timestamp: Date.parse("2026-06-06T12:00:00.000Z") as UnixTimestamp,
 			};
 
 			await repo.insert(entry);
@@ -57,7 +60,7 @@ describe("FileDlqRepository", () => {
 			expect(parsed.message).toEqual(entry.message);
 			expect(parsed.reason).toBe("DeadLetterError");
 			expect(parsed.deliveryAttempt).toBe(3);
-			expect(parsed.timestamp).toBe("2026-06-06T12:00:00.000Z");
+			expect(parsed.timestamp).toBe(Date.parse("2026-06-06T12:00:00.000Z"));
 		});
 
 		it("should append multiple entries as separate lines", async () => {
@@ -66,14 +69,14 @@ describe("FileDlqRepository", () => {
 			await repo.insert({
 				message: { id: 1 },
 				deliveryAttempt: 1 as PositiveInt,
-				timestamp: "2026-06-06T12:00:01.000Z",
+				timestamp: Date.parse("2026-06-06T12:00:01.000Z") as UnixTimestamp,
 			});
 
 			await repo.insert({
 				message: { id: 2 },
 				reason: "TTL_EXPIRED",
 				deliveryAttempt: 2 as PositiveInt,
-				timestamp: "2026-06-06T12:00:02.000Z",
+				timestamp: Date.parse("2026-06-06T12:00:02.000Z") as UnixTimestamp,
 			});
 
 			const lines = readFileSync(testFilePath, "utf-8").trim().split("\n");
@@ -98,7 +101,7 @@ describe("FileDlqRepository", () => {
 			await repo.insert({
 				message: "plain string payload",
 				deliveryAttempt: 0 as PositiveInt,
-				timestamp: "2026-06-06T12:00:03.000Z",
+				timestamp: Date.parse("2026-06-06T12:00:03.000Z") as UnixTimestamp,
 			});
 
 			const line = readFileSync(testFilePath, "utf-8")
@@ -127,7 +130,7 @@ describe("FileDlqRepository", () => {
 				repo.insert({
 					message: { payload: "test" },
 					deliveryAttempt: 1 as PositiveInt,
-					timestamp: "2026-06-06T12:00:04.000Z",
+					timestamp: Date.parse("2026-06-06T12:00:04.000Z") as UnixTimestamp,
 				})
 			).rejects.toThrow("disk full");
 

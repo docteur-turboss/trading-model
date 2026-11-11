@@ -37,6 +37,50 @@ images:
 
 # Staging-specific resource reductions (smaller than production)
 patches:
+
+  # Kubelet certificates are not verified in staging (issue #851): kind (and a
+  # laptop cluster) signs them itself, with no serverTLSBootstrap. Production
+  # keeps the verification by the cluster CA (base, prometheus-config).
+  - target:
+      kind: ConfigMap
+      name: prometheus-config
+    patch: |-
+      - op: replace
+        path: /data/kubelet-scrape.yml
+        value: |
+          scrape_configs:
+            - job_name: 'kubelet'
+              scheme: https
+              authorization:
+                credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+              tls_config:
+                insecure_skip_verify: true
+              kubernetes_sd_configs:
+                - role: node
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_node_name]
+                  target_label: node
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: 'kubelet_volume_stats_(used|capacity|available)_bytes'
+                  action: keep
+
+            - job_name: 'cadvisor'
+              scheme: https
+              metrics_path: /metrics/cadvisor
+              authorization:
+                credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+              tls_config:
+                insecure_skip_verify: true
+              kubernetes_sd_configs:
+                - role: node
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_node_name]
+                  target_label: node
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
+                  action: keep
   - target:
       kind: StatefulSet
       name: "^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$"
@@ -79,3 +123,10 @@ patches:
       - op: add
         path: /metadata/annotations/nginx.ingress.kubernetes.io~1whitelist-source-range
         value: 192.0.2.0/24
+
+# Pod CIDR trusted by the edge-proxy for X-Forwarded-For (issue #732).
+configMapGenerator:
+  - name: edge-proxy-nginx
+    behavior: merge
+    files:
+      - realip.inc=realip.inc

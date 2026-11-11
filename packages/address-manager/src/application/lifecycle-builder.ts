@@ -37,6 +37,7 @@ function buildLifecycleOptions(
 	};
 }
 
+/** Builds the lifecycle manager from its dependencies. */
 export function buildLifecycleManager(deps: LifecycleDeps): LifecycleManager {
 	const shutdownHandler = buildShutdownHandler({
 		registrationManager: deps.registrationManager,

@@ -1,29 +1,23 @@
-import type {
-	AuthToken,
-	InstanceId,
-} from "@trading-model/primitives/primitives";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import {
-	ALL_SERVICE_NAMES,
-	LEGACY_SERVICE_INSTANCE_NAMES,
-} from "@trading-model/primitives/service-instance-name";
+import { ALL_SERVICE_NAMES } from "@trading-model/primitives/service-instance-name";
 import type { ServiceInstance } from "../shared/types";
 import type { InstanceTokenManager } from "./instance-token-manager";
 import {
 	NoopDiscoveryMetrics,
 	type RegistryMetricsPort,
 } from "./ports/discovery-metrics.port";
-import type { IInstanceStore } from "./ports/instance-store.interface";
+import type { InstanceStorePort } from "./ports/instance-store.port";
 
 export interface ServiceRegistryDeps {
-	instanceStore: IInstanceStore;
+	instanceStore: InstanceStorePort;
 	tokenManager: InstanceTokenManager;
 	metrics?: RegistryMetricsPort;
 }
 
 export class ServiceRegistry {
 	public readonly tokenManager: InstanceTokenManager;
-	public readonly instanceStore: IInstanceStore;
+	public readonly instanceStore: InstanceStorePort;
 	private readonly _metrics: RegistryMetricsPort;
 
 	constructor(deps: ServiceRegistryDeps) {
@@ -36,7 +30,7 @@ export class ServiceRegistry {
 		const { instanceId } = instance;
 		const token = this.tokenManager.generateToken(instanceId);
 		await this.instanceStore.registerInstance(instance);
-		await this.tokenManager.setToken(instanceId, token as unknown as AuthToken);
+		await this.tokenManager.setToken(instanceId, token);
 		const stored = await this.instanceStore.getInstance({
 			serviceName: instance.serviceName,
 			instanceId,
@@ -47,10 +41,7 @@ export class ServiceRegistry {
 
 	async updateToken(instanceId: InstanceId): Promise<string> {
 		const newToken = this.tokenManager.generateToken(instanceId);
-		await this.tokenManager.setToken(
-			instanceId,
-			newToken as unknown as AuthToken
-		);
+		await this.tokenManager.setToken(instanceId, newToken);
 		return newToken;
 	}
 
@@ -74,14 +65,6 @@ export class ServiceRegistry {
 		let total = 0;
 		for (const serviceName of ALL_SERVICE_NAMES) {
 			const instances = await this.instanceStore.getInstances(serviceName);
-			// A legacy name with no instance is not exported: a 0 series would trip
-			// InstanceCountLow (it was >= 2 before the rename) on every upgrade.
-			if (
-				instances.length === 0 &&
-				LEGACY_SERVICE_INSTANCE_NAMES.has(serviceName)
-			) {
-				continue;
-			}
 			this._metrics.setRegisteredInstancesPerService(
 				serviceName,
 				instances.length

@@ -1,0 +1,484 @@
+{
+	"audit.gap.detected": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"from": {
+				"type": "string"
+			},
+			"to": {
+				"type": "string"
+			},
+			"lostCount": {
+				"type": "integer",
+				"minimum": -9007199254740991,
+				"maximum": 9007199254740991
+			}
+		},
+		"required": [
+			"from",
+			"to"
+		]
+	},
+	"audit.heartbeat": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"serviceName": {
+				"type": "string",
+				"enum": [
+					"api-gateway",
+					"audit-logger",
+					"discovery-server",
+					"dlq-service",
+					"financial-scraper",
+					"message-manager",
+					"trader-trainer"
+				]
+			},
+			"instanceId": {
+				"type": "string"
+			}
+		},
+		"required": [
+			"serviceName",
+			"instanceId"
+		]
+	},
+	"example.debug.create": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"debug": {
+				"type": "boolean"
+			}
+		},
+		"required": [
+			"debug"
+		]
+	},
+	"example.show.create": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema"
+	},
+	"market.candlestick.series.fetch": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"candle": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"low": {
+							"type": "number"
+						},
+						"open": {
+							"type": "number"
+						},
+						"high": {
+							"type": "number"
+						},
+						"close": {
+							"type": "number"
+						},
+						"volume": {
+							"type": "number"
+						},
+						"trades": {
+							"type": "number"
+						},
+						"interval": {
+							"type": "string",
+							"enum": [
+								"1s",
+								"1m",
+								"3m",
+								"5m",
+								"15m",
+								"30m",
+								"1h",
+								"2h",
+								"4h",
+								"6h",
+								"8h",
+								"12h",
+								"1d",
+								"3d",
+								"1w",
+								"1M"
+							]
+						},
+						"closeTimestamp": {
+							"type": "number"
+						},
+						"symbol": {
+							"type": "string"
+						},
+						"timestamp": {
+							"type": "number"
+						},
+						"source": {
+							"type": "string",
+							"enum": [
+								"bloomberg",
+								"binance",
+								"nyse"
+							]
+						},
+						"market": {
+							"type": "string",
+							"enum": [
+								"crypto",
+								"equity",
+								"bond",
+								"etf",
+								"fx",
+								"future"
+							]
+						}
+					},
+					"required": [
+						"low",
+						"open",
+						"high",
+						"close",
+						"volume",
+						"interval",
+						"closeTimestamp",
+						"symbol",
+						"timestamp",
+						"source",
+						"market"
+					]
+				}
+			}
+		},
+		"required": [
+			"candle"
+		]
+	},
+	"market.order-book-ticker.snapshot.fetch": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"bookTicker": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"bid": {
+							"type": "number"
+						},
+						"ask": {
+							"type": "number"
+						},
+						"bidQty": {
+							"type": "number"
+						},
+						"askQty": {
+							"type": "number"
+						},
+						"symbol": {
+							"type": "string"
+						},
+						"timestamp": {
+							"type": "number"
+						},
+						"source": {
+							"type": "string",
+							"enum": [
+								"bloomberg",
+								"binance",
+								"nyse"
+							]
+						},
+						"market": {
+							"type": "string",
+							"enum": [
+								"crypto",
+								"equity",
+								"bond",
+								"etf",
+								"fx",
+								"future"
+							]
+						}
+					},
+					"required": [
+						"bid",
+						"ask",
+						"bidQty",
+						"askQty",
+						"symbol",
+						"timestamp",
+						"source",
+						"market"
+					]
+				}
+			}
+		},
+		"required": [
+			"bookTicker"
+		]
+	},
+	"market.order-book.snapshot.fetch": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"orderBook": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"bids": {
+							"anyOf": [
+								{},
+								{
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"price": {
+												"type": "number"
+											},
+											"quantity": {
+												"type": "number"
+											}
+										},
+										"required": [
+											"price",
+											"quantity"
+										]
+									}
+								}
+							]
+						},
+						"asks": {
+							"anyOf": [
+								{},
+								{
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"price": {
+												"type": "number"
+											},
+											"quantity": {
+												"type": "number"
+											}
+										},
+										"required": [
+											"price",
+											"quantity"
+										]
+									}
+								}
+							]
+						},
+						"symbol": {
+							"type": "string"
+						},
+						"timestamp": {
+							"type": "number"
+						},
+						"source": {
+							"type": "string",
+							"enum": [
+								"bloomberg",
+								"binance",
+								"nyse"
+							]
+						},
+						"market": {
+							"type": "string",
+							"enum": [
+								"crypto",
+								"equity",
+								"bond",
+								"etf",
+								"fx",
+								"future"
+							]
+						}
+					},
+					"required": [
+						"bids",
+						"asks",
+						"symbol",
+						"timestamp",
+						"source",
+						"market"
+					]
+				}
+			}
+		},
+		"required": [
+			"orderBook"
+		]
+	},
+	"market.price-ticker.snapshot.fetch": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"price": {
+				"type": "object",
+				"propertyNames": {
+					"type": "string"
+				},
+				"additionalProperties": {
+					"type": "number"
+				}
+			}
+		},
+		"required": [
+			"price"
+		]
+	},
+	"market.ticker.24hr-stats.fetch": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"ticker": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"low": {
+							"type": "number"
+						},
+						"open": {
+							"type": "number"
+						},
+						"high": {
+							"type": "number"
+						},
+						"last": {
+							"type": "number"
+						},
+						"volume": {
+							"type": "number"
+						},
+						"closeTimestamp": {
+							"type": "number"
+						},
+						"symbol": {
+							"type": "string"
+						},
+						"timestamp": {
+							"type": "number"
+						},
+						"source": {
+							"type": "string",
+							"enum": [
+								"bloomberg",
+								"binance",
+								"nyse"
+							]
+						},
+						"market": {
+							"type": "string",
+							"enum": [
+								"crypto",
+								"equity",
+								"bond",
+								"etf",
+								"fx",
+								"future"
+							]
+						}
+					},
+					"required": [
+						"low",
+						"open",
+						"high",
+						"last",
+						"volume",
+						"closeTimestamp",
+						"symbol",
+						"timestamp",
+						"source",
+						"market"
+					]
+				}
+			}
+		},
+		"required": [
+			"ticker"
+		]
+	},
+	"market.trade.recent.fetch": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"trades": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"price": {
+							"type": "number"
+						},
+						"tradeId": {
+							"anyOf": [
+								{},
+								{
+									"type": "string",
+									"pattern": "^\\d+$"
+								}
+							]
+						},
+						"quantity": {
+							"type": "number"
+						},
+						"side": {
+							"type": "string",
+							"enum": [
+								"buy",
+								"sell"
+							]
+						},
+						"symbol": {
+							"type": "string"
+						},
+						"timestamp": {
+							"type": "number"
+						},
+						"source": {
+							"type": "string",
+							"enum": [
+								"bloomberg",
+								"binance",
+								"nyse"
+							]
+						},
+						"market": {
+							"type": "string",
+							"enum": [
+								"crypto",
+								"equity",
+								"bond",
+								"etf",
+								"fx",
+								"future"
+							]
+						}
+					},
+					"required": [
+						"price",
+						"tradeId",
+						"quantity",
+						"side",
+						"symbol",
+						"timestamp",
+						"source",
+						"market"
+					]
+				}
+			}
+		},
+		"required": [
+			"trades"
+		]
+	}
+}

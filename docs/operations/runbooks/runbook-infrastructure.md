@@ -39,6 +39,18 @@ MySQL user created by Job `db-migrate-user` (runs at every deploy), Redis user
 by `redis-ha.sh` when the pod starts (`kubectl -n $NS rollout restart
 statefulset/redis statefulset/redis-sentinel` after adding the key).
 
+### Kubelet TLS (issue #851)
+
+Production verifies the kubelet serving certificate against the cluster CA
+(`ca_file` of the ServiceAccount, key `kubelet-scrape.yml` of ConfigMap
+`prometheus-config`). Each node needs `serverTLSBootstrap: true` in its
+kubelet config, and the `kubernetes.io/kubelet-serving` CSRs approved
+(`kubectl get csr`, `kubectl certificate approve <name>`). Without it the
+`kubelet` and `cadvisor` targets are down (`x509: certificate signed by unknown
+authority`). The staging overlays replace that key and keep
+`insecure_skip_verify: true` (kind signs the certificates itself).
+
+
 ## KubePodCrashLooping
 
 A container of the namespace has been in `CrashLoopBackOff` for 5 minutes.
@@ -174,6 +186,22 @@ stable id, a restart of the StatefulSet clears them
 `127.0.0.1:27017` of its pod (no user involved: MongoDB runs without
 authentication, ADR-0056). The `mongod` container is down, restarting or
 stuck: [runbook-database-failover#mongodb-dlq-and-audit-trail](runbook-database-failover.md#mongodb-dlq-and-audit-trail).
+
+## StatefulSetStuckOnOldRevision
+
+`status.currentRevision` differs from `status.updateRevision` for 24 hours: the
+pods run an older pod template than the one applied. On `staging-local` this is
+the `partition: 1` of issue #700 (a deploy never restarts the data pods), so
+new sidecars such as the exporters do not run and `MySQLDown`, `RedisDown` and
+`MongoDBDown` stay silent.
+
+```bash
+kubectl -n $NS get sts -o custom-columns=NAME:.metadata.name,CUR:.status.currentRevision,UPD:.status.updateRevision
+```
+
+Do the planned restart of the section "Database pods across releases" of
+[STAGING_LOCAL](../../deployment/STAGING_LOCAL.md#database-pods-across-releases).
+Elsewhere (no partition), the rollout is blocked: look at the pod events.
 
 ## MongoDBReplicaSetMemberUnhealthy
 

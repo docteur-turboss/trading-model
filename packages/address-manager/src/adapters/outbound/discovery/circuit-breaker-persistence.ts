@@ -6,14 +6,15 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import type { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
-import type { ICircuitStateStore } from "../../../domain/discovery/circuit-state-store.interface";
-import type { PersistedCircuitState } from "../../../domain/discovery/service-cache.interface";
+import type { CircuitStateStorePort } from "../../../domain/ports/circuit-state-store.port";
+import type { PersistedCircuitState } from "../../../domain/ports/service-cache.port";
 
+/** Loads and saves circuit breaker state through the state store, reloads throttled. */
 export class CircuitBreakerPersistence {
 	private readonly _lastLoadTimes = new Map<InstanceId, number>();
 
 	constructor(
-		private readonly _stateStore: ICircuitStateStore,
+		private readonly _stateStore: CircuitStateStorePort,
 		private readonly _loadFromStoreCacheTtlMs: number = 0
 	) {}
 

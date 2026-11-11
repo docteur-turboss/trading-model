@@ -38,7 +38,7 @@ jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
 function sampleMessage() {
 	return createMessage({ close: 101.5 }, {
 		topic: "market.candles.fetch",
-		publisher: "financial-scraper-service",
+		publisher: "financial-scraper",
 	} as never);
 }
 

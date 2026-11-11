@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -29,7 +29,7 @@ KIND="${KIND:-kind}"
 CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
-API_KEY="dev-token-change-me" # AUTH_TOKENS test value injected by ci-render.mjs
+API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
 SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
@@ -42,7 +42,7 @@ export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
-# compose interpolates these (ADR-0059) even for `build`
+# compose interpolates these (ADR-0066) even for `build`
 for v in MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD; do
 	export "$v=${!v:-kind-ci}"
 done
@@ -315,7 +315,7 @@ release() {
 
 # The final upgrade to N under the probe: `release` runs while requests flow
 # through edge-proxy to discovery-server, trader-trainer (Lease handover,
-# ADR-0059) and financial-scraper (PROBE_ROUTES) and market candles are
+# ADR-0066) and financial-scraper (PROBE_ROUTES) and market candles are
 # written. Fails above
 # PROBE_MAX_FAILURES (default 0: a release must not drop a request) failed
 # requests or when a candle of BTCUSDT is missing (gap above one interval,
@@ -405,6 +405,20 @@ upgrade() {
 	}
 	[ "$(exporter_users)" = 0 ] || {
 		log "release N-1 already has the MySQL exporter user: the upgrade would not prove issue #698"
+		return 1
+	}
+
+	# deploy.yml preflight (issue #805): server-side dry-run of release N with
+	# deploy-app / deploy-cluster; it must pass and leave every pod template as it was.
+	log "preflight: dry-run of release N with the deploy identities (deploy-release.sh dry-run)"
+	release_script render "$ROOT/deploy/k8s/overlays/staging" ghcr.io/trading-model "$WORK/digests-current" |
+		node "$ROOT/tests/k8s/ci-render.mjs" |
+		release_script dry-run "$NS" "$ROOT/deploy/k8s/overlays/staging/node-agents" || {
+		log "the preflight dry-run of release N failed"
+		return 1
+	}
+	[ "$(templates)" = "$before_templates" ] || {
+		log "the preflight dry-run changed a Deployment"
 		return 1
 	}
 
@@ -499,7 +513,7 @@ upgrade() {
 	verify_collection_gap "restart N → N" collector_handover || return 1
 	# Every exporter reaches its database, so neither MySQLDown nor RedisDown
 	# (critical, verify-release rolls back on them) fires (issue #698).
-	# mongodb_up = 1 means the `exporter` user (clusterMonitor, ADR-0059) exists on
+	# mongodb_up = 1 means the `exporter` user (clusterMonitor, ADR-0066) exists on
 	# every member: the Jobs mongo-*-users ran after the transition step.
 	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = min(mongodb_up) = 1, no MySQLDown / RedisDown / MongoDBDown"
 	wait_for 180 '[ "$(prometheus_value "min(mysql_up)")" = 1 ] && [ "$(prometheus_value "min(redis_up)")" = 1 ] &&
@@ -621,6 +635,7 @@ verify() {
 	verify_replicas
 	verify_egress
 	verify_mongo_ingress
+	verify_db_ingress
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -738,6 +753,44 @@ verify_mongo_ingress() {
 		}
 		if mongo_ping mongo-probe-denied "" "$host" >/dev/null 2>&1; then
 			log "  a pod without component label reached $host:27017"
+			return 1
+		fi
+	done
+}
+
+# TCP connect of `$3` (host:port) from a throwaway pod `$1` with labels `$2`
+# (none when empty), with bash of the MySQL image (issue #747).
+tcp_probe() {
+	local img
+	img="$(grep -m1 -o 'mysql@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mysql.yaml")"
+	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
+		\"apiVersion\": \"v1\",
+		\"spec\": {
+			\"securityContext\": {\"runAsNonRoot\": true, \"runAsUser\": 999, \"seccompProfile\": {\"type\": \"RuntimeDefault\"}},
+			\"containers\": [{
+				\"name\": \"$1\", \"image\": \"$img\",
+				\"command\": [\"timeout\", \"5\", \"bash\", \"-c\", \"exec 3<>/dev/tcp/${3%:*}/${3#*:}\"],
+				\"securityContext\": {\"allowPrivilegeEscalation\": false, \"capabilities\": {\"drop\": [\"ALL\"]}}
+			}]
+		}
+	}"
+}
+
+# Only the listed components reach MySQL and Redis (issue #747). Control: the
+# same pod labelled as a listed client connects, so the refusal comes from the
+# NetworkPolicy, not from the image or the name.
+verify_db_ingress() {
+	local target host label
+	log "MySQL 3306, Redis 6379 and api-gateway 3000: refused to an unlisted pod, allowed to a listed component (issue #813)"
+	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:message-manager api-gateway:3000:edge-proxy; do
+		label="${target##*:}"
+		host="${target%:*}"
+		retry 3 tcp_probe db-probe-allowed "app.kubernetes.io/component=$label" "$host" >/dev/null || {
+			log "  a $label pod could not reach $host: the check proves nothing"
+			return 1
+		}
+		if tcp_probe db-probe-denied "" "$host" >/dev/null 2>&1; then
+			log "  a pod without component label reached $host"
 			return 1
 		fi
 	done
@@ -884,7 +937,7 @@ mongo_primary() {
 }
 
 mongo_eval() {
-	# As `root` (ADR-0059); the password is in the pod's env.
+	# As `root` (ADR-0066); the password is in the pod's env.
 	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
@@ -961,6 +1014,8 @@ verify_backup() {
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertMany([{_id: 1}, {_id: 2}, {_id: 3}])" >/dev/null
 	done
 	mysql_root "CREATE DATABASE restore_drill; CREATE TABLE restore_drill.markers (id INT PRIMARY KEY); INSERT INTO restore_drill.markers VALUES (1), (2), (3);"
+	# Past retention (1827 days) and in the dump: restore-k8s.sh must purge it (issue #743).
+	mysql_root "INSERT INTO financial_scraper.market_tickers (symbol, market, source, open, high, low, last, volume, timestamp, close_time) VALUES ('DRILLEXP', 'spot', 'drill', 1, 1, 1, 1, 1, NOW() - INTERVAL 2000 DAY, NOW() - INTERVAL 2000 DAY);"
 	local bundle_before
 	bundle_before="$(spire_bundle)"
 
@@ -1199,6 +1254,11 @@ verify_backup() {
 	$K -n "$NS" scale deployment/spire-server --replicas=0
 	$K -n "$NS" wait --for=delete pod -l app.kubernetes.io/component=spire-server --timeout=120s || true
 
+	# Accounts are not in the dumps (`mysql` schema excluded): lose the SPIRE
+	# one too, and recreate it as the runbook does, or SPIRE cannot log in.
+	mysql_root "DROP USER 'spire'@'%';"
+	(cd "$ROOT" && use_kube && bash deploy/k8s/scripts/run-migrations.sh "$NS" user-only)
+
 	log "restore drill: scripts/restore-k8s.sh --until $until on the fetched run"
 	started=$SECONDS
 	# The identity goes through stdin and is deleted after the restore. The
@@ -1234,6 +1294,10 @@ verify_backup() {
 	}
 	[ "$(mysql_count market_candles)" -gt 0 ] || {
 		log "MySQL: market_candles was not restored"
+		return 1
+	}
+	[ "$(mysql_root "SELECT COUNT(*) FROM financial_scraper.market_tickers WHERE symbol='DRILLEXP'" | tr -d '\r')" = "0" ] || {
+		log "MySQL: the row past its retention came back with the restore (post-restore purge missing)"
 		return 1
 	}
 	[ "$(spire_bundle)" = "$bundle_before" ] || {
@@ -1423,9 +1487,9 @@ all)
 	verify
 	verify_canary
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

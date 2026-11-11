@@ -20,7 +20,10 @@ function setup(
 	const deps: DlqHandlerDeps = {
 		useCases: {
 			addEntry: async () => ({ status: "added", id: "entry-1" }),
-			deleteEntries: async (ids) => ({ deleted: ids.length }),
+			deleteEntries: async (ids) => ({
+				deleted: ids.length,
+				auditRecorded: true,
+			}),
 			replayEntries: async () => ({ status: "no-entries" }),
 			...overrides.useCases,
 		},
@@ -66,7 +69,7 @@ describe("DLQ HTTP handlers", () => {
 			[{ status: "storage-error" }, 503, { code: "STORAGE_UNAVAILABLE" }],
 		] as const)("maps %j to %i", async (result, status, body) => {
 			const h = setup({ useCases: { addEntry: async () => result } });
-			const r = await call<Body>(h.addEntry(ENTRY) as never);
+			const r = await call<Body>(h.addEntry(ENTRY, null) as never);
 			expect(r.status).toBe(status);
 			expect(r.body).toMatchObject(body);
 		});
@@ -75,9 +78,30 @@ describe("DLQ HTTP handlers", () => {
 	describe("deleteEntries", () => {
 		it("returns the deleted count with 200", async () => {
 			const r = await call<Body>(
-				setup().deleteEntries({ ids: ["a", "b"] }) as never
+				setup().deleteEntries({ ids: ["a", "b"] }, "ops-alice") as never
 			);
-			expect(r).toEqual({ status: 200, body: { deleted: 2 } });
+			expect(r).toEqual({
+				status: 200,
+				body: { deleted: 2, auditRecorded: true },
+			});
+		});
+
+		it("answers 502 when the audit event was refused, with the deleted count", async () => {
+			const deleteEntries = jest.fn<DlqUseCases["deleteEntries"]>(async () => ({
+				deleted: 1,
+				auditRecorded: false,
+			}));
+			const r = await call<Body>(
+				setup({ useCases: { deleteEntries } }).deleteEntries(
+					{ ids: ["a"] },
+					"ops-alice"
+				) as never
+			);
+			expect(deleteEntries).toHaveBeenCalledWith(["a"], "ops-alice");
+			expect(r).toEqual({
+				status: 502,
+				body: { deleted: 1, auditRecorded: false },
+			});
 		});
 	});
 
@@ -85,11 +109,26 @@ describe("DLQ HTTP handlers", () => {
 		it.each([
 			[{ status: "message-manager-unresolved" }, 500],
 			[{ status: "no-entries" }, 200],
-			[{ status: "replayed", details: { batchId: "b", replayed: 1 } }, 200],
+			[
+				{
+					status: "replayed",
+					details: { batchId: "b", replayed: 1 },
+					auditRecorded: true,
+				},
+				200,
+			],
+			[
+				{
+					status: "replayed",
+					details: { batchId: "b", replayed: 1 },
+					auditRecorded: false,
+				},
+				502,
+			],
 		] as const)("maps %j to %i", async (result, status) => {
 			const h = setup({ useCases: { replayEntries: async () => result } });
 			const r = await call<Body>(
-				h.replayEntries({ limit: 10 } as never) as never
+				h.replayEntries({ limit: 10 } as never, null) as never
 			);
 			expect(r.status).toBe(status);
 		});
@@ -100,11 +139,11 @@ describe("DLQ HTTP handlers", () => {
 			});
 			const h = setup({ useCases: { replayEntries } });
 
-			await expect(h.replayEntries({ limit: 10 } as never)).rejects.toThrow(
-				"boom"
-			);
+			await expect(
+				h.replayEntries({ limit: 10 } as never, "ops-alice")
+			).rejects.toThrow("boom");
 			expect(replayEntries).toHaveBeenCalledWith(
-				{ limit: 10 },
+				{ limit: 10, actor: "ops-alice" },
 				expect.anything()
 			);
 		});

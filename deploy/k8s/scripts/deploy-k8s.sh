@@ -95,7 +95,7 @@ cmd_apply() {
     kustomize_build "${K8S_DIR}/node-agents" | kubectl apply -f -
     log "Applying all Trading Model manifests..."
     # Immutable pod template: recreated (idempotent) by the apply (issue #727).
-    kubectl delete job -n "$NAMESPACE" mongo-audit-init mongo-dlq-init --ignore-not-found
+    kubectl delete job -n "$NAMESPACE" mongo-audit-init mongo-dlq-init mysql-cluster-init --ignore-not-found
     kustomize_build "${K8S_DIR}/" | kubectl apply -f -
   fi
 
@@ -205,8 +205,11 @@ cmd_migrate_down() {
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
+  # activeDeadlineSeconds follows the wait-job.sh timeout (DEPLOY_TIMEOUT_FACTOR, issue #760).
   sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
-    "${K8S_DIR}/jobs/migration-job-down.yaml" | kubectl apply -n "$NAMESPACE" -f -
+    "${K8S_DIR}/jobs/migration-job-down.yaml" |
+    awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
+    kubectl apply -n "$NAMESPACE" -f -
 
   log "Waiting for migration rollback to complete..."
   bash "${K8S_DIR}/scripts/wait-job.sh" "$NAMESPACE" db-migrate-down 180
@@ -531,6 +534,8 @@ release_checks_once() {
   local strict="$1" key code critical fresh
 
   key="$(kubectl get secret -n "$NAMESPACE" trading-model-secrets -o jsonpath='{.data.AUTH_TOKENS}' | base64 -d | cut -d, -f1)"
+  # A key is name:scopes:secret (ADR-0059): the secret is after the last colon.
+  key="${key##*:}"
   if [[ -z "$key" ]]; then
     err "  ✗ no gateway API key in Secret trading-model-secrets (AUTH_TOKENS)"
     return 1

@@ -20,6 +20,7 @@ import { getNodeEnv, NODE_ENV } from "../../shared/node-env";
 export type { LogEntry, LogOptions };
 export { LogLevel };
 
+/** Writes structured log entries at or above the configured level. */
 export class Logger {
 	private _logLevel: LogLevel;
 	private _userId: UserId = UserId.of("unknown");

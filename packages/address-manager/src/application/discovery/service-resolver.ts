@@ -10,20 +10,22 @@ import { ServiceInstancesWire } from "@trading-model/validation/wire/service-ins
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
-import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import {
 	serviceNotFoundError,
 	serviceUnreachableError,
 } from "../../shared/errors";
 import { EndpointResolver } from "./endpoint-resolver";
 
+/** Dependencies of ServiceResolver. */
 export interface ServiceResolverDeps {
 	httpClient: HttpClient;
-	serviceCache: IServiceCache;
+	serviceCache: ServiceCachePort;
 	config: AddressManagerConfig;
 	healthChecker: ServiceHealthChecker;
 }
 
+/** Resolves a service name to a target address. */
 export class ServiceResolver {
 	/** Same selection logic as the gateway (ADR-0045). */
 	private readonly _endpoints: EndpointResolver;
@@ -43,7 +45,7 @@ export class ServiceResolver {
 	private get _config(): AddressManagerConfig {
 		return this._deps.config;
 	}
-	private get _serviceCache(): IServiceCache {
+	private get _serviceCache(): ServiceCachePort {
 		return this._deps.serviceCache;
 	}
 	private get _healthChecker(): ServiceHealthChecker {

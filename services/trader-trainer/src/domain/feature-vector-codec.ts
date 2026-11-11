@@ -49,6 +49,7 @@ function holder(
 	fv: FeatureVector,
 	group: FeatureGroup | null
 ): Record<string, number> {
+	// as unknown as: typed feature groups viewed as a number record
 	return (group === null ? fv : fv[group]) as unknown as Record<string, number>;
 }
 

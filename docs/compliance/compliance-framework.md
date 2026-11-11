@@ -29,8 +29,9 @@ This document provides a consolidated map of all regulatory obligations applicab
 | GDPR Article | Requirement | Platform Control | Document Reference |
 |---|---|---|---|
 | **Art. 5(1)(c)** | Data minimisation | Machine-generated data only, except caller IPs truncated by the edge-proxy before logging (31 days) | [DPIA](dpia.md) §2 |
-| **Art. 5(1)(e)** | Storage limitation | TTL-based retention on MongoDB, Loki, Prometheus and backups; MySQL market data not bounded yet (DPIA action #2) | [Data Retention Policy](data-retention-policy.md) |
+| **Art. 5(1)(e)** | Storage limitation | TTL-based retention on MongoDB, Loki, Prometheus and backups; MySQL market data bounded by `db-retention` (1827 days, ADR-0051) | [Data Retention Policy](data-retention-policy.md) |
 | **Art. 6(1)(f)** | Legitimate interest basis | Documented for all 5 processing activities | [Data Processing Register](data-processing-register.md) |
+| **Art. 13** | Information to data subjects | Notice for API callers (truncated IP, 31 days) | [Privacy Notice](privacy-notice.md) |
 | **Art. 25** | Data protection by design and by default | mTLS, encryption at rest, log redaction (including context sanitization), append-only audit | [DPIA](dpia.md) §4 |
 | **Art. 30** | Register of processing activities | Controller section + 7 activities (one with personal data: API access logs) | [Data Processing Register](data-processing-register.md) |
 | **Art. 32** | Security of processing | mTLS, encryption, RBAC, circuit breakers | [Information Security Policy](information-security-policy.md) |
@@ -56,7 +57,7 @@ This document provides a consolidated map of all regulatory obligations applicab
 |---|---|---|---|
 | **Art. 12** | Market manipulation definitions | Agent behaviour patterns assessed against spoofing, layering, quote stuffing | [Algorithmic Trading Compliance](algorithmic-trading-compliance.md) §5.2 |
 | **Art. 16** | Suspicious transaction reporting | Audit trail enables reconstruction; automated detection not yet implemented | [Algorithmic Trading Compliance](algorithmic-trading-compliance.md) §5.1 |
-| **Art. 17** | Public disclosure of inside information | Not applicable — no inside information processed |
+| **Art. 17** | Public disclosure of inside information | Not applicable — no inside information processed | — |
 
 ### 3.4 DORA Control Map
 

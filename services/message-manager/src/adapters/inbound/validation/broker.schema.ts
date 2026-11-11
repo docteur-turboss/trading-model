@@ -94,6 +94,7 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 		.string()
 		.optional()
 		.transform((val) => (val ? toCorrelationId(val) : undefined)),
+	// as unknown as: Zod string typed as the event enum
 	eventType: z.string().min(1) as unknown as z.ZodType<EventEnumMap>,
 	topic: TOPIC_SCHEMA,
 

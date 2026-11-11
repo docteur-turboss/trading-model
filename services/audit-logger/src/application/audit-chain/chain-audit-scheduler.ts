@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
@@ -44,7 +45,7 @@ export class ChainAuditScheduler {
 			await this._audit.runCycle();
 		} catch (err) {
 			getLogger().error("Audit chain cycle failed", {
-				error: (err as Error)?.message,
+				error: normalizeError(err).message,
 			});
 		}
 	}

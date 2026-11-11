@@ -3,19 +3,14 @@ import type {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type { BooleanValueSource } from "ts-sql-query/expressions/values";
 import { Table } from "ts-sql-query/Table";
-import type { tableOrViewRef } from "ts-sql-query/utils/symbols";
 
-import {
-	createDBConnection,
-	DATABASE,
-	type DBConnection,
-} from "../../../../config/db";
+import type { DBConnection } from "../../../../config/db";
 import type {
 	MarketDataPage,
 	TradeData,
 } from "../../../../domain/market-data.types";
+import { defineUpsert, type PageFilter, pagedQuery } from "./market-table";
 
 const T_MARKET_TRADES = new (class TMarketTrades extends Table<
 	DBConnection,
@@ -52,23 +47,21 @@ const SELECT = {
 	timestamp: T_MARKET_TRADES.timestamp,
 };
 
-const UPSERT_SQL = `
-	INSERT INTO market_trades
-		(symbol, market, source, trade_id, price, quantity, side, timestamp)
-	VALUES ?
-	ON DUPLICATE KEY UPDATE
-		price = VALUES(price),
-		quantity = VALUES(quantity),
-		side = VALUES(side)
-`;
-
 /** Upsert trade records into the market_trades table (INSERT ... ON DUPLICATE KEY UPDATE). */
-export const insertTrades = async (data: TradeData[]): Promise<void> => {
-	if (!data.length) {
-		return;
-	}
-
-	const rows = data.map((item) => [
+export const insertTrades = defineUpsert<TradeData>({
+	table: "market_trades",
+	columns: [
+		"symbol",
+		"market",
+		"source",
+		"trade_id",
+		"price",
+		"quantity",
+		"side",
+		"timestamp",
+	],
+	update: ["price", "quantity", "side"],
+	mapRow: (item) => [
 		item.symbol,
 		item.market,
 		item.source,
@@ -77,44 +70,19 @@ export const insertTrades = async (data: TradeData[]): Promise<void> => {
 		item.quantity,
 		item.side,
 		new Date(item.timestamp),
-	]);
-	await DATABASE.promise().query(UPSERT_SQL, [rows]);
-};
+	],
+});
 
-/** One page in (timestamp, id) order: `filter`, then the window and the cursor of `page`. */
 function _selectPage(
-	filter: BooleanValueSource<
-		(typeof T_MARKET_TRADES)[typeof tableOrViewRef],
-		"required"
-	>,
+	filter: PageFilter<typeof T_MARKET_TRADES>,
 	page: MarketDataPage
 ) {
-	const table = T_MARKET_TRADES;
-	const after = new Date(page.after?.timestamp ?? 0);
-	return createDBConnection()
-		.selectFrom(table)
-		.where(filter)
-		.and(table.timestamp.largeAsIfValue(_date(page.from)))
-		.and(table.timestamp.lessThanIfValue(_date(page.to)))
-		.and(
-			table.timestamp
-				.greaterThan(after)
-				.or(
-					table.timestamp
-						.equals(after)
-						.and(table.id.greaterThan(page.after?.id ?? 0))
-				)
-				.onlyWhen(page.after !== undefined)
-		)
+	return pagedQuery(T_MARKET_TRADES, filter, page)
 		.select(SELECT)
 		.orderBy("timestamp")
 		.orderBy("id")
 		.limit(page.limit)
 		.executeSelectMany();
-}
-
-function _date(epochMs: number | undefined): Date | undefined {
-	return epochMs === undefined ? undefined : new Date(epochMs);
 }
 
 /** Query helpers for the market_trades table, indexed by symbol, timestamp, and source. */

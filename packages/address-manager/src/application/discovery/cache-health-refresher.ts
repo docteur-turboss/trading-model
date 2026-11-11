@@ -1,12 +1,12 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type ServiceId,
 	toServiceId,
 } from "@trading-model/primitives/primitives";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
-import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import type { ScheduledJob } from "../../infrastructure/scheduler/scheduler";
 
 function selectBatchSlice(
@@ -26,13 +26,14 @@ function selectBatchSlice(
 	return { batch, nextOffset };
 }
 
+/** Scheduled job that re-checks cached service instances in batches. */
 export class CacheHealthRefresher implements ScheduledJob {
 	public readonly schedule: string;
 	private _batchOffset = 0;
 	private _running = false;
 
 	constructor(
-		private readonly _serviceCache: IServiceCache,
+		private readonly _serviceCache: ServiceCachePort,
 		private readonly _healthChecker: ServiceHealthChecker,
 		checkIntervalMs: number
 	) {
@@ -41,7 +42,7 @@ export class CacheHealthRefresher implements ScheduledJob {
 
 	async execute(): Promise<void> {
 		if (this._running) {
-			logger.warn(
+			getLogger().warn(
 				"CacheHealthRefresher: previous execution still running, skipping tick"
 			);
 			return;
@@ -61,7 +62,7 @@ export class CacheHealthRefresher implements ScheduledJob {
 		const healthy = await this._healthChecker.isHealthy(entry.instance);
 		if (!healthy) {
 			await this._serviceCache.delete(toServiceId(entry.serviceName));
-			logger.warn("Cache health refresher invalidated unhealthy service", {
+			getLogger().warn("Cache health refresher invalidated unhealthy service", {
 				serviceName: entry.serviceName,
 			});
 		}
@@ -104,7 +105,7 @@ export class CacheHealthRefresher implements ScheduledJob {
 
 	private _logBatchErrors(errors: PromiseRejectedResult[]): void {
 		for (const error of errors) {
-			logger.error("Cache health refresher check failed", {
+			getLogger().error("Cache health refresher check failed", {
 				error: normalizeError(error.reason),
 			});
 		}

@@ -4,8 +4,12 @@ name: Backup Key Check
 # backup run (ADR-0034, issue #327). An age file does not name the keys it is
 # encrypted for: only a real decryption proves the key works. The escrow
 # private key lives in the secret BACKUP_ESCROW_AGE_IDENTITY of the GitHub
-# environment `backup-key-check` (deployment branches: the default branch
-# only), next to read-only credentials of the off-site bucket. A failure
+# environment `backup-key-check`, next to read-only credentials of the
+# off-site bucket. Expected protection (scripts/check-environment-protection.mjs,
+# RULES): deployment branches limited to `main` and a required reviewer. Job
+# `check-environment` verifies it before `verify-escrow-key` can start: GitHub
+# does not enforce anything by itself while the settings are missing, so this
+# job refuses to release the key until they are made (DEPLOY.md). A failure
 # (key no longer a recipient, component missing or corrupt, bucket
 # unreachable, secret missing) fails the run: GitHub notifies on it.
 on:
@@ -32,7 +36,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # No `environment:` here, on purpose: it would wait for the reviewer or create
+  # the environment unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
+  # (fine-grained PAT, "Administration: read"); without it the check fails.
+  check-environment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check the environment protection
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret ENVIRONMENT_READ_TOKEN is not set: the protection of environment backup-key-check cannot be checked, the escrow key is not released. See docs/deployment/DEPLOY.md (Protect the production environment)."
+            exit 1
+          fi
+          node scripts/check-environment-protection.mjs backup-key-check "$GITHUB_REPOSITORY"
+
   verify-escrow-key:
+    needs: check-environment
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: backup-key-check

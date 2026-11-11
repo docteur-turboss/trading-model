@@ -35,9 +35,7 @@ import {
  * what the code publishes and subscribes to.
  */
 
-const mockScraperBroker = createRecordingBrokerClient(
-	"financial-scraper-service"
-);
+const mockScraperBroker = createRecordingBrokerClient("financial-scraper");
 const mockTrainerBroker = createRecordingBrokerClient("trader-trainer");
 const mockDlqBroker = createRecordingBrokerClient("dlq-service");
 
@@ -45,7 +43,7 @@ jest.mock(
 	"../../services/financial-scraper/src/infrastructure/config/env",
 	() => ({
 		ENV: {
-			SERVICE_NAME: "financial-scraper-service",
+			SERVICE_NAME: "financial-scraper",
 			INSTANCE_ID: "financial-scraper-1",
 		},
 	})
@@ -173,10 +171,20 @@ async function publishScrapeCycle(): Promise<Publication[]> {
 }
 
 async function publishDlqEvents(): Promise<Publication[]> {
-	notifyAddAudit("entry-1", "market.trade.recent.fetch" as never, "OPEN");
-	notifyReplayAudit({ batchId: "batch-1", success: 3, failed: 1 });
-	notifyDeleteAudit(["entry-1"], 1);
-	// dlq-service does not wait for its publishes.
+	notifyAddAudit("entry-1", "market.trade.recent.fetch" as never, "OPEN", null);
+	// The human actions wait for message-manager to accept their event (ADR-0059).
+	await expect(
+		notifyReplayAudit({
+			batchId: "batch-1",
+			success: 3,
+			failed: 1,
+			actor: "ops-alice",
+		})
+	).resolves.toBe(true);
+	await expect(notifyDeleteAudit(["entry-1"], 1, "ops-alice")).resolves.toBe(
+		true
+	);
+	// The add does not wait for its publish.
 	await new Promise((resolve) => setImmediate(resolve));
 	return publicationsOf("dlq-service", mockDlqBroker.requests);
 }
@@ -220,7 +228,8 @@ async function publishTrainedModel(): Promise<Publication[]> {
 				epsilonMin: 0.05,
 				epsilonDecay: 0.995,
 			},
-		} as never
+		} as never,
+		{ version: "20261029T101530Z-0123456789ab", sha256: "ab".repeat(32) }
 	);
 	return publicationsOf("trader-trainer", mockTrainerBroker.requests);
 }
@@ -362,6 +371,18 @@ describe("service message contracts", () => {
 				}
 			}
 		);
+
+		it.each([DlqEvent.EntriesDeleted, DlqEvent.ReplayCompleted])(
+			"audit-logger: %s records the API key name of the operator (ADR-0059)",
+			async (topic) => {
+				for (const body of await deliveredBodies(topic)) {
+					await audit.receive(body);
+					expect(audit.documents.at(-1)?.payload).toMatchObject({
+						actor: "ops-alice",
+					});
+				}
+			}
+		);
 	});
 
 	describe("dead letters replayed by dlq-service reach the subscribers again", () => {
@@ -391,8 +412,8 @@ describe("service message contracts", () => {
 					}
 					// ADR-0043: only the failed service, under the original messageId.
 					expect(replayed.journaledFor).toEqual({
-						services: ["audit-logger-service"],
-						onlyFor: "audit-logger-service",
+						services: ["audit-logger"],
+						onlyFor: "audit-logger",
 					});
 					expect(replayed.message.metadata.messageId).toBe(
 						first.message.metadata.messageId

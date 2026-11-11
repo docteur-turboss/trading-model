@@ -22,7 +22,7 @@ configMapGenerator:
   - name: redis-ha-scripts
     files:
       - redis-ha.sh
-  # Users of both MongoDB replica sets, run by Jobs mongo-*-users (ADR-0059).
+  # Users of both MongoDB replica sets, run by Jobs mongo-*-users (ADR-0066).
   - name: mongo-users-script
     files:
       - users.js=../../mongo/users.js

@@ -45,8 +45,8 @@ const SINGLETONS = {
 	"trader-trainer": { adr: "ADR-0058", lease: "trader-trainer", env: "TRAINER_LEASE_NAME" },
 	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector", env: "COLLECTOR_LEASE_NAME" },
 };
-// Data StatefulSets of staging-local held by a partition (issue #700).
-const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
+// Data and observability StatefulSets of staging-local held by a partition (issue #700).
+const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit", "alertmanager", "grafana", "loki", "prometheus"];
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 
 function render(dir) {
@@ -327,6 +327,32 @@ for (const env of OVERLAYS) {
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
 
+	// Issue #809 (ADR-0062): production runs the alerting path twice, Alertmanager as one cluster.
+	for (const name of ["alertmanager", "prometheus"]) {
+		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
+		const replicas = Number(sts?.text.match(/^ {2}replicas: (\d+)$/m)?.[1] ?? 1);
+		const wanted = env === "production" ? 2 : 1;
+		if (replicas !== wanted) errors.push(`${env}: StatefulSet ${name} must run ${wanted} replica(s), found ${replicas} (ADR-0062)`);
+		if (replicas > 1 && sts && !spreadsAcrossNodes(sts.text)) {
+			errors.push(`${env}: StatefulSet ${name} runs ${replicas} pods without topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
+		}
+		if (env === "production" && !docs.some((doc) => doc.kind === "PodDisruptionBudget" && doc.text.includes(`component: ${name}
+`) && /^ {2}minAvailable: 1$/m.test(doc.text))) {
+			errors.push(`production: no PodDisruptionBudget minAvailable: 1 for ${name} (ADR-0062)`);
+		}
+		if (name === "alertmanager" && sts && env === "production" && !/--cluster\.peer=alertmanager-headless:9094/.test(sts.text)) {
+			errors.push("production: alertmanager has no --cluster.peer (ADR-0062)");
+		}
+		if (name === "prometheus" && sts && env === "production") {
+			const config = docs.find((doc) => doc.kind === "ConfigMap" && doc.name === "prometheus-config")?.text ?? "";
+			if (!sts.text.includes("--enable-feature=expand-external-labels")) errors.push("production: prometheus lacks --enable-feature=expand-external-labels, so the replica label stays a literal ${HOSTNAME} (ADR-0062)");
+			if (/\\n\s+--/.test(sts.text)) errors.push("prometheus: literal backslash-n inside the launch command (merges two flags on one line)");
+			if (!/external_labels:\s+replica: '\$\{HOSTNAME\}'/.test(config)) errors.push("production: prometheus external label replica: '${HOSTNAME}' missing (ADR-0062)");
+			if (!/alert_relabel_configs:\s+- action: labeldrop\s+regex: replica/.test(config)) errors.push("production: prometheus does not drop the replica label before sending alerts: both replicas' alerts would differ (ADR-0062)");
+			if (!/alertmanager-ready/.test(config) || /alertmanager-headless/.test(config)) errors.push("production: prometheus must discover Alertmanager through the ready-only Service alertmanager-ready (ADR-0062)");
+		}
+	}
+
 	for (const name of DATA_STATEFULSETS) {
 		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
 		if (!sts) {
@@ -352,6 +378,36 @@ for (const env of OVERLAYS) {
 		if (!rendered.includes("nginx.ingress.kubernetes.io/whitelist-source-range")) {
 			errors.push("staging: no ingress whitelist-source-range");
 		}
+	}
+
+	// Issue #732: the rendered edge-proxy ConfigMap loads realip.inc from default.conf
+	// and carries the overlay's own trusted CIDRs (not the base ones).
+	const edge = docs.find((doc) => doc.kind === "ConfigMap" && doc.name?.startsWith("edge-proxy-nginx"));
+	if (!edge?.text.includes("include /etc/nginx/conf.d/realip.inc;")) {
+		errors.push(`${env}: edge-proxy-nginx does not include realip.inc in default.conf`);
+	}
+	// Issue #739: error lines carry the full "client: <IP>"; only `crit` may reach stderr (promtail -> Loki).
+	if (!/^ *error_log \/dev\/stderr crit;$/m.test(edge?.text ?? "")) {
+		errors.push(`${env}: edge-proxy-nginx default.conf lacks "error_log /dev/stderr crit;" (full client IP in error log)`);
+	}
+	const overlayCidrs = readFileSync(`deploy/k8s/overlays/${env}/realip.inc`, "utf8").match(/^set_real_ip_from .+;$/gm) ?? [];
+	if (overlayCidrs.length === 0 || !overlayCidrs.every((line) => edge?.text.includes(line))) {
+		errors.push(`${env}: edge-proxy-nginx realip.inc lacks the CIDRs of overlays/${env}/realip.inc`);
+	}
+
+	// Issue #740 (ADR-0063): per-person Grafana access, Viewer by default.
+	const grafana = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === "grafana")?.text ?? "";
+	for (const [name, value] of [["GF_AUTH_ANONYMOUS_ENABLED", '"false"'], ["GF_USERS_ALLOW_SIGN_UP", '"false"'], ["GF_USERS_AUTO_ASSIGN_ORG_ROLE", "Viewer"]]) {
+		if (!new RegExp(`- name: ${name}\\n\\s+value: ${value}$`, "m").test(grafana)) errors.push(`${env}: grafana must set ${name}=${value} (ADR-0063)`);
+	}
+	// OIDC off in every render (CI kind has no egress): each key an optional Secret key, never a literal.
+	for (const name of ["ENABLED", "CLIENT_ID", "CLIENT_SECRET", "AUTH_URL", "TOKEN_URL", "API_URL", "ALLOWED_DOMAINS"].map((n) => `GF_AUTH_GENERIC_OAUTH_${n}`).concat("GF_SERVER_ROOT_URL")) {
+		if (!new RegExp(`- name: ${name}\\n\\s+valueFrom:\\n\\s+secretKeyRef:\\n(?:\\s+(?:name|key): \\S+\\n)*?\\s+optional: true`).test(grafana)) errors.push(`${env}: grafana ${name} must come from an optional Secret key (ADR-0063)`);
+	}
+
+	// Same Secret key drives the OIDC switch and the hidden login form (issue #856); basic auth has its own optional key.
+	for (const [name, key] of [["GF_AUTH_GENERIC_OAUTH_ENABLED", "GRAFANA_OIDC_ENABLED"], ["GF_AUTH_DISABLE_LOGIN_FORM", "GRAFANA_OIDC_ENABLED"], ["GF_AUTH_BASIC_ENABLED", "GRAFANA_BASIC_AUTH_ENABLED"]]) {
+		if (!new RegExp(`- name: ${name}\\n\\s+valueFrom:\\n\\s+secretKeyRef:\\n(?:\\s+\\S+: \\S+\\n)*?\\s+key: ${key}\\n(?:\\s+\\S+: \\S+\\n)*?\\s+optional: true`).test(grafana)) errors.push(`${env}: grafana ${name} must read optional Secret key ${key} (issue #856)`);
 	}
 
 	for (const name of SEALED_ONLY) {

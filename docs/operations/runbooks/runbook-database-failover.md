@@ -132,7 +132,18 @@ the trust bundle comes back unchanged
    ```
 2. If the volume is gone, let `mysql-0` start on a new empty PVC (delete the
    broken PVC `mysql-data-mysql-0` and the pod) and wait for it to be ready.
-3. Restore MySQL and the SPIRE CA keys (the SPIRE step writes the keys,
+3. Recreate the MySQL accounts. The dump leaves out the `mysql` schema, so on
+   an empty volume `spire`, `migrator`, `retention` and `exporter` no longer
+   exist, and the restored SPIRE server (user `spire`, issue #807) would
+   crashloop on `Access denied`. Run the user Job as root (it also recreates the
+   `spire` database, which the restore then overwrites):
+   ```bash
+   bash deploy/k8s/scripts/run-migrations.sh trading-model user-only
+   ```
+   The Job needs every key of `trading-model-secrets`, `MYSQL_SPIRE_PASSWORD`
+   included: without one the whole Job fails, `migrator` too. Same for a
+   rollback (`migrate-down`): seal the key first.
+4. Restore MySQL and the SPIRE CA keys (the SPIRE step writes the keys,
    scales `spire-server` back to 1 and runs its healthcheck):
    ```bash
    BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
@@ -143,11 +154,11 @@ the trust bundle comes back unchanged
    ```
    With `--components mysql` alone, start the SPIRE server again by hand
    afterwards: `kubectl scale deployment -n trading-model spire-server --replicas=1`.
-4. Scale the writers back to the replica counts of the overlay:
+5. Scale the writers back to the replica counts of the overlay:
    ```bash
    kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector --replicas=<overlay replicas>
    ```
-5. If a workload rejects its peers, its SVID was issued by a CA generated
+6. If a workload rejects its peers, its SVID was issued by a CA generated
    between the loss and the restore: restart its pod (the `spiffe-helper`
    sidecar fetches a new SVID).
 

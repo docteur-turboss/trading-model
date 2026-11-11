@@ -70,7 +70,7 @@ backup_mongodb() {
       mongodump_args+=(--oplog)
     fi
 
-    # The `backup` user (ADR-0059); the password stays in the container's env.
+    # The `backup` user (ADR-0066); the password stays in the container's env.
     if write_dump mongodb "$file" docker exec "${container}" sh -c "mongodump --quiet ${mongodump_args[*]} --username backup --password \"\$MONGO_BACKUP_PASSWORD\" --authenticationDatabase admin"; then
       ok "MongoDB backup complete: ${container}"
       write_metric "mongodb" 1

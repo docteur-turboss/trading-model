@@ -4,18 +4,19 @@ import promClient from "prom-client";
 import { STATUS_ROUTES } from "../../adapters/inbound/routes/metrics.routes";
 import { PING_ROUTES } from "../../adapters/inbound/routes/ping.routes";
 import type { DiscoveryCircuitBreaker } from "../../application/discovery/circuit-breaker";
-import type { IServiceCache } from "../../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import { CACHE_ENTRY_COUNT, CIRCUIT_BREAKER_INSTANCES_TOTAL } from "../metrics";
 import { ServiceCallTracker } from "./service-call-tracker";
 import { SystemMetrics, type SystemMetricsPayload } from "./system-metrics";
 
+/** Collects the service metrics and exposes them over Express. */
 export class MetricsCollector {
 	private readonly _systemMetrics: SystemMetrics;
 	private readonly _serviceCallTracker: ServiceCallTracker;
 
 	constructor(
 		private readonly _circuitBreaker: DiscoveryCircuitBreaker,
-		private readonly _serviceCache: IServiceCache,
+		private readonly _serviceCache: ServiceCachePort,
 		maxCallRecords?: number
 	) {
 		this._systemMetrics = new SystemMetrics();
