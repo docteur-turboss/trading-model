@@ -318,8 +318,18 @@ purge_expired_rows() {
   local job
   job="db-retention-post-restore-$(date -u +%Y%m%d%H%M%S)"
   log "Purging rows past their retention (Job ${job})..."
+  # The Job has backoffLimit 0: a failed purge must end the wait at once, not after RETENTION_WAIT.
+  local wc wf
   if kubectl create job -n "${K8S_NAMESPACE}" "$job" --from=cronjob/db-retention >/dev/null &&
-    kubectl wait -n "${K8S_NAMESPACE}" --for=condition=complete "job/${job}" --timeout="${RETENTION_WAIT}" >/dev/null; then
+    {
+      kubectl wait -n "${K8S_NAMESPACE}" --for=condition=complete "job/${job}" --timeout="${RETENTION_WAIT}" >/dev/null 2>&1 &
+      wc=$!
+      kubectl wait -n "${K8S_NAMESPACE}" --for=condition=failed "job/${job}" --timeout="${RETENTION_WAIT}" >/dev/null 2>&1 &
+      wf=$!
+      wait -n "$wc" "$wf"
+      kill "$wc" "$wf" 2>/dev/null
+      [ "$(kubectl get -n "${K8S_NAMESPACE}" "job/${job}" -o jsonpath='{.status.succeeded}')" = "1" ]
+    }; then
     ok "Retention purge complete (${job})"
   else
     kubectl logs -n "${K8S_NAMESPACE}" "job/${job}" --tail=20 2>&1 || true

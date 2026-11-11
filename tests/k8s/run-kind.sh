@@ -1288,7 +1288,7 @@ verify_backup() {
 		log "MySQL: market_candles was not restored"
 		return 1
 	}
-	[ "$(mysql_root "SELECT COUNT(*) FROM financial_scraper.market_tickers WHERE symbol='DRILLEXP'" | tr -d '')" = "0" ] || {
+	[ "$(mysql_root "SELECT COUNT(*) FROM financial_scraper.market_tickers WHERE symbol='DRILLEXP'" | tr -d '\r')" = "0" ] || {
 		log "MySQL: the row past its retention came back with the restore (post-restore purge missing)"
 		return 1
 	}
