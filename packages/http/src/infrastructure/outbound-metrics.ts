@@ -21,3 +21,24 @@ export const outboundRequestsInFlight = new Gauge({
 	help: "Number of outbound HTTP requests currently in flight",
 	labelNames: ["service"] as const,
 });
+
+/** Inbound mTLS / ACL denials; `reason` is one of a fixed set of codes (bounded cardinality). */
+export const mtlsDenialsTotal = new Counter({
+	name: "http_mtls_denials_total",
+	help: "Total inbound requests denied by mTLS authentication or the service ACL, by reason",
+	labelNames: ["reason"] as const,
+});
+
+// Series must exist at 0 from startup: increase() ignores a series that first appears at 1.
+for (const reason of [
+	"non_tls",
+	"unauthorized_handshake",
+	"no_client_certificate",
+	"identity_unresolved",
+	"unauthenticated",
+	"caller_unresolved",
+	"caller_not_allowed",
+	"no_policy",
+]) {
+	mtlsDenialsTotal.inc({ reason }, 0);
+}
