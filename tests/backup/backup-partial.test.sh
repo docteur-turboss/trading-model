@@ -274,16 +274,16 @@ else
 		failed "unexpected refusal: $out"
 fi
 
-echo "restore-k8s.sh restores SPIRE only from a run taken since ADR-0062"
+echo "restore-k8s.sh restores SPIRE only from a run taken since ADR-0065"
 new_run 2026-11-05_020000
 write_dump spire "$BACKUP_DIR/spire/data_${TIMESTAMP}.tar.age" printf 'tar' 2>/dev/null
 write_manifest 2>/dev/null
 out="$(restore_dry restore-k8s.sh --components spire --timestamp 2026-11-05_020000 || true)"
 echo "$out" | grep -q 'Restoring spire from: .*data_2026-11-05_020000.tar' &&
-	! echo "$out" | grep -q 'taken before ADR-0062' &&
+	! echo "$out" | grep -q 'taken before ADR-0065' &&
 	pass "a datastore + keys tar (data_<TS>.tar) is restored" || failed "data_ run: $out"
 out="$(restore_dry restore-k8s.sh --components spire --timestamp 2026-11-01_020000 || true)"
-echo "$out" | grep -q 'taken before ADR-0062' &&
+echo "$out" | grep -q 'taken before ADR-0065' &&
 	pass "keys.json alone (datastore was in MySQL) is refused" || failed "keys_ run accepted: $out"
 
 echo "prune_old removes the partial files of a killed run"

@@ -1,4 +1,4 @@
-# ADR-0062: SPIRE Server Datastore in SQLite on Its Own Volume, SVID TTL 4 Hours
+# ADR-0065: SPIRE Server Datastore in SQLite on Its Own Volume, SVID TTL 4 Hours
 
 **Status:** Accepted
 **Date:** 2026-11

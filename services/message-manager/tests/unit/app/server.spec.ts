@@ -57,8 +57,8 @@ function redisReadinessCheck(): () => Promise<boolean> {
 }
 
 describe("app/server", () => {
-	it("should create server", () => {
-		const server = createServer();
+	it("should create server", async () => {
+		const server = await createServer();
 		expect(server).toBeDefined();
 		expect(server.close).toBeDefined();
 	});

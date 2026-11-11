@@ -14,7 +14,7 @@
 #    - financial_scraper.market_candles: rows > 0, latest timestamp reported
 #      (KO older than --max-candle-age-hours when given; after a restore the
 #      data is as old as the backup, so there is no default limit)
-#    - SPIRE datastore (SQLite, ADR-0062): registration entries > 0
+#    - SPIRE datastore (SQLite, ADR-0065): registration entries > 0
 #    - SPIRE trust bundle readable (PEM certificate)
 #    - run manifest (BACKUP_DIR, issue #288): the manifest lists size and
 #      sha256 per dump, no row counts: nothing to compare, said so.
@@ -120,7 +120,7 @@ check_candles() {
   fi
 }
 
-# The datastore is SQLite on the server volume (ADR-0062): read it through
+# The datastore is SQLite on the server volume (ADR-0065): read it through
 # the server, not MySQL.
 check_spire_entries() {
   local count

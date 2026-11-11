@@ -62,6 +62,10 @@ jobs:
       - name: Test the selective MongoDB restore
         run: bash tests/backup/restore-mongo-ns.test.sh
 
+      # Retention purge after a MySQL restore: a failed Job ends the wait at once (issue #743).
+      - name: Test the post-restore retention purge
+        run: bash tests/backup/restore-retention-purge.test.sh
+
       # Same options against the real mongorestore of the compose image.
       - name: Test the selective MongoDB restore against a real mongorestore
         run: bash tests/backup/restore-mongo-ns-real.test.sh

@@ -28,7 +28,7 @@ This register documents the processing activities of the trading-model platform,
 | **Data categories**      | Trading symbols (e.g., BTCUSDT), numeric price/volume data, timestamps, market identifiers                                        |
 | **Personal data**        | None                                                                                                                              |
 | **Recipients**           | Internal: trader-trainer, audit-logger, message-manager                                                                           |
-| **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. See third-party assessment |
+| **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. Signal sources (ADR-0036): each request sends the User-Agent `automated news analysis <SIGNAL_CONTACT_EMAIL>` to ECB, SEC EDGAR (United States), NWS (United States) and Wikimedia (United States, Art. 44 transfer). `SIGNAL_CONTACT_EMAIL` must be a functional, non-nominative address (project alias, never a person's e-mail): then no personal data is sent and no Art. 44 transfer of personal data occurs. The real address stays out of the repository. See third-party assessment |
 | **Retention period**     | 1827 days (5 years, record-keeping, see [Data Retention Policy](data-retention-policy.md)): daily CronJob `db-retention` (`scripts/retention-mysql.sh`, `RETENTION_DAYS`; `signals` on `RETENTION_SIGNALS_DAYS`), ADR-0051 |
 | **Technical measures**   | mTLS (SPIFFE SVIDs), LUKS2 data disks, age-encrypted backups, RBAC service accounts                                               |
 | **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers, market_order_books, signals). `signals` (ADR-0036) holds numeric observations of public sources free for any use: bond yields (ECB), company filings (SEC EDGAR), weather observations (NWS), daily Wikipedia page views (Wikimedia, counts only); see [Third-Party DPAs](third-party-dpas.md#signal-sources-adr-0036) |
@@ -68,7 +68,7 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None — service identities only                                                                                                 |
 | **Recipients**           | All platform services (SVID distribution via `spiffe-helper` sidecars)                                                        |
 | **Transfers outside EU** | None                                                                                                                           |
-| **Retention period**     | SVIDs: 4h TTL (auto-rotated, ADR-0062). Trust bundle: 168h (ca_ttl). SPIRE datastore entries: workload lifecycle                         |
+| **Retention period**     | SVIDs: 4h TTL (auto-rotated, ADR-0065). Trust bundle: 168h (ca_ttl). SPIRE datastore entries: workload lifecycle                         |
 | **Technical measures**   | Workload attestation (docker / k8s_psat), short-lived SVIDs, automatic rotation                                               |
 | **System**               | SPIRE Server → SPIRE Agent → spiffe-helper (datastore: SQLite on its volume)                                                         |
 
@@ -96,7 +96,7 @@ This register documents the processing activities of the trading-model platform,
 | **Recipients**           | Internal: operators (Grafana/Loki)                                                                                 |
 | **Transfers outside EU** | None — Loki is self-hosted                                                                                         |
 | **Retention period**     | 31 days (Loki `retention_period: 744h`)                                                                            |
-| **Technical measures**   | Ingress controller in front (K8s): access log disabled (`disable-access-log`, prerequisite in `docs/deployment/KUBERNETES.md`), so no full IP, User-Agent or Referer is written on the node; node-level `error_log` rotated at 7 days or less. The edge-proxy takes the caller IP from `X-Forwarded-For` only when the connection comes from a pod CIDR (`deploy/edge-proxy/realip.k8s.inc`). Truncation in nginx before the log line is written (`log_format anonymized`, `deploy/edge-proxy/default.conf`); the gateway forwards only an anonymized `X-Forwarded-For` and drops `X-Real-IP` |
+| **Technical measures**   | Ingress controller in front (K8s): access log disabled (`disable-access-log`, prerequisite in `docs/deployment/KUBERNETES.md`), so no full IP, User-Agent or Referer is written on the node; node-level `error_log` rotated at 7 days or less. The edge-proxy takes the caller IP from `X-Forwarded-For` only when the connection comes from a pod CIDR (`deploy/edge-proxy/realip.k8s.inc`). Truncation in nginx before the log line is written (`log_format anonymized`, `deploy/edge-proxy/default.conf`); the edge-proxy error log cannot be truncated, so `error_log /dev/stderr crit;` keeps `client: <IP>` lines out of it (upstream failures stay visible as 502/504 in the access log; raw node logs rotate at 7 days or less); the gateway forwards only an anonymized `X-Forwarded-For` and drops `X-Real-IP` |
 | **Ingress controller (K8s)** | Access log disabled: no log line, so no retention. Format: none. Its `error_log` has no request line but may show the peer IP; node log rotation of 7 days or less is a production prerequisite (`docs/deployment/KUBERNETES.md`) |
 | **System**               | edge-proxy (stdout) → Promtail → Loki                                                                              |
 
@@ -119,7 +119,7 @@ This register documents the processing activities of the trading-model platform,
 
 | Activity                 | Personal Data?      | Legal Basis         | Retention                    | Transfers                    |
 | ------------------------ | ------------------- | ------------------- | ---------------------------- | ---------------------------- |
-| Market Data Ingestion    | ❌ None             | —                   | 1827 days (`db-retention`) | Received from Binance        |
+| Market Data Ingestion    | ❌ None             | —                   | 1827 days (`db-retention`) | Received from Binance; functional contact address sent to signal sources (US included) |
 | Message Routing          | ❌ None             | —                   | Redis journal 24 h; DLQ 30 days       | None                         |
 | Audit Logging            | ❌ None             | —                   | 5 years (1827 days)          | None                         |
 | Workload Identity        | ❌ None             | —                   | 4h–168h                      | None                         |

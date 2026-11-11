@@ -15,7 +15,7 @@
 SPIRE manages SVID lifecycle automatically (ADR-0011):
 
 - `spire-server` issues short-lived X.509-SVIDs (`default_x509_svid_ttl = "4h"`,
-  ADR-0062); the SPIRE agent rotates them at half-life (2 h left).
+  ADR-0065); the SPIRE agent rotates them at half-life (2 h left).
   `CertificateExpiry` fires below 1 h left: rotation has been stalled for over
   an hour. A stopped SPIRE server leaves about 2 h before the first SVID
   expires ([runbook-database-failover, SPIRE server](runbook-database-failover.md#spire-server)).

@@ -34,7 +34,7 @@ restore verification for the trading-model platform.
 | MongoDB `mongo-audit`         | audit-logger                                  | Critical    | 1 h (hourly oplog archive; point in time over the last 72 h) | 4 hours    |
 | MongoDB `mongo-dlq`           | dlq-service                                   | High        | 1 h (hourly oplog archive; point in time over the last 72 h) | 4 hours    |
 | MySQL `financial_scraper`     | financial-scraper                             | High        | 1 h (hourly binlog archive; point in time over the last 72 h) | 4 hours    |
-| SPIRE `datastore.sqlite3` + `keys-sqlite.json` | SPIRE Server (datastore and CA private keys, SQLite on its own volume, ADR-0062) | Critical | 24 h (daily backup: one tar, no journal) | 2 hours (SVIDs stay valid about 2 h after the server stops: TTL 4 h) |
+| SPIRE `datastore.sqlite3` + `keys-sqlite.json` | SPIRE Server (datastore and CA private keys, SQLite on its own volume, ADR-0065) | Critical | 24 h (daily backup: one tar, no journal) | 2 hours (SVIDs stay valid about 2 h after the server stops: TTL 4 h) |
 | Trained agents                | trader-trainer (checkpoint files)             | Medium      | 24 h (daily tar)       | 1 hour     |
 | SealedSecrets controller keys | Sealed Secrets controller (namespace `sealed-secrets`, ADR-0035): decrypts every SealedSecret of `deploy/k8s/secrets/` | Critical | Daily run of `scripts/backup-sealed-secrets-key.sh` by `sealed-secrets-key-backup.yml` (ADR-0035), plus a manual run after a manual key change ([sealed-secrets.md](sealed-secrets.md#back-up-the-controller-keys)): a renewed key is off-site within 24 h | 1 hour |
 | Redis                         | discovery-server, dlq-service, readiness      | Low         | Not backed up          | Rebuilt    |
@@ -110,7 +110,7 @@ The CronJob `db-backup-incremental`
 `scripts/backup-incremental-k8s.sh` every hour at minute 30, same image,
 volume, age recipients and off-site store. **RPO: 1 h** for MySQL
 (`financial_scraper`) and both MongoDB replica sets. The SPIRE datastore is
-not in MySQL since ADR-0062: daily only.
+not in MySQL since ADR-0065: daily only.
 
 - **MySQL**: `FLUSH BINARY LOGS` on `mysql-0`, then every closed binlog not yet
   archived is read from the pod (`cat`, no password on a command line),
@@ -180,9 +180,9 @@ reports `mongodb-audit` from the single mongod dump that holds it.
 | ------------------------------------------ | -------------------------------------------------------------- | --------------------------------- |
 | MongoDB dlq and audit (one dump per replica set, from its primary) | `mongodump --gzip --oplog --archive`   | Point-in-time (end of the dump)   |
 | MongoDB (Docker: message-manager, audit-logger, dlq) | `mongodump --gzip --archive` (standalone)            | Per collection                    |
-| MySQL, every non-system database (`financial_scraper`; `spire` of the releases before ADR-0062) | `mysqldump --databases … --single-transaction --set-gtid-purged=OFF` | Transaction-consistent snapshot |
+| MySQL, every non-system database (`financial_scraper`; `spire` of the releases before ADR-0065) | `mysqldump --databases … --single-transaction --set-gtid-purged=OFF` | Transaction-consistent snapshot |
 | Trainer checkpoints                        | `tar czf` of `/data/checkpoints/`                              | Filesystem snapshot               |
-| SPIRE server, K8s (`datastore.sqlite3`, `keys-sqlite.json`) | through the `spire-entries` sidecar: `sqlite3 .backup` of the datastore, then the key file, in one tar (`spire/data_<TS>.tar`) | Online snapshot, server not paused (ADR-0062) |
+| SPIRE server, K8s (`datastore.sqlite3`, `keys-sqlite.json`) | through the `spire-entries` sidecar: `sqlite3 .backup` of the datastore, then the key file, in one tar (`spire/data_<TS>.tar`) | Online snapshot, server not paused (ADR-0065) |
 | SPIRE server, Docker (`/run/spire/data`)   | `docker cp` of the whole directory, server paused              | keys.json + SQLite datastore together |
 | Redis (Docker only)                        | `BGSAVE`, wait for `LASTSAVE`, stream `dump.rdb`               | Fork-consistent                   |
 
@@ -230,9 +230,9 @@ the size of the file on disk (encrypted), `sha256` the checksum of its
 decrypted content. One entry per line: the restore scripts read it without
 `jq`.
 
-**Why one run (issue #330).** A night where one component fails must not mix it with the others of another night. It was found with SPIRE when its datastore was in MySQL: `keys.json` of day J with the `spire` database (inside the MySQL dump) of day J-1. Since ADR-0062 the SPIRE datastore and keys are one file, the rule stays for the other components. `tests/backup/backup-partial.test.sh` reproduces it: both components come from J-1.
+**Why one run (issue #330).** A night where one component fails must not mix it with the others of another night. It was found with SPIRE when its datastore was in MySQL: `keys.json` of day J with the `spire` database (inside the MySQL dump) of day J-1. Since ADR-0065 the SPIRE datastore and keys are one file, the rule stays for the other components. `tests/backup/backup-partial.test.sh` reproduces it: both components come from J-1.
 
-**SPIRE on Kubernetes, keys against the datastore (ADR-0062).** `backup-k8s.sh` snapshots the SQLite datastore (bundle, CA journal, entries) with `sqlite3 .backup` in the `spire-entries` sidecar, then reads `keys-sqlite.json`, and streams both as one tar, without pausing the server. SPIRE writes a new CA key to the key file before recording it in the journal, so a key file read after the snapshot always holds every key the journal refers to (at worst one more, unused). The server is not paused: a pause would drop SVID issuance and rotation for every workload. The snapshot sits in the sidecar's memory `emptyDir` until streamed. The SPIRE component no longer depends on the MySQL one: their order does not matter.
+**SPIRE on Kubernetes, keys against the datastore (ADR-0065).** `backup-k8s.sh` snapshots the SQLite datastore (bundle, CA journal, entries) with `sqlite3 .backup` in the `spire-entries` sidecar, then reads `keys-sqlite.json`, and streams both as one tar, without pausing the server. SPIRE writes a new CA key to the key file before recording it in the journal, so a key file read after the snapshot always holds every key the journal refers to (at worst one more, unused). The server is not paused: a pause would drop SVID issuance and rotation for every workload. The snapshot sits in the sidecar's memory `emptyDir` until streamed. The SPIRE component no longer depends on the MySQL one: their order does not matter.
 
 **Selection rule** (`select_common_run` then `resolve_backup`, both restore scripts):
 
@@ -580,6 +580,14 @@ another class for a new deployment, patch it in the overlay
 only applies to a new cluster, or after recreating the claim (restore the
 backups from the off-site copy first).
 
+### Rows past their retention after a restore
+
+`restore-k8s.sh` runs the `db-retention` CronJob once (`kubectl create job db-retention-post-restore-<stamp> --from=cronjob/db-retention`) after a successful MySQL restore, full or `--until`, and waits for it (`RETENTION_WAIT`, default `4h`, like the CronJob's deadline). If the Job fails, the restore exits 1 and prints the Job's last log lines: run the purge again. `--no-retention` skips it (forensic analysis of a past state): the expired rows then stay until the next daily run. The CI `k8s` drill restores a ticker 2000 days old and checks it is gone.
+
+Limit: the compose `scripts/restore.sh` does not run it (no `db-retention` job in compose, where no purge runs at all); purge by hand after a compose restore.
+
+MongoDB: `mongorestore` runs without `--noIndexRestore`, so the TTL indexes of `audit_events` and the DLQ come back with the data and the TTL monitor purges expired documents on its own (it wakes every 60 s). This is read from the code (`audit-repository.ts`, `index-manager.ts`) and has not been measured on a live restore: no drill asserts it yet.
+
 ## Restore Procedures
 
 Encrypted backups (`*.age`) need the age private key:
@@ -606,7 +614,7 @@ restore is explained, acknowledge the loss
 
 `restore-k8s.sh` needs namespace admin rights: exec into the databases, stop
 and start the SPIRE server, create a helper pod. SPIRE (datastore and CA
-keys, ADR-0062) no longer depends on MySQL: any order.
+keys, ADR-0065) no longer depends on MySQL: any order.
 
 From a workstation, with the backup files copied locally:
 
@@ -641,7 +649,7 @@ components and its run manifest: `upload_offsite` only copies the dumps that
 succeeded, so a run missing a file (`mongodb/<TS>/mongodb.archive.gz.age` and
 `mongodb-audit.archive.gz.age`, `mysql/financial_scraper_<TS>.sql.gz.age`,
 `checkpoints/checkpoints_<TS>.tar.gz.age`, `spire/data_<TS>.tar.age`
-(`spire/keys_<TS>.json.age` before ADR-0062),
+(`spire/keys_<TS>.json.age` before ADR-0065),
 `manifests/manifest_<TS>.json.age`) is skipped, and refused with `--timestamp`
 when a dump is missing. The manifest comes with the run: `restore-k8s.sh`
 checks every file against it (size, sha256, see [Run manifest](#run-manifest)).
@@ -696,7 +704,7 @@ What `restore-k8s.sh` does:
   `keys-sqlite.json` of the run (`spire/data_<TS>.tar`) into its volume and
   removes the WAL files of the replaced datastore, from a helper pod (`RESTORE_HELPER_IMAGE` if set, otherwise the image, by digest, of the `db-backup` CronJob read with `kubectl get cronjob`; the operator needs `get` on CronJobs. If the CronJob is absent, e.g. a new cluster in a total outage, it warns and falls back to `backup-tools:latest`: set `RESTORE_HELPER_IMAGE` to the released digest) running as
   the server's user, scales it back and checks `spire-server healthcheck`.
-  A run taken before ADR-0062 (`spire/keys_<TS>.json`, datastore in MySQL)
+  A run taken before ADR-0065 (`spire/keys_<TS>.json`, datastore in MySQL)
   is refused: its keys do not match a SQLite journal.
 
 #### Point-in-time restore (`--until`, ADR-0031)
@@ -733,7 +741,7 @@ before the instant whose run manifest lists it, checked against the manifest
 **Stop every writer first**, the MySQL ones too (financial-scraper,
 financial-scraper-collector): a row written between the dump restore and the
 replay makes the replay fail on a duplicate key (exit 1, restore again once
-stopped). The SPIRE server no longer writes to MySQL (ADR-0062): leave it
+stopped). The SPIRE server no longer writes to MySQL (ADR-0065): leave it
 running; `restore-k8s.sh` stops it itself for the SPIRE component.
 
 The window is the last 72 h (archive retention). Before that, restore a
@@ -805,7 +813,7 @@ bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries' --into-s
 ### SPIRE CA restore and SVIDs
 
 Restoring the CA keys together with the datastore of the same backup (one
-tar since ADR-0062) brings back the trust bundle unchanged: SVIDs issued
+tar since ADR-0065) brings back the trust bundle unchanged: SVIDs issued
 before the incident stay valid. SVIDs issued by a CA generated after the loss
 (between the incident and the restore) are signed by a key no longer in the
 bundle. The SPIRE agents notice the CA change and bootstrap again from the
@@ -814,7 +822,7 @@ the `spiffe-helper` sidecars, or wait for their rotation, if a workload
 still rejects peers after the restore. The CI drill checks that Prometheus scrapes every
 target over mTLS after the restore.
 
-Restore MySQL accounts first: dumps exclude the `mysql` schema, so after the loss of the MySQL volume run `bash deploy/k8s/scripts/run-migrations.sh trading-model user-only` (recreates `migrator`, `retention`, `exporter`) before `restore-k8s.sh --components mysql`. Otherwise later migrations, the retention job and the MySQL exporters cannot log in. The SPIRE step does not need MySQL (ADR-0062).
+Restore MySQL accounts first: dumps exclude the `mysql` schema, so after the loss of the MySQL volume run `bash deploy/k8s/scripts/run-migrations.sh trading-model user-only` (recreates `migrator`, `retention`, `exporter`) before `restore-k8s.sh --components mysql`. Otherwise later migrations, the retention job and the MySQL exporters cannot log in. The SPIRE step does not need MySQL (ADR-0065).
 
 ## Disaster Recovery
 
@@ -883,7 +891,7 @@ K8S_NAMESPACE=trading-model bash scripts/verify-restore-k8s.sh
 It prints OK / KO per check and exits 1 on any KO: audit chain
 (`tests/backup/audit-chain.js`, `broken` null, count > 0), dead letter count,
 `market_candles` rows and latest timestamp, SPIRE registration entries
-(read through the server, ADR-0062),
+(read through the server, ADR-0065),
 SPIRE trust bundle retrievable, and the run manifest counts. The manifest
 currently records size and sha256 only, no row counts: the script says so and
 compares nothing. The kind drill runs it after the restore, and checks that it

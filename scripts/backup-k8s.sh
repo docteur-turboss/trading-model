@@ -148,7 +148,7 @@ backup_checkpoints() {
 # (bundle, CA journal, entries), snapshotted with `sqlite3 .backup` while the
 # server runs, then keys-sqlite.json (CA private keys), read AFTER the
 # snapshot on purpose: SPIRE stores a new CA key before journaling it, so the
-# key file holds every key that journal refers to (ADR-0062, issue #330).
+# key file holds every key that journal refers to (ADR-0065, issue #330).
 # Through the spire-entries sidecar (alpine + sqlite): the spire-server image
 # has no shell. The snapshot sits in its /tmp (memory) until streamed.
 SPIRE_BACKUP_SH=$(cat <<'SH'

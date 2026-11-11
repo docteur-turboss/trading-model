@@ -10,7 +10,7 @@ database host.
 | Database | K8s topology ([ADR-0020](../../adr/0020-database-topology-as-deployed.md)) | Failover |
 | --- | --- | --- |
 | MySQL (market data) | StatefulSet `mysql`, Service `mysql-primary` pinned to pod `mysql-0` | **none** |
-| SPIRE server (SQLite datastore + CA keys, [ADR-0062](../../adr/0062-spire-datastore-sqlite-and-4h-svid-ttl.md)) | Deployment `spire-server`, 1 replica, PVC `spire-server-data` | **none** (SVIDs stay valid about 2 h after it stops) |
+| SPIRE server (SQLite datastore + CA keys, [ADR-0065](../../adr/0065-spire-datastore-sqlite-and-4h-svid-ttl.md)) | Deployment `spire-server`, 1 replica, PVC `spire-server-data` | **none** (SVIDs stay valid about 2 h after it stops) |
 | MongoDB DLQ | StatefulSet `mongo-dlq`, replica set `rs0`, database `dlq` | automatic (replica set) |
 | MongoDB audit trail | StatefulSet `mongo-audit`, replica set `rs0-audit`, database `audit` | automatic (replica set) |
 | Redis | StatefulSets `redis` + `redis-sentinel` | automatic (Sentinel) |
@@ -73,7 +73,7 @@ client at them. Losing `mysql-0` stops market data ingestion
 (financial-scraper, financial-scraper-collector).
 
 It no longer touches workload identity: the SPIRE server keeps its datastore
-in SQLite on its own volume ([ADR-0062](../../adr/0062-spire-datastore-sqlite-and-4h-svid-ttl.md)).
+in SQLite on its own volume ([ADR-0065](../../adr/0065-spire-datastore-sqlite-and-4h-svid-ttl.md)).
 SVIDs keep being issued and pods restarted meanwhile get their identity
 (checked by `tests/k8s/run-kind.sh`, step `verify_identity_without_mysql`).
 
@@ -131,9 +131,9 @@ last backup (ADR-0020).
    kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector --replicas=<overlay replicas>
    ```
 
-The dump also holds the `spire` database of the releases before ADR-0062.
+The dump also holds the `spire` database of the releases before ADR-0065.
 Nothing reads it any more except a rollback of the SPIRE server to such a
-release; it goes away with the contract step of ADR-0062.
+release; it goes away with the contract step of ADR-0065.
 
 ## SPIRE server
 
@@ -143,7 +143,7 @@ workloads failing mTLS, pods stuck without SVID
 
 One replica (`strategy: Recreate`), SQLite datastore and CA keys
 (`datastore.sqlite3`, `keys-sqlite.json`) on the RWO PVC `spire-server-data`
-([ADR-0062](../../adr/0062-spire-datastore-sqlite-and-4h-svid-ttl.md)).
+([ADR-0065](../../adr/0065-spire-datastore-sqlite-and-4h-svid-ttl.md)).
 SVIDs live 4 hours and are renewed at half-life: once the server stops,
 running workloads keep valid SVIDs for about 2 more hours. That is the
 recovery window. Pods started meanwhile get no identity.

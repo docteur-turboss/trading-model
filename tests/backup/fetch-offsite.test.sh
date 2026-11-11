@@ -97,7 +97,7 @@ backup_run() {
 			write_dump spire "$BACKUP_DIR/spire/keys_$ts.json.age" plain "{\"keys\": \"$ts\"}"
 			;;
 		spire-tar)
-			# Since ADR-0062: SQLite datastore + CA keys in one tar.
+			# Since ADR-0065: SQLite datastore + CA keys in one tar.
 			mkdir -p "$BACKUP_DIR/spire"
 			write_dump spire "$BACKUP_DIR/spire/data_$ts.tar.age" plain "spire tar $ts"
 			;;
@@ -235,7 +235,7 @@ if fetch --dest "$WORK/fetched-mysql" --components mysql,spire &&
 	[ "$(cd "$WORK/fetched-mysql" && find . -type f | sed 's|^\./||' | sort)" = "manifests/manifest_${BROKEN}.json.age
 mysql/financial_scraper_${BROKEN}.sql.gz.age
 spire/data_${BROKEN}.tar.age" ]; then
-	pass "a run complete for the requested components is enough (${BROKEN} for mysql,spire; SPIRE tar of ADR-0062)"
+	pass "a run complete for the requested components is enough (${BROKEN} for mysql,spire; SPIRE tar of ADR-0065)"
 else
 	failed "--components mysql,spire: $(cat "$WORK/out")"
 fi

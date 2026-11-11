@@ -204,9 +204,18 @@ spec:
         - name: tmp
           emptyDir: {}
 ---
-# Scrape-cron instance (SCRAPE_SCHEDULER_ENABLED=true). It shares the
-# financial-scraper ServiceAccount (same SPIFFE ID) but not its Service: API
+# Scrape-cron instance (SCRAPE_SCHEDULER_ENABLED=true). It has its own
+# ServiceAccount, mapped by SPIRE to the SPIFFE ID of financial-scraper but not its Service: API
 # traffic stays on the HPA-scaled replicas. This Service only exposes /metrics.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: financial-scraper-collector
+  labels:
+    app.kubernetes.io/component: financial-scraper-collector
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -252,9 +261,10 @@ spec:
         prometheus.io/port: "3000"
         prometheus.io/scheme: "https"
     spec:
-      serviceAccountName: financial-scraper
+      serviceAccountName: financial-scraper-collector
       # The token reads and renews the Lease (Role financial-scraper-collector-lease);
-      # the ServiceAccount does not mount it for the HTTP replicas.
+      # the HTTP replicas use the financial-scraper ServiceAccount, which has no
+      # binding. SPIRE maps this one to the SPIFFE ID of financial-scraper (k8s-entries.sh).
       automountServiceAccountToken: true
       # On stop the collector waits for its publishes in flight, each bounded by
       # PUBLISH_ACCEPT_TIMEOUT_MS (15s + 5s; PUBLISH_COMPAT_TIMEOUT_MS for one release, the grace then cuts what remains: the cursor republishes).
@@ -451,4 +461,4 @@ roleRef:
   name: financial-scraper-collector-lease
 subjects:
   - kind: ServiceAccount
-    name: financial-scraper
+    name: financial-scraper-collector

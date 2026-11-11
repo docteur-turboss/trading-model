@@ -117,7 +117,8 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 | `commitlint` error            | Non-conventional commit           | Rewrite commit message. Format: `<gitmoji>(<scope>): <subject>` |
 | Push rejected                 | Branch not up to date with `main` | `git pull --rebase origin main` and resolve conflicts           |
 | `husky` not running           | Git hooks path not set            | Run `bunx husky install` or `git config core.hooksPath .husky`   |
-| `LF will be replaced by CRLF` | Line ending mismatch              | Set `git config core.autocrlf true` on Windows                  |
+| `LF will be replaced by CRLF` | Line ending mismatch              | `git config core.autocrlf false` in the repo, see [Windows line endings](../getting-started/quickstart.md#windows-line-endings) |
+| `bun run lint` fails on formatting on Windows, CI passes | Working tree checked out with CRLF | Renormalize the checkout, see [Windows line endings](../getting-started/quickstart.md#windows-line-endings) |
 
 ---
 

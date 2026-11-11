@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Supersedes:** [ADR-0003](./0003-mongodb-persistence.md), [ADR-0004](./0004-mysql-group-replication.md)
-**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (SPIRE datastore in MySQL until [ADR-0062](./0062-spire-datastore-sqlite-and-4h-svid-ttl.md)), [ADR-0019](./0019-message-broker-as-built.md)
+**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (SPIRE datastore in MySQL until [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md)), [ADR-0019](./0019-message-broker-as-built.md)
 **Verified by:** manual review 2026-10-28 (`deploy/k8s/infra/mysql.yaml`, `deploy/k8s/infra/mongodb.yaml`, `deploy/k8s/infra/mongo-audit.yaml`, `docker-compose.yml`); `tests/k8s/run-kind.sh` and `bun run test:db` exercise single-node instances only
 
 ## Context
@@ -17,7 +17,7 @@ Checking the 13.09 audit finding on ADR/runtime drift (2026-10-28) showed that t
 - Every client (financial-scraper, SPIRE server, migration Jobs) connects through the `mysql-primary` Service, whose selector is pinned to the pod `mysql-0`. Even with a healthy group, a primary election would not move the Service.
 - Staging and the kind smoke test run 1 replica; compose runs one MySQL without Group Replication.
 
-So there is **no automatic failover**: losing `mysql-0` stops market data ingestion and the SPIRE server (its datastore), until the pod comes back with its volume. *Amended by [ADR-0062](./0062-spire-datastore-sqlite-and-4h-svid-ttl.md): the SPIRE datastore is SQLite on the server's own volume, so losing `mysql-0` only stops ingestion.*
+So there is **no automatic failover**: losing `mysql-0` stops market data ingestion and the SPIRE server (its datastore), until the pod comes back with its volume. *Amended by [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md): the SPIRE datastore is SQLite on the server's own volume, so losing `mysql-0` only stops ingestion.*
 
 **ADR-0003 (MongoDB)** says: one shared MongoDB replica set, one database per service, and rejects "separate MongoDB per service" as too much overhead. K8s runs exactly the rejected option: two StatefulSets, `mongo-dlq` (`rs0`) and `mongo-audit` (`rs0-audit`), 3 members each, initiated by their own init Jobs. Compose runs one standalone `mongo` (no replica set) shared by audit-logger and dlq-service. ADR-0003 also still carried a `certificate-authority` scope, already superseded by ADR-0011.
 
@@ -27,7 +27,7 @@ Both ADRs stayed `Accepted` because no check ties an ADR to the runtime.
 
 Record the topology as deployed, including what it does not provide.
 
-### MySQL (market data; SPIRE datastore until ADR-0062)
+### MySQL (market data; SPIRE datastore until ADR-0065)
 
 | | Compose / staging / kind | Production |
 | --- | --- | --- |

@@ -5,6 +5,7 @@ import {
 	createAddressManager,
 } from "./create-address-manager";
 
+/** Creates the address manager of a service with its bootstrap, routes and lookup functions. */
 export function createServiceAddressManager(env: AddressManagerEnv) {
 	const am = createAddressManager(env);
 	return {

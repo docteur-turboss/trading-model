@@ -19,7 +19,7 @@ statut: actif
 
 - **Packages** : primitives, contracts, reliability, common, persistence, http, validation, server-utils, crypto, address-manager, broker-message
 - **Services**: message-manager, discovery-server, financial-scraper, trader-trainer (package name: `trader-service`), api-gateway, audit-logger, dlq-service. No frontend: `admin-interface` temporarily removed (ADR-0018)
-- **Data**: MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0062), MongoDB (audit-logger, dlq-service), Redis (message-manager)
+- **Data**: MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), MongoDB (audit-logger, dlq-service), Redis (message-manager)
 - **Identity/mTLS**: SPIRE/SPIFFE (ADR-0011), mandatory in Docker and K8s
 - **Current version**: `2.0.3`, released through GitHub Actions (`Release` workflow)
 

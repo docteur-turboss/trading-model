@@ -36,12 +36,12 @@ services:
 
   discovery-server:
     environment:
-      SIGNING_SECRET: e2e-signing-secret
+      SIGNING_SECRET: e2e-signing-secret-0123456789abcdef0123456789
 
   # External E2E traffic authenticates with this key (tests/e2e/helpers.ts).
   api-gateway:
     environment:
-      AUTH_TOKENS: e2e-api-key
+      AUTH_TOKENS: e2e:read+dlq:write:e2e-api-key-0123456789abcdef0123456789abcdef
       AUTH_STRICT: 'true'
       # The k6 smoke sends ~240 req/min from one IP; the default 100/min would answer 429.
       # Scenarios and stress need more: tests/load/README.md, "Rate limit".

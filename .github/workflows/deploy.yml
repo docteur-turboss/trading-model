@@ -126,6 +126,22 @@ jobs:
           fi
           node scripts/check-environment-protection.mjs "$TARGET" "$GITHUB_REPOSITORY"
 
+      # The self-hosted runner is persistent and the repository public: a fork
+      # pull request could add a job on it (issue #842). No continue-on-error,
+      # not even in preflight: a failure skips the deploy job, so the runner
+      # never starts and never receives KUBECONFIG_STAGING_*. Unreadable = refused.
+      - name: Check fork pull request approval (self-hosted runner)
+        id: fork_approval
+        if: ${{ inputs.environment == 'staging' && vars.STAGING_RUNNER != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret ENVIRONMENT_READ_TOKEN is not set: the fork pull request approval setting cannot be checked. See docs/deployment/STAGING_LOCAL.md (Runner isolation)."
+            exit 1
+          fi
+          node scripts/check-environment-protection.mjs --fork-approval "$GITHUB_REPOSITORY"
+
       # Preflight stops here when the environment is missing (or unknown in
       # production): the deploy job names it, and GitHub would create it
       # unprotected. None of its secrets can exist yet anyway.
@@ -211,8 +227,9 @@ jobs:
           echo "Overlay: $OVERLAY"
           [[ $DEPLOY_TIMEOUT_FACTOR =~ ^[1-9][0-9]*$ ]] || { echo "::error::DEPLOY_TIMEOUT_FACTOR must be a positive integer"; exit 1; }
 
-      # An alert nobody receives is no alert: production needs a real Slack
-      # webhook and a dead man's switch before anything is deployed.
+      # An alert nobody receives is no alert: every environment (staging proves
+      # the chain before production) needs Slack, dead man's switch and Pushover
+      # secrets before anything is deployed (issue #815).
       - name: Check alert notification secrets
         id: alert_secrets
         continue-on-error: ${{ inputs.preflight_only }}
@@ -226,13 +243,11 @@ jobs:
           missing=""
           [ -n "$SLACK" ] || missing="$missing ALERTMANAGER_SLACK_WEBHOOK_URL"
           [ -n "$DEADMAN" ] || missing="$missing ALERTMANAGER_DEADMAN_URL"
-          [ -n "$PUSHOVER_USER" ] && [ -n "$PUSHOVER_TOKEN" ] || echo "::warning::ALERTMANAGER_PUSHOVER_USER_KEY / ALERTMANAGER_PUSHOVER_TOKEN not set: critical alerts go to Slack only"
+          [ -n "$PUSHOVER_USER" ] || missing="$missing ALERTMANAGER_PUSHOVER_USER_KEY"
+          [ -n "$PUSHOVER_TOKEN" ] || missing="$missing ALERTMANAGER_PUSHOVER_TOKEN"
           if [ -n "$missing" ]; then
-            if [ "${{ inputs.environment }}" = "production" ]; then
-              echo "::error::Missing GitHub environment secrets:${missing}. Alerts would reach nobody (observability/alertmanager.yml)."
-              exit 1
-            fi
-            echo "::warning::Missing GitHub environment secrets:${missing}: alerts of ${{ inputs.environment }} reach nobody"
+            echo "::error::Missing GitHub environment secrets:${missing}. A receiver reading an absent credential file fails every notification and fires AlertmanagerNotificationsFailing (observability/alertmanager.yml)."
+            exit 1
           fi
 
       - name: Set up kubectl
@@ -447,6 +462,8 @@ jobs:
             echo "::error::trading-model-secrets of $ENV lacks:$missing (run bash scripts/init-sealed-secrets.sh and commit deploy/k8s/secrets)"
             exit 1
           fi
+          # Grafana OIDC (ADR-0063): production refuses a shared admin as the only access.
+          bash scripts/check-grafana-oidc.sh "$ENV" <<<"$rendered"
 
       # The Ingress hosts ship as example.com placeholders (issue #415): in
       # production they would leave the API unreachable from outside while
@@ -787,6 +804,8 @@ jobs:
           # exporter passwords...), then waited for: issue #698.
           if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
+          # Keys removed on purpose from the SealedSecret (docs/deployment/sealed-secrets.md).
+          export RETIRED_SECRET_KEYS="${{ vars.RETIRED_SECRET_KEYS }}"
           MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
             bash deploy/k8s/scripts/run-migrations.sh "$NS"
 

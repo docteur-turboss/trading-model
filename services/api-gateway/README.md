@@ -21,7 +21,7 @@ bun run --filter api-gateway dev
 | `RATE_LIMIT_WINDOW_MS`  | `60000`                         | Rate limit window (ms)             |
 | `RATE_LIMIT_MAX`        | `100`                           | Max requests per window            |
 | `CACHE_TTL_MS`          | `30000`                         | In-memory cache TTL (ms)           |
-| `AUTH_TOKENS`           | `''`                            | Comma-separated valid admin tokens |
+| `AUTH_TOKENS`           | `''`                            | Comma-separated API keys `name:scope1+scope2:secret` (ADR-0059); clients send only the secret |
 | `PROXY_TIMEOUT_MS`      | `10000`                         | Proxy request timeout (ms)         |
 
 ## API

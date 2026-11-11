@@ -29,7 +29,7 @@ KIND="${KIND:-kind}"
 CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
-API_KEY="dev-token-change-me" # AUTH_TOKENS test value injected by ci-render.mjs
+API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
 SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
@@ -500,7 +500,7 @@ upgrade() {
 	}
 	log "  $last rolled back and applied again, same checksums"
 
-	# ADR-0062: the forced-failure run moved the SPIRE server to a new CA, and the
+	# ADR-0065: the forced-failure run moved the SPIRE server to a new CA, and the
 	# N-1 edge-proxy pod the rollback started cannot reload its trust bundle
 	# (only N can). Restart it so the probe window measures the upgrade, not that
 	# one-off CA change; drop this once N-1 itself reloads the bundle.
@@ -665,7 +665,7 @@ verify() {
 	log "OK: the staging overlay works on Kubernetes"
 }
 
-# Issue #802 (ADR-0062): with every MySQL pod gone (mysql-0 included), the
+# Issue #802 (ADR-0065): with every MySQL pod gone (mysql-0 included), the
 # SPIRE server restarts on its SQLite datastore and a restarted application
 # pod still gets an SVID. MySQL is brought back afterwards.
 verify_identity_without_mysql() {
@@ -819,8 +819,8 @@ tcp_probe() {
 # NetworkPolicy, not from the image or the name.
 verify_db_ingress() {
 	local target host label
-	log "MySQL 3306 and Redis 6379: refused to an unlisted pod, allowed to a listed component"
-	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:message-manager; do
+	log "MySQL 3306, Redis 6379 and api-gateway 3000: refused to an unlisted pod, allowed to a listed component (issue #813)"
+	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:message-manager api-gateway:3000:edge-proxy; do
 		label="${target##*:}"
 		host="${target%:*}"
 		retry 3 tcp_probe db-probe-allowed "app.kubernetes.io/component=$label" "$host" >/dev/null || {
@@ -1024,7 +1024,7 @@ audit_metric() {
 # The services writing to the databases, stopped during a restore
 # (BACKUP_DR.md): a write between the dump restore and the binlog / oplog
 # replay would make the replay fail. The SPIRE server (SQLite on its own
-# volume, ADR-0062) is stopped and restarted by restore-k8s.sh itself.
+# volume, ADR-0065) is stopped and restarted by restore-k8s.sh itself.
 MONGO_WRITERS="audit-logger dlq-service"
 MYSQL_WRITERS="financial-scraper financial-scraper-collector"
 
@@ -1051,6 +1051,8 @@ verify_backup() {
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertMany([{_id: 1}, {_id: 2}, {_id: 3}])" >/dev/null
 	done
 	mysql_root "CREATE DATABASE restore_drill; CREATE TABLE restore_drill.markers (id INT PRIMARY KEY); INSERT INTO restore_drill.markers VALUES (1), (2), (3);"
+	# Past retention (1827 days) and in the dump: restore-k8s.sh must purge it (issue #743).
+	mysql_root "INSERT INTO financial_scraper.market_tickers (symbol, market, source, open, high, low, last, volume, timestamp, close_time) VALUES ('DRILLEXP', 'spot', 'drill', 1, 1, 1, 1, 1, NOW() - INTERVAL 2000 DAY, NOW() - INTERVAL 2000 DAY);"
 	local bundle_before
 	bundle_before="$(spire_bundle)"
 
@@ -1321,6 +1323,10 @@ verify_backup() {
 		log "MySQL: market_candles was not restored"
 		return 1
 	}
+	[ "$(mysql_root "SELECT COUNT(*) FROM financial_scraper.market_tickers WHERE symbol='DRILLEXP'" | tr -d '\r')" = "0" ] || {
+		log "MySQL: the row past its retention came back with the restore (post-restore purge missing)"
+		return 1
+	}
 	[ "$(spire_bundle)" = "$bundle_before" ] || {
 		log "the SPIRE trust bundle differs: the CA keys were not restored"
 		return 1
@@ -1373,7 +1379,7 @@ verify_backup() {
 
 	# The SPIRE server came back with the restored CA: the agents still hold
 	# SVIDs from the CA of the wiped volume until they bootstrap again
-	# (rebootstrap_mode, 1 min, ADR-0062). Restart them now and wait for the
+	# (rebootstrap_mode, 1 min, ADR-0065). Restart them now and wait for the
 	# CSI driver, or the writers cannot mount the Workload API socket and never
 	# become ready.
 	drill_record verify_data $((SECONDS - step_started))

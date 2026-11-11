@@ -106,7 +106,7 @@ echo "restore scripts find *.age backups (run without manifest, explicit --times
 BACKUPS="$WORK/backups"
 mkdir -p "$BACKUPS/mysql" "$BACKUPS/spire" "$BACKUPS/checkpoints"
 cp "$WORK/dump.sql.gz.age" "$BACKUPS/mysql/financial_scraper_2026-01-01_020000.sql.gz.age"
-# SPIRE: datastore + CA keys tar, the format of both scripts since ADR-0062.
+# SPIRE: datastore + CA keys tar, the format of both scripts since ADR-0065.
 echo x | seal >"$BACKUPS/spire/data_2026-01-01_020000.tar.age"
 echo x | seal >"$BACKUPS/checkpoints/checkpoints_2026-01-01_020000.tar.gz.age"
 for script in restore.sh restore-k8s.sh; do

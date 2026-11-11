@@ -37,19 +37,18 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 type: Opaque
 stringData:
-  AUTH_TOKENS: dev-token-change-me
-  SIGNING_SECRET: dev-signing-change-me
+  AUTH_TOKENS: dev:read+dlq:write:dev-token-0123456789abcdef0123456789abcdef
+  SIGNING_SECRET: dev-signing-0123456789abcdef0123456789abcdef
   SERVICE_BOOTSTRAP_TOKEN: dev-bootstrap-change-me
   MYSQL_ROOT_PASSWORD: dev-mysql-root
   MYSQL_PASSWORD: dev-mysql
   MYSQL_MIGRATE_PASSWORD: dev-mysql-migrate
   MYSQL_RETENTION_PASSWORD: dev-mysql-retention
   MYSQL_EXPORTER_PASSWORD: dev-mysql-exporter
-  # Read only by release N-1 (development carries #822) until ADR-0062 ships; drop with the N-1 that lacks it.
+  # Read only by release N-1 (development carries #822) until ADR-0065 ships; drop with the N-1 that lacks it.
   MYSQL_SPIRE_PASSWORD: dev-mysql-spire
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
   GRAFANA_PASSWORD: dev-grafana
-  HMAC_SECRET: dev-hmac
   REDIS_INTERNAL_PASSWORD: dev-redis-internal-password
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
   REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password

@@ -34,7 +34,7 @@ Replace the in-house CA and the shared static certificate bundle with a **SPIRE*
 
 ### Target environments
 
-- **Kubernetes (staging/production):** SPIRE Server (HA, MySQL datastore using the platform's existing MySQL) *Amended by [ADR-0062](./0062-spire-datastore-sqlite-and-4h-svid-ttl.md): one replica, SQLite datastore on its own volume, SVID TTL 4 h* + SPIRE Agent DaemonSet with the `k8s_psat` workload attestor. Registration entries map each Deployment's service account to its SPIFFE ID.
+- **Kubernetes (staging/production):** SPIRE Server (HA, MySQL datastore using the platform's existing MySQL) *Amended by [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md): one replica, SQLite datastore on its own volume, SVID TTL 4 h* + SPIRE Agent DaemonSet with the `k8s_psat` workload attestor. Registration entries map each Deployment's service account to its SPIFFE ID.
 - **Docker Compose (dev/CI):** single SPIRE Server + SPIRE Agent using the `docker` workload attestor (selectors on compose service labels), same SPIFFE ID scheme. CI fallback: join-token attestation when a privileged Docker socket is unavailable.
 
 ### Decommissioning
@@ -66,7 +66,7 @@ Replace the in-house CA and the shared static certificate bundle with a **SPIRE*
 ### Negative
 
 - New operational dependency (SPIRE Server/Agent) on both K8s and Compose.
-- Docker Compose attestation requires a privileged Docker socket (CI caveat, join-token fallback).
+- Docker Compose attestation requires the Docker API (CI caveat, join-token fallback). Amendment (issue #846): the agent and promtail no longer mount `/var/run/docker.sock`; `docker-socket-proxy` (`tecnativa/docker-socket-proxy`, digest-pinned) is its only holder, read-only, GET `/containers` + `/networks` only, on the internal network `docker-api-net`. The agent reaches it with `docker_socket_path = "tcp://docker-socket-proxy:2375"`.
 - Hostname verification must be disabled on outbound clients in favour of trust-bundle + app-layer SPIFFE ID checks.
 
 ### Mitigations

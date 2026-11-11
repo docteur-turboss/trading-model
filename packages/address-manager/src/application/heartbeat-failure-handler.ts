@@ -20,6 +20,7 @@ function _isRejectedToken(err: unknown): boolean {
 	return false;
 }
 
+/** Handles a failed heartbeat: re-registers after a 401 or repeated failures. */
 export class HeartbeatFailureHandler {
 	private _consecutiveHeartbeatFailures = 0;
 

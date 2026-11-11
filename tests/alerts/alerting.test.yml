@@ -878,9 +878,18 @@ tests:
   - name: the alerting pipeline watches itself
     interval: 1m
     input_series:
-      # One failed notification (e.g. no Pushover key): enough to alert.
+      # slack: every attempt fails -> alert. webhook: one failure then success
+      # (transient DNS error) -> no alert. pushover: no traffic -> no alert.
+      - series: 'alertmanager_notifications_total{job="alertmanager",instance="am",integration="slack"}'
+        values: '0+1x40'
       - series: 'alertmanager_notifications_failed_total{job="alertmanager",instance="am",integration="slack"}'
-        values: '0 0 0 1x40'
+        values: '0+1x40'
+      - series: 'alertmanager_notifications_total{job="alertmanager",instance="am",integration="webhook"}'
+        values: '0+1x40'
+      - series: 'alertmanager_notifications_failed_total{job="alertmanager",instance="am",integration="webhook"}'
+        values: '0 0 0 1x37'
+      - series: 'alertmanager_notifications_total{job="alertmanager",instance="am",integration="pushover"}'
+        values: '0x40'
     alert_rule_test:
       - eval_time: 1m
         alertname: Watchdog
@@ -1584,6 +1593,31 @@ tests:
               description: 'mongodb_exporter of 10.0.0.4:9216 (mongo-audit) cannot reach mongod for 5 minutes.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbdown'
 
+  # mysql is partitioned (current != update), redis is up to date.
+  - name: a StatefulSet stuck on an old revision is reported after 24h
+    interval: 1m
+    input_series:
+      - series: 'kube_statefulset_status_current_revision{job="kube-state-metrics",namespace="trading-model-staging",statefulset="mysql",revision="mysql-aaa"}'
+        values: '1x1560'
+      - series: 'kube_statefulset_status_update_revision{job="kube-state-metrics",namespace="trading-model-staging",statefulset="mysql",revision="mysql-bbb"}'
+        values: '1x1560'
+      - series: 'kube_statefulset_status_current_revision{job="kube-state-metrics",namespace="trading-model-staging",statefulset="redis",revision="redis-ccc"}'
+        values: '1x1560'
+      - series: 'kube_statefulset_status_update_revision{job="kube-state-metrics",namespace="trading-model-staging",statefulset="redis",revision="redis-ccc"}'
+        values: '1x1560'
+    alert_rule_test:
+      - eval_time: 23h
+        alertname: StatefulSetStuckOnOldRevision
+        exp_alerts: []
+      - eval_time: 25h
+        alertname: StatefulSetStuckOnOldRevision
+        exp_alerts:
+          - exp_labels: {severity: warning, job: kube-state-metrics, namespace: trading-model-staging, statefulset: mysql, revision: mysql-aaa}
+            exp_annotations:
+              summary: 'StatefulSet trading-model-staging/mysql still runs an old revision'
+              description: 'StatefulSet mysql has pods on a revision other than its update revision for 24 hours: a partition holds the rollout back, so new sidecars (exporters) and their alerts are not running.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision'
+
   # 3 Redis nodes: the master must have 2 replicas; it has 1.
   - name: a Redis master with fewer replicas than the StatefulSet is reported
     interval: 1m
@@ -1738,3 +1772,41 @@ tests:
               summary: 'DLQ action missing from the audit trail: dlq.entries.deleted'
               description: 'message-manager refused 1 dlq.entries.deleted event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'
+
+  # 1 failure per second from minute 0: past 0.1/s, fires after the 5 min `for`.
+  - name: api key authentication failures alert
+    interval: 1m
+    input_series:
+      - series: 'gw_auth_failures_total{job="api-gateway",instance="a"}'
+        values: '0+60x30'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ApiAuthFailuresHigh
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: ApiAuthFailuresHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, job: api-gateway}
+            exp_annotations:
+              summary: 'API key authentication failures above 6 per minute'
+              description: 'The gateway rejected more than 6 requests per minute for 5 minutes (bad or missing API key): key brute force, a leaked or rotated key still in use, or a misconfigured client (runbook-auth-failures).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#apiauthfailureshigh'
+
+  # One denial at minute 5, none before: fires without `for`.
+  - name: mtls acl denials alert
+    interval: 1m
+    input_series:
+      - series: 'http_mtls_denials_total{job="message-manager",instance="a",reason="caller_not_allowed"}'
+        values: '0x5 1+0x25'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: MtlsAclDenials
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: MtlsAclDenials
+        exp_alerts:
+          - exp_labels: {severity: warning, job: message-manager}
+            exp_annotations:
+              summary: 'A service denied an mTLS or ACL request'
+              description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#mtlsacldenials'

@@ -57,7 +57,7 @@ flowchart TB
   tt --> ckpt[("checkpoints volume")]
 
   subgraph spire["SPIRE (ADR-0011)"]
-    ss["spire-server"] --> spiredb[("SQLite datastore<br/>own volume (ADR-0062)")]
+    ss["spire-server"] --> spiredb[("SQLite datastore<br/>own volume (ADR-0065)")]
     sa["spire-agent"] --> ss
     sh["spiffe-helper sidecars (compose)<br/>CSI driver (K8s)"] --> sa
   end

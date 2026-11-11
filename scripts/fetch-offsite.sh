@@ -14,7 +14,7 @@
 #      component `mongodb`: both replica sets; `mongodb-audit`: the audit one
 #    mysql/financial_scraper_<TS>.sql.gz.age
 #    checkpoints/checkpoints_<TS>.tar.gz.age
-#    spire/data_<TS>.tar.age                     (SQLite datastore + CA keys, ADR-0062;
+#    spire/data_<TS>.tar.age                     (SQLite datastore + CA keys, ADR-0065;
 #      spire/keys_<TS>.json.age in runs taken before it)
 #    manifests/manifest_<TS>.json.age            (run manifest, backup-lib.sh)
 #  then: BACKUP_DIR=DIR bash scripts/restore-k8s.sh --timestamp TS
@@ -103,7 +103,7 @@ component_files() {
       ! $PITR || echo "mysql/financial_scraper_$2.pitr.age"
       ;;
     checkpoints) echo "checkpoints/checkpoints_$2.tar.gz.age" ;;
-    # data_ since ADR-0062 (datastore + CA keys), keys_ before it.
+    # data_ since ADR-0065 (datastore + CA keys), keys_ before it.
     spire)
       if grep -qxF "spire/data_$2.tar.age" <<<"$LISTING"; then
         echo "spire/data_$2.tar.age"
