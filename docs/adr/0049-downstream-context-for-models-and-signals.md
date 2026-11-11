@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-11
-**Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (versioned artifacts, closed weights route), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (walk-forward criteria), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (signals), [ADR-0019](./0019-message-broker-as-built.md) (bus), [ADR-0039](./0039-configuration-feature-flags.md) (feature flags), [ADR-0011](./0011-spiffe-spire-workload-identity.md) (identities)
+**Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (versioned artifacts, closed weights route), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (walk-forward criteria), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (signals), [ADR-0019](./0019-message-broker-as-built.md) (bus), [ADR-0039](./0039-configuration-feature-flags.md) (feature flags), [ADR-0011](./0011-spiffe-spire-workload-identity.md) (identities), [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md) (risk and execution layer required before any order)
 
 This ADR is a proposal: the owner decides. It creates no service and changes no manifest.
 
@@ -35,7 +35,7 @@ Whatever option is chosen, the downstream context depends on the existing, versi
 | B. Offline inference | A batch evaluation job (CLI or CronJob, no order flow) reads each new artifact, replays it on stored candles and signals, and records metrics | Smallest step that exercises the contract end to end; checks ADR-0030 criteria on every model; no market risk | Not a live decision; still a new deployable | One small service or job, one SPIFFE entry, one ACL entry |
 | C. Paper trading | A service consumes the event, runs the model on live market data and keeps a simulated wallet | Validates the real decision flow and latency | Largest scope: market feed, state, wallet, alerts, runbooks | A full service (Strategy + simulated Execution + Evaluation) |
 
-**Recommendation: B**, shaped as the contract of section 1 so that C can reuse it. B proves the event, the artifact read, the identity and the ACL with no market exposure. Live execution is out of scope.
+**Recommendation: B**, shaped as the contract of section 1 so that C can reuse it. B proves the event, the artifact read, the identity and the ACL with no market exposure. Live execution is out of scope: any order flow, paper or live, first needs the separate Risk/Execution context of [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md), and option C cannot send an order without it.
 
 ### 3. Collected signals while nobody consumes them
 
