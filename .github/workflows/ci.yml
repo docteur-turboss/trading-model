@@ -89,8 +89,8 @@ jobs:
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          # Blocking on PRs only: a Codecov outage must not block a release (workflow_call).
-          fail_ci_if_error: ${{ github.event_name == 'pull_request' }}
+          # Never blocking: a deactivated repository or an outage must not fail the job; jest coverageThreshold already gates the 80%.
+          fail_ci_if_error: false
           flags: unit
 
   db-integration:
@@ -116,8 +116,8 @@ jobs:
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          # Blocking on PRs only: a Codecov outage must not block a release (workflow_call).
-          fail_ci_if_error: ${{ github.event_name == 'pull_request' }}
+          # Never blocking: a deactivated repository or an outage must not fail the job; jest coverageThreshold already gates the 80%.
+          fail_ci_if_error: false
           flags: db
 
   observability:
