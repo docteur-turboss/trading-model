@@ -3,6 +3,10 @@
 // Usage: node scripts/check-environment-protection.mjs <environment> [owner/repo]
 // Needs `gh` and GH_TOKEN. production: errors, exit 1. Any other environment: warnings only.
 // Writes exists=true|false to $GITHUB_OUTPUT when set (nothing when the API call fails).
+//   node scripts/check-environment-protection.mjs --fork-approval [owner/repo]
+// Refuses (error, exit 1, any environment) a deploy on the self-hosted runner unless fork pull
+// request workflows need approval for every external contributor (issue #842,
+// docs/deployment/STAGING_LOCAL.md "Runner isolation"). Unreadable setting: error too.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -28,6 +32,20 @@ export function checkEnvironment(env, policies) {
   return problems;
 }
 
+const RUNNER_DOC = 'docs/deployment/STAGING_LOCAL.md (Runner isolation)';
+
+/**
+ * Fork pull requests can add a job on the persistent self-hosted runner: only an approval of
+ * every external contributor's run stops one before it runs.
+ * @param {object|null} body GET /repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval body, null when 404
+ * @returns {string[]} problems, empty when compliant
+ */
+export function checkForkApproval(body) {
+  const policy = body?.approval_policy;
+  if (policy === 'all_external_contributors') return [];
+  return [`fork pull request workflows need approval for "${policy ?? 'unknown'}", not "all_external_contributors"`];
+}
+
 function api(path) {
   try {
     return JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
@@ -40,8 +58,13 @@ function api(path) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [name, repo = process.env.GITHUB_REPOSITORY] = process.argv.slice(2);
   if (!name || !repo) {
-    console.error('usage: check-environment-protection.mjs <environment> [owner/repo]');
+    console.error('usage: check-environment-protection.mjs <environment>|--fork-approval [owner/repo]');
     process.exit(2);
+  }
+  if (name === '--fork-approval') {
+    const problems = checkForkApproval(api(`repos/${repo}/actions/permissions/fork-pr-contributor-approval`));
+    for (const p of problems) console.log(`::error::Repository ${repo}: ${p}. A fork could run code on the self-hosted runner. See ${RUNNER_DOC}.`);
+    process.exit(problems.length ? 1 : 0);
   }
   const base = `repos/${repo}/environments/${name}`;
   const env = api(base);

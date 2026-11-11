@@ -122,7 +122,10 @@ admin rights, so create the repository secret `ENVIRONMENT_READ_TOKEN`
 (fine-grained PAT, repository permission "Administration: read", this
 repository only). Also protect `staging` (required reviewer): the same check
 runs for a staging deploy but only logs warnings (a missing token or a failed
-check never blocks it).
+check never blocks it). Exception: a staging deploy on the self-hosted runner
+(`STAGING_RUNNER` set) fails when fork pull request workflows do not need
+approval for all external contributors, or when the token cannot read that
+setting ([STAGING_LOCAL.md](STAGING_LOCAL.md#runner-isolation), issue #842).
 
 **Before the first production deploy**, the operating entity fills the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a)); the [privacy notice](../compliance/privacy-notice.md) points to them. The repository is public: commit no personal data, name the entity as your legal process requires.
 
