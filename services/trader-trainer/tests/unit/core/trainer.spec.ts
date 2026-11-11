@@ -6,6 +6,14 @@ import {
 	TradingSymbol,
 } from "@trading-model/primitives/primitives";
 import { Trainer } from "../../../src/application/trainer";
+import {
+	FEATURE_DRIFT_SCORE,
+	MODEL_BELOW_BUY_AND_HOLD_STREAK,
+	MODEL_BUY_AND_HOLD_SHARPE,
+	MODEL_MAX_DRAWDOWN,
+	MODEL_RETURN,
+	MODEL_SHARPE,
+} from "../../../src/config/metrics";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import {
@@ -802,6 +810,48 @@ describe("Trainer — model publication", () => {
 				await expect(trainer.rehydrate([sym])).resolves.toBeUndefined();
 				expect(trainer.getSnapshotForSymbol(sym)).toBeUndefined();
 			});
+		});
+
+		it("exports the stored model's metrics next to buy and hold, then the drift of the next session (issue #884)", async () => {
+			const sym = TradingSymbol.of("BTCUSDT");
+			const value = async (gauge: any, labels: Record<string, string>) =>
+				(await gauge.get()).values.find((entry: any) =>
+					Object.entries(labels).every(
+						([key, val]) => entry.labels[key] === val
+					)
+				)?.value;
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const models = fakeStore();
+			models.save.mockResolvedValue({
+				version: "v1",
+				createdAt: new Date(0).toISOString(),
+			});
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			await trainer.train(sym);
+
+			const summary = trainer.getBestAgentSummary();
+			const labels = { symbol: "BTCUSDT", segment: "validation" };
+			expect(await value(MODEL_SHARPE, labels)).toBe(summary?.sharpe);
+			expect(await value(MODEL_RETURN, labels)).toBe(summary?.avgPnl);
+			expect(await value(MODEL_MAX_DRAWDOWN, labels)).toBe(
+				summary?.maxDrawdown
+			);
+			const baseline = await value(MODEL_BUY_AND_HOLD_SHARPE, labels);
+			// Prices rise by 1 every bar: a constant change, floored Sharpe.
+			expect(baseline).toBeGreaterThan(0);
+			expect(
+				await value(MODEL_BELOW_BUY_AND_HOLD_STREAK, { symbol: "BTCUSDT" })
+			).toBe(Number(summary?.sharpe) < Number(baseline) ? 1 : 0);
+
+			// The next session compares the buffer with the stored normalization.
+			await trainer.train(sym);
+			expect(await value(FEATURE_DRIFT_SCORE, { symbol: "BTCUSDT" })).toBe(0);
 		});
 
 		it("does not store a best genome without trained weights", async () => {

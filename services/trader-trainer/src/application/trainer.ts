@@ -3,12 +3,20 @@ import { getLogger } from "@trading-model/contracts/logger-registry";
 import { Fitness, NonNegativeInt } from "@trading-model/primitives/primitives";
 import {
 	BEST_FITNESS,
+	FEATURE_DRIFT_SCORE,
 	MODEL_ARTIFACTS_TOTAL,
+	MODEL_BELOW_BUY_AND_HOLD_STREAK,
+	MODEL_BUY_AND_HOLD_SHARPE,
+	MODEL_MAX_DRAWDOWN,
+	MODEL_RETURN,
+	MODEL_SHARPE,
 	TRAINING_DURATION_SECONDS,
 	TRAINING_SESSIONS_TOTAL,
 	TRAINING_STATUS,
 } from "../config/metrics";
 import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
+import { featureDriftScore } from "../domain/feature-drift";
+import { buyAndHoldSharpe } from "../domain/genetic-algorithm/evaluation-utils";
 import type {
 	GenerationContext,
 	WindowSet,
@@ -66,6 +74,12 @@ export class Trainer {
 		TradingSymbol,
 		TrainingSnapshot
 	>();
+	/** Normalization of the newest stored model of each symbol: drift baseline. */
+	private readonly _lastModels = new Map<
+		TradingSymbol,
+		{ createdAt: number; normalization: Record<string, unknown> }
+	>();
+	private readonly _belowBuyAndHold = new Map<TradingSymbol, number>();
 	/** The session in flight, and how to end it early (ADR-0058). */
 	private _session?: { abort: AbortController; done: Promise<TrainingResult> };
 
@@ -108,6 +122,12 @@ export class Trainer {
 				const latest = (await models.list(String(symbol)))[0];
 				const manifest =
 					latest && (await models.manifest(String(symbol), latest.version));
+				if (manifest && !this._lastModels.has(symbol)) {
+					this._lastModels.set(symbol, {
+						createdAt: Date.parse(manifest.createdAt),
+						normalization: manifest.normalization,
+					});
+				}
 				if (manifest && !this._symbolSnapshots.has(symbol)) {
 					const snapshot = new ArtifactTrainingInfo(
 						String(symbol),
@@ -140,6 +160,7 @@ export class Trainer {
 		if (!validation.ok) {
 			return validation.error;
 		}
+		this._reportFeatureDrift(symbol);
 		const abort = new AbortController();
 		const done = this._train(symbol, validation.windowSets, abort.signal);
 		this._session = { abort, done };
@@ -173,7 +194,7 @@ export class Trainer {
 			const result = await this._runSession(symbol, windowSets, signal);
 			TRAINING_SESSIONS_TOTAL.inc({ result: "success" });
 			BEST_FITNESS.set({ symbol }, result.bestFitness);
-			await this._storeModel(result);
+			await this._storeModel(result, windowSets);
 			await this._publishModel(symbol);
 			return result;
 		} catch (err) {
@@ -221,7 +242,10 @@ export class Trainer {
 	 * Writes the best agent as a versioned artifact. A failed write is logged
 	 * and counted: the training itself succeeded, its result stays usable.
 	 */
-	private async _storeModel(result: TrainingSuccess): Promise<void> {
+	private async _storeModel(
+		result: TrainingSuccess,
+		windowSets: WindowSet[]
+	): Promise<void> {
 		const models = this._deps.models;
 		if (!models) {
 			return;
@@ -238,6 +262,7 @@ export class Trainer {
 			);
 			return;
 		}
+		const normalization = this._dataBuffer.snapshotNormalization(result.symbol);
 		try {
 			const stored = await models.save({
 				symbol: result.symbol,
@@ -245,10 +270,15 @@ export class Trainer {
 				bestGenome: result.bestGenome,
 				weights: new Float32Array(weights),
 				features: NETWORK_INPUT_LAYOUT,
-				normalization: this._dataBuffer.snapshotNormalization(result.symbol),
+				normalization,
 				summary,
 			});
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "stored" });
+			this._lastModels.set(result.symbol, {
+				createdAt: Date.parse(stored.createdAt),
+				normalization,
+			});
+			this._reportModelPerformance(result.symbol, summary, windowSets);
 			getLogger().info("Model stored", {
 				context: { symbol: result.symbol, version: stored.version },
 			});
@@ -260,6 +290,43 @@ export class Trainer {
 					err: normalizeError(err).message,
 				},
 			});
+		}
+	}
+
+	/** Out-of-sample metrics of a stored model next to buy and hold on its bars. */
+	private _reportModelPerformance(
+		symbol: TradingSymbol,
+		summary: BestAgentSummary,
+		windowSets: WindowSet[]
+	): void {
+		const labels = { symbol, segment: "validation" };
+		const baseline = buyAndHoldSharpe(windowSets);
+		MODEL_SHARPE.set(labels, summary.sharpe);
+		MODEL_RETURN.set(labels, summary.avgPnl);
+		MODEL_MAX_DRAWDOWN.set(labels, summary.maxDrawdown);
+		MODEL_BUY_AND_HOLD_SHARPE.set(labels, baseline);
+		const streak =
+			summary.sharpe < baseline
+				? (this._belowBuyAndHold.get(symbol) ?? 0) + 1
+				: 0;
+		this._belowBuyAndHold.set(symbol, streak);
+		MODEL_BELOW_BUY_AND_HOLD_STREAK.set({ symbol }, streak);
+	}
+
+	/** Drift of the data received since the newest stored model, before a session. */
+	private _reportFeatureDrift(symbol: TradingSymbol): void {
+		const model = this._lastModels.get(symbol);
+		const state = this._dataBuffer.getSymbolState(symbol);
+		if (!(model && state)) {
+			return;
+		}
+		const score = featureDriftScore(
+			state,
+			model.normalization,
+			model.createdAt
+		);
+		if (score !== undefined) {
+			FEATURE_DRIFT_SCORE.set({ symbol }, score);
 		}
 	}
 
