@@ -804,6 +804,8 @@ jobs:
           # exporter passwords...), then waited for: issue #698.
           if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
+          # Keys removed on purpose from the SealedSecret (docs/deployment/sealed-secrets.md).
+          export RETIRED_SECRET_KEYS="${{ vars.RETIRED_SECRET_KEYS }}"
           MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
             bash deploy/k8s/scripts/run-migrations.sh "$NS"
 
