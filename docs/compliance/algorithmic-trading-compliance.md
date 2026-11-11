@@ -18,7 +18,7 @@ The trading-model platform trains autonomous trading agents using Genetic Algori
 |---|---|---|
 | **Art. 1(1)** — Clearly describe system design and operation | Architecture documented in `docs/architecture/`, ADRs in `docs/adr/`, agent topology defined in `services/trader-trainer/src/domain/neural-network/` | ✅ Documented |
 | **Art. 1(2)** — Identify trading algorithms, logic, constraints | GA population evolution + DQN policy network. Constraints: position sizing, market data window (500 candles default), train/validation split (80/20) | ✅ Implemented |
-| **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers on service-to-service calls (`packages/reliability/src/circuit-breaker.ts`), position limit `maxPosition`. No order frequency limit, no kill switch | 🟡 Partial |
+| **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers on service-to-service calls (`packages/reliability/src/circuit-breaker.ts`), exposure cap `maxExposureFraction` (1.0 in training). No order frequency limit, no kill switch | 🟡 Partial |
 | **Art. 1(4)** — Business continuity arrangements | Docker Compose health checks, K8s HPA + PDB, database failover runbooks (`docs/operations/runbooks/runbook-database-failover.md`) | ✅ Documented |
 
 ## 3. Governance & Testing Requirements (RTS 6 Art. 3-5)
@@ -30,7 +30,7 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 | Test | Implementation | Evidence |
 |---|---|---|
 | **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/adapters/outbound/binance/`) | Integration tests |
-| **Agent behaviour bounds** — max position only | `maxPosition` rejects a buy that would exceed it (`services/trader-trainer/src/domain/env/trade-executor.ts:32`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
+| **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (1.0, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) rejects a buy that would take the position value above that fraction of the initial cash (`services/trader-trainer/src/domain/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
 | **Kill functionality** — ability to halt trading | Not implemented. Prerequisite to any live execution (§6) | ❌ Not implemented |
 
@@ -56,7 +56,7 @@ The platform should undergo an annual review covering:
 
 | Control | Implementation |
 |---|---|
-| **Max order volume/ value** | Partial: position cap `maxPosition` only (`services/trader-trainer/src/domain/env/trade-executor.ts:32`). It defaults to no limit unless configured. No per-order value limit |
+| **Max order volume/ value** | Partial: exposure cap `maxExposureFraction` only (`services/trader-trainer/src/domain/env/trade-executor.ts`): position value ≤ 1.0 × initial cash in training, no leverage. No per-order value limit |
 | **Max order frequency** | Not implemented. No limit on orders per episode or per time unit; simulation only |
 | **Dual-channel price validation** | Not implemented — simulation only. For production: requires independent price feed comparison |
 | **Pre-trade risk checks** | Not implemented — simulation only. For production: requires integration with market gateway |

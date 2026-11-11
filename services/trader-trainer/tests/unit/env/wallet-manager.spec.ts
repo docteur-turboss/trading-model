@@ -63,21 +63,16 @@ describe("Wallet module", () => {
 			).toThrow("Percentage must be a finite number");
 		});
 
-		test("should throw error for invalid maxPosition", () => {
-			expect(() =>
-				createWallet({
-					initialCash: Cash.of(1000),
-					initialPrice: Price.of(50),
-					maxPosition: Volume.of(0),
-				})
-			).toThrow("Invalid maxPosition");
-			expect(() =>
-				createWallet({
-					initialCash: Cash.of(1000),
-					initialPrice: Price.of(50),
-					maxPosition: Volume.of(-1),
-				})
-			).toThrow("Volume must be a non-negative finite number");
+		test("should throw error for invalid maxExposureFraction", () => {
+			for (const maxExposureFraction of [0, -1, Number.NaN]) {
+				expect(() =>
+					createWallet({
+						initialCash: Cash.of(1000),
+						initialPrice: Price.of(50),
+						maxExposureFraction,
+					})
+				).toThrow("Invalid maxExposureFraction");
+			}
 		});
 
 		test("should throw error for invalid decimals", () => {
@@ -114,12 +109,12 @@ describe("Wallet module", () => {
 			expect(wallet.getPosition()).toBe(0);
 		});
 
-		test("should create wallet with valid feeRate and maxPosition", () => {
+		test("should create wallet with valid feeRate and maxExposureFraction", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
 				feeRate: Percentage.of(0.001),
-				maxPosition: Volume.of(100),
+				maxExposureFraction: 0.5,
 			});
 			expect(wallet.getCash()).toBe(1000);
 			expect(wallet.getPosition()).toBe(0);
@@ -159,14 +154,20 @@ describe("Wallet module", () => {
 			expect(() => wallet.buy(Volume.of(-2))).toThrow();
 		});
 
-		test("should fail to buy when exceeding maxPosition", () => {
+		test.each([
+			[50, 10],
+			[0.01, 50000],
+		])("refuses a buy past the exposure cap at price %p", (price, cap) => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
-				initialPrice: Price.of(50),
-				maxPosition: Volume.of(10),
+				initialPrice: Price.of(price),
+				maxExposureFraction: 0.5,
 			});
-			wallet.buy(Volume.of(10));
-			expect(wallet.buy(Volume.of(1))).toBe(false);
+			// cap = 0.5 * 1000 / price units
+			expect(wallet.buy(Volume.of(cap + 1))).toBe(false);
+			expect(wallet.buy(Volume.of(cap / 2))).toBe(true);
+			expect(wallet.buy(Volume.of(cap / 2 + 1))).toBe(false);
+			expect(wallet.buy(Volume.of(cap / 2))).toBe(true);
 		});
 	});
 
