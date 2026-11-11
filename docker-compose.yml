@@ -234,15 +234,22 @@ services:
     pid: host
     volumes:
       - ./deploy/compose/spire/agent.conf:/etc/spire/agent.conf:ro
-      - /var/run/docker.sock:/run/docker.sock
       - spire-bootstrap:/run/spire/bootstrap:ro
       - spire-agent-data:/run/spire/agent-data
       - spire-agent-sockets:/run/spire/agent-sockets
     networks:
       - backend-net
+      - docker-api-net
+    # Root but without capability: the agent reads /proc of host PIDs
+    # (pid: host) and talks TCP; add a capability only with its reason.
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       spire-bootstrap:
         condition: service_completed_successfully
+      docker-socket-proxy:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/run/spire/agent-sockets/public/api.sock"]
       interval: 10s
@@ -969,7 +976,32 @@ services:
     networks:
       - backend-net
 
-  # Logs: reads the container logs through the Docker API (needs the socket).
+  # Only holder of the Docker socket (ADR-0011 amendment), mounted read-only.
+  # The proxy lets GET on /containers and /networks through; any POST answers 403.
+  docker-socket-proxy:
+    logging: *default-logging
+    image: tecnativa/docker-socket-proxy@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    container_name: trading-docker-socket-proxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: '1'
+      NETWORKS: '1'
+      POST: '0'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-api-net
+    # /_ping is allowed by default (PING=1) and reaches the Docker daemon.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2375/_ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+  # Logs: reads the container logs through the Docker API of docker-socket-proxy.
   promtail:
     logging: *default-logging
     image: grafana/promtail@sha256:b3db8e7b1cba0e8c45ce2ae72ebddfd88ebdcae86383f1680edf0074e9010ff6
@@ -977,15 +1009,26 @@ services:
     restart: unless-stopped
     volumes:
       - ./observability/promtail.yml:/etc/promtail/promtail.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - promtail-positions:/run/promtail
     networks:
       - backend-net
+      - docker-api-net
+    # Root (positions volume), no capability needed.
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
     depends_on:
-      - loki
+      loki:
+        condition: service_started
+      docker-socket-proxy:
+        condition: service_healthy
     command: -config.file=/etc/promtail/promtail.yml
 
 networks:
+  docker-api-net:
+    name: trading-docker-api-network
+    driver: bridge
+    internal: true
   data-net:
     name: trading-data-network
     driver: bridge

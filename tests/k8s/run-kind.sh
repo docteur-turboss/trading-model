@@ -774,8 +774,8 @@ tcp_probe() {
 # NetworkPolicy, not from the image or the name.
 verify_db_ingress() {
 	local target host label
-	log "MySQL 3306 and Redis 6379: refused to an unlisted pod, allowed to a listed component"
-	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:message-manager; do
+	log "MySQL 3306, Redis 6379 and api-gateway 3000: refused to an unlisted pod, allowed to a listed component (issue #813)"
+	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:message-manager api-gateway:3000:edge-proxy; do
 		label="${target##*:}"
 		host="${target%:*}"
 		retry 3 tcp_probe db-probe-allowed "app.kubernetes.io/component=$label" "$host" >/dev/null || {
