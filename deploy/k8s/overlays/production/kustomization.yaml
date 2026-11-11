@@ -7,6 +7,7 @@ resources:
   - ../../base
   - ../../secrets
   - ingress-hosts.yaml
+  - prometheus-pdb.yaml
 
 components:
   - ../../ingress/hosts
@@ -48,6 +49,50 @@ patches:
       kind: CronJob
       name: db-backup-incremental
     patch: *min-recipients
+  # Alerting path in HA (issue #809, ADR-0062): 2 Alertmanagers gossiping on
+  # 9094 (the notification is deduplicated by the cluster) and 2 identical
+  # Prometheus, each sending to every Alertmanager pod. Spread over two nodes.
+  - target:
+      kind: StatefulSet
+      name: alertmanager
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: "--cluster.listen-address=0.0.0.0:9094"
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: "--cluster.peer=alertmanager-headless:9094"
+      - op: add
+        path: /spec/template/spec/containers/0/ports/-
+        value: {containerPort: 9094, name: cluster}
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: alertmanager
+  - target:
+      kind: StatefulSet
+      name: prometheus
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: add
+        path: /spec/template/spec/topologySpreadConstraints
+        value:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: prometheus
 
 # Pod CIDR trusted by the edge-proxy for X-Forwarded-For (issue #732).
 configMapGenerator:

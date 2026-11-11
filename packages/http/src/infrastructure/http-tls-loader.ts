@@ -120,6 +120,7 @@ export async function loadTlsPemBundle(tls: TlsPaths): Promise<TlsPemBundle> {
 	};
 }
 
+/** Builds the HTTPS agent options from the TLS paths; hostname verification is opt-in. */
 export function buildHttpsAgentOptions(
 	tlsConfig?: TlsPaths,
 	verifyHostname = false

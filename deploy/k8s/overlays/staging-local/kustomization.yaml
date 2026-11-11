@@ -63,11 +63,11 @@ patches:
           periodSeconds: 10
           failureThreshold: 180
 
-  # One pod per data StatefulSet: a release must not restart it (issue #700).
+  # One pod per data or observability StatefulSet: a release must not restart it (issue #700).
   # Planned restart for a new template: docs/deployment/STAGING_LOCAL.md.
   - target:
       kind: StatefulSet
-      name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$
+      name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit|alertmanager|grafana|loki|prometheus)$
     patch: |-
       - op: add
         path: /spec/updateStrategy

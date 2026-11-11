@@ -2,34 +2,25 @@
 
 ## Rotation
 
-- **Duration:** 1 week (Monday to Monday)
-- **Shift start:** 09:00 local time
-- **Handoff:** Friday 16:00, overlapping with incoming engineer
+Single maintainer, best effort: no weekly rotation and no handoff. Escalation
+is described in [incident-response.md](incident-response.md#escalation-matrix).
+
+> If a team exists one day: add a rotation here (shift length, handoff, backup)
+> and update the escalation matrix. Until then, this section stays as is.
 
 ## Responsibilities
 
-### During shift
+1. Respond to alerts as fast as possible (target 15 min SEV1, 1 hour SEV2, no guarantee outside working hours)
+2. Acknowledge `critical` alerts in Pushover
+3. Triage following the matching runbook in `docs/operations/runbooks/`
+4. Keep the incident timeline updated
+5. Document all actions for the post-mortem
 
-1. Respond to alerts within SLO (15 min SEV1, 1 hour SEV2)
-2. Acknowledge all alerts in Pushover within 5 minutes
-3. Triage and escalate as needed
-4. Keep incident timeline updated
-5. Document all actions for post-mortem
+### Daily check
 
-### At shift start
-
-- [ ] Review open incidents from previous shift
+- [ ] Review open incidents
 - [ ] Check dashboards for anomalies
-- [ ] Verify alert routing is working
-- [ ] Confirm contact information is current
-- [ ] Review any new runbooks or procedures
-
-### At shift end
-
-- [ ] Handoff all open incidents to incoming engineer
-- [ ] Update incident status and notes
-- [ ] Ensure all runbooks are current
-- [ ] Submit any suggestions for improvement
+- [ ] Verify alert routing works (`Watchdog` reaches the dead man's switch)
 
 ## Quick Reference
 
@@ -66,9 +57,12 @@ curl -sf http://localhost:8449/ping   # Kubernetes (port-forward) or Compose (ho
 
 ### Key dashboards
 
-- **Grafana:** https://grafana.trading-model.example.com
-- **Jaeger:** https://jaeger.trading-model.example.com
-- **Prometheus:** https://prometheus.trading-model.example.com
+| Tool         | Kubernetes (`kubectl port-forward -n trading-model ...`) | Docker Compose (host port)       |
+|--------------|-----------------------------------------------------------|----------------------------------|
+| Grafana      | `svc/grafana 3000:3000` then http://localhost:3000        | http://localhost:3001 (`GRAFANA_PORT`)       |
+| Jaeger       | `svc/jaeger 16686:16686` then http://localhost:16686      | http://localhost:16686 (`JAEGER_PORT`)       |
+| Prometheus   | `svc/prometheus 9090:9090` then http://localhost:9090     | http://localhost:9090 (`PROMETHEUS_PORT`)    |
+| Alertmanager | `svc/alertmanager 9093:9093` then http://localhost:9093   | http://localhost:9093 (`ALERTMANAGER_PORT`)  |
 
 ### Useful commands
 
@@ -95,10 +89,25 @@ kubectl port-forward -n trading-model pod/<pod-name> 3000:3000
 kubectl exec -n trading-model -it deployment/<service-name> -- sh
 ```
 
-### Alert acknowledgement
+### Silence an alert (maintenance)
+
+Alertmanager is the only place to silence. `amtool` ships in the Alertmanager
+image (0.27.0 at the pinned digest), so run it inside the pod or container.
 
 ```bash
-# Silence alert for 30 minutes (maintenance)
-kubectl annotate --overwrite -n trading-model prometheusrule/trading-model-alerts \
-  "silence/maintenance"="until $(date -d '+30 minutes' -Iseconds)"
+# Kubernetes
+AM="kubectl exec -n trading-model statefulset/alertmanager -c alertmanager --"
+# Docker Compose
+AM="docker exec trading-alertmanager"
+
+$AM amtool silence add alertname=<AlertName> --duration=30m   --comment="<why>" --author=<who> --alertmanager.url=http://localhost:9093
+$AM amtool silence query --alertmanager.url=http://localhost:9093            # list
+$AM amtool silence expire <silence-id> --alertmanager.url=http://localhost:9093  # lift early
 ```
+
+Without `amtool`: `kubectl port-forward -n trading-model svc/alertmanager 9093:9093`
+then `POST http://localhost:9093/api/v2/silences` (or the UI).
+
+Never silence `Watchdog`: it is the heartbeat to the dead man's switch, and
+silencing it reads as "alerting is down". See also
+[ALERTING.md](ALERTING.md) and [runbook-discovery](runbooks/runbook-discovery.md).

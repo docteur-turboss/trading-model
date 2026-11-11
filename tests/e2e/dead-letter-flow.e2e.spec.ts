@@ -110,7 +110,7 @@ describe("Dead-letter flow E2E", () => {
 					eventType: TOPIC,
 					topic: TOPIC,
 					publisher: {
-						serviceName: "financial-scraper-service",
+						serviceName: "financial-scraper",
 						instanceId: "e2e-publisher",
 					},
 					delivery: { mode: "at-least-once", ttl: 1 },

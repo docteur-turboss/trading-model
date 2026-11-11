@@ -17,6 +17,12 @@ The compose stack keeps `http://localhost:8449` (edge-proxy).
 
 ## Selection in deploy.yml
 
+- Environment `staging`: deployment branches limited to `development` and `main`
+  (Settings → Environments → "Selected branches and tags", no other rule). It
+  holds `KUBECONFIG_STAGING_*`, `BACKUP_S3_*` and `AUDIT_ANCHOR_*`: without the rule
+  a branch pushed by anyone with write access can print them (issue #847).
+  `check-environment` reports a missing rule as `::error::` in the preflight
+  summary without blocking the deploy ([DEPLOY.md](DEPLOY.md#prerequisites-secrets)).
 - Repository variable `STAGING_RUNNER` (`trading-staging`): `runs-on` label of the
   staging job. Unset: `ubuntu-latest`.
 - Variable `K8S_OVERLAY` of the environment `staging` (`staging-local`): the
@@ -76,9 +82,46 @@ RUNNER_TOKEN=$(gh api -X POST repos/docteur-turboss/trading-model/actions/runner
 Register again (same command, after `docker volume rm trading-staging_runner-data`)
 if the runner is removed in Settings → Actions → Runners.
 
-The repository is public: keep **Settings → Actions → General → "Require approval
-for all external contributors"**, so that a fork pull request cannot run a
-workflow that targets the `trading-staging` label without a maintainer's approval.
+### Runner isolation
+
+The runner is persistent (not ephemeral) and the repository is public: a fork
+pull request runs its own version of the workflows, so it can add a job with
+`runs-on: [self-hosted, trading-staging]`. That job would reach the Docker
+network `kind` (MinIO, kind API server) and could leave a backdoor in
+`/runner/data` that steals `KUBECONFIG_STAGING_APP` / `_CLUSTER` at the next
+staging deploy (issue #842).
+
+- Keep **Settings → Actions → General → "Require approval for all external
+  contributors"** (API field `approval_policy` =
+  `all_external_contributors`). A maintainer then approves every fork run
+  before it starts: read its workflow changes before approving.
+- `deploy.yml` checks it: when the target is `staging` and `STAGING_RUNNER` is
+  set, the `check-environment` job reads
+  `GET /repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval`
+  with `ENVIRONMENT_READ_TOKEN` (`scripts/check-environment-protection.mjs
+  --fork-approval`). Any other value, a missing token or an unreadable setting
+  (403, 404, 5xx) fails `check-environment`, so the deploy job never starts
+  and never hands `KUBECONFIG_STAGING_*` to the runner. A preflight
+  (`preflight_only: true`) stops there too: it shows only this `::error::`,
+  not the table of the other guards.
+- `sealed-secrets-key-backup.yml` does the same: when `SEALED_SECRETS_BACKUP_RUNNER`
+  is set, job `check-fork-approval` (GitHub-hosted) runs the same check, and
+  the backup job `needs:` it, so the self-hosted runner never gets
+  `SEALED_SECRETS_BACKUP_KUBECONFIG` or the MinIO credentials on failure
+  (issue #860).
+- Runner group limited to the workflows `deploy.yml` and
+  `sealed-secrets-key-backup.yml` ("Selected workflows"): runner groups need an
+  organization. The repository belongs to a personal account, so this layer is
+  missing; the approval setting is the only barrier. Move the repository to an
+  organization to add it.
+- After any doubt (an unexpected job on the runner, a fork run approved by
+  mistake), purge the runner: delete it in Settings → Actions → Runners, then
+  `docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml rm -sf runner`,
+  `docker volume rm trading-staging_runner-data`, register it again (command
+  above), then revoke the staging deploy tokens (a stolen one stays valid up
+  to 168 h): `scripts/deploy-identity.sh app --revoke` and `cluster --revoke`
+  with the arguments of `bootstrap.sh identities` (ADR-0041), then
+  `bash deploy/staging-local/bootstrap.sh identities`.
 
 ## SealedSecrets key backup
 
@@ -97,11 +140,12 @@ laptop. For production, delete `SEALED_SECRETS_BACKUP_RUNNER` and
 ## Database pods across releases
 
 The staging overlay runs one pod per data StatefulSet (`mysql`, `redis`,
-`redis-sentinel`, `mongo-dlq`, `mongo-audit`). A rolling update deletes that pod
+`redis-sentinel`, `mongo-dlq`, `mongo-audit`) and one per observability StatefulSet (`alertmanager`,
+`grafana`, `loki`, `prometheus`; issue #709). A rolling update deletes that pod
 before its replacement starts, so a release that changes their pod template
 (3.1.0: exporter sidecars) would cut the database for the stop, the image pull
 and the start (up to 30 min for MySQL here). The `staging-local` overlay sets
-`updateStrategy.rollingUpdate.partition: 1` on these five (issue #700,
+`updateStrategy.rollingUpdate.partition: 1` on these nine (issues #700, #709,
 enforced by `tests/k8s/check-overlays.mjs`):
 
 - a deploy never restarts them: their pods keep UID, restart count and the pod
@@ -123,7 +167,7 @@ alone waits for the master its sentinel still names, the dead pod (PR #579).
 
 ```bash
 NS=trading-model-staging
-for sts in redis redis-sentinel; do   # or: mysql, mongo-dlq, mongo-audit (one at a time)
+for sts in redis redis-sentinel; do   # or: mysql, mongo-dlq, mongo-audit, alertmanager, grafana, loki, prometheus (one at a time)
   kubectl -n "$NS" patch sts "$sts" -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":0}}}}'
 done
 for sts in redis redis-sentinel; do kubectl -n "$NS" rollout status "sts/$sts" --timeout=1800s; done

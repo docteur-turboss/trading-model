@@ -33,6 +33,7 @@
     "lint": "bunx @biomejs/biome check .",
     "lint:fix": "bunx @biomejs/biome check . --write",
     "deps:check": "node scripts/check-deps.mjs",
+    "deps:third-party": "knip --dependencies",
     "typecheck:tests": "node scripts/typecheck-tests.mjs",
     "api:check": "bun --tsconfig-override=scripts/api-contract.tsconfig.json scripts/api-contract.mjs",
     "contracts:check": "bun --tsconfig-override=scripts/api-contract.tsconfig.json scripts/message-schemas.mjs && node --test scripts/schema-compat.test.mjs",
@@ -45,6 +46,7 @@
     "arch:check": "node --test tests/architecture/architecture-check.test.mjs && node scripts/architecture-check.mjs",
     "config:check": "node scripts/config-flags-check.mjs",
     "env-protection:test": "node --test scripts/check-environment-protection.test.mjs",
+    "preflight:test": "node --test scripts/preflight-summary.test.mjs",
     "compliance:check": "node scripts/compliance-check.mjs && node --test scripts/compliance-check.test.mjs",
     "test": "bun run --filter '*' test",
     "test:coverage": "bun run --filter '*' test --coverage",
@@ -67,11 +69,16 @@
     "@testcontainers/mysql": "^12.2.1",
     "@testcontainers/redis": "^12.2.1",
     "husky": "^9.1.7",
-    "jest-environment-node": "^30.5.2",
+    "knip": "6.44.2",
     "markdown-it": "^15.0.3",
     "node-html-parser": "^9.0.6",
     "testcontainers": "^12.2.1",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "qs": "^6.17.1",
+    "glob": "^14.0.4",
+    "minimatch": "^11.0.8"
   }
 }

@@ -309,6 +309,27 @@ groups:
           description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
 
+      # -- Authentication failures and ACL denials -------------------
+
+      - alert: ApiAuthFailuresHigh
+        expr: 'sum by (job) (rate(gw_auth_failures_total[5m])) > 0.1'
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'API key authentication failures above 6 per minute'
+          description: 'The gateway rejected more than 6 requests per minute for 5 minutes (bad or missing API key): key brute force, a leaked or rotated key still in use, or a misconfigured client (runbook-auth-failures).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#apiauthfailureshigh'
+
+      - alert: MtlsAclDenials
+        expr: 'sum by (job) (increase(http_mtls_denials_total[5m])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'A service denied an mTLS or ACL request'
+          description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#mtlsacldenials'
+
       # ── Audit trail integrity (ADR-0027) ──────────────────────────
 
       - alert: AuditChainBroken
@@ -471,6 +492,17 @@ groups:
           description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
+      - alert: TrainingCompletionRateCritical
+        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[15m])) or sum by (job) (rate(tt_training_sessions_total[15m])) * 0) / sum by (job) (rate(tt_training_sessions_total[15m])) < 0.5
+        for: 15m
+        labels:
+          severity: critical
+          slo: training_completion
+        annotations:
+          summary: 'Training completion rate below 50%'
+          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+
       - alert: TrainerEventLoopBlocked
         expr: histogram_quantile(0.99, sum by (job, le) (rate(tt_genome_evaluation_seconds_bucket[15m]))) > 5
         for: 15m
@@ -501,6 +533,16 @@ groups:
         annotations:
           summary: 'No trader-trainer pod holds the Lease'
           description: 'No pod has trained for 5 minutes: no trainer pod holds the Lease trader-trainer (API server unreachable, RBAC, NetworkPolicy). The read routes still answer the last stored models; no new model is produced.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernoleader'
+
+      - alert: TrainerNoLeaderProlonged
+        expr: max(tt_training_leader) < 1
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'No trader-trainer pod has held the Lease for 30 minutes'
+          description: 'No pod has trained for 30 minutes, far beyond a rollout handover (end of a generation plus a few seconds, ADR-0058): no trainer pod holds the Lease trader-trainer. No new model is produced.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernoleader'
 
       - alert: MarketDataStale
@@ -611,6 +653,22 @@ groups:
           description: 'No candle reached the trainer buffer in 15 minutes: the scraper, message-manager or the trainer subscription is broken.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
+      # The useful output of the trainer is a stored model, whatever stops it
+      # (training failing, nothing to train, write failing). A session lasts at
+      # most TRAINER_TIME_BUDGET_MS (5 min) and the loop starts one every minute,
+      # so one hour without a stored model is already abnormal; the 2 h of "for"
+      # also covers a cold start (series born at 0). Fires only while a trainer
+      # holds the Lease (no leader: TrainerNoLeader; trainer down: ServiceDown).
+      - alert: TrainerNoModelStored
+        expr: sum by (job) (increase(tt_model_artifacts_total{result="stored"}[1h])) == 0 and on (job) max by (job) (tt_training_leader) == 1
+        for: 2h
+        labels:
+          severity: critical
+        annotations:
+          summary: 'trader-trainer has stored no model for hours'
+          description: 'No model artifact stored for at least 3 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernomodelstored'
+
       # A trained model could not be stored (ADR-0022): the best agent then
       # only lives in the trainer memory, lost at the next restart. The series
       # exist at 0 from startup, so the first failure is an increase.
@@ -625,7 +683,11 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelartifactwritefailing'
 
       - alert: AlertmanagerNotificationsFailing
-        expr: sum by (integration) (increase(alertmanager_notifications_failed_total[1h])) > 0
+        expr: |
+          (
+            sum by (integration) (increase(alertmanager_notifications_failed_total[15m]))
+            or sum by (integration) (increase(alertmanager_notifications_total[15m])) * 0
+          ) / sum by (integration) (increase(alertmanager_notifications_total[15m])) >= 0.5
         for: 5m
         labels:
           severity: critical
@@ -815,6 +877,18 @@ groups:
           summary: 'MongoDB {{ $labels.job }} {{ $labels.instance }} does not answer its exporter'
           description: 'mongodb_exporter of {{ $labels.instance }} ({{ $labels.job }}) cannot reach mongod for 5 minutes.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbdown'
+
+      # Partitioned StatefulSets (staging-local, issue #700) stay on the old pod
+      # template after `kubectl rollout status` reports success.
+      - alert: StatefulSetStuckOnOldRevision
+        expr: kube_statefulset_status_current_revision unless on (namespace, statefulset, revision) kube_statefulset_status_update_revision
+        for: 24h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} still runs an old revision'
+          description: 'StatefulSet {{ $labels.statefulset }} has pods on a revision other than its update revision for 24 hours: a partition holds the rollout back, so new sidecars (exporters) and their alerts are not running.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision'
 
       # Each member's exporter reports every member: max by member dedupes.
       # State 1 PRIMARY, 2 SECONDARY; anything else (RECOVERING, DOWN...) does not serve.

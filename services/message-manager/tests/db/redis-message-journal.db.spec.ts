@@ -13,6 +13,7 @@ import { RedisMessageJournal } from "../../src/adapters/outbound/redis-message-j
 import { DeliveryWorker } from "../../src/application/services/delivery-worker";
 import { Dispatcher } from "../../src/application/services/dispatcher";
 import { SubscriptionRegistry } from "../../src/application/services/subscription-registry";
+import type { JournalGroup } from "../../src/domain/ports/message-journal.port";
 import {
 	createMockMessage,
 	mockServiceIdentity,
@@ -42,10 +43,10 @@ const journalOn = (redis: Redis, minReplicas = 0) =>
 
 const stream = () => `${KEY_PREFIX}:journal:${mockSubscribeParams.topic}`;
 
-const GROUP = {
+const GROUP: JournalGroup = {
 	topic: mockSubscribeParams.topic,
 	service: mockSubscribeParams.serviceIdentity.serviceName,
-} as never;
+};
 const RETRY_NOW = { floorMs: 0, dueAfterMs: () => 0 };
 
 const metadata = {

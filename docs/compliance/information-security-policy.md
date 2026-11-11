@@ -81,7 +81,7 @@ All platform assets are documented in:
 ### 6.1 Encryption Standards
 
 | Use Case | Algorithm | Key Length | Standard |
-|---|---|---|
+|---|---|---|---|
 | Transport security (service-to-service HTTP; not database clients) | TLS 1.3 (mTLS) | EC P-256 / RSA 2048+ (SVIDs) | NIST SP 800-52 Rev. 2 |
 | Data at rest (SPIRE datastore) | AES-256-GCM | 256-bit | NIST SP 800-38D |
 | SVID signing | EC P-256 (SPIRE CA) | 256-bit (EC) | NIST SP 800-186 |
@@ -91,7 +91,7 @@ All platform assets are documented in:
 ### 6.2 Key Management
 
 | Key Type | Storage | Rotation | Access |
-|---|---|---|
+|---|---|---|---|
 | SPIRE CA keys / trust bundle | SPIRE datastore (MySQL `spire`) | Automated (SPIRE CA manager) | SPIRE Server only |
 | SVIDs | In-memory + `/run/spire/svid` (spiffe-helper) | Auto-renewal (TTL 1h) | Workload via Workload API |
 | HMAC tokens | Address-manager cache | Refresh cycle via scheduler | Registered service only |

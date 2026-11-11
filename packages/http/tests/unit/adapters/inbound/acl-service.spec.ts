@@ -90,3 +90,21 @@ describe("AclService", () => {
 		).toThrow();
 	});
 });
+
+describe("AclService denial metric", () => {
+	it("counts a denied caller", async () => {
+		const { mtlsDenialsTotal } = await import(
+			"@trading-model/http/infrastructure/outbound-metrics"
+		);
+		const count = async () =>
+			(await mtlsDenialsTotal.get()).values.find(
+				(v) => v.labels.reason === "caller_not_allowed"
+			)?.value ?? 0;
+		const before = await count();
+		const acl = new AclService({ "test-service": [ServiceId.of("other")] });
+		expect(() =>
+			acl.authorizeCaller(ServiceId.of("me"), ServiceId.of("test-service"))
+		).toThrow();
+		expect(await count()).toBe(before + 1);
+	});
+});

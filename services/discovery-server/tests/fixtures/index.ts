@@ -13,7 +13,7 @@ import type { ServiceInstance } from "../../src/shared/types";
 export const validServiceInstance = (
 	overrides?: Partial<ServiceInstance>
 ): ServiceInstance => ({
-	serviceName: "financial-scraper-service" as ServiceId,
+	serviceName: "financial-scraper" as ServiceId,
 	instanceId: "test-instance-1" as InstanceId,
 	host: "192.168.1.10" as IPAddress,
 	port: 8444 as Port,
@@ -28,7 +28,7 @@ export const validServiceInstance = (
 export const secondServiceInstance = (
 	overrides?: Partial<ServiceInstance>
 ): ServiceInstance => ({
-	serviceName: "financial-scraper-service" as ServiceId,
+	serviceName: "financial-scraper" as ServiceId,
 	instanceId: "test-instance-2" as InstanceId,
 	host: "192.168.1.11" as IPAddress,
 	port: 8445 as Port,
@@ -43,7 +43,7 @@ export const secondServiceInstance = (
 export const otherServiceInstance = (
 	overrides?: Partial<ServiceInstance>
 ): ServiceInstance => ({
-	serviceName: "message-delivery-service" as ServiceId,
+	serviceName: "message-manager" as ServiceId,
 	instanceId: "msg-instance-1" as InstanceId,
 	host: "192.168.1.20" as IPAddress,
 	port: 8445 as Port,
@@ -56,7 +56,7 @@ export const otherServiceInstance = (
 });
 
 export const validRegisterPayload = {
-	serviceName: "financial-scraper-service",
+	serviceName: "financial-scraper",
 	ip: "192.168.1.10",
 	port: 8444,
 };

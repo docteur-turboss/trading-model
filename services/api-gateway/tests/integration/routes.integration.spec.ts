@@ -311,7 +311,6 @@ describe("API Gateway — Routes Integration", () => {
 	});
 
 	it.each([
-		["POST", "/v1/dlq-service/dlq"],
 		["DELETE", "/v1/dlq-service/dlq"],
 		["POST", "/v1/dlq-service/dlq/replay"],
 	])("refuses %s %s with 403 to a read-only key", async (method, path) => {
@@ -325,6 +324,20 @@ describe("API Gateway — Routes Integration", () => {
 			body: { ids: ["a"] },
 		});
 		expect(result.status).toBe(403);
+		expect(forwardRequest).not.toHaveBeenCalled();
+	});
+
+	it("does not expose POST /dlq-service/dlq: an API client cannot store a dead letter to replay (#845)", async () => {
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const result = await request(server, "/v1/dlq-service/dlq", {
+			method: "POST",
+			headers: AUTH_HEADERS,
+			body: { service: "trader-service", message: { forged: true } },
+		});
+		expect(result.status).toBe(404);
 		expect(forwardRequest).not.toHaveBeenCalled();
 	});
 

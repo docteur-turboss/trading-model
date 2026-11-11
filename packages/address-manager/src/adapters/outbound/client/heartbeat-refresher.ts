@@ -6,6 +6,7 @@ import type { ServiceIdentity } from "@trading-model/primitives/service-identity
 import type { TokenManager } from "../../../application/client/token-manager";
 import { addressManagerError } from "../../../shared/errors";
 
+/** Sends the periodic heartbeat that keeps the registration alive. */
 export class HeartbeatRefresher {
 	constructor(
 		private readonly _httpClient: HttpClient,

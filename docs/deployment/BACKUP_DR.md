@@ -580,6 +580,14 @@ another class for a new deployment, patch it in the overlay
 only applies to a new cluster, or after recreating the claim (restore the
 backups from the off-site copy first).
 
+### Rows past their retention after a restore
+
+`restore-k8s.sh` runs the `db-retention` CronJob once (`kubectl create job db-retention-post-restore-<stamp> --from=cronjob/db-retention`) after a successful MySQL restore, full or `--until`, and waits for it (`RETENTION_WAIT`, default `4h`, like the CronJob's deadline). If the Job fails, the restore exits 1 and prints the Job's last log lines: run the purge again. `--no-retention` skips it (forensic analysis of a past state): the expired rows then stay until the next daily run. The CI `k8s` drill restores a ticker 2000 days old and checks it is gone.
+
+Limit: the compose `scripts/restore.sh` does not run it (no `db-retention` job in compose, where no purge runs at all); purge by hand after a compose restore.
+
+MongoDB: `mongorestore` runs without `--noIndexRestore`, so the TTL indexes of `audit_events` and the DLQ come back with the data and the TTL monitor purges expired documents on its own (it wakes every 60 s). This is read from the code (`audit-repository.ts`, `index-manager.ts`) and has not been measured on a live restore: no drill asserts it yet.
+
 ## Restore Procedures
 
 Encrypted backups (`*.age`) need the age private key:
@@ -807,6 +815,8 @@ restore) are signed by a key no longer in the bundle: restart the
 `spiffe-helper` sidecars, or wait for their rotation, if a workload rejects
 peers after the restore. The CI drill checks that Prometheus scrapes every
 target over mTLS after the restore.
+
+Restore MySQL accounts first: dumps exclude the `mysql` schema, so after the loss of the MySQL volume run `bash deploy/k8s/scripts/run-migrations.sh trading-model user-only` (recreates `spire`, `migrator`, `retention`, `exporter`) before `restore-k8s.sh --components mysql,spire`. Otherwise the SPIRE server cannot log in and the SPIRE step times out.
 
 ## Disaster Recovery
 

@@ -23,6 +23,7 @@ import {
 } from "../../infrastructure/metrics";
 import { CircuitBreakerPersistenceHandler } from "./circuit-breaker-persistence-handler";
 
+/** Tuning of a discovery circuit breaker: thresholds and timeouts. */
 export interface CircuitBreakerOptions {
 	failureThreshold?: number;
 	halfOpenTimeoutMs?: number;
@@ -57,6 +58,7 @@ function buildCircuitConfig(
 	};
 }
 
+/** Circuit breaker around discovery calls, with its state persisted across restarts. */
 export class DiscoveryCircuitBreaker extends CircuitBreaker {
 	private readonly _persistenceHandler: CircuitBreakerPersistenceHandler;
 	private readonly _halfOpenTimeoutMs: number;

@@ -1,5 +1,6 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	DurationMs,
 	toServiceId,
@@ -22,13 +23,13 @@ export interface DeliveryBookkeeping {
 }
 
 export interface DeliveryContext extends BatchContext, DeliveryBookkeeping {
-	client: import("@trading-model/http/adapters/outbound/http-client").HttpClient;
+	client: HttpClient;
 	messageManagerUrl: string;
 }
 
 async function _deliverMessage(
 	entry: DlqEntryRef,
-	client: import("@trading-model/http/adapters/outbound/http-client").HttpClient,
+	client: HttpClient,
 	messageManagerUrl: string
 ): Promise<void> {
 	if (isShuttingDown()) {

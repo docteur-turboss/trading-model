@@ -13,5 +13,6 @@ Regulatory compliance documentation covering GDPR, MiFID II, MAR, and DORA.
 | [Information Security Policy](information-security-policy.md) | ISMS framework aligned with ISO 27001:2022 |
 | [Access Control Policy](access-control-policy.md) | mTLS/ACL-based zero-trust service access model |
 | [Incident Response Policy](incident-response-policy.md) | Incident classification, response lifecycle, regulatory notification |
+| [Breach Register](breach-register.md) | Art. 33(5) GDPR breach register template and example (real register kept outside the repo) |
 | [Business Continuity Policy](business-continuity-policy.md) | BCP/DR — RTO/RPO targets, backup strategy, recovery procedures |
 | [Third-Party DPAs](third-party-dpas.md) | Third-party data processing agreement assessments |

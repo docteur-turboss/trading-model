@@ -29,10 +29,12 @@ const SENSITIVE_KEY_PATTERNS = [
 	/^peer[-_]?address$/i,
 ];
 
+/** True when a key name matches a sensitive pattern. */
 export function isSensitiveKey(key: string): boolean {
 	return SENSITIVE_KEY_PATTERNS.some((pattern) => pattern.test(key));
 }
 
+/** JSON-stringifies a value with the values of sensitive keys redacted. */
 export function safeStringify(value: unknown): string {
 	return baseSafeStringify(value, undefined, (key, val) => {
 		if (key && isSensitiveKey(key)) {

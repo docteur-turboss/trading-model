@@ -12,6 +12,7 @@ import type { TokenManager } from "../client/token-manager";
 import { CacheHealthRefresher } from "../discovery/cache-health-refresher";
 import type { HeartbeatManager } from "../heartbeat-manager";
 
+/** Options of SteadyStateScheduler: token, heartbeat and cache refresh settings. */
 export interface SteadyStateSchedulerOptions {
 	tokenManager: TokenManager;
 	addressManagerClient: AddressManagerClient;
@@ -25,6 +26,7 @@ export interface SteadyStateSchedulerOptions {
 	cacheTtlMs: DurationMs;
 }
 
+/** Schedules the periodic jobs of a registered service: token refresh, heartbeat, cache refresh. */
 export class SteadyStateScheduler {
 	private readonly _scheduler = new Scheduler();
 

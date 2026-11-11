@@ -9,13 +9,14 @@ import {
 
 const MOCK_DELIVER_ENTRY = jest.fn<(entry: { id: string }) => Promise<void>>();
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: {
+jest.mock("@trading-model/contracts/logger-registry", () => {
+	const logger = {
 		debug: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
 		error: jest.fn<(...args: any[]) => any>(),
-	},
-}));
+	};
+	return { getLogger: () => logger, logger };
+});
 
 jest.mock("../../src/application/services/batch-concurrency-guard", () => ({
 	checkBatchRejection: () => null,
@@ -95,7 +96,7 @@ describe("replay-batch", () => {
 			.spyOn(global, "clearTimeout")
 			.mockImplementation(() => undefined);
 		const { logger } = jest.requireMock(
-			"@trading-model/http/infrastructure/logger"
+			"@trading-model/contracts/logger-registry"
 		) as {
 			logger: { warn: jest.Mock<(...args: any[]) => any> };
 		};
@@ -114,7 +115,7 @@ describe("replay-batch", () => {
 		}) as never);
 		jest.spyOn(global, "clearTimeout").mockImplementation(() => undefined);
 		const { logger } = jest.requireMock(
-			"@trading-model/http/infrastructure/logger"
+			"@trading-model/contracts/logger-registry"
 		) as {
 			logger: { warn: jest.Mock<(...args: any[]) => any> };
 		};

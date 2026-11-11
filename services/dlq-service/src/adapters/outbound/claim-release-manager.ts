@@ -1,12 +1,14 @@
-﻿import type { InstanceId } from "@trading-model/primitives/primitives";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 import { ObjectId } from "mongodb";
 import {
 	CLAIM_PROJECTION,
 	RELEASE_CLAIM,
 	STALE_CLAIM_MS,
 } from "../../domain/dlq-constants";
+import type { BatchContext } from "../../shared/types";
 import type { CollectionProvider } from "./collection-provider";
 import { DlqQueryBuilder } from "./dlq-query-builder";
+import type { StoredDlqEntry } from "./repository";
 import { toStoredDlqEntry } from "./repository";
 
 export class ClaimReleaseManager {
@@ -14,8 +16,8 @@ export class ClaimReleaseManager {
 
 	async claimEntry(
 		id: string,
-		ctx: import("../../shared/types").BatchContext
-	): Promise<import("./repository").StoredDlqEntry | null> {
+		ctx: BatchContext
+	): Promise<StoredDlqEntry | null> {
 		const col = await this._getCollection();
 		const result = await col.findOneAndUpdate(
 			{

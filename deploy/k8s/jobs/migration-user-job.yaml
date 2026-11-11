@@ -22,6 +22,11 @@
 #  Every network user (migrator, retention, exporter, and the image users
 #  scraper and root) is bound to its cert-manager client certificate with
 #  REQUIRE ISSUER / SUBJECT (issue #767, mysql-tls.yaml): CN = user name.
+#  And the `spire` database and user of the SPIRE server datastore (issue
+#  #807): ALL PRIVILEGES on spire.* only, so the SPIRE pod never holds
+#  MYSQL_ROOT_PASSWORD. Password MYSQL_SPIRE_PASSWORD (required key:
+#  run-migrations.sh applies the SealedSecret before this Job, and this Job
+#  before the overlay that starts the new SPIRE server).
 # =============================================================================
 apiVersion: batch/v1
 kind: Job
@@ -79,6 +84,9 @@ spec:
               case "$epw" in
                 *[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_EXPORTER_PASSWORD must match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
               esac
+              case "$SPIRE_PASSWORD" in
+                ""|*[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_SPIRE_PASSWORD must be non-empty and match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
+              esac
               export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
               # TLS_BIND=false (first upgrade, mysqld still on its auto-generated certificate, which
               # rejects our client certificate): no REQUIRE yet; run-migrations.sh runs this job again
@@ -91,6 +99,13 @@ spec:
                 ON financial_scraper.* TO 'migrator'@'%';
               EOSQL
               echo "migrator user ready"
+              mysql -h mysql-primary -u root <<EOSQL
+              CREATE DATABASE IF NOT EXISTS spire;
+              CREATE USER IF NOT EXISTS 'spire'@'%' IDENTIFIED BY '${SPIRE_PASSWORD}';
+              ALTER USER 'spire'@'%' IDENTIFIED BY '${SPIRE_PASSWORD}';
+              GRANT ALL PRIVILEGES ON spire.* TO 'spire'@'%';
+              EOSQL
+              echo "spire user ready"
               # Client certificates (issue #767): the password alone no longer opens a
               # session for these users; this job itself presents the root one.
               if [ "${TLS_BIND:-true}" != false ]; then
@@ -147,6 +162,11 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: MYSQL_MIGRATE_PASSWORD
+            - name: SPIRE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_SPIRE_PASSWORD
             - name: RETENTION_PASSWORD
               valueFrom:
                 secretKeyRef:

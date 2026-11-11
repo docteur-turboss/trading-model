@@ -281,8 +281,8 @@ describe("router", () => {
 			const result = await getHandler()(
 				createReq({
 					method: "POST",
-					path: "/v1/dlq-service/dlq",
-					url: "/v1/dlq-service/dlq",
+					path: "/v1/dlq-service/dlq/replay",
+					url: "/v1/dlq-service/dlq/replay",
 					body: { name: "test" },
 				})
 			);
@@ -290,7 +290,6 @@ describe("router", () => {
 		});
 
 		it.each([
-			["POST", "/v1/dlq-service/dlq"],
 			["DELETE", "/v1/dlq-service/dlq"],
 			["POST", "/v1/dlq-service/dlq/replay"],
 		])(

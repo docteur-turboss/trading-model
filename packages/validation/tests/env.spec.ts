@@ -215,3 +215,21 @@ describe("RedisEnvSchema", () => {
 		expect(result.REDIS_URL).toBeUndefined();
 	});
 });
+
+describe("validateEnv treeify fallback", () => {
+	it("warns on console without any registered logger", () => {
+		const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+		const err = jest.spyOn(console, "error").mockImplementation(() => {});
+		// malformed error: z.treeifyError throws on it
+		const schema = { safeParse: () => ({ success: false, error: {} }) };
+		expect(() => validateEnv(schema as unknown as z.ZodType)).toThrow(
+			"Environment validation failed"
+		);
+		expect(warn).toHaveBeenCalledWith(
+			"Failed to treeify Zod error, using raw format",
+			expect.anything()
+		);
+		warn.mockRestore();
+		err.mockRestore();
+	});
+});

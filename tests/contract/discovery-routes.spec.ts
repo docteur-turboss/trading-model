@@ -70,7 +70,7 @@ jest.mock(
 	})
 );
 
-const SERVICE = "financial-scraper-service";
+const SERVICE = "financial-scraper";
 
 interface Exchange {
 	route: ApiRoute | undefined;

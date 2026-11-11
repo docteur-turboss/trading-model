@@ -104,7 +104,7 @@ When transitioning from research/simulation to production algorithmic trading, t
 
 | Document | Relevance |
 |---|---|
-| [DPIA](dpia.md) — Risk 2 (secret key exposure) | Certificate-based agent identity in mTLS |
+| [DPIA](dpia.md) — Risk 2 (secret key exposure) | SPIFFE workload identity (X.509 SVIDs issued by SPIRE, ADR-0011) |
 | [Data Retention Policy](data-retention-policy.md) — 5-year retention | Training data and agent checkpoints retention |
 | [Data Processing Register](data-processing-register.md) — Activity 5 | ML training data processing classification |
 | `services/trader-trainer/src/` | Agent training source code |

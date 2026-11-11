@@ -1,4 +1,5 @@
-﻿import type { InstanceId } from "@trading-model/primitives/primitives";
+import type { InstanceId } from "@trading-model/primitives/primitives";
+import type { Collection } from "mongodb";
 import { ObjectId } from "mongodb";
 import { RELEASE_CLAIM } from "../../domain/dlq-constants";
 import { DlqStatus } from "../../domain/dlq-status";
@@ -7,7 +8,7 @@ import type { CollectionProvider } from "./collection-provider";
 import { RetryPipelineBuilder } from "./retry-pipeline-builder";
 
 async function _updateEntryCompleted(
-	col: import("mongodb").Collection,
+	col: Collection,
 	id: string,
 	instanceId: InstanceId,
 	batchId?: string

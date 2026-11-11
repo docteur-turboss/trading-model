@@ -17,7 +17,7 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 > - HTTP middleware, HTTP client, logging system → `@trading-model/http`
 > - Distributed worker protocol & orphan recovery → `@trading-model/jobs` (removed by ADR-0029: no producer, no worker)
 
-`common` depends on `@trading-model/primitives` and `@trading-model/contracts` (plus external `zod`, `express`, `chained-error`). It has **no** dependency on `http`, `validation`, `server-utils` or `crypto`.
+`common` depends on `@trading-model/primitives` and `@trading-model/contracts` (plus external `zod`, `express`). It has **no** dependency on `http`, `validation`, `server-utils` or `crypto`.
 
 ## Package Map Post-Split
 

@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type InstanceId,
 	toInstanceId,
@@ -12,6 +12,7 @@ import {
 	sweepIdleClosedMachines,
 } from "../../infrastructure/discovery/circuit-breaker-sweeper";
 
+/** Persists circuit breaker state, and sweeps idle breakers through the sweeper. */
 export class CircuitBreakerPersistenceHandler {
 	private readonly _sweeper: CircuitBreakerSweeper;
 
@@ -39,7 +40,7 @@ export class CircuitBreakerPersistenceHandler {
 	onRecordSuccess(instanceId: InstanceId, machine: CircuitStateMachine): void {
 		const snap = machine.snapshot();
 		if (snap.openUntil > 0) {
-			logger.info("Circuit breaker closed for instance", { instanceId });
+			getLogger().info("Circuit breaker closed for instance", { instanceId });
 		}
 		this._persistence.deletePersistedState(instanceId);
 		this._persistence.invalidateCache(instanceId);
@@ -51,7 +52,7 @@ export class CircuitBreakerPersistenceHandler {
 		opened: boolean
 	): void {
 		if (opened) {
-			logger.warn("Circuit breaker opened for instance", {
+			getLogger().warn("Circuit breaker opened for instance", {
 				instanceId,
 				failures: machine.failures,
 			});

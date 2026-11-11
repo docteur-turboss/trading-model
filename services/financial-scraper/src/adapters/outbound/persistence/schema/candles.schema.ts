@@ -3,19 +3,14 @@ import type {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type { BooleanValueSource } from "ts-sql-query/expressions/values";
 import { Table } from "ts-sql-query/Table";
-import type { tableOrViewRef } from "ts-sql-query/utils/symbols";
 
-import {
-	createDBConnection,
-	DATABASE,
-	type DBConnection,
-} from "../../../../config/db";
+import type { DBConnection } from "../../../../config/db";
 import type {
 	CandleData,
 	MarketDataPage,
 } from "../../../../domain/market-data.types";
+import { defineUpsert, type PageFilter, pagedQuery } from "./market-table";
 
 const T_MARKET_CANDLES = new (class TMarketCandles extends Table<
 	DBConnection,
@@ -60,27 +55,33 @@ const SELECT = {
 	closeTimestamp: T_MARKET_CANDLES.closeTimestamp,
 };
 
-const UPSERT_SQL = `
-	INSERT INTO market_candles
-		(symbol, market, source, interval_value, open, high, low, close, volume, trades, timestamp, close_timestamp)
-	VALUES ?
-	ON DUPLICATE KEY UPDATE
-		open = VALUES(open),
-		high = VALUES(high),
-		low = VALUES(low),
-		close = VALUES(close),
-		volume = VALUES(volume),
-		trades = VALUES(trades),
-		close_timestamp = VALUES(close_timestamp)
-`;
-
 /** Upsert candle records into the market_candles table (INSERT ... ON DUPLICATE KEY UPDATE). */
-export const insertCandles = async (data: CandleData[]): Promise<void> => {
-	if (!data.length) {
-		return;
-	}
-
-	const rows = data.map((item) => [
+export const insertCandles = defineUpsert<CandleData>({
+	table: "market_candles",
+	columns: [
+		"symbol",
+		"market",
+		"source",
+		"interval_value",
+		"open",
+		"high",
+		"low",
+		"close",
+		"volume",
+		"trades",
+		"timestamp",
+		"close_timestamp",
+	],
+	update: [
+		"open",
+		"high",
+		"low",
+		"close",
+		"volume",
+		"trades",
+		"close_timestamp",
+	],
+	mapRow: (item) => [
 		item.symbol,
 		item.market,
 		item.source,
@@ -93,44 +94,19 @@ export const insertCandles = async (data: CandleData[]): Promise<void> => {
 		item.trades ?? null,
 		new Date(item.timestamp),
 		new Date(item.closeTimestamp),
-	]);
-	await DATABASE.promise().query(UPSERT_SQL, [rows]);
-};
+	],
+});
 
-/** One page in (timestamp, id) order: `filter`, then the window and the cursor of `page`. */
 function _selectPage(
-	filter: BooleanValueSource<
-		(typeof T_MARKET_CANDLES)[typeof tableOrViewRef],
-		"required"
-	>,
+	filter: PageFilter<typeof T_MARKET_CANDLES>,
 	page: MarketDataPage
 ) {
-	const table = T_MARKET_CANDLES;
-	const after = new Date(page.after?.timestamp ?? 0);
-	return createDBConnection()
-		.selectFrom(table)
-		.where(filter)
-		.and(table.timestamp.largeAsIfValue(_date(page.from)))
-		.and(table.timestamp.lessThanIfValue(_date(page.to)))
-		.and(
-			table.timestamp
-				.greaterThan(after)
-				.or(
-					table.timestamp
-						.equals(after)
-						.and(table.id.greaterThan(page.after?.id ?? 0))
-				)
-				.onlyWhen(page.after !== undefined)
-		)
+	return pagedQuery(T_MARKET_CANDLES, filter, page)
 		.select(SELECT)
 		.orderBy("timestamp")
 		.orderBy("id")
 		.limit(page.limit)
 		.executeSelectMany();
-}
-
-function _date(epochMs: number | undefined): Date | undefined {
-	return epochMs === undefined ? undefined : new Date(epochMs);
 }
 
 /** Query helpers for the market_candles table, indexed by symbol, timestamp, and source. */

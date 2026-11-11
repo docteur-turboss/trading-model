@@ -32,7 +32,7 @@ describe("HttpMessageDelivery", () => {
 	describe("send", () => {
 		it("should POST metadata and payload at the top level, as subscribers read them", async () => {
 			const message = createMockMessage({ key: "value" });
-			const context = { deliveryAttempt: 1 };
+			const context = { deliveryAttempt: 1 as SequenceNumber };
 
 			await delivery.send({
 				url: "http://example.com/callback" as URLString,
@@ -104,6 +104,7 @@ describe("HttpMessageDelivery", () => {
 			const message = createMockMessage({ key: "value" });
 
 			await delivery.markDeadLetter({
+				service: "trader-trainer",
 				message,
 				reason: "REASON",
 				deliveryAttempt: 3 as SequenceNumber,

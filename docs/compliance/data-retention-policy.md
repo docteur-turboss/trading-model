@@ -30,7 +30,7 @@ Only the backups of the records kept 5 years go past 30 days (ADR-0032): the aud
 
 - The MySQL dump is a single file that also holds the `spire` database (registration entries and trust bundle, no private key): its monthly copies keep those for 5 years. Low stakes, accepted by ADR-0032.
 - The point-in-time archives (MySQL binlogs, MongoDB oplog slices, ADR-0031) hold every write, DLQ included: they are kept 72 h locally and 3 days off-site, never promoted, and the `.pitr` starting points never go to the weekly or monthly tiers.
-- A monthly backup keeps what it contains for up to 60 months after it was taken: an audit event or a candle may thus outlive its 5-year retention in the live database by up to 5 years, in an encrypted backup. The 5 years of MiFID II are a minimum, and the backups hold no personal data (data processing register, activity 7), so this is accepted; a restore of such a backup must not bring back data past its retention.
+- A monthly backup keeps what it contains for up to 60 months after it was taken: an audit event or a candle may thus outlive its 5-year retention in the live database by up to 5 years, in an encrypted backup. The 5 years of MiFID II are a minimum, and the backups hold no personal data (data processing register, activity 7), so this is accepted; a restore of such a backup must not bring back data past its retention: `restore-k8s.sh` runs the `db-retention` purge right after the MySQL restore (`--no-retention` to skip, [BACKUP_DR.md](../deployment/BACKUP_DR.md#rows-past-their-retention-after-a-restore)).
 
 ## Financial Regulatory Justification
 

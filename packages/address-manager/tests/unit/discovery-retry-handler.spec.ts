@@ -18,12 +18,13 @@ import type { DiscoveryContext } from "../../src/domain/discovery/discovery-cont
 import type { ServiceCachePort } from "../../src/domain/ports/service-cache.port";
 import type { DiscoveryResult } from "../../src/infrastructure/metrics";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: {
+jest.mock("@trading-model/contracts/logger-registry", () => {
+	const logger = {
 		warn: jest.fn<(...args: any[]) => any>(),
 		debug: jest.fn<(...args: any[]) => any>(),
-	},
-}));
+	};
+	return { getLogger: () => logger, logger };
+});
 jest.mock("@trading-model/common/utils/sleep", () => ({
 	sleep: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
@@ -37,7 +38,7 @@ jest.mock("../../src/infrastructure/metrics", () => ({
 }));
 
 import { sleep } from "@trading-model/common/utils/sleep";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { recordDiscoveryMetrics } from "../../src/infrastructure/metrics";
 
 describe("DiscoveryRetryHandler", () => {
@@ -249,7 +250,7 @@ describe("DiscoveryRetryHandler", () => {
 
 			expect(result).toBe(instance);
 			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
-			expect(jest.mocked(logger.warn)).toHaveBeenCalledWith(
+			expect(jest.mocked(getLogger().warn)).toHaveBeenCalledWith(
 				"Circuit breaker exhausted — returning stale cached instance as fallback",
 				{
 					serviceName: svcInstanceName,
@@ -269,7 +270,7 @@ describe("DiscoveryRetryHandler", () => {
 
 			expect(result).toBeNull();
 			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
-			expect(jest.mocked(logger.warn)).not.toHaveBeenCalled();
+			expect(jest.mocked(getLogger().warn)).not.toHaveBeenCalled();
 			expect(recordDiscoveryMetrics).not.toHaveBeenCalled();
 		});
 
@@ -280,11 +281,11 @@ describe("DiscoveryRetryHandler", () => {
 
 			expect(result).toBeNull();
 			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
-			expect(jest.mocked(logger.debug)).toHaveBeenCalledWith(
+			expect(jest.mocked(getLogger().debug)).toHaveBeenCalledWith(
 				"Cache lookup failed in fallback path",
 				{ error: new Error("cache error") }
 			);
-			expect(jest.mocked(logger.warn)).not.toHaveBeenCalled();
+			expect(jest.mocked(getLogger().warn)).not.toHaveBeenCalled();
 			expect(recordDiscoveryMetrics).not.toHaveBeenCalled();
 		});
 	});
@@ -338,7 +339,7 @@ describe("DiscoveryRetryHandler", () => {
 			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledWith(
 				instance.instanceId
 			);
-			expect(jest.mocked(logger.warn)).toHaveBeenCalledWith(
+			expect(jest.mocked(getLogger().warn)).toHaveBeenCalledWith(
 				"Circuit state store unavailable — using local state",
 				{ instanceId: instance.instanceId, error: "store error" }
 			);

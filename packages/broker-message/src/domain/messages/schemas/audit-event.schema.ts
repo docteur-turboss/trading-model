@@ -2,6 +2,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { z } from "zod";
 
+/** Validators of the audit event payloads, by event type. */
 export const AUDIT_EVENT_VALIDATORS = {
 	[AuditEvent.AuditHeartbeat]: z.object({
 		serviceName: z.nativeEnum(ServiceInstanceName),

@@ -7,6 +7,10 @@
 			"includes": ["**/src/**"]
 		},
 		{
+			"path": "./biome-plugins/no-inline-import-type.grit",
+			"includes": ["**/src/**"]
+		},
+		{
 			"path": "./biome-plugins/no-literal-http-status.grit",
 			"includes": ["**/src/**", "!packages/contracts/**"]
 		}

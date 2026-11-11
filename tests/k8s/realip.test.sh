@@ -17,8 +17,9 @@ trap cleanup EXIT
 # 10.244.7.0/24 is inside every overlay CIDR; 172.30.9.0/24 is outside all of them.
 docker network create --subnet 10.244.7.0/24 "$P-in" >/dev/null
 docker network create --subnet 172.30.9.0/24 "$P-out" >/dev/null
-# map + log_format of default.conf: what the edge-proxy really logs.
-awk '/^map \$remote_addr /{f=1} /^server \{/{exit} f' deploy/edge-proxy/default.conf > "$W/maps.conf"
+# map + log_format of default.conf: what the edge-proxy really logs. Stops before
+# the rate-limit block, which needs edge-limit-key.inc (not mounted here).
+awk '/^map \$remote_addr /{f=1} /^# Rate limit per real/{exit} f' deploy/edge-proxy/default.conf > "$W/maps.conf"
 fail=0
 check() { # overlay net peer-ip want
   docker rm -f "$P-nginx" >/dev/null 2>&1 || true
