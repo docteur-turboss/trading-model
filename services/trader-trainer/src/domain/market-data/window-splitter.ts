@@ -10,8 +10,14 @@ import { forEachPointInTime } from "./point-in-time";
 /** Minimum number of market steps required before training can start. */
 export const MIN_TRAINING_STEPS = PositiveInt.of(10);
 
-/** Default fraction of data held out for validation during training. */
-export const DEFAULT_VALIDATION_SPLIT = Percentage.of(0.2);
+/** Default fraction of the steps held out for validation (selection). */
+export const DEFAULT_VALIDATION_SPLIT = Percentage.of(0.15);
+
+/**
+ * Default fraction of the steps, the newest, held out for the final test: never
+ * read by the training nor by the selection (issue #885, ADR-0065).
+ */
+export const DEFAULT_TEST_SPLIT = Percentage.of(0.15);
 
 /** Default number of walk-forward folds (1 = single split, no rolling). */
 const DEFAULT_WALK_FORWARD_FOLDS = 1;
@@ -25,19 +31,22 @@ const DEFAULT_WALK_FORWARD_FOLDS = 1;
 export function hasEnoughTrainingData(
 	candleCount: number,
 	validationSplit: number,
-	walkForwardFolds: number
+	walkForwardFolds: number,
+	testSplit: number = DEFAULT_TEST_SPLIT
 ): boolean {
 	const steps = candleCount - 1;
-	if (steps < MIN_TRAINING_STEPS) {
+	const rest = Math.floor(steps * (1 - testSplit));
+	if (steps - rest < MIN_TRAINING_STEPS) {
 		return false;
 	}
-	if (walkForwardFolds >= 2 && steps >= MIN_TRAINING_STEPS * walkForwardFolds) {
+	if (walkForwardFolds >= 2 && rest >= MIN_TRAINING_STEPS * walkForwardFolds) {
 		return true;
 	}
 	// Walk-forward fallback uses DEFAULT_VALIDATION_SPLIT, as splitWalkForward does.
 	const split =
 		walkForwardFolds >= 2 ? DEFAULT_VALIDATION_SPLIT : validationSplit;
-	return Math.floor(steps * (1 - split)) >= MIN_TRAINING_STEPS;
+	const train = Math.floor(rest * (1 - split));
+	return train >= MIN_TRAINING_STEPS && rest - train >= MIN_TRAINING_STEPS;
 }
 
 /** Handles building market steps and train/validation window splitting. */
@@ -123,15 +132,23 @@ export class WindowSplitter {
 	getAllWindows(
 		ctx: MarketDataContext,
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
-		walkForwardFolds: number = DEFAULT_WALK_FORWARD_FOLDS
+		walkForwardFolds: number = DEFAULT_WALK_FORWARD_FOLDS,
+		testSplit: number = DEFAULT_TEST_SPLIT
 	): WindowSet | WindowSet[] | null {
-		const steps = this.buildMarketSteps(ctx);
-		if (steps.length < MIN_TRAINING_STEPS) {
+		const all = this.buildMarketSteps(ctx);
+		// The newest steps are cut off first: train and validation never see them.
+		const testStart = Math.floor(all.length * (1 - testSplit));
+		const steps = all.slice(0, testStart);
+		const test = all.slice(testStart);
+		if (steps.length < MIN_TRAINING_STEPS || test.length < MIN_TRAINING_STEPS) {
 			return null;
 		}
 		if (walkForwardFolds >= 2) {
-			return this.splitWalkForward(steps, walkForwardFolds);
+			return this.splitWalkForward(steps, walkForwardFolds).map((ws) => ({
+				...ws,
+				test,
+			}));
 		}
-		return this.splitTrainValidation(steps, validationSplit);
+		return { ...this.splitTrainValidation(steps, validationSplit), test };
 	}
 }

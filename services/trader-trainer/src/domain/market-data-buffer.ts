@@ -5,6 +5,7 @@ import type { WindowSet } from "./genetic-algorithm/generation-types";
 import type { MarketStep } from "./genetic-algorithm/genome-types";
 import type { MarketDataContext } from "./market-data/market-data-context";
 import {
+	DEFAULT_TEST_SPLIT,
 	DEFAULT_VALIDATION_SPLIT,
 	MIN_TRAINING_STEPS,
 	WindowSplitter,
@@ -117,13 +118,15 @@ export class MarketDataBuffer {
 	getAllWindows(
 		symbol: TradingSymbol,
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
-		walkForwardFolds = 1
+		walkForwardFolds = 1,
+		testSplit: number = DEFAULT_TEST_SPLIT
 	): WindowSet | WindowSet[] | null {
 		const ctx: MarketDataContext = { symbol };
 		return this._windowSplitter.getAllWindows(
 			ctx,
 			validationSplit,
-			walkForwardFolds
+			walkForwardFolds,
+			testSplit
 		);
 	}
 }

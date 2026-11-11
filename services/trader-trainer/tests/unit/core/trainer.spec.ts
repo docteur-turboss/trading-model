@@ -44,6 +44,7 @@ jest.mock<{ ENV: any }>("../../../src/infrastructure/config/env", () => ({
 /** Mirrors the TRAINER_* values of the mocked ENV above. */
 const TEST_TRAINING_SETTINGS: TrainingSettings = {
 	validationSplit: 0.2,
+	testSplit: 0.15,
 	walkForwardFolds: 1,
 	generations: 10,
 	populationSize: 5,
@@ -56,6 +57,11 @@ let capturedOnGeneration: ((ctx: any) => void) | null = null;
 let capturedOnArchiveUpdate: ((archive: any[]) => void) | null = null;
 let mockRunImpl: (() => Promise<any>) | null = null;
 let mockArchiveData: any[] = [{ id: "best-archived" }];
+
+// The mocked GA returns a stub genome: the final test evaluation cannot run it.
+jest.mock("../../../src/domain/genetic-algorithm/evaluation-phase", () => ({
+	evalPhase: () => ({ episodePnl: [1, 2], pnlCurve: [0.5, -0.25, 1] }),
+}));
 
 jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 	const mockRunner = {
@@ -356,7 +362,7 @@ describe("Trainer", () => {
 		});
 
 		it("should handle null fitness in training result", async () => {
-			mockRunImpl = async () => ({ id: "no-fitness" });
+			mockRunImpl = async () => createDefaultGenome("no-fitness");
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
@@ -748,6 +754,7 @@ describe("Trainer — model publication", () => {
 						sharpe: 0.9,
 						avgPnl: 2,
 						maxDrawdown: 4,
+						evaluatedOn: "test",
 					},
 				};
 			}

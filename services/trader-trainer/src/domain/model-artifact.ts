@@ -18,10 +18,12 @@ export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9._-]+$/;
 
 /**
  * How the metrics were computed (ADR-0025). 2: wallet PnL, annualised Sharpe of
- * the bar curve, evaluation at a fixed epsilon. Absent on older manifests,
+ * the bar curve, evaluation at a fixed epsilon. 4: sharpe, avgPnl and
+ * maxDrawdown measured on the test segment (`evaluatedOn`), not on the data the
+ * selection used (ADR-0065). Absent on older manifests,
  * whose metrics came from the shaped reward: never compare the two.
  */
-const MODEL_METRICS_VERSION = 3;
+const MODEL_METRICS_VERSION = 4;
 
 export interface ModelMetrics {
 	metricsVersion?: number;
@@ -30,6 +32,8 @@ export interface ModelMetrics {
 	sharpe: number;
 	avgPnl: number;
 	maxDrawdown: number;
+	/** Segment sharpe, avgPnl and maxDrawdown come from; absent: validation. */
+	evaluatedOn?: "validation" | "test";
 }
 
 export interface ModelManifest {
@@ -110,6 +114,7 @@ export function buildModelManifest(
 			sharpe: summary.sharpe,
 			avgPnl: summary.avgPnl,
 			maxDrawdown: summary.maxDrawdown,
+			evaluatedOn: summary.evaluatedOn,
 		},
 	};
 }

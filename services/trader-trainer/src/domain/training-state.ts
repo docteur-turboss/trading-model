@@ -25,6 +25,8 @@ export interface BestAgentSummary {
 	fitness: Fitness;
 	sharpe: SharpeRatio;
 	avgPnl: number;
+	/** Segment sharpe, avgPnl and maxDrawdown were measured on (ADR-0065). */
+	evaluatedOn: "validation" | "test";
 	/** Largest fall of the cumulative evaluation PnL (`EpisodeScores.maxDrawdown`). */
 	maxDrawdown: number;
 	gaControl: {

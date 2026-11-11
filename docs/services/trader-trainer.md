@@ -72,6 +72,7 @@ Returns the best trained agent summary from the most recent generation. After a 
       "sharpe": 1.92,
       "avgPnl": 145.32,
       "maxDrawdown": 38.5,
+      "evaluatedOn": "test",
       "gaControl": {
         "populationSize": 20,
         "elitismFraction": 0.1,
@@ -134,6 +135,7 @@ The `TRAINER_MODEL_RETENTION` newest versions are kept per symbol (default 20). 
 | sharpe            | number | Sharpe ratio of the bar-by-bar PnL curve of the evaluation, annualised from the bar spacing (ADR-0025) |
 | avgPnl            | number | Average P&L across evaluation episodes   |
 | maxDrawdown       | number | Largest fall of the cumulative bar-by-bar P&L of the evaluation, from its peak (>= 0) |
+| evaluatedOn       | string | `test` or `validation`: segment sharpe, avgPnl and maxDrawdown were measured on (ADR-0065) |
 | gaControl         | object | GA meta-parameters used                  |
 | network           | object | Neural network architecture              |
 | rl                | object | Reinforcement learning hyperparameters   |

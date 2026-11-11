@@ -27,6 +27,7 @@ import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 const BTC = TradingSymbol.of("BTCUSDT");
 const SETTINGS = {
 	validationSplit: 0.2,
+	testSplit: 0.15,
 	walkForwardFolds: 1,
 	generations: 2,
 	populationSize: 4,
@@ -72,6 +73,7 @@ describe("trainer pod that does not hold the Lease", () => {
 				sharpe: 0.9,
 				avgPnl: 2,
 				maxDrawdown: 4,
+				evaluatedOn: "test",
 			} as never,
 		});
 		version = saved.version;

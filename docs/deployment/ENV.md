@@ -122,7 +122,8 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | --------------------------------- | ------------ | ----------------- | -------- | ------------------------------------ | -------- |
 | `TRAINER_SYMBOLS`                 | string       | `BTCUSDT,ETHUSDT` | no       | Comma-separated trading symbols      | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
-| `TRAINER_VALIDATION_SPLIT`        | number (0-1) | `0.2`             | no       | Fraction of data used for validation | TT       |
+| `TRAINER_VALIDATION_SPLIT`        | number (0-1) | `0.15`            | no       | Fraction of the steps used for validation (selection) | TT       |
+| `TRAINER_TEST_SPLIT`              | number (0-1) | `0.15`            | no       | Newest fraction of the steps never used by training nor selection; published metrics come from it (ADR-0065) | TT       |
 | `TRAINER_GENERATIONS`             | number       | `50`              | no       | Number of GA generations             | TT       |
 | `TRAINER_POPULATION_SIZE`         | number       | `20`              | no       | GA population size                   | TT       |
 | `TRAINER_TIME_BUDGET_MS`          | number       | `300000` (5min)   | no       | Max training time per run            | TT       |
@@ -340,7 +341,8 @@ MYSQL_DATABASE=financial_scraper
 # Trader-Trainer
 TRAINER_SYMBOLS=BTCUSDT,ETHUSDT
 TRAINER_DATA_WINDOW=500
-TRAINER_VALIDATION_SPLIT=0.2
+TRAINER_VALIDATION_SPLIT=0.15
+TRAINER_TEST_SPLIT=0.15
 TRAINER_GENERATIONS=50
 TRAINER_POPULATION_SIZE=20
 TRAINER_TIME_BUDGET_MS=300000

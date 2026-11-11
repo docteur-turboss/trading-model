@@ -1,6 +1,11 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { DurationMs } from "@trading-model/primitives/primitives";
+import { evalPhase } from "../domain/genetic-algorithm/evaluation-phase";
+import {
+	barsPerYear,
+	computeAllResults,
+} from "../domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../domain/genetic-algorithm/factory";
 import {
 	type GenerationContext,
@@ -77,13 +82,44 @@ class TrainingSession {
 		// scalar seen during the run (which may sit off the Pareto front).
 		const published = runner.processor.archiveBest;
 		const ctx = lastCtx as GenerationContext | null;
+		const selectionMeta = published?.meta ?? ctx?.bestFitnessMeta;
 		return {
 			bestGenome,
 			bestFitness: published?.fitness ?? ctx?.bestFitness ?? 0,
-			bestFitnessMeta: published?.meta ?? ctx?.bestFitnessMeta,
+			bestFitnessMeta: this._testMeta(bestGenome) ?? selectionMeta,
 			generation: runner.processor.generation,
 			generationContext: lastCtx,
 		};
+	}
+
+	/**
+	 * Scores the published genome once on the test segment, which the training
+	 * and the selection never read (ADR-0065). Undefined without a test segment.
+	 */
+	private _testMeta(
+		genome: DeepReadonly<LamarckGenome>
+	): GenomeFitnessMeta | undefined {
+		const test = this._windowSets[this._windowSets.length - 1]?.test;
+		if (!test?.length) {
+			return undefined;
+		}
+		const t0 = Date.now();
+		const pnl = evalPhase({
+			genome,
+			validationData: test,
+			backendFactory: makeSeededBackendFactory(
+				genome.gaControl.seeding.networkSeed,
+				{ observePosition: this._settings.observePosition ?? true }
+			),
+		});
+		const { meta } = computeAllResults({
+			currentGenome: genome,
+			...pnl,
+			failed: false,
+			t0,
+			barsPerYear: barsPerYear(test),
+		});
+		return { ...meta, evaluatedOn: "test" };
 	}
 
 	private _buildInitialControl(): GAControlGenome {

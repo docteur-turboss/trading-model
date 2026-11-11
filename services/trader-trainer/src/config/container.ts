@@ -63,6 +63,7 @@ interface AppContainerConfig {
 	bufferSize: number;
 	symbols: TradingSymbol[];
 	validationSplit: number;
+	testSplit: number;
 	walkForwardFolds: number;
 	generations: number;
 	populationSize: number;
@@ -111,6 +112,7 @@ class ApplicationContainer {
 		this.trainer = new Trainer(this.dataBuffer, {
 			settings: {
 				validationSplit: config.validationSplit,
+				testSplit: config.testSplit,
 				walkForwardFolds: config.walkForwardFolds,
 				generations: config.generations,
 				populationSize: config.populationSize,
@@ -128,6 +130,7 @@ class ApplicationContainer {
 		});
 		this.trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer, {
 			validationSplit: config.validationSplit,
+			testSplit: config.testSplit,
 			walkForwardFolds: config.walkForwardFolds,
 		});
 	}
@@ -138,6 +141,7 @@ interface TraderTrainerSettings {
 	/** Comma-separated symbols, e.g. "BTCUSDT,ETHUSDT". */
 	TRAINER_SYMBOLS: string;
 	TRAINER_VALIDATION_SPLIT: number;
+	TRAINER_TEST_SPLIT: number;
 	TRAINER_WALK_FORWARD_FOLDS: number;
 	TRAINER_GENERATIONS: number;
 	TRAINER_POPULATION_SIZE: number;
@@ -162,6 +166,7 @@ export function createTraderTrainerContainer(
 			toSymbol(symbol)
 		),
 		validationSplit: settings.TRAINER_VALIDATION_SPLIT,
+		testSplit: settings.TRAINER_TEST_SPLIT,
 		walkForwardFolds: settings.TRAINER_WALK_FORWARD_FOLDS,
 		generations: settings.TRAINER_GENERATIONS,
 		populationSize: settings.TRAINER_POPULATION_SIZE,

@@ -26,6 +26,8 @@ export interface GenomeFitnessMeta {
 	pnlCurve?: EpisodeScores;
 	/** Bars per year of the evaluated data: annualises the published ratios. */
 	barsPerYear?: number;
+	/** Segment the scores come from; absent: validation, the selection data. */
+	evaluatedOn?: "validation" | "test";
 }
 
 export interface Genome {
