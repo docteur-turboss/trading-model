@@ -29,7 +29,7 @@ KIND="${KIND:-kind}"
 CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
-API_KEY="dev-token-change-me" # AUTH_TOKENS test value injected by ci-render.mjs
+API_KEY="dev-token-change-me" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
 SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
