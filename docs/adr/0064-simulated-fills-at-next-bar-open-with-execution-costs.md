@@ -40,4 +40,4 @@ The order book features exist, but no order book history covers the MT4 runs (AD
 
 ## Results
 
-See ADR-0030 Results, run of 2026-11-11.
+[ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) Results, run of 2026-11-11: with these costs MT4 still fails every criterion (mean Sharpe −3.31, t −2.51); the former simulator scores −3.51 / −2.62 on the same candles and seeds, a difference within the seed noise.

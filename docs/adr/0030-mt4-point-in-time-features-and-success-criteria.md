@@ -79,3 +79,13 @@ Run of 2026-10-31: BTCUSDT and ETHUSDT 1h candles from 2026-08-04 to 2026-10-31,
 - The paper trading criterion stays open.
 
 > **Reproducibility note (2026-11-08, PR #589):** the trainer simplification removed genes that never changed (mutation distribution, adaptation, scope, `selfSigma`, …) and with them some RNG draws of the mutation-genome crossover and of the self-adaptive mutation. Same-seed runs stay deterministic, but from that PR on they no longer replay the figures above. Re-run `scripts/mt4-walk-forward.ts` before comparing a new result with this table.
+
+Run of 2026-11-11 ([ADR-0064](./0064-simulated-fills-at-next-bar-open-with-execution-costs.md), issue #883): BTCUSDT and ETHUSDT 1h candles from 2026-08-16 to 2026-11-11 (`fetch-klines.ts`, 2,100 candles), 15 chained test segments per symbol (2026-09-10 → 2026-11-11), 3 seeds, fitness `total_pnl`, position shown, `--features klines`. Both rows run on the same candles and seeds: "next open + costs" is the simulator of ADR-0064 (fill at the next bar's open, 5 bps of half-spread and slippage, 0.1 % fee), "same close, fee only" is the former one (fill at the decision's close, 0.1 % fee), rebuilt for this comparison by setting the cost to 0 and the fill to the close. Buy and hold over the same bars: Sharpe −0.62 (BTC) and −1.85 (ETH), mean segment return −0.62 %.
+
+| Simulator | Sharpe | Sortino | Calmar | t (mean segment return) | Sharpe > 0 | Mean segment return |
+| --- | --- | --- | --- | --- | --- | --- |
+| next open + costs (5 bps) | −3.31 | −4.24 | −3.90 | −2.51 | 0 / 6 | −0.81 % |
+| same close, fee only | −3.51 | −4.47 | −4.29 | −2.62 | 0 / 6 | −0.88 % |
+
+- **MT4 still fails every criterion.** The agents lose significantly out of sample (t below −2) and do worse than buy and hold on both symbols.
+- **The cost model does not change the verdict, and its effect is not measurable here**: the realistic simulator scores slightly better, within the spread between seeds (Sharpe −1.53 to −4.66 per track record with costs). Costs also change which genomes the GA selects, so the two rows differ by more than the costs of the same trades. With no edge to erode, this run cannot price the former simulator's optimism; it only removes it from the next runs.
