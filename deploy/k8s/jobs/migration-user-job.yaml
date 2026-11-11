@@ -19,9 +19,10 @@
 #  application data. Password MYSQL_EXPORTER_PASSWORD (optional key, skipped
 #  when absent: the exporters then report mysql_up 0).
 #
-#  Every network user (migrator, retention, exporter, and the image users
-#  scraper and root) is bound to its cert-manager client certificate with
+#  Every network user (migrator, retention, exporter, spire, and the image
+#  users scraper and root) is bound to its cert-manager client certificate with
 #  REQUIRE ISSUER / SUBJECT (issue #767, mysql-tls.yaml): CN = user name.
+#
 #  And the `spire` database and user of the SPIRE server datastore (issue
 #  #807): ALL PRIVILEGES on spire.* only, so the SPIRE pod never holds
 #  MYSQL_ROOT_PASSWORD. Password MYSQL_SPIRE_PASSWORD (required key:
@@ -102,7 +103,7 @@ spec:
               mysql -h mysql-primary -u root <<EOSQL
               CREATE DATABASE IF NOT EXISTS spire;
               CREATE USER IF NOT EXISTS 'spire'@'%' IDENTIFIED BY '${SPIRE_PASSWORD}';
-              ALTER USER 'spire'@'%' IDENTIFIED BY '${SPIRE_PASSWORD}';
+              ALTER USER 'spire'@'%' IDENTIFIED BY '${SPIRE_PASSWORD}' $(rq spire);
               GRANT ALL PRIVILEGES ON spire.* TO 'spire'@'%';
               EOSQL
               echo "spire user ready"
@@ -113,13 +114,6 @@ spec:
               ALTER USER IF EXISTS 'scraper'@'%' $(rq scraper);
               ALTER USER IF EXISTS 'root'@'%' $(rq root);
               EOSQL
-                # A rollback (relax_mysql in deploy-release.sh) lifts it at runtime on every member
-                # without restarting mysqld: put it back on the redeploy of release N.
-                # Members that do not exist (kind runs fewer replicas) have no DNS record: skip them.
-                for h in mysql-0 mysql-1 mysql-2; do
-                  getent hosts "$h.mysql-headless" >/dev/null || continue
-                  mysql -h "$h.mysql-headless" -u root -e "SET GLOBAL require_secure_transport=ON"
-                done
               fi
               echo "scraper and root require their client certificate"
               if [ -n "$epw" ]; then

@@ -151,7 +151,7 @@ else
   echo "mysql still serves its auto-generated certificate: migration jobs use ssl-mode=REQUIRED, no client certificate, users not bound yet (run this script again, user-only, once the overlay rolled mysql)"
   sed -e 's/ssl-mode=VERIFY_IDENTITY/ssl-mode=REQUIRED/' -e '/^ *ssl-\(cert\|key\)=/d' "$JOBS/../infra/mysql-tls.yaml" | kubectl apply -n "$NS" -f -
 fi
-for s in mysql-client-root mysql-client-migrator mysql-client-retention; do
+for s in mysql-client-root mysql-client-migrator mysql-client-retention mysql-client-spire; do
   for _ in $(seq 60); do
     kubectl get secret "$s" -n "$NS" >/dev/null 2>&1 && continue 2
     sleep 2

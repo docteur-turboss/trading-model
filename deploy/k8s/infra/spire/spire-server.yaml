@@ -69,7 +69,7 @@ spec:
           args:
             - |
               for i in $(seq 1 30); do
-                if mysqladmin ping -h mysql-primary 2>/dev/null; then
+                if mysqladmin ping -h mysql-primary --ssl-mode=REQUIRED 2>/dev/null; then
                   exit 0
                 fi
                 echo "Waiting for MySQL... ($i/30)"
@@ -77,16 +77,6 @@ spec:
               done
               echo "MySQL still unreachable" >&2
               exit 1
-          volumeMounts:
-            - name: mysql-tls
-              mountPath: /etc/mysql-tls
-              readOnly: true
-            - name: mysql-client-tls
-              mountPath: /etc/mysql-client
-              readOnly: true
-          env:
-            - name: MYSQL_HOME
-              value: /etc/mysql-client
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -181,10 +171,7 @@ spec:
       volumes:
         - name: mysql-tls
           secret:
-            secretName: mysql-client-root
-        - name: mysql-client-tls
-          configMap:
-            name: mysql-client-tls
+            secretName: mysql-client-spire
         - name: spire-config
           configMap:
             name: spire-server-config
