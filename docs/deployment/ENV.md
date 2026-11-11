@@ -105,7 +105,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | --------------------- | ------ | -------------------------------- | -------- | ------------------------------- | -------- |
 | `DISCOVERY_SERVICE_URL` | URL  | `https://discovery-server:3000`  | **yes**  | Discovery server URL            | GW       |
 | `RATE_LIMIT_WINDOW_MS` | number | `60000`                         | no       | Rate limit window (ms)          | GW       |
-| `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window         | GW       |
+| `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window, per pod: effective limit per client = value x replicas (HPA 2-8), i.e. 200 to 800 per 60 s by default (ADR-0047) | GW       |
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
 | `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is accepted for one release with every scope, named `legacy-<8 hex>`, with a warning (ADR-0059) | GW |

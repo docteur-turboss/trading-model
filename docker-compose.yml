@@ -747,7 +747,6 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=30d'
-      - '--web.enable-lifecycle'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
