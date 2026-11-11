@@ -1006,6 +1006,8 @@ verify_backup() {
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertMany([{_id: 1}, {_id: 2}, {_id: 3}])" >/dev/null
 	done
 	mysql_root "CREATE DATABASE restore_drill; CREATE TABLE restore_drill.markers (id INT PRIMARY KEY); INSERT INTO restore_drill.markers VALUES (1), (2), (3);"
+	# Past retention (1827 days) and in the dump: restore-k8s.sh must purge it (issue #743).
+	mysql_root "INSERT INTO financial_scraper.market_tickers (symbol, market, source, open, high, low, last, volume, timestamp, close_time) VALUES ('DRILLEXP', 'spot', 'drill', 1, 1, 1, 1, 1, NOW() - INTERVAL 2000 DAY, NOW() - INTERVAL 2000 DAY);"
 	local bundle_before
 	bundle_before="$(spire_bundle)"
 
@@ -1284,6 +1286,10 @@ verify_backup() {
 	}
 	[ "$(mysql_count market_candles)" -gt 0 ] || {
 		log "MySQL: market_candles was not restored"
+		return 1
+	}
+	[ "$(mysql_root "SELECT COUNT(*) FROM financial_scraper.market_tickers WHERE symbol='DRILLEXP'" | tr -d '\r')" = "0" ] || {
+		log "MySQL: the row past its retention came back with the restore (post-restore purge missing)"
 		return 1
 	}
 	[ "$(spire_bundle)" = "$bundle_before" ] || {
