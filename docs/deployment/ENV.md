@@ -122,7 +122,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | --------------------------------- | ------------ | ----------------- | -------- | ------------------------------------ | -------- |
 | `TRAINER_SYMBOLS`                 | string       | `BTCUSDT,ETHUSDT` | no       | Comma-separated trading symbols      | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
-| `TRAINER_VALIDATION_SPLIT`        | number (0-1) | `0.15`            | no       | Fraction of the steps used for validation (selection) | TT       |
+| `TRAINER_VALIDATION_SPLIT`        | number (0-1) | `0.15`            | no       | Fraction of the steps left after the test cut, used for validation (selection) | TT       |
 | `TRAINER_TEST_SPLIT`              | number (0-1) | `0.15`            | no       | Newest fraction of the steps never used by training nor selection; published metrics come from it (ADR-0065) | TT       |
 | `TRAINER_GENERATIONS`             | number       | `50`              | no       | Number of GA generations             | TT       |
 | `TRAINER_POPULATION_SIZE`         | number       | `20`              | no       | GA population size                   | TT       |

@@ -11,7 +11,7 @@ The live trainer split its data 80 / 20 into training and validation and selecte
 
 ## Decision
 
-1. The steps are cut in time order: `train | validation | test`, default 70 / 15 / 15. `TRAINER_VALIDATION_SPLIT` (0.15) and the new `TRAINER_TEST_SPLIT` (0.15) are fractions of all the steps. The test segment is cut first; the validation is then taken from what remains.
+1. The steps are cut in time order: `train | validation | test`, `TRAINER_TEST_SPLIT` (0.15, new) is a fraction of all the steps. The test segment is cut first; `TRAINER_VALIDATION_SPLIT` (0.15) is then a fraction of what remains, not of all the steps. With 499 steps: test 75, validation 64, train 360 (about 72 / 13 / 15 %, not 70 / 15 / 15).
 2. Training and GA selection read train and validation only. After the session, the published genome is evaluated once on the test segment (`WindowSet.test`, same evaluation as the selection: wallet PnL, epsilon 0.05).
 3. `sharpe`, `avgPnl` and `maxDrawdown` of the manifest, of the API and of `training.model.published` come from the test, and say so: `evaluatedOn: "test"` (`"validation"` for older manifests, where the field is absent). `fitness` stays the selection fitness.
 4. `MODEL_METRICS_VERSION` goes from 3 to 4: never compare version 4 metrics with older ones.
