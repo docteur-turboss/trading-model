@@ -12,6 +12,7 @@ import {
 	sweepIdleClosedMachines,
 } from "../../infrastructure/discovery/circuit-breaker-sweeper";
 
+/** Persists circuit breaker state, and sweeps idle breakers through the sweeper. */
 export class CircuitBreakerPersistenceHandler {
 	private readonly _sweeper: CircuitBreakerSweeper;
 

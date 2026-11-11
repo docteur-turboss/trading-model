@@ -2,6 +2,7 @@ import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated
 import { DEFAULT_PRIVATE_CIDRS } from "@trading-model/primitives/primitives";
 import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
+import { weakSecretReason } from "@trading-model/validation/config/secret-strength";
 import { z } from "zod";
 
 import { parseApiKey } from "../../shared/api-keys";
@@ -47,6 +48,16 @@ const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
 				message: `AUTH_TOKENS: ${key.error} (format name:scope1+scope2:secret, ADR-0059)`,
+				path: ["AUTH_TOKENS"],
+			});
+			continue;
+		}
+		const weak =
+			data.NODE_ENV === "production" ? weakSecretReason(key.secret) : undefined;
+		if (weak) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `AUTH_TOKENS: key "${key.name}" secret ${weak}`,
 				path: ["AUTH_TOKENS"],
 			});
 		}

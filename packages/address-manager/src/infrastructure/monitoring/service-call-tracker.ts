@@ -9,18 +9,22 @@ import type {
 import type { AggregationTotals, EndpointKey } from "./call-record-aggregator";
 import { CallRecordAggregator } from "./call-record-aggregator";
 
+/** Outcome of a tracked service call. */
 export enum CallStatus {
 	Success = "success",
 	Error = "error",
 }
 
+/** Endpoint a service call targets, branded. */
 export type Endpoint = string & { readonly brand: "Endpoint" };
+/** Constructor and validator of Endpoint. */
 export const Endpoint = {
 	of(value: string): Endpoint {
 		return value as Endpoint;
 	},
 };
 
+/** One recorded service call: endpoint, status and duration. */
 export interface CallRecord {
 	targetService: ServiceId;
 	endpoint: Endpoint;
@@ -33,6 +37,7 @@ export interface CallRecord {
 	errorMessage?: string;
 }
 
+/** Adds one call record to the aggregate of its endpoint. */
 export function aggregateRecord(
 	record: CallRecord,
 	callsByService: Record<ServiceId, number>,
@@ -44,6 +49,7 @@ export function aggregateRecord(
 	callsByEndpoint[ep] = (callsByEndpoint[ep] ?? 0) + 1;
 }
 
+/** Sums the aggregates of all endpoints into totals. */
 export function aggregateTotals(
 	record: CallRecord,
 	totals: Pick<
@@ -64,6 +70,7 @@ export function aggregateTotals(
 	};
 }
 
+/** Snapshot of the call statistics at one point in time. */
 export interface CallTrackerSnapshot {
 	totalCalls: PositiveInt;
 	callsByService: Record<ServiceId, number>;
@@ -84,6 +91,7 @@ const EMPTY_SNAPSHOT: CallTrackerSnapshot = {
 	totalBytesReceived: 0 as Bytes,
 };
 
+/** Tracks the calls made to other services and keeps their statistics. */
 export class ServiceCallTracker {
 	private _records: CallRecord[] = [];
 	private readonly _maxRecords: number;
