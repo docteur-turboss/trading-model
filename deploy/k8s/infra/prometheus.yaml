@@ -137,17 +137,16 @@ spec:
                 until [ -s "/run/spire/svid/$f" ]; do echo "waiting for /run/spire/svid/$f"; sleep 2; done
               done
               # The ConfigMap is not hash-suffixed and Prometheus does not reread a changed
-              # config by itself: reload it, or an upgrade keeps scraping the old targets.
+              # config by itself: SIGHUP it (no lifecycle API, issue #850), or an upgrade keeps scraping the old targets.
               confsum() { cat /etc/prometheus/* 2>/dev/null | cksum; }
               (last="$(confsum)"; while sleep 20; do
                 cur="$(confsum)"
-                if [ "$cur" != "$last" ] && wget -q -O /dev/null --post-data= http://localhost:9090/-/reload; then last="$cur"; fi
+                if [ "$cur" != "$last" ] && kill -HUP 1; then last="$cur"; fi
               done) &
               exec /bin/prometheus \
                 --config.file=/etc/prometheus/prometheus.yml \
                 --storage.tsdb.path=/prometheus \
                 --storage.tsdb.retention.time=30d \
-                --web.enable-lifecycle \
                 --enable-feature=expand-external-labels
           ports:
             - containerPort: 9090
