@@ -38,7 +38,8 @@ export const SERVICE_CONTAINERS = [
 export const EDGE_URL = `http://localhost:${process.env.EDGE_PORT ?? 8449}`;
 
 /** API key the E2E overlay configures on the gateway (AUTH_TOKENS). */
-export const GATEWAY_API_KEY = process.env.E2E_API_KEY ?? "e2e-api-key";
+export const GATEWAY_API_KEY =
+	process.env.E2E_API_KEY ?? "e2e-api-key-0123456789abcdef0123456789abcdef";
 
 const SVID_ARGS = [
 	"--cacert",
