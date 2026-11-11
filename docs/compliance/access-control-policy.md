@@ -119,7 +119,7 @@ In the event of SPIRE unavailability:
 
 ### 5.3 Grafana Break-Glass
 
-The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity provider is down: see [ADR-0063](../adr/0063-grafana-per-person-access-through-oidc.md). Each use is written in the incident log (who, why, when); rotate `GRAFANA_PASSWORD` afterwards.
+The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity provider is down: see [ADR-0063](../adr/0063-grafana-per-person-access-through-oidc.md) and the [runbook](../operations/runbooks/runbook-grafana-break-glass.md). Each use is written in the incident log (who, why, when); rotate `GRAFANA_PASSWORD` afterwards.
 
 ## 6. Access Review
 
