@@ -21,7 +21,7 @@ No Strategy, Execution or Evaluation context exists. The value produced stops at
 
 Whatever option is chosen, the downstream context depends on the existing, versioned surface and nothing else:
 
-1. **Trigger:** subscribe to `training.model.published` through message-manager (ADR-0019). The event is a notification; the consumer treats a delivery as at-least-once and idempotent on `(symbol, version)`.
+1. **Trigger:** subscribe to `training.model.published` through message-manager (ADR-0019). The event is a notification; the consumer treats a delivery as at-least-once and idempotent on `(symbol, version)`, both carried by the event with the weights `sha256` (published only once the artifact is stored; the deduplication id derives from `(symbol, version)`).
 2. **Read:** `GET /models/:symbol/:version` (manifest, public) then `GET /models/:symbol/:version/weights` (service-to-service). The consumer verifies the weights against `x-model-sha256` and the manifest. The manifest carries the topology, the feature layout and the normalization statistics: the consumer rebuilds the agent from it and never from trainer code (ADR-0022).
 3. **Caller identity:** the consumer gets its own SPIFFE identity (ADR-0011), an ACL entry on trader-trainer, and its service name added to `MODEL_DOWNLOAD_CALLERS` in `deploy/k8s/config/trader-trainer.properties` and in the compose environment. These changes ship with the consumer, not before.
 4. **Admission:** a model is used for decision only if it meets the ADR-0030 walk-forward criteria. The manifest metrics are the only evidence available until a consumer states otherwise.
