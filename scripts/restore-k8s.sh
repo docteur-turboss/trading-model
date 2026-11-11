@@ -3,6 +3,7 @@
 #  Trading Model — Database Restore Script (Kubernetes)
 #  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mongodb-audit,mysql,checkpoints,spire]
 #          [--timestamp 2025-01-01_120000 | --until 2025-01-01T13:45:00Z]
+#          [--no-retention]
 #          [--allow-mixed-runs] [--ns <db.coll|db.*>]... [--into-scratch]
 #          BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000
 #          BACKUP_AGE_IDENTITY=~/backup-key.txt (to read *.age backups)
@@ -71,6 +72,10 @@ CHECKED=false
 # --ns patterns and --into-scratch (issue #335).
 NS_INCLUDE=()
 INTO_SCRATCH=false
+# false (--no-retention): keep the rows past their retention (forensics).
+RUN_RETENTION=true
+# Upper bound for the purge Job (the CronJob allows 4 h: activeDeadlineSeconds).
+RETENTION_WAIT="${RETENTION_WAIT:-4h}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -81,6 +86,7 @@ while [[ $# -gt 0 ]]; do
     --allow-mixed-runs) ALLOW_MIXED_RUNS=true; shift ;;
     --ns) [ $# -ge 2 ] || { echo "--ns needs a pattern"; exit 1; }; NS_INCLUDE+=("$2"); shift 2 ;;
     --into-scratch) INTO_SCRATCH=true; shift ;;
+    --no-retention) RUN_RETENTION=false; shift ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -302,6 +308,25 @@ replay_binlogs() {
   done
 }
 
+# Data policy: a restore must not bring back rows past their retention. Runs
+# the db-retention CronJob once (same user, secrets and metrics), waits for it.
+purge_expired_rows() {
+  if ! $RUN_RETENTION; then
+    warn "--no-retention: rows past their retention stay until the next db-retention run"
+    return
+  fi
+  local job
+  job="db-retention-post-restore-$(date -u +%Y%m%d%H%M%S)"
+  log "Purging rows past their retention (Job ${job})..."
+  if kubectl create job -n "${K8S_NAMESPACE}" "$job" --from=cronjob/db-retention >/dev/null &&
+    kubectl wait -n "${K8S_NAMESPACE}" --for=condition=complete "job/${job}" --timeout="${RETENTION_WAIT}" >/dev/null; then
+    ok "Retention purge complete (${job})"
+  else
+    kubectl logs -n "${K8S_NAMESPACE}" "job/${job}" --tail=20 2>&1 || true
+    fail "Retention purge failed (${job}): expired rows may be back, run it again"
+  fi
+}
+
 restore_mysql() {
   log "Starting MySQL restore..."
   resolve_and_verify mysql "$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")" || return 0
@@ -363,8 +388,10 @@ restore_mysql() {
   fi
   if [ "${#chain[@]}" -eq 0 ]; then
     ok "MySQL restore complete (${pod})"
+    purge_expired_rows
   elif replay_binlogs "$pod" "$pos" "${chain[@]}"; then
     ok "MySQL restore complete (${pod}), up to ${UNTIL_SQL} UTC"
+    purge_expired_rows
   else
     fail "MySQL binlog replay failed (${pod}): the data stopped between the dump and ${UNTIL_SQL} UTC, restore again"
   fi
