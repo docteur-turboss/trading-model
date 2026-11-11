@@ -20,6 +20,7 @@ type SchemaArg<TResponse> = [TResponse] extends [void]
 	? [schema?: z.ZodType<TResponse>]
 	: [schema: z.ZodType<TResponse>];
 
+/** Outbound HTTP client: holds the TLS material and runs requests through the executor. */
 export class HttpClient {
 	private _tlsBundle: Partial<TlsPemBundle>;
 	private readonly _executor: HttpRequestExecutor;

@@ -23,6 +23,7 @@ import {
 	TOPIC_METADATA_PREDICATE,
 } from "../../shared/barrel/message.schema";
 
+/** Identifiers linking a message to the message it follows. */
 export interface ChainingIds {
 	causationId?: CorrelationId;
 	correlationId?: CorrelationId;
@@ -31,6 +32,7 @@ export interface ChainingIds {
 const toId = (id: CorrelationId | undefined) =>
 	id ? toCorrelationId(IDS_METADATA_PREDICATE.parse(id) as string) : undefined;
 
+/** Builds the metadata of an outgoing message. */
 export class MessageMetadataBuilder {
 	public topic: Topic;
 	public eventType: EventEnumMap;

@@ -16,6 +16,7 @@ import { LocalIPDetector } from "../../../shared/client/local-ip-detector";
 import { addressManagerError } from "../../../shared/errors";
 import { HeartbeatRefresher } from "./heartbeat-refresher";
 
+/** Client of the discovery server: registration, heartbeats and token refresh. */
 export class AddressManagerClient {
 	private readonly _heartbeatRefresher: HeartbeatRefresher;
 

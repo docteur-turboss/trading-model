@@ -1,6 +1,7 @@
 import type { InstanceId } from "@trading-model/primitives/primitives";
 import type { PersistedCircuitState } from "./service-cache.port";
 
+/** Port storing circuit breaker state per instance. */
 export interface CircuitStateStorePort {
 	setCircuitState(
 		instanceId: InstanceId,
