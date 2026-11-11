@@ -76,9 +76,41 @@ RUNNER_TOKEN=$(gh api -X POST repos/docteur-turboss/trading-model/actions/runner
 Register again (same command, after `docker volume rm trading-staging_runner-data`)
 if the runner is removed in Settings → Actions → Runners.
 
-The repository is public: keep **Settings → Actions → General → "Require approval
-for all external contributors"**, so that a fork pull request cannot run a
-workflow that targets the `trading-staging` label without a maintainer's approval.
+### Runner isolation
+
+The runner is persistent (not ephemeral) and the repository is public: a fork
+pull request runs its own version of the workflows, so it can add a job with
+`runs-on: [self-hosted, trading-staging]`. That job would reach the Docker
+network `kind` (MinIO, kind API server) and could leave a backdoor in
+`/runner/data` that steals `KUBECONFIG_STAGING_APP` / `_CLUSTER` at the next
+staging deploy (issue #842).
+
+- Keep **Settings → Actions → General → "Require approval for all external
+  contributors"** (API field `approval_policy` =
+  `all_external_contributors`). A maintainer then approves every fork run
+  before it starts: read its workflow changes before approving.
+- `deploy.yml` checks it: when the target is `staging` and `STAGING_RUNNER` is
+  set, the `check-environment` job reads
+  `GET /repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval`
+  with `ENVIRONMENT_READ_TOKEN` (`scripts/check-environment-protection.mjs
+  --fork-approval`). Any other value, a missing token or an unreadable setting
+  (403, 404, 5xx) fails `check-environment`, so the deploy job never starts
+  and never hands `KUBECONFIG_STAGING_*` to the runner. A preflight
+  (`preflight_only: true`) stops there too: it shows only this `::error::`,
+  not the table of the other guards.
+- Runner group limited to the workflows `deploy.yml` and
+  `sealed-secrets-key-backup.yml` ("Selected workflows"): runner groups need an
+  organization. The repository belongs to a personal account, so this layer is
+  missing; the approval setting is the only barrier. Move the repository to an
+  organization to add it.
+- After any doubt (an unexpected job on the runner, a fork run approved by
+  mistake), purge the runner: delete it in Settings → Actions → Runners, then
+  `docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml rm -sf runner`,
+  `docker volume rm trading-staging_runner-data`, register it again (command
+  above), then revoke the staging deploy tokens (a stolen one stays valid up
+  to 168 h): `scripts/deploy-identity.sh app --revoke` and `cluster --revoke`
+  with the arguments of `bootstrap.sh identities` (ADR-0041), then
+  `bash deploy/staging-local/bootstrap.sh identities`.
 
 ## SealedSecrets key backup
 

@@ -126,6 +126,22 @@ jobs:
           fi
           node scripts/check-environment-protection.mjs "$TARGET" "$GITHUB_REPOSITORY"
 
+      # The self-hosted runner is persistent and the repository public: a fork
+      # pull request could add a job on it (issue #842). No continue-on-error,
+      # not even in preflight: a failure skips the deploy job, so the runner
+      # never starts and never receives KUBECONFIG_STAGING_*. Unreadable = refused.
+      - name: Check fork pull request approval (self-hosted runner)
+        id: fork_approval
+        if: ${{ inputs.environment == 'staging' && vars.STAGING_RUNNER != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret ENVIRONMENT_READ_TOKEN is not set: the fork pull request approval setting cannot be checked. See docs/deployment/STAGING_LOCAL.md (Runner isolation)."
+            exit 1
+          fi
+          node scripts/check-environment-protection.mjs --fork-approval "$GITHUB_REPOSITORY"
+
       # Preflight stops here when the environment is missing (or unknown in
       # production): the deploy job names it, and GitHub would create it
       # unprotected. None of its secrets can exist yet anyway.
