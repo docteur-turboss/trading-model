@@ -59,7 +59,7 @@ The platform should undergo an annual review covering:
 | **Max order volume/ value** | Partial: position cap `maxPosition` only (`services/trader-trainer/src/domain/env/trade-executor.ts:32`). It defaults to no limit unless configured. No per-order value limit |
 | **Max order frequency** | Not implemented. No limit on orders per episode or per time unit; simulation only |
 | **Dual-channel price validation** | Not implemented — simulation only. For production: requires independent price feed comparison |
-| **Pre-trade risk checks** | Not implemented — simulation only. For production: requires integration with market gateway |
+| **Pre-trade risk checks** | Not implemented — simulation only. Required before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Proposed) |
 
 ### 4.2 Market Making Obligations (RTS 6 Art. 17-18)
 
@@ -90,9 +90,9 @@ When transitioning from research/simulation to production algorithmic trading, t
 | # | Requirement | Implementation Guide |
 |---|---|---|
 | 1 | Register with competent authority as algorithmic trading firm | N/A — infrastructure provider responsibility |
-| 2 | Implement pre-trade risk controls (Art. 12-15) | Add order validation middleware in api-gateway |
+| 2 | Implement pre-trade risk controls (Art. 12-15) | In a Risk/Execution service separate from the model and the decision consumer, never in the api-gateway (the order path does not cross it): [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 (Proposed) |
 | 3 | Deploy market-making obligations if applicable (Art. 17-18) | Not planned |
-| 4 | Implement kill switch functionality | Not implemented. Add circuit breaker webhook at gateway level |
+| 4 | Implement kill switch functionality | Not implemented. Owned by the Risk/Execution service, outside the decision component, state kept across restarts: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Proposed); limits and triggers in issue #882 |
 | 5 | Annual RTS 6 conformance testing | Schedule via CI/CD pipeline |
 | 6 | MAR suspicious transaction reporting | Integrate audit-logger with regulatory reporting |
 | 7 | Maintain algorithmic trading register | See [data-processing-register.md](data-processing-register.md) |
