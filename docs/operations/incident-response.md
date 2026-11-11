@@ -68,12 +68,16 @@ details are never committed (public repository).
 
 ## Communication Channels
 
-| Channel       | Purpose                       |
-| ------------- | ----------------------------- |
-| #incidents    | SEV1/SEV2 coordination        |
-| #alerts       | Automated alert notifications |
-| #ops          | Operational discussions       |
-| On-call Phone | Pushover (emergency priority) |
+Only channels defined in `observability/alertmanager.yml` (see [ALERTING.md](ALERTING.md)):
+
+| Channel          | Purpose                                                          |
+| ---------------- | ---------------------------------------------------------------- |
+| `#alerts`        | Critical alerts (also paged) and default receiver                |
+| `#alerts-warning`| Warning alerts                                                   |
+| Pushover         | Critical alerts, emergency priority (repeats until acknowledged) |
+| Dead man's switch| `Watchdog` heartbeat (`DEADMAN_URL`): silence means alerting is down |
+
+No incident-coordination channel or on-call phone is defined in the repo: the owner picks one per incident and records it in the post-mortem.
 
 ## Post-Incident Checklist
 
