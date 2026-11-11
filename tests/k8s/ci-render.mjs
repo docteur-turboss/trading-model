@@ -48,7 +48,6 @@ stringData:
   MYSQL_EXPORTER_PASSWORD: dev-mysql-exporter
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
   GRAFANA_PASSWORD: dev-grafana
-  HMAC_SECRET: dev-hmac
   REDIS_INTERNAL_PASSWORD: dev-redis-internal-password
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
   REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password

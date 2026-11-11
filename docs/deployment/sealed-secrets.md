@@ -57,7 +57,6 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=MYSQL_EXPORTER_PASSWORD='your-mysql-exporter-password' \
   --from-literal=DLQ_AUTH_HMAC_SECRET='your-dlq-hmac-secret' \
   --from-literal=GRAFANA_PASSWORD='your-grafana-password' \
-  --from-literal=HMAC_SECRET='your-hmac-secret' \
   --from-literal=REDIS_INTERNAL_PASSWORD='your-redis-ha-password' \
   --from-literal=REDIS_DISCOVERY_PASSWORD='your-discovery-redis-password' \
   --from-literal=REDIS_MESSAGE_MANAGER_PASSWORD='your-message-manager-redis-password' \
@@ -81,8 +80,6 @@ kubectl create secret generic trading-model-secrets -n trading-model   --from-li
 ```
 
 The final file must list ALL keys. `run-migrations.sh` refuses to apply a file that lacks a key of the live Secret. A file that adds a key is applied by `run-migrations.sh` before the migrations, which then wait for the controller to write the key: `db-migrate-user` and the database pods the overlay restarts see it (issue #698).
-
-> `HMAC_SECRET` is no longer read by any service (the api-gateway Deployment stopped injecting it). Keep the key in a SealedSecret that already has it: release N-1 still mounts it, and `run-migrations.sh` refuses a file that drops a live key. A later release removes it (ADR-0040 contract step, issue #819).
 
 ### Rotating secrets
 
