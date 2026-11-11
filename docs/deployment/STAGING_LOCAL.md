@@ -17,6 +17,12 @@ The compose stack keeps `http://localhost:8449` (edge-proxy).
 
 ## Selection in deploy.yml
 
+- Environment `staging`: deployment branches limited to `development` and `main`
+  (Settings → Environments → "Selected branches and tags", no other rule). It
+  holds `KUBECONFIG_STAGING_*`, `BACKUP_S3_*` and `AUDIT_ANCHOR_*`: without the rule
+  a branch pushed by anyone with write access can print them (issue #847).
+  `check-environment` reports a missing rule as `::error::` in the preflight
+  summary without blocking the deploy ([DEPLOY.md](DEPLOY.md#prerequisites-secrets)).
 - Repository variable `STAGING_RUNNER` (`trading-staging`): `runs-on` label of the
   staging job. Unset: `ubuntu-latest`.
 - Variable `K8S_OVERLAY` of the environment `staging` (`staging-local`): the
@@ -98,6 +104,11 @@ staging deploy (issue #842).
   and never hands `KUBECONFIG_STAGING_*` to the runner. A preflight
   (`preflight_only: true`) stops there too: it shows only this `::error::`,
   not the table of the other guards.
+- `sealed-secrets-key-backup.yml` does the same: when `SEALED_SECRETS_BACKUP_RUNNER`
+  is set, job `check-fork-approval` (GitHub-hosted) runs the same check, and
+  the backup job `needs:` it, so the self-hosted runner never gets
+  `SEALED_SECRETS_BACKUP_KUBECONFIG` or the MinIO credentials on failure
+  (issue #860).
 - Runner group limited to the workflows `deploy.yml` and
   `sealed-secrets-key-backup.yml` ("Selected workflows"): runner groups need an
   organization. The repository belongs to a personal account, so this layer is

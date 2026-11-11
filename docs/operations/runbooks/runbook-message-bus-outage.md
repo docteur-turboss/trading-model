@@ -87,7 +87,7 @@ kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
 
 ### 4. Dead letters stuck, refused or lost
 
-**Symptoms:** `MessagesDeadLettered` (warning: they are in dlq-service, list them with `GET /v1/dlq-service/dlq` and replay with `/dlq/replay` through the edge-proxy), `DeadLettersNotForwarded` (warning), `DeadLettersRejected` (warning) or `MessagesLost` (critical: neither dlq-service nor the file took them).
+**Symptoms:** `MessagesDeadLettered` (warning: they are in dlq-service, list them with `GET /v1/dlq-service/dlq` and replay with `POST /dlq/replay` through the edge-proxy), `DeadLettersNotForwarded` (warning), `DeadLettersRejected` (warning) or `MessagesLost` (critical: neither dlq-service nor the file took them).
 
 **`DeadLettersNotForwarded`:** message-manager logs `dlq-service unavailable: dead letter kept locally` with the cause. Check that dlq-service is up and ready (`MongoDB`), that message-manager reaches it, and that both read the same `DLQ_AUTH_HMAC_SECRET` (`trading-model-secrets`): a 401 means the secrets differ, a 403 that `message-manager` is missing from `DLQ_ALLOWED_SERVICES`. Once fixed, the next forward (1 min) empties the file and the alert resolves. **Do not delete the pod before that**, or copy the file first:
 
@@ -97,7 +97,7 @@ kubectl cp -n trading-model -c message-manager \
   "${POD#pod/}:/var/lib/message-manager/dead-letter-queue.jsonl" ./dead-letter-queue.jsonl
 ```
 
-**`DeadLettersRejected`:** dlq-service refused entries for good (invalid, or a message too large). They are in `/var/lib/message-manager/dead-letter-queue.jsonl.rejected` (copy it the same way) and logged with their topic. Each line is a `DlqEntry`: fix it and submit it with `POST /v1/dlq-service/dlq`.
+**`DeadLettersRejected`:** dlq-service refused entries for good (invalid, or a message too large). They are in `/var/lib/message-manager/dead-letter-queue.jsonl.rejected` (copy it the same way) and logged with their topic. Each line is a `DlqEntry`: fix it and submit it from inside the stack, never through the gateway (`POST /dlq-service/dlq` is not public since #845: an API client could otherwise store a forged message and replay it to any service). Run the signed `POST /dlq` of [dlq-service](../../services/dlq-service.md#examples) from the dlq-service pod/container (`kubectl exec` / `docker compose exec`), with its SVID, then replay it with `POST /v1/dlq-service/dlq/replay`.
 
 ### 5. Scraper publish backlog
 
