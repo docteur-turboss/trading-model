@@ -19,9 +19,13 @@ Prometheus itself ─┘                                                        
 | Credentials, compose | one file per key in `ALERTMANAGER_CREDENTIALS_DIR` (default `observability/alertmanager-credentials/`, git-ignored) |
 
 Alertmanager reads the credential files when it sends, so a changed Secret
-needs no restart. A production deploy fails without the Slack webhook and the
-dead man's switch; staging only warns. Without the Pushover keys, critical alerts
-still reach Slack `#alerts` (they are routed to both).
+needs no restart. A deploy of staging or production fails at its first step
+("Check alert notification secrets") and lists every missing one of the four
+secrets `ALERTMANAGER_SLACK_WEBHOOK_URL`, `ALERTMANAGER_DEADMAN_URL`,
+`ALERTMANAGER_PUSHOVER_USER_KEY`, `ALERTMANAGER_PUSHOVER_TOKEN`: a receiver
+reading an absent file fails each notification and fires
+`AlertmanagerNotificationsFailing`. Pushover is required too, so a real Pushover
+outage in production is never masked by a skipped receiver.
 
 ### Dead man's switch
 
@@ -230,6 +234,6 @@ file absent from the repository, or on an anchor that matches no heading.
 
 Compose runs the same datasources as K8s, each one fed:
 
-- **Logs**: `promtail` reads the compose containers through the Docker API (`/var/run/docker.sock`, read-only mount: dev only, the socket is root-equivalent) and pushes to Loki with the K8s `json` pipeline (labels `component`, `job`, `container`, `level`). Check: Grafana → Explore → Loki → `{component="api-gateway"}`.
+- **Logs**: `promtail` reads the compose containers through the Docker API of `docker-socket-proxy` (the only holder of `/var/run/docker.sock`, read-only mount; the proxy refuses every `POST`, ADR-0011 amendment) and pushes to Loki with the K8s `json` pipeline (labels `component`, `job`, `container`, `level`). Check: Grafana → Explore → Loki → `{component="api-gateway"}`.
 - **Traces**: services export OTLP/HTTP straight to `jaeger:4318` (`OTEL_EXPORTER_OTLP_ENDPOINT`); there is no OTel collector in compose. UI on `JAEGER_PORT` (default 16686).
 - **SVID expiry**: `blackbox-exporter` probes `/ping` of the 7 services with its own SVID (`spiffe-helper-blackbox`, SPIRE entry `blackbox-exporter` made by `spire-bootstrap`). `/ping` answers before the ACL, so any valid SVID passes. `CertificateExpiry` carries the `service` label in both environments (one target per service in `observability/prometheus.yml` and `deploy/k8s/infra/prometheus.yaml`).
