@@ -38,6 +38,7 @@ jobs:
       - run: bun run release:test
       - run: bun run config:check
       - run: bun run compliance:check
+      - run: bun run compose-ports:check
       - run: bun run env-protection:test
       - run: bun run preflight:test
       - name: Workflows parse as YAML
@@ -235,6 +236,12 @@ jobs:
           up -d --build --wait --wait-timeout 600
           discovery-server message-manager financial-scraper trader-trainer
           api-gateway audit-logger dlq-service edge-proxy
+      # Issue #844: no container of the started stack may publish on every interface.
+      - name: No port published on 0.0.0.0 or ::
+        run: |
+          ports="$(docker ps --format '{{.Names}} {{.Ports}}')"
+          echo "$ports"
+          if echo "$ports" | grep -E '0.0.0.0:|[::]:'; then exit 1; fi
       - name: Market data flow (Binance stub → scraper → MySQL / trainer)
         run: bun run test:e2e -- market-data-flow
       - name: Other E2E suites
