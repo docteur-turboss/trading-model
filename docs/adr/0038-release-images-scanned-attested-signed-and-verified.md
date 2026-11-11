@@ -11,7 +11,7 @@
 
 ## Decision
 
-1. **Scan before publication.** Each image is built with `load: true`, then scanned by Trivy (`aquasecurity/trivy-action`, SHA-pinned) before the push step. Threshold: any `CRITICAL` vulnerability that has a fix (`ignore-unfixed: true`) fails the job; nothing is pushed.
+1. **Scan before publication.** Each image is built with `load: true`, then scanned by Trivy (`aquasecurity/trivy-action`, SHA-pinned) before the push step. Threshold: any `CRITICAL` or `HIGH` vulnerability that has a fix (`ignore-unfixed: true`) fails the job; nothing is pushed. Unfixed CVEs are not blocking (a rebuild cannot remove them); `HIGH` was added by issue #848 (previously `CRITICAL` only).
 2. **Exceptions** live in `.trivyignore` at the repository root, reviewed in the PR. One CVE per line, each preceded by a comment with reason, owner and expiry date.
 3. **SBOM and provenance.** The push step sets `sbom: true` and `provenance: mode=max` for the 7 service images and the 2 tooling images.
 4. **Keyless signature.** Job `sign` of `release.yml` signs each pushed digest with cosign (OIDC GitHub, SHA-pinned `sigstore/cosign-installer`). `id-token: write` is granted to that job only.
