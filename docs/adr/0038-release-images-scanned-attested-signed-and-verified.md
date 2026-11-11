@@ -11,7 +11,7 @@
 
 ## Decision
 
-1. **Scan before publication.** Each image is built with `load: true`, then scanned by Trivy (`aquasecurity/trivy-action`, SHA-pinned) before the push step. Threshold: any `CRITICAL` or `HIGH` vulnerability that has a fix (`ignore-unfixed: true`) fails the job; nothing is pushed. Unfixed CVEs are not blocking (a rebuild cannot remove them); `HIGH` was added by issue #848 (previously `CRITICAL` only).
+1. **Scan before publication.** Each image is built with `load: true`, then scanned by Trivy (`aquasecurity/trivy-action`, SHA-pinned) before the push step. Threshold: any `CRITICAL` or `HIGH` vulnerability that has a fix (`ignore-unfixed: true`) fails the job; nothing is pushed. Unfixed CVEs are not blocking (a rebuild cannot remove them); `HIGH` was added by issue #848 (previously `CRITICAL` only). The pre-merge scan of the 10 images (2026-11-11) found only fixed `HIGH` CVEs: the 7 service runtime images dropped `npm`/`npx` (unused; their bundled `undici` and `brace-expansion` carried 6 CVEs); the remainder (`spire-tools`, `backup-tools`, `db-migrate`: upstream binary or Debian base not yet bumped) are listed in `.trivyignore` with owner and expiry 2026-12-11.
 2. **Exceptions** live in `.trivyignore` at the repository root, reviewed in the PR. One CVE per line, each preceded by a comment with reason, owner and expiry date.
 3. **SBOM and provenance.** The push step sets `sbom: true` and `provenance: mode=max` for the 7 service images and the 2 tooling images.
 4. **Keyless signature.** Job `sign` of `release.yml` signs each pushed digest with cosign (OIDC GitHub, SHA-pinned `sigstore/cosign-installer`). `id-token: write` is granted to that job only.
