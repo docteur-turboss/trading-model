@@ -1340,7 +1340,11 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelartifactwritefailing'
 
           - alert: AlertmanagerNotificationsFailing
-            expr: sum by (integration) (increase(alertmanager_notifications_failed_total[1h])) > 0
+            expr: |
+              (
+                sum by (integration) (increase(alertmanager_notifications_failed_total[15m]))
+                or sum by (integration) (increase(alertmanager_notifications_total[15m])) * 0
+              ) / sum by (integration) (increase(alertmanager_notifications_total[15m])) >= 0.5
             for: 5m
             labels:
               severity: critical

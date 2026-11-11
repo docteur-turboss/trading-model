@@ -878,9 +878,18 @@ tests:
   - name: the alerting pipeline watches itself
     interval: 1m
     input_series:
-      # One failed notification (e.g. no Pushover key): enough to alert.
+      # slack: every attempt fails -> alert. webhook: one failure then success
+      # (transient DNS error) -> no alert. pushover: no traffic -> no alert.
+      - series: 'alertmanager_notifications_total{job="alertmanager",instance="am",integration="slack"}'
+        values: '0+1x40'
       - series: 'alertmanager_notifications_failed_total{job="alertmanager",instance="am",integration="slack"}'
-        values: '0 0 0 1x40'
+        values: '0+1x40'
+      - series: 'alertmanager_notifications_total{job="alertmanager",instance="am",integration="webhook"}'
+        values: '0+1x40'
+      - series: 'alertmanager_notifications_failed_total{job="alertmanager",instance="am",integration="webhook"}'
+        values: '0 0 0 1x37'
+      - series: 'alertmanager_notifications_total{job="alertmanager",instance="am",integration="pushover"}'
+        values: '0x40'
     alert_rule_test:
       - eval_time: 1m
         alertname: Watchdog
