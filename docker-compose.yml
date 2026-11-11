@@ -702,6 +702,7 @@ services:
       - ./deploy/edge-proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/edge-proxy/gateway.compose.inc:/etc/nginx/conf.d/gateway.inc:ro
       - ./deploy/edge-proxy/realip.compose.inc:/etc/nginx/conf.d/realip.inc:ro
+      - ${EDGE_LIMIT_KEY_INC:-./deploy/edge-proxy/edge-limit-key.inc}:/etc/nginx/conf.d/edge-limit-key.inc:ro
       - svid-edge:/run/spire/svid:ro
     networks:
       - backend-net

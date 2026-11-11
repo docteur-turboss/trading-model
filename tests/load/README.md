@@ -46,6 +46,14 @@ services:
 docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f rate-limit-load.yml up -d --build --wait ...
 ```
 
+### Edge-proxy limit (429 before the gateway)
+
+The edge-proxy limits each client address to 20 r/s, burst 60 (`deploy/edge-proxy/default.conf`). Smoke and soak (<= 4 r/s) stay under it; `scenarios/*.js` (~50 r/s) and `k6/stress-test.js` do not and would get 429 from the edge. For those runs switch the edge limit off (the K8s ConfigMap is unchanged):
+
+```bash
+EDGE_LIMIT_KEY_INC=./deploy/edge-proxy/edge-limit-key.off.inc docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f rate-limit-load.yml up -d --build --wait ...
+```
+
 ## Scripts
 
 | Script                           | Route (all `GET`)                                | Thresholds |

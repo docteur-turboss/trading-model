@@ -117,8 +117,11 @@ or right after the overlay on a first deploy, when MySQL does not exist yet).
 > **Rate limit at the edge.** `default.conf` applies `limit_req` (20 r/s per real
 > client address, burst 60) and `limit_conn` (50) on `/v<n>/`, answering 429;
 > `/ping` and `/health/ready` are not limited. The limit is per edge-proxy pod:
-> the effective limit is 20 r/s × replicas (2 to 5). The gateway keeps its own
-> `RATE_LIMIT_*` per client identity.
+> the effective limit is 20 r/s × replicas (2 to 5), i.e. 40 to 100 r/s, never
+> above the Ingress `limit-rps: 100` (`deploy/k8s/ingress/gateway-ingress.yaml`,
+> per client address too): the edge limit is the tighter one for 1 to 5 replicas
+> and the only one in compose. The gateway keeps its own `RATE_LIMIT_*` per
+> client identity.
 
 ### 2. Configure secrets
 
