@@ -298,7 +298,8 @@ the repository can check, and lists every gap in one run. What stays manual
    `MYSQL_RETENTION_PASSWORD`, `MYSQL_SPIRE_PASSWORD`, the Redis ACL and exporter passwords:
    [sealed-secrets.md](sealed-secrets.md), [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0056).
 5. **Environment secrets and variables**: `ALERTMANAGER_SLACK_WEBHOOK_URL`,
-   `ALERTMANAGER_DEADMAN_URL` (Pushover optional), `SIGNAL_CONTACT_EMAIL`,
+   `ALERTMANAGER_DEADMAN_URL`, `ALERTMANAGER_PUSHOVER_USER_KEY`,
+   `ALERTMANAGER_PUSHOVER_TOKEN` (all four required in staging and production), `SIGNAL_CONTACT_EMAIL`,
    `BACKUP_AGE_RECIPIENTS` (two distinct keys), `BACKUP_S3_*` for an Object Lock
    bucket ([Prerequisites (off-site backup bucket)](#prerequisites-off-site-backup-bucket),
    lifecycle rules not checked by the preflight), `AUDIT_ANCHOR_*` for the audit

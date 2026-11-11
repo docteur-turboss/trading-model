@@ -19,9 +19,13 @@ Prometheus itself ─┘                                                        
 | Credentials, compose | one file per key in `ALERTMANAGER_CREDENTIALS_DIR` (default `observability/alertmanager-credentials/`, git-ignored) |
 
 Alertmanager reads the credential files when it sends, so a changed Secret
-needs no restart. A production deploy fails without the Slack webhook and the
-dead man's switch; staging only warns. Without the Pushover keys, critical alerts
-still reach Slack `#alerts` (they are routed to both).
+needs no restart. A deploy of staging or production fails at its first step
+("Check alert notification secrets") and lists every missing one of the four
+secrets `ALERTMANAGER_SLACK_WEBHOOK_URL`, `ALERTMANAGER_DEADMAN_URL`,
+`ALERTMANAGER_PUSHOVER_USER_KEY`, `ALERTMANAGER_PUSHOVER_TOKEN`: a receiver
+reading an absent file fails each notification and fires
+`AlertmanagerNotificationsFailing`. Pushover is required too, so a real Pushover
+outage in production is never masked by a skipped receiver.
 
 ### Dead man's switch
 

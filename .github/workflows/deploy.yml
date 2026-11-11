@@ -227,8 +227,9 @@ jobs:
           echo "Overlay: $OVERLAY"
           [[ $DEPLOY_TIMEOUT_FACTOR =~ ^[1-9][0-9]*$ ]] || { echo "::error::DEPLOY_TIMEOUT_FACTOR must be a positive integer"; exit 1; }
 
-      # An alert nobody receives is no alert: production needs a real Slack
-      # webhook and a dead man's switch before anything is deployed.
+      # An alert nobody receives is no alert: every environment (staging proves
+      # the chain before production) needs Slack, dead man's switch and Pushover
+      # secrets before anything is deployed (issue #815).
       - name: Check alert notification secrets
         id: alert_secrets
         continue-on-error: ${{ inputs.preflight_only }}
@@ -242,13 +243,11 @@ jobs:
           missing=""
           [ -n "$SLACK" ] || missing="$missing ALERTMANAGER_SLACK_WEBHOOK_URL"
           [ -n "$DEADMAN" ] || missing="$missing ALERTMANAGER_DEADMAN_URL"
-          [ -n "$PUSHOVER_USER" ] && [ -n "$PUSHOVER_TOKEN" ] || echo "::warning::ALERTMANAGER_PUSHOVER_USER_KEY / ALERTMANAGER_PUSHOVER_TOKEN not set: critical alerts go to Slack only"
+          [ -n "$PUSHOVER_USER" ] || missing="$missing ALERTMANAGER_PUSHOVER_USER_KEY"
+          [ -n "$PUSHOVER_TOKEN" ] || missing="$missing ALERTMANAGER_PUSHOVER_TOKEN"
           if [ -n "$missing" ]; then
-            if [ "${{ inputs.environment }}" = "production" ]; then
-              echo "::error::Missing GitHub environment secrets:${missing}. Alerts would reach nobody (observability/alertmanager.yml)."
-              exit 1
-            fi
-            echo "::warning::Missing GitHub environment secrets:${missing}: alerts of ${{ inputs.environment }} reach nobody"
+            echo "::error::Missing GitHub environment secrets:${missing}. A receiver reading an absent credential file fails every notification and fires AlertmanagerNotificationsFailing (observability/alertmanager.yml)."
+            exit 1
           fi
 
       - name: Set up kubectl
