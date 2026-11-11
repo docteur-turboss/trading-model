@@ -7,6 +7,7 @@ import type { AddressManagerConfig } from "../../domain/config/address-manager-c
 import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import { ServiceResolver } from "./service-resolver";
 
+/** Dependencies of ServiceDiscovery. */
 export interface ServiceDiscoveryDeps {
 	httpClient: HttpClient;
 	serviceCache: ServiceCachePort;
@@ -14,6 +15,7 @@ export interface ServiceDiscoveryDeps {
 	healthChecker: ServiceHealthChecker;
 }
 
+/** Asks the discovery server for service instances and caches the answers. */
 export class ServiceDiscovery {
 	private readonly _serviceCache: ServiceCachePort;
 	private readonly _healthChecker: ServiceHealthChecker;

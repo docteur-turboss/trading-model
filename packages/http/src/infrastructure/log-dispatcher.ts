@@ -6,6 +6,7 @@ import {
 import { sendError } from "../adapters/outbound/error-service-sender";
 import { getNodeEnv } from "../shared/node-env";
 import type { LogEntry, LogLevel, LogOptions } from "./log-types";
+/** Dispatches log entries to the console, filtered by level. */
 export class LogDispatcher {
 	private readonly _safeStringify: (value: unknown) => string;
 	private readonly _processId: ProcessId;

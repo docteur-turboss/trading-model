@@ -23,6 +23,7 @@ export const SUBSCRIPTION_REFRESH_MS = 15_000;
 /** Callback path a subscriber mounts when it names none (audit-logger). */
 export const DEFAULT_CALLBACK_PATH = "message";
 
+/** Publishes and subscribes to messages through the message manager. */
 export default class BrokerMessage {
 	private _messageManagerClient: MessageManagerClient;
 

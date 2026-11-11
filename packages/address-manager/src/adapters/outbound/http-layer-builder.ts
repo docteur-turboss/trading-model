@@ -5,6 +5,7 @@ import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import { AddressManagerClient } from "./client/address-manager-client";
 import { ServiceCache } from "./discovery/service-cache";
 
+/** HTTP client and token manager shared by the address-manager adapters. */
 export interface HttpLayer {
 	httpClient: HttpClient;
 	tokenManager: TokenManager;
@@ -12,6 +13,7 @@ export interface HttpLayer {
 	serviceCache: ServiceCachePort;
 }
 
+/** Builds the HTTP client and token manager from the config. */
 export function buildHttpLayer(config: AddressManagerConfig): HttpLayer {
 	const httpClient = HttpClient.createWithTls(config.tls);
 	const tokenManager = new TokenManager(httpClient, config);

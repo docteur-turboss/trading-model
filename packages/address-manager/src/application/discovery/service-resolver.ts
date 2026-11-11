@@ -17,6 +17,7 @@ import {
 } from "../../shared/errors";
 import { EndpointResolver } from "./endpoint-resolver";
 
+/** Dependencies of ServiceResolver. */
 export interface ServiceResolverDeps {
 	httpClient: HttpClient;
 	serviceCache: ServiceCachePort;
@@ -24,6 +25,7 @@ export interface ServiceResolverDeps {
 	healthChecker: ServiceHealthChecker;
 }
 
+/** Resolves a service name to a target address. */
 export class ServiceResolver {
 	/** Same selection logic as the gateway (ADR-0045). */
 	private readonly _endpoints: EndpointResolver;

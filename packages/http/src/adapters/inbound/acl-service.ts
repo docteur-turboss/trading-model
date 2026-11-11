@@ -4,6 +4,7 @@ import type { Request } from "express";
 import { DEFAULT_ACL } from "./acl-config";
 import { ResponseException } from "./response-exception";
 
+/** Checks whether a caller identity may reach a target service, per the ACL map. */
 export class AclService {
 	constructor(
 		private readonly _acl: Record<string, readonly ServiceId[]> = DEFAULT_ACL

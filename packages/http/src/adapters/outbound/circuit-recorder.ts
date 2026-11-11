@@ -10,11 +10,13 @@ import type { CircuitBreakerConfig } from "@trading-model/reliability/circuit-st
 import type { HttpRequestOptions } from "../../domain/http-types";
 import { createHttpClientError } from "./http-client-errors";
 
+/** Target of an outbound call: its hostname and optional service name. */
 export interface ServiceRoute {
 	hostname: Hostname;
 	serviceName?: ServiceInstanceName;
 }
 
+/** Records outbound call outcomes in circuit breakers, one per hostname and per service. */
 export class CircuitRecorder {
 	private readonly _hostnameCircuit: CircuitBreaker;
 	// Keyed by service name: one state machine per service, default config.
@@ -78,6 +80,7 @@ export class CircuitRecorder {
 
 const DefaultRecorder = new CircuitRecorder();
 
+/** Returns the process-wide circuit recorder shared by outbound HTTP calls. */
 export function getDefaultCircuitRecorder(): CircuitRecorder {
 	return DefaultRecorder;
 }
