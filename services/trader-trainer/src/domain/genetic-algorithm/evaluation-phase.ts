@@ -1,5 +1,5 @@
 import type { LamarckGenome, MarketStep } from "./genome-types";
-import type { BackendFactory, RLBackend } from "./rl-backend";
+import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 
 export interface GenomeEvaluationContext {
@@ -71,7 +71,7 @@ function _runEvalEpisode(
 			pnlCurve.push(0);
 			continue;
 		}
-		_step(backend, validationData[index]);
+		backend.step(validationData[index]);
 		const pnl = Number(backend.getPnL());
 		pnlCurve.push(pnl - lastPnl);
 		lastPnl = pnl;
@@ -79,14 +79,6 @@ function _runEvalEpisode(
 
 	backend.resetEpisode();
 	return lastPnl - startPnl;
-}
-
-function _step(backend: RLBackend, step: MarketStep): void {
-	backend.step({
-		features: step.features,
-		price: step.price,
-		fillPrice: step.fillPrice,
-	});
 }
 
 export function evalPhase(ctx: GenomeEvaluationContext): EvaluationPnl {
