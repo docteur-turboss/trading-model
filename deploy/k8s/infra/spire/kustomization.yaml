@@ -5,3 +5,11 @@ kind: Kustomization
 # deployed apart, in trading-model-node (deploy/k8s/node-agents).
 resources:
   - spire-server.yaml
+
+# Hash suffix: a changed server.conf rolls the Deployment. Rendered with
+# -expandEnv: ${MYSQL_SPIRE_PASSWORD} (Secret).
+configMapGenerator:
+  - name: spire-server-config
+    files: [server.conf]
+    options:
+      labels: {app.kubernetes.io/component: spire-server, app.kubernetes.io/part-of: trading-model}
