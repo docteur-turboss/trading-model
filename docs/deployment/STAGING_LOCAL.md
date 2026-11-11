@@ -94,8 +94,10 @@ staging deploy (issue #842).
   `GET /repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval`
   with `ENVIRONMENT_READ_TOKEN` (`scripts/check-environment-protection.mjs
   --fork-approval`). Any other value, a missing token or an unreadable setting
-  (403, 404, 5xx) fails the deploy before the runner is used; the preflight
-  lists it as a failed guard.
+  (403, 404, 5xx) fails `check-environment`, so the deploy job never starts
+  and never hands `KUBECONFIG_STAGING_*` to the runner. A preflight
+  (`preflight_only: true`) stops there too: it shows only this `::error::`,
+  not the table of the other guards.
 - Runner group limited to the workflows `deploy.yml` and
   `sealed-secrets-key-backup.yml` ("Selected workflows"): runner groups need an
   organization. The repository belongs to a personal account, so this layer is

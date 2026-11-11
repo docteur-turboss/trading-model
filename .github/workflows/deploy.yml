@@ -105,7 +105,6 @@ jobs:
     outputs:
       # Read by the preflight summary of the deploy job; a staging failure never blocks.
       protection: ${{ (inputs.environment != 'production' && steps.protection.outcome == 'failure') && 'warning' || steps.protection.outcome }}
-      fork_approval: ${{ steps.fork_approval.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Check the environment protection
@@ -128,12 +127,12 @@ jobs:
           node scripts/check-environment-protection.mjs "$TARGET" "$GITHUB_REPOSITORY"
 
       # The self-hosted runner is persistent and the repository public: a fork
-      # pull request could add a job on it (issue #842). Blocks staging too, so
-      # no continue-on-error outside preflight; unreadable setting = refused.
+      # pull request could add a job on it (issue #842). No continue-on-error,
+      # not even in preflight: a failure skips the deploy job, so the runner
+      # never starts and never receives KUBECONFIG_STAGING_*. Unreadable = refused.
       - name: Check fork pull request approval (self-hosted runner)
         id: fork_approval
         if: ${{ inputs.environment == 'staging' && vars.STAGING_RUNNER != '' }}
-        continue-on-error: ${{ inputs.preflight_only }}
         env:
           GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
         run: |
@@ -757,7 +756,6 @@ jobs:
           TAG: ${{ inputs.image_tag }}
           CHECKS: |
             GitHub environment protection=${{ needs.check-environment.outputs.protection }}
-            Fork pull request approval of all external contributors (self-hosted runner)=${{ needs.check-environment.outputs.fork_approval }}
             Release tag=${{ steps.ref.outcome }}
             Namespace and overlay=${{ steps.ns.outcome }}
             Alert notification secrets=${{ steps.alert_secrets.outcome }}
