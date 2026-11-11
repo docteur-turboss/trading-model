@@ -242,7 +242,7 @@ data:
       evaluation_interval: 15s
       # Pod name (expand-external-labels): the two production replicas differ by
       # it. Dropped before sending (alert_relabel_configs), so both replicas'
-      # copy of an alert is one alert for Alertmanager (issue #809, ADR-0065).
+      # copy of an alert is one alert for Alertmanager (issue #809, ADR-0062).
       external_labels:
         replica: '${HOSTNAME}'
 
