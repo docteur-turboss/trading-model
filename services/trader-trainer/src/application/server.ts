@@ -1,4 +1,5 @@
 import { ServiceId } from "@trading-model/primitives/primitives";
+import { svidReadinessCheck } from "@trading-model/server-utils/adapters/inbound/readiness";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 
 import {
@@ -24,6 +25,6 @@ export function createServer(trainer: Trainer, models: TrainerRoutesOptions) {
 			MessageManagerListenExpress(app);
 		},
 		// No discovery lookup: resolution falls back to the last known address during a discovery outage.
-		readiness: [],
+		readiness: [svidReadinessCheck(ENV)],
 	});
 }

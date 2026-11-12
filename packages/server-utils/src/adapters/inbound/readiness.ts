@@ -1,3 +1,5 @@
+import { access, constants } from "node:fs/promises";
+import type { TlsEnvVars } from "@trading-model/common/config/tls-paths";
 import { withTimeout } from "@trading-model/common/utils/retry";
 import { HEALTH_STATUS_OK } from "@trading-model/http/adapters/inbound/response-exception";
 import { DurationMs } from "@trading-model/primitives/primitives";
@@ -6,6 +8,24 @@ import type { RequestHandler } from "express";
 export interface ReadinessCheck {
 	name: string;
 	check: () => Promise<boolean> | boolean;
+}
+
+/**
+ * Local readiness check: the SVID (key, certificate, trust bundle) is readable,
+ * so the pod can make mTLS calls. Depends on no other service.
+ */
+export function svidReadinessCheck(env: TlsEnvVars): ReadinessCheck {
+	return {
+		name: "svid",
+		check: async () => {
+			await Promise.all(
+				[env.TLS_KEY_PATH, env.TLS_CERT_PATH, env.TLS_CA_PATH].map((path) =>
+					access(path, constants.R_OK)
+				)
+			);
+			return true;
+		},
+	};
 }
 
 /** Per-check bound, under the 3 s `timeoutSeconds` of the K8s readiness probes. */

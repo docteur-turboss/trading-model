@@ -4,6 +4,7 @@ import express from "express";
 import {
 	createReadinessHandler,
 	type ReadinessCheck,
+	svidReadinessCheck,
 } from "../src/adapters/inbound/readiness";
 
 function makeRequest(
@@ -91,5 +92,17 @@ describe("createReadinessHandler", () => {
 		expect(Date.now() - started).toBeLessThan(1000);
 		expect(statusCode).toBe(503);
 		expect(JSON.parse(body).checks).toEqual({ hung: "error", db: "ok" });
+	});
+
+	it("svid check passes on readable files and rejects a missing one", async () => {
+		const env = {
+			TLS_KEY_PATH: __filename,
+			TLS_CERT_PATH: __filename,
+			TLS_CA_PATH: __filename,
+		};
+		await expect(svidReadinessCheck(env).check()).resolves.toBe(true);
+		await expect(
+			svidReadinessCheck({ ...env, TLS_CA_PATH: "/missing/ca.pem" }).check()
+		).rejects.toThrow();
 	});
 });

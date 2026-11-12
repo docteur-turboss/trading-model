@@ -1,4 +1,5 @@
 import { ServiceId } from "@trading-model/primitives/primitives";
+import { svidReadinessCheck } from "@trading-model/server-utils/adapters/inbound/readiness";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 import type { Application } from "express";
 import { createRouter } from "../adapters/inbound/router";
@@ -14,6 +15,6 @@ export function createServer() {
 		serviceId: ServiceId.of("api-gateway"),
 		routes: _mountGatewayRoutes,
 		// No discovery check: a discovery outage must not pull every gateway pod out of the Service.
-		readiness: [],
+		readiness: [svidReadinessCheck(ENV)],
 	});
 }

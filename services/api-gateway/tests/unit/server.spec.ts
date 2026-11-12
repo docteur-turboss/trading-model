@@ -61,7 +61,9 @@ describe("server", () => {
 		void createServer();
 
 		expect(createServiceServer).toHaveBeenCalledWith(
-			expect.objectContaining({ readiness: [] })
+			expect.objectContaining({
+				readiness: [expect.objectContaining({ name: "svid" })],
+			})
 		);
 	});
 });
