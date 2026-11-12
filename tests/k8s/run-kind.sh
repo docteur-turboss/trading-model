@@ -1526,12 +1526,19 @@ dump() {
 		$K -n "$NS" describe pod "$pod" | grep -E -A6 "Last State:" || true
 		$K -n "$NS" logs "$pod" --all-containers --previous --tail=30 2>&1 || true
 	done
+	# A retrying Job pod stays Running 1/1 above: show what it says (mysql-cluster-init loops on a failing ping).
+	echo "===== mysql-cluster-init"
+	$K -n "$NS" logs job/mysql-cluster-init --tail=80 2>&1 || true
+	echo "===== mysql-0 (mysql)"
+	$K -n "$NS" logs mysql-0 -c mysql --tail=60 2>&1 | cut -c1-300 || true
 	# The databases of pods that look healthy: a restarted member may not serve.
 	for pod in mongo-audit-0 mongo-dlq-0; do
 		echo "===== $pod"
 		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
 		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
 	done
+	echo "===== spire-server (spire-entries)"
+	$K -n "$NS" logs deploy/spire-server -c spire-entries --tail=40 2>&1 || true
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
 	# The market data path, even when its pods look healthy (verify checks it).
 	for workload in binance-stub financial-scraper-collector financial-scraper message-manager; do
