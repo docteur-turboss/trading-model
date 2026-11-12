@@ -252,7 +252,8 @@ describe("HttpClient", () => {
 				timeoutMs: 100 as DurationMs,
 				retryCount: 0 as PositiveInt,
 			});
-			mockReq._timeoutCb();
+			promise.catch(() => undefined);
+			await new Promise((resolve) => setTimeout(resolve, 150));
 
 			await expect(promise).rejects.toMatchObject({
 				name: "HttpClientTimeoutError",
@@ -503,47 +504,19 @@ describe("HttpClient", () => {
 	});
 
 	describe("request close handling", () => {
-		it("should clean up timeout listener on request close after normal completion", async () => {
-			mockReq.removeListener = jest.fn<(...args: any[]) => any>();
-			mockReq.destroyed = false;
-
+		it("should clear the deadline timer when the request closes", async () => {
+			const clearSpy = jest.spyOn(global, "clearTimeout");
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				timeoutMs: 1000 as DurationMs,
 			});
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
-
 			const closeCall = mockReq.on.mock.calls.find(
 				(c: unknown[]) => c[0] === "close"
 			);
-			const closeHandler = closeCall![1] as () => void;
-			closeHandler();
-
+			(closeCall![1] as () => void)();
 			await promise;
-
-			expect(mockReq.removeListener).toHaveBeenCalledWith(
-				"timeout",
-				expect.any(Function)
-			);
-		});
-
-		it("should not clean up timeout listener when request was destroyed", async () => {
-			mockReq.removeListener = jest.fn<(...args: any[]) => any>();
-			mockReq.destroyed = true;
-
-			const promise = client.get(URLString.of("https://example.com/api"), {
-				timeoutMs: 1000 as DurationMs,
-			});
-			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
-
-			const closeCall = mockReq.on.mock.calls.find(
-				(c: unknown[]) => c[0] === "close"
-			);
-			const closeHandler = closeCall![1] as () => void;
-			closeHandler();
-
-			await promise;
-
-			expect(mockReq.removeListener).not.toHaveBeenCalled();
+			expect(clearSpy).toHaveBeenCalled();
+			clearSpy.mockRestore();
 		});
 	});
 
@@ -943,15 +916,17 @@ describe("HttpClient", () => {
 
 	describe("shouldRetry for timeout errors", () => {
 		it("should treat HttpClientTimeoutError as retryable and succeed on retry", async () => {
+			jest.useFakeTimers();
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				retryCount: 1 as PositiveInt as PositiveInt,
 				timeoutMs: 100 as DurationMs,
 			});
-			mockReq._timeoutCb();
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			await jest.advanceTimersToNextTimerAsync();
+			await jest.advanceTimersToNextTimerAsync();
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			const result = await promise;
 			expect(result).toEqual({ ok: true });
+			jest.useRealTimers();
 		});
 	});
 
@@ -980,7 +955,8 @@ describe("HttpClient", () => {
 				{},
 				{ retryCount: 1, timeoutMs: 100 as DurationMs }
 			);
-			mockReq._timeoutCb();
+			promise.catch(() => undefined);
+			await new Promise((resolve) => setTimeout(resolve, 150));
 			await expect(promise).rejects.toThrow("timed out");
 			expect(https.request).toHaveBeenCalledTimes(1);
 		});
@@ -999,16 +975,18 @@ describe("HttpClient", () => {
 		});
 
 		it("should re-send a timed-out request marked idempotent", async () => {
+			jest.useFakeTimers();
 			const promise = client.post(
 				URLString.of("https://example.com/api"),
 				{},
 				{ retryCount: 1, idempotent: true, timeoutMs: 100 as DurationMs }
 			);
-			mockReq._timeoutCb();
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			await jest.advanceTimersToNextTimerAsync();
+			await jest.advanceTimersToNextTimerAsync();
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			await expect(promise).resolves.toEqual({ ok: true });
 			expect(https.request).toHaveBeenCalledTimes(2);
+			jest.useRealTimers();
 		});
 	});
 

@@ -3,6 +3,8 @@ import type { HttpMethod } from "../../domain/http-types";
 import type { LogEntry } from "../../infrastructure/log-types";
 import { NODE_ENV } from "../../shared/node-env";
 
+const ERROR_WEBHOOK_TIMEOUT_MS = 5000;
+
 function _shouldSend(env: string | undefined): boolean {
 	return env === NODE_ENV.PRODUCTION || env === NODE_ENV.STAGING;
 }
@@ -24,6 +26,7 @@ export async function sendError(
 			method: "POST" as HttpMethod,
 			headers: { "Content-Type": "application/json" },
 			body: safeStringify(entry),
+			signal: AbortSignal.timeout(ERROR_WEBHOOK_TIMEOUT_MS),
 		});
 	} catch (err) {
 		console.error(

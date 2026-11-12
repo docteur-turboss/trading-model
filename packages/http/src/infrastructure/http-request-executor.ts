@@ -111,7 +111,8 @@ export class HttpRequestExecutor {
 		reject: (reason?: unknown) => void,
 		timeoutMs: DurationMs
 	): void {
-		const onTimeout = () => {
+		// Total deadline, not the socket idle timeout: a slow trickle must not defeat it.
+		const timer = setTimeout(() => {
 			req.destroy();
 			reject(
 				createHttpClientTimeoutError(
@@ -119,14 +120,8 @@ export class HttpRequestExecutor {
 					timeoutMs
 				)
 			);
-		};
-		req.setTimeout(timeoutMs, onTimeout);
-		req.on("close", () => {
-			if (req.destroyed) {
-				return;
-			}
-			req.removeListener("timeout", onTimeout);
-		});
+		}, timeoutMs);
+		req.on("close", () => clearTimeout(timer));
 	}
 
 	async executeWithRetry<TResponse>(
