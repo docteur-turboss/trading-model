@@ -1,6 +1,6 @@
 # audit-logger — Audit Logger
 
-Immutable traceability service for all decisions, transactions, and errors. Subscribes to all event bus topics, persists events to MongoDB, and provides queryable audit trails.
+Immutable traceability service for all decisions, transactions, and errors. Subscribes to the audit, training and dlq topics, persists events to MongoDB, and provides queryable audit trails.
 
 ## General Information
 
@@ -72,14 +72,14 @@ List and filter audit events, newest first. Parameters and responses are declare
       "previousHash": "41ab…",
       "chainSequence": 1234,
       "metadata": {
-        "topic": "market.trade.recent.fetch",
-        "eventType": "market.trade.recent.fetch",
-        "publisher": "financial-scraper-service",
-        "instanceId": "financial-scraper-1",
+        "topic": "training.model.published",
+        "eventType": "training.model.published",
+        "publisher": "trader-service",
+        "instanceId": "trader-service-1",
         "messageId": "msg-uuid-123",
         "correlationId": "corr-uuid-456"
       },
-      "payload": { "symbol": "BTCUSDT", "price": 50000.0 }
+      "payload": { "modelId": "model-123" }
     }
   ],
   "total": 1234,
@@ -98,11 +98,11 @@ Aggregate audit statistics.
 {
   "totalEvents": 50000,
   "eventsByTopic": {
-    "market.trade.recent.fetch": 15000,
-    "market.candlestick.series.fetch": 12000
+    "training.model.published": 15000,
+    "dlq.entry.added": 12000
   },
   "eventsByPublisher": {
-    "financial-scraper-service": 30000
+    "trader-service": 30000
   },
   "dateRange": {
     "earliest": "2025-01-01T00:00:00Z",
