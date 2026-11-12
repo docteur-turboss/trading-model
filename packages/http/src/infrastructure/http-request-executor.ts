@@ -154,10 +154,15 @@ export class HttpRequestExecutor {
 					continue;
 				}
 
-				this._circuitRecorder.recordFailure(
-					route,
-					context.options?.serviceInstanceCount
-				);
+				// A 4xx answer proves the target is up: only unavailability opens the circuit.
+				if (shouldRetry(lastError)) {
+					this._circuitRecorder.recordFailure(
+						route,
+						context.options?.serviceInstanceCount
+					);
+				} else {
+					this._circuitRecorder.recordSuccess(route);
+				}
 				throw lastError;
 			}
 		}

@@ -601,6 +601,17 @@ describe("HttpClient", () => {
 			}
 		});
 
+		it("should not open the circuit on 4xx responses", async () => {
+			for (let i = 0; i < 6; i++) {
+				const promise = client.get(
+					URLString.of("https://cb-4xx.example.com/api"),
+					{ retryCount: 0 as PositiveInt }
+				);
+				simulateResponse(404, "{}", "application/json");
+				await expect(promise).rejects.not.toThrow("Circuit breaker open");
+			}
+		});
+
 		it("should reset circuit on success after half-open", async () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get(
