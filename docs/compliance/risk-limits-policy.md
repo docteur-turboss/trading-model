@@ -71,7 +71,7 @@ Closing positions is a separate, explicit operator action, never automatic: a fo
 | Reject rate | 5 broker rejections or errors within 10 min on one symbol engage that symbol; 10 within 10 min across symbols engage the global switch | Symbol, or global |
 | Unreadable switch state | The service cannot read its stored state: it counts as on (fail closed, ADR-0064 §5) | Global |
 
-Below the stale data threshold, an intent decided on a price older than 1 min is rejected without engaging the switch (ADR-0064 §7).
+Below the stale data threshold, an intent decided on a price older than 1 min (proposed default of this policy for the maximum age of ADR-0064 §7) is rejected without engaging the switch.
 
 ### 4.4 Re-arming
 
@@ -83,7 +83,12 @@ The kill switch and the limits live in the Risk/Execution service, outside the m
 
 ## 6. Operator absent: worst case
 
-The automatic triggers stop new orders and cancel open orders; they do not close positions (§4.1). The loss of an unattended period is therefore the limit reached (2 % daily, 10 % drawdown, plus slippage between the trigger and the cancellation of open orders) **plus the loss of the positions still held**, which stay exposed to the market until an operator acts. Those positions are at most the global exposure cap (§3.1, 30 % of allocated capital), and the spot-only, no-leverage rule of ADR-0064 §2 means they cannot lose more than their notional. The worst case with no operator is thus bounded by the drawdown stop plus the global exposure cap: up to 40 % of allocated capital with the proposed defaults, not by the loss limits alone. The stale data, reconciliation and reject triggers cover the cases where the loss cannot be measured. If the Risk/Execution service itself is down, no new order is sent (it is the only holder of the broker keys), but open positions stay exposed the same way: the service must therefore hold no resting order without an expiry, and its down alert pages an operator (§2).
+The automatic triggers stop new orders and cancel open orders; they do not close positions (§4.1). The loss of an unattended period is therefore the limit reached (2 % daily, 10 % drawdown, plus slippage between the trigger and the cancellation of open orders) **plus the loss of the positions still held**, which stay exposed to the market until an operator acts. Spot only, no leverage (ADR-0064 §2): those positions can lose at most their value at the trigger. The global exposure cap is checked on intents only (§3.1), so a price rise after the last intent can carry that value above 30 %. The bound depends on its reference:
+
+- **Against the allocated capital: up to 40 %** with the proposed defaults (drawdown stop plus global exposure cap), plus slippage and fees. At the last intent, equity was at least the allocated capital minus 10 % (the high-water mark is never below the allocated capital) and positions at most 30 %, so cash was at least 60 % of the allocated capital; with no new intent, cash does not fall, and positions cannot go below zero.
+- **Against the high-water mark: no fixed percentage.** The loss is the drawdown stop plus the whole value held at the trigger, which gains since the last intent can push above the cap. Example with 100 allocated: 30 bought, the price doubles (equity 130), falls by a sixth (equity 120, drawdown stop), then to zero: equity 70, 60 below the high-water mark, 30 below the allocated capital.
+
+The stale data, reconciliation and reject triggers cover the cases where the loss cannot be measured. If the Risk/Execution service itself is down, no new order is sent (it is the only holder of the broker keys), but open positions stay exposed the same way: the service must therefore hold no resting order without an expiry, and its down alert pages an operator (§2).
 
 A tighter bound needs positions reduced without an operator, for example stop orders resting at the exchange or a forced close on the drawdown stop. That would change §4.1 and ADR-0064 §5, and it trades the bound against a forced sale in a fast or illiquid market: it is a decision for the project owner, not taken by this policy. Until then, the owner sizes the allocated capital and the global exposure cap so that this worst case is acceptable.
 

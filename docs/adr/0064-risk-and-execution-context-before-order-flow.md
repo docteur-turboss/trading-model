@@ -67,7 +67,7 @@ Every limit has a hard ceiling in code that configuration cannot raise, and a co
 | --- | --- |
 | Control | Compare positions, balances and open orders of the service store with the broker account. |
 | Location | Inside the Risk/Execution service, the only holder of the broker credentials. |
-| Trigger | At startup, before accepting any intent (the service stays not ready until the first reconciliation passes); periodically (interval set by the #882 policy); after every `unknown` order. |
+| Trigger | At startup, before accepting any intent (the service stays not ready until the first reconciliation passes); periodically (interval set by the [policy](../compliance/risk-limits-policy.md)); after every `unknown` order. |
 | On mismatch | Any difference beyond a tolerance (rounding, fees) engages the kill switch (section 5) with the reason `reconciliation`, raises an alert, and keeps the broker state for the operator. The service never "fixes" its store silently to match. |
 | Proof | Spec with a fake broker reporting an extra position: kill switch on, alert metric set. Drill on paper: change the paper ledger behind the service, check the halt and the alert. Alert rule and promtool case in `tests/alerts/alerting.test.yml`. |
 
@@ -77,9 +77,9 @@ Every limit has a hard ceiling in code that configuration cannot raise, and a co
 | --- | --- |
 | Control | One switch that stops new orders and cancels open orders ([policy](../compliance/risk-limits-policy.md) §4.1). Closing positions is a separate, explicit operator action. |
 | Location | The Risk/Execution service owns its state, in its durable store: a restart keeps it on, and an unreadable state counts as on (fail closed). The decision consumer and the model cannot read or change it. Last resort outside the service: revoke the broker API key, or delete the service SPIRE entry so it loses its identity. |
-| Triggers | Operator (an authenticated admin route, actor recorded in the audit trail); automatic: loss limits and drawdown (values in issue #882), reconciliation mismatch (section 4), stale data beyond the halt threshold and reject storm (section 7). Switching it off is always manual and recorded. |
+| Triggers | Operator (an authenticated admin route, actor recorded in the audit trail); automatic: loss limits and drawdown (values in the [policy](../compliance/risk-limits-policy.md)), reconciliation mismatch (section 4), stale data beyond the halt threshold and reject storm (section 7). Switching it off is always manual and recorded. |
 | Not | Not a feature flag of the gateway or of the model (ADR-0039 flags are read at startup and change behaviour, they do not stop a running order flow), not `FEATURE_RISK_ADJUSTED_FITNESS`. |
-| Proof | Specs: every trigger engages it; it survives a restart; an unreadable state rejects intents; cancellation still works. Drill (frequency set by #882): engage it on paper while orders flow, measure the time to the last order sent, restart the pod, check it stays on. |
+| Proof | Specs: every trigger engages it; it survives a restart; an unreadable state rejects intents; cancellation still works. Drill (frequency set by the [policy](../compliance/risk-limits-policy.md)): engage it on paper while orders flow, measure the time to the last order sent, restart the pod, check it stays on. |
 
 ### 6. Paper and live separation
 
@@ -119,13 +119,13 @@ Order of milestones: ADR-0049 option B (offline inference, no order) → paper t
 | Requirement | Before paper | Before live |
 | --- | --- | --- |
 | Section 1: separate service, identity, ACL | Required | Required |
-| Section 2: every pre-trade check | Required | Required, global exposure cap from the #882 policy, other caps set by the project owner in the service configuration |
+| Section 2: every pre-trade check | Required | Required, global exposure cap from the [policy](../compliance/risk-limits-policy.md), other caps set by the project owner in the service configuration |
 | Section 3: lifecycle, idempotency, `unknown` handling | Required | Required, crash drill passed |
 | Section 4: reconciliation | Required, against the paper ledger or testnet | Required, against the real account |
-| Section 5: kill switch | Required, drill passed | Required, drill passed in the last period set by #882 |
+| Section 5: kill switch | Required, drill passed | Required, drill passed in the last period set by the [policy](../compliance/risk-limits-policy.md) |
 | Section 6: paper/live lock | Required | Required, live keys in production only |
 | Section 7: stale data and abnormal markets | Required | Required, drills passed |
-| Loss limits and kill switch policy (issue #882) | Values set | Values set and reviewed |
+| [Loss limits and kill switch policy](../compliance/risk-limits-policy.md) | Values set | Values set and reviewed |
 | ADR-0030 walk-forward criteria met | — | Required, paper trading ≥ 30 days included |
 | `algorithmic-trading-compliance.md` §6 prerequisites (Binance terms, annual review…) | — | Required |
 | This ADR Accepted with a `**Verified by:**` line | — | Required |
