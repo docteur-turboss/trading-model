@@ -131,6 +131,9 @@ spec:
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
+            - name: mongo-tls
+              mountPath: /etc/mongo-tls
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -216,3 +219,10 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        # CA certificate only: the CA key stays in the Secret (mongo-tls.yaml).
+        - name: mongo-tls
+          secret:
+            secretName: mongo-ca
+            items:
+              - key: ca.crt
+                path: ca.crt

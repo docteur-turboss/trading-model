@@ -78,7 +78,7 @@ spec:
           command:
             - sh
             - -c
-            - umask 077 && printf '%s' "$KEYFILE" > /keyfile/keyfile && chmod 400 /keyfile/keyfile
+            - umask 077 && printf '%s' "$KEYFILE" > /keyfile/keyfile && chmod 400 /keyfile/keyfile && cat /tls/tls.crt /tls/tls.key > /keyfile/server.pem && cp /tls/ca.crt /keyfile/ca.crt
           env:
             - name: KEYFILE
               valueFrom:
@@ -97,10 +97,16 @@ spec:
           volumeMounts:
             - name: keyfile
               mountPath: /keyfile
+            - name: tls
+              mountPath: /tls
+              readOnly: true
       volumes:
         - name: keyfile
           emptyDir:
             medium: Memory
+        - name: tls
+          secret:
+            secretName: mongo-audit-tls
       containers:
         - name: mongodb
           image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
@@ -122,6 +128,16 @@ spec:
             # the release after the one that adds the users and the client
             # credentials: mongod then enforces authentication.
             - "--transitionToAuth"
+            # TLS expand step (issue #769, ADR-0060): TLS and clear text are both
+            # accepted for one release, clients verify the certificate; `requireTLS`
+            # replaces `preferTLS` in the next one. Clients send no certificate.
+            - "--tlsMode"
+            - "preferTLS"
+            - "--tlsCertificateKeyFile"
+            - "/keyfile/server.pem"
+            - "--tlsCAFile"
+            - "/keyfile/ca.crt"
+            - "--tlsAllowConnectionsWithoutCertificates"
           ports:
             - containerPort: 27017
               name: mongodb
