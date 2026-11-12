@@ -808,6 +808,57 @@ tests:
         alertname: TrainerNoModelStored
         exp_alerts: []
 
+  # Three stored models in a row below buy and hold on the leader warn; the
+  # same streak on a replica that handed the Lease over stays quiet.
+  - name: models below buy and hold on the leader warn
+    interval: 1m
+    input_series:
+      - series: 'tt_model_below_buy_and_hold_streak{job="trader-trainer",instance="t1",symbol="BTCUSDT"}'
+        values: '1x10 2x10 3x10'
+      - series: 'tt_training_leader{job="trader-trainer",instance="t1"}'
+        values: '1x30'
+      - series: 'tt_model_below_buy_and_hold_streak{job="trader-trainer",instance="t2",symbol="ETHUSDT"}'
+        values: '5x30'
+      - series: 'tt_training_leader{job="trader-trainer",instance="t2"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ModelBelowBuyAndHold
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: ModelBelowBuyAndHold
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer, symbol: BTCUSDT}
+            exp_annotations:
+              summary: 'The models of BTCUSDT do worse than buy and hold'
+              description: 'The last 3 stored models of BTCUSDT have a lower out-of-sample Sharpe than buy and hold on the same bars (tt_model_sharpe vs tt_model_buy_and_hold_sharpe): the trainer adds nothing over holding. No capital is at stake.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelbelowbuyandhold'
+
+  # A drift above 3 standard deviations warns after 1 hour; a short spike
+  # does not.
+  - name: feature drift held for an hour on the leader warns
+    interval: 1m
+    input_series:
+      - series: 'tt_feature_drift_score{job="trader-trainer",instance="t1",symbol="BTCUSDT"}'
+        values: '0.5x10 4x20 0.5x10 4x80'
+      - series: 'tt_training_leader{job="trader-trainer",instance="t1"}'
+        values: '1x120'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: TrainerFeatureDrift
+        exp_alerts: []
+      - eval_time: 100m
+        alertname: TrainerFeatureDrift
+        exp_alerts: []
+      - eval_time: 110m
+        alertname: TrainerFeatureDrift
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer, symbol: BTCUSDT}
+            exp_annotations:
+              summary: 'The live data of BTCUSDT drifts from its model statistics'
+              description: 'A normalized field of BTCUSDT received since the newest stored model has a mean 4 standard deviations away from the statistics stored with that model (tt_feature_drift_score), for 1 hour: the model sees a market it was not trained on.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainerfeaturedrift'
+
   # Three discovery replicas share the heartbeats: one replica seeing none for
   # a service is normal, every replica seeing none is not.
   - name: heartbeats are summed over the discovery replicas
@@ -1439,9 +1490,9 @@ tests:
     interval: 1m
     input_series:
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://api-gateway:3000/ping",service="api-gateway"}'
-        values: '3600+0x20'
+        values: '7200+0x20'
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://dlq-service:3000/ping",service="dlq-service"}'
-        values: '900+0x20'
+        values: '3600+0x20'
     alert_rule_test:
       - eval_time: 10m
         alertname: CertificateExpiry
@@ -1449,7 +1500,7 @@ tests:
           - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
             exp_annotations:
               summary: 'SVID close to expiry on dlq-service'
-              description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
   # ── Infrastructure (issue #601, ADR-0056) ────────────────────────────
@@ -1772,3 +1823,41 @@ tests:
               summary: 'DLQ action missing from the audit trail: dlq.entries.deleted'
               description: 'message-manager refused 1 dlq.entries.deleted event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'
+
+  # 1 failure per second from minute 0: past 0.1/s, fires after the 5 min `for`.
+  - name: api key authentication failures alert
+    interval: 1m
+    input_series:
+      - series: 'gw_auth_failures_total{job="api-gateway",instance="a"}'
+        values: '0+60x30'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ApiAuthFailuresHigh
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: ApiAuthFailuresHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, job: api-gateway}
+            exp_annotations:
+              summary: 'API key authentication failures above 6 per minute'
+              description: 'The gateway rejected more than 6 requests per minute for 5 minutes (bad or missing API key): key brute force, a leaked or rotated key still in use, or a misconfigured client (runbook-auth-failures).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#apiauthfailureshigh'
+
+  # One denial at minute 5, none before: fires without `for`.
+  - name: mtls acl denials alert
+    interval: 1m
+    input_series:
+      - series: 'http_mtls_denials_total{job="message-manager",instance="a",reason="caller_not_allowed"}'
+        values: '0x5 1+0x25'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: MtlsAclDenials
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: MtlsAclDenials
+        exp_alerts:
+          - exp_labels: {severity: warning, job: message-manager}
+            exp_annotations:
+              summary: 'A service denied an mTLS or ACL request'
+              description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#mtlsacldenials'

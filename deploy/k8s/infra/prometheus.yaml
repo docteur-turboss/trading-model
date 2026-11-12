@@ -784,13 +784,13 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
           - alert: CertificateExpiry
-            expr: probe_ssl_earliest_cert_expiry - time() < 1800
+            expr: probe_ssl_earliest_cert_expiry - time() < 3600
             for: 5m
             labels:
               severity: warning
             annotations:
               summary: 'SVID close to expiry on {{ $labels.service }}'
-              description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
           - alert: CircuitBreakerOpen
@@ -991,6 +991,27 @@ data:
               summary: 'MySQL retention job has not succeeded for 36 hours'
               description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
+
+          # -- Authentication failures and ACL denials -------------------
+
+          - alert: ApiAuthFailuresHigh
+            expr: 'sum by (job) (rate(gw_auth_failures_total[5m])) > 0.1'
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'API key authentication failures above 6 per minute'
+              description: 'The gateway rejected more than 6 requests per minute for 5 minutes (bad or missing API key): key brute force, a leaked or rotated key still in use, or a misconfigured client (runbook-auth-failures).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#apiauthfailureshigh'
+
+          - alert: MtlsAclDenials
+            expr: 'sum by (job) (increase(http_mtls_denials_total[5m])) > 0'
+            labels:
+              severity: warning
+            annotations:
+              summary: 'A service denied an mTLS or ACL request'
+              description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#mtlsacldenials'
 
           # ── Audit trail integrity (ADR-0027) ──────────────────────────
 
@@ -1343,6 +1364,26 @@ data:
               summary: 'Trained models are not stored on {{ $labels.job }}'
               description: '{{ $value | humanize }} model artifact write(s) failed in 30 minutes: the best agents are not kept. Check the trainer logs ("Failed to store model artifact") and TRAINER_MODEL_DIR (volume mounted, writable, not full).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelartifactwritefailing'
+
+          - alert: ModelBelowBuyAndHold
+            expr: max by (job, symbol) (tt_model_below_buy_and_hold_streak and on (job, instance) tt_training_leader == 1) >= 3
+            for: 0m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'The models of {{ $labels.symbol }} do worse than buy and hold'
+              description: 'The last {{ $value }} stored models of {{ $labels.symbol }} have a lower out-of-sample Sharpe than buy and hold on the same bars (tt_model_sharpe vs tt_model_buy_and_hold_sharpe): the trainer adds nothing over holding. No capital is at stake.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelbelowbuyandhold'
+
+          - alert: TrainerFeatureDrift
+            expr: max by (job, symbol) (tt_feature_drift_score and on (job, instance) tt_training_leader == 1) > 3
+            for: 1h
+            labels:
+              severity: warning
+            annotations:
+              summary: 'The live data of {{ $labels.symbol }} drifts from its model statistics'
+              description: 'A normalized field of {{ $labels.symbol }} received since the newest stored model has a mean {{ $value | humanize }} standard deviations away from the statistics stored with that model (tt_feature_drift_score), for 1 hour: the model sees a market it was not trained on.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainerfeaturedrift'
 
           - alert: AlertmanagerNotificationsFailing
             expr: |

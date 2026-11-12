@@ -228,7 +228,8 @@ async function publishTrainedModel(): Promise<Publication[]> {
 				epsilonMin: 0.05,
 				epsilonDecay: 0.995,
 			},
-		} as never
+		} as never,
+		{ version: "20261029T101530Z-0123456789ab", sha256: "ab".repeat(32) }
 	);
 	return publicationsOf("trader-trainer", mockTrainerBroker.requests);
 }

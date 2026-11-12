@@ -139,6 +139,9 @@ spec:
               mountPath: /var/lib/mysql
             - name: mysql-config
               mountPath: /etc/mysql/conf.d
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
           # The first start initializes the data directory (minutes on a slow
           # disk). Liveness killing it midway leaves a corrupt datadir that
           # never starts again: liveness only begins once MySQL answers.
@@ -181,6 +184,58 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 3
+        # Reloads the server certificate when cert-manager renews it (issue
+        # #767): mysqld otherwise keeps serving the old one until it expires.
+        # Connects through 127.0.0.1 (SAN of mysql-tls) as root with its client
+        # certificate (Secret mysql-client-root; also the `mysql` client of
+        # tests/k8s/run-kind.sh verify_mysql_tls); a failed
+        # reload is logged and retried on the next tick.
+        - name: tls-reload
+          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+          command:
+            - sh
+            - -c
+            - |
+              last=$(sha256sum /etc/mysql-tls/tls.crt)
+              while sleep 60; do
+                now=$(sha256sum /etc/mysql-tls/tls.crt) || continue
+                [ "$now" = "$last" ] && continue
+                if mysql --protocol=tcp -h 127.0.0.1 -uroot --ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/mysql-tls/ca.crt --ssl-cert=/etc/mysql-client-root/tls.crt --ssl-key=/etc/mysql-client-root/tls.key -e 'ALTER INSTANCE RELOAD TLS'; then
+                  echo "server certificate reloaded"
+                  last=$now
+                else
+                  echo "reload failed, retrying" >&2
+                fi
+              done
+          env:
+            - name: MYSQL_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
+            - name: mysql-client-root
+              mountPath: /etc/mysql-client-root
+              readOnly: true
         # Exporter of this member (issue #601, ADR-0056), as MySQL user
         # `exporter` (PROCESS, REPLICATION CLIENT, SELECT on performance_schema),
         # created by the db-migrate-user Job. Without its password key the
@@ -190,6 +245,7 @@ spec:
           args:
             - --mysqld.address=127.0.0.1:3306
             - --mysqld.username=exporter
+            - --config.my-cnf=/etc/mysql-client/exporter.cnf
           env:
             - name: MYSQLD_EXPORTER_PASSWORD
               valueFrom:
@@ -216,10 +272,30 @@ spec:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
+          volumeMounts:
+            - name: mysql-client-tls
+              mountPath: /etc/mysql-client
+              readOnly: true
+            # Client certificate of MySQL user `exporter` (not the server key).
+            - name: mysql-client-exporter
+              mountPath: /etc/mysql-tls
+              readOnly: true
       volumes:
         - name: mysql-config
           configMap:
             name: mysql-group-replication-config
+        - name: mysql-tls
+          secret:
+            secretName: mysql-tls
+        - name: mysql-client-exporter
+          secret:
+            secretName: mysql-client-exporter
+        - name: mysql-client-root
+          secret:
+            secretName: mysql-client-root
+        - name: mysql-client-tls
+          configMap:
+            name: mysql-client-tls
   volumeClaimTemplates:
     - metadata:
         name: mysql-data
@@ -260,6 +336,15 @@ data:
     gtid-mode=ON
     loose-group_replication_recovery_use_ssl=ON
     loose-group_replication_ssl_mode=REQUIRED
+    # Client TLS (issue #767, ADR-0060): certificate of mysql-tls.yaml. TCP
+    # connections without TLS are refused (the local socket of kubectl exec,
+    # backups and restores is not concerned); the user must also present its
+    # client certificate (REQUIRE ISSUER / SUBJECT, db-migrate-user).
+    require_secure_transport=ON
+    ssl-ca=/etc/mysql-tls/ca.crt
+    ssl-cert=/etc/mysql-tls/tls.crt
+    ssl-key=/etc/mysql-tls/tls.key
+    tls-version=TLSv1.2,TLSv1.3
     # Encryption at rest (GDPR Art. 32) is NOT configured here: the former
     # innodb_encrypt_* / encrypt-binlog options are MariaDB-only and made
     # MySQL abort. MySQL needs a keyring component (component_keyring_file
@@ -339,12 +424,28 @@ spec:
                 SET GLOBAL group_replication_bootstrap_group=OFF;
                 SELECT * FROM performance_schema.replication_group_members;
               EOSQL
+          volumeMounts:
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
+            - name: mysql-client-tls
+              mountPath: /etc/mysql-client
+              readOnly: true
           env:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_HOME
+              value: /etc/mysql-client
+      volumes:
+        - name: mysql-tls
+          secret:
+            secretName: mysql-client-root
+        - name: mysql-client-tls
+          configMap:
+            name: mysql-client-tls
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -375,9 +476,11 @@ spec:
     - Egress
   ingress:
     # Clients of 3306 / 33061 (issue #747): the market-data service and its
-    # collector, the SPIRE server datastore, the migration and retention Jobs
-    # and the group replication peers. Backups and restores go through
-    # `kubectl exec`, not the network. A new client must be added here.
+    # collector, the migration and retention Jobs and the group replication
+    # peers. spire-server only for a rollback to a release before ADR-0065
+    # (its datastore was the `spire` database): removed in a later release
+    # (ADR-0040). Backups and restores go through `kubectl exec`, not the
+    # network. A new client must be added here.
     - from:
         - podSelector:
             matchExpressions:

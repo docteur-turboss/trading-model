@@ -103,8 +103,8 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 | Resource | Access Method | Authentication | Authorisation |
 |---|---|---|---|
 | API gateway admin endpoints (DLQ delete, replay, store) | HTTPS + API key | `x-api-key` header | scope `dlq:write` of the key in `AUTH_TOKENS` (403 without it); the key name is recorded as `actor` of the DLQ audit events (ADR-0059) |
+| Database (MySQL) | TLS 1.2+ (cert-manager server certificate, host name verified; plain TCP refused: `require_secure_transport=ON`, issue #767) | Username/password + SealedSecret **and** a cert-manager client certificate per user (`REQUIRE ISSUER / SUBJECT`) | NetworkPolicy: ports 3306 / 33061 only from the listed client components ([databases.md](../architecture/databases.md)); SQL grants |
 | Database (MongoDB) | Plain TCP in the cluster (no TLS, ADR-0060); operators through `kubectl exec` | None until issue #669 ships MongoDB authentication | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--message-manager-and-audit)); `kubectl exec` through Kubernetes RBAC |
-| Database (MySQL) | Plain TCP in the cluster (no TLS, ADR-0060); the replication user alone requires SSL | Username/password + SealedSecret | NetworkPolicy: ports 3306 / 33061 only from the listed client components ([databases.md](../architecture/databases.md)); SQL grants |
 | Grafana (metrics, Loki logs) | HTTPS through the ingress | OIDC, one account per person (ADR-0063); local `admin` kept for break-glass only | Role `Viewer` by default, no sign-up, no anonymous access; Admin granted by hand |
 | Kubernetes API | kubectl + client cert | mTLS certificate | RBAC roles + SealedSecrets |
 
@@ -119,14 +119,14 @@ In the event of SPIRE unavailability:
 
 ### 5.3 Grafana Break-Glass
 
-The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity provider is down: see [ADR-0063](../adr/0063-grafana-per-person-access-through-oidc.md). Each use is written in the incident log (who, why, when); rotate `GRAFANA_PASSWORD` afterwards.
+The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity provider is down: see [ADR-0063](../adr/0063-grafana-per-person-access-through-oidc.md) and the [runbook](../operations/runbooks/runbook-grafana-break-glass.md). Each use is written in the incident log (who, why, when); rotate `GRAFANA_PASSWORD` afterwards.
 
 ## 6. Access Review
 
 | Review Type | Frequency | Scope |
 |---|---|---|
 | ACL audit | Annual | Verify service-to-service ACL mappings match current architecture |
-| SVID audit | Continuous | All SVIDs auto-rotated (1h TTL); expired SVIDs rejected |
+| SVID audit | Continuous | All SVIDs auto-rotated (4h TTL, ADR-0065); expired SVIDs rejected |
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
 | Grafana account review | Quarterly | List Grafana users (Administration > Users): remove leavers, keep Admin to named operators, check `GRAFANA_PASSWORD` was rotated after any break-glass use. Logins are in Loki (logger `context`) |

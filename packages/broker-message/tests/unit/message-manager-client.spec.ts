@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { PUBLISH_COMPAT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { MessageManagerClient } from "../../src/adapters/outbound/message-manager-client";
 
@@ -163,8 +163,8 @@ describe("MessageManagerClient", () => {
 					payload: { hello: "world" },
 					metadata,
 				},
-				// Outlasts the broker's own timeout; never re-sent once it left.
-				{ timeoutMs: PUBLISH_COMPAT_TIMEOUT_MS }
+				// Never re-sent once it left.
+				{ timeoutMs: PUBLISH_ACCEPT_TIMEOUT_MS + 5_000 }
 			);
 		});
 

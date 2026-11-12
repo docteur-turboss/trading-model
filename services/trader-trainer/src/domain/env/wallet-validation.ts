@@ -11,9 +11,9 @@ function _validateInitialPrice(initialPrice: Price): void {
 	}
 }
 
-function _validateFeeRate(feeRate: Percentage): void {
-	if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate >= 1) {
-		throw new Error(`Invalid feeRate: ${feeRate}. Must be in [0, 1[`);
+function _validateRate(name: string, rate: Percentage): void {
+	if (!Number.isFinite(rate) || rate < 0 || rate >= 1) {
+		throw new Error(`Invalid ${name}: ${rate}. Must be in [0, 1[`);
 	}
 }
 
@@ -33,7 +33,8 @@ function _validateDecimals(decimals: DecimalPrecision): void {
 
 export function validateConfig(config: Required<WalletConfigParams>): void {
 	_validateInitialPrice(config.initialPrice);
-	_validateFeeRate(config.feeRate);
+	_validateRate("feeRate", config.feeRate);
+	_validateRate("executionCostRate", config.executionCostRate);
 	_validateMaxExposureFraction(config.maxExposureFraction);
 	_validateDecimals(config.decimals);
 }
