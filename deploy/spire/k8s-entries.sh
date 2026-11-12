@@ -61,7 +61,13 @@ until "$SERVER" healthcheck -socketPath "$SOCK" >/dev/null 2>&1; do
   sleep 3
 done
 
+# A failed pass retries after RETRY_SECONDS, not INTERVAL: no entry means no SVID for any workload.
+RETRY=${RETRY_SECONDS:-10}
 while true; do
-  reconcile || echo "Reconciliation failed, retrying in ${INTERVAL}s"
-  sleep "$INTERVAL"
+  if reconcile; then
+    sleep "$INTERVAL"
+  else
+    echo "Reconciliation failed, retrying in ${RETRY}s"
+    sleep "$RETRY"
+  fi
 done
