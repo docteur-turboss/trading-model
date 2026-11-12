@@ -45,7 +45,8 @@ function _onStart(): void {
 async function _onStop(): Promise<void> {
 	await shutdownTelemetry();
 	try {
-		_discovery?.stop();
+		// LifecycleHandle.stop is typed void but returns the fullStop promise
+		await (_discovery?.stop() as unknown as Promise<void> | undefined);
 	} catch (err) {
 		logger.warn("Error stopping address manager", {
 			error: normalizeError(err),
