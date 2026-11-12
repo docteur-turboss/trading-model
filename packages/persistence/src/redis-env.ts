@@ -5,7 +5,11 @@ import {
 	Port,
 	URLString,
 } from "@trading-model/primitives/primitives";
-import type { RedisConnectionConfig, RedisNodeAddress } from "./redis-config";
+import type {
+	RedisConnectionConfig,
+	RedisNodeAddress,
+	RedisTlsConfig,
+} from "./redis-config";
 
 const DEFAULT_SENTINEL_MASTER_NAME = "mymaster";
 
@@ -21,6 +25,15 @@ export interface RedisEnv {
 	REDIS_PASSWORD?: string;
 	/** Password of the sentinels, when they require one. */
 	REDIS_SENTINEL_PASSWORD?: string;
+	/**
+	 * `optional` (default, release N): clear connections, TLS not used yet.
+	 * `required` (release N+1): TLS to the nodes and sentinels, REDIS_TLS_CA needed.
+	 */
+	REDIS_TLS_MODE?: string;
+	/** Path of the PEM CA of the Redis server certificates. */
+	REDIS_TLS_CA?: string;
+	/** Name the server certificate carries (default `redis`). */
+	REDIS_TLS_SERVERNAME?: string;
 }
 
 /** Parses `host:port,host:port`; throws a RangeError on a malformed entry. */
@@ -39,6 +52,7 @@ export function parseRedisNodes(list: string): RedisNodeAddress[] {
 export function redisConnectionFromEnv(
 	env: RedisEnv
 ): RedisConnectionConfig | undefined {
+	const tls = _tlsFromEnv(env);
 	const sentinels = env.REDIS_SENTINELS?.trim();
 	if (sentinels) {
 		return {
@@ -49,11 +63,31 @@ export function redisConnectionFromEnv(
 				username: env.REDIS_USERNAME || undefined,
 				password: env.REDIS_PASSWORD || undefined,
 				sentinelPassword: env.REDIS_SENTINEL_PASSWORD || undefined,
+				tls,
 			},
 		};
 	}
 	const url = env.REDIS_URL?.trim();
-	return url ? { mode: "single", url: URLString.of(url) } : undefined;
+	return url ? { mode: "single", url: URLString.of(url), tls } : undefined;
+}
+
+function _tlsFromEnv(env: RedisEnv): RedisTlsConfig | undefined {
+	const mode = env.REDIS_TLS_MODE?.trim() || "optional";
+	if (mode === "optional") {
+		return undefined;
+	}
+	if (mode !== "required") {
+		throw new RangeError(
+			`REDIS_TLS_MODE must be optional or required, got ${mode}`
+		);
+	}
+	if (!env.REDIS_TLS_CA) {
+		throw new RangeError("REDIS_TLS_MODE=required needs REDIS_TLS_CA");
+	}
+	return {
+		caPath: env.REDIS_TLS_CA,
+		servername: env.REDIS_TLS_SERVERNAME || "redis",
+	};
 }
 
 function _parseNode(entry: string): RedisNodeAddress {

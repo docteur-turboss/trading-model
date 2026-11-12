@@ -72,11 +72,11 @@ describe("env", () => {
 		process.env.TLS_KEY_PATH = "/certs/key.pem";
 		process.env.TLS_CERT_PATH = "/certs/cert.pem";
 		process.env.TLS_CA_PATH = "/certs/ca.pem";
-		process.env.AUTH_TOKENS = "tok1,tok2,tok3";
+		process.env.AUTH_TOKENS = "a:read:tok1,b:read:tok2";
 
 		const env = loadEnv();
 
-		expect(env.AUTH_TOKENS).toBe("tok1,tok2,tok3");
+		expect(env.AUTH_TOKENS).toBe("a:read:tok1,b:read:tok2");
 	});
 
 	it("should accept custom AUTH_STRICT", () => {
