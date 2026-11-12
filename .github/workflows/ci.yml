@@ -288,13 +288,14 @@ jobs:
             for (const k of ['ACTIONS_RUNTIME_TOKEN', 'ACTIONS_RESULTS_URL', 'ACTIONS_CACHE_URL']) {
               if (process.env[k]) core.exportVariable(k, process.env[k]);
             }
+      # ignore-error: a cache service outage must not fail the build.
       # One gha cache scope per image: a shared scope would keep only the last image's layers.
       - name: Build the images (layer cache)
         run: |
           f="-f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml"
           args=()
           for t in $(docker buildx bake $f --print | jq -r '.group.default.targets[]'); do
-            args+=(--set "$t.tags=$COMPOSE_PROJECT_NAME-$t" --set "$t.cache-from=type=gha,scope=e2e-$t" --set "$t.cache-to=type=gha,mode=max,scope=e2e-$t")
+            args+=(--set "$t.tags=$COMPOSE_PROJECT_NAME-$t" --set "$t.cache-from=type=gha,scope=e2e-$t" --set "$t.cache-to=type=gha,mode=max,ignore-error=true,scope=e2e-$t")
           done
           docker buildx bake $f --load "${args[@]}"
       - name: Boot the application stack
