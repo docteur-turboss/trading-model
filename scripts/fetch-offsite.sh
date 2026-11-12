@@ -14,7 +14,8 @@
 #      component `mongodb`: both replica sets; `mongodb-audit`: the audit one
 #    mysql/financial_scraper_<TS>.sql.gz.age
 #    checkpoints/checkpoints_<TS>.tar.gz.age
-#    spire/keys_<TS>.json.age
+#    spire/data_<TS>.tar.age                     (SQLite datastore + CA keys, ADR-0065;
+#      spire/keys_<TS>.json.age in runs taken before it)
 #    manifests/manifest_<TS>.json.age            (run manifest, backup-lib.sh)
 #  then: BACKUP_DIR=DIR bash scripts/restore-k8s.sh --timestamp TS
 #
@@ -102,7 +103,14 @@ component_files() {
       ! $PITR || echo "mysql/financial_scraper_$2.pitr.age"
       ;;
     checkpoints) echo "checkpoints/checkpoints_$2.tar.gz.age" ;;
-    spire) echo "spire/keys_$2.json.age" ;;
+    # data_ since ADR-0065 (datastore + CA keys), keys_ before it.
+    spire)
+      if grep -qxF "spire/data_$2.tar.age" <<<"$LISTING"; then
+        echo "spire/data_$2.tar.age"
+      else
+        echo "spire/keys_$2.json.age"
+      fi
+      ;;
   esac
 }
 
@@ -141,7 +149,7 @@ manifest_file() {
 
 # Timestamps of the runs present in the listing on stdin, oldest first.
 run_timestamps() {
-  grep -oE "^(mongodb/${TS_PATTERN}/|mysql/financial_scraper_${TS_PATTERN}|checkpoints/checkpoints_${TS_PATTERN}|spire/keys_${TS_PATTERN}|manifests/manifest_${TS_PATTERN})" |
+  grep -oE "^(mongodb/${TS_PATTERN}/|mysql/financial_scraper_${TS_PATTERN}|checkpoints/checkpoints_${TS_PATTERN}|spire/(keys|data)_${TS_PATTERN}|manifests/manifest_${TS_PATTERN})" |
     grep -oE "$TS_PATTERN" | sort -u
 }
 
@@ -333,7 +341,7 @@ done
 echo ""
 ok "Run ${SELECTED} fetched in $((SECONDS - started)) s ($(du -sh "$DEST" | cut -f1))"
 echo "══════════════════════════════════════════════════"
-echo "  Restore it (MySQL before SPIRE, writers stopped):"
+echo "  Restore it (writers stopped):"
 echo "  BACKUP_DIR=${DEST} BACKUP_AGE_IDENTITY=<key file> \\"
 if $PITR; then
   echo "    bash scripts/restore-k8s.sh --until <instant, UTC> --components $(IFS=,; echo "${PARTS[*]}")"

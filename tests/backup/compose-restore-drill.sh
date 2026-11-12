@@ -48,7 +48,7 @@ trap cleanup EXIT
 start() {
 	# shellcheck disable=SC2086
 	$COMPOSE up -d --wait --wait-timeout 300 $SERVICES >/dev/null
-	# One user per client (ADR-0066): the backup script dumps as `backup`.
+	# One user per client (ADR-0067): the backup script dumps as `backup`.
 	$COMPOSE run --rm -T mongo-users >/dev/null
 }
 

@@ -193,7 +193,7 @@ prints the same revision twice.
   (`init-sealed-secrets.sh`) and commit.
 - A release that adds a key to `trading-model-secrets` (3.1.0:
   `MYSQL_EXPORTER_PASSWORD`, `REDIS_EXPORTER_PASSWORD`; the seven `MONGO_*` keys of
-  ADR-0066: five passwords and `MONGO_AUDIT_KEYFILE` / `MONGO_DLQ_KEYFILE`,
+  ADR-0067: five passwords and `MONGO_AUDIT_KEYFILE` / `MONGO_DLQ_KEYFILE`,
   `openssl rand -hex 64`) must add it here too,
   or "Check sealed secrets" stops the deploy on the `staging` placeholder. Seal
   only the new keys into the existing file, never `init-sealed-secrets.sh`

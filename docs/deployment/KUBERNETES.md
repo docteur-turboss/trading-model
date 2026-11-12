@@ -244,7 +244,6 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   by the `mysql-cluster-init` Job; per-pod `server_id` / local address passed
   as mysqld arguments
 - 20Gi PVC per replica
-- SPIRE datastore: MySQL user `spire` (key `MYSQL_SPIRE_PASSWORD` of `trading-model-secrets`, required, to seal before the first deploy; `db-migrate-user` creates it), issue #807
 - Retention: CronJob `db-retention` purges market data and signals older than `RETENTION_DAYS` as MySQL user `retention` (key `MYSQL_RETENTION_PASSWORD` of `trading-model-secrets`, to seal before the first production deploy; `db-migrate-user` runs again after the migrations to grant it per table). Operation: [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0051
 - Schema from the `db-migrate` Job (`run-migrations.sh`), the same migrations as compose: no second copy of the schema. The script waits for `mysql-cluster-init` first (during the bootstrap the server is `super_read_only`). The Job runs the released `db-migrate` image (`deploy/migrate`: `migrate.mjs`, `scripts/migrations`, `mysql2` locked by its `bun.lock`; pinned by digest by `deploy.yml`): nothing is installed at run time. It connects as the MySQL user `migrator` (DDL/DML on `financial_scraper` only, password `MYSQL_MIGRATE_PASSWORD`), created or updated on every deploy by the idempotent Job `db-migrate-user` (the only one that reads `MYSQL_ROOT_PASSWORD`; works on a database initialised before the user existed). The password must match `[A-Za-z0-9_.@%+=-]`
 - PodDisruptionBudget: minAvailable 1
@@ -290,8 +289,9 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 Per [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) the platform uses SPIFFE/SPIRE instead of the former
 in-house CA:
 
-- **SPIRE Server:** Deployment in the application namespace (MySQL datastore,
-  `spire` database). Config rendered with `-expandEnv` (the official images
+- **SPIRE Server:** Deployment in the application namespace (SQLite datastore
+  and CA keys on its PVC `spire-server-data`, ADR-0065; SVID TTL 4 h). Agents
+  bootstrap again by themselves when the server CA changes (`rebootstrap_mode`). Config rendered with `-expandEnv` (the official images
   have no shell). The `k8sbundle` notifier publishes the trust bundle into the
   `spire-bundle` ConfigMap of `trading-model-node`
 - **SPIRE Agent:** DaemonSet in `trading-model-node` (`hostPID` +

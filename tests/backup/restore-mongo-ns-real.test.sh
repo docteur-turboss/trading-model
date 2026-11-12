@@ -17,7 +17,7 @@ trap cleanup EXIT
 
 IMAGE="$(grep -m1 -oE 'image: mongo@sha256:[0-9a-f]+' "$ROOT/docker-compose.yml" | cut -d' ' -f2)"
 [ -n "$IMAGE" ] || { echo "no mongo image in docker-compose.yml"; exit 1; }
-# Authentication on (ADR-0066): restore-k8s.sh restores as `root`, whose
+# Authentication on (ADR-0067): restore-k8s.sh restores as `root`, whose
 # password is in the pod's env (MONGO_ROOT_PASSWORD).
 docker run -d --name "$NAME" -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=pw -e MONGO_ROOT_PASSWORD=pw "$IMAGE" >/dev/null || exit 1
 AUTH=(-u root -p pw --authenticationDatabase admin)

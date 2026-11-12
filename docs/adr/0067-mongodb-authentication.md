@@ -1,4 +1,4 @@
-# ADR-0066: MongoDB Authentication: keyFile, One User per Client, Switch in Two Releases
+# ADR-0067: MongoDB Authentication: keyFile, One User per Client, Switch in Two Releases
 
 **Status:** Accepted
 **Date:** 2026-11

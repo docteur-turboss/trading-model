@@ -6,8 +6,8 @@ kind: Kustomization
 resources:
   - spire-server.yaml
 
-# Hash suffix: a changed server.conf rolls the Deployment. Rendered with
-# -expandEnv: ${MYSQL_SPIRE_PASSWORD} (Secret).
+# Hash suffix: a changed server.conf rolls the Deployment. No variable: the
+# datastore is SQLite (ADR-0065), so the pod holds no database credential.
 configMapGenerator:
   - name: spire-server-config
     files: [server.conf]

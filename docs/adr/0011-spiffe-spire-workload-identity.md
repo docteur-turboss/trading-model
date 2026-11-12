@@ -34,7 +34,7 @@ Replace the in-house CA and the shared static certificate bundle with a **SPIRE*
 
 ### Target environments
 
-- **Kubernetes (staging/production):** SPIRE Server (HA, MySQL datastore using the platform's existing MySQL) + SPIRE Agent DaemonSet with the `k8s_psat` workload attestor. Registration entries map each Deployment's service account to its SPIFFE ID.
+- **Kubernetes (staging/production):** SPIRE Server (HA, MySQL datastore using the platform's existing MySQL) *Amended by [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md): one replica, SQLite datastore on its own volume, SVID TTL 4 h* + SPIRE Agent DaemonSet with the `k8s_psat` workload attestor. Registration entries map each Deployment's service account to its SPIFFE ID.
 - **Docker Compose (dev/CI):** single SPIRE Server + SPIRE Agent using the `docker` workload attestor (selectors on compose service labels), same SPIFFE ID scheme. CI fallback: join-token attestation when a privileged Docker socket is unavailable.
 
 ### Decommissioning

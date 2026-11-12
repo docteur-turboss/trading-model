@@ -23,7 +23,7 @@
 #  newest whose manifest lists every one of them (issue #330; the timestamp is
 #  printed). None: exit 1. --allow-mixed-runs restores the old rule, each
 #  component from the newest run whose manifest lists it, with a warning per
-#  component (SPIRE keys and the `spire` database may then be out of step).
+#  component (MySQL and MongoDB may then be out of step with each other).
 #  Every file is checked against its manifest (size,
 #  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
 #  anything is written, --dry-run included. Runs taken before manifests are
@@ -46,8 +46,9 @@
 #  --ns (the hash chain, ADR-0027): refused; use --into-scratch.
 #  Without either option the mongorestore arguments are unchanged.
 #
-#  Restore MySQL before SPIRE: the SPIRE datastore (bundle, CA journal,
-#  entries) is the `spire` database, keys.json only holds the CA private keys.
+#  SPIRE (ADR-0065): its SQLite datastore and CA keys are one file of the run
+#  (spire/data_<TS>.tar), independent of MySQL. Runs taken before ADR-0065
+#  (spire/keys_<TS>.json, datastore in MySQL) are refused for SPIRE.
 #  Exits 1 when any step fails.
 # =============================================================================
 
@@ -58,8 +59,8 @@ RESTORE_TIMESTAMP="${RESTORE_TIMESTAMP:-latest}"
 DRY_RUN=false
 COMPONENTS="mongodb,mysql,checkpoints,spire"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
-# Writes keys.json into the SPIRE volume while the server is stopped (the
-# spire-server image has neither a shell nor tar).
+# Writes the SPIRE datastore and CA keys into the server volume while the
+# server is stopped (the spire-server image has neither a shell nor tar).
 # Explicit override wins; otherwise the image of the db-backup CronJob (the
 # digest deploy.yml applied), see resolve_helper_image (issue #323).
 RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-}"
@@ -432,12 +433,20 @@ restore_checkpoints() {
   fi
 }
 
-# Stops the SPIRE server, writes keys.json into its volume from a helper pod
-# running as the server's user, then starts the server again.
+# Stops the SPIRE server, writes the datastore and CA keys of the run
+# (data_<TS>.tar) into its volume from a helper pod running as the server's
+# user, then starts the server again. The WAL files of the replaced datastore
+# are removed: replayed onto the restored file they would corrupt it.
 restore_spire() {
-  log "Starting SPIRE CA key restore..."
-  resolve_and_verify spire "$(backup_file "${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json")" || return 0
+  log "Starting SPIRE server restore..."
+  resolve_and_verify spire "$(backup_file "${BACKUP_DIR}/spire/data_${RESTORE_TIMESTAMP}.tar")" || return 0
   local file="$RESOLVED_FILE"
+  case "$file" in
+    */keys_*)
+      fail "SPIRE: ${file} was taken before ADR-0065 (datastore in MySQL): its CA keys do not match the SQLite datastore; restore a newer run, or let the server start a new CA (agents bootstrap again)"
+      return
+      ;;
+  esac
 
   local deploy="deployment/spire-server"
   local claim uid gid
@@ -451,7 +460,7 @@ restore_spire() {
   gid=$(kubectl get -n "${K8S_NAMESPACE}" "$deploy" -o jsonpath='{.spec.template.spec.securityContext.runAsGroup}')
 
   if $DRY_RUN; then
-    warn "[DRY-RUN] Would restore SPIRE CA key into claim ${claim} from ${file}"
+    warn "[DRY-RUN] Would restore the SPIRE datastore and CA keys into claim ${claim} from ${file}"
     return
   fi
 
@@ -505,7 +514,12 @@ EOF
   local written=false
   if kubectl wait -n "${K8S_NAMESPACE}" --for=condition=ready pod/spire-restore --timeout=120s >/dev/null &&
     kubectl exec -i -n "${K8S_NAMESPACE}" spire-restore -- \
-      sh -c 'umask 077 && cat > /data/keys.json.restore && mv /data/keys.json.restore /data/keys.json' < "$plain"; then
+      sh -c 'set -e; umask 077; rm -rf /data/restore.tmp; mkdir /data/restore.tmp
+        tar -xf - -C /data/restore.tmp datastore.sqlite3 keys-sqlite.json
+        rm -f /data/datastore.sqlite3-wal /data/datastore.sqlite3-shm
+        mv /data/restore.tmp/datastore.sqlite3 /data/datastore.sqlite3
+        mv /data/restore.tmp/keys-sqlite.json /data/keys-sqlite.json
+        rmdir /data/restore.tmp' < "$plain"; then
     written=true
   fi
   rm -f "$plain"
@@ -514,15 +528,15 @@ EOF
   log "Starting the SPIRE server..."
   kubectl scale -n "${K8S_NAMESPACE}" "$deploy" --replicas=1 >/dev/null
   if ! $written; then
-    fail "SPIRE restore failed: keys.json was not written (server restarted with its previous keys)"
+    fail "SPIRE restore failed: the datastore and CA keys were not written (server restarted with its previous state)"
     return
   fi
   if kubectl rollout status -n "${K8S_NAMESPACE}" "$deploy" --timeout=180s >/dev/null &&
     kubectl exec -n "${K8S_NAMESPACE}" "$deploy" -c spire-server -- \
       /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock >/dev/null; then
-    ok "SPIRE CA key restore complete"
+    ok "SPIRE server restore complete"
   else
-    fail "SPIRE server is not healthy after the CA key restore"
+    fail "SPIRE server is not healthy after the restore"
   fi
 }
 

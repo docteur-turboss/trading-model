@@ -50,16 +50,16 @@ services:
     image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo
     restart: unless-stopped
-    # Authentication on (issue #669, ADR-0066): the image creates `root` on an
+    # Authentication on (issue #669, ADR-0067): the image creates `root` on an
     # empty volume, `mongo-users` the other users. A volume created before
     # needs `docker compose down -v`, or the localhost exception:
     # docker exec trading-mongo mongosh admin --eval 'db.createUser({user: "root", pwd: process.env.MONGO_INITDB_ROOT_PASSWORD, roles: ["root"]})'
     command: mongod --auth
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set (MongoDB user, ADR-0066)}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set (MongoDB user, ADR-0067)}
       # scripts/backup.sh and restore.sh read them inside the container.
-      MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0066)}
+      MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0067)}
     volumes:
       - mongo-data:/data/db
     networks:
@@ -79,12 +79,12 @@ services:
     restart: "no"
     command: mongosh --quiet mongo:27017/admin --file /scripts/users.js
     environment:
-      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set (MongoDB user, ADR-0066)}
-      MONGO_EXPORTER_PASSWORD: ${MONGO_EXPORTER_PASSWORD:?MONGO_EXPORTER_PASSWORD must be set (MongoDB user, ADR-0066)}
-      MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0066)}
-      MONGO_AUDIT_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0066)}
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_EXPORTER_PASSWORD: ${MONGO_EXPORTER_PASSWORD:?MONGO_EXPORTER_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_AUDIT_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0067)}
       MONGO_AUDIT_DB: audit-logger
-      MONGO_DLQ_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0066)}
+      MONGO_DLQ_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
       MONGO_DLQ_DB: dlq
     volumes:
       - ./deploy/mongo/users.js:/scripts/users.js:ro
@@ -501,7 +501,7 @@ services:
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       MONGODB_URI: mongodb://mongo:27017/audit-logger?authSource=admin
       MONGO_USERNAME: audit-logger
-      MONGO_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0066)}
+      MONGO_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0067)}
     volumes:
       - svid-audit:/run/spire/svid
     networks:
@@ -541,7 +541,7 @@ services:
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       MONGO_URI: mongodb://mongo:27017/?authSource=admin
       MONGO_USERNAME: dlq-service
-      MONGO_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0066)}
+      MONGO_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
       MONGO_DB: dlq
       MONGO_COLLECTION: dlq_entries
       MAX_ENTRIES: '100000'
@@ -870,7 +870,7 @@ services:
     container_name: trading-mongodb-exporter
     restart: unless-stopped
     environment:
-      MONGODB_URI: mongodb://exporter:${MONGO_EXPORTER_PASSWORD:?MONGO_EXPORTER_PASSWORD must be set (MongoDB user, ADR-0066)}@mongo:27017/admin?directConnection=true
+      MONGODB_URI: mongodb://exporter:${MONGO_EXPORTER_PASSWORD:?MONGO_EXPORTER_PASSWORD must be set (MongoDB user, ADR-0067)}@mongo:27017/admin?directConnection=true
     networks:
       - data-net
       - backend-net
