@@ -500,6 +500,13 @@ upgrade() {
 	}
 	log "  $last rolled back and applied again, same checksums"
 
+	# ADR-0065: the forced-failure run moved the SPIRE server to a new CA, and the
+	# N-1 edge-proxy pod the rollback started cannot reload its trust bundle
+	# (only N can). Restart it so the probe window measures the upgrade, not that
+	# one-off CA change; drop this once N-1 itself reloads the bundle.
+	$K -n "$NS" rollout restart deployment/edge-proxy
+	$K -n "$NS" rollout status deployment/edge-proxy --timeout=180s
+
 	log "upgrade N-1 → N, availability probed through edge-proxy"
 	verify_collection_gap "upgrade N-1 → N" release_under_probe || {
 		log "the upgrade to release N failed, dropped requests, or stopped the market data 30 s or more"
@@ -656,6 +663,44 @@ verify() {
 	verify_backup
 
 	log "OK: the staging overlay works on Kubernetes"
+}
+
+# Issue #802 (ADR-0065): with every MySQL pod gone (mysql-0 included), the
+# SPIRE server restarts on its SQLite datastore and a restarted application
+# pod still gets an SVID. MySQL is brought back afterwards.
+verify_identity_without_mysql() {
+	local mysql_replicas
+	mysql_replicas="$($K -n "$NS" get statefulset mysql -o jsonpath='{.spec.replicas}')"
+	log "SVIDs without MySQL: statefulset mysql scaled to 0 (was $mysql_replicas)"
+	$K -n "$NS" scale statefulset mysql --replicas=0
+	$K -n "$NS" wait --for=delete pod mysql-0 --timeout=300s
+	$K -n "$NS" rollout restart deployment/spire-server
+	$K -n "$NS" rollout status deployment/spire-server --timeout=300s
+	wait_for 60 "$K -n $NS exec deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock"
+	# A datastore read: the entries are served from SQLite, not MySQL.
+	wait_for 60 "$K -n $NS exec deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server entry count -socketPath /run/spire/server-sockets/api.sock | grep -Eq '[1-9]'"
+	log "  SPIRE server healthy without MySQL"
+	$K -n "$NS" rollout restart deployment/discovery-server
+	$K -n "$NS" rollout status deployment/discovery-server --timeout=300s
+	local pod pods
+	# Pods of the old ReplicaSet may still be terminating: skipped. Captured
+	# first so a kubectl failure stops the step (set -e) instead of an empty loop.
+	pods="$($K -n "$NS" get pod -l app.kubernetes.io/component=discovery-server -o go-template --template '{{range .items}}{{if not .metadata.deletionTimestamp}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}')"
+	[ -n "$pods" ] || {
+		log "no discovery-server pod found"
+		return 1
+	}
+	for pod in $pods; do
+		$K -n "$NS" exec "$pod" -c discovery-server -- test -s /run/spire/svid/svid.pem || {
+			log "$pod restarted without MySQL has no SVID"
+			return 1
+		}
+		log "  $pod has its SVID"
+	done
+	log "  restarted discovery-server pods got their SVID"
+	$K -n "$NS" scale statefulset mysql --replicas="$mysql_replicas"
+	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
+	log "  MySQL back ($mysql_replicas replicas)"
 }
 
 # Requests through edge-proxy must leave in Jaeger a trace that spans
@@ -978,8 +1023,8 @@ audit_metric() {
 
 # The services writing to the databases, stopped during a restore
 # (BACKUP_DR.md): a write between the dump restore and the binlog / oplog
-# replay would make the replay fail. The SPIRE server (MySQL `spire`
-# database) is stopped and restarted by restore-k8s.sh itself.
+# replay would make the replay fail. The SPIRE server (SQLite on its own
+# volume, ADR-0065) is stopped and restarted by restore-k8s.sh itself.
 MONGO_WRITERS="audit-logger dlq-service"
 MYSQL_WRITERS="financial-scraper financial-scraper-collector"
 
@@ -1214,7 +1259,7 @@ verify_backup() {
 	drill_record fetch_offsite "$fetch_seconds"
 	# The run: 5 dumps + 3 PITR starting points + the run manifest, which
 	# restore-k8s.sh selects and verifies with; then the archives replayed.
-	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
+	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'data_*.tar.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
 	[ "$fetched" -eq 9 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
 		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 9 (5 dumps, 3 PITR starting points, run manifest)"
 		return 1
@@ -1240,16 +1285,6 @@ verify_backup() {
 		return 1
 	}
 	log "  run and archives fetched, an instant past the archives is refused"
-
-	# The SPIRE server writes to the `spire` database the binlog replay
-	# restores: stopped now, restarted by restore-k8s.sh with its CA keys.
-	$K -n "$NS" scale deployment/spire-server --replicas=0
-	$K -n "$NS" wait --for=delete pod -l app.kubernetes.io/component=spire-server --timeout=120s || true
-
-	# Accounts are not in the dumps (`mysql` schema excluded): lose the SPIRE
-	# one too, and recreate it as the runbook does, or SPIRE cannot log in.
-	mysql_root "DROP USER 'spire'@'%';"
-	(cd "$ROOT" && use_kube && bash deploy/k8s/scripts/run-migrations.sh "$NS" user-only)
 
 	log "restore drill: scripts/restore-k8s.sh --until $until on the fetched run"
 	started=$SECONDS
@@ -1343,9 +1378,10 @@ verify_backup() {
 	log "  verify-restore-k8s.sh passes on the restore and fails on an altered audit event"
 
 	# The SPIRE server came back with the restored CA: the agents still hold
-	# SVIDs from the CA of the wiped volume and crash-loop until they re-attest.
-	# Restart them and wait for the CSI driver, or the writers cannot mount the
-	# Workload API socket and never become ready.
+	# SVIDs from the CA of the wiped volume until they bootstrap again
+	# (rebootstrap_mode, 1 min, ADR-0065). Restart them now and wait for the
+	# CSI driver, or the writers cannot mount the Workload API socket and never
+	# become ready.
 	drill_record verify_data $((SECONDS - step_started))
 	step_started=$SECONDS
 	log "restore drill: SPIRE agents re-attested against the restored CA"
@@ -1478,10 +1514,11 @@ all)
 	smoke
 	verify
 	verify_canary
+	verify_identity_without_mysql
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

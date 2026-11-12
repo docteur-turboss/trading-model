@@ -314,6 +314,9 @@ jobs:
         run: bash tests/k8s/run-kind.sh verify
       - name: Canary gate (deploy.yml canary)
         run: bash tests/k8s/run-kind.sh verify_canary
+      # Issue #802 (ADR-0065): mysql-0 gone, the SPIRE server and a restarted pod keep their identity.
+      - name: Identity without MySQL
+        run: bash tests/k8s/run-kind.sh verify_identity_without_mysql
       - name: Upload the restore drill timings
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
