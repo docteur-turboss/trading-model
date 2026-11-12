@@ -22,7 +22,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		AUTH_TOKEN_HEADER: "x-api-key",
 		AUTH_STRICT: true,
-		AUTH_TOKENS: "valid-token-1,valid-token-2",
+		AUTH_TOKENS: "a:read:valid-token-1,b:read:valid-token-2",
 	},
 }));
 
@@ -105,27 +105,19 @@ describe("AUTH_MIDDLEWARE", () => {
 		expect(req.apiKeyScopes).toEqual(["read"]);
 	});
 
-	it("grants every scope to an old-format key, with a warning that never quotes the secret", async () => {
-		const { logger } = require("@trading-model/http/infrastructure/logger");
-		mockEnvTokens("legacy-shared-secret");
-		const req: any = createReq({
-			headers: { "x-api-key": "legacy-shared-secret" },
-		});
-
-		await AUTH_MIDDLEWARE(req, createRes(), createNext);
-
-		expect(req.apiKeyName).toMatch(/^legacy-[0-9a-f]{8}$/);
-		expect(req.apiKeyScopes).toEqual(["read", "dlq:write"]);
-		expect(logger.warn).toHaveBeenCalledWith(
-			expect.stringContaining(req.apiKeyName)
+	it("ignores a bare-secret entry: its secret authenticates nobody", async () => {
+		mockEnvTokens("bare-secret,ops:read:ok-secret");
+		const result = await AUTH_MIDDLEWARE(
+			createReq({ headers: { "x-api-key": "bare-secret" } }),
+			createRes(),
+			createNext
 		);
-		const logged = JSON.stringify(logger.warn.mock.calls);
-		expect(logged).not.toContain("legacy-shared-secret");
-		expect(String(req.clientIdentity)).not.toContain("legacy-shared-secret");
+
+		expect(result).toMatchObject({ status: 401 });
 	});
 
 	it("should give distinct identities to tokens sharing an 8-char prefix", async () => {
-		mockEnvTokens("abcdefgh-1,abcdefgh-2");
+		mockEnvTokens("a:read:abcdefgh-1,b:read:abcdefgh-2");
 		const ids = [];
 		for (const t of ["abcdefgh-1", "abcdefgh-2"]) {
 			const req: any = createReq({ headers: { "x-api-key": t } });
