@@ -959,23 +959,12 @@ tests:
               description: 'Notifications through slack fail: check the alertmanager-credentials Secret (webhook URL, routing key). This alert may not reach you: the dead man''s switch (Watchdog) is the safety net.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'
 
-  # The local DLQ file cannot be written (read-only filesystem): lost.
-  - name: dead-lettered messages are lost or parked
+  - name: dead-lettered messages are parked
     interval: 1m
     input_series:
-      - series: 'mm_messages_dlq_error_total{job="message-manager",instance="m",target="file"}'
-        values: '0 0 0 1x20'
       - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market.candlestick.series.fetch",reason="MAX_RETRIES_EXCEEDED"}'
         values: '0 0 0 3x20'
     alert_rule_test:
-      - eval_time: 10m
-        alertname: MessagesLost
-        exp_alerts:
-          - exp_labels: {severity: critical}
-            exp_annotations:
-              summary: 'Dead-lettered messages could not be written: messages lost'
-              description: 'dlq-service could not take dead-lettered messages and message-manager could not keep them in DLQ_LOCAL_FALLBACK_PATH either: they are gone. Check that the path is on a writable volume, then dlq-service.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
       - eval_time: 10m
         alertname: MessagesDeadLettered
         exp_alerts:
@@ -985,39 +974,20 @@ tests:
               description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in dlq-service (GET /dlq) to inspect and replay.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
-  # The forward failures of a dlq-service outage are not losses: only a
-  # file error is. m1 keeps 2 dead letters for 20 minutes (fires), m2 for 5
-  # (dlq-service came back: no alert); one entry rejected for good.
-  - name: dead letters dlq-service cannot take
+  # One dead letter dlq-service refused for good (400, 413).
+  - name: dead letters dlq-service refused
     interval: 1m
     input_series:
-      - series: 'mm_messages_dlq_error_total{job="message-manager",instance="m1",target="dlq-service"}'
-        values: '0 1 2 3x20'
-      - series: 'mm_dlq_fallback_pending{job="message-manager",instance="m1"}'
-        values: '0 2x25'
-      - series: 'mm_dlq_fallback_pending{job="message-manager",instance="m2"}'
-        values: '0 1x5 0x20'
       - series: 'mm_dlq_rejected_total{job="message-manager",instance="m1"}'
         values: '0 0 1x20'
     alert_rule_test:
-      - eval_time: 20m
-        alertname: MessagesLost
-        exp_alerts: []
-      - eval_time: 20m
-        alertname: DeadLettersNotForwarded
-        exp_alerts:
-          - exp_labels: {severity: warning, instance: m1}
-            exp_annotations:
-              summary: 'Dead letters kept in a message-manager pod, not in dlq-service'
-              description: '2 dead letter(s) have waited 15 minutes in the local file of m1: dlq-service cannot take them (down, unreachable, or another DLQ_AUTH_HMAC_SECRET). They are lost if the pod is deleted.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
       - eval_time: 20m
         alertname: DeadLettersRejected
         exp_alerts:
           - exp_labels: {severity: warning}
             exp_annotations:
               summary: 'dlq-service refused dead letters'
-              description: 'dlq-service refused 1 dead letter(s) in the last hour (invalid or too large): they are in DLQ_LOCAL_FALLBACK_PATH.rejected on the message-manager pod, and in its logs.'
+              description: 'dlq-service refused 1 dead letter(s) in the last hour (invalid or too large): their journal entries stay pending until trimmed after 24 h (a lost message, JournalEntriesTrimmed): fix the cause within 24 h, see the runbook and the message-manager logs.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
   # market.ticker: dropped for 30 minutes, fires. market.trade: a burst at

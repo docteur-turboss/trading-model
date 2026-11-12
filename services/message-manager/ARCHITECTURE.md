@@ -86,7 +86,7 @@ Per-instance message delivery handler. Responsibilities:
 | `exactly-once`  | Single attempt, no broker retry; a failure is dead-lettered (`SINGLE_ATTEMPT_FAILED`). No duplicate downstream depends on subscriber idempotency ([ADR-0019](../../docs/adr/0019-message-broker-as-built.md)). |
 
 - **TTL expiration**: If `emittedAt + ttl < now`, the message is routed to the Dead Letter Queue.
-- **DLQ**: dead letters go to dlq-service (signed `POST /dlq`); while it cannot take them they wait in `DLQ_LOCAL_FALLBACK_PATH` and are forwarded every minute and at shutdown (ADR-0019).
+- **DLQ**: dead letters go to dlq-service (signed `POST /dlq`); while it cannot take one, the journal entry stays pending and is retried (ADR-0019, ADR-0048).
 - The whole policy (DLQ, drop or retry) is decided in the domain by `DeliveryErrorClassifier` (`domain/delivery-error-classifier.ts`); the application layer only carries it out. A subscriber answer saying the message itself is wrong (400 — payload refused by its topic schema —, 413, 415, 422) is dead-lettered at once (`REJECTED_BY_SUBSCRIBER`) instead of after 10 attempts; auth, routing, throttling and server errors keep the retries.
 
 ### Message Contracts (`@trading-model/contracts/message-types`)
@@ -233,4 +233,4 @@ Service A                    Dispatcher                    Service B
 | **Shared subscription registry (Redis)**   | Every replica reads the same subscriptions (`RedisSubscriptionStore`, one hash per topic): a subscription made on one replica routes the messages published on any other, and survives a restart. Subscribers renew theirs every 15s (`@trading-model/broker-message`); a subscription not renewed for 60s expires. Without Redis, `InMemorySubscriptionStore` (single replica only). A message whose topic has no subscriber is dropped and counted (`mm_messages_unrouted_total`, alert `MessagesUnrouted`). |
 | **Parallel dispatch (Promise.allSettled)** | Ensures one slow or failing subscriber does not block delivery to others.                                                                                                                                    |
 | **Bounded retry backoff**                  | Exponential backoff (1s base, 20s cap, ±20% jitter), 10 attempts of at most 10s, spaced by the pending list of the journal (`retryDueMs`, `backoff-calculator.spec.ts`); the budget no longer holds a publisher request. |
-| **Dead letters in dlq-service**            | `ForwardingDeadLetterStore` sends them to dlq-service and keeps a local JSONL file only while it is unreachable; no database in message-manager itself.                                                    |
+| **Dead letters in dlq-service**            | `HttpDeadLetterStore` sends them to dlq-service; while it refuses, the journal entry stays pending; no database in message-manager itself.                                                    |

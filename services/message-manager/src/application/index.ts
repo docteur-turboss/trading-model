@@ -5,11 +5,7 @@ import { DurationMs } from "@trading-model/primitives/primitives";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
-import {
-	closeMessageManager,
-	startDeadLetterForwarding,
-	startDelivery,
-} from "../config/message-manager";
+import { closeMessageManager, startDelivery } from "../config/message-manager";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
 
@@ -32,7 +28,6 @@ createBootstrap({
 	createServer,
 	onStart: () => {
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
-		startDeadLetterForwarding();
 		startDelivery();
 	},
 	shutdown: {
