@@ -762,32 +762,32 @@ tests:
           - exp_labels: {severity: critical, job: trader-trainer}
             exp_annotations:
               summary: 'trader-trainer has stored no model for hours'
-              description: 'No model artifact stored for at least 3 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
+              description: 'No model artifact stored for at least 5 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernomodelstored'
 
   # A first model 20 min after the start keeps the cold start quiet; the
-  # trainer then stores nothing more and pages 3 h after that model (201m).
-  - name: no model stored for 3 hours after the last one pages
+  # trainer then stores nothing more and pages 5 h after that model (321m).
+  - name: no model stored for 5 hours after the last one pages
     interval: 1m
     input_series:
       - series: 'tt_model_artifacts_total{job="trader-trainer",instance="t1",result="stored"}'
-        values: '0x20 1x200'
+        values: '0x20 1x320'
       - series: 'tt_training_leader{job="trader-trainer",instance="t1"}'
-        values: '1x220'
+        values: '1x340'
     alert_rule_test:
       - eval_time: 130m
         alertname: TrainerNoModelStored
         exp_alerts: []
-      - eval_time: 195m
+      - eval_time: 310m
         alertname: TrainerNoModelStored
         exp_alerts: []
-      - eval_time: 210m
+      - eval_time: 330m
         alertname: TrainerNoModelStored
         exp_alerts:
           - exp_labels: {severity: critical, job: trader-trainer}
             exp_annotations:
               summary: 'trader-trainer has stored no model for hours'
-              description: 'No model artifact stored for at least 3 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
+              description: 'No model artifact stored for at least 5 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernomodelstored'
 
   # Models stored regularly, or no leader at all (TrainerNoLeader's case):

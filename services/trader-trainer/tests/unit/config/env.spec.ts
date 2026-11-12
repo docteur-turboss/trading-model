@@ -23,6 +23,7 @@ const TRADER_TRAINER_ENV_SCHEMA = z.object({
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
 	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
 	TRAINER_TIME_BUDGET_MS: z.coerce.number().int().positive().default(300000),
+	TRAINER_INTERVAL_MS: z.coerce.number().int().positive().default(3600000),
 	TRAINER_EPISODES_PER_INDIVIDUAL: z.coerce
 		.number()
 		.int()
@@ -71,6 +72,10 @@ describe("Env Schema", () => {
 		if (result.success) {
 			expect(result.data.TRAINER_POPULATION_SIZE).toBe(10);
 		}
+		const custom = TRADER_TRAINER_ENV_SCHEMA.safeParse({ ...env, TRAINER_INTERVAL_MS: "60000" });
+		if (custom.success) {
+			expect(custom.data.TRAINER_INTERVAL_MS).toBe(60000);
+		}
 	});
 
 	it("should apply default values for optional trainer fields", () => {
@@ -92,6 +97,7 @@ describe("Env Schema", () => {
 			expect(result.data.TRAINER_VALIDATION_SPLIT).toBe(0.2);
 			expect(result.data.TRAINER_GENERATIONS).toBe(50);
 			expect(result.data.TRAINER_POPULATION_SIZE).toBe(20);
+			expect(result.data.TRAINER_INTERVAL_MS).toBe(3_600_000);
 			expect(result.data.TRAINER_SYMBOLS).toBe("BTCUSDT,ETHUSDT");
 		}
 	});

@@ -219,10 +219,10 @@ the in-memory one too, so do not restart the trainer only to clear the alert.
 ## TrainerNoModelStored
 
 **Critical (pages).** A trainer holds the Lease (`max(tt_training_leader)` = 1)
-but `tt_model_artifacts_total{result="stored"}` has not grown for 3 hours (2
+but `tt_model_artifacts_total{result="stored"}` has not grown for 5 hours (2
 hours after a start: the series is born at 0). A session lasts at most
-`TRAINER_TIME_BUDGET_MS` (5 min) and the loop starts one every minute, so a
-healthy trainer stores a model every few minutes. This alert sees the useful
+`TRAINER_TIME_BUDGET_MS` (5 min) and the loop starts one every
+`TRAINER_INTERVAL_MS` (1 h), so a healthy trainer stores a model every hour. This alert sees the useful
 output whatever stops it, including what the other trainer alerts miss: on
 2026-11-08/10 every session failed (`curve.sharpe is not a function`) for at
 least 40 h on the reference compose stack and nobody was paged. While it
