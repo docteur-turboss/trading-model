@@ -217,15 +217,14 @@ and [Database Rollback](../operations/runbooks/runbook-deployment-failure.md#dat
 
 ### Autoscaling
 
-HPAs are configured for all services in their respective ConfigMap manifests:
+HPAs are configured in `deploy/k8s/autoscaling` (`trader-trainer` has none: one fixed replica):
 
 | Service               | Min | Max | Metric                           |
 | --------------------- | --- | --- | -------------------------------- |
 | discovery-server      | 3   | 10  | CPU 70%, Memory 75%              |
 | message-manager       | 3   | 12  | CPU 65%, Memory 70%, Queue depth |
 | api-gateway           | 2   | 8   | CPU 70%, Memory 75%              |
-| financial-scraper     | 2   | 6   | CPU 70%                          |
-| trader-trainer        | 1   | 3   | CPU 80%                          |
+| financial-scraper     | 2   | 6   | CPU 70%, Memory 75%              |
 | audit-logger          | 2   | 5   | CPU 70%                          |
 | dlq-service           | 2   | 4   | CPU 70%                          |
 | edge-proxy            | 2   | 5   | CPU 70%                          |
@@ -235,6 +234,53 @@ HPAs are configured for all services in their respective ConfigMap manifests:
 ```bash
 kubectl scale deployment -n trading-model <service-name> --replicas=5
 ```
+
+## Capacity and cost
+
+Computed from `kubectl kustomize deploy/k8s/overlays/production` (overlay patches
+applied), commit `c967735d2`. Per-pod figures sum every container that declares
+resources; `spiffe-helper` declares none and no LimitRange exists, so it is not counted.
+Init containers, CronJobs, Jobs and the `trading-model-node` agents are not counted.
+
+| Scenario    | CPU requests | Memory requests | CPU limits | Memory limits |
+| ----------- | ------------ | --------------- | ---------- | ------------- |
+| HPA minimum | 5.6 vCPU     | 10.2 GiB        | 26.0 vCPU  | 34.2 GiB      |
+| HPA maximum | 9.7 vCPU     | 15.8 GiB        | 42.3 vCPU  | 45.5 GiB      |
+
+Limits are rarely all reached; size nodes on the requests.
+
+Recompute (per container; multiply by replicas, or the HPA min/max above, and sum):
+
+```bash
+kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/production   | kubectl create --dry-run=client --validate=false -o json -f -   | jq -r 'select(.kind|IN("Deployment","StatefulSet")) | .metadata.name as $n | .spec.replicas as $r
+      | .spec.template.spec.containers[]
+      | [$n,$r,.name,.resources.requests.cpu,.resources.requests.memory,.resources.limits.cpu,.resources.limits.memory] | @tsv'
+```
+
+Persistent volumes: **418 GiB**, in the same rendering (`volumeClaimTemplates` × replicas, plus PVC manifests).
+
+| Component             | Volumes          | GiB |
+| --------------------- | ---------------- | --- |
+| Prometheus            | 2 × 50           | 100 |
+| `backup-data`         | 1 × 100          | 100 |
+| Trainer checkpoints   | 1 × 50           | 50  |
+| MongoDB DLQ           | 3 × 20           | 60  |
+| MongoDB audit, Redis  | 3 × 10 each      | 60  |
+| MySQL                 | 1 × 20           | 20  |
+| Grafana, Loki         | 10 each          | 20  |
+| Jaeger, Alertmanager (2 × 1), SPIRE | 5 + 2 + 1 | 8 |
+
+### External dependencies
+
+No price is stated: it depends on the provider, which is not chosen.
+
+| Dependency | Free only if | Where |
+| ---------- | ------------ | ----- |
+| GitHub Actions (CI, about 10^5 runner-minutes per month per the 2026-11-12 FinOps audit, an estimate) | the repository stays **public**; private repositories bill minutes | `.github/workflows/` |
+| GHCR images (`ghcr.io/<owner>`) | the packages stay public | `release.yml` |
+| Data sources | each `accessPolicy.terms` is `public-domain` or `attribution` | `services/financial-scraper/src/config/signal-registry.json`, ADR-0036 |
+| Off-site backup bucket (S3, Object Lock) | never: paid storage, provider not chosen | [BACKUP_DR.md](BACKUP_DR.md), ADR-0033 |
+| Audit anchor bucket (S3, Object Lock) | never: paid storage, provider not chosen | ADR-0027 |
 
 ## Infrastructure Components
 
