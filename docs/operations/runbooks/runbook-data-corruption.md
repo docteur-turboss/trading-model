@@ -36,7 +36,7 @@ suspect.
 ### 2. Take forensic snapshot
 
 MySQL runs only on `mysql-0` (behind `mysql-primary`, ADR-0020): never use
-`statefulset/mysql`, which can pick `mysql-1/2`, empty. Run the dumps
+`statefulset/mysql`. Run the dumps
 **before** the restore: the restore overwrites the corrupted data.
 
 ```bash
