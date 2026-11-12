@@ -29,4 +29,4 @@ On that first upgrade the migrations run before the overlay, while mysqld still 
 
 ## Not covered
 
-Redis, Sentinel and MongoDB are other issues (#768, #769).
+Redis, Sentinel and MongoDB are other issues (#930, #769).

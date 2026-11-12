@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -644,6 +644,7 @@ verify() {
 	verify_mongo_ingress
 	verify_db_ingress
 	verify_mysql_tls
+	verify_redis_tls
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -668,7 +669,11 @@ verify() {
 
 	verify_alerts
 	verify_release
-	verify_backup
+	if [ "${SKIP_BACKUP_DRILL:-}" = "true" ]; then
+		log "restore drill skipped (SKIP_BACKUP_DRILL=true)"
+	else
+		verify_backup
+	fi
 
 	log "OK: the staging overlay works on Kubernetes"
 }
@@ -840,6 +845,38 @@ verify_db_ingress() {
 			return 1
 		fi
 	done
+}
+
+# Redis TLS (issue #930, ADR-0047): the certificate comes from cert-manager, a
+# client verifying the name "redis" gets a TLS session on 6380 and 26380, and
+# the clear ports answer exactly when REDIS_TLS_MODE is "optional".
+verify_redis_tls() {
+	local mode node cli user tls="--tls --cacert /etc/redis-tls/ca.crt --sni redis"
+	log "Redis TLS: certificate verified by name, clear ports follow REDIS_TLS_MODE"
+	$K -n "$NS" wait --for=condition=Ready certificate/redis-tls --timeout=120s
+	mode="$($K -n "$NS" exec redis-0 -c redis -- printenv REDIS_TLS_MODE)"
+	for node in redis-0:redis:6379:6380 redis-sentinel-0:sentinel:26379:26380; do
+		IFS=: read -r pod container plain secure <<<"$node"
+		# Sentinels have no ha user (requirepass only): the data nodes take the ha user.
+		user=""; [ "$container" = redis ] && user="--user ha"
+		cli="REDISCLI_AUTH=\$REDIS_INTERNAL_PASSWORD redis-cli $user"
+		[ "$($K -n "$NS" exec "$pod" -c "$container" -- sh -c "$cli $tls -p $secure PING")" = PONG ] || {
+			log "  no TLS session verified by name on $pod:$secure"
+			return 1
+		}
+		if $K -n "$NS" exec "$pod" -c "$container" -- sh -c "$cli -p $plain PING" >/dev/null 2>&1; then
+			[ "$mode" = optional ] || {
+				log "  clear port $pod:$plain answers with REDIS_TLS_MODE=$mode"
+				return 1
+			}
+		else
+			[ "$mode" = required ] || {
+				log "  clear port $pod:$plain refused with REDIS_TLS_MODE=$mode: the check proves nothing"
+				return 1
+			}
+		fi
+	done
+	log "  REDIS_TLS_MODE=$mode, TLS session verified on the data node and the sentinel"
 }
 
 # MySQL TLS (issue #767, ADR-0060), run from the tls-reload sidecar of mysql-0
@@ -1554,9 +1591,9 @@ all)
 	verify_canary
 	verify_identity_without_mysql
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_mysql_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_mysql_tls | verify_redis_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac
