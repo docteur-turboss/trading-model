@@ -41,11 +41,6 @@ function getValidKeys(): HashedKey[] {
 			// The env schema refuses a malformed entry at startup: none is left here.
 			.filter((key): key is ApiKey => "secret" in key)
 			.map((key) => ({ ...key, digest: sha256(key.secret) }));
-		for (const key of parsedKeys.filter((candidate) => candidate.legacy)) {
-			logger.warn(
-				`AUTH_TOKENS: "${key.name}" uses the old format (bare secret), granted every scope; rewrite it as name:scopes:secret before the next release (ADR-0059)`
-			);
-		}
 	}
 	return parsedKeys;
 }
