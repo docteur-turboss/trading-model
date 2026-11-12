@@ -37,6 +37,8 @@ Constraints: no Helm (kube-prometheus-stack is out), the application namespace e
 
 ## Amendment 2026-11 (issue #767): MySQL client TLS
 
+See [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) (MySQL part done).
+
 The `mysqld-exporter` sidecars still reach `127.0.0.1:3306`, now over TLS: `--config.my-cnf` points to `exporter.cnf` (ConfigMap `mysql-client-tls`), and the server certificate carries `127.0.0.1` and `localhost` as SANs. The health probes use the local socket.
 
 `exporter.cnf` also names the client certificate of user `exporter` (Secret `mysql-client-exporter`), required by `REQUIRE ISSUER / SUBJECT`.

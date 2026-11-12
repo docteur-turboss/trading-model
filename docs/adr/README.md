@@ -67,7 +67,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0057](./0057-collector-handover-through-a-lease.md) | Collector Handed Over Through a Kubernetes Lease | Accepted | 2026-11 |
 | [ADR-0058](./0058-trainer-handover-through-a-lease.md) | trader-trainer Handed Over Through a Kubernetes Lease | Accepted | 2026-11 |
 | [ADR-0059](./0059-scoped-api-keys-and-dlq-actor.md) | Scoped API Keys, and the Key Name as Actor of DLQ Audit Events | Accepted | 2026-11 |
-| [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) | Database Client Traffic Is Not Encrypted in the Cluster (Accepted Residual Risk, TLS Planned) | Accepted | 2026-11 |
+| [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) | Database Client Traffic Is Not Encrypted in the Cluster (Accepted Residual Risk, TLS Planned; MySQL Done) | Accepted | 2026-11 |
 | [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) | N-1 Compatibility of the Public API and the Bus Messages | Accepted | 2026-11 |
 | [ADR-0062](./0062-alerting-path-in-two-replicas-in-production.md) | Alerting Path in Two Replicas in Production | Accepted | 2026-11 |
 | [ADR-0063](./0063-grafana-per-person-access-through-oidc.md) | Grafana Per-Person Access Through OIDC | Accepted | 2026-11 |

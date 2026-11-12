@@ -72,4 +72,6 @@ Monitoring: `backup_last_success_timestamp` / `backup_last_status` with `run="in
 
 ## Amendment 2026-11 (issue #767): MySQL client TLS
 
+See [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) (MySQL part done).
+
 Backups, restores and the hourly binlog archives reach MySQL through `kubectl exec` and its local socket, which TLS and `require_secure_transport` do not touch. The only network client of the `backup-tools` image is `mysql` (retention, ADR-0051), which reads `MYSQL_HOME/my.cnf` with `ssl-mode=VERIFY_IDENTITY`. The kind restore drill runs against the TLS-enabled MySQL.

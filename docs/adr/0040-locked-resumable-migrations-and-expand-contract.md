@@ -40,6 +40,8 @@
 
 ## Amendment 2026-11 (issue #767): MySQL client TLS
 
+See [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) (MySQL part done).
+
 `scripts/migrate.mjs` reads `DB_SSL_CA` and then verifies the server certificate and host name; the migration Jobs mount Secret `mysql-client-migrator` (CA + client certificate). Exception to expand/contract, decided by the owner (2026-11-09): TLS and `require_secure_transport=ON` ship in the same release instead of N and N+1.
 
 `DB_SSL_CERT` / `DB_SSL_KEY` carry the client certificate of user `migrator`. `require_secure_transport=ON` is enabled in the same release as the TLS support (owner decision, 2026-11-09): the pods of release N-1 lose their connection until replaced by the rolling update, a brief interruption accepted for this step.
