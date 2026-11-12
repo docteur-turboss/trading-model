@@ -48,6 +48,7 @@
     "env-protection:test": "node --test scripts/check-environment-protection.test.mjs",
     "preflight:test": "node --test scripts/preflight-summary.test.mjs",
     "compliance:check": "node scripts/compliance-check.mjs && node --test scripts/compliance-check.test.mjs",
+    "compose-ports:check": "node scripts/compose-ports-check.mjs && node --test scripts/compose-ports-check.test.mjs",
     "test": "bun run --filter '*' test",
     "test:coverage": "bun run --filter '*' test --coverage",
     "test:db": "bun run --filter '*' test:db",
