@@ -24,10 +24,22 @@ describe("hardShutdown", () => {
 
 	beforeEach(() => {
 		originalExitCode = process.exitCode;
+		jest.useFakeTimers();
+		jest.spyOn(process, "exit").mockImplementation((() => undefined) as never);
 	});
 
 	afterEach(() => {
 		process.exitCode = originalExitCode;
+		jest.useRealTimers();
+		jest.restoreAllMocks();
+	});
+
+	it("should exit with the code after the bounded delay", () => {
+		hardShutdown(1, null, createOptions());
+
+		expect(process.exit).not.toHaveBeenCalled();
+		jest.advanceTimersByTime(5000);
+		expect(process.exit).toHaveBeenCalledWith(1);
 	});
 
 	it("should handle null server gracefully", () => {

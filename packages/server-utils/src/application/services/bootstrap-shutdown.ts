@@ -59,6 +59,9 @@ async function _awaitOnStop(options: BootstrapOptions): Promise<void> {
 	}
 }
 
+/** Grace left to onStop and the server close; below the shortest terminationGracePeriodSeconds (10 s, edge-proxy). */
+const HARD_EXIT_DELAY_MS = 5000;
+
 export function hardShutdown(
 	code: number,
 	server: HttpServer | null,
@@ -68,6 +71,7 @@ export function hardShutdown(
 	_runOnStop(options);
 	getLogger().warn("Forced shutdown", { context: { exitCode: code } });
 	process.exitCode = code;
+	setTimeout(() => process.exit(code), HARD_EXIT_DELAY_MS).unref();
 }
 
 export async function gracefulShutdown(
