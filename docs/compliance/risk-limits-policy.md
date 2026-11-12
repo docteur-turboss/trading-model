@@ -19,6 +19,7 @@ Bound the loss of any order flow, including the worst case where the operator is
 | Equity | Cash plus open positions marked to the reference price, minus fees paid. Losses are measured on equity, realised and unrealised together. |
 | High-water mark | Highest equity since the allocated capital was last set. |
 | Trading day | 00:00 to 24:00 UTC. |
+| Operator | The project owner, or a person the owner names in writing. The project has a single owner and no on-call rota today: naming at least one reachable operator besides the owner is a prerequisite to live trading. |
 | Risk/Execution service | The component of ADR-0064 §1 that owns every order. The decision consumer and the model are outside it. |
 
 ## 3. Loss limits
@@ -31,7 +32,15 @@ Bound the loss of any order flow, including the worst case where the operator is
 
 The limits are checked on every fill and on every reference price update, and before every intent: an intent whose worst case (fill at the limit of the price band) would cross a limit is rejected (ADR-0064 §2). The daily figures restart at 00:00 UTC, but a switch engaged by a limit stays on until an operator re-arms it (§4.4).
 
-**Change owner.** Only the project owner sets or changes a limit or the allocated capital. A change is a reviewed pull request that updates this table and the service configuration together; it takes effect at the next deployment and is recorded in the audit trail. A limit above the hard ceiling in code (ADR-0064 §2) is impossible without changing the code; a lower limit can be set at any time. The values are reviewed with the annual review of [algorithmic-trading-compliance.md](algorithmic-trading-compliance.md) (§6 item 10) and after any engagement of the drawdown stop.
+### 3.1 Global exposure cap
+
+| Cap | Proposed default | Measured on | Effect |
+|---|---|---|---|
+| Global exposure (ADR-0064 §2) | 30 % of allocated capital | Sum of the notionals of all positions, open orders counted as filled | An intent that would cross it is rejected |
+
+This cap is set here because it bounds the loss once the kill switch is on (§6). The other pre-trade caps of ADR-0064 §2 (size per order, price band, exposure per instrument, order rate) are not set by this policy: the project owner sets them in the Risk/Execution service configuration, with the same change process as below, at or below the global exposure cap.
+
+**Change owner.** Only the project owner sets or changes a limit, the global exposure cap or the allocated capital. A change is a reviewed pull request that updates this table and the service configuration together; it takes effect at the next deployment and is recorded in the audit trail. A limit above the hard ceiling in code (ADR-0064 §2) is impossible without changing the code; a lower limit can be set at any time. The values are reviewed with the annual review of [algorithmic-trading-compliance.md](algorithmic-trading-compliance.md) (§6 item 10) and after any engagement of the drawdown stop.
 
 ## 4. Kill switch
 
@@ -48,7 +57,7 @@ Closing positions is a separate, explicit operator action, never automatic: a fo
 
 | Who | How |
 |---|---|
-| Project owner or on-call operator | Authenticated admin route of the Risk/Execution service (not exposed by the api-gateway, ADR-0064 §1); actor and reason recorded in the audit trail |
+| Operator (§2) | Authenticated admin route of the Risk/Execution service (not exposed by the api-gateway, ADR-0064 §1); actor and reason recorded in the audit trail |
 | Same, when the service is unreachable | Revoke the broker API key at the exchange, or delete the SPIRE entry of the service so it loses its identity (ADR-0064 §5) |
 
 ### 4.3 Automatic triggers
@@ -66,7 +75,7 @@ Below the stale data threshold, an intent decided on a price older than 1 min is
 
 ### 4.4 Re-arming
 
-Re-arming is manual only, through the admin route, by the project owner or the on-call operator, with a reason recorded in the audit trail. Nothing re-arms the switch automatically: not a new trading day, not a restart, not fresh data. Before re-arming, the operator checks that the cause is gone (data fresh again, reconciliation clean, rejection cause understood). After the drawdown stop, only the project owner re-arms, once the strategy has been reviewed.
+Re-arming is manual only, through the admin route, by an operator (§2), with a reason recorded in the audit trail. Nothing re-arms the switch automatically: not a new trading day, not a restart, not fresh data. Before re-arming, the operator checks that the cause is gone (data fresh again, reconciliation clean, rejection cause understood). After the drawdown stop, only the project owner re-arms, once the strategy has been reviewed.
 
 ## 5. Independence from the decision component
 
@@ -74,7 +83,9 @@ The kill switch and the limits live in the Risk/Execution service, outside the m
 
 ## 6. Operator absent: worst case
 
-With the automatic triggers above, the loss of an unattended day is bounded by the daily loss limit plus slippage between the trigger and the cancellation of open orders; the loss of an unattended period is bounded by the drawdown stop. The stale data, reconciliation and reject triggers cover the cases where the loss cannot be measured. If the Risk/Execution service itself is down, no new order is sent (it is the only holder of the broker keys), but open positions stay exposed until an operator acts: the service must therefore hold no resting order without an expiry, and its down alert pages the on-call operator.
+The automatic triggers stop new orders and cancel open orders; they do not close positions (§4.1). The loss of an unattended period is therefore the limit reached (2 % daily, 10 % drawdown, plus slippage between the trigger and the cancellation of open orders) **plus the loss of the positions still held**, which stay exposed to the market until an operator acts. Those positions are at most the global exposure cap (§3.1, 30 % of allocated capital), and the spot-only, no-leverage rule of ADR-0064 §2 means they cannot lose more than their notional. The worst case with no operator is thus bounded by the drawdown stop plus the global exposure cap: up to 40 % of allocated capital with the proposed defaults, not by the loss limits alone. The stale data, reconciliation and reject triggers cover the cases where the loss cannot be measured. If the Risk/Execution service itself is down, no new order is sent (it is the only holder of the broker keys), but open positions stay exposed the same way: the service must therefore hold no resting order without an expiry, and its down alert pages an operator (§2).
+
+A tighter bound needs positions reduced without an operator, for example stop orders resting at the exchange or a forced close on the drawdown stop. That would change §4.1 and ADR-0064 §5, and it trades the bound against a forced sale in a fast or illiquid market: it is a decision for the project owner, not taken by this policy. Until then, the owner sizes the allocated capital and the global exposure cap so that this worst case is acceptable.
 
 ## 7. Drill
 
@@ -83,7 +94,7 @@ With the automatic triggers above, the loss of an unattended day is bounded by t
 | When | Before paper trading starts; then every quarter; before live trading (a drill passed within the last 90 days, ADR-0064 §9); after any change to the Risk/Execution service, its limits or its broker adapter |
 | Where | Paper environment (simulated broker or exchange testnet), never with live keys |
 | Scenario | 1. Run an order flow on at least two symbols. 2. Engage the per-symbol switch manually: that symbol stops, the other trades. 3. Engage the global switch manually: no new order, open orders cancelled. 4. Restart the service: the switch stays on. 5. Try to re-arm with an identity other than an operator: refused. 6. Re-arm manually. 7. Force each automatic trigger in turn: a loss past the daily limit (fake prices), stale data (stop the feed), a reconciliation mismatch (change the paper ledger), a reject storm (fake broker rejecting). |
-| Evidence | A dated entry with: the time from trigger to the last order sent and to the last open order cancelled, the audit trail records of each engagement and re-arming, the alert raised for each automatic trigger, the restart result, and the operator. Kept as a runbook entry next to [dr-exercise-log.md](dr-exercise-log.md). A failed step blocks paper or live trading until a passing re-run. |
+| Evidence | A dated entry with: the time from trigger to the last order sent and to the last open order cancelled, the audit trail records of each engagement and re-arming, the alert raised for each automatic trigger, the restart result, and the operator. Kept in a drill log under `docs/compliance/`, in the format of [dr-exercise-log.md](dr-exercise-log.md), created with the Risk/Execution service. A failed step blocks paper or live trading until a passing re-run. |
 
 No runbook exists yet: it comes with the Risk/Execution service, as do the alerts and specs of ADR-0064.
 
@@ -91,7 +102,7 @@ No runbook exists yet: it comes with the Risk/Execution service, as do the alert
 
 | Control | Status |
 |---|---|
-| Loss limits (§3) | ❌ Not implemented, prerequisite to any live execution |
+| Loss limits and global exposure cap (§3) | ❌ Not implemented, prerequisite to any live execution |
 | Kill switch, manual and automatic (§4) | ❌ Not implemented, prerequisite to any live execution |
 | Drill (§7) | ❌ Never run: nothing to exercise |
 | Proposed values | ⏳ To be validated by the project owner before paper trading |

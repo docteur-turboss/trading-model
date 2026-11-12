@@ -15,7 +15,7 @@ The platform has no order chain. Of signal → decision → sizing → pre-trade
 - The only "kill switch" in the code is a fitness flag (`FEATURE_RISK_ADJUSTED_FITNESS`, ADR-0039): it changes how the GA scores agents and stops nothing.
 - `docs/compliance/algorithmic-trading-compliance.md` §6 suggested pre-trade checks as "order validation middleware in api-gateway" and a kill switch as a "circuit breaker webhook at gateway level". The gateway only proxies the `PUBLIC_ROUTES` of external callers and calls services with its own SVID; an order sent service to service never crosses it, so a control placed there is bypassed by design.
 
-The audit of trading risk (2026-11-11, score 9/100, "live trading forbidden") rates the execution controls 0 to 10/100. Root cause: the project is a research platform and execution was never designed. This ADR fixes the architecture of the layer that must exist before any order flow, paper or live. The amounts (daily loss, drawdown, sizes) belong to the [loss limits and kill switch policy](../compliance/risk-limits-policy.md) (issue #882), not here.
+The audit of trading risk (2026-11-11, score 9/100, "live trading forbidden") rates the execution controls 0 to 10/100. Root cause: the project is a research platform and execution was never designed. This ADR fixes the architecture of the layer that must exist before any order flow, paper or live. The loss limits (daily loss, drawdown) and the global exposure cap belong to the [loss limits and kill switch policy](../compliance/risk-limits-policy.md) (issue #882), not here; the other pre-trade caps of section 2 are set by the project owner in the service configuration.
 
 ## Decision (proposed)
 
@@ -75,7 +75,7 @@ Every limit has a hard ceiling in code that configuration cannot raise, and a co
 
 | Aspect | Rule |
 | --- | --- |
-| Control | One switch that stops new orders and, on the operator's choice, cancels open orders. Closing positions is a separate, explicit operator action. |
+| Control | One switch that stops new orders and cancels open orders ([policy](../compliance/risk-limits-policy.md) §4.1). Closing positions is a separate, explicit operator action. |
 | Location | The Risk/Execution service owns its state, in its durable store: a restart keeps it on, and an unreadable state counts as on (fail closed). The decision consumer and the model cannot read or change it. Last resort outside the service: revoke the broker API key, or delete the service SPIRE entry so it loses its identity. |
 | Triggers | Operator (an authenticated admin route, actor recorded in the audit trail); automatic: loss limits and drawdown (values in issue #882), reconciliation mismatch (section 4), stale data beyond the halt threshold and reject storm (section 7). Switching it off is always manual and recorded. |
 | Not | Not a feature flag of the gateway or of the model (ADR-0039 flags are read at startup and change behaviour, they do not stop a running order flow), not `FEATURE_RISK_ADJUSTED_FITNESS`. |
@@ -119,7 +119,7 @@ Order of milestones: ADR-0049 option B (offline inference, no order) → paper t
 | Requirement | Before paper | Before live |
 | --- | --- | --- |
 | Section 1: separate service, identity, ACL | Required | Required |
-| Section 2: every pre-trade check | Required | Required, values from #882 |
+| Section 2: every pre-trade check | Required | Required, global exposure cap from the #882 policy, other caps set by the project owner in the service configuration |
 | Section 3: lifecycle, idempotency, `unknown` handling | Required | Required, crash drill passed |
 | Section 4: reconciliation | Required, against the paper ledger or testnet | Required, against the real account |
 | Section 5: kill switch | Required, drill passed | Required, drill passed in the last period set by #882 |
