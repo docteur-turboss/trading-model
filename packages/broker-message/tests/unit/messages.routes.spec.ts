@@ -64,6 +64,49 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 		expect(listener).toHaveBeenCalledWith({ debug: true });
 	});
 
+	it("emits a redelivered messageId once and acknowledges both deliveries", async () => {
+		const listener = jest.fn<(...args: any[]) => any>();
+		EVENT_MANAGER.on("example.debug.create" as never, listener);
+		const body = {
+			metadata: {
+				...METADATA,
+				messageId: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+			},
+			payload: { debug: true },
+		};
+
+		expect((await deliver("message", "/message", body)).status).toBe(200);
+		expect((await deliver("message", "/message", body)).status).toBe(200);
+		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not remember the messageId of an invalid payload", async () => {
+		const listener = jest.fn<(...args: any[]) => any>();
+		EVENT_MANAGER.on("example.debug.create" as never, listener);
+		const metadata = {
+			...METADATA,
+			messageId: "0b9c1f3e-5d2a-4c7e-8a41-2f6d9e3b7a10",
+		};
+
+		expect(
+			(
+				await deliver("message", "/message", {
+					metadata,
+					payload: { invalid: 1 },
+				})
+			).status
+		).toBe(400);
+		expect(
+			(
+				await deliver("message", "/message", {
+					metadata,
+					payload: { debug: true },
+				})
+			).status
+		).toBe(200);
+		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
 	it("delivers a void event (no payload)", async () => {
 		const listener = jest.fn<(...args: any[]) => any>();
 		EVENT_MANAGER.on("example.show.create" as never, listener);

@@ -154,6 +154,7 @@ export const TRACEPARENT_METADATA_PREDICATE = z
 /** Schema of the metadata attached to every message. */
 export const MESSAGE_METADATA_SCHEMA = z.object({
 	topic: TOPIC_METADATA_PREDICATE,
+	messageId: IDS_METADATA_PREDICATE,
 	causationId: IDS_METADATA_PREDICATE,
 	correlationId: IDS_METADATA_PREDICATE,
 	eventType: EVENT_TYPE_METADATA_PREDICATE,
