@@ -32,14 +32,26 @@ async function _onBeforeServer(): Promise<void> {
 	}
 }
 
+let _discovery: ReturnType<
+	typeof AddressManager.lifecycleManager.start
+> | null = null;
+
 function _onStart(): void {
-	AddressManager.lifecycleManager.start();
+	_discovery = AddressManager.lifecycleManager.start();
 	app.start();
 	logger.info("DLQ Service started", { port: ENV.PORT });
 }
 
 async function _onStop(): Promise<void> {
 	await shutdownTelemetry();
+	try {
+		_discovery?.stop();
+	} catch (err) {
+		logger.warn("Error stopping address manager", {
+			error: normalizeError(err),
+		});
+	}
+	_discovery = null;
 	await app.shutdownSchedulers();
 	try {
 		await app.closeDb();
