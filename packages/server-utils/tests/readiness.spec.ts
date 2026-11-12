@@ -94,6 +94,18 @@ describe("createReadinessHandler", () => {
 		expect(JSON.parse(body).checks).toEqual({ hung: "error", db: "ok" });
 	});
 
+	it("should let a check declaring a longer bound outlive the default bound", async () => {
+		const slow = () =>
+			new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 150));
+		const checks: ReadinessCheck[] = [
+			{ name: "slow", check: slow, timeoutMs: DurationMs.of(1000) },
+		];
+		const app = express();
+		app.get("/health/ready", createReadinessHandler(checks, DurationMs.of(50)));
+		const { statusCode } = await makeRequest(app, "/health/ready");
+		expect(statusCode).toBe(200);
+	});
+
 	it("svid check passes on readable files and rejects a missing one", async () => {
 		const env = {
 			TLS_KEY_PATH: __filename,

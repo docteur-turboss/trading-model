@@ -8,6 +8,8 @@ import type { RequestHandler } from "express";
 export interface ReadinessCheck {
 	name: string;
 	check: () => Promise<boolean> | boolean;
+	/** Bound of this check; keep it under the `timeoutSeconds` of the service's readiness probe. */
+	timeoutMs?: DurationMs;
 }
 
 /**
@@ -28,13 +30,16 @@ export function svidReadinessCheck(env: TlsEnvVars): ReadinessCheck {
 	};
 }
 
-/** Per-check bound, under the 3 s `timeoutSeconds` of the K8s readiness probes. */
+/**
+ * Default per-check bound, under the 3 s `timeoutSeconds` of most K8s readiness
+ * probes. A check needing longer sets its own `timeoutMs` (message-manager: 5 s probe).
+ */
 const CHECK_TIMEOUT_MS = DurationMs.of(2000);
 
 /**
  * Mounts a dependency-aware readiness handler at `/health/ready`.
- * Runs every check in parallel, each bounded by `timeoutMs` (a check that
- * throws or times out is "error"). Returns 200 `{ status: "ok" }` when every
+ * Runs every check in parallel, each bounded by its own `timeoutMs`, else by
+ * `timeoutMs` (a check that throws or times out is "error"). Returns 200 `{ status: "ok" }` when every
  * check passes, otherwise 503 with the per-dependency results. `/ping` stays
  * a pure liveness endpoint.
  */
@@ -45,7 +50,10 @@ export function createReadinessHandler(
 	return async (_req, res) => {
 		const outcomes = await Promise.allSettled(
 			checks.map((check) =>
-				withTimeout(Promise.resolve().then(check.check), timeoutMs)
+				withTimeout(
+					Promise.resolve().then(check.check),
+					check.timeoutMs ?? timeoutMs
+				)
 			)
 		);
 		const results: Record<string, "ok" | "error"> = {};
