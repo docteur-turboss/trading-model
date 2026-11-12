@@ -815,15 +815,17 @@ verify_mongo_ingress() {
 # mongod enforces authentication (ADR-0067, issue #751): an anonymous client and
 # the `exporter` user (clusterMonitor, no data rights) are refused on the data.
 verify_mongo_auth() {
-	local label pod auth out
+	local label pod auth out pw
+	# The mongodb container has no exporter password in its env (only the sidecar and the init Job do)
+	pw="$($K -n "$NS" get secret trading-model-secrets -o jsonpath='{.data.MONGO_EXPORTER_PASSWORD}' | base64 -d)"
 	log "MongoDB: anonymous client and exporter refused (requires authentication / not authorized)"
 	for label in mongodb mongodb-audit; do
 		pod="$(mongo_primary "$label")" || { log "  no primary for $label"; return 1; }
-		for auth in "" '-u exporter -p "$MONGO_EXPORTER_PASSWORD" --authenticationDatabase admin'; do
+		for auth in "" "-u exporter -p '$pw' --authenticationDatabase admin"; do
 			# mongosh exits 1 on the refusal: capture first, pipefail would fail the grep. An anonymous client gets "requires authentication", a user without rights "not authorized" (code 13, Unauthorized)
-			out="$($K -n "$NS" exec "$pod" -- sh -c "mongosh --quiet $auth --eval \"db.getSiblingDB('admin').getCollectionNames()\" 2>&1" || true)"
+			out="$($K -n "$NS" exec "$pod" -- sh -c "mongosh --quiet $auth --eval \"db.getSiblingDB('admin').getCollection('system.users').findOne()\" 2>&1" || true)"
 			grep -qE "requires authentication|not authorized|Unauthorized" <<<"$out" || {
-				log "  $label accepted a client without data rights (${auth:-anonymous})"
+				log "  $label accepted a client without data rights ($([ -n "$auth" ] && echo exporter || echo anonymous))"
 				return 1
 			}
 		done
