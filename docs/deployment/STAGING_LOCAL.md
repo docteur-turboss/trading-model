@@ -183,7 +183,8 @@ prints the same revision twice.
 ## Between deploys
 
 The cluster may be stopped between two deploys. Nothing calls it except
-`deploy.yml` and `sealed-secrets-key-backup.yml`, and staging holds no data that
+`deploy.yml` and, when `vars.SEALED_SECRETS_BACKUP_RUNNER` is set,
+`sealed-secrets-key-backup.yml` (default `ubuntu-latest`), and staging holds no data that
 the compose stack or production needs. The price is a blind period: nothing
 runs in the cluster while it is down.
 
@@ -206,18 +207,23 @@ While it is down:
 
 - `db-backup` (daily 02:00), `db-backup-incremental` (hourly, minute 30),
   `db-retention` (daily 03:30) and the audit-chain verification and anchoring
-  (every 15 min, ADR-0027) do not run. Archives are not made for the stopped
-  hours: the PITR chain has a gap (`BackupPitrGap`, which stays firing until the
-  next daily dump). No alert fires either, since Prometheus and Alertmanager are down.
+  (every 15 min, ADR-0027) do not run. No alert fires either, since Prometheus
+  and Alertmanager are down.
+- No PITR gap for a stop of hours or days: MySQL is down too, so nothing purges
+  its binlogs (kept 30 days), and the first hourly run archives the closed ones.
+  `BackupPitrGap` fires only if the stop outlasts that, or the MongoDB oplog
+  window ("hours to days", `BACKUP_DR.md`, "Point-in-time archives") and overwrites
+  entries before they are archived.
 - After the start, with no run yet: `BackupIncrementalStale` after 2 h,
   `BackupJobStale` after 26 h, `RetentionStale` after 36 h,
   `AuditChainVerificationStale` / `AuditChainAnchoringStale` after 45 min,
   each plus its `for:` delay (`observability/alerting.yml`). They resolve on the next run.
-- `sealed-secrets-key-backup.yml` (daily 03:30 UTC) needs the runner and the API
-  server: its job stays queued or fails, and the key backup of that day is missing.
+- If `SEALED_SECRETS_BACKUP_RUNNER` is set, `sealed-secrets-key-backup.yml`
+  (daily 03:30 UTC) needs the runner and the API server: its job stays queued or fails, and the key backup of that day is missing.
 - Every pod restarts, including the single-replica data pods (see the partition
   above): expect the cold start of MySQL, Mongo and Redis before the smoke test
-  passes. This is not measured; the deploy allows up to 30 min for MySQL here.
+  passes. This is not measured; the smoke test waits `--timeout=120s` per Deployment
+  (`deploy-k8s.sh`).
 - `backup-key-check.yml` and CI run on GitHub-hosted runners: not affected.
 
 Stop it only when no backup window (02:00 to 04:00 UTC) matters to you, and
