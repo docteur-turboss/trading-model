@@ -1,9 +1,11 @@
+import { readFileSync } from "node:fs";
 import type { URLString } from "@trading-model/primitives/primitives";
 import Redis, { type RedisOptions } from "ioredis";
 import { withErrorLogging } from "./redis-client-builder";
 import type {
 	RedisConnectionConfig,
 	RedisSentinelConfig,
+	RedisTlsConfig,
 } from "./redis-config";
 
 export const BASE_RETRY_STRATEGY = (times: number): number | null => {
@@ -30,6 +32,10 @@ export function createFromUrl(
 	return withErrorLogging(client);
 }
 
+function tlsOptions(tls: RedisTlsConfig): { ca: Buffer; servername: string } {
+	return { ca: readFileSync(tls.caPath), servername: tls.servername };
+}
+
 export function createSentinel(
 	config: RedisSentinelConfig,
 	extraOptions?: Partial<RedisOptions>
@@ -40,6 +46,11 @@ export function createSentinel(
 		username: config.username,
 		password: config.password,
 		sentinelPassword: config.sentinelPassword,
+		...(config.tls && {
+			tls: tlsOptions(config.tls),
+			enableTLSForSentinelMode: true,
+			sentinelTLS: tlsOptions(config.tls),
+		}),
 		...BASE_REDIS_OPTIONS,
 		maxRetriesPerRequest: null,
 		// Follow +switch-master: without it a client left on a frozen or
@@ -70,5 +81,8 @@ export function buildFromConfig(
 ): Redis {
 	return config.mode === "sentinel"
 		? createSentinel(config.config, extraOptions)
-		: createFromUrl(config.url, extraOptions);
+		: createFromUrl(config.url, {
+				...(config.tls && { tls: tlsOptions(config.tls) }),
+				...extraOptions,
+			});
 }

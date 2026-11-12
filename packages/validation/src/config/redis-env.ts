@@ -13,4 +13,8 @@ export const RedisEnvSchema = z.object({
 	REDIS_USERNAME: z.string().optional(),
 	REDIS_PASSWORD: z.string().optional(),
 	REDIS_SENTINEL_PASSWORD: z.string().optional(),
+	/** `optional` (default) or `required`: TLS to Redis (ADR-0047, issue #930). */
+	REDIS_TLS_MODE: z.enum(["optional", "required"]).optional(),
+	REDIS_TLS_CA: z.string().optional(),
+	REDIS_TLS_SERVERNAME: z.string().optional(),
 });
