@@ -32,7 +32,7 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 | **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/adapters/outbound/binance/`) | Integration tests |
 | **Agent behaviour bounds** — max position only | `maxPosition` rejects a buy that would exceed it (`services/trader-trainer/src/domain/env/trade-executor.ts:32`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
-| **Kill functionality** — ability to halt trading | Not implemented. Prerequisite to any live execution (§6) | ❌ Not implemented |
+| **Kill functionality** — ability to halt trading | Not implemented. Prerequisite to any live execution (§6). Scope, triggers, re-arming and drill: [Loss Limits and Kill Switch Policy](risk-limits-policy.md) | ❌ Not implemented |
 
 ### 3.2 Stress Testing (Art. 5)
 
@@ -93,7 +93,7 @@ When transitioning from research/simulation to production algorithmic trading, t
 | 1 | Register with competent authority as algorithmic trading firm | N/A — infrastructure provider responsibility |
 | 2 | Implement pre-trade risk controls (Art. 12-15) | In a Risk/Execution service separate from the model and the decision consumer, never in the api-gateway (the order path does not cross it): [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 (Proposed) |
 | 3 | Deploy market-making obligations if applicable (Art. 17-18) | Not planned |
-| 4 | Implement kill switch functionality | Not implemented. Owned by the Risk/Execution service, outside the decision component, state kept across restarts: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Proposed); limits and triggers in issue #882 |
+| 4 | Implement kill switch functionality | Not implemented. Owned by the Risk/Execution service, outside the decision component, state kept across restarts: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Proposed); loss limits, triggers, re-arming and drill: [Loss Limits and Kill Switch Policy](risk-limits-policy.md) |
 | 5 | Annual RTS 6 conformance testing | Schedule via CI/CD pipeline |
 | 6 | MAR suspicious transaction reporting | Integrate audit-logger with regulatory reporting |
 | 7 | Maintain algorithmic trading register | See [data-processing-register.md](data-processing-register.md) |
