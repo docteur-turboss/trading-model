@@ -673,8 +673,8 @@ describe("MarketDataBuffer", () => {
 			expect(result).toBeNull();
 		});
 
-		it("should return windows with 11+ candles (10+ steps)", () => {
-			feedCandles(buffer, "BTCUSDT", 11);
+		it("should return windows once all three segments reach 10 steps", () => {
+			feedCandles(buffer, "BTCUSDT", 100);
 
 			const result = buffer.getAllWindows(TradingSymbol.of("BTCUSDT")) as {
 				train: unknown[];

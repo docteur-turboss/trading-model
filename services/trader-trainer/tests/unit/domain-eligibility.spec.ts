@@ -5,22 +5,24 @@ import {
 } from "../../src/domain/market-data/window-splitter";
 
 describe("hasEnoughTrainingData", () => {
-	it("single split: one candle short is refused, the threshold is accepted", () => {
-		// 13 steps -> floor(13 * 0.8) = 10 training steps; 12 steps -> 9.
-		expect(hasEnoughTrainingData(13, 0.2, 1)).toBe(false);
-		expect(hasEnoughTrainingData(14, 0.2, 1)).toBe(true);
+	it("single split: each of train, validation and test needs MIN_TRAINING_STEPS", () => {
+		expect(hasEnoughTrainingData(60, 0.2, 1, 0.15)).toBe(false);
+		// 100 candles: 99 steps -> test 15, rest 84, train 67, validation 17.
+		expect(hasEnoughTrainingData(100, 0.2, 1, 0.15)).toBe(true);
+		// 0.5 test split of 29 steps: test 15, rest 14, train 11, validation 3.
+		expect(hasEnoughTrainingData(30, 0.2, 1, 0.5)).toBe(false);
 	});
 
 	it("walk-forward: MIN_TRAINING_STEPS per fold is accepted", () => {
-		const steps = MIN_TRAINING_STEPS * 5;
-		expect(hasEnoughTrainingData(steps + 1, 0.99, 5)).toBe(true);
+		const rest = MIN_TRAINING_STEPS * 5;
+		// 100 steps -> test 15, rest 85 >= 50.
+		expect(hasEnoughTrainingData(rest * 2 + 1, 0.99, 5)).toBe(true);
 	});
 
-	it("walk-forward fallback uses the default split (0.2), not the configured one", () => {
-		// 49 steps < 50: splitter falls back to 0.2 -> 39 train steps, accepted even with split 0.99.
-		expect(hasEnoughTrainingData(50, 0.99, 5)).toBe(true);
-		// 12 steps -> floor(12 * 0.8) = 9: refused.
-		expect(hasEnoughTrainingData(13, 0.99, 5)).toBe(false);
-		expect(hasEnoughTrainingData(14, 0.99, 5)).toBe(true);
+	it("walk-forward fallback uses the default validation split, not the configured one", () => {
+		// 99 steps: test 14, rest 84 >= 50 folds -> accepted.
+		expect(hasEnoughTrainingData(100, 0.99, 5)).toBe(true);
+		// 60 steps: test 9 < 10, refused whatever the folds.
+		expect(hasEnoughTrainingData(61, 0.99, 5)).toBe(false);
 	});
 });

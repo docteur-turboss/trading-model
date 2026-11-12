@@ -29,6 +29,7 @@ export interface WireWindowSet {
 	id: string;
 	train: WireMarketStep[];
 	validation: WireMarketStep[];
+	test?: WireMarketStep[];
 }
 
 const toWire = (steps: MarketStep[]): WireMarketStep[] =>
@@ -52,6 +53,7 @@ export const encodeWindowSets = (sets: WindowSet[]): WireWindowSet[] =>
 		id: set.id,
 		train: toWire(set.train),
 		validation: toWire(set.validation),
+		test: set.test && toWire(set.test),
 	}));
 
 export const decodeWindowSets = (sets: WireWindowSet[]): WindowSet[] =>
@@ -59,4 +61,5 @@ export const decodeWindowSets = (sets: WireWindowSet[]): WindowSet[] =>
 		id: set.id,
 		train: fromWire(set.train),
 		validation: fromWire(set.validation),
+		test: set.test && fromWire(set.test),
 	}));

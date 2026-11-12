@@ -43,7 +43,7 @@ function trades(symbol, limit) {
 // given, else the latest `limit` candles.
 function klines(symbol, limit, startTime) {
   const lastOpen = Math.floor(Date.now() / MINUTE) * MINUTE;
-  const count = Math.min(limit, 50);
+  const count = Math.min(limit, 200);
   const firstOpen = startTime
     ? Math.ceil(startTime / MINUTE) * MINUTE
     : lastOpen - (count - 1) * MINUTE;
