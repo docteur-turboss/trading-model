@@ -114,8 +114,6 @@ spec:
                   fieldPath: metadata.name
             - name: ERROR_URL_WEBHOOK
               value: ""
-            - name: DLQ_LOCAL_FALLBACK_PATH
-              value: "/var/lib/message-manager/dead-letter-queue.jsonl"
             # Signs the dead letters sent to dlq-service (same key as dlq-service).
             - name: DLQ_AUTH_HMAC_SECRET
               valueFrom:
@@ -132,8 +130,6 @@ spec:
           volumeMounts:
             - name: svid
               mountPath: /run/spire/svid
-            - name: dlq-data
-              mountPath: /var/lib/message-manager
           # exec + SVID: the server demands a client certificate, which a
           # kubelet httpGet probe cannot present (tls: certificate required).
           livenessProbe:
@@ -219,9 +215,4 @@ spec:
             driver: csi.spiffe.io
             readOnly: true
         - name: svid
-          emptyDir: {}
-        # Dead letters dlq-service could not take yet (DLQ_LOCAL_FALLBACK_PATH),
-        # forwarded every minute and at shutdown; lost with the pod otherwise
-        # (alert DeadLettersNotForwarded), see ADR-0048.
-        - name: dlq-data
           emptyDir: {}

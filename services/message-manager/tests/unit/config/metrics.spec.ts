@@ -25,7 +25,6 @@ import {
 	DELIVERY_LATENCY_SECONDS,
 	IN_FLIGHT_MESSAGES,
 	MESSAGES_DELIVERED_TOTAL,
-	MESSAGES_DLQ_ERROR_TOTAL,
 	MESSAGES_DLQ_TOTAL,
 	MESSAGES_PUBLISHED_TOTAL,
 	metricsHandler,
@@ -38,7 +37,6 @@ describe("metrics", () => {
 		expect(MESSAGES_PUBLISHED_TOTAL).toBeDefined();
 		expect(MESSAGES_DELIVERED_TOTAL).toBeDefined();
 		expect(MESSAGES_DLQ_TOTAL).toBeDefined();
-		expect(MESSAGES_DLQ_ERROR_TOTAL).toBeDefined();
 	});
 
 	it("should export all histograms", () => {

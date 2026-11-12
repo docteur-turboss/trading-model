@@ -1,6 +1,6 @@
 # Runbook: Message Bus Outage
 
-**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `DeadLettersNotForwarded`, `DeadLettersRejected`, `MessagesLost`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
+**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `DeadLettersRejected`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
 **Severity:** SEV1
 
 ## Architecture Context
@@ -10,7 +10,7 @@ message-manager is an HTTP pub/sub broker with a durable Redis Streams journal (
 - **A publish is answered (202) once the message is in the journal** (one Redis stream per topic, one consumer group per subscriber service, key `trading-model:message-manager:journal:<topic>`); the workers of every replica deliver and retry afterwards. A stop or a crash of a replica loses nothing: another replica claims its pending entries within about 30 s. Messages accepted for a service that does not subscribe wait for it up to 24 h. The journal is Redis state with no backup: AOF and replication protect it, so a Redis outage stops publishing (503) and losing Redis with its replicas loses what was not delivered yet. Inspect a backlog with `XPENDING <journal key> <service>`; never `KEYS`.
 - **Subscriptions live in Redis** (one hash per topic, `REDIS_SENTINELS`), expire 60 s after their last renewal, and subscribers renew every 15 s. Without Redis, message-manager cannot route anything.
 - **A message published with no subscriber is dropped** and counted (`mm_messages_unrouted_total`), except when it sets `delivery.requireSubscriber`: the publish is refused (503) and the publisher keeps it. The scraper candles do (publish cursor): after an outage longer than 60 s the subscriptions have expired, and the candle backlog waits in MySQL until the trainer renews its subscription (15 s) instead of being lost.
-- **Dead letters go to dlq-service** (signed `POST /dlq`). While it cannot take them they wait in a local file (`DLQ_LOCAL_FALLBACK_PATH`, an `emptyDir` in K8s), sent again every minute and at shutdown: a pod deleted without a graceful stop loses them.
+- **Dead letters go to dlq-service** (signed `POST /dlq`). While it cannot take one, or while a subscriber's circuit breaker is open, the message stays pending in the journal and is retried (no local file): it is only lost if it stays pending past the 24 h trim (`JournalEntriesTrimmed`).
 
 An outage affects:
 
@@ -23,7 +23,7 @@ An outage affects:
 - `ServiceDown`: message-manager not scraped.
 - `MessageDeliveryLowSuccessRate`: more than 0.5 % of messages dead-lettered over 5 min.
 - `MessagesDeadLettered`: messages given up, now in dlq-service.
-- `DeadLettersNotForwarded` / `DeadLettersRejected` / `MessagesLost`: dead letters stuck in a pod, refused by dlq-service, or gone.
+- `DeadLettersRejected`: dlq-service refused dead letters for good.
 - `MessagesUnrouted`: a topic has had no subscriber for 10 min.
 - `JournalBacklogOld`: a subscriber has not acknowledged an entry for 15 min (see 7).
 - `JournalEntriesTrimmed`: undelivered journal entries were trimmed after 24 h: messages lost (see 6).
@@ -87,17 +87,11 @@ kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
 
 ### 4. Dead letters stuck, refused or lost
 
-**Symptoms:** `MessagesDeadLettered` (warning: they are in dlq-service, list them with `GET /v1/dlq-service/dlq` and replay with `POST /dlq/replay` through the edge-proxy), `DeadLettersNotForwarded` (warning), `DeadLettersRejected` (warning) or `MessagesLost` (critical: neither dlq-service nor the file took them).
+**Symptoms:** `MessagesDeadLettered` (warning: they are in dlq-service, list them with `GET /v1/dlq-service/dlq` and replay with `POST /dlq/replay` through the edge-proxy) or `DeadLettersRejected` (warning). While dlq-service cannot take a dead letter, its journal entry stays pending (`JournalBacklogOld` after 15 min, see 7); message-manager logs the cause.
 
-**`DeadLettersNotForwarded`:** message-manager logs `dlq-service unavailable: dead letter kept locally` with the cause. Check that dlq-service is up and ready (`MongoDB`), that message-manager reaches it, and that both read the same `DLQ_AUTH_HMAC_SECRET` (`trading-model-secrets`): a 401 means the secrets differ, a 403 that `message-manager` is missing from `DLQ_ALLOWED_SERVICES`. Once fixed, the next forward (1 min) empties the file and the alert resolves. **Do not delete the pod before that**, or copy the file first:
+**dlq-service unavailable:** check that dlq-service is up and ready (`MongoDB`), that message-manager reaches it, and that both read the same `DLQ_AUTH_HMAC_SECRET` (`trading-model-secrets`): a 401 means the secrets differ, a 403 that `message-manager` is missing from `DLQ_ALLOWED_SERVICES`. Once fixed, the pending entries are dead-lettered at their next retry; nothing to copy or replay.
 
-```bash
-POD=$(kubectl get pods -n trading-model -l app.kubernetes.io/component=message-manager -o name | head -n 1)
-kubectl cp -n trading-model -c message-manager \
-  "${POD#pod/}:/var/lib/message-manager/dead-letter-queue.jsonl" ./dead-letter-queue.jsonl
-```
-
-**`DeadLettersRejected`:** dlq-service refused entries for good (invalid, or a message too large). They are in `/var/lib/message-manager/dead-letter-queue.jsonl.rejected` (copy it the same way) and logged with their topic. Each line is a `DlqEntry`: fix it and submit it from inside the stack, never through the gateway (`POST /dlq-service/dlq` is not public since #845: an API client could otherwise store a forged message and replay it to any service). Run the signed `POST /dlq` of [dlq-service](../../services/dlq-service.md#examples) from the dlq-service pod/container (`kubectl exec` / `docker compose exec`), with its SVID, then replay it with `POST /v1/dlq-service/dlq/replay`.
+**`DeadLettersRejected`:** dlq-service refused an entry for good (invalid, or a message too large; `mm_dlq_rejected_total`). Its journal entry stays pending, retried and refused again, until the 24 h trim drops it (`JournalEntriesTrimmed`, see 6). Find it from the message-manager logs and the `XPENDING` of the journal (7), and fix the cause (a payload over the dlq-service limit, a schema drift) before then.
 
 ### 5. Scraper publish backlog
 

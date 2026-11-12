@@ -2,10 +2,7 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { Message } from "@trading-model/contracts/message-types";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
-import type {
-	SequenceNumber,
-	Topic,
-} from "@trading-model/primitives/primitives";
+import type { Topic } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { TopicBinding } from "@trading-model/primitives/topic-binding";
 import { CircuitStateMachine } from "@trading-model/reliability/circuit-state-machine";
@@ -26,7 +23,6 @@ export interface SubscriptionConfig extends TopicBinding {
 interface DeliveryServices {
 	circuitBreaker: CircuitStateMachine;
 	attemptHandler: DeliveryAttemptHandler;
-	deliveryPort: MessageDeliveryPort;
 }
 
 function buildDeliveryServices(config: SubscriptionConfig): DeliveryServices {
@@ -46,7 +42,7 @@ function buildDeliveryServices(config: SubscriptionConfig): DeliveryServices {
 		callbackPath: config.callbackPath,
 		serviceName,
 	});
-	return { circuitBreaker, attemptHandler, deliveryPort: config.deliveryPort };
+	return { circuitBreaker, attemptHandler };
 }
 
 function circuitStateIndex(state: CircuitState): number {
@@ -74,7 +70,8 @@ export class Subscription {
 	 * One delivery attempt, the `deliveries`-th of the message.
 	 *
 	 * @returns `true` when the entry is settled (delivered, dead-lettered or
-	 *   dropped) and must be acknowledged, `false` to try again later.
+	 *   dropped) and must be acknowledged, `false` to try again later (also
+	 *   while the circuit is open: the entry waits in the journal).
 	 */
 	async deliver<TData>(
 		message: Message<TData>,
@@ -93,7 +90,7 @@ export class Subscription {
 		message: Message<TData>,
 		deliveries: number
 	): Promise<boolean> {
-		const { circuitBreaker, attemptHandler, deliveryPort } = this._services;
+		const { circuitBreaker, attemptHandler } = this._services;
 		const subscriber = this.serviceIdentity.serviceName;
 		const count = (status: "success" | "failed") =>
 			MESSAGES_DELIVERED_TOTAL.inc({ topic: this.topic, status });
@@ -103,19 +100,12 @@ export class Subscription {
 				{ subscriber },
 				circuitStateIndex(CircuitState.OPEN)
 			);
-			count("failed");
-			getLogger().warn("Circuit breaker open and rejecting dispatch", {
+			getLogger().warn("Circuit breaker open: message left in the journal", {
 				topic: this.topic,
 				service: subscriber,
 				failureCount: circuitBreaker.getFailureCount(),
 			});
-			await deliveryPort.markDeadLetter({
-				service: subscriber,
-				message,
-				reason: CircuitState.OPEN.toUpperCase(),
-				deliveryAttempt: circuitBreaker.getFailureCount() as SequenceNumber,
-			});
-			return true;
+			return false;
 		}
 
 		const outcome = await attemptHandler.attempt(
