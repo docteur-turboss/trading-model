@@ -1,7 +1,8 @@
 // MongoDB users of the platform (issue #669, ADR-0067). Run with mongosh against
 // a member of the replica set (K8s Jobs `mongo-*-init`) or the standalone mongod
 // (compose `mongo-users`). Idempotent: a user is created, or updated to the
-// password and roles below, so a rotated password is applied by running it again.
+// password and roles below, so a rotated password is applied by running it again,
+// except root's: change it in the database first (docs/deployment/sealed-secrets.md).
 //
 // Every user lives in `admin` (clients connect with `authSource=admin`).
 // Environment: MONGO_ROOT_PASSWORD (required), and one password per client of
