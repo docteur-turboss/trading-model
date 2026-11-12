@@ -523,6 +523,21 @@ tests:
               description: 'The circuit breaker of trader-trainer for instance mm-1 is in OPEN state: calls to that instance are refused.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md'
 
+  - name: sustained HTTP breaker rejections fire HttpCircuitBreakerRejecting
+    interval: 1m
+    input_series:
+      - series: 'http_circuit_breaker_rejections_total{job="trader-trainer",instance="t",target="message-manager",kind="service"}'
+        values: '0+5x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HttpCircuitBreakerRejecting
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer, target: message-manager, kind: service}
+            exp_annotations:
+              summary: 'trader-trainer refuses calls to message-manager'
+              description: 'trader-trainer has had its outbound calls to service message-manager refused by the open HTTP circuit breaker for 10 minutes.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
+
   # K8s: the HTTP-only replicas persist nothing, the collector does.
   - name: market data flows through the collector only
     interval: 1m

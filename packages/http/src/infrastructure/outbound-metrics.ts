@@ -22,6 +22,13 @@ export const outboundRequestsInFlight = new Gauge({
 	labelNames: ["service"] as const,
 });
 
+/** Outbound calls refused by the shared circuit breaker; `target` is a hostname or service name per `kind`. */
+export const circuitBreakerRejectionsTotal = new Counter({
+	name: "http_circuit_breaker_rejections_total",
+	help: "Outbound HTTP calls refused by the open circuit breaker, by target and kind (hostname or service)",
+	labelNames: ["target", "kind"] as const,
+});
+
 /** Inbound mTLS / ACL denials; `reason` is one of a fixed set of codes (bounded cardinality). */
 export const mtlsDenialsTotal = new Counter({
 	name: "http_mtls_denials_total",
