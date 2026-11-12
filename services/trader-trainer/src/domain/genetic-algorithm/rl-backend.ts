@@ -17,8 +17,18 @@ import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 interface StepInput {
 	features: FeatureVector;
+	/** Close of the bar: the wallet is marked to it. */
 	price: Price;
+	/** Where the decision fills (MarketStep.fillPrice); `price` when absent. */
+	fillPrice?: Price;
 }
+
+/**
+ * Half-spread + slippage paid on every fill, on top of the fee (ADR-0066):
+ * 5 bps, well above the half-spread of the liquid Binance spot pairs, the
+ * margin covering a market order's slippage and less liquid symbols.
+ */
+export const EXECUTION_COST_RATE = 0.0005;
 
 /**
  * A decision and what it earned. States are network inputs: market features
@@ -115,11 +125,12 @@ function _buildAgentConfig(
 	return {
 		nnConfig: _buildNNConfig(genome, rng),
 		// Each trade moves 10 % of the initial cash, whatever the asset's price,
-		// and pays the Binance spot taker fee.
+		// and pays the Binance spot taker fee plus half-spread and slippage.
 		wallet: {
 			initialCash: Cash.of(1000),
 			initialPrice: Price.of(1),
 			feeRate: Percentage.of(0.001),
+			executionCostRate: Percentage.of(EXECUTION_COST_RATE),
 		},
 		tradeFraction: 0.1,
 		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy),
@@ -171,7 +182,11 @@ export function makeTradingAgentBackend(
 	return {
 		forwardPass: (features) => agent.forwardPass(encoded(features)).output,
 		step: (input) => {
-			const result = agent.step(encoded(input.features), input.price);
+			const result = agent.step(
+				encoded(input.features),
+				input.price,
+				input.fillPrice
+			);
 			return {
 				reward: result.reward,
 				action: result.actionIndex,
