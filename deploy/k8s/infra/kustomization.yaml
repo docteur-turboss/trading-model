@@ -5,6 +5,7 @@ resources:
   - redis-tls.yaml
   - redis.yaml
   - mysql-tls.yaml
+  - mongo-tls.yaml
   - mysql.yaml
   - mongodb.yaml
   - mongo-audit.yaml
