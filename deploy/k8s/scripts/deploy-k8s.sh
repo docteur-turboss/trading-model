@@ -332,6 +332,14 @@ canary_start() {
     abort_canary "$canary_name" "Service $service does not route to $canary_name: the canary would receive no traffic."
   fi
   log "Service $service routes to $canary_name: ${routed}/${ready} ready endpoints (~$(( routed * 100 / ready ))% of traffic)"
+
+  # edge-proxy pools keep-alive connections to the gateway, opened before the canary existed:
+  # they only reach the primary. Fresh pods (surge, maxUnavailable 0) open new ones that kube-proxy spreads.
+  if [[ "$service" == "api-gateway" ]]; then
+    if ! kubectl rollout restart -n "$NAMESPACE" deployment/edge-proxy       || ! kubectl rollout status -n "$NAMESPACE" deployment/edge-proxy --timeout=180s; then
+      abort_canary "$canary_name" "edge-proxy restart failed: the canary would be judged on stale connections."
+    fi
+  fi
 }
 
 # Observation gate of one started canary. Exits (after deleting the canary) on failure.

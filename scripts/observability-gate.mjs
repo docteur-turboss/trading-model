@@ -13,7 +13,7 @@
 //    6. Compose (observability/alerting.yml) and K8s (prometheus ConfigMap)
 //       evaluate the same alert rules (name, expr, for, labels, annotations),
 //       and every rule has a runbook_url on main naming a file of the
-//       repository (and one of its headings, for an #anchor).
+//       checked-out tree (deploy rewrites main to the release tag) (and one of its headings, for an #anchor).
 //    7. Every metric an alert reads is emitted by a service, a backup script or
 //       a configured exporter.
 //    8. Alerts reach someone: compose and K8s run the same Alertmanager config,

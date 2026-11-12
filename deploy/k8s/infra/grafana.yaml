@@ -231,19 +231,6 @@ data:
               datasourceUid: jaeger
               url: "$${__value.raw}"
 ---
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: grafana-pdb
-  labels:
-    app.kubernetes.io/component: grafana
-    app.kubernetes.io/part-of: trading-model
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/component: grafana
----
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

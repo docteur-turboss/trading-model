@@ -1,8 +1,7 @@
 # SPIRE Server — workload identity issuance (ADR-0011).
 # Datastore: SQLite on the server's own PVC (ADR-0065): losing mysql-0 no
 # longer stops SVID issuance. keys-sqlite.json holds the CA keys of that
-# datastore; keys.json and the MySQL `spire` database belong to the releases
-# before ADR-0065 and are left untouched, so a rollback finds them (ADR-0040).
+# datastore.
 # Agents (namespace trading-model-node, deploy/k8s/node-agents) attest with k8s_psat;
 # the server publishes its trust bundle into the `spire-bundle` ConfigMap of
 # trading-model-node (k8sbundle notifier) that the agents mount.
@@ -247,14 +246,6 @@ spec:
         - port: 8081
           protocol: TCP
   egress:
-    # MySQL: only for a rollback to a release before ADR-0065 (datastore in
-    # MySQL). Contract step: drop it, with the spire-server client of
-    # mysql-network-policy, in a later release (ADR-0040).
-    - to:
-        - podSelector: {}
-      ports:
-        - port: 3306
-          protocol: TCP
     # Cluster DNS.
     - ports:
         - port: 53

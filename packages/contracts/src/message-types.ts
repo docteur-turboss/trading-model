@@ -49,9 +49,6 @@ export interface DeliveryType {
 	/** Message expiration in milliseconds. */
 	ttl?: DurationMs;
 
-	/** Identifier used to prevent duplicate processing. */
-	deduplicationId?: MessageId;
-
 	/**
 	 * Refuse the publish (503) instead of dropping it when the topic has no
 	 * subscriber: for a publisher that sends the message again until it is

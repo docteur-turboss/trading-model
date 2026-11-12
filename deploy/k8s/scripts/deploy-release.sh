@@ -13,7 +13,7 @@
 #       Deletes retired HPAs and the finished Mongo init Jobs (immutable pod
 #       template, recreated by the apply), then drops spec.replicas from
 #       last-applied-configuration of HPA-driven Deployments (needs jq).
-#   deploy-release.sh render <overlay-dir> <registry> <digests-file>
+#   deploy-release.sh render <overlay-dir> <registry> <digests-file> [<tag>]
 #       Prints the overlay with every first-party image pinned by digest
 #       ("<image> <sha256:...>" per line); the caller pipes it to kubectl apply.
 #   deploy-release.sh dry-run <namespace> <node-agents-dir> < rendered.yaml
@@ -48,7 +48,7 @@ DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scrape
 STATEFULSETS="redis redis-sentinel"
 
 # Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
-INIT_JOBS="mongo-audit-init mongo-dlq-init mongo-audit-users mongo-dlq-users mysql-cluster-init"
+INIT_JOBS="mongo-audit-init mongo-dlq-init mysql-cluster-init mongo-audit-users mongo-dlq-users"
 
 usage() {
 	echo "usage: $0 record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file>" >&2
@@ -104,8 +104,11 @@ release_replicas() {
 
 # The manifests name the images ghcr.io/trading-model/<image>: a wrapper
 # kustomization next to the overlay rewrites them to <registry>/<image>@digest.
+# A release tag (X.Y.Z) also moves the runbook_url links from blob/main/ to blob/vX.Y.Z/
+# (issue #939); the sources and the compose/K8s comparison keep main.
 render() {
-	local overlay="$1" registry="$2" digests="$3" img digest
+	local overlay="$1" registry="$2" digests="$3" tag="${4:-}" img digest ref=main
+	[[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] && ref="v$tag"
 	local wrapper
 	wrapper="$(dirname "$overlay")/.deploy-$(basename "$overlay")"
 	[ -s "$digests" ] || {
@@ -127,7 +130,8 @@ render() {
 	} >"$wrapper/kustomization.yaml"
 	# jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
 	# load restrictor rejects it and kubectl apply -k cannot relax it.
-	kubectl kustomize --load-restrictor LoadRestrictionsNone "$wrapper"
+	kubectl kustomize --load-restrictor LoadRestrictionsNone "$wrapper" |
+		sed "s#/trading-model/blob/main/#/trading-model/blob/$ref/#g"
 }
 
 # Server-side dry-run of what "Apply cluster-scope objects", "Apply SPIFFE node
@@ -286,7 +290,7 @@ case "${1:-}" in
 deployments) echo $DEPLOYMENTS ;;
 record) [ $# -eq 3 ] || usage; record "$2" "$3" ;;
 release-replicas) [ $# -eq 2 ] || usage; release_replicas "$2" ;;
-render) [ $# -eq 4 ] || usage; render "$2" "$3" "$4" ;;
+render) [ $# -ge 4 ] && [ $# -le 5 ] || usage; render "$2" "$3" "$4" "${5:-}" ;;
 dry-run) [ $# -eq 3 ] || usage; dry_run "$2" "$3" ;;
 wait) [ $# -ge 2 ] || usage; wait_rollout "$2" "${3:-180s}" ;;
 rollback) [ $# -eq 3 ] || usage; rollback "$2" "$3" ;;

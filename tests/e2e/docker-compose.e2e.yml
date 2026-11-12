@@ -75,6 +75,8 @@ services:
       TRAINER_EPISODES_PER_INDIVIDUAL: '10'
       # Hard stop in case a run is slower than expected on a CI runner.
       TRAINER_TIME_BUDGET_MS: '60000'
+      # A session per minute so the E2E sees a model in its delay.
+      TRAINER_INTERVAL_MS: '60000'
       # The stub serves 1-min candles for the current minute: allow a few of them.
       TRAINER_MAX_DATA_AGE_MS: '300000'
       # Only the scraper may download weights; message-manager (also in the

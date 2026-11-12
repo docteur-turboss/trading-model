@@ -425,6 +425,7 @@ services:
       TRAINER_GENERATIONS: ${TRAINER_GENERATIONS:-50}
       TRAINER_POPULATION_SIZE: ${TRAINER_POPULATION_SIZE:-20}
       TRAINER_TIME_BUDGET_MS: ${TRAINER_TIME_BUDGET_MS:-300000}
+      TRAINER_INTERVAL_MS: ${TRAINER_INTERVAL_MS:-3600000}
       TRAINER_MAX_DATA_AGE_MS: ${TRAINER_MAX_DATA_AGE_MS:-900000}
       TRAINER_EPISODES_PER_INDIVIDUAL: ${TRAINER_EPISODES_PER_INDIVIDUAL:-10}
       TRAINER_FITNESS_TYPE: ${TRAINER_FITNESS_TYPE:-total_pnl}
@@ -1029,11 +1030,13 @@ services:
     # In-memory storage keeps every trace by default: it reached 11.5 GiB in
     # 22 h and starved the kind staging cluster sharing the Docker VM (issue
     # #760). Oldest traces go first past MEMORY_MAX_TRACES; mem_limit is the
-    # K8s limit (deploy/k8s/infra/jaeger.yaml).
+    # K8s limit (deploy/k8s/infra/jaeger.yaml). Unbounded, the store sat at
+    # 1 GiB and restarted in a loop, timing out every OTLP export (issue #962);
+    # with 5000 traces it levels off at 204 MiB (20 %) under market collection.
     mem_limit: 1g
     environment:
       COLLECTOR_OTLP_ENABLED: 'true'
-      MEMORY_MAX_TRACES: '20000'
+      MEMORY_MAX_TRACES: '5000'
     networks:
       - backend-net
 
