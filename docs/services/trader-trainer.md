@@ -121,7 +121,7 @@ After each successful training, the best agent is stored as an immutable version
 <SYMBOL>/<yyyymmddThhmmssZ>-<sha12>/weights.f32     float32 little-endian, sha256 in the manifest
 ```
 
-The `TRAINER_MODEL_RETENTION` newest versions are kept per symbol (default 20). A failed write is logged and counted (`tt_model_artifacts_total{result}`: `stored`, `skipped` when the best genome has no trained weights, `error`); the training result is kept either way.
+The `TRAINER_MODEL_RETENTION` newest versions are kept per symbol (default 20). A failed write is logged and counted (`tt_model_artifacts_total{result}`: `stored`, `skipped` when the best genome has no trained weights, `error`); the training result is kept either way. Each stored manifest carries `admission`, the ADR-0030 verdict on the test segment, and `training.model.published` its `admissible` flag (ADR-0069; counted by `tt_model_admission_total{result}`: `admissible`, `rejected`). A model that fails is still stored and published.
 
 `GET /models/:symbol` and `GET /models/:symbol/:version` are public. The weights (`GET /models/:symbol/:version/weights`) are not proxied by the gateway: a service calls the trainer over mTLS, and its SPIFFE identity must be listed in `MODEL_DOWNLOAD_CALLERS` (empty by default: 403 for everybody). The response is `application/octet-stream` with the sha256 in `x-model-sha256`; check it against the manifest.
 

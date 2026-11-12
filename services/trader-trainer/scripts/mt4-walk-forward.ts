@@ -44,16 +44,14 @@ import { FitnessType } from "../src/domain/genetic-algorithm/genome-control";
 import type { MarketStep } from "../src/domain/genetic-algorithm/genome-types";
 import { makeSeededBackendFactory } from "../src/domain/genetic-algorithm/rl-backend";
 import { MarketDataBuffer } from "../src/domain/market-data-buffer";
+import { ADMISSION_THRESHOLDS } from "../src/domain/model-admission";
 
 const INITIAL_CASH = 1000;
 const DAY_MS = 86_400_000;
 
 /** ADR-0030 success criteria: all must hold. */
 const CRITERIA = {
-	minSharpe: 1.0,
-	minSortino: 1.5,
-	/** Annualised return / max drawdown. */
-	minCalmar: 1.0,
+	...ADMISSION_THRESHOLDS,
 	/** One-sided t-statistic of the mean segment return. */
 	minTStat: 2.0,
 	/** Share of (symbol, seed) track records with a positive Sharpe. */

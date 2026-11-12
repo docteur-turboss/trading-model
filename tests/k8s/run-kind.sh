@@ -511,13 +511,6 @@ upgrade() {
 	}
 	log "  $last rolled back and applied again, same checksums"
 
-	# ADR-0065: the forced-failure run moved the SPIRE server to a new CA, and the
-	# N-1 edge-proxy pod the rollback started cannot reload its trust bundle
-	# (only N can). Restart it so the probe window measures the upgrade, not that
-	# one-off CA change; drop this once N-1 itself reloads the bundle.
-	$K -n "$NS" rollout restart deployment/edge-proxy
-	$K -n "$NS" rollout status deployment/edge-proxy --timeout=180s
-
 	log "upgrade N-1 → N, availability probed through edge-proxy"
 	verify_collection_gap "upgrade N-1 → N" release_under_probe || {
 		log "the upgrade to release N failed, dropped requests, or stopped the market data 30 s or more"

@@ -262,16 +262,17 @@ is above 0 again; the alert resolves at the next evaluation.
 
 The last 3 stored models of a symbol have an out-of-sample Sharpe below buy
 and hold on the same bars (issue #884). Every stored model sets, by symbol and
-`segment` (`validation` until a test segment never used for selection exists,
-issue #885):
+`segment` (`test`, ADR-0068; `validation` for a run without a test segment):
 
 - `tt_model_sharpe`, `tt_model_return` (mean wallet PnL per evaluation
   episode), `tt_model_max_drawdown`: the published metrics of the model;
 - `tt_model_buy_and_hold_sharpe`: Sharpe of holding one unit over the same
-  validation bars, annualised the same way;
+  bars, annualised the same way;
 - `tt_model_below_buy_and_hold_streak`: consecutive stored models below buy
   and hold since the trainer started (in memory: a restart or a Lease handover
-  starts it again).
+  starts it again);
+- `tt_model_admission_total{result}`: stored models by ADR-0030 verdict on
+  the test segment, `admissible` or `rejected` (ADR-0069).
 
 Only the Lease holder is read: a replica that handed the Lease over keeps its
 last gauges. No capital is at stake (no consumer trades the models yet):
