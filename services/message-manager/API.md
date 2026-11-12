@@ -27,8 +27,7 @@ Publish a message to a topic. The broker enriches the message with a `messageId`
     },
     "delivery": {
       "mode": "at-least-once",
-      "ttl": 60000,
-      "deduplicationId": "uuid"
+      "ttl": 60000
     },
     "security": {
       "authContext": { "subject": "svc-acct" },
@@ -54,7 +53,6 @@ Publish a message to a topic. The broker enriches the message with a `messageId`
 | `metadata.routing.priority`         | `number`                                                 | no       | Delivery scheduling priority                        |
 | `metadata.delivery.mode`            | `enum`                                                   | no       | `at-most-once` \| `at-least-once` \| `exactly-once` (see note below) |
 | `metadata.delivery.ttl`             | `number`                                                 | no       | Message expiration in milliseconds                  |
-| `metadata.delivery.deduplicationId` | `string`                                                 | no       | Prevents duplicate processing                       |
 | `metadata.security.authContext`     | `{ subject: string, roles: string[], tenantId: string }` | no       | Authentication / authorization context              |
 | `metadata.security.signature`       | `string`                                                 | no       | Message integrity signature                         |
 

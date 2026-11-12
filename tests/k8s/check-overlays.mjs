@@ -370,6 +370,17 @@ for (const env of OVERLAYS) {
 		}
 	}
 
+	// Issue #917: a PDB demanding every pod of a fixed-replica workload blocks node drains.
+	if (env === "production") {
+		for (const pdb of docs.filter((doc) => doc.kind === "PodDisruptionBudget")) {
+			const min = Number(pdb.text.match(/^ {2}minAvailable: (\d+)$/m)?.[1]);
+			const component = pdb.text.match(/^ {6}app\.kubernetes\.io\/component: (\S+)$/m)?.[1];
+			const workload = docs.find((doc) => ["Deployment", "StatefulSet"].includes(doc.kind) && doc.text.includes(`\n      app.kubernetes.io/component: ${component}\n`));
+			const replicas = Number(workload?.text.match(/^ {2}replicas: (\d+)$/m)?.[1]);
+			if (min >= replicas) errors.push(`production: PodDisruptionBudget ${pdb.name} requires ${min} of ${replicas} pod(s) of ${workload.name}: node drains would block`);
+		}
+	}
+
 	if (env.startsWith("staging")) {
 		for (const pdb of docs.filter((doc) => doc.kind === "PodDisruptionBudget")) {
 			if (/^ {2}minAvailable: [1-9]/m.test(pdb.text)) {

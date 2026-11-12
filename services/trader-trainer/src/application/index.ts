@@ -51,7 +51,7 @@ createBootstrap({
 			start: () =>
 				trainingLoop.start({
 					symbols,
-					intervalMs: 60_000,
+					intervalMs: ENV.TRAINER_INTERVAL_MS,
 					maxDataAgeMs: ENV.TRAINER_MAX_DATA_AGE_MS,
 				}),
 			stop: () => trainingLoop.stop(),

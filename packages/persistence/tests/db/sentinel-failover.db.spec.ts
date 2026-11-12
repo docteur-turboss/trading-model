@@ -109,7 +109,7 @@ async function startTopology(): Promise<Topology> {
 /** Resolves once the sentinel names the replica as the master. */
 async function waitForPromotion({ sentinel, replica, network }: Topology) {
 	const replicaIp = replica.getIpAddress(network.getName());
-	for (;;) {
+	while (true) {
 		const { output } = await sentinel.exec([
 			"redis-cli",
 			"-p",

@@ -20,6 +20,8 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
 	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
 	TRAINER_TIME_BUDGET_MS: z.coerce.number().int().positive().default(300000),
+	/** Time between two training sessions (1 h: one new candle per 1-min session was not worth a full retrain, 20 models then cover 20 h). Keep well above TRAINER_TIME_BUDGET_MS. */
+	TRAINER_INTERVAL_MS: z.coerce.number().int().positive().default(3600000),
 	/** Newest candle older than this: the symbol is not trained (15 min, like MarketDataStale). */
 	TRAINER_MAX_DATA_AGE_MS: z.coerce.number().int().positive().default(900000),
 	/** At least 10: the risk ratios and the drawdown need several episodes. */

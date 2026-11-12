@@ -6,7 +6,7 @@
 #            ADR-0059 `name:scopes:secret`). The new key is written to a 0600 file, path logged.
 #   dlq      DLQ_AUTH_HMAC_SECRET  -> message-manager + dlq-service (restarted together)
 #   all      the three above
-# Database passwords (MYSQL_*, REDIS_*_PASSWORD) are refused: the change must also be made
+# Database passwords (MYSQL_*, MONGO_ROOT_PASSWORD, REDIS_*_PASSWORD) are refused: the change must also be made
 # in the database, see docs/deployment/sealed-secrets.md "Rotate a database password".
 # Env: DRY_RUN=true (no kubeseal merge, apply or restart), NAMESPACE, SEALED_SECRETS_FILE.
 # The new value is merged into SEALED_SECRETS_FILE (kubeseal --merge-into), never printed.
@@ -126,7 +126,7 @@ fi
 case "$COMPONENT" in
   signing | tokens | dlq) rotate_component "$COMPONENT" ;;
   all) for c in signing tokens dlq; do rotate_component "$c"; done ;;
-  MYSQL_* | REDIS_* | mysql | redis)
+  MYSQL_* | MONGO_ROOT_PASSWORD | REDIS_* | mysql | redis | mongo)
     die "database passwords are not rotated by this script: follow 'Rotate a database password' in docs/deployment/sealed-secrets.md" ;;
   *) echo "Usage: $0 [--component signing|tokens|dlq|all]" >&2; exit 1 ;;
 esac

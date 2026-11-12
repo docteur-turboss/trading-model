@@ -53,8 +53,8 @@ rate(dlq_entries_added_total[5m])`. A ratio below 1.0 means the queue is growing
 ### 6. Training Completion Rate
 
 - **Definition:** Proportion of training sessions that complete successfully.
-- **Measurement:** Prometheus `rate(tt_training_sessions_total{result="success"}[15m]) /
-rate(tt_training_sessions_total[15m])`.
+- **Measurement:** Prometheus `rate(tt_training_sessions_total{result="success"}[3h]) /
+rate(tt_training_sessions_total[3h])`.
 - **Source:** trader-trainer.
 
 ### 7. Data Freshness
@@ -74,7 +74,7 @@ increase(fs_candles_persisted_total[30m])`, both summed over all replicas.
 | Latency P95         | ≤ 2s     | 30d    | fast: P95 > 5s over 5m; slow: P95 > 3s over 1h (single window) |
 | Message Delivery    | ≥ 99.95% | 30d    | `MessageDeliveryLowSuccessRate`: < 99.5% over 5m (no slow burn) |
 | DLQ Drain Ratio     | ≥ 1.0    | 30d    | `DLQSizeGrowing`, `DLQDrainRateLow` (no slow burn) |
-| Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 15m; `TrainingCompletionRateCritical` (critical, pages): < 50% over 15m (no slow burn) |
+| Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 3h; `TrainingCompletionRateCritical` (critical, pages): < 50% over 3h (no slow burn) |
 | Data Freshness      | ≥ 90%    | 30d    | `CandleDeliveryLagging`: < 50% over 30m, for 15m; `MarketDataStale` / `TrainerMarketDataStale` when nothing flows |
 
 The Message Delivery, DLQ and Training SLOs have no slow-burn alert: their
