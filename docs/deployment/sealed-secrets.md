@@ -118,9 +118,9 @@ For `tokens`, the new key is written to a `0600` temporary file whose path is lo
 
 ### Rotate a database password
 
-`rotate-secrets.sh` refuses `MYSQL_*` and `REDIS_*_PASSWORD`: the password must change in the database first, then in the Secret, then in the pods.
+`rotate-secrets.sh` refuses `MYSQL_*`, `MONGO_ROOT_PASSWORD` and `REDIS_*_PASSWORD`: the password must change in the database first, then in the Secret, then in the pods.
 
-1. Change it in the database (`ALTER USER ... IDENTIFIED BY` for MySQL; `ACL SETUSER <user> >new <-old` on every Redis node, or edit `redis-ha.sh` and rerun it).
+1. Change it in the database (`ALTER USER ... IDENTIFIED BY` for MySQL; `ACL SETUSER <user> >new <-old` on every Redis node, or edit `redis-ha.sh` and rerun it; for Mongo `root`, `db.getSiblingDB("admin").changeUserPassword("root", <new>)` after `auth` with the old one; the other Mongo users are applied by the `mongo-*-users` Jobs on release).
 2. Merge the new value (`kubeseal --merge-into`, see above) and apply the file.
 3. Restart every consumer of the key (`kubectl rollout restart`), then the database pods for the exporter keys.
 
