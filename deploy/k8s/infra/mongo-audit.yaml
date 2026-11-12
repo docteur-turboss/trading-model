@@ -263,7 +263,8 @@ spec:
             # Idempotent; members are the pods that answer, so an overlay that
             # scales the StatefulSet down (staging: 1) still gets a replica set.
             - |
-              try { rs.status(); print("replica set already initiated"); quit(0); } catch (e) {}
+              # hello, not rs.status: rs.status needs authentication now (no --transitionToAuth)
+              if (db.hello().setName) { print("replica set already initiated"); quit(0); }
               const hosts = [0, 1, 2]
                 .map((i) => `mongo-audit-${i}.mongo-audit-headless:27017`)
                 .filter((h) => { try { return new Mongo(h).getDB("admin").runCommand({ ping: 1 }).ok === 1; } catch (e) { return false; } });
