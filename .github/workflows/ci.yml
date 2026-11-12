@@ -327,8 +327,12 @@ jobs:
       - name: Decide the restore drill
         id: drill
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && ! git diff --name-only HEAD^1 HEAD | grep -qE '^(scripts/(backup|restore|fetch-offsite|retention)|deploy/(backup|spire|compose/spire|k8s/jobs|k8s/spire|migrate)|scripts/migrat|tests/(backup|k8s)/|\.github/workflows/(ci|backup-test))'; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # A failing git diff must run the drill, never skip it.
+            changed=$(git diff --name-only HEAD^1 HEAD) || changed='?'
+            if ! printf '%s\n' "$changed" | grep -qE '^(\?|scripts/[^/]*(backup|restore|sealed-secrets|fetch-offsite|retention|migrat)|deploy/(backup|spire|compose/spire|k8s/jobs|k8s/spire|k8s/scripts|migrate)/|tests/(backup|k8s)/|\.github/workflows/(ci|backup-test))'; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+            fi
           fi
       - name: Verify the stack
         env:
