@@ -45,6 +45,105 @@
 			"instanceId"
 		]
 	},
+	"dlq.entries.deleted": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"ids": {
+				"type": "array",
+				"items": {
+					"type": "string"
+				}
+			},
+			"deleted": {
+				"type": "integer",
+				"minimum": -9007199254740991,
+				"maximum": 9007199254740991
+			},
+			"actor": {
+				"type": [
+					"string",
+					"null"
+				]
+			}
+		},
+		"required": [
+			"ids",
+			"deleted",
+			"actor"
+		]
+	},
+	"dlq.entry.added": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"entryId": {
+				"type": "string"
+			},
+			"topic": {
+				"type": [
+					"string",
+					"null"
+				]
+			},
+			"reason": {
+				"type": [
+					"string",
+					"null"
+				]
+			},
+			"actor": {
+				"type": [
+					"string",
+					"null"
+				]
+			}
+		},
+		"required": [
+			"entryId",
+			"topic",
+			"reason",
+			"actor"
+		]
+	},
+	"dlq.replay.completed": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"batchId": {
+				"type": "string"
+			},
+			"topic": {
+				"type": [
+					"string",
+					"null"
+				]
+			},
+			"replayed": {
+				"type": "integer",
+				"minimum": -9007199254740991,
+				"maximum": 9007199254740991
+			},
+			"failed": {
+				"type": "integer",
+				"minimum": -9007199254740991,
+				"maximum": 9007199254740991
+			},
+			"actor": {
+				"type": [
+					"string",
+					"null"
+				]
+			}
+		},
+		"required": [
+			"batchId",
+			"topic",
+			"replayed",
+			"failed",
+			"actor"
+		]
+	},
 	"example.debug.create": {
 		"$schema": "https://json-schema.org/draft/2020-12/schema",
 		"type": "object",
@@ -479,6 +578,160 @@
 		},
 		"required": [
 			"trades"
+		]
+	},
+	"training.model.published": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"symbol": {
+				"type": "string",
+				"minLength": 1
+			},
+			"generation": {
+				"type": "number"
+			},
+			"fitness": {
+				"type": "number"
+			},
+			"sharpe": {
+				"type": "number"
+			},
+			"avgPnl": {
+				"type": "number"
+			},
+			"maxDrawdown": {
+				"type": "number",
+				"minimum": 0
+			},
+			"evaluatedOn": {
+				"type": "string",
+				"enum": [
+					"validation",
+					"test"
+				]
+			},
+			"agentId": {
+				"type": "string"
+			},
+			"version": {
+				"type": "string",
+				"minLength": 1
+			},
+			"sha256": {
+				"type": "string",
+				"pattern": "^[0-9a-f]{64}$"
+			},
+			"admissible": {
+				"type": "boolean"
+			},
+			"gaControl": {
+				"type": "object",
+				"properties": {
+					"populationSize": {
+						"type": "number"
+					},
+					"elitismFraction": {
+						"type": "number"
+					},
+					"survivorFraction": {
+						"type": "number"
+					},
+					"episodesPerIndividual": {
+						"type": "number"
+					},
+					"selectionType": {
+						"type": "string"
+					},
+					"fitnessType": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"populationSize",
+					"elitismFraction",
+					"survivorFraction",
+					"episodesPerIndividual",
+					"selectionType",
+					"fitnessType"
+				]
+			},
+			"network": {
+				"type": "object",
+				"properties": {
+					"inputDim": {
+						"type": "number"
+					},
+					"outputDim": {
+						"type": "number"
+					},
+					"hiddenLayers": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"neurons": {
+									"type": "number"
+								},
+								"activation": {
+									"type": "string"
+								}
+							},
+							"required": [
+								"neurons",
+								"activation"
+							]
+						}
+					}
+				},
+				"required": [
+					"inputDim",
+					"outputDim",
+					"hiddenLayers"
+				]
+			},
+			"rl": {
+				"type": "object",
+				"properties": {
+					"gamma": {
+						"type": "number"
+					},
+					"learningRate": {
+						"type": "number"
+					},
+					"epsilonStart": {
+						"type": "number"
+					},
+					"epsilonMin": {
+						"type": "number"
+					},
+					"epsilonDecay": {
+						"type": "number"
+					}
+				},
+				"required": [
+					"gamma",
+					"learningRate",
+					"epsilonStart",
+					"epsilonMin",
+					"epsilonDecay"
+				]
+			}
+		},
+		"required": [
+			"symbol",
+			"generation",
+			"fitness",
+			"sharpe",
+			"avgPnl",
+			"maxDrawdown",
+			"evaluatedOn",
+			"agentId",
+			"version",
+			"sha256",
+			"gaControl",
+			"network",
+			"rl"
 		]
 	}
 }

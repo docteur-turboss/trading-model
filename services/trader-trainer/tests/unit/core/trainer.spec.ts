@@ -6,6 +6,7 @@ import {
 	TradingSymbol,
 } from "@trading-model/primitives/primitives";
 import { Trainer } from "../../../src/application/trainer";
+import { runInProcess } from "../../../src/application/training-session";
 import {
 	FEATURE_DRIFT_SCORE,
 	MODEL_BELOW_BUY_AND_HOLD_STREAK,
@@ -15,7 +16,9 @@ import {
 	MODEL_SHARPE,
 } from "../../../src/config/metrics";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
+import { buyAndHoldSharpe } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import type { WindowSet } from "../../../src/domain/genetic-algorithm/ga-runner";
 import {
 	ActivationType,
 	ConnectionType,
@@ -647,7 +650,12 @@ describe("Trainer — model publication", () => {
 			expect(publisher.publish).toHaveBeenCalledWith(
 				"BTCUSDT",
 				expect.objectContaining({ id: expect.any(String) }),
-				{ version: "20261029T101530Z-0123456789ab", sha256: "0123456789abcdef" }
+				{
+					version: "20261029T101530Z-0123456789ab",
+					sha256: "0123456789abcdef",
+					// Prices rise by 1 every bar: buy and hold's floored Sharpe wins.
+					admissible: false,
+				}
 			);
 		});
 
@@ -880,24 +888,42 @@ describe("Trainer — model publication", () => {
 				version: "v1",
 				createdAt: new Date(0).toISOString(),
 			});
+			let windows: WindowSet[] = [];
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
+				runner: (windowSets, ...rest) => {
+					windows = windowSets;
+					return runInProcess(windowSets, ...rest);
+				},
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			// Swings growing with time: validation and test bars differ in Sharpe.
+			feedCandles(dataBuffer, "BTCUSDT", 100, (i) => i + ((i % 2) * i) / 10);
 
 			await trainer.train(sym);
 
 			const summary = trainer.getBestAgentSummary();
-			const labels = { symbol: "BTCUSDT", segment: "validation" };
+			expect(summary?.evaluatedOn).toBe("test");
+			const labels = { symbol: "BTCUSDT", segment: "test" };
 			expect(await value(MODEL_SHARPE, labels)).toBe(summary?.sharpe);
 			expect(await value(MODEL_RETURN, labels)).toBe(summary?.avgPnl);
 			expect(await value(MODEL_MAX_DRAWDOWN, labels)).toBe(
 				summary?.maxDrawdown
 			);
 			const baseline = await value(MODEL_BUY_AND_HOLD_SHARPE, labels);
-			// Prices rise by 1 every bar: a constant change, floored Sharpe.
-			expect(baseline).toBeGreaterThan(0);
+			// Buy and hold reads the test bars, never the validation ones.
+			expect(baseline).toBe(
+				buyAndHoldSharpe([windows[windows.length - 1].test ?? []])
+			);
+			expect(baseline).not.toBeCloseTo(
+				buyAndHoldSharpe(windows.map((ws) => ws.validation))
+			);
+			// The verdict reads the test segment metrics and its bars (ADR-0069).
+			expect(models.save.mock.calls[0][0].admission).toMatchObject({
+				admissible: false,
+				evaluatedOn: "test",
+				criteria: { sharpe: summary?.sharpe, buyAndHoldSharpe: baseline },
+			});
 			expect(
 				await value(MODEL_BELOW_BUY_AND_HOLD_STREAK, { symbol: "BTCUSDT" })
 			).toBe(Number(summary?.sharpe) < Number(baseline) ? 1 : 0);

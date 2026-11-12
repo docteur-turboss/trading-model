@@ -54,7 +54,7 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 spec:
   serviceName: mysql-headless
-  replicas: 3
+  replicas: 1
   podManagementPolicy: OrderedReady
   selector:
     matchLabels:
@@ -455,7 +455,7 @@ metadata:
     app.kubernetes.io/component: mysql
     app.kubernetes.io/part-of: trading-model
 spec:
-  minAvailable: 2
+  maxUnavailable: 1
   selector:
     matchLabels:
       app.kubernetes.io/component: mysql

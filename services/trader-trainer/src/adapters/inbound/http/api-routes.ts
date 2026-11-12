@@ -101,6 +101,24 @@ const ModelManifest = z.object({
 	/** Constraint the policy learned under; absent on older manifests (unbounded). */
 	riskLimits: z.object({ maxExposureFraction: z.number() }).optional(),
 	metrics: ModelMetrics,
+	/** ADR-0030 verdict on the test segment (ADR-0069); absent: not admissible. */
+	admission: z
+		.object({
+			admissible: z.boolean(),
+			evaluatedOn: z.literal("test"),
+			criteria: z.object({
+				sharpe: z.number(),
+				sortino: z.number(),
+				calmar: z.number(),
+				buyAndHoldSharpe: z.number(),
+			}),
+			thresholds: z.object({
+				minSharpe: z.number(),
+				minSortino: z.number(),
+				minCalmar: z.number(),
+			}),
+		})
+		.optional(),
 });
 
 const MODEL_SYMBOL = z.string().regex(MODEL_SYMBOL_PATTERN);
