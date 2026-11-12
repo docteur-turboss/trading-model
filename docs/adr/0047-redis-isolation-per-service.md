@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0020](./0020-database-topology-as-deployed.md) (topology), [ADR-0023](./0023-discovery-registry-in-redis.md) (registry keys, never `KEYS`), [ADR-0019](./0019-message-broker-as-built.md) (subscriptions in Redis), [ADR-0035](./0035-sealed-secrets-key-daily-backup-by-github-actions.md) (secrets)
-**Verified by:** `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts`, `packages/persistence/tests/unit/redis-env.spec.ts`, `bun run config:check`
+**Verified by:** `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts`, `packages/persistence/tests/db/redis-tls.db.spec.ts`, `packages/persistence/tests/unit/redis-env.spec.ts`, `bun run config:check`
 
 ## Context
 
@@ -34,3 +34,7 @@ The project owner chose (issue #506, 2026-11-06): ACL users per service (option 
 * Logical databases (db 0/1/2): no security isolation (`SELECT`, `FLUSHDB`).
 * A Redis instance per usage: best blast radius, a second HA group to run.
 * Keep the DLQ rate limiter shared: needs a fourth reason to stay on Redis.
+
+## Amendment 2026-11 (issue #768): Redis and Sentinel TLS
+
+Owner decision (2026-11-09, option 1): server certificates from cert-manager (`redis-tls.yaml`), clients verify the chain and the name `redis`; clients keep authenticating with their ACL password (`tls-auth-clients no`: Redis checks a chain and cannot map a SPIFFE URI SAN to an ACL user). Sentinel announces one port per master, so TLS is switched in two releases with `REDIS_TLS_MODE`: `optional` (N, clear text and TLS listeners, replication and Sentinel in clear text) then `required` (N+1, `port 0`, `tls-replication yes`). Runbook: `docs/deployment/REDIS_TLS.md`. Verified by `packages/persistence/tests/db/redis-tls.db.spec.ts`.

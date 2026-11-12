@@ -1,0 +1,86 @@
+# TLS of Redis and Sentinel (issue #768, ADR-0047): server certificate issued by
+# cert-manager from an internal CA, verified by every client. Same chain as
+# MySQL (mysql-tls.yaml). Clients authenticate with their ACL password, not a
+# certificate (ADR-0047). cert-manager is a cluster prerequisite.
+#
+# Rotation: cert-manager renews the leaf 30 days before its 90-day end and the
+# CA 90 days before its 5-year end; the kubelet refreshes the mounted Secret,
+# but Redis reads the files at start only: roll the StatefulSets inside that
+# window (docs/deployment/REDIS_TLS.md). Clients read the CA when they start.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: redis-selfsigned
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: trading-model
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: redis-ca
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: trading-model
+spec:
+  isCA: true
+  commonName: trading-model-redis-ca
+  secretName: redis-ca
+  duration: 43800h
+  renewBefore: 2160h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: redis-selfsigned
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: redis-ca
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ca:
+    secretName: redis-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: redis-tls
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: trading-model
+spec:
+  secretName: redis-tls
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  # Server and client auth: replicas and sentinels connect to each other.
+  usages:
+    - server auth
+    - client auth
+    - digital signature
+    - key encipherment
+  # Clients reach the nodes by the IP Sentinel announces and check the name
+  # `redis` (servername, REDIS_TLS_SERVERNAME); the exporter sidecars and the
+  # probes use 127.0.0.1.
+  dnsNames:
+    - redis
+    - redis-headless
+    - "*.redis-headless"
+    - redis-sentinel-headless
+    - "*.redis-sentinel-headless"
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  issuerRef:
+    name: redis-ca
+    kind: Issuer
