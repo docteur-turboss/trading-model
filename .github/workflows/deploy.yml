@@ -486,6 +486,14 @@ jobs:
           else
             echo "::warning::$ENV Ingress hosts are still placeholders ($hosts): set the real names in deploy/k8s/overlays/$OVERLAY/ingress-hosts.yaml"
           fi
+          # realip.inc trusts X-Forwarded-For only from this range: a wrong pod CIDR makes the edge rate limit global
+          if grep -q 'PLACEHOLDER' <<<"$rendered"; then
+            if [ "$ENV" = "production" ]; then
+              echo "::error::production edge-proxy still trusts the placeholder pod CIDR: set the real one in deploy/k8s/overlays/production/realip.inc"
+              exit 1
+            fi
+            echo "::warning::$ENV edge-proxy still trusts the placeholder pod CIDR: set the real one in deploy/k8s/overlays/$OVERLAY/realip.inc"
+          fi
 
       # The cluster identity may only read ClusterRoles and their bindings: an
       # admin applies them (deploy-identity.sh cluster). A release that adds or

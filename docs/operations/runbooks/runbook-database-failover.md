@@ -305,7 +305,7 @@ kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel fa
 
 ### Full Redis data loss
 
-Redis is not backed up (derived state). It rebuilds from AOF/RDB on restart.
+Redis is not backed up. Registrations and the DLQ queue rebuild by themselves; the message journal does not: if master and replicas are all lost, accepted messages not yet delivered are gone (RPO in [BACKUP_DR.md](../../deployment/BACKUP_DR.md)). `mm_journal_oldest_pending_age_seconds` gives only the age (not the count) of the oldest pending entry and vanishes with the data: read it before the wipe for an upper bound, then republish from the source. Redis restarts from AOF/RDB.
 If persistence is corrupted:
 
 1. Clear Redis data:

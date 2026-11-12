@@ -120,6 +120,16 @@ groups:
           description: 'The circuit breaker of {{ $labels.job }} for instance {{ $labels.instanceId }} is in OPEN state: calls to that instance are refused.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md'
 
+      - alert: HttpCircuitBreakerRejecting
+        expr: sum by (job, target, kind) (rate(http_circuit_breaker_rejections_total[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.job }} refuses calls to {{ $labels.target }}'
+          description: '{{ $labels.job }} has had its outbound calls to {{ $labels.kind }} {{ $labels.target }} refused by the open HTTP circuit breaker for 10 minutes.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
+
       - alert: DLQSizeGrowing
         expr: sum by (job) (rate(dlq_entries_added_total[15m])) > sum by (job) (rate(dlq_entries_replayed_total[15m]))
         for: 5m

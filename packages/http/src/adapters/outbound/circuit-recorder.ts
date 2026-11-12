@@ -8,6 +8,7 @@ import { Hostname, type URLString } from "@trading-model/primitives/primitives";
 import { CircuitBreaker } from "@trading-model/reliability/circuit-breaker";
 import type { CircuitBreakerConfig } from "@trading-model/reliability/circuit-state-machine";
 import type { HttpRequestOptions } from "../../domain/http-types";
+import { circuitBreakerRejectionsTotal } from "../../infrastructure/outbound-metrics";
 import { createHttpClientError } from "./http-client-errors";
 
 /** Target of an outbound call: its hostname and optional service name. */
@@ -37,6 +38,7 @@ export class CircuitRecorder {
 			: undefined;
 		const hostState = this._hostnameCircuit.check(hostname);
 		if (hostState === CircuitState.OPEN) {
+			circuitBreakerRejectionsTotal.inc({ target: hostname, kind: "hostname" });
 			throw createHttpClientError(
 				`Circuit breaker open for ${hostname}`,
 				HTTP_STATUS.SERVICE_UNAVAILABLE
@@ -45,6 +47,10 @@ export class CircuitRecorder {
 		if (serviceName) {
 			const svcState = this._serviceCircuit.check(serviceName);
 			if (svcState === CircuitState.OPEN) {
+				circuitBreakerRejectionsTotal.inc({
+					target: serviceName,
+					kind: "service",
+				});
 				throw createHttpClientError(
 					`Circuit breaker open for service ${serviceName}`,
 					HTTP_STATUS.SERVICE_UNAVAILABLE
