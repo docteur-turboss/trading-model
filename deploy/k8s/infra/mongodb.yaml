@@ -279,7 +279,7 @@ spec:
             # Idempotent; members are the pods that answer, so an overlay that
             # scales the StatefulSet down (staging: 1) still gets a replica set.
             - |
-              # hello, not rs.status: rs.status needs authentication now (no --transitionToAuth)
+              # hello, not rs.status: rs.status needs authentication (mongod enforces authentication)
               if (db.hello().setName) { print("replica set already initiated"); quit(0); }
               const hosts = [0, 1, 2]
                 .map((i) => `mongo-dlq-${i}.mongo-dlq-headless:27017`)
