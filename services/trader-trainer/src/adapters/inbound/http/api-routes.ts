@@ -98,6 +98,8 @@ const ModelManifest = z.object({
 	features: z.object({ dim: z.number().int(), fields: z.array(z.string()) }),
 	/** Normalization statistics of the symbol at the end of training. */
 	normalization: z.record(z.string(), z.unknown()),
+	/** Constraint the policy learned under; absent on older manifests (unbounded). */
+	riskLimits: z.object({ maxExposureFraction: z.number() }).optional(),
 	metrics: ModelMetrics,
 });
 

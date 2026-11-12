@@ -6,6 +6,7 @@ import {
 	Reward,
 } from "@trading-model/primitives/primitives";
 import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
+import { DEFAULT_MAX_EXPOSURE_FRACTION } from "../env/wallet-config";
 import type { FeatureVector } from "../feature-vector";
 import {
 	ActivationType,
@@ -131,6 +132,7 @@ function _buildAgentConfig(
 			initialPrice: Price.of(1),
 			feeRate: Percentage.of(0.001),
 			executionCostRate: Percentage.of(EXECUTION_COST_RATE),
+			maxExposureFraction: DEFAULT_MAX_EXPOSURE_FRACTION,
 		},
 		tradeFraction: 0.1,
 		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy),

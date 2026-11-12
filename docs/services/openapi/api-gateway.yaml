@@ -1209,6 +1209,14 @@ paths:
                       normalization:
                         type: "object"
                         additionalProperties: {}
+                      riskLimits:
+                        type: "object"
+                        properties:
+                          maxExposureFraction:
+                            type: "number"
+                        required:
+                          - "maxExposureFraction"
+                        additionalProperties: false
                       metrics:
                         type: "object"
                         properties:

@@ -18,7 +18,7 @@ export interface TrainingModelPublishedPayload {
 	 * >= 0. Published as 0 whatever the agent did until 2026-10-30 (ADR-0022).
 	 */
 	maxDrawdown: number;
-	/** Segment sharpe, avgPnl and maxDrawdown were measured on; "test" since metricsVersion 5 (ADR-0068). */
+	/** Segment sharpe, avgPnl and maxDrawdown were measured on; "test" since metricsVersion 6 (ADR-0068). */
 	evaluatedOn: "validation" | "test";
 	agentId: string;
 	/**

@@ -142,7 +142,7 @@ describe("metrics of a trained model", () => {
 		);
 
 		expect(manifest.metrics).toEqual({
-			metricsVersion: 5,
+			metricsVersion: 6,
 			generation: 4,
 			fitness: 1.5 as Fitness,
 			sharpe: expect.any(Number),

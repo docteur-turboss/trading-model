@@ -2,7 +2,6 @@ import type {
 	DecimalPrecision,
 	Percentage,
 	Price,
-	Volume,
 } from "@trading-model/primitives/primitives";
 import type { WalletConfigParams } from "./wallet-config";
 
@@ -18,9 +17,9 @@ function _validateRate(name: string, rate: Percentage): void {
 	}
 }
 
-function _validateMaxPosition(maxPosition: Volume): void {
-	if (maxPosition <= 0) {
-		throw new Error(`Invalid maxPosition: ${maxPosition}`);
+function _validateMaxExposureFraction(fraction: number): void {
+	if (!Number.isFinite(fraction) || fraction <= 0) {
+		throw new Error(`Invalid maxExposureFraction: ${fraction}`);
 	}
 }
 
@@ -36,6 +35,6 @@ export function validateConfig(config: Required<WalletConfigParams>): void {
 	_validateInitialPrice(config.initialPrice);
 	_validateRate("feeRate", config.feeRate);
 	_validateRate("executionCostRate", config.executionCostRate);
-	_validateMaxPosition(config.maxPosition);
+	_validateMaxExposureFraction(config.maxExposureFraction);
 	_validateDecimals(config.decimals);
 }
