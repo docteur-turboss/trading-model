@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10
-**Related:** [ADR-0050](./0050-audit-chain-single-writer-lease.md) (writers take a lease on the chain head)
+**Related:** [ADR-0051](./0051-mysql-retention-cronjob.md) (market data retention), [ADR-0050](./0050-audit-chain-single-writer-lease.md) (writers take a lease on the chain head)
 **Verified by:** `services/audit-logger/tests/unit/domain/audit-chain.spec.ts`, `services/audit-logger/tests/unit/domain/audit-chain-script.spec.ts`, `services/audit-logger/tests/unit/audit-chain/chain-audit.spec.ts`, `services/audit-logger/tests/unit/adapters/s3-anchor-store.spec.ts`, `services/audit-logger/tests/unit/config/chain-audit-container.spec.ts`, `tests/alerts/run.sh`, `tests/k8s/run-kind.sh`
 
 ## Context
@@ -16,6 +16,7 @@ audit-logger chains every audit event: `dataHash` is the sha256 of the event and
 
 ## Decision
 
+0. **Scope: the chain records audit, training and DLQ events, not market data.** The six `MarketEvent` topics (candles, trades, tickers, order books) are public inputs already kept 5 years in MySQL and backed up (ADR-0051); chaining them doubled the Mongo writes and backups. Records already in `audit_events` stay (the chain forbids edits) and expire with `AUDIT_RETENTION_DAYS`.
 1. **audit-logger owns the verifier** (`ChainVerifier`, `src/domain/audit-chain.ts`): sequence contiguous, `previousHash` = previous `dataHash`, `dataHash` recomputed from the stored content, anchors matched. `tests/backup/audit-chain.js` stays as the offline tool of auditors and drills, without anchors; `audit-chain-script.spec.ts` feeds both the same events.
 2. **Incremental verification every 15 minutes** (`AUDIT_CHAIN_INTERVAL_MS`, `ChainAuditScheduler`), on every replica (read-only checks, idempotent anchors). Each cycle resumes from the last verified point (`audit_chain_state`), then anchors the verified head: an anchor always vouches for a chain that held. Metrics `audit_chain_broken`, `audit_chain_verified_sequence`, `audit_chain_last_verification_timestamp`, `audit_chain_anchored_sequence`, `audit_chain_last_anchor_timestamp`, `audit_chain_anchoring_enabled`; alerts `AuditChainBroken` (critical, at once), `AuditChainVerificationStale` and `AuditChainAnchoringStale` (critical, 45 min + 15), `AuditChainNotAnchored` (warning).
 3. **Anchors in an S3 bucket with Object Lock, compliance mode** (`S3AnchorStore`). One object per anchor, `audit-chain/anchors/<sequence>-<hash>.json`, retained `AUDIT_RETENTION_DAYS`: neither its writer nor the account owner can delete or overwrite it. The anchor date is the object's LastModified, set by S3. A dedicated bucket with its own credentials (put, list, get only), not the backup bucket. The verifier fails on an anchor that does not match its event, on an anchor beyond the last event (events removed), and on an anchor too recent to have expired whose event is gone (events removed before their retention ended).

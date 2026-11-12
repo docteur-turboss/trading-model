@@ -133,7 +133,7 @@ Receive an event bus message for audit logging (called internally by the message
 
 Every event is appended to a hash chain (`chainSequence`, `previousHash`, `dataHash`; `chainSequence` and `metadata.messageId` are unique indexes). Messages arrive concurrently, so an instance writes its inserts one at a time. If another replica takes the same sequence first, the insert retries on the new tail (up to 5 attempts). A redelivered message (same `messageId`) is recorded once (`audit_events_stored_total{status="duplicate"}`).
 
-audit-logger subscribes to every topic at startup through message-manager's subscribe route, which the message-manager ACL must allow.
+audit-logger subscribes to the audit, training and dlq topics at startup (not market data: MySQL keeps it, ADR-0027) through message-manager's subscribe route, which the message-manager ACL must allow.
 
 ## Architecture
 

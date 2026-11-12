@@ -1,6 +1,6 @@
 # Quick Start — Your First Trading Platform Interaction
 
-> **Goal:** Go from zero to market data flowing through the bus and viewing its audit events in 10 minutes.
+> **Goal:** Go from zero to market data flowing through the bus and viewing audit events in 10 minutes.
 
 ## Prerequisites
 
@@ -125,7 +125,7 @@ curl -s http://localhost:8449/v1/audit-logger/events?limit=5 \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
-You should see the scraper's market data events recorded in the audit trail.
+Market data is not in the audit trail (MySQL keeps it, ADR-0027). The trail holds audit, training and DLQ events, for example `training.model.published` once a model is trained: add `&topic=training.model.published` to the query.
 
 > There is no admin dashboard for now ([ADR-0018](../adr/0018-temporary-frontend-removal.md)): the gateway API above is how you inspect the registry, audit events and the DLQ.
 
