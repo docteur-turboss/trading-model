@@ -180,6 +180,49 @@ The next deploy sets the partition back to 1 anyway (it is in the overlay).
 Check the result: `kubectl -n "$NS" get sts <x> -o jsonpath='{.status.currentRevision} {.status.updateRevision}'`
 prints the same revision twice.
 
+## Between deploys
+
+The cluster may be stopped between two deploys. Nothing calls it except
+`deploy.yml` and `sealed-secrets-key-backup.yml`, and staging holds no data that
+the compose stack or production needs. The price is a blind period: nothing
+runs in the cluster while it is down.
+
+```bash
+docker stop trading-staging-runner trading-staging-control-plane trading-staging-minio
+```
+
+Start MinIO first (the audit anchors and backups write to it), then the node,
+then the runner:
+
+```bash
+docker start trading-staging-minio trading-staging-control-plane
+kubectl --context kind-trading-staging get pods -A    # wait until every pod is Running/Ready or Completed
+docker start trading-staging-runner
+```
+
+Then run the smoke test: `bash deploy/k8s/scripts/deploy-k8s.sh -n trading-model-staging smoke-test`.
+
+While it is down:
+
+- `db-backup` (daily 02:00), `db-backup-incremental` (hourly, minute 30),
+  `db-retention` (daily 03:30) and the audit-chain verification and anchoring
+  (every 15 min, ADR-0027) do not run. Archives are not made for the stopped
+  hours: the PITR chain has a gap (`BackupPitrGap`, which stays firing until the
+  next daily dump). No alert fires either, since Prometheus and Alertmanager are down.
+- After the start, with no run yet: `BackupIncrementalStale` after 2 h,
+  `BackupJobStale` after 26 h, `RetentionStale` after 36 h,
+  `AuditChainVerificationStale` / `AuditChainAnchoringStale` after 45 min,
+  each plus its `for:` delay (`observability/alerting.yml`). They resolve on the next run.
+- `sealed-secrets-key-backup.yml` (daily 03:30 UTC) needs the runner and the API
+  server: its job stays queued or fails, and the key backup of that day is missing.
+- Every pod restarts, including the single-replica data pods (see the partition
+  above): expect the cold start of MySQL, Mongo and Redis before the smoke test
+  passes. This is not measured; the deploy allows up to 30 min for MySQL here.
+- `backup-key-check.yml` and CI run on GitHub-hosted runners: not affected.
+
+Stop it only when no backup window (02:00 to 04:00 UTC) matters to you, and
+start it before a deploy: `deploy.yml` fails on the self-hosted runner otherwise.
+
 ## Renewal and teardown
 
 - The deploy tokens last 168 h: run `bootstrap.sh identities` again before a
