@@ -5,6 +5,11 @@ interface CacheEntry<TValue> {
 	expiresAt: number;
 }
 
+/**
+ * In-memory cache with a per-entry TTL. An expired entry is hidden from
+ * `get`/`has`/`entries` but kept until overwritten or deleted, so `getStale`
+ * can serve it as a last resort: the store is bounded by its key set.
+ */
 export class TtlCacheBase<TValue> implements SyncCachePort<TValue> {
 	protected readonly _store = new Map<string, CacheEntry<TValue>>();
 	protected readonly _defaultTtlMs: number;
@@ -33,11 +38,7 @@ export class TtlCacheBase<TValue> implements SyncCachePort<TValue> {
 
 	private _liveEntry(key: string): CacheEntry<TValue> | undefined {
 		const entry = this._store.get(key);
-		if (entry && this._isExpired(entry)) {
-			this._store.delete(key);
-			return;
-		}
-		return entry;
+		return entry && !this._isExpired(entry) ? entry : undefined;
 	}
 
 	has(key: string): boolean {
@@ -46,6 +47,11 @@ export class TtlCacheBase<TValue> implements SyncCachePort<TValue> {
 
 	get(key: string): TValue | undefined {
 		return this._liveEntry(key)?.value;
+	}
+
+	/** Returns the last value set for `key`, even expired. */
+	getStale(key: string): TValue | undefined {
+		return this._store.get(key)?.value;
 	}
 
 	set(key: string, value: TValue, ttlMs?: number): void {

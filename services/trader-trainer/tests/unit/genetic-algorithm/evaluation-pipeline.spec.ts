@@ -433,3 +433,37 @@ describe("evaluateGenomeAllWindows — failure reporting", () => {
 		expect(result.objectives.avgPnl).toBeLessThan(-1e8);
 	});
 });
+
+describe("test segment isolation (issue #885)", () => {
+	it("never reads a test step while training or scoring a genome", async () => {
+		const reads = jest.fn();
+		const poisoned = [
+			{
+				get features() {
+					reads();
+					return FeatureVector.fromFloat32Array(new Float32Array(3));
+				},
+				get price() {
+					reads();
+					return Price.of(100);
+				},
+			},
+		];
+		const windowSets = [
+			{
+				id: "w1",
+				train: Array.from({ length: 5 }, (_u, i) =>
+					makeStep([i * 0.1, 0.2, 0.3])
+				),
+				validation: [makeStep([0.7, 0.8, 0.9])],
+				test: poisoned,
+			},
+		];
+		await evaluateFitness({
+			population: [MINIMAL_GENOME as any],
+			windowSets,
+			backendFactory: jest.fn((..._args: any[]) => makeMockBackend(2)) as any,
+		});
+		expect(reads).not.toHaveBeenCalled();
+	});
+});

@@ -64,7 +64,7 @@ All platform assets are documented in:
 ### 5.1 Network Access Control
 
 - **mTLS mandatory:** All service-to-service HTTP communication requires mutual TLS 1.3 with X.509 SVIDs issued by SPIRE after workload attestation (ADR-0011)
-- **Databases, not encrypted in transit:** client connections to MySQL, MongoDB, Redis and Sentinel are plain TCP inside the cluster, credentials included. Protection: NetworkPolicies, per-service credentials, LUKS2 on data disks. Residual risk accepted by the owner (ADR-0060); TLS is planned (issues #767, #768, #769)
+- **Databases, not encrypted in transit:** client connections to MongoDB, Redis and Sentinel are plain TCP inside the cluster, credentials included. Protection: NetworkPolicies, per-service credentials, LUKS2 on data disks. Residual risk accepted by the owner (ADR-0060); TLS is planned (issues #930, #769). MySQL client connections are TLS-verified with per-service client certificates and `require_secure_transport=ON` (issue #767, `docs/deployment/MYSQL_TLS.md`)
 - **Service identity:** Extracted from the certificate SAN (SPIFFE ID `spiffe://...`) via `@trading-model/http/adapters/inbound/mtls-auth.ts`
 - **Authorization:** ACL-based service-to-service access control via `@trading-model/http/adapters/inbound/mtls-authorization.ts`
 
@@ -92,8 +92,8 @@ All platform assets are documented in:
 
 | Key Type | Storage | Rotation | Access |
 |---|---|---|---|
-| SPIRE CA keys / trust bundle | SPIRE datastore (MySQL `spire`) | Automated (SPIRE CA manager) | SPIRE Server only |
-| SVIDs | In-memory + `/run/spire/svid` (spiffe-helper) | Auto-renewal (TTL 1h) | Workload via Workload API |
+| SPIRE CA keys / trust bundle | SPIRE datastore (SQLite on the server volume, ADR-0065) | Automated (SPIRE CA manager) | SPIRE Server only |
+| SVIDs | In-memory + `/run/spire/svid` (spiffe-helper) | Auto-renewal (TTL 4h) | Workload via Workload API |
 | HMAC tokens | Address-manager cache | Refresh cycle via scheduler | Registered service only |
 | Database credentials | K8s SealedSecrets | Manual rotation via `scripts/rotate-secrets.sh` | Service accounts via RBAC |
 

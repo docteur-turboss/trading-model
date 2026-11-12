@@ -1,4 +1,4 @@
-# ADR-0060: Database Client Traffic Is Not Encrypted in the Cluster (Accepted Residual Risk, TLS Planned)
+# ADR-0060: Database Client Traffic Is Not Encrypted in the Cluster (Accepted Residual Risk, TLS Planned; MySQL Done)
 
 **Status:** Accepted
 **Date:** 2026-11
@@ -14,7 +14,7 @@ The owner chose (issue #735, 2026-11-09): option 4, fix the policies now (option
 ## Decision
 
 1. **Now (option B).** The three policies state exactly what is encrypted. mTLS with SPIRE SVIDs covers service-to-service HTTP traffic only. Client traffic to MySQL, MongoDB, Redis and Sentinel is plain TCP inside the cluster. Protection is NetworkPolicy isolation (see issue #747 for the current gaps), per-service credentials and LUKS2 on the data disks. The **residual risk is accepted in writing**: a compromised pod in the namespace, or a node, can read database credentials and data on the wire. The data are market data and platform events, not personal data (DPIA).
-2. **Later (option A), cert-manager.** TLS required on the three databases and Sentinel, server certificates issued by cert-manager (internal CA, clients verify the host name, because SVIDs carry URI SANs, not DNS), clients authenticated by SVID with the SPIRE CA in the server truststore. Expand/contract (ADR-0040): one release accepting TLS and clear text, then `require`. Tracked in #767 (cert-manager and MySQL), #768 (Redis and Sentinel), #769 (MongoDB, together with #669). Each of those issues updates this ADR and the policy lines when `require` is active.
+2. **Later (option A), cert-manager.** TLS required on the three databases and Sentinel, server certificates issued by cert-manager (internal CA, clients verify the host name, because SVIDs carry URI SANs, not DNS), clients authenticated by SVID with the SPIRE CA in the server truststore. Expand/contract (ADR-0040): one release accepting TLS and clear text, then `require`. Tracked in #767 (cert-manager and MySQL), #768 closed without a merge, replaced by #930 (Redis and Sentinel), #769 (MongoDB, together with #669). Each of those issues updates this ADR and the policy lines when `require` is active.
 3. **Docker Compose** stays in clear text; it is a development stack.
 
 ## Alternatives considered
@@ -26,4 +26,7 @@ The owner chose (issue #735, 2026-11-09): option 4, fix the policies now (option
 ## Consequences
 
 - No document claims database TLS while it does not exist; `bun run compliance:check` fails if a policy cites TLS for a database again.
-- Until #767 to #769 ship, database credentials and data cross the pod network in clear text.
+- MySQL (#767, done): server certificate from cert-manager, one client certificate per user, `require_secure_transport=ON`; connections without TLS or without the client certificate are refused (`verify_mysql_tls`). See `docs/deployment/MYSQL_TLS.md` and the amendments of ADR-0011, 0031, 0040, 0051, 0056.
+- MongoDB (#769, expand step): `preferTLS` with cert-manager server certificates, services verify the host name (`docs/deployment/MONGO_TLS.md`); clear text is still accepted until the `requireTLS` release, so the residual risk stays for MongoDB until then.
+- Redis and Sentinel (#930, expand step): they listen in TLS from release N (`REDIS_TLS_MODE=optional`, `docs/deployment/REDIS_TLS.md`) and still accept clear text, because Sentinel announces one port; clear text closes with `required` in release N+1 (a values change).
+- Until `required` (Redis, Sentinel) and the MongoDB contract step ship, their credentials and data cross the pod network in clear text; the residual risk is limited to those.

@@ -52,7 +52,7 @@ function buildRLSummary(
  * Sharpe of the bar curve times sqrt(bars per year), comparable across
  * timeframes; per bar when the data carried no timestamps.
  */
-function annualisedSharpe(
+export function annualisedSharpe(
 	curve: EpisodeScores,
 	fitnessMeta: GenomeFitnessMeta | undefined
 ): number {
@@ -74,6 +74,7 @@ export function buildSummary(
 		sharpe: SharpeRatio.of(curve ? annualisedSharpe(curve, fitnessMeta) : 0),
 		avgPnl: fitnessMeta?.rawScores ? fitnessMeta.rawScores.mean() : 0,
 		maxDrawdown: curve ? curve.maxDrawdown() : 0,
+		evaluatedOn: fitnessMeta?.evaluatedOn ?? "validation",
 		gaControl: buildGASummary(genome),
 		network: buildNetworkSummary(genome),
 		rl: buildRLSummary(genome),
@@ -92,6 +93,7 @@ export function summaryFromManifest(manifest: ModelManifest): BestAgentSummary {
 		sharpe: SharpeRatio.of(metrics.sharpe),
 		avgPnl: metrics.avgPnl,
 		maxDrawdown: metrics.maxDrawdown,
+		evaluatedOn: metrics.evaluatedOn ?? "validation",
 		gaControl: buildGASummary(genome),
 		network: buildNetworkSummary(genome),
 		rl: buildRLSummary(genome),

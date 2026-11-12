@@ -111,7 +111,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window, per pod: effective limit per client = value x replicas (HPA 2-8), i.e. 200 to 800 per 60 s by default (ADR-0047) | GW       |
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
-| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is accepted for one release with every scope, named `legacy-<8 hex>`, with a warning (ADR-0059) | GW |
+| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
 | `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy request timeout           | GW       |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
 | `AUTH_STRICT`         | boolean (only `false` turns it off) | `true`              | no (`false` refused in production) | Strict API key check. `false` with no `AUTH_TOKENS` accepts any API key: in production the gateway refuses to start with `false` | GW |
@@ -125,10 +125,12 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | --------------------------------- | ------------ | ----------------- | -------- | ------------------------------------ | -------- |
 | `TRAINER_SYMBOLS`                 | string       | `BTCUSDT,ETHUSDT` | no       | Comma-separated trading symbols      | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
-| `TRAINER_VALIDATION_SPLIT`        | number (0-1) | `0.2`             | no       | Fraction of data used for validation | TT       |
+| `TRAINER_VALIDATION_SPLIT`        | number (0-1) | `0.15`            | no       | Fraction of the steps left after the test cut, used for validation (selection) | TT       |
+| `TRAINER_TEST_SPLIT`              | number (0-1) | `0.15`            | no       | Newest fraction of the steps never used by training nor selection; published metrics come from it (ADR-0068) | TT       |
 | `TRAINER_GENERATIONS`             | number       | `50`              | no       | Number of GA generations             | TT       |
 | `TRAINER_POPULATION_SIZE`         | number       | `20`              | no       | GA population size                   | TT       |
 | `TRAINER_TIME_BUDGET_MS`          | number       | `300000` (5min)   | no       | Max training time per run            | TT       |
+| `TRAINER_INTERVAL_MS`             | number       | `3600000` (1h)    | no       | Time between two training sessions   | TT       |
 | `TRAINER_MAX_DATA_AGE_MS`         | number       | `900000` (15min)  | no       | Newest candle older than this: symbol not trained | TT       |
 | `TRAINER_EPISODES_PER_INDIVIDUAL` | number       | `10`              | no       | DRL episodes per genome evaluation (adaptive control keeps 10–30) | TT       |
 | `TRAINER_FITNESS_TYPE`            | enum         | `total_pnl`       | no       | GA scalar fitness: `total_pnl`, `sharpe`, `sortino`, `calmar`, `composite` (ADR-0025) | TT       |
@@ -178,8 +180,6 @@ No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), accepted 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
 | `DLQ_AUTH_HMAC_SECRET`    | string | —                           | **yes** (production) | Signs the dead letters sent to dlq-service: same value as dlq-service (min 16 chars). Unset: dead letters stay in the local file | MM       |
-| `DLQ_LOCAL_FALLBACK_PATH` | string | `./dead-letter-queue.jsonl` | no                   | File keeping the dead letters dlq-service cannot take yet (writable volume) | MM       |
-| `DLQ_FORWARD_INTERVAL_MS` | number | `60000`                     | no                   | How often the dead letters kept in the file are sent to dlq-service again   | MM       |
 | `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publisher gets its 202 (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM       |
 
 ---
@@ -203,7 +203,6 @@ Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host 
 | `RETENTION_BATCH_SIZE`    | number (≥1) | `10000`           | no       | Rows per `DELETE ... LIMIT` | retention job |
 | `RETENTION_PAUSE_SECONDS` | number (≥0) | `1`               | no       | Pause between two batches | retention job |
 | `MYSQL_RETENTION_PASSWORD` | string | —                      | **yes** in K8s | Password of MySQL user `retention` (SELECT, DELETE on the five tables). Key of Secret `trading-model-secrets`, read by `db-migrate-user` and `db-retention` | retention job |
-| `MYSQL_SPIRE_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** in K8s | Password of MySQL user `spire` (`ALL PRIVILEGES` on `spire.*` only), created with the `spire` database by `db-migrate-user`, read by the SPIRE server (`-expandEnv`). The SPIRE pod no longer gets `MYSQL_ROOT_PASSWORD` (issue #807). Compose uses SQLite | spire-server |
 
 ---
 
@@ -215,6 +214,22 @@ Passwords of the read-only users of the exporter sidecars (`docs/architecture/da
 | ------------------------- | ------ | ------- | -------- | ----------- | -------- |
 | `MYSQL_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** (K8s and compose) | Password of MySQL user `exporter`, created by `db-migrate-user` (K8s) or `mysql-exporter-user` (compose), read by the `mysqld-exporter` sidecars | mysqld-exporter |
 | `REDIS_EXPORTER_PASSWORD` | string | — | **yes** in K8s | Password of the Redis ACL user `exporter` (`redis-ha.sh`, data nodes and sentinels), read by the `redis-exporter` sidecars | redis-exporter |
+| `MONGO_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.-]`) | — | **yes** (K8s and compose) | Password of MongoDB user `exporter` (`clusterMonitor`, ADR-0067), read by the `mongodb_exporter` sidecars | mongodb-exporter |
+
+## MongoDB users (ADR-0067)
+
+One user per client, created by `deploy/mongo/users.js` (K8s Jobs `mongo-dlq-users` / `mongo-audit-users`, compose `mongo-users`). K8s: keys of Secret `trading-model-secrets`, all checked by `deploy.yml`. Compose: `.env` (characters `[A-Za-z0-9_.-]`, all required).
+
+| Variable | Type | Default | Required | Description | Services |
+| -------- | ---- | ------- | -------- | ----------- | -------- |
+| `MONGO_USERNAME` | string | — | no | MongoDB user of the service (`audit-logger`, `dlq-service`); unset: no authentication (dev). Set together with `MONGO_PASSWORD` | AL, DLQ |
+| `MONGO_PASSWORD` | string | — | no | Its password (Secret key `MONGO_AUDIT_PASSWORD` / `MONGO_DLQ_PASSWORD`); the URI then carries `authSource=admin` and no credentials | AL, DLQ |
+| `MONGO_ROOT_PASSWORD` | string | — | **yes** | User `root`: restore, user administration | mongo pods, `mongo-users` |
+| `MONGO_BACKUP_PASSWORD` | string | — | **yes** | User `backup`: dumps and oplog archives | mongo pods, `mongo-users` |
+| `MONGO_AUDIT_PASSWORD` | string | — | **yes** | User `audit-logger` | audit-logger, `mongo-users` |
+| `MONGO_DLQ_PASSWORD` | string | — | **yes** | User `dlq-service` | dlq-service, `mongo-users` |
+| `MONGO_AUDIT_KEYFILE` | string (6 to 1024 base64 characters) | — | **yes** in K8s | Internal authentication key of `mongo-audit` | mongo-audit pods |
+| `MONGO_DLQ_KEYFILE` | string (same) | — | **yes** in K8s | Internal authentication key of `mongo-dlq` | mongo-dlq pods |
 
 ---
 
@@ -287,6 +302,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `GRAFANA_OIDC_ALLOWED_DOMAINS` | string | (unset) | E-mail domains allowed to log in; required in production K8s (ADR-0063) | DC, K8s |
 | `GRAFANA_ROOT_URL` | string | `http://localhost:3000/` (compose) | Public Grafana URL, base of the OIDC `redirect_uri`; K8s: `https://grafana.<host>/` of the ingress (ADR-0063) | DC, K8s |
 | `MYSQL_EXPORTER_PASSWORD` | string | (required)          | Password of the read-only MySQL user `exporter` of mysqld-exporter (ADR-0056) | DC |
+| `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` | string | (required) | MongoDB users (ADR-0067), see "MongoDB users" above | DC |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
 | `IMAGE_TAG`           | string | `latest`                | Image tag to pull                  | DC       |
@@ -342,15 +358,22 @@ AUDIT_PORT=8450
 MYSQL_ROOT_PASSWORD=changeme
 GRAFANA_PASSWORD=change-me-grafana-admin-password
 MYSQL_EXPORTER_PASSWORD=change-me-mysql-exporter-password
+MONGO_ROOT_PASSWORD=change-me-mongo-root-password
+MONGO_EXPORTER_PASSWORD=change-me-mongo-exporter-password
+MONGO_BACKUP_PASSWORD=change-me-mongo-backup-password
+MONGO_AUDIT_PASSWORD=change-me-mongo-audit-password
+MONGO_DLQ_PASSWORD=change-me-mongo-dlq-password
 MYSQL_DATABASE=financial_scraper
 
 # Trader-Trainer
 TRAINER_SYMBOLS=BTCUSDT,ETHUSDT
 TRAINER_DATA_WINDOW=500
-TRAINER_VALIDATION_SPLIT=0.2
+TRAINER_VALIDATION_SPLIT=0.15
+TRAINER_TEST_SPLIT=0.15
 TRAINER_GENERATIONS=50
 TRAINER_POPULATION_SIZE=20
 TRAINER_TIME_BUDGET_MS=300000
+TRAINER_INTERVAL_MS=3600000
 TRAINER_MAX_DATA_AGE_MS=900000
 TRAINER_EPISODES_PER_INDIVIDUAL=10
 TRAINER_FITNESS_TYPE=total_pnl

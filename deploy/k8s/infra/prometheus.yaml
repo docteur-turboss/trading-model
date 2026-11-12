@@ -784,13 +784,13 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
           - alert: CertificateExpiry
-            expr: probe_ssl_earliest_cert_expiry - time() < 1800
+            expr: probe_ssl_earliest_cert_expiry - time() < 3600
             for: 5m
             labels:
               severity: warning
             annotations:
               summary: 'SVID close to expiry on {{ $labels.service }}'
-              description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
           - alert: CircuitBreakerOpen
@@ -802,6 +802,16 @@ data:
               summary: 'Circuit breaker open on {{ $labels.job }}'
               description: 'The circuit breaker of {{ $labels.job }} for instance {{ $labels.instanceId }} is in OPEN state: calls to that instance are refused.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md'
+
+          - alert: HttpCircuitBreakerRejecting
+            expr: sum by (job, target, kind) (rate(http_circuit_breaker_rejections_total[5m])) > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: '{{ $labels.job }} refuses calls to {{ $labels.target }}'
+              description: '{{ $labels.job }} has had its outbound calls to {{ $labels.kind }} {{ $labels.target }} refused by the open HTTP circuit breaker for 10 minutes.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
 
           - alert: DLQSizeGrowing
             expr: sum by (job) (rate(dlq_entries_added_total[15m])) > sum by (job) (rate(dlq_entries_replayed_total[15m]))
@@ -1066,16 +1076,6 @@ data:
               description: 'Message-manager delivery rate is {{ $value | humanizePercentage }} over 5m.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md'
 
-          - alert: MessagesLost
-            expr: sum(increase(mm_messages_dlq_error_total{target="file"}[15m])) > 0
-            for: 0m
-            labels:
-              severity: critical
-            annotations:
-              summary: 'Dead-lettered messages could not be written: messages lost'
-              description: 'dlq-service could not take dead-lettered messages and message-manager could not keep them in DLQ_LOCAL_FALLBACK_PATH either: they are gone. Check that the path is on a writable volume, then dlq-service.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
-
           - alert: MessagesDeadLettered
             expr: sum by (topic) (increase(mm_messages_dlq_total[1h])) > 0
             for: 0m
@@ -1086,18 +1086,6 @@ data:
               description: 'message-manager gave up delivering {{ $value | humanize }} message(s) on {{ $labels.topic }} in the last hour. They are in dlq-service (GET /dlq) to inspect and replay.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
-          # dlq-service cannot take dead letters: message-manager keeps them in a
-          # file that does not outlive the pod and sends them again every minute.
-          - alert: DeadLettersNotForwarded
-            expr: max by (instance) (mm_dlq_fallback_pending) > 0
-            for: 15m
-            labels:
-              severity: warning
-            annotations:
-              summary: 'Dead letters kept in a message-manager pod, not in dlq-service'
-              description: '{{ $value }} dead letter(s) have waited 15 minutes in the local file of {{ $labels.instance }}: dlq-service cannot take them (down, unreachable, or another DLQ_AUTH_HMAC_SECRET). They are lost if the pod is deleted.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
-
           - alert: DeadLettersRejected
             expr: sum(increase(mm_dlq_rejected_total[1h])) > 0
             for: 0m
@@ -1105,7 +1093,7 @@ data:
               severity: warning
             annotations:
               summary: 'dlq-service refused dead letters'
-              description: 'dlq-service refused {{ $value | humanize }} dead letter(s) in the last hour (invalid or too large): they are in DLQ_LOCAL_FALLBACK_PATH.rejected on the message-manager pod, and in its logs.'
+              description: 'dlq-service refused {{ $value | humanize }} dead letter(s) in the last hour (invalid or too large): their journal entries stay pending until trimmed after 24 h (a lost message, JournalEntriesTrimmed): fix the cause within 24 h, see the runbook and the message-manager logs.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
           # A DLQ delete or replay was done but message-manager refused its audit
@@ -1165,25 +1153,25 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
 
           - alert: TrainingCompletionRateLow
-            expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[15m])) or sum by (job) (rate(tt_training_sessions_total[15m])) * 0) / sum by (job) (rate(tt_training_sessions_total[15m])) < 0.95
-            for: 15m
+            expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[3h])) or sum by (job) (rate(tt_training_sessions_total[3h])) * 0) / sum by (job) (rate(tt_training_sessions_total[3h])) < 0.95
+            for: 1h
             labels:
               severity: warning
               slo: training_completion
             annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m.'
+              description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 3h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
           - alert: TrainingCompletionRateCritical
-            expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[15m])) or sum by (job) (rate(tt_training_sessions_total[15m])) * 0) / sum by (job) (rate(tt_training_sessions_total[15m])) < 0.5
-            for: 15m
+            expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[3h])) or sum by (job) (rate(tt_training_sessions_total[3h])) * 0) / sum by (job) (rate(tt_training_sessions_total[3h])) < 0.5
+            for: 1h
             labels:
               severity: critical
               slo: training_completion
             annotations:
               summary: 'Training completion rate below 50%'
-              description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+              description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
           - alert: TrainerEventLoopBlocked
@@ -1338,18 +1326,18 @@ data:
 
           # The useful output of the trainer is a stored model, whatever stops it
           # (training failing, nothing to train, write failing). A session lasts at
-          # most TRAINER_TIME_BUDGET_MS (5 min) and the loop starts one every minute,
-          # so one hour without a stored model is already abnormal; the 2 h of "for"
+          # most TRAINER_TIME_BUDGET_MS (5 min) and the loop starts one every
+          # TRAINER_INTERVAL_MS (1 h): 3 h without a stored model is already abnormal; the 2 h of "for"
           # also covers a cold start (series born at 0). Fires only while a trainer
           # holds the Lease (no leader: TrainerNoLeader; trainer down: ServiceDown).
           - alert: TrainerNoModelStored
-            expr: sum by (job) (increase(tt_model_artifacts_total{result="stored"}[1h])) == 0 and on (job) max by (job) (tt_training_leader) == 1
+            expr: sum by (job) (increase(tt_model_artifacts_total{result="stored"}[3h])) == 0 and on (job) max by (job) (tt_training_leader) == 1
             for: 2h
             labels:
               severity: critical
             annotations:
               summary: 'trader-trainer has stored no model for hours'
-              description: 'No model artifact stored for at least 3 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
+              description: 'No model artifact stored for at least 5 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernomodelstored'
 
           # A trained model could not be stored (ADR-0022): the best agent then
@@ -1364,6 +1352,26 @@ data:
               summary: 'Trained models are not stored on {{ $labels.job }}'
               description: '{{ $value | humanize }} model artifact write(s) failed in 30 minutes: the best agents are not kept. Check the trainer logs ("Failed to store model artifact") and TRAINER_MODEL_DIR (volume mounted, writable, not full).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelartifactwritefailing'
+
+          - alert: ModelBelowBuyAndHold
+            expr: max by (job, symbol) (tt_model_below_buy_and_hold_streak and on (job, instance) tt_training_leader == 1) >= 3
+            for: 0m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'The models of {{ $labels.symbol }} do worse than buy and hold'
+              description: 'The last {{ $value }} stored models of {{ $labels.symbol }} have a lower out-of-sample Sharpe than buy and hold on the same bars (tt_model_sharpe vs tt_model_buy_and_hold_sharpe): the trainer adds nothing over holding. No capital is at stake.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelbelowbuyandhold'
+
+          - alert: TrainerFeatureDrift
+            expr: max by (job, symbol) (tt_feature_drift_score and on (job, instance) tt_training_leader == 1) > 3
+            for: 1h
+            labels:
+              severity: warning
+            annotations:
+              summary: 'The live data of {{ $labels.symbol }} drifts from its model statistics'
+              description: 'A normalized field of {{ $labels.symbol }} received since the newest stored model has a mean {{ $value | humanize }} standard deviations away from the statistics stored with that model (tt_feature_drift_score), for 1 hour: the model sees a market it was not trained on.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainerfeaturedrift'
 
           - alert: AlertmanagerNotificationsFailing
             expr: |

@@ -411,6 +411,8 @@ spec:
               value: "redis-sentinel-0.redis-sentinel-headless redis-sentinel-1.redis-sentinel-headless redis-sentinel-2.redis-sentinel-headless"
             - name: SENTINEL_CONF
               value: /sentinel/sentinel.conf
+            - name: REDIS_TLS_MODE
+              value: optional
             # ACL user of the exporter sidecar (user exporter of sentinel.conf, redis-ha.sh).
             - name: REDIS_EXPORTER_PASSWORD
               valueFrom:

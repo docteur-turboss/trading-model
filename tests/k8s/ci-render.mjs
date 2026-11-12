@@ -44,7 +44,6 @@ stringData:
   MYSQL_PASSWORD: dev-mysql
   MYSQL_MIGRATE_PASSWORD: dev-mysql-migrate
   MYSQL_RETENTION_PASSWORD: dev-mysql-retention
-  MYSQL_SPIRE_PASSWORD: dev-mysql-spire
   MYSQL_EXPORTER_PASSWORD: dev-mysql-exporter
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
   GRAFANA_PASSWORD: dev-grafana
@@ -53,6 +52,13 @@ stringData:
   REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
   REDIS_DLQ_PASSWORD: dev-redis-dlq-password
   REDIS_EXPORTER_PASSWORD: dev-redis-exporter-password
+  MONGO_ROOT_PASSWORD: dev-mongo-root-password
+  MONGO_EXPORTER_PASSWORD: dev-mongo-exporter-password
+  MONGO_BACKUP_PASSWORD: dev-mongo-backup-password
+  MONGO_AUDIT_PASSWORD: dev-mongo-audit-password
+  MONGO_DLQ_PASSWORD: dev-mongo-dlq-password
+  MONGO_AUDIT_KEYFILE: devMongoAuditKeyfile0123456789abcdefghij
+  MONGO_DLQ_KEYFILE: devMongoDlqKeyfile0123456789abcdefghijkl
 `;
 
 // `--secret`: that Secret alone, the stand-in for the SealedSecret file deploy.yml

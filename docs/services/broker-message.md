@@ -143,7 +143,7 @@ const metadata = new HELPER.metadataBuilder()
 | `setTopic(topic)`                          | Sets the topic (`bounded-context.aggregate.action` format)                                          |
 | `setEventType(event)`                      | Sets the event type                                                                                 |
 | `setPublisher(context)`                    | Sets the publisher identity                                                                         |
-| `setDelivery(context)`                     | Sets delivery mode (mode, ttl, deduplicationId)                                                     |
+| `setDelivery(context)`                     | Sets delivery mode (mode, ttl)                                                     |
 | `setRouting(context)`                      | Sets routing hints (partitionKey, priority)                                                         |
 | `setSecurity(context)`                     | Sets security context (authContext, signature)                                                      |
 | `setSchemaVersion(version)`                | Sets schema version (default: '1.0.0')                                                              |
@@ -202,7 +202,6 @@ interface RoutingType {
 interface DeliveryType {
   mode: DeliveryModeEnum;
   ttl?: number;
-  deduplicationId?: string;
 }
 
 interface SecurityType {

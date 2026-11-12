@@ -73,6 +73,23 @@ export function barsPerYear(steps: readonly MarketStep[]): number | undefined {
 	return MS_PER_YEAR / gaps[Math.floor(gaps.length / 2)];
 }
 
+/**
+ * Annualised Sharpe of holding one unit over the bars of every segment: the
+ * baseline of the published agent Sharpe, on the same bars and annualised the
+ * same way.
+ */
+export function buyAndHoldSharpe(
+	segments: readonly (readonly MarketStep[])[]
+): number {
+	const curve = segments.flatMap((steps) =>
+		steps
+			.slice(1)
+			.map((step, idx) => Number(step.price) - Number(steps[idx].price))
+	);
+	const perYear = barsPerYear(segments.flat());
+	return new EpisodeScores(curve).sharpe() * Math.sqrt(perYear ?? 1);
+}
+
 interface ComputeAllResultsContext extends EvaluationPnl {
 	currentGenome: DeepReadonly<LamarckGenome>;
 	/** Annualises the published ratios; fitness itself stays per bar. */

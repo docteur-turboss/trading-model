@@ -63,21 +63,16 @@ describe("Wallet module", () => {
 			).toThrow("Percentage must be a finite number");
 		});
 
-		test("should throw error for invalid maxPosition", () => {
-			expect(() =>
-				createWallet({
-					initialCash: Cash.of(1000),
-					initialPrice: Price.of(50),
-					maxPosition: Volume.of(0),
-				})
-			).toThrow("Invalid maxPosition");
-			expect(() =>
-				createWallet({
-					initialCash: Cash.of(1000),
-					initialPrice: Price.of(50),
-					maxPosition: Volume.of(-1),
-				})
-			).toThrow("Volume must be a non-negative finite number");
+		test("should throw error for invalid maxExposureFraction", () => {
+			for (const maxExposureFraction of [0, -1, Number.NaN]) {
+				expect(() =>
+					createWallet({
+						initialCash: Cash.of(1000),
+						initialPrice: Price.of(50),
+						maxExposureFraction,
+					})
+				).toThrow("Invalid maxExposureFraction");
+			}
 		});
 
 		test("should throw error for invalid decimals", () => {
@@ -114,12 +109,12 @@ describe("Wallet module", () => {
 			expect(wallet.getPosition()).toBe(0);
 		});
 
-		test("should create wallet with valid feeRate and maxPosition", () => {
+		test("should create wallet with valid feeRate and maxExposureFraction", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
 				feeRate: Percentage.of(0.001),
-				maxPosition: Volume.of(100),
+				maxExposureFraction: 0.5,
 			});
 			expect(wallet.getCash()).toBe(1000);
 			expect(wallet.getPosition()).toBe(0);
@@ -159,14 +154,20 @@ describe("Wallet module", () => {
 			expect(() => wallet.buy(Volume.of(-2))).toThrow();
 		});
 
-		test("should fail to buy when exceeding maxPosition", () => {
+		test.each([
+			[50, 10],
+			[0.01, 50000],
+		])("refuses a buy past the exposure cap at price %p", (price, cap) => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
-				initialPrice: Price.of(50),
-				maxPosition: Volume.of(10),
+				initialPrice: Price.of(price),
+				maxExposureFraction: 0.5,
 			});
-			wallet.buy(Volume.of(10));
-			expect(wallet.buy(Volume.of(1))).toBe(false);
+			// cap = 0.5 * 1000 / price units
+			expect(wallet.buy(Volume.of(cap + 1))).toBe(false);
+			expect(wallet.buy(Volume.of(cap / 2))).toBe(true);
+			expect(wallet.buy(Volume.of(cap / 2 + 1))).toBe(false);
+			expect(wallet.buy(Volume.of(cap / 2))).toBe(true);
 		});
 	});
 
@@ -302,6 +303,52 @@ describe("Wallet module", () => {
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(60));
 			expect(wallet.getPnL()).toBeGreaterThan(0);
+		});
+	});
+
+	describe("Execution at a fill price with half-spread and slippage", () => {
+		const costly = () =>
+			createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(100),
+				feeRate: Percentage.of(0.001),
+				executionCostRate: Percentage.of(0.0005),
+			});
+
+		test("a buy pays fill × (1 + cost) plus the fee, marked at the close", () => {
+			const wallet = costly();
+			expect(wallet.buy(Volume.of(2), Price.of(110))).toBe(true);
+			// 2 × 110 × 1.0005 = 220.11, fee 0.22011
+			expect(wallet.getCash()).toBeCloseTo(1000 - 220.11 - 0.22011, 8);
+			expect(wallet.getPrice()).toBe(100);
+		});
+
+		test("a sale receives fill × (1 − cost) minus the fee", () => {
+			const wallet = costly();
+			wallet.buy(Volume.of(2), Price.of(100));
+			const cash = Number(wallet.getCash());
+			expect(wallet.sell(Volume.of(2), Price.of(110))).toBe(true);
+			// 2 × 110 × 0.9995 = 219.89, fee 0.21989
+			expect(wallet.getCash()).toBeCloseTo(cash + 219.89 - 0.21989, 8);
+		});
+
+		test("without a fill price, trades at the marked price", () => {
+			const wallet = costly();
+			wallet.buy(Volume.of(1));
+			expect(wallet.getCash()).toBeCloseTo(1000 - 100.05 - 0.10005, 8);
+		});
+
+		test("rejects an invalid execution cost or fill price", () => {
+			expect(() =>
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(100),
+					executionCostRate: Percentage.of(1),
+				})
+			).toThrow("Invalid executionCostRate");
+			expect(() => costly().buy(Volume.of(1), Number.NaN as never)).toThrow(
+				"fill price received invalid value"
+			);
 		});
 	});
 

@@ -27,7 +27,7 @@
 # sentinels also get the read-only `exporter` user of the metrics sidecars
 # (ADR-0056).
 #
-# TLS (issue #768, ADR-0047), REDIS_TLS_MODE with the Secret redis-tls mounted
+# TLS (issue #930, ADR-0047), REDIS_TLS_MODE with the Secret redis-tls mounted
 # at REDIS_TLS_DIR (tls.crt, tls.key, ca.crt; cert-manager):
 #   off       (default) no TLS.
 #   optional  release N: the nodes and sentinels also listen in TLS (6380 /

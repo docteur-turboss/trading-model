@@ -26,6 +26,8 @@ The project owner chose on 2026-11-03 (issue #291): **RPO 1 h**; keep the freque
 | MySQL (`financial_scraper`, SPIRE datastore `spire`) | 1 h | last 72 h | daily backups, 30 days |
 | SPIRE CA keys (`keys.json`) | 24 h | — | a file without journal: daily backup only |
 
+*Amended by [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md): the SPIRE datastore moved to SQLite on the server volume; it is backed up daily with its CA keys (RPO 24 h), not through the binlogs.*
+
 The incremental archives are kept 72 h (`INCREMENTAL_RETENTION_HOURS`); the daily backups keep their own retention (`RETENTION_DAYS`, 30 days, or what the GFS issue #292 decides). Off-site, the bucket lifecycle expires `mysql/binlog/` and `mongodb/oplog/` after 3 days.
 
 ### Mechanism: our scripts, hourly
@@ -71,5 +73,7 @@ Monitoring: `backup_last_success_timestamp` / `backup_last_status` with `run="in
 - Kubernetes only: the Docker scripts keep the daily dump (compose MongoDB is no replica set).
 
 ## Amendment 2026-11 (issue #767): MySQL client TLS
+
+See [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) (MySQL part done).
 
 Backups, restores and the hourly binlog archives reach MySQL through `kubectl exec` and its local socket, which TLS and `require_secure_transport` do not touch. The only network client of the `backup-tools` image is `mysql` (retention, ADR-0051), which reads `MYSQL_HOME/my.cnf` with `ssl-mode=VERIFY_IDENTITY`. The kind restore drill runs against the TLS-enabled MySQL.

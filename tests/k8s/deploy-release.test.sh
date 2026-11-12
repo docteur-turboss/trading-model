@@ -27,6 +27,11 @@ for env in staging production; do
 	grep -q "registry.example/acme/api-gateway@$(awk '$1 == "api-gateway" {print $2}' "$WORK/digests")" <<<"$rendered" &&
 		ok "$env: api-gateway at its digest" || ko "$env: api-gateway not at its digest"
 done
+ruled="$(bash "$SCRIPT" render "$ROOT/deploy/k8s/overlays/staging" r "$WORK/digests" 1.2.3)"
+grep -q 'runbook_url: .*/blob/v1.2.3/' <<<"$ruled" && ! grep -q 'runbook_url: .*/blob/main/' <<<"$ruled" &&
+	ok "tag 1.2.3: runbook_url on blob/v1.2.3/" || ko "runbook_url not rewritten to the tag"
+grep -q 'runbook_url: .*/blob/main/' <<<"$(bash "$SCRIPT" render "$ROOT/deploy/k8s/overlays/staging" r "$WORK/digests" latest)" &&
+	ok "tag latest: runbook_url stays on main" || ko "runbook_url moved without a release tag"
 : >"$WORK/empty"
 bash "$SCRIPT" render "$ROOT/deploy/k8s/overlays/staging" r "$WORK/empty" >/dev/null 2>&1 &&
 	ko "render accepted an empty digest file" || ok "render refuses an empty digest file"

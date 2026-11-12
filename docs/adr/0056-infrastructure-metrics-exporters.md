@@ -9,7 +9,7 @@
 
 Prometheus scraped the services, otel-collector, blackbox, backup metrics, itself and Alertmanager, nothing else (issue #601, observability audit 2026-11-08, C5). A full MySQL disk, broken Redis replication or Sentinel quorum, a MongoDB replica set without primary, a full node disk, an OOMKill or a CrashLoopBackOff went unseen until the services failed, and diagnosing them needed privileged `kubectl`. `HighMemoryUsage` only sees the V8 heap. The owner chose option 1 of the issue (2026-11-08).
 
-Constraints: no Helm (kube-prometheus-stack is out), the application namespace enforces Pod Security `restricted`, the deploy identities hold no RBAC write at cluster scope (ADR-0041), and MongoDB runs without authentication.
+Constraints: no Helm (kube-prometheus-stack is out), the application namespace enforces Pod Security `restricted`, the deploy identities hold no RBAC write at cluster scope (ADR-0041), and MongoDB ran without authentication (ADR-0067).
 
 ## Decision
 
@@ -19,7 +19,7 @@ Constraints: no Helm (kube-prometheus-stack is out), the application namespace e
 4. **Databases: one exporter sidecar per database pod**, so each member is seen (master and replicas, every replica set member), reached on `127.0.0.1`, port `metrics` open to the Prometheus pod only (NetworkPolicy), plain HTTP like otel-collector and backup-metrics (no SVID: ADR-0011 covers the services). Images pinned by digest (`check-overlays.mjs`). Adding them rolls the database StatefulSets once.
    - `mysqld-exporter`, MySQL user **`exporter`**: `PROCESS, REPLICATION CLIENT` on `*.*`, `SELECT` on `performance_schema.*`, 3 connections at most; created by Job `db-migrate-user`, password `MYSQL_EXPORTER_PASSWORD` (same model as `retention`, ADR-0051).
    - `redis_exporter` on the data nodes and the sentinels, ACL user **`exporter`** (`redis-ha.sh`): `PING INFO CLIENT SETNAME SLOWLOG GET/LEN LATENCY LATEST/HISTOGRAM`, no key, never `CONFIG GET` (it returns `masterauth`); on the sentinels `SENTINEL MASTERS/SENTINELS/SLAVES/REPLICAS/CKQUORUM`. Password `REDIS_EXPORTER_PASSWORD`.
-   - `mongodb_exporter` on `mongo-dlq` and `mongo-audit`, server status and `replSetGetStatus`, **no user**: MongoDB has no authentication, so a read-only user would protect nothing. A `clusterMonitor` user comes with MongoDB authentication, issue #669.
+   - `mongodb_exporter` on `mongo-dlq` and `mongo-audit`, server status and `replSetGetStatus`, user **`exporter`** (`clusterMonitor`, ADR-0067; it ran without a user until MongoDB authentication, issue #669, since a read-only user on an open database protects nothing). Password `MONGO_EXPORTER_PASSWORD`.
    - Both password keys are optional for the pods (a missing key never blocks a database pod), and required by `deploy.yml` before any change: without them the exporters report the databases down, and the release would roll back.
 5. **Alerts** (`observability/alerting.yml`, K8s copy, runbook `runbook-infrastructure.md`, promtool cases): `KubePodCrashLooping`, `KubeContainerOOMKilled`, `KubePersistentVolumeFillingUp` (> 80 %), `NodeFilesystemAlmostFull` (> 85 %, per device) as warnings; `MySQLDown`, `RedisDown`, `RedisSentinelQuorumLost` (`SENTINEL CKQUORUM`), `MongoDBDown`, `MongoDBReplicaSetNoPrimary` as critical; `RedisReplicasMissing` (fewer replicas than the StatefulSet minus one) and `MongoDBReplicaSetMemberUnhealthy` as warnings. Expected sizes come from `kube_statefulset_replicas`, so single-node environments (compose, staging) stay silent. The observability gate accepts the `kube_ kubelet_ container_ node_ mysql_ redis_ mongodb_` families only while their K8s scrape job is configured.
 6. **Compose** runs the database exporters (one mongod there), node-exporter (on Docker Desktop it sees the Windows drives, including the C: that filled up on 2026-10-28) and a one-shot `mysql-exporter-user`; `MYSQL_EXPORTER_PASSWORD` is required. No cAdvisor or kube-state-metrics in compose (no Kubernetes; cAdvisor needs the Docker socket and `privileged`). Compose Redis has no ACL, so its exporter has no user.
@@ -37,10 +37,12 @@ Constraints: no Helm (kube-prometheus-stack is out), the application namespace e
 
 ## Amendment 2026-11 (issue #767): MySQL client TLS
 
+See [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) (MySQL part done).
+
 The `mysqld-exporter` sidecars still reach `127.0.0.1:3306`, now over TLS: `--config.my-cnf` points to `exporter.cnf` (ConfigMap `mysql-client-tls`), and the server certificate carries `127.0.0.1` and `localhost` as SANs. The health probes use the local socket.
 
 `exporter.cnf` also names the client certificate of user `exporter` (Secret `mysql-client-exporter`), required by `REQUIRE ISSUER / SUBJECT`.
 
-## Amendment 2026-11 (issue #768): Redis TLS
+## Amendment 2026-11 (issue #930): Redis TLS
 
 The `redis_exporter` sidecars read `ca.crt` of `redis-tls` (`REDIS_EXPORTER_TLS_CA_CERT_FILE`) and keep `redis://127.0.0.1` in release N; from the required step they use `rediss://127.0.0.1:6380` / `26380` (the certificate carries `127.0.0.1`).

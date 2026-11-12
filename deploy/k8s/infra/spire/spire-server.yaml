@@ -1,5 +1,7 @@
 # SPIRE Server — workload identity issuance (ADR-0011).
-# Datastore: MySQL (existing trading-model MySQL, database `spire`).
+# Datastore: SQLite on the server's own PVC (ADR-0065): losing mysql-0 no
+# longer stops SVID issuance. keys-sqlite.json holds the CA keys of that
+# datastore.
 # Agents (namespace trading-model-node, deploy/k8s/node-agents) attest with k8s_psat;
 # the server publishes its trust bundle into the `spire-bundle` ConfigMap of
 # trading-model-node (k8sbundle notifier) that the agents mount.
@@ -59,41 +61,12 @@ spec:
         fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
-      initContainers:
-        - name: spire-db-init
-          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "-ec"]
-          # No credential: `mysqladmin ping` succeeds on "access denied" too. The
-          # `spire` database and user come from Job db-migrate-user (root, once).
-          args:
-            - |
-              for i in $(seq 1 30); do
-                if mysqladmin ping -h mysql-primary --ssl-mode=REQUIRED 2>/dev/null; then
-                  exit 0
-                fi
-                echo "Waiting for MySQL... ($i/30)"
-                sleep 5
-              done
-              echo "MySQL still unreachable" >&2
-              exit 1
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
       containers:
         - name: spire-server
           image: ghcr.io/spiffe/spire-server:1.15.5@sha256:584a9c5cc95b9457f5033e7e4488d603fffe5ec48a80c4dba14b05c5e1c2c384
           imagePullPolicy: IfNotPresent
           # The image entrypoint is `spire-server run`.
           args: ["-config", "/etc/spire/server.conf", "-expandEnv"]
-          env:
-            - name: MYSQL_SPIRE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: MYSQL_SPIRE_PASSWORD
           ports:
             - name: grpc
               containerPort: 8081
@@ -115,6 +88,9 @@ spec:
               mountPath: /run/spire/data
             - name: spire-server-sockets
               mountPath: /run/spire/server-sockets
+            # SQLite temporary files (large sorts): the root filesystem is read-only.
+            - name: spire-server-tmp
+              mountPath: /tmp
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -153,15 +129,19 @@ spec:
               memory: 16Mi
             limits:
               cpu: 100m
-              memory: 64Mi
+              # The backup snapshot in /tmp (memory) counts here.
+              memory: 128Mi
           volumeMounts:
             - name: spire-server-sockets
               mountPath: /run/spire/server-sockets
-            # Read-only: lets the backup job `kubectl cp` the CA key through
-            # this container (the spire-server image has no tar).
+            # The backup job snapshots the datastore (sqlite3 .backup) and
+            # reads the CA keys through this container: the spire-server image
+            # has no shell. Writable: a reader of a WAL-mode SQLite file needs
+            # its -shm file and locks.
             - name: spire-data
               mountPath: /run/spire/data
-              readOnly: true
+            - name: spire-backup-tmp
+              mountPath: /tmp
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -180,6 +160,14 @@ spec:
             claimName: spire-server-data
         - name: spire-server-sockets
           emptyDir: {}
+        - name: spire-server-tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        # Datastore snapshot of the backup job, deleted once streamed.
+        - name: spire-backup-tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Mi
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -264,11 +252,6 @@ spec:
         - port: 8081
           protocol: TCP
   egress:
-    - to:
-        - podSelector: {}
-      ports:
-        - port: 3306
-          protocol: TCP
     # Cluster DNS.
     - ports:
         - port: 53

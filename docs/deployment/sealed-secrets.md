@@ -53,7 +53,6 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=MYSQL_PASSWORD='your-mysql-password' \
   --from-literal=MYSQL_MIGRATE_PASSWORD='your-migration-user-password' \
   --from-literal=MYSQL_RETENTION_PASSWORD='your-retention-user-password' \
-  --from-literal=MYSQL_SPIRE_PASSWORD='your-spire-user-password' \
   --from-literal=MYSQL_EXPORTER_PASSWORD='your-mysql-exporter-password' \
   --from-literal=DLQ_AUTH_HMAC_SECRET='your-dlq-hmac-secret' \
   --from-literal=GRAFANA_PASSWORD='your-grafana-password' \
@@ -62,6 +61,13 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=REDIS_MESSAGE_MANAGER_PASSWORD='your-message-manager-redis-password' \
   --from-literal=REDIS_DLQ_PASSWORD='your-dlq-redis-password' \
   --from-literal=REDIS_EXPORTER_PASSWORD='your-exporter-redis-password' \
+  --from-literal=MONGO_ROOT_PASSWORD='your-mongo-root-password' \
+  --from-literal=MONGO_EXPORTER_PASSWORD='your-mongo-exporter-password' \
+  --from-literal=MONGO_BACKUP_PASSWORD='your-mongo-backup-password' \
+  --from-literal=MONGO_AUDIT_PASSWORD='your-mongo-audit-password' \
+  --from-literal=MONGO_DLQ_PASSWORD='your-mongo-dlq-password' \
+  --from-literal=MONGO_AUDIT_KEYFILE="$(openssl rand -hex 64)" \
+  --from-literal=MONGO_DLQ_KEYFILE="$(openssl rand -hex 64)" \
   --dry-run=client -o yaml > /tmp/plaintext-secret.yaml
 
 # Seal it (requires kubeseal CLI)
@@ -112,9 +118,9 @@ For `tokens`, the new key is written to a `0600` temporary file whose path is lo
 
 ### Rotate a database password
 
-`rotate-secrets.sh` refuses `MYSQL_*` and `REDIS_*_PASSWORD`: the password must change in the database first, then in the Secret, then in the pods.
+`rotate-secrets.sh` refuses `MYSQL_*`, `MONGO_ROOT_PASSWORD` and `REDIS_*_PASSWORD`: the password must change in the database first, then in the Secret, then in the pods.
 
-1. Change it in the database (`ALTER USER ... IDENTIFIED BY` for MySQL; `ACL SETUSER <user> >new <-old` on every Redis node, or edit `redis-ha.sh` and rerun it).
+1. Change it in the database (`ALTER USER ... IDENTIFIED BY` for MySQL; `ACL SETUSER <user> >new <-old` on every Redis node, or edit `redis-ha.sh` and rerun it; for Mongo `root`, `db.getSiblingDB("admin").changeUserPassword("root", <new>)` after `auth` with the old one; the other Mongo users are applied by the `mongo-*-users` Jobs on release).
 2. Merge the new value (`kubeseal --merge-into`, see above) and apply the file.
 3. Restart every consumer of the key (`kubectl rollout restart`), then the database pods for the exporter keys.
 

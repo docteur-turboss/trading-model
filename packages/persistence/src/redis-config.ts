@@ -12,7 +12,7 @@ export interface RedisNodeAddress {
 }
 
 /**
- * TLS towards Redis and the sentinels (issue #768, ADR-0047). `servername` is
+ * TLS towards Redis and the sentinels (issue #930, ADR-0047). `servername` is
  * the name the server certificate must carry: nodes are reached by the IP
  * Sentinel announces, which no certificate can list.
  */

@@ -48,7 +48,7 @@ flowchart TB
   services -.->|"register + heartbeat (address-manager)"| disc
 
   binance["Binance"] --> fs
-  fs --> mysql[("MySQL<br/>market data + SPIRE datastore")]
+  fs --> mysql[("MySQL<br/>market data")]
   al --> mongoA[("MongoDB audit<br/>mongo-audit in K8s")]
   dlq --> mongoD[("MongoDB dlq<br/>mongo-dlq in K8s")]
   dlq --> redis[("Redis HA<br/>sentinels in K8s")]
@@ -57,7 +57,7 @@ flowchart TB
   tt --> ckpt[("checkpoints volume")]
 
   subgraph spire["SPIRE (ADR-0011)"]
-    ss["spire-server"] --> mysql
+    ss["spire-server"] --> spiredb[("SQLite datastore<br/>own volume (ADR-0065)")]
     sa["spire-agent"] --> ss
     sh["spiffe-helper sidecars (compose)<br/>CSI driver (K8s)"] --> sa
   end
@@ -85,7 +85,7 @@ flowchart TB
     svc --> mD["StatefulSet mongo-dlq"]
     svc --> rd["StatefulSet redis (master + 2 replicas)"]
     svc --> rs["StatefulSet redis-sentinel (3)"]
-    ss["Deployment spire-server"] --> mysql
+    ss["Deployment spire-server"] --> sspvc["PVC spire-server-data (SQLite)"]
     obs["StatefulSets prometheus, alertmanager, grafana, loki<br/>Deployments jaeger, otel-collector, blackbox-exporter"]
     jobs["CronJobs db-backup, db-backup-incremental; Job migrate"]
   end
@@ -131,7 +131,7 @@ sequenceDiagram
   end
   opt a subscriber keeps failing (at-least-once, 10 attempts)
     MM->>DLQ: signed POST /dlq
-    Note over MM,DLQ: dlq-service down: local JSON Lines file, forwarded later
+    Note over MM,DLQ: dlq-service down: entry stays in the journal, retried
   end
 ```
 

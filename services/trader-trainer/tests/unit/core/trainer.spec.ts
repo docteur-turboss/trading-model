@@ -6,8 +6,19 @@ import {
 	TradingSymbol,
 } from "@trading-model/primitives/primitives";
 import { Trainer } from "../../../src/application/trainer";
+import { runInProcess } from "../../../src/application/training-session";
+import {
+	FEATURE_DRIFT_SCORE,
+	MODEL_BELOW_BUY_AND_HOLD_STREAK,
+	MODEL_BUY_AND_HOLD_SHARPE,
+	MODEL_MAX_DRAWDOWN,
+	MODEL_RETURN,
+	MODEL_SHARPE,
+} from "../../../src/config/metrics";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
+import { buyAndHoldSharpe } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import type { WindowSet } from "../../../src/domain/genetic-algorithm/ga-runner";
 import {
 	ActivationType,
 	ConnectionType,
@@ -44,6 +55,7 @@ jest.mock<{ ENV: any }>("../../../src/infrastructure/config/env", () => ({
 /** Mirrors the TRAINER_* values of the mocked ENV above. */
 const TEST_TRAINING_SETTINGS: TrainingSettings = {
 	validationSplit: 0.2,
+	testSplit: 0.15,
 	walkForwardFolds: 1,
 	generations: 10,
 	populationSize: 5,
@@ -56,6 +68,11 @@ let capturedOnGeneration: ((ctx: any) => void) | null = null;
 let capturedOnArchiveUpdate: ((archive: any[]) => void) | null = null;
 let mockRunImpl: (() => Promise<any>) | null = null;
 let mockArchiveData: any[] = [{ id: "best-archived" }];
+
+// The mocked GA returns a stub genome: the final test evaluation cannot run it.
+jest.mock("../../../src/domain/genetic-algorithm/evaluation-phase", () => ({
+	evalPhase: () => ({ episodePnl: [1, 2], pnlCurve: [0.5, -0.25, 1] }),
+}));
 
 jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 	const mockRunner = {
@@ -356,7 +373,7 @@ describe("Trainer", () => {
 		});
 
 		it("should handle null fitness in training result", async () => {
-			mockRunImpl = async () => ({ id: "no-fitness" });
+			mockRunImpl = async () => createDefaultGenome("no-fitness");
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
@@ -633,7 +650,12 @@ describe("Trainer — model publication", () => {
 			expect(publisher.publish).toHaveBeenCalledWith(
 				"BTCUSDT",
 				expect.objectContaining({ id: expect.any(String) }),
-				{ version: "20261029T101530Z-0123456789ab", sha256: "0123456789abcdef" }
+				{
+					version: "20261029T101530Z-0123456789ab",
+					sha256: "0123456789abcdef",
+					// Prices rise by 1 every bar: buy and hold's floored Sharpe wins.
+					admissible: false,
+				}
 			);
 		});
 
@@ -794,6 +816,7 @@ describe("Trainer — model publication", () => {
 						sharpe: 0.9,
 						avgPnl: 2,
 						maxDrawdown: 4,
+						evaluatedOn: "test",
 					},
 				};
 			}
@@ -848,6 +871,66 @@ describe("Trainer — model publication", () => {
 				await expect(trainer.rehydrate([sym])).resolves.toBeUndefined();
 				expect(trainer.getSnapshotForSymbol(sym)).toBeUndefined();
 			});
+		});
+
+		it("exports the stored model's metrics next to buy and hold, then the drift of the next session (issue #884)", async () => {
+			const sym = TradingSymbol.of("BTCUSDT");
+			const value = async (gauge: any, labels: Record<string, string>) =>
+				(await gauge.get()).values.find((entry: any) =>
+					Object.entries(labels).every(
+						([key, val]) => entry.labels[key] === val
+					)
+				)?.value;
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const models = fakeStore();
+			models.save.mockResolvedValue({
+				version: "v1",
+				createdAt: new Date(0).toISOString(),
+			});
+			let windows: WindowSet[] = [];
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+				runner: (windowSets, ...rest) => {
+					windows = windowSets;
+					return runInProcess(windowSets, ...rest);
+				},
+			});
+			// Swings growing with time: validation and test bars differ in Sharpe.
+			feedCandles(dataBuffer, "BTCUSDT", 100, (i) => i + ((i % 2) * i) / 10);
+
+			await trainer.train(sym);
+
+			const summary = trainer.getBestAgentSummary();
+			expect(summary?.evaluatedOn).toBe("test");
+			const labels = { symbol: "BTCUSDT", segment: "test" };
+			expect(await value(MODEL_SHARPE, labels)).toBe(summary?.sharpe);
+			expect(await value(MODEL_RETURN, labels)).toBe(summary?.avgPnl);
+			expect(await value(MODEL_MAX_DRAWDOWN, labels)).toBe(
+				summary?.maxDrawdown
+			);
+			const baseline = await value(MODEL_BUY_AND_HOLD_SHARPE, labels);
+			// Buy and hold reads the test bars, never the validation ones.
+			expect(baseline).toBe(
+				buyAndHoldSharpe([windows[windows.length - 1].test ?? []])
+			);
+			expect(baseline).not.toBeCloseTo(
+				buyAndHoldSharpe(windows.map((ws) => ws.validation))
+			);
+			// The verdict reads the test segment metrics and its bars (ADR-0069).
+			expect(models.save.mock.calls[0][0].admission).toMatchObject({
+				admissible: false,
+				evaluatedOn: "test",
+				criteria: { sharpe: summary?.sharpe, buyAndHoldSharpe: baseline },
+			});
+			expect(
+				await value(MODEL_BELOW_BUY_AND_HOLD_STREAK, { symbol: "BTCUSDT" })
+			).toBe(Number(summary?.sharpe) < Number(baseline) ? 1 : 0);
+
+			// The next session compares the buffer with the stored normalization.
+			await trainer.train(sym);
+			expect(await value(FEATURE_DRIFT_SCORE, { symbol: "BTCUSDT" })).toBe(0);
 		});
 
 		it("does not store a best genome without trained weights", async () => {

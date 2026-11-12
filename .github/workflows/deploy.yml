@@ -452,10 +452,11 @@ jobs:
           fi
           # Redis ACL users (ADR-0047): a SealedSecret sealed before they existed
           # only fails at rollout (CreateContainerConfigError), then rolls back.
+          # MongoDB users and keyFiles (ADR-0067): the pods and Jobs read them.
           # Exporter users (ADR-0056): optional keys for the pods, but without
           # them MySQLDown / RedisDown fire and verify-release rolls back.
           missing=""
-          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD MYSQL_SPIRE_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD; do
+          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD MONGO_AUDIT_KEYFILE MONGO_DLQ_KEYFILE; do
             grep -qE "^ +$key: " <<<"$rendered" || missing="$missing $key"
           done
           if [ -n "$missing" ]; then
@@ -742,7 +743,7 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" |
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" "${{ steps.tag.outputs.tag }}" |
             bash deploy/k8s/scripts/deploy-release.sh dry-run "${{ steps.ns.outputs.namespace }}" "deploy/k8s/overlays/$OVERLAY/node-agents"
 
       # Every guard above ran (continue-on-error in preflight): one table, and
@@ -856,7 +857,7 @@ jobs:
         id: apply
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" |
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" "${{ steps.tag.outputs.tag }}" |
             bash scripts/split-cluster-scope.sh app | kubectl apply -f -
           # The former secret-rotation CronJob (issue #424) held write rights on every
           # Secret; apply never prunes, so remove what an older deploy left behind.

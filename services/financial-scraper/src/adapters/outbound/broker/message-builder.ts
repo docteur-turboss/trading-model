@@ -7,14 +7,12 @@ import { sha256Base64url } from "@trading-model/crypto/adapters/outbound/node-ha
 import type {
 	CorrelationId,
 	InstanceId,
-	MessageId,
 	ServiceId,
 	Topic,
 } from "@trading-model/primitives/primitives";
 import {
 	toCorrelationId,
 	toInstanceId,
-	toMessageId,
 	toRole,
 	toServiceId,
 	toSubject,
@@ -51,11 +49,9 @@ export function computeSignature(authContext: unknown): string {
 
 export function buildDeliveryConfig(deliveryMode?: DeliveryMode): {
 	mode: DeliveryMode;
-	deduplicationId: MessageId;
 } {
 	return {
 		mode: deliveryMode ?? DeliveryMode.AtLeastOnce,
-		deduplicationId: toMessageId(randomUUID()),
 	};
 }
 

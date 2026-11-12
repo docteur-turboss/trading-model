@@ -114,6 +114,14 @@ class FakeBacklog implements CandlePublishBacklogPort {
 		return this._from(symbol, cursor).length;
 	}
 
+	async lastCandleOpenTime({ symbol }: { symbol: TradingSymbol }) {
+		this._maybeFail();
+		return this._from(symbol, {
+			market: MarketType.Crypto,
+			publishedUntil: UnixTimestamp.of(0),
+		}).at(-1)?.timestamp;
+	}
+
 	private _from(symbol: TradingSymbol, cursor: PublishCursor): CandleData[] {
 		return [...(this.candles.get(symbol)?.values() ?? [])]
 			.filter((candle) => candle.timestamp >= cursor.publishedUntil)
@@ -261,6 +269,26 @@ describe("WorkerOrchestrator", () => {
 		await runCycle();
 
 		expect(startTimeOfCall(2)).toBe(2 * MINUTE);
+	});
+
+	it("should resume a new process at the newest persisted candle", async () => {
+		backlog.store({ candles: candlesFrom(0, 300), fetchedAt: 0 });
+
+		await runCycle();
+
+		expect(startTimeOfCall(0)).toBe(299 * MINUTE);
+	});
+
+	it("should fetch the latest candles and read the stored one again next cycle when MySQL fails", async () => {
+		backlog.store({ candles: [candleAt(5)], fetchedAt: 0 });
+		backlog.failReads = true;
+
+		await runCycle();
+		backlog.failReads = false;
+		await runCycle();
+
+		expect(startTimeOfCall(0)).toBeUndefined();
+		expect(startTimeOfCall(1)).toBe(5 * MINUTE);
 	});
 
 	it("should fetch the same candles again when persistence fails", async () => {

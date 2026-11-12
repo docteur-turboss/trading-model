@@ -10,7 +10,6 @@ import { ServiceId } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import type { Application } from "express";
 import { BROKER_ROUTES } from "../adapters/inbound/http.routes";
-import { ForwardingDeadLetterStore } from "../adapters/outbound/forwarding-dead-letter-store";
 import { HttpDeadLetterStore } from "../adapters/outbound/http-dead-letter-store";
 import { HttpMessageDelivery } from "../adapters/outbound/http-message-delivery";
 import { InMemoryMessageJournal } from "../adapters/outbound/in-memory-message-journal";
@@ -22,7 +21,6 @@ import { SubscriptionRegistry } from "../application/services/subscription-regis
 import type { DeadLetterStorePort } from "../domain/ports/dead-letter-store.port";
 import type { MessageJournalPort } from "../domain/ports/message-journal.port";
 import type { SubscriptionStorePort } from "../domain/ports/subscription-store.port";
-import { FileDlqRepository } from "../infrastructure/fallback/dlq-repository";
 import {
 	JOURNAL_OLDEST_PENDING_AGE_SECONDS,
 	JOURNAL_PENDING_ENTRIES,
@@ -64,14 +62,10 @@ export interface BrokerModule {
 	startDelivery: () => void;
 	/** Stops the worker and waits for the deliveries in flight. */
 	stopDelivery: () => Promise<void>;
-	/** Sends the dead letters kept in the local file to dlq-service. */
-	forwardDeadLetters: () => Promise<void>;
 }
 
 export interface DeadLetterSettings {
-	/** File the dead letters are kept in while dlq-service cannot take them. */
-	filePath?: string;
-	/** `DLQ_AUTH_HMAC_SECRET`; without it dead letters only go to the file. */
+	/** `DLQ_AUTH_HMAC_SECRET`; without it dead-lettering fails (entries stay in the journal). */
 	dlqSecret?: string;
 }
 
@@ -90,19 +84,16 @@ export default function createBrokerModule(
 	journal: MessageJournalPort = new InMemoryMessageJournal()
 ): BrokerModule {
 	const httpClient = HttpClient.createWithTls(config);
-	const file = new FileDlqRepository(deadLetters.filePath);
-	const forwarding = deadLetters.dlqSecret
-		? new ForwardingDeadLetterStore(
-				new HttpDeadLetterStore({
-					httpClient,
-					resolveUrl: () =>
-						resolveTarget(ServiceId.of(ServiceInstanceName.DlqService), "dlq"),
-					secret: deadLetters.dlqSecret,
-				}),
-				file
-			)
-		: undefined;
-	const deadLetterStore: DeadLetterStorePort = forwarding ?? file;
+	const deadLetterStore: DeadLetterStorePort = deadLetters.dlqSecret
+		? new HttpDeadLetterStore({
+				httpClient,
+				resolveUrl: () =>
+					resolveTarget(ServiceId.of(ServiceInstanceName.DlqService), "dlq"),
+				secret: deadLetters.dlqSecret,
+			})
+		: {
+				insert: () => Promise.reject(new Error("DLQ_AUTH_HMAC_SECRET not set")),
+			};
 	const deliveryPort = new HttpMessageDelivery(httpClient, deadLetterStore);
 	const registry = new SubscriptionRegistry(subscriptionStore, journal);
 	const dispatcher = new Dispatcher({ registry, journal });
@@ -125,9 +116,6 @@ export default function createBrokerModule(
 		stopDelivery: () => {
 			clearInterval(lagTimer);
 			return worker.stop();
-		},
-		forwardDeadLetters: async () => {
-			await forwarding?.forwardPending();
 		},
 	};
 }

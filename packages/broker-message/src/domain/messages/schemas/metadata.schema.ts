@@ -59,11 +59,6 @@ export const DELIVERY_METADATA_MODE_PREDICATE = z
 			.int("delivery.ttl must be a number")
 			.positive("delivery.ttl must be positive")
 			.optional(),
-		deduplicationId: z
-			.string(
-				"delivery.deduplicationId must be a string used to prevent duplicate message processing."
-			)
-			.optional(),
 		requireSubscriber: z
 			.boolean(
 				"delivery.requireSubscriber must be a boolean: refuse the publish when the topic has no subscriber."
@@ -154,6 +149,7 @@ export const TRACEPARENT_METADATA_PREDICATE = z
 /** Schema of the metadata attached to every message. */
 export const MESSAGE_METADATA_SCHEMA = z.object({
 	topic: TOPIC_METADATA_PREDICATE,
+	messageId: IDS_METADATA_PREDICATE,
 	causationId: IDS_METADATA_PREDICATE,
 	correlationId: IDS_METADATA_PREDICATE,
 	eventType: EVENT_TYPE_METADATA_PREDICATE,

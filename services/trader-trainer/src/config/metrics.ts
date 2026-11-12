@@ -13,6 +13,16 @@ for (const result of ["stored", "skipped", "error"] as const) {
 	MODEL_ARTIFACTS_TOTAL.inc({ result }, 0);
 }
 
+/** ADR-0030 verdict of each stored model on its test segment (ADR-0069). */
+export const MODEL_ADMISSION_TOTAL = new promClient.Counter({
+	name: "tt_model_admission_total",
+	help: "Stored models by ADR-0030 verdict on the test segment: admissible or rejected",
+	labelNames: ["result"] as const,
+});
+for (const result of ["admissible", "rejected"] as const) {
+	MODEL_ADMISSION_TOTAL.inc({ result }, 0);
+}
+
 export const TRAINING_SESSIONS_TOTAL = new promClient.Counter({
 	name: "tt_training_sessions_total",
 	help: "Total training sessions",
@@ -58,6 +68,48 @@ export const CURRENT_GENERATION = new promClient.Gauge({
 export const BEST_FITNESS = new promClient.Gauge({
 	name: "tt_best_fitness",
 	help: "Best fitness score achieved",
+	labelNames: ["symbol"] as const,
+});
+
+// Out-of-sample quality of the newest stored model of each symbol, set at each
+// stored model. `segment` names the bars measured: `test` (ADR-0068), or
+// `validation` for a run without a test segment.
+const MODEL_LABELS = ["symbol", "segment"] as const;
+
+export const MODEL_SHARPE = new promClient.Gauge({
+	name: "tt_model_sharpe",
+	help: "Annualised Sharpe of the newest stored model on its evaluation segment",
+	labelNames: MODEL_LABELS,
+});
+
+export const MODEL_RETURN = new promClient.Gauge({
+	name: "tt_model_return",
+	help: "Mean wallet PnL per evaluation episode of the newest stored model",
+	labelNames: MODEL_LABELS,
+});
+
+export const MODEL_MAX_DRAWDOWN = new promClient.Gauge({
+	name: "tt_model_max_drawdown",
+	help: "Largest fall of the cumulative evaluation PnL of the newest stored model",
+	labelNames: MODEL_LABELS,
+});
+
+export const MODEL_BUY_AND_HOLD_SHARPE = new promClient.Gauge({
+	name: "tt_model_buy_and_hold_sharpe",
+	help: "Annualised Sharpe of buy and hold on the bars the newest stored model was measured on",
+	labelNames: MODEL_LABELS,
+});
+
+// In memory: a restart starts the streak again (alert ModelBelowBuyAndHold).
+export const MODEL_BELOW_BUY_AND_HOLD_STREAK = new promClient.Gauge({
+	name: "tt_model_below_buy_and_hold_streak",
+	help: "Consecutive stored models whose Sharpe is below buy and hold, since startup",
+	labelNames: ["symbol"] as const,
+});
+
+export const FEATURE_DRIFT_SCORE = new promClient.Gauge({
+	name: "tt_feature_drift_score",
+	help: "Max |live mean - model mean| / model std of the normalized fields received since the newest stored model (alert TrainerFeatureDrift)",
 	labelNames: ["symbol"] as const,
 });
 

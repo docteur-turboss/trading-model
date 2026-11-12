@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { HELPER } from "@trading-model/broker-message";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
@@ -6,7 +6,6 @@ import { TrainingEvent } from "@trading-model/contracts/training-events";
 import {
 	toCorrelationId,
 	toInstanceId,
-	toMessageId,
 	toServiceId,
 	toTopic,
 } from "@trading-model/primitives/primitives";
@@ -25,28 +24,12 @@ interface PublishContext {
 	instanceId: string;
 }
 
-/** Same `(symbol, version)` gives the same id, so a replay is recognised. */
-function deduplicationIdOf(symbol: string, version: string) {
-	const digest = createHash("sha256")
-		.update(`${symbol}:${version}`)
-		.digest("hex");
-	return toMessageId(
-		`${digest.slice(0, 8)}-${digest.slice(8, 12)}-${digest.slice(12, 16)}-${digest.slice(16, 20)}-${digest.slice(20, 32)}`
-	);
-}
-
-function buildMetadata(
-	ctx: PublishContext,
-	deduplicationId: ReturnType<typeof toMessageId>
-): MessageMetadata {
+function buildMetadata(ctx: PublishContext): MessageMetadata {
 	return new HELPER.metadataBuilder(TOPIC, TrainingEvent.ModelPublished, {
 		instanceId: toInstanceId(ctx.instanceId),
 		serviceName: toServiceId(ctx.trainerId),
 	})
-		.setDelivery({
-			mode: DeliveryMode.AtLeastOnce,
-			deduplicationId,
-		})
+		.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 		.setIds({
 			causationId: toCorrelationId(randomUUID()),
 			correlationId: toCorrelationId(randomUUID()),
@@ -74,6 +57,8 @@ export class ModelPublisher implements ModelPublisherPort {
 			sharpe: summary.sharpe,
 			avgPnl: summary.avgPnl,
 			maxDrawdown: summary.maxDrawdown,
+			evaluatedOn: summary.evaluatedOn,
+			admissible: stored.admissible,
 			agentId: summary.id,
 			gaControl: {
 				populationSize: summary.gaControl.populationSize,
@@ -100,10 +85,7 @@ export class ModelPublisher implements ModelPublisherPort {
 			},
 		};
 
-		const metadata = buildMetadata(
-			this._ctx,
-			deduplicationIdOf(symbol, stored.version)
-		);
+		const metadata = buildMetadata(this._ctx);
 		await this._messageManager.post.indirect(payload, metadata);
 	}
 }

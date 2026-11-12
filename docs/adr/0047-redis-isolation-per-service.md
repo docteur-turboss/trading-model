@@ -35,6 +35,6 @@ The project owner chose (issue #506, 2026-11-06): ACL users per service (option 
 * A Redis instance per usage: best blast radius, a second HA group to run.
 * Keep the DLQ rate limiter shared: needs a fourth reason to stay on Redis.
 
-## Amendment 2026-11 (issue #768): Redis and Sentinel TLS
+## Amendment 2026-11 (issue #930): Redis and Sentinel TLS
 
 Owner decision (2026-11-09, option 1): server certificates from cert-manager (`redis-tls.yaml`), clients verify the chain and the name `redis`; clients keep authenticating with their ACL password (`tls-auth-clients no`: Redis checks a chain and cannot map a SPIFFE URI SAN to an ACL user). Sentinel announces one port per master, so TLS is switched in two releases with `REDIS_TLS_MODE`: `optional` (N, clear text and TLS listeners, replication and Sentinel in clear text) then `required` (N+1, `port 0`, `tls-replication yes`). Runbook: `docs/deployment/REDIS_TLS.md`. Verified by `packages/persistence/tests/db/redis-tls.db.spec.ts`.

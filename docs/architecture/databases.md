@@ -28,13 +28,25 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 
 Network access (K8s, issue #727): MongoDB runs without authentication (issue #669) and without TLS, so the NetworkPolicies are the only barrier. Port 27017 of each replica set accepts only its owner service, its own members and its init Job (`mongo-audit-network-policy`: `audit-logger`, `mongodb-audit`, `mongodb-audit-init`; `mongodb-network-policy`: `dlq-service`, `mongodb`, `mongodb-init`), and port 9216 (exporter) only Prometheus. Backups and restores go through `kubectl exec` into the members, not the network. A new client is a label in that policy, checked on kind by `verify_mongo_ingress` (`tests/k8s/run-kind.sh`).
 
-> SPIRE Server (ADR-0011) uses MySQL for its datastore (`spire` database). K8s: MySQL user `spire`, `ALL PRIVILEGES` on `spire.*` only, created with the database by Job `db-migrate-user` (password `MYSQL_SPIRE_PASSWORD` of `trading-model-secrets`); the SPIRE pod never gets `MYSQL_ROOT_PASSWORD` (issue #807). The dump leaves out the `mysql` schema, so the account is not restored: after a volume loss, run the Job again (`run-migrations.sh <ns> user-only`) before `restore-k8s.sh` (runbook-database-failover.md).
+Authentication (ADR-0067): a `keyFile` per replica set, and one user per client, all in `admin` (clients connect with `authSource=admin`), created by `deploy/mongo/users.js` (Jobs `mongo-*-users`, compose `mongo-users`):
+
+| User | Roles | Used by |
+| ---- | ----- | ------- |
+| `audit-logger` | `readWrite` on the audit database | audit-logger (`MONGO_USERNAME` / `MONGO_PASSWORD`) |
+| `dlq-service` | `readWrite` on `dlq` | dlq-service |
+| `exporter` | `clusterMonitor` | `mongodb_exporter` sidecars |
+| `backup` | `backup` | `mongodump` and the hourly oplog archives |
+| `root` | `root` | restore (oplog replay), user administration |
+
+Redis and Sentinel TLS (K8s, issue #930): listeners on 6380 / 26380 from release N, clear text closed from N+1 (`REDIS_TLS_MODE`, `docs/deployment/REDIS_TLS.md`).
+
+Release 3.1.0 starts mongod with `--transitionToAuth` (clients without credentials still accepted, so the rolling restart never breaks the set); the next release removes the flag. `packages/persistence/tests/db/mongo-users.db.spec.ts` proves each user gets `Unauthorized` outside its scope.
+
+> SPIRE Server (ADR-0011) keeps its datastore in SQLite on its own volume (`spire-server-data`, ADR-0065), not in MySQL: losing `mysql-0` stops market data ingestion only, SVIDs keep being issued. The `spire` database of the releases before ADR-0065 may remain in existing MySQL volumes, read by nothing: no network rule or credential reaches it any more.
+
+Network access (K8s, issue #747): ports 3306 / 33061 of MySQL accept only `financial-scraper`, `financial-scraper-collector`, the Jobs `db-migrate`, `db-migrate-down`, `db-migrate-user`, the `retention` CronJob and the `mysql` members; Redis ports 6379 / 26379 accept only `discovery-server`, `message-manager`, `dlq-service`, `audit-logger`, `financial-scraper`, `trader-trainer` (the last three only read Redis while a rollback to N-1 is possible) and the Redis pods. Backups go through `kubectl exec`. A new client is a label in `mysql-network-policy` / `redis-network-policy`, checked on kind by `verify_db_ingress`.
 
 MySQL client TLS (K8s, issue #767): server certificate from cert-manager, clients verify the host name; `require_secure_transport=ON`, and each user (`root`, `scraper`, `migrator`, `retention`, `exporter`) is bound to its own cert-manager client certificate (`REQUIRE ISSUER / SUBJECT`) (`docs/deployment/MYSQL_TLS.md`).
-
-Redis and Sentinel TLS (K8s, issue #768): listeners on 6380 / 26380 from release N, clear text closed from N+1 (`REDIS_TLS_MODE`, `docs/deployment/REDIS_TLS.md`).
-
-Network access (K8s, issue #747): ports 3306 / 33061 of MySQL accept only `financial-scraper`, `financial-scraper-collector`, `spire-server`, the Jobs `db-migrate`, `db-migrate-down`, `db-migrate-user`, the `retention` CronJob and the `mysql` members; Redis ports 6379 / 26379 accept only `discovery-server`, `message-manager`, `dlq-service`, `audit-logger`, `financial-scraper`, `trader-trainer` (the last three only read Redis while a rollback to N-1 is possible) and the Redis pods. Backups go through `kubectl exec`. A new client is a label in `mysql-network-policy` / `redis-network-policy`, checked on kind by `verify_db_ingress`.
 
 ## Redis — who uses it, with which keys
 
@@ -58,9 +70,9 @@ Each database pod runs an exporter sidecar scraped by Prometheus (port `metrics`
 
 | Database | Exporter | Identity |
 | -------- | -------- | -------- |
-| MySQL (every member) | `mysqld-exporter` | MySQL user `exporter`: `PROCESS, REPLICATION CLIENT` on `*.*`, `SELECT` on `performance_schema.*`, 3 connections at most; created by Job `db-migrate-user` (password `MYSQL_EXPORTER_PASSWORD`; compose: one-shot `mysql-exporter-user`) |
+| MySQL (`mysql-0`, the only server) | `mysqld-exporter` | MySQL user `exporter`: `PROCESS, REPLICATION CLIENT` on `*.*`, `SELECT` on `performance_schema.*`, 3 connections at most; created by Job `db-migrate-user` (password `MYSQL_EXPORTER_PASSWORD`; compose: one-shot `mysql-exporter-user`) |
 | Redis data nodes and sentinels | `redis_exporter` | ACL user `exporter` above (`REDIS_EXPORTER_PASSWORD`, K8s); compose Redis has no ACL |
-| MongoDB `mongo-dlq` and `mongo-audit` (every member) | `mongodb_exporter` | None: MongoDB runs without authentication, so a read-only user would protect nothing. A `clusterMonitor` user comes with MongoDB authentication (its own issue) |
+| MongoDB `mongo-dlq` and `mongo-audit` (every member) | `mongodb_exporter` | MongoDB user `exporter`: `clusterMonitor` only (`MONGO_EXPORTER_PASSWORD`, ADR-0067) |
 
 ## Schema Validation
 

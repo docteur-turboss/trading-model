@@ -48,6 +48,7 @@ const CHECKS = [
   [REGISTER, `DLQ: ${dlqDays} days`],
   [REGISTER, `\`retention_period: ${lokiHours}\``],
   [REGISTER, `journaled ${journalH} h in Redis Streams`],
+  ["docs/compliance/data-retention-policy.md", `Until delivered, ${journalH} h at most`],
   [REGISTER, `${mysqlDays} days (5 years`],
   [DPIA, `${auditDays} days audit, ${dlqDays} days DLQ`],
   [DPIA, `${keyPatterns} sensitive-key patterns`],
@@ -59,7 +60,7 @@ const CHECKS = [
 
 // Last three: database TLS that does not exist (ADR-0060).
 const TLS_CLAIMS = 'mTLS everywhere|[|] TLS connection [|]|All inter-service communication';
-const FORBIDDEN = new RegExp(`not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer|${TLS_CLAIMS}`, 'i');
+const FORBIDDEN = new RegExp(`message-manager memory|not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer|${TLS_CLAIMS}`, 'i');
 // The README is prose: only the database TLS claims apply to it.
 const README_FORBIDDEN = new RegExp('mTLS everywhere|[|] TLS connection [|]', 'i');
 
@@ -67,7 +68,7 @@ const errors = [];
 for (const [file, text] of CHECKS) {
   if (!read(file).includes(text)) errors.push(`${file}: missing "${text}"`);
 }
-const SCANNED = [['README.md', README_FORBIDDEN], ...['data-processing-register', 'dpia', 'compliance-framework', 'information-security-policy', 'access-control-policy'].map((f) => [`docs/compliance/${f}.md`, FORBIDDEN])];
+const SCANNED = [['README.md', README_FORBIDDEN], ...['data-processing-register', 'dpia', 'compliance-framework', 'information-security-policy', 'access-control-policy', 'data-retention-policy', 'business-continuity-policy'].map((f) => [`docs/compliance/${f}.md`, FORBIDDEN])];
 for (const [file, re] of SCANNED) {
   read(file).split('\n').forEach((l, i) => {
     if (re.test(l)) errors.push(`${file}:${i + 1}: stale wording "${l.match(re)[0]}"`);

@@ -6,6 +6,7 @@
 #    docker compose down -v
 # =============================================================================
 
+# mem_limit of each long-running service = resources.limits.memory of its K8s manifest (deploy/k8s); no K8s limit (spiffe-helper-*, backup-metrics-exporter, docker-socket-proxy): none here.
 # Shared environment templates — reduces duplications across service blocks
 x-core-env: &core-env
   NODE_ENV: ${NODE_ENV:-production}
@@ -50,6 +51,17 @@ services:
     image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo
     restart: unless-stopped
+    mem_limit: 2g
+    # Authentication on (issue #669, ADR-0067): the image creates `root` on an
+    # empty volume, `mongo-users` the other users. A volume created before
+    # needs `docker compose down -v`, or the localhost exception:
+    # docker exec trading-mongo mongosh admin --eval 'db.createUser({user: "root", pwd: process.env.MONGO_INITDB_ROOT_PASSWORD, roles: ["root"]})'
+    command: mongod --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set (MongoDB user, ADR-0067)}
+      # scripts/backup.sh and restore.sh read them inside the container.
+      MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0067)}
     volumes:
       - mongo-data:/data/db
     networks:
@@ -60,6 +72,30 @@ services:
       timeout: 5s
       retries: 5
 
+  # One user per client, from deploy/mongo/users.js (same script as the K8s
+  # Jobs mongo-*-users). Idempotent: runs at every `up`.
+  mongo-users:
+    logging: *default-logging
+    image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+    container_name: trading-mongo-users
+    restart: "no"
+    command: mongosh --quiet mongo:27017/admin --file /scripts/users.js
+    environment:
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_EXPORTER_PASSWORD: ${MONGO_EXPORTER_PASSWORD:?MONGO_EXPORTER_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_AUDIT_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_AUDIT_DB: audit-logger
+      MONGO_DLQ_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_DLQ_DB: dlq
+    volumes:
+      - ./deploy/mongo/users.js:/scripts/users.js:ro
+    networks:
+      - data-net
+    depends_on:
+      mongo:
+        condition: service_healthy
+
   # ---------------------------------------------------------------------------
   #  Redis — discovery registry, message-manager subscriptions, dlq-service
   #  queues (single node for dev/E2E)
@@ -69,6 +105,7 @@ services:
     image: redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
     container_name: trading-redis
     restart: unless-stopped
+    mem_limit: 512m
     # Snapshots (RDB) always; the append-only file is per environment:
     # dev leaves it off, a compose host running staging/production sets
     # REDIS_APPENDONLY=yes like the K8s StatefulSet (deploy/k8s/infra/redis.yaml).
@@ -97,6 +134,7 @@ services:
     image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
     container_name: trading-mysql
     restart: unless-stopped
+    mem_limit: 2g
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-financial_scraper}
@@ -150,6 +188,7 @@ services:
       dockerfile: services/discovery-server/Dockerfile
     container_name: trading-discovery
     restart: unless-stopped
+    mem_limit: 256m
     ports:
       - '127.0.0.1:${DISCOVERY_PORT:-8443}:3000'
     environment:
@@ -183,6 +222,7 @@ services:
     image: ghcr.io/spiffe/spire-server:1.15.5@sha256:584a9c5cc95b9457f5033e7e4488d603fffe5ec48a80c4dba14b05c5e1c2c384
     container_name: trading-spire-server
     restart: unless-stopped
+    mem_limit: 512m
     # Named volumes are created root-owned: the image user (1000) could not write them.
     user: "0:0"
     command: ["-config", "/etc/spire/server.conf"]
@@ -230,6 +270,7 @@ services:
       target: agent
     container_name: trading-spire-agent
     restart: unless-stopped
+    mem_limit: 256m
     # The Docker workload attestor maps the caller PID to its container.
     pid: host
     volumes:
@@ -266,6 +307,7 @@ services:
       dockerfile: services/message-manager/Dockerfile
     container_name: trading-message
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - '127.0.0.1:${MESSAGE_PORT:-8444}:3000'
     environment:
@@ -311,6 +353,7 @@ services:
       dockerfile: services/financial-scraper/Dockerfile
     container_name: trading-scraper
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - '127.0.0.1:${SCRAPER_PORT:-8445}:3000'
     environment:
@@ -366,6 +409,7 @@ services:
       dockerfile: services/trader-trainer/Dockerfile
     container_name: trading-trainer
     restart: unless-stopped
+    mem_limit: 1g
     ports:
       - '127.0.0.1:${TRAINER_PORT:-8446}:3000'
     environment:
@@ -376,10 +420,12 @@ services:
       INSTANCE_ID: trader-trainer-1
       TRAINER_SYMBOLS: ${TRAINER_SYMBOLS:-BTCUSDT,ETHUSDT}
       TRAINER_DATA_WINDOW: ${TRAINER_DATA_WINDOW:-500}
-      TRAINER_VALIDATION_SPLIT: ${TRAINER_VALIDATION_SPLIT:-0.2}
+      TRAINER_VALIDATION_SPLIT: ${TRAINER_VALIDATION_SPLIT:-0.15}
+      TRAINER_TEST_SPLIT: ${TRAINER_TEST_SPLIT:-0.15}
       TRAINER_GENERATIONS: ${TRAINER_GENERATIONS:-50}
       TRAINER_POPULATION_SIZE: ${TRAINER_POPULATION_SIZE:-20}
       TRAINER_TIME_BUDGET_MS: ${TRAINER_TIME_BUDGET_MS:-300000}
+      TRAINER_INTERVAL_MS: ${TRAINER_INTERVAL_MS:-3600000}
       TRAINER_MAX_DATA_AGE_MS: ${TRAINER_MAX_DATA_AGE_MS:-900000}
       TRAINER_EPISODES_PER_INDIVIDUAL: ${TRAINER_EPISODES_PER_INDIVIDUAL:-10}
       TRAINER_FITNESS_TYPE: ${TRAINER_FITNESS_TYPE:-total_pnl}
@@ -416,6 +462,7 @@ services:
       dockerfile: services/api-gateway/Dockerfile
     container_name: trading-gateway
     restart: unless-stopped
+    mem_limit: 256m
     ports:
       - '127.0.0.1:${GATEWAY_PORT:-8448}:3000'
     environment:
@@ -456,6 +503,7 @@ services:
       dockerfile: services/audit-logger/Dockerfile
     container_name: trading-audit
     restart: unless-stopped
+    mem_limit: 256m
     ports:
       - '127.0.0.1:${AUDIT_PORT:-8450}:3000'
     environment:
@@ -465,7 +513,9 @@ services:
       SERVICE_NAME: audit-logger
       INSTANCE_ID: audit-logger-1
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MONGODB_URI: mongodb://mongo:27017/audit-logger
+      MONGODB_URI: mongodb://mongo:27017/audit-logger?authSource=admin
+      MONGO_USERNAME: audit-logger
+      MONGO_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0067)}
     volumes:
       - svid-audit:/run/spire/svid
     networks:
@@ -479,8 +529,8 @@ services:
     depends_on:
       spiffe-helper-audit:
         condition: service_started
-      mongo:
-        condition: service_healthy
+      mongo-users:
+        condition: service_completed_successfully
       discovery-server:
         condition: service_healthy
 
@@ -494,6 +544,7 @@ services:
       dockerfile: services/dlq-service/Dockerfile
     container_name: trading-dlq
     restart: unless-stopped
+    mem_limit: 256m
     ports:
       - '127.0.0.1:${DLQ_PORT:-8452}:3000'
     environment:
@@ -503,7 +554,9 @@ services:
       SERVICE_NAME: dlq-service
       INSTANCE_ID: dlq-service-1
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MONGO_URI: mongodb://mongo:27017
+      MONGO_URI: mongodb://mongo:27017/?authSource=admin
+      MONGO_USERNAME: dlq-service
+      MONGO_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
       MONGO_DB: dlq
       MONGO_COLLECTION: dlq_entries
       MAX_ENTRIES: '100000'
@@ -524,8 +577,8 @@ services:
     depends_on:
       spiffe-helper-dlq:
         condition: service_started
-      mongo:
-        condition: service_healthy
+      mongo-users:
+        condition: service_completed_successfully
       discovery-server:
         condition: service_healthy
 
@@ -697,6 +750,7 @@ services:
     image: nginx@sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4  # nginx 1.27.3-alpine
     container_name: trading-edge
     restart: unless-stopped
+    mem_limit: 128m
     user: '101:101'
     read_only: true
     tmpfs:
@@ -732,6 +786,7 @@ services:
     image: prom/prometheus@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
     container_name: trading-prometheus
     restart: unless-stopped
+    mem_limit: 2g
     ports:
       - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090'
     volumes:
@@ -812,6 +867,7 @@ services:
     image: quay.io/prometheus/mysqld-exporter:v0.18.0@sha256:2598c0571f383708e19016d119bb45c06128a9ebc962c9f49483278ac5a94c41
     container_name: trading-mysqld-exporter
     restart: unless-stopped
+    mem_limit: 128m
     command:
       - --mysqld.address=mysql:3306
       - --mysqld.username=exporter
@@ -831,14 +887,15 @@ services:
     image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
     container_name: trading-mongodb-exporter
     restart: unless-stopped
-    command:
-      - --mongodb.uri=mongodb://mongo:27017/?directConnection=true
+    mem_limit: 128m
+    environment:
+      MONGODB_URI: mongodb://exporter:${MONGO_EXPORTER_PASSWORD:?MONGO_EXPORTER_PASSWORD must be set (MongoDB user, ADR-0067)}@mongo:27017/admin?directConnection=true
     networks:
       - data-net
       - backend-net
     depends_on:
-      mongo:
-        condition: service_healthy
+      mongo-users:
+        condition: service_completed_successfully
 
   # Compose Redis has no ACL (single dev node): no exporter user.
   redis-exporter:
@@ -846,6 +903,7 @@ services:
     image: oliver006/redis_exporter:v1.80.0@sha256:cd5fad1591e585db5b58beec7fca427027c61a4349f50109af67cf2f07964d02
     container_name: trading-redis-exporter
     restart: unless-stopped
+    mem_limit: 128m
     environment:
       REDIS_ADDR: redis://redis:6379
     networks:
@@ -859,6 +917,7 @@ services:
     image: quay.io/prometheus/node-exporter:v1.10.2@sha256:337ff1d356b68d39cef853e8c6345de11ce7556bb34cda8bd205bcf2ed30b565
     container_name: trading-node-exporter
     restart: unless-stopped
+    mem_limit: 128m
     pid: host
     command:
       - --path.rootfs=/host
@@ -874,6 +933,7 @@ services:
     image: prom/alertmanager@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
     container_name: trading-alertmanager
     restart: unless-stopped
+    mem_limit: 256m
     ports:
       - '127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093'
     volumes:
@@ -895,6 +955,7 @@ services:
     image: grafana/grafana@sha256:a0f881232a6fb71a0554a47d0fe2203b6888fe77f4cefb7ea62bed7eb54e13c3
     container_name: trading-grafana
     restart: unless-stopped
+    mem_limit: 1g
     ports:
       - '127.0.0.1:${GRAFANA_PORT:-3001}:3000'
     volumes:
@@ -931,6 +992,7 @@ services:
     image: grafana/loki@sha256:d947e68a84d9e44915dfa08c3bec27e2124efd5ba6c83443eb53578101ec69e3
     container_name: trading-loki
     restart: unless-stopped
+    mem_limit: 1g
     ports:
       - '127.0.0.1:${LOKI_PORT:-3100}:3100'
     volumes:
@@ -946,6 +1008,7 @@ services:
     image: prom/blackbox-exporter@sha256:b04a9fef4fa086a02fc7fcd8dcdbc4b7b35cc30cdee860fdc6a19dd8b208d63e
     container_name: trading-blackbox
     restart: unless-stopped
+    mem_limit: 64m
     volumes:
       - ./observability/blackbox.yml:/etc/blackbox-exporter/config.yml:ro
       - svid-blackbox:/run/spire/svid:ro
@@ -967,11 +1030,13 @@ services:
     # In-memory storage keeps every trace by default: it reached 11.5 GiB in
     # 22 h and starved the kind staging cluster sharing the Docker VM (issue
     # #760). Oldest traces go first past MEMORY_MAX_TRACES; mem_limit is the
-    # K8s limit (deploy/k8s/infra/jaeger.yaml).
+    # K8s limit (deploy/k8s/infra/jaeger.yaml). Unbounded, the store sat at
+    # 1 GiB and restarted in a loop, timing out every OTLP export (issue #962);
+    # with 5000 traces it levels off at 204 MiB (20 %) under market collection.
     mem_limit: 1g
     environment:
       COLLECTOR_OTLP_ENABLED: 'true'
-      MEMORY_MAX_TRACES: '20000'
+      MEMORY_MAX_TRACES: '5000'
     networks:
       - backend-net
 
@@ -1006,6 +1071,7 @@ services:
     image: grafana/promtail@sha256:b3db8e7b1cba0e8c45ce2ae72ebddfd88ebdcae86383f1680edf0074e9010ff6
     container_name: trading-promtail
     restart: unless-stopped
+    mem_limit: 256m
     volumes:
       - ./observability/promtail.yml:/etc/promtail/promtail.yml:ro
       - promtail-positions:/run/promtail

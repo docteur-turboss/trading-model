@@ -118,7 +118,7 @@ services:
     ports: !reset []
   edge-proxy:
     container_name: !reset null
-    ports: !override ['18449:8080']
+    ports: !override ['127.0.0.1:18449:8080']
 networks:
   data-net:
     name: !reset null

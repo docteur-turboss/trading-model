@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-11
-**Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (versioned artifacts, closed weights route), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (walk-forward criteria), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (signals), [ADR-0019](./0019-message-broker-as-built.md) (bus), [ADR-0039](./0039-configuration-feature-flags.md) (feature flags), [ADR-0011](./0011-spiffe-spire-workload-identity.md) (identities)
+**Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (versioned artifacts, closed weights route), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (walk-forward criteria), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (signals), [ADR-0019](./0019-message-broker-as-built.md) (bus), [ADR-0039](./0039-configuration-feature-flags.md) (feature flags), [ADR-0011](./0011-spiffe-spire-workload-identity.md) (identities), [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md) (risk and execution layer required before any order)
 
 This ADR is a proposal: the owner decides. It creates no service and changes no manifest.
 
@@ -24,7 +24,7 @@ Whatever option is chosen, the downstream context depends on the existing, versi
 1. **Trigger:** subscribe to `training.model.published` through message-manager (ADR-0019). The event is a notification; the consumer treats a delivery as at-least-once and idempotent on `(symbol, version)`, both carried by the event with the weights `sha256` (published only once the artifact is stored; the deduplication id derives from `(symbol, version)`).
 2. **Read:** `GET /models/:symbol/:version` (manifest, public) then `GET /models/:symbol/:version/weights` (service-to-service). The consumer verifies the weights against `x-model-sha256` and the manifest. The manifest carries the topology, the feature layout and the normalization statistics: the consumer rebuilds the agent from it and never from trainer code (ADR-0022).
 3. **Caller identity:** the consumer gets its own SPIFFE identity (ADR-0011), an ACL entry on trader-trainer, and its service name added to `MODEL_DOWNLOAD_CALLERS` in `deploy/k8s/config/trader-trainer.properties` and in the compose environment. These changes ship with the consumer, not before.
-4. **Admission:** a model is used for decision only if it meets the ADR-0030 walk-forward criteria. The manifest metrics are the only evidence available until a consumer states otherwise.
+4. **Admission:** a model is used for decision only if it meets the ADR-0030 walk-forward criteria. The trainer checks those a single test segment allows and writes the verdict in the manifest (`admission`) and the event (`admissible`) ([ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md)); `admissible` makes a model eligible, never promotes it: its first use for decision is a manual promotion. Per-model admission is not enough for real capital: the MT4 walk-forward must also pass at system level, paper trading included, a blocking prerequisite of [algorithmic-trading-compliance.md](../compliance/algorithmic-trading-compliance.md) §6 (items 11-12).
 5. **Signals** are read through the existing serving route; a consumer weighs `confidenceScore` and the age (`now - observedAt`) as features (ADR-0036, decision 3).
 
 ### 2. Options for the downstream context
@@ -35,7 +35,7 @@ Whatever option is chosen, the downstream context depends on the existing, versi
 | B. Offline inference | A batch evaluation job (CLI or CronJob, no order flow) reads each new artifact, replays it on stored candles and signals, and records metrics | Smallest step that exercises the contract end to end; checks ADR-0030 criteria on every model; no market risk | Not a live decision; still a new deployable | One small service or job, one SPIFFE entry, one ACL entry |
 | C. Paper trading | A service consumes the event, runs the model on live market data and keeps a simulated wallet | Validates the real decision flow and latency | Largest scope: market feed, state, wallet, alerts, runbooks | A full service (Strategy + simulated Execution + Evaluation) |
 
-**Recommendation: B**, shaped as the contract of section 1 so that C can reuse it. B proves the event, the artifact read, the identity and the ACL with no market exposure. Live execution is out of scope.
+**Recommendation: B**, shaped as the contract of section 1 so that C can reuse it. B proves the event, the artifact read, the identity and the ACL with no market exposure. Live execution is out of scope: any order flow, paper or live, first needs the separate Risk/Execution context of [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md), and option C cannot send an order without it.
 
 ### 3. Collected signals while nobody consumes them
 

@@ -1,4 +1,4 @@
-# TLS of Redis and Sentinel (issue #768, ADR-0047): server certificate issued by
+# TLS of Redis and Sentinel (issue #930, ADR-0047): server certificate issued by
 # cert-manager from an internal CA, verified by every client. Same chain as
 # MySQL (mysql-tls.yaml). Clients authenticate with their ACL password, not a
 # certificate (ADR-0047). cert-manager is a cluster prerequisite.

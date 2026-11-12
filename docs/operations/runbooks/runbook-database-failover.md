@@ -9,7 +9,8 @@ database host.
 
 | Database | K8s topology ([ADR-0020](../../adr/0020-database-topology-as-deployed.md)) | Failover |
 | --- | --- | --- |
-| MySQL (market data + SPIRE datastore) | StatefulSet `mysql`, Service `mysql-primary` pinned to pod `mysql-0` | **none** |
+| MySQL (market data) | StatefulSet `mysql`, Service `mysql-primary` pinned to pod `mysql-0` | **none** |
+| SPIRE server (SQLite datastore + CA keys, [ADR-0065](../../adr/0065-spire-datastore-sqlite-and-4h-svid-ttl.md)) | Deployment `spire-server`, 1 replica, PVC `spire-server-data` | **none** (SVIDs stay valid about 2 h after it stops) |
 | MongoDB DLQ | StatefulSet `mongo-dlq`, replica set `rs0`, database `dlq` | automatic (replica set) |
 | MongoDB audit trail | StatefulSet `mongo-audit`, replica set `rs0-audit`, database `audit` | automatic (replica set) |
 | Redis | StatefulSets `redis` + `redis-sentinel` | automatic (Sentinel) |
@@ -61,19 +62,25 @@ each component (checksum verified), or the run given by `--timestamp`.
 ## MySQL
 
 **Alerts:** `ServiceDown` on `financial-scraper` with MySQL connectivity
-errors, SPIRE server down, workloads failing mTLS  
+errors, `MarketDataStale`  
 **Severity:** SEV1
 
 There is **no MySQL failover** (ADR-0020). Every client (financial-scraper,
-financial-scraper-collector, SPIRE server, migration Jobs) writes through
-`mysql-primary`, whose selector is the pod `mysql-0`. `mysql-1` and `mysql-2`
-are not members of the replication group and hold no data: never point a
-client at them. Losing `mysql-0` stops:
+financial-scraper-collector, migration and retention Jobs) writes through
+`mysql-primary`, whose selector is the pod `mysql-0`. The StatefulSet runs
+one replica. A cluster created before issue #814 may still have the empty
+PVCs `mysql-data-mysql-1` / `mysql-data-mysql-2` (the scale-down never deletes
+a volume): once `mysql-0` is healthy, check they hold no data and remove them
+by hand (`kubectl get pvc -n trading-model` first, and mount each one to confirm it is empty):
+`kubectl delete pvc -n trading-model mysql-data-mysql-1 mysql-data-mysql-2`.
 
-- market data ingestion (financial-scraper, financial-scraper-collector);
-- the SPIRE server, whose datastore is the `spire` schema: no new SVID is
-  issued. Running workloads keep their current SVIDs until they expire, so
-  mTLS degrades over time, and any pod started meanwhile gets no identity.
+Losing `mysql-0` stops market data ingestion
+(financial-scraper, financial-scraper-collector).
+
+It no longer touches workload identity: the SPIRE server keeps its datastore
+in SQLite on its own volume ([ADR-0065](../../adr/0065-spire-datastore-sqlite-and-4h-svid-ttl.md)).
+SVIDs keep being issued and pods restarted meanwhile get their identity
+(checked by `tests/k8s/run-kind.sh`, step `verify_identity_without_mysql`).
 
 ### Symptom check
 
@@ -83,7 +90,6 @@ kubectl get pvc -n trading-model mysql-data-mysql-0
 kubectl logs -n trading-model mysql-0 -c mysql --tail=50
 kubectl exec -n trading-model mysql-0 -c mysql -- \
   sh -c 'mysqladmin ping -h localhost -u root -p"$MYSQL_ROOT_PASSWORD"'
-kubectl get deployment -n trading-model spire-server
 kubectl logs -n trading-model deployment/financial-scraper -c financial-scraper --tail=20 | grep -i "mysql\|database"
 ```
 
@@ -96,8 +102,8 @@ last backup (ADR-0020).
    same PVC `mysql-data-mysql-0`. Wait for it to be ready
    (`kubectl wait -n trading-model --for=condition=Ready pod/mysql-0 --timeout=300s`).
    Deleting the pod (`kubectl delete pod -n trading-model mysql-0`) is a full
-   outage of ingestion and SPIRE while it restarts: only do it when the pod
-   is already unusable.
+   outage of ingestion while it restarts: only do it when the pod is already
+   unusable.
 2. **Node lost:** the pod stays `Terminating` or `Unknown` and is not
    rescheduled until Kubernetes knows the node is gone. Once you are sure the
    node is down (not only partitioned: two `mysql-0` on one volume corrupt it),
@@ -106,61 +112,68 @@ last backup (ADR-0020).
    The pod comes back on another node only if the volume can attach there
    (same zone for zonal block storage).
 3. **Volume lost or corrupted:** restore, step below.
-4. Once `mysql-0` is ready, check that the SPIRE server is healthy
-   (`kubectl exec -n trading-model deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock`)
-   and that financial-scraper ingests again
+4. Once `mysql-0` is ready, check that financial-scraper ingests again
    ([runbook-market-data-stale](runbook-market-data-stale.md)).
 
 ### MySQL volume lost or corrupted: restore
 
-MySQL holds the SPIRE datastore, so restore MySQL **before** the SPIRE CA
-keys (`keys.json`) of the same run: the datastore and the keys then match and
-the trust bundle comes back unchanged
-([BACKUP_DR.md, SPIRE CA restore and SVIDs](../../deployment/BACKUP_DR.md#spire-ca-restore-and-svids)).
-`restore-k8s.sh` runs the components in the order given to `--components`.
-
-1. Stop **every** MySQL writer, the SPIRE server included, whatever the
-   components restored. The SPIRE server writes into the `spire` schema: on an
-   empty volume it recreates the schema and a new CA, and it keeps writing
-   (attested nodes, CA journal). Left running, it collides with the dump and
-   the binlog replay, or leaves a datastore that no longer matches the
-   `keys.json` of the run. With `mysql-0` lost it already serves nothing, so
-   stopping it costs no extra outage. `restore-k8s.sh` only scales it to 0 in
-   the SPIRE step, after MySQL: too late.
+1. Stop the MySQL writers:
    ```bash
-   kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector spire-server --replicas=0
+   kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector --replicas=0
    ```
 2. If the volume is gone, let `mysql-0` start on a new empty PVC (delete the
    broken PVC `mysql-data-mysql-0` and the pod) and wait for it to be ready.
-3. Recreate the MySQL accounts. The dump leaves out the `mysql` schema, so on
-   an empty volume `spire`, `migrator`, `retention` and `exporter` no longer
-   exist, and the restored SPIRE server (user `spire`, issue #807) would
-   crashloop on `Access denied`. Run the user Job as root (it also recreates the
-   `spire` database, which the restore then overwrites):
-   ```bash
-   bash deploy/k8s/scripts/run-migrations.sh trading-model user-only
-   ```
-   The Job needs every key of `trading-model-secrets`, `MYSQL_SPIRE_PASSWORD`
-   included: without one the whole Job fails, `migrator` too. Same for a
-   rollback (`migrate-down`): seal the key first.
-4. Restore MySQL and the SPIRE CA keys (the SPIRE step writes the keys,
-   scales `spire-server` back to 1 and runs its healthcheck):
+3. Restore MySQL:
    ```bash
    BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
-     bash scripts/restore-k8s.sh --components mysql,spire
+     bash scripts/restore-k8s.sh --components mysql
    # or point in time (fetch-offsite.sh --pitr, mysqlbinlog needed)
    BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
-     bash scripts/restore-k8s.sh --until <instant> --components mysql,spire
+     bash scripts/restore-k8s.sh --until <instant> --components mysql
    ```
-   With `--components mysql` alone, start the SPIRE server again by hand
-   afterwards: `kubectl scale deployment -n trading-model spire-server --replicas=1`.
-5. Scale the writers back to the replica counts of the overlay:
+4. Scale the writers back to the replica counts of the overlay:
    ```bash
    kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector --replicas=<overlay replicas>
    ```
-6. If a workload rejects its peers, its SVID was issued by a CA generated
-   between the loss and the restore: restart its pod (the `spiffe-helper`
-   sidecar fetches a new SVID).
+
+The dump also holds the `spire` database of the releases before ADR-0065.
+Nothing reads it any more except a rollback of the SPIRE server to such a
+release; it goes away with the contract step of ADR-0065.
+
+## SPIRE server
+
+**Alerts:** `CertificateExpiry` (an SVID with less than 1 hour left),
+workloads failing mTLS, pods stuck without SVID  
+**Severity:** SEV1
+
+One replica (`strategy: Recreate`), SQLite datastore and CA keys
+(`datastore.sqlite3`, `keys-sqlite.json`) on the RWO PVC `spire-server-data`
+([ADR-0065](../../adr/0065-spire-datastore-sqlite-and-4h-svid-ttl.md)).
+SVIDs live 4 hours and are renewed at half-life: once the server stops,
+running workloads keep valid SVIDs for about 2 more hours. That is the
+recovery window. Pods started meanwhile get no identity.
+
+1. **Pod crashed:** the Deployment recreates it on the same volume. Check
+   `kubectl exec -n trading-model deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock`.
+2. **Node lost:** as for `mysql-0`, the pod comes back once the node is known
+   gone and the volume can attach elsewhere.
+3. **Volume lost or corrupted:** restore the datastore and CA keys of the
+   last run (the script stops the server, writes both files, starts it and
+   runs its healthcheck):
+   ```bash
+   BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
+     bash scripts/restore-k8s.sh --components spire
+   ```
+   The trust bundle comes back unchanged. If the server already started a new
+   CA on an empty volume, the SPIRE agents notice the change and bootstrap
+   again from the `spire-bundle` ConfigMap within about a minute
+   (`rebootstrap_mode`); `kubectl -n trading-model-node rollout restart daemonset/spire-agent`
+   does it at once. A workload that still rejects its peers holds an SVID of
+   the other CA: restart its pod.
+4. **No usable backup:** delete the PVC and let the server start empty. It
+   creates a new CA in the same trust domain, the `spire-entries` sidecar
+   recreates the entries and the agents bootstrap again; restart the
+   workloads that keep failing mTLS.
 
 ## MongoDB (DLQ and audit trail)
 
@@ -256,7 +269,7 @@ inspect).
 ### After a MongoDB or MySQL restore
 
 ```bash
-# Read-only business checks: audit chain, dead letters, market_candles, SPIRE schema and bundle
+# Read-only business checks: audit chain, dead letters, market_candles, SPIRE entries and bundle
 K8S_NAMESPACE=trading-model bash scripts/verify-restore-k8s.sh
 ```
 
@@ -292,7 +305,7 @@ kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel fa
 
 ### Full Redis data loss
 
-Redis is not backed up (derived state). It rebuilds from AOF/RDB on restart.
+Redis is not backed up. Registrations and the DLQ queue rebuild by themselves; the message journal does not: if master and replicas are all lost, accepted messages not yet delivered are gone (RPO in [BACKUP_DR.md](../../deployment/BACKUP_DR.md)). `mm_journal_oldest_pending_age_seconds` gives only the age (not the count) of the oldest pending entry and vanishes with the data: read it before the wipe for an upper bound, then republish from the source. Redis restarts from AOF/RDB.
 If persistence is corrupted:
 
 1. Clear Redis data:
@@ -306,7 +319,7 @@ If persistence is corrupted:
 
 Follow [BACKUP_DR.md, Recovery Steps for Total Outage](../../deployment/BACKUP_DR.md#recovery-steps-for-total-outage)
 (SealedSecrets keys first, then `fetch-offsite.sh`, then MongoDB, MySQL,
-SPIRE CA keys, checkpoints).
+the SPIRE datastore and CA keys, checkpoints).
 
 ## Tested by
 
@@ -316,7 +329,10 @@ volume), run fetched off-site by `tests/k8s/restore-runner.yaml`
 (`fetch-offsite.sh --pitr`, no `backup-data` mount), `restore-k8s.sh --until`,
 then the checks of `verify-restore-k8s.sh`
 ([BACKUP_DR.md, Backup Verification](../../deployment/BACKUP_DR.md#backup-verification-cicd)).
-The loss of `mysql-0` itself (pod rescheduling) is not drilled.
+The same job stops every MySQL pod (`mysql-0` included) and checks that the
+SPIRE server restarts and a restarted pod gets an SVID
+(`verify_identity_without_mysql`). The rescheduling of `mysql-0` on another
+node is not drilled.
 
 ## Post-Recovery
 

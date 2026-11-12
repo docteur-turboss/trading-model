@@ -54,7 +54,7 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 spec:
   serviceName: mysql-headless
-  replicas: 3
+  replicas: 1
   podManagementPolicy: OrderedReady
   selector:
     matchLabels:
@@ -455,7 +455,7 @@ metadata:
     app.kubernetes.io/component: mysql
     app.kubernetes.io/part-of: trading-model
 spec:
-  minAvailable: 2
+  maxUnavailable: 1
   selector:
     matchLabels:
       app.kubernetes.io/component: mysql
@@ -476,9 +476,9 @@ spec:
     - Egress
   ingress:
     # Clients of 3306 / 33061 (issue #747): the market-data service and its
-    # collector, the SPIRE server datastore, the migration and retention Jobs
-    # and the group replication peers. Backups and restores go through
-    # `kubectl exec`, not the network. A new client must be added here.
+    # collector, the migration and retention Jobs and the group replication
+    # peers. Backups and restores go through `kubectl exec`, not the
+    # network. A new client must be added here.
     - from:
         - podSelector:
             matchExpressions:
@@ -487,7 +487,6 @@ spec:
                 values:
                   - financial-scraper
                   - financial-scraper-collector
-                  - spire-server
                   - db-migrate
                   - db-migrate-down
                   - db-migrate-user

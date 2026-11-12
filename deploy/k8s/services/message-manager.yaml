@@ -43,7 +43,7 @@ spec:
       serviceAccountName: message-manager
       # preStop 15 s + leaving discovery while callers' caches expire
       # (CACHE_TTL_MS, 30 s) + in-flight publishes (PUBLISH_ACCEPT_TIMEOUT_MS,
-      # 15 s) + deliveries in flight (10 s) + forwarding the local dead letters.
+      # 15 s) + deliveries in flight (10 s).
       # Messages not delivered yet stay in the Redis journal (ADR-0048).
       terminationGracePeriodSeconds: 120
       securityContext:
@@ -114,8 +114,6 @@ spec:
                   fieldPath: metadata.name
             - name: ERROR_URL_WEBHOOK
               value: ""
-            - name: DLQ_LOCAL_FALLBACK_PATH
-              value: "/var/lib/message-manager/dead-letter-queue.jsonl"
             # Signs the dead letters sent to dlq-service (same key as dlq-service).
             - name: DLQ_AUTH_HMAC_SECRET
               valueFrom:
@@ -135,8 +133,6 @@ spec:
               readOnly: true
             - name: svid
               mountPath: /run/spire/svid
-            - name: dlq-data
-              mountPath: /var/lib/message-manager
           # exec + SVID: the server demands a client certificate, which a
           # kubelet httpGet probe cannot present (tls: certificate required).
           livenessProbe:
@@ -228,9 +224,4 @@ spec:
             driver: csi.spiffe.io
             readOnly: true
         - name: svid
-          emptyDir: {}
-        # Dead letters dlq-service could not take yet (DLQ_LOCAL_FALLBACK_PATH),
-        # forwarded every minute and at shutdown; lost with the pod otherwise
-        # (alert DeadLettersNotForwarded), see ADR-0048.
-        - name: dlq-data
           emptyDir: {}

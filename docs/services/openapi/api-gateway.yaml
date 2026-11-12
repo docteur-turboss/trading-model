@@ -921,6 +921,11 @@ paths:
                           maxDrawdown:
                             type: "number"
                             minimum: 0
+                          evaluatedOn:
+                            type: "string"
+                            enum:
+                              - "validation"
+                              - "test"
                           gaControl:
                             type: "object"
                             properties:
@@ -996,6 +1001,7 @@ paths:
                           - "sharpe"
                           - "avgPnl"
                           - "maxDrawdown"
+                          - "evaluatedOn"
                           - "gaControl"
                           - "network"
                           - "rl"
@@ -1078,6 +1084,11 @@ paths:
                             maxDrawdown:
                               type: "number"
                               minimum: 0
+                            evaluatedOn:
+                              type: "string"
+                              enum:
+                                - "validation"
+                                - "test"
                           required:
                             - "generation"
                             - "fitness"
@@ -1198,6 +1209,14 @@ paths:
                       normalization:
                         type: "object"
                         additionalProperties: {}
+                      riskLimits:
+                        type: "object"
+                        properties:
+                          maxExposureFraction:
+                            type: "number"
+                        required:
+                          - "maxExposureFraction"
+                        additionalProperties: false
                       metrics:
                         type: "object"
                         properties:
@@ -1214,12 +1233,63 @@ paths:
                           maxDrawdown:
                             type: "number"
                             minimum: 0
+                          evaluatedOn:
+                            type: "string"
+                            enum:
+                              - "validation"
+                              - "test"
                         required:
                           - "generation"
                           - "fitness"
                           - "sharpe"
                           - "avgPnl"
                           - "maxDrawdown"
+                        additionalProperties: false
+                      admission:
+                        type: "object"
+                        properties:
+                          admissible:
+                            type: "boolean"
+                          evaluatedOn:
+                            type: "string"
+                            enum:
+                              - "test"
+                          criteria:
+                            type: "object"
+                            properties:
+                              sharpe:
+                                type: "number"
+                              sortino:
+                                type: "number"
+                              calmar:
+                                type: "number"
+                              buyAndHoldSharpe:
+                                type: "number"
+                            required:
+                              - "sharpe"
+                              - "sortino"
+                              - "calmar"
+                              - "buyAndHoldSharpe"
+                            additionalProperties: false
+                          thresholds:
+                            type: "object"
+                            properties:
+                              minSharpe:
+                                type: "number"
+                              minSortino:
+                                type: "number"
+                              minCalmar:
+                                type: "number"
+                            required:
+                              - "minSharpe"
+                              - "minSortino"
+                              - "minCalmar"
+                            additionalProperties: false
+                        required:
+                          - "admissible"
+                          - "evaluatedOn"
+                          - "criteria"
+                          - "thresholds"
                         additionalProperties: false
                     required:
                       - "formatVersion"
@@ -1293,6 +1363,11 @@ paths:
                                 maxDrawdown:
                                   type: "number"
                                   minimum: 0
+                                evaluatedOn:
+                                  type: "string"
+                                  enum:
+                                    - "validation"
+                                    - "test"
                                 gaControl:
                                   type: "object"
                                   properties:
@@ -1368,6 +1443,7 @@ paths:
                                 - "sharpe"
                                 - "avgPnl"
                                 - "maxDrawdown"
+                                - "evaluatedOn"
                                 - "gaControl"
                                 - "network"
                                 - "rl"
@@ -1443,6 +1519,11 @@ paths:
                           maxDrawdown:
                             type: "number"
                             minimum: 0
+                          evaluatedOn:
+                            type: "string"
+                            enum:
+                              - "validation"
+                              - "test"
                           gaControl:
                             type: "object"
                             properties:
@@ -1518,6 +1599,7 @@ paths:
                           - "sharpe"
                           - "avgPnl"
                           - "maxDrawdown"
+                          - "evaluatedOn"
                           - "gaControl"
                           - "network"
                           - "rl"
@@ -1556,6 +1638,11 @@ paths:
                               maxDrawdown:
                                 type: "number"
                                 minimum: 0
+                              evaluatedOn:
+                                type: "string"
+                                enum:
+                                  - "validation"
+                                  - "test"
                             required:
                               - "generation"
                               - "fitness"

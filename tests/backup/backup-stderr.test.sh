@@ -68,8 +68,8 @@ case "$all" in
 *server_uuid*) echo "uuid-1" ;;
 *mysqldump*) echo "mysqldump: FAKE-MYSQL access denied" >&2; exit 2 ;;
 *mongodump*) echo "mongodump: FAKE-MONGO authentication failed" >&2; exit 1 ;;
+*sqlite3*) echo "Error: FAKE-SQLITE unable to open database" >&2; exit 1 ;;
 *" tar "*) echo "tar: FAKE-TAR cannot open" >&2; exit 2 ;;
-*keys.json*) echo "cat: FAKE-CAT no such file" >&2; exit 1 ;;
 esac
 exit 0
 EOF
@@ -108,7 +108,7 @@ check_output() {
 }
 
 out="$(BACKUP_DIR="$WORK/k8s" K8S_NAMESPACE=test bash "$ROOT/scripts/backup-k8s.sh" 2>&1 || true)"
-check_output "backup-k8s.sh" "$out" FAKE-MONGO FAKE-MYSQL FAKE-TAR FAKE-CAT
+check_output "backup-k8s.sh" "$out" FAKE-MONGO FAKE-MYSQL FAKE-TAR FAKE-SQLITE
 
 out="$(BACKUP_DIR="$WORK/docker" bash "$ROOT/scripts/backup.sh" --components mongodb,mysql,checkpoints,spire 2>&1 || true)"
 check_output "backup.sh" "$out" FAKE-MONGO FAKE-MYSQL FAKE-TAR FAKE-DOCKERCP

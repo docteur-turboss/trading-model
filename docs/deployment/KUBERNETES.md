@@ -217,15 +217,14 @@ and [Database Rollback](../operations/runbooks/runbook-deployment-failure.md#dat
 
 ### Autoscaling
 
-HPAs are configured for all services in their respective ConfigMap manifests:
+HPAs are configured in `deploy/k8s/config/<service>-autoscaling.yaml` (`trader-trainer` has none: one fixed replica):
 
 | Service               | Min | Max | Metric                           |
 | --------------------- | --- | --- | -------------------------------- |
 | discovery-server      | 3   | 10  | CPU 70%, Memory 75%              |
 | message-manager       | 3   | 12  | CPU 65%, Memory 70%, Queue depth |
 | api-gateway           | 2   | 8   | CPU 70%, Memory 75%              |
-| financial-scraper     | 2   | 6   | CPU 70%                          |
-| trader-trainer        | 1   | 3   | CPU 80%                          |
+| financial-scraper     | 2   | 6   | CPU 70%, Memory 75%              |
 | audit-logger          | 2   | 5   | CPU 70%                          |
 | dlq-service           | 2   | 4   | CPU 70%                          |
 | edge-proxy            | 2   | 5   | CPU 70%                          |
@@ -236,6 +235,55 @@ HPAs are configured for all services in their respective ConfigMap manifests:
 kubectl scale deployment -n trading-model <service-name> --replicas=5
 ```
 
+## Capacity and cost
+
+Computed from `kubectl kustomize deploy/k8s/overlays/production` (overlay patches
+applied), commit `c967735d2`. Per-pod figures sum every container that declares
+resources; `spiffe-helper` declares none and no LimitRange exists, so it is not counted.
+Init containers, CronJobs, Jobs and the `trading-model-node` agents are not counted.
+
+| Scenario    | CPU requests | Memory requests | CPU limits | Memory limits |
+| ----------- | ------------ | --------------- | ---------- | ------------- |
+| HPA minimum | 5.6 vCPU     | 10.2 GiB        | 26.0 vCPU  | 34.2 GiB      |
+| HPA maximum | 9.7 vCPU     | 15.8 GiB        | 42.3 vCPU  | 45.5 GiB      |
+
+Limits are rarely all reached; size nodes on the requests.
+
+Recompute (per container; multiply by replicas, or the HPA min/max above, and sum):
+
+```bash
+kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/production \
+  | kubectl create --dry-run=client --validate=false -o json -f - \
+  | jq -r 'select(.kind|IN("Deployment","StatefulSet")) | .metadata.name as $n | .spec.replicas as $r
+      | .spec.template.spec.containers[]
+      | [$n,$r,.name,.resources.requests.cpu,.resources.requests.memory,.resources.limits.cpu,.resources.limits.memory] | @tsv'
+```
+
+Persistent volumes: **418 GiB**, in the same rendering (`volumeClaimTemplates` × replicas, plus PVC manifests).
+
+| Component             | Volumes          | GiB |
+| --------------------- | ---------------- | --- |
+| Prometheus            | 2 × 50           | 100 |
+| `backup-data`         | 1 × 100          | 100 |
+| Trainer checkpoints   | 1 × 50           | 50  |
+| MongoDB DLQ           | 3 × 20           | 60  |
+| MongoDB audit, Redis  | 3 × 10 each      | 60  |
+| MySQL                 | 1 × 20           | 20  |
+| Grafana, Loki         | 10 each          | 20  |
+| Jaeger, Alertmanager (2 × 1), SPIRE | 5 + 2 + 1 | 8 |
+
+### External dependencies
+
+No price is stated: it depends on the provider, which is not chosen.
+
+| Dependency | Free only if | Where |
+| ---------- | ------------ | ----- |
+| GitHub Actions (CI, about 10^5 runner-minutes per month per the 2026-11-12 FinOps audit, an estimate) | the repository stays **public**; private repositories bill minutes | `.github/workflows/` |
+| GHCR images (`ghcr.io/<owner>`) | the packages stay public | `release.yml` |
+| Data sources | each `accessPolicy.terms` is `public-domain` or `attribution` | `services/financial-scraper/src/config/signal-registry.json`, ADR-0036 |
+| Off-site backup bucket (S3, Object Lock) | never: paid storage, provider not chosen | [BACKUP_DR.md](BACKUP_DR.md), ADR-0033 |
+| Audit anchor bucket (S3, Object Lock) | never: paid storage, provider not chosen | ADR-0027 |
+
 ## Infrastructure Components
 
 ### MySQL
@@ -243,11 +291,10 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 - StatefulSet (MySQL 8.4) as a single primary with no automatic failover ([ADR-0020](../adr/0020-database-topology-as-deployed.md)); one-member group replication, bootstrapped
   by the `mysql-cluster-init` Job; per-pod `server_id` / local address passed
   as mysqld arguments
-- 20Gi PVC per replica
-- SPIRE datastore: MySQL user `spire` (key `MYSQL_SPIRE_PASSWORD` of `trading-model-secrets`, required, to seal before the first deploy; `db-migrate-user` creates it), issue #807
+- 20Gi PVC (`data-mysql-0`)
 - Retention: CronJob `db-retention` purges market data and signals older than `RETENTION_DAYS` as MySQL user `retention` (key `MYSQL_RETENTION_PASSWORD` of `trading-model-secrets`, to seal before the first production deploy; `db-migrate-user` runs again after the migrations to grant it per table). Operation: [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0051
 - Schema from the `db-migrate` Job (`run-migrations.sh`), the same migrations as compose: no second copy of the schema. The script waits for `mysql-cluster-init` first (during the bootstrap the server is `super_read_only`). The Job runs the released `db-migrate` image (`deploy/migrate`: `migrate.mjs`, `scripts/migrations`, `mysql2` locked by its `bun.lock`; pinned by digest by `deploy.yml`): nothing is installed at run time. It connects as the MySQL user `migrator` (DDL/DML on `financial_scraper` only, password `MYSQL_MIGRATE_PASSWORD`), created or updated on every deploy by the idempotent Job `db-migrate-user` (the only one that reads `MYSQL_ROOT_PASSWORD`; works on a database initialised before the user existed). The password must match `[A-Za-z0-9_.@%+=-]`
-- PodDisruptionBudget: minAvailable 1
+- PodDisruptionBudget: maxUnavailable 1 (one pod: `minAvailable` would block `kubectl drain`)
 
 ### MongoDB (Replica Set)
 
@@ -290,8 +337,9 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 Per [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) the platform uses SPIFFE/SPIRE instead of the former
 in-house CA:
 
-- **SPIRE Server:** Deployment in the application namespace (MySQL datastore,
-  `spire` database). Config rendered with `-expandEnv` (the official images
+- **SPIRE Server:** Deployment in the application namespace (SQLite datastore
+  and CA keys on its PVC `spire-server-data`, ADR-0065; SVID TTL 4 h). Agents
+  bootstrap again by themselves when the server CA changes (`rebootstrap_mode`). Config rendered with `-expandEnv` (the official images
   have no shell). The `k8sbundle` notifier publishes the trust bundle into the
   `spire-bundle` ConfigMap of `trading-model-node`
 - **SPIRE Agent:** DaemonSet in `trading-model-node` (`hostPID` +

@@ -210,7 +210,7 @@ missing rule loses nothing, but those copies are then never expired.
 2. Resolve every image tag to a digest (fails if the release was not published)
 3. Check sealed secrets (production: controller CRD present, no placeholder)
    Check ingress hosts (production: no example.com host left, see KUBERNETES.md "Set the Ingress hosts"; staging: warning)
-4. (Retention: seal `MYSQL_RETENTION_PASSWORD` in the production SealedSecret beforehand, [BACKUP_DR.md](BACKUP_DR.md#retention-job). SPIRE: seal `MYSQL_SPIRE_PASSWORD` too; `db-migrate-user` fails without it, `migrator` included, also for `migrate-down`.) Apply cluster-scope objects (namespace, ClusterRoles), SPIFFE node components, run database migrations (existing cluster: `MYSQL_MIGRATE_PASSWORD` must be in `trading-model-secrets` first; both environments fail with an explicit error if it is not sealed; the deploy first applies the environment's SealedSecret (`deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, staging `deploy/k8s/overlays/staging/sealed-secrets.yaml`) and waits for the controller to create the key; if the file lacks it, add ONLY that key with `kubeseal --merge-into` (see `sealed-secrets.md`, "Adding one key"): a single-key SealedSecret erases the other keys of the live Secret, and `init-sealed-secrets.sh` draws random values for every key not provided, `MYSQL_ROOT_PASSWORD` included; the script refuses a file missing a live key)
+4. (Retention: seal `MYSQL_RETENTION_PASSWORD` in the production SealedSecret beforehand, [BACKUP_DR.md](BACKUP_DR.md#retention-job).) Apply cluster-scope objects (namespace, ClusterRoles), SPIFFE node components, run database migrations (existing cluster: `MYSQL_MIGRATE_PASSWORD` must be in `trading-model-secrets` first; both environments fail with an explicit error if it is not sealed; the deploy first applies the environment's SealedSecret (`deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, staging `deploy/k8s/overlays/staging/sealed-secrets.yaml`) and waits for the controller to create the key; if the file lacks it, add ONLY that key with `kubeseal --merge-into` (see `sealed-secrets.md`, "Adding one key"): a single-key SealedSecret erases the other keys of the live Secret, and `init-sealed-secrets.sh` draws random values for every key not provided, `MYSQL_ROOT_PASSWORD` included; the script refuses a file missing a live key)
 5. Canary gate on live traffic (if enabled)
 6. Apply overlay (deploy/k8s/overlays/<env>, images pinned by digest; namespaced part, application identity)
 7. Wait for rollout of all services, smoke test, `verify-market-data`, then `verify-release` (see "Release verification")
@@ -295,7 +295,7 @@ the repository can check, and lists every gap in one run. What stays manual
    ([Deploy identities](#deploy-identities)).
 4. **Sealed secrets**: `bash scripts/init-sealed-secrets.sh` then commit
    `deploy/k8s/secrets` (every key, including `MYSQL_MIGRATE_PASSWORD`,
-   `MYSQL_RETENTION_PASSWORD`, `MYSQL_SPIRE_PASSWORD`, the Redis ACL and exporter passwords:
+   `MYSQL_RETENTION_PASSWORD`, the Redis ACL and exporter passwords:
    [sealed-secrets.md](sealed-secrets.md), [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0056).
 5. **Environment secrets and variables**: `ALERTMANAGER_SLACK_WEBHOOK_URL`,
    `ALERTMANAGER_DEADMAN_URL`, `ALERTMANAGER_PUSHOVER_USER_KEY`,
@@ -404,12 +404,11 @@ reported and every canary is removed if one fails.
 
 Behind `edge-proxy` the canary share depends on connections, not requests: its
 keep-alive pool to `api-gateway` (`deploy/edge-proxy/gateway-upstream.k8s.conf`)
-pins a serial client to one pod, since kube-proxy picks the pod when a
-connection opens. Real traffic is concurrent and should open many connections,
-but this is not measured: the production `canary_check` can undercount the
-canary the same way (residual risk: a failure with a low count and no errors
-points here). The kind gate (`verify_canary`) sends bursts of 12 requests every 5 s for that
-reason.
+pins a client to one pod, since kube-proxy picks the pod when a connection
+opens. `canary_start api-gateway` therefore restarts `edge-proxy` once the
+Service routes to the canary (a failed restart aborts the canary), so the gate
+starts with fresh connections. The kind gate (`verify_canary`) still sends
+bursts of 12 requests every 5 s because its client is serial.
 
 `dlq-service` is readiness-only: it only receives requests on a dead letter or an
 admin call, so a healthy environment gives it no traffic. Add a service to

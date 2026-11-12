@@ -13,11 +13,15 @@ const TRAINER_ENV_SHAPE = {
 	/** Services allowed to download model weights; empty: nobody. */
 	MODEL_DOWNLOAD_CALLERS: z.string().default(""),
 	TRAINER_DATA_WINDOW: z.coerce.number().int().positive().default(500),
-	TRAINER_VALIDATION_SPLIT: z.coerce.number().min(0).max(1).default(0.2),
+	TRAINER_VALIDATION_SPLIT: z.coerce.number().min(0).max(1).default(0.15),
+	/** Newest fraction never used by training nor selection; published metrics come from it (ADR-0068). */
+	TRAINER_TEST_SPLIT: z.coerce.number().min(0).max(1).default(0.15),
 	TRAINER_WALK_FORWARD_FOLDS: z.coerce.number().int().min(1).max(20).default(1),
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
 	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
 	TRAINER_TIME_BUDGET_MS: z.coerce.number().int().positive().default(300000),
+	/** Time between two training sessions (1 h: one new candle per 1-min session was not worth a full retrain, 20 models then cover 20 h). Keep well above TRAINER_TIME_BUDGET_MS. */
+	TRAINER_INTERVAL_MS: z.coerce.number().int().positive().default(3600000),
 	/** Newest candle older than this: the symbol is not trained (15 min, like MarketDataStale). */
 	TRAINER_MAX_DATA_AGE_MS: z.coerce.number().int().positive().default(900000),
 	/** At least 10: the risk ratios and the drawdown need several episodes. */
