@@ -15,6 +15,7 @@ import {
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
+import { circuitBreakerRejectionsTotal } from "../../src/infrastructure/outbound-metrics";
 
 jest.mock("https");
 jest.mock("fs", () => ({
@@ -569,6 +570,13 @@ describe("HttpClient", () => {
 					});
 					await expect(promise).rejects.toThrow(
 						"Circuit breaker open for cb-sequential.example.com"
+					);
+					const { values } = await circuitBreakerRejectionsTotal.get();
+					expect(values).toContainEqual(
+						expect.objectContaining({
+							labels: { target: "cb-sequential.example.com", kind: "hostname" },
+							value: 1,
+						})
 					);
 				}
 			}
