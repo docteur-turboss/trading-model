@@ -31,8 +31,18 @@ export function wideBindings(text) {
   const lines = text.split(/\r?\n/);
   const bad = [];
   for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/^(\s*)ports:\s*(#.*)?$/);
+    const m = lines[i].match(/^(\s*)ports:\s*(.*)$/);
     if (!m) continue;
+    const rest = m[2].replace(/(^|\s)#.*$/, '').replace(/^!override\s+/, '').trim();
+    if (rest === '!reset []') continue;
+    if (rest) {
+      // Inline flow `ports: [a, b]`; any other value fails closed.
+      // shortcut: items split on commas, so a comma inside a quoted item is misread (fails closed); upgrade with a YAML parser.
+      const flow = rest.match(/^\[(.*)\]$/);
+      const items = flow ? flow[1].split(',').map(unquote).filter(Boolean) : [rest];
+      for (const entry of items) if (!flow || !entry.startsWith(`${LOOPBACK}:`)) bad.push({ line: i + 1, entry });
+      continue;
+    }
     const base = m[1].length;
     let j = i + 1;
     // Items: lines deeper than `ports:`, or a `-` at the same indent (compact YAML).

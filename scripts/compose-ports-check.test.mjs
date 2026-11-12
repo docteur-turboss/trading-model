@@ -29,6 +29,13 @@ test('long form needs host_ip 127.0.0.1', () => {
   assert.equal(wideBindings(ok).length, 0);
 });
 
+test('inline ports: [..] is checked, other inline values fail closed', () => {
+  assert.equal(wideBindings(svc('    ports: ["9090:9090"]\n')).length, 1);
+  assert.equal(wideBindings(svc('    ports: ["127.0.0.1:1:2", "0.0.0.0:3:4"]\n')).length, 1);
+  assert.equal(wideBindings(svc('    ports: ["127.0.0.1:1:2"] # ok\n')).length, 0);
+  assert.equal(wideBindings(svc('    ports: *anchor\n')).length, 1);
+});
+
 test('CRLF and following keys', () => {
   const t = svc('    ports:\n      - "127.0.0.1:1:2"\n    volumes:\n      - "9:9"\n').replace(/\n/g, '\r\n');
   assert.equal(wideBindings(t).length, 0);
