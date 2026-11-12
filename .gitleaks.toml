@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures that look like keys (no real credential)"
+paths = [
+  '''(^|/)tests?/''',
+  '''\.spec\.ts$''',
+  '''\.test\.(sh|ts)$''',
+]
