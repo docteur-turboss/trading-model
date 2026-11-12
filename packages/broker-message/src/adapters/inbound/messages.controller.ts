@@ -43,15 +43,16 @@ export const MESSAGE_CONTROLLER: ApiRouteHandler<
 		});
 		return sendResponse({ status: "delivered" }, HTTP_STATUS.OK);
 	}
+
+	// The payload as received (not its parsed copy), checked just above.
+	EVENT_MANAGER.emit(metadata.topic as keyof EventMap, payload as never);
+	// Remembered only after a successful emit: a listener that throws must leave the redelivery possible.
 	if (messageId) {
 		deliveredIds.add(messageId);
 		if (deliveredIds.size > DELIVERED_IDS_MAX) {
 			deliveredIds.delete(deliveredIds.values().next().value as string);
 		}
 	}
-
-	// The payload as received (not its parsed copy), checked just above.
-	EVENT_MANAGER.emit(metadata.topic as keyof EventMap, payload as never);
 	// Acknowledges the delivery: without a response message-manager waited for
 	// its timeout, retried 10 times and gave up (circuit open, "routed to DLQ")
 	// on every message, though the listeners had already received it.

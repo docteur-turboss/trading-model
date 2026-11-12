@@ -36,7 +36,8 @@ async function deliver(
 		});
 		const text = await res.text();
 		const parsed = text.startsWith("{") ? JSON.parse(text) : text;
-		if (res.status !== 404) {
+		// 500 (a throwing listener) is not a documented response.
+		if (res.status !== 404 && res.status !== 500) {
 			expect(
 				responseIssues(BROKER_CALLBACK_API.receive, res.status, parsed)
 			).toEqual([]);
@@ -78,6 +79,26 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 		expect((await deliver("message", "/message", body)).status).toBe(200);
 		expect((await deliver("message", "/message", body)).status).toBe(200);
 		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
+	it("emits a redelivery again when a listener threw on the first delivery", async () => {
+		const listener = jest
+			.fn<(...args: any[]) => any>()
+			.mockImplementationOnce(() => {
+				throw new Error("listener failed");
+			});
+		EVENT_MANAGER.on("example.debug.create" as never, listener);
+		const body = {
+			metadata: {
+				...METADATA,
+				messageId: "c2f1a8d4-6b3e-4f95-9a07-1d8e5b4c3a26",
+			},
+			payload: { debug: true },
+		};
+
+		expect((await deliver("message", "/message", body)).status).toBe(500);
+		expect((await deliver("message", "/message", body)).status).toBe(200);
+		expect(listener).toHaveBeenCalledTimes(2);
 	});
 
 	it("does not remember the messageId of an invalid payload", async () => {
