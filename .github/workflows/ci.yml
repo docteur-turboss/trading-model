@@ -323,7 +323,16 @@ jobs:
         run: bash tests/k8s/run-kind.sh upgrade
       - name: Smoke test (deploy.yml gate)
         run: bash tests/k8s/run-kind.sh smoke
+      # Restore drill (~6 min): kept on tags, pushes and PRs touching backups, jobs, migrations or SPIRE (issue #870).
+      - name: Decide the restore drill
+        id: drill
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! git diff --name-only HEAD^1 HEAD | grep -qE '^(scripts/(backup|restore|fetch-offsite|retention)|deploy/(backup|spire|compose/spire|k8s/jobs|k8s/spire|migrate)|scripts/migrat|tests/(backup|k8s)/|\.github/workflows/(ci|backup-test))'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Verify the stack
+        env:
+          SKIP_BACKUP_DRILL: ${{ steps.drill.outputs.skip }}
         run: bash tests/k8s/run-kind.sh verify
       - name: Canary gate (deploy.yml canary)
         run: bash tests/k8s/run-kind.sh verify_canary

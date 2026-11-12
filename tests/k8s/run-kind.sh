@@ -675,7 +675,11 @@ verify() {
 
 	verify_alerts
 	verify_release
-	verify_backup
+	if [ "${SKIP_BACKUP_DRILL:-}" = "true" ]; then
+		log "restore drill skipped (SKIP_BACKUP_DRILL=true)"
+	else
+		verify_backup
+	fi
 
 	log "OK: the staging overlay works on Kubernetes"
 }
