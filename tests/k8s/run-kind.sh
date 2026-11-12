@@ -802,13 +802,15 @@ verify_db_ingress() {
 # client verifying the name "redis" gets a TLS session on 6380 and 26380, and
 # the clear ports answer exactly when REDIS_TLS_MODE is "optional".
 verify_redis_tls() {
-	local mode node cli tls="--tls --cacert /etc/redis-tls/ca.crt --sni redis"
+	local mode node cli user tls="--tls --cacert /etc/redis-tls/ca.crt --sni redis"
 	log "Redis TLS: certificate verified by name, clear ports follow REDIS_TLS_MODE"
 	$K -n "$NS" wait --for=condition=Ready certificate/redis-tls --timeout=120s
 	mode="$($K -n "$NS" exec redis-0 -c redis -- printenv REDIS_TLS_MODE)"
 	for node in redis-0:redis:6379:6380 redis-sentinel-0:sentinel:26379:26380; do
 		IFS=: read -r pod container plain secure <<<"$node"
-		cli='REDISCLI_AUTH=$REDIS_INTERNAL_PASSWORD redis-cli --user ha'
+		# Sentinels have no ha user (requirepass only): the data nodes take the ha user.
+		user=""; [ "$container" = redis ] && user="--user ha"
+		cli="REDISCLI_AUTH=\$REDIS_INTERNAL_PASSWORD redis-cli $user"
 		[ "$($K -n "$NS" exec "$pod" -c "$container" -- sh -c "$cli $tls -p $secure PING")" = PONG ] || {
 			log "  no TLS session verified by name on $pod:$secure"
 			return 1
