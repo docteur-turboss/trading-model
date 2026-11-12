@@ -601,6 +601,52 @@ describe("HttpClient", () => {
 			}
 		});
 
+		it("should not open the circuit on 4xx responses", async () => {
+			for (let i = 0; i < 6; i++) {
+				const promise = client.get(
+					URLString.of("https://cb-4xx.example.com/api"),
+					{ retryCount: 0 as PositiveInt }
+				);
+				simulateResponse(404, "{}", "application/json");
+				await expect(promise).rejects.not.toThrow("Circuit breaker open");
+			}
+		});
+
+		it("should open the circuit on socket errors outside the retry list", async () => {
+			for (let i = 0; i < 6; i++) {
+				const promise = client.get(
+					URLString.of("https://cb-unreach.example.com/api"),
+					{ retryCount: 0 as PositiveInt }
+				);
+				if (i < 5) {
+					errorHandler!(new Error("EHOSTUNREACH"));
+					await expect(promise).rejects.toThrow("EHOSTUNREACH");
+				} else {
+					await expect(promise).rejects.toThrow("Circuit breaker open");
+				}
+			}
+		});
+
+		it("should reopen the circuit on a half-open failure", async () => {
+			const url = URLString.of("https://cb-reopen.example.com/api");
+			const opts = { retryCount: 0 as PositiveInt };
+			for (let i = 0; i < 5; i++) {
+				const promise = client.get(url, opts);
+				errorHandler!(new Error("ECONNRESET"));
+				await expect(promise).rejects.toThrow("ECONNRESET");
+			}
+			jest.advanceTimersByTime(30_001);
+			const probe = client.get(url, opts);
+			errorHandler!(new Error("ECONNRESET"));
+			await expect(probe).rejects.toThrow("ECONNRESET");
+
+			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
+			await expect(client.get(url, opts)).rejects.toThrow(
+				"Circuit breaker open for cb-reopen.example.com"
+			);
+			expect(https.request).not.toHaveBeenCalled();
+		});
+
 		it("should reset circuit on success after half-open", async () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get(

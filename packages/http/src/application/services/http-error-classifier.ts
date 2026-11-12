@@ -4,6 +4,7 @@ import {
 } from "../../adapters/outbound/http-client-errors";
 import { isRetryableStatus } from "../../infrastructure/http-retry";
 
+/** Tells whether a failed outbound call is worth retrying. */
 export function shouldRetry(error: Error): boolean {
 	if (isHttpClientTimeoutError(error)) {
 		return true;
@@ -15,6 +16,15 @@ export function shouldRetry(error: Error): boolean {
 		return true;
 	}
 	return false;
+}
+
+/** The target answered with a non-retryable HTTP status (4xx except 429): it is up. */
+export function isTargetAnswer(error: Error): boolean {
+	return (
+		isHttpClientError(error) &&
+		error.statusCode !== undefined &&
+		!shouldRetry(error)
+	);
 }
 
 /** The connection was refused: the request was never sent. */

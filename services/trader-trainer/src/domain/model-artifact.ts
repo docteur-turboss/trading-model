@@ -1,3 +1,4 @@
+import { DEFAULT_MAX_EXPOSURE_FRACTION } from "./env/wallet-config";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { BestAgentSummary } from "./training-state";
@@ -19,9 +20,14 @@ export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9._-]+$/;
 /**
  * How the metrics were computed (ADR-0025). 2: wallet PnL, annualised Sharpe of
  * the bar curve, evaluation at a fixed epsilon. Absent on older manifests,
- * whose metrics came from the shaped reward: never compare the two.
+ * whose metrics came from the shaped reward: never compare the two. 4: fills
+ * at the next bar's open with half-spread + slippage (ADR-0066): not comparable
+ * with 3. 5: the simulator caps the position value at
+ * `riskLimits.maxExposureFraction`.
+ * 6: sharpe, avgPnl and maxDrawdown measured on the test segment
+ * (`evaluatedOn`), not on the data the selection used (ADR-0068).
  */
-const MODEL_METRICS_VERSION = 3;
+const MODEL_METRICS_VERSION = 6;
 
 export interface ModelMetrics {
 	metricsVersion?: number;
@@ -30,6 +36,8 @@ export interface ModelMetrics {
 	sharpe: number;
 	avgPnl: number;
 	maxDrawdown: number;
+	/** Segment sharpe, avgPnl and maxDrawdown come from; absent: validation. */
+	evaluatedOn?: "validation" | "test";
 }
 
 export interface ModelManifest {
@@ -52,6 +60,8 @@ export interface ModelManifest {
 	/** Normalization statistics of the symbol at the end of training. */
 	normalization: Record<string, unknown>;
 	metrics: ModelMetrics;
+	/** Constraint the policy learned under (absent on older manifests: unbounded). */
+	riskLimits?: { maxExposureFraction: number };
 }
 
 /** What lists and API responses tell about a version, without the manifest body. */
@@ -103,6 +113,7 @@ export function buildModelManifest(
 		genome: JSON.parse(JSON.stringify(genome)),
 		features: artifact.features,
 		normalization: artifact.normalization,
+		riskLimits: { maxExposureFraction: DEFAULT_MAX_EXPOSURE_FRACTION },
 		metrics: {
 			metricsVersion: MODEL_METRICS_VERSION,
 			generation: summary.generation,
@@ -110,6 +121,7 @@ export function buildModelManifest(
 			sharpe: summary.sharpe,
 			avgPnl: summary.avgPnl,
 			maxDrawdown: summary.maxDrawdown,
+			evaluatedOn: summary.evaluatedOn,
 		},
 	};
 }

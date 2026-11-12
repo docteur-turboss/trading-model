@@ -15,6 +15,7 @@ import {
 import { createHttpClientTimeoutError } from "../adapters/outbound/http-client-errors";
 import {
 	isConnectionRefused,
+	isTargetAnswer,
 	shouldRetry,
 } from "../application/services/http-error-classifier";
 import type { HttpMethod, HttpRequestOptions } from "../domain/http-types";
@@ -30,6 +31,7 @@ import {
 
 const DEFAULT_TIMEOUT_MS = 10_000 as DurationMs;
 
+/** Inputs of one outbound request attempt: method, URL, options and response parser. */
 export interface RequestContext<TResponse> {
 	method: HttpMethod;
 	urlStr: URLString;
@@ -38,6 +40,7 @@ export interface RequestContext<TResponse> {
 	schema?: z.ZodType<TResponse>;
 }
 
+/** Executes outbound HTTP requests and records each outcome in the circuit recorder. */
 export class HttpRequestExecutor {
 	private readonly _circuitRecorder: CircuitRecorder;
 
@@ -152,10 +155,15 @@ export class HttpRequestExecutor {
 					continue;
 				}
 
-				this._circuitRecorder.recordFailure(
-					route,
-					context.options?.serviceInstanceCount
-				);
+				// A 4xx answer proves the target is up: only unavailability opens the circuit.
+				if (isTargetAnswer(lastError)) {
+					this._circuitRecorder.recordSuccess(route);
+				} else {
+					this._circuitRecorder.recordFailure(
+						route,
+						context.options?.serviceInstanceCount
+					);
+				}
 				throw lastError;
 			}
 		}

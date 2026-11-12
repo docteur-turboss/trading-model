@@ -18,6 +18,7 @@ import type { ServiceDiscovery } from "./service-discovery";
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY_MS = 100;
 
+/** Retries a failed discovery call, bounded by the retry policy. */
 export class DiscoveryRetryHandler {
 	constructor(
 		private readonly _serviceDiscovery: ServiceDiscovery,
@@ -106,7 +107,7 @@ export class DiscoveryRetryHandler {
 		ctx: DiscoveryContext
 	): Promise<ServiceInstance | null> {
 		try {
-			const staleInstance = await this._serviceCache.get(
+			const staleInstance = await this._serviceCache.getStale(
 				toServiceId(ctx.serviceName)
 			);
 			if (staleInstance) {

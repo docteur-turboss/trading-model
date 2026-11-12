@@ -277,6 +277,7 @@ async function runSegment(
 		],
 		{
 			validationSplit: 0.2,
+			testSplit: 0,
 			walkForwardFolds: 1,
 			generations: opts.generations,
 			populationSize: opts.population,

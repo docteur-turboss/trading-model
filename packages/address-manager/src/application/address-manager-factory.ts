@@ -40,6 +40,7 @@ function buildLifecycle(deps: BuildLifecycleDeps): LifecycleManager {
 		healthChecker: discovery.healthChecker,
 	});
 }
+/** Wires every address-manager dependency from the config. */
 export function buildAddressManagerDependencies(
 	config: AddressManagerConfig
 ): AddressManagerDependencies {

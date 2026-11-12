@@ -59,6 +59,10 @@ rules:
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [roles, rolebindings]
     verbs: [get, list, watch, create, update, patch, delete]
+  # MySQL server certificate and its internal CA (ADR-0060, mysql-tls.yaml).
+  - apiGroups: [cert-manager.io]
+    resources: [issuers, certificates]
+    verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [bitnami.com]
     resources: [sealedsecrets]
     verbs: [get, list, watch, create, update, patch, delete]

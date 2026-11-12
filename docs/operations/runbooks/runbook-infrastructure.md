@@ -39,6 +39,18 @@ MySQL user created by Job `db-migrate-user` (runs at every deploy), Redis user
 by `redis-ha.sh` when the pod starts (`kubectl -n $NS rollout restart
 statefulset/redis statefulset/redis-sentinel` after adding the key).
 
+### Kubelet TLS (issue #851)
+
+Production verifies the kubelet serving certificate against the cluster CA
+(`ca_file` of the ServiceAccount, key `kubelet-scrape.yml` of ConfigMap
+`prometheus-config`). Each node needs `serverTLSBootstrap: true` in its
+kubelet config, and the `kubernetes.io/kubelet-serving` CSRs approved
+(`kubectl get csr`, `kubectl certificate approve <name>`). Without it the
+`kubelet` and `cadvisor` targets are down (`x509: certificate signed by unknown
+authority`). The staging overlays replace that key and keep
+`insecure_skip_verify: true` (kind signs the certificates itself).
+
+
 ## KubePodCrashLooping
 
 A container of the namespace has been in `CrashLoopBackOff` for 5 minutes.

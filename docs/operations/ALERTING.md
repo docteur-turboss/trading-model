@@ -94,6 +94,8 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `TrainerNoLeaderProlonged` | `critical` (page): same condition as `TrainerNoLeader` for 30 min, far beyond a rollout handover (end of a generation plus a few seconds) | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoModelStored` | a trainer holds the Lease but no model was stored (`tt_model_artifacts_total{result="stored"}`) for 3 h (2 h after a start), whatever the cause: sessions failing, nothing trained, writes failing | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `TrainerMarketDataStale` | no candle reached the trainer for 15 min (`tt_market_data_received_total`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `ModelBelowBuyAndHold` | the last 3 stored models of a symbol have an out-of-sample Sharpe below buy and hold on the same bars (`tt_model_below_buy_and_hold_streak`, Lease holder only; `segment="validation"` until issue #885) | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
+| `TrainerFeatureDrift` | for 1 h, a normalized field of a symbol received since its newest stored model has a mean more than 3 standard deviations from the statistics stored with that model (`tt_feature_drift_score`) | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
 | `MarketDataUnpublished` | persisted candles of a symbol have waited 15 min for the bus (`fs_unpublished_candles`): sent from MySQL once message-manager answers, the trainer lags meanwhile | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `ScrapeCyclesFailing` | more than half of the scrape cycles fail | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | no candle of one symbol persisted for 15 min while the others may still flow (`fs_candles_persisted_total{symbol}`): symbol rejected, klines failing or candles refused by the normalizer, by symbol | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
@@ -101,12 +103,12 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `CandleDeliveryLagging` | under 50% of the candles persisted by the scraper reached the trainer over 30 min, for 15 min (data freshness SLO, `slo.md`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `MessageDeliveryLowSuccessRate` | less than 99.5% of the messages delivered (the rest dead-lettered) | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `MessagesDeadLettered` | message-manager gave up on messages: they are in dlq-service (`GET /dlq`) to inspect and replay | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
-| `DeadLettersNotForwarded` | dead letters have waited 15 min in a message-manager pod's local file (`mm_dlq_fallback_pending`): dlq-service cannot take them; lost if the pod is deleted | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
-| `DeadLettersRejected` | dlq-service refused dead letters for good (400, 413): they are in `DLQ_LOCAL_FALLBACK_PATH.rejected` | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
-| `MessagesLost` | dlq-service could not take dead letters and the local file could not be written either: they are gone | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
+| `DeadLettersRejected` | dlq-service refused dead letters for good (400, 413): their journal entries stay pending until trimmed after 24 h | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DlqAuditEventLost` | a DLQ delete or replay was done but message-manager refused its audit event (`dlq_audit_publish_failures_total`): not in the audit chain, the API answered 502 (ADR-0059) | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
 | `RetentionFailed` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
 | `RetentionStale` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
+| `ApiAuthFailuresHigh` | the gateway rejected API keys at more than 0.1/s (6/min) for 5 min | [runbook-auth-failures](runbooks/runbook-auth-failures.md) |
+| `MtlsAclDenials` | any mTLS or ACL denial on a service (`http_mtls_denials_total`) | [runbook-auth-failures](runbooks/runbook-auth-failures.md) |
 | `AuditChainBroken` | audit-logger's verification found the audit chain broken: event changed, missing or removed, or a chain that no longer matches its anchors (ADR-0027) | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
 | `AuditChainVerificationStale` / `AuditChainAnchoringStale` | no verification, or no anchor written, for 45 min | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
 | `AuditChainNotAnchored` (warning) | no anchor store configured (`AUDIT_ANCHOR_BUCKET`): expected in compose and staging | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
@@ -116,8 +118,8 @@ The first run of these rules on a healthy-looking compose stack (2026-10-28)
 caught two incidents nobody had seen: the broker-message subscriber endpoint
 never answered (every delivery to trader-trainer timed out, was retried 10
 times and dead-lettered: ~1/3 of the market data), and message-manager
-ignored `DLQ_LOCAL_FALLBACK_PATH` (in K8s the dead letters were written to the
-read-only root filesystem: lost). Both are fixed.
+ignored its dead-letter file path (in K8s the dead letters were written to the
+read-only root filesystem: lost). Both are fixed (the file is gone since #910).
 
 ## Alert → runbook
 
@@ -157,15 +159,15 @@ file absent from the repository, or on an anchor that matches no heading.
 | `BackupUnencrypted` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupOffsiteCopyFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupVolumeFilling` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `ApiAuthFailuresHigh` | warning | [runbook-auth-failures#apiauthfailureshigh](runbooks/runbook-auth-failures.md#apiauthfailureshigh) |
+| `MtlsAclDenials` | warning | [runbook-auth-failures#mtlsacldenials](runbooks/runbook-auth-failures.md#mtlsacldenials) |
 | `AuditChainBroken` | critical | [runbook-audit-chain-broken#auditchainbroken](runbooks/runbook-audit-chain-broken.md#auditchainbroken) |
 | `AuditChainVerificationStale` | critical | [runbook-audit-chain-broken#auditchainverificationstale](runbooks/runbook-audit-chain-broken.md#auditchainverificationstale) |
 | `AuditChainAnchoringStale` | critical | [runbook-audit-chain-broken#auditchainanchoringstale](runbooks/runbook-audit-chain-broken.md#auditchainanchoringstale) |
 | `AuditChainNotAnchored` | warning | [runbook-audit-chain-broken#auditchainnotanchored](runbooks/runbook-audit-chain-broken.md#auditchainnotanchored) |
 | `MessageDeliveryLowSuccessRate` | critical | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
-| `MessagesLost` | critical | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
 | `DlqAuditEventLost` | critical | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
 | `MessagesDeadLettered` | warning | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
-| `DeadLettersNotForwarded` | warning | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
 | `DeadLettersRejected` | warning | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
 | `MessagesUnrouted` | warning | [runbook-message-bus-outage#3-no-subscriber-on-a-topic](runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic) |
 | `JournalEntriesTrimmed` | critical | [runbook-message-bus-outage#6-journal-entries-trimmed-before-delivery](runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery) |
@@ -187,6 +189,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `CandleDeliveryLagging` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoModelStored` | critical | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |
+| `ModelBelowBuyAndHold` | warning | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
+| `TrainerFeatureDrift` | warning | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
 | `KubePodCrashLooping` | warning | [runbook-infrastructure#kubepodcrashlooping](runbooks/runbook-infrastructure.md#kubepodcrashlooping) |
 | `KubeContainerOOMKilled` | warning | [runbook-infrastructure#kubecontaineroomkilled](runbooks/runbook-infrastructure.md#kubecontaineroomkilled) |
 | `KubePersistentVolumeFillingUp` | warning | [runbook-infrastructure#kubepersistentvolumefillingup](runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup) |
@@ -237,3 +241,10 @@ Compose runs the same datasources as K8s, each one fed:
 - **Logs**: `promtail` reads the compose containers through the Docker API of `docker-socket-proxy` (the only holder of `/var/run/docker.sock`, read-only mount; the proxy refuses every `POST`, ADR-0011 amendment) and pushes to Loki with the K8s `json` pipeline (labels `component`, `job`, `container`, `level`). Check: Grafana → Explore → Loki → `{component="api-gateway"}`.
 - **Traces**: services export OTLP/HTTP straight to `jaeger:4318` (`OTEL_EXPORTER_OTLP_ENDPOINT`); there is no OTel collector in compose. UI on `JAEGER_PORT` (default 16686).
 - **SVID expiry**: `blackbox-exporter` probes `/ping` of the 7 services with its own SVID (`spiffe-helper-blackbox`, SPIRE entry `blackbox-exporter` made by `spire-bootstrap`). `/ping` answers before the ACL, so any valid SVID passes. `CertificateExpiry` carries the `service` label in both environments (one target per service in `observability/prometheus.yml` and `deploy/k8s/infra/prometheus.yaml`).
+
+## Reloading the Prometheus configuration
+
+Prometheus runs without `--web.enable-lifecycle` (issue #850): `POST /-/reload` and `/-/quit` answer 403/404 for any network client.
+
+- K8s: the Prometheus container checksums `/etc/prometheus` every 20 s and sends itself `SIGHUP` (PID 1) when it changed. After `kubectl apply`, the new rules are live within about a minute (kubelet ConfigMap sync included).
+- Compose: `docker kill --signal=HUP trading-prometheus` after editing `observability/*.yml`.

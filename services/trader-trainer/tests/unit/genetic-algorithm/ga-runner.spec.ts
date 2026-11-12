@@ -1,9 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import type {
-	PositiveInt,
-	Probability,
-} from "@trading-model/primitives/primitives";
-import { Price } from "@trading-model/primitives/primitives";
+import type { Probability } from "@trading-model/primitives/primitives";
+import { PositiveInt, Price } from "@trading-model/primitives/primitives";
 import { FeatureVector } from "../../../src/domain/feature-vector";
 
 jest.mock("../../../src/domain/agent/trading-agent", () => {
@@ -88,6 +85,7 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/domain/genetic-algorithm/genome";
+import { createGAControlGenome } from "../../../src/domain/genetic-algorithm/genome-control";
 import { makeTradingAgentBackend } from "../../../src/domain/genetic-algorithm/rl-backend";
 
 describe("makeTradingAgentBackend", () => {
@@ -650,11 +648,21 @@ describe("full GA loop", () => {
 				},
 			],
 			backendFactory: mockBackendFactory as any,
-			initialControl: { populationSize: 2, maxGenerations: 4 } as any,
+			initialControl: {
+				population: {
+					...createGAControlGenome().population,
+					size: PositiveInt.of(2),
+				},
+				termination: {
+					...createGAControlGenome().termination,
+					maxGenerations: PositiveInt.of(4),
+				},
+			},
 		});
 		const result = await runner.run();
 		expect(result).toBe(runner.processor.lastBestGenome);
 		expect(runner.processor.generation).toBeGreaterThan(0);
+		expect(runner.processor.generation).toBeLessThanOrEqual(4);
 		expect(typeof result.id).toBe("string");
 	});
 

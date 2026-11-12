@@ -43,6 +43,10 @@ interface CountRow extends RowDataPacket {
 	total: number;
 }
 
+interface LastRow extends RowDataPacket {
+	last: Date | null;
+}
+
 const SERIES_WHERE =
 	"source = ? AND symbol = ? AND interval_value = ? AND market = ? AND timestamp >= ?";
 
@@ -126,5 +130,14 @@ export const MySqlCandlePublishBacklog: CandlePublishBacklogPort = {
 			seriesParams(series, cursor)
 		);
 		return Number(rows[0]?.total ?? 0);
+	},
+
+	async lastCandleOpenTime(series) {
+		const [rows] = await DATABASE.promise().query<LastRow[]>(
+			"SELECT MAX(timestamp) AS last FROM market_candles WHERE source = ? AND symbol = ? AND interval_value = ?",
+			[series.source, series.symbol, series.interval]
+		);
+		const last = rows[0]?.last;
+		return last ? UnixTimestamp.of(last.getTime()) : undefined;
 	},
 };

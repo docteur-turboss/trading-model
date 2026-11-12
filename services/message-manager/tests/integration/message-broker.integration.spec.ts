@@ -1,15 +1,4 @@
-import { existsSync } from "node:fs";
-import { unlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import {
-	afterAll,
-	beforeEach,
-	describe,
-	expect,
-	it,
-	jest,
-} from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
 	InstanceId,
 	ServiceId,
@@ -21,7 +10,6 @@ import { InMemorySubscriptionStore } from "../../src/adapters/outbound/in-memory
 import { DeliveryWorker } from "../../src/application/services/delivery-worker";
 import { Dispatcher } from "../../src/application/services/dispatcher";
 import { SubscriptionRegistry } from "../../src/application/services/subscription-registry";
-import { FileDlqRepository } from "../../src/infrastructure/fallback/dlq-repository";
 import {
 	mockServiceIdentity,
 	mockSubscriberIdentity,
@@ -56,17 +44,15 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 	let journal: InMemoryMessageJournal;
 	let registry: SubscriptionRegistry;
 	let now: number;
-	const dlqFilePath = join(tmpdir(), `dlq-test-int-${Date.now()}.jsonl`);
 
 	/** A replica's worker: acceptance and workers share the journal (Redis in production). */
 	const newWorker = () =>
 		new DeliveryWorker({
 			journal,
 			registry,
-			deliveryPort: new HttpMessageDelivery(
-				httpClient as never,
-				new FileDlqRepository(dlqFilePath)
-			),
+			deliveryPort: new HttpMessageDelivery(httpClient as never, {
+				insert: async () => undefined,
+			}),
 		});
 
 	beforeEach(() => {
@@ -78,12 +64,6 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 			journal
 		);
 		dispatcher = new Dispatcher({ registry, journal });
-	});
-
-	afterAll(async () => {
-		if (existsSync(dlqFilePath)) {
-			await unlink(dlqFilePath);
-		}
 	});
 
 	it("should deliver a published message to a subscribed service", async () => {

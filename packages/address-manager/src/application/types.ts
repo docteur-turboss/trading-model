@@ -7,6 +7,7 @@ import type { DiscoveryCircuitBreaker } from "./discovery/circuit-breaker";
 import type { HeartbeatManager } from "./heartbeat-manager";
 import type { RegistrationAttemptHandler } from "./registration-attempt-handler";
 
+/** Dependencies of the service client. */
 export interface ServiceClientDeps {
 	addressManagerClient: AddressManagerClient;
 	tokenManager: TokenManager;
@@ -14,6 +15,7 @@ export interface ServiceClientDeps {
 	onFailure?: () => void;
 }
 
+/** Dependencies of ShutdownHandler. */
 export interface ShutdownHandlerDeps {
 	registrationManager: { stopRetrying: () => void };
 	addressManagerClient: AddressManagerClient;
@@ -21,6 +23,7 @@ export interface ShutdownHandlerDeps {
 	circuitBreaker: DiscoveryCircuitBreaker;
 }
 
+/** Dependencies of the lifecycle builder. */
 export interface LifecycleDeps {
 	config: AddressManagerConfig;
 	circuitBreaker: DiscoveryCircuitBreaker;

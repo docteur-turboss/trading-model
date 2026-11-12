@@ -53,7 +53,6 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=MYSQL_PASSWORD='your-mysql-password' \
   --from-literal=MYSQL_MIGRATE_PASSWORD='your-migration-user-password' \
   --from-literal=MYSQL_RETENTION_PASSWORD='your-retention-user-password' \
-  --from-literal=MYSQL_SPIRE_PASSWORD='your-spire-user-password' \
   --from-literal=MYSQL_EXPORTER_PASSWORD='your-mysql-exporter-password' \
   --from-literal=DLQ_AUTH_HMAC_SECRET='your-dlq-hmac-secret' \
   --from-literal=GRAFANA_PASSWORD='your-grafana-password' \
@@ -62,6 +61,13 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=REDIS_MESSAGE_MANAGER_PASSWORD='your-message-manager-redis-password' \
   --from-literal=REDIS_DLQ_PASSWORD='your-dlq-redis-password' \
   --from-literal=REDIS_EXPORTER_PASSWORD='your-exporter-redis-password' \
+  --from-literal=MONGO_ROOT_PASSWORD='your-mongo-root-password' \
+  --from-literal=MONGO_EXPORTER_PASSWORD='your-mongo-exporter-password' \
+  --from-literal=MONGO_BACKUP_PASSWORD='your-mongo-backup-password' \
+  --from-literal=MONGO_AUDIT_PASSWORD='your-mongo-audit-password' \
+  --from-literal=MONGO_DLQ_PASSWORD='your-mongo-dlq-password' \
+  --from-literal=MONGO_AUDIT_KEYFILE="$(openssl rand -hex 64)" \
+  --from-literal=MONGO_DLQ_KEYFILE="$(openssl rand -hex 64)" \
   --dry-run=client -o yaml > /tmp/plaintext-secret.yaml
 
 # Seal it (requires kubeseal CLI)

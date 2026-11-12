@@ -2,6 +2,13 @@ import { Cash, type Price, Volume } from "@trading-model/primitives/primitives";
 import type { PortfolioState } from "./portfolio-state";
 import type { WalletConfig } from "./wallet-config";
 
+function validFillPrice(price: Price): Price {
+	if (!Number.isFinite(price) || price <= 0) {
+		throw new Error(`fill price received invalid value: ${price}`);
+	}
+	return price;
+}
+
 export class TradeExecutor {
 	private _state: PortfolioState;
 
@@ -21,7 +28,8 @@ export class TradeExecutor {
 	get position(): Volume {
 		return this._state.position;
 	}
-	buy(amount: Volume): boolean {
+	/** Buys `amount` at `fillPrice` (default: the marked price), costs included. */
+	buy(amount: Volume, fillPrice: Price = this._state.price): boolean {
 		const amt = Volume.toNumber(amount);
 		if (!Number.isFinite(amt) || amt <= 0) {
 			return false;
@@ -29,12 +37,15 @@ export class TradeExecutor {
 		const newPosition = Volume.of(
 			this._config.roundValue(this._state.position + amt)
 		);
-		if (Volume.gt(newPosition, this._config.maxPosition)) {
+		// Refuse (not reduce) a buy whose position value exceeds the exposure cap.
+		const maxValue =
+			this._config.maxExposureFraction * this._config.initialCash;
+		if (newPosition * this._state.price > maxValue) {
 			return false;
 		}
 		const { totalCost } = this._config.computeBuyCosts(
 			amount,
-			this._state.price
+			validFillPrice(fillPrice)
 		);
 		if (Cash.gt(totalCost, this._state.cash)) {
 			return false;
@@ -45,14 +56,15 @@ export class TradeExecutor {
 		this._commitTrade(newPosition, cashAfterBuy);
 		return true;
 	}
-	sell(amount: Volume): boolean {
+	/** Sells `amount` at `fillPrice` (default: the marked price), costs included. */
+	sell(amount: Volume, fillPrice: Price = this._state.price): boolean {
 		const amt = Volume.toNumber(amount);
 		if (!Number.isFinite(amt) || amt <= 0 || amt > this._state.position) {
 			return false;
 		}
 		const { netProceeds } = this._config.computeSellProceeds(
 			amount,
-			this._state.price
+			validFillPrice(fillPrice)
 		);
 		const positionAfterSell = Volume.of(
 			this._config.roundValue(this._state.position - amt)

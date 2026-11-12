@@ -27,6 +27,7 @@ const AGENT = {
 	sharpe: 0.8,
 	avgPnl: 12.5,
 	maxDrawdown: 3.5,
+	evaluatedOn: "test",
 	gaControl: {
 		populationSize: 5,
 		elitismFraction: 0.1,

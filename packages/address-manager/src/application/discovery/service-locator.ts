@@ -6,6 +6,7 @@ import {
 import type { ServiceInstance } from "../../domain/client/type";
 import type { DnsResolver } from "../../domain/discovery/dns-resolver";
 
+/** Resolves service names to addresses from an in-memory map. */
 export class MapResolver implements ServiceLocator {
 	constructor(private readonly _dnsMap: Record<ServiceId, string>) {}
 

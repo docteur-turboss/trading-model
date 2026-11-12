@@ -18,7 +18,7 @@ Training service for trading agents using genetic algorithms and neural networks
 | Route                      | Method | Description                                         |
 | -------------------------- | ------ | --------------------------------------------------- |
 | `/ping`                    | GET    | Health check (built-in via `createServiceServer`)   |
-| `/health/ready`            | GET    | Readiness (message bus)                             |
+| `/health/ready`            | GET    | Readiness (SVID readable)                           |
 | `/training-status`         | GET    | Current training status                             |
 | `/best-agent`              | GET    | Best trained agent                                  |
 | `/training-agents`         | GET    | Trained agents of every symbol                      |
@@ -72,6 +72,7 @@ Returns the best trained agent summary from the most recent generation. After a 
       "sharpe": 1.92,
       "avgPnl": 145.32,
       "maxDrawdown": 38.5,
+      "evaluatedOn": "test",
       "gaControl": {
         "populationSize": 20,
         "elitismFraction": 0.1,
@@ -134,6 +135,7 @@ The `TRAINER_MODEL_RETENTION` newest versions are kept per symbol (default 20). 
 | sharpe            | number | Sharpe ratio of the bar-by-bar PnL curve of the evaluation, annualised from the bar spacing (ADR-0025) |
 | avgPnl            | number | Average P&L across evaluation episodes   |
 | maxDrawdown       | number | Largest fall of the cumulative bar-by-bar P&L of the evaluation, from its peak (>= 0) |
+| evaluatedOn       | string | `test` or `validation`: segment sharpe, avgPnl and maxDrawdown were measured on (ADR-0068) |
 | gaControl         | object | GA meta-parameters used                  |
 | network           | object | Neural network architecture              |
 | rl                | object | Reinforcement learning hyperparameters   |
@@ -158,7 +160,7 @@ Candles are kept strictly increasing in time per symbol: a candle with the times
 ## Training Loop
 
 - **Frequency**: every 60 seconds
-- **Condition**: `hasEnoughTrainingData` (`domain/market-data/window-splitter.ts`), the rule the validator applies too. With `steps = candles - 1`: `steps >= MIN_TRAINING_STEPS`, and either walk-forward is on (`TRAINER_WALK_FORWARD_FOLDS >= 2`) with `steps >= MIN_TRAINING_STEPS * folds`, or `floor(steps * (1 - split)) >= MIN_TRAINING_STEPS`, where `split` is `TRAINER_VALIDATION_SPLIT` (the default split when walk-forward falls back). It does not depend on `TRAINER_DATA_WINDOW`
+- **Condition**: `hasEnoughTrainingData` (`domain/market-data/window-splitter.ts`), the rule the validator applies too. With `steps = candles - 1`: the test segment (the newest steps, `steps - rest` with `rest = floor(steps * (1 - TRAINER_TEST_SPLIT))`) must hold `>= MIN_TRAINING_STEPS`; then either walk-forward is on (`TRAINER_WALK_FORWARD_FOLDS >= 2`) with `rest >= MIN_TRAINING_STEPS * folds`, or `train = floor(rest * (1 - split))` and the validation `rest - train` are each `>= MIN_TRAINING_STEPS`, where `split` is `TRAINER_VALIDATION_SPLIT` (the default split when walk-forward falls back). Each of the three segments therefore has at least `MIN_TRAINING_STEPS`. It does not depend on `TRAINER_DATA_WINDOW`
 - **Parallelism**: one training session at a time (`trainer.isTraining()`)
 - **Time budget is the limiting factor**: genome evaluation is CPU-bound and runs sequentially on the single training worker thread (K8s limit `cpu: "1"`), so a generation costs the sum of its genomes. Audit measure (dev machine, population 20, 10 episodes, 500 candles, 1 fold): about 5.3 s per generation, P95 794 ms per genome, so 50 generations take about 265 s against `TRAINER_TIME_BUDGET_MS=300000`. Re-measured at this change (`runInProcess`, K8s config, `feedCandles` fixture, 16-core dev machine, Node 25, 2026-11-08): the former `evalConcurrency` 4 and 1 gave the same duration within run noise (3 generations: 25.6 s vs 17.8 s, current sequential code 21.7 s, i.e. 5.9 to 8.5 s per generation), and a full 50-generation session with the 300 s budget finished all 50 generations in 188 s (3.8 s per generation on average). The budget binds only on slower CPUs or with more folds. More folds (`TRAINER_WALK_FORWARD_FOLDS`) or a slower CPU make the session stop at the budget before `TRAINER_GENERATIONS`. Raise the budget or lower population/generations/folds to fit; there is no worker pool.
 - **Rotation**: each cycle trains one symbol of `TRAINER_SYMBOLS`, round-robin. The scan starts after the last symbol trained and takes the first eligible one (enough candles, fresh data). Every eligible symbol gets its turn; a symbol that keeps failing does not hold the loop; a skipped symbol (stale or filling) is checked again on the next cycle

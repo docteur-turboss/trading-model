@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { HELPER } from "@trading-model/broker-message";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
@@ -12,7 +12,10 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { MessageManager } from "../../config/message-manager";
 import type { TradingSymbol } from "../../domain/market-data-types";
-import type { ModelPublisherPort } from "../../domain/ports/model-publisher.port";
+import type {
+	ModelPublisherPort,
+	StoredModelRef,
+} from "../../domain/ports/model-publisher.port";
 import type { BestAgentSummary } from "../../domain/training-state";
 
 const TOPIC = toTopic(TrainingEvent.ModelPublished);
@@ -22,14 +25,27 @@ interface PublishContext {
 	instanceId: string;
 }
 
-function buildMetadata(ctx: PublishContext): MessageMetadata {
+/** Same `(symbol, version)` gives the same id, so a replay is recognised. */
+function deduplicationIdOf(symbol: string, version: string) {
+	const digest = createHash("sha256")
+		.update(`${symbol}:${version}`)
+		.digest("hex");
+	return toMessageId(
+		`${digest.slice(0, 8)}-${digest.slice(8, 12)}-${digest.slice(12, 16)}-${digest.slice(16, 20)}-${digest.slice(20, 32)}`
+	);
+}
+
+function buildMetadata(
+	ctx: PublishContext,
+	deduplicationId: ReturnType<typeof toMessageId>
+): MessageMetadata {
 	return new HELPER.metadataBuilder(TOPIC, TrainingEvent.ModelPublished, {
 		instanceId: toInstanceId(ctx.instanceId),
 		serviceName: toServiceId(ctx.trainerId),
 	})
 		.setDelivery({
 			mode: DeliveryMode.AtLeastOnce,
-			deduplicationId: toMessageId(randomUUID()),
+			deduplicationId,
 		})
 		.setIds({
 			causationId: toCorrelationId(randomUUID()),
@@ -46,15 +62,19 @@ export class ModelPublisher implements ModelPublisherPort {
 
 	async publish(
 		symbol: TradingSymbol,
-		summary: BestAgentSummary
+		summary: BestAgentSummary,
+		stored: StoredModelRef
 	): Promise<void> {
 		const payload = {
+			version: stored.version,
+			sha256: stored.sha256,
 			symbol,
 			generation: summary.generation,
 			fitness: summary.fitness,
 			sharpe: summary.sharpe,
 			avgPnl: summary.avgPnl,
 			maxDrawdown: summary.maxDrawdown,
+			evaluatedOn: summary.evaluatedOn,
 			agentId: summary.id,
 			gaControl: {
 				populationSize: summary.gaControl.populationSize,
@@ -81,7 +101,10 @@ export class ModelPublisher implements ModelPublisherPort {
 			},
 		};
 
-		const metadata = buildMetadata(this._ctx);
+		const metadata = buildMetadata(
+			this._ctx,
+			deduplicationIdOf(symbol, stored.version)
+		);
 		await this._messageManager.post.indirect(payload, metadata);
 	}
 }

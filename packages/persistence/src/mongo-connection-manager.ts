@@ -9,6 +9,12 @@ export interface MongoConnectionConfig {
 	 * hosts (`mongodb://a:27017,b:27017/db`), which is no WHATWG URL.
 	 */
 	uri: string;
+	/**
+	 * Credentials of the client's own user (issue #669). Kept out of `uri`, which
+	 * is logged and sits in a ConfigMap; the user lives in `admin`, so `uri`
+	 * carries `authSource=admin`.
+	 */
+	auth?: { username: string; password: string };
 	dbName: string;
 	collectionName?: string;
 	poolSize?: number;
@@ -26,10 +32,10 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 		const poolSize = resolvePoolSize(config.poolSize);
 		super(
 			async () => {
-				const client = new MongoClient(
-					config.uri,
-					createPoolOptions(poolSize, config.minPoolSize)
-				);
+				const client = new MongoClient(config.uri, {
+					...createPoolOptions(poolSize, config.minPoolSize),
+					...(config.auth && { auth: config.auth }),
+				});
 				// The driver reconnects on its own and emits no "reconnect": follow
 				// the topology it monitors instead.
 				client.on("topologyDescriptionChanged", (event) => {

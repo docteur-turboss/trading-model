@@ -1,4 +1,4 @@
-# ADR-0060: Database Client Traffic Is Not Encrypted in the Cluster (Accepted Residual Risk, TLS Planned)
+# ADR-0060: Database Client Traffic Is Not Encrypted in the Cluster (Accepted Residual Risk, TLS Planned; MySQL Done)
 
 **Status:** Accepted
 **Date:** 2026-11
@@ -26,4 +26,6 @@ The owner chose (issue #735, 2026-11-09): option 4, fix the policies now (option
 ## Consequences
 
 - No document claims database TLS while it does not exist; `bun run compliance:check` fails if a policy cites TLS for a database again.
-- Until #767 to #769 ship, database credentials and data cross the pod network in clear text.
+- MySQL (#767, done): server certificate from cert-manager, one client certificate per user, `require_secure_transport=ON`; connections without TLS or without the client certificate are refused (`verify_mysql_tls`). See `docs/deployment/MYSQL_TLS.md` and the amendments of ADR-0011, 0031, 0040, 0051, 0056.
+- MongoDB (#769, expand step): `preferTLS` with cert-manager server certificates, services verify the host name (`docs/deployment/MONGO_TLS.md`); clear text is still accepted until the `requireTLS` release, so the residual risk stays for MongoDB until then.
+- Until #768 and the MongoDB contract step ship, Redis, Sentinel and MongoDB credentials and data cross the pod network in clear text; the residual risk is limited to those.

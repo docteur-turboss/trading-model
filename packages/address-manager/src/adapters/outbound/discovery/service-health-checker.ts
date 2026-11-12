@@ -40,6 +40,7 @@ export interface HealthCheckOptions {
 	allowedProxyCIDRs?: string;
 }
 
+/** Checks that a discovered service instance answers its health endpoint. */
 export class ServiceHealthChecker {
 	private readonly _httpClient: HttpClient;
 	private readonly _timeoutMs: DurationMs;

@@ -31,6 +31,7 @@ const BestAgentSummary = z.object({
 	avgPnl: z.number(),
 	/** Largest fall of the cumulative bar-by-bar evaluation PnL, >= 0. */
 	maxDrawdown: z.number().nonnegative(),
+	evaluatedOn: z.enum(["validation", "test"]),
 	gaControl: z.object({
 		populationSize: z.number().int(),
 		elitismFraction: z.number(),
@@ -63,6 +64,7 @@ const ModelMetrics = z.object({
 	sharpe: z.number(),
 	avgPnl: z.number(),
 	maxDrawdown: z.number().nonnegative(),
+	evaluatedOn: z.enum(["validation", "test"]).optional(),
 });
 
 const SHA256 = z.string().regex(/^[0-9a-f]{64}$/);
@@ -96,6 +98,8 @@ const ModelManifest = z.object({
 	features: z.object({ dim: z.number().int(), fields: z.array(z.string()) }),
 	/** Normalization statistics of the symbol at the end of training. */
 	normalization: z.record(z.string(), z.unknown()),
+	/** Constraint the policy learned under; absent on older manifests (unbounded). */
+	riskLimits: z.object({ maxExposureFraction: z.number() }).optional(),
 	metrics: ModelMetrics,
 });
 

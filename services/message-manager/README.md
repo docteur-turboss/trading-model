@@ -7,7 +7,7 @@ Internal messaging backbone for inter-service communication. Provides topic-base
 ## Prerequisites
 
 - Node.js 20+
-- No external database required (in-memory dispatcher; dead letters sent to dlq-service, local JSONL file while it is unreachable)
+- No external database required (in-memory dispatcher; dead letters sent to dlq-service, the journal entry stays pending while it is unreachable)
 - Access to a running [Discovery Server](../discovery-server/README.md) (service registry)
 - mTLS automatique via SPIRE (ADR-0011) — aucun certificat manuel à générer
 
@@ -106,13 +106,10 @@ src/
 │   │       └── validate-schema.middleware.ts  # Validation middleware
 │   └── outbound/
 │       ├── http-message-delivery.ts   # HTTP delivery to subscribers
-│       ├── http-dead-letter-store.ts  # Signed POST /dlq to dlq-service
-│       └── forwarding-dead-letter-store.ts  # dlq-service first, local file as fallback
+│       └── http-dead-letter-store.ts  # Signed POST /dlq to dlq-service
 ├── domain/                     # Domain types & business rules
 ├── infrastructure/
-│   ├── config/env.ts           # Zod-validated environment variables
-│   └── fallback/
-│       └── dlq-repository.ts   # Local JSONL fallback for dead letters (drained to dlq-service)
+│   └── config/env.ts           # Zod-validated environment variables
 ├── config/
 │   ├── address-manager.ts      # Service discovery client setup
 │   ├── container.ts            # Broker composition root (HTTP client, DLQ, dispatcher, routes)
