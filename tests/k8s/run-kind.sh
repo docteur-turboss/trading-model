@@ -815,12 +815,14 @@ verify_mongo_ingress() {
 # mongod enforces authentication (ADR-0067, issue #751): an anonymous client and
 # the `exporter` user (clusterMonitor, no data rights) are refused on the data.
 verify_mongo_auth() {
-	local label pod auth
+	local label pod auth out
 	log "MongoDB: anonymous client and exporter refused with Unauthorized"
 	for label in mongodb mongodb-audit; do
 		pod="$(mongo_primary "$label")" || { log "  no primary for $label"; return 1; }
 		for auth in "" '-u exporter -p "$MONGO_EXPORTER_PASSWORD" --authenticationDatabase admin'; do
-			$K -n "$NS" exec "$pod" -- sh -c "mongosh --quiet $auth --eval \"db.getSiblingDB('admin').getCollectionNames()\" 2>&1" | grep -q Unauthorized || {
+			# mongosh exits 1 on the refusal: capture first, pipefail would fail the grep
+			out="$($K -n "$NS" exec "$pod" -- sh -c "mongosh --quiet $auth --eval \"db.getSiblingDB('admin').getCollectionNames()\" 2>&1" || true)"
+			grep -q Unauthorized <<<"$out" || {
 				log "  $label accepted a client without data rights (${auth:-anonymous})"
 				return 1
 			}
