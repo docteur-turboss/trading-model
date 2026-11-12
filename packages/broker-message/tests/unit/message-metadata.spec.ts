@@ -8,7 +8,6 @@ import type {
 	CorrelationId,
 	DurationMs,
 	InstanceId,
-	MessageId,
 	MessagePriority,
 	Role,
 	ServiceId,
@@ -270,7 +269,6 @@ describe("MessageMetadataBuilder", () => {
 				.setDelivery({
 					mode: DeliveryMode.AtLeastOnce,
 					ttl: 5000 as DurationMs,
-					deduplicationId: "dedup-1" as MessageId,
 				})
 				.setRouting({
 					partitionKey: "key-1" as CorrelationId,
@@ -292,7 +290,6 @@ describe("MessageMetadataBuilder", () => {
 			const result = m.toJSON();
 			expect(result.delivery?.mode).toBe("at-least-once");
 			expect(result.delivery?.ttl).toBe(5000);
-			expect(result.delivery?.deduplicationId).toBe("dedup-1");
 			expect(result.routing?.partitionKey).toBe("key-1");
 			expect(result.routing?.priority).toBe(10);
 			expect(result.security?.authContext?.subject).toBe("service-a");

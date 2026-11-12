@@ -159,14 +159,6 @@ describe("training.model.published identity of the artifact", () => {
 	it("carries the stored version, sha256 and admission verdict", async () => {
 		expect(await publishedPayload()).toMatchObject(STORED);
 	});
-
-	it("derives the deduplication id from (symbol, version)", async () => {
-		const id = async (version?: string) =>
-			(await publishedMessage(undefined, version)).metadata.delivery
-				.deduplicationId;
-		expect(await id()).toBe(await id());
-		expect(await id("20261030T101530Z-ffffffffffff")).not.toBe(await id());
-	});
 });
 
 describe("admission of a model (ADR-0069)", () => {

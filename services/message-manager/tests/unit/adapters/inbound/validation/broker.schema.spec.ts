@@ -115,7 +115,6 @@ describe("Broker Schemas", () => {
 				delivery: {
 					mode: DeliveryMode.AtLeastOnce,
 					ttl: 60000,
-					deduplicationId: "dedup-789",
 				},
 				security: {
 					authContext: {

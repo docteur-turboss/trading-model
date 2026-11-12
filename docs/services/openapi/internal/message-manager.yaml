@@ -111,8 +111,6 @@ paths:
                           type: "integer"
                           minimum: 0
                           exclusiveMinimum: true
-                        deduplicationId:
-                          type: "string"
                         requireSubscriber:
                           type: "boolean"
                       required:
@@ -255,8 +253,6 @@ paths:
                               type: "integer"
                               minimum: 0
                               exclusiveMinimum: true
-                            deduplicationId:
-                              type: "string"
                             requireSubscriber:
                               type: "boolean"
                           required:
