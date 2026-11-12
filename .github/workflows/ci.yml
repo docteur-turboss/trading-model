@@ -264,6 +264,13 @@ jobs:
       # The overlay points the scraper at a Binance stub. The observability
       # stack is not needed here.
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # buildx reads the gha cache only with these variables, which a run: step does not get.
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            for (const k of ['ACTIONS_RUNTIME_TOKEN', 'ACTIONS_RESULTS_URL', 'ACTIONS_CACHE_URL']) {
+              if (process.env[k]) core.exportVariable(k, process.env[k]);
+            }
       # One gha cache scope per image: a shared scope would keep only the last image's layers.
       - name: Build the images (layer cache)
         run: |
