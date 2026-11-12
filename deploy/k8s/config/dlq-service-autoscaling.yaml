@@ -71,6 +71,11 @@ spec:
         # Sentinels (REDIS_SENTINELS).
         - port: 26379
           protocol: TCP
+        # TLS listeners (REDIS_TLS_MODE, ADR-0047).
+        - port: 6380
+          protocol: TCP
+        - port: 26380
+          protocol: TCP
         - port: 3000
           protocol: TCP
 ---
