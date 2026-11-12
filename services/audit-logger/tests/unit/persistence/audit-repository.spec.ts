@@ -258,6 +258,17 @@ describe("AuditRepository", () => {
 			}
 		});
 
+		it("should reject without queueing once the pending queue is full", async () => {
+			MOCK_COLLECTION.updateOne.mockReturnValue(new Promise(() => undefined));
+			for (let n = 0; n < 1000; n++) {
+				void repository.insert(withId(n));
+			}
+
+			await expect(repository.insert(withId(1000))).rejects.toThrow(
+				"Audit write queue is full"
+			);
+		});
+
 		it("should reject only the writes that waited LEASE_WAIT_MS for the lease", async () => {
 			jest.useFakeTimers();
 			try {
