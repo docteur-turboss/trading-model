@@ -56,8 +56,8 @@ entries, so Redis is not backed up in Kubernetes. The message-manager journal
 (ADR-0048) is not derived: it holds accepted (202) messages not yet delivered,
 up to 24 h per stopped subscriber. **Journal RPO:** AOF plus replication
 (`JOURNAL_MIN_REPLICAS=1` in production); losing the master and all replicas
-loses those messages, and only `JournalEntriesTrimmed` and the publishers'
-sources can tell what is missing. The Docker scripts still
+loses those messages. No alert fires on a total loss (`JournalEntriesTrimmed`
+only counts the 24 h trim): republish from the publishers' sources. The Docker scripts still
 dump it (single node). With `REDIS_APPENDONLY=yes` Redis starts from its
 append-only file and would ignore a restored `dump.rdb`: `scripts/restore.sh`
 loads the snapshot in a throwaway server on the same volume and rewrites the
@@ -961,7 +961,7 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
 - **DDL between the dump and the instant** (a migration) replays as is: a
   statement the restored schema rejects stops the replay with exit 1.
 - **Docker stack**: no scheduler, no backup metrics scraped, Redis without
-  persistence (derived state only). Compose is a development stack: do not
+  persistence (the message journal is lost on restart). Compose is a development stack: do not
   store real data in it ([SETUP.md](SETUP.md#local-development-setup),
   [DOCKER.md](DOCKER.md#docker-compose-services)).
 - **Business validation after a restore** is `scripts/verify-restore-k8s.sh`
