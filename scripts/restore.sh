@@ -40,6 +40,11 @@ fail() { log "✗ $*"; RESTORE_FAILURES=$((RESTORE_FAILURES + 1)); }
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
 
+# Restore needs every action: the `root` user (ADR-0067); the password stays in
+# the container env. admin.* is excluded: restoring admin.system.users drops the
+# session of root mid-restore (createIndexes: Unauthorized); `mongo-users` recreates them.
+MONGO_ROOT_RESTORE='mongorestore --gzip --drop --username root --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --nsExclude "admin.*"'
+
 restore_mongodb() {
   log "Starting MongoDB restore..."
   local src="${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}"
@@ -68,12 +73,12 @@ restore_mongodb() {
 
     local restore_ok=false
     if [ -f "$archive" ]; then
-      if open_backup "$archive" | docker exec -i "${container}" mongorestore --quiet --gzip --drop --archive; then
+      if open_backup "$archive" | docker exec -i "${container}" sh -c "$MONGO_ROOT_RESTORE --archive"; then
         restore_ok=true
       fi
     elif [ -d "$archive" ]; then
       docker cp "$archive/." "${container}:/tmp/restore_data/"
-      if docker exec "${container}" mongorestore --quiet --gzip --drop "/tmp/restore_data/"; then
+      if docker exec "${container}" sh -c "$MONGO_ROOT_RESTORE /tmp/restore_data/"; then
         restore_ok=true
       fi
       docker exec "${container}" rm -rf "/tmp/restore_data/"

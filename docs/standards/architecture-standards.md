@@ -61,7 +61,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 | API          | Express.js                                           |
 | Frontend     | None for now (ADR-0018)                              |
 | Security     | mTLS (all services)                                  |
-| Database     | MongoDB (audit-logger, dlq-service), MySQL (financial-scraper, SPIRE datastore), Redis (discovery registry, message-manager subscriptions, dlq-service) |
+| Database     | MongoDB (audit-logger, dlq-service), MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), Redis (discovery registry, message-manager subscriptions, dlq-service) |
 | Validation   | Zod                                                  |
 | Scheduling   | node-cron                                            |
 | Formatting   | Biome                                                |

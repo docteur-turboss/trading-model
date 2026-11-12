@@ -94,6 +94,8 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `TrainerNoLeaderProlonged` | `critical` (page): same condition as `TrainerNoLeader` for 30 min, far beyond a rollout handover (end of a generation plus a few seconds) | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoModelStored` | a trainer holds the Lease but no model was stored (`tt_model_artifacts_total{result="stored"}`) for 3 h (2 h after a start), whatever the cause: sessions failing, nothing trained, writes failing | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `TrainerMarketDataStale` | no candle reached the trainer for 15 min (`tt_market_data_received_total`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `ModelBelowBuyAndHold` | the last 3 stored models of a symbol have an out-of-sample Sharpe below buy and hold on the same bars (`tt_model_below_buy_and_hold_streak`, Lease holder only; `segment="validation"` until issue #885) | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
+| `TrainerFeatureDrift` | for 1 h, a normalized field of a symbol received since its newest stored model has a mean more than 3 standard deviations from the statistics stored with that model (`tt_feature_drift_score`) | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
 | `MarketDataUnpublished` | persisted candles of a symbol have waited 15 min for the bus (`fs_unpublished_candles`): sent from MySQL once message-manager answers, the trainer lags meanwhile | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `ScrapeCyclesFailing` | more than half of the scrape cycles fail | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | no candle of one symbol persisted for 15 min while the others may still flow (`fs_candles_persisted_total{symbol}`): symbol rejected, klines failing or candles refused by the normalizer, by symbol | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
@@ -107,6 +109,8 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `DlqAuditEventLost` | a DLQ delete or replay was done but message-manager refused its audit event (`dlq_audit_publish_failures_total`): not in the audit chain, the API answered 502 (ADR-0059) | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
 | `RetentionFailed` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
 | `RetentionStale` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
+| `ApiAuthFailuresHigh` | the gateway rejected API keys at more than 0.1/s (6/min) for 5 min | [runbook-auth-failures](runbooks/runbook-auth-failures.md) |
+| `MtlsAclDenials` | any mTLS or ACL denial on a service (`http_mtls_denials_total`) | [runbook-auth-failures](runbooks/runbook-auth-failures.md) |
 | `AuditChainBroken` | audit-logger's verification found the audit chain broken: event changed, missing or removed, or a chain that no longer matches its anchors (ADR-0027) | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
 | `AuditChainVerificationStale` / `AuditChainAnchoringStale` | no verification, or no anchor written, for 45 min | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
 | `AuditChainNotAnchored` (warning) | no anchor store configured (`AUDIT_ANCHOR_BUCKET`): expected in compose and staging | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
@@ -157,6 +161,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `BackupUnencrypted` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupOffsiteCopyFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupVolumeFilling` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `ApiAuthFailuresHigh` | warning | [runbook-auth-failures#apiauthfailureshigh](runbooks/runbook-auth-failures.md#apiauthfailureshigh) |
+| `MtlsAclDenials` | warning | [runbook-auth-failures#mtlsacldenials](runbooks/runbook-auth-failures.md#mtlsacldenials) |
 | `AuditChainBroken` | critical | [runbook-audit-chain-broken#auditchainbroken](runbooks/runbook-audit-chain-broken.md#auditchainbroken) |
 | `AuditChainVerificationStale` | critical | [runbook-audit-chain-broken#auditchainverificationstale](runbooks/runbook-audit-chain-broken.md#auditchainverificationstale) |
 | `AuditChainAnchoringStale` | critical | [runbook-audit-chain-broken#auditchainanchoringstale](runbooks/runbook-audit-chain-broken.md#auditchainanchoringstale) |
@@ -187,6 +193,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `CandleDeliveryLagging` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoModelStored` | critical | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |
+| `ModelBelowBuyAndHold` | warning | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
+| `TrainerFeatureDrift` | warning | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
 | `KubePodCrashLooping` | warning | [runbook-infrastructure#kubepodcrashlooping](runbooks/runbook-infrastructure.md#kubepodcrashlooping) |
 | `KubeContainerOOMKilled` | warning | [runbook-infrastructure#kubecontaineroomkilled](runbooks/runbook-infrastructure.md#kubecontaineroomkilled) |
 | `KubePersistentVolumeFillingUp` | warning | [runbook-infrastructure#kubepersistentvolumefillingup](runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup) |

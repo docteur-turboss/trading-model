@@ -28,6 +28,8 @@ export interface ServiceCachePort {
 	 * compose (rather than inherit) the parallel circuit-state hierarchy. */
 	readonly circuitStateStore: CircuitStateStorePort;
 	get(serviceName: ServiceId, region?: string): Promise<ServiceInstance | null>;
+	/** Last instance cached for `serviceName`, even past its TTL: discovery-outage fallback only. */
+	getStale(serviceName: ServiceId): Promise<ServiceInstance | null>;
 	set(entry: CacheSetEntry): Promise<void>;
 	delete(serviceName: ServiceId, region?: string): Promise<void>;
 	clear(): Promise<void>;

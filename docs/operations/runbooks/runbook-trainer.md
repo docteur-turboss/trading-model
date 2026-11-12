@@ -7,7 +7,8 @@ target in [slo.md](../slo.md#6-training-completion-rate)),
 `ModelArtifactWriteFailing` (warning),
 `TrainerEventLoopBlocked` (warning),
 `TrainerEventLoopLagHigh` (warning),
-`TrainerNoLeader` (warning), `TrainerNoLeaderProlonged` (critical, 30 min).
+`TrainerNoLeader` (warning), `TrainerNoLeaderProlonged` (critical, 30 min),
+`ModelBelowBuyAndHold` (warning), `TrainerFeatureDrift` (warning).
 
 No market data reaching the trainer is a different alert,
 `TrainerMarketDataStale` ([runbook-market-data-stale](runbook-market-data-stale.md)):
@@ -256,6 +257,80 @@ Compose: `docker logs trading-trainer 2>&1 | grep ...` and
 
 **Resolution check:** `sum(increase(tt_model_artifacts_total{result="stored"}[1h]))`
 is above 0 again; the alert resolves at the next evaluation.
+
+## ModelBelowBuyAndHold
+
+The last 3 stored models of a symbol have an out-of-sample Sharpe below buy
+and hold on the same bars (issue #884). Every stored model sets, by symbol and
+`segment` (`validation` until a test segment never used for selection exists,
+issue #885):
+
+- `tt_model_sharpe`, `tt_model_return` (mean wallet PnL per evaluation
+  episode), `tt_model_max_drawdown`: the published metrics of the model;
+- `tt_model_buy_and_hold_sharpe`: Sharpe of holding one unit over the same
+  validation bars, annualised the same way;
+- `tt_model_below_buy_and_hold_streak`: consecutive stored models below buy
+  and hold since the trainer started (in memory: a restart or a Lease handover
+  starts it again).
+
+Only the Lease holder is read: a replica that handed the Lease over keeps its
+last gauges. No capital is at stake (no consumer trades the models yet):
+`warning`.
+
+### Diagnosis
+
+```bash
+# Model vs baseline, by symbol (Prometheus)
+tt_model_sharpe - on (job, instance, symbol, segment) tt_model_buy_and_hold_sharpe
+# The published metrics of the stored versions (newest first)
+kubectl -n $NS exec deploy/trader-trainer -c trader-trainer --   ls /data/checkpoints/models/<SYMBOL>
+```
+
+Dashboard "Trader Trainer", panel "Model Sharpe vs buy and hold".
+
+- A strong trend (buy and hold Sharpe high on the validation bars) is hard to
+  beat for a model that also goes flat: look at several symbols before acting.
+- Every symbol below for long: the training settings (`TRAINER_FITNESS_TYPE`,
+  generations, time budget) or a regression of the release; compare with the
+  `build_info` of the last good period.
+
+### Remediation
+
+No automatic action. Do not publish these models to a consumer. Re-run the
+ADR-0030 walk-forward criteria on the symbol before any use; if the streak
+follows a release, roll it back. The alert resolves at the next stored model at
+or above buy and hold.
+
+## TrainerFeatureDrift
+
+`tt_feature_drift_score` of a symbol above 3 for 1 hour (issue #884). Before
+each session the trainer compares the data received since the newest stored
+model (candles, trades, order books, book tickers, 24 h tickers) with the
+normalization statistics stored with that model (ADR-0022): the score is the
+largest `|live mean - model mean| / model std` over the normalized fields
+(`candle.close`, `candle.volume`, `trade.qty`, `book.spread`...). 3 means one
+field moved 3 standard deviations of the model's data. One score per symbol,
+no label per field (cardinality). The gauge keeps its value while no session
+runs for the symbol. Only the Lease holder is read.
+
+### Diagnosis
+
+```bash
+# Which field moved: the statistics stored with the newest model
+kubectl -n $NS exec deploy/trader-trainer -c trader-trainer --   sh -c 'cat /data/checkpoints/models/<SYMBOL>/$(ls /data/checkpoints/models/<SYMBOL> | tail -1)/manifest.json'   | jq .normalization
+```
+
+Compare each `mean` (and `sqrt(m2 / (count - 1))`) with the recent candles of
+the symbol (MySQL `market_candles`, or the API). Price fields drift with any
+lasting trend; volume or spread fields drifting point at a market regime change
+or at a data problem (wrong symbol, unit change at the source).
+
+### Remediation
+
+A real regime change: nothing to fix, the next models train on the new data;
+treat their metrics with care until the score falls back. A data problem: fix
+the source (scraper, [runbook-market-data-stale](runbook-market-data-stale.md)).
+The alert resolves once a session measures a score at or below 3.
 
 ## Escalation
 

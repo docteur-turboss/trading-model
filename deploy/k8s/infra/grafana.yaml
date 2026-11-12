@@ -90,6 +90,22 @@ spec:
                   name: trading-model-secrets
                   key: GRAFANA_OIDC_ENABLED
                   optional: true
+            # Same key as OIDC: with OIDC on, the public Ingress no longer offers
+            # the local password form (break-glass: runbook-grafana-break-glass.md).
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_ENABLED
+                  optional: true
+            # Basic auth still accepts admin:password on the API after the form is
+            # hidden (checked on this image): set the key to "false" with OIDC on.
+            - name: GF_AUTH_BASIC_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_BASIC_AUTH_ENABLED
+                  optional: true
             - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
               valueFrom:
                 secretKeyRef:

@@ -119,7 +119,7 @@ credentials of the cloud account (not the ones stored in the cluster);
    ```
 
    Without `--pitr`, restore with `--timestamp` of the fetched run instead of
-   `--until`. MySQL (SPIRE datastore) is restored before the SPIRE CA keys.
+   `--until`. SPIRE (datastore and CA keys, ADR-0065) is restored on its own.
    The restored audit chain stops at the backup or at `--until`: anchors
    written after it no longer match. Record the loss with `chain-cli.js
    acknowledge-loss` (runbook-audit-chain-broken in [ALERTING.md](../operations/ALERTING.md), ADR-0027); never edit

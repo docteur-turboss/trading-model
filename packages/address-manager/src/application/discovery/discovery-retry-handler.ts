@@ -107,7 +107,7 @@ export class DiscoveryRetryHandler {
 		ctx: DiscoveryContext
 	): Promise<ServiceInstance | null> {
 		try {
-			const staleInstance = await this._serviceCache.get(
+			const staleInstance = await this._serviceCache.getStale(
 				toServiceId(ctx.serviceName)
 			);
 			if (staleInstance) {

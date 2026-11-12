@@ -14,7 +14,7 @@ const TRAINER_ENV_SHAPE = {
 	MODEL_DOWNLOAD_CALLERS: z.string().default(""),
 	TRAINER_DATA_WINDOW: z.coerce.number().int().positive().default(500),
 	TRAINER_VALIDATION_SPLIT: z.coerce.number().min(0).max(1).default(0.15),
-	/** Newest fraction never used by training nor selection; published metrics come from it (ADR-0065). */
+	/** Newest fraction never used by training nor selection; published metrics come from it (ADR-0068). */
 	TRAINER_TEST_SPLIT: z.coerce.number().min(0).max(1).default(0.15),
 	TRAINER_WALK_FORWARD_FOLDS: z.coerce.number().int().min(1).max(20).default(1),
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),

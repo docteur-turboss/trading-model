@@ -20,6 +20,7 @@ export interface StopMessage {
 /** A market step as it crosses the thread boundary: `FeatureVector` is a class, a structured clone would drop its methods. */
 interface WireMarketStep {
 	price: MarketStep["price"];
+	fillPrice?: MarketStep["fillPrice"];
 	timestamp?: number;
 	features: Float32Array;
 }
@@ -34,6 +35,7 @@ export interface WireWindowSet {
 const toWire = (steps: MarketStep[]): WireMarketStep[] =>
 	steps.map((step) => ({
 		price: step.price,
+		fillPrice: step.fillPrice,
 		timestamp: step.timestamp,
 		features: step.features.toFloat32Array(),
 	}));
@@ -41,6 +43,7 @@ const toWire = (steps: MarketStep[]): WireMarketStep[] =>
 const fromWire = (steps: WireMarketStep[]): MarketStep[] =>
 	steps.map((step) => ({
 		price: step.price,
+		fillPrice: step.fillPrice,
 		timestamp: step.timestamp,
 		features: FeatureVector.fromFloat32Array(step.features),
 	}));

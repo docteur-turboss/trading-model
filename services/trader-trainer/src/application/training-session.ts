@@ -94,7 +94,7 @@ class TrainingSession {
 
 	/**
 	 * Scores the published genome once on the test segment, which the training
-	 * and the selection never read (ADR-0065). Undefined without a test segment.
+	 * and the selection never read (ADR-0068). Undefined without a test segment.
 	 */
 	private _testMeta(
 		genome: DeepReadonly<LamarckGenome>

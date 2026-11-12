@@ -15,7 +15,7 @@ export const DEFAULT_VALIDATION_SPLIT = Percentage.of(0.15);
 
 /**
  * Default fraction of the steps, the newest, held out for the final test: never
- * read by the training nor by the selection (issue #885, ADR-0065).
+ * read by the training nor by the selection (issue #885, ADR-0068).
  */
 export const DEFAULT_TEST_SPLIT = Percentage.of(0.15);
 
@@ -56,7 +56,11 @@ export class WindowSplitter {
 		private readonly _normManager = new NormalizationManager()
 	) {}
 
-	/** One step per candle after the first, built from what its close knew. */
+	/**
+	 * One step per candle after the first, built from what its close knew. Its
+	 * decision fills at the next candle's open (none for the last candle: it
+	 * fills at its close).
+	 */
 	buildMarketSteps(ctx: MarketDataContext): MarketStep[] {
 		const state = this._states.get(ctx.symbol);
 		if (!state || state.candles.length < 2) {
@@ -67,6 +71,7 @@ export class WindowSplitter {
 			if (idx > 0) {
 				steps.push({
 					price: view.candles[idx].close,
+					fillPrice: state.candles[idx + 1]?.open,
 					features: buildFeaturesFn({ state: view, idx }),
 					timestamp: view.candles[idx].timestamp,
 				});

@@ -212,6 +212,22 @@ describe("TradingAgent", () => {
 			expect(second.reward).toBeLessThanOrEqual(10);
 		});
 
+		it("fills the decision at fillPrice, marked at price", () => {
+			const buyer = new TradingAgent(makeConfig());
+			jest
+				.spyOn((buyer as any)._agent.nn, "forward")
+				.mockReturnValue({ output: new Float32Array([0, 0, 1]) });
+
+			buyer.step(
+				new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				Price.of(100),
+				Price.of(104)
+			);
+
+			expect(buyer.wallet.getCash()).toBe(1000 - 104);
+			expect(buyer.wallet.getPrice()).toBe(100);
+		});
+
 		it("should update wallet price when price is provided", () => {
 			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
 

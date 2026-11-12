@@ -16,6 +16,7 @@ Before the first `docker compose up`, set these variables in `.env` and replace 
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
 - `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
 - `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
+- `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` — MongoDB users, one per client (required, no default; ADR-0067). A Mongo volume created before authentication needs `docker compose down -v` (or the localhost exception, see the `mongo` service)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
@@ -95,7 +96,7 @@ bun run commit               # Interactive gitmoji commit CLI
 
 - **Docker Compose:** `docker compose up -d` (all 20+ containers with health-check ordering)
 - **Kubernetes:** `kubectl apply -k deploy/k8s/overlays/production` (HPA, PDBs, NetworkPolicies, SealedSecrets)
-- **Backup:** Daily CronJob → MongoDB (dlq + audit) + MySQL (incl. SPIRE datastore) + SPIRE CA keys + checkpoints, age-encrypted, mandatory S3 off-site copy; restore drill in CI
+- **Backup:** Daily CronJob → MongoDB (dlq + audit) + MySQL + SPIRE datastore and CA keys (SQLite, ADR-0065) + checkpoints, age-encrypted, mandatory S3 off-site copy; restore drill in CI
 - **Secrets:** SealedSecrets (SealedSecret → controller decrypts → standard Secret)
 - **Probes:** `startupProbe` (90s window) + `livenessProbe` + `readinessProbe` on all services
 - **Identity/mTLS:** SPIRE Server + Agent (K8s PSAT / Docker attestor) issuing SVIDs to `spiffe-helper` sidecars (ADR-0011)

@@ -19,7 +19,7 @@ echo "$*" >>"$STUB_LOG"
 if [ "$1" = apply ] && [ "${*: -1}" = - ]; then cat >>"$STUB_LOG.manifests"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = job ]; then exit 1; fi # no mysql-cluster-init Job
 if [ "$1" = get ] && [[ "$2" == job/* ]]; then printf "Complete "; exit 0; fi # wait-job.sh: Job done
-if [ "$1" = get ] && [ "$2" = secret ] && [ -n "${STUB_GET_ERR:-}" ]; then echo "$STUB_GET_ERR" >&2; exit 1; fi
+if [ "$1" = get ] && [ "$2" = secret ] && [[ "$3" == trading-model-secrets ]] && [ -n "${STUB_GET_ERR:-}" ]; then echo "$STUB_GET_ERR" >&2; exit 1; fi
 # STUB_*_AFTER_APPLY: what the Secret holds once the SealedSecret was applied
 applied() { grep -q '^apply .*sealed' "$STUB_LOG"; }
 if [ "$1" = get ] && [ "$2" = secret ] && [[ "$*" == *go-template* ]]; then

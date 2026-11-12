@@ -18,7 +18,7 @@ Training service for trading agents using genetic algorithms and neural networks
 | Route                      | Method | Description                                         |
 | -------------------------- | ------ | --------------------------------------------------- |
 | `/ping`                    | GET    | Health check (built-in via `createServiceServer`)   |
-| `/health/ready`            | GET    | Readiness (message bus)                             |
+| `/health/ready`            | GET    | Readiness (SVID readable)                           |
 | `/training-status`         | GET    | Current training status                             |
 | `/best-agent`              | GET    | Best trained agent                                  |
 | `/training-agents`         | GET    | Trained agents of every symbol                      |
@@ -135,7 +135,7 @@ The `TRAINER_MODEL_RETENTION` newest versions are kept per symbol (default 20). 
 | sharpe            | number | Sharpe ratio of the bar-by-bar PnL curve of the evaluation, annualised from the bar spacing (ADR-0025) |
 | avgPnl            | number | Average P&L across evaluation episodes   |
 | maxDrawdown       | number | Largest fall of the cumulative bar-by-bar P&L of the evaluation, from its peak (>= 0) |
-| evaluatedOn       | string | `test` or `validation`: segment sharpe, avgPnl and maxDrawdown were measured on (ADR-0065) |
+| evaluatedOn       | string | `test` or `validation`: segment sharpe, avgPnl and maxDrawdown were measured on (ADR-0068) |
 | gaControl         | object | GA meta-parameters used                  |
 | network           | object | Neural network architecture              |
 | rl                | object | Reinforcement learning hyperparameters   |

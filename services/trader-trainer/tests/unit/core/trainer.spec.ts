@@ -6,6 +6,14 @@ import {
 	TradingSymbol,
 } from "@trading-model/primitives/primitives";
 import { Trainer } from "../../../src/application/trainer";
+import {
+	FEATURE_DRIFT_SCORE,
+	MODEL_BELOW_BUY_AND_HOLD_STREAK,
+	MODEL_BUY_AND_HOLD_SHARPE,
+	MODEL_MAX_DRAWDOWN,
+	MODEL_RETURN,
+	MODEL_SHARPE,
+} from "../../../src/config/metrics";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import {
@@ -550,55 +558,6 @@ describe("Trainer — model publication", () => {
 		feedCandles(dataBuffer, "BTCUSDT", 100);
 	});
 
-	it("should publish the best agent after a successful training", async () => {
-		const publisher = {
-			publish: jest.fn<(...args: any[]) => any>().mockResolvedValue(undefined),
-		};
-		const trainer = new Trainer(dataBuffer, {
-			settings: TEST_TRAINING_SETTINGS,
-			publisher,
-		});
-
-		const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
-
-		expect(result.success).toBe(true);
-		expect(publisher.publish).toHaveBeenCalledWith(
-			"BTCUSDT",
-			expect.objectContaining({ id: expect.any(String) })
-		);
-	});
-
-	it("should keep the training successful when publication fails", async () => {
-		const publisher = {
-			publish: jest
-				.fn<(...args: any[]) => any>()
-				.mockRejectedValue(new Error("bus down")),
-		};
-		const trainer = new Trainer(dataBuffer, {
-			settings: TEST_TRAINING_SETTINGS,
-			publisher,
-		});
-
-		const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
-
-		expect(result.success).toBe(true);
-		expect(publisher.publish).toHaveBeenCalled();
-	});
-
-	it("should tolerate a non-Error publication failure", async () => {
-		const publisher = {
-			publish: jest.fn<(...args: any[]) => any>().mockRejectedValue("nope"),
-		};
-		const trainer = new Trainer(dataBuffer, {
-			settings: TEST_TRAINING_SETTINGS,
-			publisher,
-		});
-
-		await expect(
-			trainer.train(TradingSymbol.of("BTCUSDT"))
-		).resolves.toMatchObject({ success: true });
-	});
-
 	it("should hand the GA telemetry and the settings to the training session", async () => {
 		const telemetry = {
 			generationStarted: jest.fn<(...args: any[]) => any>(),
@@ -648,12 +607,107 @@ describe("Trainer — model publication", () => {
 			return {
 				save: jest.fn<(artifact: any) => Promise<any>>().mockResolvedValue({
 					version: "20261029T101530Z-0123456789ab",
+					sha256: "0123456789abcdef",
 				}),
 				list: jest.fn<(...args: any[]) => any>(),
 				manifest: jest.fn<(...args: any[]) => any>(),
 				weights: jest.fn<(...args: any[]) => any>(),
 			};
 		}
+
+		function publishingTrainer(
+			models: ReturnType<typeof fakeStore>,
+			publish: (...args: any[]) => any
+		) {
+			return new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+				publisher: { publish: jest.fn<(...args: any[]) => any>(publish) },
+			});
+		}
+
+		it("publishes the stored version and sha256 after a successful training", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const publisher = {
+				publish: jest
+					.fn<(...args: any[]) => any>()
+					.mockResolvedValue(undefined),
+			};
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models: fakeStore(),
+				publisher,
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
+
+			expect(result.success).toBe(true);
+			expect(publisher.publish).toHaveBeenCalledWith(
+				"BTCUSDT",
+				expect.objectContaining({ id: expect.any(String) }),
+				{ version: "20261029T101530Z-0123456789ab", sha256: "0123456789abcdef" }
+			);
+		});
+
+		it("publishes nothing when the artifact write fails", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const models = fakeStore();
+			models.save.mockRejectedValue(new Error("EACCES"));
+			const publish = jest.fn<(...args: any[]) => any>();
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+				publisher: { publish },
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			await trainer.train(TradingSymbol.of("BTCUSDT"));
+
+			expect(publish).not.toHaveBeenCalled();
+		});
+
+		it("publishes nothing when the best genome has no trained weights", async () => {
+			const publish = jest.fn<(...args: any[]) => any>();
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models: fakeStore(),
+				publisher: { publish },
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			await trainer.train(TradingSymbol.of("BTCUSDT"));
+
+			expect(publish).not.toHaveBeenCalled();
+		});
+
+		it("keeps the training successful when publication fails", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const trainer = publishingTrainer(fakeStore(), () =>
+				Promise.reject(new Error("bus down"))
+			);
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			await expect(
+				trainer.train(TradingSymbol.of("BTCUSDT"))
+			).resolves.toMatchObject({ success: true });
+		});
+
+		it("tolerates a non-Error publication failure", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const trainer = publishingTrainer(fakeStore(), () =>
+				Promise.reject("nope")
+			);
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			await expect(
+				trainer.train(TradingSymbol.of("BTCUSDT"))
+			).resolves.toMatchObject({ success: true });
+		});
 
 		it("stores the best agent with its weights, feature layout and normalization", async () => {
 			const genome = await trainedGenome();
@@ -809,6 +863,48 @@ describe("Trainer — model publication", () => {
 				await expect(trainer.rehydrate([sym])).resolves.toBeUndefined();
 				expect(trainer.getSnapshotForSymbol(sym)).toBeUndefined();
 			});
+		});
+
+		it("exports the stored model's metrics next to buy and hold, then the drift of the next session (issue #884)", async () => {
+			const sym = TradingSymbol.of("BTCUSDT");
+			const value = async (gauge: any, labels: Record<string, string>) =>
+				(await gauge.get()).values.find((entry: any) =>
+					Object.entries(labels).every(
+						([key, val]) => entry.labels[key] === val
+					)
+				)?.value;
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const models = fakeStore();
+			models.save.mockResolvedValue({
+				version: "v1",
+				createdAt: new Date(0).toISOString(),
+			});
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 100);
+
+			await trainer.train(sym);
+
+			const summary = trainer.getBestAgentSummary();
+			const labels = { symbol: "BTCUSDT", segment: "validation" };
+			expect(await value(MODEL_SHARPE, labels)).toBe(summary?.sharpe);
+			expect(await value(MODEL_RETURN, labels)).toBe(summary?.avgPnl);
+			expect(await value(MODEL_MAX_DRAWDOWN, labels)).toBe(
+				summary?.maxDrawdown
+			);
+			const baseline = await value(MODEL_BUY_AND_HOLD_SHARPE, labels);
+			// Prices rise by 1 every bar: a constant change, floored Sharpe.
+			expect(baseline).toBeGreaterThan(0);
+			expect(
+				await value(MODEL_BELOW_BUY_AND_HOLD_STREAK, { symbol: "BTCUSDT" })
+			).toBe(Number(summary?.sharpe) < Number(baseline) ? 1 : 0);
+
+			// The next session compares the buffer with the stored normalization.
+			await trainer.train(sym);
+			expect(await value(FEATURE_DRIFT_SCORE, { symbol: "BTCUSDT" })).toBe(0);
 		});
 
 		it("does not store a best genome without trained weights", async () => {

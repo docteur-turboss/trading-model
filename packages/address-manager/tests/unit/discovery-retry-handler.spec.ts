@@ -10,6 +10,7 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
+import { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
 import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
 import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery-retry-handler";
 import type { ServiceDiscovery } from "../../src/application/discovery/service-discovery";
@@ -78,6 +79,9 @@ describe("DiscoveryRetryHandler", () => {
 	function createMockCache(): jest.Mocked<ServiceCachePort> {
 		return {
 			get: jest
+				.fn<() => Promise<ServiceInstance | null>>()
+				.mockResolvedValue(null),
+			getStale: jest
 				.fn<() => Promise<ServiceInstance | null>>()
 				.mockResolvedValue(null),
 			set: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -244,12 +248,12 @@ describe("DiscoveryRetryHandler", () => {
 
 	describe("fallbackToStaleCache", () => {
 		test("returns stale instance when cache has one", async () => {
-			mockCache.get.mockResolvedValue(instance);
+			mockCache.getStale.mockResolvedValue(instance);
 
 			const result = await handler.fallbackToStaleCache(discoveryCtx);
 
 			expect(result).toBe(instance);
-			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
+			expect(mockCache.getStale).toHaveBeenCalledWith(serviceId);
 			expect(jest.mocked(getLogger().warn)).toHaveBeenCalledWith(
 				"Circuit breaker exhausted — returning stale cached instance as fallback",
 				{
@@ -263,24 +267,46 @@ describe("DiscoveryRetryHandler", () => {
 			);
 		});
 
+		test("returns an instance past the cache TTL when discovery is down", async () => {
+			jest.useFakeTimers();
+			const cache = new ServiceCache(toDurationMs(30_000));
+			await cache.set({ serviceName: serviceId, instance });
+			jest.advanceTimersByTime(31_000);
+			mockDiscovery.findService.mockRejectedValue(new Error("discovery down"));
+			const realHandler = new DiscoveryRetryHandler(
+				mockDiscovery,
+				cache,
+				mockCircuitBreaker
+			);
+
+			await expect(realHandler.attemptDiscovery(discoveryCtx)).rejects.toThrow(
+				"discovery down"
+			);
+			expect(await cache.get(serviceId)).toBeNull();
+			expect(await realHandler.fallbackToStaleCache(discoveryCtx)).toEqual(
+				instance
+			);
+			jest.useRealTimers();
+		});
+
 		test("returns null when no stale cache exists", async () => {
-			mockCache.get.mockResolvedValue(null);
+			mockCache.getStale.mockResolvedValue(null);
 
 			const result = await handler.fallbackToStaleCache(discoveryCtx);
 
 			expect(result).toBeNull();
-			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
+			expect(mockCache.getStale).toHaveBeenCalledWith(serviceId);
 			expect(jest.mocked(getLogger().warn)).not.toHaveBeenCalled();
 			expect(recordDiscoveryMetrics).not.toHaveBeenCalled();
 		});
 
 		test("returns null when cache lookup throws", async () => {
-			mockCache.get.mockRejectedValue(new Error("cache error"));
+			mockCache.getStale.mockRejectedValue(new Error("cache error"));
 
 			const result = await handler.fallbackToStaleCache(discoveryCtx);
 
 			expect(result).toBeNull();
-			expect(mockCache.get).toHaveBeenCalledWith(serviceId);
+			expect(mockCache.getStale).toHaveBeenCalledWith(serviceId);
 			expect(jest.mocked(getLogger().debug)).toHaveBeenCalledWith(
 				"Cache lookup failed in fallback path",
 				{ error: new Error("cache error") }
