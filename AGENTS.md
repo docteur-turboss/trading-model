@@ -20,6 +20,7 @@ bun run test:contract           # Cross-service contracts, real code on both sid
 bun run reach:report            # Report src no service entry point (main/bin) reaches (--list for files)
 bun run reach:check             # Gate: fails on any unreachable src line or spec of dead code (ADR-0029)
 bun run arch:check              # Gate: fails on a new runtime import cycle or an application/ file importing adapters/infrastructure; ratcheted on scripts/architecture-baseline.json (ADR-0015)
+bun run compose-ports:check   # Gate: fails when a docker-compose*.yml publishes a port without host 127.0.0.1 (short or long form); the E2E job also checks `docker ps` after start (issue #844)
 bun run config:check            # Gate: fails on an env var no deployment sets that gates code, read but never parsed, or missing from docs/deployment/ENV.md (ADR-0013)
 bun run compliance:check        # Gate: fails when a duration or count cited in docs/compliance/ differs from the code (retention, journal, redaction)
 bun run test:coverage           # All tests with coverage
