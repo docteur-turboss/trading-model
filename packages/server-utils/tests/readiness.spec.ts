@@ -1,4 +1,5 @@
 import http from "node:http";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import express from "express";
 import {
 	createReadinessHandler,
@@ -76,5 +77,19 @@ describe("createReadinessHandler", () => {
 		app.get("/health/ready", createReadinessHandler(checks));
 		const { statusCode } = await makeRequest(app, "/health/ready");
 		expect(statusCode).toBe(200);
+	});
+
+	it("should report a check that never answers as error within the bound", async () => {
+		const checks: ReadinessCheck[] = [
+			{ name: "hung", check: () => new Promise<boolean>(() => {}) },
+			{ name: "db", check: () => true },
+		];
+		const app = express();
+		app.get("/health/ready", createReadinessHandler(checks, DurationMs.of(50)));
+		const started = Date.now();
+		const { statusCode, body } = await makeRequest(app, "/health/ready");
+		expect(Date.now() - started).toBeLessThan(1000);
+		expect(statusCode).toBe(503);
+		expect(JSON.parse(body).checks).toEqual({ hung: "error", db: "ok" });
 	});
 });

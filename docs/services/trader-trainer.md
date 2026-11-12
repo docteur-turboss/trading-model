@@ -18,7 +18,7 @@ Training service for trading agents using genetic algorithms and neural networks
 | Route                      | Method | Description                                         |
 | -------------------------- | ------ | --------------------------------------------------- |
 | `/ping`                    | GET    | Health check (built-in via `createServiceServer`)   |
-| `/health/ready`            | GET    | Readiness (message bus)                             |
+| `/health/ready`            | GET    | Readiness (no dependency check)                     |
 | `/training-status`         | GET    | Current training status                             |
 | `/best-agent`              | GET    | Best trained agent                                  |
 | `/training-agents`         | GET    | Trained agents of every symbol                      |

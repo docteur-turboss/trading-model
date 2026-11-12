@@ -17,11 +17,6 @@ jest.mock(
 	})
 );
 
-// The mTLS discovery client loads the SVID files at construction.
-jest.mock("../../src/config/container", () => ({
-	discoveryClient: { get: jest.fn<(...args: any[]) => any>() },
-}));
-
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		PORT: 3000,
@@ -59,6 +54,14 @@ describe("server", () => {
 					PORT: 3000,
 				}),
 			})
+		);
+	});
+
+	it("should not gate readiness on discovery", () => {
+		void createServer();
+
+		expect(createServiceServer).toHaveBeenCalledWith(
+			expect.objectContaining({ readiness: [] })
 		);
 	});
 });
