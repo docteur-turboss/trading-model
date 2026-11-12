@@ -89,6 +89,8 @@ const LEASE_YIELD_MS = 100;
 
 /** Events chained in one ordered insertMany. */
 const MAX_BATCH = 100;
+/** Queue cap: 10 batches bound memory when Mongo is slow; beyond it, 503 and message-manager retries. */
+const MAX_PENDING = 10 * MAX_BATCH;
 
 interface LeaseDocument {
 	_id: string;
@@ -186,6 +188,9 @@ export class AuditRepository {
 	 * messageId) is not recorded twice.
 	 */
 	insert(event: AuditEventDocument): Promise<void> {
+		if (this._pending.length >= MAX_PENDING) {
+			return Promise.reject(agentError("Audit write queue is full"));
+		}
 		return new Promise<void>((resolve, reject) => {
 			this._pending.push({
 				event,
