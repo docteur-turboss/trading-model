@@ -2,6 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
+  - redis-tls.yaml
   - redis.yaml
   - mysql-tls.yaml
   - mongo-tls.yaml
