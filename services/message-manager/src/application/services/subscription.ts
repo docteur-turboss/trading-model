@@ -66,6 +66,11 @@ export class Subscription {
 		this._services = buildDeliveryServices(config);
 	}
 
+	/** True while the breaker refuses sends: claiming pending entries would only burn their attempts. */
+	isCircuitOpen(): boolean {
+		return this._services.circuitBreaker.isOpen();
+	}
+
 	/**
 	 * One delivery attempt, the `deliveries`-th of the message.
 	 *

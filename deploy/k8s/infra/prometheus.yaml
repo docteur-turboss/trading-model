@@ -1083,7 +1083,7 @@ data:
               severity: warning
             annotations:
               summary: 'dlq-service refused dead letters'
-              description: 'dlq-service refused {{ $value | humanize }} dead letter(s) in the last hour (invalid or too large): their journal entries stay pending until trimmed after 24 h (a lost message, JournalEntriesTrimmed); see the message-manager logs.'
+              description: 'dlq-service refused {{ $value | humanize }} dead letter(s) in the last hour (invalid or too large): their journal entries stay pending until trimmed after 24 h (a lost message, JournalEntriesTrimmed): fix the cause within 24 h, see the runbook and the message-manager logs.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
           # A DLQ delete or replay was done but message-manager refused its audit

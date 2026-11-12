@@ -20,7 +20,7 @@ Pub/sub message brokering service with configurable delivery guarantees.
 - Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE` (single attempt, not an end-to-end guarantee: see [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md))
 - TTL-based message expiration with Dead Letter Queue routing (dlq-service)
 - Parallel dispatch to all subscribers of a topic
-- No write-ahead log or archive: messages are dispatched in memory; undeliverable messages are sent to dlq-service (local JSONL file while it is unreachable)
+- No write-ahead log or archive: messages are dispatched in memory; undeliverable messages are sent to dlq-service (the journal entry stays pending while it is unreachable)
 
 ## REST Endpoints
 
@@ -142,9 +142,7 @@ HTTP Routes (src/adapters/inbound/http.routes.ts)
       → Dispatcher (src/application/services/dispatcher.ts)
         → Subscription Registry (src/application/services/subscription-registry.ts)
         → Delivery over HTTP (src/adapters/outbound/http-message-delivery.ts → POST to subscriber callback URLs)
-        → Dead Letter (src/adapters/outbound/forwarding-dead-letter-store.ts
-            → dlq-service: http-dead-letter-store.ts, signed POST /dlq
-            → fallback: src/infrastructure/fallback/dlq-repository.ts, local JSONL file)
+        → Dead Letter (src/adapters/outbound/http-dead-letter-store.ts, signed POST /dlq to dlq-service)
 ```
 
 HTTP is the only transport: there is no WebSocket endpoint.

@@ -71,7 +71,8 @@ function startDelivery(): void {
 }
 
 /**
- * On shutdown: waits for the deliveries in flight and closes Redis. Messages not delivered yet stay in the journal for the other replicas.
+ * On shutdown: waits for the deliveries in flight and closes Redis.
+ * Messages not delivered yet stay in the journal for the other replicas.
  */
 async function closeMessageManager(): Promise<void> {
 	await BROKER.stopDelivery();

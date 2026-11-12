@@ -37,3 +37,35 @@ describe("DeliveryWorker.stop", () => {
 		expect(events).toEqual(["close", "registry-done", "close"]);
 	});
 });
+
+describe("DeliveryWorker with an open circuit", () => {
+	it("does not claim pending entries, so their attempts are not consumed", async () => {
+		const journal = {
+			groups: jest.fn().mockResolvedValue([{ topic: "t", service: "svc" }]),
+			claimDue: jest.fn().mockResolvedValue([]),
+			readNew: jest.fn().mockResolvedValue([]),
+		};
+		const registry = {
+			getSubscriptions: jest
+				.fn()
+				.mockResolvedValue([
+					{ serviceIdentity: { serviceName: "svc" }, callbackPath: "/cb" },
+				]),
+		};
+		const worker = new DeliveryWorker({
+			journal,
+			registry,
+			deliveryPort: {},
+		} as never);
+		const subscriptions = (
+			worker as never as { _subscriptions: Map<string, unknown> }
+		)._subscriptions;
+		subscriptions.set("t|svc", {
+			callbackPath: "/cb",
+			isCircuitOpen: () => true,
+		});
+		await worker.tick();
+		expect(journal.claimDue).not.toHaveBeenCalled();
+		expect(journal.readNew).toHaveBeenCalled();
+	});
+});

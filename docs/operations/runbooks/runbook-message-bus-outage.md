@@ -91,7 +91,7 @@ kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
 
 **dlq-service unavailable:** check that dlq-service is up and ready (`MongoDB`), that message-manager reaches it, and that both read the same `DLQ_AUTH_HMAC_SECRET` (`trading-model-secrets`): a 401 means the secrets differ, a 403 that `message-manager` is missing from `DLQ_ALLOWED_SERVICES`. Once fixed, the pending entries are dead-lettered at their next retry; nothing to copy or replay.
 
-**`DeadLettersRejected`:** dlq-service refused an entry for good (invalid, or a message too large; `mm_dlq_rejected_total`). Its journal entry stays pending, retried and refused again, until the 24 h trim drops it (`JournalEntriesTrimmed`, see 6). Find it from the message-manager logs and the `XPENDING` of the journal (7), and fix the cause (a payload over the dlq-service limit, a schema drift) before then.
+**`DeadLettersRejected`:** dlq-service refused an entry for good (invalid, or a message too large; `mm_dlq_rejected_total`). Its journal entry stays pending, retried and refused again, until the 24 h trim drops it (`JournalEntriesTrimmed`, see 6). Find it from the message-manager logs and the `XPENDING` of the journal (7), and fix the cause (a payload over the dlq-service limit, a schema drift) within 24 h of the alert. Past that the message is lost for good (accepted loss, ADR-0019 §6): recover it from the source as in 6. There is no `.rejected` file any more.
 
 ### 5. Scraper publish backlog
 
