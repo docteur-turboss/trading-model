@@ -252,7 +252,9 @@ Limits are rarely all reached; size nodes on the requests.
 Recompute (per container; multiply by replicas, or the HPA min/max above, and sum):
 
 ```bash
-kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/production   | kubectl create --dry-run=client --validate=false -o json -f -   | jq -r 'select(.kind|IN("Deployment","StatefulSet")) | .metadata.name as $n | .spec.replicas as $r
+kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/production \
+  | kubectl create --dry-run=client --validate=false -o json -f - \
+  | jq -r 'select(.kind|IN("Deployment","StatefulSet")) | .metadata.name as $n | .spec.replicas as $r
       | .spec.template.spec.containers[]
       | [$n,$r,.name,.resources.requests.cpu,.resources.requests.memory,.resources.limits.cpu,.resources.limits.memory] | @tsv'
 ```
