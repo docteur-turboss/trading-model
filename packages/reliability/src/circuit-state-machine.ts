@@ -16,10 +16,11 @@ export interface CircuitBreakerConfig {
 	}) => void;
 }
 
-/** Default circuit config: opens after 5 failures, 30 s cooldown. */
+/** Default circuit config: opens after 5 failures, 30 s cooldown, one half-open probe. */
 export const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
 	failureThreshold: 5,
 	cooldownMs: DurationMs.of(30_000),
+	halfOpenMaxAttempts: 1,
 };
 
 interface PersistentState {
