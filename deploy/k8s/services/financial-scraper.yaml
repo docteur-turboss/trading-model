@@ -273,7 +273,7 @@ spec:
       # binding. SPIRE maps this one to the SPIFFE ID of financial-scraper (k8s-entries.sh).
       automountServiceAccountToken: true
       # On stop the collector waits for its publishes in flight, each bounded by
-      # PUBLISH_ACCEPT_TIMEOUT_MS (15s + 5s; PUBLISH_COMPAT_TIMEOUT_MS for one release, the grace then cuts what remains: the cursor republishes).
+      # PUBLISH_ACCEPT_TIMEOUT_MS (15s + 5s, the grace then cuts what remains: the cursor republishes).
       terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
