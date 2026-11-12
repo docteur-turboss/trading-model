@@ -90,8 +90,9 @@ The script:
 3. binds Clevis (`sss` policy: the Tang servers and/or the TPM2, threshold);
 4. **proves the boot path**: opens the volume through Clevis alone (no
    passphrase) before creating the filesystem;
-5. with `--migrate`, stops the services and copies the existing data onto the
-   encrypted disk, keeping the original as `<mount>.pre-encryption-<date>`;
+5. with `--migrate` (take a fresh backup first), stops the services (k3s: also
+   its containers, via `k3s-killall.sh`), refuses if a process still uses the
+   mount point, then copies the existing data onto the encrypted disk, keeping the original as `<mount>.pre-encryption-<date>`;
 6. writes `/etc/crypttab` (`luks,_netdev`: unlocked once the network is up)
    and `/etc/fstab` (`nofail`: a failed unlock does not block the boot, SSH
    stays reachable), enables `clevis-luks-askpass.path`, and adds
