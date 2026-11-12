@@ -1,4 +1,4 @@
-# ADR-0064: Simulated Fills at the Next Bar Open With Half-Spread and Slippage Costs
+# ADR-0066: Simulated Fills at the Next Bar Open With Half-Spread and Slippage Costs
 
 **Status:** Accepted
 **Date:** 2026-11

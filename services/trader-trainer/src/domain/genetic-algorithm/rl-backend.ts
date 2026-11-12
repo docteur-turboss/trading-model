@@ -24,7 +24,7 @@ interface StepInput {
 }
 
 /**
- * Half-spread + slippage paid on every fill, on top of the fee (ADR-0064):
+ * Half-spread + slippage paid on every fill, on top of the fee (ADR-0066):
  * 5 bps, well above the half-spread of the liquid Binance spot pairs, the
  * margin covering a market order's slippage and less liquid symbols.
  */

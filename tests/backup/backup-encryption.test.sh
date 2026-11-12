@@ -106,13 +106,14 @@ echo "restore scripts find *.age backups (run without manifest, explicit --times
 BACKUPS="$WORK/backups"
 mkdir -p "$BACKUPS/mysql" "$BACKUPS/spire" "$BACKUPS/checkpoints"
 cp "$WORK/dump.sql.gz.age" "$BACKUPS/mysql/financial_scraper_2026-01-01_020000.sql.gz.age"
-echo '{}' | seal >"$BACKUPS/spire/keys_2026-01-01_020000.json.age"
+# SPIRE: datastore + CA keys tar, the format of both scripts since ADR-0065.
+echo x | seal >"$BACKUPS/spire/data_2026-01-01_020000.tar.age"
 echo x | seal >"$BACKUPS/checkpoints/checkpoints_2026-01-01_020000.tar.gz.age"
 for script in restore.sh restore-k8s.sh; do
 	out="$(BACKUP_DIR="$BACKUPS" BACKUP_AGE_IDENTITY="$WORK/key.txt" bash "$ROOT/scripts/$script" --dry-run \
 		--components mysql,spire,checkpoints --timestamp 2026-01-01_020000 2>&1 || true)"
 	if echo "$out" | grep -q 'financial_scraper_2026-01-01_020000.sql.gz.age' &&
-		echo "$out" | grep -q 'keys_2026-01-01_020000.json.age'; then
+		echo "$out" | grep -q 'data_2026-01-01_020000.tar.age'; then
 		pass "$script resolves the encrypted files"
 	else
 		failed "$script did not find the encrypted files:"

@@ -98,7 +98,7 @@ export class TradingAgent {
 
 	/**
 	 * Marks the wallet to `price`, settles the previous decision's reward,
-	 * then decides and trades at `fillPrice` (the next bar's open, ADR-0064;
+	 * then decides and trades at `fillPrice` (the next bar's open, ADR-0066;
 	 * the marked price when omitted). The trade is sized on the marked price,
 	 * the only one known at decision time. A decision's reward is only known
 	 * one step later: the price move it is exposed to comes with the next price.

@@ -119,14 +119,14 @@ In the event of SPIRE unavailability:
 
 ### 5.3 Grafana Break-Glass
 
-The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity provider is down: see [ADR-0063](../adr/0063-grafana-per-person-access-through-oidc.md). Each use is written in the incident log (who, why, when); rotate `GRAFANA_PASSWORD` afterwards.
+The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity provider is down: see [ADR-0063](../adr/0063-grafana-per-person-access-through-oidc.md) and the [runbook](../operations/runbooks/runbook-grafana-break-glass.md). Each use is written in the incident log (who, why, when); rotate `GRAFANA_PASSWORD` afterwards.
 
 ## 6. Access Review
 
 | Review Type | Frequency | Scope |
 |---|---|---|
 | ACL audit | Annual | Verify service-to-service ACL mappings match current architecture |
-| SVID audit | Continuous | All SVIDs auto-rotated (1h TTL); expired SVIDs rejected |
+| SVID audit | Continuous | All SVIDs auto-rotated (4h TTL, ADR-0065); expired SVIDs rejected |
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
 | Grafana account review | Quarterly | List Grafana users (Administration > Users): remove leavers, keep Admin to named operators, check `GRAFANA_PASSWORD` was rotated after any break-glass use. Logins are in Loki (logger `context`) |

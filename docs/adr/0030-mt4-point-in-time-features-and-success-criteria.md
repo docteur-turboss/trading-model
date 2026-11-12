@@ -29,7 +29,7 @@ The 2026-09-13 architecture audit put MT4 on the mid-term roadmap: once ingestio
 
    The symbol state keeps snapshot histories (`orderBooks`, `bookTickers`, `tickers24h`, `prices`, bounded like the candles; order books reduced to one level per side, which keeps the averages and quantities the features read). Snapshots and trades are kept in time order; one that is not newer than the last (same trade id, same timestamp) is dropped and not counted. Consequence: an order book fetched right after a candle closes first shows at the next candle. Models published before this change were trained on leaked inputs; their metrics are not comparable.
 
-2. **Success criteria.** MT4 passes when every criterion holds on the out-of-sample track records, after the 0.1 % taker fee (and, from [ADR-0064](./0064-simulated-fills-at-next-bar-open-with-execution-costs.md), after the next-open fill and 5 bps of half-spread and slippage):
+2. **Success criteria.** MT4 passes when every criterion holds on the out-of-sample track records, after the 0.1 % taker fee (and, from [ADR-0066](./0066-simulated-fills-at-next-bar-open-with-execution-costs.md), after the next-open fill and 5 bps of half-spread and slippage):
 
    | Criterion | Threshold |
    | --- | --- |
@@ -64,6 +64,8 @@ The 2026-09-13 architecture audit put MT4 on the mid-term roadmap: once ingestio
 
 ## Results
 
+> **State as of 2026-11-11:** MT4 fails; no real capital may be committed until it passes every criterion above, paper trading included ([algorithmic-trading-compliance.md](../compliance/algorithmic-trading-compliance.md) §6, item 11). The figures below are to be redone after PR #589 (see the reproducibility note) and after realistic trading costs are modelled (#883). The table is the historical record of the 2026-10-31 run.
+
 Run of 2026-10-31: BTCUSDT and ETHUSDT 1h candles from 2026-08-04 to 2026-10-31, 15 chained test segments per symbol (2026-08-29 → 2026-10-31), 3 seeds, position shown, `--features klines`, point-in-time features. Buy and hold over the same bars: Sharpe −0.21 (BTC) and −1.09 (ETH), mean segment return −0.32 %.
 
 | Fitness | Sharpe | Sortino | Calmar | t (mean segment return) | Sharpe > 0 | Mean segment return |
@@ -80,7 +82,7 @@ Run of 2026-10-31: BTCUSDT and ETHUSDT 1h candles from 2026-08-04 to 2026-10-31,
 
 > **Reproducibility note (2026-11-08, PR #589):** the trainer simplification removed genes that never changed (mutation distribution, adaptation, scope, `selfSigma`, …) and with them some RNG draws of the mutation-genome crossover and of the self-adaptive mutation. Same-seed runs stay deterministic, but from that PR on they no longer replay the figures above. Re-run `scripts/mt4-walk-forward.ts` before comparing a new result with this table.
 
-Run of 2026-11-11 ([ADR-0064](./0064-simulated-fills-at-next-bar-open-with-execution-costs.md), issue #883): BTCUSDT and ETHUSDT 1h candles from 2026-08-16 to 2026-11-11 (`fetch-klines.ts`, 2,100 candles), 15 chained test segments per symbol (2026-09-10 → 2026-11-11), 3 seeds, fitness `total_pnl`, position shown, `--features klines`. Both rows run on the same candles and seeds: "next open + costs" is the simulator of ADR-0064 (fill at the next bar's open, 5 bps of half-spread and slippage, 0.1 % fee), "same close, fee only" is the former one (fill at the decision's close, 0.1 % fee), rebuilt for this comparison by setting the cost to 0 and the fill to the close. Buy and hold over the same bars: Sharpe −0.62 (BTC) and −1.85 (ETH), mean segment return −0.62 %.
+Run of 2026-11-11 ([ADR-0066](./0066-simulated-fills-at-next-bar-open-with-execution-costs.md), issue #883): BTCUSDT and ETHUSDT 1h candles from 2026-08-16 to 2026-11-11 (`fetch-klines.ts`, 2,100 candles), 15 chained test segments per symbol (2026-09-10 → 2026-11-11), 3 seeds, fitness `total_pnl`, position shown, `--features klines`. Both rows run on the same candles and seeds: "next open + costs" is the simulator of ADR-0066 (fill at the next bar's open, 5 bps of half-spread and slippage, 0.1 % fee), "same close, fee only" is the former one (fill at the decision's close, 0.1 % fee), rebuilt for this comparison by setting the cost to 0 and the fill to the close. Buy and hold over the same bars: Sharpe −0.62 (BTC) and −1.85 (ETH), mean segment return −0.62 %.
 
 | Simulator | Sharpe | Sortino | Calmar | t (mean segment return) | Sharpe > 0 | Mean segment return |
 | --- | --- | --- | --- | --- | --- | --- |

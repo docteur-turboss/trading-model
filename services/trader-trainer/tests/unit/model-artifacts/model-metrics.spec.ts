@@ -36,21 +36,33 @@ function summaryOf(scores?: number[]) {
 	);
 }
 
-async function publishedPayload(scores?: number[]) {
-	const posted: Record<string, unknown>[] = [];
+const STORED = {
+	version: "20261029T101530Z-0123456789ab",
+	sha256: "ab".repeat(32),
+};
+
+async function publishedMessage(scores?: number[], version = STORED.version) {
+	const posted: { payload: Record<string, unknown>; metadata: any }[] = [];
 	const publisher = new ModelPublisher(
 		{
 			post: {
-				indirect: (payload: Record<string, unknown>) => {
-					posted.push(payload);
+				indirect: (payload: Record<string, unknown>, metadata: unknown) => {
+					posted.push({ payload, metadata });
 					return Promise.resolve();
 				},
 			},
 		} as never,
 		{ trainerId: "trader-trainer", instanceId: "trader-trainer-1" }
 	);
-	await publisher.publish("BTCUSDT" as never, summaryOf(scores));
+	await publisher.publish("BTCUSDT" as never, summaryOf(scores), {
+		...STORED,
+		version,
+	});
 	return posted[0];
+}
+
+async function publishedPayload(scores?: number[]) {
+	return (await publishedMessage(scores)).payload;
 }
 
 describe("input layout of a trained model", () => {
@@ -137,5 +149,19 @@ describe("metrics of a trained model", () => {
 			avgPnl: 1.2,
 			maxDrawdown: 7,
 		});
+	});
+});
+
+describe("training.model.published identity of the artifact", () => {
+	it("carries the stored version and sha256", async () => {
+		expect(await publishedPayload()).toMatchObject(STORED);
+	});
+
+	it("derives the deduplication id from (symbol, version)", async () => {
+		const id = async (version?: string) =>
+			(await publishedMessage(undefined, version)).metadata.delivery
+				.deduplicationId;
+		expect(await id()).toBe(await id());
+		expect(await id("20261030T101530Z-ffffffffffff")).not.toBe(await id());
 	});
 });

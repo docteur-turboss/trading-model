@@ -16,7 +16,7 @@ export class TradeCostParams {
 		readonly price: Price,
 		readonly feeRate: Percentage,
 		readonly decimals: DecimalPrecision,
-		/** Half-spread + slippage, a fraction of the price paid on every fill (ADR-0064). */
+		/** Half-spread + slippage, a fraction of the price paid on every fill (ADR-0066). */
 		readonly executionCostRate: Percentage
 	) {}
 
