@@ -72,7 +72,10 @@ describe("Env Schema", () => {
 		if (result.success) {
 			expect(result.data.TRAINER_POPULATION_SIZE).toBe(10);
 		}
-		const custom = TRADER_TRAINER_ENV_SCHEMA.safeParse({ ...env, TRAINER_INTERVAL_MS: "60000" });
+		const custom = TRADER_TRAINER_ENV_SCHEMA.safeParse({
+			...env,
+			TRAINER_INTERVAL_MS: "60000",
+		});
 		if (custom.success) {
 			expect(custom.data.TRAINER_INTERVAL_MS).toBe(60000);
 		}
