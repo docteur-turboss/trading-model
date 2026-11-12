@@ -52,7 +52,7 @@ function buildRLSummary(
  * Sharpe of the bar curve times sqrt(bars per year), comparable across
  * timeframes; per bar when the data carried no timestamps.
  */
-function annualisedSharpe(
+export function annualisedSharpe(
 	curve: EpisodeScores,
 	fitnessMeta: GenomeFitnessMeta | undefined
 ): number {

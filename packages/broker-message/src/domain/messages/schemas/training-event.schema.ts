@@ -18,6 +18,7 @@ export const TRAINING_EVENT_VALIDATORS = {
 		agentId: z.string(),
 		version: z.string().min(1),
 		sha256: z.string().regex(/^[0-9a-f]{64}$/),
+		admissible: z.boolean().optional(),
 		gaControl: z.object({
 			populationSize: z.number(),
 			elitismFraction: z.number(),

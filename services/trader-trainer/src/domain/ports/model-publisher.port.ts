@@ -5,6 +5,8 @@ import type { BestAgentSummary } from "../training-state";
 export interface StoredModelRef {
 	version: string;
 	sha256: string;
+	/** ADR-0030 verdict of its manifest; false without one (ADR-0069). */
+	admissible: boolean;
 }
 
 /** Publishes the best trained model (implemented over the message bus). */

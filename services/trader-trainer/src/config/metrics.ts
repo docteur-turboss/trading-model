@@ -13,6 +13,16 @@ for (const result of ["stored", "skipped", "error"] as const) {
 	MODEL_ARTIFACTS_TOTAL.inc({ result }, 0);
 }
 
+/** ADR-0030 verdict of each stored model on its test segment (ADR-0069). */
+export const MODEL_ADMISSION_TOTAL = new promClient.Counter({
+	name: "tt_model_admission_total",
+	help: "Stored models by ADR-0030 verdict on the test segment: admissible or rejected",
+	labelNames: ["result"] as const,
+});
+for (const result of ["admissible", "rejected"] as const) {
+	MODEL_ADMISSION_TOTAL.inc({ result }, 0);
+}
+
 export const TRAINING_SESSIONS_TOTAL = new promClient.Counter({
 	name: "tt_training_sessions_total",
 	help: "Total training sessions",
@@ -62,8 +72,8 @@ export const BEST_FITNESS = new promClient.Gauge({
 });
 
 // Out-of-sample quality of the newest stored model of each symbol, set at each
-// stored model. `segment` names the bars measured: the validation segment
-// until a test segment never used for selection exists (issue #885).
+// stored model. `segment` names the bars measured: `test` (ADR-0068), or
+// `validation` for a run without a test segment.
 const MODEL_LABELS = ["symbol", "segment"] as const;
 
 export const MODEL_SHARPE = new promClient.Gauge({

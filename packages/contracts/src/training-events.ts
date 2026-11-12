@@ -20,6 +20,11 @@ export interface TrainingModelPublishedPayload {
 	maxDrawdown: number;
 	/** Segment sharpe, avgPnl and maxDrawdown were measured on; "test" since metricsVersion 6 (ADR-0068). */
 	evaluatedOn: "validation" | "test";
+	/**
+	 * Meets the ADR-0030 criteria on the test segment (ADR-0069): eligible, not
+	 * promoted; going live stays a manual decision. Absent before ADR-0069.
+	 */
+	admissible?: boolean;
 	agentId: string;
 	/**
 	 * Version of the stored artifact (`<UTC stamp>-<12 hex of sha256>`); with
