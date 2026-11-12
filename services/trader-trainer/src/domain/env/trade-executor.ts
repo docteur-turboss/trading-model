@@ -37,7 +37,10 @@ export class TradeExecutor {
 		const newPosition = Volume.of(
 			this._config.roundValue(this._state.position + amt)
 		);
-		if (Volume.gt(newPosition, this._config.maxPosition)) {
+		// Refuse (not reduce) a buy whose position value exceeds the exposure cap.
+		const maxValue =
+			this._config.maxExposureFraction * this._config.initialCash;
+		if (newPosition * this._state.price > maxValue) {
 			return false;
 		}
 		const { totalCost } = this._config.computeBuyCosts(

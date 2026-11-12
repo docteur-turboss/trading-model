@@ -15,6 +15,7 @@ import {
 import { createHttpClientTimeoutError } from "../adapters/outbound/http-client-errors";
 import {
 	isConnectionRefused,
+	isTargetAnswer,
 	shouldRetry,
 } from "../application/services/http-error-classifier";
 import type { HttpMethod, HttpRequestOptions } from "../domain/http-types";
@@ -154,10 +155,15 @@ export class HttpRequestExecutor {
 					continue;
 				}
 
-				this._circuitRecorder.recordFailure(
-					route,
-					context.options?.serviceInstanceCount
-				);
+				// A 4xx answer proves the target is up: only unavailability opens the circuit.
+				if (isTargetAnswer(lastError)) {
+					this._circuitRecorder.recordSuccess(route);
+				} else {
+					this._circuitRecorder.recordFailure(
+						route,
+						context.options?.serviceInstanceCount
+					);
+				}
 				throw lastError;
 			}
 		}
