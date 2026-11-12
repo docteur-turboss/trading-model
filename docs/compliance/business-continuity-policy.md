@@ -116,7 +116,7 @@ met for its data, which is recovered to within 1 hour.
 | MySQL (market data) | Dump | Daily | 30 days local, 31 days off-site; also off-site weekly 12 weeks, monthly 60 months (ADR-0032) | `backup-data` volume + S3-compatible store (mandatory) |
 | MySQL binlogs (market data) | Closed binlogs (`backup-incremental-k8s.sh`) | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
 | MongoDB oplog (dlq, audit) | Oplog entries since the previous archive | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
-| Redis (discovery registrations, DLQ retry queue) | Not backed up | — | — | Derived state: rebuilt by the services (DLQ queue from MongoDB) |
+| Redis (message journal, discovery registrations, DLQ retry queue) | Not backed up | — | — | Registrations and DLQ queue rebuilt by the services; the journal is not rebuildable, see the RPO in [BACKUP_DR.md](../deployment/BACKUP_DR.md) |
 
 Every dump is age-encrypted before it is written; the off-site copy only sends encrypted files.
 | K8s manifests | Git | Every commit | Full history | GitHub |
