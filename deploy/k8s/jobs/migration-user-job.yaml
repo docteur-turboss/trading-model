@@ -114,6 +114,13 @@ spec:
               ALTER USER IF EXISTS 'scraper'@'%' $(rq scraper);
               ALTER USER IF EXISTS 'root'@'%' $(rq root);
               EOSQL
+                # A rollback (relax_mysql in deploy-release.sh) lifts it at runtime on every member
+                # without restarting mysqld: put it back on the redeploy of release N.
+                # Members that do not exist (kind runs fewer replicas) have no DNS record: skip them.
+                for h in mysql-0 mysql-1 mysql-2; do
+                  getent hosts "$h.mysql-headless" >/dev/null || continue
+                  mysql -h "$h.mysql-headless" -u root -e "SET GLOBAL require_secure_transport=ON"
+                done
               fi
               echo "scraper and root require their client certificate"
               if [ -n "$epw" ]; then
