@@ -217,7 +217,7 @@ and [Database Rollback](../operations/runbooks/runbook-deployment-failure.md#dat
 
 ### Autoscaling
 
-HPAs are configured in `deploy/k8s/autoscaling` (`trader-trainer` has none: one fixed replica):
+HPAs are configured in `deploy/k8s/config/<service>-autoscaling.yaml` (`trader-trainer` has none: one fixed replica):
 
 | Service               | Min | Max | Metric                           |
 | --------------------- | --- | --- | -------------------------------- |
