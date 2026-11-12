@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -29,6 +29,7 @@ KIND="${KIND:-kind}"
 CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
+CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
 SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
 # First-party images: the IMAGES of deploy.yml.
@@ -168,6 +169,10 @@ cluster() {
 		# A failed create (kindest/node pull) leaves a half-made cluster: drop it between attempts.
 		retry 3 bash -c '"$0" delete cluster --name "$1" >/dev/null 2>&1; "$0" create cluster --name "$1" --wait 180s' "$KIND" "$CLUSTER"
 	fi
+	# Prerequisite of mysql-tls.yaml (ADR-0060), as on a real cluster (deploy/staging-local/bootstrap.sh).
+	kubectl config use-context "kind-${CLUSTER}" >/dev/null
+	retry 3 kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER}/cert-manager.yaml"
+	kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=300s
 }
 
 # Selects the credentials of the current (sub)shell. Once `identities` has run,
@@ -223,7 +228,7 @@ migrations() {
 		node "$ROOT/tests/k8s/ci-render.mjs" --secret >"$sealed" || return 1
 	fi
 	(cd "$1" && use_kube &&
-		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
+		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS" ${2:+"$2"})
 }
 
 # The overlay of the checkout `$1`, pinned to the digests of file `$2` as
@@ -307,6 +312,8 @@ release() {
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
 	release_script wait "$NS" "${2:-180s}" || return 1
+	# mysqld now serves the cert-manager certificate: bind the users to their client certificates.
+	migrations "$ROOT" user-only || return 1
 	deploy_script smoke-test
 }
 
@@ -643,6 +650,7 @@ verify() {
 	verify_egress
 	verify_mongo_ingress
 	verify_db_ingress
+	verify_mysql_tls
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -839,6 +847,35 @@ verify_db_ingress() {
 			return 1
 		fi
 	done
+}
+
+# MySQL TLS (issue #767, ADR-0060), run from the tls-reload sidecar of mysql-0
+# (mysql client, MYSQL_PWD = root password, client certificate of root):
+# the server certificate is verified by name, a plain TCP connection is
+# refused (require_secure_transport=ON), and so is a TLS connection of root
+# without its client certificate (the password alone does not open a session).
+verify_mysql_tls() {
+	local tls="--ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/mysql-tls/ca.crt" cert="--ssl-cert=/etc/mysql-client-root/tls.crt --ssl-key=/etc/mysql-client-root/tls.key"
+	local run="$K -n $NS exec mysql-0 -c tls-reload -- mysql -h mysql-primary -N -e"
+	log "MySQL TLS: certificate verified by name, plain and certificate-less connections refused"
+	$K -n "$NS" wait --for=condition=Ready certificate/mysql-tls certificate/mysql-client-root certificate/mysql-client-scraper --timeout=120s
+	[ -n "$($run "SHOW STATUS LIKE 'Ssl_cipher'" -uroot $tls $cert | cut -f2)" ] || {
+		log "  no TLS session with a client certificate and --ssl-mode=VERIFY_IDENTITY on mysql-primary"
+		return 1
+	}
+	[ "$($run 'SELECT @@require_secure_transport' -uroot $tls $cert)" = 1 ] || {
+		log "  require_secure_transport is not ON"
+		return 1
+	}
+	if $run 'SELECT 1' -uroot --ssl-mode=DISABLED >/dev/null 2>&1; then
+		log "  plain connection accepted"
+		return 1
+	fi
+	if $run 'SELECT 1' -uroot $tls >/dev/null 2>&1; then
+		log "  TLS connection without client certificate accepted"
+		return 1
+	fi
+	log "  TLS session verified, plain and certificate-less connections refused"
 }
 
 # Production runs message-manager and discovery with 3 replicas (staging: 1).
@@ -1524,9 +1561,9 @@ all)
 	verify_canary
 	verify_identity_without_mysql
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_mysql_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

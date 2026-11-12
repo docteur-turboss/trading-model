@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - redis.yaml
+  - mysql-tls.yaml
   - mysql.yaml
   - mongodb.yaml
   - mongo-audit.yaml

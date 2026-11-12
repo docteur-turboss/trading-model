@@ -230,8 +230,32 @@ wait_rollout() {
 # Every undo is issued before any wait, as apply does: a Redis server rolled
 # back alone restarts while the sentinels still name its old pod IP, waits for
 # that dead master and fails its startup probe (PR #579).
+# Release N makes MySQL refuse plain connections (require_secure_transport=ON,
+# users bound to a client certificate, issue #767). The mysql StatefulSet is
+# not rolled back, so pods of release N-1 (plain, no certificate) would never
+# turn ready (readiness runs SELECT 1): lift both through the local socket,
+# which TLS rules do not touch, before the undo. A mysqld restart re-applies
+# the ON of group-replication.cnf; the next deploy binds the users again.
+relax_mysql() {
+	local ns="$1" pod
+	# Not the label alone: the mysql-cluster-init Job pod carries it too (no mysql container).
+	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name | grep -E "/mysql-[0-9]+$"); do
+		kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
+			m() { MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "$1"; }
+			m "SET GLOBAL require_secure_transport=OFF"
+			# Only the writable member can alter users (replicated to the others).
+			if [ "$(m "SELECT @@super_read_only")" = 0 ]; then
+				m "ALTER USER IF EXISTS \"scraper\"@\"%\", \"root\"@\"%\" REQUIRE NONE"
+			fi' || return 1
+	done
+}
+
 rollback() {
 	local ns="$1" file="$2" dep rev failed=0 target entry undone=()
+	relax_mysql "$ns" || {
+		echo "::error::Could not lift the MySQL TLS requirement: pods of the previous release cannot connect"
+		failed=1
+	}
 	while read -r dep rev; do
 		target="$dep"
 		[[ $dep == */* ]] || target="deployment/$dep"

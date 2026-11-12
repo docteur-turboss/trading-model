@@ -68,7 +68,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 | Measure                          | Status         | Details                                                |
 | -------------------------------- | -------------- | ------------------------------------------------------ |
 | Minimal PII architecture         | ✅ Implemented | No accounts or profiles. Caller IPs truncated by the edge-proxy before logging and forwarding; application logs truncate IPs; context fields sanitized before MongoDB persistence |
-| TLS 1.3 mTLS between services    | ⚠️ Partial     | Service-to-service HTTP only. Database client traffic (MySQL, MongoDB, Redis) is plain TCP in the cluster; NetworkPolicies and per-service credentials protect it, residual risk accepted in ADR-0060, TLS planned (#767, #768, #769) |
+| TLS 1.3 mTLS between services    | ⚠️ Partial     | Service-to-service HTTP only. Database client traffic to MongoDB and Redis is plain TCP in the cluster; NetworkPolicies and per-service credentials protect it, residual risk accepted in ADR-0060, TLS planned (#768, #769); MySQL is TLS with client certificates and `require` (#767) |
 | AES-256-GCM encryption at rest   | ✅ Implemented | SPIRE datastore, discovery cache, filesystem fallback          |
 | Storage & backup encryption      | ✅ Implemented | LUKS2 data disks unlocked by Clevis/Tang (`deploy/host/`); every backup age-encrypted before it is written or copied off-site |
 | Log redaction                    | ✅ Implemented | `sensitive-data-sanitizer.ts`: 24 sensitive-key patterns (credentials, IP keys) redacted to `[REDACTED]`, plus PEM blocks stripped by `sanitizeForLog`, before persistence |

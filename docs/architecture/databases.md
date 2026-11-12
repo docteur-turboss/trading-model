@@ -44,6 +44,8 @@ Release 3.1.0 starts mongod with `--transitionToAuth` (clients without credentia
 
 Network access (K8s, issue #747): ports 3306 / 33061 of MySQL accept only `financial-scraper`, `financial-scraper-collector`, `spire-server` (only for a rollback to a release before ADR-0065), the Jobs `db-migrate`, `db-migrate-down`, `db-migrate-user`, the `retention` CronJob and the `mysql` members; Redis ports 6379 / 26379 accept only `discovery-server`, `message-manager`, `dlq-service`, `audit-logger`, `financial-scraper`, `trader-trainer` (the last three only read Redis while a rollback to N-1 is possible) and the Redis pods. Backups go through `kubectl exec`. A new client is a label in `mysql-network-policy` / `redis-network-policy`, checked on kind by `verify_db_ingress`.
 
+MySQL client TLS (K8s, issue #767): server certificate from cert-manager, clients verify the host name; `require_secure_transport=ON`, and each user (`root`, `scraper`, `migrator`, `retention`, `exporter`) is bound to its own cert-manager client certificate (`REQUIRE ISSUER / SUBJECT`) (`docs/deployment/MYSQL_TLS.md`).
+
 ## Redis — who uses it, with which keys
 
 Inventory (issue #506). Address-manager caches in memory per process, so only three services still talk to Redis (K8s: through the sentinels). Never `KEYS` (ADR-0023).

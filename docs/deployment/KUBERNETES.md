@@ -344,7 +344,7 @@ Details, threat model and operations: [Encryption at Rest](ENCRYPTION_AT_REST.md
 
 - **Development:** Kubernetes Secrets with generator values
 - **Production:** Use SealedSecrets, External Secrets Operator, or Vault
-- **TLS certificates:** cert-manager ClusterIssuer manages only the **public ingress** certs (api-gateway, Grafana). Inter-service mTLS is entirely SPIRE-based (ADR-0011): SVIDs issued by SPIRE Server, consumed via `spiffe-helper` sidecars — no manual TLS secrets for internal traffic.
+- **TLS certificates:** cert-manager ClusterIssuer manages only the **public ingress** certs (api-gateway, Grafana). MySQL client TLS uses a cert-manager Issuer of the namespace (`docs/deployment/MYSQL_TLS.md`). Inter-service mTLS is entirely SPIRE-based (ADR-0011): SVIDs issued by SPIRE Server, consumed via `spiffe-helper` sidecars — no manual TLS secrets for internal traffic.
 
 ### Service Accounts
 
