@@ -20,7 +20,7 @@ stale: training paused`) and no session is counted at all.
 `TrainingCompletionRateCritical` (critical, pages) is the same ratio under 50%; it inhibits the warning of the same job.
 
 `tt_training_sessions_total{result="success"}` over all sessions of a job is
-under 95% over 15 min, for 15 min. A session is counted only once it starts:
+under 95% over 3 h, for 1 h (the trainer runs one session per hour by default). A session is counted only once it starts:
 a symbol skipped for lack of data or stale data counts neither as success nor
 as failure. A failure is an exception during the GA / DQN session
 (`result="fail"`, log `Training failed` with the symbol and the error).
@@ -255,7 +255,7 @@ Compose: `docker logs trading-trainer 2>&1 | grep ...` and
 | `Market data is stale: training paused`, no session at all | No fresh candles: `TrainerMarketDataStale` fires too, follow [runbook-market-data-stale](runbook-market-data-stale.md) |
 | No line at all | The loop does not run on the leader: the holder of the Lease is stuck (event loop, see [TrainerEventLoopBlocked](#trainereventloopblocked)); delete that pod to hand the Lease over |
 
-**Resolution check:** `sum(increase(tt_model_artifacts_total{result="stored"}[1h]))`
+**Resolution check:** `sum(increase(tt_model_artifacts_total{result="stored"}[3h]))`
 is above 0 again; the alert resolves at the next evaluation.
 
 ## ModelBelowBuyAndHold

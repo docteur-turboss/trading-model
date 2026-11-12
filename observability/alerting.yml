@@ -460,25 +460,25 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
 
       - alert: TrainingCompletionRateLow
-        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[15m])) or sum by (job) (rate(tt_training_sessions_total[15m])) * 0) / sum by (job) (rate(tt_training_sessions_total[15m])) < 0.95
-        for: 15m
+        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[3h])) or sum by (job) (rate(tt_training_sessions_total[3h])) * 0) / sum by (job) (rate(tt_training_sessions_total[3h])) < 0.95
+        for: 1h
         labels:
           severity: warning
           slo: training_completion
         annotations:
           summary: 'Training completion rate below 95%'
-          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m.'
+          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 3h.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
       - alert: TrainingCompletionRateCritical
-        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[15m])) or sum by (job) (rate(tt_training_sessions_total[15m])) * 0) / sum by (job) (rate(tt_training_sessions_total[15m])) < 0.5
-        for: 15m
+        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[3h])) or sum by (job) (rate(tt_training_sessions_total[3h])) * 0) / sum by (job) (rate(tt_training_sessions_total[3h])) < 0.5
+        for: 1h
         labels:
           severity: critical
           slo: training_completion
         annotations:
           summary: 'Training completion rate below 50%'
-          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 15m: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
       - alert: TrainerEventLoopBlocked
