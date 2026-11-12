@@ -74,6 +74,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md) | Risk and Execution Context, Independent of the Model, Required Before Any Order Flow | Proposed | 2026-11 |
 | [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md) | SPIRE Server Datastore in SQLite on Its Own Volume, SVID TTL 4 Hours | Accepted | 2026-11 |
 | [ADR-0066](./0066-simulated-fills-at-next-bar-open-with-execution-costs.md) | Simulated Fills at the Next Bar Open With Half-Spread and Slippage Costs | Accepted | 2026-11 |
+| [ADR-0067](./0067-mongodb-authentication.md) | MongoDB Authentication: keyFile, One User per Client, Switch in Two Releases | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

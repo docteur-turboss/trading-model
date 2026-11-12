@@ -208,6 +208,22 @@ Passwords of the read-only users of the exporter sidecars (`docs/architecture/da
 | ------------------------- | ------ | ------- | -------- | ----------- | -------- |
 | `MYSQL_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** (K8s and compose) | Password of MySQL user `exporter`, created by `db-migrate-user` (K8s) or `mysql-exporter-user` (compose), read by the `mysqld-exporter` sidecars | mysqld-exporter |
 | `REDIS_EXPORTER_PASSWORD` | string | — | **yes** in K8s | Password of the Redis ACL user `exporter` (`redis-ha.sh`, data nodes and sentinels), read by the `redis-exporter` sidecars | redis-exporter |
+| `MONGO_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.-]`) | — | **yes** (K8s and compose) | Password of MongoDB user `exporter` (`clusterMonitor`, ADR-0067), read by the `mongodb_exporter` sidecars | mongodb-exporter |
+
+## MongoDB users (ADR-0067)
+
+One user per client, created by `deploy/mongo/users.js` (K8s Jobs `mongo-dlq-users` / `mongo-audit-users`, compose `mongo-users`). K8s: keys of Secret `trading-model-secrets`, all checked by `deploy.yml`. Compose: `.env` (characters `[A-Za-z0-9_.-]`, all required).
+
+| Variable | Type | Default | Required | Description | Services |
+| -------- | ---- | ------- | -------- | ----------- | -------- |
+| `MONGO_USERNAME` | string | — | no | MongoDB user of the service (`audit-logger`, `dlq-service`); unset: no authentication (dev). Set together with `MONGO_PASSWORD` | AL, DLQ |
+| `MONGO_PASSWORD` | string | — | no | Its password (Secret key `MONGO_AUDIT_PASSWORD` / `MONGO_DLQ_PASSWORD`); the URI then carries `authSource=admin` and no credentials | AL, DLQ |
+| `MONGO_ROOT_PASSWORD` | string | — | **yes** | User `root`: restore, user administration | mongo pods, `mongo-users` |
+| `MONGO_BACKUP_PASSWORD` | string | — | **yes** | User `backup`: dumps and oplog archives | mongo pods, `mongo-users` |
+| `MONGO_AUDIT_PASSWORD` | string | — | **yes** | User `audit-logger` | audit-logger, `mongo-users` |
+| `MONGO_DLQ_PASSWORD` | string | — | **yes** | User `dlq-service` | dlq-service, `mongo-users` |
+| `MONGO_AUDIT_KEYFILE` | string (6 to 1024 base64 characters) | — | **yes** in K8s | Internal authentication key of `mongo-audit` | mongo-audit pods |
+| `MONGO_DLQ_KEYFILE` | string (same) | — | **yes** in K8s | Internal authentication key of `mongo-dlq` | mongo-dlq pods |
 
 ---
 
@@ -280,6 +296,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `GRAFANA_OIDC_ALLOWED_DOMAINS` | string | (unset) | E-mail domains allowed to log in; required in production K8s (ADR-0063) | DC, K8s |
 | `GRAFANA_ROOT_URL` | string | `http://localhost:3000/` (compose) | Public Grafana URL, base of the OIDC `redirect_uri`; K8s: `https://grafana.<host>/` of the ingress (ADR-0063) | DC, K8s |
 | `MYSQL_EXPORTER_PASSWORD` | string | (required)          | Password of the read-only MySQL user `exporter` of mysqld-exporter (ADR-0056) | DC |
+| `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` | string | (required) | MongoDB users (ADR-0067), see "MongoDB users" above | DC |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
 | `IMAGE_TAG`           | string | `latest`                | Image tag to pull                  | DC       |
@@ -335,6 +352,11 @@ AUDIT_PORT=8450
 MYSQL_ROOT_PASSWORD=changeme
 GRAFANA_PASSWORD=change-me-grafana-admin-password
 MYSQL_EXPORTER_PASSWORD=change-me-mysql-exporter-password
+MONGO_ROOT_PASSWORD=change-me-mongo-root-password
+MONGO_EXPORTER_PASSWORD=change-me-mongo-exporter-password
+MONGO_BACKUP_PASSWORD=change-me-mongo-backup-password
+MONGO_AUDIT_PASSWORD=change-me-mongo-audit-password
+MONGO_DLQ_PASSWORD=change-me-mongo-dlq-password
 MYSQL_DATABASE=financial_scraper
 
 # Trader-Trainer

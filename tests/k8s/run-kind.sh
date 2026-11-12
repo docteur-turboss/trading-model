@@ -42,6 +42,10 @@ export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
+# compose interpolates these (ADR-0067) even for `build`
+for v in MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD; do
+	export "$v=${!v:-kind-ci}"
+done
 
 log() { echo "[kind] $*"; }
 
@@ -311,7 +315,7 @@ release() {
 
 # The final upgrade to N under the probe: `release` runs while requests flow
 # through edge-proxy to discovery-server, trader-trainer (Lease handover,
-# ADR-0058) and financial-scraper (PROBE_ROUTES) and market candles are
+# ADR-0067) and financial-scraper (PROBE_ROUTES) and market candles are
 # written. Fails above
 # PROBE_MAX_FAILURES (default 0: a release must not drop a request) failed
 # requests or when a candle of BTCUSDT is missing (gap above one interval,
@@ -516,10 +520,13 @@ upgrade() {
 	verify_collection_gap "restart N → N" collector_handover || return 1
 	# Every exporter reaches its database, so neither MySQLDown nor RedisDown
 	# (critical, verify-release rolls back on them) fires (issue #698).
-	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = 1, no MySQLDown / RedisDown"
+	# mongodb_up = 1 means the `exporter` user (clusterMonitor, ADR-0067) exists on
+	# every member: the Jobs mongo-*-users ran after the transition step.
+	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = min(mongodb_up) = 1, no MySQLDown / RedisDown / MongoDBDown"
 	wait_for 180 '[ "$(prometheus_value "min(mysql_up)")" = 1 ] && [ "$(prometheus_value "min(redis_up)")" = 1 ] &&
-		[ -z "$(prometheus_value "ALERTS{alertname=~\"MySQLDown|RedisDown\"}")" ]' || {
-		log "  min(mysql_up)=$(prometheus_value 'min(mysql_up)') min(redis_up)=$(prometheus_value 'min(redis_up)')"
+		[ "$(prometheus_value "min(mongodb_up)")" = 1 ] &&
+		[ -z "$(prometheus_value "ALERTS{alertname=~\"MySQLDown|RedisDown|MongoDBDown\"}")" ]' || {
+		log "  min(mysql_up)=$(prometheus_value 'min(mysql_up)') min(redis_up)=$(prometheus_value 'min(redis_up)') min(mongodb_up)=$(prometheus_value 'min(mongodb_up)')"
 		return 1
 	}
 	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up in $((SECONDS - started)) s"
@@ -975,7 +982,8 @@ mongo_primary() {
 }
 
 mongo_eval() {
-	$K -n "$NS" exec "$(mongo_primary "$1")" -- mongosh --quiet --eval "$2"
+	# As `root` (ADR-0067); the password is in the pod's env.
+	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
 mysql_root() {

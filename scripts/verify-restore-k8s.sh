@@ -58,7 +58,8 @@ json_field() {
 mongo_eval() {
   local pod
   pod="$(mongo_primary "$1")" || return 1
-  kubectl exec -n "${K8S_NAMESPACE}" "$pod" -- mongosh --quiet --eval "$2"
+  # As `root` (ADR-0067); the password is in the pod's env.
+  kubectl exec -n "${K8S_NAMESPACE}" "$pod" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
 MYSQL_POD="$(mysql_primary_pod || true)"

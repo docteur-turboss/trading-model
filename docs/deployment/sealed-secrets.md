@@ -61,6 +61,13 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=REDIS_MESSAGE_MANAGER_PASSWORD='your-message-manager-redis-password' \
   --from-literal=REDIS_DLQ_PASSWORD='your-dlq-redis-password' \
   --from-literal=REDIS_EXPORTER_PASSWORD='your-exporter-redis-password' \
+  --from-literal=MONGO_ROOT_PASSWORD='your-mongo-root-password' \
+  --from-literal=MONGO_EXPORTER_PASSWORD='your-mongo-exporter-password' \
+  --from-literal=MONGO_BACKUP_PASSWORD='your-mongo-backup-password' \
+  --from-literal=MONGO_AUDIT_PASSWORD='your-mongo-audit-password' \
+  --from-literal=MONGO_DLQ_PASSWORD='your-mongo-dlq-password' \
+  --from-literal=MONGO_AUDIT_KEYFILE="$(openssl rand -hex 64)" \
+  --from-literal=MONGO_DLQ_KEYFILE="$(openssl rand -hex 64)" \
   --dry-run=client -o yaml > /tmp/plaintext-secret.yaml
 
 # Seal it (requires kubeseal CLI)
