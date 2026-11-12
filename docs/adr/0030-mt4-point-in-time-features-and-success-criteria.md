@@ -64,6 +64,8 @@ The 2026-09-13 architecture audit put MT4 on the mid-term roadmap: once ingestio
 
 ## Results
 
+> **State as of 2026-11-11:** MT4 fails; no real capital may be committed until it passes every criterion above, paper trading included ([algorithmic-trading-compliance.md](../compliance/algorithmic-trading-compliance.md) §6, item 11). The figures below are to be redone after PR #589 (see the reproducibility note) and after realistic trading costs are modelled (#883). The table is the historical record of the 2026-10-31 run.
+
 Run of 2026-10-31: BTCUSDT and ETHUSDT 1h candles from 2026-08-04 to 2026-10-31, 15 chained test segments per symbol (2026-08-29 → 2026-10-31), 3 seeds, position shown, `--features klines`, point-in-time features. Buy and hold over the same bars: Sharpe −0.21 (BTC) and −1.09 (ETH), mean segment return −0.32 %.
 
 | Fitness | Sharpe | Sortino | Calmar | t (mean segment return) | Sharpe > 0 | Mean segment return |
