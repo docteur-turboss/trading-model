@@ -11,13 +11,17 @@ import { validateTrainingPrerequisites } from "../../../src/domain/training-prer
 import { feedCandles, makeCandle } from "../../fixtures/market-data.fixture";
 
 const BTC = TradingSymbol.of("BTCUSDT");
-const WINDOWING = { validationSplit: 0.2, walkForwardFolds: 1 };
+const WINDOWING = {
+	validationSplit: 0.2,
+	testSplit: 0.15,
+	walkForwardFolds: 1,
+};
 const notTraining = () => false;
 
 describe("validateTrainingPrerequisites", () => {
 	it("should build the windows from a strictly increasing candle series", () => {
 		const buffer = new MarketDataBuffer();
-		feedCandles(buffer, "BTCUSDT", 30);
+		feedCandles(buffer, "BTCUSDT", 100);
 
 		const result = validateTrainingPrerequisites(
 			buffer,
@@ -31,7 +35,7 @@ describe("validateTrainingPrerequisites", () => {
 
 	it("should refuse a series holding the same candle twice", () => {
 		const buffer = new MarketDataBuffer();
-		feedCandles(buffer, "BTCUSDT", 30);
+		feedCandles(buffer, "BTCUSDT", 100);
 		const state = buffer.getSymbolState(BTC) as SymbolState;
 		// Restored state bypasses the ingestion dedup.
 		buffer.restoreSymbolState(BTC, {

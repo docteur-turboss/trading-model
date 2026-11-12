@@ -24,8 +24,10 @@ export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9._-]+$/;
  * at the next bar's open with half-spread + slippage (ADR-0066): not comparable
  * with 3. 5: the simulator caps the position value at
  * `riskLimits.maxExposureFraction`.
+ * 6: sharpe, avgPnl and maxDrawdown measured on the test segment
+ * (`evaluatedOn`), not on the data the selection used (ADR-0068).
  */
-const MODEL_METRICS_VERSION = 5;
+const MODEL_METRICS_VERSION = 6;
 
 export interface ModelMetrics {
 	metricsVersion?: number;
@@ -34,6 +36,8 @@ export interface ModelMetrics {
 	sharpe: number;
 	avgPnl: number;
 	maxDrawdown: number;
+	/** Segment sharpe, avgPnl and maxDrawdown come from; absent: validation. */
+	evaluatedOn?: "validation" | "test";
 }
 
 export interface ModelManifest {
@@ -117,6 +121,7 @@ export function buildModelManifest(
 			sharpe: summary.sharpe,
 			avgPnl: summary.avgPnl,
 			maxDrawdown: summary.maxDrawdown,
+			evaluatedOn: summary.evaluatedOn,
 		},
 	};
 }
