@@ -3,6 +3,7 @@ import type {
 	GenomeFitnessMeta,
 	MarketStep,
 } from "./genetic-algorithm/genome-types";
+import { annualisedSharpe } from "./genome-summary-builder";
 
 /**
  * ADR-0030 thresholds one test segment can be held to (ADR-0069); the
@@ -44,10 +45,10 @@ export function assessAdmission(
 	}
 	const perYear = meta.barsPerYear ?? 1;
 	const criteria = {
-		sharpe: curve.sharpe() * Math.sqrt(perYear),
+		sharpe: annualisedSharpe(curve, meta),
 		sortino: curve.sortino() * Math.sqrt(perYear),
 		calmar: curve.calmar() * perYear,
-		buyAndHoldSharpe: buyAndHoldSharpe(test),
+		buyAndHoldSharpe: buyAndHoldSharpe([test]),
 	};
 	return {
 		admissible:

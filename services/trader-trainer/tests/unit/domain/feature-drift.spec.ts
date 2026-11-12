@@ -63,7 +63,7 @@ describe("buyAndHoldSharpe", () => {
 
 	it("is the Sharpe of the one-unit price changes over the bars", () => {
 		// Changes 1, 2, 1: mean 4/3, std sqrt(1/3); no timestamps, per bar.
-		const sharpe = buyAndHoldSharpe(steps([1, 2, 4, 5]));
+		const sharpe = buyAndHoldSharpe([steps([1, 2, 4, 5])]);
 		expect(sharpe).toBeCloseTo(4 / 3 / Math.sqrt(1 / 3), 10);
 	});
 
@@ -72,7 +72,7 @@ describe("buyAndHoldSharpe", () => {
 			...step,
 			timestamp: idx * 3_600_000,
 		}));
-		const sharpe = buyAndHoldSharpe(hourly);
+		const sharpe = buyAndHoldSharpe([hourly]);
 		expect(sharpe).toBeCloseTo(
 			(4 / 3 / Math.sqrt(1 / 3)) * Math.sqrt(365.25 * 24),
 			6

@@ -294,13 +294,7 @@ export class Trainer {
 				createdAt: Date.parse(stored.createdAt),
 				normalization,
 			});
-			this._reportModelPerformance(
-				result.symbol,
-				summary,
-				// No test segment: buy and hold on the bars the metrics came from.
-				admission?.criteria.buyAndHoldSharpe ??
-					buyAndHoldSharpe(last?.validation ?? [])
-			);
+			this._reportModelPerformance(result.symbol, summary, windowSets);
 			getLogger().info("Model stored", {
 				context: { symbol: result.symbol, version: stored.version, admissible },
 			});
@@ -320,9 +314,14 @@ export class Trainer {
 	private _reportModelPerformance(
 		symbol: TradingSymbol,
 		summary: BestAgentSummary,
-		baseline: number
+		windowSets: WindowSet[]
 	): void {
 		const labels = { symbol, segment: summary.evaluatedOn };
+		const baseline = buyAndHoldSharpe(
+			summary.evaluatedOn === "test"
+				? [windowSets[windowSets.length - 1]?.test ?? []]
+				: windowSets.map((ws) => ws.validation)
+		);
 		MODEL_SHARPE.set(labels, summary.sharpe);
 		MODEL_RETURN.set(labels, summary.avgPnl);
 		MODEL_MAX_DRAWDOWN.set(labels, summary.maxDrawdown);
