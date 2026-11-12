@@ -364,9 +364,16 @@ jobs:
   k8s:
     needs: gate
     if: ${{ needs.gate.outputs.k8s == 'true' }}
+    name: k8s (${{ matrix.group }})
     runs-on: ubuntu-latest
-    # 30 min measured (audit run 43243495223); 48 min on PR #460, before the collector drain was cut.
-    timeout-minutes: 60
+    # One job per group of checks (run-kind.sh verify_group): each deploys N-1, upgrades to N,
+    # then runs its own checks. fail-fast off: a red group does not hide the others.
+    # Not measured per group yet: first runs decide the timeout (the single job was 30 min measured, 48 min on PR #460).
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [network, observability, backup]
     env:
       KIND_VERSION: v0.27.0
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
@@ -422,17 +429,13 @@ jobs:
               echo "skip=true" >> "$GITHUB_OUTPUT"
             fi
           fi
-      - name: Verify the stack
+      - name: Verify the group (${{ matrix.group }})
+        timeout-minutes: 25
         env:
           SKIP_BACKUP_DRILL: ${{ steps.drill.outputs.skip }}
-        run: bash tests/k8s/run-kind.sh verify
-      - name: Canary gate (deploy.yml canary)
-        run: bash tests/k8s/run-kind.sh verify_canary
-      # Issue #802 (ADR-0065): mysql-0 gone, the SPIRE server and a restarted pod keep their identity.
-      - name: Identity without MySQL
-        run: bash tests/k8s/run-kind.sh verify_identity_without_mysql
+        run: bash tests/k8s/run-kind.sh verify_group ${{ matrix.group }}
       - name: Upload the restore drill timings
-        if: always()
+        if: always() && matrix.group == 'backup'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: restore-drill-timings-kind

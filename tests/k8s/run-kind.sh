@@ -236,10 +236,21 @@ migrations() {
 # Release N-1 runs as if it predated the exporter keys (ADR-0056): they are
 # dropped from its Secret and its exporters read another key, so N adds the
 # keys and restarts the database pods, as a real upgrade to 3.1.0 (issue #698).
+# Overlay of checkout $1 pinned to the digests of file $2, adapted to kind, into file $3.
+# Each stage writes a file: node never shares a pipe with its producer (a node
+# crash broke the pipe in runs 43321359421 and 43328471185).
+render_kind() {
+	release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" >"$3.raw" || return 1
+	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
+	rm -f "$3.raw"
+}
+
 apply_release() {
-	local rendered
-	rendered="$(release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" |
-		node "$ROOT/tests/k8s/ci-render.mjs")" || return 1
+	local rendered file
+	file="$(mktemp "$WORK/rendered.XXXXXX")"
+	render_kind "$1" "$2" "$file" || return 1
+	rendered="$(cat "$file")"
+	rm -f "$file"
 	[ "$1" != "$PREVIOUS" ] || rendered="$(sed -E -e '/^  (MYSQL|REDIS)_EXPORTER_PASSWORD: /d' \
 		-e 's/key: (MYSQL|REDIS)_EXPORTER_PASSWORD$/key: \1_EXPORTER_PASSWORD_BEFORE_ADR_0056/' <<<"$rendered")"
 	if [ ! -f "$WORK/app.kubeconfig" ]; then
@@ -418,9 +429,8 @@ upgrade() {
 	# deploy.yml preflight (issue #805): server-side dry-run of release N with
 	# deploy-app / deploy-cluster; it must pass and leave every pod template as it was.
 	log "preflight: dry-run of release N with the deploy identities (deploy-release.sh dry-run)"
-	release_script render "$ROOT/deploy/k8s/overlays/staging" ghcr.io/trading-model "$WORK/digests-current" |
-		node "$ROOT/tests/k8s/ci-render.mjs" |
-		release_script dry-run "$NS" "$ROOT/deploy/k8s/overlays/staging/node-agents" || {
+	render_kind "$ROOT" "$WORK/digests-current" "$WORK/preflight.yaml" || return 1
+	release_script dry-run "$NS" "$ROOT/deploy/k8s/overlays/staging/node-agents" <"$WORK/preflight.yaml" || {
 		log "the preflight dry-run of release N failed"
 		return 1
 	}
@@ -634,7 +644,16 @@ prometheus_targets_down() {
 			process.exit(jobs.length>0 && missing.length===0 && down.length===0 ? 0 : 1)'
 }
 
+# Groups of checks, one CI job each (ci.yml, matrix `group`): each runs on a
+# freshly deployed and upgraded stack, so a group never depends on another one.
 verify() {
+	verify_network
+	verify_observability
+	verify_backup_group
+	log "OK: the staging overlay works on Kubernetes"
+}
+
+verify_network() {
 	log "market data reaches MySQL (stub → scraper → MySQL)"
 	wait_for 300 '[ "$(mysql_count market_candles)" -gt 0 ]'
 	log "  candles=$(mysql_count market_candles) trades=$(mysql_count market_trades)"
@@ -660,6 +679,9 @@ verify() {
 	wait_for 120 "curl -sf -H 'x-api-key: $API_KEY' $url | grep -q financial-scraper"
 	log "  registered: $(curl -s -H "x-api-key: $API_KEY" "$url")"
 
+}
+
+verify_observability() {
 	verify_traces
 
 	log "Prometheus scrapes every target over mTLS (SVID)"
@@ -670,13 +692,18 @@ verify() {
 
 	verify_alerts
 	verify_release
+	verify_canary
+}
+
+# Restore drill (skipped on PRs that touch no backup code, SKIP_BACKUP_DRILL=true),
+# then the identity check, which stops mysql-0 and so runs last.
+verify_backup_group() {
 	if [ "${SKIP_BACKUP_DRILL:-}" = "true" ]; then
 		log "restore drill skipped (SKIP_BACKUP_DRILL=true)"
 	else
 		verify_backup
 	fi
-
-	log "OK: the staging overlay works on Kubernetes"
+	verify_identity_without_mysql
 }
 
 # Issue #802 (ADR-0065): with every MySQL pod gone (mysql-0 included), the
@@ -1609,12 +1636,21 @@ all)
 	upgrade
 	smoke
 	verify
-	verify_canary
-	verify_identity_without_mysql
+	;;
+verify_group)
+	case "${2:-}" in
+	network) verify_network ;;
+	observability) verify_observability ;;
+	backup) verify_backup_group ;;
+	*)
+		echo "usage: $0 verify_group [network|observability|backup]" >&2
+		exit 64
+		;;
+	esac
 	;;
 images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_mongo_auth | verify_db_ingress | verify_mysql_tls | verify_redis_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_group <network|observability|backup>|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac
