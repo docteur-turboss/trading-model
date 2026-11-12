@@ -816,13 +816,13 @@ verify_mongo_ingress() {
 # the `exporter` user (clusterMonitor, no data rights) are refused on the data.
 verify_mongo_auth() {
 	local label pod auth out
-	log "MongoDB: anonymous client and exporter refused with Unauthorized"
+	log "MongoDB: anonymous client and exporter refused (requires authentication / not authorized)"
 	for label in mongodb mongodb-audit; do
 		pod="$(mongo_primary "$label")" || { log "  no primary for $label"; return 1; }
 		for auth in "" '-u exporter -p "$MONGO_EXPORTER_PASSWORD" --authenticationDatabase admin'; do
-			# mongosh exits 1 on the refusal: capture first, pipefail would fail the grep
+			# mongosh exits 1 on the refusal: capture first, pipefail would fail the grep. An anonymous client gets "requires authentication", a user without rights "not authorized" (code 13, Unauthorized)
 			out="$($K -n "$NS" exec "$pod" -- sh -c "mongosh --quiet $auth --eval \"db.getSiblingDB('admin').getCollectionNames()\" 2>&1" || true)"
-			grep -q Unauthorized <<<"$out" || {
+			grep -qE "requires authentication|not authorized|Unauthorized" <<<"$out" || {
 				log "  $label accepted a client without data rights (${auth:-anonymous})"
 				return 1
 			}
