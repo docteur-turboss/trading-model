@@ -3,11 +3,17 @@ import {
 	DecimalPrecision,
 	Percentage,
 	Price,
-	Volume,
+	type Volume,
 } from "@trading-model/primitives/primitives";
 import type { BuyCostResult, SellProceedsResult } from "./wallet-costs";
 import { roundValue, TradeCostParams } from "./wallet-costs";
 import { validateConfig } from "./wallet-validation";
+
+/**
+ * Default exposure cap (ADR-0025): the position is worth at most the initial
+ * cash, i.e. no leverage. Written in the model manifest.
+ */
+export const DEFAULT_MAX_EXPOSURE_FRACTION = 1;
 
 export interface WalletConfigParams {
 	initialCash: Cash;
@@ -18,7 +24,8 @@ export interface WalletConfigParams {
 	 * `price × (1 + rate)`, a sale receives `price × (1 − rate)`. Default 0.
 	 */
 	executionCostRate?: Percentage;
-	maxPosition?: Volume;
+	/** Max position value (at the current price) as a fraction of `initialCash`. */
+	maxExposureFraction?: number;
 	decimals?: DecimalPrecision;
 }
 
@@ -27,7 +34,7 @@ export class WalletConfig {
 	readonly initialPrice: Price;
 	readonly feeRate: Percentage;
 	readonly executionCostRate: Percentage;
-	readonly maxPosition: Volume;
+	readonly maxExposureFraction: number;
 	readonly decimals: DecimalPrecision;
 
 	constructor(params: WalletConfigParams) {
@@ -38,7 +45,8 @@ export class WalletConfig {
 			executionCostRate: Percentage.of(
 				params.executionCostRate ?? Percentage.zero()
 			),
-			maxPosition: Volume.of(params.maxPosition ?? Volume.of(Number.MAX_VALUE)),
+			maxExposureFraction:
+				params.maxExposureFraction ?? DEFAULT_MAX_EXPOSURE_FRACTION,
 			decimals: params.decimals ?? DecimalPrecision.of(8),
 		};
 		validateConfig(resolved);
@@ -46,7 +54,7 @@ export class WalletConfig {
 		this.initialPrice = resolved.initialPrice;
 		this.feeRate = resolved.feeRate;
 		this.executionCostRate = resolved.executionCostRate;
-		this.maxPosition = resolved.maxPosition;
+		this.maxExposureFraction = resolved.maxExposureFraction;
 		this.decimals = resolved.decimals;
 	}
 

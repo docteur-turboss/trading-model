@@ -1,3 +1,4 @@
+import { DEFAULT_MAX_EXPOSURE_FRACTION } from "./env/wallet-config";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { BestAgentSummary } from "./training-state";
@@ -21,9 +22,10 @@ export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9._-]+$/;
  * the bar curve, evaluation at a fixed epsilon. Absent on older manifests,
  * whose metrics came from the shaped reward: never compare the two. 4: fills
  * at the next bar's open with half-spread + slippage (ADR-0066): not comparable
- * with 3.
+ * with 3. 5: the simulator caps the position value at
+ * `riskLimits.maxExposureFraction`.
  */
-const MODEL_METRICS_VERSION = 4;
+const MODEL_METRICS_VERSION = 5;
 
 export interface ModelMetrics {
 	metricsVersion?: number;
@@ -54,6 +56,8 @@ export interface ModelManifest {
 	/** Normalization statistics of the symbol at the end of training. */
 	normalization: Record<string, unknown>;
 	metrics: ModelMetrics;
+	/** Constraint the policy learned under (absent on older manifests: unbounded). */
+	riskLimits?: { maxExposureFraction: number };
 }
 
 /** What lists and API responses tell about a version, without the manifest body. */
@@ -105,6 +109,7 @@ export function buildModelManifest(
 		genome: JSON.parse(JSON.stringify(genome)),
 		features: artifact.features,
 		normalization: artifact.normalization,
+		riskLimits: { maxExposureFraction: DEFAULT_MAX_EXPOSURE_FRACTION },
 		metrics: {
 			metricsVersion: MODEL_METRICS_VERSION,
 			generation: summary.generation,
