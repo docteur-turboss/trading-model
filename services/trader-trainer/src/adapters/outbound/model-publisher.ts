@@ -75,6 +75,7 @@ export class ModelPublisher implements ModelPublisherPort {
 			avgPnl: summary.avgPnl,
 			maxDrawdown: summary.maxDrawdown,
 			evaluatedOn: summary.evaluatedOn,
+			admissible: stored.admissible,
 			agentId: summary.id,
 			gaControl: {
 				populationSize: summary.gaControl.populationSize,

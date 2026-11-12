@@ -1,6 +1,7 @@
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "./env/wallet-config";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
+import type { ModelAdmission } from "./model-admission";
 import type { BestAgentSummary } from "./training-state";
 
 /**
@@ -62,6 +63,8 @@ export interface ModelManifest {
 	metrics: ModelMetrics;
 	/** Constraint the policy learned under (absent on older manifests: unbounded). */
 	riskLimits?: { maxExposureFraction: number };
+	/** ADR-0030 verdict on the test segment (ADR-0069); absent: not admissible. */
+	admission?: ModelAdmission;
 }
 
 /** What lists and API responses tell about a version, without the manifest body. */
@@ -82,6 +85,7 @@ export interface NewModelArtifact {
 	features: { dim: number; fields: string[] };
 	normalization: Record<string, unknown>;
 	summary: BestAgentSummary;
+	admission?: ModelAdmission;
 }
 
 export function modelVersion(createdAt: Date, sha256: string): string {
@@ -123,6 +127,7 @@ export function buildModelManifest(
 			maxDrawdown: summary.maxDrawdown,
 			evaluatedOn: summary.evaluatedOn,
 		},
+		...(artifact.admission && { admission: artifact.admission }),
 	};
 }
 

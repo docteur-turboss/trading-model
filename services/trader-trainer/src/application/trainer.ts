@@ -4,6 +4,7 @@ import { Fitness, NonNegativeInt } from "@trading-model/primitives/primitives";
 import {
 	BEST_FITNESS,
 	FEATURE_DRIFT_SCORE,
+	MODEL_ADMISSION_TOTAL,
 	MODEL_ARTIFACTS_TOTAL,
 	MODEL_BELOW_BUY_AND_HOLD_STREAK,
 	MODEL_BUY_AND_HOLD_SHARPE,
@@ -25,6 +26,7 @@ import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
+import { assessAdmission } from "../domain/model-admission";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type {
 	ModelPublisherPort,
@@ -270,6 +272,8 @@ export class Trainer {
 			return;
 		}
 		const normalization = this._dataBuffer.snapshotNormalization(result.symbol);
+		const last = windowSets[windowSets.length - 1];
+		const admission = assessAdmission(result.bestFitnessMeta, last?.test ?? []);
 		try {
 			const stored = await models.save({
 				symbol: result.symbol,
@@ -279,17 +283,28 @@ export class Trainer {
 				features: NETWORK_INPUT_LAYOUT,
 				normalization,
 				summary,
+				admission,
 			});
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "stored" });
+			const admissible = admission?.admissible ?? false;
+			MODEL_ADMISSION_TOTAL.inc({
+				result: admissible ? "admissible" : "rejected",
+			});
 			this._lastModels.set(result.symbol, {
 				createdAt: Date.parse(stored.createdAt),
 				normalization,
 			});
-			this._reportModelPerformance(result.symbol, summary, windowSets);
+			this._reportModelPerformance(
+				result.symbol,
+				summary,
+				// No test segment: buy and hold on the bars the metrics came from.
+				admission?.criteria.buyAndHoldSharpe ??
+					buyAndHoldSharpe(last?.validation ?? [])
+			);
 			getLogger().info("Model stored", {
-				context: { symbol: result.symbol, version: stored.version },
+				context: { symbol: result.symbol, version: stored.version, admissible },
 			});
-			return { version: stored.version, sha256: stored.sha256 };
+			return { version: stored.version, sha256: stored.sha256, admissible };
 		} catch (err) {
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "error" });
 			getLogger().error("Failed to store model artifact", {
@@ -305,10 +320,9 @@ export class Trainer {
 	private _reportModelPerformance(
 		symbol: TradingSymbol,
 		summary: BestAgentSummary,
-		windowSets: WindowSet[]
+		baseline: number
 	): void {
-		const labels = { symbol, segment: "validation" };
-		const baseline = buyAndHoldSharpe(windowSets);
+		const labels = { symbol, segment: summary.evaluatedOn };
 		MODEL_SHARPE.set(labels, summary.sharpe);
 		MODEL_RETURN.set(labels, summary.avgPnl);
 		MODEL_MAX_DRAWDOWN.set(labels, summary.maxDrawdown);

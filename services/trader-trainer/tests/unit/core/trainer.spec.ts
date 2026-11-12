@@ -647,7 +647,12 @@ describe("Trainer — model publication", () => {
 			expect(publisher.publish).toHaveBeenCalledWith(
 				"BTCUSDT",
 				expect.objectContaining({ id: expect.any(String) }),
-				{ version: "20261029T101530Z-0123456789ab", sha256: "0123456789abcdef" }
+				{
+					version: "20261029T101530Z-0123456789ab",
+					sha256: "0123456789abcdef",
+					// Prices rise by 1 every bar: buy and hold's floored Sharpe wins.
+					admissible: false,
+				}
 			);
 		});
 
@@ -889,7 +894,8 @@ describe("Trainer — model publication", () => {
 			await trainer.train(sym);
 
 			const summary = trainer.getBestAgentSummary();
-			const labels = { symbol: "BTCUSDT", segment: "validation" };
+			expect(summary?.evaluatedOn).toBe("test");
+			const labels = { symbol: "BTCUSDT", segment: "test" };
 			expect(await value(MODEL_SHARPE, labels)).toBe(summary?.sharpe);
 			expect(await value(MODEL_RETURN, labels)).toBe(summary?.avgPnl);
 			expect(await value(MODEL_MAX_DRAWDOWN, labels)).toBe(
@@ -898,6 +904,12 @@ describe("Trainer — model publication", () => {
 			const baseline = await value(MODEL_BUY_AND_HOLD_SHARPE, labels);
 			// Prices rise by 1 every bar: a constant change, floored Sharpe.
 			expect(baseline).toBeGreaterThan(0);
+			// The verdict reads the test segment metrics and its bars (ADR-0069).
+			expect(models.save.mock.calls[0][0].admission).toMatchObject({
+				admissible: false,
+				evaluatedOn: "test",
+				criteria: { sharpe: summary?.sharpe, buyAndHoldSharpe: baseline },
+			});
 			expect(
 				await value(MODEL_BELOW_BUY_AND_HOLD_STREAK, { symbol: "BTCUSDT" })
 			).toBe(Number(summary?.sharpe) < Number(baseline) ? 1 : 0);
