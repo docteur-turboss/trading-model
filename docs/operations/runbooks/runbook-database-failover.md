@@ -67,9 +67,14 @@ errors, `MarketDataStale`
 
 There is **no MySQL failover** (ADR-0020). Every client (financial-scraper,
 financial-scraper-collector, migration and retention Jobs) writes through
-`mysql-primary`, whose selector is the pod `mysql-0`. `mysql-1` and `mysql-2`
-are not members of the replication group and hold no data: never point a
-client at them. Losing `mysql-0` stops market data ingestion
+`mysql-primary`, whose selector is the pod `mysql-0`. The StatefulSet runs
+one replica. A cluster created before issue #814 may still have the empty
+PVCs `mysql-data-mysql-1` / `mysql-data-mysql-2` (the scale-down never deletes
+a volume): once `mysql-0` is healthy, check they hold no data and remove them
+by hand (`kubectl get pvc -n trading-model` first, and mount each one to confirm it is empty):
+`kubectl delete pvc -n trading-model mysql-data-mysql-1 mysql-data-mysql-2`.
+
+Losing `mysql-0` stops market data ingestion
 (financial-scraper, financial-scraper-collector).
 
 It no longer touches workload identity: the SPIRE server keeps its datastore
