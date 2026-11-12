@@ -65,8 +65,8 @@ summary with the steps done.
 | Detection and decision | | | |
 | Fetch from the off-site bucket | | | |
 | Restore MongoDB (audit, dlq) | | | |
-| Restore MySQL (market data, SPIRE datastore) | | | |
-| Restore SPIRE CA keys | | | |
+| Restore MySQL (market data) | | | |
+| Restore SPIRE datastore and CA keys | | | |
 | Restore checkpoints | | | |
 | Checks (data, audit chain, mTLS) | | | |
 | Services back (tier T1 / T2 / T3) | | | |

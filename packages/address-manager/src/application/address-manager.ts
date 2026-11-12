@@ -8,6 +8,7 @@ import type { TokenManager } from "./client/token-manager";
 import type { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
 import type { LifecycleManager } from "./lifecycle-manager";
 
+/** Address manager facade: token, service discovery and lifecycle of the service. */
 export default class AddressManager {
 	public readonly tokenManager: TokenManager;
 	public readonly discoveryOrchestrator: DiscoveryOrchestrator;

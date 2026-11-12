@@ -19,9 +19,11 @@ export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9._-]+$/;
 /**
  * How the metrics were computed (ADR-0025). 2: wallet PnL, annualised Sharpe of
  * the bar curve, evaluation at a fixed epsilon. Absent on older manifests,
- * whose metrics came from the shaped reward: never compare the two.
+ * whose metrics came from the shaped reward: never compare the two. 4: fills
+ * at the next bar's open with half-spread + slippage (ADR-0066): not comparable
+ * with 3.
  */
-const MODEL_METRICS_VERSION = 3;
+const MODEL_METRICS_VERSION = 4;
 
 export interface ModelMetrics {
 	metricsVersion?: number;

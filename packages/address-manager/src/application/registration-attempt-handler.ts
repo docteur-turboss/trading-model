@@ -11,6 +11,7 @@ const RETRY_CONFIG = {
 	jitterMs: DurationMs.of(1000),
 };
 
+/** Performs one registration attempt with the discovery server. */
 export class RegistrationAttemptHandler {
 	private _stopped = false;
 	/** Ends the current backoff wait early; set only while waiting. */

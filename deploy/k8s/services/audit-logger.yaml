@@ -97,6 +97,13 @@ spec:
                 name: audit-anchor-s3
                 optional: true
           env:
+            - name: MONGO_USERNAME
+              value: audit-logger
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_AUDIT_PASSWORD
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:

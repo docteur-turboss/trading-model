@@ -118,6 +118,9 @@ spec:
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -203,6 +206,9 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        - name: mysql-tls
+          secret:
+            secretName: mysql-client-scraper
 ---
 # Scrape-cron instance (SCRAPE_SCHEDULER_ENABLED=true). It has its own
 # ServiceAccount, mapped by SPIRE to the SPIFFE ID of financial-scraper but not its Service: API
@@ -267,7 +273,7 @@ spec:
       # binding. SPIRE maps this one to the SPIFFE ID of financial-scraper (k8s-entries.sh).
       automountServiceAccountToken: true
       # On stop the collector waits for its publishes in flight, each bounded by
-      # PUBLISH_ACCEPT_TIMEOUT_MS (15s + 5s; PUBLISH_COMPAT_TIMEOUT_MS for one release, the grace then cuts what remains: the cursor republishes).
+      # PUBLISH_ACCEPT_TIMEOUT_MS (15s + 5s, the grace then cuts what remains: the cursor republishes).
       terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
@@ -338,6 +344,9 @@ spec:
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -423,6 +432,9 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        - name: mysql-tls
+          secret:
+            secretName: mysql-client-scraper
 ---
 # Leader lease of the collector pods (ADR-0057). Created here, so the Role
 # below needs no `create` (which resourceNames cannot restrict). Applied

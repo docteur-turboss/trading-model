@@ -68,6 +68,39 @@ spec:
         fsGroup: 999
         seccompProfile:
           type: RuntimeDefault
+      # Replica set internal authentication (issue #669, ADR-0067). mongod
+      # refuses a keyFile readable by its group, and the data volume's fsGroup
+      # adds group read to a mounted Secret file: the key is copied to a 0400
+      # file of the mongod user instead.
+      initContainers:
+        - name: keyfile
+          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          command:
+            - sh
+            - -c
+            - umask 077 && printf '%s' "$KEYFILE" > /keyfile/keyfile && chmod 400 /keyfile/keyfile
+          env:
+            - name: KEYFILE
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_AUDIT_KEYFILE
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: keyfile
+              mountPath: /keyfile
+      volumes:
+        - name: keyfile
+          emptyDir:
+            medium: Memory
       containers:
         - name: mongodb
           image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
@@ -82,6 +115,13 @@ spec:
             - "27017"
             - "--bind_ip"
             - "0.0.0.0"
+            - "--keyFile"
+            - "/keyfile/keyfile"
+            # Expand step of the switch (ADR-0067): members authenticate each
+            # other, clients may still connect without credentials. Remove in
+            # the release after the one that adds the users and the client
+            # credentials: mongod then enforces authentication.
+            - "--transitionToAuth"
           ports:
             - containerPort: 27017
               name: mongodb
@@ -100,9 +140,24 @@ spec:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
+          # The scripts of deploy/ and backup run inside the pod with these.
+          env:
+            - name: MONGO_BACKUP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_BACKUP_PASSWORD
+            - name: MONGO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_ROOT_PASSWORD
           volumeMounts:
             - name: mongo-audit-data
               mountPath: /data/db
+            - name: keyfile
+              mountPath: /keyfile
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -127,12 +182,19 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
         # Exporter of this member (issue #601, ADR-0056): server status and
-        # replica set state through localhost. No database user: MongoDB runs
-        # without authentication (ADR-0056 defers it to issue #669).
+        # replica set state through localhost, as the `exporter` user
+        # (clusterMonitor only, ADR-0067).
         - name: mongodb-exporter
           image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
+          env:
+            - name: MONGO_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_EXPORTER_PASSWORD
+            - name: MONGODB_URI
+              value: mongodb://exporter:$(MONGO_EXPORTER_PASSWORD)@127.0.0.1:27017/admin?directConnection=true
           args:
-            - --mongodb.uri=mongodb://127.0.0.1:27017/?directConnection=true
             - --collector.replicasetstatus
             - --web.listen-address=:9216
           ports:
@@ -211,6 +273,81 @@ spec:
                 .map((i) => `mongo-audit-${i}.mongo-audit-headless:27017`)
                 .filter((h) => { try { return new Mongo(h).getDB("admin").runCommand({ ping: 1 }).ok === 1; } catch (e) { return false; } });
               rs.initiate({ _id: "rs0-audit", members: hosts.map((host, _id) => ({ _id, host })) });
+---
+# Users of the replica set (issue #669, ADR-0067): root, exporter, backup and the
+# client of this database, from deploy/mongo/users.js. Idempotent, so it runs
+# again on every release (ttl: the finished Job is removed, a later apply
+# creates it again) and applies a rotated password. Needs a primary, which
+# mongo-audit-init elects; the members that do not answer (staging: 1 pod) are
+# only seeds.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongo-audit-users
+  labels:
+    app.kubernetes.io/component: mongodb-audit
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      # Allowed in by the database NetworkPolicy (label of the init Job).
+      labels:
+        app.kubernetes.io/component: mongodb-audit-init
+        app.kubernetes.io/part-of: trading-model
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mongodb-users
+          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          command:
+            - mongosh
+            - --quiet
+            - "mongodb://mongo-audit-0.mongo-audit-headless:27017,mongo-audit-1.mongo-audit-headless:27017,mongo-audit-2.mongo-audit-headless:27017/admin?replicaSet=rs0-audit"
+            - --file
+            - /scripts/users.js
+          env:
+            - name: MONGO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_ROOT_PASSWORD
+            - name: MONGO_EXPORTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_EXPORTER_PASSWORD
+            - name: MONGO_BACKUP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_BACKUP_PASSWORD
+            - name: MONGO_AUDIT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_AUDIT_PASSWORD
+            - name: MONGO_AUDIT_DB
+              value: audit
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: mongo-users-script
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

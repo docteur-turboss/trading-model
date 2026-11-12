@@ -90,6 +90,13 @@ spec:
             - configMapRef:
                 name: dlq-service-config
           env:
+            - name: MONGO_USERNAME
+              value: dlq-service
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_DLQ_PASSWORD
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:

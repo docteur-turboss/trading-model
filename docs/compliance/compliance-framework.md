@@ -57,7 +57,7 @@ This document provides a consolidated map of all regulatory obligations applicab
 |---|---|---|---|
 | **Art. 12** | Market manipulation definitions | Agent behaviour patterns assessed against spoofing, layering, quote stuffing | [Algorithmic Trading Compliance](algorithmic-trading-compliance.md) §5.2 |
 | **Art. 16** | Suspicious transaction reporting | Audit trail enables reconstruction; automated detection not yet implemented | [Algorithmic Trading Compliance](algorithmic-trading-compliance.md) §5.1 |
-| **Art. 17** | Public disclosure of inside information | Not applicable — no inside information processed |
+| **Art. 17** | Public disclosure of inside information | Not applicable — no inside information processed | — |
 
 ### 3.4 DORA Control Map
 

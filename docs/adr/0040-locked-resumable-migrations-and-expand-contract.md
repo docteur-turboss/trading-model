@@ -37,3 +37,11 @@
 - Stored programs (`DELIMITER`, `BEGIN ... END` bodies) cannot be written in a migration file; `DELIMITER` is refused.
 - `GET_LOCK` names are server-wide: two schemas on the same MySQL server share the lock and are serialized too.
 - Rule 4 is checked by review, not by CI. Proposed follow-up: a CI job running the specs of release N-1 against the schema of release N (to be implemented with the deploy verification work, audit C4).
+
+## Amendment 2026-11 (issue #767): MySQL client TLS
+
+See [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) (MySQL part done).
+
+`scripts/migrate.mjs` reads `DB_SSL_CA` and then verifies the server certificate and host name; the migration Jobs mount Secret `mysql-client-migrator` (CA + client certificate). Exception to expand/contract, decided by the owner (2026-11-09): TLS and `require_secure_transport=ON` ship in the same release instead of N and N+1.
+
+`DB_SSL_CERT` / `DB_SSL_KEY` carry the client certificate of user `migrator`. `require_secure_transport=ON` is enabled in the same release as the TLS support (owner decision, 2026-11-09): the pods of release N-1 lose their connection until replaced by the rolling update, a brief interruption accepted for this step.

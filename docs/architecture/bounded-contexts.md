@@ -99,7 +99,7 @@ graph TD
 
 ### Not yet defined: downstream context
 
-No Strategy, Execution or Evaluation context exists: trained models and collected signals have no consumer, so the trading decision is not part of the system yet. Options and the proposed contract are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Proposed).
+No Strategy, Execution or Evaluation context exists: trained models and collected signals have no consumer, so the trading decision is not part of the system yet. Options and the proposed contract are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Proposed). A future Execution context, a Risk/Execution service separate from the model and from the decision consumer, must exist before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Proposed). It has no code and no consumer.
 
 ## Integration Patterns
 

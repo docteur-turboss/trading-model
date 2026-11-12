@@ -7,6 +7,7 @@ function _shouldSend(env: string | undefined): boolean {
 	return env === NODE_ENV.PRODUCTION || env === NODE_ENV.STAGING;
 }
 
+/** Sends an error log entry to the logging service. */
 export async function sendError(
 	safeStringify: (value: unknown) => string,
 	entry: LogEntry,

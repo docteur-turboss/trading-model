@@ -81,7 +81,7 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 | ----------------------------- | ------ | ---------------- | -------- | ---------------------------------- | -------- |
 | `CLEANUP_SERVICE_INTERVAL_MS` | number | `600000` (10min) | no       | Interval for expired lease cleanup | DS       |
 | `ERROR_URL_WEBHOOK`           | URL    | —                | no       | Error notification webhook         | DS       |
-| `SIGNING_SECRET`              | string | —                | **yes** in production | HMAC secret of the instance tokens; shared by the replicas, stable across restarts (random per process otherwise) | DS |
+| `SIGNING_SECRET`              | string | —                | **yes** in production | HMAC secret of the instance tokens (in production: at least 32 characters, no `change-me`; start refused otherwise); shared by the replicas, stable across restarts (random per process otherwise) | DS |
 | `REDIS_URL`                   | string | —                | no       | Redis URL for distributed registry | DS       |
 | `ALLOWED_REGISTRATION_CIDRS`  | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs allowed to register. Empty: the check is off; in production the service refuses to start | DS |
 
@@ -105,10 +105,10 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | --------------------- | ------ | -------------------------------- | -------- | ------------------------------- | -------- |
 | `DISCOVERY_SERVICE_URL` | URL  | `https://discovery-server:3000`  | **yes**  | Discovery server URL            | GW       |
 | `RATE_LIMIT_WINDOW_MS` | number | `60000`                         | no       | Rate limit window (ms)          | GW       |
-| `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window         | GW       |
+| `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window, per pod: effective limit per client = value x replicas (HPA 2-8), i.e. 200 to 800 per 60 s by default (ADR-0047) | GW       |
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
-| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is accepted for one release with every scope, named `legacy-<8 hex>`, with a warning (ADR-0059) | GW |
+| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is accepted for one release with every scope, named `legacy-<8 hex>`, with a warning (ADR-0059) | GW |
 | `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy request timeout           | GW       |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
 | `AUTH_STRICT`         | boolean (only `false` turns it off) | `true`              | no (`false` refused in production) | Strict API key check. `false` with no `AUTH_TOKENS` accepts any API key: in production the gateway refuses to start with `false` | GW |
@@ -162,6 +162,9 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `DB_NAME`     | string | `financial_scraper` | **yes**  | MySQL database name              | FS       |
 | `DB_HOST`     | string | `mysql`             | no       | MySQL host (Docker service name) | FS       |
 | `DB_PORT`     | number | `3306`              | no       | MySQL port                       | FS       |
+| `DB_SSL_CA`   | path   | —                   | no       | PEM CA of the MySQL server certificate: TLS with certificate and host name check (K8s: Secret `mysql-tls`, ADR-0011) | FS, migrate |
+| `DB_SSL_CERT` / `DB_SSL_KEY` | path | — | no | PEM client certificate and key of the MySQL user, both or none (K8s: Secret `mysql-client-<user>`, issued by cert-manager; MySQL maps it to the user with `REQUIRE ISSUER / SUBJECT`) | FS, migrate |
+| `DB_SSL_VERIFY` | bool | `true` | no | `false` = TLS without certificate check; set only by `run-migrations.sh` during an upgrade from a release without TLS (mysqld not yet on the cert-manager certificate) | migrate |
 
 ---
 
@@ -197,7 +200,6 @@ Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host 
 | `RETENTION_BATCH_SIZE`    | number (≥1) | `10000`           | no       | Rows per `DELETE ... LIMIT` | retention job |
 | `RETENTION_PAUSE_SECONDS` | number (≥0) | `1`               | no       | Pause between two batches | retention job |
 | `MYSQL_RETENTION_PASSWORD` | string | —                      | **yes** in K8s | Password of MySQL user `retention` (SELECT, DELETE on the five tables). Key of Secret `trading-model-secrets`, read by `db-migrate-user` and `db-retention` | retention job |
-| `MYSQL_SPIRE_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** in K8s | Password of MySQL user `spire` (`ALL PRIVILEGES` on `spire.*` only), created with the `spire` database by `db-migrate-user`, read by the SPIRE server (`-expandEnv`). The SPIRE pod no longer gets `MYSQL_ROOT_PASSWORD` (issue #807). Compose uses SQLite | spire-server |
 
 ---
 
@@ -209,6 +211,22 @@ Passwords of the read-only users of the exporter sidecars (`docs/architecture/da
 | ------------------------- | ------ | ------- | -------- | ----------- | -------- |
 | `MYSQL_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.@%+=-]`) | — | **yes** (K8s and compose) | Password of MySQL user `exporter`, created by `db-migrate-user` (K8s) or `mysql-exporter-user` (compose), read by the `mysqld-exporter` sidecars | mysqld-exporter |
 | `REDIS_EXPORTER_PASSWORD` | string | — | **yes** in K8s | Password of the Redis ACL user `exporter` (`redis-ha.sh`, data nodes and sentinels), read by the `redis-exporter` sidecars | redis-exporter |
+| `MONGO_EXPORTER_PASSWORD` | string (`[A-Za-z0-9_.-]`) | — | **yes** (K8s and compose) | Password of MongoDB user `exporter` (`clusterMonitor`, ADR-0067), read by the `mongodb_exporter` sidecars | mongodb-exporter |
+
+## MongoDB users (ADR-0067)
+
+One user per client, created by `deploy/mongo/users.js` (K8s Jobs `mongo-dlq-users` / `mongo-audit-users`, compose `mongo-users`). K8s: keys of Secret `trading-model-secrets`, all checked by `deploy.yml`. Compose: `.env` (characters `[A-Za-z0-9_.-]`, all required).
+
+| Variable | Type | Default | Required | Description | Services |
+| -------- | ---- | ------- | -------- | ----------- | -------- |
+| `MONGO_USERNAME` | string | — | no | MongoDB user of the service (`audit-logger`, `dlq-service`); unset: no authentication (dev). Set together with `MONGO_PASSWORD` | AL, DLQ |
+| `MONGO_PASSWORD` | string | — | no | Its password (Secret key `MONGO_AUDIT_PASSWORD` / `MONGO_DLQ_PASSWORD`); the URI then carries `authSource=admin` and no credentials | AL, DLQ |
+| `MONGO_ROOT_PASSWORD` | string | — | **yes** | User `root`: restore, user administration | mongo pods, `mongo-users` |
+| `MONGO_BACKUP_PASSWORD` | string | — | **yes** | User `backup`: dumps and oplog archives | mongo pods, `mongo-users` |
+| `MONGO_AUDIT_PASSWORD` | string | — | **yes** | User `audit-logger` | audit-logger, `mongo-users` |
+| `MONGO_DLQ_PASSWORD` | string | — | **yes** | User `dlq-service` | dlq-service, `mongo-users` |
+| `MONGO_AUDIT_KEYFILE` | string (6 to 1024 base64 characters) | — | **yes** in K8s | Internal authentication key of `mongo-audit` | mongo-audit pods |
+| `MONGO_DLQ_KEYFILE` | string (same) | — | **yes** in K8s | Internal authentication key of `mongo-dlq` | mongo-dlq pods |
 
 ---
 
@@ -268,9 +286,11 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `AUDIT_PORT`          | number | `8450`                  | Host port for audit-logger         | DC       |
 | `DLQ_PORT`            | number | `8452`                  | Host port for dlq-service          | DC       |
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
+| `EDGE_LIMIT_KEY_INC`  | path   | `./deploy/edge-proxy/edge-limit-key.inc` | Edge rate-limit key file; `edge-limit-key.off.inc` disables the limit for k6 load runs | DC |
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
-| `GRAFANA_OIDC_ENABLED` | string | `false` (compose), unset (K8s) | `true` turns on Grafana OIDC login; off otherwise (ADR-0063) | DC, K8s |
+| `GRAFANA_OIDC_ENABLED` | string | `false` (compose), unset (K8s) | `true` turns on Grafana OIDC login and hides the local login form (`GF_AUTH_DISABLE_LOGIN_FORM`, K8s); off otherwise (ADR-0063) | DC, K8s |
+| `GRAFANA_BASIC_AUTH_ENABLED` | string | unset (K8s) | Set `false` together with `GRAFANA_OIDC_ENABLED=true`: refuses `Authorization: Basic` on the public Ingress (`GF_AUTH_BASIC_ENABLED`); unset keeps Grafana's default (on). Break-glass: `runbook-grafana-break-glass.md` | K8s |
 | `GRAFANA_OIDC_CLIENT_ID` | string | (unset) | OIDC client id (ADR-0063) | DC, K8s |
 | `GRAFANA_OIDC_CLIENT_SECRET` | string | (unset) | OIDC client secret (K8s: key of `trading-model-secrets`) (ADR-0063) | DC, K8s |
 | `GRAFANA_OIDC_AUTH_URL` | string | (unset) | OIDC authorization endpoint (ADR-0063) | DC, K8s |
@@ -279,6 +299,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `GRAFANA_OIDC_ALLOWED_DOMAINS` | string | (unset) | E-mail domains allowed to log in; required in production K8s (ADR-0063) | DC, K8s |
 | `GRAFANA_ROOT_URL` | string | `http://localhost:3000/` (compose) | Public Grafana URL, base of the OIDC `redirect_uri`; K8s: `https://grafana.<host>/` of the ingress (ADR-0063) | DC, K8s |
 | `MYSQL_EXPORTER_PASSWORD` | string | (required)          | Password of the read-only MySQL user `exporter` of mysqld-exporter (ADR-0056) | DC |
+| `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` | string | (required) | MongoDB users (ADR-0067), see "MongoDB users" above | DC |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
 | `IMAGE_TAG`           | string | `latest`                | Image tag to pull                  | DC       |
@@ -334,6 +355,11 @@ AUDIT_PORT=8450
 MYSQL_ROOT_PASSWORD=changeme
 GRAFANA_PASSWORD=change-me-grafana-admin-password
 MYSQL_EXPORTER_PASSWORD=change-me-mysql-exporter-password
+MONGO_ROOT_PASSWORD=change-me-mongo-root-password
+MONGO_EXPORTER_PASSWORD=change-me-mongo-exporter-password
+MONGO_BACKUP_PASSWORD=change-me-mongo-backup-password
+MONGO_AUDIT_PASSWORD=change-me-mongo-audit-password
+MONGO_DLQ_PASSWORD=change-me-mongo-dlq-password
 MYSQL_DATABASE=financial_scraper
 
 # Trader-Trainer

@@ -9,8 +9,10 @@ import {
 	type CallRecord,
 } from "./service-call-tracker";
 
+/** Key identifying an endpoint in the call statistics. */
 export type EndpointKey = string & { readonly brand: "EndpointKey" };
 
+/** Totals of the call records over a window. */
 export interface AggregationTotals {
 	callsByService: Record<ServiceId, number>;
 	callsByEndpoint: Record<EndpointKey, number>;
@@ -20,6 +22,7 @@ export interface AggregationTotals {
 	bytesReceived: Bytes;
 }
 
+/** Aggregates call records per endpoint and over all endpoints. */
 export class CallRecordAggregator {
 	aggregate(records: CallRecord[]): AggregationTotals {
 		const callsByService: Record<ServiceId, number> = {};

@@ -137,6 +137,7 @@ const RESOURCES = {
 	ClusterRoleBinding: ["rbac.authorization.k8s.io", "clusterrolebindings"],
 	SealedSecret: ["bitnami.com", "sealedsecrets"], Namespace: ["", "namespaces"],
 	CSIDriver: ["storage.k8s.io", "csidrivers"],
+	Issuer: ["cert-manager.io", "issuers"], Certificate: ["cert-manager.io", "certificates"],
 };
 
 /** "group/resource" pairs of a flow-style rules file (deploy/k8s/deploy-identity). */
@@ -403,6 +404,11 @@ for (const env of OVERLAYS) {
 	// OIDC off in every render (CI kind has no egress): each key an optional Secret key, never a literal.
 	for (const name of ["ENABLED", "CLIENT_ID", "CLIENT_SECRET", "AUTH_URL", "TOKEN_URL", "API_URL", "ALLOWED_DOMAINS"].map((n) => `GF_AUTH_GENERIC_OAUTH_${n}`).concat("GF_SERVER_ROOT_URL")) {
 		if (!new RegExp(`- name: ${name}\\n\\s+valueFrom:\\n\\s+secretKeyRef:\\n(?:\\s+(?:name|key): \\S+\\n)*?\\s+optional: true`).test(grafana)) errors.push(`${env}: grafana ${name} must come from an optional Secret key (ADR-0063)`);
+	}
+
+	// Same Secret key drives the OIDC switch and the hidden login form (issue #856); basic auth has its own optional key.
+	for (const [name, key] of [["GF_AUTH_GENERIC_OAUTH_ENABLED", "GRAFANA_OIDC_ENABLED"], ["GF_AUTH_DISABLE_LOGIN_FORM", "GRAFANA_OIDC_ENABLED"], ["GF_AUTH_BASIC_ENABLED", "GRAFANA_BASIC_AUTH_ENABLED"]]) {
+		if (!new RegExp(`- name: ${name}\\n\\s+valueFrom:\\n\\s+secretKeyRef:\\n(?:\\s+\\S+: \\S+\\n)*?\\s+key: ${key}\\n(?:\\s+\\S+: \\S+\\n)*?\\s+optional: true`).test(grafana)) errors.push(`${env}: grafana ${name} must read optional Secret key ${key} (issue #856)`);
 	}
 
 	for (const name of SEALED_ONLY) {

@@ -1,5 +1,6 @@
 import { ServiceId } from "@trading-model/primitives/primitives";
 
+/** Services that can call each other, named by their mTLS identity. */
 export enum KnownService {
 	DiscoveryServer = "discovery-server",
 	AuditLogger = "audit-logger",
@@ -10,6 +11,7 @@ export enum KnownService {
 	DlqService = "dlq-service",
 }
 
+/** Default caller allowlist per target service; `*` admits any platform service. */
 export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 	[KnownService.DiscoveryServer]: [ServiceId.of("*")],
 	[KnownService.AuditLogger]: [ServiceId.of("*")],

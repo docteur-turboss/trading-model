@@ -9,6 +9,7 @@ import { CACHE_ENTRY_COUNT, CIRCUIT_BREAKER_INSTANCES_TOTAL } from "../metrics";
 import { ServiceCallTracker } from "./service-call-tracker";
 import { SystemMetrics, type SystemMetricsPayload } from "./system-metrics";
 
+/** Collects the service metrics and exposes them over Express. */
 export class MetricsCollector {
 	private readonly _systemMetrics: SystemMetrics;
 	private readonly _serviceCallTracker: ServiceCallTracker;

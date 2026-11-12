@@ -113,6 +113,15 @@ or right after the overlay on a first deploy, when MySQL does not exist yet).
 > caller's. In production expose the controller with `externalTrafficPolicy:
 > Local` or a load balancer that keeps the source (PROXY protocol needs
 > `use-proxy-protocol`), and check once with a `curl` from a known address.
+>
+> **Rate limit at the edge.** `default.conf` applies `limit_req` (20 r/s per real
+> client address, burst 60) and `limit_conn` (50) on `/v<n>/`, answering 429;
+> `/ping` and `/health/ready` are not limited. The limit is per edge-proxy pod:
+> the effective limit is 20 r/s × replicas (2 to 5), i.e. 40 to 100 r/s, never
+> above the Ingress `limit-rps: 100` (`deploy/k8s/ingress/gateway-ingress.yaml`,
+> per client address too): the edge limit is the tighter one for 1 to 5 replicas
+> and the only one in compose. The gateway keeps its own `RATE_LIMIT_*` per
+> client identity.
 
 ### 2. Configure secrets
 
@@ -235,7 +244,6 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   by the `mysql-cluster-init` Job; per-pod `server_id` / local address passed
   as mysqld arguments
 - 20Gi PVC per replica
-- SPIRE datastore: MySQL user `spire` (key `MYSQL_SPIRE_PASSWORD` of `trading-model-secrets`, required, to seal before the first deploy; `db-migrate-user` creates it), issue #807
 - Retention: CronJob `db-retention` purges market data and signals older than `RETENTION_DAYS` as MySQL user `retention` (key `MYSQL_RETENTION_PASSWORD` of `trading-model-secrets`, to seal before the first production deploy; `db-migrate-user` runs again after the migrations to grant it per table). Operation: [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0051
 - Schema from the `db-migrate` Job (`run-migrations.sh`), the same migrations as compose: no second copy of the schema. The script waits for `mysql-cluster-init` first (during the bootstrap the server is `super_read_only`). The Job runs the released `db-migrate` image (`deploy/migrate`: `migrate.mjs`, `scripts/migrations`, `mysql2` locked by its `bun.lock`; pinned by digest by `deploy.yml`): nothing is installed at run time. It connects as the MySQL user `migrator` (DDL/DML on `financial_scraper` only, password `MYSQL_MIGRATE_PASSWORD`), created or updated on every deploy by the idempotent Job `db-migrate-user` (the only one that reads `MYSQL_ROOT_PASSWORD`; works on a database initialised before the user existed). The password must match `[A-Za-z0-9_.@%+=-]`
 - PodDisruptionBudget: minAvailable 1
@@ -263,6 +271,10 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
   :13133
 - **Jaeger:** 1 replica, OTLP gRPC receiver
 - **Prometheus:** StatefulSet, 50Gi PVC, 30d retention, mTLS scrape
+  (`kubelet` / `cadvisor` jobs: the kubelet certificate is verified by the cluster
+  CA in production, so the nodes need `serverTLSBootstrap: true` and approved
+  `kubelet-serving` CSRs; staging overlays skip the check. See
+  [runbook-infrastructure](../operations/runbooks/runbook-infrastructure.md))
 - **Grafana:** StatefulSet, 10Gi PVC, Prometheus + Jaeger datasources
 - **Loki + promtail:** promtail is a node agent (`trading-model-node`) tailing
   `/var/log/pods` of the application namespace
@@ -277,8 +289,9 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 Per [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) the platform uses SPIFFE/SPIRE instead of the former
 in-house CA:
 
-- **SPIRE Server:** Deployment in the application namespace (MySQL datastore,
-  `spire` database). Config rendered with `-expandEnv` (the official images
+- **SPIRE Server:** Deployment in the application namespace (SQLite datastore
+  and CA keys on its PVC `spire-server-data`, ADR-0065; SVID TTL 4 h). Agents
+  bootstrap again by themselves when the server CA changes (`rebootstrap_mode`). Config rendered with `-expandEnv` (the official images
   have no shell). The `k8sbundle` notifier publishes the trust bundle into the
   `spire-bundle` ConfigMap of `trading-model-node`
 - **SPIRE Agent:** DaemonSet in `trading-model-node` (`hostPID` +
@@ -331,7 +344,7 @@ Details, threat model and operations: [Encryption at Rest](ENCRYPTION_AT_REST.md
 
 - **Development:** Kubernetes Secrets with generator values
 - **Production:** Use SealedSecrets, External Secrets Operator, or Vault
-- **TLS certificates:** cert-manager ClusterIssuer manages only the **public ingress** certs (api-gateway, Grafana). Inter-service mTLS is entirely SPIRE-based (ADR-0011): SVIDs issued by SPIRE Server, consumed via `spiffe-helper` sidecars — no manual TLS secrets for internal traffic.
+- **TLS certificates:** cert-manager ClusterIssuer manages only the **public ingress** certs (api-gateway, Grafana). MySQL client TLS uses a cert-manager Issuer of the namespace (`docs/deployment/MYSQL_TLS.md`). Inter-service mTLS is entirely SPIRE-based (ADR-0011): SVIDs issued by SPIRE Server, consumed via `spiffe-helper` sidecars — no manual TLS secrets for internal traffic.
 
 ### Service Accounts
 

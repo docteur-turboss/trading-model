@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -29,7 +29,8 @@ KIND="${KIND:-kind}"
 CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
-API_KEY="dev-token-change-me" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
+CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
+API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
 SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
@@ -42,6 +43,10 @@ export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
+# compose interpolates these (ADR-0067) even for `build`
+for v in MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD; do
+	export "$v=${!v:-kind-ci}"
+done
 
 log() { echo "[kind] $*"; }
 
@@ -164,6 +169,10 @@ cluster() {
 		# A failed create (kindest/node pull) leaves a half-made cluster: drop it between attempts.
 		retry 3 bash -c '"$0" delete cluster --name "$1" >/dev/null 2>&1; "$0" create cluster --name "$1" --wait 180s' "$KIND" "$CLUSTER"
 	fi
+	# Prerequisite of mysql-tls.yaml (ADR-0060), as on a real cluster (deploy/staging-local/bootstrap.sh).
+	kubectl config use-context "kind-${CLUSTER}" >/dev/null
+	retry 3 kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER}/cert-manager.yaml"
+	kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=300s
 }
 
 # Selects the credentials of the current (sub)shell. Once `identities` has run,
@@ -219,7 +228,7 @@ migrations() {
 		node "$ROOT/tests/k8s/ci-render.mjs" --secret >"$sealed" || return 1
 	fi
 	(cd "$1" && use_kube &&
-		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
+		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS" ${2:+"$2"})
 }
 
 # The overlay of the checkout `$1`, pinned to the digests of file `$2` as
@@ -303,6 +312,8 @@ release() {
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
 	release_script wait "$NS" "${2:-180s}" || return 1
+	# mysqld now serves the cert-manager certificate: bind the users to their client certificates.
+	migrations "$ROOT" user-only || return 1
 	deploy_script smoke-test
 }
 
@@ -311,7 +322,7 @@ release() {
 
 # The final upgrade to N under the probe: `release` runs while requests flow
 # through edge-proxy to discovery-server, trader-trainer (Lease handover,
-# ADR-0058) and financial-scraper (PROBE_ROUTES) and market candles are
+# ADR-0067) and financial-scraper (PROBE_ROUTES) and market candles are
 # written. Fails above
 # PROBE_MAX_FAILURES (default 0: a release must not drop a request) failed
 # requests or when a candle of BTCUSDT is missing (gap above one interval,
@@ -500,6 +511,13 @@ upgrade() {
 	}
 	log "  $last rolled back and applied again, same checksums"
 
+	# ADR-0065: the forced-failure run moved the SPIRE server to a new CA, and the
+	# N-1 edge-proxy pod the rollback started cannot reload its trust bundle
+	# (only N can). Restart it so the probe window measures the upgrade, not that
+	# one-off CA change; drop this once N-1 itself reloads the bundle.
+	$K -n "$NS" rollout restart deployment/edge-proxy
+	$K -n "$NS" rollout status deployment/edge-proxy --timeout=180s
+
 	log "upgrade N-1 → N, availability probed through edge-proxy"
 	verify_collection_gap "upgrade N-1 → N" release_under_probe || {
 		log "the upgrade to release N failed, dropped requests, or stopped the market data 30 s or more"
@@ -509,10 +527,13 @@ upgrade() {
 	verify_collection_gap "restart N → N" collector_handover || return 1
 	# Every exporter reaches its database, so neither MySQLDown nor RedisDown
 	# (critical, verify-release rolls back on them) fires (issue #698).
-	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = 1, no MySQLDown / RedisDown"
+	# mongodb_up = 1 means the `exporter` user (clusterMonitor, ADR-0067) exists on
+	# every member: the Jobs mongo-*-users ran after the transition step.
+	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = min(mongodb_up) = 1, no MySQLDown / RedisDown / MongoDBDown"
 	wait_for 180 '[ "$(prometheus_value "min(mysql_up)")" = 1 ] && [ "$(prometheus_value "min(redis_up)")" = 1 ] &&
-		[ -z "$(prometheus_value "ALERTS{alertname=~\"MySQLDown|RedisDown\"}")" ]' || {
-		log "  min(mysql_up)=$(prometheus_value 'min(mysql_up)') min(redis_up)=$(prometheus_value 'min(redis_up)')"
+		[ "$(prometheus_value "min(mongodb_up)")" = 1 ] &&
+		[ -z "$(prometheus_value "ALERTS{alertname=~\"MySQLDown|RedisDown|MongoDBDown\"}")" ]' || {
+		log "  min(mysql_up)=$(prometheus_value 'min(mysql_up)') min(redis_up)=$(prometheus_value 'min(redis_up)') min(mongodb_up)=$(prometheus_value 'min(mongodb_up)')"
 		return 1
 	}
 	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up in $((SECONDS - started)) s"
@@ -629,6 +650,7 @@ verify() {
 	verify_egress
 	verify_mongo_ingress
 	verify_db_ingress
+	verify_mysql_tls
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -656,6 +678,44 @@ verify() {
 	verify_backup
 
 	log "OK: the staging overlay works on Kubernetes"
+}
+
+# Issue #802 (ADR-0065): with every MySQL pod gone (mysql-0 included), the
+# SPIRE server restarts on its SQLite datastore and a restarted application
+# pod still gets an SVID. MySQL is brought back afterwards.
+verify_identity_without_mysql() {
+	local mysql_replicas
+	mysql_replicas="$($K -n "$NS" get statefulset mysql -o jsonpath='{.spec.replicas}')"
+	log "SVIDs without MySQL: statefulset mysql scaled to 0 (was $mysql_replicas)"
+	$K -n "$NS" scale statefulset mysql --replicas=0
+	$K -n "$NS" wait --for=delete pod mysql-0 --timeout=300s
+	$K -n "$NS" rollout restart deployment/spire-server
+	$K -n "$NS" rollout status deployment/spire-server --timeout=300s
+	wait_for 60 "$K -n $NS exec deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock"
+	# A datastore read: the entries are served from SQLite, not MySQL.
+	wait_for 60 "$K -n $NS exec deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server entry count -socketPath /run/spire/server-sockets/api.sock | grep -Eq '[1-9]'"
+	log "  SPIRE server healthy without MySQL"
+	$K -n "$NS" rollout restart deployment/discovery-server
+	$K -n "$NS" rollout status deployment/discovery-server --timeout=300s
+	local pod pods
+	# Pods of the old ReplicaSet may still be terminating: skipped. Captured
+	# first so a kubectl failure stops the step (set -e) instead of an empty loop.
+	pods="$($K -n "$NS" get pod -l app.kubernetes.io/component=discovery-server -o go-template --template '{{range .items}}{{if not .metadata.deletionTimestamp}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}')"
+	[ -n "$pods" ] || {
+		log "no discovery-server pod found"
+		return 1
+	}
+	for pod in $pods; do
+		$K -n "$NS" exec "$pod" -c discovery-server -- test -s /run/spire/svid/svid.pem || {
+			log "$pod restarted without MySQL has no SVID"
+			return 1
+		}
+		log "  $pod has its SVID"
+	done
+	log "  restarted discovery-server pods got their SVID"
+	$K -n "$NS" scale statefulset mysql --replicas="$mysql_replicas"
+	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
+	log "  MySQL back ($mysql_replicas replicas)"
 }
 
 # Requests through edge-proxy must leave in Jaeger a trace that spans
@@ -774,8 +834,8 @@ tcp_probe() {
 # NetworkPolicy, not from the image or the name.
 verify_db_ingress() {
 	local target host label
-	log "MySQL 3306 and Redis 6379: refused to an unlisted pod, allowed to a listed component"
-	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:message-manager; do
+	log "MySQL 3306, Redis 6379 and api-gateway 3000: refused to an unlisted pod, allowed to a listed component (issue #813)"
+	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:message-manager api-gateway:3000:edge-proxy; do
 		label="${target##*:}"
 		host="${target%:*}"
 		retry 3 tcp_probe db-probe-allowed "app.kubernetes.io/component=$label" "$host" >/dev/null || {
@@ -787,6 +847,35 @@ verify_db_ingress() {
 			return 1
 		fi
 	done
+}
+
+# MySQL TLS (issue #767, ADR-0060), run from the tls-reload sidecar of mysql-0
+# (mysql client, MYSQL_PWD = root password, client certificate of root):
+# the server certificate is verified by name, a plain TCP connection is
+# refused (require_secure_transport=ON), and so is a TLS connection of root
+# without its client certificate (the password alone does not open a session).
+verify_mysql_tls() {
+	local tls="--ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/mysql-tls/ca.crt" cert="--ssl-cert=/etc/mysql-client-root/tls.crt --ssl-key=/etc/mysql-client-root/tls.key"
+	local run="$K -n $NS exec mysql-0 -c tls-reload -- mysql -h mysql-primary -N -e"
+	log "MySQL TLS: certificate verified by name, plain and certificate-less connections refused"
+	$K -n "$NS" wait --for=condition=Ready certificate/mysql-tls certificate/mysql-client-root certificate/mysql-client-scraper --timeout=120s
+	[ -n "$($run "SHOW STATUS LIKE 'Ssl_cipher'" -uroot $tls $cert | cut -f2)" ] || {
+		log "  no TLS session with a client certificate and --ssl-mode=VERIFY_IDENTITY on mysql-primary"
+		return 1
+	}
+	[ "$($run 'SELECT @@require_secure_transport' -uroot $tls $cert)" = 1 ] || {
+		log "  require_secure_transport is not ON"
+		return 1
+	}
+	if $run 'SELECT 1' -uroot --ssl-mode=DISABLED >/dev/null 2>&1; then
+		log "  plain connection accepted"
+		return 1
+	fi
+	if $run 'SELECT 1' -uroot $tls >/dev/null 2>&1; then
+		log "  TLS connection without client certificate accepted"
+		return 1
+	fi
+	log "  TLS session verified, plain and certificate-less connections refused"
 }
 
 # Production runs message-manager and discovery with 3 replicas (staging: 1).
@@ -930,7 +1019,8 @@ mongo_primary() {
 }
 
 mongo_eval() {
-	$K -n "$NS" exec "$(mongo_primary "$1")" -- mongosh --quiet --eval "$2"
+	# As `root` (ADR-0067); the password is in the pod's env.
+	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
 mysql_root() {
@@ -978,8 +1068,8 @@ audit_metric() {
 
 # The services writing to the databases, stopped during a restore
 # (BACKUP_DR.md): a write between the dump restore and the binlog / oplog
-# replay would make the replay fail. The SPIRE server (MySQL `spire`
-# database) is stopped and restarted by restore-k8s.sh itself.
+# replay would make the replay fail. The SPIRE server (SQLite on its own
+# volume, ADR-0065) is stopped and restarted by restore-k8s.sh itself.
 MONGO_WRITERS="audit-logger dlq-service"
 MYSQL_WRITERS="financial-scraper financial-scraper-collector"
 
@@ -1214,7 +1304,7 @@ verify_backup() {
 	drill_record fetch_offsite "$fetch_seconds"
 	# The run: 5 dumps + 3 PITR starting points + the run manifest, which
 	# restore-k8s.sh selects and verifies with; then the archives replayed.
-	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
+	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'data_*.tar.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
 	[ "$fetched" -eq 9 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
 		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 9 (5 dumps, 3 PITR starting points, run manifest)"
 		return 1
@@ -1240,16 +1330,6 @@ verify_backup() {
 		return 1
 	}
 	log "  run and archives fetched, an instant past the archives is refused"
-
-	# The SPIRE server writes to the `spire` database the binlog replay
-	# restores: stopped now, restarted by restore-k8s.sh with its CA keys.
-	$K -n "$NS" scale deployment/spire-server --replicas=0
-	$K -n "$NS" wait --for=delete pod -l app.kubernetes.io/component=spire-server --timeout=120s || true
-
-	# Accounts are not in the dumps (`mysql` schema excluded): lose the SPIRE
-	# one too, and recreate it as the runbook does, or SPIRE cannot log in.
-	mysql_root "DROP USER 'spire'@'%';"
-	(cd "$ROOT" && use_kube && bash deploy/k8s/scripts/run-migrations.sh "$NS" user-only)
 
 	log "restore drill: scripts/restore-k8s.sh --until $until on the fetched run"
 	started=$SECONDS
@@ -1343,9 +1423,10 @@ verify_backup() {
 	log "  verify-restore-k8s.sh passes on the restore and fails on an altered audit event"
 
 	# The SPIRE server came back with the restored CA: the agents still hold
-	# SVIDs from the CA of the wiped volume and crash-loop until they re-attest.
-	# Restart them and wait for the CSI driver, or the writers cannot mount the
-	# Workload API socket and never become ready.
+	# SVIDs from the CA of the wiped volume until they bootstrap again
+	# (rebootstrap_mode, 1 min, ADR-0065). Restart them now and wait for the
+	# CSI driver, or the writers cannot mount the Workload API socket and never
+	# become ready.
 	drill_record verify_data $((SECONDS - step_started))
 	step_started=$SECONDS
 	log "restore drill: SPIRE agents re-attested against the restored CA"
@@ -1478,10 +1559,11 @@ all)
 	smoke
 	verify
 	verify_canary
+	verify_identity_without_mysql
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_mysql_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

@@ -13,6 +13,7 @@ import type {
 	ServiceCachePort,
 } from "../../../domain/ports/service-cache.port";
 
+/** Cache of discovered service instances with a TTL, writes serialized by a mutex. */
 export class ServiceCache implements ServiceCachePort {
 	private readonly _cacheStore: TtlCacheBase<ServiceInstance>;
 	private _mutexPromise: Promise<void> = Promise.resolve();
@@ -48,6 +49,9 @@ export class ServiceCache implements ServiceCachePort {
 		_region?: string
 	): Promise<ServiceInstance | null> {
 		return this._withLock(() => this._cacheStore.get(serviceName) ?? null);
+	}
+	getStale(serviceName: ServiceId): Promise<ServiceInstance | null> {
+		return this._withLock(() => this._cacheStore.getStale(serviceName) ?? null);
 	}
 	set(entry: CacheSetEntry): Promise<void> {
 		return this._withLock(() => {

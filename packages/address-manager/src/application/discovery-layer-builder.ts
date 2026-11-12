@@ -10,6 +10,7 @@ import {
 	MappingServiceLocator,
 	MapResolver,
 } from "./discovery/service-locator";
+/** Discovery components built together for the address manager. */
 export interface DiscoveryLayer {
 	circuitBreaker: DiscoveryCircuitBreaker;
 	healthChecker: ServiceHealthChecker;
@@ -59,6 +60,7 @@ function buildDiscoveryOrchestrator(
 		healthChecker,
 	});
 }
+/** Builds the discovery layer (cache, discovery, circuit breakers) on the HTTP layer. */
 export function buildDiscoveryLayer(
 	httpClient: HttpClient,
 	serviceCache: ServiceCachePort,

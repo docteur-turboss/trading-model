@@ -1,4 +1,5 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { mongoAuthFromEnv } from "@trading-model/persistence/mongo-utils";
 import {
 	chainAuditSettingsFromEnv,
 	createChainAudit,
@@ -59,7 +60,10 @@ export async function runChainCli(
 if (require.main === module) {
 	runChainCli(process.argv.slice(2), {
 		open: async () => {
-			const { mongoManager, db } = await createRepositories(ENV.MONGODB_URI);
+			const { mongoManager, db } = await createRepositories(
+				ENV.MONGODB_URI,
+				mongoAuthFromEnv(ENV)
+			);
 			return {
 				audit: createChainAudit(db, chainAuditSettingsFromEnv()),
 				close: () => mongoManager.close(),

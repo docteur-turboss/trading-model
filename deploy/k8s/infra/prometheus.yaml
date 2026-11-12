@@ -137,17 +137,16 @@ spec:
                 until [ -s "/run/spire/svid/$f" ]; do echo "waiting for /run/spire/svid/$f"; sleep 2; done
               done
               # The ConfigMap is not hash-suffixed and Prometheus does not reread a changed
-              # config by itself: reload it, or an upgrade keeps scraping the old targets.
+              # config by itself: SIGHUP it (no lifecycle API, issue #850), or an upgrade keeps scraping the old targets.
               confsum() { cat /etc/prometheus/* 2>/dev/null | cksum; }
               (last="$(confsum)"; while sleep 20; do
                 cur="$(confsum)"
-                if [ "$cur" != "$last" ] && wget -q -O /dev/null --post-data= http://localhost:9090/-/reload; then last="$cur"; fi
+                if [ "$cur" != "$last" ] && kill -HUP 1; then last="$cur"; fi
               done) &
               exec /bin/prometheus \
                 --config.file=/etc/prometheus/prometheus.yml \
                 --storage.tsdb.path=/prometheus \
                 --storage.tsdb.retention.time=30d \
-                --web.enable-lifecycle \
                 --enable-feature=expand-external-labels
           ports:
             - containerPort: 9090
@@ -261,6 +260,9 @@ data:
             - names: ['alertmanager-ready']
               type: A
               port: 9093
+
+    scrape_config_files:
+      - /etc/prometheus/kubelet-scrape.yml
 
     scrape_configs:
       - job_name: 'message-manager'
@@ -518,44 +520,6 @@ data:
             port: 9093
 
       # ── Infrastructure (issue #601, ADR-0056) ──────────────────────
-      # Kubelet of every node, with this pod's ServiceAccount token and
-      # nodes/metrics (ClusterRole prometheus-nodes). The kubelet serving
-      # certificate is self-signed on most clusters (kind included), so it
-      # is not verified. Only the series the alerts and dashboards read
-      # are kept: the kubelet and cAdvisor expose thousands.
-      - job_name: 'kubelet'
-        scheme: https
-        authorization:
-          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-        tls_config:
-          insecure_skip_verify: true
-        kubernetes_sd_configs:
-          - role: node
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_node_name]
-            target_label: node
-        metric_relabel_configs:
-          - source_labels: [__name__]
-            regex: 'kubelet_volume_stats_(used|capacity|available)_bytes'
-            action: keep
-
-      - job_name: 'cadvisor'
-        scheme: https
-        metrics_path: /metrics/cadvisor
-        authorization:
-          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-        tls_config:
-          insecure_skip_verify: true
-        kubernetes_sd_configs:
-          - role: node
-        relabel_configs:
-          - source_labels: [__meta_kubernetes_node_name]
-            target_label: node
-        metric_relabel_configs:
-          - source_labels: [__name__]
-            regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
-            action: keep
-
       # DaemonSet node-exporter (trading-model-node), on the host network.
       - job_name: 'node-exporter'
         kubernetes_sd_configs:
@@ -675,6 +639,47 @@ data:
           - source_labels: [__meta_kubernetes_pod_name]
             target_label: pod
 
+  kubelet-scrape.yml: |
+    scrape_configs:
+      # Kubelet of every node, with this pod's ServiceAccount token and
+      # nodes/metrics (ClusterRole prometheus-nodes). The serving certificate is
+      # verified against the cluster CA: the nodes need serverTLSBootstrap and
+      # approved CSRs (docs/deployment/KUBERNETES.md). Staging overlays replace
+      # this key to skip verification (kubelet certificates self-signed on kind).
+      # Only the series the alerts and dashboards read are kept.
+      - job_name: 'kubelet'
+        scheme: https
+        authorization:
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+        metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: 'kubelet_volume_stats_(used|capacity|available)_bytes'
+            action: keep
+
+      - job_name: 'cadvisor'
+        scheme: https
+        metrics_path: /metrics/cadvisor
+        authorization:
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+        metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
+            action: keep
+
   alerting.yml: |
     groups:
       - name: trading-model
@@ -779,13 +784,13 @@ data:
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
           - alert: CertificateExpiry
-            expr: probe_ssl_earliest_cert_expiry - time() < 1800
+            expr: probe_ssl_earliest_cert_expiry - time() < 3600
             for: 5m
             labels:
               severity: warning
             annotations:
               summary: 'SVID close to expiry on {{ $labels.service }}'
-              description: 'The served X.509-SVID expires in less than 30 minutes (TTL 1h, renewed at half-life): SPIRE rotation is stalled.'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
           - alert: CircuitBreakerOpen
@@ -986,6 +991,27 @@ data:
               summary: 'MySQL retention job has not succeeded for 36 hours'
               description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
+
+          # -- Authentication failures and ACL denials -------------------
+
+          - alert: ApiAuthFailuresHigh
+            expr: 'sum by (job) (rate(gw_auth_failures_total[5m])) > 0.1'
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'API key authentication failures above 6 per minute'
+              description: 'The gateway rejected more than 6 requests per minute for 5 minutes (bad or missing API key): key brute force, a leaked or rotated key still in use, or a misconfigured client (runbook-auth-failures).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#apiauthfailureshigh'
+
+          - alert: MtlsAclDenials
+            expr: 'sum by (job) (increase(http_mtls_denials_total[5m])) > 0'
+            labels:
+              severity: warning
+            annotations:
+              summary: 'A service denied an mTLS or ACL request'
+              description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#mtlsacldenials'
 
           # ── Audit trail integrity (ADR-0027) ──────────────────────────
 
@@ -1338,6 +1364,26 @@ data:
               summary: 'Trained models are not stored on {{ $labels.job }}'
               description: '{{ $value | humanize }} model artifact write(s) failed in 30 minutes: the best agents are not kept. Check the trainer logs ("Failed to store model artifact") and TRAINER_MODEL_DIR (volume mounted, writable, not full).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelartifactwritefailing'
+
+          - alert: ModelBelowBuyAndHold
+            expr: max by (job, symbol) (tt_model_below_buy_and_hold_streak and on (job, instance) tt_training_leader == 1) >= 3
+            for: 0m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'The models of {{ $labels.symbol }} do worse than buy and hold'
+              description: 'The last {{ $value }} stored models of {{ $labels.symbol }} have a lower out-of-sample Sharpe than buy and hold on the same bars (tt_model_sharpe vs tt_model_buy_and_hold_sharpe): the trainer adds nothing over holding. No capital is at stake.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelbelowbuyandhold'
+
+          - alert: TrainerFeatureDrift
+            expr: max by (job, symbol) (tt_feature_drift_score and on (job, instance) tt_training_leader == 1) > 3
+            for: 1h
+            labels:
+              severity: warning
+            annotations:
+              summary: 'The live data of {{ $labels.symbol }} drifts from its model statistics'
+              description: 'A normalized field of {{ $labels.symbol }} received since the newest stored model has a mean {{ $value | humanize }} standard deviations away from the statistics stored with that model (tt_feature_drift_score), for 1 hour: the model sees a market it was not trained on.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainerfeaturedrift'
 
           - alert: AlertmanagerNotificationsFailing
             expr: |

@@ -76,5 +76,10 @@
     "testcontainers": "^12.2.1",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "qs": "^6.17.1",
+    "glob": "^14.0.4",
+    "minimatch": "^11.0.8"
   }
 }

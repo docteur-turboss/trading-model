@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 /**
  * Scopes of an API key (ADR-0059): `read` for the GET routes of
- * `PUBLIC_ROUTES`, `dlq:write` for the others (store, delete, replay DLQ
+ * `PUBLIC_ROUTES`, `dlq:write` for the others (delete, replay DLQ
  * entries).
  */
 export const API_SCOPES = ["read", "dlq:write"] as const;

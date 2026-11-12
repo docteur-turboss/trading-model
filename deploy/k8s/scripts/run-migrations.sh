@@ -28,6 +28,8 @@ JOBS="$(dirname "${BASH_SOURCE[0]}")/../jobs"
 run_job() { # <job> <manifest>
   kubectl delete job "$1" -n "$NS" --ignore-not-found
   sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" "$2" |
+    sed -e "s#^\( *\)- name: DB_SSL_CA\$#\1- name: DB_SSL_VERIFY\n\1  value: '${TLS_VERIFY:-true}'\n&#" \
+      -e "s#^\( *\)- name: MYSQL_HOME\$#\1- name: TLS_BIND\n\1  value: '${TLS_VERIFY:-true}'\n&#" |
     awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
     kubectl apply -n "$NS" -f -
   bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" "$1" 180
@@ -74,7 +76,11 @@ apply_new_sealed_keys() {
   file=$(file_keys) || exit 1
   # The controller rewrites Secret.data from this file: a key of the live Secret
   # absent from encryptedData would be erased (MYSQL_ROOT_PASSWORD, SIGNING_SECRET...).
+  # RETIRED_SECRET_KEYS (space-separated): keys no release mounts any more, whose
+  # removal is intended (ADR-0040 contract step, docs/deployment/sealed-secrets.md).
   gone=$(keys_not_in "$live" "$file")
+  for k in ${RETIRED_SECRET_KEYS:-}; do gone=$(tr ' ' '
+' <<<"$gone" | grep -vx "$k" | paste -sd ' ' -) || true; done
   if [ -n "$gone" ]; then
     echo "::error::$SEALED_SECRETS_FILE has no entry for live key $gone: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md)."
     exit 1
@@ -129,6 +135,31 @@ fi
 
 apply_new_sealed_keys
 require_migrate_password
+# The jobs below mount the client certificate Secrets of cert-manager (issue #767), which the
+# overlay (applied after the migrations) would otherwise create too late on an upgrade from a
+# release without them: the pod would wait on a missing Secret until the Job deadline.
+# Upgrade from a release without TLS: mysqld still serves its auto-generated certificate (the
+# overlay rolls it after the migrations), which no client can verify. The jobs then use an
+# encrypted but unverified session (ssl-mode=REQUIRED, DB_SSL_VERIFY=false) for this run only;
+# the overlay re-applies VERIFY_IDENTITY (docs/deployment/MYSQL_TLS.md, "Upgrade").
+TLS_VERIFY=true
+kubectl get statefulset mysql -n "$NS" -o jsonpath='{.spec.template.spec.volumes[*].name}' 2>/dev/null |
+  grep -qw mysql-tls || TLS_VERIFY=false
+if [ "$TLS_VERIFY" = true ]; then
+  kubectl apply -n "$NS" -f "$JOBS/../infra/mysql-tls.yaml"
+else
+  echo "mysql still serves its auto-generated certificate: migration jobs use ssl-mode=REQUIRED, no client certificate, users not bound yet (run this script again, user-only, once the overlay rolled mysql)"
+  sed -e 's/ssl-mode=VERIFY_IDENTITY/ssl-mode=REQUIRED/' -e '/^ *ssl-\(cert\|key\)=/d' "$JOBS/../infra/mysql-tls.yaml" | kubectl apply -n "$NS" -f -
+fi
+for s in mysql-client-root mysql-client-migrator mysql-client-retention; do
+  for _ in $(seq 60); do
+    kubectl get secret "$s" -n "$NS" >/dev/null 2>&1 && continue 2
+    sleep 2
+  done
+  echo "::error::cert-manager did not issue Secret $s (kubectl describe certificate $s -n $NS)"
+  exit 1
+done
+
 run_job db-migrate-user "$JOBS/migration-user-job.yaml"
 [ "${2:-}" = user-only ] && exit 0
 run_job db-migrate "$JOBS/migration-job.yaml"

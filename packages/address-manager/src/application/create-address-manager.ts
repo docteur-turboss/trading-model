@@ -12,6 +12,7 @@ import AddressManager from "./address-manager";
 
 export type { AddressManagerEnv };
 
+/** Creates an AddressManager from the environment. */
 export function createAddressManager(env: AddressManagerEnv) {
 	return new AddressManager(_buildAddressManagerConfig(env));
 }

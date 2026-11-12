@@ -50,6 +50,16 @@ services:
     image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo
     restart: unless-stopped
+    # Authentication on (issue #669, ADR-0067): the image creates `root` on an
+    # empty volume, `mongo-users` the other users. A volume created before
+    # needs `docker compose down -v`, or the localhost exception:
+    # docker exec trading-mongo mongosh admin --eval 'db.createUser({user: "root", pwd: process.env.MONGO_INITDB_ROOT_PASSWORD, roles: ["root"]})'
+    command: mongod --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set (MongoDB user, ADR-0067)}
+      # scripts/backup.sh and restore.sh read them inside the container.
+      MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0067)}
     volumes:
       - mongo-data:/data/db
     networks:
@@ -59,6 +69,30 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # One user per client, from deploy/mongo/users.js (same script as the K8s
+  # Jobs mongo-*-users). Idempotent: runs at every `up`.
+  mongo-users:
+    logging: *default-logging
+    image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+    container_name: trading-mongo-users
+    restart: "no"
+    command: mongosh --quiet mongo:27017/admin --file /scripts/users.js
+    environment:
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_EXPORTER_PASSWORD: ${MONGO_EXPORTER_PASSWORD:?MONGO_EXPORTER_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_AUDIT_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_AUDIT_DB: audit-logger
+      MONGO_DLQ_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
+      MONGO_DLQ_DB: dlq
+    volumes:
+      - ./deploy/mongo/users.js:/scripts/users.js:ro
+    networks:
+      - data-net
+    depends_on:
+      mongo:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Redis — discovery registry, message-manager subscriptions, dlq-service
@@ -234,15 +268,22 @@ services:
     pid: host
     volumes:
       - ./deploy/compose/spire/agent.conf:/etc/spire/agent.conf:ro
-      - /var/run/docker.sock:/run/docker.sock
       - spire-bootstrap:/run/spire/bootstrap:ro
       - spire-agent-data:/run/spire/agent-data
       - spire-agent-sockets:/run/spire/agent-sockets
     networks:
       - backend-net
+      - docker-api-net
+    # Root but without capability: the agent reads /proc of host PIDs
+    # (pid: host) and talks TCP; add a capability only with its reason.
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       spire-bootstrap:
         condition: service_completed_successfully
+      docker-socket-proxy:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/run/spire/agent-sockets/public/api.sock"]
       interval: 10s
@@ -458,7 +499,9 @@ services:
       SERVICE_NAME: audit-logger
       INSTANCE_ID: audit-logger-1
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MONGODB_URI: mongodb://mongo:27017/audit-logger
+      MONGODB_URI: mongodb://mongo:27017/audit-logger?authSource=admin
+      MONGO_USERNAME: audit-logger
+      MONGO_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0067)}
     volumes:
       - svid-audit:/run/spire/svid
     networks:
@@ -472,8 +515,8 @@ services:
     depends_on:
       spiffe-helper-audit:
         condition: service_started
-      mongo:
-        condition: service_healthy
+      mongo-users:
+        condition: service_completed_successfully
       discovery-server:
         condition: service_healthy
 
@@ -496,7 +539,9 @@ services:
       SERVICE_NAME: dlq-service
       INSTANCE_ID: dlq-service-1
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
-      MONGO_URI: mongodb://mongo:27017
+      MONGO_URI: mongodb://mongo:27017/?authSource=admin
+      MONGO_USERNAME: dlq-service
+      MONGO_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
       MONGO_DB: dlq
       MONGO_COLLECTION: dlq_entries
       MAX_ENTRIES: '100000'
@@ -517,8 +562,8 @@ services:
     depends_on:
       spiffe-helper-dlq:
         condition: service_started
-      mongo:
-        condition: service_healthy
+      mongo-users:
+        condition: service_completed_successfully
       discovery-server:
         condition: service_healthy
 
@@ -702,6 +747,7 @@ services:
       - ./deploy/edge-proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/edge-proxy/gateway.compose.inc:/etc/nginx/conf.d/gateway.inc:ro
       - ./deploy/edge-proxy/realip.compose.inc:/etc/nginx/conf.d/realip.inc:ro
+      - ${EDGE_LIMIT_KEY_INC:-./deploy/edge-proxy/edge-limit-key.inc}:/etc/nginx/conf.d/edge-limit-key.inc:ro
       - svid-edge:/run/spire/svid:ro
     networks:
       - backend-net
@@ -739,7 +785,6 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=30d'
-      - '--web.enable-lifecycle'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
@@ -824,14 +869,14 @@ services:
     image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
     container_name: trading-mongodb-exporter
     restart: unless-stopped
-    command:
-      - --mongodb.uri=mongodb://mongo:27017/?directConnection=true
+    environment:
+      MONGODB_URI: mongodb://exporter:${MONGO_EXPORTER_PASSWORD:?MONGO_EXPORTER_PASSWORD must be set (MongoDB user, ADR-0067)}@mongo:27017/admin?directConnection=true
     networks:
       - data-net
       - backend-net
     depends_on:
-      mongo:
-        condition: service_healthy
+      mongo-users:
+        condition: service_completed_successfully
 
   # Compose Redis has no ACL (single dev node): no exporter user.
   redis-exporter:
@@ -968,7 +1013,32 @@ services:
     networks:
       - backend-net
 
-  # Logs: reads the container logs through the Docker API (needs the socket).
+  # Only holder of the Docker socket (ADR-0011 amendment), mounted read-only.
+  # The proxy lets GET on /containers and /networks through; any POST answers 403.
+  docker-socket-proxy:
+    logging: *default-logging
+    image: tecnativa/docker-socket-proxy@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    container_name: trading-docker-socket-proxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: '1'
+      NETWORKS: '1'
+      POST: '0'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-api-net
+    # /_ping is allowed by default (PING=1) and reaches the Docker daemon.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2375/_ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+  # Logs: reads the container logs through the Docker API of docker-socket-proxy.
   promtail:
     logging: *default-logging
     image: grafana/promtail@sha256:b3db8e7b1cba0e8c45ce2ae72ebddfd88ebdcae86383f1680edf0074e9010ff6
@@ -976,15 +1046,26 @@ services:
     restart: unless-stopped
     volumes:
       - ./observability/promtail.yml:/etc/promtail/promtail.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - promtail-positions:/run/promtail
     networks:
       - backend-net
+      - docker-api-net
+    # Root (positions volume), no capability needed.
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
     depends_on:
-      - loki
+      loki:
+        condition: service_started
+      docker-socket-proxy:
+        condition: service_healthy
     command: -config.file=/etc/promtail/promtail.yml
 
 networks:
+  docker-api-net:
+    name: trading-docker-api-network
+    driver: bridge
+    internal: true
   data-net:
     name: trading-data-network
     driver: bridge

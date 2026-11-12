@@ -2,7 +2,7 @@
 # scripts/check-grafana-oidc.sh on fake rendered overlays.  bash tests/k8s/check-grafana-oidc.test.sh
 set -euo pipefail
 S="$(cd "$(dirname "$0")/../.." && pwd)/scripts/check-grafana-oidc.sh"
-KEYS="GRAFANA_OIDC_ENABLED GRAFANA_OIDC_CLIENT_ID GRAFANA_OIDC_CLIENT_SECRET GRAFANA_OIDC_AUTH_URL GRAFANA_OIDC_TOKEN_URL GRAFANA_OIDC_API_URL GRAFANA_OIDC_ALLOWED_DOMAINS GRAFANA_ROOT_URL"
+KEYS="GRAFANA_OIDC_ENABLED GRAFANA_OIDC_CLIENT_ID GRAFANA_OIDC_CLIENT_SECRET GRAFANA_OIDC_AUTH_URL GRAFANA_OIDC_TOKEN_URL GRAFANA_OIDC_API_URL GRAFANA_OIDC_ALLOWED_DOMAINS GRAFANA_ROOT_URL GRAFANA_BASIC_AUTH_ENABLED"
 render() { for k in "$@"; do echo "    $k: AgX"; done; }
 fail=0
 expect() { # name expected-exit env keys...

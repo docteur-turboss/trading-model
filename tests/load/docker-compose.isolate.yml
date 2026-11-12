@@ -93,6 +93,8 @@ services:
   jaeger:
     container_name: !reset null
     ports: !reset []
+  docker-socket-proxy:
+    container_name: !reset null
   promtail:
     container_name: !reset null
     ports: !reset []

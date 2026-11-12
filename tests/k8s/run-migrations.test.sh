@@ -19,7 +19,7 @@ echo "$*" >>"$STUB_LOG"
 if [ "$1" = apply ] && [ "${*: -1}" = - ]; then cat >>"$STUB_LOG.manifests"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = job ]; then exit 1; fi # no mysql-cluster-init Job
 if [ "$1" = get ] && [[ "$2" == job/* ]]; then printf "Complete "; exit 0; fi # wait-job.sh: Job done
-if [ "$1" = get ] && [ "$2" = secret ] && [ -n "${STUB_GET_ERR:-}" ]; then echo "$STUB_GET_ERR" >&2; exit 1; fi
+if [ "$1" = get ] && [ "$2" = secret ] && [[ "$3" == trading-model-secrets ]] && [ -n "${STUB_GET_ERR:-}" ]; then echo "$STUB_GET_ERR" >&2; exit 1; fi
 # STUB_*_AFTER_APPLY: what the Secret holds once the SealedSecret was applied
 applied() { grep -q '^apply .*sealed' "$STUB_LOG"; }
 if [ "$1" = get ] && [ "$2" = secret ] && [[ "$*" == *go-template* ]]; then
@@ -108,6 +108,12 @@ STUB_KEY= STUB_LIVE_KEYS="MYSQL_ROOT_PASSWORD SIGNING_SECRET" SEALED_SECRETS_FIL
 
 STUB_KEY=c2VjcmV0 STUB_LIVE_KEYS="MYSQL_MIGRATE_PASSWORD SIGNING_SECRET" SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
 { [ $RC = 1 ] && grep -q 'no entry for live key SIGNING_SECRET' <<<"$OUT" && ! grep -q '^apply\|job db-' "$STUB_LOG"; } && ok "live key missing from the file, migrate key present: refused before apply" || ko "guard with migrate key present"
+
+STUB_KEY=c2VjcmV0 STUB_LIVE_KEYS="MYSQL_MIGRATE_PASSWORD HMAC_SECRET" RETIRED_SECRET_KEYS=HMAC_SECRET SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
+{ ! grep -q 'no entry for live key' <<<"$OUT"; } && ok "retired live key absent from the file: accepted" || ko "retired key"
+
+STUB_KEY=c2VjcmV0 STUB_LIVE_KEYS="MYSQL_MIGRATE_PASSWORD HMAC_SECRET SIGNING_SECRET" RETIRED_SECRET_KEYS=HMAC_SECRET SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
+{ [ $RC = 1 ] && grep -q 'no entry for live key SIGNING_SECRET' <<<"$OUT"; } && ok "retired list does not hide other missing keys" || ko "retired scope"
 
 STUB_GET_ERR='Error from server (Forbidden): secrets is forbidden' SEALED_SECRETS_FILE="$WORK/single.yaml" run bash "$RUN" ns
 { [ $RC = 1 ] && grep -q 'cannot read Secret' <<<"$OUT" && ! grep -q '^apply\|job/' "$STUB_LOG"; } && ok "unreadable Secret: fatal, nothing applied" || ko "read error"

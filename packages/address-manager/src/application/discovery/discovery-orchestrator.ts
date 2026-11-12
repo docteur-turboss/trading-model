@@ -16,6 +16,7 @@ import type { DiscoveryCircuitBreaker } from "./circuit-breaker";
 import { DiscoveryRetryHandler } from "./discovery-retry-handler";
 import type { ServiceDiscovery } from "./service-discovery";
 
+/** Dependencies of DiscoveryOrchestrator. */
 export interface DiscoveryOrchestratorDeps {
 	serviceDiscovery: ServiceDiscovery;
 	serviceCache: ServiceCachePort;
@@ -23,6 +24,7 @@ export interface DiscoveryOrchestratorDeps {
 	healthChecker: ServiceHealthChecker;
 }
 
+/** Finds a service address: cache first, then discovery behind the circuit breaker. */
 export class DiscoveryOrchestrator {
 	readonly circuitBreaker: DiscoveryCircuitBreaker;
 	private readonly _serviceDiscovery: ServiceDiscovery;

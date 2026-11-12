@@ -2,6 +2,7 @@ import { DEFAULT_PRIVATE_CIDRS } from "@trading-model/primitives/primitives";
 import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
+import { weakSecretReason } from "@trading-model/validation/config/secret-strength";
 import { z } from "zod";
 
 const DISCOVERY_EXTRA = {
@@ -36,6 +37,17 @@ const DISCOVERY_ENV_SCHEMA = BaseEnvSchema.extend(RedisEnvSchema.shape)
 				code: z.ZodIssueCode.custom,
 				message:
 					"SIGNING_SECRET is required in production: shared by every replica, stable across restarts",
+				path: ["SIGNING_SECRET"],
+			});
+		}
+		const weak =
+			data.NODE_ENV === "production" && data.SIGNING_SECRET
+				? weakSecretReason(data.SIGNING_SECRET)
+				: undefined;
+		if (weak) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `SIGNING_SECRET ${weak}`,
 				path: ["SIGNING_SECRET"],
 			});
 		}

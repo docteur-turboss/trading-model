@@ -4,6 +4,7 @@ import type { AddressManagerClient } from "../adapters/outbound/client/address-m
 import { HeartbeatFailureHandler } from "./heartbeat-failure-handler";
 import type { ServiceClientDeps } from "./types";
 
+/** Sends the heartbeats of the registered instance. */
 export class HeartbeatManager implements HeartbeatSenderPort {
 	private _addressManagerClient: AddressManagerClient;
 	private _onSuccess: () => void;
