@@ -161,14 +161,15 @@ if $MIGRATE && [ -d "$MOUNT" ] && [ -n "$(ls -A "$MOUNT")" ]; then
 			# Stopping k3s leaves its containers (MySQL, Redis, Mongo, SPIRE) running.
 			case "$svc" in
 			k3s | k3s-agent) k3s-killall.sh ;;
-			docker) systemctl stop docker.socket ;;
+			docker) systemctl stop docker.socket || log "docker.socket not stopped (unit absent?)" ;;
 			esac
 		done
 	fi
 	# Also covers a missing --service: nothing is moved while a process uses the mount point.
 	if holders="$(lsof +D "$MOUNT" 2>/dev/null)"; then
 		echo "$holders" >&2
-		die "processes still use $MOUNT (listed above): stop them, or pass --service for their unit, then rerun"
+		cryptsetup close "$NAME" # the new disk holds no data yet; rerunning needs it closed
+		die "processes still use $MOUNT (listed above); /dev/mapper/$NAME is closed, the disk is formatted but empty. Stop them (or pass --service for their unit), restart any service stopped here if you give up, then rerun"
 	fi
 	previous="${MOUNT}.pre-encryption-$(date +%Y%m%d%H%M%S)"
 	log "moving $MOUNT to $previous"
