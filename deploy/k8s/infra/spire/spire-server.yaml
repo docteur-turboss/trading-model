@@ -78,9 +78,6 @@ spec:
               cpu: 500m
               memory: 512Mi
           volumeMounts:
-            - name: mysql-tls
-              mountPath: /etc/mysql-tls
-              readOnly: true
             - name: spire-config
               mountPath: /etc/spire
               readOnly: true
@@ -149,9 +146,6 @@ spec:
               drop:
                 - ALL
       volumes:
-        - name: mysql-tls
-          secret:
-            secretName: mysql-client-spire
         - name: spire-config
           configMap:
             name: spire-server-config
