@@ -49,8 +49,7 @@ Body (validated by `PublishSchema`):
     },
     "delivery": {
       "mode": "at-least-once",
-      "ttl": 60000,
-      "deduplicationId": "dedup-uuid"
+      "ttl": 60000
     }
   }
 }
@@ -129,7 +128,6 @@ Previously validated as `z.unknown()`, the `authContext` object is now strictly 
 - **Dead Letter Queue**: Undelivered messages are sent to dlq-service (a `POST` to its `/dlq` route, signed with `DLQ_AUTH_HMAC_SECRET`). While it cannot take one, the journal entry stays pending and is retried (no local file); an entry refused for good (400, 413) is counted (`mm_dlq_rejected_total`) and stays pending until the 24 h trim
 - **Graceful shutdown**: on SIGTERM the instance leaves discovery, keeps serving for `CACHE_TTL_MS`, stops its delivery worker after the attempts in flight (10 s at most); messages not delivered yet stay in the journal for the other replicas (K8s `terminationGracePeriodSeconds: 120`, compose `stop_grace_period: 2m`)
 - **Durable journal**: one Redis stream per topic, one consumer group per subscriber service (delivery once per service, at least once); entries older than 24 h are trimmed, and an undelivered one is counted (`mm_journal_trimmed_pending_total`), logged and alerted (`JournalEntriesTrimmed`); the backlog of each group is read every 15 s (`XINFO GROUPS`, `XPENDING`, `XRANGE`: calls per group, none per message) into `mm_journal_pending_entries` and `mm_journal_oldest_pending_age_seconds` (`JournalBacklogOld` at 15 min); `JOURNAL_MIN_REPLICAS` replicas must hold a write before the 202 (`WAIT`); production needs Redis with AOF
-- **Deduplication**: Via `deduplicationId` in delivery metadata
 - **Partitioning**: Via `partitionKey` in routing metadata
 - **Priority**: Via `priority` in routing metadata
 

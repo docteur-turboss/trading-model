@@ -109,7 +109,7 @@ interface MessageMetadata {
   correlationId?: string; // Flow correlation
   causationId?: string; // Causality chain
   routing?: { partitionKey?; priority? };
-  delivery?: { mode; ttl?; deduplicationId? };
+  delivery?: { mode; ttl? };
   security?: { authContext?; signature? };
 }
 ```

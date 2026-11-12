@@ -59,11 +59,6 @@ export const DELIVERY_METADATA_MODE_PREDICATE = z
 			.int("delivery.ttl must be a number")
 			.positive("delivery.ttl must be positive")
 			.optional(),
-		deduplicationId: z
-			.string(
-				"delivery.deduplicationId must be a string used to prevent duplicate message processing."
-			)
-			.optional(),
 		requireSubscriber: z
 			.boolean(
 				"delivery.requireSubscriber must be a boolean: refuse the publish when the topic has no subscriber."
