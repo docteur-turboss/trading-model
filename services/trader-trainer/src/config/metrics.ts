@@ -19,6 +19,9 @@ export const MODEL_ADMISSION_TOTAL = new promClient.Counter({
 	help: "Stored models by ADR-0030 verdict on the test segment: admissible or rejected",
 	labelNames: ["result"] as const,
 });
+for (const result of ["admissible", "rejected"] as const) {
+	MODEL_ADMISSION_TOTAL.inc({ result }, 0);
+}
 
 export const TRAINING_SESSIONS_TOTAL = new promClient.Counter({
 	name: "tt_training_sessions_total",

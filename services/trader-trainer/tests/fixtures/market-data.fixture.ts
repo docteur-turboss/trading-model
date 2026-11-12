@@ -133,19 +133,22 @@ export function feedCandles(
 		addData(dataType: string, symbol: TradingSymbol, data: CandleData): void;
 	},
 	symbol: string,
-	count: number
+	count: number,
+	/** Price offset of bar `i`; default: rises by 1 every bar. */
+	offset: (i: number) => number = (i) => i
 ): void {
 	const sym = TradingSymbol.of(symbol);
 	for (let i = 0; i < count; i++) {
+		const p = offset(i);
 		buffer.addData(
 			"candle",
 			sym,
 			makeCandle({
 				symbol: sym,
-				open: Price.of(100 + i),
-				high: Price.of(105 + i),
-				low: Price.of(95 + i),
-				close: Price.of(102 + i),
+				open: Price.of(100 + p),
+				high: Price.of(105 + p),
+				low: Price.of(95 + p),
+				close: Price.of(102 + p),
 				volume: Volume.of(1000 + i * 10),
 				timestamp: UnixTimestamp.of(Date.now() + i * 60000),
 				closeTimestamp: UnixTimestamp.of(Date.now() + (i + 1) * 60000),

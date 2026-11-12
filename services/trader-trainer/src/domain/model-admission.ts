@@ -33,7 +33,8 @@ export interface ModelAdmission {
 /**
  * Checks the ADR-0030 criteria on the test segment metrics of the published
  * genome. Undefined unless they were measured on the test segment: metrics of
- * the validation the selection read are biased upward (ADR-0068).
+ * the validation the selection read are biased upward (ADR-0068). Without bar
+ * timestamps (`barsPerYear` unknown) the ratios stay per bar.
  */
 export function assessAdmission(
 	meta: GenomeFitnessMeta | undefined,
