@@ -622,6 +622,9 @@
 				"type": "string",
 				"pattern": "^[0-9a-f]{64}$"
 			},
+			"admissible": {
+				"type": "boolean"
+			},
 			"gaControl": {
 				"type": "object",
 				"properties": {

@@ -110,6 +110,12 @@ describe("training and DLQ events", () => {
 		expect(
 			MESSAGE_PAYLOAD_SCHEMA.safeParse({ type, data: noSha }).success
 		).toBe(false);
+		// The ADR-0069 verdict reaches subscribers instead of being stripped.
+		const marked = MESSAGE_PAYLOAD_SCHEMA.safeParse({
+			type,
+			data: { ...model, admissible: false },
+		});
+		expect((marked.data?.data as any)?.admissible).toBe(false);
 	});
 
 	it("accepts dlq.entry.added", () => {
