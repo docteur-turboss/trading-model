@@ -50,6 +50,9 @@ export class ServiceCache implements ServiceCachePort {
 	): Promise<ServiceInstance | null> {
 		return this._withLock(() => this._cacheStore.get(serviceName) ?? null);
 	}
+	getStale(serviceName: ServiceId): Promise<ServiceInstance | null> {
+		return this._withLock(() => this._cacheStore.getStale(serviceName) ?? null);
+	}
 	set(entry: CacheSetEntry): Promise<void> {
 		return this._withLock(() => {
 			this._cacheStore.set(entry.serviceName, entry.instance);
