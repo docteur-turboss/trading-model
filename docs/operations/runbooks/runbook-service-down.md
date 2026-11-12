@@ -85,7 +85,7 @@ kubectl create secret docker-registry -n trading-model ghcr-secret \
 **Fix:**
 
 ```bash
-# Check SVID expiry (SPIRE-issued, 1h TTL by default)
+# Check SVID expiry (SPIRE-issued, 4h TTL, ADR-0065)
 kubectl exec -n trading-model deployment/<service> -- \
   openssl x509 -in /run/spire/svid/svid.pem -noout -dates
 

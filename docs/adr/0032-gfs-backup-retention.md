@@ -10,6 +10,8 @@ Backups were kept 30 days: `prune_old` (`scripts/backup-lib.sh`) deleted every f
 
 A run backs up, per file: `mongodb/<TS>/mongodb-audit.archive.gz.age` (audit trail, 5 years), `mongodb/<TS>/mongodb.archive.gz.age` (operational database, `dlq_entries` 30 days), `mysql/financial_scraper_<TS>.sql.gz.age` (one dump holding `financial_scraper`, 5 years, and the SPIRE datastore `spire`), `checkpoints/…` and `spire/keys_<TS>.json.age` (SPIRE CA private keys). Run manifests (issue #288) list the dumps of a run that succeeded.
 
+*Amended by [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md): the SPIRE datastore moved out of MySQL to SQLite on the server volume; the `spire` component is now `spire/data_<TS>.tar.age` (datastore snapshot + CA keys), and the MySQL dump no longer carries it once the contract step drops the `spire` database.*
+
 Options were put to the project owner on issue #292; the owner chose option 1 + B1 + C2 on 2026-11-03.
 
 ## Decision

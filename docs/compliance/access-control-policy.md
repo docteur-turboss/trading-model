@@ -126,7 +126,7 @@ The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity p
 | Review Type | Frequency | Scope |
 |---|---|---|
 | ACL audit | Annual | Verify service-to-service ACL mappings match current architecture |
-| SVID audit | Continuous | All SVIDs auto-rotated (1h TTL); expired SVIDs rejected |
+| SVID audit | Continuous | All SVIDs auto-rotated (4h TTL, ADR-0065); expired SVIDs rejected |
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
 | Grafana account review | Quarterly | List Grafana users (Administration > Users): remove leavers, keep Admin to named operators, check `GRAFANA_PASSWORD` was rotated after any break-glass use. Logins are in Loki (logger `context`) |

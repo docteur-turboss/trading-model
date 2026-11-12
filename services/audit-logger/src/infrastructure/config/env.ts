@@ -6,6 +6,9 @@ import { MongoUriSchema } from "./mongo-uri";
 
 const AUDIT_LOGGER_ENV_SHAPE = {
 	MONGODB_URI: MongoUriSchema.default("mongodb://localhost:27017/audit-logger"),
+	/** The `audit-logger` MongoDB user (issue #669); unset: no authentication (dev). */
+	MONGO_USERNAME: z.string().min(1).optional(),
+	MONGO_PASSWORD: z.string().min(1).optional(),
 	AUDIT_RETENTION_DAYS: z.coerce.number().int().positive().default(1827),
 	/** Verification + anchoring cycle of the audit chain (ADR-0027). */
 	AUDIT_CHAIN_INTERVAL_MS: z.coerce.number().int().positive().default(900_000),

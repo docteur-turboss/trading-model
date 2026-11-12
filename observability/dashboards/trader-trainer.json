@@ -142,6 +142,51 @@
           "legendFormat": "P95"
         }
       ]
+    },
+    {
+      "title": "Model Sharpe vs buy and hold (newest stored model, leader)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "max(tt_model_sharpe and on (job, instance) tt_training_leader == 1) by (symbol, segment)",
+          "legendFormat": "{{symbol}} model ({{segment}})"
+        },
+        {
+          "expr": "max(tt_model_buy_and_hold_sharpe and on (job, instance) tt_training_leader == 1) by (symbol, segment)",
+          "legendFormat": "{{symbol}} buy and hold ({{segment}})"
+        },
+        {
+          "expr": "max(tt_model_below_buy_and_hold_streak and on (job, instance) tt_training_leader == 1) by (symbol)",
+          "legendFormat": "{{symbol}} models below in a row"
+        }
+      ]
+    },
+    {
+      "title": "Model Return and Drawdown (newest stored model, leader)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "max(tt_model_return and on (job, instance) tt_training_leader == 1) by (symbol, segment)",
+          "legendFormat": "{{symbol}} return ({{segment}})"
+        },
+        {
+          "expr": "max(tt_model_max_drawdown and on (job, instance) tt_training_leader == 1) by (symbol, segment)",
+          "legendFormat": "{{symbol}} max drawdown ({{segment}})"
+        }
+      ]
+    },
+    {
+      "title": "Feature Drift Score (std of the model data, alert above 3)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 24 },
+      "targets": [
+        {
+          "expr": "max(tt_feature_drift_score and on (job, instance) tt_training_leader == 1) by (symbol)",
+          "legendFormat": "{{symbol}}"
+        }
+      ]
     }
   ],
   "tags": ["trading-model", "trader-trainer"],

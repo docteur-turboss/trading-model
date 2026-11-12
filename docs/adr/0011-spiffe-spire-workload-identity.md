@@ -34,7 +34,7 @@ Replace the in-house CA and the shared static certificate bundle with a **SPIRE*
 
 ### Target environments
 
-- **Kubernetes (staging/production):** SPIRE Server (HA, MySQL datastore using the platform's existing MySQL) + SPIRE Agent DaemonSet with the `k8s_psat` workload attestor. Registration entries map each Deployment's service account to its SPIFFE ID.
+- **Kubernetes (staging/production):** SPIRE Server (HA, MySQL datastore using the platform's existing MySQL) *Amended by [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md): one replica, SQLite datastore on its own volume, SVID TTL 4 h* + SPIRE Agent DaemonSet with the `k8s_psat` workload attestor. Registration entries map each Deployment's service account to its SPIFFE ID.
 - **Docker Compose (dev/CI):** single SPIRE Server + SPIRE Agent using the `docker` workload attestor (selectors on compose service labels), same SPIFFE ID scheme. CI fallback: join-token attestation when a privileged Docker socket is unavailable.
 
 ### Decommissioning
@@ -79,6 +79,6 @@ Replace the in-house CA and the shared static certificate bundle with a **SPIRE*
 
 See [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) (MySQL part done).
 
-MySQL client traffic is encrypted with a server certificate issued by cert-manager from an internal CA (`deploy/k8s/infra/mysql-tls.yaml`), not with SVIDs: an SVID carries a SPIFFE URI SAN and no DNS name, while MySQL clients verify the host name. The SPIRE server datastore connects with `root_ca_path` and the name `mysql-primary`; the SPIRE trust bundle is not added to the MySQL truststore. cert-manager is a cluster prerequisite. Rotation: `docs/deployment/MYSQL_TLS.md`.
+MySQL client traffic is encrypted with a server certificate issued by cert-manager from an internal CA (`deploy/k8s/infra/mysql-tls.yaml`), not with SVIDs: an SVID carries a SPIFFE URI SAN and no DNS name, while MySQL clients verify the host name. The SPIRE trust bundle is not added to the MySQL truststore. cert-manager is a cluster prerequisite. Rotation: `docs/deployment/MYSQL_TLS.md`.
 
 Clients authenticate with a **cert-manager client certificate per MySQL user** (owner decision of 2026-11-09, issue #767), bound by `REQUIRE ISSUER / SUBJECT`, and not with their SVID: MySQL maps a certificate to a user only through its subject DN, never through the URI SAN of an SVID, and the SPIRE server stores its datastore in this MySQL, so it cannot hold an SVID before MySQL runs. `require_secure_transport=ON` is active (plain TCP refused).
