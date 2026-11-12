@@ -30,12 +30,6 @@ export const MESSAGES_DLQ_TOTAL = new promClient.Counter({
 	labelNames: ["topic", "reason"] as const,
 });
 
-export const MESSAGES_DLQ_ERROR_TOTAL = new promClient.Counter({
-	name: "mm_messages_dlq_error_total",
-	help: "Total number of DLQ storage errors (file or service)",
-	labelNames: ["target"] as const,
-});
-
 export const JOURNAL_TRIMMED_PENDING_TOTAL = new promClient.Counter({
 	name: "mm_journal_trimmed_pending_total",
 	help: "Journal entries trimmed (24 h) before their service received them: messages lost",
@@ -54,19 +48,9 @@ export const JOURNAL_OLDEST_PENDING_AGE_SECONDS = new promClient.Gauge({
 	labelNames: ["topic", "service"] as const,
 });
 
-export const DLQ_FORWARD_FAILURES_TOTAL = new promClient.Counter({
-	name: "mm_dlq_forward_failures_total",
-	help: "Dead letters dlq-service could not take, kept in the local file",
-});
-
 export const DLQ_REJECTED_TOTAL = new promClient.Counter({
 	name: "mm_dlq_rejected_total",
-	help: "Dead letters dlq-service refused for good (invalid or too large)",
-});
-
-export const DLQ_FALLBACK_PENDING = new promClient.Gauge({
-	name: "mm_dlq_fallback_pending",
-	help: "Dead letters waiting in the local file for dlq-service (lost if the pod is deleted)",
+	help: "Dead letters dlq-service refused for good (invalid or too large); the journal entry stays pending until trimmed",
 });
 
 export const DELIVERY_LATENCY_SECONDS = new promClient.Histogram({

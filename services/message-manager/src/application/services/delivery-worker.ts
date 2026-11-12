@@ -155,7 +155,7 @@ export class DeliveryWorker {
 			dueAfterMs: retryDueMs,
 		};
 		const entries = [
-			...(claim
+			...(claim && !subscription.isCircuitOpen()
 				? await journal.claimDue(group, this._consumer, retry, BATCH)
 				: []),
 			...(await journal.readNew(group, this._consumer, BATCH, blockMs)),

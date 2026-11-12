@@ -131,7 +131,7 @@ sequenceDiagram
   end
   opt a subscriber keeps failing (at-least-once, 10 attempts)
     MM->>DLQ: signed POST /dlq
-    Note over MM,DLQ: dlq-service down: local JSON Lines file, forwarded later
+    Note over MM,DLQ: dlq-service down: entry stays in the journal, retried
   end
 ```
 

@@ -383,16 +383,6 @@ groups:
           description: 'Message-manager delivery rate is {{ $value | humanizePercentage }} over 5m.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md'
 
-      - alert: MessagesLost
-        expr: sum(increase(mm_messages_dlq_error_total{target="file"}[15m])) > 0
-        for: 0m
-        labels:
-          severity: critical
-        annotations:
-          summary: 'Dead-lettered messages could not be written: messages lost'
-          description: 'dlq-service could not take dead-lettered messages and message-manager could not keep them in DLQ_LOCAL_FALLBACK_PATH either: they are gone. Check that the path is on a writable volume, then dlq-service.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
-
       - alert: MessagesDeadLettered
         expr: sum by (topic) (increase(mm_messages_dlq_total[1h])) > 0
         for: 0m
@@ -403,18 +393,6 @@ groups:
           description: 'message-manager gave up delivering {{ $value | humanize }} message(s) on {{ $labels.topic }} in the last hour. They are in dlq-service (GET /dlq) to inspect and replay.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
-      # dlq-service cannot take dead letters: message-manager keeps them in a
-      # file that does not outlive the pod and sends them again every minute.
-      - alert: DeadLettersNotForwarded
-        expr: max by (instance) (mm_dlq_fallback_pending) > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'Dead letters kept in a message-manager pod, not in dlq-service'
-          description: '{{ $value }} dead letter(s) have waited 15 minutes in the local file of {{ $labels.instance }}: dlq-service cannot take them (down, unreachable, or another DLQ_AUTH_HMAC_SECRET). They are lost if the pod is deleted.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
-
       - alert: DeadLettersRejected
         expr: sum(increase(mm_dlq_rejected_total[1h])) > 0
         for: 0m
@@ -422,7 +400,7 @@ groups:
           severity: warning
         annotations:
           summary: 'dlq-service refused dead letters'
-          description: 'dlq-service refused {{ $value | humanize }} dead letter(s) in the last hour (invalid or too large): they are in DLQ_LOCAL_FALLBACK_PATH.rejected on the message-manager pod, and in its logs.'
+          description: 'dlq-service refused {{ $value | humanize }} dead letter(s) in the last hour (invalid or too large): their journal entries stay pending until trimmed after 24 h (a lost message, JournalEntriesTrimmed): fix the cause within 24 h, see the runbook and the message-manager logs.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
       # A DLQ delete or replay was done but message-manager refused its audit

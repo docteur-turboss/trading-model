@@ -27,12 +27,10 @@ jest.mock("../../../src/config/address-manager", () => ({
 const MOCK_CLOSE_MESSAGE_MANAGER = jest.fn(
 	async (..._args: any[]) => undefined
 );
-const MOCK_START_FORWARDING = jest.fn<(...args: any[]) => any>();
 const MOCK_START_DELIVERY = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../../src/config/message-manager", () => ({
 	closeMessageManager: MOCK_CLOSE_MESSAGE_MANAGER,
-	startDeadLetterForwarding: MOCK_START_FORWARDING,
 	startDelivery: MOCK_START_DELIVERY,
 }));
 
@@ -100,12 +98,6 @@ describe("app/index", () => {
 		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
 		opts.onStart();
 		expect(() => opts.onStop()).not.toThrow();
-	});
-
-	it("onStart should start forwarding the local dead letters", () => {
-		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
-		opts.onStart();
-		expect(MOCK_START_FORWARDING).toHaveBeenCalled();
 	});
 
 	it("should let in-flight publishes finish before closing", () => {
