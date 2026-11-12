@@ -36,7 +36,7 @@ MongoDB ran without authentication in K8s (`mongo-dlq`, `mongo-audit`) and in co
 - Release N restarts both StatefulSets one pod at a time (keyFile, flags). Until the Job has run, the exporters and the services started with credentials report authentication errors; they recover on their own.
 - A leaked pod environment gives the `backup` and `root` passwords of the pod it belongs to: the pods are only reachable by `exec`, which already gave full access without authentication.
 - `mongodump --oplog` and `mongorestore --oplogReplay` were run with these roles against a replica set with `keyFile` and `--transitionToAuth`, then against the same data directory with authentication enforced (anonymous: `Unauthorized`).
-- The release N+1 change is one line per StatefulSet (the flag) and an `AGENTS.md` update.
+- Release N+1 (issue #751) removed the flag: mongod enforces authentication.
 
 ## Alternatives Considered
 
@@ -49,4 +49,4 @@ MongoDB ran without authentication in K8s (`mongo-dlq`, `mongo-audit`) and in co
 
 ## Limits
 
-- Until release N+1, K8s mongod still runs with `--transitionToAuth`: a client without credentials keeps all rights. The "anonymous refused" and "`Unauthorized` outside the scope" checks on a replica set with a keyFile are only run by hand (see Consequences); `tests/k8s/run-kind.sh` checks `mongodb_up` and uses `root`, nothing more. The automated kind case for the enforced state ships with release N+1. Tracked by #751 (remove the flag, add the anonymous-refused kind case); #669 stays open until then.
+- A new cluster cannot create its users once the flag is gone: it must be installed with release 3.1.0 first (§6).

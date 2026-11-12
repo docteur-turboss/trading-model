@@ -26,9 +26,8 @@ const USERS = [
 	["dlq-service", "MONGO_DLQ_PASSWORD", [{ role: "readWrite", db: env.MONGO_DLQ_DB }]],
 ];
 
-// Before the first user exists (and while the replica set still accepts
-// unauthenticated clients, --transitionToAuth) the root user is created without
-// credentials; afterwards only root may manage users.
+// Before the first user exists (localhost exception) the root user is created
+// without credentials; afterwards only root may manage users.
 try {
 	admin.auth("root", rootPassword);
 } catch (e) {

@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -649,6 +649,7 @@ verify() {
 	verify_replicas
 	verify_egress
 	verify_mongo_ingress
+	verify_mongo_auth
 	verify_db_ingress
 	verify_mysql_tls
 
@@ -808,6 +809,22 @@ verify_mongo_ingress() {
 			log "  a pod without component label reached $host:27017"
 			return 1
 		fi
+	done
+}
+
+# mongod enforces authentication (ADR-0067, issue #751): an anonymous client and
+# the `exporter` user (clusterMonitor, no data rights) are refused on the data.
+verify_mongo_auth() {
+	local label pod auth
+	log "MongoDB: anonymous client and exporter refused with Unauthorized"
+	for label in mongodb mongodb-audit; do
+		pod="$(mongo_primary "$label")" || { log "  no primary for $label"; return 1; }
+		for auth in "" '-u exporter -p "$MONGO_EXPORTER_PASSWORD" --authenticationDatabase admin'; do
+			$K -n "$NS" exec "$pod" -- sh -c "mongosh --quiet $auth --eval \"db.getSiblingDB('admin').getCollectionNames()\" 2>&1" | grep -q Unauthorized || {
+				log "  $label accepted a client without data rights (${auth:-anonymous})"
+				return 1
+			}
+		done
 	done
 }
 
@@ -1561,9 +1578,9 @@ all)
 	verify_canary
 	verify_identity_without_mysql
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_mysql_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_mongo_auth | verify_db_ingress | verify_mysql_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

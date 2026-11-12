@@ -117,11 +117,6 @@ spec:
             - "0.0.0.0"
             - "--keyFile"
             - "/keyfile/keyfile"
-            # Expand step of the switch (ADR-0067): members authenticate each
-            # other, clients may still connect without credentials. Remove in
-            # the release after the one that adds the users and the client
-            # credentials: mongod then enforces authentication.
-            - "--transitionToAuth"
           ports:
             - containerPort: 27017
               name: mongodb
