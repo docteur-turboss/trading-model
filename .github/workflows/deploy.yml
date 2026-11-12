@@ -793,6 +793,24 @@ jobs:
           kubectl kustomize "deploy/k8s/overlays/$OVERLAY/node-agents" |
             KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply -f -
 
+      # A destructive migration cannot be undone by migrate-down or the rollback:
+      # the dump taken here (MySQL only, from the db-backup CronJob) is the restore point.
+      - name: Back up MySQL before migrations
+        if: ${{ !inputs.preflight_only && inputs.environment == 'production' }}
+        shell: bash
+        run: |
+          NS="${{ steps.ns.outputs.namespace }}"
+          if ! kubectl get statefulset mysql -n "$NS" >/dev/null 2>&1; then
+            echo "First deploy: MySQL not there yet, no backup"
+            exit 0
+          fi
+          job="db-backup-pre-migrate-${{ github.run_id }}"
+          kubectl create job "$job" --from=cronjob/db-backup -n "$NS" --dry-run=client -o json |
+            sed 's/--components mongodb,mysql,checkpoints,spire/--components mysql/' |
+            kubectl apply -n "$NS" -f -
+          bash deploy/k8s/scripts/wait-job.sh "$NS" "$job" 1800
+          echo "MySQL backup finished at $(date -u +%Y-%m-%dT%H:%M:%SZ) (job $job): restore point for restore-k8s.sh --until" >> "$GITHUB_STEP_SUMMARY"
+
       # Migrations must run before the new image rolls out. On a first deploy
       # MySQL does not exist yet: they run right after the overlay instead.
       - name: Run database migrations
