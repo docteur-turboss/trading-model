@@ -3,9 +3,10 @@ name: CI
 on:
   pull_request:
   # Merge commits to main get verified too, not only at release time.
-  # development is not listed: every change reaches it through a PR already run by pull_request.
+  # development: the push of a PR merge made by GitHub is skipped (its PR already ran pull_request,
+  # see the job conditions); a direct push, any other committer, gets its own run.
   push:
-    branches: [main]
+    branches: [main, development]
   # release.yml runs the whole CI on the tagged commit before pushing images.
   workflow_call:
 
@@ -20,7 +21,7 @@ concurrency:
 jobs:
   lint:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,7 +47,7 @@ jobs:
 
   typecheck:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -70,7 +71,7 @@ jobs:
 
   test:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -83,7 +84,7 @@ jobs:
 
   db-integration:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,7 +98,7 @@ jobs:
 
   observability:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -115,7 +116,7 @@ jobs:
   # The k8s job only deploys staging: production is checked by rendering.
   k8s-overlays:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -150,7 +151,7 @@ jobs:
 
   contract:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -185,7 +186,7 @@ jobs:
 
   e2e:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     env:
       MYSQL_ROOT_PASSWORD: ci-password
@@ -274,7 +275,7 @@ jobs:
   # data flow, the external path and observability.
   k8s:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     # 48 min on PR #460: the upgrade scenario drains the collector (360 s grace) 3 times.
     timeout-minutes: 75
