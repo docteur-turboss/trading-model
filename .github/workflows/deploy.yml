@@ -743,7 +743,7 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" |
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" "${{ steps.tag.outputs.tag }}" |
             bash deploy/k8s/scripts/deploy-release.sh dry-run "${{ steps.ns.outputs.namespace }}" "deploy/k8s/overlays/$OVERLAY/node-agents"
 
       # Every guard above ran (continue-on-error in preflight): one table, and
@@ -857,7 +857,7 @@ jobs:
         id: apply
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" |
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" "${{ steps.tag.outputs.tag }}" |
             bash scripts/split-cluster-scope.sh app | kubectl apply -f -
           # The former secret-rotation CronJob (issue #424) held write rights on every
           # Secret; apply never prunes, so remove what an older deploy left behind.
