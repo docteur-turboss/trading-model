@@ -19,15 +19,43 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
-  lint:
+  # Decides once which jobs run (a skipped gate skips every job that needs it) and whether the
+  # k8s job is worth running: always, except on a pull request touching nothing it deploys or tests.
+  gate:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
+    runs-on: ubuntu-latest
+    outputs:
+      k8s: ${{ steps.changes.outputs.k8s }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          k8s=true
+          if [ "$EVENT" = pull_request ] && ! git diff --name-only "$BASE...$GITHUB_SHA" |
+            grep -qE '^(deploy/|services/|packages/|tests/k8s/|scripts/|docker-compose[^/]*.yml$|.github/workflows/|bun.lock$|package.json$)'; then
+            k8s=false
+          fi
+          echo "k8s=$k8s" >> "$GITHUB_OUTPUT"
+
+  lint:
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', '.bun-version') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run deps:check
@@ -46,14 +74,18 @@ jobs:
         run: python3 scripts/check-workflows.py
 
   typecheck:
-    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', '.bun-version') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - name: Build packages (dependency order)
         run: bun run build
@@ -70,41 +102,53 @@ jobs:
         run: bun run typecheck:tests
 
   test:
-    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', '.bun-version') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: bun run test:coverage
 
   db-integration:
-    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', '.bun-version') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run build
       - name: Run specs against real databases (Testcontainers)
         run: bun run test:db:coverage
 
   observability:
-    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', '.bun-version') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - name: Observability gate
         run: bun scripts/observability-gate.mjs
@@ -115,8 +159,7 @@ jobs:
 
   # The k8s job only deploys staging: production is checked by rendering.
   k8s-overlays:
-    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -150,8 +193,7 @@ jobs:
         run: bash tests/k8s/deploy-release.test.sh
 
   contract:
-    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
+    needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -160,6 +202,11 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', '.bun-version') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: bun run test:contract
@@ -185,10 +232,11 @@ jobs:
           "$RUNNER_TEMP/oasdiff" breaking "$RUNNER_TEMP/base.yaml" docs/services/openapi/api-gateway.yaml --fail-on ERR "${ignore[@]}"
 
   e2e:
-    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
+    needs: gate
     runs-on: ubuntu-latest
     env:
+      # Compose names the images <project>-<service>; the bake step below tags them the same way.
+      COMPOSE_PROJECT_NAME: trading-e2e
       MYSQL_ROOT_PASSWORD: ci-password
       GRAFANA_PASSWORD: ci-grafana-password
       MYSQL_EXPORTER_PASSWORD: ci-mysql-exporter-password
@@ -204,16 +252,31 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', '.bun-version') }}
+          restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run build
       # Services only accept SPIFFE mTLS clients: readiness is read from the
       # container healthchecks (they present the SVID), not curled from the host.
       # The overlay points the scraper at a Binance stub. The observability
       # stack is not needed here.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # One gha cache scope per image: a shared scope would keep only the last image's layers.
+      - name: Build the images (layer cache)
+        run: |
+          f="-f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml"
+          args=()
+          for t in $(docker buildx bake $f --print | jq -r '.group.default.targets[]'); do
+            args+=(--set "$t.tags=$COMPOSE_PROJECT_NAME-$t" --set "$t.cache-from=type=gha,scope=e2e-$t" --set "$t.cache-to=type=gha,mode=max,scope=e2e-$t")
+          done
+          docker buildx bake $f --load "${args[@]}"
       - name: Boot the application stack
         run: >-
           docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml
-          up -d --build --wait --wait-timeout 600
+          up -d --wait --wait-timeout 600
           discovery-server message-manager financial-scraper trader-trainer
           api-gateway audit-logger dlq-service edge-proxy
       # Issue #844: no container of the started stack may publish on every interface.
@@ -274,11 +337,11 @@ jobs:
   # deploy.yml's smoke test and canary gate, and check SPIRE identities, the
   # data flow, the external path and observability.
   k8s:
-    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
+    needs: gate
+    if: ${{ needs.gate.outputs.k8s == 'true' }}
     runs-on: ubuntu-latest
-    # 48 min on PR #460: the upgrade scenario drains the collector (360 s grace) 3 times.
-    timeout-minutes: 75
+    # 30 min measured (audit run 43243495223); 48 min on PR #460, before the collector drain was cut.
+    timeout-minutes: 60
     env:
       KIND_VERSION: v0.27.0
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
