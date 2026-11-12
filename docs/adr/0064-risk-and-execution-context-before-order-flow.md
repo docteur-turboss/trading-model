@@ -15,7 +15,7 @@ The platform has no order chain. Of signal → decision → sizing → pre-trade
 - The only "kill switch" in the code is a fitness flag (`FEATURE_RISK_ADJUSTED_FITNESS`, ADR-0039): it changes how the GA scores agents and stops nothing.
 - `docs/compliance/algorithmic-trading-compliance.md` §6 suggested pre-trade checks as "order validation middleware in api-gateway" and a kill switch as a "circuit breaker webhook at gateway level". The gateway only proxies the `PUBLIC_ROUTES` of external callers and calls services with its own SVID; an order sent service to service never crosses it, so a control placed there is bypassed by design.
 
-The audit of trading risk (2026-11-11, score 9/100, "live trading forbidden") rates the execution controls 0 to 10/100. Root cause: the project is a research platform and execution was never designed. This ADR fixes the architecture of the layer that must exist before any order flow, paper or live. The amounts (daily loss, drawdown, sizes) belong to the loss limits and kill switch policy (issue #882), not here.
+The audit of trading risk (2026-11-11, score 9/100, "live trading forbidden") rates the execution controls 0 to 10/100. Root cause: the project is a research platform and execution was never designed. This ADR fixes the architecture of the layer that must exist before any order flow, paper or live. The amounts (daily loss, drawdown, sizes) belong to the [loss limits and kill switch policy](../compliance/risk-limits-policy.md) (issue #882), not here.
 
 ## Decision (proposed)
 
