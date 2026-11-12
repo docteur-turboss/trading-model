@@ -71,7 +71,10 @@ financial-scraper-collector, migration and retention Jobs) writes through
 one replica. A cluster created before issue #814 may still have the empty
 PVCs `mysql-data-mysql-1` / `mysql-data-mysql-2` (the scale-down never deletes
 a volume): once `mysql-0` is healthy, check they hold no data and remove them
-by hand: `kubectl delete pvc -n trading-model mysql-data-mysql-1 mysql-data-mysql-2`. Losing `mysql-0` stops market data ingestion
+by hand (`kubectl get pvc -n trading-model` first, and mount each one to confirm it is empty):
+`kubectl delete pvc -n trading-model mysql-data-mysql-1 mysql-data-mysql-2`.
+
+Losing `mysql-0` stops market data ingestion
 (financial-scraper, financial-scraper-collector).
 
 It no longer touches workload identity: the SPIRE server keeps its datastore

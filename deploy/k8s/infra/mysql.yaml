@@ -455,7 +455,7 @@ metadata:
     app.kubernetes.io/component: mysql
     app.kubernetes.io/part-of: trading-model
 spec:
-  minAvailable: 2
+  maxUnavailable: 1
   selector:
     matchLabels:
       app.kubernetes.io/component: mysql
