@@ -48,7 +48,7 @@ const CHECKS = [
   [REGISTER, `DLQ: ${dlqDays} days`],
   [REGISTER, `\`retention_period: ${lokiHours}\``],
   [REGISTER, `journaled ${journalH} h in Redis Streams`],
-  [POLICY, `Until delivered, ${journalH} h at most`],
+  ["docs/compliance/data-retention-policy.md", `Until delivered, ${journalH} h at most`],
   [REGISTER, `${mysqlDays} days (5 years`],
   [DPIA, `${auditDays} days audit, ${dlqDays} days DLQ`],
   [DPIA, `${keyPatterns} sensitive-key patterns`],
