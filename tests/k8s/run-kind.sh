@@ -850,7 +850,7 @@ verify_db_ingress() {
 	done
 }
 
-# Redis TLS (issue #768, ADR-0047): the certificate comes from cert-manager, a
+# Redis TLS (issue #930, ADR-0047): the certificate comes from cert-manager, a
 # client verifying the name "redis" gets a TLS session on 6380 and 26380, and
 # the clear ports answer exactly when REDIS_TLS_MODE is "optional".
 verify_redis_tls() {

@@ -38,7 +38,7 @@ Authentication (ADR-0067): a `keyFile` per replica set, and one user per client,
 | `backup` | `backup` | `mongodump` and the hourly oplog archives |
 | `root` | `root` | restore (oplog replay), user administration |
 
-Redis and Sentinel TLS (K8s, issue #768): listeners on 6380 / 26380 from release N, clear text closed from N+1 (`REDIS_TLS_MODE`, `docs/deployment/REDIS_TLS.md`).
+Redis and Sentinel TLS (K8s, issue #930): listeners on 6380 / 26380 from release N, clear text closed from N+1 (`REDIS_TLS_MODE`, `docs/deployment/REDIS_TLS.md`).
 
 Release 3.1.0 starts mongod with `--transitionToAuth` (clients without credentials still accepted, so the rolling restart never breaks the set); the next release removes the flag. `packages/persistence/tests/db/mongo-users.db.spec.ts` proves each user gets `Unauthorized` outside its scope.
 

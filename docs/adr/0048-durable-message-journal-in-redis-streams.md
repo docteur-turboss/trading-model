@@ -88,6 +88,6 @@ The publish response changes from `204` (after delivery) to `202 {"messageId"}` 
 - Alert on the journal backlog (oldest pending entry age) once there is a production baseline.
 - `XGROUP DELCONSUMER` for stopped replicas, and per-service delivery to instances (#493), if needed.
 
-## Amendment 2026-11 (issue #768): TLS
+## Amendment 2026-11 (issue #930): TLS
 
 The journal and subscriptions travel over the Redis connection of ADR-0047: clear text and TLS in release N, TLS only from N+1 (`REDIS_TLS_MODE`, `docs/deployment/REDIS_TLS.md`). Replication to the `JOURNAL_MIN_REPLICAS` replicas is encrypted from N+1 (`tls-replication yes`).

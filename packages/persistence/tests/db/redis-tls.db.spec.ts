@@ -16,7 +16,7 @@ const { composeImage } = require("../../../../scripts/compose-image.cjs") as {
 	composeImage: (service: string) => string;
 };
 
-// redis-ha.sh with REDIS_TLS_MODE (issue #768, ADR-0047) on one pod: the
+// redis-ha.sh with REDIS_TLS_MODE (issue #930, ADR-0047) on one pod: the
 // optional step still listens in clear text, the required step does not.
 const HA_SCRIPT = join(__dirname, "../../../../deploy/k8s/infra/redis-ha.sh");
 const dir = mkdtempSync(join(tmpdir(), "redis-tls-spec-"));

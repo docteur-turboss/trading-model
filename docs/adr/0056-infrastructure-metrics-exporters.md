@@ -43,6 +43,6 @@ The `mysqld-exporter` sidecars still reach `127.0.0.1:3306`, now over TLS: `--co
 
 `exporter.cnf` also names the client certificate of user `exporter` (Secret `mysql-client-exporter`), required by `REQUIRE ISSUER / SUBJECT`.
 
-## Amendment 2026-11 (issue #768): Redis TLS
+## Amendment 2026-11 (issue #930): Redis TLS
 
 The `redis_exporter` sidecars read `ca.crt` of `redis-tls` (`REDIS_EXPORTER_TLS_CA_CERT_FILE`) and keep `redis://127.0.0.1` in release N; from the required step they use `rediss://127.0.0.1:6380` / `26380` (the certificate carries `127.0.0.1`).
