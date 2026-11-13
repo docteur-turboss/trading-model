@@ -74,7 +74,6 @@ jest.mock("../../src/config/metrics", () => ({
 		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
 		entriesPruned: { inc: jest.fn<(...args: any[]) => any>() },
 		pruneErrors: { inc: jest.fn<(...args: any[]) => any>() },
-		entrySizeBytes: { observe: jest.fn<(...args: any[]) => any>() },
 		collectionSize: { set: jest.fn<(...args: any[]) => any>() },
 	},
 }));
