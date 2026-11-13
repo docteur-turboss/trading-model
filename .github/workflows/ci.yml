@@ -361,8 +361,29 @@ jobs:
   # overlay on kind (node agents, overlay, migrations, as deploy.yml does), run
   # deploy.yml's smoke test and canary gate, and check SPIRE identities, the
   # data flow, the external path and observability.
-  k8s:
+  # Images of release N-1 and N, built once for the three k8s groups (run-kind.sh images).
+  k8s-images:
     needs: gate
+    if: ${{ needs.gate.outputs.k8s == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Depth 2: release N-1 is HEAD^1, as in the k8s job.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - name: Build the images (release N-1 and N)
+        env:
+          KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
+        run: bash tests/k8s/run-kind.sh images
+      - name: Upload the images
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kind-images
+          path: ${{ runner.temp }}/kind-images.tar
+          retention-days: 1
+  k8s:
+    needs: [gate, k8s-images]
     if: ${{ needs.gate.outputs.k8s == 'true' }}
     name: k8s (${{ matrix.group }})
     runs-on: ubuntu-latest
@@ -378,6 +399,7 @@ jobs:
       KIND_VERSION: v0.27.0
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
       KIND: ./kind
+      KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
       # Restore drill timings (tests/backup/drill-timings.sh): JSON uploaded
       # below, table in the job summary. RESTORE_DRILL_BUDGET_SECONDS (default
       # 1200 s, about 5 times the 252 s of the first CI run; disaster to checks) and RESTORE_DRILL_BUDGET_MODE (fail or
@@ -408,8 +430,13 @@ jobs:
           fi
       - name: Create the cluster
         run: bash tests/k8s/run-kind.sh cluster
-      - name: Build and load the images (release N-1 and N)
-        run: bash tests/k8s/run-kind.sh images
+      - name: Download the images (release N-1 and N)
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: kind-images
+          path: ${{ runner.temp }}
+      - name: Load the images into kind
+        run: bash tests/k8s/run-kind.sh load
       - name: Deploy release N-1 (staging overlay)
         run: bash tests/k8s/run-kind.sh deploy
       # deploy.yml's steps with the restricted deploy identities (ADR-0041): a failed

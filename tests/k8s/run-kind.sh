@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|load|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -39,6 +39,8 @@ PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
 # steps of the CI job, removed by `delete`.
 WORK="$(dirname "$ROOT")/.kind-${CLUSTER}"
 PREVIOUS="$WORK/previous"
+# Images of N-1 and N, saved by `images` (ci.yml job k8s-images), loaded by `load`.
+IMAGE_ARCHIVE="${KIND_IMAGE_ARCHIVE:-$WORK/images.tar}"
 export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
@@ -146,18 +148,19 @@ images() {
 	build_images "$ROOT" latest
 	local images=""
 	for img in $IMAGES; do images="$images ghcr.io/trading-model/$img:latest ghcr.io/trading-model/$img:previous"; done
-	log "loading the images into kind"
+	# One archive for every cluster job (ci.yml `k8s-images`): built once, loaded by `load`.
+	log "saving the images to $IMAGE_ARCHIVE"
+	mkdir -p "$(dirname "$IMAGE_ARCHIVE")"
 	# shellcheck disable=SC2086
-	if ! "$KIND" load docker-image --name "$CLUSTER" $images; then
-		# Docker's containerd image store keeps multi-platform indexes that
-		# `kind load docker-image` cannot import: go through a single-platform archive.
-		local archive
-		archive="$(mktemp)"
-		# shellcheck disable=SC2086
-		docker save --platform linux/amd64 -o "$archive" $images
-		"$KIND" load image-archive --name "$CLUSTER" "$archive"
-		rm -f "$archive"
-	fi
+	docker save --platform linux/amd64 -o "$IMAGE_ARCHIVE" $images
+}
+
+# Loads the images saved by `images` into the kind cluster and records their
+# digests, as the cluster jobs need them.
+load() {
+	previous_checkout
+	log "loading the images into kind"
+	"$KIND" load image-archive --name "$CLUSTER" "$IMAGE_ARCHIVE"
 	node_digests previous >"$WORK/digests-previous"
 	node_digests latest >"$WORK/digests-current"
 }
@@ -272,6 +275,10 @@ apply_release() {
 deploy() {
 	log "release N-1: node agents (SPIRE agent, SPIFFE CSI driver, promtail)"
 	$K kustomize "$PREVIOUS/deploy/k8s/overlays/staging/node-agents" | $K apply -f -
+	# The overlay mounts the SPIFFE CSI socket: the driver must be registered first, or
+	# audit-logger crash-loops past its progress deadline (run 43331271388).
+	$K -n trading-model-node rollout status daemonset/spiffe-csi-driver --timeout=300s
+	$K -n trading-model-node rollout status daemonset/spire-agent --timeout=300s
 	$K apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
 
 	# As deploy.yml: the receivers exist before Alertmanager starts, or its
@@ -280,6 +287,9 @@ deploy() {
 
 	log "release N-1: staging overlay, images pinned by digest"
 	apply_release "$PREVIOUS" "$WORK/digests-previous"
+	# The TLS consumers (redis-sentinel, mysql, mongo) need their CA secrets: cert-manager
+	# never created them in run 43331271388. Bounded: a missing CA fails here, not 10 min later.
+	$K -n "$NS" wait --for=condition=Ready certificate --all --timeout=300s
 	$K -n "$NS" create configmap binance-stub \
 		--from-file=server.mjs="$ROOT/tests/e2e/binance-stub/server.mjs" \
 		--dry-run=client -o yaml | $K apply -f -
@@ -1632,6 +1642,7 @@ all)
 	fi
 	cluster
 	images
+	load
 	deploy
 	upgrade
 	smoke
@@ -1648,9 +1659,9 @@ verify_group)
 		;;
 	esac
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_mongo_auth | verify_db_ingress | verify_mysql_tls | verify_redis_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | load | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_mongo_auth | verify_db_ingress | verify_mysql_tls | verify_redis_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_group <network|observability|backup>|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|load|cluster|deploy|upgrade|smoke|verify|verify_group <network|observability|backup>|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac
