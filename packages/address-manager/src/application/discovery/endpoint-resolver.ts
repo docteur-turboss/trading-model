@@ -131,7 +131,7 @@ export class EndpointResolver {
 	/**
 	 * First live registered instance of the service (of the wanted major
 	 * version, any when omitted), asked under every registry alias. The one
-	 * selection path: `resolve` (gateway) and `ServiceResolver.findService`
+	 * selection path: `resolve` (gateway) and `DiscoveryRetryHandler.lookup`
 	 * (address-manager) both go through it. Throws when the registry cannot be
 	 * reached; `undefined` means it answered and nothing matches.
 	 */

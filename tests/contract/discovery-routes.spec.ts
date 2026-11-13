@@ -14,8 +14,8 @@ import {
 import express from "express";
 import { AddressManagerClient } from "../../packages/address-manager/src/adapters/outbound/client/address-manager-client";
 import { TokenManager } from "../../packages/address-manager/src/application/client/token-manager";
+import { DiscoveryRetryHandler } from "../../packages/address-manager/src/application/discovery/discovery-retry-handler";
 import { EndpointResolver } from "../../packages/address-manager/src/application/discovery/endpoint-resolver";
-import { ServiceResolver } from "../../packages/address-manager/src/application/discovery/service-resolver";
 import { DISCOVERY_API } from "../../services/discovery-server/src/adapters/inbound/http/api-routes";
 import { HEARTBEAT_ROUTES } from "../../services/discovery-server/src/adapters/inbound/http/heartbeat.routes";
 import { REGISTRY_ROUTES } from "../../services/discovery-server/src/adapters/inbound/http/register.routes";
@@ -148,7 +148,7 @@ describe("discovery contract: address-manager → discovery-server", () => {
 	let exchanges: Exchange[];
 	let tokens: TokenManager;
 	let client: AddressManagerClient;
-	let resolver: ServiceResolver;
+	let resolver: DiscoveryRetryHandler;
 	let instanceId: string;
 
 	beforeAll(async () => {
@@ -189,18 +189,21 @@ describe("discovery contract: address-manager → discovery-server", () => {
 		} as never;
 		tokens = new TokenManager(http, config);
 		client = new AddressManagerClient(http, tokens, config);
-		resolver = new ServiceResolver({
-			httpClient: http,
-			config,
-			serviceCache: {
-				set: async () => undefined,
-				delete: async () => undefined,
-			} as never,
-			healthChecker: {
-				locate: (instance: { host: string }) => instance.host,
-				isHealthy: async () => true,
-			} as never,
-		});
+		resolver = new DiscoveryRetryHandler(
+			{
+				httpClient: http,
+				config,
+				serviceCache: {
+					set: async () => undefined,
+					delete: async () => undefined,
+				} as never,
+				healthChecker: {
+					locate: (instance: { host: string }) => instance.host,
+					isHealthy: async () => true,
+				} as never,
+			},
+			{} as never
+		);
 	});
 
 	/** Every exchange reached a route, passed its schema and was answered by it. */
@@ -277,7 +280,7 @@ describe("discovery contract: address-manager → discovery-server", () => {
 	it("lookups find the registered instance where it registered", async () => {
 		await registered();
 
-		const found = await resolver.findService(toServiceId(SERVICE));
+		const found = await resolver.lookup(toServiceId(SERVICE));
 		const all = await listInstances();
 
 		expect(found).toMatchObject({ serviceName: SERVICE });

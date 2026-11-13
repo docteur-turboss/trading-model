@@ -9,7 +9,6 @@ import {
 	MappingServiceLocator,
 	MapResolver,
 } from "../application/discovery/service-locator";
-import { ServiceResolver } from "../application/discovery/service-resolver";
 import { HeartbeatManager } from "../application/heartbeat-manager";
 import { LifecycleManager } from "../application/lifecycle-manager";
 import { RegistrationAttemptHandler } from "../application/registration-attempt-handler";
@@ -41,8 +40,7 @@ export function buildAddressManagerDependencies(config: AddressManagerConfig) {
 			: undefined,
 	});
 	const discovery = new DiscoveryRetryHandler(
-		new ServiceResolver({ httpClient, serviceCache, config, healthChecker }),
-		serviceCache,
+		{ httpClient, serviceCache, config, healthChecker },
 		circuitBreaker
 	);
 	const registrationManager = new RegistrationAttemptHandler({

@@ -149,7 +149,7 @@ Calls made to the Discovery Server:
 | POST   | `{addressManagerUrl}/services/register`      | `AddressManagerClient` | Register this service instance                |
 | POST   | `{addressManagerUrl}/services/ttl/refresh`   | `AddressManagerClient` | Refresh service lease TTL (Bearer token auth) |
 | POST   | `{addressManagerUrl}/token/rotate`           | `TokenManager`         | Rotate authentication token                   |
-| GET    | `{addressManagerUrl}/services/{serviceName}` | `ServiceResolver`      | Fetch a specific service instance             |
+| GET    | `{addressManagerUrl}/services/{serviceName}` | `DiscoveryRetryHandler` | Fetch a specific service instance             |
 | GET    | `https://{host}:{port}/ping`                 | `ServiceHealthChecker` | Health-check a discovered service             |
 
 ## Sub-path Exports
@@ -161,7 +161,7 @@ In addition to the default export, the package exposes internal modules via deep
 | `@trading-model/address-manager/application/discovery/service-locator` | `ServiceLocator`, `ServiceNameLocator`, `IpAddressLocator`, `MappingServiceLocator` |
 | `@trading-model/address-manager/adapters/outbound/discovery/service-health-checker` | `ServiceHealthChecker`                                              |
 | `@trading-model/address-manager/adapters/outbound/discovery/service-cache` | `ServiceCache`                                                              |
-| `@trading-model/address-manager/application/discovery/service-resolver` | `ServiceResolver`                                                            |
+| `@trading-model/address-manager/application/discovery/discovery-retry-handler` | `DiscoveryRetryHandler`                                                          |
 | `@trading-model/address-manager/application/client/token-manager` | `TokenManager`                                                                      |
 | `@trading-model/address-manager/adapters/outbound/client/address-manager-client` | `AddressManagerClient`                                                  |
 | `@trading-model/address-manager/domain/client/type`               | `ServiceInstance`, `RegisterServicePayload`, `ServiceRegistrationResponse`          |
@@ -199,7 +199,7 @@ In addition to the default export, the package exposes internal modules via deep
 AddressManagerConfig → HttpClient (mTLS)
                      → TokenManager
                      → AddressManagerClient (registration)
-                     → ServiceResolver
+                     → DiscoveryRetryHandler
                         → ServiceCache (TTL cache)
                          → ServiceHealthChecker
                             → ServiceLocator (strategy)
@@ -268,7 +268,7 @@ Locator that delegates to an internal `DnsResolver` strategy for name-based mapp
 | `ServiceNameLocator`    | Default `ServiceLocator` that uses `instance.serviceName` as the hostname.                                                                                   |
 | `IpAddressLocator`      | `ServiceLocator` that uses `instance.ip` directly.                                                                                                           |
 | `MappingServiceLocator` | `ServiceLocator` backed by an internal `DnsResolver` (loaded from `dnsNameMap` config / `DNS_NAME_MAP` env var).                                             |
-| `ServiceResolver`       | Orchestrates cache → health check → fetch flow. Uses configurable `discoveryTimeoutMs` for HTTP calls to prevent indefinite hangs.                           |
+| `DiscoveryRetryHandler` | Orchestrates cache → health check → fetch flow. Uses configurable `discoveryTimeoutMs` for HTTP calls to prevent indefinite hangs.                           |
 | `Scheduler`             | Generic `node-cron` scheduler. Logs job execution errors via `logger.error` instead of swallowing them.                                                      |
 | `RefreshJob<T>`         | Parameterized job that calls a configurable refresh function on a client instance. Replaces previously duplicated `TokenRefresherJob` and `TtlRefresherJob`. |
 

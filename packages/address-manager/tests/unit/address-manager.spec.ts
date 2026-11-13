@@ -96,16 +96,20 @@ jest.mock("../../src/adapters/outbound/discovery/service-cache", () => ({
 	}),
 }));
 
-jest.mock("../../src/application/discovery/service-resolver", () => ({
-	ServiceResolver: jest.fn<(...args: any[]) => any>().mockReturnValue({
-		findCachedService: jest.fn<(...args: any[]) => any>().mockResolvedValue({
+jest.mock("../../src/application/discovery/discovery-retry-handler", () => {
+	const actual = jest.requireActual<
+		typeof import("../../src/application/discovery/discovery-retry-handler")
+	>("../../src/application/discovery/discovery-retry-handler");
+	actual.DiscoveryRetryHandler.prototype.findCachedService = jest
+		.fn<(...args: any[]) => any>()
+		.mockResolvedValue({
 			host: "127.0.0.1",
 			port: 8080,
 			instanceId: "i-1",
 			serviceName: "test-service",
-		}),
-	}),
-}));
+		});
+	return actual;
+});
 
 jest.mock(
 	"../../src/adapters/outbound/discovery/service-health-checker",
