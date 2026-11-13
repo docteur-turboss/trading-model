@@ -273,6 +273,29 @@ apply_release() {
 		kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f -
 }
 
+# Release #924 never creates the MongoDB root user on an empty cluster (its
+# bootstrap sidecar reads system.users, which the localhost exception refuses),
+# so its mongo-*-users Jobs fail and audit-logger never starts (run 43364583932).
+# When N-1 is that release, root is created here as the fixed sidecar does and
+# the Jobs run again. No-op for any other N-1, so a later regression of the
+# bootstrap still fails the deploy. Remove once no N-1 carries the bug.
+previous_mongo_root() {
+	local label
+	grep -q 'system.users.countDocuments' "$PREVIOUS/deploy/k8s/infra/mongodb.yaml" || return 0
+	log "release N-1 cannot create the MongoDB root user (#924): created by the harness"
+	for label in mongodb mongodb-audit; do
+		wait_for 300 "mongo_primary $label"
+		$K -n "$NS" exec "$(mongo_primary "$label")" -- sh -c 'mongosh --quiet --eval "
+			try {
+				db.getSiblingDB(\"admin\").createUser({ user: \"root\", pwd: process.env.MONGO_ROOT_PASSWORD, roles: [{ role: \"root\", db: \"admin\" }] });
+			} catch (e) {
+				if (e.codeName !== \"Unauthorized\") throw e;
+			}"'
+	done
+	$K -n "$NS" delete job mongo-audit-users mongo-dlq-users --ignore-not-found
+	apply_release "$PREVIOUS" "$WORK/digests-previous"
+}
+
 # First deploy of release N-1, as deploy.yml on an empty cluster.
 deploy() {
 	log "release N-1: node agents (SPIRE agent, SPIFFE CSI driver, promtail)"
@@ -295,6 +318,7 @@ deploy() {
 	local certs
 	certs="$($K -n "$NS" get certificate -o name | grep -vE '/(api|grafana)-trading-model-tls$')"
 	$K -n "$NS" wait --for=condition=Ready $certs --timeout=300s
+	previous_mongo_root
 	$K -n "$NS" create configmap binance-stub \
 		--from-file=server.mjs="$ROOT/tests/e2e/binance-stub/server.mjs" \
 		--dry-run=client -o yaml | $K apply -f -
