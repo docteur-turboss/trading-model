@@ -1,5 +1,6 @@
 import "./telemetry";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
+import type { Leadership } from "@trading-model/reliability/leadership";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
@@ -10,7 +11,6 @@ import {
 import { MessageManager } from "../config/message-manager";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
-import type { TrainingLeadership } from "./training-leadership";
 
 const NULL_ADDRESS_MANAGER = {
 	stop() {
@@ -20,7 +20,7 @@ const NULL_ADDRESS_MANAGER = {
 
 let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> =
 	NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
-let leadership: TrainingLeadership | null = null;
+let leadership: Leadership | null = null;
 
 const CONTAINER = createTraderTrainerContainer(ENV);
 
