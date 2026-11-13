@@ -154,10 +154,7 @@ export class HttpRequestExecutor {
 				if (isTargetAnswer(lastError)) {
 					this._circuitRecorder.recordSuccess(route);
 				} else {
-					this._circuitRecorder.recordFailure(
-						route,
-						context.options?.serviceInstanceCount
-					);
+					this._circuitRecorder.recordFailure(route);
 				}
 				throw lastError;
 			}

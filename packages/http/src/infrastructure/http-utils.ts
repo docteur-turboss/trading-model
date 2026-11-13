@@ -66,9 +66,9 @@ function _buildTlsOptions(
 		key: options.keyPem,
 		ca: options.caPem,
 		rejectUnauthorized: true,
-		agent: (options?.agent as https.Agent | undefined) ?? getKeepAliveAgent(),
+		agent: getKeepAliveAgent(),
 	};
-	if (hasCustomTrust && !options.verifyHostname) {
+	if (hasCustomTrust) {
 		tlsOptions.checkServerIdentity = () => undefined;
 	}
 	return tlsOptions;
