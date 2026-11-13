@@ -48,7 +48,7 @@ DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scrape
 STATEFULSETS="redis redis-sentinel"
 
 # Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
-INIT_JOBS="mongo-audit-init mongo-dlq-init mysql-cluster-init mongo-audit-users mongo-dlq-users"
+INIT_JOBS="mysql-cluster-init mongo-audit-users mongo-dlq-users"
 
 usage() {
 	echo "usage: $0 record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file>" >&2
