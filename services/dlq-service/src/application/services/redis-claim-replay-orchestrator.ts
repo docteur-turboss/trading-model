@@ -1,8 +1,5 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import {
-	toMessageId,
-	type URLString,
-} from "@trading-model/primitives/primitives";
+import type { URLString } from "@trading-model/primitives/primitives";
 import type {
 	ClaimedEntry,
 	DlqReplaySettings,
@@ -13,6 +10,7 @@ import { generateBatchId } from "../../shared/batch-id";
 import { emitReplayMetrics } from "../../shared/replay-metrics";
 import { isShuttingDown } from "../../shared/shutdown-flag";
 import type { BatchResults, ReplayBatchOptions } from "../../shared/types";
+import { toEntryRefs } from "./replay-entries";
 
 export interface ClaimReplayOrchestratorDeps {
 	claims: EntryClaimPort;
@@ -76,11 +74,7 @@ export class ClaimReplayOrchestrator {
 	): Promise<void> {
 		getLogger().info(`DLQ Redis queue: replaying ${entries.length} entries`);
 		const { success, errors } = await this._deps.replayBatch({
-			entries: entries.map((entry) => ({
-				id: toMessageId(entry.id),
-				message: entry.message,
-				service: entry.service,
-			})),
+			entries: toEntryRefs(entries),
 			messageManagerUrl,
 			batchId,
 			instanceId: this._deps.settings.instanceId,

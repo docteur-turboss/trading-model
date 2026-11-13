@@ -3,7 +3,6 @@ import {
 	_createHealthLimiter,
 	_createReplayLimiter,
 	_createWriteLimiter,
-	closeRateLimiters,
 } from "../../src/adapters/inbound/rate-limiter";
 
 describe("rate-limiter", () => {
@@ -15,9 +14,5 @@ describe("rate-limiter", () => {
 		]) {
 			expect(typeof create()).toBe("function");
 		}
-	});
-
-	it("should close rate limiters", () => {
-		expect(() => closeRateLimiters()).not.toThrow();
 	});
 });
