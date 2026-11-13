@@ -1,6 +1,6 @@
 /**
  * Events dlq-service publishes on the bus so the audit trail records what
- * happens to undelivered messages (audit-logger subscribes to every topic).
+ * happens to undelivered messages (audit-logger subscribes to these topics).
  */
 export enum DlqEvent {
 	EntryAdded = "dlq.entry.added",

@@ -25,7 +25,7 @@ async function subscribeToAllTopics(
 ): Promise<void> {
 	const allTopics = auditedTopics();
 	await brokerMessage.intents(allTopics);
-	logger.info("Subscribed to all event topics", {
+	logger.info("Subscribed to audited topics", {
 		context: { topicCount: allTopics.length },
 	});
 }
