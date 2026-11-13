@@ -18,7 +18,8 @@ cat >"$WORK/bin/kubectl" <<'K'
 case "$1" in
   get) echo -n "mongo-0" ;;
   exec)
-    if [[ "$*" == *mongosh* ]]; then echo true
+    if [[ "$*" == *__system* ]]; then cat >/dev/null; echo "putback" >>"$CALLS"
+    elif [[ "$*" == *mongosh* ]]; then echo true
     elif [[ "$*" == *mongorestore* ]]; then cat >/dev/null; echo "${*#*mongorestore}" >>"$CALLS"; fi ;;
 esac
 exit 0
@@ -45,6 +46,7 @@ refused() { [ "$RC" -eq 1 ] && has "$1"; }
 run --components mongodb --allow-mixed-runs
 check "default: historical arguments" called " --quiet --gzip --archive --drop --oplogReplay"
 check "default: no ns option" notcalled "--nsInclude"
+check "default: current users put back" called "putback"
 
 run --components mongodb --allow-mixed-runs --ns dlq.dead_letters --ns 'dlq.x*'
 check "--ns: exit 0" test "$RC" -eq 0
@@ -52,6 +54,7 @@ check "--ns: nsInclude per pattern" called "--nsInclude dlq.dead_letters --nsInc
 check "--ns: still --drop" called "--drop"
 check "--ns: no oplogReplay" notcalled "--oplogReplay"
 check "--ns: no rename" notcalled "--nsTo"
+check "--ns: users untouched" notcalled "putback"
 
 run --components mongodb --allow-mixed-runs --ns dlq.dead_letters --into-scratch
 check "scratch: nsFrom/nsTo" called "--nsFrom \$db\$.\$coll\$ --nsTo restore_${TS}_\$db\$.\$coll\$"

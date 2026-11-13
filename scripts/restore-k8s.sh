@@ -44,7 +44,8 @@
 #  of the original databases, which are not touched (--nsFrom/--nsTo); without
 #  --ns it restores every namespace. Never restore `audit.*` in place with
 #  --ns (the hash chain, ADR-0027): refused; use --into-scratch.
-#  Without either option the mongorestore arguments are unchanged.
+#  Without either option the mongorestore arguments are unchanged, and the
+#  admin users and roles present before the restore are put back after it.
 #
 #  SPIRE (ADR-0065): its SQLite datastore and CA keys are one file of the run
 #  (spire/data_<TS>.tar), independent of MySQL. Runs taken before ADR-0065
@@ -197,6 +198,23 @@ replay_oplog() {
     sh "$UNTIL_EPOCH"
 }
 
+# Current `admin` users and roles of primary `$1` as extended JSON (kept in
+# memory, never written to disk).
+save_mongo_users() {
+  mongo_tool root "$1" mongosh --quiet --eval \
+    "const a = db.getSiblingDB('admin'); print(EJSON.stringify({u: a.system.users.find().toArray(), r: a.system.roles.find().toArray()}))"
+}
+
+# Replaces the users and roles of primary `$1` by the JSON `$2` of
+# save_mongo_users. The restored root has the password of the dump's day, so
+# the keyFile's internal user (`__system`) signs in instead.
+put_back_mongo_users() {
+  printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- sh -c \
+    'exec mongosh --quiet --username __system --password "$(cat /keyfile/keyfile)" --authenticationDatabase local --eval "$1"' sh \
+    "const s = EJSON.parse(require('fs').readFileSync(0, 'utf8')); const a = db.getSiblingDB('admin');
+for (const [c, docs] of [['system.users', s.u], ['system.roles', s.r]]) { a.getCollection(c).deleteMany({}); if (docs.length) a.getCollection(c).insertMany(docs); }"
+}
+
 # restore_mongodb <replica set label>...
 restore_mongodb() {
   log "Starting MongoDB restore ($*)..."
@@ -245,7 +263,7 @@ restore_mongodb() {
 
     # The dumps carry their oplog (mongodump --oplog): replaying it brings the
     # restore to the point in time the dump ended.
-    local mr_args=(--quiet --gzip --archive --drop)
+    local mr_args=(--quiet --gzip --archive --drop) users_json=""
     if [ "${#NS_INCLUDE[@]}" -gt 0 ] || $INTO_SCRATCH; then
       # No --oplogReplay: refused by mongorestore with --nsInclude.
       local p
@@ -268,10 +286,20 @@ restore_mongodb() {
       fi
     else
       mr_args+=(--oplogReplay)
+      # --oplogReplay refuses --nsExclude and the dump holds the users of its
+      # day: save the current ones now, put them back after (ADR-0067).
+      if ! users_json=$(save_mongo_users "$primary"); then
+        fail "${label}: cannot read the current MongoDB users (nothing restored)"
+        continue
+      fi
     fi
     if ! open_backup "$RESOLVED_FILE" | MONGO_TOOL_STDIN=true mongo_tool root "${primary}" \
       mongorestore "${mr_args[@]}"; then
       fail "MongoDB restore failed: ${label} (${primary})"
+      continue
+    fi
+    if [ -n "$users_json" ] && ! put_back_mongo_users "$primary" "$users_json"; then
+      fail "${label}: the current MongoDB users could not be put back (${primary})"
       continue
     fi
     if [ "${#chain[@]}" -eq 0 ]; then
@@ -280,7 +308,9 @@ restore_mongodb() {
     fi
     # The chain starts before the dump did: replaying an entry the dump
     # already holds is harmless, oplog entries are idempotent.
-    if replay_oplog "$primary" "${chain[@]}"; then
+    # The replayed window may hold a user change of the dump's day: put the current users back again.
+    if replay_oplog "$primary" "${chain[@]}" &&
+      { [ -z "$users_json" ] || put_back_mongo_users "$primary" "$users_json"; }; then
       ok "MongoDB restore complete: ${label} (${primary}), up to ${UNTIL_SQL} UTC"
     else
       fail "MongoDB oplog replay failed: ${label} (${primary}); restore again"

@@ -1233,6 +1233,8 @@ verify_backup() {
 	local label
 	for label in mongodb mongodb-audit; do
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertMany([{_id: 1}, {_id: 2}, {_id: 3}])" >/dev/null
+		# Its password changes after the instant (issue #1050): the restore must keep the current one.
+		mongo_eval "$label" "const a = db.getSiblingDB('admin'); try { a.dropUser('drill') } catch (e) {} a.createUser({user: 'drill', pwd: 'drill-old', roles: []})" >/dev/null
 	done
 	mysql_root "CREATE DATABASE restore_drill; CREATE TABLE restore_drill.markers (id INT PRIMARY KEY); INSERT INTO restore_drill.markers VALUES (1), (2), (3);"
 	# Past retention (1827 days) and in the dump: restore-k8s.sh must purge it (issue #743).
@@ -1362,6 +1364,7 @@ verify_backup() {
 	# After the instant: archived, but must not come back.
 	for label in mongodb mongodb-audit; do
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertOne({_id: 5})" >/dev/null
+		mongo_eval "$label" "db.getSiblingDB('admin').updateUser('drill', {pwd: 'drill-new'})" >/dev/null
 	done
 	mysql_root "INSERT INTO restore_drill.markers VALUES (5);"
 	log "  instant $until: audit chain up to sequence $(echo "$audit_pitr" | json_field last) (dump: $audit_dumped)," \
@@ -1494,6 +1497,12 @@ verify_backup() {
 		markers="$(mongo_eval "$label" "print(db.getSiblingDB('restore_drill').markers.find().sort({_id: 1}).toArray().map((m) => m._id).join(','))")"
 		[ "$markers" = "1,2,3,4" ] || {
 			log "MongoDB $label: drill markers $markers instead of 1,2,3,4"
+			return 1
+		}
+		# The dump holds drill-old: the restore must keep the Secret-era password (issue #1050).
+		$K -n "$NS" exec "$(mongo_primary "$label")" -- mongosh --quiet -u drill -p drill-new --authenticationDatabase admin \
+			--eval "db.runCommand({connectionStatus: 1}).authInfo.authenticatedUsers.length" | grep -qx 1 || {
+			log "MongoDB $label: the user changed after the dump no longer authenticates with its current password"
 			return 1
 		}
 	done

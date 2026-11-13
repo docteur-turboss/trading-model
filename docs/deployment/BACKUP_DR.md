@@ -809,7 +809,11 @@ bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries' --into-s
 - Only with `--components mongodb` or `mongodb-audit`; refused with `--until`.
 - **Oplog choice:** `mongorestore` refuses `--oplogReplay` with `--nsInclude`,
   so a selective restore omits it: data is as of the start of the dump, not its
-  end. For the full-replica-set restore nothing changes.
+  end. The full-replica-set restore keeps `--oplogReplay`, which refuses
+  `--nsExclude`: the dump's users and roles would come back with it, so the
+  script saves the current ones and puts them back (as `__system`, through the
+  keyFile) before replaying `--until` and again after it; the passwords stay
+  those of the current Secrets.
 - **Audit trail (ADR-0027):** restoring `audit_events` partially in place breaks
   the hash chain. every `--ns` whose database part can match `audit` (`audit.*`, `a*.*`, `*.x`...)
   without `--into-scratch` is refused; restore
