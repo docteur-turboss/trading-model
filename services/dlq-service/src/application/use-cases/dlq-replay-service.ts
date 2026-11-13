@@ -2,11 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Span } from "@opentelemetry/api";
 import { SpanStatusCode } from "@opentelemetry/api";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import {
-	type Limit,
-	type Topic,
-	toMessageId,
-} from "@trading-model/primitives/primitives";
+import type { Limit, Topic } from "@trading-model/primitives/primitives";
 import type { DlqMetricsPort } from "../../domain/ports/dlq.port";
 import type {
 	ClaimReleasePort,
@@ -17,6 +13,10 @@ import type {
 	RetryLedgerPort,
 } from "../../domain/ports/replay.port";
 import type { BatchResults, ReplayBatchOptions } from "../../shared/types";
+import {
+	abandonExhaustedEntries,
+	toEntryRefs,
+} from "../services/replay-entries";
 import { buildReplayResponse } from "./dlq-replay-response";
 
 export interface ReplayRequest {
@@ -47,21 +47,6 @@ export interface ReplayEntriesDeps {
 	audit: Pick<ReplayAuditPort, "notifyReplay">;
 	metrics: Pick<DlqMetricsPort, "batchReplayed">;
 	settings: Pick<DlqReplaySettings, "instanceId">;
-}
-
-async function _abandonExhaustedIfNeeded(
-	deps: ReplayEntriesDeps,
-	failed: number
-): Promise<void> {
-	if (failed === 0) {
-		return;
-	}
-	const abandoned = await deps.retryLedger.abandonExhaustedEntries();
-	if (abandoned > 0) {
-		getLogger().warn(
-			`DLQ manual replay: ${abandoned} entries abandoned after max retries`
-		);
-	}
 }
 
 export function createReplayEntries(
@@ -98,16 +83,18 @@ export function createReplayEntries(
 		span.setAttribute("entriesClaimed", entries.length);
 
 		const { success, errors } = await deps.replayBatch({
-			entries: entries.map((entry) => ({
-				id: toMessageId(entry.id),
-				message: entry.message,
-				service: entry.service,
-			})),
+			entries: toEntryRefs(entries),
 			messageManagerUrl,
 			batchId,
 			instanceId,
 		});
-		await _abandonExhaustedIfNeeded(deps, errors.length);
+		if (errors.length > 0) {
+			await abandonExhaustedEntries(
+				deps.retryLedger,
+				getLogger(),
+				"DLQ manual replay"
+			);
+		}
 
 		span.setAttribute("replayed", success);
 		span.setAttribute("failed", errors.length);

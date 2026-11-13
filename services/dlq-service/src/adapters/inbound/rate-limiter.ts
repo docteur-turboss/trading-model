@@ -1,11 +1,5 @@
 import rateLimit from "express-rate-limit";
 
-const activeRateLimiters: Array<{ resetKey: (key: string) => void }> = [];
-
-export function closeRateLimiters(): void {
-	activeRateLimiters.length = 0;
-}
-
 function createDlqRateLimiter(opts: {
 	windowMs: number;
 	max: number;

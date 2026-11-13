@@ -27,9 +27,7 @@ export class DlqPruner {
 			intervalMs: this._env.DLQ_PRUNE_INTERVAL_MS,
 		});
 		this._timer.startInterval(() => {
-			this.prune().catch((err: unknown) => {
-				this._logIterationError(err);
-			});
+			void this.prune();
 		}, DurationMs.of(this._env.DLQ_PRUNE_INTERVAL_MS));
 	}
 
@@ -57,11 +55,5 @@ export class DlqPruner {
 		});
 		metrics.pruneErrors.inc(1);
 		return 0;
-	}
-
-	private _logIterationError(err: unknown): void {
-		logger.warn("Periodic prune iteration failed", {
-			error: normalizeError(err).message,
-		});
 	}
 }

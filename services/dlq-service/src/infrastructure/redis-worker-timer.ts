@@ -1,12 +1,13 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type { DurationMs } from "@trading-model/primitives/primitives";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import { logger } from "../config/logger";
 import { isShuttingDown } from "../shared/shutdown-flag";
 
-const RedisWorkerIntervalMs = 1000 as DurationMs;
+const RedisWorkerIntervalMs = DurationMs.of(1000);
 
 export class RedisWorkerTimer {
-	private _timer: ReturnType<typeof setTimeout> | null = null;
+	private readonly _timer = new TimerHandle();
 
 	constructor(private readonly _tick: () => Promise<void>) {}
 
@@ -15,10 +16,7 @@ export class RedisWorkerTimer {
 	}
 
 	stop(): void {
-		if (this._timer) {
-			clearTimeout(this._timer);
-			this._timer = null;
-		}
+		this._timer.stop();
 	}
 
 	private async _loop(): Promise<void> {
@@ -38,7 +36,6 @@ export class RedisWorkerTimer {
 	}
 
 	private _scheduleNext(): void {
-		this._timer = setTimeout(() => void this._loop(), RedisWorkerIntervalMs);
-		this._timer.unref();
+		this._timer.startTimeout(() => void this._loop(), RedisWorkerIntervalMs);
 	}
 }
