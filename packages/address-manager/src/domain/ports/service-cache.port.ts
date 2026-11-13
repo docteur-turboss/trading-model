@@ -1,19 +1,5 @@
-import type { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
-import type {
-	PositiveInt,
-	Region,
-	ServiceId,
-	UnixTimestamp,
-} from "@trading-model/primitives/primitives";
+import type { Region, ServiceId } from "@trading-model/primitives/primitives";
 import type { ServiceInstance } from "../client/type";
-import type { CircuitStateStorePort } from "./circuit-state-store.port";
-
-/** Circuit breaker state as persisted: failures, last failure time and state. */
-export interface PersistedCircuitState {
-	failures: PositiveInt;
-	lastFailureTime: UnixTimestamp;
-	state: CircuitStateEnum;
-}
 
 /** Entry stored in the service cache. */
 export interface CacheSetEntry {
@@ -24,9 +10,6 @@ export interface CacheSetEntry {
 
 /** Port of the service cache of discovered instances. */
 export interface ServiceCachePort {
-	/** Circuit-breaker state store used by this cache, so the cache can
-	 * compose (rather than inherit) the parallel circuit-state hierarchy. */
-	readonly circuitStateStore: CircuitStateStorePort;
 	get(serviceName: ServiceId, region?: string): Promise<ServiceInstance | null>;
 	/** Last instance cached for `serviceName`, even past its TTL: discovery-outage fallback only. */
 	getStale(serviceName: ServiceId): Promise<ServiceInstance | null>;

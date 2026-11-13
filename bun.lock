@@ -29,7 +29,6 @@
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
         "@trading-model/http": "*",
-        "@trading-model/persistence": "*",
         "@trading-model/primitives": "*",
         "@trading-model/reliability": "*",
         "@trading-model/server-utils": "*",

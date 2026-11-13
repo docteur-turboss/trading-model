@@ -103,9 +103,6 @@ describe("DiscoveryRetryHandler", () => {
 
 	function createMockCircuitBreaker(): jest.Mocked<DiscoveryCircuitBreaker> {
 		return {
-			loadFromStore: jest
-				.fn<() => Promise<void>>()
-				.mockResolvedValue(undefined),
 			isOpen: jest.fn<() => boolean>().mockReturnValue(false),
 			check: jest.fn<(...args: any[]) => any>(),
 			isAllowed: jest.fn<(...args: any[]) => any>(),
@@ -142,9 +139,6 @@ describe("DiscoveryRetryHandler", () => {
 			const result = await handler.attemptDiscovery(discoveryCtx);
 
 			expect(result).toBe(instance);
-			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledWith(
-				instance.instanceId
-			);
 			expect(mockCircuitBreaker.isOpen).toHaveBeenCalledWith(
 				instance.instanceId
 			);
@@ -165,7 +159,6 @@ describe("DiscoveryRetryHandler", () => {
 			const result = await handler.attemptDiscovery(discoveryCtx);
 
 			expect(result).toBe(instance);
-			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledTimes(2);
 			expect(mockCircuitBreaker.isOpen).toHaveBeenCalledTimes(2);
 			expect(mockCache.delete).toHaveBeenCalledTimes(1);
 			expect(mockCache.delete).toHaveBeenCalledWith(serviceId);
@@ -185,7 +178,6 @@ describe("DiscoveryRetryHandler", () => {
 				"Discovery failed"
 			);
 
-			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledTimes(3);
 			expect(mockCircuitBreaker.isOpen).toHaveBeenCalledTimes(3);
 			expect(mockCache.delete).toHaveBeenCalledTimes(3);
 			expect(sleep).toHaveBeenCalledTimes(2);
@@ -317,7 +309,7 @@ describe("DiscoveryRetryHandler", () => {
 	});
 
 	describe("circuit breaker interactions", () => {
-		test("calls loadFromStore for each attempt and checks isOpen", async () => {
+		test("checks isOpen on each attempt", async () => {
 			mockDiscovery.findService.mockResolvedValue(instance);
 			mockCircuitBreaker.isOpen.mockReturnValue(true);
 
@@ -325,49 +317,9 @@ describe("DiscoveryRetryHandler", () => {
 				"Discovery failed"
 			);
 
-			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledTimes(3);
-			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledWith(
-				instance.instanceId
-			);
 			expect(mockCircuitBreaker.isOpen).toHaveBeenCalledTimes(3);
 			expect(mockCircuitBreaker.isOpen).toHaveBeenCalledWith(
 				instance.instanceId
-			);
-		});
-
-		test("consults isOpen only after the shared state is loaded", async () => {
-			mockDiscovery.findService.mockResolvedValue(instance);
-			const order: string[] = [];
-			mockCircuitBreaker.loadFromStore.mockImplementation(async () => {
-				await Promise.resolve();
-				order.push("load");
-			});
-			mockCircuitBreaker.isOpen.mockImplementation(() => {
-				order.push("isOpen");
-				return false;
-			});
-
-			await handler.attemptDiscovery(discoveryCtx);
-
-			expect(order).toEqual(["load", "isOpen"]);
-		});
-
-		test("loadFromStore rejection falls back to local state and is logged", async () => {
-			mockDiscovery.findService.mockResolvedValue(instance);
-			mockCircuitBreaker.loadFromStore.mockRejectedValue(
-				new Error("store error")
-			);
-			mockCircuitBreaker.isOpen.mockReturnValue(false);
-
-			const result = await handler.attemptDiscovery(discoveryCtx);
-
-			expect(result).toBe(instance);
-			expect(mockCircuitBreaker.loadFromStore).toHaveBeenCalledWith(
-				instance.instanceId
-			);
-			expect(jest.mocked(getLogger().warn)).toHaveBeenCalledWith(
-				"Circuit state store unavailable — using local state",
-				{ instanceId: instance.instanceId, error: "store error" }
 			);
 		});
 	});
