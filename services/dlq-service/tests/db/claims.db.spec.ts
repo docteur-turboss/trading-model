@@ -138,6 +138,42 @@ describe("DLQ claims — concurrent workers on a real MongoDB", () => {
 
 		await expect(dlqRepository.listQueuable()).resolves.toHaveLength(3);
 	});
+
+	it("should keep the failed subscriber on every claimed entry (ADR-0043)", async () => {
+		const insert = (orderId: string, service?: string) =>
+			dlqRepository.insert({
+				topic: TOPIC,
+				message: { orderId },
+				service,
+				reason: "delivery failed",
+				deliveryAttempt: PositiveInt.of(1),
+				timestamp: UnixTimestamp.now(),
+			});
+		const targeted = await insert("targeted", "audit-logger");
+		const legacy = await insert("legacy");
+		const owner = { batchId: "batch-a", instanceId: INSTANCES[0] };
+		const services = (entries: { id: string; service: string | null }[]) =>
+			Object.fromEntries(entries.map((e) => [e.id, e.service]));
+		const expected = { [targeted]: "audit-logger", [legacy]: null };
+
+		const byQueue = await dlqClaimManager.claimEntriesForRetry({
+			limit: Limit.of(10, 1000),
+			...owner,
+		});
+		expect(services(byQueue)).toEqual(expected);
+
+		await claimReleaseManager.releaseClaimsByInstance(INSTANCES[0]);
+		const byIds = await dlqClaimManager.claimEntriesByIds(
+			[targeted, legacy],
+			owner
+		);
+		expect(services(byIds)).toEqual(expected);
+
+		await claimReleaseManager.releaseClaimsByInstance(INSTANCES[0]);
+		await expect(
+			claimReleaseManager.claimEntry(targeted, owner)
+		).resolves.toMatchObject({ service: "audit-logger" });
+	});
 });
 
 describe("DLQ claims — release", () => {
