@@ -1164,6 +1164,28 @@ audit_chain() {
 	mongo_eval mongodb-audit "const AUDIT_DB = 'audit'; $(cat "$ROOT/tests/backup/audit-chain.js")"
 }
 
+# Stores a dead letter in dlq-service the way message-manager does; prints its id.
+seed_dead_letter() {
+	$K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - <"$ROOT/tests/k8s/dlq-seed.cjs"
+}
+
+# Waits up to 300 s for field `$1` (count or last) of the audit chain to exceed
+# `$2`. Market data is no longer chained (#992): the chain only grows on audit,
+# training and DLQ events, so a dead letter (dlq.entry.added) is stored every
+# 30 s until it does; dlq-service publishes it without waiting, one can be lost.
+audit_grows() {
+	local waited=0
+	until [ "$(audit_chain | json_field "$1")" -gt "$2" ] 2>/dev/null; do
+		if [ "$waited" -ge 300 ]; then
+			log "the audit chain did not grow in 300 s ($1 still not above $2)"
+			return 1
+		fi
+		[ $((waited % 30)) -ne 0 ] || seed_dead_letter >/dev/null || true
+		sleep 5
+		waited=$((waited + 5))
+	done
+}
+
 # Field `$1` of the JSON object read on stdin.
 json_field() {
 	node -e 'const v = JSON.parse(require("fs").readFileSync(0, "utf8"))[process.argv[1]]; console.log(v === null ? "null" : v)' "$1"
@@ -1219,7 +1241,7 @@ verify_backup() {
 	bundle_before="$(spire_bundle)"
 
 	log "restore drill: recording the real audit trail and dead letters"
-	wait_for 300 '[ "$(audit_chain | json_field count)" -gt 0 ]'
+	audit_grows count 0
 	local audit_before audit_last dlq_before
 	audit_before="$(audit_chain)"
 	[ "$(echo "$audit_before" | json_field broken)" = "null" ] || {
@@ -1230,7 +1252,7 @@ verify_backup() {
 	# A real dead letter, stored the way message-manager stores them: the flow
 	# rarely produces one by itself.
 	local dlq_seeded
-	dlq_seeded="$($K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - <"$ROOT/tests/k8s/dlq-seed.cjs")" || {
+	dlq_seeded="$(seed_dead_letter)" || {
 		log "message-manager could not store a dead letter in dlq-service"
 		return 1
 	}
@@ -1297,7 +1319,7 @@ verify_backup() {
 	done
 	mysql_root "INSERT INTO restore_drill.markers VALUES (4);"
 	local dlq_late
-	dlq_late="$($K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - <"$ROOT/tests/k8s/dlq-seed.cjs")" || {
+	dlq_late="$(seed_dead_letter)" || {
 		log "message-manager could not store a dead letter in dlq-service"
 		return 1
 	}
@@ -1306,7 +1328,7 @@ verify_backup() {
 		return 1
 	}
 	# Audit events written by audit-logger after the dump.
-	wait_for 300 '[ "$(audit_chain | json_field last)" -gt "'"$audit_dumped"'" ]'
+	audit_grows last "$audit_dumped"
 
 	log "restore drill: writers stopped ($MONGO_WRITERS $MYSQL_WRITERS), as BACKUP_DR.md requires"
 	local writer
@@ -1564,7 +1586,7 @@ verify_backup() {
 	local restored_last
 	restored_last="$(audit_chain | json_field last)"
 	# New events must extend the restored chain, not start a new one.
-	wait_for 300 '[ "$(audit_chain | json_field last)" -gt "'"$restored_last"'" ]'
+	audit_grows last "$restored_last"
 	local audit_after
 	audit_after="$(audit_chain)"
 	[ "$(echo "$audit_after" | json_field broken)" = "null" ] || {
