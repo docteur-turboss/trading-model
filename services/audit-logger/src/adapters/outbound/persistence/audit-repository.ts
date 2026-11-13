@@ -4,6 +4,7 @@ import {
 	errorProp,
 	makeErrorCode,
 } from "@trading-model/common/utils/errors";
+import { sleep } from "@trading-model/common/utils/sleep";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
@@ -24,6 +25,7 @@ import { computeAuditHash, hashedContentOf } from "../../../domain/audit-chain";
 import type { DateRange } from "../../../domain/date-range";
 import { EVENTS_COLLECTION, MongoAuditChainReader } from "./audit-chain-reader";
 import { type AuditPage, AuditQuerier } from "./audit-querier";
+import { StatsAggregator } from "./stats-aggregator";
 
 export interface AuditEventDocument {
 	receivedAt: Date;
@@ -151,6 +153,7 @@ export class AuditRepository {
 	private readonly _collection: Collection<AuditEventDocument>;
 	private readonly _lease: Collection<LeaseDocument>;
 	private readonly _querier: AuditQuerier;
+	private readonly _stats: StatsAggregator;
 	private readonly _chain: MongoAuditChainReader;
 	/** Events of this instance waiting for the next batch. */
 	private _pending: PendingWrite[] = [];
@@ -162,6 +165,7 @@ export class AuditRepository {
 		this._collection = db.collection<AuditEventDocument>(EVENTS_COLLECTION);
 		this._lease = db.collection<LeaseDocument>(LEASE_COLLECTION);
 		this._querier = new AuditQuerier(this._collection);
+		this._stats = new StatsAggregator(this._collection);
 		this._chain = new MongoAuditChainReader(db);
 	}
 
@@ -176,7 +180,7 @@ export class AuditRepository {
 			{ key: { chainSequence: 1 }, unique: true },
 		]);
 		// Off the request path: the first getStats finds the breakdown ready.
-		this._querier.warmStats();
+		this._stats.warm();
 	}
 
 	/**
@@ -220,7 +224,7 @@ export class AuditRepository {
 					// Fairness: let waiting replicas take a turn.
 					await this._release(owner);
 					held = false;
-					await new Promise((resolve) => setTimeout(resolve, LEASE_YIELD_MS));
+					await sleep(LEASE_YIELD_MS);
 				}
 				if (!(held && (await this._renew(owner)))) {
 					this._tail = null;
@@ -296,9 +300,7 @@ export class AuditRepository {
 			if (Date.now() > deadline) {
 				return false;
 			}
-			await new Promise((resolve) =>
-				setTimeout(resolve, LEASE_POLL_MS * (1 + Math.random()))
-			);
+			await sleep(LEASE_POLL_MS * (1 + Math.random()));
 		}
 		return true;
 	}
@@ -419,6 +421,6 @@ export class AuditRepository {
 	}
 
 	getStats(): Promise<AuditStats> {
-		return this._querier.getStats();
+		return this._stats.getStats();
 	}
 }
