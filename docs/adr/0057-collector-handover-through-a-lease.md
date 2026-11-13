@@ -4,7 +4,7 @@
 **Date:** 2026-11
 **Supersedes:** [ADR-0042](./0042-singleton-collector-with-verified-recovery.md)
 **Related:** [ADR-0041](./0041-least-privilege-deploy-identities.md) (the deploy identity holds the rights of the new Role), [ADR-0044](./0044-singleton-trainer.md) and [ADR-0058](./0058-trainer-handover-through-a-lease.md) (the trainer got the same handover), [ADR-0017](./0017-no-swallowed-errors.md)
-**Verified by:** `services/financial-scraper/tests/unit/app/collector-leadership.spec.ts`, `tests/k8s/check-overlays.mjs`, `tests/k8s/run-kind.sh`, `tests/alerts/alerting.test.yml`
+**Verified by:** `packages/reliability/tests/unit/leadership.spec.ts`, `tests/k8s/check-overlays.mjs`, `tests/k8s/run-kind.sh`, `tests/alerts/alerting.test.yml`
 
 ## Context
 
@@ -12,7 +12,7 @@ ADR-0042 kept `financial-scraper-collector` as a `Recreate` singleton: each rele
 
 ## Decision
 
-1. **Election by Lease.** The collector pods compete for the Lease `financial-scraper-collector` (`coordination.k8s.io/v1`, env `COLLECTOR_LEASE_NAME`). Only its holder runs the scrape and signal crons (`CollectorLeadership`, `services/financial-scraper/src/application/collector-leadership.ts`). The adapter `KubernetesLease` follows client-go's leader election: an update carries the `resourceVersion` it read (409 = lost), and a candidate judges expiry from when it last saw the Lease change, on its own clock (no clock skew).
+1. **Election by Lease.** The collector pods compete for the Lease `financial-scraper-collector` (`coordination.k8s.io/v1`, env `COLLECTOR_LEASE_NAME`). Only its holder runs the scrape and signal crons (`Leadership`, `packages/reliability/src/leadership.ts`). The adapter `KubernetesLease` (`packages/reliability/src/kubernetes-lease.ts`) follows client-go's leader election: an update carries the `resourceVersion` it read (409 = lost), and a candidate judges expiry from when it last saw the Lease change, on its own clock (no clock skew).
 2. **Bounded timings.** Lease duration 15 s, renew deadline 10 s, retry 2 s (client-go's defaults). A holder stops scheduling cycles 10 s after the start of its last successful renewal attempt, enforced by a timer that does not wait for the API call in flight (a slow API server cannot stretch it, as client-go's `context.WithTimeout(RenewDeadline)`); a renewal answered more than 10 s after it started does not count. A candidate waits 15 s after the last change it saw, which is never before the start of the write it saw. A holder that sees another holder or loses a write (409) stops at once.
 3. **Handover on SIGTERM.** The holder stops its crons, waits for the running cycle and its publishes in flight (bounded by `PUBLISH_ACCEPT_TIMEOUT_MS`), then releases the Lease (holder cleared). The successor takes it on its next attempt (2 s), without waiting for expiry. A failed release is logged; the Lease then expires. A drain longer than 15 s also lets the Lease expire before the release: harmless, since the old pod no longer starts cycles, and the successor takes over at expiry instead. A Lease acquired by an attempt that ends after SIGTERM is released at once.
 4. **Rollout.** `replicas: 1`, no HPA, `RollingUpdate` with `maxUnavailable: 0` and `maxSurge: 1`: the new pod is ready before the old one gets SIGTERM. During `preStop` (10 s) the old pod still collects. The gap is the drain plus up to 2 s plus the wait for the next cron tick. Scrape ticks are aligned to wall-clock minutes, so in production the new pod usually runs the next scheduled cycle.

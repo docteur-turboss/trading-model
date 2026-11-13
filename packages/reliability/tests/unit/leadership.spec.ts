@@ -20,36 +20,35 @@ import {
 	KubernetesLease,
 	type Lease,
 	type LeaseApi,
-} from "../../../src/adapters/outbound/kubernetes/kubernetes-lease";
+} from "../../src/kubernetes-lease";
+import type { LeaderLeasePort } from "../../src/leader-lease.port";
 import {
+	type LeaderJob,
+	Leadership,
 	SOLE_INSTANCE_LEASE,
-	type Training,
-	TrainingLeadership,
-} from "../../../src/application/training-leadership";
-import { TRAINING_LEADER } from "../../../src/config/metrics";
-import type { LeaderLeasePort } from "../../../src/domain/ports/leader-lease.port";
+} from "../../src/leadership";
 
 const TIMING = { retryMs: 2000, renewDeadlineMs: 10_000 };
 
 /** Records start/stop calls and the order of events across instances. */
-function fakeTraining(
+function fakeJob(
 	events: string[],
 	name = "a"
-): Training & {
+): LeaderJob & {
 	active: boolean;
 } {
-	const training = {
+	const collection = {
 		active: false,
 		start: jest.fn(() => {
-			training.active = true;
+			collection.active = true;
 			events.push(`${name}:start`);
 		}),
 		stop: jest.fn(async () => {
-			training.active = false;
+			collection.active = false;
 			events.push(`${name}:stop`);
 		}),
 	};
-	return training;
+	return collection;
 }
 
 function fakeLease(
@@ -65,9 +64,11 @@ function fakeLease(
 	return lease;
 }
 
-async function leaderGauge(): Promise<number> {
-	return (await TRAINING_LEADER.get()).values[0]?.value ?? -1;
-}
+let gauge = -1;
+const setGauge = (value: 0 | 1) => {
+	gauge = value;
+};
+const leaderGauge = async () => gauge;
 
 /**
  * In-memory Kubernetes API for one Lease: resourceVersion bumped on every
@@ -75,7 +76,7 @@ async function leaderGauge(): Promise<number> {
  */
 function memoryLeaseApi(): LeaseApi & { lease: Lease } {
 	const store = {
-		lease: { metadata: { name: "trainer", resourceVersion: "1" } } as Lease,
+		lease: { metadata: { name: "collector", resourceVersion: "1" } } as Lease,
 		async get() {
 			return structuredClone(store.lease);
 		},
@@ -96,71 +97,92 @@ function memoryLeaseApi(): LeaseApi & { lease: Lease } {
 	return store;
 }
 
-describe("TrainingLeadership", () => {
+describe("Leadership", () => {
 	beforeEach(() => {
 		jest.useFakeTimers({ now: 0 });
+		gauge = -1;
 	});
 	afterEach(() => {
 		jest.useRealTimers();
 	});
 
-	it("does not train while the lease is held by another instance", async () => {
+	it("starts no cron while the lease is held by another instance", async () => {
 		const events: string[] = [];
 		const lease = fakeLease(events);
 		lease.held = jest.fn(async () => false);
-		const training = fakeTraining(events);
-		const leadership = new TrainingLeadership(lease, training, TIMING);
+		const collection = fakeJob(events);
+		const leadership = new Leadership(
+			lease,
+			collection,
+			setGauge,
+			"Collector",
+			TIMING
+		);
 
 		leadership.start();
 		await jest.advanceTimersByTimeAsync(30_000);
 
-		expect(training.start).not.toHaveBeenCalled();
+		expect(collection.start).not.toHaveBeenCalled();
 		expect(leadership.leading).toBe(false);
 		expect(await leaderGauge()).toBe(0);
 		await leadership.stop();
 		expect(lease.release).not.toHaveBeenCalled();
 	});
 
-	it("starts training on acquisition, once, and reports the gauge", async () => {
+	it("starts collecting on acquisition, once, and reports the gauge", async () => {
 		const events: string[] = [];
-		const training = fakeTraining(events);
-		const leadership = new TrainingLeadership(
+		const collection = fakeJob(events);
+		const leadership = new Leadership(
 			fakeLease(events),
-			training,
+			collection,
+			setGauge,
+			"Collector",
 			TIMING
 		);
 
 		leadership.start();
 		await jest.advanceTimersByTimeAsync(10_000);
 
-		expect(training.start).toHaveBeenCalledTimes(1);
+		expect(collection.start).toHaveBeenCalledTimes(1);
 		expect(await leaderGauge()).toBe(1);
 		await leadership.stop();
 	});
 
-	it("stops training when another instance holds the lease", async () => {
+	it("stops collecting when another instance holds the lease", async () => {
 		const events: string[] = [];
 		const lease = fakeLease(events);
-		const training = fakeTraining(events);
-		const leadership = new TrainingLeadership(lease, training, TIMING);
+		const collection = fakeJob(events);
+		const leadership = new Leadership(
+			lease,
+			collection,
+			setGauge,
+			"Collector",
+			TIMING
+		);
 		leadership.start();
 		await jest.advanceTimersByTimeAsync(0);
 
 		lease.held = jest.fn(async () => false);
 		await jest.advanceTimersByTimeAsync(TIMING.retryMs);
 
-		expect(training.stop).toHaveBeenCalledTimes(1);
+		expect(collection.stop).toHaveBeenCalledTimes(1);
 		expect(leadership.leading).toBe(false);
 		expect(await leaderGauge()).toBe(0);
 		await leadership.stop();
 		expect(lease.release).not.toHaveBeenCalled();
 	});
 
-	it("stops training once the lease could not be renewed within the deadline", async () => {
+	it("stops collecting once the lease could not be renewed within the deadline", async () => {
 		const events: string[] = [];
 		const lease = fakeLease(events);
-		const training = fakeTraining(events);
-		const leadership = new TrainingLeadership(lease, training, TIMING);
+		const collection = fakeJob(events);
+		const leadership = new Leadership(
+			lease,
+			collection,
+			setGauge,
+			"Collector",
+			TIMING
+		);
 		leadership.start();
 		await jest.advanceTimersByTimeAsync(0);
 
@@ -170,18 +192,20 @@ describe("TrainingLeadership", () => {
 		await jest.advanceTimersByTimeAsync(
 			TIMING.renewDeadlineMs - TIMING.retryMs
 		);
-		expect(training.stop).not.toHaveBeenCalled();
+		expect(collection.stop).not.toHaveBeenCalled();
 		await jest.advanceTimersByTimeAsync(TIMING.retryMs);
-		expect(training.stop).toHaveBeenCalledTimes(1);
+		expect(collection.stop).toHaveBeenCalledTimes(1);
 		await leadership.stop();
 	});
 
-	it("on stop ends the training (model stored), then releases the lease", async () => {
+	it("on stop drains the collection, then releases the lease", async () => {
 		const events: string[] = [];
 		const lease = fakeLease(events);
-		const leadership = new TrainingLeadership(
+		const leadership = new Leadership(
 			lease,
-			fakeTraining(events),
+			fakeJob(events),
+			setGauge,
+			"Collector",
 			TIMING
 		);
 		leadership.start();
@@ -200,9 +224,11 @@ describe("TrainingLeadership", () => {
 		lease.release = jest.fn(async () => {
 			throw new Error("API server unreachable");
 		});
-		const leadership = new TrainingLeadership(
+		const leadership = new Leadership(
 			lease,
-			fakeTraining(events),
+			fakeJob(events),
+			setGauge,
+			"Collector",
 			TIMING
 		);
 		leadership.start();
@@ -211,11 +237,13 @@ describe("TrainingLeadership", () => {
 		await expect(leadership.stop()).resolves.toBeUndefined();
 	});
 
-	it("trains at once without a lease (single instance)", async () => {
+	it("collects at once without a lease (single instance)", async () => {
 		const events: string[] = [];
-		const leadership = new TrainingLeadership(
+		const leadership = new Leadership(
 			SOLE_INSTANCE_LEASE,
-			fakeTraining(events),
+			fakeJob(events),
+			setGauge,
+			"Collector",
 			TIMING
 		);
 		leadership.start();
@@ -225,32 +253,35 @@ describe("TrainingLeadership", () => {
 	});
 });
 
-describe("two trainers on one Kubernetes Lease", () => {
+describe("two collectors on one Kubernetes Lease", () => {
 	beforeEach(() => {
 		jest.useFakeTimers({ now: 0 });
+		gauge = -1;
 	});
 	afterEach(() => {
 		jest.useRealTimers();
 	});
 
 	function instance(name: string, api: LeaseApi, events: string[]) {
-		const training = fakeTraining(events, name);
-		const leadership = new TrainingLeadership(
+		const collection = fakeJob(events, name);
+		const leadership = new Leadership(
 			new KubernetesLease(name, api, Date.now),
-			training,
+			collection,
+			setGauge,
+			"Collector",
 			TIMING
 		);
-		return { training, leadership };
+		return { collection, leadership };
 	}
 
-	it("never train at the same time, and hand over on release", async () => {
+	it("never collect at the same time, and hand over on release", async () => {
 		const api = memoryLeaseApi();
 		const events: string[] = [];
 		const a = instance("pod-a", api, events);
 		const b = instance("pod-b", api, events);
 		let overlaps = 0;
 		const check = () => {
-			if (a.training.active && b.training.active) {
+			if (a.collection.active && b.collection.active) {
 				overlaps++;
 			}
 		};
@@ -301,7 +332,7 @@ describe("two trainers on one Kubernetes Lease", () => {
 		let bLeadingAt = -1;
 		for (let t = 500; t <= 30_000; t += 500) {
 			await jest.advanceTimersByTimeAsync(500);
-			if (a.training.active && b.training.active) {
+			if (a.collection.active && b.collection.active) {
 				overlaps++;
 			}
 			if (bLeadingAt < 0 && b.leadership.leading) {
@@ -344,10 +375,10 @@ describe("two trainers on one Kubernetes Lease", () => {
 		let overlaps = 0;
 		for (let t = 100; t <= 30_000; t += 100) {
 			await jest.advanceTimersByTimeAsync(100);
-			if (a.training.active && b.training.active) {
+			if (a.collection.active && b.collection.active) {
 				overlaps++;
 			}
-			if (aStoppedAt < 0 && !a.training.active) {
+			if (aStoppedAt < 0 && !a.collection.active) {
 				aStoppedAt = t;
 			}
 			if (bLeadingAt < 0 && b.leadership.leading) {
@@ -378,8 +409,14 @@ describe("two trainers on one Kubernetes Lease", () => {
 				events.push("release");
 			}),
 		};
-		const training = fakeTraining(events);
-		const leadership = new TrainingLeadership(lease, training, TIMING);
+		const collection = fakeJob(events);
+		const leadership = new Leadership(
+			lease,
+			collection,
+			setGauge,
+			"Collector",
+			TIMING
+		);
 		leadership.start();
 		await jest.advanceTimersByTimeAsync(0);
 
@@ -387,7 +424,7 @@ describe("two trainers on one Kubernetes Lease", () => {
 		acquire(true);
 		await stopping;
 
-		expect(training.start).not.toHaveBeenCalled();
+		expect(collection.start).not.toHaveBeenCalled();
 		expect(events).toEqual(["release"]);
 	});
 });
