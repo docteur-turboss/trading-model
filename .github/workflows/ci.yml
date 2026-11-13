@@ -368,14 +368,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      KIND_PREVIOUS_REF: origin/development
+      # Release N-1 = the PR base branch (main on a release PR), origin/development on push and workflow_call.
+      KIND_PREVIOUS_REF: origin/${{ github.base_ref || 'development' }}
     steps:
       # Full history: release N-1 (KIND_PREVIOUS_REF) is built from it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Fetch the N-1 reference (origin/development)
-        run: git fetch --no-tags origin +refs/heads/development:refs/remotes/origin/development
+      - name: Fetch the N-1 reference (${{ env.KIND_PREVIOUS_REF }})
+        run: git fetch --no-tags origin "+refs/heads/${KIND_PREVIOUS_REF#origin/}:refs/remotes/${KIND_PREVIOUS_REF}"
       - name: Build the images (release N-1 and N)
         env:
           KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
@@ -410,16 +411,15 @@ jobs:
       # and not representative of production, the RTO is judged in
       # docs/compliance/dr-exercise-log.md.
       DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
-      # Release N-1 = origin/development (MongoDB without auth): the MongoDB auth of this
-      # branch is the upgrade under test (AGENTS.md: a cluster passes through release 3.1.0).
-      KIND_PREVIOUS_REF: origin/development
+      # Release N-1 = the PR base branch (main on a release PR), origin/development on push and workflow_call.
+      KIND_PREVIOUS_REF: origin/${{ github.base_ref || 'development' }}
     steps:
       # Full history: N-1 (KIND_PREVIOUS_REF), built and deployed first.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Fetch the N-1 reference (origin/development)
-        run: git fetch --no-tags origin +refs/heads/development:refs/remotes/origin/development
+      - name: Fetch the N-1 reference (${{ env.KIND_PREVIOUS_REF }})
+        run: git fetch --no-tags origin "+refs/heads/${KIND_PREVIOUS_REF#origin/}:refs/remotes/${KIND_PREVIOUS_REF}"
       - name: Install kind
         run: |
           # GitHub Releases answers 504 now and then (issue #660): retry, checksum still checked.
