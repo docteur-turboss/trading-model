@@ -134,7 +134,7 @@ describe("Dead-letter flow E2E", () => {
 		});
 	}
 
-	async function replay(): Promise<void> {
+	function replayTopic(): void {
 		const { status, body } = signedDlqRequest(
 			"POST",
 			"/dlq/replay",
@@ -142,34 +142,43 @@ describe("Dead-letter flow E2E", () => {
 		);
 		expect(status).toBe(200);
 		expect(JSON.parse(body)).toMatchObject({ replayed: 1, failed: 0 });
+	}
 
-		// The subscriber still cannot take it: the replay is dead-lettered anew.
-		const entries = await eventually("the replayed dead letter", () => {
-			const all = storedEntries();
-			return all.length > 1 ? all : undefined;
+	async function replay(): Promise<void> {
+		replayTopic();
+
+		// The subscriber still cannot take it: the replay (original messageId,
+		// ADR-0043 §7) is dead-lettered anew and reopens the entry (ADR-0070).
+		await eventually("the replayed dead letter", () => {
+			const added = auditedPayloads("dlq.entry.added");
+			return added.length > 1 ? added : undefined;
 		});
-		expect(entries).toHaveLength(2);
-		for (const entry of entries) {
-			expect(entry.message.payload).toEqual({ e2e: "dead-letter" });
-		}
+		const entries = storedEntries();
+		expect(entries).toHaveLength(1);
+		expect(entries[0].message.payload).toEqual({ e2e: "dead-letter" });
+
+		// Reopened, not dropped as a duplicate: it can be replayed again.
+		replayTopic();
 	}
 
 	async function audit(): Promise<void> {
+		// Third pass of the same message: abandoned as ping-pong (ADR-0070).
 		const added = await eventually("dlq.entry.added in audit-logger", () => {
 			const payloads = auditedPayloads("dlq.entry.added");
-			return payloads.length > 1 ? payloads : undefined;
+			return payloads.length > 2 ? payloads : undefined;
 		});
-		expect(added).toHaveLength(2);
+		expect(added).toHaveLength(3);
 		expect(added[0]).toMatchObject({ reason: "TTL_EXPIRED" });
 
 		const replays = await eventually(
 			"dlq.replay.completed in audit-logger",
 			() => {
 				const payloads = auditedPayloads("dlq.replay.completed");
-				return payloads.length > 0 ? payloads : undefined;
+				return payloads.length > 1 ? payloads : undefined;
 			}
 		);
 		expect(replays).toEqual([
+			expect.objectContaining({ replayed: 1, failed: 0 }),
 			expect.objectContaining({ replayed: 1, failed: 0 }),
 		]);
 	}

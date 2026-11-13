@@ -4,7 +4,7 @@ import {
 	ErrorCode,
 } from "@trading-model/common/utils/errors";
 import type { Collection } from "mongodb";
-import { DLQ_MAX_PASS_COUNT } from "../../domain/dlq-constants";
+import { DLQ_MAX_PASS_COUNT, RELEASE_CLAIM } from "../../domain/dlq-constants";
 import { DlqStatus } from "../../domain/dlq-status";
 import { ENV } from "../../infrastructure/config/env";
 import { EntrySerializer } from "../../shared/entry-serializer";
@@ -76,6 +76,56 @@ function _applyPingPongAbandon(
 	}
 }
 
+/**
+ * A targeted replay keeps the original messageId (ADR-0043 §7), so a new
+ * failure of the subscriber has the dedup key of the replayed entry: reopen
+ * that entry (ADR-0070) instead of dropping the failure as a duplicate.
+ * Returns the id of an existing entry, or null when none has this messageId.
+ */
+async function _reopenReplayed(
+	col: Collection,
+	doc: NewDlqDocument
+): Promise<string | null> {
+	const existing = await col.findOne(
+		{ messageId: doc.messageId },
+		{ projection: { status: 1, processingAt: 1, dlqPassCount: 1 } }
+	);
+	if (!existing) {
+		return null;
+	}
+	const id = existing._id.toHexString();
+	// Completed, or claimed by a replay still in flight; a Pending entry is
+	// the same failure delivered twice, an Abandoned one stays abandoned.
+	const replayed =
+		existing.status === DlqStatus.Completed ||
+		(existing.processingAt !== undefined &&
+			existing.status !== DlqStatus.Abandoned);
+	if (!replayed) {
+		return id;
+	}
+
+	const reopened: NewDlqDocument = {
+		...doc,
+		dlqPassCount: (existing.dlqPassCount ?? 1) + 1,
+	};
+	_applyPingPongAbandon(reopened, reopened.dlqPassCount);
+	const { messageId: _m, contentHash: _c, createdAt: _d, ...set } = reopened;
+	// Dropping the claim makes the in-flight replay's completion miss it.
+	const unset = {
+		completedAt: "",
+		lastBatchId: "",
+		consecutiveErrors: "",
+		lastRetryAt: "",
+		...RELEASE_CLAIM.$unset,
+		...(reopened.status ? {} : { status: "", lastError: "" }),
+	};
+	await col.updateOne(
+		{ _id: existing._id, dlqPassCount: existing.dlqPassCount },
+		{ $set: set, $unset: unset }
+	);
+	return id;
+}
+
 export class DlqEntryWriter {
 	private readonly _serializer = new EntrySerializer();
 	private readonly _inserter = new DedupInserter();
@@ -95,6 +145,10 @@ export class DlqEntryWriter {
 			throw dlqCapacityError("DLQ capacity limit reached");
 		}
 
+		const existingId = await _reopenReplayed(col, doc);
+		if (existingId) {
+			return existingId;
+		}
 		return this._inserter.insert(
 			col,
 			// as unknown as: Mongo driver document typing
