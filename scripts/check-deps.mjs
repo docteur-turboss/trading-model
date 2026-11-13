@@ -15,25 +15,15 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { WORKSPACE_ROOTS, walk as walkFiles } from './lib/fs.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCOPE = '@trading-model/';
-const WORKSPACE_DIRS = ['packages', 'services'];
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', 'build']);
 const SOURCE_FILE = /\.(ts|tsx|js|mjs|cjs)$/;
 const TEST_FILE = /\.(spec|test)\.(ts|tsx)$/;
 const IMPORT_SPECIFIER = /["'](@trading-model\/[a-z0-9-]+)(?:\/[^"']*)?["']/g;
 
-function walk(dir, files = []) {
-  if (!existsSync(dir)) return files;
-  for (const entry of readdirSync(dir)) {
-    if (SKIP_DIRS.has(entry)) continue;
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) walk(path, files);
-    else if (SOURCE_FILE.test(entry) && !entry.endsWith('.d.ts')) files.push(path);
-  }
-  return files;
-}
+const walk = (dir) => walkFiles(dir, (file) => SOURCE_FILE.test(file) && !file.endsWith('.d.ts'));
 
 function internalNames(record = {}) {
   return Object.keys(record).filter((name) => name.startsWith(SCOPE));
@@ -51,7 +41,7 @@ function collectImports(files) {
 
 function loadWorkspaces() {
   const workspaces = [];
-  for (const group of WORKSPACE_DIRS) {
+  for (const group of WORKSPACE_ROOTS) {
     for (const entry of readdirSync(join(ROOT, group))) {
       const dir = join(ROOT, group, entry);
       const manifestPath = join(dir, 'package.json');
