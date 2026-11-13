@@ -1,7 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type { HttpMethod } from "../../domain/http-types";
-import type { LogEntry } from "../../infrastructure/log-types";
-import { NODE_ENV } from "../../shared/node-env";
+import type { HttpMethod } from "../domain/http-types";
+import { NODE_ENV } from "../shared/node-env";
+import type { LogEntry } from "./log-types";
 
 const ERROR_WEBHOOK_TIMEOUT_MS = 5000;
 

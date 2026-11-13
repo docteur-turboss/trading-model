@@ -5,8 +5,8 @@ import {
 	UnixTimestamp,
 	UserId,
 } from "@trading-model/primitives/primitives";
-import { sendError } from "../../adapters/outbound/error-service-sender";
 import { formatLogEntry } from "../../infrastructure/console-formatter";
+import { sendError } from "../../infrastructure/log-dispatcher";
 import {
 	isLogLevelAtLeast,
 	type LogEntry,
