@@ -3,6 +3,7 @@ jest.mock("../../../../src/config/address-manager", () => ({
 }));
 
 import { DeliveryWorker } from "../../../../src/application/services/delivery-worker";
+import { runWorker } from "../../../helpers/broker.helper";
 
 describe("DeliveryWorker.stop", () => {
 	it("closes the journal again once the loops ended, so a reader reopened meanwhile is released", async () => {
@@ -43,7 +44,10 @@ describe("DeliveryWorker with an open circuit", () => {
 		const journal = {
 			groups: jest.fn().mockResolvedValue([{ topic: "t", service: "svc" }]),
 			claimDue: jest.fn().mockResolvedValue([]),
-			readNew: jest.fn().mockResolvedValue([]),
+			// Resolves on a timer like a blocking read, so the loop yields to the event loop.
+			readNew: jest.fn(
+				() => new Promise((resolve) => setTimeout(resolve, 10, []))
+			),
 		};
 		const registry = {
 			getSubscriptions: jest
@@ -64,7 +68,7 @@ describe("DeliveryWorker with an open circuit", () => {
 			callbackPath: "/cb",
 			isCircuitOpen: () => true,
 		});
-		await worker.tick();
+		await runWorker(worker);
 		expect(journal.claimDue).not.toHaveBeenCalled();
 		expect(journal.readNew).toHaveBeenCalled();
 	});

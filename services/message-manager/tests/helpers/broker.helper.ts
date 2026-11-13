@@ -34,3 +34,13 @@ export function createMockDispatcher(
 			.mockResolvedValue(undefined),
 	} as unknown as jest.Mocked<Dispatcher>;
 }
+
+/** Runs a worker's loops for `ms`, then stops it: every group gets one claim and one read at least. */
+export async function runWorker(
+	worker: { start(): void; stop(): Promise<void> },
+	ms = 50
+): Promise<void> {
+	worker.start();
+	await new Promise((resolve) => setTimeout(resolve, ms));
+	await worker.stop();
+}
