@@ -3,9 +3,7 @@ import type { ServiceIdentity } from "@trading-model/primitives/service-identity
 import type { ServiceInstance } from "../../shared/types";
 
 export interface InstanceStorePort {
-	registerInstance(
-		instance: ServiceInstance
-	): ServiceInstance | Promise<string>;
+	registerInstance(instance: ServiceInstance): ServiceInstance | Promise<void>;
 	updateHeartbeat(
 		identity: ServiceIdentity
 	): number | false | Promise<number | false>;
@@ -17,7 +15,4 @@ export interface InstanceStorePort {
 	): ServiceInstance | undefined | Promise<ServiceInstance | undefined>;
 	removeInstance(identity: ServiceIdentity): boolean | Promise<boolean>;
 	listServiceNames(): ServiceInstanceName[] | Promise<ServiceInstanceName[]>;
-	dump():
-		| Partial<Record<ServiceInstanceName, ServiceInstance[]>>
-		| Promise<Record<ServiceInstanceName, ServiceInstance[]>>;
 }

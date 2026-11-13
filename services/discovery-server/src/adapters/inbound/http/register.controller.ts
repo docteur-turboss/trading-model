@@ -1,4 +1,3 @@
-import { parseServiceName } from "@trading-model/common/config/services.types";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
@@ -21,16 +20,6 @@ export function createRegisterController(registry: ServiceRegistry): {
 } {
 	return {
 		register: async ({ body }, req) => {
-			if (
-				!registry.tokenManager.verifyInstanceName(
-					parseServiceName(body.serviceName)
-				)
-			) {
-				return sendResponse(
-					{ error: "Invalid service name" },
-					HTTP_STATUS.BAD_REQUEST
-				);
-			}
 			const instance = buildServiceInstance(body, registry, _observedIPv4(req));
 			return sendResponse(
 				await registry.registerInstance(instance),
