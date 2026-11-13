@@ -966,8 +966,10 @@ jobs:
           bash deploy/k8s/scripts/deploy-release.sh wait "${{ steps.ns.outputs.namespace }}"
 
       # First upgrade to a release with MySQL TLS: the migrations ran while mysqld still served
-      # its auto-generated certificate and left the users unbound; mysqld now serves the
-      # cert-manager one. Idempotent (docs/deployment/MYSQL_TLS.md, "Enforcement and upgrade").
+      # its auto-generated certificate and left the users unbound. run-migrations.sh binds them
+      # only once pod mysql-0 serves the cert-manager certificate: a partitioned mysql
+      # (staging-local) keeps its older pod and its users unbound. Idempotent
+      # (docs/deployment/MYSQL_TLS.md, "Enforcement and upgrade").
       - name: Bind MySQL users to their client certificates
         shell: bash
         run: |

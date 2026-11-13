@@ -13,7 +13,9 @@
 # Environment: KIND (binary, default `kind`), KIND_CLUSTER (default
 # trading-model-ci), KEEP_CLUSTER=1 (`all` keeps the cluster afterwards),
 # KIND_PREVIOUS_REF (release N-1, default HEAD^1: the base branch of a PR merge
-# commit, the commit before on a push; locally e.g. origin/development).
+# commit, the commit before on a push; locally e.g. origin/development),
+# KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
+# the data StatefulSets partitioned, issue #1066: with KIND_PREVIOUS_REF=v3.1.0-rc.1).
 # Needs docker, git, kubectl, node, jq.
 #
 # `all` deletes the cluster when it ends: a forgotten cluster keeps the whole
@@ -245,7 +247,7 @@ migrations() {
 # Each stage writes a file: node never shares a pipe with its producer (a node
 # crash broke the pipe in runs 43321359421 and 43328471185).
 render_kind() {
-	release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" >"$3.raw" || return 1
+	release_script render "$1/deploy/k8s/overlays/${KIND_OVERLAY:-staging}" ghcr.io/trading-model "$2" >"$3.raw" || return 1
 	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
 	rm -f "$3.raw"
 }
@@ -362,7 +364,7 @@ release() {
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
 	release_script wait "$NS" "${2:-180s}" || return 1
-	# mysqld now serves the cert-manager certificate: bind the users to their client certificates.
+	# Binds the users to their client certificates once mysql-0 serves the cert-manager certificate.
 	migrations "$ROOT" user-only || return 1
 	deploy_script smoke-test
 }

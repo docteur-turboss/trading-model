@@ -142,8 +142,10 @@ require_migrate_password
 # overlay rolls it after the migrations), which no client can verify. The jobs then use an
 # encrypted but unverified session (ssl-mode=REQUIRED, DB_SSL_VERIFY=false) for this run only;
 # the overlay re-applies VERIFY_IDENTITY (docs/deployment/MYSQL_TLS.md, "Upgrade").
+# Read on the running pod, not the StatefulSet spec: a partitioned StatefulSet (staging-local,
+# issue #1066) keeps its pod on an older template. mysql-0 is the last member a rolling update replaces.
 TLS_VERIFY=true
-kubectl get statefulset mysql -n "$NS" -o jsonpath='{.spec.template.spec.volumes[*].name}' 2>/dev/null |
+kubectl get pod mysql-0 -n "$NS" -o jsonpath='{.spec.volumes[*].name}' 2>/dev/null |
   grep -qw mysql-tls || TLS_VERIFY=false
 if [ "$TLS_VERIFY" = true ]; then
   kubectl apply -n "$NS" -f "$JOBS/../infra/mysql-tls.yaml"

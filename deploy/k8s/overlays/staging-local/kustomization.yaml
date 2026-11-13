@@ -89,3 +89,21 @@ configMapGenerator:
     behavior: merge
     files:
       - realip.inc=realip.inc
+  # The partitioned database pods above still run the 3.1.0-rc.1 template: MySQL without
+  # mysql-tls, MongoDB without TLS (issue #1066). Clients connect as that template accepts
+  # (MySQL in clear, MongoDB without tls=true) until the planned switch of STAGING_LOCAL.md,
+  # "TLS and keyFile switch", which removes these three entries.
+  - name: financial-scraper-config
+    behavior: merge
+    literals:
+      - DB_SSL_CA=
+      - DB_SSL_CERT=
+      - DB_SSL_KEY=
+  - name: audit-logger-config
+    behavior: merge
+    literals:
+      - MONGODB_URI=mongodb://mongo-audit-0.mongo-audit-headless:27017,mongo-audit-1.mongo-audit-headless:27017,mongo-audit-2.mongo-audit-headless:27017/audit?replicaSet=rs0-audit&authSource=admin
+  - name: dlq-service-config
+    behavior: merge
+    literals:
+      - MONGO_URI=mongodb://mongo-dlq-0.mongo-dlq-headless:27017,mongo-dlq-1.mongo-dlq-headless:27017,mongo-dlq-2.mongo-dlq-headless:27017/dlq?replicaSet=rs0&authSource=admin

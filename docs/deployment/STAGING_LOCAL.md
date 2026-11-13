@@ -180,6 +180,34 @@ The next deploy sets the partition back to 1 anyway (it is in the overlay).
 Check the result: `kubectl -n "$NS" get sts <x> -o jsonpath='{.status.currentRevision} {.status.updateRevision}'`
 prints the same revision twice.
 
+### TLS and keyFile switch
+
+The pods of `mysql`, `mongo-dlq` and `mongo-audit` started on 3.1.0-rc.1: no
+`mysql-tls`, no MongoDB `--tlsMode` nor `--keyFile`. Until they restart, the
+overlay keeps their clients on what that template accepts (issue #1066):
+financial-scraper without `DB_SSL_*`, MongoDB URIs without `tls=true`, and
+`run-migrations.sh` leaves the MySQL users unbound (it reads pod `mysql-0`).
+Switch them in a planned window, outside a deploy:
+
+1. Merge the removal of the three `configMapGenerator` entries of issue #1066
+   from `overlays/staging-local/kustomization.yaml`: the next deploy must not
+   bring them back.
+2. Restart `mongo-dlq`, then `mongo-audit`, then `mysql` with the loop above.
+   MongoDB then enforces authentication (the users exist: the `mongo-*-users`
+   Jobs of 3.1.0 created them) and still accepts clear text (`preferTLS`).
+   MySQL requires TLS: financial-scraper is refused until step 3.
+3. Point financial-scraper at the cert-manager CA and bind the MySQL users:
+
+```bash
+cm=$(kubectl -n "$NS" get deploy financial-scraper -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')
+kubectl -n "$NS" patch configmap "$cm" --type merge -p '{"data":{"DB_SSL_CA":"/etc/mysql-tls/ca.crt","DB_SSL_CERT":"/etc/mysql-tls/tls.crt","DB_SSL_KEY":"/etc/mysql-tls/tls.key"}}'
+kubectl -n "$NS" rollout restart deploy/financial-scraper deploy/financial-scraper-collector
+bash deploy/k8s/scripts/run-migrations.sh "$NS" user-only   # prints no "auto-generated certificate" line
+kubectl -n "$NS" rollout status deploy/financial-scraper-collector --timeout=600s
+```
+
+The MongoDB clients move to TLS with the next deploy (step 1).
+
 ## Between deploys
 
 The cluster may be stopped between two deploys. Nothing calls it except
