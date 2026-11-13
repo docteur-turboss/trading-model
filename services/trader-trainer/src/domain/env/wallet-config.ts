@@ -21,7 +21,7 @@ export interface WalletConfigParams {
 	feeRate: Percentage;
 	/**
 	 * Half-spread + slippage as a fraction of the fill price: a buy pays
-	 * `price × (1 + rate)`, a sale receives `price × (1 − rate)`. Default 0.
+	 * `price × (1 + rate)`, a sale receives `price × (1 − rate)`.
 	 */
 	executionCostRate: Percentage;
 	/** Max position value (at the current price) as a fraction of `initialCash`. */
