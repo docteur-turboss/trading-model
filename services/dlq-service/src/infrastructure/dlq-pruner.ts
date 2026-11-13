@@ -12,7 +12,10 @@ export class DlqPruner {
 	private readonly _timer = new TimerHandle();
 
 	constructor(
-		private readonly _entries: { prune(maxEntries: number): Promise<number> },
+		private readonly _entries: {
+			prune(maxEntries: number): Promise<number>;
+			count(): Promise<number>;
+		},
 		private readonly _env: PrunerSettings
 	) {}
 
@@ -41,6 +44,7 @@ export class DlqPruner {
 				metrics.entriesPruned.inc(pruned);
 				logger.info(`Pruned ${pruned} old DLQ entries`);
 			}
+			metrics.collectionSize.set(await this._entries.count());
 			return pruned;
 		} catch (err) {
 			return this._handleError(err);
