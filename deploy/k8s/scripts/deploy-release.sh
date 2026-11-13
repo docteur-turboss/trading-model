@@ -48,7 +48,7 @@ DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scrape
 STATEFULSETS="redis redis-sentinel"
 
 # Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
-INIT_JOBS="mongo-audit-init mongo-dlq-init mysql-cluster-init mongo-audit-users mongo-dlq-users"
+INIT_JOBS="mysql-cluster-init mongo-audit-users mongo-dlq-users"
 
 usage() {
 	echo "usage: $0 record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file>" >&2
@@ -130,8 +130,12 @@ render() {
 	} >"$wrapper/kustomization.yaml"
 	# jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
 	# load restrictor rejects it and kubectl apply -k cannot relax it.
-	kubectl kustomize --load-restrictor LoadRestrictionsNone "$wrapper" |
-		sed "s#/trading-model/blob/main/#/trading-model/blob/$ref/#g"
+	# Rendered to a file first: a piped kustomize that dies leaves sed with a broken pipe (run 43321359421).
+	local rendered
+	rendered="$(mktemp)"
+	kubectl kustomize --load-restrictor LoadRestrictionsNone "$wrapper" >"$rendered" || { rm -f "$rendered"; return 1; }
+	sed "s#/trading-model/blob/main/#/trading-model/blob/$ref/#g" "$rendered"
+	rm -f "$rendered"
 }
 
 # Server-side dry-run of what "Apply cluster-scope objects", "Apply SPIFFE node

@@ -123,11 +123,6 @@ spec:
             - "0.0.0.0"
             - "--keyFile"
             - "/keyfile/keyfile"
-            # Expand step of the switch (ADR-0067): members authenticate each
-            # other, clients may still connect without credentials. Remove in
-            # the release after the one that adds the users and the client
-            # credentials: mongod then enforces authentication.
-            - "--transitionToAuth"
             # TLS expand step (issue #769, ADR-0060): TLS and clear text are both
             # accepted for one release, clients verify the certificate; `requireTLS`
             # replaces `preferTLS` in the next one. Clients send no certificate.
@@ -197,6 +192,54 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 3
+        # Bootstrap of this member: replica set and root user through the localhost
+        # exception (only a loopback connection of this pod gets it; a Job over the
+        # network is refused: "no replset config", run 43340429996). Idempotent.
+        - name: mongodb-bootstrap
+          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          env:
+            - name: MONGO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_ROOT_PASSWORD
+          command:
+            - sh
+            - -c
+            - |
+              M="mongosh --quiet --host 127.0.0.1 --port 27017"
+              until $M --eval 'db.hello().ok' >/dev/null 2>&1; do sleep 2; done
+              if [ "$HOSTNAME" = "mongo-audit-0" ]; then
+                $M --eval '
+                  if (!db.hello().setName) {
+                    const hosts = [0, 1, 2]
+                      .map((i) => `mongo-audit-${i}.mongo-audit-headless:27017`)
+                      .filter((h) => { try { return new Mongo(h).getDB("admin").runCommand({ ping: 1 }).ok === 1; } catch (e) { return false; } });
+                    rs.initiate({ _id: "rs0-audit", members: hosts.map((host, _id) => ({ _id, host })) });
+                  }'
+                until $M --eval 'db.hello().isWritablePrimary' | grep -qx true; do sleep 2; done
+                $M --eval '
+                  const admin = db.getSiblingDB("admin");
+                  if (admin.system.users.countDocuments({}) === 0) {
+                    admin.createUser({ user: "root", pwd: process.env.MONGO_ROOT_PASSWORD, roles: [{ role: "root", db: "admin" }] });
+                  }'
+              fi
+              exec sleep infinity
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
         # Exporter of this member (issue #601, ADR-0056): server status and
         # replica set state through localhost, as the `exporter` user
         # (clusterMonitor only, ADR-0067).
@@ -242,59 +285,11 @@ spec:
           requests:
             storage: 10Gi
 ---
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: mongo-audit-init
-  labels:
-    app.kubernetes.io/component: mongodb-audit
-    app.kubernetes.io/part-of: trading-model
-  annotations:
-    argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
-spec:
-  template:
-    metadata:
-      # Own component: the StatefulSet's would put this pod behind the Services,
-      # the PDB and the database NetworkPolicy. Allowed in by that policy.
-      labels:
-        app.kubernetes.io/component: mongodb-audit-init
-        app.kubernetes.io/part-of: trading-model
-    spec:
-      restartPolicy: OnFailure
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 999
-        runAsGroup: 999
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: mongodb-init
-          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-          command:
-            - mongosh
-            - --host
-            - mongo-audit-0.mongo-audit-headless:27017
-            - --eval
-            # Idempotent; members are the pods that answer, so an overlay that
-            # scales the StatefulSet down (staging: 1) still gets a replica set.
-            - |
-              try { rs.status(); print("replica set already initiated"); quit(0); } catch (e) {}
-              const hosts = [0, 1, 2]
-                .map((i) => `mongo-audit-${i}.mongo-audit-headless:27017`)
-                .filter((h) => { try { return new Mongo(h).getDB("admin").runCommand({ ping: 1 }).ok === 1; } catch (e) { return false; } });
-              rs.initiate({ _id: "rs0-audit", members: hosts.map((host, _id) => ({ _id, host })) });
----
 # Users of the replica set (issue #669, ADR-0067): root, exporter, backup and the
 # client of this database, from deploy/mongo/users.js. Idempotent, so it runs
 # again on every release (ttl: the finished Job is removed, a later apply
 # creates it again) and applies a rotated password. Needs a primary, which
-# mongo-audit-init elects; the members that do not answer (staging: 1 pod) are
+# the mongodb-bootstrap sidecar elects; the members that do not answer (staging: 1 pod) are
 # only seeds.
 apiVersion: batch/v1
 kind: Job

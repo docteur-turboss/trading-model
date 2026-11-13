@@ -193,7 +193,7 @@ replay_oplog() {
   for archive in "$@"; do
     open_backup "$archive" | gunzip || return 1
   done | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- sh -c \
-    'd=$(mktemp -d) && chmod 700 "$d" && cat > "$d/oplog.bson" && mongorestore --quiet --oplogReplay --oplogLimit "$1:0" --username root --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin "$d"; rc=$?; rm -rf "$d"; exit $rc' \
+    'd=$(mktemp -d) && chmod 700 "$d" && cat > "$d/oplog.bson" && mongorestore --oplogReplay --oplogLimit "$1:0" --username root --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin "$d"; rc=$?; rm -rf "$d"; exit $rc' \
     sh "$UNTIL_EPOCH"
 }
 
