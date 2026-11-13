@@ -10,10 +10,6 @@ export class NumericRange {
 		this.hi = hi;
 	}
 
-	contains(value: number): boolean {
-		return value >= this.lo && value <= this.hi;
-	}
-
 	clamp(value: number): number {
 		if (value < this.lo) {
 			return this.lo;
@@ -22,9 +18,5 @@ export class NumericRange {
 			return this.hi;
 		}
 		return value;
-	}
-
-	span(): number {
-		return this.hi - this.lo;
 	}
 }
