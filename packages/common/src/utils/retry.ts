@@ -8,20 +8,12 @@ import { sleep } from "./sleep";
 
 export interface RetryOptions extends BackoffConfig {
 	maxRetries: number;
-	timeoutMs?: DurationMs;
-	/** Optional callback to check whether retries should continue. If returns false, the loop aborts. */
-	shouldRetry?: () => boolean;
 }
 
 export interface RetryResult<_TResult> {
 	result: _TResult | null;
 	lastError: Error | null;
 	attempts: number;
-	timedOut: boolean;
-}
-
-function _hasTimedOut(start: number, timeoutMs: DurationMs): boolean {
-	return timeoutMs > 0 && Date.now() - start > timeoutMs;
 }
 
 async function _attemptOnce<TResult>(
@@ -49,27 +41,17 @@ export async function retryWithBackoff<_TResult>(
 		maxRetries,
 		baseDelayMs = DurationMs.of(100),
 		maxDelayMs = DurationMs.of(5000),
-		timeoutMs = DurationMs.zero(),
 		jitterMs = DurationMs.of(0),
-		shouldRetry,
 	} = options;
-	const start = Date.now();
 	let lastError: Error | null = null;
 
 	for (let attempt = 0; attempt < maxRetries; attempt++) {
-		if (shouldRetry && !shouldRetry()) {
-			return { result: null, lastError, attempts: attempt, timedOut: false };
-		}
-		if (_hasTimedOut(start, timeoutMs)) {
-			return { result: null, lastError, attempts: attempt, timedOut: true };
-		}
 		const outcome = await _attemptOnce(fn);
 		if (outcome.ok) {
 			return {
 				result: outcome.result,
 				lastError: null,
 				attempts: attempt + 1,
-				timedOut: false,
 			};
 		}
 		lastError = outcome.error;
@@ -81,7 +63,7 @@ export async function retryWithBackoff<_TResult>(
 			});
 		}
 	}
-	return { result: null, lastError, attempts: maxRetries, timedOut: false };
+	return { result: null, lastError, attempts: maxRetries };
 }
 
 export function withTimeout<TResult>(

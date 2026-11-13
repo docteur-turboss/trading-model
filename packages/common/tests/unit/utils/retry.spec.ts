@@ -28,7 +28,6 @@ describe("retryWithBackoff", () => {
 		expect(result.result).toBe("ok");
 		expect(result.attempts).toBe(1);
 		expect(result.lastError).toBeNull();
-		expect(result.timedOut).toBe(false);
 	});
 
 	it("should retry on failure and eventually succeed", async () => {
@@ -66,41 +65,6 @@ describe("retryWithBackoff", () => {
 		expect(result.result).toBeNull();
 		expect(result.lastError).toBe(error);
 		expect(result.attempts).toBe(2);
-	});
-
-	it("should abort when shouldRetry returns false", async () => {
-		const fn = jest
-			.fn<() => Promise<string>>()
-			.mockRejectedValue(new Error("fail"));
-
-		const promise = retryWithBackoff(fn, {
-			maxRetries: 5,
-			baseDelayMs: DurationMs.of(10),
-			shouldRetry: () => false,
-		});
-
-		await jest.advanceTimersByTimeAsync(100);
-		const result = await promise;
-
-		expect(result.attempts).toBe(0);
-		expect(fn).not.toHaveBeenCalled();
-	});
-
-	it("should timeout when timeoutMs is exceeded", async () => {
-		const fn = jest
-			.fn<() => Promise<string>>()
-			.mockRejectedValue(new Error("slow"));
-
-		const promise = retryWithBackoff(fn, {
-			maxRetries: 10,
-			baseDelayMs: DurationMs.of(500),
-			timeoutMs: 100 as never,
-		});
-
-		await jest.advanceTimersByTimeAsync(10000);
-		const result = await promise;
-
-		expect(result.timedOut).toBe(true);
 	});
 });
 

@@ -20,12 +20,6 @@ export function errorProp(err: unknown, key: string): unknown {
 		: undefined;
 }
 
-/** True when the caught value carries a string or numeric `code` (Mongo, Redis, network errors). */
-export function hasCode(err: unknown): err is { code: number | string } {
-	const code = errorProp(err, "code");
-	return typeof code === "string" || typeof code === "number";
-}
-
 export enum ErrorCode {
 	ServiceNotFound = "ServiceNotFoundError",
 	ServiceUnreachable = "ServiceUnreachableError",
