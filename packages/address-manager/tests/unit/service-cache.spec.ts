@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { Protocol } from "@trading-model/contracts/service-registry-types";
-import { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
 import {
 	DurationMs,
 	IPAddress,
 	Port,
-	PositiveInt,
 	toInstanceId,
 	toServiceId,
 	toVersion,
@@ -112,42 +110,6 @@ describe("ServiceCache", () => {
 		});
 		cache.close();
 		const result = await cache.get(toServiceId("svc"));
-		expect(result).toBeNull();
-	});
-
-	it("setCircuitState should store and return state", async () => {
-		await cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
-			failures: PositiveInt.of(3),
-			lastFailureTime: UnixTimestamp.of(1000),
-			state: CircuitStateEnum.OPEN,
-		});
-		const result = await cache.circuitStateStore.getCircuitState(
-			toInstanceId("i-1")
-		);
-		expect(result).toEqual({
-			failures: PositiveInt.of(3),
-			lastFailureTime: UnixTimestamp.of(1000),
-			state: CircuitStateEnum.OPEN,
-		});
-	});
-
-	it("getCircuitState should return null for unknown instance", async () => {
-		const result = await cache.circuitStateStore.getCircuitState(
-			toInstanceId("unknown")
-		);
-		expect(result).toBeNull();
-	});
-
-	it("deleteCircuitState should remove state", async () => {
-		await cache.circuitStateStore.setCircuitState(toInstanceId("i-1"), {
-			failures: PositiveInt.of(1),
-			lastFailureTime: UnixTimestamp.of(0),
-			state: CircuitStateEnum.CLOSED,
-		});
-		await cache.circuitStateStore.deleteCircuitState(toInstanceId("i-1"));
-		const result = await cache.circuitStateStore.getCircuitState(
-			toInstanceId("i-1")
-		);
 		expect(result).toBeNull();
 	});
 });

@@ -17,13 +17,6 @@ export interface DiscoveryLayer {
 	discoveryOrchestrator: DiscoveryOrchestrator;
 	metricsCollector: MetricsCollector;
 }
-function buildCircuitBreaker(
-	serviceCache: ServiceCachePort
-): DiscoveryCircuitBreaker {
-	return new DiscoveryCircuitBreaker({
-		stateStore: serviceCache.circuitStateStore,
-	});
-}
 function buildHealthChecker(
 	httpClient: HttpClient,
 	config: AddressManagerConfig
@@ -57,7 +50,6 @@ function buildDiscoveryOrchestrator(
 		}),
 		serviceCache,
 		circuitBreaker,
-		healthChecker,
 	});
 }
 /** Builds the discovery layer (cache, discovery, circuit breakers) on the HTTP layer. */
@@ -66,7 +58,7 @@ export function buildDiscoveryLayer(
 	serviceCache: ServiceCachePort,
 	config: AddressManagerConfig
 ): DiscoveryLayer {
-	const circuitBreaker = buildCircuitBreaker(serviceCache);
+	const circuitBreaker = new DiscoveryCircuitBreaker();
 	const healthChecker = buildHealthChecker(httpClient, config);
 	const discoveryOrchestrator = buildDiscoveryOrchestrator({
 		httpClient,

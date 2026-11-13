@@ -1,4 +1,4 @@
-import { MemoryStoreAdapter } from "@trading-model/persistence/memory-store-adapter";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type {
 	DurationMs,
@@ -6,45 +6,28 @@ import type {
 } from "@trading-model/primitives/primitives";
 import { CircuitBreaker } from "@trading-model/reliability/circuit-breaker";
 import type { CircuitBreakerConfig } from "@trading-model/reliability/circuit-state-machine";
-import { CircuitBreakerPersistence } from "../../adapters/outbound/discovery/circuit-breaker-persistence";
 import {
 	DEFAULT_FAILURE_THRESHOLD,
 	DEFAULT_HALF_OPEN_TIMEOUT_MS,
 	DEFAULT_LATENCY_P99_THRESHOLD_MS,
 	DEFAULT_LATENCY_WINDOW_SIZE,
-	DEFAULT_LOAD_CACHE_TTL_MS,
 } from "../../domain/discovery/circuit-breaker-constants";
-import type { CircuitStateStorePort } from "../../domain/ports/circuit-state-store.port";
-import type { PersistedCircuitState } from "../../domain/ports/service-cache.port";
-import { STALE_OPEN_MS } from "../../infrastructure/discovery/circuit-breaker-sweeper";
+import {
+	CircuitBreakerSweeper,
+	STALE_OPEN_MS,
+	sweepIdleClosedMachines,
+} from "../../infrastructure/discovery/circuit-breaker-sweeper";
 import {
 	CIRCUIT_BREAKER_STATE,
 	recordCircuitState,
 } from "../../infrastructure/metrics";
-import { CircuitBreakerPersistenceHandler } from "./circuit-breaker-persistence-handler";
 
 /** Tuning of a discovery circuit breaker: thresholds and timeouts. */
 export interface CircuitBreakerOptions {
 	failureThreshold?: number;
 	halfOpenTimeoutMs?: number;
-	stateStore?: CircuitStateStorePort;
-	loadFromStoreCacheTtlMs?: number;
 	latencyWindowSize?: number;
 	latencyP99ThresholdMs?: number;
-}
-
-function resolveStateStore(
-	stateStore?: CircuitStateStorePort
-): CircuitStateStorePort {
-	if (stateStore) {
-		return stateStore;
-	}
-	const defaultAdapter = new MemoryStoreAdapter<PersistedCircuitState>();
-	return {
-		setCircuitState: (id, state) => defaultAdapter.set(id, state),
-		getCircuitState: (id) => defaultAdapter.get(id),
-		deleteCircuitState: (id) => defaultAdapter.delete(id),
-	};
 }
 
 function buildCircuitConfig(
@@ -58,10 +41,9 @@ function buildCircuitConfig(
 	};
 }
 
-/** Circuit breaker around discovery calls, with its state persisted across restarts. */
+/** Circuit breaker around discovery calls, with its state kept in memory. */
 export class DiscoveryCircuitBreaker extends CircuitBreaker {
-	private readonly _persistenceHandler: CircuitBreakerPersistenceHandler;
-	private readonly _halfOpenTimeoutMs: number;
+	private readonly _sweeper = new CircuitBreakerSweeper();
 	/** Last time each key was consulted or fed; lets the sweeper expire machines of vanished instances. */
 	private readonly _lastActivity = new Map<string, number>();
 
@@ -70,51 +52,22 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 			options.failureThreshold ?? DEFAULT_FAILURE_THRESHOLD;
 		const halfOpenTimeoutMs =
 			options.halfOpenTimeoutMs ?? DEFAULT_HALF_OPEN_TIMEOUT_MS;
-		const loadFromStoreCacheTtlMs =
-			options.loadFromStoreCacheTtlMs ?? DEFAULT_LOAD_CACHE_TTL_MS;
 		const latencyWindowSize =
 			options.latencyWindowSize ?? DEFAULT_LATENCY_WINDOW_SIZE;
 		const latencyP99ThresholdMs =
 			options.latencyP99ThresholdMs ?? DEFAULT_LATENCY_P99_THRESHOLD_MS;
-		const persistence = new CircuitBreakerPersistence(
-			resolveStateStore(options.stateStore),
-			loadFromStoreCacheTtlMs
-		);
-
 		super(buildCircuitConfig(failureThreshold, halfOpenTimeoutMs), {
 			latencyWindowSize,
 			latencyP99ThresholdMs,
 		});
 
-		this._halfOpenTimeoutMs = halfOpenTimeoutMs;
-		this._persistenceHandler = new CircuitBreakerPersistenceHandler(
-			persistence,
-			halfOpenTimeoutMs
+		this._sweeper.start(() =>
+			sweepIdleClosedMachines(
+				(fn) => this.forEachMachine(fn),
+				(key) => this.removeMachine(key),
+				(key) => Date.now() - (this._lastActivity.get(key) ?? 0) > STALE_OPEN_MS
+			)
 		);
-		this._persistenceHandler.startSweeper(
-			(fn) => this.forEachMachine(fn),
-			(key) => this.removeMachine(key),
-			(key) => Date.now() - (this._lastActivity.get(key) ?? 0) > STALE_OPEN_MS
-		);
-	}
-
-	async loadFromStore(instanceId: InstanceId): Promise<void> {
-		const persisted = await this._persistenceHandler.loadFromStore(instanceId);
-		if (persisted) {
-			const machine = this.getMachine(instanceId);
-			if (machine.failures >= persisted.failures) {
-				return;
-			}
-			machine.restore({
-				failures: persisted.failures,
-				openUntil:
-					persisted.state === CircuitState.OPEN
-						? persisted.lastFailureTime + this._halfOpenTimeoutMs
-						: 0,
-				halfOpenAttempts: persisted.state === CircuitState.HALF_OPEN ? 1 : 0,
-			});
-			this._reportState(instanceId);
-		}
 	}
 
 	/** Consulted by discovery before handing out an instance: also publishes open to half-open. */
@@ -132,9 +85,10 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 	}
 
 	recordSuccess(instanceId: InstanceId): void {
-		const machine = this.getMachine(instanceId);
+		if (this.getMachine(instanceId).snapshot().openUntil > 0) {
+			getLogger().info("Circuit breaker closed for instance", { instanceId });
+		}
 		super.recordSuccess(instanceId);
-		this._persistenceHandler.onRecordSuccess(instanceId, machine);
 		this._reportState(instanceId);
 	}
 
@@ -145,7 +99,12 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 	): boolean {
 		const machine = this.getMachine(instanceId);
 		const opened = machine.recordFailure(count ?? 1, threshold);
-		this._persistenceHandler.onRecordFailure(instanceId, machine, opened);
+		if (opened) {
+			getLogger().warn("Circuit breaker opened for instance", {
+				instanceId,
+				failures: machine.failures,
+			});
+		}
 		this._reportState(instanceId);
 		return opened;
 	}
@@ -167,13 +126,11 @@ export class DiscoveryCircuitBreaker extends CircuitBreaker {
 	clear(): void {
 		this._lastActivity.clear();
 		CIRCUIT_BREAKER_STATE.reset();
-		this._persistenceHandler.clear((fn) =>
-			this.forEachMachine((key) => fn(key))
-		);
+		this._sweeper.stop();
 		super.clear();
 	}
 
 	stop(): void {
-		this._persistenceHandler.stop();
+		this._sweeper.stop();
 	}
 }

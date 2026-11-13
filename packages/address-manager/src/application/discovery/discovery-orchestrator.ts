@@ -4,7 +4,6 @@ import {
 	toServiceId,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { DiscoveryContext } from "../../domain/discovery/discovery-context";
 import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
@@ -21,20 +20,17 @@ export interface DiscoveryOrchestratorDeps {
 	serviceDiscovery: ServiceDiscovery;
 	serviceCache: ServiceCachePort;
 	circuitBreaker: DiscoveryCircuitBreaker;
-	healthChecker: ServiceHealthChecker;
 }
 
 /** Finds a service address: cache first, then discovery behind the circuit breaker. */
 export class DiscoveryOrchestrator {
 	readonly circuitBreaker: DiscoveryCircuitBreaker;
 	private readonly _serviceDiscovery: ServiceDiscovery;
-	private readonly _healthChecker: ServiceHealthChecker;
 	private readonly _retryHandler: DiscoveryRetryHandler;
 
 	constructor(deps: DiscoveryOrchestratorDeps) {
 		this._serviceDiscovery = deps.serviceDiscovery;
 		this.circuitBreaker = deps.circuitBreaker;
-		this._healthChecker = deps.healthChecker;
 		this._retryHandler = new DiscoveryRetryHandler(
 			deps.serviceDiscovery,
 			deps.serviceCache,
@@ -81,7 +77,6 @@ export class DiscoveryOrchestrator {
 		this.circuitBreaker.recordSuccess(instanceId);
 		if (durationMs !== undefined) {
 			this.circuitBreaker.recordLatency(instanceId, durationMs);
-			this._healthChecker.recordLatency(instanceId, durationMs, true);
 		}
 	}
 
@@ -89,7 +84,6 @@ export class DiscoveryOrchestrator {
 		this.circuitBreaker.recordFailure(instanceId);
 		if (durationMs !== undefined) {
 			this.circuitBreaker.recordLatency(instanceId, durationMs);
-			this._healthChecker.recordLatency(instanceId, durationMs, false);
 		}
 	}
 }

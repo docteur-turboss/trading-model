@@ -93,17 +93,6 @@ jest.mock("../../src/adapters/outbound/discovery/service-cache", () => ({
 		clear: jest.fn<(...args: any[]) => any>(),
 		entries: jest.fn<(...args: any[]) => any>().mockResolvedValue([]),
 		close: jest.fn<(...args: any[]) => any>(),
-		circuitStateStore: {
-			setCircuitState: jest
-				.fn<(...args: any[]) => any>()
-				.mockResolvedValue(undefined),
-			getCircuitState: jest
-				.fn<(...args: any[]) => any>()
-				.mockResolvedValue(null),
-			deleteCircuitState: jest
-				.fn<(...args: any[]) => any>()
-				.mockResolvedValue(undefined),
-		},
 	}),
 }));
 
@@ -258,12 +247,6 @@ describe("AddressManager (main)", () => {
 		const metrics = am.metricsCollector.getMetrics();
 		expect(metrics).toHaveProperty("memory");
 		expect(metrics).toHaveProperty("cpu");
-	});
-
-	it("should get service call tracker", () => {
-		const am = new AddressManager(makeConfig());
-		const tracker = am.metricsCollector.getServiceCallTracker();
-		expect(tracker.snapshot().totalCalls).toBe(0);
 	});
 
 	it("should listen on express app", () => {

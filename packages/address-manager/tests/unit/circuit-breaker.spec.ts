@@ -6,33 +6,9 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { CircuitState as CircuitStateEnum } from "@trading-model/primitives/circuit-state";
-import {
-	type InstanceId,
-	PositiveInt,
-	toInstanceId,
-	UnixTimestamp,
-} from "@trading-model/primitives/primitives";
+import { toInstanceId } from "@trading-model/primitives/primitives";
 import { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
-import type { CircuitStateStorePort } from "../../src/domain/ports/circuit-state-store.port";
-import type { PersistedCircuitState } from "../../src/domain/ports/service-cache.port";
 import { CIRCUIT_BREAKER_STATE } from "../../src/infrastructure/metrics";
-
-function createMockStateStore(): jest.Mocked<CircuitStateStorePort> {
-	return {
-		setCircuitState: jest
-			.fn<
-				(instanceId: InstanceId, state: PersistedCircuitState) => Promise<void>
-			>()
-			.mockResolvedValue(undefined),
-		getCircuitState: jest
-			.fn<(instanceId: InstanceId) => Promise<PersistedCircuitState | null>>()
-			.mockResolvedValue(null),
-		deleteCircuitState: jest
-			.fn<(instanceId: InstanceId) => Promise<void>>()
-			.mockResolvedValue(undefined),
-	};
-}
 
 describe("CircuitBreaker", () => {
 	let circuitBreaker: DiscoveryCircuitBreaker;
@@ -46,7 +22,7 @@ describe("CircuitBreaker", () => {
 		jest.useRealTimers();
 	});
 
-	describe("default constructor (no stateStore)", () => {
+	describe("default constructor", () => {
 		beforeEach(() => {
 			circuitBreaker = new DiscoveryCircuitBreaker({
 				failureThreshold: 3,
@@ -136,86 +112,6 @@ describe("CircuitBreaker", () => {
 			circuitBreaker.recordFailure(toInstanceId("instance-1"));
 
 			expect(circuitBreaker.isOpen(toInstanceId("instance-1"))).toBe(true);
-		});
-	});
-
-	describe("with stateStore", () => {
-		let mockCache: jest.Mocked<CircuitStateStorePort>;
-
-		beforeEach(() => {
-			mockCache = createMockStateStore();
-			circuitBreaker = new DiscoveryCircuitBreaker({
-				failureThreshold: 3,
-				halfOpenTimeoutMs: 10_000,
-				stateStore: mockCache,
-				loadFromStoreCacheTtlMs: 2_000,
-				latencyWindowSize: 100,
-				latencyP99ThresholdMs: 5000,
-			});
-		});
-
-		it("should persist state on every failure", () => {
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-
-			expect(mockCache.setCircuitState).toHaveBeenCalledWith(
-				toInstanceId("instance-1"),
-				{
-					failures: PositiveInt.of(1),
-					lastFailureTime: expect.any(Number) as unknown as UnixTimestamp,
-					state: CircuitStateEnum.CLOSED,
-				}
-			);
-
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-
-			expect(mockCache.setCircuitState).toHaveBeenCalledWith(
-				toInstanceId("instance-1"),
-				{
-					failures: PositiveInt.of(3),
-					lastFailureTime: expect.any(Number) as unknown as UnixTimestamp,
-					state: CircuitStateEnum.OPEN,
-				}
-			);
-		});
-
-		it("should load state from store on loadFromStore", async () => {
-			const persistedState: PersistedCircuitState = {
-				failures: PositiveInt.of(5),
-				lastFailureTime: UnixTimestamp.of(Date.now() - 5000),
-				state: CircuitStateEnum.OPEN,
-			};
-			mockCache.getCircuitState.mockResolvedValue(persistedState);
-
-			await circuitBreaker.loadFromStore(toInstanceId("instance-1"));
-
-			expect(circuitBreaker.isOpen(toInstanceId("instance-1"))).toBe(true);
-		});
-
-		it("should delete persisted state on recordSuccess", () => {
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-
-			jest.advanceTimersByTime(30_000);
-			circuitBreaker.isAllowed(toInstanceId("instance-1"));
-			circuitBreaker.recordSuccess(toInstanceId("instance-1"));
-
-			expect(mockCache.deleteCircuitState).toHaveBeenCalledWith(
-				toInstanceId("instance-1")
-			);
-		});
-
-		it("should delete persisted state on clear()", () => {
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-
-			circuitBreaker.clear();
-
-			expect(mockCache.deleteCircuitState).toHaveBeenCalledWith(
-				toInstanceId("instance-1")
-			);
 		});
 	});
 
@@ -347,52 +243,6 @@ describe("CircuitBreaker", () => {
 			expect(
 				circuitBreaker.getFailureCount(toInstanceId("instance-1"))
 			).toBeGreaterThan(0);
-		});
-	});
-
-	describe("with stateStore error handling", () => {
-		let mockCache: jest.Mocked<CircuitStateStorePort>;
-
-		beforeEach(() => {
-			mockCache = createMockStateStore();
-			circuitBreaker = new DiscoveryCircuitBreaker({
-				failureThreshold: 3,
-				halfOpenTimeoutMs: 10_000,
-				stateStore: mockCache,
-			});
-		});
-
-		it("should handle persist failure gracefully", () => {
-			mockCache.setCircuitState.mockRejectedValue(new Error("persist error"));
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-			expect(mockCache.setCircuitState).toHaveBeenCalled();
-		});
-
-		it("should handle delete persisted state failure gracefully", () => {
-			mockCache.deleteCircuitState.mockRejectedValue(new Error("delete error"));
-			circuitBreaker.recordFailure(toInstanceId("instance-1"));
-			jest.advanceTimersByTime(30_000);
-			circuitBreaker.isAllowed(toInstanceId("instance-1"));
-			circuitBreaker.recordSuccess(toInstanceId("instance-1"));
-			expect(mockCache.deleteCircuitState).toHaveBeenCalled();
-		});
-
-		it("loadFromStore should no-op when no stateStore", async () => {
-			const cb = new DiscoveryCircuitBreaker();
-			await cb.loadFromStore(toInstanceId("instance-1"));
-			expect(cb.isAllowed(toInstanceId("instance-1"))).toBe(true);
-		});
-
-		it("loadFromStore should skip when cached recently", async () => {
-			await circuitBreaker.loadFromStore(toInstanceId("instance-1"));
-			const persistedState: PersistedCircuitState = {
-				failures: PositiveInt.of(5),
-				lastFailureTime: UnixTimestamp.of(Date.now() - 5000),
-				state: CircuitStateEnum.OPEN,
-			};
-			mockCache.getCircuitState.mockResolvedValue(persistedState);
-			await circuitBreaker.loadFromStore(toInstanceId("instance-1"));
-			expect(circuitBreaker.isOpen(toInstanceId("instance-1"))).toBe(false);
 		});
 	});
 
@@ -540,111 +390,6 @@ describe("CircuitBreaker", () => {
 			expect(cb.getFailureCount(toInstanceId("latency-4"))).toBe(0);
 		});
 	});
-
-	describe("CircuitBreakerPersistence branch coverage", () => {
-		let persistenceMock: jest.Mocked<CircuitStateStorePort>;
-		let cb: DiscoveryCircuitBreaker;
-
-		beforeEach(() => {
-			jest.useFakeTimers();
-			persistenceMock = createMockStateStore();
-			cb = new DiscoveryCircuitBreaker({
-				failureThreshold: 5,
-				halfOpenTimeoutMs: 30000,
-				stateStore: persistenceMock,
-				loadFromStoreCacheTtlMs: 2000,
-				latencyWindowSize: 10,
-				latencyP99ThresholdMs: 100,
-			});
-		});
-
-		afterEach(() => {
-			cb.clear();
-			jest.useRealTimers();
-		});
-
-		it("loadFromStore should early return when cache is valid (_isCacheValid = true)", async () => {
-			await cb.loadFromStore(toInstanceId("persist-cache-valid"));
-			persistenceMock.getCircuitState.mockClear();
-			await cb.loadFromStore(toInstanceId("persist-cache-valid"));
-			expect(persistenceMock.getCircuitState).not.toHaveBeenCalled();
-		});
-
-		it("loadFromStore should handle no persisted state (persisted = false)", async () => {
-			persistenceMock.getCircuitState.mockResolvedValue(null);
-			await cb.loadFromStore(toInstanceId("persist-none"));
-			expect(cb.isOpen(toInstanceId("persist-none"))).toBe(false);
-			expect(cb.getFailureCount(toInstanceId("persist-none"))).toBe(0);
-		});
-
-		it("loadFromStore should restore from persisted state (persisted = true)", async () => {
-			const persistedState: PersistedCircuitState = {
-				failures: PositiveInt.of(5),
-				lastFailureTime: UnixTimestamp.of(Date.now() - 5000),
-				state: CircuitStateEnum.OPEN,
-			};
-			persistenceMock.getCircuitState.mockResolvedValue(persistedState);
-			await cb.loadFromStore(toInstanceId("persist-restore"));
-			expect(cb.isOpen(toInstanceId("persist-restore"))).toBe(true);
-		});
-
-		it("loadFromStore should NOT restore when existing machine has more failures (_shouldRestoreFromPersisted = false)", async () => {
-			cb.recordFailure(toInstanceId("persist-keep-local"));
-			cb.recordFailure(toInstanceId("persist-keep-local"));
-			const persistedState: PersistedCircuitState = {
-				failures: PositiveInt.of(1),
-				lastFailureTime: UnixTimestamp.of(Date.now() - 5000),
-				state: CircuitStateEnum.CLOSED,
-			};
-			persistenceMock.getCircuitState.mockResolvedValue(persistedState);
-			await cb.loadFromStore(toInstanceId("persist-keep-local"));
-			expect(cb.getFailureCount(toInstanceId("persist-keep-local"))).toBe(2);
-		});
-
-		it("loadFromStore should restore when persisted has more failures than existing (!existingMachine || persisted.failures > existing = true)", async () => {
-			cb.recordFailure(toInstanceId("persist-overwrite"));
-			const persistedState: PersistedCircuitState = {
-				failures: PositiveInt.of(5),
-				lastFailureTime: UnixTimestamp.of(Date.now() - 5000),
-				state: CircuitStateEnum.OPEN,
-			};
-			persistenceMock.getCircuitState.mockResolvedValue(persistedState);
-			await cb.loadFromStore(toInstanceId("persist-overwrite"));
-			expect(cb.isOpen(toInstanceId("persist-overwrite"))).toBe(true);
-			expect(cb.getFailureCount(toInstanceId("persist-overwrite"))).toBe(5);
-		});
-
-		it("_buildStateData should persist OPEN state with computed lastFailureTime (openUntil > 0)", () => {
-			for (let i = 0; i < 5; i++) {
-				cb.recordFailure(toInstanceId("persist-state-open"));
-			}
-			expect(cb.isOpen(toInstanceId("persist-state-open"))).toBe(true);
-			expect(persistenceMock.setCircuitState).toHaveBeenCalledWith(
-				toInstanceId("persist-state-open"),
-				expect.objectContaining({
-					state: CircuitStateEnum.OPEN,
-				})
-			);
-		});
-
-		it("_buildStateData should persist CLOSED state with current time (openUntil = 0)", () => {
-			cb.recordFailure(toInstanceId("persist-state-closed"));
-			expect(persistenceMock.setCircuitState).toHaveBeenCalledWith(
-				toInstanceId("persist-state-closed"),
-				expect.objectContaining({
-					state: CircuitStateEnum.CLOSED,
-				})
-			);
-		});
-
-		it("loadFromStore should reload when cache expires (_isCacheValid = false after TTL)", async () => {
-			await cb.loadFromStore(toInstanceId("persist-cache-expire"));
-			persistenceMock.getCircuitState.mockClear();
-			jest.advanceTimersByTime(3000);
-			await cb.loadFromStore(toInstanceId("persist-cache-expire"));
-			expect(persistenceMock.getCircuitState).toHaveBeenCalled();
-		});
-	});
 });
 
 describe("DiscoveryCircuitBreaker gauge", () => {
@@ -688,26 +433,6 @@ describe("DiscoveryCircuitBreaker gauge", () => {
 		expect(await read()).toBe(0);
 		cb.clear();
 		jest.useRealTimers();
-	});
-
-	it("publishes the state restored from the shared store", async () => {
-		const store = createMockStateStore();
-		store.getCircuitState.mockResolvedValue({
-			failures: 3,
-			state: CircuitStateEnum.OPEN,
-			lastFailureTime: Date.now(),
-		} as PersistedCircuitState);
-		const cb = new DiscoveryCircuitBreaker({
-			failureThreshold: 3,
-			halfOpenTimeoutMs: 60_000,
-			stateStore: store,
-		});
-		await cb.loadFromStore(toInstanceId("gauge-3"));
-		const v = (await CIRCUIT_BREAKER_STATE.get()).values.find(
-			(x) => x.labels.instanceId === "gauge-3"
-		)?.value;
-		expect(v).toBe(1);
-		cb.clear();
 	});
 
 	it("drops the series of an open instance nobody consults any more", async () => {

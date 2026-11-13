@@ -1,6 +1,5 @@
 {
   "cycles": [
-    "packages/address-manager/src/infrastructure/monitoring/call-record-aggregator.ts | packages/address-manager/src/infrastructure/monitoring/service-call-tracker.ts",
     "services/audit-logger/src/adapters/outbound/persistence/audit-querier.ts | services/audit-logger/src/adapters/outbound/persistence/audit-repository.ts | services/audit-logger/src/adapters/outbound/persistence/filter-builder.ts"
   ],
   "layers": [
@@ -14,12 +13,8 @@
     "packages/address-manager/src/application/discovery-layer-builder.ts -> @trading-model/http/adapters/outbound/http-client",
     "packages/address-manager/src/application/discovery/cache-health-refresher.ts -> ../../adapters/outbound/discovery/service-health-checker",
     "packages/address-manager/src/application/discovery/cache-health-refresher.ts -> ../../infrastructure/scheduler/scheduler",
-    "packages/address-manager/src/application/discovery/circuit-breaker-persistence-handler.ts -> ../../adapters/outbound/discovery/circuit-breaker-persistence",
-    "packages/address-manager/src/application/discovery/circuit-breaker-persistence-handler.ts -> ../../infrastructure/discovery/circuit-breaker-sweeper",
-    "packages/address-manager/src/application/discovery/circuit-breaker.ts -> ../../adapters/outbound/discovery/circuit-breaker-persistence",
     "packages/address-manager/src/application/discovery/circuit-breaker.ts -> ../../infrastructure/discovery/circuit-breaker-sweeper",
     "packages/address-manager/src/application/discovery/circuit-breaker.ts -> ../../infrastructure/metrics",
-    "packages/address-manager/src/application/discovery/discovery-orchestrator.ts -> ../../adapters/outbound/discovery/service-health-checker",
     "packages/address-manager/src/application/discovery/discovery-orchestrator.ts -> ../../infrastructure/metrics",
     "packages/address-manager/src/application/discovery/discovery-retry-handler.ts -> ../../infrastructure/metrics",
     "packages/address-manager/src/application/discovery/endpoint-resolver.ts -> @trading-model/http/adapters/outbound/http-client",
