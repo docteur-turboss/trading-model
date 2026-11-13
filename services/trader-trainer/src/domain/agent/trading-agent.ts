@@ -1,4 +1,4 @@
-import { Cash, Price, Volume } from "@trading-model/primitives/primitives";
+import { type Price, Volume } from "@trading-model/primitives/primitives";
 import {
 	createWallet,
 	type WalletAPI,
@@ -17,7 +17,7 @@ import StateManager, { type StateManagerConfig } from "./state-manager";
 
 export interface TradingAgentConfig {
 	nnConfig: NeuralNetworkConfig;
-	wallet?: WalletConfig;
+	wallet: WalletConfig;
 	tradeAmount?: Volume;
 	stateManagerCfg?: StateManagerConfig;
 	/** Show the position to the network (default); false feeds a constant. */
@@ -76,11 +76,9 @@ export class TradingAgent {
 		this._tradeCash =
 			cfg.tradeFraction === undefined
 				? undefined
-				: Number(cfg.wallet?.initialCash ?? 1000) * cfg.tradeFraction;
+				: Number(cfg.wallet.initialCash) * cfg.tradeFraction;
 		this._agent = new Agent(cfg.nnConfig);
-		this.wallet = createWallet(
-			cfg.wallet ?? { initialCash: Cash.of(1000), initialPrice: Price.of(1) }
-		);
+		this.wallet = createWallet(cfg.wallet);
 		this.state = new StateManager(cfg.stateManagerCfg ?? {});
 		this._actionMapper = new ActionMapper({ ...cfg, rng: cfg.nnConfig.rng });
 	}

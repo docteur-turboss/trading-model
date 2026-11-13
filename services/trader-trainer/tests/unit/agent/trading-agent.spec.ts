@@ -6,11 +6,13 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type {
+import type { PositiveInt } from "@trading-model/primitives/primitives";
+import {
+	Cash,
 	Percentage,
-	PositiveInt,
+	Price,
+	Volume,
 } from "@trading-model/primitives/primitives";
-import { Cash, Price, Volume } from "@trading-model/primitives/primitives";
 import type { TradingAgentConfig } from "../../../src/domain/agent/trading-agent";
 import { TradingAgent } from "../../../src/domain/agent/trading-agent";
 import {
@@ -36,7 +38,12 @@ function makeConfig(
 			enablePool: true,
 			poolMaxSize: 100 as PositiveInt,
 		},
-		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(100) },
+		wallet: {
+			initialCash: Cash.of(1000),
+			initialPrice: Price.of(100),
+			feeRate: Percentage.zero(),
+			executionCostRate: Percentage.zero(),
+		},
 		tradeAmount: Volume.of(1),
 		stateManagerCfg: {
 			epsilonStart: 0,
@@ -104,9 +111,10 @@ describe("TradingAgent", () => {
 			expect(epsilonAgent.state.getEpsilon()).toBe(1.0);
 		});
 
-		it("should use default wallet and state config when not provided", () => {
+		it("should use default state config when not provided", () => {
 			const a = new TradingAgent({
 				nnConfig: makeConfig().nnConfig,
+				wallet: makeConfig().wallet,
 			} as TradingAgentConfig);
 			expect(a.wallet).toBeDefined();
 		});
@@ -153,6 +161,7 @@ describe("TradingAgent", () => {
 						3 as PositiveInt,
 					],
 				},
+				wallet: makeConfig().wallet,
 				tradeAmount: Volume.of(5),
 			});
 

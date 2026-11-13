@@ -14,6 +14,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			expect(wallet.getCash()).toBe(1000);
 			expect(wallet.getPrice()).toBe(50);
@@ -32,10 +34,20 @@ describe("Wallet module", () => {
 
 		test("should throw error for invalid initial price", () => {
 			expect(() =>
-				createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(0) })
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(0),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.zero(),
+				})
 			).toThrow("Invalid initialPrice: 0");
 			expect(() =>
-				createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(-5) })
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(-5),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.zero(),
+				})
 			).toThrow("Price must be a non-negative finite number, got -5");
 		});
 
@@ -44,6 +56,7 @@ describe("Wallet module", () => {
 				createWallet({
 					initialCash: Cash.of(1000),
 					initialPrice: Price.of(50),
+					executionCostRate: Percentage.zero(),
 					feeRate: Percentage.of(1),
 				})
 			).toThrow("Invalid feeRate");
@@ -51,6 +64,7 @@ describe("Wallet module", () => {
 				createWallet({
 					initialCash: Cash.of(1000),
 					initialPrice: Price.of(50),
+					executionCostRate: Percentage.zero(),
 					feeRate: Percentage.of(-0.1),
 				})
 			).toThrow("Invalid feeRate");
@@ -58,6 +72,7 @@ describe("Wallet module", () => {
 				createWallet({
 					initialCash: Cash.of(1000),
 					initialPrice: Price.of(50),
+					executionCostRate: Percentage.zero(),
 					feeRate: Percentage.of(Number.NaN),
 				})
 			).toThrow("Percentage must be a finite number");
@@ -69,6 +84,8 @@ describe("Wallet module", () => {
 					createWallet({
 						initialCash: Cash.of(1000),
 						initialPrice: Price.of(50),
+						feeRate: Percentage.zero(),
+						executionCostRate: Percentage.zero(),
 						maxExposureFraction,
 					})
 				).toThrow("Invalid maxExposureFraction");
@@ -80,6 +97,8 @@ describe("Wallet module", () => {
 				createWallet({
 					initialCash: Cash.of(1000),
 					initialPrice: Price.of(50),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.zero(),
 					decimals: 0 as DecimalPrecision,
 				})
 			).toThrow("Invalid decimals");
@@ -87,6 +106,8 @@ describe("Wallet module", () => {
 				createWallet({
 					initialCash: Cash.of(1000),
 					initialPrice: Price.of(50),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.zero(),
 					decimals: 16 as DecimalPrecision,
 				})
 			).toThrow("Invalid decimals");
@@ -94,6 +115,8 @@ describe("Wallet module", () => {
 				createWallet({
 					initialCash: Cash.of(1000),
 					initialPrice: Price.of(50),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.zero(),
 					decimals: 2.5 as DecimalPrecision,
 				})
 			).toThrow("Invalid decimals");
@@ -103,6 +126,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 				decimals: 4 as DecimalPrecision,
 			});
 			expect(wallet.getCash()).toBe(1000);
@@ -113,6 +138,7 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				executionCostRate: Percentage.zero(),
 				feeRate: Percentage.of(0.001),
 				maxExposureFraction: 0.5,
 			});
@@ -126,6 +152,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			const result = wallet.buy(Volume.of(5));
 			expect(result).toBe(true);
@@ -138,6 +166,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(100),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			const result = wallet.buy(Volume.of(3));
 			expect(result).toBe(false);
@@ -149,6 +179,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			expect(wallet.buy(Volume.of(0))).toBe(false);
 			expect(() => wallet.buy(Volume.of(-2))).toThrow();
@@ -161,6 +193,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(price),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 				maxExposureFraction: 0.5,
 			});
 			// cap = 0.5 * 1000 / price units
@@ -176,6 +210,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			wallet.buy(Volume.of(5));
 			const result = wallet.sell(Volume.of(2));
@@ -189,6 +225,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			wallet.buy(Volume.of(2));
 			const result = wallet.sell(Volume.of(5));
@@ -200,6 +238,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			wallet.buy(Volume.of(3));
 			expect(wallet.sell(Volume.of(0))).toBe(false);
@@ -212,6 +252,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			wallet.setPrice(Price.of(75));
 			expect(wallet.getPrice()).toBe(75);
@@ -221,6 +263,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			expect(() => wallet.setPrice(Price.of(-10))).toThrow();
 			expect(wallet.getPrice()).toBe(50);
@@ -234,6 +278,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			wallet.buy(Volume.of(5));
 			wallet.sell(Volume.of(2));
@@ -245,6 +291,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(500),
 				initialPrice: Price.of(20),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(25));
@@ -260,6 +308,7 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				executionCostRate: Percentage.zero(),
 				feeRate: Percentage.of(0.01),
 			});
 			wallet.buy(Volume.of(5));
@@ -272,6 +321,7 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				executionCostRate: Percentage.zero(),
 				feeRate: Percentage.of(0.01),
 			});
 			wallet.buy(Volume.of(10));
@@ -291,6 +341,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			expect(wallet.getPnL()).toBe(0);
 		});
@@ -299,6 +351,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(60));
@@ -343,6 +397,7 @@ describe("Wallet module", () => {
 				createWallet({
 					initialCash: Cash.of(1000),
 					initialPrice: Price.of(100),
+					feeRate: Percentage.zero(),
 					executionCostRate: Percentage.of(1),
 				})
 			).toThrow("Invalid executionCostRate");
@@ -357,6 +412,8 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
 			});
 			wallet.buy(Volume.of(5));
 			wallet.setPrice(Price.of(60));
