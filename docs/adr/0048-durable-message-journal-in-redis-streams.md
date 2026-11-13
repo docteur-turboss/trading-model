@@ -43,7 +43,7 @@ Publisher ──POST /message──▶ message-manager ──XADD──▶ Redis
 
 ### Contract and rollout (expand/contract)
 
-The publish response changes from `204` (after delivery) to `202 {"messageId"}` (after acceptance). Publishers never read the body and treat any 2xx as success, so the **old publishers already accept the new answer**; the new publishers also accept the old one and, in 3.0.0 only, kept the old bound (305 s) so that a publish to a still-old replica is not reported failed (nor opens the publisher circuit breaker, which the kind upgrade gate caught). The bound dropped to `PUBLISH_ACCEPT_TIMEOUT_MS` 15 s + 5 s in the next release (contract step); the broker side (15 s) and the grace periods already use the short value.
+The publish response changes from `204` (after delivery) to `202 {"messageId"}` (after acceptance). Publishers never read the body and treat any 2xx as success, so the **old publishers already accept the new answer**; the new publishers also accept the old one and, in 3.0.0 only, kept the old bound (305 s) so that a publish to a still-old replica is not reported failed (nor opens the publisher circuit breaker, which the kind upgrade gate caught). The bound stayed in 3.0.0 and 3.1.0 (`PUBLISH_COMPAT_TIMEOUT_MS`, removed by #921 on `development`, so the release after 3.1.0 has `PUBLISH_ACCEPT_TIMEOUT_MS` 15 s + 5 s instead; contract step); the broker side (15 s) and the grace periods already use the short value.
 
 ### Guarantees, stated plainly
 
