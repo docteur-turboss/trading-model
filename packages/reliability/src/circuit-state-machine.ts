@@ -49,35 +49,8 @@ export class CircuitStateMachine {
 		return this.getState(UnixTimestamp.now());
 	}
 
-	isAllowed(): boolean {
-		return !this.isOpen(UnixTimestamp.now());
-	}
-
 	getFailureCount(): number {
 		return this._failures;
-	}
-
-	async call<TResult>(
-		fn: () => Promise<TResult>,
-		fallback?: () => TResult
-	): Promise<TResult> {
-		if (!this.isAllowed()) {
-			if (fallback) {
-				return fallback();
-			}
-			throw new Error("Circuit breaker OPEN");
-		}
-		try {
-			const result = await fn();
-			this.recordSuccess();
-			return result;
-		} catch (error) {
-			this.recordFailure();
-			if (fallback) {
-				return fallback();
-			}
-			throw error;
-		}
 	}
 
 	getState(now?: number): CircuitState {
