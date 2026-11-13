@@ -69,7 +69,7 @@ See [Environment Variables](../deployment/ENV.md#dlq-service).
 
 ## Audit trail
 
-dlq-service publishes each step on the bus, where audit-logger records it like every topic: `dlq.entry.added` (`entryId`, `topic`, `reason`), `dlq.replay.completed` (`batchId`, `topic`, `replayed`, `failed`) and `dlq.entries.deleted` (`ids`, `deleted`). It does not wait for these publishes (message-manager answers once audit-logger took the event or gave up) and only logs a warning when one fails. A dead letter of a `dlq.*` event publishes nothing: while audit-logger is down each would dead-letter the next.
+dlq-service publishes each step on the bus, where audit-logger records it: `dlq.entry.added` (`entryId`, `topic`, `reason`), `dlq.replay.completed` (`batchId`, `topic`, `replayed`, `failed`) and `dlq.entries.deleted` (`ids`, `deleted`). It does not wait for these publishes (message-manager answers once audit-logger took the event or gave up) and only logs a warning when one fails. A dead letter of a `dlq.*` event publishes nothing: while audit-logger is down each would dead-letter the next.
 
 Until 2026-10-30 these notifications were a `POST` to an `/audit` route audit-logger never had: none was ever recorded.
 

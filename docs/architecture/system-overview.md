@@ -43,7 +43,7 @@ flowchart TB
   gw --> tt
   fs -->|"publish candles"| mm
   mm -->|"callback /message"| tt
-  mm -->|"callback /message (every topic)"| al
+  mm -->|"callback /message (audit, training, dlq topics)"| al
   mm -->|"signed POST /dlq"| dlq
   services -.->|"register + heartbeat (address-manager)"| disc
 
