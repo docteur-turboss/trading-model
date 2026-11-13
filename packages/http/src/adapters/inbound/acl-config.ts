@@ -15,7 +15,7 @@ export enum KnownService {
 export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 	[KnownService.DiscoveryServer]: [ServiceId.of("*")],
 	[KnownService.AuditLogger]: [ServiceId.of("*")],
-	// Publishers, plus the subscribers: audit-logger subscribes to every topic
+	// Publishers, plus the subscribers: audit-logger subscribes to its topics
 	// and dlq-service republishes replayed entries. Not api-gateway: it would
 	// lend its identity to API clients (it proxies with its own SVID).
 	[KnownService.MessageManager]: [

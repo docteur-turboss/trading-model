@@ -472,8 +472,16 @@ cmd_smoke_test() {
     local name="${entry%%:*}"
     local url="${entry#*:}"
 
-    if kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
-         curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null | grep -q "200"; then
+    # Up to 3 answers, 5 s apart, as the kubelet judges readiness (failureThreshold 3):
+    # one slow Redis connect just after the rollout is not a failed release (run 43367462523).
+    local code="" try
+    for try in 1 2 3; do
+      code=$(kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+        curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null || true)
+      [[ "$code" == "200" || "$try" -eq 3 ]] && break
+      sleep 5
+    done
+    if [[ "$code" == "200" ]]; then
       log "  ✓ $name is healthy"
     else
       err "  ✗ $name is NOT healthy"

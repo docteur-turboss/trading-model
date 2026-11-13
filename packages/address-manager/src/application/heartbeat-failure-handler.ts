@@ -4,14 +4,17 @@ import { PositiveInt } from "@trading-model/primitives/primitives";
 import type { ServiceClientDeps } from "./types";
 
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = PositiveInt.of(3);
-const HTTP_UNAUTHORIZED = 401;
+// 401: token unknown; 404: lease expired and removed ("Instance not found").
+const LEASE_LOST_STATUSES: unknown[] = [401, 404];
 
-/** True when the error, or one of its causes, is an HTTP 401 response. */
-function _isRejectedToken(err: unknown): boolean {
+/** True when the error, or one of its causes, is an HTTP 401 or 404 response. */
+function _isLeaseLost(err: unknown): boolean {
 	let current: unknown = err;
 	for (let depth = 0; current && depth < 5; depth++) {
 		if (
-			(current as { statusCode?: unknown }).statusCode === HTTP_UNAUTHORIZED
+			LEASE_LOST_STATUSES.includes(
+				(current as { statusCode?: unknown }).statusCode
+			)
 		) {
 			return true;
 		}
@@ -20,7 +23,7 @@ function _isRejectedToken(err: unknown): boolean {
 	return false;
 }
 
-/** Handles a failed heartbeat: re-registers after a 401 or repeated failures. */
+/** Handles a failed heartbeat: re-registers after a 401, a 404 or repeated failures. */
 export class HeartbeatFailureHandler {
 	private _consecutiveHeartbeatFailures = 0;
 
@@ -38,9 +41,11 @@ export class HeartbeatFailureHandler {
 			error: normalizeError(err),
 		});
 		// 401: discovery no longer knows our token (it restarted and lost its
-		// in-memory tokens). Retrying the heartbeat cannot succeed: re-register now.
+		// in-memory tokens). 404: it removed our lease (30 s without a heartbeat,
+		// e.g. while Redis or discovery restarted). Retrying the heartbeat cannot
+		// succeed and the gateway answers 404 for this service meanwhile: re-register now.
 		if (
-			_isRejectedToken(err) ||
+			_isLeaseLost(err) ||
 			this._consecutiveHeartbeatFailures >=
 				MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
 		) {

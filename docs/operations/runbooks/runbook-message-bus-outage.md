@@ -83,7 +83,7 @@ kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
 ### 3. No subscriber on a topic
 
 **Symptoms:** `MessagesUnrouted` on a topic.  
-**Fix:** check that the subscribing service is up and that its logs show no subscription error (403 from the message-manager ACL, Redis errors). audit-logger subscribes to every topic: if every topic is unrouted, look at audit-logger and at Redis first.
+**Fix:** check that the subscribing service is up and that its logs show no subscription error (403 from the message-manager ACL, Redis errors). audit-logger subscribes to the audit, training and dlq topics: if all of them are unrouted, look at audit-logger and at Redis first.
 
 ### 4. Dead letters stuck, refused or lost
 

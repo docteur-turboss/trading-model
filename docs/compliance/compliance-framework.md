@@ -45,7 +45,7 @@ This document provides a consolidated map of all regulatory obligations applicab
 |---|---|---|---|
 | **Art. 17(1)** | Algorithmic trading governance | System design documented, conformance testing framework defined | [Algorithmic Trading Compliance](algorithmic-trading-compliance.md) §3 |
 | **Art. 17(2)** | Risk controls for algo trading | Circuit breakers, rate limiting, agent behaviour bounds | [Algorithmic Trading Compliance](algorithmic-trading-compliance.md) §4 |
-| **Art. 72** | Record-keeping (5 years) | 5-year retention for market data and audit events | [Data Retention Policy](data-retention-policy.md) |
+| **Art. 72** | Record-keeping (5 years) | 5-year retention: market data in MySQL (ADR-0051), audit, training and DLQ events in the audit trail (ADR-0027) | [Data Retention Policy](data-retention-policy.md) |
 | **RTS 6 Art. 1** | System characterisation | Architecture docs, ADRs, neural network topology documentation | [Algorithmic Trading Compliance](algorithmic-trading-compliance.md) §2 |
 | **RTS 6 Art. 3** | Conformance testing | Market data validation, agent behaviour bounds, order generation testing | [Algorithmic Trading Compliance](algorithmic-trading-compliance.md) §3.1 |
 | **RTS 6 Art. 5** | Stress testing | Feed loss, volatility, backpressure scenarios | [Algorithmic Trading Compliance](algorithmic-trading-compliance.md) §3.2 |
