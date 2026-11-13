@@ -39,6 +39,7 @@ const mockRedisClient = {
 	connect: jest.fn<(...args: any[]) => any>().mockResolvedValue(undefined),
 	ping: jest.fn<(...args: any[]) => any>().mockResolvedValue("PONG"),
 	disconnect: jest.fn<(...args: any[]) => any>(),
+	on: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
