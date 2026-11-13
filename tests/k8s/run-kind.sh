@@ -289,7 +289,10 @@ deploy() {
 	apply_release "$PREVIOUS" "$WORK/digests-previous"
 	# The TLS consumers (redis-sentinel, mysql, mongo) need their CA secrets: cert-manager
 	# never created them in run 43331271388. Bounded: a missing CA fails here, not 10 min later.
-	$K -n "$NS" wait --for=condition=Ready certificate --all --timeout=300s
+	# Ingress certificates (letsencrypt-prod, ACME) cannot be issued without internet: left out.
+	local certs
+	certs="$($K -n "$NS" get certificate -o name | grep -vE '/(api|grafana)-trading-model-tls$')"
+	$K -n "$NS" wait --for=condition=Ready $certs --timeout=300s
 	$K -n "$NS" create configmap binance-stub \
 		--from-file=server.mjs="$ROOT/tests/e2e/binance-stub/server.mjs" \
 		--dry-run=client -o yaml | $K apply -f -
