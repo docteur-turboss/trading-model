@@ -186,6 +186,7 @@ describe("Server routes", () => {
 		app.use(
 			TRAINER_ROUTES(trainer, {
 				models: {
+					latest: async () => undefined,
 					list: async () => [],
 					manifest: async () => undefined,
 					weights: async () => undefined,

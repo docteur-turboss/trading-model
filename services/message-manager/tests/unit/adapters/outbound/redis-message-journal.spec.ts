@@ -325,6 +325,36 @@ describe("RedisMessageJournal", () => {
 		);
 	});
 
+	it("should issue every XCLAIM before any resolves and keep the XPENDING order", async () => {
+		const message = createMockMessage("payload");
+		const release: Array<() => void> = [];
+		const { journal, redis } = setup(async (command) => {
+			if (command === "XPENDING") {
+				return [
+					["1-0", "d", 20_000, 1],
+					["2-0", "d", 20_000, 1],
+				];
+			}
+			await new Promise<void>((resolve) => release.push(resolve));
+			return [["x", stored(message)]];
+		});
+
+		const claimed = journal.claimDue(
+			GROUP,
+			"c",
+			{ floorMs: 0, dueAfterMs: () => 0 },
+			10
+		);
+		await new Promise((resolve) => setImmediate(resolve));
+		expect(release).toHaveLength(2);
+		for (const resolve of release.reverse()) {
+			resolve();
+		}
+
+		expect((await claimed).map((entry) => entry.deliveries)).toEqual([2, 2]);
+		expect(redis.call).toHaveBeenCalledTimes(3);
+	});
+
 	it("should skip and acknowledge an entry trimmed from the stream while still pending", async () => {
 		const { journal, redis } = setup(async (command) =>
 			command === "XPENDING" ? [["1-0", "c", 20_000, 1]] : [["1-0", null]]
