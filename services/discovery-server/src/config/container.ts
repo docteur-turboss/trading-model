@@ -12,6 +12,7 @@ import { InMemoryTokenStore } from "../adapters/outbound/in-memory-token-store";
 import { InstanceStore } from "../adapters/outbound/instance-store";
 import { RedisInstanceStore } from "../adapters/outbound/redis-instance-store";
 import { RedisTokenStore } from "../adapters/outbound/redis-token-store";
+import { markRegistryAvailable } from "../domain/expiration";
 import { InstanceTokenManager } from "../domain/instance-token-manager";
 import { LeaseManager } from "../domain/lease-manager";
 import type { RegistryMetricsPort } from "../domain/ports/discovery-metrics.port";
@@ -70,6 +71,8 @@ export function createDiscoveryApp(
 	const redisClient = redisConnection
 		? createRedisClient(redisConnection)
 		: undefined;
+	// Every (re)connection: the leases could not be renewed while Redis was away.
+	redisClient?.on("ready", () => markRegistryAvailable());
 	const instanceStore = _buildInstanceStore(
 		settings,
 		redisClient,
