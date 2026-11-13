@@ -39,6 +39,13 @@ describe("HeartbeatFailureHandler", () => {
 		expect(setToken).toHaveBeenCalledWith("new-token");
 	});
 
+	it("re-registers at once when discovery removed the lease (404)", async () => {
+		await handler.handleError(httpError(404));
+
+		expect(registerService).toHaveBeenCalledTimes(1);
+		expect(setToken).toHaveBeenCalledWith("new-token");
+	});
+
 	it("waits for repeated failures before re-registering on other errors", async () => {
 		await handler.handleError(httpError(503));
 		await handler.handleError(httpError(503));
