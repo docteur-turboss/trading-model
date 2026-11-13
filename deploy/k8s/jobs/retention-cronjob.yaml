@@ -9,7 +9,7 @@
 #
 #  Metrics: /backups/metrics/retention.prom, served by backup-metrics-exporter.
 #  Alerts: RetentionFailed, RetentionStale (runbook BACKUP_DR.md#retention-job).
-#  Durations: RETENTION_DAYS / RETENTION_SIGNALS_DAYS (docs/deployment/ENV.md).
+#  Durations: RETENTION_DAYS / RETENTION_SIGNALS_DAYS / RETENTION_ORDER_BOOKS_DAYS (docs/deployment/ENV.md).
 # =============================================================================
 apiVersion: batch/v1
 kind: CronJob
@@ -80,6 +80,8 @@ spec:
                       key: MYSQL_RETENTION_PASSWORD
                 - name: RETENTION_DAYS
                   value: "1827"
+                - name: RETENTION_ORDER_BOOKS_DAYS
+                  value: "180"
                 - name: RETENTION_BATCH_SIZE
                   value: "10000"
                 - name: RETENTION_PAUSE_SECONDS
