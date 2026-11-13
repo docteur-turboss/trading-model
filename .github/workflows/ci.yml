@@ -367,11 +367,13 @@ jobs:
     if: ${{ needs.gate.outputs.k8s == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      KIND_PREVIOUS_REF: ${{ github.event.pull_request.base.sha }}
     steps:
-      # Depth 2: release N-1 is HEAD^1, as in the k8s job.
+      # Full history: release N-1 is the base of the PR (KIND_PREVIOUS_REF), not HEAD^1.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Build the images (release N-1 and N)
         env:
           KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
@@ -406,12 +408,15 @@ jobs:
       # and not representative of production, the RTO is judged in
       # docs/compliance/dr-exercise-log.md.
       DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
+      # Release N-1 = the PR base (a pre-auth release): the MongoDB auth change of the
+      # branch is the upgrade under test (AGENTS.md: a cluster passes through 3.1.0).
+      # Empty on a push: run-kind.sh then uses HEAD^1.
+      KIND_PREVIOUS_REF: ${{ github.event.pull_request.base.sha }}
     steps:
-      # Depth 2: release N-1 is HEAD^1 (the base branch of the PR merge
-      # commit, the previous commit on a push), built and deployed first.
+      # Full history: N-1 is the PR base (KIND_PREVIOUS_REF), built and deployed first.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Install kind
         run: |
           # GitHub Releases answers 504 now and then (issue #660): retry, checksum still checked.
