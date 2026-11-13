@@ -6,7 +6,6 @@ import {
 	type Probability,
 	type SharpeRatio,
 } from "@trading-model/primitives/primitives";
-import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import type {
 	ActivationType,
 	FitnessType,
@@ -57,20 +56,17 @@ interface LastTrainingInfoData {
 	bestFitness: Fitness;
 	bestFitnessMeta: GenomeFitnessMeta | undefined;
 	generation: NonNegativeInt;
-	generationContext: GenerationContext | null;
 }
 
 export interface TrainingSnapshot {
 	readonly symbol: TradingSymbol;
 	readonly generation: NonNegativeInt;
-	readonly generationContext: GenerationContext | null;
 	buildBestAgentSummary(): BestAgentSummary | null;
 }
 
 export class NullLastTrainingInfo implements TrainingSnapshot {
 	readonly symbol: TradingSymbol = "" as TradingSymbol;
 	readonly generation: NonNegativeInt = NonNegativeInt.of(0);
-	readonly generationContext: GenerationContext | null = null;
 
 	buildBestAgentSummary(): BestAgentSummary | null {
 		return null;
@@ -83,7 +79,6 @@ export class LastTrainingInfo implements TrainingSnapshot {
 	readonly bestFitness: Fitness;
 	readonly bestFitnessMeta: GenomeFitnessMeta | undefined;
 	readonly generation: NonNegativeInt;
-	readonly generationContext: GenerationContext | null;
 
 	constructor(data: LastTrainingInfoData) {
 		this.symbol = data.symbol;
@@ -91,7 +86,6 @@ export class LastTrainingInfo implements TrainingSnapshot {
 		this.bestFitness = data.bestFitness;
 		this.bestFitnessMeta = data.bestFitnessMeta;
 		this.generation = data.generation;
-		this.generationContext = data.generationContext;
 	}
 
 	buildBestAgentSummary(): BestAgentSummary | null {
@@ -109,7 +103,6 @@ export class LastTrainingInfo implements TrainingSnapshot {
  * topology, RL and GA genes the summary needs.
  */
 export class ArtifactTrainingInfo implements TrainingSnapshot {
-	readonly generationContext: GenerationContext | null = null;
 	readonly generation: NonNegativeInt;
 	readonly symbol: TradingSymbol;
 

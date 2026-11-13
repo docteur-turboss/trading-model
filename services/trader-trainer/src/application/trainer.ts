@@ -18,10 +18,7 @@ import {
 import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
 import { featureDriftScore } from "../domain/feature-drift";
 import { buyAndHoldSharpe } from "../domain/genetic-algorithm/evaluation-utils";
-import type {
-	GenerationContext,
-	WindowSet,
-} from "../domain/genetic-algorithm/ga-runner";
+import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
@@ -234,7 +231,6 @@ export class Trainer {
 			bestFitness: Fitness.of(result.bestFitness),
 			bestFitnessMeta: result.bestFitnessMeta,
 			generation: NonNegativeInt.of(result.generation),
-			generationContext: result.generationContext,
 		};
 		const snapshot = new LastTrainingInfo(outcome);
 		this._lastInfo = snapshot;
@@ -391,9 +387,5 @@ export class Trainer {
 
 	getBestAgentSummary(): BestAgentSummary | null {
 		return this._lastInfo.buildBestAgentSummary();
-	}
-
-	getGenerationContext(): GenerationContext | null {
-		return this._lastInfo.generationContext;
 	}
 }
