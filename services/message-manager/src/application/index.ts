@@ -9,19 +9,7 @@ import { closeMessageManager, startDelivery } from "../config/message-manager";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
 
-const NULL_ADDRESS_MANAGER = {
-	stop() {
-		// Intentional no-op.
-	},
-	async leave() {
-		// Intentional no-op.
-	},
-};
-
-let addressManager: Pick<
-	ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>,
-	"stop" | "leave"
-> = NULL_ADDRESS_MANAGER;
+let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | undefined;
 
 createBootstrap({
 	name: "Message Manager",
@@ -34,7 +22,7 @@ createBootstrap({
 		// Publishers keep a resolved address for CACHE_TTL_MS: leave discovery,
 		// then keep serving until no publisher can still pick this instance.
 		beforeClose: async () => {
-			await addressManager.leave();
+			await addressManager?.leave();
 			await sleep(ENV.CACHE_TTL_MS);
 		},
 		// A publish only lasts until the message is journaled (ADR-0048); the
@@ -43,7 +31,7 @@ createBootstrap({
 	},
 	onStop: async () => {
 		await closeMessageManager();
-		addressManager.stop();
+		addressManager?.stop();
 		await shutdownTelemetry();
 	},
 });

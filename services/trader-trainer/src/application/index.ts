@@ -12,14 +12,7 @@ import { MessageManager } from "../config/message-manager";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
 
-const NULL_ADDRESS_MANAGER = {
-	stop() {
-		// Intentional no-op.
-	},
-};
-
-let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> =
-	NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
+let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | undefined;
 let leadership: Leadership | null = null;
 
 const CONTAINER = createTraderTrainerContainer(ENV);
@@ -62,7 +55,7 @@ createBootstrap({
 		// Before leaving discovery: the model of the session ended early is
 		// published on the bus. Then the Lease goes to the successor.
 		await leadership?.stop();
-		addressManager.stop();
+		addressManager?.stop();
 		await MessageManager.stopMessageManager();
 		await shutdownTelemetry();
 	},
