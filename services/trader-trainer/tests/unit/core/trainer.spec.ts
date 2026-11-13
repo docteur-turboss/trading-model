@@ -229,14 +229,6 @@ describe("Trainer", () => {
 
 			expect(trainer.getCurrentSymbol()).toBe("");
 		});
-
-		it("should return null from getGenerationContext before training", () => {
-			const trainer = new Trainer(dataBuffer, {
-				settings: TEST_TRAINING_SETTINGS,
-			});
-
-			expect(trainer.getGenerationContext()).toBeNull();
-		});
 	});
 
 	describe("train with insufficient data", () => {
@@ -386,16 +378,6 @@ describe("Trainer", () => {
 		});
 	});
 
-	describe("getGenerationContext", () => {
-		it("should return null when no training has occurred", () => {
-			const trainer = new Trainer(dataBuffer, {
-				settings: TEST_TRAINING_SETTINGS,
-			});
-
-			expect(trainer.getGenerationContext()).toBeNull();
-		});
-	});
-
 	describe("getBestAgentSummary with genome", () => {
 		it("should return null when bestGenome is null", () => {
 			const trainer = new Trainer(dataBuffer, {
@@ -416,7 +398,6 @@ describe("Trainer", () => {
 				bestFitness: 1.5 as never,
 				bestFitnessMeta: makeMinimalFitnessMeta(),
 				generation: 5 as never,
-				generationContext: null,
 			});
 
 			const summary = trainer.getBestAgentSummary();
@@ -444,7 +425,6 @@ describe("Trainer", () => {
 				bestFitness: 0.5 as never,
 				bestFitnessMeta: undefined,
 				generation: 5 as never,
-				generationContext: null,
 			});
 
 			const summary = trainer.getBestAgentSummary();
@@ -474,7 +454,6 @@ describe("Trainer", () => {
 					rawScores: new EpisodeScores([1]),
 				},
 				generation: 5 as never,
-				generationContext: null,
 			});
 
 			const summary = trainer.getBestAgentSummary();
@@ -497,7 +476,6 @@ describe("Trainer", () => {
 				bestFitness: 0 as never,
 				bestFitnessMeta: undefined,
 				generation: 5 as never,
-				generationContext: null,
 			});
 
 			const summary = trainer.getBestAgentSummary();
@@ -507,20 +485,6 @@ describe("Trainer", () => {
 	});
 
 	describe("callbacks", () => {
-		it("should store generation context after training with onGeneration", async () => {
-			const trainer = new Trainer(dataBuffer, {
-				settings: TEST_TRAINING_SETTINGS,
-			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
-
-			await trainer.train(TradingSymbol.of("BTCUSDT"));
-
-			const ctx = trainer.getGenerationContext();
-			expect(ctx).not.toBeNull();
-			expect(ctx!.generation).toBe(1);
-			expect(ctx!.bestFitness).toBe(1.5);
-		});
-
 		it("should set best genome to final result after training", async () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
@@ -543,8 +507,7 @@ describe("Trainer", () => {
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
-			const ctx = trainer.getGenerationContext();
-			expect(ctx).not.toBeNull();
+			expect(trainer.isTraining()).toBe(false);
 		});
 	});
 });
@@ -772,7 +735,6 @@ describe("Trainer — model publication", () => {
 							bestGenome: genome,
 							bestFitness: 1,
 							generation: 1,
-							generationContext: null,
 						})
 					);
 				});
