@@ -70,6 +70,8 @@ of each failure is the annotation of its step. Staging warnings stay warnings.
 - The CI `k8s` job runs `deploy-release.sh dry-run` with both identities before
   the upgrade and checks that no Deployment changed.
 
+In production a MySQL-only `db-backup` Job runs before the migrations; its end time, in the run summary, is the `--until` point of `restore-k8s.sh` after a failed migration.
+
 ### Source of the manifests and migrations
 
 When `image_tag` is a release (`v1.2.3`, `1.2.3`, or a prerelease such as `v1.2.3-rc.1`), the workflow checks out
