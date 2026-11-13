@@ -24,6 +24,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, normalize, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { walk as walkFiles } from './lib/fs.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LIST = process.argv.includes('--list');
@@ -33,7 +34,6 @@ if (MAX_LINES !== null && !Number.isInteger(MAX_LINES)) {
   console.error('--max-lines needs an integer');
   process.exit(2);
 }
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', 'build']);
 const SOURCE_FILE = /\.(ts|tsx|js|mjs|cjs)$/;
 const TEST_FILE = /\.spec\.tsx?$/;
 const EXTENSIONS = ['.ts', '.tsx', '.js', '.mjs', '.cjs'];
@@ -42,16 +42,7 @@ const IMPORT =
 const WORKER = /new\s+Worker\(\s*(?:path\.(?:join|resolve)\(\s*__dirname\s*,\s*)?['"]([^'"]+)['"]/g;
 const TEST_CASE = /^\s*(?:it|test)(?:\.each\([^)]*\))?\s*\(/gm;
 
-function walk(dir, files = []) {
-  if (!existsSync(dir)) return files;
-  for (const entry of readdirSync(dir)) {
-    if (SKIP_DIRS.has(entry)) continue;
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) walk(path, files);
-    else if (SOURCE_FILE.test(entry) && !entry.endsWith('.d.ts')) files.push(path);
-  }
-  return files;
-}
+const walk = (dir) => walkFiles(dir, (file) => SOURCE_FILE.test(file) && !file.endsWith('.d.ts'));
 
 function resolveFile(base) {
   const candidates = [base, ...EXTENSIONS.map((ext) => base + ext), ...EXTENSIONS.map((ext) => join(base, `index${ext}`))];

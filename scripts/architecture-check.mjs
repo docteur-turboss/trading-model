@@ -21,23 +21,14 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { WORKSPACE_ROOTS, walk } from './lib/fs.mjs';
 import ts from 'typescript';
 
 const SCOPE = '@trading-model/';
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', 'build']);
 const STARTUP = new Set(['index.ts', 'server.ts', 'telemetry.ts']);
 const FORBIDDEN_LAYER = /(^|\/)(adapters|infrastructure)(\/|$)/;
 
-function sourceFiles(dir, files = []) {
-  if (!existsSync(dir)) return files;
-  for (const entry of readdirSync(dir)) {
-    if (SKIP_DIRS.has(entry)) continue;
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) sourceFiles(path, files);
-    else if (/\.tsx?$/.test(entry) && !/\.(spec|test|d)\.tsx?$/.test(entry)) files.push(path);
-  }
-  return files;
-}
+const sourceFiles = (dir) => walk(dir, (file) => /\.tsx?$/.test(file) && !/\.(spec|test|d)\.tsx?$/.test(file));
 
 function resolveFile(base) {
   const stem = base.replace(/\.(js|mjs)$/, '');
@@ -105,7 +96,7 @@ function cycles(graph) {
 export function analyze(root) {
   const rel = (p) => relative(root, p).split('\\').join('/');
   const files = [];
-  for (const group of ['packages', 'services']) {
+  for (const group of WORKSPACE_ROOTS) {
     const dir = join(root, group);
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) files.push(...sourceFiles(join(dir, name, 'src')));
