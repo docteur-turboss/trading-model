@@ -1,7 +1,5 @@
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
-import { normalizeError } from "@trading-model/common/utils/errors";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { logger } from "../../config/logger";
 import { ENV } from "../../infrastructure/config/env";
 
 class SharedHttpClientManager {
@@ -14,23 +12,6 @@ class SharedHttpClientManager {
 		return Promise.resolve(this._httpClient);
 	}
 
-	async reloadTls(): Promise<void> {
-		if (!this._httpClient) {
-			return;
-		}
-		const client = this._httpClient as { reloadTlsPaths?: () => Promise<void> };
-		if (typeof client.reloadTlsPaths === "function") {
-			try {
-				await client.reloadTlsPaths();
-				logger.info("HTTP client TLS certificates reloaded");
-			} catch (err) {
-				logger.error("Failed to reload HTTP client TLS certificates", {
-					error: normalizeError(err).message,
-				});
-			}
-		}
-	}
-
 	/** HttpClient manages its own request lifecycle — no persistent connections to tear down. */
 	close(): void {
 		this._httpClient = null;
@@ -41,10 +22,6 @@ const sharedHttpClient = new SharedHttpClientManager();
 
 export function getHttpClient(): Promise<HttpClient> {
 	return sharedHttpClient.get();
-}
-
-export function reloadHttpClientTls(): Promise<void> {
-	return sharedHttpClient.reloadTls();
 }
 
 export function closeHttpClient(): Promise<void> {

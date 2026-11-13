@@ -19,10 +19,6 @@ describe("DLQ Routes", () => {
 		DlqRoutes = require("../../src/adapters/inbound/routes").DlqRoutes;
 	});
 
-	afterAll(async () => {
-		await require("../../src/adapters/inbound/routes").closeRateLimiters();
-	});
-
 	it("should create a router with all endpoints", () => {
 		const router = DlqRoutes({} as never);
 		expect(router).toBeDefined();
