@@ -2,9 +2,10 @@
 useDefault = true
 
 [allowlist]
-description = "Test fixtures that look like keys (no real credential)"
+description = "Test fixtures and SealedSecret ciphertext (no real credential)"
 paths = [
   '''(^|/)tests?/''',
   '''\.spec\.ts$''',
   '''\.test\.(sh|ts)$''',
+  '''(^|/)overlays/[^/]+/sealed-secrets\.yaml$''', # SealedSecret ciphertext, decryptable only by the cluster controller
 ]
