@@ -175,7 +175,7 @@ Migration 005. The scraper persists candles before publishing them; the candles 
 
 ### `market_order_books` — order book depth snapshots
 
-Migration 008, ADR-0053. One row per depth snapshot the collector fetched (100 bids + 100 asks per symbol, once a minute), kept for historical replay. No API route reads it; the trainer gets order books on the bus. Purged by `db-retention` on `timestamp` after `RETENTION_DAYS` (ADR-0051).
+Migration 008, ADR-0053. One row per depth snapshot the collector fetched (100 bids + 100 asks per symbol, once a minute), kept for historical replay. No API route reads it; the trainer gets order books on the bus. Purged by `db-retention` on `timestamp` after `RETENTION_ORDER_BOOKS_DAYS` (180 in K8s, ADR-0053).
 
 | Column | Type | Constraints | Description |
 | ------ | ---- | ----------- | ----------- |
