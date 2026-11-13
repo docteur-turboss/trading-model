@@ -237,51 +237,55 @@ export class RedisMessageJournal implements MessageJournalPort {
 			}
 		}
 		const now = this._now();
-		const result: JournalGroupLag[] = [];
-		for (const group of groups) {
-			const info = infos.get(`${group.topic}|${group.service}`);
-			if (!info) {
-				continue;
-			}
-			const stream = this._stream(group.topic);
-			let count: number;
-			let oldestPending: string | null;
-			let unread: [string, unknown][];
-			try {
-				[count, oldestPending] = (await this._deps.redis.call(
-					"XPENDING",
-					stream,
-					group.service
-				)) as [number, string | null];
-				unread = (await this._deps.redis.call(
-					"XRANGE",
-					stream,
-					`(${info["last-delivered-id"]}`,
-					"+",
-					"COUNT",
-					"1"
-				)) as [string, unknown][];
-			} catch (err) {
-				// The group vanished since XINFO: skip it, keep the others.
-				if (err instanceof Error && err.message.includes("NOGROUP")) {
-					continue;
+		// One group per task: its three reads stay ordered, groups overlap.
+		const results = await Promise.all(
+			groups.map(async (group): Promise<JournalGroupLag | undefined> => {
+				const info = infos.get(`${group.topic}|${group.service}`);
+				if (!info) {
+					return undefined;
 				}
-				throw err;
-			}
-			// shortcut: a nil `lag` (Redis cannot tell after an XDEL) counts the one unread entry seen, upgrade with a XLEN walk if it ever matters.
-			const unreadCount = Number(info.lag ?? unread.length);
-			const oldest = [oldestPending, unread[0]?.[0]]
-				.filter((id): id is string => Boolean(id))
-				.map((id) => Number(id.split("-")[0]))
-				.sort((first, second) => first - second)[0];
-			result.push({
-				...group,
-				pending: count + unreadCount,
-				oldestPendingAgeMs:
-					oldest === undefined ? 0 : Math.max(0, now - oldest),
-			});
-		}
-		return result;
+				const stream = this._stream(group.topic);
+				let count: number;
+				let oldestPending: string | null;
+				let unread: [string, unknown][];
+				try {
+					[count, oldestPending] = (await this._deps.redis.call(
+						"XPENDING",
+						stream,
+						group.service
+					)) as [number, string | null];
+					unread = (await this._deps.redis.call(
+						"XRANGE",
+						stream,
+						`(${info["last-delivered-id"]}`,
+						"+",
+						"COUNT",
+						"1"
+					)) as [string, unknown][];
+				} catch (err) {
+					// The group vanished since XINFO: skip it, keep the others.
+					if (err instanceof Error && err.message.includes("NOGROUP")) {
+						return undefined;
+					}
+					throw err;
+				}
+				// shortcut: a nil `lag` (Redis cannot tell after an XDEL) counts the one unread entry seen, upgrade with a XLEN walk if it ever matters.
+				const unreadCount = Number(info.lag ?? unread.length);
+				const oldest = [oldestPending, unread[0]?.[0]]
+					.filter((id): id is string => Boolean(id))
+					.map((id) => Number(id.split("-")[0]))
+					.sort((first, second) => first - second)[0];
+				return {
+					...group,
+					pending: count + unreadCount,
+					oldestPendingAgeMs:
+						oldest === undefined ? 0 : Math.max(0, now - oldest),
+				};
+			})
+		);
+		return results.filter(
+			(entry): entry is JournalGroupLag => entry !== undefined
+		);
 	}
 
 	async ack(group: JournalGroup, id: string): Promise<void> {
