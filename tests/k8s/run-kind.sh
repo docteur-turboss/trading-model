@@ -277,8 +277,8 @@ deploy() {
 	$K kustomize "$PREVIOUS/deploy/k8s/overlays/staging/node-agents" | $K apply -f -
 	# The overlay mounts the SPIFFE CSI socket: the driver must be registered first, or
 	# audit-logger crash-loops past its progress deadline (run 43331271388).
+	# spire-agent is not waited for here: it needs the trust bundle of the overlay's spire-server.
 	$K -n trading-model-node rollout status daemonset/spiffe-csi-driver --timeout=300s
-	$K -n trading-model-node rollout status daemonset/spire-agent --timeout=300s
 	$K apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
 
 	# As deploy.yml: the receivers exist before Alertmanager starts, or its
