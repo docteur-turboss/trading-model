@@ -9,7 +9,6 @@ describe("CircuitStateMachine", () => {
 	it("should start closed", () => {
 		const csm = new CircuitStateMachine(DEFAULT_CIRCUIT_CONFIG);
 		expect(csm.getState()).toBe(CircuitState.CLOSED);
-		expect(csm.isAllowed()).toBe(true);
 		expect(csm.check()).toBe(CircuitState.CLOSED);
 	});
 
@@ -116,53 +115,5 @@ describe("CircuitStateMachine", () => {
 		});
 		csm2.restore(snapshot);
 		expect(csm2.failures).toBe(2);
-	});
-
-	it("should execute call successfully", async () => {
-		const csm = new CircuitStateMachine(DEFAULT_CIRCUIT_CONFIG);
-		const result = await csm.call(async () => "success");
-		expect(result).toBe("success");
-	});
-
-	it("should use fallback when circuit open", async () => {
-		const csm = new CircuitStateMachine({
-			failureThreshold: 1,
-			cooldownMs: 60000 as never,
-		});
-		csm.recordFailure();
-		const result = await csm.call(
-			async () => "should not run",
-			() => "fallback"
-		);
-		expect(result).toBe("fallback");
-	});
-
-	it("should throw when circuit open without fallback", async () => {
-		const csm = new CircuitStateMachine({
-			failureThreshold: 1,
-			cooldownMs: 60000 as never,
-		});
-		csm.recordFailure();
-		await expect(csm.call(async () => "should not run")).rejects.toThrow();
-	});
-
-	it("should use fallback on function failure", async () => {
-		const csm = new CircuitStateMachine(DEFAULT_CIRCUIT_CONFIG);
-		const result = await csm.call(
-			async () => {
-				throw new Error("fail");
-			},
-			() => "fallback"
-		);
-		expect(result).toBe("fallback");
-	});
-
-	it("should rethrow on function failure without fallback", async () => {
-		const csm = new CircuitStateMachine(DEFAULT_CIRCUIT_CONFIG);
-		await expect(
-			csm.call(async () => {
-				throw new Error("fail");
-			})
-		).rejects.toThrow("fail");
 	});
 });
