@@ -7,7 +7,8 @@
 //     deploy.yml IMAGES entry is built by release.yml; the release.yml sign
 //     matrix holds exactly the deploy.yml IMAGES entries
 //   - every overlay gets its application secrets from SealedSecrets only, never
-//     from a plain Secret (issue #417)
+//     from a plain Secret (issue #417); staging-local renders no AgCHANGE_ME
+//     placeholder (issue #1065)
 //   - no PodDisruptionBudget of staging demands more pods than staging runs
 //     (its drains would block)
 //   - no Deployment driven by an HPA sets spec.replicas: every apply would reset
@@ -429,6 +430,11 @@ for (const env of OVERLAYS) {
 		if (!docs.some((doc) => doc.kind === "SealedSecret" && doc.name === name)) {
 			errors.push(`${env}: no SealedSecret ${name}`);
 		}
+	}
+	// staging-local is deployed as rendered: deploy.yml "Check sealed secrets" stops on any placeholder (issue #1065).
+	const placeholders = [...rendered.matchAll(/^\s+(\S+): AgCHANGE_ME/gm)].map(([, key]) => key);
+	if (env === "staging-local" && placeholders.length > 0) {
+		errors.push(`${env}: placeholder AgCHANGE_ME for ${placeholders.join(", ")}: seal them (docs/deployment/STAGING_LOCAL.md)`);
 	}
 }
 
