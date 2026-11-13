@@ -2,7 +2,6 @@ import type {
 	Fitness,
 	NonNegativeInt,
 } from "@trading-model/primitives/primitives";
-import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import type {
 	GenomeFitnessMeta,
 	LamarckGenome,
@@ -17,7 +16,6 @@ export interface TrainingSuccess {
 	bestFitness: Fitness;
 	bestFitnessMeta?: GenomeFitnessMeta;
 	generation: NonNegativeInt;
-	generationContext: GenerationContext | null;
 }
 
 export interface TrainingFailure {
