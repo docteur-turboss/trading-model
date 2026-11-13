@@ -17,7 +17,7 @@ jest.mock("../../../src/config/message-manager", () => ({
 
 const MOCK_LEASE_API = jest.fn<(name: string) => unknown>(() => ({}));
 const MOCK_KUBERNETES_LEASE = jest.fn<(...args: any[]) => any>();
-jest.mock("../../../src/adapters/outbound/kubernetes/kubernetes-lease", () => ({
+jest.mock("@trading-model/reliability/kubernetes-lease", () => ({
 	kubernetesLeaseApi: MOCK_LEASE_API,
 	KubernetesLease: MOCK_KUBERNETES_LEASE,
 }));

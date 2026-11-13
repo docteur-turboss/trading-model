@@ -1,11 +1,11 @@
 import "./telemetry";
+import type { Leadership } from "@trading-model/reliability/leadership";
 import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
 import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { createCollector } from "../config/container";
 import { closeDatabase } from "../config/db";
 import { ENV } from "../infrastructure/config/env";
-import type { CollectorLeadership } from "./collector-leadership";
 import { createServer } from "./server";
 
 const NULL_ADDRESS_MANAGER = {
@@ -16,7 +16,7 @@ const NULL_ADDRESS_MANAGER = {
 
 let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> =
 	NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
-let collector: CollectorLeadership | null = null;
+let collector: Leadership | null = null;
 
 createBootstrap({
 	name: "Financial Scraper",

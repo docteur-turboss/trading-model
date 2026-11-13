@@ -1,6 +1,6 @@
 /**
- * Exclusive right to train (ADR-0058): at most one holder at a time across the
- * trainer pods.
+ * Exclusive right to run a job (ADR-0057, ADR-0058): at most one holder at a
+ * time across the pods.
  */
 export interface LeaderLeasePort {
 	/**

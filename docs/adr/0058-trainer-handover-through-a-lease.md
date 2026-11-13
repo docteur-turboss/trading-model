@@ -4,7 +4,7 @@
 **Date:** 2026-11
 **Amends:** [ADR-0044](./0044-singleton-trainer.md) (decisions 1 and 5 superseded: `Recreate` and its check; decisions 2, 3, 4 and 6 stand)
 **Related:** [ADR-0057](./0057-collector-handover-through-a-lease.md) (same election for the collector), [ADR-0022](./0022-versioned-model-artifacts.md) (models on the shared checkpoint volume), [ADR-0045](./0045-single-service-resolution-strategy.md) (the gateway calls the Service, so only ready pods get requests), [ADR-0041](./0041-least-privilege-deploy-identities.md), [ADR-0017](./0017-no-swallowed-errors.md)
-**Verified by:** `services/trader-trainer/tests/unit/leadership/training-leadership.spec.ts`, `services/trader-trainer/tests/unit/leadership/non-holder-read-routes.spec.ts`, `services/trader-trainer/tests/unit/core/trainer.spec.ts`, `tests/k8s/check-overlays.mjs`, `tests/k8s/run-kind.sh`, `tests/alerts/alerting.test.yml`
+**Verified by:** `packages/reliability/tests/unit/leadership.spec.ts`, `services/trader-trainer/tests/unit/leadership/non-holder-read-routes.spec.ts`, `services/trader-trainer/tests/unit/core/trainer.spec.ts`, `tests/k8s/check-overlays.mjs`, `tests/k8s/run-kind.sh`, `tests/alerts/alerting.test.yml`
 
 ## Context
 
