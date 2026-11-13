@@ -36,7 +36,7 @@ graph TD
     MM -->|"MarketEvent (consumed)"| TT
     TT -->|"AgentPayload (published)"| MM
     MM -->|"events"| AL
-    AL -.->|"subscribe (all topics)"| MM
+    AL -.->|"subscribe (audit, training, dlq topics)"| MM
     MM -->|"dead letters"| DLQ
     DLQ -->|"replay"| MM
     DLQ -->|"dlq.* events"| MM
@@ -106,7 +106,7 @@ No Strategy, Execution or Evaluation context exists: trained models and collecte
 | Relationship           | Pattern              | Implementation                        |
 | ---------------------- | -------------------- | ------------------------------------- |
 | Market Data → Training | Pub/Sub (async)      | Message Manager topics                |
-| Any → Audit            | Pub/Sub (async)      | Audit-logger subscribes to all topics |
+| Any → Audit            | Pub/Sub (async)      | Audit-logger subscribes to audit, training and dlq topics |
 | Services → Discovery   | Request/Reply (sync) | HTTPS mTLS                            |
 | Services → Security    | Request/Reply (sync) | SPIFFE/SPIRE workload attestation + Workload API |
 | External → Platform    | Proxy (sync)         | API Gateway                           |
