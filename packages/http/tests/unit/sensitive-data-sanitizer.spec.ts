@@ -15,6 +15,9 @@ describe("isSensitiveKey", () => {
 		"ip",
 		"x-forwarded-for",
 		"client_ip",
+		"apiSecret",
+		"tls_cert",
+		"rootCaCertPath",
 	])("masks %s", (key) => {
 		expect(isSensitiveKey(key)).toBe(true);
 	});
