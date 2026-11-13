@@ -1041,7 +1041,7 @@ mongo_tool() {
 # Oplog point (`seconds.increment`) of the newest (`-1`) or oldest (`1`)
 # entry of the oplog of MongoDB pod `$1`.
 oplog_edge() {
-	kubectl_exec "$1" -c mongodb -- mongosh --quiet --eval \
+	mongo_tool backup "$1" mongosh --quiet --eval \
 	  "const e = db.getSiblingDB('local').oplog.rs.find({}, {ts: 1}).sort({\$natural: $2}).limit(1).next(); const t = EJSON.serialize({ts: e.ts}).ts.\$timestamp; print(t.t + '.' + t.i)"
 }
 

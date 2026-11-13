@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|load|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -39,6 +39,8 @@ PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
 # steps of the CI job, removed by `delete`.
 WORK="$(dirname "$ROOT")/.kind-${CLUSTER}"
 PREVIOUS="$WORK/previous"
+# Images of N-1 and N, saved by `images` (ci.yml job k8s-images), loaded by `load`.
+IMAGE_ARCHIVE="${KIND_IMAGE_ARCHIVE:-$WORK/images.tar}"
 export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
@@ -146,18 +148,21 @@ images() {
 	build_images "$ROOT" latest
 	local images=""
 	for img in $IMAGES; do images="$images ghcr.io/trading-model/$img:latest ghcr.io/trading-model/$img:previous"; done
-	log "loading the images into kind"
+	# One archive for every cluster job (ci.yml `k8s-images`): built once, loaded by `load`.
+	log "saving the images to $IMAGE_ARCHIVE"
+	mkdir -p "$(dirname "$IMAGE_ARCHIVE")"
 	# shellcheck disable=SC2086
-	if ! "$KIND" load docker-image --name "$CLUSTER" $images; then
-		# Docker's containerd image store keeps multi-platform indexes that
-		# `kind load docker-image` cannot import: go through a single-platform archive.
-		local archive
-		archive="$(mktemp)"
-		# shellcheck disable=SC2086
-		docker save --platform linux/amd64 -o "$archive" $images
-		"$KIND" load image-archive --name "$CLUSTER" "$archive"
-		rm -f "$archive"
-	fi
+	docker save --platform linux/amd64 -o "$IMAGE_ARCHIVE" $images
+}
+
+# Loads the images saved by `images` into the kind cluster and records their
+# digests, as the cluster jobs need them.
+load() {
+	previous_checkout
+	log "loading the images into kind"
+	# Also into the docker daemon: the drills run `docker run` on backup-tools:latest.
+	docker load -i "$IMAGE_ARCHIVE" >/dev/null
+	"$KIND" load image-archive --name "$CLUSTER" "$IMAGE_ARCHIVE"
 	node_digests previous >"$WORK/digests-previous"
 	node_digests latest >"$WORK/digests-current"
 }
@@ -236,10 +241,21 @@ migrations() {
 # Release N-1 runs as if it predated the exporter keys (ADR-0056): they are
 # dropped from its Secret and its exporters read another key, so N adds the
 # keys and restarts the database pods, as a real upgrade to 3.1.0 (issue #698).
+# Overlay of checkout $1 pinned to the digests of file $2, adapted to kind, into file $3.
+# Each stage writes a file: node never shares a pipe with its producer (a node
+# crash broke the pipe in runs 43321359421 and 43328471185).
+render_kind() {
+	release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" >"$3.raw" || return 1
+	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
+	rm -f "$3.raw"
+}
+
 apply_release() {
-	local rendered
-	rendered="$(release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" |
-		node "$ROOT/tests/k8s/ci-render.mjs")" || return 1
+	local rendered file
+	file="$(mktemp "$WORK/rendered.XXXXXX")"
+	render_kind "$1" "$2" "$file" || return 1
+	rendered="$(cat "$file")"
+	rm -f "$file"
 	[ "$1" != "$PREVIOUS" ] || rendered="$(sed -E -e '/^  (MYSQL|REDIS)_EXPORTER_PASSWORD: /d' \
 		-e 's/key: (MYSQL|REDIS)_EXPORTER_PASSWORD$/key: \1_EXPORTER_PASSWORD_BEFORE_ADR_0056/' <<<"$rendered")"
 	if [ ! -f "$WORK/app.kubeconfig" ]; then
@@ -261,6 +277,10 @@ apply_release() {
 deploy() {
 	log "release N-1: node agents (SPIRE agent, SPIFFE CSI driver, promtail)"
 	$K kustomize "$PREVIOUS/deploy/k8s/overlays/staging/node-agents" | $K apply -f -
+	# The overlay mounts the SPIFFE CSI socket: the driver must be registered first, or
+	# audit-logger crash-loops past its progress deadline (run 43331271388).
+	# spire-agent is not waited for here: it needs the trust bundle of the overlay's spire-server.
+	$K -n trading-model-node rollout status daemonset/spiffe-csi-driver --timeout=300s
 	$K apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
 
 	# As deploy.yml: the receivers exist before Alertmanager starts, or its
@@ -269,6 +289,12 @@ deploy() {
 
 	log "release N-1: staging overlay, images pinned by digest"
 	apply_release "$PREVIOUS" "$WORK/digests-previous"
+	# The TLS consumers (redis-sentinel, mysql, mongo) need their CA secrets: cert-manager
+	# never created them in run 43331271388. Bounded: a missing CA fails here, not 10 min later.
+	# Ingress certificates (letsencrypt-prod, ACME) cannot be issued without internet: left out.
+	local certs
+	certs="$($K -n "$NS" get certificate -o name | grep -vE '/(api|grafana)-trading-model-tls$')"
+	$K -n "$NS" wait --for=condition=Ready $certs --timeout=300s
 	$K -n "$NS" create configmap binance-stub \
 		--from-file=server.mjs="$ROOT/tests/e2e/binance-stub/server.mjs" \
 		--dry-run=client -o yaml | $K apply -f -
@@ -418,9 +444,8 @@ upgrade() {
 	# deploy.yml preflight (issue #805): server-side dry-run of release N with
 	# deploy-app / deploy-cluster; it must pass and leave every pod template as it was.
 	log "preflight: dry-run of release N with the deploy identities (deploy-release.sh dry-run)"
-	release_script render "$ROOT/deploy/k8s/overlays/staging" ghcr.io/trading-model "$WORK/digests-current" |
-		node "$ROOT/tests/k8s/ci-render.mjs" |
-		release_script dry-run "$NS" "$ROOT/deploy/k8s/overlays/staging/node-agents" || {
+	render_kind "$ROOT" "$WORK/digests-current" "$WORK/preflight.yaml" || return 1
+	release_script dry-run "$NS" "$ROOT/deploy/k8s/overlays/staging/node-agents" <"$WORK/preflight.yaml" || {
 		log "the preflight dry-run of release N failed"
 		return 1
 	}
@@ -634,7 +659,16 @@ prometheus_targets_down() {
 			process.exit(jobs.length>0 && missing.length===0 && down.length===0 ? 0 : 1)'
 }
 
+# Groups of checks, one CI job each (ci.yml, matrix `group`): each runs on a
+# freshly deployed and upgraded stack, so a group never depends on another one.
 verify() {
+	verify_network
+	verify_observability
+	verify_backup_group
+	log "OK: the staging overlay works on Kubernetes"
+}
+
+verify_network() {
 	log "market data reaches MySQL (stub → scraper → MySQL)"
 	wait_for 300 '[ "$(mysql_count market_candles)" -gt 0 ]'
 	log "  candles=$(mysql_count market_candles) trades=$(mysql_count market_trades)"
@@ -642,6 +676,7 @@ verify() {
 	verify_replicas
 	verify_egress
 	verify_mongo_ingress
+	verify_mongo_auth
 	verify_db_ingress
 	verify_mysql_tls
 	verify_redis_tls
@@ -659,6 +694,9 @@ verify() {
 	wait_for 120 "curl -sf -H 'x-api-key: $API_KEY' $url | grep -q financial-scraper"
 	log "  registered: $(curl -s -H "x-api-key: $API_KEY" "$url")"
 
+}
+
+verify_observability() {
 	verify_traces
 
 	log "Prometheus scrapes every target over mTLS (SVID)"
@@ -669,13 +707,18 @@ verify() {
 
 	verify_alerts
 	verify_release
+	verify_canary
+}
+
+# Restore drill (skipped on PRs that touch no backup code, SKIP_BACKUP_DRILL=true),
+# then the identity check, which stops mysql-0 and so runs last.
+verify_backup_group() {
 	if [ "${SKIP_BACKUP_DRILL:-}" = "true" ]; then
 		log "restore drill skipped (SKIP_BACKUP_DRILL=true)"
 	else
 		verify_backup
 	fi
-
-	log "OK: the staging overlay works on Kubernetes"
+	verify_identity_without_mysql
 }
 
 # Issue #802 (ADR-0065): with every MySQL pod gone (mysql-0 included), the
@@ -806,6 +849,26 @@ verify_mongo_ingress() {
 			log "  a pod without component label reached $host:27017"
 			return 1
 		fi
+	done
+}
+
+# mongod enforces authentication (ADR-0067, issue #751): an anonymous client and
+# the `exporter` user (clusterMonitor, no data rights) are refused on the data.
+verify_mongo_auth() {
+	local label pod auth out pw
+	# The mongodb container has no exporter password in its env (only the sidecar and the init Job do)
+	pw="$($K -n "$NS" get secret trading-model-secrets -o jsonpath='{.data.MONGO_EXPORTER_PASSWORD}' | base64 -d)"
+	log "MongoDB: anonymous client and exporter refused (requires authentication / not authorized)"
+	for label in mongodb mongodb-audit; do
+		pod="$(mongo_primary "$label")" || { log "  no primary for $label"; return 1; }
+		for auth in "" "-u exporter -p '$pw' --authenticationDatabase admin"; do
+			# mongosh exits 1 on the refusal: capture first, pipefail would fail the grep. An anonymous client gets "requires authentication", a user without rights "not authorized" (code 13, Unauthorized)
+			out="$($K -n "$NS" exec "$pod" -- sh -c "mongosh --quiet $auth --eval \"db.getSiblingDB('admin').getCollection('system.users').findOne()\" 2>&1" || true)"
+			grep -qE "requires authentication|not authorized|Unauthorized" <<<"$out" || {
+				log "  $label accepted a client without data rights ($([ -n "$auth" ] && echo exporter || echo anonymous))"
+				return 1
+			}
+		done
 	done
 }
 
@@ -974,7 +1037,7 @@ verify_canary() {
 	log "canary gate on api-gateway, traffic through edge-proxy"
 	$K -n "$NS" port-forward svc/edge-proxy 18450:8080 >/dev/null 2>&1 &
 	local forward=$! traffic=""
-	trap 'kill $traffic $forward 2>/dev/null || true; deploy_script canary-cleanup api-gateway >/dev/null 2>&1 || true' RETURN
+	trap 'kill ${traffic:-} ${forward:-} 2>/dev/null || true; deploy_script canary-cleanup api-gateway >/dev/null 2>&1 || true' RETURN
 	wait_for 30 'curl -s -o /dev/null http://localhost:18450/'
 	# 2.4 requests/s in bursts of 12 every 5 s (the gateway limits each API client
 	# to 100/min per pod: ~72/min each here). edge-proxy keeps a keep-alive pool to the gateway and
@@ -1591,16 +1654,26 @@ all)
 	fi
 	cluster
 	images
+	load
 	deploy
 	upgrade
 	smoke
 	verify
-	verify_canary
-	verify_identity_without_mysql
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_mysql_tls | verify_redis_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+verify_group)
+	case "${2:-}" in
+	network) verify_network ;;
+	observability) verify_observability ;;
+	backup) verify_backup_group ;;
+	*)
+		echo "usage: $0 verify_group [network|observability|backup]" >&2
+		exit 64
+		;;
+	esac
+	;;
+images | load | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_mongo_auth | verify_db_ingress | verify_mysql_tls | verify_redis_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|load|cluster|deploy|upgrade|smoke|verify|verify_group <network|observability|backup>|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac
