@@ -2,8 +2,12 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import { sleep } from "@trading-model/common/utils/sleep";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type { UnixTimestamp } from "@trading-model/primitives/primitives";
-import { DurationMs, toServiceId } from "@trading-model/primitives/primitives";
+import type { InstanceId } from "@trading-model/primitives/primitives";
+import {
+	DurationMs,
+	toServiceId,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 
 import type { ServiceInstance } from "../../domain/client/type";
 import type { DiscoveryContext } from "../../domain/discovery/discovery-context";
@@ -13,25 +17,61 @@ import {
 	recordDiscoveryMetrics,
 } from "../../infrastructure/metrics";
 import type { DiscoveryCircuitBreaker } from "./circuit-breaker";
-import type { ServiceDiscovery } from "./service-discovery";
+import type { ServiceResolver } from "./service-resolver";
 
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY_MS = 100;
 
-/** Retries a failed discovery call, bounded by the retry policy. */
+/** Finds a service address: cache first, then discovery behind the circuit breaker, retried and falling back to a stale entry. */
 export class DiscoveryRetryHandler {
 	constructor(
-		private readonly _serviceDiscovery: ServiceDiscovery,
+		private readonly _resolver: ServiceResolver,
 		private readonly _serviceCache: ServiceCachePort,
 		readonly circuitBreaker: DiscoveryCircuitBreaker
 	) {}
+
+	async findService(
+		serviceName: ServiceInstanceName
+	): Promise<ServiceInstance> {
+		const ctx: DiscoveryContext = {
+			serviceName,
+			startTime: UnixTimestamp.now(),
+		};
+		try {
+			return await this.attemptDiscovery(ctx);
+		} catch (lastError) {
+			const staleInstance = await this.fallbackToStaleCache(ctx);
+			if (staleInstance) {
+				return staleInstance;
+			}
+			recordDiscoveryMetrics(
+				{ serviceName: toServiceId(ctx.serviceName), startTime: ctx.startTime },
+				DiscoveryResult.Failure
+			);
+			throw lastError;
+		}
+	}
+
+	recordCallSuccess(instanceId: InstanceId, durationMs?: number): void {
+		this.circuitBreaker.recordSuccess(instanceId);
+		if (durationMs !== undefined) {
+			this.circuitBreaker.recordLatency(instanceId, durationMs);
+		}
+	}
+
+	recordCallFailure(instanceId: InstanceId, durationMs?: number): void {
+		this.circuitBreaker.recordFailure(instanceId);
+		if (durationMs !== undefined) {
+			this.circuitBreaker.recordLatency(instanceId, durationMs);
+		}
+	}
 
 	async attemptDiscovery(ctx: DiscoveryContext): Promise<ServiceInstance> {
 		let lastError: Error | null = null;
 
 		for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
 			try {
-				const instance = await this._serviceDiscovery.findService(
+				const instance = await this._resolver.findCachedService(
 					ctx.serviceName
 				);
 				const result = await this._checkServiceCircuitBreaker({

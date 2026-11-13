@@ -13,7 +13,7 @@ import {
 import { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
 import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
 import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery-retry-handler";
-import type { ServiceDiscovery } from "../../src/application/discovery/service-discovery";
+import type { ServiceResolver } from "../../src/application/discovery/service-resolver";
 import type { ServiceInstance } from "../../src/domain/client/type";
 import type { DiscoveryContext } from "../../src/domain/discovery/discovery-context";
 import type { ServiceCachePort } from "../../src/domain/ports/service-cache.port";
@@ -64,16 +64,15 @@ describe("DiscoveryRetryHandler", () => {
 	};
 
 	let handler: DiscoveryRetryHandler;
-	let mockDiscovery: jest.Mocked<ServiceDiscovery>;
+	let mockDiscovery: jest.Mocked<ServiceResolver>;
 	let mockCache: jest.Mocked<ServiceCachePort>;
 	let mockCircuitBreaker: jest.Mocked<DiscoveryCircuitBreaker>;
 
-	function createMockDiscovery(): jest.Mocked<ServiceDiscovery> {
+	function createMockDiscovery(): jest.Mocked<ServiceResolver> {
 		return {
-			findService:
+			findCachedService:
 				jest.fn<(name: ServiceInstanceName) => Promise<ServiceInstance>>(),
-			findAllServices: jest.fn<(...args: any[]) => any>(),
-		} as unknown as jest.Mocked<ServiceDiscovery>;
+		} as unknown as jest.Mocked<ServiceResolver>;
 	}
 
 	function createMockCache(): jest.Mocked<ServiceCachePort> {
@@ -133,7 +132,7 @@ describe("DiscoveryRetryHandler", () => {
 
 	describe("attemptDiscovery", () => {
 		test("returns instance on first attempt when circuit breaker is closed (success path)", async () => {
-			mockDiscovery.findService.mockResolvedValue(instance);
+			mockDiscovery.findCachedService.mockResolvedValue(instance);
 			mockCircuitBreaker.isOpen.mockReturnValue(false);
 
 			const result = await handler.attemptDiscovery(discoveryCtx);
@@ -151,7 +150,7 @@ describe("DiscoveryRetryHandler", () => {
 		});
 
 		test("retries when circuit breaker is open and succeeds on subsequent attempt", async () => {
-			mockDiscovery.findService.mockResolvedValue(instance);
+			mockDiscovery.findCachedService.mockResolvedValue(instance);
 			mockCircuitBreaker.isOpen
 				.mockReturnValueOnce(true)
 				.mockReturnValueOnce(false);
@@ -171,7 +170,7 @@ describe("DiscoveryRetryHandler", () => {
 		});
 
 		test("throws Discovery failed error when all retries exhausted with circuit breaker open", async () => {
-			mockDiscovery.findService.mockResolvedValue(instance);
+			mockDiscovery.findCachedService.mockResolvedValue(instance);
 			mockCircuitBreaker.isOpen.mockReturnValue(true);
 
 			await expect(handler.attemptDiscovery(discoveryCtx)).rejects.toThrow(
@@ -187,7 +186,7 @@ describe("DiscoveryRetryHandler", () => {
 		});
 
 		test("retries when findService throws and succeeds on retry", async () => {
-			mockDiscovery.findService
+			mockDiscovery.findCachedService
 				.mockRejectedValueOnce(new Error("temp failure"))
 				.mockResolvedValueOnce(instance);
 			mockCircuitBreaker.isOpen.mockReturnValue(false);
@@ -195,7 +194,7 @@ describe("DiscoveryRetryHandler", () => {
 			const result = await handler.attemptDiscovery(discoveryCtx);
 
 			expect(result).toBe(instance);
-			expect(mockDiscovery.findService).toHaveBeenCalledTimes(2);
+			expect(mockDiscovery.findCachedService).toHaveBeenCalledTimes(2);
 			expect(sleep).toHaveBeenCalledTimes(1);
 			expect(sleep).toHaveBeenCalledWith(100);
 			expect(recordDiscoveryMetrics).toHaveBeenCalledWith(
@@ -205,20 +204,22 @@ describe("DiscoveryRetryHandler", () => {
 		});
 
 		test("throws last error when findService throws on all attempts", async () => {
-			mockDiscovery.findService.mockRejectedValue(new Error("service failure"));
+			mockDiscovery.findCachedService.mockRejectedValue(
+				new Error("service failure")
+			);
 
 			await expect(handler.attemptDiscovery(discoveryCtx)).rejects.toThrow(
 				"service failure"
 			);
 
-			expect(mockDiscovery.findService).toHaveBeenCalledTimes(3);
+			expect(mockDiscovery.findCachedService).toHaveBeenCalledTimes(3);
 			expect(sleep).toHaveBeenCalledTimes(2);
 			expect(sleep).toHaveBeenNthCalledWith(1, 100);
 			expect(sleep).toHaveBeenNthCalledWith(2, 200);
 		});
 
 		test("wraps non-Error thrown values in Error via _captureError", async () => {
-			mockDiscovery.findService.mockRejectedValue("string error");
+			mockDiscovery.findCachedService.mockRejectedValue("string error");
 
 			await expect(handler.attemptDiscovery(discoveryCtx)).rejects.toThrow(
 				"string error"
@@ -226,7 +227,7 @@ describe("DiscoveryRetryHandler", () => {
 		});
 
 		test("uses exponential backoff for retry delays", async () => {
-			mockDiscovery.findService.mockRejectedValue(new Error("fail"));
+			mockDiscovery.findCachedService.mockRejectedValue(new Error("fail"));
 
 			await expect(handler.attemptDiscovery(discoveryCtx)).rejects.toThrow(
 				"fail"
@@ -264,7 +265,9 @@ describe("DiscoveryRetryHandler", () => {
 			const cache = new ServiceCache(toDurationMs(30_000));
 			await cache.set({ serviceName: serviceId, instance });
 			jest.advanceTimersByTime(31_000);
-			mockDiscovery.findService.mockRejectedValue(new Error("discovery down"));
+			mockDiscovery.findCachedService.mockRejectedValue(
+				new Error("discovery down")
+			);
 			const realHandler = new DiscoveryRetryHandler(
 				mockDiscovery,
 				cache,
@@ -310,7 +313,7 @@ describe("DiscoveryRetryHandler", () => {
 
 	describe("circuit breaker interactions", () => {
 		test("checks isOpen on each attempt", async () => {
-			mockDiscovery.findService.mockResolvedValue(instance);
+			mockDiscovery.findCachedService.mockResolvedValue(instance);
 			mockCircuitBreaker.isOpen.mockReturnValue(true);
 
 			await expect(handler.attemptDiscovery(discoveryCtx)).rejects.toThrow(

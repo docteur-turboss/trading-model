@@ -168,6 +168,11 @@ describe("discovery contract: address-manager → discovery-server", () => {
 		await new Promise((resolve) => server.close(resolve));
 	});
 
+	const listInstances = async () =>
+		(await recordingHttpClient(exchanges).get(
+			`${baseUrl}/services/${SERVICE}`
+		)) as { instanceId: string; host: string; port: number }[];
+
 	beforeEach(() => {
 		exchanges = [];
 		const http = recordingHttpClient(exchanges) as never;
@@ -273,7 +278,7 @@ describe("discovery contract: address-manager → discovery-server", () => {
 		await registered();
 
 		const found = await resolver.findService(toServiceId(SERVICE));
-		const all = await resolver.findAllServices(toServiceId(SERVICE));
+		const all = await listInstances();
 
 		expect(found).toMatchObject({ serviceName: SERVICE });
 		expect(
@@ -298,7 +303,7 @@ describe("discovery contract: address-manager → discovery-server", () => {
 		await registered();
 
 		await client.unregisterService();
-		const all = await resolver.findAllServices(toServiceId(SERVICE));
+		const all = await listInstances();
 
 		expect(exchanges.find((e) => e.path === "/unregister")?.status).toBe(204);
 		expect(all.map((instance) => instance.instanceId)).not.toContain(

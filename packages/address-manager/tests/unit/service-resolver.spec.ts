@@ -15,12 +15,12 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
 import type { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
-import { ServiceDiscovery } from "../../src/application/discovery/service-discovery";
+import { ServiceResolver } from "../../src/application/discovery/service-resolver";
 import type { ServiceInstance } from "../../src/domain/client/type";
 import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
 
-describe("ServiceDiscovery", () => {
-	let discovery: ServiceDiscovery;
+describe("ServiceResolver.findCachedService", () => {
+	let discovery: ServiceResolver;
 	let cache: jest.Mocked<ServiceCache>;
 	let httpClient: jest.Mocked<HttpClient>;
 	let healthChecker: jest.Mocked<ServiceHealthChecker>;
@@ -75,7 +75,7 @@ describe("ServiceDiscovery", () => {
 		httpClient = createMockHttpClient();
 		healthChecker = createMockHealthChecker();
 
-		discovery = new ServiceDiscovery({
+		discovery = new ServiceResolver({
 			httpClient,
 			serviceCache: cache,
 			config: {
@@ -104,7 +104,7 @@ describe("ServiceDiscovery", () => {
 		cache.get.mockResolvedValue(instance);
 		healthChecker.isHealthy.mockResolvedValue(true);
 
-		const result = await discovery.findService(svcInstanceName);
+		const result = await discovery.findCachedService(svcInstanceName);
 
 		expect(result).toEqual(instance);
 		expect(cache.get).toHaveBeenCalledWith(serviceName);
@@ -117,7 +117,7 @@ describe("ServiceDiscovery", () => {
 		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.locate.mockReturnValueOnce("message-manager");
 
-		const result = await discovery.findService(svcInstanceName);
+		const result = await discovery.findCachedService(svcInstanceName);
 
 		expect(result.host).toBe("message-manager");
 		expect(result.port).toBe(instance.port);
@@ -128,7 +128,7 @@ describe("ServiceDiscovery", () => {
 		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValue(true);
 
-		const result = await discovery.findService(svcInstanceName);
+		const result = await discovery.findCachedService(svcInstanceName);
 
 		expect(result).toEqual(instance);
 		expect(healthChecker.isHealthy).toHaveBeenCalledWith(instance);
@@ -141,7 +141,7 @@ describe("ServiceDiscovery", () => {
 		healthChecker.isHealthy.mockResolvedValueOnce(false);
 		healthChecker.isHealthy.mockResolvedValueOnce(true);
 
-		const result = await discovery.findService(svcInstanceName);
+		const result = await discovery.findCachedService(svcInstanceName);
 
 		expect(cache.delete).toHaveBeenCalledWith(serviceName);
 		expect(result).toEqual(instance);
@@ -152,7 +152,9 @@ describe("ServiceDiscovery", () => {
 		cache.get.mockResolvedValue(null);
 		httpClient.get.mockRejectedValue("");
 
-		await expect(discovery.findService(svcInstanceName)).rejects.toThrow(Error);
+		await expect(discovery.findCachedService(svcInstanceName)).rejects.toThrow(
+			Error
+		);
 
 		expect(cache.delete).not.toHaveBeenCalled();
 	});
@@ -162,7 +164,7 @@ describe("ServiceDiscovery", () => {
 		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValue(true);
 
-		await discovery.findService(svcInstanceName);
+		await discovery.findCachedService(svcInstanceName);
 
 		expect(httpClient.get).toHaveBeenCalledWith(
 			expect.any(String),
@@ -176,7 +178,7 @@ describe("ServiceDiscovery", () => {
 		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValue(true);
 
-		const result = await discovery.findService(svcInstanceName);
+		const result = await discovery.findCachedService(svcInstanceName);
 
 		expect(result).toEqual(instance);
 		expect(cache.set).toHaveBeenCalledWith({ serviceName, instance });
@@ -186,8 +188,12 @@ describe("ServiceDiscovery", () => {
 		cache.get.mockResolvedValue(null);
 		httpClient.get.mockResolvedValue([]);
 
-		await expect(discovery.findService(svcInstanceName)).rejects.toThrow(Error);
-		await expect(discovery.findService(svcInstanceName)).rejects.toMatchObject({
+		await expect(discovery.findCachedService(svcInstanceName)).rejects.toThrow(
+			Error
+		);
+		await expect(
+			discovery.findCachedService(svcInstanceName)
+		).rejects.toMatchObject({
 			message: 'Service "user-service" has no registered instances',
 		});
 
@@ -199,7 +205,7 @@ describe("ServiceDiscovery", () => {
 		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValue(false);
 
-		await expect(discovery.findService(svcInstanceName)).rejects.toThrow(
+		await expect(discovery.findCachedService(svcInstanceName)).rejects.toThrow(
 			'Service "user-service" is unreachable'
 		);
 
@@ -212,20 +218,8 @@ describe("ServiceDiscovery", () => {
 		httpClient.get.mockResolvedValueOnce([instance]);
 		healthChecker.isHealthy.mockResolvedValue(true);
 
-		await discovery.findService(svcInstanceName);
+		await discovery.findCachedService(svcInstanceName);
 
 		expect(cache.set).toHaveBeenCalledWith({ serviceName, instance });
-	});
-
-	test("findAllServices delegates to resolver", async () => {
-		const mockResolver = (discovery as any)._resolver;
-		mockResolver.findAllServices = jest
-			.fn<() => Promise<ServiceInstance[]>>()
-			.mockResolvedValue([instance]);
-
-		const result = await discovery.findAllServices(svcInstanceName);
-
-		expect(result).toEqual([instance]);
-		expect(mockResolver.findAllServices).toHaveBeenCalledWith(svcInstanceName);
 	});
 });

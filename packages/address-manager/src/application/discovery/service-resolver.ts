@@ -1,12 +1,10 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
-	type DurationMs,
 	type ServiceId,
 	toServiceId,
-	URLString,
 } from "@trading-model/primitives/primitives";
-import { ServiceInstancesWire } from "@trading-model/validation/wire/service-instance";
 import type { ServiceHealthChecker } from "../../adapters/outbound/discovery/service-health-checker";
 import type { ServiceInstance } from "../../domain/client/type";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
@@ -39,20 +37,25 @@ export class ServiceResolver {
 		);
 	}
 
-	private get _httpClient(): HttpClient {
-		return this._deps.httpClient;
-	}
-	private get _config(): AddressManagerConfig {
-		return this._deps.config;
-	}
 	private get _serviceCache(): ServiceCachePort {
 		return this._deps.serviceCache;
 	}
 	private get _healthChecker(): ServiceHealthChecker {
 		return this._deps.healthChecker;
 	}
-	private get _discoveryTimeoutMs(): DurationMs {
-		return this._deps.config.discoveryTimeoutMs;
+
+	/** Healthy cached instance if any (an unhealthy one is evicted), else a fresh lookup. */
+	async findCachedService(
+		serviceName: ServiceInstanceName
+	): Promise<ServiceInstance> {
+		const cached = await this._serviceCache.get(toServiceId(serviceName));
+		if (cached) {
+			if (await this._healthChecker.isHealthy(cached)) {
+				return cached;
+			}
+			await this._serviceCache.delete(toServiceId(serviceName));
+		}
+		return this.findService(toServiceId(serviceName));
 	}
 
 	/** `majorVersion` omitted: any live instance (services pass none, the gateway the route's). */
@@ -115,23 +118,5 @@ export class ServiceResolver {
 			serviceName: toServiceId(serviceName),
 			instance,
 		});
-	}
-
-	async findAllServices(serviceName: ServiceId): Promise<ServiceInstance[]> {
-		try {
-			const instances = await this._httpClient.get(
-				URLString.of(
-					`${this._config.addressManagerUrl}/services/${serviceName}`
-				),
-				{ timeoutMs: this._discoveryTimeoutMs },
-				ServiceInstancesWire
-			);
-			return instances ?? [];
-		} catch (error) {
-			throw serviceUnreachableError(
-				`Unable to list instances of "${serviceName}"`,
-				{ cause: normalizeError(error) }
-			);
-		}
 	}
 }
