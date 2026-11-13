@@ -11,14 +11,6 @@ import {
 } from "@jest/globals";
 import express from "express";
 
-jest.mock("../../../src/config/metrics", () => ({
-	EVENTS_QUERY_DURATION_SECONDS: {
-		startTimer: jest
-			.fn<(...args: any[]) => any>()
-			.mockReturnValue(jest.fn<(...args: any[]) => any>()),
-	},
-}));
-
 import { eventsRoutes } from "../../../src/adapters/inbound/http/events.routes";
 
 /**

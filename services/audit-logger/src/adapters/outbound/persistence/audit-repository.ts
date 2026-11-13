@@ -4,6 +4,7 @@ import {
 	errorProp,
 	makeErrorCode,
 } from "@trading-model/common/utils/errors";
+import { sleep } from "@trading-model/common/utils/sleep";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
@@ -220,7 +221,7 @@ export class AuditRepository {
 					// Fairness: let waiting replicas take a turn.
 					await this._release(owner);
 					held = false;
-					await new Promise((resolve) => setTimeout(resolve, LEASE_YIELD_MS));
+					await sleep(LEASE_YIELD_MS);
 				}
 				if (!(held && (await this._renew(owner)))) {
 					this._tail = null;
@@ -296,9 +297,7 @@ export class AuditRepository {
 			if (Date.now() > deadline) {
 				return false;
 			}
-			await new Promise((resolve) =>
-				setTimeout(resolve, LEASE_POLL_MS * (1 + Math.random()))
-			);
+			await sleep(LEASE_POLL_MS * (1 + Math.random()));
 		}
 		return true;
 	}
