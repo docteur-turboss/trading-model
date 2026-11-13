@@ -110,7 +110,7 @@ jobs:
             type=raw,value=${{ needs.version.outputs.tag }}
             type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
 
-      # Gate before publication: a fixable CRITICAL vulnerability stops the job
+      # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
       # before the image is pushed. Exceptions: .trivyignore (ADR-0038).
       - name: Build for scan
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -199,7 +199,7 @@ jobs:
             type=raw,value=${{ needs.version.outputs.tag }}
             type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
 
-      # Gate before publication: a fixable CRITICAL vulnerability stops the job
+      # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
       # before the image is pushed. Exceptions: .trivyignore (ADR-0038).
       - name: Build for scan
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
