@@ -16,7 +16,7 @@ function jestConfig(dir, { moduleNameMapper, coverageThreshold, tsJest, ...overr
     testMatch: ['**/?(*.)+(spec).ts'],
     testPathIgnorePatterns: ['/node_modules/', '/dist/', DB_SPEC_IGNORE],
     collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
-    transform: { '^.+\.tsx?$': ['ts-jest', { diagnostics: false, ...tsJest }] },
+    transform: { '^.+\\.tsx?$': ['ts-jest', { diagnostics: false, ...tsJest }] },
     moduleNameMapper: { ...workspaceModuleNameMapper(dir), ...moduleNameMapper },
     coverageThreshold: { global: { ...THRESHOLDS, ...coverageThreshold } },
     ...overrides,
