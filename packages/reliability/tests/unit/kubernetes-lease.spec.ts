@@ -18,7 +18,7 @@ import {
 	KubernetesLease,
 	kubernetesLeaseApi,
 	type Lease,
-} from "../../../src/adapters/outbound/kubernetes/kubernetes-lease";
+} from "../../src/kubernetes-lease";
 
 function api(lease: Lease) {
 	return {
@@ -141,12 +141,12 @@ describe("kubernetesLeaseApi", () => {
 
 	it("targets the Lease of the pod namespace with the mounted token and CA", async () => {
 		MOCK_GET.mockResolvedValue({ data: { metadata: { name: "c" } } });
-		const leaseApi = kubernetesLeaseApi("trader-trainer");
+		const leaseApi = kubernetesLeaseApi("financial-scraper-collector");
 
 		await expect(leaseApi.get()).resolves.toEqual({ metadata: { name: "c" } });
 		expect(MOCK_CREATE.mock.calls[0][0]).toMatchObject({
 			baseURL:
-				"https://kubernetes.default.svc/apis/coordination.k8s.io/v1/namespaces/trading-model/leases/trader-trainer",
+				"https://kubernetes.default.svc/apis/coordination.k8s.io/v1/namespaces/trading-model/leases/financial-scraper-collector",
 		});
 		expect(MOCK_GET.mock.calls[0][1]).toEqual({
 			headers: { Authorization: "Bearer tok" },

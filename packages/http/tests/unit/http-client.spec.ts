@@ -53,6 +53,7 @@ jest.mock("@opentelemetry/api", () => {
 
 import fs from "node:fs";
 import https from "node:https";
+import { PassThrough } from "node:stream";
 import {
 	registerServiceName,
 	type ServiceInstanceName,
@@ -149,6 +150,7 @@ describe("HttpClient", () => {
 		contentType: string
 	) {
 		(requestCallback as any)({
+			setEncoding: jest.fn(),
 			on: jest.fn((e: string, cb2: any) => {
 				if (e === "data") {
 					cb2(body);
@@ -282,6 +284,7 @@ describe("HttpClient", () => {
 		it("should handle response without content-type header", async () => {
 			const promise = client.get(URLString.of("https://example.com/api"));
 			(requestCallback as any)({
+				setEncoding: jest.fn(),
 				on: jest.fn((e: string, cb2: any) => {
 					if (e === "data") {
 						cb2("raw-string-data");
@@ -384,6 +387,7 @@ describe("HttpClient", () => {
 				schema
 			);
 			(requestCallback as any)({
+				setEncoding: jest.fn(),
 				on: jest.fn((e: string, cb2: any) => {
 					if (e === "data") {
 						cb2("raw-string");
@@ -409,6 +413,7 @@ describe("HttpClient", () => {
 				schema
 			);
 			(requestCallback as any)({
+				setEncoding: jest.fn(),
 				on: jest.fn((e: string, cb2: any) => {
 					if (e === "data") {
 						cb2("actual");
@@ -681,27 +686,6 @@ describe("HttpClient", () => {
 			);
 		});
 
-		it("should respect dynamic threshold based on instance count", async () => {
-			isServiceCircuitOpen("dynamic-service" as ServiceInstanceName);
-
-			for (let i = 0; i < 6; i++) {
-				const promise = client.get(
-					URLString.of(`https://cb-svc-dyn-${i}.example.com/api`),
-					{
-						retryCount: 0 as PositiveInt,
-						serviceName: "dynamic-service" as unknown as ServiceId,
-						serviceInstanceCount: 3 as PositiveInt,
-					}
-				);
-				errorHandler!(new Error("ECONNRESET"));
-				await expect(promise).rejects.toThrow();
-			}
-
-			expect(
-				isServiceCircuitOpen("dynamic-service" as ServiceInstanceName)
-			).toBe(true);
-		});
-
 		it("should reset service circuit on success after cooldown", async () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get(
@@ -745,6 +729,7 @@ describe("HttpClient", () => {
 					callCount++;
 					if (callCount <= 2) {
 						cb({
+							setEncoding: jest.fn(),
 							on: jest.fn((e: string, cb2: any) => {
 								if (e === "data") {
 									cb2("");
@@ -758,6 +743,7 @@ describe("HttpClient", () => {
 						});
 					} else {
 						cb({
+							setEncoding: jest.fn(),
 							on: jest.fn((e: string, cb2: any) => {
 								if (e === "data") {
 									cb2(JSON.stringify({ ok: true }));
@@ -789,6 +775,7 @@ describe("HttpClient", () => {
 			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
 				(_opts: any, cb: any) => {
 					cb({
+						setEncoding: jest.fn(),
 						on: jest.fn((e: string, cb2: any) => {
 							if (e === "data") {
 								cb2("");
@@ -1017,7 +1004,10 @@ describe("HttpClient", () => {
 	describe("gzip and deflate content encoding", () => {
 		it("should handle gzip-encoded response", async () => {
 			const gzipData = "gzip-compressed-data";
-			const mockGunzip = { on: jest.fn<(...args: any[]) => any>() };
+			const mockGunzip = {
+				on: jest.fn<(...args: any[]) => any>(),
+				setEncoding: jest.fn<(...args: any[]) => any>(),
+			};
 
 			(
 				mockGunzip.on as unknown as jest.Mock<(...args: any[]) => any>
@@ -1055,7 +1045,10 @@ describe("HttpClient", () => {
 
 		it("should handle deflate-encoded response", async () => {
 			const deflateData = "deflate-compressed-data";
-			const mockInflate = { on: jest.fn<(...args: any[]) => any>() };
+			const mockInflate = {
+				on: jest.fn<(...args: any[]) => any>(),
+				setEncoding: jest.fn<(...args: any[]) => any>(),
+			};
 
 			(
 				mockInflate.on as unknown as jest.Mock<(...args: any[]) => any>
@@ -1092,6 +1085,35 @@ describe("HttpClient", () => {
 
 			const result = await client.get(URLString.of("https://example.com/data"));
 			expect(result).toBe("deflate-compressed-data");
+		});
+
+		it("should decode a multi-byte character split across chunks", async () => {
+			const bytes = Buffer.from('{"s":"é€"}');
+			const cut = bytes.indexOf(0xe2) + 1;
+			const mockRes = new PassThrough() as PassThrough & {
+				statusCode: number;
+				headers: Record<string, string>;
+			};
+			mockRes.statusCode = 200;
+			mockRes.headers = { "content-type": "application/json" };
+
+			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
+				(_opts: any, cb: any) => {
+					cb(mockRes);
+					mockRes.write(bytes.subarray(0, cut));
+					mockRes.end(bytes.subarray(cut));
+					return {
+						write: jest.fn<(...args: any[]) => any>(),
+						end: jest.fn<(...args: any[]) => any>(),
+						on: jest.fn<(...args: any[]) => any>(),
+						setTimeout: jest.fn<(...args: any[]) => any>(),
+						destroy: jest.fn<(...args: any[]) => any>(),
+					};
+				}
+			);
+
+			const result = await client.get(URLString.of("https://example.com/data"));
+			expect(result).toEqual({ s: "é€" });
 		});
 	});
 });

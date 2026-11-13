@@ -2,14 +2,12 @@ jest.mock("../src/infrastructure/signal-handler", () => ({
 	setupProcessHandlers: jest.fn(),
 }));
 
-import type http from "node:http";
 import { createBootstrap } from "../src/application/services/bootstrap";
 import { setupProcessHandlers } from "../src/infrastructure/signal-handler";
 
 function createMockServer() {
 	return {
 		close: jest.fn().mockResolvedValue(undefined),
-		raw: {} as http.Server,
 	};
 }
 

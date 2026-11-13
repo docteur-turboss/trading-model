@@ -100,12 +100,6 @@ describe("ServiceHealthChecker", () => {
 		expect(url).toBe("https://127.0.0.1:8080/ping");
 	});
 
-	test("recordLatency is a no-op stub", () => {
-		expect(() =>
-			checker.recordLatency(toInstanceId("instance-1"), 42, true)
-		).not.toThrow();
-	});
-
 	test("constructor defaults to ServiceNameLocator when no serviceLocator provided", () => {
 		const defaultChecker = new ServiceHealthChecker({
 			httpClient: httpClient as unknown as HttpClient,

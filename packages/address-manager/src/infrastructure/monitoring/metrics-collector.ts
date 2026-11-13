@@ -6,21 +6,17 @@ import { PING_ROUTES } from "../../adapters/inbound/routes/ping.routes";
 import type { DiscoveryCircuitBreaker } from "../../application/discovery/circuit-breaker";
 import type { ServiceCachePort } from "../../domain/ports/service-cache.port";
 import { CACHE_ENTRY_COUNT, CIRCUIT_BREAKER_INSTANCES_TOTAL } from "../metrics";
-import { ServiceCallTracker } from "./service-call-tracker";
 import { SystemMetrics, type SystemMetricsPayload } from "./system-metrics";
 
 /** Collects the service metrics and exposes them over Express. */
 export class MetricsCollector {
 	private readonly _systemMetrics: SystemMetrics;
-	private readonly _serviceCallTracker: ServiceCallTracker;
 
 	constructor(
 		private readonly _circuitBreaker: DiscoveryCircuitBreaker,
-		private readonly _serviceCache: ServiceCachePort,
-		maxCallRecords?: number
+		private readonly _serviceCache: ServiceCachePort
 	) {
 		this._systemMetrics = new SystemMetrics();
-		this._serviceCallTracker = new ServiceCallTracker(maxCallRecords ?? 1000);
 	}
 
 	listenExpress(app: Application): void {
@@ -38,18 +34,11 @@ export class MetricsCollector {
 	}
 
 	private _setupMetricsSnapshot(app: Application): void {
-		app.locals.metricsSnapshot = () => ({
-			...this._systemMetrics.collect(),
-			callTracker: this._serviceCallTracker.snapshot(),
-		});
+		app.locals.metricsSnapshot = () => this._systemMetrics.collect();
 	}
 
 	getMetrics(): SystemMetricsPayload {
 		return this._systemMetrics.collect();
-	}
-
-	getServiceCallTracker(): ServiceCallTracker {
-		return this._serviceCallTracker;
 	}
 
 	async collectSaturationMetrics(): Promise<void> {

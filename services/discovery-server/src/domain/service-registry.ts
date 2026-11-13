@@ -62,14 +62,19 @@ export class ServiceRegistry {
 	 * without instances are set to 0 rather than left at their last value.
 	 */
 	async syncRegisteredInstanceMetrics(): Promise<void> {
+		const counts = await Promise.all(
+			[...ALL_SERVICE_NAMES].map(
+				async (serviceName) =>
+					[
+						serviceName,
+						(await this.instanceStore.getInstances(serviceName)).length,
+					] as const
+			)
+		);
 		let total = 0;
-		for (const serviceName of ALL_SERVICE_NAMES) {
-			const instances = await this.instanceStore.getInstances(serviceName);
-			this._metrics.setRegisteredInstancesPerService(
-				serviceName,
-				instances.length
-			);
-			total += instances.length;
+		for (const [serviceName, count] of counts) {
+			this._metrics.setRegisteredInstancesPerService(serviceName, count);
+			total += count;
 		}
 		this._metrics.setRegisteredInstances(total);
 	}

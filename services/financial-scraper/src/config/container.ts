@@ -1,23 +1,24 @@
 import { sleep } from "@trading-model/common/utils/sleep";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
+import {
+	type LeaderJob,
+	Leadership,
+	SOLE_INSTANCE_LEASE,
+} from "@trading-model/reliability/leadership";
 import { z } from "zod";
 import { SignalCronScheduler } from "../adapters/inbound/cron/signal.cron";
 import { MarketDataModel } from "../adapters/outbound/persistence/market-data.model";
 import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store";
 import { createProtocolWorkers } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
-import {
-	type Collection,
-	CollectorLeadership,
-	SOLE_INSTANCE_LEASE,
-} from "../application/collector-leadership";
 import { createMarketDataController } from "../application/market-data.controller";
 import {
 	SignalCollector,
 	zeroCollectionFailures,
 } from "../application/signal-collector";
 import type { WorkerOrchestratorDeps } from "../application/worker-orchestrator";
+import { COLLECTOR_LEADER } from "./metrics";
 import { SIGNAL_REGISTRY } from "./signal-registry";
 
 /** Market data persistence use case backed by the MySQL repository. */
@@ -61,7 +62,7 @@ export interface ScrapeSchedulerSettings {
  */
 export async function createScrapeScheduler(
 	settings: ScrapeSchedulerSettings
-): Promise<Collection | null> {
+): Promise<LeaderJob | null> {
 	if (!settings.SCRAPE_SCHEDULER_ENABLED) {
 		logger.info(
 			"Scrape scheduler disabled (SCRAPE_SCHEDULER_ENABLED=false): serving HTTP only"
@@ -118,7 +119,7 @@ export function signalUserAgent(contactEmail: string): string {
  */
 export function createSignalScheduler(
 	settings: SignalSchedulerSettings
-): Collection | null {
+): LeaderJob | null {
 	if (!settings.SCRAPE_SCHEDULER_ENABLED) {
 		return null;
 	}
@@ -163,7 +164,7 @@ export interface CollectorSettings
  */
 export async function createCollector(
 	settings: CollectorSettings
-): Promise<CollectorLeadership | null> {
+): Promise<Leadership | null> {
 	const schedulers = [
 		await createScrapeScheduler(settings),
 		createSignalScheduler(settings),
@@ -182,20 +183,27 @@ export async function createCollector(
 		},
 	};
 	if (!settings.COLLECTOR_LEASE_NAME) {
-		return new CollectorLeadership(SOLE_INSTANCE_LEASE, collection);
+		return new Leadership(
+			SOLE_INSTANCE_LEASE,
+			collection,
+			(leader) => COLLECTOR_LEADER.set(leader),
+			"Collector"
+		);
 	}
 	logger.info("Collector leader election enabled", {
 		lease: settings.COLLECTOR_LEASE_NAME,
 		identity: settings.INSTANCE_ID,
 	});
 	const { KubernetesLease, kubernetesLeaseApi } = await import(
-		"../adapters/outbound/kubernetes/kubernetes-lease.js"
+		"@trading-model/reliability/kubernetes-lease"
 	);
-	return new CollectorLeadership(
+	return new Leadership(
 		new KubernetesLease(
 			settings.INSTANCE_ID,
 			kubernetesLeaseApi(settings.COLLECTOR_LEASE_NAME)
 		),
-		collection
+		collection,
+		(leader) => COLLECTOR_LEADER.set(leader),
+		"Collector"
 	);
 }

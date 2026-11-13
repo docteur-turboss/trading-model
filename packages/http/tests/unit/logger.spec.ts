@@ -10,7 +10,6 @@ import {
 	Logger,
 	LogLevel,
 } from "@trading-model/http/application/services/logger";
-import type { UserId } from "@trading-model/primitives/primitives";
 
 describe("Logger", () => {
 	let logger: Logger;
@@ -108,26 +107,6 @@ describe("Logger", () => {
 		});
 	});
 
-	describe("getLogs", () => {
-		it("should return buffered log entries", () => {
-			logger.info("msg1");
-			logger.warn("msg2");
-			const logs = logger.getLogs();
-			expect(logs).toHaveLength(2);
-			expect(logs[0].message).toBe("msg1");
-			expect(logs[1].message).toBe("msg2");
-		});
-	});
-
-	describe("setUserId", () => {
-		it("should set userId for subsequent logs", () => {
-			logger.setUserId("user-123" as unknown as UserId);
-			logger.info("test");
-			const logs = logger.getLogs();
-			expect(logs[0].userId).toBe("user-123");
-		});
-	});
-
 	describe("error with production NODE_ENV", () => {
 		it("should attempt to send error to external service in production", () => {
 			process.env.NODE_ENV = "production";
@@ -152,24 +131,6 @@ describe("Logger", () => {
 			expect(() => prodLogger.error("prod error")).not.toThrow();
 			fetchSpy.mockRestore();
 			delete process.env.ERROR_URL_WEBHOOK;
-		});
-	});
-
-	describe("buffer management", () => {
-		it("should limit buffer to maxLogs entries", () => {
-			for (let i = 0; i < 1010; i++) {
-				logger.info(`msg${i}`);
-			}
-			const logs = logger.getLogs();
-			expect(logs.length).toBeLessThanOrEqual(1000);
-		});
-	});
-
-	describe("createLogEntry", () => {
-		it("should include processId in log entry", () => {
-			logger.info("test session");
-			const logs = logger.getLogs();
-			expect(logs[0].processId).toBeDefined();
 		});
 	});
 
@@ -269,16 +230,6 @@ describe("Logger", () => {
 			expect(writtenData).not.toContain("my-api-token");
 			expect(writtenData).not.toContain("db-pass-123");
 			expect(writtenData).toContain("visible");
-		});
-	});
-
-	describe("createLogEntry with metadata", () => {
-		it("should include context in log entry", () => {
-			(logger as any)._sessionId = "sess-001";
-			logger.setUserId("user-001" as unknown as UserId);
-			logger.info("test with meta", { key: "val" });
-			const logs = logger.getLogs();
-			expect(logs[0].context).toEqual({ key: "val" });
 		});
 	});
 });

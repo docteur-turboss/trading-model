@@ -120,10 +120,9 @@ export async function loadTlsPemBundle(tls: TlsPaths): Promise<TlsPemBundle> {
 	};
 }
 
-/** Builds the HTTPS agent options from the TLS paths; hostname verification is opt-in. */
+/** Builds the HTTPS agent options from the TLS paths; hostname verification is off. */
 export function buildHttpsAgentOptions(
-	tlsConfig?: TlsPaths,
-	verifyHostname = false
+	tlsConfig?: TlsPaths
 ): https.AgentOptions | undefined {
 	if (!tlsConfig) {
 		return;
@@ -142,7 +141,7 @@ export function buildHttpsAgentOptions(
 	// SPIFFE SVIDs carry only a `spiffe://` URI SAN, so hostname verification
 	// must be disabled when trusting a custom bundle (ADR-0011). Trust comes
 	// from the SPIFFE trust bundle + application-layer identity checks.
-	if (!verifyHostname && (bundle.caPem || bundle.certPem)) {
+	if (bundle.caPem || bundle.certPem) {
 		opts.checkServerIdentity = () => undefined;
 	}
 	return opts;

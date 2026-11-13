@@ -1,11 +1,10 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { TRAINING_LEADER } from "../config/metrics";
-import type { LeaderLeasePort } from "../domain/ports/leader-lease.port";
+import type { LeaderLeasePort } from "./leader-lease.port";
 
-/** The training loop: it must run on one instance only. */
-export interface Training {
+/** The work that must run on one instance only (collector crons, training loop). */
+export interface LeaderJob {
 	start(): void;
-	/** Stops scheduling, ends the session in flight early, stores and publishes its model. */
+	/** Stops scheduling, then waits for the work in flight to end. */
 	stop(): Promise<void>;
 }
 
@@ -13,7 +12,7 @@ export interface LeadershipTiming {
 	/** Delay between two acquire/renew attempts. */
 	retryMs: number;
 	/**
-	 * A leader that could not renew for this long stops training. Below the
+	 * A leader that could not renew for this long stops the job. Below the
 	 * lease duration, so it stops before a successor may take the lease.
 	 */
 	renewDeadlineMs: number;
@@ -26,13 +25,14 @@ export const DEFAULT_LEADERSHIP_TIMING: LeadershipTiming = {
 };
 
 /**
- * Runs the training loop only while this instance holds the leader lease
- * (ADR-0058, as ADR-0057 for the collector): starts it on acquisition, stops
- * it when the lease is lost or cannot be renewed within the deadline. On stop,
- * the training ends and stores its model first, then the lease is released
- * for the successor.
+ * Runs the job only while this instance holds the leader lease (ADR-0057
+ * collector, ADR-0058 trainer): starts it on acquisition, stops it when the
+ * lease is lost or cannot be renewed within the deadline. On stop, the job
+ * drains first, then the lease is released for the successor.
+ * `onLeaderChange` receives 1 when leading and 0 otherwise (the service's
+ * Prometheus gauge); `label` ("Collector", "Trainer") prefixes the logs.
  */
-export class TrainingLeadership {
+export class Leadership {
 	private _leading = false;
 	private _stopped = false;
 	private _timer?: NodeJS.Timeout;
@@ -43,23 +43,25 @@ export class TrainingLeadership {
 
 	constructor(
 		private readonly _lease: LeaderLeasePort,
-		private readonly _training: Training,
+		private readonly _job: LeaderJob,
+		private readonly _onLeaderChange: (leader: 0 | 1) => void,
+		private readonly _label: string,
 		private readonly _timing: LeadershipTiming = DEFAULT_LEADERSHIP_TIMING,
 		private readonly _now: () => number = Date.now
 	) {}
 
-	/** True while this instance trains. */
+	/** True while this instance runs the job. */
 	get leading(): boolean {
 		return this._leading;
 	}
 
 	/** First attempt now, then every `retryMs`. */
 	start(): void {
-		TRAINING_LEADER.set(0);
+		this._onLeaderChange(0);
 		this._schedule(0);
 	}
 
-	/** Stops trying, ends the training and stores its model, then releases the lease. */
+	/** Stops trying, stops the job and drains it, then releases the lease. */
 	async stop(): Promise<void> {
 		this._stopped = true;
 		clearTimeout(this._timer);
@@ -70,8 +72,8 @@ export class TrainingLeadership {
 		}
 		clearTimeout(this._deadline);
 		this._leading = false;
-		TRAINING_LEADER.set(0);
-		await this._training.stop();
+		this._onLeaderChange(0);
+		await this._job.stop();
 		await this._release();
 	}
 
@@ -98,7 +100,7 @@ export class TrainingLeadership {
 		try {
 			held = await this._lease.tryAcquireOrRenew();
 		} catch (err) {
-			getLogger().warn("Trainer lease unreachable", { error: err });
+			getLogger().warn(`${this._label} lease unreachable`, { error: err });
 		}
 		if (this._stopped) {
 			if (held && !this._leading) {
@@ -118,9 +120,9 @@ export class TrainingLeadership {
 			}, deadlineIn);
 			if (!this._leading) {
 				this._leading = true;
-				TRAINING_LEADER.set(1);
-				getLogger().info("Trainer lease acquired: training");
-				this._training.start();
+				this._onLeaderChange(1);
+				getLogger().info(`${this._label} lease acquired: running`);
+				this._job.start();
 			}
 			return;
 		}
@@ -130,18 +132,18 @@ export class TrainingLeadership {
 	}
 
 	/**
-	 * Stops training at once. Called from the deadline timer too, so it
+	 * Stops the job at once. Called from the deadline timer too, so it
 	 * never waits on the API call in flight: the stop is bounded by real time.
 	 */
 	private _lose(reason: string): Promise<void> {
 		clearTimeout(this._deadline);
 		this._leading = false;
-		TRAINING_LEADER.set(0);
-		getLogger().warn("Trainer stops training", { reason });
-		this._draining = this._training
+		this._onLeaderChange(0);
+		getLogger().warn(`${this._label} stops its job`, { reason });
+		this._draining = this._job
 			.stop()
 			.catch((err: unknown) => {
-				getLogger().error("Trainer stop failed after losing the lease", {
+				getLogger().error(`${this._label} stop failed after losing the lease`, {
 					error: err,
 				});
 			})
@@ -154,17 +156,18 @@ export class TrainingLeadership {
 	private async _release(): Promise<void> {
 		try {
 			await this._lease.release();
-			getLogger().info("Trainer lease released");
+			getLogger().info(`${this._label} lease released`);
 		} catch (err) {
 			// The rest of the shutdown goes on: the successor waits for the expiry.
-			getLogger().error("Trainer lease not released: it expires on its own", {
-				error: err,
-			});
+			getLogger().error(
+				`${this._label} lease not released: it expires on its own`,
+				{ error: err }
+			);
 		}
 	}
 }
 
-/** Always held: the trainer of a single-instance deployment (compose, dev). */
+/** Always held: the job of a single-instance deployment (compose, dev). */
 export const SOLE_INSTANCE_LEASE: LeaderLeasePort = {
 	tryAcquireOrRenew: async () => true,
 	release: async () => {

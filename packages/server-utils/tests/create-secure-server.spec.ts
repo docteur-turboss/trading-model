@@ -29,7 +29,6 @@ import { createAndStartHttpsServer } from "../src/adapters/inbound/server-factor
 
 const mockApp = { use: jest.fn() };
 const mockServer = {
-	raw: {} as never,
 	close: jest.fn().mockResolvedValue(undefined),
 };
 
@@ -40,7 +39,7 @@ describe("createSecureServer", () => {
 		(createAndStartHttpsServer as jest.Mock).mockResolvedValue(mockServer);
 	});
 
-	it("should call configureApp with rateLimit and trustProxy options", async () => {
+	it("should call configureApp with the trustProxy option", async () => {
 		const options = {
 			port: 443 as never,
 			tls: {
@@ -49,17 +48,12 @@ describe("createSecureServer", () => {
 				caPath: "ca.pem" as FilePath,
 			},
 			routes: jest.fn(),
-			rateLimit: {
-				windowMs: 60000 as never,
-				limit: 50 as never,
-			},
 			trustProxy: true,
 		};
 
 		await createSecureServer(options);
 
 		expect(configureApp).toHaveBeenCalledWith({
-			rateLimit: options.rateLimit,
 			trustProxy: true,
 		});
 	});
@@ -97,7 +91,7 @@ describe("createSecureServer", () => {
 		expect(routes).toHaveBeenCalledWith(mockApp);
 	});
 
-	it("should mount authorization middleware when authorize.enabled is true", async () => {
+	it("should mount authorization middleware when authorize is set", async () => {
 		const options = {
 			port: 443 as never,
 			tls: {
@@ -108,16 +102,12 @@ describe("createSecureServer", () => {
 			routes: jest.fn(),
 			authorize: {
 				targetService: "message-manager" as never,
-				enabled: true,
 			},
 		};
 
 		await createSecureServer(options);
 
-		expect(MTLSAuthorizationMiddleware).toHaveBeenCalledWith(
-			"message-manager",
-			undefined
-		);
+		expect(MTLSAuthorizationMiddleware).toHaveBeenCalledWith("message-manager");
 		expect(mockApp.use).toHaveBeenCalledWith("authorize-middleware");
 	});
 
@@ -169,7 +159,6 @@ describe("createSecureServer", () => {
 		expect(createAndStartHttpsServer).toHaveBeenCalledWith(mockApp, {
 			port: 443,
 			tls: options.tls,
-			watchTls: true,
 		});
 	});
 
@@ -187,26 +176,5 @@ describe("createSecureServer", () => {
 		const result = await createSecureServer(options);
 
 		expect(result).toBe(mockServer);
-	});
-
-	it("should pass watchTls from options when provided", async () => {
-		const options = {
-			port: 443 as never,
-			tls: {
-				keyPath: "key.pem" as FilePath,
-				certPath: "cert.pem" as FilePath,
-				caPath: "ca.pem" as FilePath,
-			},
-			routes: jest.fn(),
-			watchTls: false,
-		};
-
-		await createSecureServer(options);
-
-		expect(createAndStartHttpsServer).toHaveBeenCalledWith(mockApp, {
-			port: 443,
-			tls: options.tls,
-			watchTls: false,
-		});
 	});
 });

@@ -1,9 +1,6 @@
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import {
 	type DurationMs,
-	type InstanceId,
-	isAllowedProxyIP,
-	parseCIDRList,
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { PING_PATH } from "@trading-model/server-utils/shared/constants";
@@ -24,7 +21,7 @@ import type { ServiceInstance } from "../../../domain/client/type";
  * Constraints:
  * - No retry logic
  * - No cache logic
- * - No dependency on ServiceDiscovery
+ * - No dependency on ServiceResolver
  *
  * This class provides a simple health check mechanism for services
  * by pinging a predefined endpoint and returning a boolean result.
@@ -37,7 +34,6 @@ export interface HealthCheckOptions {
 	httpClient: HttpClient;
 	timeoutMs: DurationMs;
 	serviceLocator?: ServiceLocator;
-	allowedProxyCIDRs?: string;
 }
 
 /** Checks that a discovered service instance answers its health endpoint. */
@@ -45,7 +41,6 @@ export class ServiceHealthChecker {
 	private readonly _httpClient: HttpClient;
 	private readonly _timeoutMs: DurationMs;
 	private readonly _serviceLocator: ServiceLocator;
-	private readonly _allowedRanges: ReturnType<typeof parseCIDRList>[number][];
 
 	/**
 	 * Creates a new ServiceHealthChecker.
@@ -54,9 +49,6 @@ export class ServiceHealthChecker {
 		this._httpClient = options.httpClient;
 		this._timeoutMs = options.timeoutMs;
 		this._serviceLocator = options.serviceLocator ?? new ServiceNameLocator();
-		this._allowedRanges = options.allowedProxyCIDRs
-			? parseCIDRList(options.allowedProxyCIDRs)
-			: [];
 	}
 
 	/**
@@ -70,9 +62,6 @@ export class ServiceHealthChecker {
 	 */
 	async isHealthy(instance: ServiceInstance): Promise<boolean> {
 		const url = this._buildPingUrl(instance);
-		if (!url) {
-			return false;
-		}
 
 		// biome-ignore lint/plugin: a failed ping is the negative health signal, not an error
 		try {
@@ -86,43 +75,14 @@ export class ServiceHealthChecker {
 		}
 	}
 
-	/**
-	 * Builds the ping URL for the service instance.
-	 *
-	 * Convention:
-	 * - Each service exposes a GET /ping endpoint for health checks.
-	 *
-	 * @param instance - The service instance.
-	 * @returns The full URL to ping, or null if the target IP is not allowed.
-	 *
-	 * @private
-	 */
-	/**
-	 * Stub: latency tracking is delegated to the circuit breaker.
-	 * Override in subclasses that need per-instance latency histograms.
-	 */
-	recordLatency(
-		_instanceId: InstanceId,
-		_durationMs: number,
-		_success: boolean
-	): void {
-		// Intentional no-op.
-	}
-
 	/** The address callers must use for this instance: the one the ping checks. */
 	locate(instance: ServiceInstance): string {
 		return this._serviceLocator.locate(instance);
 	}
 
-	private _buildPingUrl(instance: ServiceInstance): URLString | null {
+	/** Each service exposes GET /ping for health checks. */
+	private _buildPingUrl(instance: ServiceInstance): URLString {
 		const hostname = this._serviceLocator.locate(instance);
-		if (
-			this._allowedRanges.length > 0 &&
-			/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) &&
-			!isAllowedProxyIP(hostname, this._allowedRanges)
-		) {
-			return null;
-		}
 		return URLString.of(`https://${hostname}:${instance.port}${PING_PATH}`);
 	}
 }

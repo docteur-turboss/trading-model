@@ -1,21 +1,21 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { toSymbol } from "@trading-model/primitives/primitives";
-import { DataEventHandler } from "../adapters/inbound/events/event-handlers";
-import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
-import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import {
 	KubernetesLease,
 	kubernetesLeaseApi,
-} from "../adapters/outbound/kubernetes/kubernetes-lease";
+} from "@trading-model/reliability/kubernetes-lease";
+import {
+	type LeaderJob,
+	Leadership,
+	SOLE_INSTANCE_LEASE,
+} from "@trading-model/reliability/leadership";
+import { DataEventHandler } from "../adapters/inbound/events/event-handlers";
+import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
+import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
 import { runInWorker } from "../adapters/outbound/training-worker/worker-training-runner";
 import { Trainer } from "../application/trainer";
-import {
-	SOLE_INSTANCE_LEASE,
-	type Training,
-	TrainingLeadership,
-} from "../application/training-leadership";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
@@ -37,6 +37,7 @@ import {
 	POPULATION_SIZE,
 	QLEARNING_TRAIN_ERRORS,
 	STAGNATION_GENERATIONS,
+	TRAINING_LEADER,
 } from "./metrics";
 
 /** Binds the GA engine hooks to the Prometheus collectors. */
@@ -194,10 +195,15 @@ interface TrainingLeadershipSettings {
  */
 export function createTrainingLeadership(
 	settings: TrainingLeadershipSettings,
-	training: Training
-): TrainingLeadership {
+	training: LeaderJob
+): Leadership {
 	if (!settings.TRAINER_LEASE_NAME) {
-		return new TrainingLeadership(SOLE_INSTANCE_LEASE, training);
+		return new Leadership(
+			SOLE_INSTANCE_LEASE,
+			training,
+			(leader) => TRAINING_LEADER.set(leader),
+			"Trainer"
+		);
 	}
 	getLogger().info("Trainer leader election enabled", {
 		context: {
@@ -205,11 +211,13 @@ export function createTrainingLeadership(
 			identity: settings.INSTANCE_ID,
 		},
 	});
-	return new TrainingLeadership(
+	return new Leadership(
 		new KubernetesLease(
 			settings.INSTANCE_ID,
 			kubernetesLeaseApi(settings.TRAINER_LEASE_NAME)
 		),
-		training
+		training,
+		(leader) => TRAINING_LEADER.set(leader),
+		"Trainer"
 	);
 }

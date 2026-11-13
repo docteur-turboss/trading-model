@@ -13,53 +13,13 @@ jest.mock("@opentelemetry/exporter-trace-otlp-http", () => ({
 }));
 
 import {
-	initializeTelemetry,
 	shutdownTelemetry,
 	startTelemetry,
 } from "../src/infrastructure/telemetry";
 
-const BASE_CONFIG = {
-	serviceName: "test-service" as never,
-	serviceVersion: "1.0.0",
-	instanceId: "test-instance" as never,
-};
-
 describe("telemetry", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-	});
-
-	describe("initializeTelemetry", () => {
-		it("should not create an SDK when otlpEndpoint is not provided", () => {
-			initializeTelemetry({ ...BASE_CONFIG });
-
-			expect(mockNodeSDK).not.toHaveBeenCalled();
-		});
-
-		it("should create an SDK when otlpEndpoint is provided", () => {
-			initializeTelemetry({
-				...BASE_CONFIG,
-				otlpEndpoint: "http://localhost:4318",
-			});
-
-			expect(mockNodeSDK).toHaveBeenCalledTimes(1);
-			expect(mockNodeSDK).toHaveBeenCalledWith(
-				expect.objectContaining({
-					traceExporter: expect.any(Object),
-					instrumentations: expect.arrayContaining([expect.any(Object)]),
-				})
-			);
-		});
-
-		it("should start the SDK when otlpEndpoint is provided", () => {
-			initializeTelemetry({
-				...BASE_CONFIG,
-				otlpEndpoint: "http://localhost:4318",
-			});
-
-			const instance = mockNodeSDK.mock.results[0].value;
-			expect(instance.start).toHaveBeenCalledTimes(1);
-		});
 	});
 
 	describe("startTelemetry", () => {
@@ -88,6 +48,7 @@ describe("telemetry", () => {
 			expect(mockOtlpExporter).toHaveBeenCalledWith({
 				url: "http://collector:4318/v1/traces",
 			});
+			expect(mockNodeSDK.mock.results[0].value.start).toHaveBeenCalledTimes(1);
 		});
 	});
 
@@ -98,12 +59,11 @@ describe("telemetry", () => {
 		});
 
 		it("should shutdown the SDK when it was initialized", async () => {
-			initializeTelemetry({
-				...BASE_CONFIG,
-				otlpEndpoint: "http://localhost:4318",
-			});
+			process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
+			startTelemetry("api-gateway" as never);
 
 			await shutdownTelemetry();
+			delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
 			const instance = mockNodeSDK.mock.results[0].value;
 			expect(instance.shutdown).toHaveBeenCalledTimes(1);

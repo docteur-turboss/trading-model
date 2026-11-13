@@ -34,19 +34,13 @@ const instanceId = InstanceId.of(instanceIdStr);
 const signingSecret = "test-signing-secret-123456";
 
 function validOptions() {
-	const storedToken = generateInstanceToken(instanceId, signingSecret);
-	return {
-		token: generateInstanceToken(instanceId, signingSecret),
-		instanceId,
-		signingSecret,
-		storedToken,
-		options: { allowSlidingExpiry: true } as const,
-	};
+	const token = generateInstanceToken(instanceId, signingSecret);
+	return { token, instanceId, signingSecret, storedToken: token };
 }
 
 describe("validInstanceToken", () => {
 	describe("valid tokens", () => {
-		it("should return true for a valid 3-part token with allowSlidingExpiry", () => {
+		it("should return true for a valid 3-part token equal to the stored token", () => {
 			const result = validInstanceToken(validOptions());
 			expect(result).toBe(true);
 		});
@@ -116,7 +110,6 @@ describe("validInstanceToken", () => {
 				instanceId: instance,
 				signingSecret,
 				storedToken,
-				options: { allowSlidingExpiry: true },
 			});
 			expect(result).toBe(false);
 		});
@@ -146,45 +139,19 @@ describe("validInstanceToken", () => {
 		});
 	});
 
-	describe("allowSlidingExpiry with storedToken", () => {
-		it("should return true when allowSlidingExpiry is enabled and storedToken is valid", () => {
-			const result = validInstanceToken(validOptions());
-			expect(result).toBe(true);
-		});
-
-		it("should return false when allowSlidingExpiry is false and storedToken differs", () => {
-			const opts = validOptions();
+	describe("stored token", () => {
+		it("should return false for a validly signed token that differs from the stored token", () => {
 			const result = validInstanceToken({
-				...opts,
-				options: { allowSlidingExpiry: false },
+				...validOptions(),
+				storedToken: generateInstanceToken(instanceId, signingSecret),
 			});
 			expect(result).toBe(false);
 		});
 
-		it("should return false when storageToken is null even with allowSlidingExpiry", () => {
-			const token = generateInstanceToken(instanceId, signingSecret);
+		it("should return false when storedToken is null", () => {
 			const result = validInstanceToken({
-				token,
-				instanceId,
-				signingSecret,
+				...validOptions(),
 				storedToken: null,
-				options: { allowSlidingExpiry: true },
-			});
-			expect(result).toBe(false);
-		});
-
-		it("should return false when storedToken is invalid (tampered)", () => {
-			const token = generateInstanceToken(instanceId, signingSecret);
-			const storedToken = generateInstanceToken(instanceId, signingSecret);
-			const storedParts = storedToken.split(".");
-			storedParts[2] = tamper(storedParts[2]);
-			const invalidStored = storedParts.join(".");
-			const result = validInstanceToken({
-				token,
-				instanceId,
-				signingSecret,
-				storedToken: invalidStored,
-				options: { allowSlidingExpiry: true },
 			});
 			expect(result).toBe(false);
 		});
@@ -205,7 +172,7 @@ describe("validInstanceToken", () => {
 				instanceId: instance,
 				signingSecret,
 				storedToken,
-				options: { allowSlidingExpiry: true, maxAgeMs: 100_000 },
+				options: { maxAgeMs: 100_000 },
 			});
 			expect(result).toBe(false);
 		});
@@ -218,13 +185,12 @@ describe("validInstanceToken", () => {
 				signingSecret,
 				recentTimestamp
 			);
-			const storedToken = generateInstanceToken(instance, signingSecret);
 			const result = validInstanceToken({
 				token: legacyToken,
 				instanceId: instance,
 				signingSecret,
-				storedToken,
-				options: { allowSlidingExpiry: true, maxAgeMs: 300_000 },
+				storedToken: legacyToken,
+				options: { maxAgeMs: 300_000 },
 			});
 			expect(result).toBe(true);
 		});
@@ -239,14 +205,12 @@ describe("validInstanceToken", () => {
 				signingSecret,
 				futureTimestamp
 			);
-			const storedToken = generateInstanceToken(instance, signingSecret);
 			const result = validInstanceToken({
 				token: legacyToken,
 				instanceId: instance,
 				signingSecret,
-				storedToken,
+				storedToken: legacyToken,
 				options: {
-					allowSlidingExpiry: true,
 					clockSkewToleranceMs: 10_000,
 				},
 			});
@@ -268,7 +232,6 @@ describe("validInstanceToken", () => {
 				signingSecret,
 				storedToken,
 				options: {
-					allowSlidingExpiry: true,
 					clockSkewToleranceMs: 5_000,
 				},
 			});

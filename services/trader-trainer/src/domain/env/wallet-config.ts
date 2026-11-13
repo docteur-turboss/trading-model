@@ -18,12 +18,12 @@ export const DEFAULT_MAX_EXPOSURE_FRACTION = 1;
 export interface WalletConfigParams {
 	initialCash: Cash;
 	initialPrice: Price;
-	feeRate?: Percentage;
+	feeRate: Percentage;
 	/**
 	 * Half-spread + slippage as a fraction of the fill price: a buy pays
-	 * `price × (1 + rate)`, a sale receives `price × (1 − rate)`. Default 0.
+	 * `price × (1 + rate)`, a sale receives `price × (1 − rate)`.
 	 */
-	executionCostRate?: Percentage;
+	executionCostRate: Percentage;
 	/** Max position value (at the current price) as a fraction of `initialCash`. */
 	maxExposureFraction?: number;
 	decimals?: DecimalPrecision;
@@ -41,10 +41,8 @@ export class WalletConfig {
 		const resolved: Required<WalletConfigParams> = {
 			initialCash: Cash.of(params.initialCash),
 			initialPrice: Price.of(params.initialPrice),
-			feeRate: Percentage.of(params.feeRate ?? Percentage.zero()),
-			executionCostRate: Percentage.of(
-				params.executionCostRate ?? Percentage.zero()
-			),
+			feeRate: Percentage.of(params.feeRate),
+			executionCostRate: Percentage.of(params.executionCostRate),
 			maxExposureFraction:
 				params.maxExposureFraction ?? DEFAULT_MAX_EXPOSURE_FRACTION,
 			decimals: params.decimals ?? DecimalPrecision.of(8),

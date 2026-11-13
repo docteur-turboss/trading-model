@@ -23,11 +23,11 @@ const MOCK_REDIS = {
 
 import { ALL_SERVICE_NAMES } from "@trading-model/primitives/service-instance-name";
 import { InstanceMetadataReader } from "../../src/adapters/outbound/instance-metadata-reader";
-import type { RedisDepsWithoutToken } from "../../src/shared/redis-deps";
+import type { RedisDeps } from "../../src/shared/redis-deps";
 
 describe("InstanceMetadataReader", () => {
 	let reader: InstanceMetadataReader;
-	let deps: RedisDepsWithoutToken;
+	let deps: RedisDeps;
 
 	beforeEach(() => {
 		jest.clearAllMocks();

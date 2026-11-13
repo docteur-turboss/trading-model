@@ -10,7 +10,6 @@ jest.mock(
 					opts.routes({ use: jest.fn<(...args: any[]) => any>() });
 					return Promise.resolve({
 						close: jest.fn<(...args: any[]) => any>(),
-						raw: {},
 					});
 				}
 			),

@@ -45,6 +45,7 @@ function collectResponseBody<TResponse>(
 	return new Promise<TResponse | undefined>((resolve, reject) => {
 		let data = "";
 		const stream = decompressResponse(res);
+		stream.setEncoding("utf8");
 
 		stream.on("data", (chunk: string) => {
 			data += chunk;

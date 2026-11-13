@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import https from "node:https";
 import axios from "axios";
-import type { LeaderLeasePort } from "../../../domain/ports/leader-lease.port";
+import type { LeaderLeasePort } from "./leader-lease.port";
 
 /** The fields of a coordination.k8s.io/v1 Lease this adapter reads and writes. */
 export interface Lease {
@@ -35,7 +35,7 @@ function _microTime(ms: number): string {
 }
 
 /**
- * Leader lease on a Kubernetes Lease (ADR-0057, ADR-0058), the algorithm of client-go's
+ * Leader lease on a Kubernetes Lease (ADR-0057), the algorithm of client-go's
  * leaderelection: optimistic concurrency on `resourceVersion`, expiry judged
  * from the time this instance observed the last change.
  */
@@ -104,7 +104,7 @@ export class KubernetesLease implements LeaderLeasePort {
 
 const SERVICE_ACCOUNT_DIR = "/var/run/secrets/kubernetes.io/serviceaccount";
 
-/** Under the 10 s renew deadline of the training leadership. */
+/** Under the 10 s renew deadline of the leadership. */
 const API_TIMEOUT_MS = 5000;
 
 /**

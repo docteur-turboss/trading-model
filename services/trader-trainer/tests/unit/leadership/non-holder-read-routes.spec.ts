@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
+import { Leadership } from "@trading-model/reliability/leadership";
 import express from "express";
 
 jest.mock("@trading-model/contracts/logger-registry", () => ({
@@ -19,7 +20,6 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 import { TRAINER_ROUTES } from "../../../src/adapters/inbound/http/routes";
 import { FileModelArtifactStore } from "../../../src/adapters/outbound/file-model-artifact-store";
 import { Trainer } from "../../../src/application/trainer";
-import { TrainingLeadership } from "../../../src/application/training-leadership";
 import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
@@ -46,7 +46,7 @@ describe("trainer pod that does not hold the Lease", () => {
 	let server: Server;
 	let baseUrl: string;
 	let version: string;
-	let leadership: TrainingLeadership;
+	let leadership: Leadership;
 	const training = {
 		start: jest.fn<() => void>(),
 		stop: jest.fn(async () => {
@@ -89,10 +89,16 @@ describe("trainer pod that does not hold the Lease", () => {
 				// Not held.
 			},
 		};
-		leadership = new TrainingLeadership(heldByAnother, training, {
-			retryMs: 60_000,
-			renewDeadlineMs: 10_000,
-		});
+		leadership = new Leadership(
+			heldByAnother,
+			training,
+			() => undefined,
+			"Trainer",
+			{
+				retryMs: 60_000,
+				renewDeadlineMs: 10_000,
+			}
+		);
 		leadership.start();
 		// First attempt (0 ms timer), then its promise.
 		await new Promise((resolve) => setTimeout(resolve, 10));

@@ -62,7 +62,6 @@ The monorepo has **11 shared packages** under the `@trading-model/*` scope. Buil
 | `sleep.ts` | `sleep(ms): Promise<void>` |
 | `cache.ts` | `SyncCachePort<T>` — cache abstraction (get/set/delete/clear/has/invalidate with TTL) |
 | `ttl-cache-base.ts` | Base class for TTL-based cache implementations |
-| `circular-buffer.ts` | Fixed-capacity circular buffer |
 | `sanitize.ts` | `sanitizeForLog()` — strips PEM blocks and secrets before logging |
 | `safe-stringify.ts` | Cycle-safe JSON stringification |
 | `deterministic-stringify.ts` | Deterministic JSON serialization for cryptographic signing (recursively sorts object keys) |

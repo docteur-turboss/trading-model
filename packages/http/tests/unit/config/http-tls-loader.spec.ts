@@ -104,11 +104,6 @@ describe("buildHttpsAgentOptions", () => {
 		const opts = buildHttpsAgentOptions({ caPath, certPath, keyPath });
 		expect(opts!.checkServerIdentity).toBeDefined();
 	});
-
-	it("should keep hostname verification when verifyHostname is true", () => {
-		const opts = buildHttpsAgentOptions({ caPath, certPath, keyPath }, true);
-		expect(opts!.checkServerIdentity).toBeUndefined();
-	});
 });
 
 describe("loadTlsPemBundleSync cache", () => {

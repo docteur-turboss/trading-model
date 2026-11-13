@@ -396,8 +396,6 @@ function printSummary(bumps, oldRootVer, newVersion, rootBump, dryRun) {
 function publishRelease(newVersion, args) {
   if (!args.publish || args.dryRun) return;
   console.log('\n  ── Publishing release ──\n');
-  console.log('  → Generating documentation...');
-  run('bun run docs:generate');
   console.log('  → Staging files...');
   runOrDie('git add -A');
   const commitMsg = `:rocket:(release): v${newVersion}`;

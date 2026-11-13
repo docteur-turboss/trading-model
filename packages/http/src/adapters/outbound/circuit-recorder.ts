@@ -67,14 +67,10 @@ export class CircuitRecorder {
 		}
 	}
 
-	recordFailure(route: ServiceRoute, serviceInstanceCount?: number): void {
+	recordFailure(route: ServiceRoute): void {
 		this._hostnameCircuit.recordFailure(route.hostname);
 		if (route.serviceName) {
-			const threshold =
-				serviceInstanceCount === undefined
-					? undefined
-					: Math.max(2, serviceInstanceCount * 2);
-			this._serviceCircuit.recordFailure(route.serviceName, 1, threshold);
+			this._serviceCircuit.recordFailure(route.serviceName);
 		}
 	}
 
