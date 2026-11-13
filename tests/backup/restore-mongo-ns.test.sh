@@ -43,7 +43,8 @@ notrefused_audit() { ! has "hash chain"; }
 refused() { [ "$RC" -eq 1 ] && has "$1"; }
 
 run --components mongodb --allow-mixed-runs
-check "default: historical arguments" called " --quiet --gzip --archive --drop --oplogReplay"
+check "default: admin users kept" called " --quiet --gzip --archive --drop --nsExclude admin.*"
+check "default: no oplogReplay" notcalled "--oplogReplay"
 check "default: no ns option" notcalled "--nsInclude"
 
 run --components mongodb --allow-mixed-runs --ns dlq.dead_letters --ns 'dlq.x*'

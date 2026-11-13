@@ -807,9 +807,13 @@ bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries' --into-s
   restores every namespace there. Copy the documents back by hand, then drop the
   scratch databases.
 - Only with `--components mongodb` or `mongodb-audit`; refused with `--until`.
-- **Oplog choice:** `mongorestore` refuses `--oplogReplay` with `--nsInclude`,
-  so a selective restore omits it: data is as of the start of the dump, not its
-  end. For the full-replica-set restore nothing changes.
+- **Oplog choice:** `mongorestore` refuses `--oplogReplay` with `--nsInclude` and
+  `--nsExclude`, so a selective restore omits it: data is as of the start of the
+  dump, not its end. The full restore does the same: it excludes `admin.*` (the
+  users keep the passwords of the current Secrets, as in `restore.sh`), so the
+  dump's own oplog slice is not replayed; `--until` replays the archives from
+  before the dump. `replay_oplog` is unfiltered: an `admin.system.users` change
+  inside the replayed window comes back.
 - **Audit trail (ADR-0027):** restoring `audit_events` partially in place breaks
   the hash chain. every `--ns` whose database part can match `audit` (`audit.*`, `a*.*`, `*.x`...)
   without `--into-scratch` is refused; restore

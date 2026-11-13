@@ -387,7 +387,7 @@ export KUBECTL_LOG="$WORK/kubectl.log"
 : >"$KUBECTL_LOG"
 if PATH="$STUB:$PATH" BACKUP_DIR="$AUDIT_DIR" BACKUP_AGE_IDENTITY="$WORK/key.txt" \
 	bash "$ROOT/scripts/restore-k8s.sh" --timestamp "$TIERED" --components mongodb-audit >"$WORK/out" 2>&1 &&
-	[ "$(grep -c 'mongorestore --quiet --gzip --archive --drop --oplogReplay' "$KUBECTL_LOG")" -eq 1 ] &&
+	[ "$(grep -c 'mongorestore --quiet --gzip --archive --drop --nsExclude' "$KUBECTL_LOG")" -eq 1 ] &&
 	grep -q "MongoDB restore complete: mongodb-audit" "$WORK/out" && grep -q "Checksum verified" "$WORK/out" &&
 	! grep -q "Starting MongoDB restore (mongodb " "$WORK/out"; then
 	pass "--components mongodb-audit restores the monthly audit dump alone (checksum verified, exit 0)"

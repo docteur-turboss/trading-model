@@ -314,7 +314,7 @@ gz_of binlog >"$BACKUP_DIR/mysql/binlog/u-1/mysql-bin.000001_2026-11-01_033000.g
 : >"$KUBECTL_LOG"
 if PATH="$STUB:$PATH" BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/restore-k8s.sh" --components mongodb,mysql \
 	--until "2026-11-01 03:00:00" >"$R/out" 2>&1 &&
-	[ "$(grep -c 'mongorestore --quiet --gzip --archive --drop --oplogReplay' "$KUBECTL_LOG")" -eq 2 ] &&
+	[ "$(grep -c 'mongorestore --quiet --gzip --archive --drop --nsExclude' "$KUBECTL_LOG")" -eq 2 ] &&
 	[ "$(grep -c 'Checksum verified' "$R/out")" -eq 3 ]; then
 	pass "once every chain reaches the instant, both stores are restored, each dump checksummed once"
 else

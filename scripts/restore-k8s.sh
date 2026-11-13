@@ -267,7 +267,10 @@ restore_mongodb() {
         log "${label}: restoring into scratch databases restore_${scratch_ts}_<db> (one per restored database)"
       fi
     else
-      mr_args+=(--oplogReplay)
+      # mongorestore refuses --oplogReplay with --nsExclude (verified): the
+      # dump's oplog slice is skipped so the users keep the current Secrets'
+      # passwords (ADR-0067); --until's chain starts before the dump.
+      mr_args+=(--nsExclude 'admin.*')
     fi
     if ! open_backup "$RESOLVED_FILE" | MONGO_TOOL_STDIN=true mongo_tool root "${primary}" \
       mongorestore "${mr_args[@]}"; then
