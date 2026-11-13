@@ -612,6 +612,7 @@ describe("Trainer — model publication", () => {
 					version: "20261029T101530Z-0123456789ab",
 					sha256: "0123456789abcdef",
 				}),
+				latest: jest.fn<(...args: any[]) => any>(),
 				list: jest.fn<(...args: any[]) => any>(),
 				manifest: jest.fn<(...args: any[]) => any>(),
 				weights: jest.fn<(...args: any[]) => any>(),
@@ -825,7 +826,7 @@ describe("Trainer — model publication", () => {
 				const genome = await trainedGenome();
 				mockRunImpl = () => Promise.resolve(genome);
 				const models = fakeStore();
-				models.list.mockResolvedValue([{ version: "v1" }] as never);
+				models.latest.mockResolvedValue({ version: "v1" } as never);
 				models.manifest.mockResolvedValue((await storedManifest()) as never);
 				const trainer = new Trainer(dataBuffer, {
 					settings: TEST_TRAINING_SETTINGS,
@@ -851,7 +852,7 @@ describe("Trainer — model publication", () => {
 
 			it("leaves no snapshot without manifest", async () => {
 				const models = fakeStore();
-				models.list.mockResolvedValue([] as never);
+				models.latest.mockResolvedValue(undefined as never);
 				const trainer = new Trainer(dataBuffer, {
 					settings: TEST_TRAINING_SETTINGS,
 					models,
@@ -863,7 +864,7 @@ describe("Trainer — model publication", () => {
 
 			it("skips an unreadable manifest", async () => {
 				const models = fakeStore();
-				models.list.mockRejectedValue(new Error("EIO") as never);
+				models.latest.mockRejectedValue(new Error("EIO") as never);
 				const trainer = new Trainer(dataBuffer, {
 					settings: TEST_TRAINING_SETTINGS,
 					models,

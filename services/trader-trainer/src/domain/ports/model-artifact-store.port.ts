@@ -10,6 +10,8 @@ export interface ModelArtifactStorePort {
 	save(artifact: NewModelArtifact): Promise<ModelSummary>;
 	/** Versions of a symbol, newest first. */
 	list(symbol: string): Promise<ModelSummary[]>;
+	/** Newest version of a symbol; reads one manifest. */
+	latest(symbol: string): Promise<ModelSummary | undefined>;
 	manifest(symbol: string, version: string): Promise<ModelManifest | undefined>;
 	/** Raw float32 little-endian weights. */
 	weights(symbol: string, version: string): Promise<Uint8Array | undefined>;

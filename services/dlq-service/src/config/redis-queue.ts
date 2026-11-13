@@ -8,9 +8,9 @@ export class DlqRedisQueue {
 	private readonly _connection: RedisConnection;
 	private readonly _queueKey: string;
 	private static readonly _POP_SCRIPT = `
-    local entries = redis.call('LRANGE', KEYS[1], -1, -1)
+    local entries = redis.call('LRANGE', KEYS[1], -tonumber(ARGV[1]), -1)
     if #entries > 0 then
-      redis.call('LTRIM', KEYS[1], 0, -2)
+      redis.call('LTRIM', KEYS[1], 0, -#entries - 1)
     end
     return entries
   `;
@@ -54,23 +54,29 @@ export class DlqRedisQueue {
 	}
 
 	async pop(): Promise<string | null> {
+		return (await this.popMany(1))[0] ?? null;
+	}
+
+	/** Takes up to `count` entries, oldest first, in one round trip. */
+	async popMany(count: number): Promise<string[]> {
 		const client = this._connection.getClient();
 		if (!(client && this._connection.isAvailable())) {
-			return null;
+			return [];
 		}
 		try {
-			const result = await client.eval(
+			const result = (await client.eval(
 				DlqRedisQueue._POP_SCRIPT,
 				1,
-				this._queueKey
-			);
-			return this._extractFirstEntry(result as string[]);
+				this._queueKey,
+				count
+			)) as string[];
+			return result.reverse();
 		} catch (err) {
 			logger.error("Redis queue pop failed", {
 				queueKey: this._queueKey,
 				error: normalizeError(err).message,
 			});
-			return null;
+			return [];
 		}
 	}
 
@@ -103,10 +109,6 @@ export class DlqRedisQueue {
 			return false;
 		}
 		return true;
-	}
-
-	private _extractFirstEntry(entries: string[]): string | null {
-		return entries.length > 0 ? (entries[0] ?? null) : null;
 	}
 }
 
