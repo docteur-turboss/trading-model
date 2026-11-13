@@ -25,6 +25,7 @@ import { computeAuditHash, hashedContentOf } from "../../../domain/audit-chain";
 import type { DateRange } from "../../../domain/date-range";
 import { EVENTS_COLLECTION, MongoAuditChainReader } from "./audit-chain-reader";
 import { type AuditPage, AuditQuerier } from "./audit-querier";
+import { StatsAggregator } from "./stats-aggregator";
 
 export interface AuditEventDocument {
 	receivedAt: Date;
@@ -152,6 +153,7 @@ export class AuditRepository {
 	private readonly _collection: Collection<AuditEventDocument>;
 	private readonly _lease: Collection<LeaseDocument>;
 	private readonly _querier: AuditQuerier;
+	private readonly _stats: StatsAggregator;
 	private readonly _chain: MongoAuditChainReader;
 	/** Events of this instance waiting for the next batch. */
 	private _pending: PendingWrite[] = [];
@@ -163,6 +165,7 @@ export class AuditRepository {
 		this._collection = db.collection<AuditEventDocument>(EVENTS_COLLECTION);
 		this._lease = db.collection<LeaseDocument>(LEASE_COLLECTION);
 		this._querier = new AuditQuerier(this._collection);
+		this._stats = new StatsAggregator(this._collection);
 		this._chain = new MongoAuditChainReader(db);
 	}
 
@@ -177,7 +180,7 @@ export class AuditRepository {
 			{ key: { chainSequence: 1 }, unique: true },
 		]);
 		// Off the request path: the first getStats finds the breakdown ready.
-		this._querier.warmStats();
+		this._stats.warm();
 	}
 
 	/**
@@ -418,6 +421,6 @@ export class AuditRepository {
 	}
 
 	getStats(): Promise<AuditStats> {
-		return this._querier.getStats();
+		return this._stats.getStats();
 	}
 }
