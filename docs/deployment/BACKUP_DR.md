@@ -37,7 +37,7 @@ restore verification for the trading-model platform.
 | SPIRE `datastore.sqlite3` + `keys-sqlite.json` | SPIRE Server (datastore and CA private keys, SQLite on its own volume, ADR-0065) | Critical | 24 h (daily backup: one tar, no journal) | 2 hours (SVIDs stay valid about 2 h after the server stops: TTL 4 h) |
 | Trained agents                | trader-trainer (checkpoint files)             | Medium      | 24 h (daily tar)       | 1 hour     |
 | SealedSecrets controller keys | Sealed Secrets controller (namespace `sealed-secrets`, ADR-0035): decrypts every SealedSecret of `deploy/k8s/secrets/` | Critical | Daily run of `scripts/backup-sealed-secrets-key.sh` by `sealed-secrets-key-backup.yml` (ADR-0035), plus a manual run after a manual key change ([sealed-secrets.md](sealed-secrets.md#back-up-the-controller-keys)): a renewed key is off-site within 24 h | 1 hour |
-| Redis                         | discovery-server, dlq-service, readiness      | Low         | Not backed up          | Rebuilt    |
+| Redis                         | message-manager journal (ADR-0048), discovery-server, dlq-service, readiness | High (journal), Low (rest) | Not backed up: journal protected by AOF and replication only | Journal not rebuildable; rest rebuilt |
 | Loki (access and operational logs) | edge-proxy, Promtail-collected services (K8s `deploy/k8s/infra/loki.yaml`, 10Gi; Compose `loki-data`) | Low (security evidence kept 31 days) | Not backed up | Rebuilt |
 | Prometheus TSDB               | Prometheus (K8s `deploy/k8s/infra/prometheus.yaml`, 50Gi; Compose `prometheus-data`) | Low | Not backed up | Rebuilt |
 | Grafana (dashboards, datasources, local DB) | Grafana (K8s `deploy/k8s/infra/grafana.yaml`, 10Gi; Compose `grafana-data`) | Low | Not backed up | Rebuilt |
@@ -49,10 +49,15 @@ backups after the store is lost. The service-tier RTO of the
 is intact; the policy explains the two side by side. Exercises and drill
 timings are recorded in the [DR Exercise Log](../compliance/dr-exercise-log.md).
 
-Redis only holds derived state: instance registrations and tokens (services
-register again), the DLQ retry queue (rebuilt from MongoDB by dlq-service)
-and readiness keys. A day-old snapshot would restore stale tokens and queue
-entries, so Redis is not backed up in Kubernetes. The Docker scripts still
+Redis holds two kinds of state. Derived state: instance registrations and
+tokens (services register again), the DLQ retry queue (rebuilt from MongoDB by
+dlq-service) and readiness keys; a day-old snapshot would restore stale
+entries, so Redis is not backed up in Kubernetes. The message-manager journal
+(ADR-0048) is not derived: it holds accepted (202) messages not yet delivered,
+up to 24 h per stopped subscriber. **Journal RPO:** AOF plus replication
+(`JOURNAL_MIN_REPLICAS=1` in production); losing the master and all replicas
+loses those messages. No alert fires on a total loss (`JournalEntriesTrimmed`
+only counts the 24 h trim): republish from the publishers' sources. The Docker scripts still
 dump it (single node). With `REDIS_APPENDONLY=yes` Redis starts from its
 append-only file and would ignore a restored `dump.rdb`: `scripts/restore.sh`
 loads the snapshot in a throwaway server on the same volume and rewrites the
@@ -522,7 +527,7 @@ checks them: `backup-tools` has no `aws` CLI, so every run only logs
 
 ## Retention job
 
-ADR-0051. Market data (`market_candles`, `market_trades`, `market_tickers`, `market_order_books`) and `signals` older than `RETENTION_DAYS` (default 1827, 5 years; `RETENTION_SIGNALS_DAYS` for `signals`) are deleted by `scripts/retention-mysql.sh`, in `DELETE ... LIMIT RETENTION_BATCH_SIZE` batches with a pause between them. A rerun deletes only what is still too old. Variables: [ENV.md](ENV.md#mysql-retention-job-adr-0051).
+ADR-0051. Market data (`market_candles`, `market_trades`, `market_tickers`, `market_order_books`) and `signals` older than `RETENTION_DAYS` (default 1827, 5 years; `RETENTION_SIGNALS_DAYS` for `signals`, `RETENTION_ORDER_BOOKS_DAYS` for `market_order_books`: 180 in the CronJob) are deleted by `scripts/retention-mysql.sh`, in `DELETE ... LIMIT RETENTION_BATCH_SIZE` batches with a pause between them. A rerun deletes only what is still too old. Variables: [ENV.md](ENV.md#mysql-retention-job-adr-0051).
 
 **Kubernetes.** CronJob `db-retention` (`deploy/k8s/jobs/retention-cronjob.yaml`), daily 03:30 UTC, image `backup-tools`, script from the `backup-scripts` ConfigMap. It connects as MySQL user `retention` (SELECT, DELETE on the five tables only), created and granted per table by `db-migrate-user` from `MYSQL_RETENTION_PASSWORD` in `trading-model-secrets`. `run-migrations.sh` runs that Job again after the migrations, so the grants exist on a new database.
 
@@ -956,7 +961,7 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
 - **DDL between the dump and the instant** (a migration) replays as is: a
   statement the restored schema rejects stops the replay with exit 1.
 - **Docker stack**: no scheduler, no backup metrics scraped, Redis without
-  persistence (derived state only). Compose is a development stack: do not
+  persistence (the message journal is lost on restart). Compose is a development stack: do not
   store real data in it ([SETUP.md](SETUP.md#local-development-setup),
   [DOCKER.md](DOCKER.md#docker-compose-services)).
 - **Business validation after a restore** is `scripts/verify-restore-k8s.sh`

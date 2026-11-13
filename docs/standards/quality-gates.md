@@ -45,7 +45,7 @@ Triggered on every push and PR — full validation:
 bun run lint          # biome check
 bun run arch:check    # new runtime import cycle / application -> adapters|infrastructure import (ADR-0015)
 bun run build         # packages + services typecheck
-bun run test:coverage # tests + coverage (Codecov)
+bun run test:coverage # tests + coverage (thresholds in each jest.config)
 bun run test:contract # contract tests
 bun run test:e2e      # E2E against Docker Compose
 ```
