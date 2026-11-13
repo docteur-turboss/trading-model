@@ -218,11 +218,15 @@ spec:
                     rs.initiate({ _id: "rs0", members: hosts.map((host, _id) => ({ _id, host })) });
                   }'
                 until $M --eval 'db.hello().isWritablePrimary' | grep -qx true; do sleep 2; done
+                # The localhost exception allows createUser and nothing else (reading
+                # system.users is refused, run 43364583932); once a user exists it
+                # refuses createUser too: Unauthorized then means root is already there.
                 $M --eval '
-                  const admin = db.getSiblingDB("admin");
-                  if (admin.system.users.countDocuments({}) === 0) {
-                    admin.createUser({ user: "root", pwd: process.env.MONGO_ROOT_PASSWORD, roles: [{ role: "root", db: "admin" }] });
-                  }'
+                  try {
+                    db.getSiblingDB("admin").createUser({ user: "root", pwd: process.env.MONGO_ROOT_PASSWORD, roles: [{ role: "root", db: "admin" }] });
+                  } catch (e) {
+                    if (e.codeName !== "Unauthorized") throw e;
+                  }' || exit 1
               fi
               exec sleep infinity
           securityContext:
