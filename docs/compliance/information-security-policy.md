@@ -121,7 +121,7 @@ The platform is deployed as a containerised microservice architecture. Physical 
 
 All logs pass through two layers of sensitive data redaction before persistence:
 
-1. **Sensitive-key patterns** — 24 patterns (token, password, IP keys, etc.) redacted in logged objects and in context objects before MongoDB write
+1. **Sensitive-key patterns** — 11 patterns (token, password, IP keys, etc.) redacted in logged objects and in context objects before MongoDB write
 2. **PEM sanitizer** — Strips PEM blocks (certificates, private keys) from log output
 
 Implementation: `@trading-model/http/infrastructure/sensitive-data-sanitizer.ts`

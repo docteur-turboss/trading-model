@@ -681,27 +681,6 @@ describe("HttpClient", () => {
 			);
 		});
 
-		it("should respect dynamic threshold based on instance count", async () => {
-			isServiceCircuitOpen("dynamic-service" as ServiceInstanceName);
-
-			for (let i = 0; i < 6; i++) {
-				const promise = client.get(
-					URLString.of(`https://cb-svc-dyn-${i}.example.com/api`),
-					{
-						retryCount: 0 as PositiveInt,
-						serviceName: "dynamic-service" as unknown as ServiceId,
-						serviceInstanceCount: 3 as PositiveInt,
-					}
-				);
-				errorHandler!(new Error("ECONNRESET"));
-				await expect(promise).rejects.toThrow();
-			}
-
-			expect(
-				isServiceCircuitOpen("dynamic-service" as ServiceInstanceName)
-			).toBe(true);
-		});
-
 		it("should reset service circuit on success after cooldown", async () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get(

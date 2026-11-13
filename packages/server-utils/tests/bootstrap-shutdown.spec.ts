@@ -1,4 +1,3 @@
-import type http from "node:http";
 import {
 	gracefulShutdown,
 	hardShutdown,
@@ -7,7 +6,6 @@ import {
 function createMockServer() {
 	return {
 		close: jest.fn().mockResolvedValue(undefined),
-		raw: {} as http.Server,
 	};
 }
 
@@ -119,7 +117,6 @@ describe("gracefulShutdown", () => {
 	it("should fall back to hardShutdown when server close throws", async () => {
 		const server = {
 			close: jest.fn().mockRejectedValue(new Error("close failed")),
-			raw: {} as http.Server,
 		};
 		const onStop = jest.fn();
 		const options = createOptions({ onStop });
@@ -133,7 +130,6 @@ describe("gracefulShutdown", () => {
 	it("should fall back to hardShutdown when server close times out", async () => {
 		const server = {
 			close: jest.fn().mockReturnValue(new Promise<never>(() => {})),
-			raw: {} as http.Server,
 		};
 		const options = createOptions();
 
@@ -152,7 +148,6 @@ describe("gracefulShutdown", () => {
 			close: jest.fn(async () => {
 				calls.push("close");
 			}),
-			raw: {} as http.Server,
 		};
 		const options = createOptions({
 			shutdown: {
@@ -191,7 +186,6 @@ describe("gracefulShutdown", () => {
 						finish = resolve;
 					})
 			),
-			raw: {} as http.Server,
 		};
 		const options = createOptions({ shutdown: { closeTimeoutMs: 60_000 } });
 
