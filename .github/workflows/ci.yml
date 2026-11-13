@@ -399,7 +399,6 @@ jobs:
       KIND_VERSION: v0.27.0
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
       KIND: ./kind
-      KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
       # Restore drill timings (tests/backup/drill-timings.sh): JSON uploaded
       # below, table in the job summary. RESTORE_DRILL_BUDGET_SECONDS (default
       # 1200 s, about 5 times the 252 s of the first CI run; disaster to checks) and RESTORE_DRILL_BUDGET_MODE (fail or
@@ -436,6 +435,8 @@ jobs:
           name: kind-images
           path: ${{ runner.temp }}
       - name: Load the images into kind
+        env:
+          KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
         run: bash tests/k8s/run-kind.sh load
       - name: Deploy release N-1 (staging overlay)
         run: bash tests/k8s/run-kind.sh deploy
