@@ -344,11 +344,15 @@ describe("DLQ claims — replay outcome", () => {
 
 		// New failure while the replay is in flight: its completion misses.
 		await claim("batch-a");
-		await expect(dlqRepository.insert(entry)).resolves.toBe(id);
+		const later = UnixTimestamp.add(entry.timestamp, 60_000);
+		await expect(
+			dlqRepository.insert({ ...entry, timestamp: later })
+		).resolves.toBe(id);
 		await complete("batch-a");
 		let doc = await rawEntry(id);
 		expect(doc?.status).toBeUndefined();
 		expect(doc?.dlqPassCount).toBe(2);
+		expect(doc?.createdAt).toEqual(new Date(later));
 
 		// New failure after the replay completed: third pass, abandoned.
 		expect(await claim("batch-b")).not.toBeNull();

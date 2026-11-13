@@ -109,7 +109,8 @@ async function _reopenReplayed(
 		dlqPassCount: (existing.dlqPassCount ?? 1) + 1,
 	};
 	_applyPingPongAbandon(reopened, reopened.dlqPassCount);
-	const { messageId: _m, contentHash: _c, createdAt: _d, ...set } = reopened;
+	// createdAt moves to the new failure: TTL and eviction age the entry from it.
+	const { messageId: _m, contentHash: _c, ...set } = reopened;
 	// Dropping the claim makes the in-flight replay's completion miss it.
 	const unset = {
 		completedAt: "",

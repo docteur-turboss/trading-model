@@ -12,7 +12,7 @@ ADR-0043 §7 replays an entry that has a `service` through `POST /message/replay
 
 ## Decision
 
-1. **A new failure reopens the entry.** `DlqEntryWriter` looks the key up first. If the entry is `completed`, or claimed by a replay still in flight, the failure reopens it: pending again, `dlqPassCount` + 1, fresh `reason` / `deliveryAttempt`, `retryCount` 0, completion fields and claim removed. Removing the claim makes the completion of the in-flight replay miss the entry (it filters on `processingInstance`).
+1. **A new failure reopens the entry.** `DlqEntryWriter` looks the key up first. If the entry is `completed`, or claimed by a replay still in flight, the failure reopens it: pending again, `dlqPassCount` + 1, fresh `reason` / `deliveryAttempt`, `createdAt` set to the new failure (the TTL index and eviction age the entry from it), `retryCount` 0, completion fields and claim removed. Removing the claim makes the completion of the in-flight replay miss the entry (it filters on `processingInstance`).
 2. **Ping-pong applies on reopen.** At `DLQ_MAX_PASS_COUNT` passes the reopened entry is `abandoned`, as a new entry would be.
 3. **Otherwise unchanged.** A pending entry with the key is the same failure delivered twice: its id is returned, nothing changes. An abandoned entry stays abandoned. Entries without `service` are replayed under a new `messageId` and never collide.
 
