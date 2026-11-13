@@ -160,6 +160,8 @@ images() {
 load() {
 	previous_checkout
 	log "loading the images into kind"
+	# Also into the docker daemon: the drills run `docker run` on backup-tools:latest.
+	docker load -i "$IMAGE_ARCHIVE" >/dev/null
 	"$KIND" load image-archive --name "$CLUSTER" "$IMAGE_ARCHIVE"
 	node_digests previous >"$WORK/digests-previous"
 	node_digests latest >"$WORK/digests-current"
@@ -1035,7 +1037,7 @@ verify_canary() {
 	log "canary gate on api-gateway, traffic through edge-proxy"
 	$K -n "$NS" port-forward svc/edge-proxy 18450:8080 >/dev/null 2>&1 &
 	local forward=$! traffic=""
-	trap 'kill $traffic $forward 2>/dev/null || true; deploy_script canary-cleanup api-gateway >/dev/null 2>&1 || true' RETURN
+	trap 'kill ${traffic:-} ${forward:-} 2>/dev/null || true; deploy_script canary-cleanup api-gateway >/dev/null 2>&1 || true' RETURN
 	wait_for 30 'curl -s -o /dev/null http://localhost:18450/'
 	# 2.4 requests/s in bursts of 12 every 5 s (the gateway limits each API client
 	# to 100/min per pod: ~72/min each here). edge-proxy keeps a keep-alive pool to the gateway and
