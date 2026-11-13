@@ -1,18 +1,24 @@
 import type { HELPER } from "@trading-model/broker-message";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import {
 	MarketEvent,
 	type MarketEventMap,
 } from "@trading-model/contracts/market-events";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import { toTopic } from "@trading-model/primitives/primitives";
+import { type Topic, toTopic } from "@trading-model/primitives/primitives";
 import { MessageManager } from "../../../config/message-manager";
 import { EVENTS_PUBLISHED_TOTAL } from "../../../config/metrics";
 import type {
 	MarketDataSnapshot,
 	SnapshotPart,
 } from "../../../domain/market-data-snapshot";
-import { type MarketDataEntry, makeEntry } from "./message-builder";
+
+interface MarketDataEntry {
+	data: unknown;
+	topic: Topic;
+	eventType: EventEnumMap;
+}
 
 /** One event to publish, with the snapshot part it carries. */
 export interface MarketDataPartEntry extends MarketDataEntry {
@@ -71,7 +77,9 @@ export function buildMarketDataEntries(
 	return MARKET_DATA_ENTRY_MAP.filter(
 		({ part }) => response[part] !== undefined
 	).map(({ part, event, toPayload }) => ({
-		...makeEntry(toPayload(response), toTopic(event), event),
+		data: toPayload(response),
+		topic: toTopic(event),
+		eventType: event,
 		part,
 	}));
 }
