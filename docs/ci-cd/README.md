@@ -67,7 +67,7 @@ jobs:
 
 - `lint` — Biome check across the entire monorepo
 - `typecheck` — Build packages + type-check all services
-- `test` — Build + tests with coverage, upload to Codecov
+- `test` — Build + tests with coverage
 - `observability` — Observability gate (metrics, propagation, readiness)
 - `k8s-overlays` — Renders the staging and production overlays (`tests/k8s/check-overlays.mjs`): every first-party image is released and rewritten by `deploy.yml`, production secrets come from SealedSecrets only
 - `contract` — Contract tests between services
@@ -131,7 +131,7 @@ nodes pull credentials for the registry.
 
 | Workflow      | File                            | Trigger                | What it does                                                       |
 | ------------- | ------------------------------- | ---------------------- | ------------------------------------------------------------------ |
-| **CI**        | `.github/workflows/ci.yml`      | `push`, `pull_request`, called by Release | Lint → Typecheck → Test + Codecov → Observability → Overlay checks → Contract → E2E (Docker) → K8s (kind) |
+| **CI**        | `.github/workflows/ci.yml`      | `push`, `pull_request`, called by Release | Lint → Typecheck → Test → Observability → Overlay checks → Contract → E2E (Docker) → K8s (kind) |
 | **Release**   | `.github/workflows/release.yml` | `v*` tag push          | CI → 9 Docker images (`X.Y.Z`, `latest` if highest) → GHCR        |
 | **Deploy**    | `.github/workflows/deploy.yml`  | manual                 | Staging/production deploy by digest (optional canary + auto rollback) |
 | **Backup Test** | `.github/workflows/backup-test.yml` | weekly cron       | Validate backup/restore scripts                                    |
