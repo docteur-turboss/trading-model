@@ -14,6 +14,6 @@ export function createServiceAddressManager(env: AddressManagerEnv) {
 		ADDRESS_MANAGER_ROUTES: (app: Application) =>
 			am.metricsCollector.listenExpress(app),
 		FIND_A_SERVICE: (serviceName: ServiceInstanceName) =>
-			am.discoveryOrchestrator.findService(serviceName),
+			am.discovery.findService(serviceName),
 	};
 }

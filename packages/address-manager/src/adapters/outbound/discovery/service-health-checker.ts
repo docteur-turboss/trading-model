@@ -21,7 +21,7 @@ import type { ServiceInstance } from "../../../domain/client/type";
  * Constraints:
  * - No retry logic
  * - No cache logic
- * - No dependency on ServiceDiscovery
+ * - No dependency on ServiceResolver
  *
  * This class provides a simple health check mechanism for services
  * by pinging a predefined endpoint and returning a boolean result.

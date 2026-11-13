@@ -96,24 +96,20 @@ jest.mock("../../src/adapters/outbound/discovery/service-cache", () => ({
 	}),
 }));
 
-jest.mock("../../src/application/discovery/service-discovery", () => ({
-	ServiceDiscovery: jest.fn<(...args: any[]) => any>().mockReturnValue({
-		findService: jest.fn<(...args: any[]) => any>().mockResolvedValue({
+jest.mock("../../src/application/discovery/discovery-retry-handler", () => {
+	const actual = jest.requireActual<
+		typeof import("../../src/application/discovery/discovery-retry-handler")
+	>("../../src/application/discovery/discovery-retry-handler");
+	actual.DiscoveryRetryHandler.prototype.findCachedService = jest
+		.fn<(...args: any[]) => any>()
+		.mockResolvedValue({
 			host: "127.0.0.1",
 			port: 8080,
 			instanceId: "i-1",
 			serviceName: "test-service",
-		}),
-		findAllServices: jest.fn<(...args: any[]) => any>().mockResolvedValue([
-			{
-				host: "127.0.0.1",
-				port: 8080,
-				instanceId: "i-1",
-				serviceName: "test-service",
-			},
-		]),
-	}),
-}));
+		});
+	return actual;
+});
 
 jest.mock(
 	"../../src/adapters/outbound/discovery/service-health-checker",
@@ -191,7 +187,7 @@ describe("AddressManager (main)", () => {
 
 	it("should find a service", async () => {
 		const am = new AddressManager(makeConfig());
-		const instance = await am.discoveryOrchestrator.findService(
+		const instance = await am.discovery.findService(
 			toServiceId("test-service") as unknown as ServiceInstanceName
 		);
 		expect(instance).toBeDefined();
@@ -203,39 +199,30 @@ describe("AddressManager (main)", () => {
 		handle.stop();
 	});
 
-	it("should find all services", async () => {
-		const am = new AddressManager(makeConfig());
-		const instances = await am.discoveryOrchestrator.findAllServices(
-			toServiceId("test-service") as unknown as ServiceInstanceName
-		);
-		expect(instances).toHaveLength(1);
-		expect(instances[0].serviceName).toBe("test-service");
-	});
-
 	it("should record call success without durationMs", () => {
 		const am = new AddressManager(makeConfig());
-		am.discoveryOrchestrator.recordCallSuccess(toInstanceId("instance-1"));
+		am.discovery.recordCallSuccess(toInstanceId("instance-1"));
 	});
 
 	it("should record call success with durationMs", () => {
 		const am = new AddressManager(makeConfig());
-		am.discoveryOrchestrator.recordCallSuccess(toInstanceId("instance-1"), 42);
+		am.discovery.recordCallSuccess(toInstanceId("instance-1"), 42);
 	});
 
 	it("should record call failure without durationMs", () => {
 		const am = new AddressManager(makeConfig());
-		am.discoveryOrchestrator.recordCallFailure(toInstanceId("instance-1"));
+		am.discovery.recordCallFailure(toInstanceId("instance-1"));
 	});
 
 	it("should record call failure with durationMs", () => {
 		const am = new AddressManager(makeConfig());
-		am.discoveryOrchestrator.recordCallFailure(toInstanceId("instance-1"), 100);
+		am.discovery.recordCallFailure(toInstanceId("instance-1"), 100);
 	});
 
 	it("recordCallSuccess / recordCallFailure delegate to the orchestrator", () => {
 		const am = new AddressManager(makeConfig());
-		const success = jest.spyOn(am.discoveryOrchestrator, "recordCallSuccess");
-		const failure = jest.spyOn(am.discoveryOrchestrator, "recordCallFailure");
+		const success = jest.spyOn(am.discovery, "recordCallSuccess");
+		const failure = jest.spyOn(am.discovery, "recordCallFailure");
 		am.recordCallSuccess(toInstanceId("i-1"), 5);
 		am.recordCallFailure(toInstanceId("i-1"), 7);
 		expect(success).toHaveBeenCalledWith(toInstanceId("i-1"), 5);
@@ -306,12 +293,12 @@ describe("AddressManager (main)", () => {
 		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
 		const am = new AddressManager(makeConfig());
 
-		am.discoveryOrchestrator.recordCallFailure(toInstanceId("i-1"));
-		am.discoveryOrchestrator.recordCallFailure(toInstanceId("i-1"));
-		am.discoveryOrchestrator.recordCallFailure(toInstanceId("i-1"));
+		am.discovery.recordCallFailure(toInstanceId("i-1"));
+		am.discovery.recordCallFailure(toInstanceId("i-1"));
+		am.discovery.recordCallFailure(toInstanceId("i-1"));
 
 		await expect(
-			am.discoveryOrchestrator.findService(
+			am.discovery.findService(
 				toServiceId("test-service") as unknown as ServiceInstanceName
 			)
 		).rejects.toThrow();
