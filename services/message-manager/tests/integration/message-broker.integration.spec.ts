@@ -14,7 +14,7 @@ import {
 	mockServiceIdentity,
 	mockSubscriberIdentity,
 } from "../fixtures/broker.fixture";
-import { createMockHttpClient } from "../helpers/broker.helper";
+import { createMockHttpClient, runWorker } from "../helpers/broker.helper";
 
 jest.mock("../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: jest
@@ -70,7 +70,7 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await dispatcher.subscribe(subscribeParams());
 		await dispatcher.publish({ price: 50000, symbol: "BTCUSDT" }, PRICE);
 
-		await newWorker().tick();
+		await runWorker(newWorker());
 
 		expect(httpClient.post).toHaveBeenCalledTimes(1);
 		const [targetUrl, body] = httpClient.post.mock.calls[0] as [
@@ -99,7 +99,7 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await dispatcher.subscribe(subscribeParams("sub-2"));
 		await dispatcher.publish({ price: 50000 }, PRICE);
 
-		await newWorker().tick();
+		await runWorker(newWorker());
 
 		expect(httpClient.post).toHaveBeenCalledTimes(1);
 	});
@@ -115,7 +115,7 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		} as never);
 		await dispatcher.publish({ price: 50000 }, PRICE);
 
-		await newWorker().tick();
+		await runWorker(newWorker());
 
 		expect(httpClient.post).toHaveBeenCalledTimes(2);
 	});
@@ -132,7 +132,7 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		});
 		await dispatcher.publish({ price: 50000 }, PRICE);
 
-		await newWorker().tick();
+		await runWorker(newWorker());
 
 		expect(httpClient.post).not.toHaveBeenCalled();
 	});
@@ -145,19 +145,19 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await dispatcher.publish({ price: 50000 }, PRICE);
 		const worker = newWorker();
 
-		await worker.tick();
+		await runWorker(worker);
 		expect(httpClient.post).toHaveBeenCalledTimes(1);
 
 		now += 1000;
-		await worker.tick();
+		await runWorker(worker);
 		expect(httpClient.post).toHaveBeenCalledTimes(1);
 
 		now += 60_000;
-		await worker.tick();
+		await runWorker(worker);
 		expect(httpClient.post).toHaveBeenCalledTimes(2);
 
 		now += 600_000;
-		await worker.tick();
+		await runWorker(worker);
 		expect(httpClient.post).toHaveBeenCalledTimes(2);
 	});
 
@@ -174,11 +174,11 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 			"dead-replica",
 			10
 		);
-		await newWorker().tick();
+		await runWorker(newWorker());
 		expect(httpClient.post).not.toHaveBeenCalled();
 
 		now += 60_000;
-		await newWorker().tick();
+		await runWorker(newWorker());
 
 		expect(httpClient.post).toHaveBeenCalledTimes(1);
 	});
@@ -192,11 +192,11 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		});
 		const worker = newWorker();
 
-		await worker.tick();
+		await runWorker(worker);
 		expect(httpClient.post).not.toHaveBeenCalled();
 
 		await dispatcher.subscribe(subscribeParams());
-		await worker.tick();
+		await runWorker(worker);
 		expect(httpClient.post).toHaveBeenCalledTimes(1);
 	});
 
@@ -205,7 +205,7 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await dispatcher.publish({ data: 1 }, PRICE);
 		await dispatcher.publish({ data: 2 }, PRICE);
 
-		await newWorker().tick();
+		await runWorker(newWorker());
 
 		const ids = httpClient.post.mock.calls.map(
 			(call) =>

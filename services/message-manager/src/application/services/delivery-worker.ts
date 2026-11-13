@@ -38,7 +38,7 @@ export interface DeliveryWorkerDeps {
  * replica runs one: a loop per group takes over the entries whose retry is
  * due (its own or a dead replica's) and reads the new ones (blocking, so a
  * message is delivered as it arrives), then delivers them to the subscriber
- * service. `tick` is one non-blocking pass over every group. The retry state (attempts,
+ * service. The retry state (attempts,
  * last attempt) lives in the journal, not here.
  */
 export class DeliveryWorker {
@@ -46,7 +46,6 @@ export class DeliveryWorker {
 	private readonly _pollMs: number;
 	/** Circuit breaker per group, local to the replica. */
 	private readonly _subscriptions = new Map<string, Subscription>();
-	private readonly _running = new Map<string, Promise<void>>();
 	private readonly _loops = new Map<string, Promise<void>>();
 	private _timer: NodeJS.Timeout | undefined;
 	private _stopped = true;
@@ -80,7 +79,7 @@ export class DeliveryWorker {
 		this._stopped = true;
 		clearInterval(this._timer);
 		this._deps.journal.close?.();
-		await Promise.all([...this._loops.values(), ...this._running.values()]);
+		await Promise.all(this._loops.values());
 		// A loop between its stop test and a read may have reopened a reader after the first close.
 		this._deps.journal.close?.();
 		this._loops.clear();
@@ -119,30 +118,11 @@ export class DeliveryWorker {
 		}
 	}
 
-	/** One pass over every group; a group still busy with its previous pass is skipped. */
-	async tick(): Promise<void> {
-		const groups = await this._deps.journal.groups();
-		await Promise.all(groups.map((group) => this._run(group)));
-	}
-
-	private _run(group: JournalGroup): Promise<void> {
-		const key = `${group.topic}|${group.service}`;
-		const busy = this._running.get(key);
-		if (busy !== undefined) {
-			return busy;
-		}
-		const run = this._deliverGroup(group)
-			.then(() => undefined)
-			.finally(() => this._running.delete(key));
-		this._running.set(key, run);
-		return run;
-	}
-
 	/** @returns false when the group has no live subscriber. */
 	private async _deliverGroup(
 		group: JournalGroup,
-		claim = true,
-		blockMs?: number
+		claim: boolean,
+		blockMs: number
 	): Promise<boolean> {
 		const subscription = await this._subscription(group);
 		if (!subscription) {
