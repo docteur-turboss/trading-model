@@ -308,7 +308,9 @@ restore_mongodb() {
     fi
     # The chain starts before the dump did: replaying an entry the dump
     # already holds is harmless, oplog entries are idempotent.
-    if replay_oplog "$primary" "${chain[@]}"; then
+    # The replayed window may hold a user change of the dump's day: put the current users back again.
+    if replay_oplog "$primary" "${chain[@]}" &&
+      { [ -z "$users_json" ] || put_back_mongo_users "$primary" "$users_json"; }; then
       ok "MongoDB restore complete: ${label} (${primary}), up to ${UNTIL_SQL} UTC"
     else
       fail "MongoDB oplog replay failed: ${label} (${primary}); restore again"
