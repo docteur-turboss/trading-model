@@ -1,6 +1,6 @@
 # audit-logger — Audit Logger
 
-Immutable traceability service for all decisions, transactions, and errors. Subscribes to all event bus topics, persists events to MongoDB, and provides queryable audit trails.
+Immutable traceability service for all decisions, transactions, and errors. Subscribes to the audit, training and dlq topics, persists events to MongoDB, and provides queryable audit trails.
 
 ## General Information
 
@@ -72,14 +72,14 @@ List and filter audit events, newest first. Parameters and responses are declare
       "previousHash": "41ab…",
       "chainSequence": 1234,
       "metadata": {
-        "topic": "market.trade.recent.fetch",
-        "eventType": "market.trade.recent.fetch",
-        "publisher": "financial-scraper-service",
-        "instanceId": "financial-scraper-1",
+        "topic": "training.model.published",
+        "eventType": "training.model.published",
+        "publisher": "trader-service",
+        "instanceId": "trader-service-1",
         "messageId": "msg-uuid-123",
         "correlationId": "corr-uuid-456"
       },
-      "payload": { "symbol": "BTCUSDT", "price": 50000.0 }
+      "payload": { "modelId": "model-123" }
     }
   ],
   "total": 1234,
@@ -98,11 +98,11 @@ Aggregate audit statistics.
 {
   "totalEvents": 50000,
   "eventsByTopic": {
-    "market.trade.recent.fetch": 15000,
-    "market.candlestick.series.fetch": 12000
+    "training.model.published": 15000,
+    "dlq.entry.added": 12000
   },
   "eventsByPublisher": {
-    "financial-scraper-service": 30000
+    "trader-service": 30000
   },
   "dateRange": {
     "earliest": "2025-01-01T00:00:00Z",
@@ -133,7 +133,7 @@ Receive an event bus message for audit logging (called internally by the message
 
 Every event is appended to a hash chain (`chainSequence`, `previousHash`, `dataHash`; `chainSequence` and `metadata.messageId` are unique indexes). Messages arrive concurrently, so an instance writes its inserts one at a time. If another replica takes the same sequence first, the insert retries on the new tail (up to 5 attempts). A redelivered message (same `messageId`) is recorded once (`audit_events_stored_total{status="duplicate"}`).
 
-audit-logger subscribes to every topic at startup through message-manager's subscribe route, which the message-manager ACL must allow.
+audit-logger subscribes to the audit, training and dlq topics at startup (not market data: MySQL keeps it, ADR-0027) through message-manager's subscribe route, which the message-manager ACL must allow.
 
 ## Architecture
 
