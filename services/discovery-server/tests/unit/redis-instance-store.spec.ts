@@ -41,7 +41,6 @@ jest.mock("../../src/adapters/outbound/instance-metadata-reader", () => ({
 		})),
 }));
 
-const mockResolveToken = jest.fn<(...args: any[]) => any>();
 const mockBuildStoredInstance = jest.fn<(...args: any[]) => any>();
 const mockRegisterInstance = jest.fn<(...args: any[]) => any>();
 
@@ -49,7 +48,6 @@ jest.mock("../../src/adapters/outbound/instance-registrar", () => ({
 	InstanceRegistrar: jest
 		.fn<(...args: any[]) => any>()
 		.mockImplementation(() => ({
-			resolveToken: mockResolveToken,
 			buildStoredInstance: mockBuildStoredInstance,
 			registerInstance: mockRegisterInstance,
 		})),
@@ -100,7 +98,6 @@ describe("RedisInstanceStore", () => {
 		deps = {
 			redis: {} as never,
 			keyPrefix: "",
-			signingSecret: "test-secret",
 		} as never;
 
 		store = new RedisInstanceStore(deps);
@@ -109,17 +106,6 @@ describe("RedisInstanceStore", () => {
 	describe("constructor", () => {
 		it("should create internal components with deps", () => {
 			expect(store).toBeInstanceOf(RedisInstanceStore);
-		});
-	});
-
-	describe("resolveToken", () => {
-		it("should delegate to registrar.resolveToken", async () => {
-			mockResolveToken.mockResolvedValue("resolved-token");
-
-			const result = await store.registrar.resolveToken("i1" as never);
-
-			expect(mockResolveToken).toHaveBeenCalledWith("i1");
-			expect(result).toBe("resolved-token");
 		});
 	});
 
@@ -262,28 +248,6 @@ describe("RedisInstanceStore", () => {
 
 			expect(mockListServiceNames).toHaveBeenCalled();
 			expect(result).toEqual(["financial-scraper"]);
-		});
-	});
-
-	describe("dump", () => {
-		it("should return empty snapshot when no services exist", async () => {
-			mockListServiceNames.mockResolvedValue([]);
-
-			const snapshot = await store.dump();
-
-			expect(snapshot).toEqual({});
-		});
-
-		it("should return snapshot of all instances grouped by service", async () => {
-			const instances = [makeInstance()];
-			mockListServiceNames.mockResolvedValue(["financial-scraper" as never]);
-			mockGetServiceInstanceIds.mockResolvedValue(["i1"]);
-			mockGetMetadatas.mockResolvedValue(instances);
-
-			const snapshot = await store.dump();
-
-			expect(snapshot["financial-scraper"]).toHaveLength(1);
-			expect(snapshot["financial-scraper"]![0]).toBe(instances[0]);
 		});
 	});
 });

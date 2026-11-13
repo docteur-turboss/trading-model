@@ -207,47 +207,4 @@ describe("Discovery Service — Full Flow Integration", () => {
 			"message-manager",
 		]);
 	});
-
-	it("should expose a dump of current registry state", async () => {
-		await registry.registerInstance({
-			serviceName: "financial-scraper" as ServiceId,
-			instanceId: "node-1" as InstanceId,
-			host: "10.0.0.1" as IPAddress,
-			port: 8444 as Port,
-			ttl: 30_000 as DurationMs,
-			protocol: "mtls" as unknown as Protocol,
-			version: "1.0.0" as Version,
-			registeredAt: Date.now() as UnixTimestamp,
-			lastHeartbeat: Date.now() as UnixTimestamp,
-		});
-
-		const snapshot = await registry.instanceStore.dump();
-		expect(snapshot["financial-scraper" as ServiceInstanceName]).toBeDefined();
-		expect(snapshot["financial-scraper" as ServiceInstanceName]).toHaveLength(
-			1
-		);
-	});
-
-	it("should verify instance names against known services", async () => {
-		expect(
-			registry.tokenManager.verifyInstanceName(
-				"financial-scraper" as unknown as ServiceInstanceName
-			)
-		).toBe(true);
-		expect(
-			registry.tokenManager.verifyInstanceName(
-				"message-manager" as unknown as ServiceInstanceName
-			)
-		).toBe(true);
-		expect(
-			registry.tokenManager.verifyInstanceName(
-				"discovery-server" as unknown as ServiceInstanceName
-			)
-		).toBe(true);
-		expect(
-			registry.tokenManager.verifyInstanceName(
-				"completely-fake-service" as unknown as ServiceInstanceName
-			)
-		).toBe(false);
-	});
 });

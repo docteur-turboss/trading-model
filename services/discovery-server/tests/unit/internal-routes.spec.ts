@@ -122,17 +122,6 @@ describe("discovery-server internal API (registration and leases)", () => {
 				expect.arrayContaining([expect.objectContaining({ field })])
 			);
 		});
-
-		it("rejects a service name the token manager does not verify", async () => {
-			jest
-				.spyOn(registry.tokenManager, "verifyInstanceName")
-				.mockReturnValue(false);
-
-			const { status, body } = await post(DISCOVERY_API.register, REGISTRATION);
-
-			expect(status).toBe(400);
-			expect(body).toEqual({ error: "Invalid service name" });
-		});
 	});
 
 	describe("POST /heartbeat", () => {

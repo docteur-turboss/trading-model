@@ -14,10 +14,10 @@ const MOCK_REDIS = {
 } as never;
 
 import { removeInstanceSetAndMetadata } from "../../src/adapters/outbound/instance-cleanup-handler";
-import type { RedisDepsWithoutToken } from "../../src/shared/redis-deps";
+import type { RedisDeps } from "../../src/shared/redis-deps";
 
 describe("removeInstanceSetAndMetadata", () => {
-	const deps: RedisDepsWithoutToken = {
+	const deps: RedisDeps = {
 		redis: MOCK_REDIS,
 		keyPrefix: "test:",
 	};

@@ -259,22 +259,6 @@ describe("ServiceRegistry", () => {
 		});
 	});
 
-	describe("dump", () => {
-		it("should return empty object for empty registry", async () => {
-			expect(registry.instanceStore.dump()).toEqual({});
-		});
-
-		it("should return a snapshot of all instances grouped by service", async () => {
-			await registry.registerInstance(validServiceInstance());
-			await registry.registerInstance(secondServiceInstance());
-			await registry.registerInstance(otherServiceInstance());
-			const snapshot = await registry.instanceStore.dump();
-			expect(Object.keys(snapshot)).toHaveLength(2);
-			expect(snapshot["financial-scraper"]).toHaveLength(2);
-			expect(snapshot["message-manager"]).toHaveLength(1);
-		});
-	});
-
 	describe("generateInstanceToken", () => {
 		it("should return a non-empty string", async () => {
 			const token = registry.tokenManager.generateToken(
@@ -368,22 +352,6 @@ describe("ServiceRegistry", () => {
 				instanceId: "test-instance-1" as InstanceId,
 			});
 			expect(isValid).toBe(false);
-		});
-	});
-
-	describe("verifyInstanceName", () => {
-		it("should return true for known service names", async () => {
-			const result = registry.tokenManager.verifyInstanceName(
-				"financial-scraper" as unknown as ServiceInstanceName
-			);
-			expect(result).toBe(true);
-		});
-
-		it("should return false for unknown service names", async () => {
-			const result = registry.tokenManager.verifyInstanceName(
-				"completely-made-up-service" as unknown as ServiceInstanceName
-			);
-			expect(result).toBe(false);
 		});
 	});
 });
