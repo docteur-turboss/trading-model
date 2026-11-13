@@ -124,7 +124,7 @@ export class Trainer {
 		}
 		for (const symbol of symbols) {
 			try {
-				const latest = (await models.list(String(symbol)))[0];
+				const latest = await models.latest(String(symbol));
 				const manifest =
 					latest && (await models.manifest(String(symbol), latest.version));
 				if (manifest && !this._lastModels.has(symbol)) {

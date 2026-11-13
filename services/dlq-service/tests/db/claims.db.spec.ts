@@ -138,6 +138,42 @@ describe("DLQ claims — concurrent workers on a real MongoDB", () => {
 
 		await expect(dlqRepository.listQueuable()).resolves.toHaveLength(3);
 	});
+
+	it("should keep the failed subscriber on every claimed entry (ADR-0043)", async () => {
+		const insert = (orderId: string, service?: string) =>
+			dlqRepository.insert({
+				topic: TOPIC,
+				message: { orderId },
+				service,
+				reason: "delivery failed",
+				deliveryAttempt: PositiveInt.of(1),
+				timestamp: UnixTimestamp.now(),
+			});
+		const targeted = await insert("targeted", "audit-logger");
+		const legacy = await insert("legacy");
+		const owner = { batchId: "batch-a", instanceId: INSTANCES[0] };
+		const services = (entries: { id: string; service: string | null }[]) =>
+			Object.fromEntries(entries.map((e) => [e.id, e.service]));
+		const expected = { [targeted]: "audit-logger", [legacy]: null };
+
+		const byQueue = await dlqClaimManager.claimEntriesForRetry({
+			limit: Limit.of(10, 1000),
+			...owner,
+		});
+		expect(services(byQueue)).toEqual(expected);
+
+		await claimReleaseManager.releaseClaimsByInstance(INSTANCES[0]);
+		const byIds = await dlqClaimManager.claimEntriesByIds(
+			[targeted, legacy],
+			owner
+		);
+		expect(services(byIds)).toEqual(expected);
+
+		await claimReleaseManager.releaseClaimsByInstance(INSTANCES[0]);
+		await expect(
+			claimReleaseManager.claimEntry(targeted, owner)
+		).resolves.toMatchObject({ service: "audit-logger" });
+	});
 });
 
 describe("DLQ claims — release", () => {
@@ -278,6 +314,53 @@ describe("DLQ claims — replay outcome", () => {
 
 		const doc = await rawEntry(id);
 		expect(doc?.retryCount).toBe(3);
+		expect(doc?.status).toBe(DlqStatus.Abandoned);
+		expect(doc?.processingAt).toBeUndefined();
+		await expect(
+			claimReleaseManager.claimEntry(id, {
+				batchId: "batch-x",
+				instanceId: INSTANCES[0],
+			})
+		).resolves.toBeNull();
+	});
+
+	it("should reopen a targeted entry its subscriber fails again, then abandon the ping-pong (ADR-0070)", async () => {
+		const entry = {
+			topic: TOPIC,
+			message: { orderId: "ping-pong" },
+			service: "audit-logger",
+			reason: "delivery failed",
+			deliveryAttempt: PositiveInt.of(1),
+			timestamp: UnixTimestamp.now(),
+		};
+		const id = await dlqRepository.insert(entry);
+		const claim = (batchId: string) =>
+			claimReleaseManager.claimEntry(id, {
+				batchId,
+				instanceId: INSTANCES[0],
+			});
+		const complete = (batchId: string) =>
+			dlqRetryManager.markRetried({ id, instanceId: INSTANCES[0], batchId });
+
+		// New failure while the replay is in flight: its completion misses.
+		await claim("batch-a");
+		const later = UnixTimestamp.add(entry.timestamp, 60_000);
+		await expect(
+			dlqRepository.insert({ ...entry, timestamp: later })
+		).resolves.toBe(id);
+		await complete("batch-a");
+		let doc = await rawEntry(id);
+		expect(doc?.status).toBeUndefined();
+		expect(doc?.dlqPassCount).toBe(2);
+		expect(doc?.createdAt).toEqual(new Date(later));
+
+		// New failure after the replay completed: third pass, abandoned.
+		expect(await claim("batch-b")).not.toBeNull();
+		await complete("batch-b");
+		expect((await rawEntry(id))?.status).toBe(DlqStatus.Completed);
+		await expect(dlqRepository.insert(entry)).resolves.toBe(id);
+		doc = await rawEntry(id);
+		expect(doc?.dlqPassCount).toBe(3);
 		expect(doc?.status).toBe(DlqStatus.Abandoned);
 		expect(doc?.processingAt).toBeUndefined();
 		await expect(
