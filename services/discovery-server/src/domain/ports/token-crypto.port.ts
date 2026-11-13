@@ -1,4 +1,3 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	AuthToken,
 	InstanceId,
@@ -20,5 +19,4 @@ export interface TokenCryptoPort {
 		signingSecret: string
 	): AuthToken;
 	validInstanceToken(check: InstanceTokenCheck): boolean;
-	verifyInstanceName(serviceName: ServiceInstanceName): boolean;
 }

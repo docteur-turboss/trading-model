@@ -73,11 +73,7 @@ export function createDiscoveryApp(
 		: undefined;
 	// Every (re)connection: the leases could not be renewed while Redis was away.
 	redisClient?.on("ready", () => markRegistryAvailable());
-	const instanceStore = _buildInstanceStore(
-		settings,
-		redisClient,
-		redisConnection?.mode
-	);
+	const instanceStore = _buildInstanceStore(redisClient, redisConnection?.mode);
 	// Replicas share the instance tokens through Redis: a heartbeat may reach
 	// any of them.
 	const registry = createServiceRegistry({
@@ -99,7 +95,6 @@ export function createDiscoveryApp(
 }
 
 function _buildInstanceStore(
-	settings: DiscoveryAppSettings,
 	redisClient: Redis | undefined,
 	redisMode: RedisConnectionMode | undefined
 ): InstanceStorePort {
@@ -111,6 +106,5 @@ function _buildInstanceStore(
 	return new RedisInstanceStore({
 		redis: redisClient,
 		keyPrefix: DISCOVERY_KEY_PREFIX,
-		signingSecret: settings.SIGNING_SECRET ?? "",
 	});
 }

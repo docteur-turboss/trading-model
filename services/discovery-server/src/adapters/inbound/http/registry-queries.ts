@@ -19,15 +19,9 @@ type Api = typeof DISCOVERY_API;
  * A service the registry may hold. An unknown name is a 404: before the
  * registry entries, `parseServiceName` threw on it and the route answered 500.
  */
-function knownService(
-	registry: ServiceRegistry,
-	name: string
-): ServiceInstanceName | undefined {
+function knownService(name: string): ServiceInstanceName | undefined {
 	const service = name as ServiceInstanceName;
-	return ALL_SERVICE_NAMES.has(service) &&
-		registry.tokenManager.verifyInstanceName(service)
-		? service
-		: undefined;
+	return ALL_SERVICE_NAMES.has(service) ? service : undefined;
 }
 
 const UNKNOWN_SERVICE = () =>
@@ -47,7 +41,7 @@ export function createRegistryQueries(registry: ServiceRegistry): {
 			),
 
 		getServiceInstances: async ({ params }) => {
-			const service = knownService(registry, params.serviceName);
+			const service = knownService(params.serviceName);
 			if (!service) {
 				return UNKNOWN_SERVICE();
 			}
@@ -58,7 +52,7 @@ export function createRegistryQueries(registry: ServiceRegistry): {
 		},
 
 		getInstance: async ({ params }) => {
-			const service = knownService(registry, params.serviceName);
+			const service = knownService(params.serviceName);
 			if (!service) {
 				return UNKNOWN_SERVICE();
 			}

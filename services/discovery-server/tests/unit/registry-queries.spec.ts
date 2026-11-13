@@ -121,19 +121,6 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 			expect(status).toBe(404);
 			expect(body).toEqual({ error: "Unknown service" });
 		});
-
-		it("answers 404 when the name does not verify", async () => {
-			jest
-				.spyOn(registry.tokenManager, "verifyInstanceName")
-				.mockReturnValue(false);
-
-			const { status } = await get(
-				DISCOVERY_API.getServiceInstances,
-				"/services/financial-scraper"
-			);
-
-			expect(status).toBe(404);
-		});
 	});
 
 	describe("GET /services/:serviceName/:instanceId", () => {

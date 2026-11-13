@@ -39,7 +39,7 @@ export class RedisInstanceStore implements InstanceStorePort {
 		);
 	}
 
-	registerInstance(instance: ServiceInstance): Promise<string> {
+	registerInstance(instance: ServiceInstance): Promise<void> {
 		return this.registrar.registerInstance(instance);
 	}
 
@@ -72,16 +72,5 @@ export class RedisInstanceStore implements InstanceStorePort {
 
 	removeInstance(identity: ServiceIdentity): Promise<boolean> {
 		return removeInstanceSetAndMetadata(this.deps, identity);
-	}
-
-	async dump(): Promise<Record<string, ServiceInstance[]>> {
-		const serviceNames = await this.reader.listServiceNames();
-		const snapshot: Record<string, ServiceInstance[]> = {};
-		for (const name of serviceNames) {
-			snapshot[name as ServiceInstanceName] = await this.getInstances(
-				name as ServiceInstanceName
-			);
-		}
-		return snapshot;
 	}
 }

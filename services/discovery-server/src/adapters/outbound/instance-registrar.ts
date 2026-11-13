@@ -1,11 +1,6 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
-import { generateInstanceToken } from "@trading-model/crypto/application/services/token-service";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import {
-	RedisResp,
-	RedisSet,
-} from "@trading-model/persistence/redis-constants";
 import type {
 	InstanceId,
 	UnixTimestamp,
@@ -13,21 +8,11 @@ import type {
 import type { RedisDeps } from "../../shared/redis-deps";
 import {
 	instanceMetadata,
-	instanceToken,
 	serviceInstancesSet,
 } from "../../shared/redis-key-builder";
 
 export class InstanceRegistrar {
 	constructor(private readonly _deps: RedisDeps) {}
-
-	async resolveToken(instanceId: InstanceId): Promise<string> {
-		const tokenKey = instanceToken(this._deps.keyPrefix, instanceId);
-		const token = generateInstanceToken(instanceId, this._deps.signingSecret);
-		const tokenSet = await this._deps.redis.set(tokenKey, token, RedisSet.NX);
-		return tokenSet === RedisResp.OK
-			? token
-			: ((await this._deps.redis.get(tokenKey)) ?? token);
-	}
 
 	private async _mergeExistingMetadata(
 		instanceId: InstanceId,
@@ -67,10 +52,9 @@ export class InstanceRegistrar {
 		return storedInstance;
 	}
 
-	async registerInstance(instance: ServiceInstance): Promise<string> {
+	async registerInstance(instance: ServiceInstance): Promise<void> {
 		const { serviceName, instanceId } = instance;
 		const now = Date.now();
-		const finalToken = await this.resolveToken(instanceId);
 		const multi = this._deps.redis.multi();
 		multi.sadd(
 			serviceInstancesSet(this._deps.keyPrefix, serviceName),
@@ -82,6 +66,5 @@ export class InstanceRegistrar {
 			JSON.stringify(storedInstance)
 		);
 		await multi.exec();
-		return finalToken;
 	}
 }
