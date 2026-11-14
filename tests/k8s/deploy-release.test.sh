@@ -13,7 +13,7 @@ FAILED=0
 ok() { echo "  ✓ $*"; }
 ko() { echo "  ✗ $*"; FAILED=1; }
 
-IMAGES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service spire-tools backup-tools"
+IMAGES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator spire-tools backup-tools"
 for img in $IMAGES; do
 	echo "$img sha256:$(printf '%s' "$img" | sha256sum | cut -d' ' -f1)"
 done >"$WORK/digests"

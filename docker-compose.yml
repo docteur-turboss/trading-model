@@ -433,7 +433,7 @@ services:
       TRAINER_OBSERVE_POSITION: ${TRAINER_OBSERVE_POSITION:-true}
       # Model artifacts (ADR-0022), backed up by scripts/backup.sh (checkpoints)
       TRAINER_MODEL_DIR: /data/checkpoints/models
-      MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-}
+      MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-model-evaluator}
     volumes:
       - svid-trainer:/run/spire/svid
       - trainer-checkpoints:/data/checkpoints
@@ -531,6 +531,43 @@ services:
         condition: service_started
       mongo-users:
         condition: service_completed_successfully
+      discovery-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  Model Evaluator — offline evaluation of published models (ADR-0049, no order flow)
+  # ---------------------------------------------------------------------------
+  model-evaluator:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: services/model-evaluator/Dockerfile
+    container_name: trading-model-evaluator
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - '127.0.0.1:${MODEL_EVALUATOR_PORT:-8453}:3000'
+    environment:
+      <<: *message-env
+      APP_NAME: model-evaluator
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      SERVICE_NAME: model-evaluator
+      INSTANCE_ID: model-evaluator-1
+      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
+      EVALUATIONS_DIR: /data/evaluations
+    volumes:
+      - svid-evaluator:/run/spire/svid
+      - model-evaluations:/data/evaluations
+    networks:
+      - backend-net
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      spiffe-helper-evaluator:
+        condition: service_started
       discovery-server:
         condition: service_healthy
 
@@ -676,6 +713,21 @@ services:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-audit:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-evaluator:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    container_name: trading-helper-evaluator
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-evaluator:/run/spire/svid
     depends_on:
       spire-agent:
         condition: service_healthy
@@ -1106,6 +1158,7 @@ volumes:
   mongo-data:
   redis-data:
   trainer-checkpoints:
+  model-evaluations:
   mysql-data:
   spire-server-data:
   spire-agent-data:
@@ -1119,6 +1172,7 @@ volumes:
   svid-gateway:
   svid-audit:
   svid-dlq:
+  svid-evaluator:
   svid-edge:
   svid-prometheus:
   svid-blackbox:

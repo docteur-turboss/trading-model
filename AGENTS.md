@@ -5,7 +5,7 @@
 ```bash
 bun install --frozen-lockfile   # Install all workspace deps from bun.lock
 bun run build                   # Build all 11 shared packages in topological order
-bun run build:ts                # Build everything (packages + all 7 services)
+bun run build:ts                # Build everything (packages + all 8 services)
 bun run test                    # Run all workspace tests
 bun run --filter <name> test    # Run a single workspace's tests
 bun run lint                    # Biome check across the whole monorepo
@@ -36,7 +36,7 @@ bun run release:test            # Version/base cases of release.mjs (--prereleas
 ## Monorepo layout
 
 - `packages/` — 11 shared libraries under `@trading-model/*` scope: `common`, `primitives`, `contracts`, `reliability`, `persistence`, `http`, `validation`, `server-utils`, `crypto`, `address-manager`, `broker-message`
-- `services/` — 7 microservices (flat npm names, no scope). Every `src` file must be reachable from a service `main` or `bin` (operator CLIs such as audit-logger `chain-cli` go in `bin`): `reach:check`, threshold 0 (ADR-0029). No frontend: `admin-interface` was removed (ADR-0018)
+- `services/` — 8 microservices (flat npm names, no scope). Every `src` file must be reachable from a service `main` or `bin` (operator CLIs such as audit-logger `chain-cli` go in `bin`): `reach:check`, threshold 0 (ADR-0029). No frontend: `admin-interface` was removed (ADR-0018)
 - All linked via bun workspaces (`packages/*` and `services/*`)
 - **No cyclic dependencies**: `primitives` (zero deps) and `contracts` are the foundations — never import `@trading-model/http` or any higher package from them
 

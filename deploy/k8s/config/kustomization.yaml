@@ -40,6 +40,10 @@ configMapGenerator:
     envs: [api-gateway.properties]
     options:
       labels: {app.kubernetes.io/component: api-gateway, app.kubernetes.io/part-of: trading-model}
+  - name: model-evaluator-config
+    envs: [model-evaluator.properties]
+    options:
+      labels: {app.kubernetes.io/component: model-evaluator, app.kubernetes.io/part-of: trading-model}
   - name: audit-logger-config
     envs: [audit-logger.properties]
     options:

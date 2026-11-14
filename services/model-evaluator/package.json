@@ -1,0 +1,37 @@
+{
+  "name": "model-evaluator",
+  "version": "3.1.0-rc.1",
+  "description": "Offline evaluation consumer of trained models: verifies each published model and records one evaluation per (symbol, version)",
+  "license": "ISC",
+  "type": "commonjs",
+  "main": "./dist/application/index.js",
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "build": "tsc",
+    "dev": "ts-node src/application/index.ts"
+  },
+  "dependencies": {
+    "@trading-model/address-manager": "*",
+    "@trading-model/broker-message": "*",
+    "@trading-model/common": "*",
+    "@trading-model/contracts": "*",
+    "@trading-model/http": "*",
+    "@trading-model/primitives": "*",
+    "@trading-model/server-utils": "*",
+    "@trading-model/validation": "*",
+    "express": "^5.3.0",
+    "prom-client": "^15.1.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.6.6",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

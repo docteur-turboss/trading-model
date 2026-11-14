@@ -33,7 +33,7 @@ NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
-SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
+SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"

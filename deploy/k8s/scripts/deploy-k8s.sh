@@ -467,6 +467,7 @@ cmd_smoke_test() {
     "api-gateway:https://api-gateway:3000/health/ready"
     "audit-logger:https://audit-logger:3000/health/ready"
     "dlq-service:https://dlq-service:3000/health/ready"
+    "model-evaluator:https://model-evaluator:3000/health/ready"
     "financial-scraper:https://financial-scraper:3000/health/ready"
     "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"
     "trader-trainer:https://trader-trainer:3000/health/ready"

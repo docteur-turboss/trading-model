@@ -1,0 +1,231 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-evaluator
+  labels:
+    app.kubernetes.io/component: model-evaluator
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: https
+  selector:
+    app.kubernetes.io/component: model-evaluator
+---
+# One replica, no HPA: the evaluation records live on a ReadWriteOnce volume
+# (ADR-0049), so a rollout stops the old pod first (Recreate). A bus delivery
+# missed meanwhile is retried by message-manager.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-evaluator
+  labels:
+    app.kubernetes.io/component: model-evaluator
+    app.kubernetes.io/part-of: trading-model
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: model-evaluator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: model-evaluator
+        app.kubernetes.io/part-of: trading-model
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/scheme: "https"
+    spec:
+      serviceAccountName: model-evaluator
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: model-evaluator
+          image: ghcr.io/trading-model/model-evaluator:latest
+          imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - containerPort: 3000
+              name: https
+          envFrom:
+            - configMapRef:
+                name: model-evaluator-config
+          env:
+            - name: INSTANCE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ERROR_URL_WEBHOOK
+              value: ""
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: svid
+              mountPath: /run/spire/svid
+            - name: tmp
+              mountPath: /tmp
+            - name: evaluations
+              mountPath: /data/evaluations
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -skf
+                - --cert
+                - /run/spire/svid/svid.pem
+                - --key
+                - /run/spire/svid/svid_key.pem
+                - https://localhost:3000/ping
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - curl
+                - -skf
+                - --cert
+                - /run/spire/svid/svid.pem
+                - --key
+                - /run/spire/svid/svid_key.pem
+                - https://localhost:3000/health/ready
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+          startupProbe:
+            exec:
+              command:
+                - curl
+                - -skf
+                - --cert
+                - /run/spire/svid/svid.pem
+                - --key
+                - /run/spire/svid/svid_key.pem
+                - https://localhost:3000/ping
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 12
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          imagePullPolicy: IfNotPresent
+          args:
+            - -config
+            - /etc/spiffe-helper/helper.conf
+          volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: spiffe-helper-config
+          configMap:
+            name: spiffe-helper-config
+        # Workload API socket from the SPIFFE CSI driver (node-agents): the
+        # restricted Pod Security profile forbids a hostPath.
+        - name: spire-agent-socket
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true
+        - name: svid
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: evaluations
+          persistentVolumeClaim:
+            claimName: model-evaluations-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-evaluations-pvc
+  labels:
+    app.kubernetes.io/component: model-evaluator
+    app.kubernetes.io/part-of: trading-model
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: model-evaluator-network-policy
+  labels:
+    app.kubernetes.io/component: model-evaluator
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: model-evaluator
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    # discovery-server, message-manager and trader-trainer (HTTPS on 3000).
+    - to:
+        - podSelector: {}
+      ports:
+        - port: 3000
+          protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: model-evaluator
+  labels:
+    app.kubernetes.io/component: model-evaluator
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

@@ -385,6 +385,30 @@ data:
           - source_labels: [__meta_kubernetes_pod_name]
             target_label: pod
 
+      - job_name: 'model-evaluator'
+        scheme: https
+        tls_config:
+          ca_file: /run/spire/svid/bundle.pem
+          cert_file: /run/spire/svid/svid.pem
+          key_file: /run/spire/svid/svid_key.pem
+          server_name: model-evaluator
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              own_namespace: true
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            regex: model-evaluator
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: '3000'
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
       - job_name: 'financial-scraper'
         scheme: https
         tls_config:
@@ -494,6 +518,9 @@ data:
           - targets: ['https://dlq-service:3000/ping']
             labels:
               service: dlq-service
+          - targets: ['https://model-evaluator:3000/ping']
+            labels:
+              service: model-evaluator
         relabel_configs:
           - source_labels: [__address__]
             target_label: __param_target
