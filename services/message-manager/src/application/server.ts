@@ -5,7 +5,10 @@ import { DurationMs, ServiceId } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 import type { Application } from "express";
 
-import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
+import {
+	ADDRESS_MANAGER_ROUTES,
+	REGISTRATION_READINESS,
+} from "../config/address-manager";
 import { MESSAGE_MANAGER_ROUTES } from "../config/message-manager";
 import { ENV } from "../infrastructure/config/env";
 
@@ -22,6 +25,7 @@ export function createServer() {
 		trustProxy: true,
 		routes: mountRoutes,
 		readiness: [
+			REGISTRATION_READINESS,
 			{
 				name: "redis",
 				// Two pings of connectTimeout 2 s, under the 5 s probe timeoutSeconds.

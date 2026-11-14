@@ -11,14 +11,7 @@ cp .env.example .env   # then replace the example values, see below
 docker compose up -d
 ```
 
-Before the first `docker compose up`, set these variables in `.env` and replace their example values with your own secrets (`openssl rand -hex 32`):
-
-- `MYSQL_ROOT_PASSWORD` — MySQL root password
-- `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
-- `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
-- `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` — MongoDB users, one per client (required, no default; ADR-0067). A Mongo volume created before authentication needs `docker compose down -v` (or the localhost exception, see the `mongo` service)
-- `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
-- `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
+Before the first `docker compose up`, replace the example secrets of `.env` with your own: the list is in [Quick Start, Step 0](docs/getting-started/quickstart.md#step-0-create-env).
 
 The Compose stack runs with `NODE_ENV=production` by default: without these values the gateway and discovery-server refuse to start.
 
@@ -32,11 +25,11 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Layer         | Technology                                                 |
 | ------------- | ---------------------------------------------------------- |
-| Runtime       | Bun 1.4.4, tested (same as `services/*/Dockerfile`); Node.js 26-compatible APIs |
+| Runtime       | Built with Bun 1.4.4, run by Node 26.13 (Bun lacks the peer certificate and `setSecureContext` that mTLS needs, ADR-0011) |
 | Language      | TypeScript (ES2020)                                        |
 | API           | Express 5                                                  |
 | Frontend      | None for now — removed, see ADR-0018                       |
-| Security      | mTLS between services (not toward databases, ADR-0060)     |
+| Security      | mTLS between services; database TLS per ADR-0060           |
 | Databases     | MongoDB 7, MySQL 8 (single primary, no failover, [ADR-0020](docs/adr/0020-database-topology-as-deployed.md)), Redis 7 (Sentinel) |
 | Validation    | Zod                                                        |
 | Testing       | Jest + Stryker (weekly mutation run)                       |
@@ -51,7 +44,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `financial-scraper`     | 8445 | Binance market data ingestion (candles, trades, order books)   |
 | `trader-trainer`        | 8446 | GA + DQN agent evolution engine                                |
 | `api-gateway`           | 8448 | Single external entry point: auth, rate-limit, cache, proxy    |
-| `audit-logger`          | 8450 | Immutable event traceability + centralized log aggregation     |
+| `audit-logger`          | 8450 | Immutable event traceability (hash-chained audit trail)        |
 | `dlq-service`           | 8452 | Dead letter queue storage with auto-retry + replay             |
 | `edge-proxy`            | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS      |
 
@@ -110,7 +103,7 @@ GitHub Actions workflows:
 - **deploy.yml** — manual staging/production deploy with rollback
 - **backup-test.yml** — weekly restore drill of the Docker backup scripts
 
-Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:check` → `reach:check` → `config:check` → observability gate → `build` → `typecheck:tests` → `test` → `test:contract` (see `.husky/pre-push`).
+The pre-push git hook is `.husky/pre-push`.
 
 ## Documentation
 
@@ -127,15 +120,15 @@ Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:
 ## Security
 
 - **OWASP-hardened:** anti-noSQL injection, timed-safe token comparison, log redaction
-- **mTLS between services (not toward databases, ADR-0060):** SPIFFE/SPIRE workload identity — short-lived X.509 SVIDs with automatic rotation (ADR-0011)
-- **Secrets:** SealedSecrets + HMAC-signed service-to-service requests (`@trading-model/crypto`), rotation via `scripts/rotate-secrets.sh`
+- **mTLS between services (ADR-0011):** SPIFFE/SPIRE workload identity — short-lived X.509 SVIDs with automatic rotation. Database traffic: MySQL TLS is required in K8s; MongoDB and Redis/Sentinel accept TLS and still accept clear text until their contract step; Docker Compose stays in clear text ([ADR-0060](docs/adr/0060-database-client-traffic-unencrypted-in-cluster.md))
+- **Secrets:** SealedSecrets + HMAC-signed requests to dlq-service (`@trading-model/crypto`), rotation via `scripts/rotate-secrets.sh`
 
 ## Monitoring
 
 - **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
 - **Alerts:** Prometheus rules in `observability/alerting.yml` (SLO burn rates + operational), mirrored in the K8s Prometheus ConfigMap and checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/Pushover, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
 - **Traces:** OpenTelemetry → OTLP Collector → Jaeger (all 7 services instrumented)
-- **Logs:** Pino structured JSON → Promtail → Loki + centralized log aggregation to audit-logger
+- **Logs:** structured JSON → Promtail → Loki
 
 ## Status
 
@@ -143,10 +136,7 @@ Pre-push git hook runs: `biome check` → `deps:check` → `api:check` → `adr:
 
 - [ ] Full audit of error handling and retry logic across all services
 - [ ] Load testing under realistic market conditions
-- [ ] Comprehensive disaster recovery validation
 - [ ] Security review of all inter-service communication paths
-- [ ] Documentation gaps in operations runbooks and incident response
-- [ ] End-to-end monitoring and alerting coverage validation
 - [ ] Performance benchmarking and resource profiling
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
