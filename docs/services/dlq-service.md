@@ -65,7 +65,7 @@ curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $S
 
 ## Environment Variables
 
-See [Environment Variables](../deployment/ENV.md#dlq-service).
+See [Environment Variables](../deployment/ENV.md#dlq-service--mongodb--redis).
 
 ## Audit trail
 
