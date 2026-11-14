@@ -3,5 +3,9 @@
   "ignoreDependencies": ["@types/express-serve-static-core", "ts-node", "config", "k6"],
   "ignore": ["**/dist/**"],
   "ignoreBinaries": ["openssl", "kubectl"],
-  "ignoreIssues": { "**/*": ["files", "exports", "types", "duplicates"] }
+  "ignoreIssues": {
+    "**/*": ["files", "duplicates"],
+    "scripts/jest-db-config.cjs": ["exports"],
+    "services/trader-trainer/src/domain/model-admission.ts": ["exports"]
+  }
 }

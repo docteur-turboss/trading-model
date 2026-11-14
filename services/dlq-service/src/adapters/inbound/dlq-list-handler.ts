@@ -11,7 +11,7 @@ import type { Topic } from "@trading-model/primitives/primitives";
 import type { DlqListOptions, StoredDlqEntry } from "../outbound/repository";
 import type { ListEntriesQuery } from "./api-routes";
 
-export interface DlqPaginationQuery {
+interface DlqPaginationQuery {
 	topic: Topic | undefined;
 	pagination: OffsetPagination & Partial<CursorPagination>;
 }
@@ -30,7 +30,7 @@ function _buildPaginationQuery({
 	};
 }
 
-export interface DlqListResponse {
+interface DlqListResponse {
 	entries: StoredDlqEntry[];
 	pagination: OffsetPagination & Partial<CursorPagination>;
 }

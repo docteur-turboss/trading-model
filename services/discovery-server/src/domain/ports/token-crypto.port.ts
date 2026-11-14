@@ -4,7 +4,7 @@ import type {
 } from "@trading-model/primitives/primitives";
 import type { ServiceEndpoint } from "@trading-model/primitives/service-identity";
 
-export interface InstanceTokenCheck {
+interface InstanceTokenCheck {
 	token: string;
 	instanceId: InstanceId;
 	signingSecret: string;

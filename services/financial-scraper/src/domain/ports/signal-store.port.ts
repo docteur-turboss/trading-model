@@ -1,6 +1,6 @@
 import type { Dimension, Signal } from "../signals";
 
-export interface AssetSignalsQuery {
+interface AssetSignalsQuery {
 	assetId: string;
 	/** Sector of the asset: its sector signals are part of the answer. */
 	sector: string;

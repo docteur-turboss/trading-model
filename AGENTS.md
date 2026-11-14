@@ -11,7 +11,7 @@ bun run --filter <name> test    # Run a single workspace's tests
 bun run lint                    # Biome check across the whole monorepo
 bun run typecheck:tests         # tsc --noEmit of src + tests of every workspace (tsconfig.test.json; needs bun run build first); stops at the first failing workspace
 bun run deps:check              # Verify @trading-model/* imports match package.json manifests (ADR-0016)
-bun run deps:third-party          # knip: third-party deps declared = used (knip.json; CI lint job, not pre-push; ignored: typedoc via bunx, ts-node via ts-jest, config/k6 = jest virtual mock + k6 runtime modules, @types/express-serve-static-core = module augmentation)
+bun run deps:third-party          # knip: deps declared = used, exports and types with no consumer fail (knip.json; CI lint job, not pre-push; ignored: typedoc via bunx, ts-node via ts-jest, config/k6 = jest virtual mock + k6 runtime modules, @types/express-serve-static-core = module augmentation; exports: jest-db-config.cjs and model-admission.ts used by requires/scripts knip does not follow)
 bun run api:check               # OpenAPI up to date + documented routes reach real routes + every service-to-service route has a caller, no WebSocket server (ADR-0029)
 bun run api:write               # Regenerate docs/services/openapi/api-gateway.yaml from the routes
 bun run contracts:check          # Bus message JSON Schema snapshot (docs/services/events/schemas.json) up to date; contracts:write regenerates, contracts:compat compares with the last release tag (ADR-0061)

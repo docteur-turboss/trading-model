@@ -30,7 +30,7 @@ export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9._-]+$/;
  */
 const MODEL_METRICS_VERSION = 6;
 
-export interface ModelMetrics {
+interface ModelMetrics {
 	metricsVersion?: number;
 	generation: number;
 	fitness: number;

@@ -1,7 +1,4 @@
-export type {
-	CrossoverGenome,
-	GAControlGenome,
-} from "./genome-control";
+export type { GAControlGenome } from "./genome-control";
 export {
 	FitnessType,
 	SelectionType,
@@ -21,7 +18,3 @@ export {
 	InitialisationType,
 	NormalisationType,
 } from "./genome-network/types";
-export type {
-	RewardShapingGenome,
-	RLGenome,
-} from "./genome-rl/types";

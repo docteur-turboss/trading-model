@@ -5,7 +5,7 @@ import type { LogPort, ShutdownProbe } from "../domain/ports/replay.port";
 import type { Env } from "./config/env";
 
 /** What the scheduler reads from the environment. */
-export type AutoRetrySchedulerSettings = Pick<
+type AutoRetrySchedulerSettings = Pick<
 	Env,
 	"DLQ_AUTO_RETRY_ENABLED" | "DLQ_AUTO_RETRY_INTERVAL_MS"
 >;

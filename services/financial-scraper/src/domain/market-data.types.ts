@@ -1,5 +1,4 @@
 export type {
-	BookTickerData,
 	CandleData,
 	OrderBookData,
 	TickerData,

@@ -12,7 +12,6 @@ import { NormalizationStats } from "./normalization-stats";
 export {
 	fromSymbol,
 	type TradingSymbol,
-	toSymbol,
 } from "@trading-model/primitives/primitives";
 export { NormalizationStats };
 

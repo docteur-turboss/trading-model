@@ -54,9 +54,3 @@ export const otherServiceInstance = (
 	lastHeartbeat: (Date.now() - 1500) as UnixTimestamp,
 	...overrides,
 });
-
-export const validRegisterPayload = {
-	serviceName: "financial-scraper",
-	ip: "192.168.1.10",
-	port: 8444,
-};
