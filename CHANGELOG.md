@@ -1,3 +1,274 @@
+## [3.1.0-rc.2] - 2026-11-14
+
+### @trading-model/address-manager (1.3.1 → 1.3.2)
+
+#### Fix
+
+- 6750119 **address-manager:** keep a new pod out of readiness until it has registered with discovery (#1110)
+- c75d13b **address-manager:** count failed heartbeats by merging HeartbeatFailureHandler into HeartbeatManager (#1041)
+- 7a6fcd0 **address-manager:** serve the last known address during a discovery outage and decouple readiness from discovery (#919)
+
+#### Refactor
+
+- fa6dfb2 **address-manager:** replace the five single-caller builders with one container and shorten the discovery chain (#1043)
+- f933c90 **address-manager:** remove the in-process circuit persistence, the never-fed call tracker and the no-op health checker hooks (#1035)
+
+### @trading-model/broker-message (1.2.0 → 1.3.0)
+
+#### Feat
+
+- 4f0cd86 **broker:** skip a message already delivered by messageId in the shared callback controller (#925)
+
+#### Fix
+
+- a799df5 **broker:** remove publishDirectMessage, post.direct, off, removeAllListeners and dead metadata setters (#1077)
+- 3153b2a **broker:** valider les événements training et dlq dans EVENT_VALIDATORS (#949)
+
+### @trading-model/common (1.3.1 → 1.3.2)
+
+#### Fix
+
+- 09673d6 **common:** remove the single-implementation cache port, unused retry options and dead error helpers (#1071)
+
+#### Refactor
+
+- 244d6df **common:** read caught errors through normalizeError and a shared hasCode/errorProp guard (#793)
+
+#### Chore
+
+- b140b75 **common:** remove ignoreDeprecations and the unused wildcard paths mapping (#799)
+
+### @trading-model/http (1.1.0 → 1.2.0)
+
+#### Feat
+
+- aa0fe0c **http:** count outbound calls refused by the shared circuit breaker (#991)
+
+#### Fix
+
+- eadd7a5 **http:** decode response bodies as UTF-8 on the stream (#1046)
+- 39b878d **http:** remove the test-only logger buffer, never-set request and server options and redundant sanitizer patterns (#1042)
+- e23aeba **http:** make the outbound request timeout a total deadline and bound the error webhook fetch (#981)
+- 38af666 **http:** count only target unavailability as a circuit breaker failure (#922)
+
+### @trading-model/crypto (1.0.0 → 1.0.1)
+
+#### Refactor
+
+- bea374d **crypto:** remove the unused allowSlidingExpiry path from the instance token validator (#996)
+
+### @trading-model/server-utils (1.1.0 → 1.1.1)
+
+#### Fix
+
+- 33a6c3e **server-utils:** exit after an uncaught exception within a bounded delay and ignore a second shutdown signal (#918)
+
+#### Test
+
+- 583334f **server-utils:** run the telemetry order spec against src instead of dist (#786)
+
+### Root
+
+#### Feat
+
+- 3355773 **k8s:** move the SPIRE server datastore to SQLite on its own volume, SVID TTL 4 h (#820)
+- e21dfca **k8s:** limiter le débit par adresse client à l'edge-proxy (#865)
+- 07adabb **release:** publish vX.Y.Z-rc.N pre-releases with release.mjs --prerelease (#754)
+- e1026e3 **database:** give market_order_books its own retention (RETENTION_ORDER_BOOKS_DAYS) (#994)
+- 24585e4 **observability:** alert on API key authentication failures and mTLS ACL denials (#899)
+- e91abbf **observability:** give Grafana per-person accounts through OIDC with Viewer as default role (#835)
+- 89f7c49 **observability:** alert when a partitioned StatefulSet stays on an old revision (#829)
+- 8d0bfd2 **observability:** run Prometheus and Alertmanager with two replicas in production (#826)
+- 90371c7 **observability:** page when the trainer stores no model for hours (#816)
+- 29f2a22 **observability:** scrape and alert on pods, nodes, MySQL, MongoDB and Redis (#643)
+- 19160e8 **backup:** purge rows past their retention right after a MySQL restore (#838)
+
+#### Fix
+
+- 5821e3a **github-actions:** stop the deploy before any apply when the live deploy-app Role is older than app-role.yaml (#721)
+- 289e1a6 **github-actions:** fail early with the admin command when the overlay's ClusterRoles are not in the cluster (#710)
+- be756e8 **github-actions:** make the first staging deploy pass: kubectl version, persistent runner, timeouts of the local kind staging (#686)
+- e4aabfe **k8s:** roll Redis after the Deployments so the previous release keeps its registry during the upgrade (#1158)
+- 2478476 **k8s:** replace the stuck pods of a rolled-back Redis StatefulSet (#1142) (#1152)
+- 9318df3 **k8s:** apply the Redis certificates before redis-first rolls the Redis StatefulSets (#1138) (#1151)
+- 821c5b2 **k8s:** accept an existing root user in the mongodb-bootstrap sidecar under --transitionToAuth (#1107)
+- 9c0fdff **k8s:** keep the staging-local database clients on the TLS the partitioned MySQL and MongoDB pods serve (#1073)
+- d84ac96 **k8s:** schedule the daily db-backup job next to backup-data and give it a deadline (#1053)
+- 9869e95 **k8s:** repair the k8s CI jobs: MongoDB root on an empty cluster, lease expiry during a release, restore drill audit trail (#1004)
+- 3e906a4 **k8s:** restart edge-proxy once the api-gateway canary is routed (#987)
+- efc1d2e **k8s:** drop the Grafana PDB that blocks node drains and refuse such PDBs in production (#983)
+- ffa745d **k8s:** retirer HMAC_SECRET des SealedSecrets, ci-render et init-sealed-secrets (#868)
+- def5b06 **k8s:** hold staging-local observability StatefulSets by a partition (#709) (#830)
+- 41a57c2 **k8s:** label the mysql-cluster-init pod so the MySQL NetworkPolicy admits it (#781)
+- 39b1345 **k8s:** send the kind canary gate traffic in bursts so it gets a stable share through the edge-proxy keep-alive pool (#726)
+- 212babb **k8s:** keep the single-replica data StatefulSets of staging-local running across releases (#707)
+- d505627 **k8s:** apply the SealedSecret before the migrations whenever it adds a key (#705)
+- 0e57abb **k8s:** surge before removing a pod in every single-replica-capable Deployment (#706)
+- 4fbaf8e **scripts:** delete the unused scripts/run-migrations.sh wrapper (#1146) (#1157)
+- 3d99c95 **scripts:** remove restore support for backups without run manifest, GTID statements or per-pod archives (#1083)
+- 538ce59 **scripts:** replace the custom TypeDoc theme with typedoc.json, drop docs:generate from release.mjs (#1040)
+- be23c24 **scripts:** refuse encrypt-data-disk --migrate while processes use the mount point (#951)
+- 8ee5fe6 **scripts:** rewrite rotate-secrets.sh on the keys services read, with a CI test (#818)
+- 8ce796a **docs:** delete orphaned STATE.md and unused spec template (#1120)
+- b6c5949 **examples:** sign the query string in manage-dlq.sh (#1116)
+- d060da5 **release:** fail --publish when commit, tag or push fails and check the tag on origin (#773)
+- 4d912f0 **database:** keep the current MongoDB users when restore-k8s.sh restores a full dump (#1055)
+- 5f59831 **multiple:** remove the release 3.0.0 transition aliases and REDIS_ALLOW_LEGACY_CLIENTS (#801)
+- cc8d3ec **reliability:** remove the never-called call() and isAllowed() of the circuit breaker (#1026) (#1058)
+- 79b4372 **reliability:** reopen the circuit on a half-open failure by default (#954)
+- ada6660 **observability:** point alert runbook links at the deployed release (#939) (#990)
+- aa7a562 **observability:** alert on failed-notification ratio, not a single transient failure (#841)
+- 711b7dd **observability:** bound Loki retention, persist Jaeger traces, limit collector memory and alert on Loki (#630)
+- 7abab88 **persistence:** use while (true) in sentinel failover db spec (#985)
+- 31a434e **docker:** lower the compose Jaeger MEMORY_MAX_TRACES to 5000 so the in-memory store fits its 1 GiB limit (#979)
+- 01d5a2d **jobs:** bound the compose Jaeger memory and scale migration Job deadlines by DEPLOY_TIMEOUT_FACTOR (#763)
+
+#### Perf
+
+- 4cdc550 **github-actions:** skip the k8s restore drill on PRs that do not touch backups, jobs, migrations or SPIRE (#960)
+- 7ad3527 **multiple:** batch journal claims and DLQ pops, read only the latest model manifest (#1057)
+
+#### Refactor
+
+- 08b5d10 **github-actions:** merge the two kubeconfig steps of deploy.yml and restore its line continuations (#1145) (#1155)
+- 8e2cc2a **k8s:** contract d'ADR-0040 pour l'ancien datastore SPIRE MySQL (#961)
+- c967735 **k8s:** retirer le redémarrage d'edge-proxy après le rollback N-1 du drill kind (#956)
+- 1500275 **scripts:** check the off-site lifecycle rules at deploy instead of in the backup job (#1079)
+- 243757e **scripts:** share one walk() and one workspace list between the gate scripts (#1024) (#1056)
+- e242dd7 **deps:** make knip report unused exports and types, drop the export keywords only tests use (#1130)
+- dd950d3 **contracts:** remove the duplicate market-data barrel and the unused CandleInterval.toMs (#1076)
+- 4a1654d **contracts:** remove unread delivery.deduplicationId from contract and publishers (#986)
+- 06a277d **contracts:** drop the 305 s publish compatibility timeout (#921)
+- e4aac91 **multiple:** replace the cast NULL_ADDRESS_MANAGER objects with an optional address manager (#1044)
+- 51c9754 **multiple:** replace inline import() type expressions with import type and lint them (#797)
+- 5358238 **multiple:** log through getlogger() in application code as ADR-0015 requires (#794)
+- acd4d15 **multiple:** use one naming, suffix and location convention for ports and schema files (#795)
+- 6b703fe **multiple:** replace NNN as HttpStatusCode casts with HTTP_STATUS constants and lint them (#676) (#792)
+- 07d7b41 **multiple:** stop bypassing branded type invariants with as unknown as casts (#791)
+- 7e512ba **reliability:** share one KubernetesLease and one leadership loop between financial-scraper and trader-trainer (#1039)
+- 86d2a28 **primitives:** remove brand methods and files no src calls (#1036)
+
+#### Docs
+
+- afe0fea **github-actions:** merge the two workflow tables of the CI/CD docs into one (#1127)
+- 40953b3 **github-actions:** say CRITICAL or HIGH in the Trivy gate comments of release.yml (#1003)
+- 548bd82 **docs:** say in ADR-0039 that a flag change rolls the Deployment through its hashed ConfigMap (#1144) (#1154)
+- 0d5ffb1 **docs:** keep one list of the .env secrets to replace, in the quickstart, with the MongoDB passwords (#1128)
+- 8aab1f4 **docs:** reduce the service READMEs to links to docs/services, ENV.md and the test command (#1117)
+- f5657ce **docs:** fix three broken anchors and check anchors in adr:check (#1123)
+- 78e51b1 **docs:** give the 4 h SVID TTL in the glossary and access-control policy (#1124)
+- de39c41 **docs:** replace the commit scope table with a link to the enforced list (#1122)
+- 15c1205 **docs:** fix stale rows of the troubleshooting guide, add MongoDB auth failure (#1121)
+- b5c4b11 **docs:** fix stale descriptions in the deployment index and end overview on deploy.yml (#1119)
+- 2eecd72 **docs:** remove false README feature claims and the copied pre-push lists (#1118)
+- a7bda31 **docs:** remove the fictional .env loading order and fix the AUTH_TOKENS example (#1114)
+- f4b4cfd **docs:** point adding-a-service.md at a real Dockerfile and list the integration points the gates check (#1109)
+- d14e8ef **docs:** describe the Bun build and Node runtime of the service images (#1108)
+- ec52f1f **docs:** name the releases that kept the 305 s publish bound in ADR-0048 (#1002)
+- 383917d **docs:** remove the Codecov upload the CI no longer does from AGENTS.md, README and CI docs (#999)
+- 0ad526c **docs:** describe the Redis message journal as durable state in DR, continuity and retention docs (#989)
+- 44d5d01 **docs:** say when the local kind staging cluster may be stopped between deploys and what stops with it (#975)
+- 392126f **docs:** Add the production capacity and the paid dependencies to the Kubernetes guide (#971)
+- 6840b83 **docs:** define the loss limits and the kill switch policy, triggers and drill required before any execution (#903)
+- 16fc12c **docs:** make a passing MT4 walk-forward, paper trading included, a blocking prerequisite to real capital (#890)
+- 72db0ea **docs:** ADR-0064 risk and execution context required before any order flow (#889)
+- 235c96f **docs:** aligner les canaux de communication d'incident sur la config Alertmanager (#871)
+- d810a86 **docs:** require a functional contact e-mail for signal sources and register the flow (#742) (#837)
+- f112bb7 **docs:** add the Art. 33(5) breach register template (#741) (#836)
+- 8c5a5a6 **docs:** replace fictional on-call escalation and PrometheusRule silence with real procedures (#823)
+- 8872895 **docs:** state that database client traffic is not encrypted in the cluster (ADR-0060) (#770)
+- 0588fc6 **docs:** mark the RTS 6 controls that do not exist as not implemented and gate cited identifiers (#759)
+- 4bbb748 **docs:** align the register, DPIA and policies with retention, journal and sanitizer (#756)
+- 558db75 **docs:** publish the Art. 13 notice for API callers and make the controller fields a production prerequisite (#752)
+- 0acdb52 **config:** say unsigned dead letters stay pending in the journal (#1125)
+- 263031c **release:** remove the stale first-release section of release.md (#1115)
+- 3c18e65 **database:** replace the stale MongoDB section of DATABASE.md with a link to databases.md (#1113)
+- 83075c0 **database:** document that the Mongo root password rotates in the database first (#988)
+- 43ba5a2 **multiple:** fix the six severity:cosmetique issues (#900)
+- 28e1b37 **compliance:** assess alert receivers, dead man's switch and S3 stores, check backup bucket region (#765)
+
+#### Test
+
+- c4c718f **k8s:** measure service continuity during the kind upgrade N-1 to N (#712)
+- 1d8b7f0 **tests:** remove shared state between its of the DLQ E2E suites (#776)
+- cff10b1 **tests:** test Mongo operator injection on public filtered routes and add a ZAP baseline scan to E2E (#777)
+- 860cdf3 **tests:** add an E2E suite from a short training run to the model download (#692)
+- ffd932e **tests:** add a soak scenario, a GA generation benchmark and a capacity procedure (#666)
+
+#### Chore
+
+- 781a49b **github-actions:** run the escrow key check on the staging self-hosted runner while no production bucket exists (#1135) (#1159)
+- 8d8779c **github-actions:** remove the Codecov upload, bun run test:coverage is the coverage gate
+- 8b35f8b **k8s:** set the real production Ingress hosts (#1131) (#1139)
+- ef446a8 **k8s:** run a single MySQL pod in production, drop the idle mysql-1 and mysql-2 (#955)
+- 1804a42 **k8s:** generate spire agent and server config with a hash suffix (#821) (#869)
+- dced237 **scripts:** reinstate a ratcheted gate for import cycles and application layer isolation (#723)
+- 6ad2cbd **deps:** remove unused declared dependencies and check third-party deps in CI (#796)
+- 2fb5926 **config:** passer les clés API par défaut du dépôt au format name:scopes:secret (#839)
+- 9748e25 **tests:** build the workspace jest configs from one shared base and drop the dead dlq/ mapping (#1047)
+- 563072f **tests:** make Stryker mutation testing runnable and run it weekly (#687)
+- 27d651b **docker:** give every compose service and database the memory limit of its Kubernetes manifest (#929)
+
+#### Ci
+
+- c5a7c93 **github-actions:** fail verify-release only on critical alerts the release raised, not on those firing before the deploy (#1161)
+- f733c11 **github-actions:** deploy main as release N-1 in the kind upgrade jobs of every pull request (#1160)
+- a27696a **github-actions:** deploy the pull request base as release N-1 in the kind upgrade jobs (#1072)
+- 59b8228 **github-actions:** run the kind restore drill on database and audit-trail changes (#1054)
+- 4b44175 **github-actions:** back up MySQL before production migrations (#993)
+- 8aa00dc **github-actions:** refuse production deploys while realip.inc holds the placeholder pod CIDR (#995)
+- fd8e67d **github-actions:** cache bun installs and e2e image layers, skip the kind job on PRs that touch nothing it deploys (#972)
+- 699aa14 **github-actions:** couvrir les images deploy et compose avec Dependabot, ajouter bun audit et gitleaks en CI (#958)
+- 7af34bd **github-actions:** run CI on direct pushes to development (#948)
+- f67c9b8 **github-actions:** require all alert notification secrets in staging too (#867)
+- 0022e4a **github-actions:** gate sealed-secrets-key-backup on the fork PR approval setting (#863)
+- eb8fa88 **github-actions:** refuse staging deploys unless fork runs need approval of all external contributors (#858)
+- aed81ba **github-actions:** add a preflight mode to the Deploy workflow (#817)
+- 806c762 **github-actions:** deploy HEAD^1 as the kind release N-1 again (#785)
+- c02c233 **github-actions:** upload the coverage of the DB integration specs to Codecov under flag db (#789)
+- 74b11c8 **github-actions:** roll back a cancelled deploy and report what a failed pre-overlay deploy left behind (#774)
+- faeb208 **github-actions:** detect breaking changes of the public OpenAPI and bus messages against the last release (#654) (#784)
+- bb25ac3 **github-actions:** refuse production deploys when the environment is unprotected (#766)
+- 7aa2080 **github-actions:** retry the kind download and print rollout diagnostics (#685)
+- 619e627 **github-actions:** back up the SealedSecrets keys of the local kind staging on its self-hosted runner (#689)
+- 8532d70 **github-actions:** type-check the test files of every workspace (#688)
+- 7eb13cf **scripts:** compare bus schemas with the newest release tag holding a snapshot, pre-releases included (#1075)
+- 1ade1a1 **release:** block release images on fixed HIGH vulnerabilities (#872)
+- 722b17e **docker:** fail CI when a compose file publishes a port on every interface (#859)
+
+#### Security
+
+- 0167525 **github-actions:** check branch rules of staging and backup-key-check environments before they release secrets (#862)
+- 6f3b8ca **k8s:** seal the seven MONGO_* keys of ADR-0067 into the staging-local SealedSecret (#1070)
+- 691d765 **k8s:** enforce MongoDB authentication, remove --transitionToAuth (#924)
+- e929591 **k8s:** TLS preferTLS and cert-manager server certificates for MongoDB (#769) (#927)
+- f170b43 **k8s:** TLS and cert-manager client certificates for MySQL (#775)
+- ca30fdf **k8s:** enable MongoDB authentication with a keyFile, one user per client and a clusterMonitor exporter user (#715)
+- 4033781 **k8s:** vérifier le certificat des kubelets par la CA du cluster (#851) (#876)
+- 4bd93a4 **k8s:** limiter l'entrée de l'api-gateway aux appelants réels du port 3000 (#813) (#866)
+- 647ab5a **k8s:** dedicated ServiceAccount for the financial-scraper collector Lease right (#714) (#832)
+- 30f8695 **k8s:** give the SPIRE server its own MySQL user instead of root (#822)
+- b3fd154 **k8s:** restrict MySQL and Redis ports to their listed client components (#747) (#771)
+- a4b0abd **k8s:** truncate the real caller IP in the edge-proxy and disable the ingress controller access log (#757)
+- 051bce5 **k8s:** restrict MongoDB audit and DLQ port 27017 to their listed clients (#727) (#746)
+- 9297676 **k8s:** seal MYSQL_EXPORTER_PASSWORD and REDIS_EXPORTER_PASSWORD into the staging-local SealedSecret (#704)
+- 943d609 **deps:** override qs, glob and minimatch to patched versions (#873)
+- e7aabcb **config:** refuser en production les secrets de moins de 32 caractères ou change-me (#852) (#877)
+- 9a44c65 **config:** cap edge-proxy nginx error log at crit so no full client IP reaches Loki (#739) (#834)
+- 6c57d24 **database:** TLS Redis et Sentinel, étape optional (phase A de #735) (#787)
+- f09b254 **database:** TLS Redis et Sentinel, étape optional, suivi dans ADR-0060 (#950)
+- 86ea758 **observability:** masquer le login local Grafana quand OIDC est actif (#901)
+- 6790bbc **observability:** retirer l'API lifecycle de Prometheus, recharger par SIGHUP (#850) (#875)
+- 66a20c8 **docker:** route spire-agent and promtail through a read-only docker-socket-proxy (#864)
+- 626c4b9 **docker:** bind published compose ports to 127.0.0.1 (#738) (#833)
+
+#### Other
+
+- d69dfa9 **k8s:** keep HMAC_SECRET in the SealedSecrets until a release that no longer mounts it has shipped (#1080) (#1082)
+- c2c5773 **k8s:** keep --transitionToAuth and the SPIRE MySQL rollback rules until a release ships their expand step (#1068) (#1074)
+- 9f6eb12 **observability:** page on total training outage and prolonged trainer no-leader (#827)
+
+
 ## [3.1.0-rc.1] - 2026-11-09
 
 ### Root
