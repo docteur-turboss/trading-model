@@ -328,7 +328,7 @@ off-site copies. So (ADR-0033, issue #326):
    ```
 
    `s3:GetBucketObjectLockConfiguration` is for the deploy check below,
-   `s3:GetLifecycleConfiguration` for `check_offsite_lifecycle`. Bucket
+   `s3:GetLifecycleConfiguration` for the same check of the lifecycle rules. Bucket
    settings (Object Lock, lifecycle rules) are changed with other, admin
    credentials, never stored in the cluster nor in the GitHub environment.
    Restores (`fetch-offsite.sh`) only need `s3:ListBucket` and
@@ -509,21 +509,15 @@ delete marker over the file: also expire noncurrent versions
 (`"NoncurrentVersionExpiration": {"NoncurrentDays": 1}` in each rule, and
 `"ExpiredObjectDeleteMarker": true` in a rule of its own), otherwise old
 versions stay forever. A locked version is deleted only once its lock ends
-(30 or 31 days after upload, [Off-site immutability](#off-site-immutability)). After
-each tiered copy, `check_offsite_lifecycle` reads the bucket's rules when the
-`aws` CLI is there and warns about a prefix without rule. The `backup-tools`
-image has only rclone, which cannot read lifecycle rules: the CronJob logs
-that they were not verified, so check them with the command above when the
-bucket is set up (checklist below). The rules are the only expiry off-site:
+(30 or 31 days after upload, [Off-site immutability](#off-site-immutability)). The deploy check (`scripts/backup-bucket-check.sh`) reads the rules and
+reports a missing `daily/`, `weekly/` or `monthly/` rule; `backup-tools` has no `aws` CLI. The rules are the only expiry off-site:
 a missing rule keeps copies forever, it never loses one.
 
 **Deployment checklist (before the first tiered run, and after any change of
 bucket):** create the bucket with Object Lock (compliance, 30 days) and give
 the job credentials without delete right ([Off-site
 immutability](#off-site-immutability)), set the five rules above, then read
-them back with `aws s3api get-bucket-lifecycle-configuration`. In Kubernetes nothing else
-checks them: `backup-tools` has no `aws` CLI, so every run only logs
-"Off-site lifecycle rules not verified".
+them back with `aws s3api get-bucket-lifecycle-configuration`. `deploy.yml` checks them.
 
 ## Retention job
 

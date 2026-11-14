@@ -587,40 +587,6 @@ finalize_metrics() {
 	ok "Metrics written to ${METRICS_FILE}"
 }
 
-# check_offsite_lifecycle <s3://bucket/prefix>
-# Tiered layout only: warns when the bucket has no lifecycle rule for one of
-# the prefixes `<prefix>/daily/`, `weekly/`, `monthly/` (rules to set:
-# docs/deployment/BACKUP_DR.md, "Off-site tiers"). Needs the `aws` CLI and
-# s3:GetLifecycleConfiguration; without them it says the rules were not
-# verified. Never fails the run: the job's credentials need no lifecycle
-# right, and the copy itself succeeded.
-check_offsite_lifecycle() {
-	local bucket="${1#s3://}" name prefix rules tier missing=""
-	name="${bucket%%/*}"
-	prefix=""
-	[ "$name" = "$bucket" ] || prefix="${bucket#*/}"
-	prefix="${prefix%/}"
-	[ -z "$prefix" ] || prefix="${prefix}/"
-	if ! command -v aws >/dev/null; then
-		warn "Off-site lifecycle rules not verified (no aws CLI): ${prefix}daily/, ${prefix}weekly/, ${prefix}monthly/ must expire after 31, 85 and 1830 days (BACKUP_DR.md)"
-		return 0
-	fi
-	local endpoint=()
-	[ -z "${RCLONE_S3_ENDPOINT:-}" ] || endpoint=(--endpoint-url "$RCLONE_S3_ENDPOINT")
-	if ! rules="$(aws "${endpoint[@]}" s3api get-bucket-lifecycle-configuration --bucket "$name" 2>&1)"; then
-		warn "Off-site lifecycle rules not verified for ${name}: ${rules}"
-		return 0
-	fi
-	for tier in daily weekly monthly; do
-		grep -qF "\"${prefix}${tier}/\"" <<<"$rules" || missing="${missing} ${prefix}${tier}/"
-	done
-	if [ -n "$missing" ]; then
-		warn "Bucket ${name} has no lifecycle rule for:${missing}: those copies are never expired (BACKUP_DR.md, Off-site tiers)"
-	else
-		ok "Off-site lifecycle rules present for ${prefix}daily/, weekly/, monthly/"
-	fi
-}
-
 # Runs `$2...` and writes its output, sealed, to `$1` through `$1.partial`:
 # a failed or interrupted write never leaves a final file behind (the
 # `.partial` is deleted, or left by a killed job for the next run to sweep).
@@ -716,9 +682,6 @@ upload_offsite() {
 		fi
 	done
 	rm -rf "$work"
-	if [ "$layout" = tiered ]; then
-		check_offsite_lifecycle "$bucket"
-	fi
 	if $copied; then
 		ok "Off-site copy complete"
 		write_metric "offsite" 1

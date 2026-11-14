@@ -33,7 +33,10 @@
 #      us-east-1, `EU` is eu-west-1) is not in BACKUP_S3_ALLOWED_REGIONS
 #      (space-separated, default: EU regions of AWS, Scaleway and OVH) or
 #      cannot be read (S3-compatible stores may not answer): the backups
-#      stay in the EU (GDPR art. 44, docs/compliance/third-party-dpas.md).
+#      stay in the EU (GDPR art. 44, docs/compliance/third-party-dpas.md);
+#    - a lifecycle rule is missing (or the configuration unreadable) for
+#      `<prefix>daily/`, `weekly/` or `monthly/` (ADR-0032): the backup job
+#      has no aws CLI, so the copies there would never expire.
 #
 #  BACKUP_S3_IMMUTABILITY_CHECK: `enforce` (default in production) turns a
 #  problem into `::error::` and exit 1; `warn` (default elsewhere) into
@@ -161,5 +164,18 @@ case " ${ALLOWED_REGIONS} " in
 *" ${region} "*) ;;
 *) problem "Bucket ${name} is in region ${region}, not in the allowed list (${ALLOWED_REGIONS}): off-site backups must stay in the EU (GDPR art. 44, docs/compliance/third-party-dpas.md)" ;;
 esac
+
+prefix="${BUCKET#s3://}"
+prefix="${prefix#"$name"}"
+prefix="${prefix#/}"
+[ -z "$prefix" ] || prefix="${prefix%/}/"
+if ! rules="$(aws "${endpoint[@]}" s3api get-bucket-lifecycle-configuration --bucket "$name" --output json 2>"$err")"; then
+	problem "Lifecycle rules of bucket ${name} not readable (none set, credentials without s3:GetLifecycleConfiguration, or store without the call): $(tr '
+' ' ' <"$err")"
+fi
+for tier in daily weekly monthly; do
+	grep -qF "\"${prefix}${tier}/\"" <<<"$rules" ||
+		problem "Bucket ${name} has no lifecycle rule for ${prefix}${tier}/: those copies are never expired (BACKUP_DR.md, Off-site tiers)"
+done
 
 echo "Bucket ${name}: region ${region}, Object Lock COMPLIANCE, default retention ${retention} days (${MIN_DAYS} to ${MAX_DAYS} expected)"
