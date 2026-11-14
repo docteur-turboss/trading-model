@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # deploy/k8s/scripts/run-migrations.sh (issue #422) with a stub kubectl: the
 # MYSQL_MIGRATE_PASSWORD guard on a cluster that has the key, one that lacks it
-# (production: explicit error before any Job; staging: seeded), and `user-only`.
+# (production: explicit error before any Job; staging: seeded), `user-only`, and
+# the TLS path read on pod mysql-0 (issue #1066).
 #   bash tests/k8s/run-migrations.test.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -18,6 +19,9 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 echo "$*" >>"$STUB_LOG"
 if [ "$1" = apply ] && [ "${*: -1}" = - ]; then cat >>"$STUB_LOG.manifests"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = job ]; then exit 1; fi # no mysql-cluster-init Job
+# The StatefulSet spec always has the TLS volume; pod mysql-0 has what STUB_POD_VOLUMES says.
+if [ "$1" = get ] && [ "$2" = statefulset ]; then printf 'mysql-data mysql-tls'; exit 0; fi
+if [ "$1" = get ] && [ "$2" = pod ] && [ "$3" = mysql-0 ]; then printf '%s' "${STUB_POD_VOLUMES:-}"; exit 0; fi
 if [ "$1" = get ] && [[ "$2" == job/* ]]; then printf "Complete "; exit 0; fi # wait-job.sh: Job done
 if [ "$1" = get ] && [ "$2" = secret ] && [[ "$3" == trading-model-secrets ]] && [ -n "${STUB_GET_ERR:-}" ]; then echo "$STUB_GET_ERR" >&2; exit 1; fi
 # STUB_*_AFTER_APPLY: what the Secret holds once the SealedSecret was applied
@@ -55,6 +59,14 @@ STUB_KEY= SEED_MIGRATE_PASSWORD=true run bash "$RUN" ns
 
 STUB_KEY=c2VjcmV0 run bash "$RUN" ns user-only
 { [ $RC = 0 ] && grep -q 'job/db-migrate-user ' "$STUB_LOG" && ! grep -q 'job/db-migrate ' "$STUB_LOG"; } && ok "user-only: no migration job" || ko "user-only"
+
+# Issue #1066: a partitioned StatefulSet whose spec has mysql-tls but whose pod does not.
+STUB_KEY=c2VjcmV0 STUB_POD_VOLUMES=mysql-data run bash "$RUN" ns user-only
+{ [ $RC = 0 ] && grep -A1 'name: TLS_BIND' "$STUB_LOG.manifests" | grep -q "value: 'false'" && ! grep -q '^apply -n ns -f .*mysql-tls.yaml' "$STUB_LOG"; } &&
+  ok "pod mysql-0 without mysql-tls (spec has it): unverified, users not bound" || ko "pod without TLS"
+STUB_KEY=c2VjcmV0 STUB_POD_VOLUMES="mysql-data mysql-tls" run bash "$RUN" ns user-only
+{ [ $RC = 0 ] && grep -A1 'name: TLS_BIND' "$STUB_LOG.manifests" | grep -q "value: 'true'" && grep -q '^apply -n ns -f .*mysql-tls.yaml' "$STUB_LOG"; } &&
+  ok "pod mysql-0 with mysql-tls: verified, users bound" || ko "pod with TLS"
 
 export SEALED_WAIT_TRIES=1
 printf '#!/usr/bin/env bash

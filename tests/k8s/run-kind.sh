@@ -13,7 +13,10 @@
 # Environment: KIND (binary, default `kind`), KIND_CLUSTER (default
 # trading-model-ci), KEEP_CLUSTER=1 (`all` keeps the cluster afterwards),
 # KIND_PREVIOUS_REF (release N-1, default HEAD^1: the base branch of a PR merge
-# commit, the commit before on a push; locally e.g. origin/development).
+# commit, the commit before on a push; locally e.g. origin/development),
+# KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
+# the data StatefulSets partitioned, issue #1066: with KIND_PREVIOUS_REF=v3.1.0-rc.1
+# RETIRED_SECRET_KEYS=HMAC_SECRET, as the GitHub environment of deploy.yml).
 # Needs docker, git, kubectl, node, jq.
 #
 # `all` deletes the cluster when it ends: a forgotten cluster keeps the whole
@@ -247,7 +250,7 @@ migrations() {
 # Each stage writes a file: node never shares a pipe with its producer (a node
 # crash broke the pipe in runs 43321359421 and 43328471185).
 render_kind() {
-	release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" >"$3.raw" || return 1
+	release_script render "$1/deploy/k8s/overlays/${KIND_OVERLAY:-staging}" ghcr.io/trading-model "$2" >"$3.raw" || return 1
 	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
 	rm -f "$3.raw"
 }
@@ -260,6 +263,10 @@ apply_release() {
 	rm -f "$file"
 	[ "$1" != "$PREVIOUS" ] || rendered="$(sed -E -e '/^  (MYSQL|REDIS)_EXPORTER_PASSWORD: /d' \
 		-e 's/key: (MYSQL|REDIS)_EXPORTER_PASSWORD$/key: \1_EXPORTER_PASSWORD_BEFORE_ADR_0056/' <<<"$rendered")"
+	# HMAC_SECRET: only an N-1 older than #868 (v3.1.0-rc.1) still reads it.
+	if [ "$1" = "$PREVIOUS" ] && grep -q 'key: HMAC_SECRET$' <<<"$rendered"; then
+		rendered="$(sed -e 's/^  DLQ_AUTH_HMAC_SECRET: .*/&\n  HMAC_SECRET: dev-hmac-before-868/' <<<"$rendered")"
+	fi
 	if [ ! -f "$WORK/app.kubeconfig" ]; then
 		echo "$rendered" | $K apply -f -
 		return
@@ -318,8 +325,9 @@ deploy() {
 	# never created them in run 43331271388. Bounded: a missing CA fails here, not 10 min later.
 	# Ingress certificates (letsencrypt-prod, ACME) cannot be issued without internet: left out.
 	local certs
-	certs="$($K -n "$NS" get certificate -o name | grep -vE '/(api|grafana)-trading-model-tls$')"
-	$K -n "$NS" wait --for=condition=Ready $certs --timeout=300s
+	# None before TLS (v3.1.0-rc.1, KIND_OVERLAY=staging-local).
+	certs="$($K -n "$NS" get certificate -o name | grep -vE '/(api|grafana)-trading-model-tls$' || true)"
+	[ -z "$certs" ] || $K -n "$NS" wait --for=condition=Ready $certs --timeout=300s
 	previous_mongo_root
 	$K -n "$NS" create configmap binance-stub \
 		--from-file=server.mjs="$ROOT/tests/e2e/binance-stub/server.mjs" \
@@ -364,7 +372,7 @@ release() {
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
 	release_script wait "$NS" "${2:-180s}" || return 1
-	# mysqld now serves the cert-manager certificate: bind the users to their client certificates.
+	# Binds the users to their client certificates once mysql-0 serves the cert-manager certificate.
 	migrations "$ROOT" user-only || return 1
 	deploy_script smoke-test
 }

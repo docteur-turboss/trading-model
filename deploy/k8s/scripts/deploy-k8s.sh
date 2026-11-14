@@ -205,8 +205,14 @@ cmd_migrate_down() {
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
+  # As run-migrations.sh: a mysql-0 without mysql-tls (staging-local, issue #1066) serves
+  # its auto-generated certificate, which the job cannot verify.
+  local verify=true
+  kubectl get pod mysql-0 -n "$NAMESPACE" -o jsonpath='{.spec.volumes[*].name}' 2>/dev/null |
+    grep -qw mysql-tls || verify=false
   # activeDeadlineSeconds follows the wait-job.sh timeout (DEPLOY_TIMEOUT_FACTOR, issue #760).
-  sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
+  sed -e "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
+    -e "s#^\( *\)- name: DB_SSL_CA\$#\1- name: DB_SSL_VERIFY\n\1  value: '$verify'\n&#" \
     "${K8S_DIR}/jobs/migration-job-down.yaml" |
     awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
     kubectl apply -n "$NAMESPACE" -f -
