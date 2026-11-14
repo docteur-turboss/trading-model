@@ -91,8 +91,15 @@ retry() {
 # Builds the 10 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
 build_images() {
 	local root="$1" tag="$2" svc
+	# N-1 may predate a service: its image is a stand-in built from this checkout.
+	local have="" missing=""
+	for svc in $SERVICES; do
+		if docker compose -f "$root/docker-compose.yml" config --services | grep -qx "$svc"; then have="$have $svc"; else missing="$missing $svc"; fi
+	done
 	# shellcheck disable=SC2086
-	retry 3 docker compose -f "$root/docker-compose.yml" build $SERVICES spire-bootstrap
+	retry 3 docker compose -f "$root/docker-compose.yml" build $have spire-bootstrap
+	# shellcheck disable=SC2086
+	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" build $missing
 	retry 3 docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
 	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
 	local mroot="$root"

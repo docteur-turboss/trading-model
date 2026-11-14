@@ -71,8 +71,8 @@ export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log" STUB_APPLIED="$WORK/applied"
 STUB_REVS="discovery-server=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
 grep -qx "discovery-server 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
 	grep -qx "edge-proxy none" "$WORK/revs" && grep -qx "statefulset/redis 3" "$WORK/revs" && grep -qx "statefulset/redis-sentinel none" "$WORK/revs" &&
-	[ "$(wc -l <"$WORK/revs")" -eq 11 ] &&
-	ok "record writes the Redis StatefulSets and the 9 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
+	[ "$(wc -l <"$WORK/revs")" -eq 12 ] &&
+	ok "record writes the Redis StatefulSets and the 10 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
 
 printf 'discovery-server 4\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"

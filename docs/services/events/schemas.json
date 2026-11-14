@@ -33,6 +33,7 @@
 					"dlq-service",
 					"financial-scraper",
 					"message-manager",
+					"model-evaluator",
 					"trader-trainer"
 				]
 			},
