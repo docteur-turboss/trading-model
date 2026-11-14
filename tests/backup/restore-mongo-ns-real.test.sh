@@ -35,6 +35,16 @@ db.getSiblingDB('audit').audit_events.insertMany([{c:1},{c:2}])" >/dev/null
 mkdir -p "$WORK/bin" "$WORK/backups/mongodb/$TS"
 docker exec "$NAME" mongodump --quiet --gzip --archive "${AUTH[@]}" >"$WORK/backups/mongodb/$TS/mongodb.archive.gz" || exit 1
 cp "$WORK/backups/mongodb/$TS/mongodb.archive.gz" "$WORK/backups/mongodb/$TS/mongodb-audit.archive.gz"
+# Run manifest: a run without one is refused.
+mkdir -p "$WORK/backups/manifests"
+{
+	echo "{\"version\":1,\"timestamp\":\"$TS\",\"entries\":["
+	for l in mongodb mongodb-audit; do
+		f="mongodb/$TS/$l.archive.gz"
+		echo "{\"component\":\"$l\",\"path\":\"$f\",\"size\":$(wc -c <"$WORK/backups/$f" | tr -d ' '),\"sha256\":\"$(sha256sum "$WORK/backups/$f" | cut -d' ' -f1)\"},"
+	done | sed '$ s/,$//'
+	echo "]}"
+} >"$WORK/backups/manifests/manifest_$TS.json"
 
 cat >"$WORK/bin/kubectl" <<K
 #!/usr/bin/env bash
