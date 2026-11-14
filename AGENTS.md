@@ -80,7 +80,7 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## Git hooks (Husky) & commit format
 
-- **`pre-push`** runs: biome check → deps:check → api:check → adr:check → reach:check → arch:check → config:check → observability gate → build → typecheck:tests → test → test:contract (must all pass to push)
+- **`pre-push`** runs the steps listed in `.husky/pre-push` (must all pass to push)
 - **`commit-msg`** enforces gitmoji format via commitlint: `:emoji:(scope): subject`
 - Scopes are lowercased and must be from the allowed enum in `commitlint.config.mjs`
 - Use `bun run commit` for an interactive TUI that helps craft valid commits
