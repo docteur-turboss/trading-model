@@ -28,7 +28,7 @@ import { forwardRequest } from "../outbound/proxy-handler";
 import { AUTH_MIDDLEWARE, authOf } from "./auth";
 import { DEFAULT_LIMITER } from "./rate-limiter";
 
-const RESOLVER = new EndpointResolver(
+export const RESOLVER = new EndpointResolver(
 	ENV.DISCOVERY_SERVICE_URL,
 	ENV.CACHE_TTL_MS,
 	discoveryClient
