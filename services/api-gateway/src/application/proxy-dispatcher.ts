@@ -36,28 +36,18 @@ export async function proxyAndCache(
 	{ forward, cache }: ProxyDeps
 ): Promise<ResponseObject> {
 	const start = performance.now();
+	let status: number = HTTP_STATUS.SERVICE_UNAVAILABLE;
 	ACTIVE_REQUESTS.inc();
 	try {
 		const result = await forward({ req, target, path: ctx.path });
 		const parsedBody = tryParseJson(result.body);
 		tryCacheResponse(req, ctx, result, parsedBody, cache);
-		PROXY_REQUEST_DURATION_SECONDS.observe(
-			{ service: ctx.serviceName, status: String(result.status) },
-			(performance.now() - start) / 1000
-		);
+		status = result.status;
 		return sendResponse(parsedBody ?? result.body, result.status);
 	} catch (err: unknown) {
 		const tooLarge = err instanceof UpstreamResponseTooLargeError;
-		PROXY_REQUEST_DURATION_SECONDS.observe(
-			{
-				service: ctx.serviceName,
-				status: String(
-					tooLarge ? HTTP_STATUS.BAD_GATEWAY : HTTP_STATUS.SERVICE_UNAVAILABLE
-				),
-			},
-			(performance.now() - start) / 1000
-		);
 		if (tooLarge) {
+			status = HTTP_STATUS.BAD_GATEWAY;
 			getLogger().warn("Upstream response too large", {
 				context: {
 					serviceName: ctx.serviceName,
@@ -72,6 +62,10 @@ export async function proxyAndCache(
 		}
 		return buildProxyErrorResponse(err, ctx, target);
 	} finally {
+		PROXY_REQUEST_DURATION_SECONDS.observe(
+			{ service: ctx.serviceName, status: String(status) },
+			(performance.now() - start) / 1000
+		);
 		ACTIVE_REQUESTS.dec();
 	}
 }
