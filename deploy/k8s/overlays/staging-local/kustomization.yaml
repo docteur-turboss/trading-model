@@ -83,16 +83,31 @@ patches:
       kind: SealedSecret
       name: trading-model-secrets
 
+  # mysqld of the 3.0.0 template (configMapGenerator below) serves its auto-generated
+  # certificate: the jobs (mysql-cluster-init, db-retention) encrypt without
+  # verifying it, as run-migrations.sh does for such a pod.
+  - target:
+      kind: ConfigMap
+      name: mysql-client-tls
+    patch: |-
+      - op: replace
+        path: /data/my.cnf
+        value: |
+          [client]
+          ssl-mode=REQUIRED
+          ssl-ca=/etc/mysql-tls/ca.crt
+
 # Pod CIDR trusted by the edge-proxy for X-Forwarded-For (issue #732).
 configMapGenerator:
   - name: edge-proxy-nginx
     behavior: merge
     files:
       - realip.inc=realip.inc
-  # The partitioned database pods above still run the 3.0.0 template (partition came with
-  # 3.1.0-rc.1): MySQL without mysql-tls, MongoDB without TLS nor keyFile (issue #1066). Clients connect as that template accepts
-  # (MySQL in clear, MongoDB without tls=true) until the planned switch of STAGING_LOCAL.md,
-  # "TLS and keyFile switch", which removes these three entries.
+  # The partitioned database pods above still run the 3.0.0 template (partition came
+  # with 3.1.0-rc.1): MySQL without mysql-tls, MongoDB without TLS nor keyFile (issue
+  # #1066). Clients connect as that template accepts (MySQL in clear, MongoDB without
+  # tls=true) until the planned switch of STAGING_LOCAL.md, "TLS and keyFile switch",
+  # which removes these three entries and the mysql-client-tls patch above.
   - name: financial-scraper-config
     behavior: merge
     literals:

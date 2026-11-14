@@ -186,14 +186,16 @@ The pods of `mysql`, `mongo-dlq` and `mongo-audit` still run the 3.0.0 template
 (3.1.0-rc.1 added the partition without restarting them): no `mysql-tls`, no
 MongoDB `--tlsMode` nor `--keyFile`, no exporter. Until they restart, the
 overlay keeps their clients on what that template accepts (issue #1066):
-financial-scraper without `DB_SSL_*`, MongoDB URIs without `tls=true`, and
-`run-migrations.sh` leaves the MySQL users unbound (it reads pod `mysql-0`).
+financial-scraper without `DB_SSL_*`, MongoDB URIs without `tls=true`, the
+MySQL jobs unverified (`mysql-client-tls`), and `run-migrations.sh` and
+`deploy-k8s.sh migrate-down` read pod `mysql-0` (users left unbound).
 Switch them in a planned window, outside a deploy. Steps 1 and 2 fall between
 the same two deploys: a deploy between them brings the outage back.
 
-1. Merge the removal of the three `configMapGenerator` entries of issue #1066
-   from `overlays/staging-local/kustomization.yaml`: the next deploy must not
-   bring them back.
+1. Merge the removal of the three `configMapGenerator` entries and of the
+   `mysql-client-tls` patch of issue #1066 from
+   `overlays/staging-local/kustomization.yaml`: the next deploy must not bring
+   them back.
 2. Restart `mongo-dlq`, then `mongo-audit`, then `mysql` with the loop above.
    MongoDB then takes `--keyFile` and still accepts clear text (`preferTLS`,
    `--transitionToAuth`); the users exist (the `mongo-*-users` Jobs created
