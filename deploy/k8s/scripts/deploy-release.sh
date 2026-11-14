@@ -47,7 +47,7 @@ FACTOR="${DEPLOY_TIMEOUT_FACTOR:-1}"
 
 # Deployments a release rolls out and a failed release rolls back.
 DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
-  api-gateway audit-logger dlq-service edge-proxy"
+  api-gateway audit-logger dlq-service model-evaluator edge-proxy"
 
 # Redis and its sentinels: the services' credentials (ADR-0047) only work
 # against the nodes of their own release, so these roll out and back too.

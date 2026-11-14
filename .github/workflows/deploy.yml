@@ -86,7 +86,7 @@ permissions:
 env:
   IMAGES: >-
     discovery-server message-manager financial-scraper trader-trainer
-    api-gateway audit-logger dlq-service spire-tools backup-tools db-migrate
+    api-gateway audit-logger dlq-service model-evaluator spire-tools backup-tools db-migrate
 
 concurrency:
   group: deploy-${{ inputs.environment }}

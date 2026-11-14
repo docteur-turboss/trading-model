@@ -71,6 +71,7 @@ const PROXIED_SERVICES = [
 	"dlq-service",
 	"financial-scraper",
 	"message-manager",
+	"model-evaluator",
 	"trader-trainer",
 ];
 
@@ -79,6 +80,7 @@ const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/
 const SERVICE_TO_SERVICE = {
 	"discovery-server": ["POST /register", "POST /heartbeat", "POST /token/rotate", "POST /unregister"],
 	"audit-logger": ["POST /message"],
+	"model-evaluator": ["POST /message"],
 	// Dead letters come from message-manager only (#845): a public deposit could be replayed to any service.
 	"dlq-service": ["POST /dlq"],
 	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
@@ -103,14 +105,13 @@ const CALLERS = {
 	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
 	"dlq-service POST /dlq": { caller: "services/message-manager", call: /\/dlq`|"\/dlq"/ },
 	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
+	"model-evaluator POST /message": { caller: "services/model-evaluator", call: /\.intents\(/ },
+	"trader-trainer GET /models/:symbol/:version/weights": { caller: "services/model-evaluator", call: /\/weights`/ },
 	"trader-trainer POST /message": { caller: "services/trader-trainer", call: /\.intents\(/ },
 };
 
 /** Service-to-service routes kept without a caller, each with its reason. */
-const AWAITING_CALLER = {
-	"trader-trainer GET /models/:symbol/:version/weights":
-		"closed (MODEL_DOWNLOAD_CALLERS empty) until an executor consumes the models (ADR-0022)",
-};
+const AWAITING_CALLER = {};
 
 /** A WebSocket server needs a client in the repository; none exists (ADR-0029). */
 const WEBSOCKET_SERVER = /new\s+WebSocketServer\(|\.on\(\s*["']upgrade["']|handleUpgrade\(/;

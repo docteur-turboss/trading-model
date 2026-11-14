@@ -9,6 +9,7 @@ export enum KnownService {
 	TraderTrainer = "trader-trainer",
 	ApiGateway = "api-gateway",
 	DlqService = "dlq-service",
+	ModelEvaluator = "model-evaluator",
 }
 
 /** Default caller allowlist per target service; `*` admits any platform service. */
@@ -24,6 +25,7 @@ export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 		ServiceId.of("trader-trainer"),
 		ServiceId.of("audit-logger"),
 		ServiceId.of("dlq-service"),
+		ServiceId.of("model-evaluator"),
 	],
 	// message-manager delivers subscribed topics to services that mount
 	// MessageManagerListenExpress (POST /<MESSAGE_CALLBACK_PATH>).
@@ -38,8 +40,12 @@ export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 		ServiceId.of("financial-scraper"),
 		ServiceId.of("discovery-server"),
 		ServiceId.of("message-manager"),
+		// Offline evaluation of published models (ADR-0049): manifest and weights.
+		ServiceId.of("model-evaluator"),
 	],
 	// External traffic enters through the edge proxy (ADR-0018).
 	[KnownService.ApiGateway]: [ServiceId.of("edge-proxy")],
 	[KnownService.DlqService]: [ServiceId.of("*")],
+	// message-manager delivers training.model.published (POST /message).
+	[KnownService.ModelEvaluator]: [ServiceId.of("message-manager")],
 };

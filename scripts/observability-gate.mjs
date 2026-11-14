@@ -43,6 +43,7 @@ const SERVICES = [
   "api-gateway",
   "audit-logger",
   "dlq-service",
+  "model-evaluator",
 ];
 
 const METRIC_DEF_RE =

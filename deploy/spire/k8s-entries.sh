@@ -15,7 +15,7 @@ NS=${POD_NAMESPACE:?POD_NAMESPACE is required (downward API)}
 AGENT_NS=${SPIRE_AGENT_NAMESPACE:-trading-model-node}
 CLUSTER=${SPIRE_CLUSTER_NAME:-trading-model}
 INTERVAL=${RECONCILE_INTERVAL_SECONDS:-600}
-SERVICE_ACCOUNTS=${SPIFFE_SERVICE_ACCOUNTS:-"edge-proxy api-gateway audit-logger discovery-server dlq-service financial-scraper message-manager trader-trainer prometheus blackbox-exporter"}
+SERVICE_ACCOUNTS=${SPIFFE_SERVICE_ACCOUNTS:-"edge-proxy api-gateway audit-logger discovery-server dlq-service financial-scraper message-manager model-evaluator trader-trainer prometheus blackbox-exporter"}
 # <service account>:<SPIFFE name>: a dedicated ServiceAccount that keeps the
 # SPIFFE ID of its service (ACLs and discovery see no new identity). The
 # financial-scraper-collector pod holds the Lease right (issue #714).

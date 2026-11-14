@@ -85,6 +85,7 @@ jobs:
           - api-gateway
           - audit-logger
           - dlq-service
+          - model-evaluator
 
     steps:
       - name: Checkout repository
@@ -253,6 +254,7 @@ jobs:
           - api-gateway
           - audit-logger
           - dlq-service
+          - model-evaluator
           - spire-tools
           - backup-tools
           - db-migrate
