@@ -53,19 +53,39 @@ jobs:
             exit 1
           fi
           node scripts/check-environment-protection.mjs backup-key-check "$GITHUB_REPOSITORY"
+      # Self-hosted runner (BACKUP_KEY_CHECK_RUNNER): persistent and the
+      # repository public, so the fork pull request approval is checked before
+      # it gets the escrow key (issues #842, #860, same check as deploy.yml).
+      - name: Check fork pull request approval (self-hosted runner)
+        if: ${{ vars.BACKUP_KEY_CHECK_RUNNER != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: node scripts/check-environment-protection.mjs --fork-approval "$GITHUB_REPOSITORY"
 
+  # Until a production bucket exists, the off-site store is the MinIO of the
+  # local kind staging (docs/deployment/STAGING_LOCAL.md), reachable only from
+  # its self-hosted runner: repository variable BACKUP_KEY_CHECK_RUNNER = its
+  # label (issue #1135). That runner has no Docker: the tools go on it.
   verify-escrow-key:
     needs: check-environment
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.BACKUP_KEY_CHECK_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 60
     environment: backup-key-check
+    env:
+      SELF_HOSTED: ${{ vars.BACKUP_KEY_CHECK_RUNNER != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # age and the rclone the backup CronJob uses (deploy/backup), so the
       # fetch reads the bucket the way the job wrote it.
       - name: Build the backup tools image
+        if: env.SELF_HOSTED != 'true'
         run: docker build -q -t backup-tools deploy/backup
+      - name: Install age and rclone
+        if: env.SELF_HOSTED == 'true'
+        run: |
+          command -v age >/dev/null && command -v rclone >/dev/null && exit 0
+          sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq age rclone >/dev/null
 
       # The private key goes to a tmpfs (/dev/shm), mode 600, never to an
       # argument or the log, and is deleted by the last step even on failure.
@@ -101,6 +121,12 @@ jobs:
           endpoint=()
           [ -z "$RCLONE_S3_ENDPOINT" ] || endpoint=(-e RCLONE_S3_ENDPOINT)
           set -o pipefail
+          if [ "$SELF_HOSTED" = true ]; then
+            [ -n "$RCLONE_S3_ENDPOINT" ] || unset RCLONE_S3_ENDPOINT
+            args[1]="$key_dir/escrow-key.txt"
+            bash scripts/verify-backup-key.sh "${args[@]}" | tee "$RUNNER_TEMP/backup-key-check.txt"
+            exit 0
+          fi
           # Runner user: it owns the mode-600 key file.
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
             -v "$PWD:/repo:ro" -v "$key_dir:/key:ro" -w /repo \

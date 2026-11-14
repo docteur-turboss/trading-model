@@ -201,15 +201,20 @@ describe("EndpointResolver", () => {
 		expect(target).toBeNull();
 	});
 
-	it("should return null when discovery returns empty array (no stale)", async () => {
-		await resolver.resolve("sector-allocator" as ServiceId, 1);
-
+	// Redis restart: the registry answers empty until services re-register (issue #1156).
+	it("should serve the last known target for 60 s after the registry answers empty, then null", async () => {
+		const known = await resolver.resolve("sector-allocator" as ServiceId, 1);
 		jest.advanceTimersByTime(6000);
-
 		mockHttpClient.get.mockImplementation(async () => []);
 
-		const target = await resolver.resolve("sector-allocator" as ServiceId, 1);
-		expect(target).toBeNull();
+		await expect(
+			resolver.resolve("sector-allocator" as ServiceId, 1)
+		).resolves.toEqual(known);
+
+		jest.advanceTimersByTime(54_000);
+		await expect(
+			resolver.resolve("sector-allocator" as ServiceId, 1)
+		).resolves.toBeNull();
 	});
 
 	it("should handle empty cached instances expiry correctly", async () => {

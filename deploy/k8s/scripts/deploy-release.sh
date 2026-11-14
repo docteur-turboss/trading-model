@@ -16,11 +16,16 @@
 #   deploy-release.sh render <overlay-dir> <registry> <digests-file> [<tag>]
 #       Prints the overlay with every first-party image pinned by digest
 #       ("<image> <sha256:...>" per line); the caller pipes it to kubectl apply.
-#   deploy-release.sh redis-first <namespace> < app-scope.yaml
-#       Applies the Redis StatefulSets (and their script ConfigMap) of the render on
-#       stdin and waits for their rollout, so the previous gateway still serves its
-#       warm cache while Redis restarts (ADR-0045, issue #1112). No-op on a first
-#       deploy (no Redis yet, nothing to protect).
+#   deploy-release.sh without-redis <namespace> < app-scope.yaml
+#       Prints the render on stdin without the Redis StatefulSets once they
+#       exist (all of it on a first deploy); the caller pipes it to kubectl apply.
+#   deploy-release.sh redis-last <namespace> < app-scope.yaml
+#       After `wait`: waits for certificate/redis-tls, then applies the Redis
+#       StatefulSets of the render on stdin and waits for their rollout. Redis
+#       restarts under the pods of this release only: those of a release older
+#       than issue #1112 lose the registry when Redis restarts under them (ADR-0045,
+#       issue #1156). Clients of this release run against the previous Redis meanwhile
+#       (REDIS_TLS_MODE=optional, same ACL users).
 #   deploy-release.sh dry-run <namespace> <node-agents-dir> < rendered.yaml
 #       Preflight (issue #805): `kubectl apply --dry-run=server` of the render
 #       on stdin, cluster scope + node agents with CLUSTER_KUBECONFIG, the rest
@@ -55,24 +60,35 @@ STATEFULSETS="redis redis-sentinel"
 # Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
 INIT_JOBS="mysql-cluster-init mongo-audit-users mongo-dlq-users"
 
-redis_first() {
-	local ns="$1" sts
-	kubectl get statefulset redis -n "$ns" >/dev/null 2>&1 || return 0
-	awk '
+# Documents of the render on stdin that are (keep=1) or are not (keep=0) a Redis StatefulSet.
+redis_statefulsets() {
+	awk -v keep="$1" '
 	function flush() {
-		if (doc ~ /(^|\n)kind: (StatefulSet|ConfigMap)\n/ && doc ~ /(^|\n)  name: (redis|redis-sentinel|redis-ha-scripts-[a-z0-9]+)\n/) { printf "%s%s", sep, doc; sep = "---\n" }
+		if (doc != "" && (doc ~ /(^|\n)kind: StatefulSet\n/ && doc ~ /(^|\n)  name: (redis|redis-sentinel)\n/) == keep) { printf "%s%s", sep, doc; sep = "---\n" }
 		doc = ""
 	}
 	/^---[ \t]*$/ { flush(); next }
 	{ doc = doc $0 "\n" }
-	END { flush() }' | kubectl apply -f - || return 1
+	END { flush() }'
+}
+
+without_redis() {
+	if kubectl get statefulset redis -n "$1" >/dev/null 2>&1; then redis_statefulsets 0; else cat; fi
+}
+
+redis_last() {
+	local ns="$1" sts
+	# The pods mount Secret redis-tls (ADR-0047), issued from the Certificate the overlay
+	# just applied: from a release without Redis TLS they would stay in ContainerCreating (issue #1138).
+	kubectl wait --for=condition=Ready certificate/redis-tls -n "$ns" --timeout="$((300 * FACTOR))s" || return 1
+	redis_statefulsets 1 | kubectl apply -f - || return 1
 	for sts in $STATEFULSETS; do
 		kubectl rollout status "statefulset/$sts" -n "$ns" --timeout="$((300 * FACTOR))s" || return 1
 	done
 }
 
 usage() {
-	echo "usage: $0 redis-first <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file>" >&2
+	echo "usage: $0 without-redis <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file>" >&2
 	exit 64
 }
 
@@ -228,8 +244,8 @@ wait_rollout() {
 		return 64
 	}
 	base=$((base * FACTOR))
-	# Redis first: a service that starts before its nodes accept its ACL user
-	# only fails its readiness and burns its own timeout.
+	# Redis first on a first deploy (an upgrade rolls it later, `redis-last`): a service
+	# that starts before its nodes accept its ACL user only fails its readiness and burns its own timeout.
 	for dep in $STATEFULSETS; do
 		echo "Waiting for rollout of $dep (${base}s)..."
 		if ! kubectl rollout status "statefulset/$dep" -n "$ns" --timeout="${base}s"; then
@@ -279,6 +295,23 @@ relax_mysql() {
 	done
 }
 
+# An OrderedReady StatefulSet waits for a pod of the failed revision to turn
+# ready before replacing it, which a stuck pod never does (Kubernetes "forced
+# rollback"). Once the controller has seen the undo, delete the pods that are
+# not ready and not on the restored revision; ready pods are left to it.
+replace_stuck_pods() {
+	local ns="$1" sts="$2" gen upd pods
+	gen=$(kubectl get "statefulset/$sts" -n "$ns" -o jsonpath='{.metadata.generation}') &&
+		kubectl wait "statefulset/$sts" -n "$ns" --for=jsonpath='{.status.observedGeneration}'="$gen" --timeout="$((60 * FACTOR))s" &&
+		upd=$(kubectl get "statefulset/$sts" -n "$ns" -o jsonpath='{.status.updateRevision}') && [ -n "$upd" ] &&
+		pods=$(kubectl get pods -n "$ns" -l "app.kubernetes.io/component=$sts" \
+			-o jsonpath='{range .items[*]}{.metadata.name} {.metadata.labels.controller-revision-hash} {.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}') ||
+		return 1
+	pods=$(awk -v upd="$upd" '$2 != upd && $3 != "True" {print $1}' <<<"$pods")
+	# shellcheck disable=SC2086
+	[ -z "$pods" ] || kubectl delete pod $pods -n "$ns"
+}
+
 rollback() {
 	local ns="$1" file="$2" dep rev failed=0 target entry undone=()
 	relax_mysql "$ns" || {
@@ -300,6 +333,10 @@ rollback() {
 	done <"$file"
 	for entry in "${undone[@]}"; do
 		read -r target dep rev <<<"$entry"
+		if [[ $target == statefulset/* ]] && ! replace_stuck_pods "$ns" "${target#*/}"; then
+			echo "::error::Could not replace the stuck pods of $dep"
+			failed=1
+		fi
 		# 180 s: measured in kind run 42498902230 (PR #685): the whole rollback settled in 47 s, slowest
 		# discovery-server at 33 s (drain). Kept: lowering it would also cut the real deploy.
 		if ! kubectl rollout status "$target" -n "$ns" --timeout="$((180 * FACTOR))s"; then
@@ -316,7 +353,8 @@ deployments) echo $DEPLOYMENTS ;;
 record) [ $# -eq 3 ] || usage; record "$2" "$3" ;;
 release-replicas) [ $# -eq 2 ] || usage; release_replicas "$2" ;;
 render) [ $# -ge 4 ] && [ $# -le 5 ] || usage; render "$2" "$3" "$4" "${5:-}" ;;
-redis-first) [ $# -eq 2 ] || usage; redis_first "$2" ;;
+without-redis) [ $# -eq 2 ] || usage; without_redis "$2" ;;
+redis-last) [ $# -eq 2 ] || usage; redis_last "$2" ;;
 dry-run) [ $# -eq 3 ] || usage; dry_run "$2" "$3" ;;
 wait) [ $# -ge 2 ] || usage; wait_rollout "$2" "${3:-180s}" ;;
 rollback) [ $# -eq 3 ] || usage; rollback "$2" "$3" ;;
