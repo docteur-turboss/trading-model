@@ -17,8 +17,9 @@
 #       Prints the overlay with every first-party image pinned by digest
 #       ("<image> <sha256:...>" per line); the caller pipes it to kubectl apply.
 #   deploy-release.sh redis-first <namespace> < app-scope.yaml
-#       Applies the Redis StatefulSets (and their script ConfigMap) of the render on
-#       stdin and waits for their rollout, so the previous gateway still serves its
+#       Applies the Redis Issuers and Certificates of the render on stdin, waits for
+#       certificate/redis-tls, then applies the Redis StatefulSets (and their script
+#       ConfigMap) and waits for their rollout, so the previous gateway still serves its
 #       warm cache while Redis restarts (ADR-0045, issue #1112). No-op on a first
 #       deploy (no Redis yet, nothing to protect).
 #   deploy-release.sh dry-run <namespace> <node-agents-dir> < rendered.yaml
@@ -55,17 +56,27 @@ STATEFULSETS="redis redis-sentinel"
 # Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
 INIT_JOBS="mysql-cluster-init mongo-audit-users mongo-dlq-users"
 
-redis_first() {
-	local ns="$1" sts
-	kubectl get statefulset redis -n "$ns" >/dev/null 2>&1 || return 0
-	awk '
+# Documents of the render on stdin whose kind matches $1 and metadata.name $2 (regex alternations).
+redis_docs() {
+	awk -v kinds="$1" -v names="$2" '
 	function flush() {
-		if (doc ~ /(^|\n)kind: (StatefulSet|ConfigMap)\n/ && doc ~ /(^|\n)  name: (redis|redis-sentinel|redis-ha-scripts-[a-z0-9]+)\n/) { printf "%s%s", sep, doc; sep = "---\n" }
+		if (doc ~ ("(^|\n)kind: (" kinds ")\n") && doc ~ ("(^|\n)  name: (" names ")\n")) { printf "%s%s", sep, doc; sep = "---\n" }
 		doc = ""
 	}
 	/^---[ \t]*$/ { flush(); next }
 	{ doc = doc $0 "\n" }
-	END { flush() }' | kubectl apply -f - || return 1
+	END { flush() }'
+}
+
+redis_first() {
+	local ns="$1" sts render
+	kubectl get statefulset redis -n "$ns" >/dev/null 2>&1 || return 0
+	render="$(cat)"
+	# The pods mount Secret redis-tls (ADR-0047): from a release without Redis TLS
+	# they would stay in ContainerCreating until the rest of the overlay (issue #1138).
+	redis_docs 'Issuer|Certificate' 'redis-selfsigned|redis-ca|redis-tls' <<<"$render" | kubectl apply -f - || return 1
+	kubectl wait --for=condition=Ready certificate/redis-tls -n "$ns" --timeout="$((300 * FACTOR))s" || return 1
+	redis_docs 'StatefulSet|ConfigMap' 'redis|redis-sentinel|redis-ha-scripts-[a-z0-9]+' <<<"$render" | kubectl apply -f - || return 1
 	for sts in $STATEFULSETS; do
 		kubectl rollout status "statefulset/$sts" -n "$ns" --timeout="$((300 * FACTOR))s" || return 1
 	done

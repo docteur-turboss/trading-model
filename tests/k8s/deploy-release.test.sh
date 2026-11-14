@@ -60,6 +60,7 @@ if [ "$1" = rollout ] && [ "$2" = undo ]; then
 	exit 0
 fi
 if [ "$1" = apply ]; then cat >>"$STUB_APPLIED"; exit 0; fi
+[ "$1" = wait ] && exit 0
 exit 2
 STUB
 chmod +x "$WORK/bin/kubectl"
@@ -134,6 +135,14 @@ bash "$ROOT/scripts/split-cluster-scope.sh" app <"$WORK/render.yaml" | bash "$SC
 { grep -q 'name: redis-sentinel$' "$WORK/applied" && ! grep -q 'kind: Deployment' "$WORK/applied" &&
 	grep -q "rollout status statefulset/redis-sentinel -n ns" "$WORK/log"; } &&
 	ok "redis-first applies the Redis StatefulSets only, then waits for them" || ko "redis-first: $(cat "$WORK/log")"
+for doc in Certificate:redis-tls Certificate:redis-ca Issuer:redis-ca Issuer:redis-selfsigned; do
+	grep -A5 "^kind: ${doc%%:*}$" "$WORK/applied" | grep -q "^  name: ${doc#*:}$" || ko "redis-first did not apply ${doc/:/ }"
+done
+! grep -q 'name: mysql-tls$' "$WORK/applied" &&
+	[ "$(grep -n 'wait --for=condition=Ready certificate/redis-tls -n ns' "$WORK/log" | cut -d: -f1)" -lt \
+		"$(grep -n 'rollout status statefulset/redis ' "$WORK/log" | cut -d: -f1)" ] &&
+	ok "redis-first applies the Redis certificates and waits for redis-tls before the StatefulSets" ||
+	ko "redis-first certificates: $(cat "$WORK/log")"
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 
