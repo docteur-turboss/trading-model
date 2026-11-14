@@ -369,30 +369,26 @@ select_common_run() {
 		fi
 	done < <(manifests_newest_first)
 	if ! $found; then
-		fail "no run manifest in ${BACKUP_DIR}/manifests${RESTORE_NOT_AFTER:+ taken at or before ${RESTORE_NOT_AFTER}}; backups taken before manifests are restored with an explicit --timestamp"
+		fail "no run manifest in ${BACKUP_DIR}/manifests${RESTORE_NOT_AFTER:+ taken at or before ${RESTORE_NOT_AFTER}}; runs without a manifest are no longer restorable"
 	else
 		fail "no single run holds every requested component ($*): restore an older run with --timestamp, or --allow-mixed-runs to take each component from its own newest run (components may then be out of step)"
 	fi
 	return 1
 }
 
-# resolve_backup <key> <legacy path...>
+# resolve_backup <key>
 # Sets RESOLVED_FILE, RESOLVED_SIZE, RESOLVED_SHA256 for manifest entry `<key>`:
 #   RESTORE_TIMESTAMP=latest  the newest run whose manifest lists `<key>` (a
 #                             run whose file is gone is skipped with a warning);
-#                             backups without manifest are never picked. With
+#                             runs without manifest are never picked. With
 #                             RESTORE_NOT_AFTER=<ts> (restore-k8s.sh --until),
 #                             runs taken after <ts> are skipped
 #   RESTORE_TIMESTAMP=<ts>    that run: refused when its manifest does not
-#                             list `<key>`; a run without manifest (backups
-#                             taken before manifests) falls back to the first
-#                             existing legacy path, with a warning and no
-#                             checksum (RESOLVED_SHA256 empty)
+#                             list `<key>`, or that has no manifest
 # Returns 1 (after `fail`) when no backup can be restored, including when a
 # manifest it has to read is unreadable: `latest` never skips such a run.
 resolve_backup() {
 	local key="$1"
-	shift
 	RESOLVED_FILE="" RESOLVED_SIZE="" RESOLVED_SHA256=""
 	local manifest entry path
 	if [ "$RESTORE_TIMESTAMP" = "latest" ]; then
@@ -422,7 +418,7 @@ resolve_backup() {
 			return 0
 		done < <(manifests_newest_first)
 		if ! $found; then
-			fail "${key}: no run manifest in ${BACKUP_DIR}/manifests${RESTORE_NOT_AFTER:+ taken at or before ${RESTORE_NOT_AFTER}}; backups taken before manifests are restored with an explicit --timestamp"
+			fail "${key}: no run manifest in ${BACKUP_DIR}/manifests${RESTORE_NOT_AFTER:+ taken at or before ${RESTORE_NOT_AFTER}}; runs without a manifest are no longer restorable"
 		else
 			fail "${key}: no complete backup in any run manifest of ${BACKUP_DIR}/manifests"
 		fi
@@ -444,25 +440,22 @@ resolve_backup() {
 		RESOLVED_FILE="${BACKUP_DIR}/${path}"
 		return 0
 	fi
-	for path in "$@"; do
-		[ -n "$path" ] && [ -e "$path" ] || continue
-		warn "${key}: run ${RESTORE_TIMESTAMP} has no manifest (taken before manifests): ${path} is restored without checksum"
-		RESOLVED_FILE="$path"
-		return 0
-	done
-	fail "${key}: no backup for run ${RESTORE_TIMESTAMP} in ${BACKUP_DIR}"
+	fail "${key}: run ${RESTORE_TIMESTAMP} has no run manifest in ${BACKUP_DIR}/manifests: runs without a manifest are no longer restorable"
 	return 1
 }
 
 # verify_backup <file> <size> <sha256>
 # Refuses (`fail`, returns 1) a file whose size or plaintext sha256 differs
-# from its manifest entry. No check without a recorded sha256 (legacy runs).
+# from its manifest entry.
 # A file already verified against the same entry by this process is not read
 # again (restore-k8s.sh checks every component before restoring them).
 _VERIFIED_BACKUPS=""
 verify_backup() {
 	local file="$1" size="$2" sha="$3" actual
-	[ -n "$sha" ] || return 0
+	if [ -z "$sha" ]; then
+		fail "${file}: no sha256 in the run manifest: refused"
+		return 1
+	fi
 	case "$_VERIFIED_BACKUPS" in
 	*"|${file} ${size} ${sha}|"*) return 0 ;;
 	esac
@@ -483,7 +476,7 @@ verify_backup() {
 	ok "Checksum verified: ${file}"
 }
 
-# resolve_and_verify <key> <legacy path...>
+# resolve_and_verify <key>
 # resolve_backup, then refuses an empty file and checks it against its
 # manifest entry (verify_backup). Sets RESOLVED_FILE; returns 1 (after
 # `fail`) when there is nothing safe to restore.
@@ -1036,20 +1029,6 @@ mysql_root_sh() {
 # `mysql` schema is left out: it cannot be restored over a running server.
 # No GTID statement: the restore must go through the binlog to the replicas.
 MYSQL_DUMP_SH="dbs=\$(mysql --user=root -N -e \"SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('mysql', 'sys', 'information_schema', 'performance_schema')\") && exec mysqldump --user=root --databases \$dbs --single-transaction --quick --routines --events --set-gtid-purged=OFF"
-
-# stdin → stdout: drops the GTID statements of a mysqldump taken with
-# --set-gtid-purged=ON (older backups). Restoring them into a running server
-# fails (GTID_PURGED overlaps gtid_executed) and SQL_LOG_BIN=0 would keep the
-# restore out of the binlog, hence off the replicas.
-strip_gtid() {
-	awk '
-		skip { if (/;[[:space:]]*$/) skip = 0; next }
-		/^SET @@GLOBAL\.GTID_PURGED/ { if (!/;[[:space:]]*$/) skip = 1; next }
-		/^SET @@SESSION\.SQL_LOG_BIN/ { next }
-		/^SET @MYSQLDUMP_TEMP_LOG_BIN/ { next }
-		{ print }
-	'
-}
 
 # --- Point-in-time recovery (ADR-0031) --------------------------------------
 #

@@ -194,9 +194,7 @@ reports `mongodb-audit` from the single mongod dump that holds it.
 The `mysql` system schema is not dumped (it cannot be restored over a running
 server); users come from the deployment (`MYSQL_ROOT_PASSWORD`, `MYSQL_USER`).
 Dumps carry no GTID statement, so a restore goes through the binlog to the
-replicas. Older dumps taken with GTID statements (before 2026-10-28) are
-filtered at restore time (`strip_gtid` in `scripts/backup-lib.sh`); without
-the filter they fail with `ERROR 3546 GTID_PURGED`.
+replicas.
 
 Every dump is streamed through `age` before it touches a disk (files suffixed
 `.age`). Keys, restore and monitoring:
@@ -243,10 +241,10 @@ decrypted content. One entry per line: the restore scripts read it without
 
 | Invocation | Backup restored for each requested component |
 | ---------- | -------------------------------------------- |
-| no `--timestamp` (`latest`) | ONE run for all the requested components: the newest whose manifest lists every one of them (`mongodb` counts for both replica sets); its timestamp is printed. A run missing a component (that dump failed) or whose listed file is gone is skipped. No such run: exit 1, nothing touched. Files without manifest are never picked: with no manifest at all the restore refuses and asks for `--timestamp` |
+| no `--timestamp` (`latest`) | ONE run for all the requested components: the newest whose manifest lists every one of them (`mongodb` counts for both replica sets); its timestamp is printed. A run missing a component (that dump failed) or whose listed file is gone is skipped. No such run: exit 1, nothing touched. Files without manifest are never picked: with no manifest at all the restore refuses |
 | no `--timestamp`, `--allow-mixed-runs` | the previous rule, on purpose: each component from the newest run whose manifest lists it, one warning per component naming its run. components may then come from different nights: last resort only |
 | `--timestamp <ts>`, run with manifest | that run; refused (exit 1) when its manifest does not list the component |
-| `--timestamp <ts>`, run without manifest (taken before 2026-11) | the file of that run, with a warning: no checksum to verify |
+| `--timestamp <ts>`, run without manifest | refused (exit 1): runs without a manifest are no longer restorable |
 
 Before anything is written (and also with `--dry-run`), every file is checked
 against its manifest entry: size, then sha256 of the decrypted content; a
@@ -595,8 +593,7 @@ Manual decryption: `age -d -i backup-key.txt <file>.age`.
 
 Without `--timestamp`, each component comes from the last run that backed it
 up successfully according to its manifest, after a checksum check
-([Run manifest](#run-manifest)). Backups taken before run manifests are
-restored with an explicit `--timestamp`.
+([Run manifest](#run-manifest)).
 
 Both restore scripts exit 1 if any step fails. Stop the writers first
 (`kubectl scale deployment --replicas=0` for financial-scraper,
@@ -652,8 +649,7 @@ succeeded, so a run missing a file (`mongodb/<TS>/mongodb.archive.gz.age` and
 `manifests/manifest_<TS>.json.age`) is skipped, and refused with `--timestamp`
 when a dump is missing. The manifest comes with the run: `restore-k8s.sh`
 checks every file against it (size, sha256, see [Run manifest](#run-manifest)).
-A run taken before manifests is only fetched with `--timestamp`, and restored
-without checksum. It exits 1 when the bucket is unreachable or holds no
+A run without manifest is refused, even with `--timestamp`. It exits 1 when the bucket is unreachable or holds no
 complete run, and prints the restore command.
 
 With `--pitr` (point-in-time restore, see below) the run must also hold its
@@ -778,8 +774,7 @@ bash scripts/restore.sh --dry-run
 ```
 
 SPIRE: the server is stopped and its whole data directory (`data_*.tar`: CA
-keys + SQLite datastore) is written back; backups taken before 2026-10-28 only
-hold `keys_*.json` and restore the keys alone.
+keys + SQLite datastore) is written back.
 
 ### Restoring part of MongoDB (`--ns`, `--into-scratch`)
 
