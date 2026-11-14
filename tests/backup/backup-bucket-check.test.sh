@@ -25,6 +25,14 @@ cat >"$WORK/bin/aws" <<'STUB'
 # and exits $STUB_EXIT.
 printf '%s\n' "$*" >>"$STUB_LOG"
 case "$*" in
+*get-bucket-lifecycle-configuration*)
+	[ -z "${STUB_LC_STDERR:-}" ] || printf '%s
+' "$STUB_LC_STDERR" >&2
+	[ -z "${STUB_LC_EXIT:-}" ] || exit "$STUB_LC_EXIT"
+	default='{"Rules":[{"Filter":{"Prefix":"prod/daily/"}},{"Filter":{"Prefix":"prod/weekly/"}},{"Filter":{"Prefix":"prod/monthly/"}}]}'
+	printf '%s\n' "${STUB_LC_STDOUT-$default}"
+	exit 0
+	;;
 *get-bucket-location*)
 	[ -z "${STUB_LOC_STDERR:-}" ] || printf '%s\n' "$STUB_LOC_STDERR" >&2
 	[ -z "${STUB_LOC_EXIT:-}" ] || exit "$STUB_LOC_EXIT"
@@ -160,6 +168,15 @@ STUB_EXIT=0 STUB_STDERR="" STUB_STDOUT="$OK_LOCK" STUB_LOC_EXIT=254 STUB_LOC_STD
 	expect "region unknown, staging: warning" 0 warning staging "${BUCKET[@]}"
 STUB_EXIT=0 STUB_STDERR="" STUB_STDOUT="$OK_LOCK" STUB_LOC_STDOUT='{"LocationConstraint":"us-west-2"}' BACKUP_S3_ALLOWED_REGIONS="us-west-2" \
 	expect "custom allowed list, production: passes" 0 none production "${BUCKET[@]}"
+
+echo "Lifecycle rules"
+LC_DAILY_WEEKLY='{"Rules":[{"Filter":{"Prefix":"prod/daily/"}},{"Filter":{"Prefix":"prod/weekly/"}}]}'
+STUB_EXIT=0 STUB_STDERR="" STUB_STDOUT="$OK_LOCK" STUB_LC_STDOUT="$LC_DAILY_WEEKLY" \
+	expect "monthly/ rule missing, production: error" 1 error production "${BUCKET[@]}"
+STUB_EXIT=0 STUB_STDERR="" STUB_STDOUT="$OK_LOCK" STUB_LC_STDOUT="$LC_DAILY_WEEKLY" \
+	expect "monthly/ rule missing, staging: warning" 0 warning staging "${BUCKET[@]}"
+STUB_EXIT=0 STUB_STDERR="" STUB_STDOUT="$OK_LOCK" STUB_LC_EXIT=254 STUB_LC_STDERR='An error occurred (NoSuchLifecycleConfiguration) when calling the GetBucketLifecycleConfiguration operation' \
+	expect "no lifecycle configuration, production: error" 1 error production "${BUCKET[@]}"
 
 if [ "$FAILED" -ne 0 ]; then
 	echo "FAILED"
