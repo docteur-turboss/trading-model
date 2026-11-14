@@ -61,9 +61,6 @@ constructor({
 ```ts
 const message = new BrokerMessage({...});
 
-// Direct send to a specific service
-await message.post.direct(ServiceInstanceName.TraderTrainerService, payload, metadata);
-
 // Indirect send via the broker (async pub/sub)
 await message.post.indirect(payload, metadata);
 ```
@@ -87,7 +84,6 @@ Calls made to the Message Delivery Service:
 | POST   | `https://{host}:{port}/subscribe` | `MessageManagerClient.subscribeToTopics`    | Subscribe to a topic                   |
 | DELETE | `https://{host}:{port}/subscribe` | `MessageManagerClient.unSubscribeToTopic`   | Unsubscribe from a topic               |
 | POST   | `https://{host}:{port}/message`   | `MessageManagerClient.publishAsyncMessage`  | Publish an asynchronous message        |
-| POST   | `https://{host}:{port}/message`   | `MessageManagerClient.publishDirectMessage` | Publish directly to a specific service |
 
 ## MessageManagerClient
 
@@ -102,11 +98,6 @@ class MessageManagerClient {
   subscribeToTopics(topics: EventEnumMap[]): Promise<void>;
   unSubscribeToTopic(topics: EventEnumMap[]): Promise<void>;
   publishAsyncMessage<T>(payload: T, metadata: MessageMetadata): Promise<void>;
-  publishDirectMessage<T>(
-    service: ServiceInstanceName,
-    payload: T,
-    metadata: MessageMetadata
-  ): Promise<void>;
 }
 ```
 
@@ -133,7 +124,6 @@ import BrokerMessage, { HELPER } from '@trading-model/broker-message';
 const metadata = new HELPER.metadataBuilder()
   .setTopic('market.trade.recent.fetch')
   .setEventType('market.trade.recent.fetch')
-  .setPublisher({ serviceName: 'financial-scraper', instanceId: 'uuid' })
   .setDelivery({ mode: 'at-least-once' })
   .toJSON();
 ```
@@ -142,11 +132,8 @@ const metadata = new HELPER.metadataBuilder()
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
 | `setTopic(topic)`                          | Sets the topic (`bounded-context.aggregate.action` format)                                          |
 | `setEventType(event)`                      | Sets the event type                                                                                 |
-| `setPublisher(context)`                    | Sets the publisher identity                                                                         |
 | `setDelivery(context)`                     | Sets delivery mode (mode, ttl)                                                     |
-| `setRouting(context)`                      | Sets routing hints (partitionKey, priority)                                                         |
 | `setSecurity(context)`                     | Sets security context (authContext, signature)                                                      |
-| `setSchemaVersion(version)`                | Sets schema version (default: '1.0.0')                                                              |
 | `setIds({ causationId?, correlationId? })` | Sets correlation IDs                                                                                |
 | `toJSON()`                                 | Produces the `MessageMetadata` object. Throws `MetadataBuilderError` if required fields are missing |
 | ------------------------------------------ | ----------------------------------------------------------                                          |
@@ -172,9 +159,7 @@ Typed EventEmitter for local broker event handling.
 
 ```ts
 EVENT_MANAGER.on(eventName, callback); // returns a cleanup function
-EVENT_MANAGER.off(eventName, callback);
 EVENT_MANAGER.emit(eventName, data);
-EVENT_MANAGER.removeAllListeners();
 ```
 
 ```ts
@@ -264,10 +249,8 @@ const cleanup = broker.on('market.trade.recent.fetch', data => {
 const metadata = new HELPER.metadataBuilder()
   .setTopic('market.trade.executed')
   .setEventType('trade.executed')
-  .setPublisher({ serviceName: 'trader-trainer', instanceId: 'node-1' })
   .toJSON();
 
-await broker.post.direct('financial-scraper-service', { symbol: 'BTCUSDT' }, metadata);
 await broker.post.indirect({ price: 50000 }, metadata);
 
 cleanup();

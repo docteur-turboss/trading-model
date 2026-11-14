@@ -50,7 +50,7 @@ async function deliver(
 
 describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 	beforeEach(() => {
-		EVENT_MANAGER.removeAllListeners?.();
+		(EVENT_MANAGER as any)._emitter.removeAllListeners();
 	});
 
 	// The sender waits for this answer: no response = timeout, retries, DLQ.

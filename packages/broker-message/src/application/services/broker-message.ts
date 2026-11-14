@@ -124,11 +124,10 @@ export default class BrokerMessage {
 		app.use(CREATE_CALLBACK_ROUTE(this._callbackPath));
 	}
 
-	/** Publishes messages directly or indirectly to services. */
+	/** Publishes messages through the Message Manager. */
 	get post() {
 		const client = this._messageManagerClient;
 		return {
-			direct: client.publishDirectMessage.bind(client),
 			indirect: client.publish.bind(client),
 		};
 	}
