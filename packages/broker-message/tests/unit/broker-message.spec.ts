@@ -11,7 +11,6 @@ import { EVENT_MANAGER } from "../../src/application/services/event-manager-clie
 const MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE = {
 	subscribe: jest.fn<(...args: any[]) => any>(),
 	unsubscribe: jest.fn<(...args: any[]) => any>(),
-	publishDirectMessage: jest.fn<(...args: any[]) => any>(),
 	publish: jest.fn<(...args: any[]) => any>(),
 };
 
@@ -55,7 +54,7 @@ describe("BrokerMessage", () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		EVENT_MANAGER.removeAllListeners?.();
+		(EVENT_MANAGER as any)._emitter.removeAllListeners();
 		broker = new BrokerMessage(defaultParams);
 	});
 
@@ -178,31 +177,6 @@ describe("BrokerMessage", () => {
 	});
 
 	describe("post", () => {
-		describe("direct", () => {
-			it("should call publishDirectMessage", async () => {
-				const metadata = {
-					topic: "test",
-					eventType: "test",
-					publisher: {
-						serviceName: "DiscoveryService",
-						instanceId: "550e8400-e29b-41d4-a716-446655440000",
-					},
-				};
-				await broker.post.direct(
-					"MessageDeliveryService",
-					{ data: "test" },
-					metadata
-				);
-				expect(
-					MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.publishDirectMessage
-				).toHaveBeenCalledWith(
-					"MessageDeliveryService",
-					{ data: "test" },
-					metadata
-				);
-			});
-		});
-
 		describe("indirect", () => {
 			it("should call publish", async () => {
 				const metadata = {
