@@ -29,7 +29,6 @@ export interface TrainingSessionResult {
 	bestFitness: number;
 	bestFitnessMeta?: GenomeFitnessMeta;
 	generation: number;
-	generationContext: GenerationContext | null;
 }
 
 /**
@@ -88,7 +87,6 @@ class TrainingSession {
 			bestFitness: published?.fitness ?? ctx?.bestFitness ?? 0,
 			bestFitnessMeta: this._testMeta(bestGenome) ?? selectionMeta,
 			generation: runner.processor.generation,
-			generationContext: lastCtx,
 		};
 	}
 

@@ -1,5 +1,3 @@
-import type { SyncCachePort } from "./cache";
-
 interface CacheEntry<TValue> {
 	value: TValue;
 	expiresAt: number;
@@ -10,7 +8,7 @@ interface CacheEntry<TValue> {
  * `get`/`has`/`entries` but kept until overwritten or deleted, so `getStale`
  * can serve it as a last resort: the store is bounded by its key set.
  */
-export class TtlCacheBase<TValue> implements SyncCachePort<TValue> {
+export class TtlCacheBase<TValue> {
 	protected readonly _store = new Map<string, CacheEntry<TValue>>();
 	protected readonly _defaultTtlMs: number;
 
@@ -33,7 +31,7 @@ export class TtlCacheBase<TValue> implements SyncCachePort<TValue> {
 	}
 
 	protected _isExpired(entry: CacheEntry<TValue>): boolean {
-		return this._defaultTtlMs > 0 && Date.now() >= entry.expiresAt;
+		return Date.now() >= entry.expiresAt;
 	}
 
 	private _liveEntry(key: string): CacheEntry<TValue> | undefined {
