@@ -1,6 +1,6 @@
 import type { NumericRange } from "@trading-model/primitives/numeric-range";
 import type { NormalizationStats } from "../normalization-stats";
-import type { LamarckGenome } from "./genome-types";
+import type { LamarckGenome } from "./genome";
 import type { DeepReadonly } from "./shared-types";
 
 type RewardShapingGenes = DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>;

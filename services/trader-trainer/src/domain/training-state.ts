@@ -10,9 +10,9 @@ import type {
 	ActivationType,
 	FitnessType,
 	GenomeFitnessMeta,
+	LamarckGenome,
 	SelectionType,
 } from "./genetic-algorithm/genome";
-import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import { buildSummary } from "./genome-summary-builder";
 import type { TradingSymbol } from "./market-data-types";

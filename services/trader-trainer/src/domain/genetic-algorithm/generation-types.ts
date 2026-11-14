@@ -4,7 +4,7 @@ import type {
 	GenomeFitnessMeta,
 	LamarckGenome,
 	MarketStep,
-} from "./genome-types";
+} from "./genome";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 

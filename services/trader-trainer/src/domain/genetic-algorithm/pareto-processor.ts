@@ -1,9 +1,5 @@
 import { Fitness } from "@trading-model/primitives/primitives";
-import type {
-	GenomeFitnessMeta,
-	LamarckGenome,
-	PopMember,
-} from "./genome-types";
+import type { GenomeFitnessMeta, LamarckGenome, PopMember } from "./genome";
 import type { ObjectiveVector } from "./pareto/domination";
 import type { PopulationMeta } from "./pareto/nsga2";
 import { buildPopulationMeta } from "./pareto/nsga2";

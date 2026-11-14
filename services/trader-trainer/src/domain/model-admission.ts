@@ -1,8 +1,5 @@
 import { buyAndHoldSharpe } from "./genetic-algorithm/evaluation-utils";
-import type {
-	GenomeFitnessMeta,
-	MarketStep,
-} from "./genetic-algorithm/genome-types";
+import type { GenomeFitnessMeta, MarketStep } from "./genetic-algorithm/genome";
 import { annualisedSharpe } from "./genome-summary-builder";
 
 /**

@@ -1,7 +1,7 @@
 import { Percentage, PositiveInt } from "@trading-model/primitives/primitives";
 import { buildFeatures as buildFeaturesFn } from "../feature-builder";
 import type { WindowSet } from "../genetic-algorithm/generation-types";
-import type { MarketStep } from "../genetic-algorithm/genome-types";
+import type { MarketStep } from "../genetic-algorithm/genome";
 import type { SymbolState, TradingSymbol } from "../market-data-types";
 import { NormalizationManager } from "../normalization-manager";
 import type { MarketDataContext } from "./market-data-context";
