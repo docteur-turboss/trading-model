@@ -370,8 +370,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # Release N-1 = the PR base branch (main on a release PR), origin/development on push and workflow_call.
-      KIND_PREVIOUS_REF: origin/${{ github.base_ref || 'development' }}
+      # Release N-1 = main, the last release: every PR tests the real upgrade path, not only the release PR.
+      KIND_PREVIOUS_REF: origin/main
     steps:
       # Full history: release N-1 (KIND_PREVIOUS_REF) is built from it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -413,8 +413,8 @@ jobs:
       # and not representative of production, the RTO is judged in
       # docs/compliance/dr-exercise-log.md.
       DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
-      # Release N-1 = the PR base branch (main on a release PR), origin/development on push and workflow_call.
-      KIND_PREVIOUS_REF: origin/${{ github.base_ref || 'development' }}
+      # Release N-1 = main, the last release: every PR tests the real upgrade path, not only the release PR.
+      KIND_PREVIOUS_REF: origin/main
     steps:
       # Full history: N-1 (KIND_PREVIOUS_REF), built and deployed first.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
