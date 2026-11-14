@@ -274,9 +274,9 @@ apply_release() {
 	$K kustomize "$1/deploy/k8s/overlays/staging/node-agents" |
 		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
 	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app >"$WORK/app.yaml"
-	# Redis first, as deploy.yml (issue #1112).
-	KUBECONFIG="$WORK/app.kubeconfig" bash "$ROOT/deploy/k8s/scripts/deploy-release.sh" redis-first "$NS" <"$WORK/app.yaml" || return 1
-	kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f "$WORK/app.yaml"
+	# Redis last, as deploy.yml: `release` applies it after the rollout (issue #1156).
+	KUBECONFIG="$WORK/app.kubeconfig" bash "$ROOT/deploy/k8s/scripts/deploy-release.sh" without-redis "$NS" <"$WORK/app.yaml" |
+		kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f -
 }
 
 # Release #924 never creates the MongoDB root user on an empty cluster (its
@@ -369,6 +369,7 @@ release() {
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
 	release_script wait "$NS" "${2:-180s}" || return 1
+	release_script redis-last "$NS" <"$WORK/app.yaml" || return 1
 	# Binds the users to their client certificates once mysql-0 serves the cert-manager certificate.
 	migrations "$ROOT" user-only || return 1
 	deploy_script smoke-test
