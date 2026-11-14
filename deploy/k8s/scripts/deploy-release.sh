@@ -13,9 +13,21 @@
 #       Deletes retired HPAs and the finished Mongo init Jobs (immutable pod
 #       template, recreated by the apply), then drops spec.replicas from
 #       last-applied-configuration of HPA-driven Deployments (needs jq).
-#   deploy-release.sh render <overlay-dir> <registry> <digests-file>
+#   deploy-release.sh render <overlay-dir> <registry> <digests-file> [<tag>]
 #       Prints the overlay with every first-party image pinned by digest
 #       ("<image> <sha256:...>" per line); the caller pipes it to kubectl apply.
+#   deploy-release.sh redis-first <namespace> < app-scope.yaml
+#       Applies the Redis Issuers and Certificates of the render on stdin, waits for
+#       certificate/redis-tls, then applies the Redis StatefulSets (and their script
+#       ConfigMap) and waits for their rollout, so the previous gateway still serves its
+#       warm cache while Redis restarts (ADR-0045, issue #1112). No-op on a first
+#       deploy (no Redis yet, nothing to protect).
+#   deploy-release.sh dry-run <namespace> <node-agents-dir> < rendered.yaml
+#       Preflight (issue #805): `kubectl apply --dry-run=server` of the render
+#       on stdin, cluster scope + node agents with CLUSTER_KUBECONFIG, the rest
+#       with the current context (ADR-0041), as the deploy applies them.
+#       Nothing is changed. A namespace that does not exist yet (first deploy)
+#       skips the application part with a warning.
 #   deploy-release.sh wait <namespace> [timeout]
 #       Waits for the rollout of every Deployment: timeout (default 180s) plus
 #       the terminationGracePeriodSeconds of its pod template.
@@ -41,8 +53,37 @@ DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scrape
 # against the nodes of their own release, so these roll out and back too.
 STATEFULSETS="redis redis-sentinel"
 
+# Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
+INIT_JOBS="mysql-cluster-init mongo-audit-users mongo-dlq-users"
+
+# Documents of the render on stdin whose kind matches $1 and metadata.name $2 (regex alternations).
+redis_docs() {
+	awk -v kinds="$1" -v names="$2" '
+	function flush() {
+		if (doc ~ ("(^|\n)kind: (" kinds ")\n") && doc ~ ("(^|\n)  name: (" names ")\n")) { printf "%s%s", sep, doc; sep = "---\n" }
+		doc = ""
+	}
+	/^---[ \t]*$/ { flush(); next }
+	{ doc = doc $0 "\n" }
+	END { flush() }'
+}
+
+redis_first() {
+	local ns="$1" sts render
+	kubectl get statefulset redis -n "$ns" >/dev/null 2>&1 || return 0
+	render="$(cat)"
+	# The pods mount Secret redis-tls (ADR-0047): from a release without Redis TLS
+	# they would stay in ContainerCreating until the rest of the overlay (issue #1138).
+	redis_docs 'Issuer|Certificate' 'redis-selfsigned|redis-ca|redis-tls' <<<"$render" | kubectl apply -f - || return 1
+	kubectl wait --for=condition=Ready certificate/redis-tls -n "$ns" --timeout="$((300 * FACTOR))s" || return 1
+	redis_docs 'StatefulSet|ConfigMap' 'redis|redis-sentinel|redis-ha-scripts-[a-z0-9]+' <<<"$render" | kubectl apply -f - || return 1
+	for sts in $STATEFULSETS; do
+		kubectl rollout status "statefulset/$sts" -n "$ns" --timeout="$((300 * FACTOR))s" || return 1
+	done
+}
+
 usage() {
-	echo "usage: $0 record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | wait <ns> [timeout] | rollback <ns> <file>" >&2
+	echo "usage: $0 redis-first <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file>" >&2
 	exit 64
 }
 
@@ -79,9 +120,10 @@ release_replicas() {
 	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501).
 	kubectl delete hpa/trader-trainer-hpa -n "$ns" --ignore-not-found
 	# A Job's pod template is immutable: apply fails on a finished init Job
-	# whose template changed (labels, issue #727). Both are idempotent and
+	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.
-	kubectl delete job mongo-audit-init mongo-dlq-init -n "$ns" --ignore-not-found
+	# shellcheck disable=SC2086
+	kubectl delete job $INIT_JOBS -n "$ns" --ignore-not-found
 	for dep in $(kubectl get hpa -n "$ns" \
 		-o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
 		last=$(kubectl get deployment "$dep" -n "$ns" -o json | jq -r --arg a "$ann" '.metadata.annotations[$a] // empty')
@@ -94,8 +136,11 @@ release_replicas() {
 
 # The manifests name the images ghcr.io/trading-model/<image>: a wrapper
 # kustomization next to the overlay rewrites them to <registry>/<image>@digest.
+# A release tag (X.Y.Z) also moves the runbook_url links from blob/main/ to blob/vX.Y.Z/
+# (issue #939); the sources and the compose/K8s comparison keep main.
 render() {
-	local overlay="$1" registry="$2" digests="$3" img digest
+	local overlay="$1" registry="$2" digests="$3" tag="${4:-}" img digest ref=main
+	[[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] && ref="v$tag"
 	local wrapper
 	wrapper="$(dirname "$overlay")/.deploy-$(basename "$overlay")"
 	[ -s "$digests" ] || {
@@ -117,7 +162,52 @@ render() {
 	} >"$wrapper/kustomization.yaml"
 	# jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
 	# load restrictor rejects it and kubectl apply -k cannot relax it.
-	kubectl kustomize --load-restrictor LoadRestrictionsNone "$wrapper"
+	# Rendered to a file first: a piped kustomize that dies leaves sed with a broken pipe (run 43321359421).
+	local rendered
+	rendered="$(mktemp)"
+	kubectl kustomize --load-restrictor LoadRestrictionsNone "$wrapper" >"$rendered" || { rm -f "$rendered"; return 1; }
+	sed "s#/trading-model/blob/main/#/trading-model/blob/$ref/#g" "$rendered"
+	rm -f "$rendered"
+}
+
+# Server-side dry-run of what "Apply cluster-scope objects", "Apply SPIFFE node
+# components" and "Apply overlay" send, each with its own identity: admission,
+# schemas, immutable fields and RBAC are checked by the API server, nothing is
+# persisted. The init Jobs are left out: the real deploy deletes them first.
+dry_run() {
+	local ns="$1" agents="$2" rendered split out
+	: "${CLUSTER_KUBECONFIG:?deploy-release.sh dry-run: CLUSTER_KUBECONFIG must name the deploy-cluster kubeconfig}"
+	split="$(dirname "$0")/../../../scripts/split-cluster-scope.sh"
+	rendered="$(cat)"
+	[ -n "$rendered" ] || {
+		echo "deploy-release.sh: no manifest on stdin" >&2
+		return 64
+	}
+	echo "Cluster-scope objects (deploy-cluster):"
+	bash "$split" cluster <<<"$rendered" | KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply --dry-run=server -f -
+	echo "SPIFFE node components (deploy-cluster):"
+	kubectl kustomize "$agents" | KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply --dry-run=server -f -
+	# Only NotFound means "first deploy": Forbidden or an unreachable API fails.
+	if ! out=$(KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl get namespace "$ns" -o name 2>&1); then
+		grep -q NotFound <<<"$out" || {
+			echo "$out" >&2
+			return 1
+		}
+		echo "::warning::Namespace $ns does not exist yet (first deploy): the application part is not dry-run, the deploy creates it"
+		return 0
+	fi
+	echo "Overlay (deploy-app):"
+	bash "$split" app <<<"$rendered" | awk -v jobs=" $INIT_JOBS " '
+function flush() {
+	if (doc != "" && !(kind == "Job" && index(jobs, " " name " "))) { printf "%s%s", sep, doc; sep = "---\n" }
+	doc = ""; kind = ""; name = ""
+}
+/^---[ \t]*$/ { flush(); next }
+/^kind:[ \t]/ && kind == "" { kind = $2 }
+/^  name:[ \t]/ && name == "" { name = $2 }
+{ doc = doc $0 "\n" }
+END { flush() }
+' | kubectl apply --dry-run=server -f -
 }
 
 # Why a rollout did not finish (slow or broken), printed before the caller
@@ -180,8 +270,49 @@ wait_rollout() {
 # Every undo is issued before any wait, as apply does: a Redis server rolled
 # back alone restarts while the sentinels still name its old pod IP, waits for
 # that dead master and fails its startup probe (PR #579).
+# Release N makes MySQL refuse plain connections (require_secure_transport=ON,
+# users bound to a client certificate, issue #767). The mysql StatefulSet is
+# not rolled back, so pods of release N-1 (plain, no certificate) would never
+# turn ready (readiness runs SELECT 1): lift both through the local socket,
+# which TLS rules do not touch, before the undo. A mysqld restart re-applies
+# the ON of group-replication.cnf; the next deploy binds the users again.
+relax_mysql() {
+	local ns="$1" pod
+	# Not the label alone: the mysql-cluster-init Job pod carries it too (no mysql container).
+	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name | grep -E "/mysql-[0-9]+$"); do
+		kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
+			m() { MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "$1"; }
+			m "SET GLOBAL require_secure_transport=OFF"
+			# Only the writable member can alter users (replicated to the others).
+			if [ "$(m "SELECT @@super_read_only")" = 0 ]; then
+				m "ALTER USER IF EXISTS \"scraper\"@\"%\", \"root\"@\"%\" REQUIRE NONE"
+			fi' || return 1
+	done
+}
+
+# An OrderedReady StatefulSet waits for a pod of the failed revision to turn
+# ready before replacing it, which a stuck pod never does (Kubernetes "forced
+# rollback"). Once the controller has seen the undo, delete the pods that are
+# not ready and not on the restored revision; ready pods are left to it.
+replace_stuck_pods() {
+	local ns="$1" sts="$2" gen upd pods
+	gen=$(kubectl get "statefulset/$sts" -n "$ns" -o jsonpath='{.metadata.generation}') &&
+		kubectl wait "statefulset/$sts" -n "$ns" --for=jsonpath='{.status.observedGeneration}'="$gen" --timeout="$((60 * FACTOR))s" &&
+		upd=$(kubectl get "statefulset/$sts" -n "$ns" -o jsonpath='{.status.updateRevision}') && [ -n "$upd" ] &&
+		pods=$(kubectl get pods -n "$ns" -l "app.kubernetes.io/component=$sts" \
+			-o jsonpath='{range .items[*]}{.metadata.name} {.metadata.labels.controller-revision-hash} {.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}') ||
+		return 1
+	pods=$(awk -v upd="$upd" '$2 != upd && $3 != "True" {print $1}' <<<"$pods")
+	# shellcheck disable=SC2086
+	[ -z "$pods" ] || kubectl delete pod $pods -n "$ns"
+}
+
 rollback() {
 	local ns="$1" file="$2" dep rev failed=0 target entry undone=()
+	relax_mysql "$ns" || {
+		echo "::error::Could not lift the MySQL TLS requirement: pods of the previous release cannot connect"
+		failed=1
+	}
 	while read -r dep rev; do
 		target="$dep"
 		[[ $dep == */* ]] || target="deployment/$dep"
@@ -197,6 +328,10 @@ rollback() {
 	done <"$file"
 	for entry in "${undone[@]}"; do
 		read -r target dep rev <<<"$entry"
+		if [[ $target == statefulset/* ]] && ! replace_stuck_pods "$ns" "${target#*/}"; then
+			echo "::error::Could not replace the stuck pods of $dep"
+			failed=1
+		fi
 		# 180 s: measured in kind run 42498902230 (PR #685): the whole rollback settled in 47 s, slowest
 		# discovery-server at 33 s (drain). Kept: lowering it would also cut the real deploy.
 		if ! kubectl rollout status "$target" -n "$ns" --timeout="$((180 * FACTOR))s"; then
@@ -212,7 +347,9 @@ case "${1:-}" in
 deployments) echo $DEPLOYMENTS ;;
 record) [ $# -eq 3 ] || usage; record "$2" "$3" ;;
 release-replicas) [ $# -eq 2 ] || usage; release_replicas "$2" ;;
-render) [ $# -eq 4 ] || usage; render "$2" "$3" "$4" ;;
+render) [ $# -ge 4 ] && [ $# -le 5 ] || usage; render "$2" "$3" "$4" "${5:-}" ;;
+redis-first) [ $# -eq 2 ] || usage; redis_first "$2" ;;
+dry-run) [ $# -eq 3 ] || usage; dry_run "$2" "$3" ;;
 wait) [ $# -ge 2 ] || usage; wait_rollout "$2" "${3:-180s}" ;;
 rollback) [ $# -eq 3 ] || usage; rollback "$2" "$3" ;;
 *) usage ;;

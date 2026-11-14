@@ -8,32 +8,22 @@
  *   - src must not import its own package by name (use a relative path)
  *   - every declared `@trading-model/*` dependency must actually be imported
  *   - `dependencies` between workspaces must not form a cycle
- *   - the package inventory of docs/STATE.md and README.md equals `packages/*`
+ *   - the package inventory of README.md equals `packages/*`
  *
  * Usage: node scripts/check-deps.mjs
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { WORKSPACE_ROOTS, walk as walkFiles } from './lib/fs.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCOPE = '@trading-model/';
-const WORKSPACE_DIRS = ['packages', 'services'];
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', 'build']);
 const SOURCE_FILE = /\.(ts|tsx|js|mjs|cjs)$/;
 const TEST_FILE = /\.(spec|test)\.(ts|tsx)$/;
 const IMPORT_SPECIFIER = /["'](@trading-model\/[a-z0-9-]+)(?:\/[^"']*)?["']/g;
 
-function walk(dir, files = []) {
-  if (!existsSync(dir)) return files;
-  for (const entry of readdirSync(dir)) {
-    if (SKIP_DIRS.has(entry)) continue;
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) walk(path, files);
-    else if (SOURCE_FILE.test(entry) && !entry.endsWith('.d.ts')) files.push(path);
-  }
-  return files;
-}
+const walk = (dir) => walkFiles(dir, (file) => SOURCE_FILE.test(file) && !file.endsWith('.d.ts'));
 
 function internalNames(record = {}) {
   return Object.keys(record).filter((name) => name.startsWith(SCOPE));
@@ -51,7 +41,7 @@ function collectImports(files) {
 
 function loadWorkspaces() {
   const workspaces = [];
-  for (const group of WORKSPACE_DIRS) {
+  for (const group of WORKSPACE_ROOTS) {
     for (const entry of readdirSync(join(ROOT, group))) {
       const dir = join(ROOT, group, entry);
       const manifestPath = join(dir, 'package.json');
@@ -124,13 +114,9 @@ function checkCycles(workspaces) {
 /** Package names listed by the entry documents must be exactly the `packages/*` workspaces (issue #359). */
 function checkInventory(workspaces) {
   const real = new Set(workspaces.filter((ws) => ws.dir.startsWith(join(ROOT, 'packages'))).map((ws) => ws.name));
-  const state = readFileSync(join(ROOT, 'docs/STATE.md'), 'utf8');
   const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
-  const stateLine = state.match(/^- \*\*Packages\*\* : (.+)$/m)?.[1];
-  const stateCount = state.match(/(\d+) shared packages/)?.[1];
   const readmeTable = readme.match(/### Shared Packages\r?\n([\s\S]*?)\r?\n\r?\n/)?.[1];
   const lists = {
-    'docs/STATE.md': stateLine?.split(',').map((n) => SCOPE + n.trim()),
     'README.md': readmeTable && [...readmeTable.matchAll(/^\| `(@trading-model\/[a-z0-9-]+)`/gm)].map((m) => m[1]),
   };
   const errors = [];
@@ -141,9 +127,6 @@ function checkInventory(workspaces) {
     }
     for (const name of real) if (!names.includes(name)) errors.push(`${file}: missing package ${name}`);
     for (const name of names) if (!real.has(name)) errors.push(`${file}: lists ${name}, not in packages/`);
-  }
-  if (stateCount && Number(stateCount) !== real.size) {
-    errors.push(`docs/STATE.md: says ${stateCount} packages, packages/ has ${real.size}`);
   }
   return errors;
 }

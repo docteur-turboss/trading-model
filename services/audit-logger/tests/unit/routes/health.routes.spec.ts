@@ -1,29 +1,28 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { createNext, createReq, createRes } from "../../helpers/express";
+import {
+	mockCatchSyncModule,
+	mockSendResponseModule,
+} from "../../helpers/middleware-mocks";
 
-const MOCK_ROUTER = {
-	get: jest.fn<(...args: any[]) => any>(),
-};
-const MOCK_CONTROLLER = { health: jest.fn<(...args: any[]) => any>() };
-
-jest.mock("express", () => ({
-	Router: jest.fn((..._args: any[]) => MOCK_ROUTER),
-}));
-
-jest.mock("../../../src/adapters/inbound/http/health.controller", () => ({
-	createHealthController: jest.fn((..._args: any[]) => MOCK_CONTROLLER),
-}));
+jest.mock(
+	"@trading-model/http/adapters/inbound/catch-error",
+	() => mockCatchSyncModule
+);
+jest.mock(
+	"@trading-model/http/adapters/inbound/response-exception",
+	() => mockSendResponseModule
+);
 
 import { healthRoutes } from "../../../src/adapters/inbound/http/health.routes";
 
 describe("healthRoutes", () => {
-	it("should register GET /health on the controller", () => {
-		const router = healthRoutes();
+	it("should return 200 with the status and a timestamp", async () => {
+		const handler = (healthRoutes() as any).stack[0].route.stack[0].handle;
+		const result = await handler(createReq(), createRes(), createNext);
 
-		expect(router).toBe(MOCK_ROUTER);
-		expect(MOCK_ROUTER.get).toHaveBeenCalledTimes(1);
-		expect(MOCK_ROUTER.get).toHaveBeenCalledWith(
-			"/health",
-			MOCK_CONTROLLER.health
-		);
+		expect(result).toMatchObject({ status: 200 });
+		expect((result as any).data).toMatchObject({ status: "ok" });
+		expect((result as any).data).toHaveProperty("timestamp");
 	});
 });

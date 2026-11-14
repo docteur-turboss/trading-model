@@ -2,13 +2,14 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
 import {
-	type ProxyDeps,
-	UpstreamResponseTooLargeError,
-} from "../../src/application/ports";
-import {
 	proxyAndCache,
 	tryServeFromCache,
 } from "../../src/application/proxy-dispatcher";
+import {
+	type ProxyDeps,
+	UpstreamResponseTooLargeError,
+} from "../../src/domain/ports/gateway.port";
+import { PROXY_REQUEST_DURATION_SECONDS } from "../../src/infrastructure/config/metrics";
 
 const CTX = {
 	serviceName: "svc" as never,
@@ -26,6 +27,31 @@ function deps(body = '{"a":1}', status = 200) {
 }
 
 describe("proxyAndCache", () => {
+	const observe = jest.spyOn(PROXY_REQUEST_DURATION_SECONDS, "observe");
+	const GET = { method: "GET", headers: {} } as Request;
+	beforeEach(() => observe.mockClear());
+
+	it("observes the duration once with the upstream status", async () => {
+		await proxyAndCache(GET, TARGET, CTX, deps("{}", 204));
+		expect(observe).toHaveBeenCalledTimes(1);
+		expect(observe).toHaveBeenCalledWith(
+			{ service: "svc", status: "204" },
+			expect.any(Number)
+		);
+	});
+
+	it("observes once with 502 (too large) and once with 503 (other)", async () => {
+		const d = deps();
+		d.forward.mockRejectedValueOnce(new UpstreamResponseTooLargeError(8));
+		await proxyAndCache(GET, TARGET, CTX, d);
+		d.forward.mockRejectedValueOnce(new Error("boom"));
+		await proxyAndCache(GET, TARGET, CTX, d);
+		expect(observe.mock.calls.map(([labels]) => labels)).toEqual([
+			{ service: "svc", status: "502" },
+			{ service: "svc", status: "503" },
+		]);
+	});
+
 	it("forwards and caches a GET 200", async () => {
 		const d = deps();
 		const req = { method: "GET", headers: {} } as Request;

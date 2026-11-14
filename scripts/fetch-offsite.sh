@@ -14,7 +14,8 @@
 #      component `mongodb`: both replica sets; `mongodb-audit`: the audit one
 #    mysql/financial_scraper_<TS>.sql.gz.age
 #    checkpoints/checkpoints_<TS>.tar.gz.age
-#    spire/keys_<TS>.json.age
+#    spire/data_<TS>.tar.age                     (SQLite datastore + CA keys, ADR-0065;
+#      spire/keys_<TS>.json.age in runs taken before it)
 #    manifests/manifest_<TS>.json.age            (run manifest, backup-lib.sh)
 #  then: BACKUP_DIR=DIR bash scripts/restore-k8s.sh --timestamp TS
 #
@@ -40,8 +41,7 @@
 #  so a run missing a file had a failed dump: it is skipped (and refused with
 #  --timestamp). The manifest is fetched with the run: restore-k8s.sh checks
 #  every file against it (size, sha256). It is encrypted, so it is not read
-#  here. A run taken before manifests is only fetched with --timestamp (and
-#  restored without checksum). Only `*.age` files are fetched: nothing is
+#  here. A run without manifest is refused. Only `*.age` files are fetched: nothing is
 #  decrypted, no plaintext is written. DIR must hold no file, so that runs are
 #  never mixed. Exits 1 when the bucket is unreachable or empty, or when no
 #  run is complete for the requested components.
@@ -102,7 +102,14 @@ component_files() {
       ! $PITR || echo "mysql/financial_scraper_$2.pitr.age"
       ;;
     checkpoints) echo "checkpoints/checkpoints_$2.tar.gz.age" ;;
-    spire) echo "spire/keys_$2.json.age" ;;
+    # data_ since ADR-0065 (datastore + CA keys), keys_ before it.
+    spire)
+      if grep -qxF "spire/data_$2.tar.age" <<<"$LISTING"; then
+        echo "spire/data_$2.tar.age"
+      else
+        echo "spire/keys_$2.json.age"
+      fi
+      ;;
   esac
 }
 
@@ -141,7 +148,7 @@ manifest_file() {
 
 # Timestamps of the runs present in the listing on stdin, oldest first.
 run_timestamps() {
-  grep -oE "^(mongodb/${TS_PATTERN}/|mysql/financial_scraper_${TS_PATTERN}|checkpoints/checkpoints_${TS_PATTERN}|spire/keys_${TS_PATTERN}|manifests/manifest_${TS_PATTERN})" |
+  grep -oE "^(mongodb/${TS_PATTERN}/|mysql/financial_scraper_${TS_PATTERN}|checkpoints/checkpoints_${TS_PATTERN}|spire/(keys|data)_${TS_PATTERN}|manifests/manifest_${TS_PATTERN})" |
     grep -oE "$TS_PATTERN" | sort -u
 }
 
@@ -156,11 +163,6 @@ missing_files() {
   done
   file="$(manifest_file "$1")"
   grep -qxF "$file" <<<"$LISTING" || echo "$file"
-}
-
-# Dumps of run `$1` missing from LISTING (manifest left out).
-missing_dumps() {
-  missing_files "$1" | grep -vxF "$(manifest_file "$1")" || true
 }
 
 if [ -z "$DEST" ] && ! $DRY_RUN; then
@@ -260,8 +262,7 @@ while read -r ts; do
     log "  run ${ts}: incomplete, missing $(tr '\n' ' ' <<<"$missing")"
   fi
   if [ -n "$TIMESTAMP" ]; then
-    # Explicit run: one taken before manifests is still accepted.
-    [ "$ts" = "$TIMESTAMP" ] && [ -z "$(missing_dumps "$ts")" ] && SELECTED="$ts"
+    [ "$ts" = "$TIMESTAMP" ] && [ -z "$missing" ] && SELECTED="$ts"
   elif [ -z "$missing" ]; then
     # Oldest first: the last complete run wins.
     SELECTED="$ts"
@@ -270,14 +271,14 @@ done <<<"$RUNS"
 
 if [ -n "$TIMESTAMP" ] && [ -z "$SELECTED" ]; then
   if grep -qxF "$TIMESTAMP" <<<"$RUNS"; then
-    fail "Run ${TIMESTAMP} is incomplete for ${PARTS[*]}: missing $(missing_dumps "$TIMESTAMP" | tr '\n' ' ')"
+    fail "Run ${TIMESTAMP} is incomplete for ${PARTS[*]}: missing $(missing_files "$TIMESTAMP" | tr '\n' ' ')"
   else
     fail "No run ${TIMESTAMP} in ${BUCKET}"
   fi
   exit 1
 fi
 if [ -z "$SELECTED" ]; then
-  fail "No complete run (every dump and its run manifest) in ${BUCKET} for ${PARTS[*]}; a run taken before manifests is fetched with --timestamp"
+  fail "No complete run (every dump and its run manifest) in ${BUCKET} for ${PARTS[*]}"
   case "$TIER" in
     weekly|monthly) warn "The ${TIER} tier only holds the audit trail and the MySQL dump (no PITR starting point): try --components mongodb-audit,mysql without --pitr" ;;
   esac
@@ -288,11 +289,7 @@ FILES=()
 for part in "${PARTS[@]}"; do
   while read -r file; do FILES+=("$file"); done < <(component_files "$part" "$SELECTED")
 done
-if grep -qxF "$(manifest_file "$SELECTED")" <<<"$LISTING"; then
-  FILES+=("$(manifest_file "$SELECTED")")
-else
-  warn "Run ${SELECTED} has no run manifest (taken before manifests): restore-k8s.sh restores it without checksum"
-fi
+FILES+=("$(manifest_file "$SELECTED")")
 ok "Selected run ${SELECTED} (${#FILES[@]} file(s))"
 if $PITR; then
   ARCHIVES=0
@@ -333,7 +330,7 @@ done
 echo ""
 ok "Run ${SELECTED} fetched in $((SECONDS - started)) s ($(du -sh "$DEST" | cut -f1))"
 echo "══════════════════════════════════════════════════"
-echo "  Restore it (MySQL before SPIRE, writers stopped):"
+echo "  Restore it (writers stopped):"
 echo "  BACKUP_DIR=${DEST} BACKUP_AGE_IDENTITY=<key file> \\"
 if $PITR; then
   echo "    bash scripts/restore-k8s.sh --until <instant, UTC> --components $(IFS=,; echo "${PARTS[*]}")"

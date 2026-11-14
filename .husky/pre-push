@@ -5,6 +5,8 @@ bun run adr:check
 bun run reach:check
 bun run arch:check
 bun run config:check
+bun run compliance:check
+bun run compose-ports:check
 bun scripts/observability-gate.mjs
 bun run build
 bun run typecheck:tests

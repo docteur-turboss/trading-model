@@ -13,12 +13,13 @@ import { RedisMessageJournal } from "../../src/adapters/outbound/redis-message-j
 import { DeliveryWorker } from "../../src/application/services/delivery-worker";
 import { Dispatcher } from "../../src/application/services/dispatcher";
 import { SubscriptionRegistry } from "../../src/application/services/subscription-registry";
+import type { JournalGroup } from "../../src/domain/ports/message-journal.port";
 import {
 	createMockMessage,
 	mockServiceIdentity,
 	mockSubscribeParams,
 } from "../fixtures/broker.fixture";
-import { createMockHttpClient } from "../helpers/broker.helper";
+import { createMockHttpClient, runWorker } from "../helpers/broker.helper";
 
 jest.mock("../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: jest
@@ -42,10 +43,10 @@ const journalOn = (redis: Redis, minReplicas = 0) =>
 
 const stream = () => `${KEY_PREFIX}:journal:${mockSubscribeParams.topic}`;
 
-const GROUP = {
+const GROUP: JournalGroup = {
 	topic: mockSubscribeParams.topic,
 	service: mockSubscribeParams.serviceIdentity.serviceName,
-} as never;
+};
 const RETRY_NOW = { floorMs: 0, dueAfterMs: () => 0 };
 
 const metadata = {
@@ -264,7 +265,7 @@ describe("accepted message interrupted by a process stop — real Redis", () => 
 		expect(before.http.post).not.toHaveBeenCalled();
 
 		const after = process_();
-		await after.worker.tick();
+		await runWorker(after.worker);
 
 		expect(after.http.post).toHaveBeenCalledTimes(1);
 		const body = after.http.post.mock.calls[0]?.[1] as {

@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import type {
 	DurationMs,
 	InstanceId,
@@ -6,17 +6,18 @@ import type {
 } from "@trading-model/primitives/primitives";
 import type { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
 import type { ServiceHealthChecker } from "../adapters/outbound/discovery/service-health-checker";
-import type { IServiceCache } from "../domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../domain/ports/service-cache.port";
 import type { ShutdownHandler } from "../infrastructure/shutdown-handler";
 import type { TokenManager } from "./client/token-manager";
 import type { HeartbeatManager } from "./heartbeat-manager";
 import { SteadyStateScheduler } from "./scheduler/steady-state-scheduler";
 
+/** Options of LifecycleManager: registration, heartbeat, cache and intervals. */
 export interface LifecycleManagerOptions {
 	registrationManager: { tryStickyRegistration(): Promise<void> };
 	heartbeatManager: HeartbeatManager;
 	shutdownHandler: ShutdownHandler;
-	serviceCache: IServiceCache;
+	serviceCache: ServiceCachePort;
 	serviceName: ServiceId;
 	instanceId: InstanceId;
 	tokenRefreshIntervalMs: number;
@@ -27,6 +28,7 @@ export interface LifecycleManagerOptions {
 	healthChecker: ServiceHealthChecker;
 }
 
+/** Handle returned by start: wait for readiness, stop, or leave the discovery. */
 export interface LifecycleHandle {
 	ready: Promise<void>;
 	stop: () => void;
@@ -37,6 +39,7 @@ export interface LifecycleHandle {
 	leave: () => Promise<void>;
 }
 
+/** Runs the registration, heartbeat and scheduled jobs of the service, from start to shutdown. */
 export class LifecycleManager {
 	private _started = false;
 
@@ -65,7 +68,9 @@ export class LifecycleManager {
 	}
 
 	private _returnExistingHandle(): LifecycleHandle {
-		logger.warn("AddressManager already started — returning existing handle");
+		getLogger().warn(
+			"AddressManager already started — returning existing handle"
+		);
 		return {
 			ready: Promise.resolve(),
 			stop: () => {

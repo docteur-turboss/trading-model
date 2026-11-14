@@ -11,7 +11,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 **Key characteristics:**
 
 - 7 backend microservices (Node.js/TypeScript/Express)
-- Event-driven architecture (message-manager: HTTP push broker, in-memory dispatch, ADR-0012)
+- Event-driven architecture (message-manager: HTTP push broker, durable Redis Streams journal 24 h, ADR-0048)
 - mTLS via SPIFFE/SPIRE workload identity (ADR-0011)
 - Self-hosted databases (MongoDB, MySQL, Redis)
 
@@ -34,16 +34,16 @@ The trading-model platform is a microservices-based algorithmic trading research
 | **Likelihood**  | Low — no user creation endpoints exist. Only service-to-service communication                                                                                                                                             |
 | **Impact**      | Medium — if PII accidentally entered via log messages or payloads                                                                                                                                                         |
 | **Severity**    | Acceptable                                                                                                                                                                                                                |
-| **Mitigations** | Edge-proxy access log truncates the caller IP and omits query string, User-Agent and X-Forwarded-For; the gateway drops `X-Real-IP`. Quadruple-layer log redaction (Pino redact paths × 16 patterns, JSON stringifier regex × 21 patterns including IP/network fields, PEM sanitization, IP anonymization). Payload sanitizer anti-injection. IP addresses are anonymized at source before logging. If PII is ever introduced, these layers redact before persistence |
+| **Mitigations** | Ingress controller access log disabled (K8s prerequisite, no full IP/User-Agent/Referer on the node); edge-proxy reads the real caller IP from the controller's `X-Forwarded-For`. Edge-proxy access log truncates the caller IP and omits query string, User-Agent and X-Forwarded-For; the gateway drops `X-Real-IP`. Log redaction by `sensitive-data-sanitizer.ts` (11 sensitive-key patterns including IP/network keys, PEM stripping). Payload sanitizer anti-injection. IP addresses are anonymized at source before logging. If PII is ever introduced, this redaction applies before persistence |
 
 ### Risk 2: Secret Key Exposure
 
 | Dimension       | Assessment                                                                                                        |
 | --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Likelihood**  | Low — mTLS everywhere, SecureKeyStore, AES-256-GCM at rest, automountServiceAccountToken: false                   |
+| **Likelihood**  | Low — mTLS between services, SecureKeyStore, AES-256-GCM at rest, automountServiceAccountToken: false                   |
 | **Impact**      | High — compromise of SPIRE CA keys / SVIDs or service tokens could disrupt platform security                                    |
 | **Severity**    | Tolerable (not PII-related)                                                                                       |
-| **Mitigations** | Automatic SVID rotation (1h TTL), backup CronJob daily, incident response procedure, SealedSecrets for K8s |
+| **Mitigations** | Automatic SVID rotation (4h TTL), backup CronJob daily, incident response procedure, SealedSecrets for K8s |
 
 ### Risk 3: Binance Data Transfer (Cayman Islands)
 
@@ -68,12 +68,12 @@ The trading-model platform is a microservices-based algorithmic trading research
 | Measure                          | Status         | Details                                                |
 | -------------------------------- | -------------- | ------------------------------------------------------ |
 | Minimal PII architecture         | ✅ Implemented | No accounts or profiles. Caller IPs truncated by the edge-proxy before logging and forwarding; application logs truncate IPs; context fields sanitized before MongoDB persistence |
-| TLS 1.3 mTLS everywhere          | ✅ Implemented | All inter-service communication encrypted              |
+| TLS 1.3 mTLS between services    | ⚠️ Partial     | Service-to-service HTTP only. Database client traffic to MongoDB and Redis is plain TCP in the cluster; NetworkPolicies and per-service credentials protect it, residual risk accepted in ADR-0060, TLS planned (#930, #769); MySQL is TLS with client certificates and `require` (#767) |
 | AES-256-GCM encryption at rest   | ✅ Implemented | SPIRE datastore, discovery cache, filesystem fallback          |
 | Storage & backup encryption      | ✅ Implemented | LUKS2 data disks unlocked by Clevis/Tang (`deploy/host/`); every backup age-encrypted before it is written or copied off-site |
-| Triple-layer log redaction       | ✅ Implemented | Pino + JSON regex + PEM sanitization + IP anonymization + context key sanitization before persistence |
+| Log redaction                    | ✅ Implemented | `sensitive-data-sanitizer.ts`: 11 sensitive-key patterns (credentials, IP keys) redacted to `[REDACTED]`, plus PEM blocks stripped by `sanitizeForLog`, before persistence |
 | Append-only audit trail          | ✅ Implemented | MongoDB with correlation IDs + gap detection           |
-| Automatic TTL-based retention    | ⚠️ Partial     | MongoDB TTL indexes (1827 days audit, 30 days DLQ), Loki 31 days, Prometheus 30 days, backups 30 days. MySQL market data not bounded (action #2) |
+| Automatic TTL-based retention    | ⚠️ Partial     | MongoDB TTL indexes (1827 days audit, 30 days DLQ), Loki 31 days, Prometheus 30 days, backups 30 days. MySQL market data 1827 days via `db-retention` (action #2, ADR-0051), message journal 24 h |
 | RBAC service isolation           | ✅ Implemented | K8s ServiceAccounts, Network Policies                  |
 | SecureKeyStore memory protection | ✅ Implemented | Zeroed buffers, heap dump protection                   |
 
@@ -82,7 +82,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 | #   | Action                                                                                               | Priority     | Deadline        |
 | --- | ---------------------------------------------------------------------------------------------------- | ------------ | --------------- |
 | 1   | ~~Extend audit trail retention from 90 days to 1827 days (5 years)~~ | ✅ Completed | Done (env.ts default: 1827) |
-| 2   | Add TTL to MySQL market data tables to prevent unbounded accumulation                                | 🔴 High      | By next release |
+| 2   | Bound MySQL market data (CronJob `db-retention`, 1827 days, ADR-0051)                                | ✅ Done      | Done 2026-11 |
 | 3   | ~~Configure MongoDB/MySQL encryption at rest~~ (storage layer: LUKS2 + Clevis/Tang data disks, age-encrypted backups, [Encryption at Rest](../deployment/ENCRYPTION_AT_REST.md)) | ✅ Completed | Done |
 | 4   | Document Binance DPA or formal third-party assessment                                                | ✅ Completed | Done            |
 
@@ -93,6 +93,6 @@ The trading-model platform is a microservices-based algorithmic trading research
 1. The only personal data is a truncated caller IP kept 31 days for security — no large-scale processing, no profiling, no special categories
 2. The residual risks (secret exposure, data transfer) are mitigated by encryption, rotation, and procedural safeguards
 3. The DPIA confirms that data protection by design and by default is effectively implemented
-4. The identified action items (audit retention, MySQL TTL) are operational improvements, not GDPR compliance gaps
+4. The identified action items (audit retention, MySQL retention: done, ADR-0051) are operational improvements, not GDPR compliance gaps
 
-**Overall DPIA status:** Compliant — personal data limited to truncated caller IPs (31 days); open item: MySQL market data retention (action #2, not a GDPR item: no personal data).
+**Overall DPIA status:** Compliant — personal data limited to truncated caller IPs (31 days).

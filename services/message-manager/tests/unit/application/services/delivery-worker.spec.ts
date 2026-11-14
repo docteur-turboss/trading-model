@@ -3,6 +3,7 @@ jest.mock("../../../../src/config/address-manager", () => ({
 }));
 
 import { DeliveryWorker } from "../../../../src/application/services/delivery-worker";
+import { runWorker } from "../../../helpers/broker.helper";
 
 describe("DeliveryWorker.stop", () => {
 	it("closes the journal again once the loops ended, so a reader reopened meanwhile is released", async () => {
@@ -35,5 +36,40 @@ describe("DeliveryWorker.stop", () => {
 		release([]);
 		await stopping;
 		expect(events).toEqual(["close", "registry-done", "close"]);
+	});
+});
+
+describe("DeliveryWorker with an open circuit", () => {
+	it("does not claim pending entries, so their attempts are not consumed", async () => {
+		const journal = {
+			groups: jest.fn().mockResolvedValue([{ topic: "t", service: "svc" }]),
+			claimDue: jest.fn().mockResolvedValue([]),
+			// Resolves on a timer like a blocking read, so the loop yields to the event loop.
+			readNew: jest.fn(
+				() => new Promise((resolve) => setTimeout(resolve, 10, []))
+			),
+		};
+		const registry = {
+			getSubscriptions: jest
+				.fn()
+				.mockResolvedValue([
+					{ serviceIdentity: { serviceName: "svc" }, callbackPath: "/cb" },
+				]),
+		};
+		const worker = new DeliveryWorker({
+			journal,
+			registry,
+			deliveryPort: {},
+		} as never);
+		const subscriptions = (
+			worker as never as { _subscriptions: Map<string, unknown> }
+		)._subscriptions;
+		subscriptions.set("t|svc", {
+			callbackPath: "/cb",
+			isCircuitOpen: () => true,
+		});
+		await runWorker(worker);
+		expect(journal.claimDue).not.toHaveBeenCalled();
+		expect(journal.readNew).toHaveBeenCalled();
 	});
 });

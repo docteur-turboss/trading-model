@@ -28,8 +28,8 @@ This register documents the processing activities of the trading-model platform,
 | **Data categories**      | Trading symbols (e.g., BTCUSDT), numeric price/volume data, timestamps, market identifiers                                        |
 | **Personal data**        | None                                                                                                                              |
 | **Recipients**           | Internal: trader-trainer, audit-logger, message-manager                                                                           |
-| **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. See third-party assessment |
-| **Retention period**     | **Not bounded yet.** Target 5 years (record-keeping, see [Data Retention Policy](data-retention-policy.md)); the former MySQL purge event was removed from migration 003 (audit A9) and its out-of-schema replacement is open (DPIA action #2) |
+| **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. Signal sources (ADR-0036): each request sends the User-Agent `automated news analysis <SIGNAL_CONTACT_EMAIL>` to ECB, SEC EDGAR (United States), NWS (United States) and Wikimedia (United States, Art. 44 transfer). `SIGNAL_CONTACT_EMAIL` must be a functional, non-nominative address (project alias, never a person's e-mail): then no personal data is sent and no Art. 44 transfer of personal data occurs. The real address stays out of the repository. See third-party assessment |
+| **Retention period**     | 1827 days (5 years, record-keeping, see [Data Retention Policy](data-retention-policy.md)): daily CronJob `db-retention` (`scripts/retention-mysql.sh`, `RETENTION_DAYS`; `signals` on `RETENTION_SIGNALS_DAYS`), ADR-0051 |
 | **Technical measures**   | mTLS (SPIFFE SVIDs), LUKS2 data disks, age-encrypted backups, RBAC service accounts                                               |
 | **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers, market_order_books, signals). `signals` (ADR-0036) holds numeric observations of public sources free for any use: bond yields (ECB), company filings (SEC EDGAR), weather observations (NWS), daily Wikipedia page views (Wikimedia, counts only); see [Third-Party DPAs](third-party-dpas.md#signal-sources-adr-0036) |
 
@@ -42,8 +42,8 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None                                                                                                      |
 | **Recipients**           | Internal platform services only                                                                           |
 | **Transfers outside EU** | None — all services are self-hosted                                                                       |
-| **Retention period**     | message-manager: in memory for the delivery only (Redis is used for readiness, not for messages). DLQ: 30 days (TTL index on `createdAt`), capped at `MAX_ENTRIES` (100 000) |
-| **Technical measures**   | mTLS everywhere, payload sanitization, deduplication                                                      |
+| **Retention period**     | message-manager: payloads journaled 24 h in Redis Streams (`JOURNAL_RETENTION_MS` = 24 h, `XADD … MINID` trim; AOF + replication; ACL user `message-manager`, ADR-0048), no personal data by design. DLQ: 30 days (TTL index on `createdAt`), capped at `MAX_ENTRIES` (100 000) |
+| **Technical measures**   | mTLS between services (not toward databases, ADR-0060), payload sanitization, deduplication                                                      |
 | **System**               | message-manager (HTTP push) → dlq-service → MongoDB (`dlq_entries`)                                       |
 
 ## Processing Activity 3: Audit Logging
@@ -68,9 +68,9 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None — service identities only                                                                                                 |
 | **Recipients**           | All platform services (SVID distribution via `spiffe-helper` sidecars)                                                        |
 | **Transfers outside EU** | None                                                                                                                           |
-| **Retention period**     | SVIDs: 1h TTL (auto-rotated). Trust bundle: 168h (ca_ttl). SPIRE datastore entries: workload lifecycle                         |
+| **Retention period**     | SVIDs: 4h TTL (auto-rotated, ADR-0065). Trust bundle: 168h (ca_ttl). SPIRE datastore entries: workload lifecycle                         |
 | **Technical measures**   | Workload attestation (docker / k8s_psat), short-lived SVIDs, automatic rotation                                               |
-| **System**               | SPIRE Server → SPIRE Agent → spiffe-helper (datastore: MySQL `spire`)                                                           |
+| **System**               | SPIRE Server → SPIRE Agent → spiffe-helper (datastore: SQLite on its volume)                                                         |
 
 ## Processing Activity 5: ML Training Data
 
@@ -96,7 +96,8 @@ This register documents the processing activities of the trading-model platform,
 | **Recipients**           | Internal: operators (Grafana/Loki)                                                                                 |
 | **Transfers outside EU** | None — Loki is self-hosted                                                                                         |
 | **Retention period**     | 31 days (Loki `retention_period: 744h`)                                                                            |
-| **Technical measures**   | Truncation in nginx before the log line is written (`log_format anonymized`, `deploy/edge-proxy/default.conf`); the gateway forwards only an anonymized `X-Forwarded-For` and drops `X-Real-IP` |
+| **Technical measures**   | Ingress controller in front (K8s): access log disabled (`disable-access-log`, prerequisite in `docs/deployment/KUBERNETES.md`), so no full IP, User-Agent or Referer is written on the node; node-level `error_log` rotated at 7 days or less. The edge-proxy takes the caller IP from `X-Forwarded-For` only when the connection comes from a pod CIDR (`deploy/edge-proxy/realip.k8s.inc`). Truncation in nginx before the log line is written (`log_format anonymized`, `deploy/edge-proxy/default.conf`); the edge-proxy error log cannot be truncated, so `error_log /dev/stderr crit;` keeps `client: <IP>` lines out of it (upstream failures stay visible as 502/504 in the access log; raw node logs rotate at 7 days or less); the gateway forwards only an anonymized `X-Forwarded-For` and drops `X-Real-IP` |
+| **Ingress controller (K8s)** | Access log disabled: no log line, so no retention. Format: none. Its `error_log` has no request line but may show the peer IP; node log rotation of 7 days or less is a production prerequisite (`docs/deployment/KUBERNETES.md`) |
 | **System**               | edge-proxy (stdout) → Promtail → Loki                                                                              |
 
 ## Processing Activity 7: Operational Telemetry and Backups
@@ -106,8 +107,8 @@ This register documents the processing activities of the trading-model platform,
 | **Purpose**              | Monitoring, tracing, alerting; disaster recovery                                                                   |
 | **Data categories**      | Service logs, metrics, traces (pod addresses, service names); database dumps of activities 1–4                     |
 | **Personal data**        | None (application logs truncate IPs and redact sensitive keys). Backups contain no personal data since activities 1–4 hold none |
-| **Recipients**           | Internal: operators. Alerts: Slack (alert names and labels only). Backups: off-site S3 store, age-encrypted before upload |
-| **Transfers outside EU** | Depends on the region of the off-site S3 store and of Slack — to be recorded by the operating entity               |
+| **Recipients**           | Internal: operators. Alerts: Slack or Discord, Pushover, dead man's switch (alert names, labels, descriptions and runbook links only). Backups: off-site S3 store, age-encrypted before upload. Audit anchors: S3 Object Lock bucket (hashes only). Sheets: `third-party-dpas.md` |
+| **Transfers outside EU** | Depends on the region of the off-site S3 store, of the audit-anchor bucket and on the alert providers (Slack or Discord, Pushover, dead man's switch) — to be recorded by the operating entity in the sheets of `third-party-dpas.md`. Requirement: backup bucket in an EU region (`BACKUP_S3_ALLOWED_REGIONS`, checked by `deploy.yml`); the audit-anchor bucket must follow it (not checked) |
 | **Retention period**     | Loki: 31 days. Prometheus: 30 days. Jaeger: 72 hours (Badger on the PVC `jaeger-data`, `BADGER_SPAN_STORE_TTL`, ADR-0055). Backups (ADR-0032): 30 days locally (`RETENTION_DAYS`, dailies only); off-site daily 31 days, plus for the audit trail and the MySQL dump weekly 12 weeks and monthly 60 months (bucket lifecycle rules per prefix) |
 | **Technical measures**   | LUKS2 data disks, age encryption of every dump before it is written, only `.age` files copied off-site             |
 | **System**               | Promtail → Loki, Prometheus, Jaeger, Alertmanager; `db-backup` CronJob / `scripts/backup*.sh`                      |
@@ -118,10 +119,10 @@ This register documents the processing activities of the trading-model platform,
 
 | Activity                 | Personal Data?      | Legal Basis         | Retention                    | Transfers                    |
 | ------------------------ | ------------------- | ------------------- | ---------------------------- | ---------------------------- |
-| Market Data Ingestion    | ❌ None             | —                   | Not bounded yet (target 5 y) | Received from Binance        |
-| Message Routing          | ❌ None             | —                   | In memory; DLQ 30 days       | None                         |
+| Market Data Ingestion    | ❌ None             | —                   | 1827 days (`db-retention`) | Received from Binance; functional contact address sent to signal sources (US included) |
+| Message Routing          | ❌ None             | —                   | Redis journal 24 h; DLQ 30 days       | None                         |
 | Audit Logging            | ❌ None             | —                   | 5 years (1827 days)          | None                         |
-| Workload Identity        | ❌ None             | —                   | 1h–168h                      | None                         |
+| Workload Identity        | ❌ None             | —                   | 4h–168h                      | None                         |
 | ML Training              | ❌ None             | —                   | Per-agent                    | None                         |
 | API Access Logs          | ✅ Truncated IP     | Legitimate interest | 31 days                      | None                         |
 | Telemetry and Backups    | ❌ None             | —                   | 30–31 days                   | Off-site store / Slack (TBD) |

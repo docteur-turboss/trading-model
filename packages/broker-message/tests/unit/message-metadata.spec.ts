@@ -8,7 +8,6 @@ import type {
 	CorrelationId,
 	DurationMs,
 	InstanceId,
-	MessageId,
 	MessagePriority,
 	Role,
 	ServiceId,
@@ -117,25 +116,6 @@ describe("MessageMetadataBuilder", () => {
 		});
 	});
 
-	describe("setPublisher", () => {
-		it("should set publisher", () => {
-			const m = buildMinimalMetadata();
-			m.setPublisher({
-				serviceName:
-					ServiceInstanceName.DiscoveryService as unknown as ServiceId,
-				instanceId: "550e8400-e29b-41d4-a716-446655440000" as InstanceId,
-			});
-			expect(m.toJSON().publisher.serviceName).toBe(
-				ServiceInstanceName.DiscoveryService
-			);
-		});
-
-		it("should throw on invalid publisher", () => {
-			const m = buildMinimalMetadata();
-			expect(() => m.setPublisher({} as any)).toThrow();
-		});
-	});
-
 	describe("toJSON", () => {
 		it("should return complete metadata", () => {
 			const result = buildMinimalMetadata().toJSON();
@@ -162,47 +142,6 @@ describe("MessageMetadataBuilder", () => {
 			});
 			m.setDelivery(null);
 			expect(m.toJSON().delivery).toBeUndefined();
-		});
-	});
-
-	describe("setRouting", () => {
-		it("should set routing info", () => {
-			const m = buildMinimalMetadata().setRouting({
-				partitionKey: "key-1" as CorrelationId,
-			});
-			expect(m.toJSON().routing?.partitionKey).toBe("key-1");
-		});
-
-		it("should clear routing when null", () => {
-			const m = buildMinimalMetadata().setRouting({
-				partitionKey: "key-1" as CorrelationId,
-			});
-			m.setRouting(null);
-			expect(m.toJSON().routing).toBeUndefined();
-		});
-
-		it("should clear routing when undefined", () => {
-			const m = buildMinimalMetadata().setRouting({
-				partitionKey: "key-1" as CorrelationId,
-			});
-			m.setRouting(undefined as any);
-			expect(m.toJSON().routing).toBeUndefined();
-		});
-	});
-
-	describe("setSchemaVersion", () => {
-		it("should default to 1.0.0", () => {
-			expect(buildMinimalMetadata().toJSON().schemaVersion).toBe("1.0.0");
-		});
-
-		it("should reset to default when null", () => {
-			const m = buildMinimalMetadata().setSchemaVersion(null);
-			expect(m.toJSON().schemaVersion).toBe("1.0.0");
-		});
-
-		it("should set a valid schema version", () => {
-			const m = buildMinimalMetadata().setSchemaVersion("1.0.0");
-			expect(m.toJSON().schemaVersion).toBe("1.0.0");
 		});
 	});
 
@@ -266,15 +205,20 @@ describe("MessageMetadataBuilder", () => {
 
 	describe("toJSON edge cases", () => {
 		it("should return metadata with all fields including delivery, routing, security", () => {
-			const m = buildMinimalMetadata()
+			const m = new MessageMetadataBuilder(
+				TEST_TOPIC as Topic,
+				TEST_EVENT,
+				TEST_PUBLISHER,
+				{
+					routing: {
+						partitionKey: "key-1" as CorrelationId,
+						priority: 10 as MessagePriority,
+					},
+				}
+			)
 				.setDelivery({
 					mode: DeliveryMode.AtLeastOnce,
 					ttl: 5000 as DurationMs,
-					deduplicationId: "dedup-1" as MessageId,
-				})
-				.setRouting({
-					partitionKey: "key-1" as CorrelationId,
-					priority: 10 as MessagePriority,
 				})
 				.setSecurity({
 					authContext: {
@@ -292,7 +236,6 @@ describe("MessageMetadataBuilder", () => {
 			const result = m.toJSON();
 			expect(result.delivery?.mode).toBe("at-least-once");
 			expect(result.delivery?.ttl).toBe(5000);
-			expect(result.delivery?.deduplicationId).toBe("dedup-1");
 			expect(result.routing?.partitionKey).toBe("key-1");
 			expect(result.routing?.priority).toBe(10);
 			expect(result.security?.authContext?.subject).toBe("service-a");
@@ -309,10 +252,6 @@ describe("MessageMetadataBuilder", () => {
 			expect(() =>
 				buildMinimalMetadata().setDelivery({ mode: "invalid-mode" } as any)
 			).toThrow();
-		});
-
-		it("should throw on invalid schema version", () => {
-			expect(() => buildMinimalMetadata().setSchemaVersion("2.0.0")).toThrow();
 		});
 
 		it("should throw on invalid causation id uuid format", () => {

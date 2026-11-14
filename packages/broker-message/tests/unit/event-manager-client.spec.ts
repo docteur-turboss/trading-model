@@ -5,7 +5,7 @@ import { EVENT_MANAGER } from "../../src/application/services/event-manager-clie
 
 describe("EVENT_MANAGER", () => {
 	beforeEach(() => {
-		EVENT_MANAGER.removeAllListeners?.();
+		(EVENT_MANAGER as any)._emitter.removeAllListeners();
 	});
 
 	describe("on", () => {
@@ -46,34 +46,6 @@ describe("EVENT_MANAGER", () => {
 
 			(EVENT_MANAGER as any).emit("test.event", { id: "user-2" });
 			expect(callback).toHaveBeenCalledTimes(1);
-		});
-	});
-
-	describe("off", () => {
-		it("should remove a listener from an event", () => {
-			const callback = jest.fn<(...args: any[]) => any>();
-
-			(EVENT_MANAGER as any).on("test.event", callback);
-			(EVENT_MANAGER as any).off("test.event", callback);
-
-			(EVENT_MANAGER as any).emit("test.event", { service: "trader" });
-
-			expect(callback).not.toHaveBeenCalled();
-		});
-
-		it("should only remove the specified listener", () => {
-			const callback1 = jest.fn<(...args: any[]) => any>();
-			const callback2 = jest.fn<(...args: any[]) => any>();
-
-			(EVENT_MANAGER as any).on("test.event", callback1);
-			(EVENT_MANAGER as any).on("test.event", callback2);
-
-			(EVENT_MANAGER as any).off("test.event", callback1);
-
-			(EVENT_MANAGER as any).emit("test.event", { id: "txn-456" });
-
-			expect(callback1).not.toHaveBeenCalled();
-			expect(callback2).toHaveBeenCalledWith({ id: "txn-456" });
 		});
 	});
 

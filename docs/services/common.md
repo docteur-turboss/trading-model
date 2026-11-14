@@ -17,7 +17,7 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 > - HTTP middleware, HTTP client, logging system → `@trading-model/http`
 > - Distributed worker protocol & orphan recovery → `@trading-model/jobs` (removed by ADR-0029: no producer, no worker)
 
-`common` depends on `@trading-model/primitives` and `@trading-model/contracts` (plus external `zod`, `express`, `chained-error`). It has **no** dependency on `http`, `validation`, `server-utils` or `crypto`.
+`common` depends on `@trading-model/primitives` and `@trading-model/contracts` (plus external `zod`, `express`). It has **no** dependency on `http`, `validation`, `server-utils` or `crypto`.
 
 ## Package Map Post-Split
 
@@ -60,9 +60,8 @@ The monorepo has **11 shared packages** under the `@trading-model/*` scope. Buil
 | `retry.ts` | `retry(fn, options)` — retry loop with exponential backoff, `maxRetries`, `timeoutMs`, optional `shouldRetry` guard |
 | `backoff-config.ts` | `BackoffConfig`, `computeExponentialBackoff()` — shared backoff math used by `retry` |
 | `sleep.ts` | `sleep(ms): Promise<void>` |
-| `cache.ts` | `ISyncCache<T>` — cache abstraction (get/set/delete/clear/has/invalidate with TTL) |
+| `cache.ts` | `SyncCachePort<T>` — cache abstraction (get/set/delete/clear/has/invalidate with TTL) |
 | `ttl-cache-base.ts` | Base class for TTL-based cache implementations |
-| `circular-buffer.ts` | Fixed-capacity circular buffer |
 | `sanitize.ts` | `sanitizeForLog()` — strips PEM blocks and secrets before logging |
 | `safe-stringify.ts` | Cycle-safe JSON stringification |
 | `deterministic-stringify.ts` | Deterministic JSON serialization for cryptographic signing (recursively sorts object keys) |

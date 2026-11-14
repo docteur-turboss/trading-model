@@ -84,8 +84,7 @@ Two cases:
   address-manager retries registration by itself. A pod stuck in a failed
   registration loop: `kubectl -n $NS rollout restart deploy/$SVC`.
 - A service scaled down **on purpose** to one replica: the alert keeps firing
-  for up to a day (`max_over_time(...[1d])`); silence it with an explanation
-  ([on-call.md](../on-call.md#alert-acknowledgement)).
+  for up to a day (`max_over_time(...[1d])`); silence it with an explanation ([procedure](../on-call.md#silence-an-alert-maintenance)).
 
 ## HeartbeatStopped
 

@@ -13,7 +13,7 @@
 //    6. Compose (observability/alerting.yml) and K8s (prometheus ConfigMap)
 //       evaluate the same alert rules (name, expr, for, labels, annotations),
 //       and every rule has a runbook_url on main naming a file of the
-//       repository (and one of its headings, for an #anchor).
+//       checked-out tree (deploy rewrites main to the release tag) (and one of its headings, for an #anchor).
 //    7. Every metric an alert reads is emitted by a service, a backup script or
 //       a configured exporter.
 //    8. Alerts reach someone: compose and K8s run the same Alertmanager config,
@@ -32,6 +32,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
+import { WORKSPACE_ROOTS, walk as walkFiles } from "./lib/fs.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const SERVICES = [
@@ -50,16 +51,7 @@ const METRIC_DEF_RE =
 const errors = [];
 const info = [];
 
-function walk(dir, out = []) {
-  for (const entry of readdirSync(dir)) {
-    if (entry === "node_modules" || entry === "dist" || entry === ".git") continue;
-    const p = join(dir, entry);
-    const st = statSync(p);
-    if (st.isDirectory()) walk(p, out);
-    else if (p.endsWith(".ts")) out.push(p);
-  }
-  return out;
-}
+const walk = (dir) => walkFiles(dir, (file) => file.endsWith(".ts"));
 
 function serviceFiles(service) {
   return walk(join(ROOT, "services", service, "src")).map((p) =>
@@ -202,7 +194,7 @@ function promqlMetricNames(expr) {
 function emittedMetricNames() {
   const names = new Set(["up"]); // Prometheus target health
   // prom-client metrics declared in TypeScript (`name: "..."` next to new Counter/Gauge/...)
-  for (const dir of ["packages", "services"]) {
+  for (const dir of WORKSPACE_ROOTS) {
     for (const workspace of readdirSync(join(ROOT, dir))) {
       const src = join(ROOT, dir, workspace, "src");
       if (!existsSync(src)) continue;

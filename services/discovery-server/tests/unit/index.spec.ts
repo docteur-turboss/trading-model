@@ -22,14 +22,16 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 jest.mock("../../src/domain/service-registry", () => {
-	const { ServiceRegistry } = jest.requireActual(
+	const { ServiceRegistry } = jest.requireActual<any>(
 		"../../src/domain/service-registry"
 	);
 	return { ServiceRegistry };
 });
 
 jest.mock("../../src/domain/lease-manager", () => {
-	const { LeaseManager } = jest.requireActual("../../src/domain/lease-manager");
+	const { LeaseManager } = jest.requireActual<any>(
+		"../../src/domain/lease-manager"
+	);
 	return { LeaseManager };
 });
 
@@ -37,6 +39,7 @@ const mockRedisClient = {
 	connect: jest.fn<(...args: any[]) => any>().mockResolvedValue(undefined),
 	ping: jest.fn<(...args: any[]) => any>().mockResolvedValue("PONG"),
 	disconnect: jest.fn<(...args: any[]) => any>(),
+	on: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("@trading-model/persistence/redis-connection-manager", () => ({

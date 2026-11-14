@@ -1,4 +1,3 @@
-import type http from "node:http";
 import {
 	gracefulShutdown,
 	hardShutdown,
@@ -7,7 +6,6 @@ import {
 function createMockServer() {
 	return {
 		close: jest.fn().mockResolvedValue(undefined),
-		raw: {} as http.Server,
 	};
 }
 
@@ -24,10 +22,22 @@ describe("hardShutdown", () => {
 
 	beforeEach(() => {
 		originalExitCode = process.exitCode;
+		jest.useFakeTimers();
+		jest.spyOn(process, "exit").mockImplementation((() => undefined) as never);
 	});
 
 	afterEach(() => {
 		process.exitCode = originalExitCode;
+		jest.useRealTimers();
+		jest.restoreAllMocks();
+	});
+
+	it("should exit with the code after the bounded delay", () => {
+		hardShutdown(1, null, createOptions());
+
+		expect(process.exit).not.toHaveBeenCalled();
+		jest.advanceTimersByTime(5000);
+		expect(process.exit).toHaveBeenCalledWith(1);
 	});
 
 	it("should handle null server gracefully", () => {
@@ -72,11 +82,15 @@ describe("gracefulShutdown", () => {
 
 	beforeEach(() => {
 		originalExitCode = process.exitCode;
-		jest.useRealTimers();
+		jest.useFakeTimers();
+		jest.spyOn(process, "exit").mockImplementation((() => undefined) as never);
 	});
 
 	afterEach(() => {
 		process.exitCode = originalExitCode;
+		jest.clearAllTimers();
+		jest.useRealTimers();
+		jest.restoreAllMocks();
 	});
 
 	it("should close the server and call onStop when shutdown succeeds", async () => {
@@ -103,7 +117,6 @@ describe("gracefulShutdown", () => {
 	it("should fall back to hardShutdown when server close throws", async () => {
 		const server = {
 			close: jest.fn().mockRejectedValue(new Error("close failed")),
-			raw: {} as http.Server,
 		};
 		const onStop = jest.fn();
 		const options = createOptions({ onStop });
@@ -115,11 +128,8 @@ describe("gracefulShutdown", () => {
 	});
 
 	it("should fall back to hardShutdown when server close times out", async () => {
-		jest.useFakeTimers();
-
 		const server = {
 			close: jest.fn().mockReturnValue(new Promise<never>(() => {})),
-			raw: {} as http.Server,
 		};
 		const options = createOptions();
 
@@ -130,7 +140,6 @@ describe("gracefulShutdown", () => {
 		await promise;
 
 		expect(process.exitCode).toBe(1);
-		jest.useRealTimers();
 	});
 
 	it("should run beforeClose while the server still serves, then close, then onStop", async () => {
@@ -139,7 +148,6 @@ describe("gracefulShutdown", () => {
 			close: jest.fn(async () => {
 				calls.push("close");
 			}),
-			raw: {} as http.Server,
 		};
 		const options = createOptions({
 			shutdown: {
@@ -170,7 +178,6 @@ describe("gracefulShutdown", () => {
 	});
 
 	it("should wait closeTimeoutMs for in-flight requests", async () => {
-		jest.useFakeTimers();
 		let finish: () => void = () => undefined;
 		const server = {
 			close: jest.fn(
@@ -179,7 +186,6 @@ describe("gracefulShutdown", () => {
 						finish = resolve;
 					})
 			),
-			raw: {} as http.Server,
 		};
 		const options = createOptions({ shutdown: { closeTimeoutMs: 60_000 } });
 
@@ -189,14 +195,13 @@ describe("gracefulShutdown", () => {
 		await promise;
 
 		expect(process.exitCode).toBe(originalExitCode);
-		jest.useRealTimers();
 	});
 
 	it("should wait for an async onStop", async () => {
 		let stopped = false;
 		const options = createOptions({
 			onStop: async () => {
-				await new Promise((resolve) => setTimeout(resolve, 10));
+				await Promise.resolve();
 				stopped = true;
 			},
 		});

@@ -1,6 +1,6 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { withTimeout } from "@trading-model/common/utils/retry";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { HttpServer } from "../../adapters/inbound/create-secure-server";
 import type { BootstrapOptions } from "./bootstrap-types";
@@ -10,7 +10,7 @@ function _closeServerOnShutdown(server: HttpServer | null): void {
 		return;
 	}
 	server.close().catch((err) =>
-		logger.warn("Server close during forced shutdown failed", {
+		getLogger().warn("Server close during forced shutdown failed", {
 			context: { err: normalizeError(err) },
 		})
 	);
@@ -22,12 +22,12 @@ function _runOnStop(options: BootstrapOptions): void {
 	}
 	try {
 		Promise.resolve(options.onStop()).catch((err) =>
-			logger.warn("onStop callback failed during forced shutdown", {
+			getLogger().warn("onStop callback failed during forced shutdown", {
 				context: { err: normalizeError(err) },
 			})
 		);
 	} catch (err) {
-		logger.warn("onStop callback failed during forced shutdown", {
+		getLogger().warn("onStop callback failed during forced shutdown", {
 			context: { err: normalizeError(err) },
 		});
 	}
@@ -43,7 +43,7 @@ async function _runBeforeClose(options: BootstrapOptions): Promise<void> {
 	try {
 		await beforeClose();
 	} catch (err) {
-		logger.warn("beforeClose callback failed during graceful shutdown", {
+		getLogger().warn("beforeClose callback failed during graceful shutdown", {
 			context: { err: normalizeError(err) },
 		});
 	}
@@ -53,11 +53,14 @@ async function _awaitOnStop(options: BootstrapOptions): Promise<void> {
 	try {
 		await options.onStop?.();
 	} catch (err) {
-		logger.warn("onStop callback failed during graceful shutdown", {
+		getLogger().warn("onStop callback failed during graceful shutdown", {
 			context: { err: normalizeError(err) },
 		});
 	}
 }
+
+/** Grace left to onStop and the server close; below the shortest terminationGracePeriodSeconds (10 s, edge-proxy). */
+const HARD_EXIT_DELAY_MS = 5000;
 
 export function hardShutdown(
 	code: number,
@@ -66,8 +69,9 @@ export function hardShutdown(
 ): void {
 	_closeServerOnShutdown(server);
 	_runOnStop(options);
-	logger.warn("Forced shutdown", { context: { exitCode: code } });
+	getLogger().warn("Forced shutdown", { context: { exitCode: code } });
 	process.exitCode = code;
+	setTimeout(() => process.exit(code), HARD_EXIT_DELAY_MS).unref();
 }
 
 export async function gracefulShutdown(
@@ -75,7 +79,7 @@ export async function gracefulShutdown(
 	server: HttpServer | null,
 	options: BootstrapOptions
 ): Promise<void> {
-	logger.warn("Shutdown signal received", { context: { signal } });
+	getLogger().warn("Shutdown signal received", { context: { signal } });
 	try {
 		await _runBeforeClose(options);
 		if (server) {
@@ -84,12 +88,12 @@ export async function gracefulShutdown(
 				options.shutdown?.closeTimeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS,
 				"Server close timed out"
 			);
-			logger.info("HTTP server closed");
+			getLogger().info("HTTP server closed");
 		}
 		await _awaitOnStop(options);
-		logger.info("Shutdown completed gracefully");
+		getLogger().info("Shutdown completed gracefully");
 	} catch (error) {
-		logger.error("Error during graceful shutdown", {
+		getLogger().error("Error during graceful shutdown", {
 			context: { err: normalizeError(error) },
 		});
 		hardShutdown(1, server, options);

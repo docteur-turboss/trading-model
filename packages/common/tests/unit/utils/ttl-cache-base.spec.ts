@@ -54,6 +54,7 @@ describe("TtlCacheBase", () => {
 		jest.advanceTimersByTime(1001);
 		expect(cache.get("a")).toBeUndefined();
 		expect(cache.has("a")).toBe(false);
+		expect(cache.getStale("a")).toBe(1);
 		jest.useRealTimers();
 	});
 

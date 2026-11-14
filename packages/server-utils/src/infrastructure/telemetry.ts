@@ -6,30 +6,11 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/infrastructure/logger";
-import {
-	type InstanceId,
-	toInstanceId,
-} from "@trading-model/primitives/primitives";
+import { toInstanceId } from "@trading-model/primitives/primitives";
 
 let sdk: NodeSDK | null = null;
-
-export interface TelemetryConfig {
-	serviceName: ServiceInstanceName;
-	serviceVersion: string;
-	instanceId: InstanceId;
-	otlpEndpoint?: string;
-}
-
-function _buildSdkResources(
-	config: TelemetryConfig
-): ReturnType<typeof resourceFromAttributes> {
-	return resourceFromAttributes({
-		[SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,
-		[SemanticResourceAttributes.SERVICE_VERSION]: config.serviceVersion,
-		[SemanticResourceAttributes.SERVICE_INSTANCE_ID]: config.instanceId,
-	});
-}
 
 /**
  * Starts tracing for a service from its environment (`OTEL_EXPORTER_OTLP_ENDPOINT`,
@@ -41,35 +22,24 @@ function _buildSdkResources(
  * of its entry point.
  */
 export function startTelemetry(serviceName: ServiceInstanceName): void {
-	initializeTelemetry({
-		serviceName,
-		serviceVersion: process.env.APP_VERSION ?? "1.0.0",
-		instanceId: toInstanceId(process.env.INSTANCE_ID ?? serviceName),
-		otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || undefined,
-	});
-}
-
-/** Starts the SDK with an explicit configuration; see {@link startTelemetry}. */
-export function initializeTelemetry(config: TelemetryConfig): void {
-	if (!config.otlpEndpoint) {
+	const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || undefined;
+	if (!otlpEndpoint) {
 		logger.info("OpenTelemetry disabled (no endpoint configured)", {
-			context: { service: config.serviceName },
+			context: { service: serviceName },
 		});
 		return;
 	}
 	diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
-	_initSdk(config);
-	logger.info("OpenTelemetry initialized", {
-		context: { endpoint: config.otlpEndpoint, service: config.serviceName },
-	});
-}
-
-function _initSdk(config: TelemetryConfig): void {
 	sdk = new NodeSDK({
-		resource: _buildSdkResources(config),
-		traceExporter: new OTLPTraceExporter({
-			url: `${config.otlpEndpoint}/v1/traces`,
+		resource: resourceFromAttributes({
+			[SemanticResourceAttributes.SERVICE_NAME]: serviceName,
+			[SemanticResourceAttributes.SERVICE_VERSION]:
+				process.env.APP_VERSION ?? "1.0.0",
+			[SemanticResourceAttributes.SERVICE_INSTANCE_ID]: toInstanceId(
+				process.env.INSTANCE_ID ?? serviceName
+			),
 		}),
+		traceExporter: new OTLPTraceExporter({ url: `${otlpEndpoint}/v1/traces` }),
 		instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()],
 		// Traces only: metrics go through Prometheus, and the collector has no
 		// metrics or logs pipeline (the SDK would export both to it by default).
@@ -77,6 +47,9 @@ function _initSdk(config: TelemetryConfig): void {
 		logRecordProcessors: [],
 	});
 	sdk.start();
+	logger.info("OpenTelemetry initialized", {
+		context: { endpoint: otlpEndpoint, service: serviceName },
+	});
 }
 
 export async function shutdownTelemetry(): Promise<void> {
@@ -88,7 +61,7 @@ export async function shutdownTelemetry(): Promise<void> {
 		logger.info("OpenTelemetry shut down");
 	} catch (err) {
 		logger.warn("OpenTelemetry shutdown error", {
-			context: { error: (err as Error).message },
+			context: { error: normalizeError(err).message },
 		});
 	}
 	sdk = null;

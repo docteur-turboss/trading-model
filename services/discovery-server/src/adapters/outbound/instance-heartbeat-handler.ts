@@ -1,8 +1,9 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import type { UnixTimestamp } from "@trading-model/primitives/primitives";
 import { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import type { RedisDepsWithoutToken } from "../../shared/redis-deps";
+import type { RedisDeps } from "../../shared/redis-deps";
 import {
 	instanceMetadata,
 	instanceUpdatedBy,
@@ -25,25 +26,15 @@ export class InstanceHeartbeatHandler {
 	private readonly _reader: InstanceMetadataReader;
 
 	constructor(
-		private readonly _deps: RedisDepsWithoutToken,
+		private readonly _deps: RedisDeps,
 		reader?: InstanceMetadataReader
 	) {
 		this._reader = reader ?? new InstanceMetadataReader(_deps);
 	}
 
-	private async _checkInstanceExists(
-		identity: ServiceIdentity
-	): Promise<boolean> {
-		const result = await this._deps.redis.sismember(
-			serviceInstancesSet(this._deps.keyPrefix, identity.serviceName),
-			identity.instanceId
-		);
-		return result === 1;
-	}
-
 	private async _persistHeartbeat(
 		identity: ServiceIdentity,
-		instance: import("@trading-model/contracts/service-registry-types").ServiceInstance
+		instance: ServiceInstance
 	): Promise<boolean> {
 		const persisted = await this._deps.redis.eval(
 			PERSIST_IF_REGISTERED_SCRIPT,
@@ -59,10 +50,6 @@ export class InstanceHeartbeatHandler {
 	}
 
 	async updateHeartbeat(identity: ServiceIdentity): Promise<number | false> {
-		const exists = await this._checkInstanceExists(identity);
-		if (!exists) {
-			return false;
-		}
 		const instance = await this._reader.getMetadata(identity.instanceId);
 		if (!instance) {
 			return false;

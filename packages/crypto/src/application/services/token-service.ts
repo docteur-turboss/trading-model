@@ -1,7 +1,4 @@
-export {
-	generateInstanceId,
-	verifyInstanceName,
-} from "./instance-identity";
+export { generateInstanceId } from "./instance-identity";
 export { generateInstanceToken } from "./token-generator";
 export {
 	type TokenValidationInput,

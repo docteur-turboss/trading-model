@@ -17,8 +17,9 @@ Never edit a past entry: add a correction under it.
   exercise, compared with the RTO of the tier / data store involved.
 - **Automated drills**: the restore drills of CI (`k8s` job of `ci.yml`,
   `tests/k8s/run-kind.sh` `verify_backup`; weekly `backup-test.yml`,
-  `tests/backup/compose-restore-drill.sh`). They run on every push or every
-  week and publish their timings themselves (job summary and the artifact
+  `tests/backup/compose-restore-drill.sh`). The kind drill runs on pull
+  requests touching databases, backups or their services and on every release;
+  the Docker drill runs weekly. They publish their timings themselves (job summary and the artifact
   `restore-drill-timings-kind` / `restore-drill-timings-docker`, file
   `restore-drill-timings.json`). They are **not** logged one by one here. Log
   one when the timings change the picture: a budget exceeded, a step that
@@ -65,8 +66,8 @@ summary with the steps done.
 | Detection and decision | | | |
 | Fetch from the off-site bucket | | | |
 | Restore MongoDB (audit, dlq) | | | |
-| Restore MySQL (market data, SPIRE datastore) | | | |
-| Restore SPIRE CA keys | | | |
+| Restore MySQL (market data) | | | |
+| Restore SPIRE datastore and CA keys | | | |
 | Restore checkpoints | | | |
 | Checks (data, audit chain, mTLS) | | | |
 | Services back (tier T1 / T2 / T3) | | | |

@@ -23,11 +23,11 @@ const MOCK_REDIS = {
 
 import { ALL_SERVICE_NAMES } from "@trading-model/primitives/service-instance-name";
 import { InstanceMetadataReader } from "../../src/adapters/outbound/instance-metadata-reader";
-import type { RedisDepsWithoutToken } from "../../src/shared/redis-deps";
+import type { RedisDeps } from "../../src/shared/redis-deps";
 
 describe("InstanceMetadataReader", () => {
 	let reader: InstanceMetadataReader;
-	let deps: RedisDepsWithoutToken;
+	let deps: RedisDeps;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -64,10 +64,10 @@ describe("InstanceMetadataReader", () => {
 		it("should return member ids", async () => {
 			mockSmembers.mockResolvedValue(["i1", "i2"]);
 			const ids = await reader.getServiceInstanceIds(
-				"financial-scraper-service" as never
+				"financial-scraper" as never
 			);
 			expect(mockSmembers).toHaveBeenCalledWith(
-				"test:service:financial-scraper-service:instances"
+				"test:service:financial-scraper:instances"
 			);
 			expect(ids).toEqual(["i1", "i2"]);
 		});
@@ -92,10 +92,10 @@ describe("InstanceMetadataReader", () => {
 	describe("listServiceNames", () => {
 		it("should list the known services that have registered instances", async () => {
 			mockScard.mockImplementation(async (key) =>
-				key === "test:service:financial-scraper-service:instances" ? 2 : 0
+				key === "test:service:financial-scraper:instances" ? 2 : 0
 			);
 			const names = await reader.listServiceNames();
-			expect(names).toEqual(["financial-scraper-service"]);
+			expect(names).toEqual(["financial-scraper"]);
 		});
 
 		it("should read one set per known service instead of scanning keys", async () => {

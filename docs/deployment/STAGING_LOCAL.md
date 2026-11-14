@@ -17,6 +17,12 @@ The compose stack keeps `http://localhost:8449` (edge-proxy).
 
 ## Selection in deploy.yml
 
+- Environment `staging`: deployment branches limited to `development` and `main`
+  (Settings → Environments → "Selected branches and tags", no other rule). It
+  holds `KUBECONFIG_STAGING_*`, `BACKUP_S3_*` and `AUDIT_ANCHOR_*`: without the rule
+  a branch pushed by anyone with write access can print them (issue #847).
+  `check-environment` reports a missing rule as `::error::` in the preflight
+  summary without blocking the deploy ([DEPLOY.md](DEPLOY.md#prerequisites-secrets)).
 - Repository variable `STAGING_RUNNER` (`trading-staging`): `runs-on` label of the
   staging job. Unset: `ubuntu-latest`.
 - Variable `K8S_OVERLAY` of the environment `staging` (`staging-local`): the
@@ -24,7 +30,17 @@ The compose stack keeps `http://localhost:8449` (edge-proxy).
 - Variable `DEPLOY_TIMEOUT_FACTOR` of the environment `staging` (`4`): integer
   the MySQL, migration Job and rollout timeouts are multiplied by. The kind
   cluster shares the laptop disk with the compose stack: MySQL's first start
-  and the image pulls outlast the production timeouts. Unset: 1.
+  and the image pulls outlast the production timeouts. Unset: 1. The migration
+  Jobs' own `activeDeadlineSeconds` is multiplied too (`run-migrations.sh`,
+  `deploy-k8s.sh migrate-down`): otherwise the Job dies at its base deadline
+  while the deploy still waits for it (issue #760).
+
+The cluster also shares the Docker VM's memory with the compose stack. Before a
+deploy, `docker stats --no-stream` must leave room: once the VM swaps, every
+probe of the cluster times out, the Mongo liveness probes restart their pods in
+a loop and audit-logger answers 503 (issue #760: the compose Jaeger held
+11.5 GiB of in-memory traces; it is now bounded by `MEMORY_MAX_TRACES` and
+`mem_limit`).
 
 `deploy.yml` checks out the release tag: a tag older than the `staging-local`
 overlay cannot be deployed this way. Its scripts come from the tag too, so
@@ -66,9 +82,49 @@ RUNNER_TOKEN=$(gh api -X POST repos/docteur-turboss/trading-model/actions/runner
 Register again (same command, after `docker volume rm trading-staging_runner-data`)
 if the runner is removed in Settings → Actions → Runners.
 
-The repository is public: keep **Settings → Actions → General → "Require approval
-for all external contributors"**, so that a fork pull request cannot run a
-workflow that targets the `trading-staging` label without a maintainer's approval.
+### Runner isolation
+
+The runner is persistent (not ephemeral) and the repository is public: a fork
+pull request runs its own version of the workflows, so it can add a job with
+`runs-on: [self-hosted, trading-staging]`. That job would reach the Docker
+network `kind` (MinIO, kind API server) and could leave a backdoor in
+`/runner/data` that steals `KUBECONFIG_STAGING_APP` / `_CLUSTER` at the next
+staging deploy (issue #842).
+
+- Keep **Settings → Actions → General → "Require approval for all external
+  contributors"** (API field `approval_policy` =
+  `all_external_contributors`). A maintainer then approves every fork run
+  before it starts: read its workflow changes before approving.
+- `deploy.yml` checks it: when the target is `staging` and `STAGING_RUNNER` is
+  set, the `check-environment` job reads
+  `GET /repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval`
+  with `ENVIRONMENT_READ_TOKEN` (`scripts/check-environment-protection.mjs
+  --fork-approval`). Any other value, a missing token or an unreadable setting
+  (403, 404, 5xx) fails `check-environment`, so the deploy job never starts
+  and never hands `KUBECONFIG_STAGING_*` to the runner. A preflight
+  (`preflight_only: true`) stops there too: it shows only this `::error::`,
+  not the table of the other guards.
+- `sealed-secrets-key-backup.yml` does the same: when `SEALED_SECRETS_BACKUP_RUNNER`
+  is set, job `check-fork-approval` (GitHub-hosted) runs the same check, and
+  the backup job `needs:` it, so the self-hosted runner never gets
+  `SEALED_SECRETS_BACKUP_KUBECONFIG` or the MinIO credentials on failure
+  (issue #860).
+- `backup-key-check.yml` too: when `BACKUP_KEY_CHECK_RUNNER` is set, job
+  `check-environment` (GitHub-hosted) runs the same check before
+  `verify-escrow-key` gets the escrow key on this runner (issue #1135).
+- Runner group limited to the workflows `deploy.yml`,
+  `sealed-secrets-key-backup.yml` and `backup-key-check.yml` ("Selected workflows"): runner groups need an
+  organization. The repository belongs to a personal account, so this layer is
+  missing; the approval setting is the only barrier. Move the repository to an
+  organization to add it.
+- After any doubt (an unexpected job on the runner, a fork run approved by
+  mistake), purge the runner: delete it in Settings → Actions → Runners, then
+  `docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml rm -sf runner`,
+  `docker volume rm trading-staging_runner-data`, register it again (command
+  above), then revoke the staging deploy tokens (a stolen one stays valid up
+  to 168 h): `scripts/deploy-identity.sh app --revoke` and `cluster --revoke`
+  with the arguments of `bootstrap.sh identities` (ADR-0041), then
+  `bash deploy/staging-local/bootstrap.sh identities`.
 
 ## SealedSecrets key backup
 
@@ -87,11 +143,12 @@ laptop. For production, delete `SEALED_SECRETS_BACKUP_RUNNER` and
 ## Database pods across releases
 
 The staging overlay runs one pod per data StatefulSet (`mysql`, `redis`,
-`redis-sentinel`, `mongo-dlq`, `mongo-audit`). A rolling update deletes that pod
+`redis-sentinel`, `mongo-dlq`, `mongo-audit`) and one per observability StatefulSet (`alertmanager`,
+`grafana`, `loki`, `prometheus`; issue #709). A rolling update deletes that pod
 before its replacement starts, so a release that changes their pod template
 (3.1.0: exporter sidecars) would cut the database for the stop, the image pull
 and the start (up to 30 min for MySQL here). The `staging-local` overlay sets
-`updateStrategy.rollingUpdate.partition: 1` on these five (issue #700,
+`updateStrategy.rollingUpdate.partition: 1` on these nine (issues #700, #709,
 enforced by `tests/k8s/check-overlays.mjs`):
 
 - a deploy never restarts them: their pods keep UID, restart count and the pod
@@ -113,7 +170,7 @@ alone waits for the master its sentinel still names, the dead pod (PR #579).
 
 ```bash
 NS=trading-model-staging
-for sts in redis redis-sentinel; do   # or: mysql, mongo-dlq, mongo-audit (one at a time)
+for sts in redis redis-sentinel; do   # or: mysql, mongo-dlq, mongo-audit, alertmanager, grafana, loki, prometheus (one at a time)
   kubectl -n "$NS" patch sts "$sts" -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":0}}}}'
 done
 for sts in redis redis-sentinel; do kubectl -n "$NS" rollout status "sts/$sts" --timeout=1800s; done
@@ -125,6 +182,89 @@ done
 The next deploy sets the partition back to 1 anyway (it is in the overlay).
 Check the result: `kubectl -n "$NS" get sts <x> -o jsonpath='{.status.currentRevision} {.status.updateRevision}'`
 prints the same revision twice.
+
+### TLS and keyFile switch
+
+The pods of `mysql`, `mongo-dlq` and `mongo-audit` still run the 3.0.0 template
+(3.1.0-rc.1 added the partition without restarting them): no `mysql-tls`, no
+MongoDB `--tlsMode` nor `--keyFile`, no exporter. Until they restart, the
+overlay keeps their clients on what that template accepts (issue #1066):
+financial-scraper without `DB_SSL_*`, MongoDB URIs without `tls=true`, the
+MySQL jobs unverified (`mysql-client-tls`), and `run-migrations.sh` and
+`deploy-k8s.sh migrate-down` read pod `mysql-0` (users left unbound).
+Switch them in a planned window, outside a deploy. Steps 1 and 2 fall between
+the same two deploys: a deploy between them brings the outage back.
+
+1. Merge the removal of the three `configMapGenerator` entries and of the
+   `mysql-client-tls` patch of issue #1066 from
+   `overlays/staging-local/kustomization.yaml`: the next deploy must not bring
+   them back.
+2. Restart `mongo-dlq`, then `mongo-audit`, then `mysql` with the loop above.
+   MongoDB then takes `--keyFile` and still accepts clear text (`preferTLS`,
+   `--transitionToAuth`); the users exist (the `mongo-*-users` Jobs created
+   them). MySQL requires TLS: financial-scraper is refused until step 3.
+3. Point financial-scraper at the cert-manager CA and bind the MySQL users:
+
+```bash
+cm=$(kubectl -n "$NS" get deploy financial-scraper -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')
+kubectl -n "$NS" patch configmap "$cm" --type merge -p '{"data":{"DB_SSL_CA":"/etc/mysql-tls/ca.crt","DB_SSL_CERT":"/etc/mysql-tls/tls.crt","DB_SSL_KEY":"/etc/mysql-tls/tls.key"}}'
+kubectl -n "$NS" rollout restart deploy/financial-scraper deploy/financial-scraper-collector
+bash deploy/k8s/scripts/run-migrations.sh "$NS" user-only   # prints no "auto-generated certificate" line
+for d in financial-scraper financial-scraper-collector; do kubectl -n "$NS" rollout status "deploy/$d" --timeout=600s; done
+```
+
+The MongoDB clients move to TLS with the next deploy (step 1).
+
+## Between deploys
+
+The cluster may be stopped between two deploys. Nothing calls it except
+`deploy.yml` and, when `vars.SEALED_SECRETS_BACKUP_RUNNER` is set,
+`sealed-secrets-key-backup.yml` (default `ubuntu-latest`), and staging holds no data that
+the compose stack or production needs. The price is a blind period: nothing
+runs in the cluster while it is down.
+
+```bash
+docker stop trading-staging-runner trading-staging-control-plane trading-staging-minio
+```
+
+Start MinIO first (the audit anchors and backups write to it), then the node,
+then the runner:
+
+```bash
+docker start trading-staging-minio trading-staging-control-plane
+kubectl --context kind-trading-staging get pods -A    # wait until every pod is Running/Ready or Completed
+docker start trading-staging-runner
+```
+
+Then run the smoke test: `bash deploy/k8s/scripts/deploy-k8s.sh -n trading-model-staging smoke-test`.
+
+While it is down:
+
+- `db-backup` (daily 02:00), `db-backup-incremental` (hourly, minute 30),
+  `db-retention` (daily 03:30) and the audit-chain verification and anchoring
+  (every 15 min, ADR-0027) do not run. No alert fires either, since Prometheus
+  and Alertmanager are down.
+- No PITR gap for a stop of hours or days: MySQL is down too, so nothing purges
+  its binlogs (kept 30 days), and the first hourly run archives the closed ones.
+  `BackupPitrGap` fires only if the stop outlasts that, or the MongoDB oplog
+  window ("hours to days", `BACKUP_DR.md`, "Point-in-time archives") and overwrites
+  entries before they are archived.
+- After the start, with no run yet: `BackupIncrementalStale` after 2 h,
+  `BackupJobStale` after 26 h, `RetentionStale` after 36 h,
+  `AuditChainVerificationStale` / `AuditChainAnchoringStale` after 45 min,
+  each plus its `for:` delay (`observability/alerting.yml`). They resolve on the next run.
+- If `SEALED_SECRETS_BACKUP_RUNNER` is set, `sealed-secrets-key-backup.yml`
+  (daily 03:30 UTC) needs the runner and the API server: its job stays queued or fails, and the key backup of that day is missing.
+- Every pod restarts, including the single-replica data pods (see the partition
+  above): expect the cold start of MySQL, Mongo and Redis before the smoke test
+  passes. This is not measured; the smoke test waits `--timeout=120s` per Deployment
+  (`deploy-k8s.sh`).
+- `backup-key-check.yml` (Monday 07:00 UTC) needs the runner and MinIO while
+  `BACKUP_KEY_CHECK_RUNNER` is set: its job stays queued or fails. CI runs on
+  GitHub-hosted runners: not affected.
+
+Stop it only when no backup window (02:00 to 04:00 UTC) matters to you, and
+start it before a deploy: `deploy.yml` fails on the self-hosted runner otherwise.
 
 ## Renewal and teardown
 
@@ -138,7 +278,9 @@ prints the same revision twice.
 - A new kind cluster has a new Sealed Secrets key: seal again
   (`init-sealed-secrets.sh`) and commit.
 - A release that adds a key to `trading-model-secrets` (3.1.0:
-  `MYSQL_EXPORTER_PASSWORD`, `REDIS_EXPORTER_PASSWORD`) must add it here too,
+  `MYSQL_EXPORTER_PASSWORD`, `REDIS_EXPORTER_PASSWORD`; the seven `MONGO_*` keys of
+  ADR-0067: five passwords and `MONGO_AUDIT_KEYFILE` / `MONGO_DLQ_KEYFILE`,
+  `openssl rand -hex 64`) must add it here too,
   or "Check sealed secrets" stops the deploy on the `staging` placeholder. Seal
   only the new keys into the existing file, never `init-sealed-secrets.sh`
   (it draws new values for every key, which no longer match the initialized

@@ -4,10 +4,10 @@ import {
 	serviceUnreachableError,
 } from "@trading-model/address-manager/shared/errors";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { normalizeError } from "@trading-model/common/utils/errors";
+import { errorProp, normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
-import { PUBLISH_COMPAT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
+import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { isNonRetryableClientError } from "@trading-model/http/infrastructure/http-retry";
@@ -20,7 +20,7 @@ import {
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import type { IMessageClient } from "../../domain/ports/i-message-client";
+import type { MessageClientPort } from "../../domain/ports/message-client.port";
 import type { MessageManagerConfig } from "../../domain/types/config";
 import type {
 	SubscribesTopicsPayload,
@@ -30,17 +30,16 @@ import { messageManagerError } from "../../shared/errors";
 import { withTraceparent } from "../../shared/trace-context";
 
 /**
- * message-manager answers 202 once the message is journaled (ADR-0048); the
- * older release answered 204 after delivery: both are success. A publish is
- * never sent twice once it left: the broker stamps a new messageId on each
+ * message-manager answers 202 once the message is journaled (ADR-0048). A
+ * publish is never sent twice once it left: the broker stamps a new messageId on each
  * copy, so subscribers could not tell the duplicates apart.
  */
 const PUBLISH_OPTIONS = {
-	timeoutMs: DurationMs.of(PUBLISH_COMPAT_TIMEOUT_MS),
+	timeoutMs: DurationMs.of(PUBLISH_ACCEPT_TIMEOUT_MS + 5_000),
 };
 
 /** Client for interacting with the Message Delivery Service via HTTP. */
-export class MessageManagerClient implements IMessageClient {
+export class MessageManagerClient implements MessageClientPort {
 	constructor(
 		private readonly _httpClient: HttpClient,
 		readonly _config: MessageManagerConfig,
@@ -123,7 +122,7 @@ export class MessageManagerClient implements IMessageClient {
 			);
 		} catch (error) {
 			// A business 4xx proves the target is alive: it must not open the breaker.
-			const status = (error as { statusCode?: number }).statusCode;
+			const status = errorProp(error, "statusCode") as number | undefined;
 			const targetAnswered =
 				status !== undefined &&
 				isNonRetryableClientError(status) &&
@@ -165,19 +164,6 @@ export class MessageManagerClient implements IMessageClient {
 			return await this._publishToService(target, payload, metadata);
 		} catch (error) {
 			this._wrapError(error, "Failed to publish message to Message Manager");
-		}
-	}
-
-	async publishDirectMessage<TPayload = unknown>(
-		service: ServiceInstanceName,
-		payload: TPayload,
-		metadata: MessageMetadata
-	): Promise<void> {
-		try {
-			const target = await this._findService(service);
-			return await this._publishToService(target, payload, metadata);
-		} catch (error) {
-			this._wrapError(error, `Failed to publish message to ${service}`);
 		}
 	}
 }

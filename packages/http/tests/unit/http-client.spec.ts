@@ -15,6 +15,7 @@ import {
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
+import { circuitBreakerRejectionsTotal } from "../../src/infrastructure/outbound-metrics";
 
 jest.mock("https");
 jest.mock("fs", () => ({
@@ -52,6 +53,7 @@ jest.mock("@opentelemetry/api", () => {
 
 import fs from "node:fs";
 import https from "node:https";
+import { PassThrough } from "node:stream";
 import {
 	registerServiceName,
 	type ServiceInstanceName,
@@ -148,6 +150,7 @@ describe("HttpClient", () => {
 		contentType: string
 	) {
 		(requestCallback as any)({
+			setEncoding: jest.fn(),
 			on: jest.fn((e: string, cb2: any) => {
 				if (e === "data") {
 					cb2(body);
@@ -252,7 +255,8 @@ describe("HttpClient", () => {
 				timeoutMs: 100 as DurationMs,
 				retryCount: 0 as PositiveInt,
 			});
-			mockReq._timeoutCb();
+			promise.catch(() => undefined);
+			await new Promise((resolve) => setTimeout(resolve, 150));
 
 			await expect(promise).rejects.toMatchObject({
 				name: "HttpClientTimeoutError",
@@ -280,6 +284,7 @@ describe("HttpClient", () => {
 		it("should handle response without content-type header", async () => {
 			const promise = client.get(URLString.of("https://example.com/api"));
 			(requestCallback as any)({
+				setEncoding: jest.fn(),
 				on: jest.fn((e: string, cb2: any) => {
 					if (e === "data") {
 						cb2("raw-string-data");
@@ -382,6 +387,7 @@ describe("HttpClient", () => {
 				schema
 			);
 			(requestCallback as any)({
+				setEncoding: jest.fn(),
 				on: jest.fn((e: string, cb2: any) => {
 					if (e === "data") {
 						cb2("raw-string");
@@ -407,6 +413,7 @@ describe("HttpClient", () => {
 				schema
 			);
 			(requestCallback as any)({
+				setEncoding: jest.fn(),
 				on: jest.fn((e: string, cb2: any) => {
 					if (e === "data") {
 						cb2("actual");
@@ -503,47 +510,19 @@ describe("HttpClient", () => {
 	});
 
 	describe("request close handling", () => {
-		it("should clean up timeout listener on request close after normal completion", async () => {
-			mockReq.removeListener = jest.fn<(...args: any[]) => any>();
-			mockReq.destroyed = false;
-
+		it("should clear the deadline timer when the request closes", async () => {
+			const clearSpy = jest.spyOn(global, "clearTimeout");
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				timeoutMs: 1000 as DurationMs,
 			});
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
-
 			const closeCall = mockReq.on.mock.calls.find(
 				(c: unknown[]) => c[0] === "close"
 			);
-			const closeHandler = closeCall![1] as () => void;
-			closeHandler();
-
+			(closeCall![1] as () => void)();
 			await promise;
-
-			expect(mockReq.removeListener).toHaveBeenCalledWith(
-				"timeout",
-				expect.any(Function)
-			);
-		});
-
-		it("should not clean up timeout listener when request was destroyed", async () => {
-			mockReq.removeListener = jest.fn<(...args: any[]) => any>();
-			mockReq.destroyed = true;
-
-			const promise = client.get(URLString.of("https://example.com/api"), {
-				timeoutMs: 1000 as DurationMs,
-			});
-			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
-
-			const closeCall = mockReq.on.mock.calls.find(
-				(c: unknown[]) => c[0] === "close"
-			);
-			const closeHandler = closeCall![1] as () => void;
-			closeHandler();
-
-			await promise;
-
-			expect(mockReq.removeListener).not.toHaveBeenCalled();
+			expect(clearSpy).toHaveBeenCalled();
+			clearSpy.mockRestore();
 		});
 	});
 
@@ -597,8 +576,61 @@ describe("HttpClient", () => {
 					await expect(promise).rejects.toThrow(
 						"Circuit breaker open for cb-sequential.example.com"
 					);
+					const { values } = await circuitBreakerRejectionsTotal.get();
+					expect(values).toContainEqual(
+						expect.objectContaining({
+							labels: { target: "cb-sequential.example.com", kind: "hostname" },
+							value: 1,
+						})
+					);
 				}
 			}
+		});
+
+		it("should not open the circuit on 4xx responses", async () => {
+			for (let i = 0; i < 6; i++) {
+				const promise = client.get(
+					URLString.of("https://cb-4xx.example.com/api"),
+					{ retryCount: 0 as PositiveInt }
+				);
+				simulateResponse(404, "{}", "application/json");
+				await expect(promise).rejects.not.toThrow("Circuit breaker open");
+			}
+		});
+
+		it("should open the circuit on socket errors outside the retry list", async () => {
+			for (let i = 0; i < 6; i++) {
+				const promise = client.get(
+					URLString.of("https://cb-unreach.example.com/api"),
+					{ retryCount: 0 as PositiveInt }
+				);
+				if (i < 5) {
+					errorHandler!(new Error("EHOSTUNREACH"));
+					await expect(promise).rejects.toThrow("EHOSTUNREACH");
+				} else {
+					await expect(promise).rejects.toThrow("Circuit breaker open");
+				}
+			}
+		});
+
+		it("should reopen the circuit on a half-open failure", async () => {
+			const url = URLString.of("https://cb-reopen.example.com/api");
+			const opts = { retryCount: 0 as PositiveInt };
+			for (let i = 0; i < 5; i++) {
+				const promise = client.get(url, opts);
+				errorHandler!(new Error("ECONNRESET"));
+				await expect(promise).rejects.toThrow("ECONNRESET");
+			}
+			jest.advanceTimersByTime(30_001);
+			const probe = client.get(url, opts);
+			errorHandler!(new Error("ECONNRESET"));
+			await expect(probe).rejects.toThrow("ECONNRESET");
+
+			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
+			await expect(client.get(url, opts)).rejects.toThrow(
+				"Circuit breaker open for cb-reopen.example.com"
+			);
+			expect(https.request).not.toHaveBeenCalled();
 		});
 
 		it("should reset circuit on success after half-open", async () => {
@@ -654,27 +686,6 @@ describe("HttpClient", () => {
 			);
 		});
 
-		it("should respect dynamic threshold based on instance count", async () => {
-			isServiceCircuitOpen("dynamic-service" as ServiceInstanceName);
-
-			for (let i = 0; i < 6; i++) {
-				const promise = client.get(
-					URLString.of(`https://cb-svc-dyn-${i}.example.com/api`),
-					{
-						retryCount: 0 as PositiveInt,
-						serviceName: "dynamic-service" as unknown as ServiceId,
-						serviceInstanceCount: 3 as PositiveInt,
-					}
-				);
-				errorHandler!(new Error("ECONNRESET"));
-				await expect(promise).rejects.toThrow();
-			}
-
-			expect(
-				isServiceCircuitOpen("dynamic-service" as ServiceInstanceName)
-			).toBe(true);
-		});
-
 		it("should reset service circuit on success after cooldown", async () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get(
@@ -718,6 +729,7 @@ describe("HttpClient", () => {
 					callCount++;
 					if (callCount <= 2) {
 						cb({
+							setEncoding: jest.fn(),
 							on: jest.fn((e: string, cb2: any) => {
 								if (e === "data") {
 									cb2("");
@@ -731,6 +743,7 @@ describe("HttpClient", () => {
 						});
 					} else {
 						cb({
+							setEncoding: jest.fn(),
 							on: jest.fn((e: string, cb2: any) => {
 								if (e === "data") {
 									cb2(JSON.stringify({ ok: true }));
@@ -762,6 +775,7 @@ describe("HttpClient", () => {
 			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
 				(_opts: any, cb: any) => {
 					cb({
+						setEncoding: jest.fn(),
 						on: jest.fn((e: string, cb2: any) => {
 							if (e === "data") {
 								cb2("");
@@ -897,15 +911,17 @@ describe("HttpClient", () => {
 
 	describe("shouldRetry for timeout errors", () => {
 		it("should treat HttpClientTimeoutError as retryable and succeed on retry", async () => {
+			jest.useFakeTimers();
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				retryCount: 1 as PositiveInt as PositiveInt,
 				timeoutMs: 100 as DurationMs,
 			});
-			mockReq._timeoutCb();
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			await jest.advanceTimersToNextTimerAsync();
+			await jest.advanceTimersToNextTimerAsync();
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			const result = await promise;
 			expect(result).toEqual({ ok: true });
+			jest.useRealTimers();
 		});
 	});
 
@@ -934,7 +950,8 @@ describe("HttpClient", () => {
 				{},
 				{ retryCount: 1, timeoutMs: 100 as DurationMs }
 			);
-			mockReq._timeoutCb();
+			promise.catch(() => undefined);
+			await new Promise((resolve) => setTimeout(resolve, 150));
 			await expect(promise).rejects.toThrow("timed out");
 			expect(https.request).toHaveBeenCalledTimes(1);
 		});
@@ -953,16 +970,18 @@ describe("HttpClient", () => {
 		});
 
 		it("should re-send a timed-out request marked idempotent", async () => {
+			jest.useFakeTimers();
 			const promise = client.post(
 				URLString.of("https://example.com/api"),
 				{},
 				{ retryCount: 1, idempotent: true, timeoutMs: 100 as DurationMs }
 			);
-			mockReq._timeoutCb();
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			await jest.advanceTimersToNextTimerAsync();
+			await jest.advanceTimersToNextTimerAsync();
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			await expect(promise).resolves.toEqual({ ok: true });
 			expect(https.request).toHaveBeenCalledTimes(2);
+			jest.useRealTimers();
 		});
 	});
 
@@ -985,7 +1004,10 @@ describe("HttpClient", () => {
 	describe("gzip and deflate content encoding", () => {
 		it("should handle gzip-encoded response", async () => {
 			const gzipData = "gzip-compressed-data";
-			const mockGunzip = { on: jest.fn<(...args: any[]) => any>() };
+			const mockGunzip = {
+				on: jest.fn<(...args: any[]) => any>(),
+				setEncoding: jest.fn<(...args: any[]) => any>(),
+			};
 
 			(
 				mockGunzip.on as unknown as jest.Mock<(...args: any[]) => any>
@@ -1023,7 +1045,10 @@ describe("HttpClient", () => {
 
 		it("should handle deflate-encoded response", async () => {
 			const deflateData = "deflate-compressed-data";
-			const mockInflate = { on: jest.fn<(...args: any[]) => any>() };
+			const mockInflate = {
+				on: jest.fn<(...args: any[]) => any>(),
+				setEncoding: jest.fn<(...args: any[]) => any>(),
+			};
 
 			(
 				mockInflate.on as unknown as jest.Mock<(...args: any[]) => any>
@@ -1060,6 +1085,35 @@ describe("HttpClient", () => {
 
 			const result = await client.get(URLString.of("https://example.com/data"));
 			expect(result).toBe("deflate-compressed-data");
+		});
+
+		it("should decode a multi-byte character split across chunks", async () => {
+			const bytes = Buffer.from('{"s":"é€"}');
+			const cut = bytes.indexOf(0xe2) + 1;
+			const mockRes = new PassThrough() as PassThrough & {
+				statusCode: number;
+				headers: Record<string, string>;
+			};
+			mockRes.statusCode = 200;
+			mockRes.headers = { "content-type": "application/json" };
+
+			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
+				(_opts: any, cb: any) => {
+					cb(mockRes);
+					mockRes.write(bytes.subarray(0, cut));
+					mockRes.end(bytes.subarray(cut));
+					return {
+						write: jest.fn<(...args: any[]) => any>(),
+						end: jest.fn<(...args: any[]) => any>(),
+						on: jest.fn<(...args: any[]) => any>(),
+						setTimeout: jest.fn<(...args: any[]) => any>(),
+						destroy: jest.fn<(...args: any[]) => any>(),
+					};
+				}
+			);
+
+			const result = await client.get(URLString.of("https://example.com/data"));
+			expect(result).toEqual({ s: "é€" });
 		});
 	});
 });

@@ -17,12 +17,15 @@ trap cleanup EXIT
 
 IMAGE="$(grep -m1 -oE 'image: mongo@sha256:[0-9a-f]+' "$ROOT/docker-compose.yml" | cut -d' ' -f2)"
 [ -n "$IMAGE" ] || { echo "no mongo image in docker-compose.yml"; exit 1; }
-docker run -d --name "$NAME" "$IMAGE" >/dev/null || exit 1
-for _ in $(seq 1 60); do
-	docker exec "$NAME" mongosh --quiet --eval 'db.runCommand({ping:1}).ok' 2>/dev/null | grep -q 1 && break
+# Authentication on (ADR-0067): restore-k8s.sh restores as `root`, whose
+# password is in the pod's env (MONGO_ROOT_PASSWORD).
+docker run -d --name "$NAME" -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=pw -e MONGO_ROOT_PASSWORD=pw "$IMAGE" >/dev/null || exit 1
+AUTH=(-u root -p pw --authenticationDatabase admin)
+for _ in $(seq 1 90); do
+	docker exec "$NAME" mongosh --quiet "${AUTH[@]}" --eval 'db.runCommand({ping:1}).ok' 2>/dev/null | grep -q 1 && break
 	sleep 1
 done
-sh_() { docker exec "$NAME" mongosh --quiet --eval "$1"; }
+sh_() { docker exec "$NAME" mongosh --quiet "${AUTH[@]}" --eval "$1"; }
 count() { sh_ "db.getSiblingDB('$1').getCollection('$2').countDocuments({})" | tr -d '\r'; }
 
 sh_ "db.getSiblingDB('dlq').dead_letters.insertMany([{a:1},{a:2},{a:3}]);
@@ -30,8 +33,18 @@ db.getSiblingDB('dlq').other.insertMany([{b:1}]);
 db.getSiblingDB('audit').audit_events.insertMany([{c:1},{c:2}])" >/dev/null
 
 mkdir -p "$WORK/bin" "$WORK/backups/mongodb/$TS"
-docker exec "$NAME" mongodump --quiet --gzip --archive >"$WORK/backups/mongodb/$TS/mongodb.archive.gz" || exit 1
+docker exec "$NAME" mongodump --quiet --gzip --archive "${AUTH[@]}" >"$WORK/backups/mongodb/$TS/mongodb.archive.gz" || exit 1
 cp "$WORK/backups/mongodb/$TS/mongodb.archive.gz" "$WORK/backups/mongodb/$TS/mongodb-audit.archive.gz"
+# Run manifest: a run without one is refused.
+mkdir -p "$WORK/backups/manifests"
+{
+	echo "{\"version\":1,\"timestamp\":\"$TS\",\"entries\":["
+	for l in mongodb mongodb-audit; do
+		f="mongodb/$TS/$l.archive.gz"
+		echo "{\"component\":\"$l\",\"path\":\"$f\",\"size\":$(wc -c <"$WORK/backups/$f" | tr -d ' '),\"sha256\":\"$(sha256sum "$WORK/backups/$f" | cut -d' ' -f1)\"},"
+	done | sed '$ s/,$//'
+	echo "]}"
+} >"$WORK/backups/manifests/manifest_$TS.json"
 
 cat >"$WORK/bin/kubectl" <<K
 #!/usr/bin/env bash

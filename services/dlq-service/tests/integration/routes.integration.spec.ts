@@ -39,7 +39,6 @@ jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 	_createHealthLimiter:
 		() => (_req: unknown, _res: unknown, next: () => void) =>
 			next(),
-	closeRateLimiters: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
@@ -74,7 +73,6 @@ jest.mock("../../src/config/metrics", () => ({
 		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
 		entriesPruned: { inc: jest.fn<(...args: any[]) => any>() },
 		pruneErrors: { inc: jest.fn<(...args: any[]) => any>() },
-		entrySizeBytes: { observe: jest.fn<(...args: any[]) => any>() },
 		collectionSize: { set: jest.fn<(...args: any[]) => any>() },
 	},
 }));

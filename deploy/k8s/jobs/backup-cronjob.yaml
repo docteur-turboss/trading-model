@@ -25,7 +25,7 @@ metadata:
     app.kubernetes.io/component: backup
     app.kubernetes.io/part-of: trading-model
   annotations:
-    description: "Daily backup of MongoDB (dlq + audit), MySQL (incl. SPIRE datastore), SPIRE CA keys and checkpoints"
+    description: "Daily backup of MongoDB (dlq + audit), MySQL, SPIRE datastore and CA keys (SQLite, ADR-0065) and checkpoints"
 spec:
   schedule: "0 2 * * *"
   concurrencyPolicy: Forbid
@@ -35,19 +35,22 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 2
+      activeDeadlineSeconds: 14400
       ttlSecondsAfterFinished: 86400
       template:
         spec:
           serviceAccountName: backup-runner
           restartPolicy: Never
+          # backup-data is ReadWriteOnce: run next to the daily job's volume
+          # users (exporter), on the same node when possible.
           affinity:
-            podAntiAffinity:
+            podAffinity:
               preferredDuringSchedulingIgnoredDuringExecution:
                 - weight: 100
                   podAffinityTerm:
                     labelSelector:
                       matchLabels:
-                        app.kubernetes.io/component: backup
+                        app.kubernetes.io/component: backup-metrics
                     topologyKey: kubernetes.io/hostname
           # backup-k8s.sh dumps through `kubectl exec` into the database pods,
           # encrypts with age and copies off-site with rclone: backup-tools

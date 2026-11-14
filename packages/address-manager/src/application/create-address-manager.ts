@@ -12,6 +12,7 @@ import AddressManager from "./address-manager";
 
 export type { AddressManagerEnv };
 
+/** Creates an AddressManager from the environment. */
 export function createAddressManager(env: AddressManagerEnv) {
 	return new AddressManager(_buildAddressManagerConfig(env));
 }
@@ -40,6 +41,7 @@ function _buildCoreConfig(env: AddressManagerEnv) {
 
 function _buildOptionalConfig(env: AddressManagerEnv) {
 	return {
+		// as unknown as: env var is a JSON string parsed upstream into this map
 		dnsNameMap: env.DNS_NAME_MAP as unknown as
 			| Record<ServiceId, IPAddress>
 			| undefined,

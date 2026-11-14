@@ -10,7 +10,7 @@ Pub/sub message brokering service with configurable delivery guarantees.
 | Port (host)      | `8444`                                                             |
 | Port (container) | `3000`                                                             |
 | Dependencies     | common, validation, http, server-utils, crypto, address-manager, broker-message |
-| Persistence      | None (in-memory dispatcher; dead letters in dlq-service)              |
+| Persistence      | Redis: subscriptions and the durable message journal (Streams, [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)); dead letters in dlq-service |
 | Validation       | Zod (dedicated schemas)                                            |
 
 ## Messaging Model
@@ -20,7 +20,7 @@ Pub/sub message brokering service with configurable delivery guarantees.
 - Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE` (single attempt, not an end-to-end guarantee: see [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md))
 - TTL-based message expiration with Dead Letter Queue routing (dlq-service)
 - Parallel dispatch to all subscribers of a topic
-- No write-ahead log or archive: messages are dispatched in memory; undeliverable messages are sent to dlq-service (local JSONL file while it is unreachable)
+- Undeliverable messages are sent to dlq-service (the journal entry stays pending while it is unreachable)
 
 ## REST Endpoints
 
@@ -49,8 +49,7 @@ Body (validated by `PublishSchema`):
     },
     "delivery": {
       "mode": "at-least-once",
-      "ttl": 60000,
-      "deduplicationId": "dedup-uuid"
+      "ttl": 60000
     }
   }
 }
@@ -124,12 +123,11 @@ Previously validated as `z.unknown()`, the `authContext` object is now strictly 
 
 - **TTL**: Message expiration based on time-to-live configured in metadata
 - **Retry with backoff**: `AT_LEAST_ONCE` retries up to 10 times (10s per attempt, no HTTP-client retry underneath) with exponential backoff (1s base, 20s cap) and ±20% random jitter; the retry state (attempts, last attempt) is the pending list of the journal, shared by the replicas: a retry is due once the previous attempt has timed out and its backoff passed, and any replica takes it over if the one that owned it died
-- **Circuit breaker**: After 5 consecutive dispatch failures, new messages are routed directly to the Dead Letter Queue to prevent cascading failures; the breaker resets on the next successful delivery
+- **Circuit breaker**: After 5 consecutive dispatch failures, new messages for that subscriber are not sent: they stay pending in the journal and are retried until the breaker resets on a successful delivery
 - **Alerting**: Persistent delivery failures are logged at ERROR level with topic, service name, and attempt count
-- **Dead Letter Queue**: Undelivered messages are sent to dlq-service (a `POST` to its `/dlq` route, signed with `DLQ_AUTH_HMAC_SECRET`). While it cannot take them they are kept in `DLQ_LOCAL_FALLBACK_PATH` and sent again every `DLQ_FORWARD_INTERVAL_MS`, at startup and at shutdown; entries refused for good (400, 413) go to `DLQ_LOCAL_FALLBACK_PATH.rejected`
-- **Graceful shutdown**: on SIGTERM the instance leaves discovery, keeps serving for `CACHE_TTL_MS`, stops its delivery worker after the attempts in flight (10 s at most), then forwards its local dead letters; messages not delivered yet stay in the journal for the other replicas (K8s `terminationGracePeriodSeconds: 120`, compose `stop_grace_period: 2m`)
+- **Dead Letter Queue**: Undelivered messages are sent to dlq-service (a `POST` to its `/dlq` route, signed with `DLQ_AUTH_HMAC_SECRET`). While it cannot take one, the journal entry stays pending and is retried (no local file); an entry refused for good (400, 413) is counted (`mm_dlq_rejected_total`) and stays pending until the 24 h trim
+- **Graceful shutdown**: on SIGTERM the instance leaves discovery, keeps serving for `CACHE_TTL_MS`, stops its delivery worker after the attempts in flight (10 s at most); messages not delivered yet stay in the journal for the other replicas (K8s `terminationGracePeriodSeconds: 120`, compose `stop_grace_period: 2m`)
 - **Durable journal**: one Redis stream per topic, one consumer group per subscriber service (delivery once per service, at least once); entries older than 24 h are trimmed, and an undelivered one is counted (`mm_journal_trimmed_pending_total`), logged and alerted (`JournalEntriesTrimmed`); the backlog of each group is read every 15 s (`XINFO GROUPS`, `XPENDING`, `XRANGE`: calls per group, none per message) into `mm_journal_pending_entries` and `mm_journal_oldest_pending_age_seconds` (`JournalBacklogOld` at 15 min); `JOURNAL_MIN_REPLICAS` replicas must hold a write before the 202 (`WAIT`); production needs Redis with AOF
-- **Deduplication**: Via `deduplicationId` in delivery metadata
 - **Partitioning**: Via `partitionKey` in routing metadata
 - **Priority**: Via `priority` in routing metadata
 
@@ -142,9 +140,7 @@ HTTP Routes (src/adapters/inbound/http.routes.ts)
       → Dispatcher (src/application/services/dispatcher.ts)
         → Subscription Registry (src/application/services/subscription-registry.ts)
         → Delivery over HTTP (src/adapters/outbound/http-message-delivery.ts → POST to subscriber callback URLs)
-        → Dead Letter (src/adapters/outbound/forwarding-dead-letter-store.ts
-            → dlq-service: http-dead-letter-store.ts, signed POST /dlq
-            → fallback: src/infrastructure/fallback/dlq-repository.ts, local JSONL file)
+        → Dead Letter (src/adapters/outbound/http-dead-letter-store.ts, signed POST /dlq to dlq-service)
 ```
 
 HTTP is the only transport: there is no WebSocket endpoint.

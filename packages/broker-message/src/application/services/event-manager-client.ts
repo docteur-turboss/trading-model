@@ -24,17 +24,6 @@ class EventEmitter<TEvents extends keyof EventMap> {
 		return () => this._emitter.off(eventName, callback);
 	}
 
-	off<TEvent extends TEvents>(
-		eventName: TEvent,
-		callback: Listener<EventMessagesArgs<TEvent>>
-	): void {
-		this._emitter.off(eventName, callback);
-	}
-
-	removeAllListeners(): void {
-		this._emitter.removeAllListeners();
-	}
-
 	emit<TEvent extends TEvents>(
 		eventName: TEvent,
 		...args: [EventMessagesArgs<TEvent>] extends [undefined]

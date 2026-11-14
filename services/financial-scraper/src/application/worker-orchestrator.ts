@@ -44,6 +44,8 @@ type LimitFunction = <TArgs extends unknown[], TResult>(
 interface SymbolState {
 	/** Open time of the next candle to fetch. */
 	cursor?: UnixTimestamp;
+	/** Fetch cursor read from the newest persisted candle (once per process). */
+	cursorLoaded: boolean;
 	/** Publish cursor of the series, read from the backlog once per process. */
 	publish?: PublishCursor;
 	publishLoaded: boolean;
@@ -163,6 +165,7 @@ export class WorkerOrchestrator {
 
 	private async _scrape(symbol: TradingSymbol): Promise<void> {
 		const state = this._stateOf(symbol);
+		await this._loadCursor(symbol, state);
 		const snapshot = await this._deps.source.fetchSnapshot({
 			symbol,
 			interval: this._candleInterval,
@@ -185,7 +188,7 @@ export class WorkerOrchestrator {
 	private _stateOf(symbol: TradingSymbol): SymbolState {
 		let state = this._states.get(symbol);
 		if (!state) {
-			state = { publishLoaded: false };
+			state = { cursorLoaded: false, publishLoaded: false };
 			this._states.set(symbol, state);
 		}
 		return state;
@@ -197,6 +200,33 @@ export class WorkerOrchestrator {
 			symbol,
 			interval: this._candleInterval,
 		};
+	}
+
+	/**
+	 * Resumes the fetch at the newest persisted candle, so a stop longer than
+	 * one fetch window leaves no gap. Unreadable: logged, fetches the latest
+	 * candles and tries again next cycle.
+	 */
+	private async _loadCursor(
+		symbol: TradingSymbol,
+		state: SymbolState
+	): Promise<void> {
+		if (state.cursorLoaded) {
+			return;
+		}
+		try {
+			// Its open time, not close + 1: the newest candle may have been stored
+			// still open; fetching it again is an idempotent upsert.
+			state.cursor ??= await this._deps.backlog.lastCandleOpenTime(
+				this._seriesOf(symbol)
+			);
+			state.cursorLoaded = true;
+		} catch (err) {
+			getLogger().error("Last persisted candle unreadable", {
+				context: { symbol },
+				error: err,
+			});
+		}
 	}
 
 	private _advanceCursor(
@@ -336,6 +366,7 @@ export class WorkerOrchestrator {
 async function _createLimiter(
 	maxConcurrency: PositiveInt
 ): Promise<LimitFunction> {
+	// as unknown as: dynamic ESM import of p-limit has no CJS typing
 	const { default: pLimit } = (await import("p-limit")) as unknown as {
 		default: (concurrency: number) => LimitFunction;
 	};

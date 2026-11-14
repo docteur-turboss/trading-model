@@ -10,17 +10,11 @@ jest.mock(
 					opts.routes({ use: jest.fn<(...args: any[]) => any>() });
 					return Promise.resolve({
 						close: jest.fn<(...args: any[]) => any>(),
-						raw: {},
 					});
 				}
 			),
 	})
 );
-
-// The mTLS discovery client loads the SVID files at construction.
-jest.mock("../../src/config/container", () => ({
-	discoveryClient: { get: jest.fn<(...args: any[]) => any>() },
-}));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -38,12 +32,17 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
+jest.mock("../../src/config/container", () => ({ discoveryClient: {} }));
+
 jest.mock("../../src/adapters/inbound/router", () => ({
 	createRouter: jest.fn((..._args: any[]) => ({ stack: [] })),
 }));
 
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
-import { createServer } from "../../src/application/server";
+import {
+	createServer,
+	discoveryReachedOnceCheck,
+} from "../../src/application/server";
 
 describe("server", () => {
 	beforeEach(() => {
@@ -60,5 +59,32 @@ describe("server", () => {
 				}),
 			})
 		);
+	});
+
+	it("gates readiness on the SVID and on discovery", () => {
+		void createServer();
+
+		expect(createServiceServer).toHaveBeenCalledWith(
+			expect.objectContaining({
+				readiness: [
+					expect.objectContaining({ name: "svid" }),
+					expect.objectContaining({ name: "discovery" }),
+				],
+			})
+		);
+	});
+
+	it("discovery check fails until the registry answers once, then stays ready", async () => {
+		const findInstance = jest
+			.fn<(...args: any[]) => any>()
+			.mockRejectedValueOnce(new Error("down"))
+			.mockResolvedValueOnce(undefined)
+			.mockRejectedValue(new Error("down again"));
+		const { check } = discoveryReachedOnceCheck({ findInstance });
+
+		await expect(check()).rejects.toThrow("down");
+		await expect(check()).resolves.toBe(true);
+		await expect(check()).resolves.toBe(true);
+		expect(findInstance).toHaveBeenCalledTimes(2);
 	});
 });

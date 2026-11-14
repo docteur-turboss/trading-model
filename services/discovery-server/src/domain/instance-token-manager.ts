@@ -1,4 +1,3 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	type AuthToken,
 	InstanceId,
@@ -19,7 +18,7 @@ export class InstanceTokenManager {
 		return this._crypto.generateInstanceId(endpoint);
 	}
 
-	generateToken(instanceId: InstanceId): string {
+	generateToken(instanceId: InstanceId): AuthToken {
 		return this._crypto.generateInstanceToken(instanceId, this._signingSecret);
 	}
 
@@ -41,9 +40,5 @@ export class InstanceTokenManager {
 			signingSecret: this._signingSecret,
 			storedToken: await this._tokens.get(instanceId),
 		});
-	}
-
-	verifyInstanceName(serviceName: ServiceInstanceName): boolean {
-		return this._crypto.verifyInstanceName(serviceName);
 	}
 }

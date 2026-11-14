@@ -3,24 +3,24 @@ import {
 	HTTP_STATUS,
 	type HttpStatusCode,
 } from "@trading-model/contracts/http-status";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/http/adapters/inbound/response-exception";
-import { logger } from "@trading-model/http/infrastructure/logger";
 import type { ServiceId } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
 import {
-	ACTIVE_REQUESTS,
-	PROXY_REQUEST_DURATION_SECONDS,
-} from "../infrastructure/config/metrics";
-import {
 	type ProxyDeps,
 	type ResponseCachePort,
 	UpstreamResponseTooLargeError,
-} from "./ports";
+} from "../domain/ports/gateway.port";
+import {
+	ACTIVE_REQUESTS,
+	PROXY_REQUEST_DURATION_SECONDS,
+} from "../infrastructure/config/metrics";
 
 interface ProxyContext {
 	serviceName: ServiceId;
@@ -36,29 +36,19 @@ export async function proxyAndCache(
 	{ forward, cache }: ProxyDeps
 ): Promise<ResponseObject> {
 	const start = performance.now();
+	let status: number = HTTP_STATUS.SERVICE_UNAVAILABLE;
 	ACTIVE_REQUESTS.inc();
 	try {
 		const result = await forward({ req, target, path: ctx.path });
 		const parsedBody = tryParseJson(result.body);
 		tryCacheResponse(req, ctx, result, parsedBody, cache);
-		PROXY_REQUEST_DURATION_SECONDS.observe(
-			{ service: ctx.serviceName, status: String(result.status) },
-			(performance.now() - start) / 1000
-		);
+		status = result.status;
 		return sendResponse(parsedBody ?? result.body, result.status);
 	} catch (err: unknown) {
 		const tooLarge = err instanceof UpstreamResponseTooLargeError;
-		PROXY_REQUEST_DURATION_SECONDS.observe(
-			{
-				service: ctx.serviceName,
-				status: String(
-					tooLarge ? HTTP_STATUS.BAD_GATEWAY : HTTP_STATUS.SERVICE_UNAVAILABLE
-				),
-			},
-			(performance.now() - start) / 1000
-		);
 		if (tooLarge) {
-			logger.warn("Upstream response too large", {
+			status = HTTP_STATUS.BAD_GATEWAY;
+			getLogger().warn("Upstream response too large", {
 				context: {
 					serviceName: ctx.serviceName,
 					path: ctx.path,
@@ -72,6 +62,10 @@ export async function proxyAndCache(
 		}
 		return buildProxyErrorResponse(err, ctx, target);
 	} finally {
+		PROXY_REQUEST_DURATION_SECONDS.observe(
+			{ service: ctx.serviceName, status: String(status) },
+			(performance.now() - start) / 1000
+		);
 		ACTIVE_REQUESTS.dec();
 	}
 }
@@ -106,7 +100,7 @@ function buildProxyErrorResponse(
 	target: ResolvedEndpoint
 ): ResponseObject {
 	const message = err instanceof Error ? err.message : "Unknown error";
-	logger.error("Proxy error", {
+	getLogger().error("Proxy error", {
 		context: {
 			serviceName: ctx.serviceName,
 			majorVersion: ctx.majorVersion,
@@ -116,7 +110,10 @@ function buildProxyErrorResponse(
 	});
 	// The cause stays in the log: returned to the client, connection errors
 	// would map the internal network.
-	return sendResponse({ error: "Service unavailable" }, 503 as HttpStatusCode);
+	return sendResponse(
+		{ error: "Service unavailable" },
+		HTTP_STATUS.SERVICE_UNAVAILABLE
+	);
 }
 
 function tryParseJson(raw: string): unknown | null {

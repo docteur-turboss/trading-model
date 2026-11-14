@@ -35,16 +35,6 @@ describe("CandleInterval", () => {
 		expect(CandleInterval.H1).toBe("1h");
 	});
 
-	it("should convert to milliseconds", () => {
-		expect(CandleInterval.toMs(CandleInterval.S1)).toBe(1000);
-		expect(CandleInterval.toMs(CandleInterval.H1)).toBe(3600000);
-		expect(CandleInterval.toMs(CandleInterval.Min1)).toBe(60000);
-		expect(CandleInterval.toMs(CandleInterval.Min5)).toBe(300000);
-		expect(CandleInterval.toMs(CandleInterval.D1)).toBe(86400000);
-		expect(CandleInterval.toMs(CandleInterval.W1)).toBe(604800000);
-		expect(CandleInterval.toMs(CandleInterval.Month1)).toBe(2592000000);
-	});
-
 	it("should list all values", () => {
 		const values = CandleInterval.values();
 		expect(values).toContain(CandleInterval.Min1);

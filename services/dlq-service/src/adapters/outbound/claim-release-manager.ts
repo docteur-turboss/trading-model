@@ -1,44 +1,10 @@
-﻿import type { InstanceId } from "@trading-model/primitives/primitives";
+import type { InstanceId } from "@trading-model/primitives/primitives";
 import { ObjectId } from "mongodb";
-import {
-	CLAIM_PROJECTION,
-	RELEASE_CLAIM,
-	STALE_CLAIM_MS,
-} from "../../domain/dlq-constants";
+import { RELEASE_CLAIM, STALE_CLAIM_MS } from "../../domain/dlq-constants";
 import type { CollectionProvider } from "./collection-provider";
-import { DlqQueryBuilder } from "./dlq-query-builder";
-import { toStoredDlqEntry } from "./repository";
 
 export class ClaimReleaseManager {
 	constructor(private readonly _getCollection: CollectionProvider) {}
-
-	async claimEntry(
-		id: string,
-		ctx: import("../../shared/types").BatchContext
-	): Promise<import("./repository").StoredDlqEntry | null> {
-		const col = await this._getCollection();
-		const result = await col.findOneAndUpdate(
-			{
-				_id: new ObjectId(id),
-				...new DlqQueryBuilder().buildQueuableQuery(),
-			},
-			{
-				$set: {
-					processingAt: new Date(),
-					processingInstance: ctx.instanceId,
-					lastBatchId: ctx.batchId,
-				},
-			},
-			{
-				returnDocument: "after",
-				projection: CLAIM_PROJECTION,
-			}
-		);
-		if (!result) {
-			return null;
-		}
-		return toStoredDlqEntry(result);
-	}
 
 	async releaseStaleClaims(staleThresholdMs = STALE_CLAIM_MS): Promise<number> {
 		const col = await this._getCollection();

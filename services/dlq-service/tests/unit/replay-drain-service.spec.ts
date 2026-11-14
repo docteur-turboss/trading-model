@@ -2,13 +2,14 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 let mockActiveReplaysCount = 0;
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: {
+jest.mock("@trading-model/contracts/logger-registry", () => {
+	const logger = {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
 		error: jest.fn<(...args: any[]) => any>(),
-	},
-}));
+	};
+	return { getLogger: () => logger, logger };
+});
 
 jest.mock("../../src/application/services/active-replay-counter", () => ({
 	activeReplays: {

@@ -1,10 +1,12 @@
 import type { JsonObject } from "@trading-model/primitives/primitives";
+import { errorProp } from "./errors/base";
 
 const PEM_LINE_PATTERN = /-----BEGIN[^-]+-----[\s\S]*?-----END[^-]+-----/g;
 const Visited = new WeakSet<object>();
 
 function _sanitizeError(err: Error): JsonObject {
-	const { code, cause } = err as { code?: unknown; cause?: unknown };
+	const code = errorProp(err, "code");
+	const cause = errorProp(err, "cause");
 	return {
 		name: err.name,
 		message: err.message,

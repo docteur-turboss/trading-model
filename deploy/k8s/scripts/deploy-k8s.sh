@@ -95,7 +95,7 @@ cmd_apply() {
     kustomize_build "${K8S_DIR}/node-agents" | kubectl apply -f -
     log "Applying all Trading Model manifests..."
     # Immutable pod template: recreated (idempotent) by the apply (issue #727).
-    kubectl delete job -n "$NAMESPACE" mongo-audit-init mongo-dlq-init --ignore-not-found
+    kubectl delete job -n "$NAMESPACE" mongo-audit-users mongo-dlq-users mysql-cluster-init --ignore-not-found
     kustomize_build "${K8S_DIR}/" | kubectl apply -f -
   fi
 
@@ -205,8 +205,17 @@ cmd_migrate_down() {
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
-  sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
-    "${K8S_DIR}/jobs/migration-job-down.yaml" | kubectl apply -n "$NAMESPACE" -f -
+  # As run-migrations.sh: a mysql-0 without mysql-tls (staging-local, issue #1066) serves
+  # its auto-generated certificate, which the job cannot verify.
+  local verify=true
+  kubectl get pod mysql-0 -n "$NAMESPACE" -o jsonpath='{.spec.volumes[*].name}' 2>/dev/null |
+    grep -qw mysql-tls || verify=false
+  # activeDeadlineSeconds follows the wait-job.sh timeout (DEPLOY_TIMEOUT_FACTOR, issue #760).
+  sed -e "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
+    -e "s#^\( *\)- name: DB_SSL_CA\$#\1- name: DB_SSL_VERIFY\n\1  value: '$verify'\n&#" \
+    "${K8S_DIR}/jobs/migration-job-down.yaml" |
+    awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
+    kubectl apply -n "$NAMESPACE" -f -
 
   log "Waiting for migration rollback to complete..."
   bash "${K8S_DIR}/scripts/wait-job.sh" "$NAMESPACE" db-migrate-down 180
@@ -329,6 +338,14 @@ canary_start() {
     abort_canary "$canary_name" "Service $service does not route to $canary_name: the canary would receive no traffic."
   fi
   log "Service $service routes to $canary_name: ${routed}/${ready} ready endpoints (~$(( routed * 100 / ready ))% of traffic)"
+
+  # edge-proxy pools keep-alive connections to the gateway, opened before the canary existed:
+  # they only reach the primary. Fresh pods (surge, maxUnavailable 0) open new ones that kube-proxy spreads.
+  if [[ "$service" == "api-gateway" ]]; then
+    if ! kubectl rollout restart -n "$NAMESPACE" deployment/edge-proxy       || ! kubectl rollout status -n "$NAMESPACE" deployment/edge-proxy --timeout=180s; then
+      abort_canary "$canary_name" "edge-proxy restart failed: the canary would be judged on stale connections."
+    fi
+  fi
 }
 
 # Observation gate of one started canary. Exits (after deleting the canary) on failure.
@@ -461,8 +478,16 @@ cmd_smoke_test() {
     local name="${entry%%:*}"
     local url="${entry#*:}"
 
-    if kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
-         curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null | grep -q "200"; then
+    # Up to 3 answers, 5 s apart, as the kubelet judges readiness (failureThreshold 3):
+    # one slow Redis connect just after the rollout is not a failed release (run 43367462523).
+    local code="" try
+    for try in 1 2 3; do
+      code=$(kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+        curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null || true)
+      [[ "$code" == "200" || "$try" -eq 3 ]] && break
+      sleep 5
+    done
+    if [[ "$code" == "200" ]]; then
       log "  ✓ $name is healthy"
     else
       err "  ✗ $name is NOT healthy"

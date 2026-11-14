@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { logger } from "../config/logger";
@@ -11,7 +12,10 @@ export class DlqPruner {
 	private readonly _timer = new TimerHandle();
 
 	constructor(
-		private readonly _entries: { prune(maxEntries: number): Promise<number> },
+		private readonly _entries: {
+			prune(maxEntries: number): Promise<number>;
+			count(): Promise<number>;
+		},
 		private readonly _env: PrunerSettings
 	) {}
 
@@ -23,9 +27,7 @@ export class DlqPruner {
 			intervalMs: this._env.DLQ_PRUNE_INTERVAL_MS,
 		});
 		this._timer.startInterval(() => {
-			this.prune().catch((err: unknown) => {
-				this._logIterationError(err);
-			});
+			void this.prune();
 		}, DurationMs.of(this._env.DLQ_PRUNE_INTERVAL_MS));
 	}
 
@@ -40,6 +42,7 @@ export class DlqPruner {
 				metrics.entriesPruned.inc(pruned);
 				logger.info(`Pruned ${pruned} old DLQ entries`);
 			}
+			metrics.collectionSize.set(await this._entries.count());
 			return pruned;
 		} catch (err) {
 			return this._handleError(err);
@@ -48,15 +51,9 @@ export class DlqPruner {
 
 	private _handleError(err: unknown): number {
 		logger.error("DLQ periodic prune failed", {
-			error: (err as Error)?.message,
+			error: normalizeError(err).message,
 		});
 		metrics.pruneErrors.inc(1);
 		return 0;
-	}
-
-	private _logIterationError(err: unknown): void {
-		logger.warn("Periodic prune iteration failed", {
-			error: (err as Error)?.message,
-		});
 	}
 }

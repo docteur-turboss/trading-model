@@ -2,7 +2,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
+  - redis-tls.yaml
   - redis.yaml
+  - mysql-tls.yaml
+  - mongo-tls.yaml
   - mysql.yaml
   - mongodb.yaml
   - mongo-audit.yaml
@@ -22,6 +25,10 @@ configMapGenerator:
   - name: redis-ha-scripts
     files:
       - redis-ha.sh
+  # Users of both MongoDB replica sets, run by Jobs mongo-*-users (ADR-0067).
+  - name: mongo-users-script
+    files:
+      - users.js=../../mongo/users.js
 
 # Alertmanager notification credentials: Secret alertmanager-credentials,
 # written by deploy.yml from the GitHub environment, not generated here (a

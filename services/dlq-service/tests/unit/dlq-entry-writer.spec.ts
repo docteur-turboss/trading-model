@@ -120,7 +120,8 @@ describe("dlq-entry-writer", () => {
 		};
 		MOCK_GET_COLLECTION.mockResolvedValue(mockCol);
 		MOCK_ESTIMATED_DOC_COUNT.mockResolvedValue(50);
-		MOCK_FIND_ONE.mockResolvedValue({ dlqPassCount: 5 });
+		MOCK_FIND_ONE.mockResolvedValueOnce({ dlqPassCount: 5 });
+		MOCK_FIND_ONE.mockResolvedValueOnce(null);
 		MOCK_COMPUTE_HASH.mockReturnValue({
 			messageId: "msg-1",
 			contentHash: "hash-1",

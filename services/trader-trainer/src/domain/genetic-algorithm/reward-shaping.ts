@@ -1,6 +1,6 @@
 import type { NumericRange } from "@trading-model/primitives/numeric-range";
 import type { NormalizationStats } from "../normalization-stats";
-import type { LamarckGenome } from "./genome-types";
+import type { LamarckGenome } from "./genome";
 import type { DeepReadonly } from "./shared-types";
 
 type RewardShapingGenes = DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>;
@@ -11,6 +11,7 @@ function _scaleAndClip(raw: number, config: RewardShapingGenes): number {
 		shaped *= config.scaleFactor;
 	}
 	if (config.clip) {
+		// as unknown as: clipBounds is a NumericRange at runtime
 		shaped = (config.clipBounds as unknown as NumericRange).clamp(shaped);
 	}
 	return shaped;

@@ -12,6 +12,7 @@ import {
 import { z } from "zod";
 import { TRACEPARENT_PATTERN } from "../../../shared/trace-context";
 
+/** Predicate checking the security context of a message metadata. */
 export const SECURITY_METADATA_CONTEXT_PREDICATE = z
 	.object({
 		authContext: z
@@ -44,6 +45,7 @@ export const SECURITY_METADATA_CONTEXT_PREDICATE = z
 	})
 	.optional();
 
+/** Predicate checking the delivery mode of a message metadata. */
 export const DELIVERY_METADATA_MODE_PREDICATE = z
 	.object({
 		mode: z.enum(Object.values(DeliveryMode), {
@@ -57,11 +59,6 @@ export const DELIVERY_METADATA_MODE_PREDICATE = z
 			.int("delivery.ttl must be a number")
 			.positive("delivery.ttl must be positive")
 			.optional(),
-		deduplicationId: z
-			.string(
-				"delivery.deduplicationId must be a string used to prevent duplicate message processing."
-			)
-			.optional(),
 		requireSubscriber: z
 			.boolean(
 				"delivery.requireSubscriber must be a boolean: refuse the publish when the topic has no subscriber."
@@ -70,6 +67,7 @@ export const DELIVERY_METADATA_MODE_PREDICATE = z
 	})
 	.optional();
 
+/** Predicate checking the routing context of a message metadata. */
 export const ROUTING_METADATA_CONTEXT_PREDICATE = z
 	.object({
 		partitionKey: z
@@ -84,6 +82,7 @@ export const ROUTING_METADATA_CONTEXT_PREDICATE = z
 	})
 	.optional();
 
+/** Predicate checking the publisher context of a message metadata. */
 export const PUBLISHER_METADATA_CONTEXT_PREDICATE = z.object({
 	serviceName: z.enum(
 		Object.values(ServiceInstanceName) as [string, ...string[]],
@@ -97,6 +96,7 @@ export const PUBLISHER_METADATA_CONTEXT_PREDICATE = z.object({
 		.min(1, "publisher.instanceId must not be empty"),
 });
 
+/** Predicate checking the identifiers of a message metadata. */
 export const IDS_METADATA_PREDICATE = z
 	.uuid({
 		error: (iss) =>
@@ -104,6 +104,7 @@ export const IDS_METADATA_PREDICATE = z
 	})
 	.optional();
 
+/** Predicate checking the schema version of a message metadata. */
 export const SCHEMA_METADATA_VERSION_PREDICATE = z
 	.literal(["1.0.0"], {
 		error: (iss) =>
@@ -129,6 +130,7 @@ const ALL_EVENT_TYPES = [
 	...Object.values(DlqEvent),
 ] as const;
 
+/** Predicate checking the event type of a message metadata. */
 export const EVENT_TYPE_METADATA_PREDICATE = z.enum(
 	ALL_EVENT_TYPES as [string, ...string[]],
 	{ error: () => "eventType is invalid. Must be a valid event type string." }
@@ -144,8 +146,10 @@ export const TRACEPARENT_METADATA_PREDICATE = z
 	.optional()
 	.catch(undefined);
 
+/** Schema of the metadata attached to every message. */
 export const MESSAGE_METADATA_SCHEMA = z.object({
 	topic: TOPIC_METADATA_PREDICATE,
+	messageId: IDS_METADATA_PREDICATE,
 	causationId: IDS_METADATA_PREDICATE,
 	correlationId: IDS_METADATA_PREDICATE,
 	eventType: EVENT_TYPE_METADATA_PREDICATE,

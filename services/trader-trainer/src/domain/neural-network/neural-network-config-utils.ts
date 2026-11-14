@@ -1,4 +1,4 @@
-import type { PositiveInt } from "@trading-model/primitives/primitives";
+import { PositiveInt } from "@trading-model/primitives/primitives";
 import { agentError } from "../../shared/errors";
 import { INITIALIZERS } from "./initializers";
 import type { LayerDims } from "./layer-dims";
@@ -22,8 +22,8 @@ function _buildLayerMemory(
 	config: Required<NeuralNetworkConfig>
 ): LayerMemory {
 	return {
-		fanIn: dims.fanIn as unknown as PositiveInt,
-		fanOut: dims.fanOut as unknown as PositiveInt,
+		fanIn: PositiveInt.of(dims.fanIn),
+		fanOut: PositiveInt.of(dims.fanOut),
 		weights: _initArray(
 			dims.fanIn * dims.fanOut,
 			config.initialisationType,

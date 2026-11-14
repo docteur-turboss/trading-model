@@ -1,18 +1,16 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
-import {
-	toMessageId,
-	type URLString,
-} from "@trading-model/primitives/primitives";
+import { getLogger } from "@trading-model/contracts/logger-registry";
+import type { URLString } from "@trading-model/primitives/primitives";
 import type {
 	ClaimedEntry,
 	DlqReplaySettings,
 	EntryClaimPort,
 	ReplayQueuePort,
-} from "../../domain/ports/replay.ports";
+} from "../../domain/ports/replay.port";
 import { generateBatchId } from "../../shared/batch-id";
 import { emitReplayMetrics } from "../../shared/replay-metrics";
 import { isShuttingDown } from "../../shared/shutdown-flag";
 import type { BatchResults, ReplayBatchOptions } from "../../shared/types";
+import { toEntryRefs } from "./replay-entries";
 
 export interface ClaimReplayOrchestratorDeps {
 	claims: EntryClaimPort;
@@ -74,13 +72,9 @@ export class ClaimReplayOrchestrator {
 		messageManagerUrl: URLString,
 		batchId: string
 	): Promise<void> {
-		logger.info(`DLQ Redis queue: replaying ${entries.length} entries`);
+		getLogger().info(`DLQ Redis queue: replaying ${entries.length} entries`);
 		const { success, errors } = await this._deps.replayBatch({
-			entries: entries.map((entry) => ({
-				id: toMessageId(entry.id),
-				message: entry.message,
-				service: entry.service,
-			})),
+			entries: toEntryRefs(entries),
 			messageManagerUrl,
 			batchId,
 			instanceId: this._deps.settings.instanceId,
@@ -91,7 +85,7 @@ export class ClaimReplayOrchestrator {
 			await this._deps.handleAbandonedEntries("DLQ Redis queue");
 		}
 
-		logger.info(
+		getLogger().info(
 			`DLQ Redis queue: ${success} replayed, ${errors.length} failed`
 		);
 	}

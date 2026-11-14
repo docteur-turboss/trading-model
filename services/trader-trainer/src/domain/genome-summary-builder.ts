@@ -1,10 +1,13 @@
 import {
 	type Fitness,
+	NonNegativeInt,
 	SharpeRatio,
 } from "@trading-model/primitives/primitives";
 import type { EpisodeScores } from "./genetic-algorithm/episode-scores";
-import type { GenomeFitnessMeta } from "./genetic-algorithm/genome";
-import type { LamarckGenome } from "./genetic-algorithm/genome-types";
+import type {
+	GenomeFitnessMeta,
+	LamarckGenome,
+} from "./genetic-algorithm/genome";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { ModelManifest } from "./model-artifact";
 import type { BestAgentSummary } from "./training-state";
@@ -51,7 +54,7 @@ function buildRLSummary(
  * Sharpe of the bar curve times sqrt(bars per year), comparable across
  * timeframes; per bar when the data carried no timestamps.
  */
-function annualisedSharpe(
+export function annualisedSharpe(
 	curve: EpisodeScores,
 	fitnessMeta: GenomeFitnessMeta | undefined
 ): number {
@@ -68,11 +71,12 @@ export function buildSummary(
 	const curve = fitnessMeta?.pnlCurve ?? fitnessMeta?.rawScores;
 	return {
 		id: String(genome.id),
-		generation: genome.generation,
+		generation: NonNegativeInt.of(genome.generation),
 		fitness,
 		sharpe: SharpeRatio.of(curve ? annualisedSharpe(curve, fitnessMeta) : 0),
 		avgPnl: fitnessMeta?.rawScores ? fitnessMeta.rawScores.mean() : 0,
 		maxDrawdown: curve ? curve.maxDrawdown() : 0,
+		evaluatedOn: fitnessMeta?.evaluatedOn ?? "validation",
 		gaControl: buildGASummary(genome),
 		network: buildNetworkSummary(genome),
 		rl: buildRLSummary(genome),
@@ -81,6 +85,7 @@ export function buildSummary(
 
 /** Summary of a stored version: metrics from the manifest, genes from its genome. */
 export function summaryFromManifest(manifest: ModelManifest): BestAgentSummary {
+	// as unknown as: manifest genome carries genes only, no weights (ADR-0022)
 	const genome = manifest.genome as unknown as DeepReadonly<LamarckGenome>;
 	const { metrics } = manifest;
 	return {
@@ -90,6 +95,7 @@ export function summaryFromManifest(manifest: ModelManifest): BestAgentSummary {
 		sharpe: SharpeRatio.of(metrics.sharpe),
 		avgPnl: metrics.avgPnl,
 		maxDrawdown: metrics.maxDrawdown,
+		evaluatedOn: metrics.evaluatedOn ?? "validation",
 		gaControl: buildGASummary(genome),
 		network: buildNetworkSummary(genome),
 		rl: buildRLSummary(genome),

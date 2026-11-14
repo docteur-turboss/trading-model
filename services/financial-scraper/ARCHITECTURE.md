@@ -104,7 +104,7 @@ Storage schemas live in `src/adapters/outbound/persistence/schema/`; market data
 | Component                    | Storage                           | Tables/Structures                                                                        |
 | ---------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------- |
 | `schema/trades.schema.ts`    | MySQL (`mysql2` + `ts-sql-query`) | `market_trades` — id, symbol, market, source, side, price, quantity, tradeId, timestamp  |
-| `schema/candles-schema.ts`   | MySQL                             | `market_candles` — id, symbol, market, source, interval_value, OHLCV, trades, timestamps |
+| `schema/candles.schema.ts`   | MySQL                             | `market_candles` — id, symbol, market, source, interval_value, OHLCV, trades, timestamps |
 | `schema/ticker24h.schema.ts` | MySQL                             | `market_tickers` — id, symbol, market, source, OHLC, volume, timestamps                  |
 | `schema/order-book.schema.ts` | MySQL                            | `market_order_books` — symbol, market, source, timestamp, bids/asks (JSON); write only (ADR-0053) |
 

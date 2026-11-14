@@ -1,44 +1,37 @@
-import {
-	type ProcessId,
-	UnixTimestamp,
-	type UserId,
-} from "@trading-model/primitives/primitives";
-import { sendError } from "../adapters/outbound/error-service-sender";
-import { getNodeEnv } from "../shared/node-env";
-import type { LogEntry, LogLevel, LogOptions } from "./log-types";
-export class LogDispatcher {
-	private readonly _safeStringify: (value: unknown) => string;
-	private readonly _processId: ProcessId;
-	private readonly _env: string | undefined;
+import { normalizeError } from "@trading-model/common/utils/errors";
+import type { HttpMethod } from "../domain/http-types";
+import { NODE_ENV } from "../shared/node-env";
+import type { LogEntry } from "./log-types";
 
-	constructor(safeStringify: (value: unknown) => string, processId: ProcessId) {
-		this._safeStringify = safeStringify;
-		this._processId = processId;
-		this._env = getNodeEnv();
+const ERROR_WEBHOOK_TIMEOUT_MS = 5000;
+
+function _shouldSend(env: string | undefined): boolean {
+	return env === NODE_ENV.PRODUCTION || env === NODE_ENV.STAGING;
+}
+
+/** Sends an error log entry to the logging service. */
+export async function sendError(
+	safeStringify: (value: unknown) => string,
+	entry: LogEntry,
+	env: string | undefined
+): Promise<void> {
+	// No webhook configured (the default, ""): nothing to send. Posting to "/"
+	// failed on every error log and printed "Failed to parse URL".
+	const url = process.env.ERROR_URL_WEBHOOK;
+	if (!(_shouldSend(env) && url)) {
+		return;
 	}
-
-	createLogEntry(
-		level: LogLevel,
-		message: string,
-		userId: UserId,
-		opts?: LogOptions
-	): LogEntry {
-		const { context, url, serviceInCharge } = opts ?? {};
-		const data: LogEntry = {
-			timestamp: UnixTimestamp.now(),
-			level,
-			message,
-			context,
-			processId: this._processId || undefined,
-			userId: userId || undefined,
-			url,
-			serviceInCharge,
-		};
-
-		return data;
-	}
-
-	sendError(logEntry: LogEntry): void {
-		void sendError(this._safeStringify, logEntry, this._env);
+	try {
+		await fetch(url, {
+			method: "POST" as HttpMethod,
+			headers: { "Content-Type": "application/json" },
+			body: safeStringify(entry),
+			signal: AbortSignal.timeout(ERROR_WEBHOOK_TIMEOUT_MS),
+		});
+	} catch (err) {
+		console.error(
+			"Failed to send log to service:",
+			normalizeError(err).message
+		);
 	}
 }

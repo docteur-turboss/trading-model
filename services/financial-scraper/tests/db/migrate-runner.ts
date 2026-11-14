@@ -13,13 +13,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
-export const MIGRATE_SCRIPT = join(
-	__dirname,
-	"../../../../scripts/migrate.mjs"
-);
+const MIGRATE_SCRIPT = join(__dirname, "../../../../scripts/migrate.mjs");
 
 /** Result of one migrate.mjs run. */
-export interface MigrateResult {
+interface MigrateResult {
 	readonly code: number;
 	readonly output: string;
 }

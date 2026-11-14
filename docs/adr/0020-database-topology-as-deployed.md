@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Supersedes:** [ADR-0003](./0003-mongodb-persistence.md), [ADR-0004](./0004-mysql-group-replication.md)
-**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (SPIRE datastore in MySQL), [ADR-0019](./0019-message-broker-as-built.md)
+**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (SPIRE datastore in MySQL until [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md)), [ADR-0019](./0019-message-broker-as-built.md)
 **Verified by:** manual review 2026-10-28 (`deploy/k8s/infra/mysql.yaml`, `deploy/k8s/infra/mongodb.yaml`, `deploy/k8s/infra/mongo-audit.yaml`, `docker-compose.yml`); `tests/k8s/run-kind.sh` and `bun run test:db` exercise single-node instances only
 
 ## Context
@@ -13,11 +13,11 @@ Checking the 13.09 audit finding on ADR/runtime drift (2026-10-28) showed that t
 **ADR-0004 (MySQL)** says: MySQL 8, Group Replication in **multi-primary** mode, "automatic failover with multi-primary writes". The manifests say:
 
 - `group_replication_single_primary_mode=on` (`deploy/k8s/infra/mysql.yaml`): single primary, not multi-primary.
-- `group_replication_start_on_boot=off`, and the `mysql-cluster-init` Job bootstraps the group on `mysql-0` **only**. Nothing runs `START GROUP_REPLICATION` on `mysql-1` and `mysql-2`: in production (3 replicas) they are standalone servers that receive no data. The group has one member.
+- `group_replication_start_on_boot=off`, and the `mysql-cluster-init` Job bootstraps the group on `mysql-0` **only**. Nothing runs `START GROUP_REPLICATION` on `mysql-1` and `mysql-2`: in production (3 replicas, until issue #814) they were standalone servers that received no data. The group has one member.
 - Every client (financial-scraper, SPIRE server, migration Jobs) connects through the `mysql-primary` Service, whose selector is pinned to the pod `mysql-0`. Even with a healthy group, a primary election would not move the Service.
 - Staging and the kind smoke test run 1 replica; compose runs one MySQL without Group Replication.
 
-So there is **no automatic failover**: losing `mysql-0` stops market data ingestion and the SPIRE server (its datastore), until the pod comes back with its volume.
+So there is **no automatic failover**: losing `mysql-0` stops market data ingestion and the SPIRE server (its datastore), until the pod comes back with its volume. *Amended by [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md): the SPIRE datastore is SQLite on the server's own volume, so losing `mysql-0` only stops ingestion.*
 
 **ADR-0003 (MongoDB)** says: one shared MongoDB replica set, one database per service, and rejects "separate MongoDB per service" as too much overhead. K8s runs exactly the rejected option: two StatefulSets, `mongo-dlq` (`rs0`) and `mongo-audit` (`rs0-audit`), 3 members each, initiated by their own init Jobs. Compose runs one standalone `mongo` (no replica set) shared by audit-logger and dlq-service. ADR-0003 also still carried a `certificate-authority` scope, already superseded by ADR-0011.
 
@@ -27,7 +27,7 @@ Both ADRs stayed `Accepted` because no check ties an ADR to the runtime.
 
 Record the topology as deployed, including what it does not provide.
 
-### MySQL (market data, SPIRE datastore)
+### MySQL (market data; SPIRE datastore until ADR-0065)
 
 | | Compose / staging / kind | Production |
 | --- | --- | --- |
@@ -50,7 +50,7 @@ The K8s split is kept: the audit trail (hash-chained, compliance) and the DLQ ha
 
 ### Making MySQL highly available
 
-Real HA is a separate decision, not taken here. The options are known: either finish Group Replication (join `mysql-1/2` with `START GROUP_REPLICATION`, restart the group on boot, and route writes to the elected primary through MySQL Router or a readiness probe on `group_replication_primary_member`), or drop to one MySQL replica and rely on backups and restore time. Until one is chosen, the production StatefulSet spends two pods and two 20 Gi volumes that hold no data.
+Real HA is a separate decision, not taken here. The options are known: either finish Group Replication (join `mysql-1/2` with `START GROUP_REPLICATION`, restart the group on boot, and route writes to the elected primary through MySQL Router or a readiness probe on `group_replication_primary_member`), or drop to one MySQL replica and rely on backups and restore time. Issue #814 chose the second: the production StatefulSet runs `replicas: 1` (the SPIRE datastore left MySQL in ADR-0065, so no failover requirement remains). The Group Replication config and `mysql-cluster-init` stay: they bootstrap the one-member group on `mysql-0`, and a later HA decision can add members back.
 
 ## Alternatives Considered
 
@@ -64,7 +64,7 @@ Real HA is a separate decision, not taken here. The options are known: either fi
 ### Positive
 
 - Runbooks and incident response can rely on the ADR: `mysql-0` is a single point of failure, MongoDB is two replica sets in K8s.
-- The wasted `mysql-1/2` capacity is visible.
+- Production runs one MySQL pod: the topology matches what it provides. Existing PVCs `mysql-data-mysql-1` / `mysql-data-mysql-2` are not deleted by the scale-down; the operator removes them by hand (runbook-database-failover).
 
 ### Negative
 

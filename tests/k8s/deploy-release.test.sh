@@ -27,10 +27,16 @@ for env in staging production; do
 	grep -q "registry.example/acme/api-gateway@$(awk '$1 == "api-gateway" {print $2}' "$WORK/digests")" <<<"$rendered" &&
 		ok "$env: api-gateway at its digest" || ko "$env: api-gateway not at its digest"
 done
+ruled="$(bash "$SCRIPT" render "$ROOT/deploy/k8s/overlays/staging" r "$WORK/digests" 1.2.3)"
+grep -q 'runbook_url: .*/blob/v1.2.3/' <<<"$ruled" && ! grep -q 'runbook_url: .*/blob/main/' <<<"$ruled" &&
+	ok "tag 1.2.3: runbook_url on blob/v1.2.3/" || ko "runbook_url not rewritten to the tag"
+grep -q 'runbook_url: .*/blob/main/' <<<"$(bash "$SCRIPT" render "$ROOT/deploy/k8s/overlays/staging" r "$WORK/digests" latest)" &&
+	ok "tag latest: runbook_url stays on main" || ko "runbook_url moved without a release tag"
 : >"$WORK/empty"
 bash "$SCRIPT" render "$ROOT/deploy/k8s/overlays/staging" r "$WORK/empty" >/dev/null 2>&1 &&
 	ko "render accepted an empty digest file" || ok "render refuses an empty digest file"
 
+bash "$SCRIPT" render "$ROOT/deploy/k8s/overlays/staging" r "$WORK/digests" >"$WORK/render.yaml"
 mkdir -p "$WORK/bin"
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
@@ -42,7 +48,9 @@ if [ "$1" = get ] && [ "$2" = deployment ] && [[ $* == *terminationGracePeriodSe
 	exit 0
 fi
 if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0; fi
+if [ "$1" = get ] && [[ $2 == statefulset/* ]]; then [[ $* == *updateRevision* ]] && printf '%s-abc' "${2#*/}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
+if [ "$1" = wait ] || [ "$1" = delete ]; then exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
 if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] || [ "$3" = "statefulset/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
 if [ "$1" = get ] && [ "$2" = deployment ]; then
@@ -53,10 +61,12 @@ if [ "$1" = rollout ] && [ "$2" = undo ]; then
 	[ "$3" = "deployment/$STUB_UNDO_FAILS" ] && exit 1
 	exit 0
 fi
+if [ "$1" = apply ]; then cat >>"$STUB_APPLIED"; exit 0; fi
+[ "$1" = wait ] && exit 0
 exit 2
 STUB
 chmod +x "$WORK/bin/kubectl"
-export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log"
+export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log" STUB_APPLIED="$WORK/applied"
 
 STUB_REVS="discovery-server=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
 grep -qx "discovery-server 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
@@ -96,6 +106,13 @@ bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	ok "rollback undoes every resource before waiting (Redis and its sentinels restart together)" ||
 	ko "rollback order: $(cat "$WORK/log")"
 
+printf 'statefulset/redis 3\n' >"$WORK/revs"
+: >"$WORK/log"
+STUB_PODS='redis-0 redis-abc False\nredis-1 redis-new True\nredis-2 redis-new False\nredis-3 redis-new\n' bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
+	grep -qx "delete pod redis-2 redis-3 -n ns" "$WORK/log" &&
+	[ "$(grep -n 'delete pod' "$WORK/log" | cut -d: -f1)" -lt "$(grep -n 'rollout status' "$WORK/log" | cut -d: -f1)" ] &&
+	ok "rollback deletes the not-ready pods of the failed revision only, before waiting" || ko "stuck pods: $(cat "$WORK/log")"
+
 : >"$WORK/log"
 STUB_GRACE="financial-scraper-collector=360 api-gateway=30" bash "$SCRIPT" wait ns >/dev/null &&
 	grep -q "rollout status deployment/financial-scraper-collector -n ns --timeout=540s" "$WORK/log" &&
@@ -120,6 +137,21 @@ DEPLOY_TIMEOUT_FACTOR=4 STUB_GRACE="api-gateway=30" bash "$SCRIPT" wait ns >/dev
 	ok "DEPLOY_TIMEOUT_FACTOR multiplies the wait, not the grace" || ko "factor: $(cat "$WORK/log")"
 DEPLOY_TIMEOUT_FACTOR=x bash "$SCRIPT" wait ns >/dev/null 2>&1 && ko "bad DEPLOY_TIMEOUT_FACTOR accepted" ||
 	ok "DEPLOY_TIMEOUT_FACTOR not a positive integer: refused"
+
+: >"$WORK/log"
+: >"$WORK/applied"
+bash "$ROOT/scripts/split-cluster-scope.sh" app <"$WORK/render.yaml" | bash "$SCRIPT" redis-first ns || ko "redis-first failed"
+{ grep -q 'name: redis-sentinel$' "$WORK/applied" && ! grep -q 'kind: Deployment' "$WORK/applied" &&
+	grep -q "rollout status statefulset/redis-sentinel -n ns" "$WORK/log"; } &&
+	ok "redis-first applies the Redis StatefulSets only, then waits for them" || ko "redis-first: $(cat "$WORK/log")"
+for doc in Certificate:redis-tls Certificate:redis-ca Issuer:redis-ca Issuer:redis-selfsigned; do
+	grep -A5 "^kind: ${doc%%:*}$" "$WORK/applied" | grep -q "^  name: ${doc#*:}$" || ko "redis-first did not apply ${doc/:/ }"
+done
+! grep -q 'name: mysql-tls$' "$WORK/applied" &&
+	[ "$(grep -n 'wait --for=condition=Ready certificate/redis-tls -n ns' "$WORK/log" | cut -d: -f1)" -lt \
+		"$(grep -n 'rollout status statefulset/redis ' "$WORK/log" | cut -d: -f1)" ] &&
+	ok "redis-first applies the Redis certificates and waits for redis-tls before the StatefulSets" ||
+	ko "redis-first certificates: $(cat "$WORK/log")"
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 

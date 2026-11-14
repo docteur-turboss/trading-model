@@ -61,7 +61,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 | API          | Express.js                                           |
 | Frontend     | None for now (ADR-0018)                              |
 | Security     | mTLS (all services)                                  |
-| Database     | MongoDB (audit-logger, dlq-service), MySQL (financial-scraper, SPIRE datastore), Redis (discovery registry, message-manager subscriptions, dlq-service) |
+| Database     | MongoDB (audit-logger, dlq-service), MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), Redis (discovery registry, message-manager subscriptions, dlq-service) |
 | Validation   | Zod                                                  |
 | Scheduling   | node-cron                                            |
 | Formatting   | Biome                                                |
@@ -98,9 +98,9 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, server-utils, validation |
 | discovery-server | common, contracts, crypto, http, persistence, primitives, server-utils, validation |
 | dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
-| financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, server-utils, validation |
+| financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, server-utils, validation |
 | message-manager | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
-| trader-service | address-manager, broker-message, common, contracts, crypto, http, primitives, server-utils, validation |
+| trader-service | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, server-utils, validation |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
 
@@ -122,7 +122,7 @@ There is no frontend workspace: `admin-interface` was removed until a new one is
 
 ## Workload Identity & Security Model
 
-- All inter-service communication uses **HTTPS with mutual TLS** (mTLS).
+- All service-to-service HTTP communication uses **HTTPS with mutual TLS** (mTLS); database client traffic is not encrypted (ADR-0060).
 - Workload identity is provided by **SPIFFE/SPIRE** (ADR-0011): each workload is
   attested and issued short-lived X.509-SVIDs (with a `spiffe://` URI SAN),
   consumed via `spiffe-helper` sidecars. The former in-house CA and
@@ -187,6 +187,7 @@ Rules:
 
 - `index.ts` and `server.ts` are the **only** files of `application/` allowed to touch adapters/infrastructure, and only for startup concerns. They obtain their collaborators from `config/container.ts` and never `new` an adapter themselves.
 - Every other file of `application/` depends on ports only.
+- **Ports**: type `XxxPort` (never an `I` prefix), file `xxx.port.ts` (never `-port.ts` / `.ports.ts`), located in `domain/ports/` (several ports of one concern may share a file). Non-port interfaces: `xxx.interface.ts`; MySQL schemas: `xxx.schema.ts`.
 - Containers take environment values **as parameters** (`createDiscoveryApp(ENV)`, `createScrapeScheduler(ENV)`) rather than importing `ENV`, so they can be imported by tests without environment validation.
 
 ### Entry Point (`src/application/index.ts`)

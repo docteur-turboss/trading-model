@@ -1,3 +1,4 @@
+import { createHash, createHmac } from "node:crypto";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import { HttpMethod } from "@trading-model/contracts/signed-request";
 import { ServiceId } from "@trading-model/primitives/primitives";
@@ -93,6 +94,28 @@ describe("verifySignature", () => {
 			secret: longSecret,
 		});
 		expect(result).toBe(true);
+	});
+
+	it("accepts the signature examples/manage-dlq.sh computes over the path with its query", () => {
+		const path = "/dlq/replay?topic=market.trade.recent.fetch&limit=10";
+		const timestamp = String(Date.now());
+		const bodyHash = createHash("sha256").update("{}").digest("hex");
+		const signature = createHmac("sha256", longSecret)
+			.update(`admin:${timestamp}:${bodyHash}:POST:${path}`)
+			.digest("hex");
+		const input = {
+			serviceName: ServiceId.of("admin"),
+			method: HttpMethod.Post,
+			path,
+			body: undefined,
+		};
+		expect(
+			verifySignature(input, {
+				signature: signature as never,
+				timestamp: timestamp as never,
+				secret: longSecret,
+			})
+		).toBe(true);
 	});
 
 	it("should return false for empty signature", () => {

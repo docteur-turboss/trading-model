@@ -94,7 +94,7 @@ export const TRAINER_ROUTES = (
 				agent,
 				training: trainer.isTraining() && trainer.getCurrentSymbol() === symbol,
 				generation: snapshot.generation,
-				model: (await models.list(String(symbol)))[0] ?? null,
+				model: (await models.latest(String(symbol))) ?? null,
 			});
 		}
 	);

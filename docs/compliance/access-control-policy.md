@@ -45,15 +45,15 @@ All access to trading-model platform resources shall be authenticated, authorise
 Every service instance is provisioned with an X.509 SVID issued by the SPIRE Server after workload attestation. The SVID Subject Alternative Name (SAN) carries the SPIFFE ID `spiffe://trading-model.local/ns/<namespace>/sa/<service>`.
 
 | Identity | SPIFFE ID (SAN) | Issued By | Validity |
-|---|---|---|
-| `discovery-server` | `spiffe://trading-model.local/ns/trading-model/sa/discovery-server` | SPIRE Server | 1h TTL (auto-rotated) |
-| `message-manager` | `spiffe://trading-model.local/ns/trading-model/sa/message-manager` | SPIRE Server | 1h TTL (auto-rotated) |
-| `financial-scraper` | `spiffe://trading-model.local/ns/trading-model/sa/financial-scraper` | SPIRE Server | 1h TTL (auto-rotated) |
-| `trader-trainer` | `spiffe://trading-model.local/ns/trading-model/sa/trader-trainer` | SPIRE Server | 1h TTL (auto-rotated) |
-| `audit-logger` | `spiffe://trading-model.local/ns/trading-model/sa/audit-logger` | SPIRE Server | 1h TTL (auto-rotated) |
-| `dlq-service` | `spiffe://trading-model.local/ns/trading-model/sa/dlq-service` | SPIRE Server | 1h TTL (auto-rotated) |
-| `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 1h TTL (auto-rotated) |
-| `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 1h TTL (auto-rotated) |
+|---|---|---|---|
+| `discovery-server` | `spiffe://trading-model.local/ns/trading-model/sa/discovery-server` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `message-manager` | `spiffe://trading-model.local/ns/trading-model/sa/message-manager` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `financial-scraper` | `spiffe://trading-model.local/ns/trading-model/sa/financial-scraper` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `trader-trainer` | `spiffe://trading-model.local/ns/trading-model/sa/trader-trainer` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `audit-logger` | `spiffe://trading-model.local/ns/trading-model/sa/audit-logger` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `dlq-service` | `spiffe://trading-model.local/ns/trading-model/sa/dlq-service` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 4 h TTL (auto-rotated) |
 
 **Enforcement:** `@trading-model/http/adapters/inbound/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). When `ENFORCE_MTLS_STRICT` is enabled (production), `mtls-authorization.ts` additionally enforces the ACL on every inbound request.
 
@@ -101,10 +101,11 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 ### 5.1 Administrator Access
 
 | Resource | Access Method | Authentication | Authorisation |
-|---|---|---|
+|---|---|---|---|
 | API gateway admin endpoints (DLQ delete, replay, store) | HTTPS + API key | `x-api-key` header | scope `dlq:write` of the key in `AUTH_TOKENS` (403 without it); the key name is recorded as `actor` of the DLQ audit events (ADR-0059) |
-| Database (MongoDB) | Plain TCP in the cluster (no TLS); operators through `kubectl exec` | None until issue #669 ships MongoDB authentication | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--message-manager-and-audit)); `kubectl exec` through Kubernetes RBAC |
-| Database (MySQL) | TLS connection | Username/password + SealedSecret | SQL grants |
+| Database (MySQL) | TLS 1.2+ (cert-manager server certificate, host name verified; plain TCP refused: `require_secure_transport=ON`, issue #767) | Username/password + SealedSecret **and** a cert-manager client certificate per user (`REQUIRE ISSUER / SUBJECT`) | NetworkPolicy: ports 3306 / 33061 only from the listed client components ([databases.md](../architecture/databases.md)); SQL grants |
+| Database (MongoDB) | Plain TCP in the cluster (no TLS, ADR-0060); operators through `kubectl exec` | None until issue #669 ships MongoDB authentication | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--audit-and-dlq)); `kubectl exec` through Kubernetes RBAC |
+| Grafana (metrics, Loki logs) | HTTPS through the ingress | OIDC, one account per person (ADR-0063); local `admin` kept for break-glass only | Role `Viewer` by default, no sign-up, no anonymous access; Admin granted by hand |
 | Kubernetes API | kubectl + client cert | mTLS certificate | RBAC roles + SealedSecrets |
 
 ### 5.2 Emergency Access (Break-Glass)
@@ -116,14 +117,19 @@ In the event of SPIRE unavailability:
 3. Rotate SVIDs once SPIRE is stable
 4. Initiate incident response procedure
 
+### 5.3 Grafana Break-Glass
+
+The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity provider is down: see [ADR-0063](../adr/0063-grafana-per-person-access-through-oidc.md) and the [runbook](../operations/runbooks/runbook-grafana-break-glass.md). Each use is written in the incident log (who, why, when); rotate `GRAFANA_PASSWORD` afterwards.
+
 ## 6. Access Review
 
 | Review Type | Frequency | Scope |
 |---|---|---|
 | ACL audit | Annual | Verify service-to-service ACL mappings match current architecture |
-| SVID audit | Continuous | All SVIDs auto-rotated (1h TTL); expired SVIDs rejected |
+| SVID audit | Continuous | All SVIDs auto-rotated (4h TTL, ADR-0065); expired SVIDs rejected |
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
+| Grafana account review | Quarterly | List Grafana users (Administration > Users): remove leavers, keep Admin to named operators, check `GRAFANA_PASSWORD` was rotated after any break-glass use. Logins are in Loki (logger `context`) |
 | API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, keep `dlq:write` to operators who purge or replay the DLQ, rewrite old-format keys (bare secret, ADR-0059) |
 
 ## 7. Enforcement & Violations

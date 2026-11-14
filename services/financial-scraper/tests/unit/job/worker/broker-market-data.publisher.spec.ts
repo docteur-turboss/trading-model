@@ -19,7 +19,6 @@ const MOCK_METADATA_BUILDER_CTOR = jest
 		setTopic: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 		setSecurity: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 		setIds: jest.fn<(...args: any[]) => any>().mockReturnThis(),
-		setPublisher: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 		toJSON: jest.fn<(...args: any[]) => any>().mockReturnValue({}),
 	});
 
@@ -31,7 +30,7 @@ jest.mock("@trading-model/broker-message", () => ({
 
 jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: {
-		SERVICE_NAME: "financial-scraper-service",
+		SERVICE_NAME: "financial-scraper",
 		INSTANCE_ID: "test-instance-1",
 	},
 }));

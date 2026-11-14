@@ -4,7 +4,7 @@ import type {
 	GenomeFitnessMeta,
 	LamarckGenome,
 	MarketStep,
-} from "./genome-types";
+} from "./genome";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 
@@ -12,6 +12,11 @@ export interface WindowSet {
 	id: string;
 	train: MarketStep[];
 	validation: MarketStep[];
+	/**
+	 * Newest steps, after the validation: read once, on the best genome after
+	 * the session, never by the training nor the selection (ADR-0068).
+	 */
+	test?: MarketStep[];
 }
 
 export interface GARunnerConfig {

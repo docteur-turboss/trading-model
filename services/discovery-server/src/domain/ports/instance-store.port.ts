@@ -1,0 +1,18 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
+import type { ServiceInstance } from "../../shared/types";
+
+export interface InstanceStorePort {
+	registerInstance(instance: ServiceInstance): ServiceInstance | Promise<void>;
+	updateHeartbeat(
+		identity: ServiceIdentity
+	): number | false | Promise<number | false>;
+	getInstances(
+		serviceName: ServiceInstanceName
+	): ServiceInstance[] | Promise<ServiceInstance[]>;
+	getInstance(
+		identity: ServiceIdentity
+	): ServiceInstance | undefined | Promise<ServiceInstance | undefined>;
+	removeInstance(identity: ServiceIdentity): boolean | Promise<boolean>;
+	listServiceNames(): ServiceInstanceName[] | Promise<ServiceInstanceName[]>;
+}

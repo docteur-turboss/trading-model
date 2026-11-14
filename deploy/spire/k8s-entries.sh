@@ -16,6 +16,10 @@ AGENT_NS=${SPIRE_AGENT_NAMESPACE:-trading-model-node}
 CLUSTER=${SPIRE_CLUSTER_NAME:-trading-model}
 INTERVAL=${RECONCILE_INTERVAL_SECONDS:-600}
 SERVICE_ACCOUNTS=${SPIFFE_SERVICE_ACCOUNTS:-"edge-proxy api-gateway audit-logger discovery-server dlq-service financial-scraper message-manager trader-trainer prometheus blackbox-exporter"}
+# <service account>:<SPIFFE name>: a dedicated ServiceAccount that keeps the
+# SPIFFE ID of its service (ACLs and discovery see no new identity). The
+# financial-scraper-collector pod holds the Lease right (issue #714).
+SERVICE_ACCOUNT_ALIASES=${SPIFFE_SERVICE_ACCOUNT_ALIASES:-"financial-scraper-collector:financial-scraper"}
 AGENT_ID="spiffe://${TD}/ns/${AGENT_NS}/sa/spire-agent"
 
 entry_exists() {
@@ -42,6 +46,13 @@ reconcile() {
         -x509SVIDTTL 3600
     fi
   done
+  for alias in $SERVICE_ACCOUNT_ALIASES; do
+    sa=${alias%%:*}
+    name=${alias#*:}
+    if ! "$SERVER" entry show -socketPath "$SOCK" -selector "k8s:sa:${sa}" | grep -q "k8s:sa:${sa}"; then
+      "$SERVER" entry create -socketPath "$SOCK"         -spiffeID "spiffe://${TD}/ns/${NS}/sa/${name}"         -parentID "$AGENT_ID"         -selector "k8s:ns:${NS}"         -selector "k8s:sa:${sa}"         -dns "$name"         -x509SVIDTTL 3600
+    fi
+  done
   echo "SPIRE entries reconciled ($(echo "$SERVICE_ACCOUNTS" | wc -w) workloads)."
 }
 
@@ -50,7 +61,13 @@ until "$SERVER" healthcheck -socketPath "$SOCK" >/dev/null 2>&1; do
   sleep 3
 done
 
+# A failed pass retries after RETRY_SECONDS, not INTERVAL: no entry means no SVID for any workload.
+RETRY=${RETRY_SECONDS:-10}
 while true; do
-  reconcile || echo "Reconciliation failed, retrying in ${INTERVAL}s"
-  sleep "$INTERVAL"
+  if reconcile; then
+    sleep "$INTERVAL"
+  else
+    echo "Reconciliation failed, retrying in ${RETRY}s"
+    sleep "$RETRY"
+  fi
 done

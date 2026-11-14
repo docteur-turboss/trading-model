@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy event to Slack (issue #435). Everything arrives through env, never argv:
-#   SLACK (webhook, secret), EVENT (started|succeeded|failed|rolled-back),
+#   SLACK (webhook, secret), EVENT (started|succeeded|failed|rolled-back|failed-before-overlay),
 #   DEPLOY_ENV, VERSION, SHA, RUN_URL.
 # No webhook: notice, exit 0. Delivery failure: warning, exit 0 (an event never fails a deploy).
 set -uo pipefail
@@ -10,6 +10,7 @@ case "${EVENT:-}" in
   succeeded) msg="Deploy succeeded:" ;;
   failed) msg="Deploy FAILED:" ;;
   rolled-back) msg="Deploy FAILED, rolled back:" ;;
+  failed-before-overlay) msg="Deploy FAILED before the overlay, Deployments unchanged, nothing to roll back:" ;;
   *) echo "::error::unknown EVENT '${EVENT:-}'"; exit 1 ;;
 esac
 body="$(jq -nc --arg text "$msg ${DEPLOY_ENV:-} ${VERSION:-} (${SHA:-}) ${RUN_URL:-}" '{text:$text}')" || exit 1

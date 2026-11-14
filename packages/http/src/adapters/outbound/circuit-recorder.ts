@@ -8,13 +8,16 @@ import { Hostname, type URLString } from "@trading-model/primitives/primitives";
 import { CircuitBreaker } from "@trading-model/reliability/circuit-breaker";
 import type { CircuitBreakerConfig } from "@trading-model/reliability/circuit-state-machine";
 import type { HttpRequestOptions } from "../../domain/http-types";
+import { circuitBreakerRejectionsTotal } from "../../infrastructure/outbound-metrics";
 import { createHttpClientError } from "./http-client-errors";
 
+/** Target of an outbound call: its hostname and optional service name. */
 export interface ServiceRoute {
 	hostname: Hostname;
 	serviceName?: ServiceInstanceName;
 }
 
+/** Records outbound call outcomes in circuit breakers, one per hostname and per service. */
 export class CircuitRecorder {
 	private readonly _hostnameCircuit: CircuitBreaker;
 	// Keyed by service name: one state machine per service, default config.
@@ -35,6 +38,7 @@ export class CircuitRecorder {
 			: undefined;
 		const hostState = this._hostnameCircuit.check(hostname);
 		if (hostState === CircuitState.OPEN) {
+			circuitBreakerRejectionsTotal.inc({ target: hostname, kind: "hostname" });
 			throw createHttpClientError(
 				`Circuit breaker open for ${hostname}`,
 				HTTP_STATUS.SERVICE_UNAVAILABLE
@@ -43,6 +47,10 @@ export class CircuitRecorder {
 		if (serviceName) {
 			const svcState = this._serviceCircuit.check(serviceName);
 			if (svcState === CircuitState.OPEN) {
+				circuitBreakerRejectionsTotal.inc({
+					target: serviceName,
+					kind: "service",
+				});
 				throw createHttpClientError(
 					`Circuit breaker open for service ${serviceName}`,
 					HTTP_STATUS.SERVICE_UNAVAILABLE
@@ -59,14 +67,10 @@ export class CircuitRecorder {
 		}
 	}
 
-	recordFailure(route: ServiceRoute, serviceInstanceCount?: number): void {
+	recordFailure(route: ServiceRoute): void {
 		this._hostnameCircuit.recordFailure(route.hostname);
 		if (route.serviceName) {
-			const threshold =
-				serviceInstanceCount === undefined
-					? undefined
-					: Math.max(2, serviceInstanceCount * 2);
-			this._serviceCircuit.recordFailure(route.serviceName, 1, threshold);
+			this._serviceCircuit.recordFailure(route.serviceName);
 		}
 	}
 
@@ -78,6 +82,7 @@ export class CircuitRecorder {
 
 const DefaultRecorder = new CircuitRecorder();
 
+/** Returns the process-wide circuit recorder shared by outbound HTTP calls. */
 export function getDefaultCircuitRecorder(): CircuitRecorder {
 	return DefaultRecorder;
 }

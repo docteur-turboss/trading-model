@@ -1,4 +1,3 @@
-export { BinanceFromId } from "./binance-ids";
 export { Cash } from "./cash";
 export { Price } from "./price";
 export { SharpeRatio } from "./sharpe-ratio";

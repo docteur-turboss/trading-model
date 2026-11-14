@@ -41,7 +41,6 @@ jest.mock("../../src/adapters/outbound/instance-metadata-reader", () => ({
 		})),
 }));
 
-const mockResolveToken = jest.fn<(...args: any[]) => any>();
 const mockBuildStoredInstance = jest.fn<(...args: any[]) => any>();
 const mockRegisterInstance = jest.fn<(...args: any[]) => any>();
 
@@ -49,7 +48,6 @@ jest.mock("../../src/adapters/outbound/instance-registrar", () => ({
 	InstanceRegistrar: jest
 		.fn<(...args: any[]) => any>()
 		.mockImplementation(() => ({
-			resolveToken: mockResolveToken,
 			buildStoredInstance: mockBuildStoredInstance,
 			registerInstance: mockRegisterInstance,
 		})),
@@ -77,7 +75,7 @@ import type { RedisDeps } from "../../src/shared/redis-deps";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
-		serviceName: "financial-scraper-service" as ServiceId,
+		serviceName: "financial-scraper" as ServiceId,
 		instanceId: "test-instance-1" as InstanceId,
 		host: "192.168.1.10" as IPAddress,
 		port: 8444 as Port,
@@ -100,7 +98,6 @@ describe("RedisInstanceStore", () => {
 		deps = {
 			redis: {} as never,
 			keyPrefix: "",
-			signingSecret: "test-secret",
 		} as never;
 
 		store = new RedisInstanceStore(deps);
@@ -109,17 +106,6 @@ describe("RedisInstanceStore", () => {
 	describe("constructor", () => {
 		it("should create internal components with deps", () => {
 			expect(store).toBeInstanceOf(RedisInstanceStore);
-		});
-	});
-
-	describe("resolveToken", () => {
-		it("should delegate to registrar.resolveToken", async () => {
-			mockResolveToken.mockResolvedValue("resolved-token");
-
-			const result = await store.registrar.resolveToken("i1" as never);
-
-			expect(mockResolveToken).toHaveBeenCalledWith("i1");
-			expect(result).toBe("resolved-token");
 		});
 	});
 
@@ -153,11 +139,11 @@ describe("RedisInstanceStore", () => {
 			mockGetServiceInstanceIds.mockResolvedValue(["i1", "i2"]);
 
 			const result = await store.reader.getServiceInstanceIds(
-				"financial-scraper-service" as never
+				"financial-scraper" as never
 			);
 
 			expect(mockGetServiceInstanceIds).toHaveBeenCalledWith(
-				"financial-scraper-service"
+				"financial-scraper"
 			);
 			expect(result).toEqual(["i1", "i2"]);
 		});
@@ -194,9 +180,7 @@ describe("RedisInstanceStore", () => {
 		it("should return empty array when no instance IDs exist", async () => {
 			mockGetServiceInstanceIds.mockResolvedValue([]);
 
-			const result = await store.getInstances(
-				"financial-scraper-service" as never
-			);
+			const result = await store.getInstances("financial-scraper" as never);
 
 			expect(result).toEqual([]);
 		});
@@ -206,9 +190,7 @@ describe("RedisInstanceStore", () => {
 			const instance = makeInstance();
 			mockGetMetadatas.mockResolvedValue([instance]);
 
-			const result = await store.getInstances(
-				"financial-scraper-service" as never
-			);
+			const result = await store.getInstances("financial-scraper" as never);
 
 			expect(mockGetMetadatas).toHaveBeenCalled();
 			expect(result).toEqual([instance]);
@@ -260,36 +242,12 @@ describe("RedisInstanceStore", () => {
 
 	describe("listServiceNames", () => {
 		it("should delegate to reader.listServiceNames", async () => {
-			mockListServiceNames.mockResolvedValue(["financial-scraper-service"]);
+			mockListServiceNames.mockResolvedValue(["financial-scraper"]);
 
 			const result = await store.listServiceNames();
 
 			expect(mockListServiceNames).toHaveBeenCalled();
-			expect(result).toEqual(["financial-scraper-service"]);
-		});
-	});
-
-	describe("dump", () => {
-		it("should return empty snapshot when no services exist", async () => {
-			mockListServiceNames.mockResolvedValue([]);
-
-			const snapshot = await store.dump();
-
-			expect(snapshot).toEqual({});
-		});
-
-		it("should return snapshot of all instances grouped by service", async () => {
-			const instances = [makeInstance()];
-			mockListServiceNames.mockResolvedValue([
-				"financial-scraper-service" as never,
-			]);
-			mockGetServiceInstanceIds.mockResolvedValue(["i1"]);
-			mockGetMetadatas.mockResolvedValue(instances);
-
-			const snapshot = await store.dump();
-
-			expect(snapshot["financial-scraper-service"]).toHaveLength(1);
-			expect(snapshot["financial-scraper-service"]![0]).toBe(instances[0]);
+			expect(result).toEqual(["financial-scraper"]);
 		});
 	});
 });

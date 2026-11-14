@@ -1,4 +1,4 @@
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import {
@@ -19,19 +19,13 @@ type Api = typeof DISCOVERY_API;
  * A service the registry may hold. An unknown name is a 404: before the
  * registry entries, `parseServiceName` threw on it and the route answered 500.
  */
-function knownService(
-	registry: ServiceRegistry,
-	name: string
-): ServiceInstanceName | undefined {
+function knownService(name: string): ServiceInstanceName | undefined {
 	const service = name as ServiceInstanceName;
-	return ALL_SERVICE_NAMES.has(service) &&
-		registry.tokenManager.verifyInstanceName(service)
-		? service
-		: undefined;
+	return ALL_SERVICE_NAMES.has(service) ? service : undefined;
 }
 
 const UNKNOWN_SERVICE = () =>
-	sendResponse({ error: "Unknown service" }, 404 as HttpStatusCode);
+	sendResponse({ error: "Unknown service" }, HTTP_STATUS.NOT_FOUND);
 
 /** Handlers of the public read routes (DISCOVERY_API). */
 export function createRegistryQueries(registry: ServiceRegistry): {
@@ -43,25 +37,22 @@ export function createRegistryQueries(registry: ServiceRegistry): {
 		listServices: async () =>
 			sendResponse(
 				await registry.instanceStore.listServiceNames(),
-				200 as HttpStatusCode
+				HTTP_STATUS.OK
 			),
 
 		getServiceInstances: async ({ params }) => {
-			const service = knownService(registry, params.serviceName);
+			const service = knownService(params.serviceName);
 			if (!service) {
 				return UNKNOWN_SERVICE();
 			}
 			const instances = await registry.instanceStore.getInstances(service);
 			// The stale-instance cleaner runs every few minutes: never hand out an
 			// expired lease meanwhile, its address may already belong to another container.
-			return sendResponse(
-				instances.filter(isAliveInstance),
-				200 as HttpStatusCode
-			);
+			return sendResponse(instances.filter(isAliveInstance), HTTP_STATUS.OK);
 		},
 
 		getInstance: async ({ params }) => {
-			const service = knownService(registry, params.serviceName);
+			const service = knownService(params.serviceName);
 			if (!service) {
 				return UNKNOWN_SERVICE();
 			}
@@ -78,10 +69,10 @@ export function createRegistryQueries(registry: ServiceRegistry): {
 			) {
 				return sendResponse(
 					{ error: "Instance not found" },
-					404 as HttpStatusCode
+					HTTP_STATUS.NOT_FOUND
 				);
 			}
-			return sendResponse(instance, 200 as HttpStatusCode);
+			return sendResponse(instance, HTTP_STATUS.OK);
 		},
 	};
 }

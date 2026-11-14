@@ -6,14 +6,16 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|load|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
 # Environment: KIND (binary, default `kind`), KIND_CLUSTER (default
 # trading-model-ci), KEEP_CLUSTER=1 (`all` keeps the cluster afterwards),
 # KIND_PREVIOUS_REF (release N-1, default HEAD^1: the base branch of a PR merge
-# commit, the commit before on a push; locally e.g. origin/development).
+# commit, the commit before on a push; locally e.g. origin/development),
+# KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
+# the data StatefulSets partitioned, issue #1066, e.g. with KIND_PREVIOUS_REF=v3.1.0-rc.1).
 # Needs docker, git, kubectl, node, jq.
 #
 # `all` deletes the cluster when it ends: a forgotten cluster keeps the whole
@@ -29,7 +31,8 @@ KIND="${KIND:-kind}"
 CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
-API_KEY="dev-token-change-me" # AUTH_TOKENS test value injected by ci-render.mjs
+CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
+API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
 SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
@@ -38,10 +41,16 @@ PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
 # steps of the CI job, removed by `delete`.
 WORK="$(dirname "$ROOT")/.kind-${CLUSTER}"
 PREVIOUS="$WORK/previous"
+# Images of N-1 and N, saved by `images` (ci.yml job k8s-images), loaded by `load`.
+IMAGE_ARCHIVE="${KIND_IMAGE_ARCHIVE:-$WORK/images.tar}"
 export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
+# compose interpolates these (ADR-0067) even for `build`
+for v in MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD; do
+	export "$v=${!v:-kind-ci}"
+done
 
 log() { echo "[kind] $*"; }
 
@@ -107,6 +116,8 @@ previous_checkout() {
 		printf '\nKIND_RELEASE_MARKER=previous\n' >>"$file"
 	done
 	log "release N-1: $PREVIOUS_REF = $(git -C "$PREVIOUS" log -1 --format='%h %s')"
+	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
+		echo "Release N-1: $PREVIOUS_REF = $(git -C "$PREVIOUS" rev-parse HEAD)" >>"$GITHUB_STEP_SUMMARY"
 }
 
 # "<image> <digest>" of the images tagged `$1` in the kind node, as deploy.yml
@@ -141,18 +152,21 @@ images() {
 	build_images "$ROOT" latest
 	local images=""
 	for img in $IMAGES; do images="$images ghcr.io/trading-model/$img:latest ghcr.io/trading-model/$img:previous"; done
-	log "loading the images into kind"
+	# One archive for every cluster job (ci.yml `k8s-images`): built once, loaded by `load`.
+	log "saving the images to $IMAGE_ARCHIVE"
+	mkdir -p "$(dirname "$IMAGE_ARCHIVE")"
 	# shellcheck disable=SC2086
-	if ! "$KIND" load docker-image --name "$CLUSTER" $images; then
-		# Docker's containerd image store keeps multi-platform indexes that
-		# `kind load docker-image` cannot import: go through a single-platform archive.
-		local archive
-		archive="$(mktemp)"
-		# shellcheck disable=SC2086
-		docker save --platform linux/amd64 -o "$archive" $images
-		"$KIND" load image-archive --name "$CLUSTER" "$archive"
-		rm -f "$archive"
-	fi
+	docker save --platform linux/amd64 -o "$IMAGE_ARCHIVE" $images
+}
+
+# Loads the images saved by `images` into the kind cluster and records their
+# digests, as the cluster jobs need them.
+load() {
+	previous_checkout
+	log "loading the images into kind"
+	# Also into the docker daemon: the drills run `docker run` on backup-tools:latest.
+	docker load -i "$IMAGE_ARCHIVE" >/dev/null
+	"$KIND" load image-archive --name "$CLUSTER" "$IMAGE_ARCHIVE"
 	node_digests previous >"$WORK/digests-previous"
 	node_digests latest >"$WORK/digests-current"
 }
@@ -164,6 +178,10 @@ cluster() {
 		# A failed create (kindest/node pull) leaves a half-made cluster: drop it between attempts.
 		retry 3 bash -c '"$0" delete cluster --name "$1" >/dev/null 2>&1; "$0" create cluster --name "$1" --wait 180s' "$KIND" "$CLUSTER"
 	fi
+	# Prerequisite of mysql-tls.yaml (ADR-0060), as on a real cluster (deploy/staging-local/bootstrap.sh).
+	kubectl config use-context "kind-${CLUSTER}" >/dev/null
+	retry 3 kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER}/cert-manager.yaml"
+	kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=300s
 }
 
 # Selects the credentials of the current (sub)shell. Once `identities` has run,
@@ -219,7 +237,7 @@ migrations() {
 		node "$ROOT/tests/k8s/ci-render.mjs" --secret >"$sealed" || return 1
 	fi
 	(cd "$1" && use_kube &&
-		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS")
+		SEALED_SECRETS_FILE="$sealed" SEED_MIGRATE_PASSWORD=true bash deploy/k8s/scripts/run-migrations.sh "$NS" ${2:+"$2"})
 }
 
 # The overlay of the checkout `$1`, pinned to the digests of file `$2` as
@@ -227,10 +245,21 @@ migrations() {
 # Release N-1 runs as if it predated the exporter keys (ADR-0056): they are
 # dropped from its Secret and its exporters read another key, so N adds the
 # keys and restarts the database pods, as a real upgrade to 3.1.0 (issue #698).
+# Overlay of checkout $1 pinned to the digests of file $2, adapted to kind, into file $3.
+# Each stage writes a file: node never shares a pipe with its producer (a node
+# crash broke the pipe in runs 43321359421 and 43328471185).
+render_kind() {
+	release_script render "$1/deploy/k8s/overlays/${KIND_OVERLAY:-staging}" ghcr.io/trading-model "$2" >"$3.raw" || return 1
+	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
+	rm -f "$3.raw"
+}
+
 apply_release() {
-	local rendered
-	rendered="$(release_script render "$1/deploy/k8s/overlays/staging" ghcr.io/trading-model "$2" |
-		node "$ROOT/tests/k8s/ci-render.mjs")" || return 1
+	local rendered file
+	file="$(mktemp "$WORK/rendered.XXXXXX")"
+	render_kind "$1" "$2" "$file" || return 1
+	rendered="$(cat "$file")"
+	rm -f "$file"
 	[ "$1" != "$PREVIOUS" ] || rendered="$(sed -E -e '/^  (MYSQL|REDIS)_EXPORTER_PASSWORD: /d' \
 		-e 's/key: (MYSQL|REDIS)_EXPORTER_PASSWORD$/key: \1_EXPORTER_PASSWORD_BEFORE_ADR_0056/' <<<"$rendered")"
 	if [ ! -f "$WORK/app.kubeconfig" ]; then
@@ -244,14 +273,43 @@ apply_release() {
 	# (node-exporter is new in it, ADR-0056), with deploy-cluster.
 	$K kustomize "$1/deploy/k8s/overlays/staging/node-agents" |
 		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
-	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app |
-		kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f -
+	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app >"$WORK/app.yaml"
+	# Redis first, as deploy.yml (issue #1112).
+	KUBECONFIG="$WORK/app.kubeconfig" bash "$ROOT/deploy/k8s/scripts/deploy-release.sh" redis-first "$NS" <"$WORK/app.yaml" || return 1
+	kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f "$WORK/app.yaml"
+}
+
+# Release #924 never creates the MongoDB root user on an empty cluster (its
+# bootstrap sidecar reads system.users, which the localhost exception refuses),
+# so its mongo-*-users Jobs fail and audit-logger never starts (run 43364583932).
+# When N-1 is that release, root is created here as the fixed sidecar does and
+# the Jobs run again. No-op for any other N-1, so a later regression of the
+# bootstrap still fails the deploy. Remove once no N-1 carries the bug.
+previous_mongo_root() {
+	local label
+	grep -q 'system.users.countDocuments' "$PREVIOUS/deploy/k8s/infra/mongodb.yaml" || return 0
+	log "release N-1 cannot create the MongoDB root user (#924): created by the harness"
+	for label in mongodb mongodb-audit; do
+		wait_for 300 "mongo_primary $label"
+		$K -n "$NS" exec "$(mongo_primary "$label")" -- sh -c 'mongosh --quiet --eval "
+			try {
+				db.getSiblingDB(\"admin\").createUser({ user: \"root\", pwd: process.env.MONGO_ROOT_PASSWORD, roles: [{ role: \"root\", db: \"admin\" }] });
+			} catch (e) {
+				if (e.codeName !== \"Unauthorized\") throw e;
+			}"'
+	done
+	$K -n "$NS" delete job mongo-audit-users mongo-dlq-users --ignore-not-found
+	apply_release "$PREVIOUS" "$WORK/digests-previous"
 }
 
 # First deploy of release N-1, as deploy.yml on an empty cluster.
 deploy() {
 	log "release N-1: node agents (SPIRE agent, SPIFFE CSI driver, promtail)"
 	$K kustomize "$PREVIOUS/deploy/k8s/overlays/staging/node-agents" | $K apply -f -
+	# The overlay mounts the SPIFFE CSI socket: the driver must be registered first, or
+	# audit-logger crash-loops past its progress deadline (run 43331271388).
+	# spire-agent is not waited for here: it needs the trust bundle of the overlay's spire-server.
+	$K -n trading-model-node rollout status daemonset/spiffe-csi-driver --timeout=300s
 	$K apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
 
 	# As deploy.yml: the receivers exist before Alertmanager starts, or its
@@ -260,6 +318,14 @@ deploy() {
 
 	log "release N-1: staging overlay, images pinned by digest"
 	apply_release "$PREVIOUS" "$WORK/digests-previous"
+	# The TLS consumers (redis-sentinel, mysql, mongo) need their CA secrets: cert-manager
+	# never created them in run 43331271388. Bounded: a missing CA fails here, not 10 min later.
+	# Ingress certificates (letsencrypt-prod, ACME) cannot be issued without internet: left out.
+	local certs
+	# None before TLS (v3.1.0-rc.1, KIND_OVERLAY=staging-local).
+	certs="$($K -n "$NS" get certificate -o name | grep -vE '/(api|grafana)-trading-model-tls$' || true)"
+	[ -z "$certs" ] || $K -n "$NS" wait --for=condition=Ready $certs --timeout=300s
+	previous_mongo_root
 	$K -n "$NS" create configmap binance-stub \
 		--from-file=server.mjs="$ROOT/tests/e2e/binance-stub/server.mjs" \
 		--dry-run=client -o yaml | $K apply -f -
@@ -303,6 +369,8 @@ release() {
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
 	release_script wait "$NS" "${2:-180s}" || return 1
+	# Binds the users to their client certificates once mysql-0 serves the cert-manager certificate.
+	migrations "$ROOT" user-only || return 1
 	deploy_script smoke-test
 }
 
@@ -311,7 +379,7 @@ release() {
 
 # The final upgrade to N under the probe: `release` runs while requests flow
 # through edge-proxy to discovery-server, trader-trainer (Lease handover,
-# ADR-0058) and financial-scraper (PROBE_ROUTES) and market candles are
+# ADR-0067) and financial-scraper (PROBE_ROUTES) and market candles are
 # written. Fails above
 # PROBE_MAX_FAILURES (default 0: a release must not drop a request) failed
 # requests or when a candle of BTCUSDT is missing (gap above one interval,
@@ -401,6 +469,19 @@ upgrade() {
 	}
 	[ "$(exporter_users)" = 0 ] || {
 		log "release N-1 already has the MySQL exporter user: the upgrade would not prove issue #698"
+		return 1
+	}
+
+	# deploy.yml preflight (issue #805): server-side dry-run of release N with
+	# deploy-app / deploy-cluster; it must pass and leave every pod template as it was.
+	log "preflight: dry-run of release N with the deploy identities (deploy-release.sh dry-run)"
+	render_kind "$ROOT" "$WORK/digests-current" "$WORK/preflight.yaml" || return 1
+	release_script dry-run "$NS" "$ROOT/deploy/k8s/overlays/staging/node-agents" <"$WORK/preflight.yaml" || {
+		log "the preflight dry-run of release N failed"
+		return 1
+	}
+	[ "$(templates)" = "$before_templates" ] || {
+		log "the preflight dry-run changed a Deployment"
 		return 1
 	}
 
@@ -495,10 +576,13 @@ upgrade() {
 	verify_collection_gap "restart N → N" collector_handover || return 1
 	# Every exporter reaches its database, so neither MySQLDown nor RedisDown
 	# (critical, verify-release rolls back on them) fires (issue #698).
-	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = 1, no MySQLDown / RedisDown"
+	# mongodb_up = 1 means the `exporter` user (clusterMonitor, ADR-0067) exists on
+	# every member: the Jobs mongo-*-users ran after the transition step.
+	log "exporters up after the upgrade: min(mysql_up) = min(redis_up) = min(mongodb_up) = 1, no MySQLDown / RedisDown / MongoDBDown"
 	wait_for 180 '[ "$(prometheus_value "min(mysql_up)")" = 1 ] && [ "$(prometheus_value "min(redis_up)")" = 1 ] &&
-		[ -z "$(prometheus_value "ALERTS{alertname=~\"MySQLDown|RedisDown\"}")" ]' || {
-		log "  min(mysql_up)=$(prometheus_value 'min(mysql_up)') min(redis_up)=$(prometheus_value 'min(redis_up)')"
+		[ "$(prometheus_value "min(mongodb_up)")" = 1 ] &&
+		[ -z "$(prometheus_value "ALERTS{alertname=~\"MySQLDown|RedisDown|MongoDBDown\"}")" ]' || {
+		log "  min(mysql_up)=$(prometheus_value 'min(mysql_up)') min(redis_up)=$(prometheus_value 'min(redis_up)') min(mongodb_up)=$(prometheus_value 'min(mongodb_up)')"
 		return 1
 	}
 	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up in $((SECONDS - started)) s"
@@ -606,7 +690,16 @@ prometheus_targets_down() {
 			process.exit(jobs.length>0 && missing.length===0 && down.length===0 ? 0 : 1)'
 }
 
+# Groups of checks, one CI job each (ci.yml, matrix `group`): each runs on a
+# freshly deployed and upgraded stack, so a group never depends on another one.
 verify() {
+	verify_network
+	verify_observability
+	verify_backup_group
+	log "OK: the staging overlay works on Kubernetes"
+}
+
+verify_network() {
 	log "market data reaches MySQL (stub → scraper → MySQL)"
 	wait_for 300 '[ "$(mysql_count market_candles)" -gt 0 ]'
 	log "  candles=$(mysql_count market_candles) trades=$(mysql_count market_trades)"
@@ -614,6 +707,9 @@ verify() {
 	verify_replicas
 	verify_egress
 	verify_mongo_ingress
+	verify_db_ingress
+	verify_mysql_tls
+	verify_redis_tls
 
 	log "external path: edge-proxy → api-gateway → discovery"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -628,6 +724,9 @@ verify() {
 	wait_for 120 "curl -sf -H 'x-api-key: $API_KEY' $url | grep -q financial-scraper"
 	log "  registered: $(curl -s -H "x-api-key: $API_KEY" "$url")"
 
+}
+
+verify_observability() {
 	verify_traces
 
 	log "Prometheus scrapes every target over mTLS (SVID)"
@@ -638,9 +737,56 @@ verify() {
 
 	verify_alerts
 	verify_release
-	verify_backup
+	verify_canary
+}
 
-	log "OK: the staging overlay works on Kubernetes"
+# Restore drill (skipped on PRs that touch no backup code, SKIP_BACKUP_DRILL=true),
+# then the identity check, which stops mysql-0 and so runs last.
+verify_backup_group() {
+	if [ "${SKIP_BACKUP_DRILL:-}" = "true" ]; then
+		log "restore drill skipped (SKIP_BACKUP_DRILL=true)"
+	else
+		verify_backup
+	fi
+	verify_identity_without_mysql
+}
+
+# Issue #802 (ADR-0065): with every MySQL pod gone (mysql-0 included), the
+# SPIRE server restarts on its SQLite datastore and a restarted application
+# pod still gets an SVID. MySQL is brought back afterwards.
+verify_identity_without_mysql() {
+	local mysql_replicas
+	mysql_replicas="$($K -n "$NS" get statefulset mysql -o jsonpath='{.spec.replicas}')"
+	log "SVIDs without MySQL: statefulset mysql scaled to 0 (was $mysql_replicas)"
+	$K -n "$NS" scale statefulset mysql --replicas=0
+	$K -n "$NS" wait --for=delete pod mysql-0 --timeout=300s
+	$K -n "$NS" rollout restart deployment/spire-server
+	$K -n "$NS" rollout status deployment/spire-server --timeout=300s
+	wait_for 60 "$K -n $NS exec deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock"
+	# A datastore read: the entries are served from SQLite, not MySQL.
+	wait_for 60 "$K -n $NS exec deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server entry count -socketPath /run/spire/server-sockets/api.sock | grep -Eq '[1-9]'"
+	log "  SPIRE server healthy without MySQL"
+	$K -n "$NS" rollout restart deployment/discovery-server
+	$K -n "$NS" rollout status deployment/discovery-server --timeout=300s
+	local pod pods
+	# Pods of the old ReplicaSet may still be terminating: skipped. Captured
+	# first so a kubectl failure stops the step (set -e) instead of an empty loop.
+	pods="$($K -n "$NS" get pod -l app.kubernetes.io/component=discovery-server -o go-template --template '{{range .items}}{{if not .metadata.deletionTimestamp}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}')"
+	[ -n "$pods" ] || {
+		log "no discovery-server pod found"
+		return 1
+	}
+	for pod in $pods; do
+		$K -n "$NS" exec "$pod" -c discovery-server -- test -s /run/spire/svid/svid.pem || {
+			log "$pod restarted without MySQL has no SVID"
+			return 1
+		}
+		log "  $pod has its SVID"
+	done
+	log "  restarted discovery-server pods got their SVID"
+	$K -n "$NS" scale statefulset mysql --replicas="$mysql_replicas"
+	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
+	log "  MySQL back ($mysql_replicas replicas)"
 }
 
 # Requests through edge-proxy must leave in Jaeger a trace that spans
@@ -736,6 +882,105 @@ verify_mongo_ingress() {
 	done
 }
 
+# TCP connect of `$3` (host:port) from a throwaway pod `$1` with labels `$2`
+# (none when empty), with bash of the MySQL image (issue #747).
+tcp_probe() {
+	local img
+	img="$(grep -m1 -o 'mysql@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mysql.yaml")"
+	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
+		\"apiVersion\": \"v1\",
+		\"spec\": {
+			\"securityContext\": {\"runAsNonRoot\": true, \"runAsUser\": 999, \"seccompProfile\": {\"type\": \"RuntimeDefault\"}},
+			\"containers\": [{
+				\"name\": \"$1\", \"image\": \"$img\",
+				\"command\": [\"timeout\", \"5\", \"bash\", \"-c\", \"exec 3<>/dev/tcp/${3%:*}/${3#*:}\"],
+				\"securityContext\": {\"allowPrivilegeEscalation\": false, \"capabilities\": {\"drop\": [\"ALL\"]}}
+			}]
+		}
+	}"
+}
+
+# Only the listed components reach MySQL and Redis (issue #747). Control: the
+# same pod labelled as a listed client connects, so the refusal comes from the
+# NetworkPolicy, not from the image or the name.
+verify_db_ingress() {
+	local target host label
+	log "MySQL 3306, Redis 6379 and api-gateway 3000: refused to an unlisted pod, allowed to a listed component (issue #813)"
+	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:message-manager api-gateway:3000:edge-proxy; do
+		label="${target##*:}"
+		host="${target%:*}"
+		retry 3 tcp_probe db-probe-allowed "app.kubernetes.io/component=$label" "$host" >/dev/null || {
+			log "  a $label pod could not reach $host: the check proves nothing"
+			return 1
+		}
+		if tcp_probe db-probe-denied "" "$host" >/dev/null 2>&1; then
+			log "  a pod without component label reached $host"
+			return 1
+		fi
+	done
+}
+
+# Redis TLS (issue #930, ADR-0047): the certificate comes from cert-manager, a
+# client verifying the name "redis" gets a TLS session on 6380 and 26380, and
+# the clear ports answer exactly when REDIS_TLS_MODE is "optional".
+verify_redis_tls() {
+	local mode node cli user tls="--tls --cacert /etc/redis-tls/ca.crt --sni redis"
+	log "Redis TLS: certificate verified by name, clear ports follow REDIS_TLS_MODE"
+	$K -n "$NS" wait --for=condition=Ready certificate/redis-tls --timeout=120s
+	mode="$($K -n "$NS" exec redis-0 -c redis -- printenv REDIS_TLS_MODE)"
+	for node in redis-0:redis:6379:6380 redis-sentinel-0:sentinel:26379:26380; do
+		IFS=: read -r pod container plain secure <<<"$node"
+		# Sentinels have no ha user (requirepass only): the data nodes take the ha user.
+		user=""; [ "$container" = redis ] && user="--user ha"
+		cli="REDISCLI_AUTH=\$REDIS_INTERNAL_PASSWORD redis-cli $user"
+		[ "$($K -n "$NS" exec "$pod" -c "$container" -- sh -c "$cli $tls -p $secure PING")" = PONG ] || {
+			log "  no TLS session verified by name on $pod:$secure"
+			return 1
+		}
+		if $K -n "$NS" exec "$pod" -c "$container" -- sh -c "$cli -p $plain PING" >/dev/null 2>&1; then
+			[ "$mode" = optional ] || {
+				log "  clear port $pod:$plain answers with REDIS_TLS_MODE=$mode"
+				return 1
+			}
+		else
+			[ "$mode" = required ] || {
+				log "  clear port $pod:$plain refused with REDIS_TLS_MODE=$mode: the check proves nothing"
+				return 1
+			}
+		fi
+	done
+	log "  REDIS_TLS_MODE=$mode, TLS session verified on the data node and the sentinel"
+}
+
+# MySQL TLS (issue #767, ADR-0060), run from the tls-reload sidecar of mysql-0
+# (mysql client, MYSQL_PWD = root password, client certificate of root):
+# the server certificate is verified by name, a plain TCP connection is
+# refused (require_secure_transport=ON), and so is a TLS connection of root
+# without its client certificate (the password alone does not open a session).
+verify_mysql_tls() {
+	local tls="--ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/mysql-tls/ca.crt" cert="--ssl-cert=/etc/mysql-client-root/tls.crt --ssl-key=/etc/mysql-client-root/tls.key"
+	local run="$K -n $NS exec mysql-0 -c tls-reload -- mysql -h mysql-primary -N -e"
+	log "MySQL TLS: certificate verified by name, plain and certificate-less connections refused"
+	$K -n "$NS" wait --for=condition=Ready certificate/mysql-tls certificate/mysql-client-root certificate/mysql-client-scraper --timeout=120s
+	[ -n "$($run "SHOW STATUS LIKE 'Ssl_cipher'" -uroot $tls $cert | cut -f2)" ] || {
+		log "  no TLS session with a client certificate and --ssl-mode=VERIFY_IDENTITY on mysql-primary"
+		return 1
+	}
+	[ "$($run 'SELECT @@require_secure_transport' -uroot $tls $cert)" = 1 ] || {
+		log "  require_secure_transport is not ON"
+		return 1
+	}
+	if $run 'SELECT 1' -uroot --ssl-mode=DISABLED >/dev/null 2>&1; then
+		log "  plain connection accepted"
+		return 1
+	fi
+	if $run 'SELECT 1' -uroot $tls >/dev/null 2>&1; then
+		log "  TLS connection without client certificate accepted"
+		return 1
+	fi
+	log "  TLS session verified, plain and certificate-less connections refused"
+}
+
 # Production runs message-manager and discovery with 3 replicas (staging: 1).
 # Subscriptions and instance tokens live in Redis: a subscription made on one
 # replica routes the messages published on another, and a replica that just
@@ -802,7 +1047,7 @@ verify_canary() {
 	log "canary gate on api-gateway, traffic through edge-proxy"
 	$K -n "$NS" port-forward svc/edge-proxy 18450:8080 >/dev/null 2>&1 &
 	local forward=$! traffic=""
-	trap 'kill $traffic $forward 2>/dev/null || true; deploy_script canary-cleanup api-gateway >/dev/null 2>&1 || true' RETURN
+	trap 'kill ${traffic:-} ${forward:-} 2>/dev/null || true; deploy_script canary-cleanup api-gateway >/dev/null 2>&1 || true' RETURN
 	wait_for 30 'curl -s -o /dev/null http://localhost:18450/'
 	# 2.4 requests/s in bursts of 12 every 5 s (the gateway limits each API client
 	# to 100/min per pod: ~72/min each here). edge-proxy keeps a keep-alive pool to the gateway and
@@ -877,7 +1122,8 @@ mongo_primary() {
 }
 
 mongo_eval() {
-	$K -n "$NS" exec "$(mongo_primary "$1")" -- mongosh --quiet --eval "$2"
+	# As `root` (ADR-0067); the password is in the pod's env.
+	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
 mysql_root() {
@@ -904,6 +1150,28 @@ audit_chain() {
 	mongo_eval mongodb-audit "const AUDIT_DB = 'audit'; $(cat "$ROOT/tests/backup/audit-chain.js")"
 }
 
+# Stores a dead letter in dlq-service the way message-manager does; prints its id.
+seed_dead_letter() {
+	$K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - <"$ROOT/tests/k8s/dlq-seed.cjs"
+}
+
+# Waits up to 300 s for field `$1` (count or last) of the audit chain to exceed
+# `$2`. Market data is no longer chained (#992): the chain only grows on audit,
+# training and DLQ events, so a dead letter (dlq.entry.added) is stored every
+# 30 s until it does; dlq-service publishes it without waiting, one can be lost.
+audit_grows() {
+	local waited=0
+	until [ "$(audit_chain | json_field "$1")" -gt "$2" ] 2>/dev/null; do
+		if [ "$waited" -ge 300 ]; then
+			log "the audit chain did not grow in 300 s ($1 still not above $2)"
+			return 1
+		fi
+		[ $((waited % 30)) -ne 0 ] || seed_dead_letter >/dev/null || true
+		sleep 5
+		waited=$((waited + 5))
+	done
+}
+
 # Field `$1` of the JSON object read on stdin.
 json_field() {
 	node -e 'const v = JSON.parse(require("fs").readFileSync(0, "utf8"))[process.argv[1]]; console.log(v === null ? "null" : v)' "$1"
@@ -925,8 +1193,8 @@ audit_metric() {
 
 # The services writing to the databases, stopped during a restore
 # (BACKUP_DR.md): a write between the dump restore and the binlog / oplog
-# replay would make the replay fail. The SPIRE server (MySQL `spire`
-# database) is stopped and restarted by restore-k8s.sh itself.
+# replay would make the replay fail. The SPIRE server (SQLite on its own
+# volume, ADR-0065) is stopped and restarted by restore-k8s.sh itself.
 MONGO_WRITERS="audit-logger dlq-service"
 MYSQL_WRITERS="financial-scraper financial-scraper-collector"
 
@@ -951,13 +1219,17 @@ verify_backup() {
 	local label
 	for label in mongodb mongodb-audit; do
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertMany([{_id: 1}, {_id: 2}, {_id: 3}])" >/dev/null
+		# Its password changes after the instant (issue #1050): the restore must keep the current one.
+		mongo_eval "$label" "const a = db.getSiblingDB('admin'); try { a.dropUser('drill') } catch (e) {} a.createUser({user: 'drill', pwd: 'drill-old', roles: []})" >/dev/null
 	done
 	mysql_root "CREATE DATABASE restore_drill; CREATE TABLE restore_drill.markers (id INT PRIMARY KEY); INSERT INTO restore_drill.markers VALUES (1), (2), (3);"
+	# Past retention (1827 days) and in the dump: restore-k8s.sh must purge it (issue #743).
+	mysql_root "INSERT INTO financial_scraper.market_tickers (symbol, market, source, open, high, low, last, volume, timestamp, close_time) VALUES ('DRILLEXP', 'spot', 'drill', 1, 1, 1, 1, 1, NOW() - INTERVAL 2000 DAY, NOW() - INTERVAL 2000 DAY);"
 	local bundle_before
 	bundle_before="$(spire_bundle)"
 
 	log "restore drill: recording the real audit trail and dead letters"
-	wait_for 300 '[ "$(audit_chain | json_field count)" -gt 0 ]'
+	audit_grows count 0
 	local audit_before audit_last dlq_before
 	audit_before="$(audit_chain)"
 	[ "$(echo "$audit_before" | json_field broken)" = "null" ] || {
@@ -968,7 +1240,7 @@ verify_backup() {
 	# A real dead letter, stored the way message-manager stores them: the flow
 	# rarely produces one by itself.
 	local dlq_seeded
-	dlq_seeded="$($K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - <"$ROOT/tests/k8s/dlq-seed.cjs")" || {
+	dlq_seeded="$(seed_dead_letter)" || {
 		log "message-manager could not store a dead letter in dlq-service"
 		return 1
 	}
@@ -1035,7 +1307,7 @@ verify_backup() {
 	done
 	mysql_root "INSERT INTO restore_drill.markers VALUES (4);"
 	local dlq_late
-	dlq_late="$($K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - <"$ROOT/tests/k8s/dlq-seed.cjs")" || {
+	dlq_late="$(seed_dead_letter)" || {
 		log "message-manager could not store a dead letter in dlq-service"
 		return 1
 	}
@@ -1044,7 +1316,7 @@ verify_backup() {
 		return 1
 	}
 	# Audit events written by audit-logger after the dump.
-	wait_for 300 '[ "$(audit_chain | json_field last)" -gt "'"$audit_dumped"'" ]'
+	audit_grows last "$audit_dumped"
 
 	log "restore drill: writers stopped ($MONGO_WRITERS $MYSQL_WRITERS), as BACKUP_DR.md requires"
 	local writer
@@ -1078,6 +1350,7 @@ verify_backup() {
 	# After the instant: archived, but must not come back.
 	for label in mongodb mongodb-audit; do
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertOne({_id: 5})" >/dev/null
+		mongo_eval "$label" "db.getSiblingDB('admin').updateUser('drill', {pwd: 'drill-new'})" >/dev/null
 	done
 	mysql_root "INSERT INTO restore_drill.markers VALUES (5);"
 	log "  instant $until: audit chain up to sequence $(echo "$audit_pitr" | json_field last) (dump: $audit_dumped)," \
@@ -1159,7 +1432,7 @@ verify_backup() {
 	drill_record fetch_offsite "$fetch_seconds"
 	# The run: 5 dumps + 3 PITR starting points + the run manifest, which
 	# restore-k8s.sh selects and verifies with; then the archives replayed.
-	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
+	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'data_*.tar.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
 	[ "$fetched" -eq 9 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
 		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 9 (5 dumps, 3 PITR starting points, run manifest)"
 		return 1
@@ -1185,11 +1458,6 @@ verify_backup() {
 		return 1
 	}
 	log "  run and archives fetched, an instant past the archives is refused"
-
-	# The SPIRE server writes to the `spire` database the binlog replay
-	# restores: stopped now, restarted by restore-k8s.sh with its CA keys.
-	$K -n "$NS" scale deployment/spire-server --replicas=0
-	$K -n "$NS" wait --for=delete pod -l app.kubernetes.io/component=spire-server --timeout=120s || true
 
 	log "restore drill: scripts/restore-k8s.sh --until $until on the fetched run"
 	started=$SECONDS
@@ -1217,6 +1485,12 @@ verify_backup() {
 			log "MongoDB $label: drill markers $markers instead of 1,2,3,4"
 			return 1
 		}
+		# The dump holds drill-old: the restore must keep the Secret-era password (issue #1050).
+		$K -n "$NS" exec "$(mongo_primary "$label")" -- mongosh --quiet -u drill -p drill-new --authenticationDatabase admin \
+			--eval "db.runCommand({connectionStatus: 1}).authInfo.authenticatedUsers.length" | grep -qx 1 || {
+			log "MongoDB $label: the user changed after the dump no longer authenticates with its current password"
+			return 1
+		}
 	done
 	local mysql_markers
 	mysql_markers="$(mysql_root "SELECT GROUP_CONCAT(id ORDER BY id) FROM restore_drill.markers")"
@@ -1226,6 +1500,10 @@ verify_backup() {
 	}
 	[ "$(mysql_count market_candles)" -gt 0 ] || {
 		log "MySQL: market_candles was not restored"
+		return 1
+	}
+	[ "$(mysql_root "SELECT COUNT(*) FROM financial_scraper.market_tickers WHERE symbol='DRILLEXP'" | tr -d '\r')" = "0" ] || {
+		log "MySQL: the row past its retention came back with the restore (post-restore purge missing)"
 		return 1
 	}
 	[ "$(spire_bundle)" = "$bundle_before" ] || {
@@ -1279,9 +1557,10 @@ verify_backup() {
 	log "  verify-restore-k8s.sh passes on the restore and fails on an altered audit event"
 
 	# The SPIRE server came back with the restored CA: the agents still hold
-	# SVIDs from the CA of the wiped volume and crash-loop until they re-attest.
-	# Restart them and wait for the CSI driver, or the writers cannot mount the
-	# Workload API socket and never become ready.
+	# SVIDs from the CA of the wiped volume until they bootstrap again
+	# (rebootstrap_mode, 1 min, ADR-0065). Restart them now and wait for the
+	# CSI driver, or the writers cannot mount the Workload API socket and never
+	# become ready.
 	drill_record verify_data $((SECONDS - step_started))
 	step_started=$SECONDS
 	log "restore drill: SPIRE agents re-attested against the restored CA"
@@ -1302,7 +1581,7 @@ verify_backup() {
 	local restored_last
 	restored_last="$(audit_chain | json_field last)"
 	# New events must extend the restored chain, not start a new one.
-	wait_for 300 '[ "$(audit_chain | json_field last)" -gt "'"$restored_last"'" ]'
+	audit_grows last "$restored_last"
 	local audit_after
 	audit_after="$(audit_chain)"
 	[ "$(echo "$audit_after" | json_field broken)" = "null" ] || {
@@ -1349,17 +1628,26 @@ dump() {
 		$K -n "$NS" logs "$pod" --all-containers --tail=60 || true
 		# Why the last container died (exit code, reason) and what it said.
 		$K -n "$NS" describe pod "$pod" | grep -E -A6 "Last State:" || true
-		$K -n "$NS" logs "$pod" --all-containers --previous --tail=30 2>&1 || true
+		for c in $($K -n "$NS" get pod "$pod" -o jsonpath='{range .status.containerStatuses[?(@.restartCount>0)]}{.name} {end}'); do
+			$K -n "$NS" logs "$pod" -c "$c" --previous --tail=30 2>&1 || true
+		done
 	done
+	# A retrying Job pod stays Running 1/1 above: show what it says (mysql-cluster-init loops on a failing ping).
+	echo "===== mysql-cluster-init"
+	$K -n "$NS" logs job/mysql-cluster-init --tail=80 2>&1 || true
+	echo "===== mysql-0 (mysql)"
+	$K -n "$NS" logs mysql-0 -c mysql --tail=60 2>&1 | cut -c1-300 || true
 	# The databases of pods that look healthy: a restarted member may not serve.
 	for pod in mongo-audit-0 mongo-dlq-0; do
 		echo "===== $pod"
 		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
 		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
 	done
+	echo "===== spire-server (spire-entries)"
+	$K -n "$NS" logs deploy/spire-server -c spire-entries --tail=40 2>&1 || true
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
-	# The market data path, even when its pods look healthy (verify checks it).
-	for workload in binance-stub financial-scraper-collector financial-scraper message-manager; do
+	# The market data path and the audit trail, even when their pods look healthy (verify checks them).
+	for workload in binance-stub financial-scraper-collector financial-scraper message-manager audit-logger discovery-server api-gateway; do
 		echo "===== deployment/$workload"
 		$K -n "$NS" logs "deployment/$workload" --all-containers --tail=80 2>&1 | grep -v 'x509 context' || true
 	done
@@ -1409,15 +1697,26 @@ all)
 	fi
 	cluster
 	images
+	load
 	deploy
 	upgrade
 	smoke
 	verify
-	verify_canary
 	;;
-images | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_canary | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+verify_group)
+	case "${2:-}" in
+	network) verify_network ;;
+	observability) verify_observability ;;
+	backup) verify_backup_group ;;
+	*)
+		echo "usage: $0 verify_group [network|observability|backup]" >&2
+		exit 64
+		;;
+	esac
+	;;
+images | load | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_mysql_tls | verify_redis_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_canary|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|load|cluster|deploy|upgrade|smoke|verify|verify_group <network|observability|backup>|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac

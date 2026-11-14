@@ -90,6 +90,7 @@ import type { TrainingSettings } from "../../src/domain/training-settings";
 /** Mirrors the TRAINER_* values of the mocked ENV above. */
 const TEST_TRAINING_SETTINGS: TrainingSettings = {
 	validationSplit: 0.2,
+	testSplit: 0.15,
 	walkForwardFolds: 1,
 	generations: 10,
 	populationSize: 5,
@@ -106,6 +107,7 @@ const AGENT = {
 	sharpe: 0.8,
 	avgPnl: 12.5,
 	maxDrawdown: 3.5,
+	evaluatedOn: "test",
 	gaControl: {
 		populationSize: 5,
 		elitismFraction: 0.1,
@@ -184,6 +186,7 @@ describe("Server routes", () => {
 		app.use(
 			TRAINER_ROUTES(trainer, {
 				models: {
+					latest: async () => undefined,
 					list: async () => [],
 					manifest: async () => undefined,
 					weights: async () => undefined,

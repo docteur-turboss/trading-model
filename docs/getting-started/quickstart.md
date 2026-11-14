@@ -1,6 +1,6 @@
 # Quick Start — Your First Trading Platform Interaction
 
-> **Goal:** Go from zero to market data flowing through the bus and viewing its audit events in 10 minutes.
+> **Goal:** Go from zero to market data flowing through the bus and viewing audit events in 10 minutes.
 
 ## Prerequisites
 
@@ -15,6 +15,25 @@ cd trading-model
 bun install --frozen-lockfile
 ```
 
+### Windows line endings
+
+Source files must keep LF line endings (`.gitattributes` forces `eol=lf` on `*.ts`, `*.json`, `*.md`, `*.yml`…). A global `core.autocrlf true` (common in Git for Windows installs) checks them out as CRLF, and `bun run lint` then fails on formatting while CI passes.
+
+```bash
+# Set the repo to not convert line endings
+git config core.autocrlf false
+
+# Diagnose: must print nothing for files that have eol=lf
+git ls-files --eol | grep "w/crlf" | grep "eol=lf"
+
+# Repair a clean checkout (commit or stash your work first: this rewrites the working tree)
+git status --short                     # must print nothing
+git rm -q --cached -r . && git reset -q --hard
+git ls-files --eol | grep "w/crlf" | grep "eol=lf"   # must print nothing
+```
+
+`text=auto` files without an `eol` attribute may stay CRLF on Windows: that is expected.
+
 ## Step 0: Create `.env`
 
 ```bash
@@ -26,6 +45,7 @@ Edit `.env` and replace the example values of these variables with your own secr
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
 - `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
 - `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
+- `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` — MongoDB users, one per client (required, no default; ADR-0067). A Mongo volume created before authentication needs `docker compose down -v` (or the localhost exception, see the `mongo` service)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated; you use one in Step 3
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
@@ -106,7 +126,7 @@ curl -s http://localhost:8449/v1/audit-logger/events?limit=5 \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
-You should see the scraper's market data events recorded in the audit trail.
+Market data is not in the audit trail (MySQL keeps it, ADR-0027). The trail holds audit, training and DLQ events, for example `training.model.published` once a model is trained: add `&topic=training.model.published` to the query.
 
 > There is no admin dashboard for now ([ADR-0018](../adr/0018-temporary-frontend-removal.md)): the gateway API above is how you inspect the registry, audit events and the DLQ.
 

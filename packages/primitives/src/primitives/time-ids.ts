@@ -17,33 +17,6 @@ export const DurationMs = {
 	zero(): DurationMs {
 		return 0 as DurationMs;
 	},
-	toSeconds(value: DurationMs): number {
-		return value / 1000;
-	},
-	toMinutes(value: DurationMs): number {
-		return value / 60000;
-	},
-
-	add(left: DurationMs, right: DurationMs): DurationMs {
-		return (left + right) as DurationMs;
-	},
-	multiply(value: DurationMs, factor: number): DurationMs {
-		return (value * factor) as DurationMs;
-	},
-
-	isLongerThan(left: DurationMs, right: DurationMs): boolean {
-		return left > right;
-	},
-	isShorterThan(left: DurationMs, right: DurationMs): boolean {
-		return left < right;
-	},
-
-	fromSeconds(seconds: number): DurationMs {
-		return DurationMs.of(seconds * 1000);
-	},
-	fromMinutes(minutes: number): DurationMs {
-		return DurationMs.of(minutes * 60000);
-	},
 };
 
 export type SequenceNumber = BrandedNumber<"SequenceNumber">;
@@ -55,12 +28,5 @@ export const SequenceNumber = {
 			);
 		}
 		return value as SequenceNumber;
-	},
-
-	next(value: SequenceNumber): SequenceNumber {
-		return (value + 1) as SequenceNumber;
-	},
-	toNumber(value: SequenceNumber): number {
-		return value;
 	},
 };

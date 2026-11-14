@@ -16,10 +16,11 @@ export interface CircuitBreakerConfig {
 	}) => void;
 }
 
-/** Default circuit config: opens after 5 failures, 30 s cooldown. */
+/** Default circuit config: opens after 5 failures, 30 s cooldown, one half-open probe. */
 export const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
 	failureThreshold: 5,
 	cooldownMs: DurationMs.of(30_000),
+	halfOpenMaxAttempts: 1,
 };
 
 interface PersistentState {
@@ -48,35 +49,8 @@ export class CircuitStateMachine {
 		return this.getState(UnixTimestamp.now());
 	}
 
-	isAllowed(): boolean {
-		return !this.isOpen(UnixTimestamp.now());
-	}
-
 	getFailureCount(): number {
 		return this._failures;
-	}
-
-	async call<TResult>(
-		fn: () => Promise<TResult>,
-		fallback?: () => TResult
-	): Promise<TResult> {
-		if (!this.isAllowed()) {
-			if (fallback) {
-				return fallback();
-			}
-			throw new Error("Circuit breaker OPEN");
-		}
-		try {
-			const result = await fn();
-			this.recordSuccess();
-			return result;
-		} catch (error) {
-			this.recordFailure();
-			if (fallback) {
-				return fallback();
-			}
-			throw error;
-		}
 	}
 
 	getState(now?: number): CircuitState {

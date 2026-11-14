@@ -38,6 +38,9 @@ Run: `bunx @biomejs/biome check .` (CI) / `bunx @biomejs/biome check --write .` 
 | Interfaces             | `PascalCase`      | `export interface ServiceRegistry`     |
 | Types                  | `PascalCase`      | `export type TokenPayload = {}`        |
 | Enums                  | `PascalCase`      | `export enum AuthMethod {}`            |
+| Ports                  | `XxxPort`, no `I` prefix | `export interface InstanceStorePort` in `domain/ports/instance-store.port.ts` |
+| Non-port interfaces    | file `xxx.interface.ts` | `service-registry.interface.ts`  |
+| MySQL schemas          | file `xxx.schema.ts` | `candles.schema.ts`                |
 | Files and directories  | `kebab-case`      | `address-manager.service.ts`           |
 | Global constants       | `SCREAMING_SNAKE` | `export const DEFAULT_TIMEOUT = 30000` |
 | Service file suffix    | `.service.ts` (legacy) | `token-manager.service.ts`         |

@@ -25,6 +25,7 @@ const SUMMARY = {
 	sharpe: 0.8,
 	avgPnl: 12.5,
 	maxDrawdown: 3.5,
+	evaluatedOn: "test",
 	gaControl: {},
 	network: {},
 	rl: {},
@@ -124,6 +125,8 @@ describe("FileModelArtifactStore", () => {
 			versions[1],
 		]);
 		expect(await store.manifest("BTCUSDT", versions[0])).toBeUndefined();
+		expect((await store.latest("BTCUSDT"))?.version).toBe(versions[2]);
+		expect(await store.latest("ETHUSDT")).toBeUndefined();
 	});
 
 	it("writes a version once: the same weights in the same second are the same artifact", async () => {

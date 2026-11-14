@@ -1,6 +1,7 @@
 import { ProcessId } from "@trading-model/primitives/primitives";
 import type { LogLevel } from "./log-types";
 
+/** Generates the process id that tags the log entries of a run. */
 export function generateProcessId(logLevel: LogLevel): ProcessId {
 	const now = new Date();
 	return ProcessId.of(

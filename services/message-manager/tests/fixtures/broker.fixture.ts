@@ -3,33 +3,36 @@ import type {
 	Message,
 	MessageMetadata,
 } from "@trading-model/contracts/message-types";
-import type {
-	DurationMs,
-	MessageId,
+import {
+	type DurationMs,
+	InstanceId,
+	type MessageId,
+	ServiceId,
 	Topic,
+	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 
 export const mockServiceIdentity = {
-	serviceName: "financial-scraper-service" as const,
-	instanceId: "instance-1",
+	serviceName: ServiceId.of("financial-scraper"),
+	instanceId: InstanceId.of("instance-1"),
 };
 
 export const mockSubscriberIdentity = {
-	serviceName: "trader-trainer" as const,
-	instanceId: "subscriber-1",
+	serviceName: ServiceId.of("trader-trainer"),
+	instanceId: InstanceId.of("subscriber-1"),
 };
 
 const createMockMessageMetadata = (
 	overrides?: Partial<MessageMetadata>
 ): MessageMetadata => ({
 	messageId: "msg-123" as MessageId,
-	emittedAt: new Date(Date.now() + 86400000),
-	schemaVersion: "1.0",
-	eventType: "TestEvent",
+	emittedAt: UnixTimestamp.add(UnixTimestamp.now(), 86400000),
+	schemaVersion: "1.0.0",
+	eventType: "example.debug.create",
 	topic: "test.topic" as Topic,
 	publisher: mockServiceIdentity,
 	delivery: {
-		mode: DeliveryMode.AT_LEAST_ONCE,
+		mode: DeliveryMode.AtLeastOnce,
 		ttl: 60000 as DurationMs,
 	},
 	...overrides,
@@ -44,7 +47,7 @@ export const createMockMessage = <T = unknown>(
 });
 
 export const mockSubscribeParams = {
-	topic: "test.topic",
+	topic: Topic.of("test.topic"),
 	callbackPath: "message/callback",
 	serviceIdentity: mockSubscriberIdentity,
 };

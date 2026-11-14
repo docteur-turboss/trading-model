@@ -1,6 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { MongoConnectionManager } from "@trading-model/persistence/mongo-connection-manager";
+import { mongoAuthFromEnv } from "@trading-model/persistence/mongo-utils";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Db } from "mongodb";
 import { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
@@ -111,13 +112,17 @@ export function createAuditServer(
 	return createServer(auditRepo, mongoManager, messageHandler);
 }
 
-export async function createRepositories(mongoUri: string): Promise<{
+export async function createRepositories(
+	mongoUri: string,
+	auth?: { username: string; password: string }
+): Promise<{
 	mongoManager: MongoConnectionManager;
 	db: Db;
 	auditRepo: AuditRepository;
 }> {
 	const mongoManager = new MongoConnectionManager({
 		uri: mongoUri,
+		auth,
 		dbName: "audit-logger",
 	});
 	const mongoClient = await mongoManager.getConnection();
@@ -132,7 +137,8 @@ export type AuditLoggerApp = Awaited<ReturnType<typeof createAuditLoggerApp>>;
 /** Wires the whole service: MongoDB repositories, HTTP server, bus subscriptions, audit chain checks. */
 export async function createAuditLoggerApp() {
 	const { mongoManager, db, auditRepo } = await createRepositories(
-		ENV.MONGODB_URI
+		ENV.MONGODB_URI,
+		mongoAuthFromEnv(ENV)
 	);
 	const chainAuditScheduler = new ChainAuditScheduler(
 		createChainAudit(db, chainAuditSettingsFromEnv()),

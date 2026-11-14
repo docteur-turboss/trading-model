@@ -8,7 +8,7 @@ import {
 	ALL_SERVICE_NAMES,
 	type ServiceInstanceName,
 } from "@trading-model/primitives/service-instance-name";
-import type { IInstanceStore } from "../../domain/ports/instance-store.interface";
+import type { InstanceStorePort } from "../../domain/ports/instance-store.port";
 import type { ServiceInstance } from "../../shared/types";
 
 /**
@@ -16,14 +16,14 @@ import type { ServiceInstance } from "../../shared/types";
  *
  * CRUD pattern:
  *   - Create: `registerInstance(instance)`
- *   - Read:   `getInstance(identity)`, `getInstances(serviceName)`, `listServiceNames()`, `dump()`
+ *   - Read:   `getInstance(identity)`, `getInstances(serviceName)`, `listServiceNames()`
  *   - Update: `updateHeartbeat(identity)`
  *   - Delete: `removeInstance(identity)`
  *
  * @see RedisInstanceStore — Redis-backed counterpart
  * @see CacheStore — client-side cache (address-manager)
  */
-export class InstanceStore implements IInstanceStore {
+export class InstanceStore implements InstanceStorePort {
 	private _services: Map<
 		ServiceId | ServiceInstanceName,
 		Map<InstanceId, ServiceInstance>
@@ -102,14 +102,5 @@ export class InstanceStore implements IInstanceStore {
 	/** Known service names with an instance, as the Redis store lists them. */
 	listServiceNames(): ServiceInstanceName[] {
 		return [...ALL_SERVICE_NAMES].filter((name) => this._services.has(name));
-	}
-
-	dump(): Partial<Record<ServiceInstanceName, ServiceInstance[]>> {
-		const snapshot: Partial<Record<ServiceInstanceName, ServiceInstance[]>> =
-			{};
-		for (const serviceName of this.listServiceNames()) {
-			snapshot[serviceName] = this.getInstances(serviceName);
-		}
-		return snapshot;
 	}
 }

@@ -7,8 +7,8 @@ jest.mock("node:dns/promises", () => ({
 	})),
 }));
 
+import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery-retry-handler";
 import { EndpointResolver } from "../../src/application/discovery/endpoint-resolver";
-import { ServiceResolver } from "../../src/application/discovery/service-resolver";
 
 const inst = (version: string, port: number) => ({
 	serviceName: "financial-scraper-service",
@@ -39,25 +39,28 @@ describe("one resolution strategy (ADR-0045)", () => {
 			cacheTtlMs: 1000,
 			discoveryTimeoutMs: 1000,
 		};
-		const serviceResolver = new ServiceResolver({
-			httpClient,
-			config,
-			serviceCache: {
-				set: jest.fn<(...args: any[]) => any>(),
-				delete: jest.fn<(...args: any[]) => any>(),
-			},
-			healthChecker: {
-				locate: () => "financial-scraper",
-				isHealthy: async () => true,
-			},
-		} as any);
+		const handler = new DiscoveryRetryHandler(
+			{
+				httpClient,
+				config,
+				serviceCache: {
+					set: jest.fn<(...args: any[]) => any>(),
+					delete: jest.fn<(...args: any[]) => any>(),
+				},
+				healthChecker: {
+					locate: () => "financial-scraper",
+					isHealthy: async () => true,
+				},
+			} as any,
+			{} as any
+		);
 		const gateway = new EndpointResolver(
 			config.addressManagerUrl,
 			1000,
 			httpClient as any
 		);
 
-		const viaAddressManager = await serviceResolver.findService(
+		const viaAddressManager = await handler.lookup(
 			"financial-scraper" as any,
 			2
 		);

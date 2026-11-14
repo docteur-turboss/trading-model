@@ -742,123 +742,6 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           $ref: "#/components/responses/NotFound"
-    post:
-      operationId: "postV1DlqServiceDlq"
-      tags:
-        - "dlq-service"
-      summary: "Store a dead-lettered message"
-      x-registry-entry: "addEntry"
-      security:
-        - ApiKeyAuth: []
-          ServiceName: []
-          RequestTimestamp: []
-          RequestSignature: []
-      requestBody:
-        required: true
-        content:
-          "application/json":
-            schema:
-              type: "object"
-              properties:
-                topic:
-                  type: "string"
-                  minLength: 1
-                message: {}
-                reason:
-                  type: "string"
-                deliveryAttempt:
-                  type: "integer"
-                  minimum: 1
-                timestamp:
-                  anyOf:
-                    - type: "integer"
-                      minimum: 0
-                    - anyOf:
-                        - type: "string"
-                          pattern: "^\\d+$"
-                        - type: "string"
-                          format: "date-time"
-                messageId:
-                  type: "string"
-                  minLength: 1
-                service:
-                  type: "string"
-                  minLength: 1
-              required:
-                - "message"
-                - "deliveryAttempt"
-                - "timestamp"
-      responses:
-        "201":
-          description: "Created"
-          content:
-            "application/json":
-              schema:
-                type: "object"
-                properties:
-                  id:
-                    type: "string"
-                required:
-                  - "id"
-                additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: "Missing or invalid credentials"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "403":
-          description: "Caller not allowed"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "429":
-          description: "Too many requests"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "503":
-          description: "Service unavailable"
-          content:
-            "application/json":
-              schema:
-                type: "object"
-                properties:
-                  error:
-                    type: "string"
-                  reason:
-                    type: "string"
-                  details:
-                    type: "array"
-                    items:
-                      type: "object"
-                      properties:
-                        field:
-                          type: "string"
-                        message:
-                          type: "string"
-                      required:
-                        - "field"
-                        - "message"
-                      additionalProperties: false
-                  code:
-                    type: "string"
-                    enum:
-                      - "STORAGE_UNAVAILABLE"
-                required:
-                  - "error"
-                  - "code"
-                additionalProperties: false
   /v1/dlq-service/dlq/replay:
     post:
       operationId: "postV1DlqServiceDlqReplay"
@@ -1038,6 +921,11 @@ paths:
                           maxDrawdown:
                             type: "number"
                             minimum: 0
+                          evaluatedOn:
+                            type: "string"
+                            enum:
+                              - "validation"
+                              - "test"
                           gaControl:
                             type: "object"
                             properties:
@@ -1113,6 +1001,7 @@ paths:
                           - "sharpe"
                           - "avgPnl"
                           - "maxDrawdown"
+                          - "evaluatedOn"
                           - "gaControl"
                           - "network"
                           - "rl"
@@ -1195,6 +1084,11 @@ paths:
                             maxDrawdown:
                               type: "number"
                               minimum: 0
+                            evaluatedOn:
+                              type: "string"
+                              enum:
+                                - "validation"
+                                - "test"
                           required:
                             - "generation"
                             - "fitness"
@@ -1315,6 +1209,14 @@ paths:
                       normalization:
                         type: "object"
                         additionalProperties: {}
+                      riskLimits:
+                        type: "object"
+                        properties:
+                          maxExposureFraction:
+                            type: "number"
+                        required:
+                          - "maxExposureFraction"
+                        additionalProperties: false
                       metrics:
                         type: "object"
                         properties:
@@ -1331,12 +1233,63 @@ paths:
                           maxDrawdown:
                             type: "number"
                             minimum: 0
+                          evaluatedOn:
+                            type: "string"
+                            enum:
+                              - "validation"
+                              - "test"
                         required:
                           - "generation"
                           - "fitness"
                           - "sharpe"
                           - "avgPnl"
                           - "maxDrawdown"
+                        additionalProperties: false
+                      admission:
+                        type: "object"
+                        properties:
+                          admissible:
+                            type: "boolean"
+                          evaluatedOn:
+                            type: "string"
+                            enum:
+                              - "test"
+                          criteria:
+                            type: "object"
+                            properties:
+                              sharpe:
+                                type: "number"
+                              sortino:
+                                type: "number"
+                              calmar:
+                                type: "number"
+                              buyAndHoldSharpe:
+                                type: "number"
+                            required:
+                              - "sharpe"
+                              - "sortino"
+                              - "calmar"
+                              - "buyAndHoldSharpe"
+                            additionalProperties: false
+                          thresholds:
+                            type: "object"
+                            properties:
+                              minSharpe:
+                                type: "number"
+                              minSortino:
+                                type: "number"
+                              minCalmar:
+                                type: "number"
+                            required:
+                              - "minSharpe"
+                              - "minSortino"
+                              - "minCalmar"
+                            additionalProperties: false
+                        required:
+                          - "admissible"
+                          - "evaluatedOn"
+                          - "criteria"
+                          - "thresholds"
                         additionalProperties: false
                     required:
                       - "formatVersion"
@@ -1410,6 +1363,11 @@ paths:
                                 maxDrawdown:
                                   type: "number"
                                   minimum: 0
+                                evaluatedOn:
+                                  type: "string"
+                                  enum:
+                                    - "validation"
+                                    - "test"
                                 gaControl:
                                   type: "object"
                                   properties:
@@ -1485,6 +1443,7 @@ paths:
                                 - "sharpe"
                                 - "avgPnl"
                                 - "maxDrawdown"
+                                - "evaluatedOn"
                                 - "gaControl"
                                 - "network"
                                 - "rl"
@@ -1560,6 +1519,11 @@ paths:
                           maxDrawdown:
                             type: "number"
                             minimum: 0
+                          evaluatedOn:
+                            type: "string"
+                            enum:
+                              - "validation"
+                              - "test"
                           gaControl:
                             type: "object"
                             properties:
@@ -1635,6 +1599,7 @@ paths:
                           - "sharpe"
                           - "avgPnl"
                           - "maxDrawdown"
+                          - "evaluatedOn"
                           - "gaControl"
                           - "network"
                           - "rl"
@@ -1673,6 +1638,11 @@ paths:
                               maxDrawdown:
                                 type: "number"
                                 minimum: 0
+                              evaluatedOn:
+                                type: "string"
+                                enum:
+                                  - "validation"
+                                  - "test"
                             required:
                               - "generation"
                               - "fitness"

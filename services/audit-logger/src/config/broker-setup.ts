@@ -4,12 +4,12 @@ import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { toInstanceId } from "@trading-model/primitives/primitives";
 import { ENV } from "../infrastructure/config/env";
+import { AddressManager } from "./address-manager";
 import { auditedTopics } from "./audited-topics";
 
 export async function createBrokerMessage(): Promise<{
 	brokerMessage: BrokerMessage;
 }> {
-	const { AddressManager } = await import("../config/address-manager.js");
 	const brokerMessage = new BrokerMessage({
 		addressManagerClient: AddressManager,
 		tlsPaths: buildTlsFromEnv(ENV),
@@ -25,7 +25,7 @@ async function subscribeToAllTopics(
 ): Promise<void> {
 	const allTopics = auditedTopics();
 	await brokerMessage.intents(allTopics);
-	logger.info("Subscribed to all event topics", {
+	logger.info("Subscribed to audited topics", {
 		context: { topicCount: allTopics.length },
 	});
 }

@@ -180,7 +180,21 @@ function checkIndex(adrs) {
     if (!rows.has(file)) errors.push(`README.md: ${file} is not in the index`);
   }
 }
-/** Fails on a relative Markdown link whose target is missing (external URLs and anchors skipped). */
+/** GitHub heading anchors of a Markdown text (fences skipped, duplicates suffixed -1, -2). */
+function headingSlugs(text) {
+  const seen = new Map();
+  const slugs = new Set();
+  for (const [, title] of text.replace(/^(```|~~~)[\s\S]*?^\1/gm, '').matchAll(/^#{1,6}\s+(.+?)\s*#*$/gm)) {
+    const slug = title.trim().toLowerCase().replace(/[^\p{L}\p{N}_\- ]/gu, '').replaceAll(' ', '-');
+    const n = seen.get(slug) ?? 0;
+    seen.set(slug, n + 1);
+    slugs.add(n ? `${slug}-${n}` : slug);
+  }
+  return slugs;
+}
+assert.deepEqual([...headingSlugs('# A — B (c)\n## A — B (c)\n```\n# no\n```')], ['a--b-c', 'a--b-c-1']);
+
+/** Fails on a relative Markdown link whose target file or #anchor is missing (external URLs and same-page anchors skipped). */
 function checkMarkdownLinks() {
   const files = execFileSync('git', ['ls-files', '*.md'], { cwd: ROOT, encoding: 'utf8' })
     .split(/\r?\n/)
@@ -191,7 +205,12 @@ function checkMarkdownLinks() {
     for (const [, raw] of text.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
       if (/^([a-z][a-z0-9+.-]*:|#|\/\/)/i.test(raw)) continue;
       const target = decodeURI(raw.split('#')[0].split('?')[0]);
-      if (target && !existsSync(resolve(ROOT, dirname(file), target))) errors.push(`${file}: broken link ${raw}`);
+      const path = resolve(ROOT, dirname(file), target);
+      if (target && !existsSync(path)) errors.push(`${file}: broken link ${raw}`);
+      else if (target.endsWith('.md') && raw.includes('#')) {
+        const anchor = decodeURIComponent(raw.split('#')[1].split('?')[0]);
+        if (!headingSlugs(readFileSync(path, 'utf8')).has(anchor)) errors.push(`${file}: broken anchor ${raw}`);
+      }
     }
   }
 }

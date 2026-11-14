@@ -14,7 +14,7 @@
 #    - financial_scraper.market_candles: rows > 0, latest timestamp reported
 #      (KO older than --max-candle-age-hours when given; after a restore the
 #      data is as old as the backup, so there is no default limit)
-#    - schema `spire`: tables bundles and registered_entries present
+#    - SPIRE datastore (SQLite, ADR-0065): registration entries > 0
 #    - SPIRE trust bundle readable (PEM certificate)
 #    - run manifest (BACKUP_DIR, issue #288): the manifest lists size and
 #      sha256 per dump, no row counts: nothing to compare, said so.
@@ -58,7 +58,8 @@ json_field() {
 mongo_eval() {
   local pod
   pod="$(mongo_primary "$1")" || return 1
-  kubectl exec -n "${K8S_NAMESPACE}" "$pod" -- mongosh --quiet --eval "$2"
+  # As `root` (ADR-0067); the password is in the pod's env.
+  kubectl exec -n "${K8S_NAMESPACE}" "$pod" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
 MYSQL_POD="$(mysql_primary_pod || true)"
@@ -120,17 +121,16 @@ check_candles() {
   fi
 }
 
-check_spire_schema() {
-  local t missing=""
-  for t in bundles registered_entries; do
-    if [ "$(mysql_q "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='spire' AND table_name='${t}'" 2>/dev/null || echo 0)" != "1" ]; then
-      missing="${missing} ${t}"
-    fi
-  done
-  if [ -n "$missing" ]; then
-    fail "spire schema: missing table(s):${missing}"
+# The datastore is SQLite on the server volume (ADR-0065): read it through
+# the server, not MySQL.
+check_spire_entries() {
+  local count
+  count="$(kubectl exec -n "${K8S_NAMESPACE}" deployment/spire-server -c spire-server --     /opt/spire/bin/spire-server entry count -socketPath /run/spire/server-sockets/api.sock 2>/dev/null |
+    grep -oE '[0-9]+' | head -1 || true)"
+  if [ -n "$count" ] && [ "$count" -gt 0 ]; then
+    ok "SPIRE datastore: ${count} registration entries"
   else
-    ok "spire schema: tables bundles and registered_entries present"
+    fail "SPIRE datastore: no registration entry readable from spire-server"
   fi
 }
 
@@ -166,7 +166,7 @@ log "Post-restore verification (namespace ${K8S_NAMESPACE}, read-only)"
 check_audit
 check_dlq
 check_candles
-check_spire_schema
+check_spire_entries
 check_trust_bundle
 check_manifest
 

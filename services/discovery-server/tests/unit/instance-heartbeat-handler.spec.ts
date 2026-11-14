@@ -31,7 +31,6 @@ interface MockRedisInstance {
 	on: jest.Mock<(...args: any[]) => any>;
 	set: jest.Mock<(...args: any[]) => any>;
 	get: jest.Mock<(...args: any[]) => any>;
-	sismember: jest.Mock<(...args: any[]) => any>;
 	multi: jest.Mock<(...args: any[]) => any>;
 	eval: jest.Mock<(...args: any[]) => any>;
 }
@@ -50,7 +49,6 @@ const MOCK_REDIS = Object.assign(
 		on: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 		set: jest.fn<(...args: any[]) => any>().mockResolvedValue("OK"),
 		get: jest.fn<(...args: any[]) => any>().mockResolvedValue(null),
-		sismember: jest.fn<(...args: any[]) => any>().mockResolvedValue(1),
 		multi: jest.fn<(...args: any[]) => any>().mockReturnValue(MOCK_MULTI),
 		eval: jest.fn<(...args: any[]) => any>().mockResolvedValue(1),
 	}
@@ -105,11 +103,11 @@ describe("InstanceHeartbeatHandler", () => {
 
 	describe("updateHeartbeat", () => {
 		const identity: ServiceIdentity = {
-			serviceName: "financial-scraper-service" as never,
+			serviceName: "financial-scraper" as never,
 			instanceId: "i1" as never,
 		};
 		const mockInstance: ServiceInstance = {
-			serviceName: "financial-scraper-service" as ServiceId,
+			serviceName: "financial-scraper" as ServiceId,
 			instanceId: "i1" as InstanceId,
 			host: "192.168.1.10" as IPAddress,
 			port: 8444 as Port,
@@ -120,16 +118,7 @@ describe("InstanceHeartbeatHandler", () => {
 			lastHeartbeat: (Date.now() - 500) as UnixTimestamp,
 		};
 
-		it("should return false when instance is not a member of the service set", async () => {
-			MOCK_REDIS.sismember.mockResolvedValue(0);
-
-			const result = await handler.updateHeartbeat(identity);
-
-			expect(result).toBe(false);
-		});
-
 		it("should return false when metadata does not exist", async () => {
-			MOCK_REDIS.sismember.mockResolvedValue(1);
 			mockReader.getMetadata.mockResolvedValue(undefined);
 
 			const result = await handler.updateHeartbeat(identity);
@@ -138,16 +127,16 @@ describe("InstanceHeartbeatHandler", () => {
 		});
 
 		it("should persist heartbeat and return TTL on success", async () => {
-			MOCK_REDIS.sismember.mockResolvedValue(1);
 			mockReader.getMetadata.mockResolvedValue(mockInstance);
 
 			const result = await handler.updateHeartbeat(identity);
 
 			expect(result).toBe(30000);
+			expect(MOCK_REDIS.eval).toHaveBeenCalledTimes(1);
 			expect(MOCK_REDIS.eval).toHaveBeenCalledWith(
 				expect.stringContaining("SISMEMBER"),
 				3,
-				"service:financial-scraper-service:instances",
+				"service:financial-scraper:instances",
 				"instance:i1:metadata",
 				"instance:i1:updatedBy",
 				"i1",
@@ -157,7 +146,6 @@ describe("InstanceHeartbeatHandler", () => {
 		});
 
 		it("should return false when the instance was removed before the write", async () => {
-			MOCK_REDIS.sismember.mockResolvedValue(1);
 			mockReader.getMetadata.mockResolvedValue(mockInstance);
 			MOCK_REDIS.eval.mockResolvedValueOnce(0);
 
@@ -167,11 +155,10 @@ describe("InstanceHeartbeatHandler", () => {
 		});
 
 		it("should use Math.max to preserve the later heartbeat time", async () => {
-			MOCK_REDIS.sismember.mockResolvedValue(1);
 			const futureTime = Date.now() + 5000;
 			const pastInstance = {
 				...mockInstance,
-				lastHeartbeat: futureTime,
+				lastHeartbeat: futureTime as UnixTimestamp,
 			};
 			mockReader.getMetadata.mockResolvedValue(pastInstance);
 
@@ -186,7 +173,6 @@ describe("InstanceHeartbeatHandler", () => {
 				"@trading-model/http/infrastructure/logger"
 			) as { logger: { warn: jest.Mock<(...args: any[]) => any> } };
 
-			MOCK_REDIS.sismember.mockResolvedValue(1);
 			mockReader.getMetadata.mockResolvedValue(mockInstance);
 			MOCK_REDIS.eval.mockRejectedValueOnce(new Error("Redis write error"));
 

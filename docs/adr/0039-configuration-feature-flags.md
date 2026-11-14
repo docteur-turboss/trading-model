@@ -12,10 +12,10 @@ No way to turn a risky behaviour on or off without a new image (audit deploiemen
 ## Decision
 
 1. **A flag is a boolean environment variable named `FEATURE_<NAME>`**, declared in the Zod env schema of the service that reads it with `featureFlag(default)` (`@trading-model/validation/config/feature-flags`, a thin `z.stringbool().default(...)`). An invalid value fails `validateEnv` at startup. No flag service, no percentage rollout.
-2. **Scope.** Only the service that owns the behaviour reads its flag. Flags are kill switches: the default is the normal behaviour, the deployment sets the flag in `deploy/k8s/config/<service>.properties`, `docker-compose.yml`, `.env.example` and `docs/deployment/ENV.md` (`config:check` fails otherwise).
+2. **Scope.** Only the service that owns the behaviour reads its flag. Flags turn a behaviour off (fallback switches): the default is the normal behaviour, the deployment sets the flag in `deploy/k8s/config/<service>.properties`, `docker-compose.yml`, `.env.example` and `docs/deployment/ENV.md` (`config:check` fails otherwise). They are not trading kill switches: no emergency stop of orders exists (see `docs/compliance/algorithmic-trading-compliance.md`).
 3. **Lifetime.** A flag is removed (code branch, env var, doc row) once its behaviour has run stable in production for two releases, or when the behaviour is dropped. Remove it in the same change as the dead branch.
 4. **First flag: `FEATURE_RISK_ADJUSTED_FITNESS`** (trader-trainer, default `true`). `false` forces the GA fitness to `total_pnl` whatever `TRAINER_FITNESS_TYPE` is (ADR-0025).
-5. **Not covered:** the market data source (`BINANCE_BASE_URL` already switches it, ADR-0026). A ConfigMap change restarts nothing until versioned ConfigMaps land (issue #410, out of scope): roll the Deployment by hand.
+5. **Not covered:** the market data source (`BINANCE_BASE_URL` already switches it, ADR-0026). A flag changes in `deploy/k8s/config/<service>.properties` and ships through `deploy.yml`: the ConfigMap is hashed (`<service>-config-<hash>`, issue #410), so the new name changes the pod template and rolls the Deployment.
 
 ## Alternatives Considered
 
@@ -27,5 +27,5 @@ No way to turn a risky behaviour on or off without a new image (audit deploiemen
 
 ## Consequences
 
-- A risky behaviour is cut by editing a ConfigMap and rolling the Deployment, without an image.
+- A risky behaviour is cut by editing the properties file and deploying, without an image; the hashed ConfigMap rolls the Deployment.
 - Each flag adds a branch to test and a removal date to honour.

@@ -1,9 +1,11 @@
+import { readFileSync } from "node:fs";
 import type { URLString } from "@trading-model/primitives/primitives";
 import Redis, { type RedisOptions } from "ioredis";
 import { withErrorLogging } from "./redis-client-builder";
 import type {
 	RedisConnectionConfig,
 	RedisSentinelConfig,
+	RedisTlsConfig,
 } from "./redis-config";
 
 export const BASE_RETRY_STRATEGY = (times: number): number | null => {
@@ -18,6 +20,10 @@ export const BASE_REDIS_OPTIONS: Partial<RedisOptions> = {
 	retryStrategy: BASE_RETRY_STRATEGY,
 };
 
+/** Sentinel clients retry every second at most (never give up): a restarted Redis is back within seconds (issue #1112). */
+export const SENTINEL_RETRY_STRATEGY = (times: number): number =>
+	Math.min(times * 200, 1000);
+
 export function createFromUrl(
 	url: URLString,
 	extraOptions?: Partial<RedisOptions>
@@ -30,6 +36,10 @@ export function createFromUrl(
 	return withErrorLogging(client);
 }
 
+function tlsOptions(tls: RedisTlsConfig): { ca: Buffer; servername: string } {
+	return { ca: readFileSync(tls.caPath), servername: tls.servername };
+}
+
 export function createSentinel(
 	config: RedisSentinelConfig,
 	extraOptions?: Partial<RedisOptions>
@@ -40,7 +50,13 @@ export function createSentinel(
 		username: config.username,
 		password: config.password,
 		sentinelPassword: config.sentinelPassword,
+		...(config.tls && {
+			tls: tlsOptions(config.tls),
+			enableTLSForSentinelMode: true,
+			sentinelTLS: tlsOptions(config.tls),
+		}),
 		...BASE_REDIS_OPTIONS,
+		retryStrategy: SENTINEL_RETRY_STRATEGY,
 		maxRetriesPerRequest: null,
 		// Follow +switch-master: without it a client left on a frozen or
 		// half-dead master keeps waiting on it after Sentinel has failed over.
@@ -54,6 +70,7 @@ export function createSentinel(
 	// ("Connection is closed.") and leaves the client in `end` for good.
 	// Retiring it on close is safe: each new connection subscribes a new one.
 	client.on("close", () => {
+		// as unknown as: ioredis typings omit the sentinel event API
 		(
 			client as unknown as {
 				connector?: { failoverDetector?: { cleanup(): void } | null };
@@ -69,5 +86,8 @@ export function buildFromConfig(
 ): Redis {
 	return config.mode === "sentinel"
 		? createSentinel(config.config, extraOptions)
-		: createFromUrl(config.url, extraOptions);
+		: createFromUrl(config.url, {
+				...(config.tls && { tls: tlsOptions(config.tls) }),
+				...extraOptions,
+			});
 }

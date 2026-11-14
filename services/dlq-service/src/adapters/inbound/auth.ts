@@ -8,7 +8,6 @@ import type {
 	Timestamp,
 } from "@trading-model/contracts/signed-request";
 import { verifySignature as sharedVerifySignature } from "@trading-model/crypto/application/services/request-signer";
-import { isTimestampFresh } from "@trading-model/crypto/domain/services/timestamp";
 import { toServiceId } from "@trading-model/primitives/primitives";
 import type { NextFunction, Request, Response } from "express";
 import { ENV, resolveAuthHmacSecret } from "../../infrastructure/config/env";
@@ -19,20 +18,10 @@ function verifySignature(
 	req: Request,
 	serviceName: ServiceInstanceName
 ): boolean {
-	const secret = resolveAuthHmacSecret();
-	const provided = _extractSignatureHeader(req);
-	const timestampStr = _extractTimestampHeader(req);
-
-	if (!_validateTimestamp(timestampStr, provided)) {
-		return false;
-	}
-
-	const route = _buildSignedRequest(req, serviceName);
-
-	return sharedVerifySignature(route, {
-		signature: provided as Signature,
-		timestamp: timestampStr as Timestamp,
-		secret,
+	return sharedVerifySignature(_buildSignedRequest(req, serviceName), {
+		signature: _extractSignatureHeader(req) as Signature,
+		timestamp: _extractTimestampHeader(req) as Timestamp,
+		secret: resolveAuthHmacSecret(),
 	});
 }
 
@@ -55,14 +44,6 @@ function _buildSignedRequest(
 		path: req.originalUrl,
 		body: req.body,
 	};
-}
-
-function _validateTimestamp(timestampStr: string, provided: string): boolean {
-	if (!(timestampStr && provided)) {
-		return false;
-	}
-	const timestamp = Number.parseInt(timestampStr, 10);
-	return isTimestampFresh(timestamp, 300_000);
 }
 
 function serviceAuth(req: Request, res: Response, next: NextFunction): void {

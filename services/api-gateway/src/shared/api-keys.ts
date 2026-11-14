@@ -1,8 +1,6 @@
-import { createHash } from "node:crypto";
-
 /**
  * Scopes of an API key (ADR-0059): `read` for the GET routes of
- * `PUBLIC_ROUTES`, `dlq:write` for the others (store, delete, replay DLQ
+ * `PUBLIC_ROUTES`, `dlq:write` for the others (delete, replay DLQ
  * entries).
  */
 export const API_SCOPES = ["read", "dlq:write"] as const;
@@ -13,8 +11,6 @@ export interface ApiKey {
 	name: string;
 	scopes: readonly ApiScope[];
 	secret: string;
-	/** Old format (a bare secret): accepted one release, every scope (ADR-0059). */
-	legacy: boolean;
 }
 
 const NAME = /^[A-Za-z0-9._-]{1,64}$/;
@@ -24,21 +20,12 @@ const isScope = (scope: string): scope is ApiScope =>
 
 /**
  * Parses one entry of `AUTH_TOKENS`: `name:scope1+scope2:secret`, the secret
- * after the last `:` (a scope such as `dlq:write` holds one too). An entry
- * without `:` is the old bare secret: named `legacy-<8 hex of its sha256>`,
- * with every scope, for the release that keeps old deployments working.
- * Returns the reason when the entry is invalid; the reason never quotes the
+ * after the last `:` (a scope such as `dlq:write` holds one too). * Returns the reason when the entry is invalid; the reason never quotes the
  * secret.
  */
 export function parseApiKey(entry: string): ApiKey | { error: string } {
 	if (!entry.includes(":")) {
-		const digest = createHash("sha256").update(entry).digest("hex");
-		return {
-			name: `legacy-${digest.slice(0, 8)}`,
-			scopes: API_SCOPES,
-			secret: entry,
-			legacy: true,
-		};
+		return { error: "entry must be name:scopes:secret (bare secret refused)" };
 	}
 	const first = entry.indexOf(":");
 	const last = entry.lastIndexOf(":");
@@ -56,7 +43,7 @@ export function parseApiKey(entry: string): ApiKey | { error: string } {
 	if (!secret) {
 		return { error: `key "${name}": empty secret` };
 	}
-	return { name, scopes, secret, legacy: false };
+	return { name, scopes, secret };
 }
 
 /** Scope a public route needs: `read` for GET, `dlq:write` otherwise. */

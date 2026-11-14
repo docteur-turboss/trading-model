@@ -22,7 +22,7 @@ import {
 } from "./evaluation-validation";
 import type { GaTelemetry } from "./ga-telemetry";
 import type { WindowSet } from "./generation-types";
-import type { GenomeFitnessMeta, LamarckGenome } from "./genome-types";
+import type { GenomeFitnessMeta, LamarckGenome } from "./genome";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 import { deepFreeze } from "./shared-types";

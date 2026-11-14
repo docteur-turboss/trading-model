@@ -13,12 +13,23 @@ TS=2026-01-01_000000
 
 mkdir -p "$WORK/bin" "$WORK/backups/mongodb/$TS"
 for l in mongodb mongodb-audit; do echo x | gzip >"$WORK/backups/mongodb/$TS/$l.archive.gz"; done
+# Run manifest: a run without one is refused.
+mkdir -p "$WORK/backups/manifests"
+{
+	echo "{\"version\":1,\"timestamp\":\"$TS\",\"entries\":["
+	for l in mongodb mongodb-audit; do
+		f="mongodb/$TS/$l.archive.gz"
+		echo "{\"component\":\"$l\",\"path\":\"$f\",\"size\":$(wc -c <"$WORK/backups/$f" | tr -d ' '),\"sha256\":\"$(sha256sum "$WORK/backups/$f" | cut -d' ' -f1)\"},"
+	done | sed '$ s/,$//'
+	echo "]}"
+} >"$WORK/backups/manifests/manifest_$TS.json"
 cat >"$WORK/bin/kubectl" <<'K'
 #!/usr/bin/env bash
 case "$1" in
   get) echo -n "mongo-0" ;;
   exec)
-    if [[ "$*" == *mongosh* ]]; then echo true
+    if [[ "$*" == *__system* ]]; then cat >/dev/null; echo "putback" >>"$CALLS"
+    elif [[ "$*" == *mongosh* ]]; then echo true
     elif [[ "$*" == *mongorestore* ]]; then cat >/dev/null; echo "${*#*mongorestore}" >>"$CALLS"; fi ;;
 esac
 exit 0
@@ -45,6 +56,7 @@ refused() { [ "$RC" -eq 1 ] && has "$1"; }
 run --components mongodb --allow-mixed-runs
 check "default: historical arguments" called " --quiet --gzip --archive --drop --oplogReplay"
 check "default: no ns option" notcalled "--nsInclude"
+check "default: current users put back" called "putback"
 
 run --components mongodb --allow-mixed-runs --ns dlq.dead_letters --ns 'dlq.x*'
 check "--ns: exit 0" test "$RC" -eq 0
@@ -52,6 +64,7 @@ check "--ns: nsInclude per pattern" called "--nsInclude dlq.dead_letters --nsInc
 check "--ns: still --drop" called "--drop"
 check "--ns: no oplogReplay" notcalled "--oplogReplay"
 check "--ns: no rename" notcalled "--nsTo"
+check "--ns: users untouched" notcalled "putback"
 
 run --components mongodb --allow-mixed-runs --ns dlq.dead_letters --into-scratch
 check "scratch: nsFrom/nsTo" called "--nsFrom \$db\$.\$coll\$ --nsTo restore_${TS}_\$db\$.\$coll\$"
@@ -78,16 +91,6 @@ check "malformed pattern refused" refused "expected <db>.<collection>"
 run --components mongodb --allow-mixed-runs --ns audit.audit_events --into-scratch
 check "audit into scratch allowed" test "$RC" -eq 0
 
-# A run manifest, so that `latest` resolves to that run.
-mkdir -p "$WORK/backups/manifests"
-{
-	echo "{\"version\":1,\"timestamp\":\"$TS\",\"entries\":["
-	for l in mongodb mongodb-audit; do
-		f="mongodb/$TS/$l.archive.gz"
-		echo "{\"component\":\"$l\",\"path\":\"$f\",\"size\":$(wc -c <"$WORK/backups/$f" | tr -d ' '),\"sha256\":\"$(sha256sum "$WORK/backups/$f" | cut -d' ' -f1)\"},"
-	done | sed '$ s/,$//'
-	echo "]}"
-} >"$WORK/backups/manifests/manifest_$TS.json"
 # No --timestamp: the scratch name comes from the run found, never "latest".
 : >"$WORK/calls"
 OUT="$(env PATH="$WORK/bin:$PATH" BACKUP_DIR="$WORK/backups" CALLS="$WORK/calls" 	bash "$ROOT/scripts/restore-k8s.sh" --components mongodb --allow-mixed-runs --into-scratch 2>&1)"

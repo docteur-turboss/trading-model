@@ -95,6 +95,16 @@ function run(cmd) {
   }
 }
 
+/** Like run(), but a failing command prints itself and its stderr, then exits 1 (ADR-0017: no swallowed error). */
+function runOrDie(cmd) {
+  try {
+    return execSync(cmd, { cwd: ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+  } catch (err) {
+    console.error(`\n  ✗ Command failed: ${cmd}\n${String(err.stderr || err.message).trim()}`);
+    process.exit(1);
+  }
+}
+
 function parseCommits(raw) {
   if (!raw) return [];
   return raw
@@ -386,17 +396,19 @@ function printSummary(bumps, oldRootVer, newVersion, rootBump, dryRun) {
 function publishRelease(newVersion, args) {
   if (!args.publish || args.dryRun) return;
   console.log('\n  ── Publishing release ──\n');
-  console.log('  → Generating documentation...');
-  run('bun run docs:generate');
   console.log('  → Staging files...');
-  run('git add -A');
+  runOrDie('git add -A');
   const commitMsg = `:rocket:(release): v${newVersion}`;
   console.log(`  → Committing: ${commitMsg}`);
-  run(`git commit --no-verify -m "${commitMsg}"`);
+  runOrDie(`git commit --no-verify -m "${commitMsg}"`);
   console.log(`  → Tagging v${newVersion}...`);
-  run(`git tag -a v${newVersion} -m "${commitMsg}"`);
+  runOrDie(`git tag -a v${newVersion} -m "${commitMsg}"`);
   console.log('  → Pushing commits and tags...');
-  run('git push --follow-tags');
+  runOrDie('git push --follow-tags');
+  if (!runOrDie(`git ls-remote --tags origin v${newVersion}`)) {
+    console.error(`\n  ✗ Tag v${newVersion} is not on origin after the push.`);
+    process.exit(1);
+  }
   console.log(`  ✓ Release v${newVersion} published.\n`);
 }
 

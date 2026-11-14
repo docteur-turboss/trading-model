@@ -11,14 +11,14 @@ import {
 } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import { GenerationProcessor } from "../../../src/domain/genetic-algorithm/generation-processor";
+import type {
+	LamarckGenome,
+	MarketStep,
+} from "../../../src/domain/genetic-algorithm/genome";
 import {
 	createGAControlGenome,
 	FitnessType,
 } from "../../../src/domain/genetic-algorithm/genome-control";
-import type {
-	LamarckGenome,
-	MarketStep,
-} from "../../../src/domain/genetic-algorithm/genome-types";
 import type { RLBackend } from "../../../src/domain/genetic-algorithm/rl-backend";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
 

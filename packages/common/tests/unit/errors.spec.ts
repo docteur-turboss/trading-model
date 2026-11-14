@@ -2,12 +2,12 @@ import {
 	authenticationError,
 	createAppError,
 	ErrorCode,
+	errorProp,
 	isAppError,
 	isAuthenticationError,
 	makeErrorCode,
 	makeGuard,
 	normalizeError,
-	timeoutError,
 } from "../../src/utils/errors";
 
 const serviceNotFoundError = makeErrorCode(ErrorCode.ServiceNotFound);
@@ -70,10 +70,6 @@ describe("AppError", () => {
 	it("should be identified by type guard for MessageManagerError", () => {
 		const error = messageManagerError("Failed");
 		expect(isMessageManagerError(error)).toBe(true);
-	});
-
-	it("should tag TimeoutError with its code", () => {
-		expect(timeoutError("timed out").code).toBe(ErrorCode.Timeout);
 	});
 
 	it("should support reason via options", () => {
@@ -163,5 +159,12 @@ describe("AppError", () => {
 			expect(result).toBeInstanceOf(Error);
 			expect(result.message).toBe("Unknown error: 42");
 		});
+	});
+});
+
+describe("errorProp", () => {
+	it("errorProp is undefined for non-objects", () => {
+		expect(errorProp("boom", "code")).toBeUndefined();
+		expect(errorProp({ statusCode: 404 }, "statusCode")).toBe(404);
 	});
 });

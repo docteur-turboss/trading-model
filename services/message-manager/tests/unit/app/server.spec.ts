@@ -14,6 +14,7 @@ jest.mock(
 
 jest.mock("config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
+	REGISTRATION_READINESS: { name: "discovery-registration", check: () => true },
 }));
 
 jest.mock("config/message-manager", () => ({
@@ -57,8 +58,8 @@ function redisReadinessCheck(): () => Promise<boolean> {
 }
 
 describe("app/server", () => {
-	it("should create server", () => {
-		const server = createServer();
+	it("should create server", async () => {
+		const server = await createServer();
 		expect(server).toBeDefined();
 		expect(server.close).toBeDefined();
 	});

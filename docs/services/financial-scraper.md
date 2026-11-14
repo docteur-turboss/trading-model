@@ -109,7 +109,7 @@ Four tables store market data:
 `market_publish_cursors` holds the candle publish backlog (see below) and
 `signals` (migration 006) the signals of every dimension ([Signals](#signals-adr-0036)).
 
-See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper-financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript interfaces.
+See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript interfaces.
 
 ## Background Jobs (Scheduled Tasks)
 
@@ -127,7 +127,7 @@ A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`Mar
 - Failures stay where they happen: a symbol that fails does not stop the others (`fs_symbols_failed_total{symbol}` and `fs_symbols_scraped_total{symbol}`, born at 0 for every tracked symbol), and an endpoint that fails only leaves its data type out of the snapshot (`fs_snapshot_parts_failed_total{part}`): an order book error does not cost the candles. A payload that cannot be normalized (a value outside its domain type) only loses its data type too, counted on the same metric. The symbol fails only when all 6 endpoints fail. So a symbol can count as scraped with no candle: alert `SymbolMarketDataStale` reads `fs_candles_persisted_total{symbol}` (born at 0 for every tracked symbol) and names a symbol with no candle persisted for 15 min, whatever the cause, even when the cycle counts `success`
 - MySQL does not wait for the bus: the cycle persists, then starts the publish without awaiting it (a hung message-manager may hold a publish for `PUBLISH_ACCEPT_TIMEOUT_MS`, 15 s: it answers 202 once the message is journaled, whatever the subscribers do, ADR-0048). While a symbol's publish is in flight, the next cycles persist only (`fs_publishes_skipped_total`; their trades, tickers and order book are not published, they are snapshots)
 - The candles to publish are read back from MySQL: each series has a publish cursor (`market_publish_cursors`, migration 005, open time of the next candle to publish) that moves only once a publish of its candles succeeded. Each cycle sends the next 100 persisted candles from the cursor, so a bus outage or a collector restart loses none (`fs_unpublished_candles{symbol}` counts those waiting, alert `MarketDataUnpublished`). A series without a cursor starts at the first candle the process persists, not at the history. If the backlog cannot be read (MySQL down) the other data types still go out. On shutdown the scraper stops the cron and waits for the running cycle and the publishes in flight (collector grace period 360 s)
-- Candles are fetched from a per-symbol cursor (`startTime` = close of the last persisted candle + 1 ms), so each cycle publishes only the candles closed since the previous one and catches up after an outage. The still-open candle is never published. The cursor lives in memory: after a restart the first cycle sends the latest window again, which the upserts and the trainer absorb
+- Candles are fetched from a per-symbol cursor (`startTime` = close of the last persisted candle + 1 ms), so each cycle publishes only the candles closed since the previous one and catches up after an outage. The still-open candle is never published. The cursor lives in memory: the first cycle of a process starts it at the open time of the newest candle of the series in MySQL (read once; MySQL down: latest window, read again next cycle), so a stop of any length is caught up 100 candles per cycle; the candle read again is absorbed by the upserts and the trainer
 
 ### Rate Limiting
 
@@ -193,7 +193,7 @@ retry), normalized by its adapter, checked against the schema and stored.
 nothing stored), `store_error`. Every request sends the User-Agent
 `automated news analysis <SIGNAL_CONTACT_EMAIL>`: SEC EDGAR answers 403
 without the e-mail; NWS and Wikimedia accept the repository URL sent when it
-is unset. The repository is public, so the e-mail is never committed: `.env`
+is unset. The address must be functional and non-nominative (project alias, never a person's e-mail: it is sent to US sources). The repository is public, so the e-mail is never committed: `.env`
 for compose, the GitHub environment secret `SIGNAL_CONTACT_EMAIL` for K8s
 (`deploy.yml` writes it into the `signal-contact` ConfigMap). A value that
 is no e-mail address disables the signal collection (error logged at start);

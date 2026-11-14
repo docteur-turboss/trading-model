@@ -1,22 +1,11 @@
-import type {
-	InstanceId,
-	Limit,
-	Topic,
-} from "@trading-model/primitives/primitives";
 import type { Collection, Document, ObjectId, WithId } from "mongodb";
 import { CLAIM_PROJECTION } from "../../domain/dlq-constants";
+import type { ClaimEntriesOptions } from "../../domain/ports/replay.port";
 import type { BatchContext } from "../../shared/types";
 import type { CollectionProvider } from "./collection-provider";
 import { DlqQueryBuilder } from "./dlq-query-builder";
 import type { StoredDlqEntry } from "./repository";
 import { toStoredDlqEntry } from "./repository";
-
-export interface ClaimEntriesOptions {
-	limit: Limit;
-	batchId: string;
-	instanceId: InstanceId;
-	topic?: Topic;
-}
 
 export class DlqClaimManager {
 	private readonly _queryBuilder = new DlqQueryBuilder();

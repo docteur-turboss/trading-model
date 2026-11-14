@@ -90,6 +90,13 @@ spec:
             - configMapRef:
                 name: dlq-service-config
           env:
+            - name: MONGO_USERNAME
+              value: dlq-service
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_DLQ_PASSWORD
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -120,10 +127,16 @@ spec:
               cpu: 500m
               memory: 256Mi
           volumeMounts:
+            - name: redis-tls
+              mountPath: /etc/redis-tls
+              readOnly: true
             - name: svid
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
+            - name: mongo-tls
+              mountPath: /etc/mongo-tls
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -196,6 +209,12 @@ spec:
             seccompProfile:
               type: RuntimeDefault
       volumes:
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         - name: spiffe-helper-config
           configMap:
             name: spiffe-helper-config
@@ -209,3 +228,10 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        # CA certificate only: the CA key stays in the Secret (mongo-tls.yaml).
+        - name: mongo-tls
+          secret:
+            secretName: mongo-ca
+            items:
+              - key: ca.crt
+                path: ca.crt

@@ -52,21 +52,32 @@ Is there a known cause? → Recent deploy / config change / upstream outage
 
 ## Escalation Matrix
 
-| Role                | Name                             | Contact                            | Hours                       |
-| ------------------- | -------------------------------- | ---------------------------------- | --------------------------- |
-| On-call Engineer    | Pushover (critical alerts)       | Pushover / #incidents Slack        | 24/7                        |
-| Engineering Manager | `@trading-model/core` team lead  | #incidents Slack / Phone           | Business hours + escalation |
-| Security Lead       | `@trading-model/security`        | security@trading-model.example.com | 24/7 for security incidents |
-| CTO                 | cto@trading-model.example.com    | Phone / #incidents                 | SEV1 escalation             |
+The project has a single maintainer, reachable best effort. No second
+person, team or on-call tool exists: do not look for one.
+
+| Step | Channel                                                                 | Expected response                                            |
+| ---- | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 1    | Pushover push for every `critical` alert (`observability/alertmanager.yml`) | Best effort; no automatic escalation if unacknowledged       |
+| 2    | Dead man's switch (`Watchdog` alert, `DEADMAN_URL`): signals that alerting itself is down | Notification when the heartbeat stops               |
+| 3    | Security incident: follow the private reporting procedure in [SECURITY.md](../../SECURITY.md) | Acknowledgement within 72 hours (SECURITY.md)   |
+
+Realistic delay: minutes to a few hours during the day, possibly none at night
+(no 24/7 cover). Choosing a paging tool with automatic escalation and naming a
+backup person is an owner decision, tracked outside this document. Contact
+details are never committed (public repository).
 
 ## Communication Channels
 
-| Channel       | Purpose                       |
-| ------------- | ----------------------------- |
-| #incidents    | SEV1/SEV2 coordination        |
-| #alerts       | Automated alert notifications |
-| #ops          | Operational discussions       |
-| On-call Phone | Pushover (emergency priority) |
+Only channels defined in `observability/alertmanager.yml` (see [ALERTING.md](ALERTING.md)):
+
+| Channel          | Purpose                                                          |
+| ---------------- | ---------------------------------------------------------------- |
+| `#alerts`        | Critical alerts (also paged) and default receiver                |
+| `#alerts-warning`| Warning alerts                                                   |
+| Pushover         | Critical alerts, emergency priority (repeats until acknowledged) |
+| Dead man's switch| `Watchdog` heartbeat (`DEADMAN_URL`): silence means alerting is down |
+
+No incident-coordination channel or on-call phone is defined in the repo: the owner picks one per incident and records it in the post-mortem.
 
 ## Post-Incident Checklist
 
