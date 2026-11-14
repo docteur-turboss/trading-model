@@ -51,41 +51,7 @@ For the full list including variants (🏷️ feat-types, 🎉 feat-init, 🚑 f
 
 ## Scopes
 
-| Scope               | Context                                |
-| ------------------- | -------------------------------------- |
-| `auth`              | Authentication and authorization       |
-| `scraper`           | Financial-scraper service              |
-| `api`               | API endpoints                          |
-| `wallet`            | Wallet management                      |
-| `core`              | Core business logic                    |
-| `deps`              | Dependencies                           |
-| `discovery`         | Discovery-server service               |
-| `broker`            | Broker-message package                 |
-| `trainer`           | Trader-trainer service                 |
-| `router`            | Express routing                        |
-| `common`            | @trading-model/common package          |
-| `contracts`         | @trading-model/contracts package       |
-| `config`            | Configuration                          |
-| `database`          | Database                               |
-| `middleware`        | Express middleware                     |
-| `persistence`       | @trading-model/persistence package     |
-| `primitives`        | @trading-model/primitives package      |
-| `reliability`       | @trading-model/reliability package     |
-| `utils`             | Utilities                              |
-| `types`             | TypeScript types                       |
-| `address-manager`   | @trading-model/address-manager package |
-| `message-manager`   | Message-manager service                |
-| `financial-scraper` | Financial-scraper service              |
-| `trader-trainer`    | Trader-trainer service                 |
-| `discovery-server`  | Discovery-server service               |
-| `docs`              | Documentation                          |
-| `github-actions`    | GitHub Actions workflows               |
-| `husky`             | Husky configuration                    |
-| `biome`             | Biome configuration                    |
-| `audit-logger`      | Audit-logger service                   |
-| `dlq-service`       | DLQ service                            |
-| `api-gateway`       | API gateway service                    |
-| `admin-interface`   | Admin frontend (removed, ADR-0018; kept for history and its return) |
+The allowed scopes are the list in [`scripts/gitmoji-scopes.mjs`](../../scripts/gitmoji-scopes.mjs), which `commitlint` enforces and `bun run commit` reads. Use the name of the workspace you touched, or `multiple` when the commit spans several.
 
 ## Body and Footer (Optional)
 
