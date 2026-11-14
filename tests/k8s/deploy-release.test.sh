@@ -48,7 +48,7 @@ if [ "$1" = get ] && [ "$2" = deployment ] && [[ $* == *terminationGracePeriodSe
 	exit 0
 fi
 if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0; fi
-if [ "$1" = get ] && [ "$2" = statefulset ]; then [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
+if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
 if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] || [ "$3" = "statefulset/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
 if [ "$1" = get ] && [ "$2" = deployment ]; then
@@ -129,20 +129,23 @@ DEPLOY_TIMEOUT_FACTOR=4 STUB_GRACE="api-gateway=30" bash "$SCRIPT" wait ns >/dev
 DEPLOY_TIMEOUT_FACTOR=x bash "$SCRIPT" wait ns >/dev/null 2>&1 && ko "bad DEPLOY_TIMEOUT_FACTOR accepted" ||
 	ok "DEPLOY_TIMEOUT_FACTOR not a positive integer: refused"
 
+# The release steps of deploy.yml: overlay without Redis, Deployment rollouts, then Redis (issue #1156).
+bash "$ROOT/scripts/split-cluster-scope.sh" app <"$WORK/render.yaml" >"$WORK/app.yaml"
 : >"$WORK/log"
-: >"$WORK/applied"
-bash "$ROOT/scripts/split-cluster-scope.sh" app <"$WORK/render.yaml" | bash "$SCRIPT" redis-first ns || ko "redis-first failed"
-{ grep -q 'name: redis-sentinel$' "$WORK/applied" && ! grep -q 'kind: Deployment' "$WORK/applied" &&
-	grep -q "rollout status statefulset/redis-sentinel -n ns" "$WORK/log"; } &&
-	ok "redis-first applies the Redis StatefulSets only, then waits for them" || ko "redis-first: $(cat "$WORK/log")"
-for doc in Certificate:redis-tls Certificate:redis-ca Issuer:redis-ca Issuer:redis-selfsigned; do
-	grep -A5 "^kind: ${doc%%:*}$" "$WORK/applied" | grep -q "^  name: ${doc#*:}$" || ko "redis-first did not apply ${doc/:/ }"
-done
-! grep -q 'name: mysql-tls$' "$WORK/applied" &&
-	[ "$(grep -n 'wait --for=condition=Ready certificate/redis-tls -n ns' "$WORK/log" | cut -d: -f1)" -lt \
-		"$(grep -n 'rollout status statefulset/redis ' "$WORK/log" | cut -d: -f1)" ] &&
-	ok "redis-first applies the Redis certificates and waits for redis-tls before the StatefulSets" ||
-	ko "redis-first certificates: $(cat "$WORK/log")"
+bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" >"$WORK/overlay.yaml"
+bash "$SCRIPT" wait ns >/dev/null && bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null || ko "wait / redis-last failed"
+log_line() { grep -n "$1" "$WORK/log" | tail -1 | cut -d: -f1; }
+sts_names() { awk '/^---/ { k = "" } /^kind:/ { k = $2 } k == "StatefulSet" && /^  name:/ { printf " %s", $2 }' "$1"; }
+{ grep -q 'kind: Deployment' "$WORK/overlay.yaml" && grep -A5 '^kind: Certificate$' "$WORK/overlay.yaml" | grep -q '^  name: redis-tls$' &&
+	[[ "$(sts_names "$WORK/overlay.yaml") " == *" mysql "* && "$(sts_names "$WORK/overlay.yaml") " != *" redis"* ]] &&
+	[ "$(sts_names "$WORK/applied")" = " redis redis-sentinel" ] && ! grep -q 'kind: Deployment' "$WORK/applied" &&
+	[ "$(log_line 'rollout status deployment/edge-proxy')" -lt "$(log_line 'wait --for=condition=Ready certificate/redis-tls')" ] &&
+	[ "$(log_line 'wait --for=condition=Ready certificate/redis-tls')" -lt "$(log_line 'apply -f -')" ] &&
+	[ "$(log_line 'apply -f -')" -lt "$(log_line 'rollout status statefulset/redis ')" ]; } &&
+	ok "Redis StatefulSets left out of the overlay, applied after the Deployment rollouts and redis-tls, then waited for" ||
+	ko "redis last: $(cat "$WORK/log")"
+STUB_NO_REDIS=1 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" | cmp -s - "$WORK/app.yaml" &&
+	ok "without-redis keeps the Redis StatefulSets on a first deploy" || ko "without-redis dropped documents on a first deploy"
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 
