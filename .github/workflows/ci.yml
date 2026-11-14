@@ -417,6 +417,7 @@ jobs:
       # Release N-1 = the PR base branch (main on a release PR), origin/development on push and workflow_call.
       KIND_PREVIOUS_REF: v3.1.0-rc.1
       KIND_OVERLAY: staging-local
+      RETIRED_SECRET_KEYS: HMAC_SECRET
     steps:
       # Full history: N-1 (KIND_PREVIOUS_REF), built and deployed first.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
