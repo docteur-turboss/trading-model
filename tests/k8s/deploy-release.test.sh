@@ -61,6 +61,7 @@ if [ "$1" = rollout ] && [ "$2" = undo ]; then
 	[ "$3" = "deployment/$STUB_UNDO_FAILS" ] && exit 1
 	exit 0
 fi
+[ "$1" = delete ] && exit 0
 if [ "$1" = apply ]; then cat >>"$STUB_APPLIED"; exit 0; fi
 [ "$1" = wait ] && exit 0
 exit 2
@@ -84,8 +85,8 @@ printf 'discovery-server 4\nedge-proxy none\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
 out="$(STUB_UNDO_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 	ko "rollback succeeded with a failed undo and a new Deployment" ||
-	{ grep -q "deployment/api-gateway" "$WORK/log" && [[ $out == *"edge-proxy: it did not exist"* ]] &&
-		ok "rollback fails, reports and still tries every Deployment" || ko "rollback: $out"; }
+	{ grep -q "deployment/api-gateway" "$WORK/log" && grep -q "delete deployment/edge-proxy -n ns" "$WORK/log" &&
+		ok "rollback fails on a failed undo, deletes a new Deployment, still tries every Deployment" || ko "rollback: $out"; }
 
 printf 'discovery-server 4
 api-gateway 7

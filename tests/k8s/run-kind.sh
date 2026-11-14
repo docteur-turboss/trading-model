@@ -501,8 +501,8 @@ upgrade() {
 		return 1
 	fi
 	log "  the upgrade failed: rollback on failure (deploy-release.sh rollback)"
+	# rollback waits for every restored resource; a Deployment new in N is deleted, so no global wait
 	release_script rollback "$NS" "$WORK/revisions"
-	release_script wait "$NS" 300s
 	# The first N-1 → N attempt ran db-migrate-user once, before the overlay that
 	# brings the exporter keys: the user exists only if their SealedSecret was
 	# applied before the Job (issue #698). MySQL stays on N (not rolled back).
