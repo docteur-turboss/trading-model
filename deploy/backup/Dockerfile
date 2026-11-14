@@ -15,7 +15,7 @@
 # comes from the official MySQL repository, at the version of the server
 # (deploy/k8s/infra/mysql.yaml), checked with the key the mysql image ships.
 # age and rclone come from Oracle's EPEL mirror.
-FROM bitnami/kubectl@sha256:b29d8c1665b70817259ceecaea16ab27aab6368b48daf485d19436c809067492 AS kubectl
+FROM bitnami/kubectl@sha256:8919c149c2e3d6860e0143c117900e64d71395172aaef0e01e604bb98c8e7ce0 AS kubectl
 
 FROM mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a AS mysql
 
