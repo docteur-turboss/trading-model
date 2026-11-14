@@ -244,8 +244,8 @@ wait_rollout() {
 		return 64
 	}
 	base=$((base * FACTOR))
-	# Redis first: a service that starts before its nodes accept its ACL user
-	# only fails its readiness and burns its own timeout.
+	# Redis first on a first deploy (an upgrade rolls it later, `redis-last`): a service
+	# that starts before its nodes accept its ACL user only fails its readiness and burns its own timeout.
 	for dep in $STATEFULSETS; do
 		echo "Waiting for rollout of $dep (${base}s)..."
 		if ! kubectl rollout status "statefulset/$dep" -n "$ns" --timeout="${base}s"; then
