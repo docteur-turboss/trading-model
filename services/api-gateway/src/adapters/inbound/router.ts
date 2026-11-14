@@ -7,7 +7,6 @@ import {
 	DurationMs,
 	isAllowedProxyIP,
 	parseCIDRList,
-	type ServiceId,
 } from "@trading-model/primitives/primitives";
 import type { Request } from "express";
 import { Router } from "express";
@@ -37,29 +36,6 @@ const RESOLVER = new EndpointResolver(
 const CACHE = new ResponseCache(DurationMs.of(ENV.CACHE_TTL_MS));
 const ALLOWED_PROXY_RANGES = parseCIDRList(ENV.ALLOWED_PROXY_CIDRS);
 
-function _validatePath(
-	req: Request
-):
-	| ReturnType<typeof sendResponse>
-	| { majorVersion: number; serviceName: ServiceId; path: string } {
-	const parsed = parseRequestPath(req);
-	if (!parsed) {
-		return sendResponse(
-			{ error: "Invalid route format. Expected /v{version}/{serviceName}/**" },
-			HTTP_STATUS.BAD_REQUEST
-		);
-	}
-
-	if (!parsed.valid) {
-		return sendResponse(
-			{ error: "Invalid version number" },
-			HTTP_STATUS.BAD_REQUEST
-		);
-	}
-
-	return parsed;
-}
-
 /** The query string ("" or "?a=1"): `req.path`, which routes are matched on, leaves it out. */
 function _search(req: Request): string {
 	const url = req.originalUrl ?? req.url;
@@ -68,9 +44,18 @@ function _search(req: Request): string {
 }
 
 const catchAllRoute = catchSync(async (req) => {
-	const parsed = _validatePath(req);
-	if (typeof parsed === "object" && "status" in parsed) {
-		return parsed;
+	const parsed = parseRequestPath(req);
+	if (!parsed) {
+		return sendResponse(
+			{ error: "Invalid route format. Expected /v{version}/{serviceName}/**" },
+			HTTP_STATUS.BAD_REQUEST
+		);
+	}
+	if (!parsed.valid) {
+		return sendResponse(
+			{ error: "Invalid version number" },
+			HTTP_STATUS.BAD_REQUEST
+		);
 	}
 
 	const { majorVersion, serviceName, path } = parsed;

@@ -33,7 +33,7 @@ export function parseRequestPath(req: {
 		return null;
 	}
 	const { majorVersion, serviceName, path } = extractPathComponents(match);
-	if (Number.isNaN(majorVersion) || majorVersion < 1) {
+	if (majorVersion < 1) {
 		return { valid: false };
 	}
 	return { valid: true, majorVersion, serviceName, path };
