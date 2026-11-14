@@ -16,8 +16,12 @@ rules:
     resources: [configmaps, secrets, services, persistentvolumeclaims, serviceaccounts]
     verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [""]
-    resources: [pods, pods/log]
+    resources: [pods/log]
     verbs: [get, list, watch]
+  # deploy-release.sh rollback replaces the stuck pods of a Redis StatefulSet.
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch, delete]
   - apiGroups: [""]
     resources: [pods/exec]
     verbs: [create]
