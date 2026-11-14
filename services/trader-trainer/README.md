@@ -1,50 +1,13 @@
-# Trader-Trainer Service
+# Trader Trainer
 
-> Autonomous trading AI agents trained via **Genetic Algorithm + Deep Q-Learning**
+Evolves trading agents with a genetic algorithm and deep Q-learning on market data from the message bus.
 
-## Overview
-
-Trader-Trainer is a microservice that evolves a population of neural network-based trading agents using genetic algorithms and deep reinforcement learning. It consumes real market data from the **Message Manager** service and produces optimized trading agents exported as versioned model artifacts (ADR-0022).
-
-Key features: GA evolution, Deep Q-Learning, memory-aware scaling, adaptive control, multi-objective optimization (Sharpe, Sortino, Calmar, P&L).
-
-## Quick Start
+- Service doc (API, config, dependencies): [docs/services/trader-trainer.md](../../docs/services/trader-trainer.md)
+- Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md)
+- Environment variables: [ENV.md](../../docs/deployment/ENV.md#trader-trainer)
+- Run and debug locally: [local service development](../../docs/getting-started/local-service-development.md)
+- References: [genetic algorithm](../../docs/reference/genetic-algorithm.md), [neural network](../../docs/reference/neural-network.md), [training process](../../docs/reference/training-process.md)
 
 ```bash
-cd services/trader-trainer
-bun install
-bun run dev           # needs a SPIRE SVID: not usable outside Compose
-bun run test              # Run tests
-bun run build         # Production build
+bun run --filter trader-service test
 ```
-
-See [Local service development](../../docs/getting-started/local-service-development.md) to run and debug this service.
-
-See [Quick Start](../../docs/getting-started/quickstart.md) for a full platform walkthrough.
-
-## Architecture
-
-```
-Real Market Data → [Trader-Trainer] → Best Agent → Versioned model export
-                    ├─ Genetic Algorithm (population evolution)
-                    ├─ Neural Network Agents (Q-Learning)
-                    ├─ Trading Wallet Simulation
-                    └─ Fitness Evaluation (Sharpe, Sortino, etc.)
-```
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed module breakdown and integration.
-
-## Documentation
-
-| Document | Content |
-| -------- | ------- |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture, core modules, design decisions |
-| [Centralized Service Doc](../../docs/services/trader-trainer.md) | REST API, config, dependency overview |
-| [GA Reference](../../docs/reference/genetic-algorithm.md) | Genome structure, operators, NSGA-II |
-| [NN Reference](../../docs/reference/neural-network.md) | Network architecture, activations, optimizers |
-| [Training Process](../../docs/reference/training-process.md) | End-to-end training flow, data preparation |
-
-## Related
-
-- [Bounded Contexts](../../docs/architecture/bounded-contexts.md) — DDD context map
-- [Service Documentation Index](../../docs/services/README.md) — All platform services
