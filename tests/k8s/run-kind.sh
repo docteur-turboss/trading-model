@@ -33,7 +33,7 @@ NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
-SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
+SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
@@ -91,8 +91,15 @@ retry() {
 # Builds the 10 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
 build_images() {
 	local root="$1" tag="$2" svc
+	# N-1 may predate a service: its image is a stand-in built from this checkout.
+	local have="" missing=""
+	for svc in $SERVICES; do
+		if docker compose -f "$root/docker-compose.yml" config --services | grep -qx "$svc"; then have="$have $svc"; else missing="$missing $svc"; fi
+	done
 	# shellcheck disable=SC2086
-	retry 3 docker compose -f "$root/docker-compose.yml" build $SERVICES spire-bootstrap
+	retry 3 docker compose -f "$root/docker-compose.yml" build $have spire-bootstrap
+	# shellcheck disable=SC2086
+	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" build $missing
 	retry 3 docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
 	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
 	local mroot="$root"
@@ -495,8 +502,8 @@ upgrade() {
 		return 1
 	fi
 	log "  the upgrade failed: rollback on failure (deploy-release.sh rollback)"
+	# rollback waits for every restored resource; a Deployment new in N is deleted, so no global wait
 	release_script rollback "$NS" "$WORK/revisions"
-	release_script wait "$NS" 300s
 	# The first N-1 → N attempt ran db-migrate-user once, before the overlay that
 	# brings the exporter keys: the user exists only if their SealedSecret was
 	# applied before the Job (issue #698). MySQL stays on N (not rolled back).
@@ -510,6 +517,7 @@ upgrade() {
 	local dep template expected
 	while read -r dep template; do
 		expected="$(echo "$before_templates" | sed -n "s/^$dep //p")"
+		[ -n "$expected" ] || continue # new in release N: deleted by the rollback
 		[ "$template" = "$expected" ] || {
 			log "$dep is not back on its N-1 pod template after the rollback"
 			diff <(echo "$expected" | jq .) <(echo "$template" | jq .) || true
@@ -549,7 +557,7 @@ upgrade() {
 		log "migrations of release N-1 no longer applied after the rollback: $missing"
 		return 1
 	}
-	deploy_script smoke-test
+	SMOKE_SKIP=model-evaluator deploy_script smoke-test # new in N: deleted by the rollback
 	log "  rollback: every Deployment back on its N-1 pod template (image digests, $marked N-1 ConfigMaps), N-1 migrations applied"
 
 	log "migrate-down 1, then the migrations again"

@@ -146,6 +146,7 @@ paths:
                             - "dlq-service"
                             - "financial-scraper"
                             - "message-manager"
+                            - "model-evaluator"
                             - "trader-trainer"
                         instanceId:
                           type: "string"

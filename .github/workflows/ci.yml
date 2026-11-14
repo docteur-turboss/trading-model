@@ -115,6 +115,7 @@ jobs:
           bun run --filter api-gateway build
           bun run --filter audit-logger build
           bun run --filter dlq-service build
+          bun run --filter model-evaluator build
       - name: Type-check the test files of every workspace
         run: bun run typecheck:tests
 
@@ -305,7 +306,7 @@ jobs:
           docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml
           up -d --wait --wait-timeout 600
           discovery-server message-manager financial-scraper trader-trainer
-          api-gateway audit-logger dlq-service edge-proxy
+          api-gateway audit-logger dlq-service model-evaluator edge-proxy
       # Issue #844: no container of the started stack may publish on every interface.
       - name: "No port published on 0.0.0.0 or ::"
         run: |

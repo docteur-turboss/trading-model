@@ -29,6 +29,7 @@ trading-model/
 │   ├── trader-trainer/
 │   ├── api-gateway/
 │   ├── audit-logger/
+│   ├── model-evaluator/
 │   └── dlq-service/
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
@@ -98,6 +99,7 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, server-utils, validation |
 | discovery-server | common, contracts, crypto, http, persistence, primitives, server-utils, validation |
 | dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
+| model-evaluator | address-manager, broker-message, common, contracts, http, primitives, server-utils, validation |
 | financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, server-utils, validation |
 | message-manager | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
 | trader-service | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, server-utils, validation |
@@ -145,6 +147,7 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 | trader-trainer    | 8446            | 3000           |               |
 | audit-logger      | 8450            | 3000           |               |
 | dlq-service       | 8452            | 3000           |               |
+| model-evaluator   | 8453            | 3000           |               |
 | api-gateway       | 8448            | 3000           |               |
 
 ### Service Structure

@@ -11,7 +11,7 @@ This ADR is a proposal: the owner decides. It creates no service, no package, no
 The platform has no order chain. Of signal → decision → sizing → pre-trade checks → submission → acknowledgement → fill → position, only the decision exists, inside the trainer simulator (`services/trader-trainer/src/domain/env/trade-executor.ts`). Checked on `1ade1a18`:
 
 - No order code: `placeOrder`, `createOrder`, `/api/v3/order`, `X-MBX-APIKEY`, `BINANCE_API_KEY`, `testnet`, `killSwitch`, `stopLoss` have no occurrence in `services/*/src`. Real loss possible today: none, since nothing reaches an exchange.
-- [ADR-0049](./0049-downstream-context-for-models-and-signals.md) (Proposed) defines the contract of a model consumer but says "Live execution is out of scope" and sets no risk layer. A consumer that executes (its option C) would start from nothing and expose 100 % of the allocated capital.
+- [ADR-0049](./0049-downstream-context-for-models-and-signals.md) (Accepted: option B, offline) defines the contract of a model consumer but says "Live execution is out of scope" and sets no risk layer. A consumer that executes (its option C) would start from nothing and expose 100 % of the allocated capital.
 - The only "kill switch" in the code is a fitness flag (`FEATURE_RISK_ADJUSTED_FITNESS`, ADR-0039): it changes how the GA scores agents and stops nothing.
 - `docs/compliance/algorithmic-trading-compliance.md` §6 suggested pre-trade checks as "order validation middleware in api-gateway" and a kill switch as a "circuit breaker webhook at gateway level". The gateway only proxies the `PUBLIC_ROUTES` of external callers and calls services with its own SVID; an order sent service to service never crosses it, so a control placed there is bypassed by design.
 

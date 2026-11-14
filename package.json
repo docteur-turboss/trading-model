@@ -22,7 +22,7 @@
     "build:api-gateway": "bun run --filter api-gateway build",
     "build:audit-logger": "bun run --filter audit-logger build",
     "build": "bun run build:primitives && bun run build:contracts && bun run build:reliability && bun run build:common && bun run build:persistence && bun run build:http && bun run build:validation && bun run build:server-utils && bun run build:crypto && bun run build:address-manager && bun run build:broker-message",
-    "build:ts": "bun run build && bun run --filter message-manager build && bun run --filter discovery-server build && bun run --filter financial-scraper build && bun run --filter trader-service build && bun run --filter api-gateway build && bun run --filter audit-logger build && bun run --filter dlq-service build",
+    "build:ts": "bun run build && bun run --filter message-manager build && bun run --filter discovery-server build && bun run --filter financial-scraper build && bun run --filter trader-service build && bun run --filter api-gateway build && bun run --filter audit-logger build && bun run --filter dlq-service build && bun run --filter model-evaluator build",
     "commit": "bun scripts/commit.mjs",
     "release": "bun scripts/release.mjs",
     "release:dry": "bun scripts/release.mjs --dry-run",

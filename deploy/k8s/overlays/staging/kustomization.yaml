@@ -30,6 +30,8 @@ images:
     newTag: latest
   - name: ghcr.io/trading-model/dlq-service
     newTag: latest
+  - name: ghcr.io/trading-model/model-evaluator
+    newTag: latest
   - name: ghcr.io/trading-model/spire-tools
     newTag: latest
   - name: ghcr.io/trading-model/backup-tools

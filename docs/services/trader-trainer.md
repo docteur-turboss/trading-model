@@ -186,7 +186,7 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 | `TRAINER_*`           | Generations, population size, time budget, etc. |
 | `TRAINER_MODEL_DIR`   | Model artifacts directory (`/data/checkpoints/models`) |
 | `TRAINER_MODEL_RETENTION` | Versions kept per symbol (default 20)        |
-| `MODEL_DOWNLOAD_CALLERS` | Services allowed to download weights (comma-separated, empty: nobody) |
+| `MODEL_DOWNLOAD_CALLERS` | Services allowed to download weights (comma-separated, empty: nobody; `model-evaluator` in compose and K8s) |
 
 ## Rate Limiting
 

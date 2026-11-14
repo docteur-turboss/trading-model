@@ -81,4 +81,4 @@ services:
       TRAINER_MAX_DATA_AGE_MS: '300000'
       # Only the scraper may download weights; message-manager (also in the
       # trainer ACL) is deliberately not listed, to prove the 403.
-      MODEL_DOWNLOAD_CALLERS: financial-scraper
+      MODEL_DOWNLOAD_CALLERS: financial-scraper,model-evaluator

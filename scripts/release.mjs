@@ -73,6 +73,7 @@ const SCOPE_TO_PACKAGE = {
   broker: 'packages/broker-message',
   'api-gateway': 'services/api-gateway',
   'audit-logger': 'services/audit-logger',
+  'model-evaluator': 'services/model-evaluator',
   'dlq-service': 'services/dlq-service',
   'message-manager': 'services/message-manager',
   discovery: 'services/discovery-server',

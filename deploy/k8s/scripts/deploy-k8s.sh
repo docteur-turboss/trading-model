@@ -467,6 +467,7 @@ cmd_smoke_test() {
     "api-gateway:https://api-gateway:3000/health/ready"
     "audit-logger:https://audit-logger:3000/health/ready"
     "dlq-service:https://dlq-service:3000/health/ready"
+    "model-evaluator:https://model-evaluator:3000/health/ready"
     "financial-scraper:https://financial-scraper:3000/health/ready"
     "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"
     "trader-trainer:https://trader-trainer:3000/health/ready"
@@ -477,6 +478,8 @@ cmd_smoke_test() {
   for entry in "${services[@]}"; do
     local name="${entry%%:*}"
     local url="${entry#*:}"
+    # SMOKE_SKIP: services absent from the release being checked (rollback test of tests/k8s/run-kind.sh)
+    [[ " ${SMOKE_SKIP:-} " == *" $name "* ]] && continue
 
     # Up to 12 answers, 5 s apart: one slow Redis connect just after the rollout is not a
     # failed release (run 43367462523), and Redis now rolls last, right before this test:

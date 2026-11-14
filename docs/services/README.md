@@ -31,6 +31,7 @@ This directory documents every package and service in the **trading-model** mono
 | api-gateway           | `services/api-gateway/`           | [api-gateway.md](./api-gateway.md)                 |
 | audit-logger          | `services/audit-logger/`          | [audit-logger.md](./audit-logger.md)               |
 | dlq-service           | `services/dlq-service/`           | [dlq-service.md](./dlq-service.md)                 |
+| model-evaluator       | `services/model-evaluator/`       | [model-evaluator.md](./model-evaluator.md)         |
 
 No frontend for now: `admin-interface` was removed ([ADR-0018](../adr/0018-temporary-frontend-removal.md)).
 
