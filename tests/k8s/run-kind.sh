@@ -1626,7 +1626,9 @@ dump() {
 		$K -n "$NS" logs "$pod" --all-containers --tail=60 || true
 		# Why the last container died (exit code, reason) and what it said.
 		$K -n "$NS" describe pod "$pod" | grep -E -A6 "Last State:" || true
-		$K -n "$NS" logs "$pod" --all-containers --previous --tail=30 2>&1 || true
+		for c in $($K -n "$NS" get pod "$pod" -o jsonpath='{range .status.containerStatuses[?(@.restartCount>0)]}{.name} {end}'); do
+			$K -n "$NS" logs "$pod" -c "$c" --previous --tail=30 2>&1 || true
+		done
 	done
 	# A retrying Job pod stays Running 1/1 above: show what it says (mysql-cluster-init loops on a failing ping).
 	echo "===== mysql-cluster-init"
