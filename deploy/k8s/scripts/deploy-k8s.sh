@@ -478,6 +478,8 @@ cmd_smoke_test() {
   for entry in "${services[@]}"; do
     local name="${entry%%:*}"
     local url="${entry#*:}"
+    # SMOKE_SKIP: services absent from the release being checked (rollback test of tests/k8s/run-kind.sh)
+    [[ " ${SMOKE_SKIP:-} " == *" $name "* ]] && continue
 
     # Up to 12 answers, 5 s apart: one slow Redis connect just after the rollout is not a
     # failed release (run 43367462523), and Redis now rolls last, right before this test:
