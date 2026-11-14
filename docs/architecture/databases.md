@@ -17,7 +17,7 @@ Used by `financial-scraper` to persist market data. All tables live in the `fina
 
 Full DDL, column specs, and TypeScript interfaces: [Table Schemas Reference](../reference/table-schemas.md).
 
-## MongoDB — Message Manager and Audit
+## MongoDB — Audit and DLQ
 
 MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoose):
 

@@ -1,6 +1,6 @@
 # Database
 
-The project uses two database engines managed by the **Financial Scraper** (MySQL) and **Message Manager** (MongoDB) services.
+The project uses two database engines: MySQL (**Financial Scraper**) and MongoDB (**Audit Logger** and **DLQ Service**).
 
 ---
 
@@ -72,7 +72,7 @@ The `financial-scraper` waits for `migrate` to complete (`condition: service_com
 
 ## MongoDB
 
-MongoDB 7 serves `audit-logger` (database `audit-logger`) and `dlq-service` (database `dlq`), authenticated (ADR-0067). Replica sets, users and connection settings: [databases.md](../architecture/databases.md#mongodb--message-manager-and-audit).
+MongoDB 7 serves `audit-logger` (database `audit-logger`) and `dlq-service` (database `dlq`), authenticated (ADR-0067). Replica sets, users and connection settings: [databases.md](../architecture/databases.md#mongodb--audit-and-dlq).
 
 ---
 
