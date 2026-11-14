@@ -46,14 +46,14 @@ Every service instance is provisioned with an X.509 SVID issued by the SPIRE Ser
 
 | Identity | SPIFFE ID (SAN) | Issued By | Validity |
 |---|---|---|---|
-| `discovery-server` | `spiffe://trading-model.local/ns/trading-model/sa/discovery-server` | SPIRE Server | 1h TTL (auto-rotated) |
-| `message-manager` | `spiffe://trading-model.local/ns/trading-model/sa/message-manager` | SPIRE Server | 1h TTL (auto-rotated) |
-| `financial-scraper` | `spiffe://trading-model.local/ns/trading-model/sa/financial-scraper` | SPIRE Server | 1h TTL (auto-rotated) |
-| `trader-trainer` | `spiffe://trading-model.local/ns/trading-model/sa/trader-trainer` | SPIRE Server | 1h TTL (auto-rotated) |
-| `audit-logger` | `spiffe://trading-model.local/ns/trading-model/sa/audit-logger` | SPIRE Server | 1h TTL (auto-rotated) |
-| `dlq-service` | `spiffe://trading-model.local/ns/trading-model/sa/dlq-service` | SPIRE Server | 1h TTL (auto-rotated) |
-| `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 1h TTL (auto-rotated) |
-| `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 1h TTL (auto-rotated) |
+| `discovery-server` | `spiffe://trading-model.local/ns/trading-model/sa/discovery-server` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `message-manager` | `spiffe://trading-model.local/ns/trading-model/sa/message-manager` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `financial-scraper` | `spiffe://trading-model.local/ns/trading-model/sa/financial-scraper` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `trader-trainer` | `spiffe://trading-model.local/ns/trading-model/sa/trader-trainer` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `audit-logger` | `spiffe://trading-model.local/ns/trading-model/sa/audit-logger` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `dlq-service` | `spiffe://trading-model.local/ns/trading-model/sa/dlq-service` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 4 h TTL (auto-rotated) |
+| `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 4 h TTL (auto-rotated) |
 
 **Enforcement:** `@trading-model/http/adapters/inbound/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). When `ENFORCE_MTLS_STRICT` is enabled (production), `mtls-authorization.ts` additionally enforces the ACL on every inbound request.
 

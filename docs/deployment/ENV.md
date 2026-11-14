@@ -179,7 +179,7 @@ No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), accepted 
 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
-| `DLQ_AUTH_HMAC_SECRET`    | string | —                           | **yes** (production) | Signs the dead letters sent to dlq-service: same value as dlq-service (min 16 chars). Unset: dead letters stay in the local file | MM       |
+| `DLQ_AUTH_HMAC_SECRET`    | string | —                           | **yes** (production) | Signs the dead letters sent to dlq-service: same value as dlq-service (min 16 chars). Unset (outside production): dead-lettering fails and the entries stay pending in the journal | MM       |
 | `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publisher gets its 202 (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM       |
 
 ---
