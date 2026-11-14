@@ -33,7 +33,7 @@
     "lint": "bunx @biomejs/biome check .",
     "lint:fix": "bunx @biomejs/biome check . --write",
     "deps:check": "node scripts/check-deps.mjs",
-    "deps:third-party": "knip --dependencies",
+    "deps:third-party": "knip --include dependencies,exports,types",
     "typecheck:tests": "node scripts/typecheck-tests.mjs",
     "api:check": "bun --tsconfig-override=scripts/api-contract.tsconfig.json scripts/api-contract.mjs",
     "contracts:check": "bun --tsconfig-override=scripts/api-contract.tsconfig.json scripts/message-schemas.mjs && node --test scripts/schema-compat.test.mjs",

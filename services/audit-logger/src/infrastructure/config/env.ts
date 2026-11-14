@@ -29,6 +29,4 @@ const AUDIT_LOGGER_ENV_SCHEMA = BaseEnvSchema.extend(
 	AddressManagerEnvSchema.shape
 ).extend(AUDIT_LOGGER_ENV_SHAPE);
 
-export type Env = z.infer<typeof AUDIT_LOGGER_ENV_SCHEMA>;
-
 export const ENV = validateEnv(AUDIT_LOGGER_ENV_SCHEMA);

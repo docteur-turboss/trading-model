@@ -29,7 +29,7 @@ interface StepInput {
  * 5 bps, well above the half-spread of the liquid Binance spot pairs, the
  * margin covering a market order's slippage and less liquid symbols.
  */
-export const EXECUTION_COST_RATE = 0.0005;
+const EXECUTION_COST_RATE = 0.0005;
 
 /**
  * A decision and what it earned. States are network inputs: market features

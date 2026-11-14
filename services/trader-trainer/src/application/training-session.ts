@@ -22,8 +22,6 @@ import { makeSeededBackendFactory } from "../domain/genetic-algorithm/rl-backend
 import type { DeepReadonly } from "../domain/genetic-algorithm/shared-types";
 import type { TrainingSettings } from "../domain/training-settings";
 
-export type { GenerationContext } from "../domain/genetic-algorithm/ga-runner";
-
 export interface TrainingSessionResult {
 	bestGenome: DeepReadonly<LamarckGenome>;
 	bestFitness: number;

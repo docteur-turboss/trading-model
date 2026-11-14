@@ -35,7 +35,7 @@ export const SERVICE_CONTAINERS = [
 ] as const;
 
 /** Host entry point: edge proxy (the gateway is reached under /v1). */
-export const EDGE_URL = `http://localhost:${process.env.EDGE_PORT ?? 8449}`;
+const EDGE_URL = `http://localhost:${process.env.EDGE_PORT ?? 8449}`;
 
 /** API key the E2E overlay configures on the gateway (AUTH_TOKENS). */
 export const GATEWAY_API_KEY =

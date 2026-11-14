@@ -3,7 +3,7 @@ import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbou
 import type { Request } from "express";
 
 /** Forwards a request to a resolved service and returns its raw answer. */
-export type ForwardRequestPort = (opts: {
+type ForwardRequestPort = (opts: {
 	req: Request;
 	target: ResolvedEndpoint;
 	path: string;

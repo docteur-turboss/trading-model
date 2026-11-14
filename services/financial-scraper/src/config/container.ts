@@ -29,7 +29,7 @@ export const MarketDataController = createMarketDataController(MarketDataModel);
  * and the publish backlog (both MySQL).
  * Lazy: the source and the broker client are only needed on the collector.
  */
-export async function createWorkerOrchestratorDeps(): Promise<WorkerOrchestratorDeps> {
+async function createWorkerOrchestratorDeps(): Promise<WorkerOrchestratorDeps> {
 	const [
 		{ BinanceMarketDataSource },
 		{ BrokerMarketDataPublisher },
