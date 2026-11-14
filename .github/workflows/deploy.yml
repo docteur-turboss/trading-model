@@ -974,6 +974,7 @@ jobs:
       # (staging-local) keeps its older pod and its users unbound. Idempotent
       # (docs/deployment/MYSQL_TLS.md, "Enforcement and upgrade").
       - name: Bind MySQL users to their client certificates
+        if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
           if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
