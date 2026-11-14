@@ -166,17 +166,4 @@ export class MessageManagerClient implements MessageClientPort {
 			this._wrapError(error, "Failed to publish message to Message Manager");
 		}
 	}
-
-	async publishDirectMessage<TPayload = unknown>(
-		service: ServiceInstanceName,
-		payload: TPayload,
-		metadata: MessageMetadata
-	): Promise<void> {
-		try {
-			const target = await this._findService(service);
-			return await this._publishToService(target, payload, metadata);
-		} catch (error) {
-			this._wrapError(error, `Failed to publish message to ${service}`);
-		}
-	}
 }

@@ -17,8 +17,6 @@ import {
 	EVENT_TYPE_METADATA_PREDICATE,
 	IDS_METADATA_PREDICATE,
 	PUBLISHER_METADATA_CONTEXT_PREDICATE,
-	ROUTING_METADATA_CONTEXT_PREDICATE,
-	SCHEMA_METADATA_VERSION_PREDICATE,
 	SECURITY_METADATA_CONTEXT_PREDICATE,
 	TOPIC_METADATA_PREDICATE,
 } from "../../shared/barrel/message.schema";
@@ -81,25 +79,6 @@ export class MessageMetadataBuilder {
 			DELIVERY_METADATA_MODE_PREDICATE.parse(context);
 		}
 		this._delivery = context ?? undefined;
-		return this;
-	}
-	public setRouting(context: RoutingType | null): this {
-		if (context !== null) {
-			ROUTING_METADATA_CONTEXT_PREDICATE.parse(context);
-		}
-		this._routing = context ?? undefined;
-		return this;
-	}
-	public setPublisher(context: ServiceIdentity): this {
-		PUBLISHER_METADATA_CONTEXT_PREDICATE.parse(context);
-		this.publisher = context;
-		return this;
-	}
-	public setSchemaVersion(version: string | null): this {
-		if (version !== null) {
-			SCHEMA_METADATA_VERSION_PREDICATE.parse(version);
-		}
-		this.schemaVersion = (version ?? "1.0.0") as "1.0.0";
 		return this;
 	}
 	public setEventType(event: EventEnumMap): this {
