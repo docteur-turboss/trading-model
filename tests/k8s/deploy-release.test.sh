@@ -36,6 +36,7 @@ grep -q 'runbook_url: .*/blob/main/' <<<"$(bash "$SCRIPT" render "$ROOT/deploy/k
 bash "$SCRIPT" render "$ROOT/deploy/k8s/overlays/staging" r "$WORK/empty" >/dev/null 2>&1 &&
 	ko "render accepted an empty digest file" || ok "render refuses an empty digest file"
 
+bash "$SCRIPT" render "$ROOT/deploy/k8s/overlays/staging" r "$WORK/digests" >"$WORK/render.yaml"
 mkdir -p "$WORK/bin"
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
@@ -58,10 +59,11 @@ if [ "$1" = rollout ] && [ "$2" = undo ]; then
 	[ "$3" = "deployment/$STUB_UNDO_FAILS" ] && exit 1
 	exit 0
 fi
+if [ "$1" = apply ]; then cat >>"$STUB_APPLIED"; exit 0; fi
 exit 2
 STUB
 chmod +x "$WORK/bin/kubectl"
-export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log"
+export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log" STUB_APPLIED="$WORK/applied"
 
 STUB_REVS="discovery-server=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
 grep -qx "discovery-server 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
@@ -125,6 +127,13 @@ DEPLOY_TIMEOUT_FACTOR=4 STUB_GRACE="api-gateway=30" bash "$SCRIPT" wait ns >/dev
 	ok "DEPLOY_TIMEOUT_FACTOR multiplies the wait, not the grace" || ko "factor: $(cat "$WORK/log")"
 DEPLOY_TIMEOUT_FACTOR=x bash "$SCRIPT" wait ns >/dev/null 2>&1 && ko "bad DEPLOY_TIMEOUT_FACTOR accepted" ||
 	ok "DEPLOY_TIMEOUT_FACTOR not a positive integer: refused"
+
+: >"$WORK/log"
+: >"$WORK/applied"
+bash "$ROOT/scripts/split-cluster-scope.sh" app <"$WORK/render.yaml" | bash "$SCRIPT" redis-first ns || ko "redis-first failed"
+{ grep -q 'name: redis-sentinel$' "$WORK/applied" && ! grep -q 'kind: Deployment' "$WORK/applied" &&
+	grep -q "rollout status statefulset/redis-sentinel -n ns" "$WORK/log"; } &&
+	ok "redis-first applies the Redis StatefulSets only, then waits for them" || ko "redis-first: $(cat "$WORK/log")"
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 

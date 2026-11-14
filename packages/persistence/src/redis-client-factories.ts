@@ -20,6 +20,10 @@ export const BASE_REDIS_OPTIONS: Partial<RedisOptions> = {
 	retryStrategy: BASE_RETRY_STRATEGY,
 };
 
+/** Sentinel clients retry every second at most (never give up): a restarted Redis is back within seconds (issue #1112). */
+export const SENTINEL_RETRY_STRATEGY = (times: number): number =>
+	Math.min(times * 200, 1000);
+
 export function createFromUrl(
 	url: URLString,
 	extraOptions?: Partial<RedisOptions>
@@ -52,6 +56,7 @@ export function createSentinel(
 			sentinelTLS: tlsOptions(config.tls),
 		}),
 		...BASE_REDIS_OPTIONS,
+		retryStrategy: SENTINEL_RETRY_STRATEGY,
 		maxRetriesPerRequest: null,
 		// Follow +switch-master: without it a client left on a frozen or
 		// half-dead master keeps waiting on it after Sentinel has failed over.
