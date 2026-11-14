@@ -261,45 +261,15 @@ jobs:
       # kubeconfig) is limited to the application namespace; `cluster`
       # (CLUSTER_KUBECONFIG) is used by the cluster-scope steps only. Both are
       # base64 kubeconfigs with a bounded token.
-      - name: Configure kubeconfigs (production)
-        id: kube_production
+      - name: Configure kubeconfigs
+        id: kube
         continue-on-error: ${{ inputs.preflight_only }}
-        if: ${{ inputs.environment == 'production' }}
         shell: bash
         env:
           ENV: ${{ inputs.environment }}
           NS: ${{ steps.ns.outputs.namespace }}
-          APP_KUBECONFIG: ${{ secrets.KUBECONFIG_PRODUCTION_APP }}
-          CLUSTER_KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_PRODUCTION_CLUSTER }}
-        run: |
-          upper="${ENV^^}" missing=""
-          for v in APP CLUSTER; do
-            content="APP_KUBECONFIG"; [ "$v" = CLUSTER ] && content="CLUSTER_KUBECONFIG_CONTENT"
-            if [ -z "${!content}" ]; then
-              echo "::error::Missing secret KUBECONFIG_${upper}_$v (bash scripts/deploy-identity.sh ${v,,}, docs/deployment/DEPLOY.md)"
-              missing=1
-            fi
-          done
-          [ -z "$missing" ] || exit 1
-          umask 077
-          mkdir -p "$HOME/.kube"
-          echo "$APP_KUBECONFIG" | base64 -d > "$HOME/.kube/config"
-          echo "$CLUSTER_KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/cluster"
-          echo "CLUSTER_KUBECONFIG=$HOME/.kube/cluster" >> "$GITHUB_ENV"
-          # cluster-info reads kube-system, which neither identity may.
-          kubectl auth can-i get deployments -n "$NS"
-          KUBECONFIG="$HOME/.kube/cluster" kubectl auth can-i get namespaces
-
-      - name: Configure kubeconfigs (staging)
-        id: kube_staging
-        continue-on-error: ${{ inputs.preflight_only }}
-        if: ${{ inputs.environment != 'production' }}
-        shell: bash
-        env:
-          ENV: ${{ inputs.environment }}
-          NS: ${{ steps.ns.outputs.namespace }}
-          APP_KUBECONFIG: ${{ secrets.KUBECONFIG_STAGING_APP }}
-          CLUSTER_KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_STAGING_CLUSTER }}
+          APP_KUBECONFIG: ${{ secrets[format('KUBECONFIG_{0}_APP', inputs.environment == 'production' && 'PRODUCTION' || 'STAGING')] }}
+          CLUSTER_KUBECONFIG_CONTENT: ${{ secrets[format('KUBECONFIG_{0}_CLUSTER', inputs.environment == 'production' && 'PRODUCTION' || 'STAGING')] }}
         run: |
           upper="${ENV^^}" missing=""
           for v in APP CLUSTER; do
@@ -520,7 +490,8 @@ jobs:
         continue-on-error: ${{ inputs.preflight_only }}
         shell: bash
         run: |
-          bash deploy/k8s/scripts/check-app-rbac.sh             --namespace "${{ steps.ns.outputs.namespace }}" --environment "$OVERLAY"
+          bash deploy/k8s/scripts/check-app-rbac.sh \
+            --namespace "${{ steps.ns.outputs.namespace }}" --environment "$OVERLAY"
 
       # Anchor store of the audit chain (ADR-0027): an S3 bucket with Object
       # Lock (compliance mode), its own write-only credentials, not the backup
@@ -584,7 +555,13 @@ jobs:
           # An empty endpoint would override the SDK default (AWS): left out.
           endpoint=()
           [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
-          kubectl -n "$NS" create secret generic audit-anchor-s3             --from-literal=AUDIT_ANCHOR_BUCKET="$AUDIT_ANCHOR_BUCKET"             --from-literal=AUDIT_ANCHOR_REGION="${AUDIT_ANCHOR_REGION:-us-east-1}"             --from-literal=AWS_ACCESS_KEY_ID="$AUDIT_ANCHOR_ACCESS_KEY_ID"             --from-literal=AWS_SECRET_ACCESS_KEY="$AUDIT_ANCHOR_SECRET_ACCESS_KEY"             "${endpoint[@]}"             --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n "$NS" create secret generic audit-anchor-s3 \
+            --from-literal=AUDIT_ANCHOR_BUCKET="$AUDIT_ANCHOR_BUCKET" \
+            --from-literal=AUDIT_ANCHOR_REGION="${AUDIT_ANCHOR_REGION:-us-east-1}" \
+            --from-literal=AWS_ACCESS_KEY_ID="$AUDIT_ANCHOR_ACCESS_KEY_ID" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="$AUDIT_ANCHOR_SECRET_ACCESS_KEY" \
+            "${endpoint[@]}" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       # The off-site backup copy must survive a compromised cluster, which holds
       # the bucket's credentials: Object Lock in compliance mode, default
@@ -679,7 +656,8 @@ jobs:
           BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
           BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
         run: |
-          bash scripts/backup-config-check.sh --environment "${{ inputs.environment }}"             --namespace "${{ steps.ns.outputs.namespace }}"
+          bash scripts/backup-config-check.sh --environment "${{ inputs.environment }}" \
+            --namespace "${{ steps.ns.outputs.namespace }}"
 
       # Notification credentials, mounted as files by Alertmanager and read at
       # send time (no restart needed). Keys left unset are left out.
@@ -704,7 +682,8 @@ jobs:
           fi
           # Before the overlay: an Alertmanager started without them counts
           # failed notifications, and AlertmanagerNotificationsFailing fires.
-          kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}"             --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       # Contact e-mail sent in the User-Agent of the signal sources (ADR-0036;
       # SEC EDGAR answers 403 without one). A secret of the GitHub environment:
@@ -767,8 +746,7 @@ jobs:
             Release tag=${{ steps.ref.outcome }}
             Namespace and overlay=${{ steps.ns.outcome }}
             Alert notification secrets=${{ steps.alert_secrets.outcome }}
-            Kubeconfigs KUBECONFIG_PRODUCTION_APP / _CLUSTER=${{ steps.kube_production.outcome }}
-            Kubeconfigs KUBECONFIG_STAGING_APP / _CLUSTER=${{ steps.kube_staging.outcome }}
+            Kubeconfigs KUBECONFIG_<ENV>_APP / _CLUSTER=${{ steps.kube.outcome }}
             Image digests of the tag=${{ steps.digests.outcome }}
             Image signatures=${{ steps.signatures.outcome }}
             Sealed secrets (CRD, controller, no placeholder, keys)=${{ steps.sealed.outcome }}

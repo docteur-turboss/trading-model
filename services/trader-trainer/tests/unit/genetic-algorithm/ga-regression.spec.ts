@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { crossoverGenomes } from "../../../src/domain/genetic-algorithm/crossover/genome-crossover";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
-import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome-types";
+import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
 
 describe("GA Regression — Crossover", () => {
 	describe("crossoverGenomes", () => {

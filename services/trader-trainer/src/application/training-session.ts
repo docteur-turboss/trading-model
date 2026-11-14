@@ -17,7 +17,7 @@ import type {
 	GAControlGenome,
 	GenomeFitnessMeta,
 	LamarckGenome,
-} from "../domain/genetic-algorithm/genome-types";
+} from "../domain/genetic-algorithm/genome";
 import { makeSeededBackendFactory } from "../domain/genetic-algorithm/rl-backend";
 import type { DeepReadonly } from "../domain/genetic-algorithm/shared-types";
 import type { TrainingSettings } from "../domain/training-settings";

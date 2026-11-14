@@ -10,7 +10,7 @@ import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
 import { FEATURE_LAYOUT } from "../../../src/domain/feature-vector-codec";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
-import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome-types";
+import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
 import { buildSummary } from "../../../src/domain/genome-summary-builder";
 import { assessAdmission } from "../../../src/domain/model-admission";

@@ -6,7 +6,7 @@ import {
 	mutateWeights,
 } from "./evolution-engine";
 import type { GaTelemetry } from "./ga-telemetry";
-import type { GAControlGenome, LamarckGenome, PopMember } from "./genome-types";
+import type { GAControlGenome, LamarckGenome, PopMember } from "./genome";
 import { mutateGenome } from "./mutation/mutate";
 import { selectParent } from "./selection";
 import { type DeepReadonly, deepFreeze, withGenome } from "./shared-types";
