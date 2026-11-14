@@ -219,6 +219,14 @@ image. Set up the GitHub environment `backup-key-check` once
   delete), distinct from the backup job's.
 - Variables `BACKUP_S3_BUCKET`, `BACKUP_S3_REGION`, and for a non-AWS store
   `BACKUP_S3_ENDPOINT`, `BACKUP_S3_PROVIDER` (same values as production).
+- Until a production bucket exists (issue #1135), the store checked is the
+  MinIO of the local kind staging, reachable only from its self-hosted runner:
+  repository variable `BACKUP_KEY_CHECK_RUNNER` = its label (`trading-staging`),
+  MinIO user `staging-keycheck` (policy `backup-key-check`: list and get on
+  `trading-staging-backup`), variables of the environment `staging`. The job then
+  runs the script on the runner (age and rclone, no Docker) after the fork pull
+  request approval check ([STAGING_LOCAL.md](STAGING_LOCAL.md#runner-isolation)).
+  For production, delete `BACKUP_KEY_CHECK_RUNNER` and set the production values.
 
 The job writes the key to a tmpfs, mode 600, deletes it in a final step that
 always runs, and publishes the report (key, run checked, result per
