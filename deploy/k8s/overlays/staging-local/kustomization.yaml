@@ -89,8 +89,8 @@ configMapGenerator:
     behavior: merge
     files:
       - realip.inc=realip.inc
-  # The partitioned database pods above still run the 3.1.0-rc.1 template: MySQL without
-  # mysql-tls, MongoDB without TLS (issue #1066). Clients connect as that template accepts
+  # The partitioned database pods above still run the 3.0.0 template (partition came with
+  # 3.1.0-rc.1): MySQL without mysql-tls, MongoDB without TLS nor keyFile (issue #1066). Clients connect as that template accepts
   # (MySQL in clear, MongoDB without tls=true) until the planned switch of STAGING_LOCAL.md,
   # "TLS and keyFile switch", which removes these three entries.
   - name: financial-scraper-config
