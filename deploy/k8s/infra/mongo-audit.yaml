@@ -123,6 +123,11 @@ spec:
             - "0.0.0.0"
             - "--keyFile"
             - "/keyfile/keyfile"
+            # Expand step of the switch (ADR-0067): members authenticate each
+            # other, clients may still connect without credentials. Remove in
+            # the release after the one that ships the users and the client
+            # credentials (issue #751): mongod then enforces authentication.
+            - "--transitionToAuth"
             # TLS expand step (issue #769, ADR-0060): TLS and clear text are both
             # accepted for one release, clients verify the certificate; `requireTLS`
             # replaces `preferTLS` in the next one. Clients send no certificate.
