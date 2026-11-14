@@ -379,8 +379,8 @@ To bring everything back to N, run the `Deploy` workflow again from the git
 ref of release N with its image tag: it re-applies the overlay of N, pinned to
 the digests of N.
 
-A Deployment created by the failed deploy (first deploy) has no earlier
-revision: the step reports an error for it and leaves it in place.
+A Deployment created by the failed deploy has no earlier revision: the step
+deletes it (the next deploy recreates it).
 
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
 the new image with the configuration of the current release, not the new one.

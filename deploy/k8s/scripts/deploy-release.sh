@@ -317,8 +317,11 @@ rollback() {
 		target="$dep"
 		[[ $dep == */* ]] || target="deployment/$dep"
 		if [ "$rev" = none ]; then
-			echo "::error::Could not roll back $dep: it did not exist before this deploy"
-			failed=1
+			# Created by this release: no N-1 revision to go back to, so remove it (the next apply recreates it).
+			kubectl delete "$target" -n "$ns" --ignore-not-found || {
+				echo "::error::Could not remove $dep: it did not exist before this deploy"
+				failed=1
+			}
 		elif ! kubectl rollout undo "$target" -n "$ns" --to-revision="$rev"; then
 			echo "::error::Could not roll back $dep to revision $rev"
 			failed=1

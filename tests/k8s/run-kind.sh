@@ -516,6 +516,7 @@ upgrade() {
 	local dep template expected
 	while read -r dep template; do
 		expected="$(echo "$before_templates" | sed -n "s/^$dep //p")"
+		[ -n "$expected" ] || continue # new in release N: deleted by the rollback
 		[ "$template" = "$expected" ] || {
 			log "$dep is not back on its N-1 pod template after the rollback"
 			diff <(echo "$expected" | jq .) <(echo "$template" | jq .) || true
