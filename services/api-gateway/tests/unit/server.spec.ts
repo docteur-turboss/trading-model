@@ -80,11 +80,15 @@ describe("server", () => {
 			.mockRejectedValueOnce(new Error("down"))
 			.mockResolvedValueOnce(undefined)
 			.mockRejectedValue(new Error("down again"));
-		const { check } = discoveryReachedOnceCheck({ findInstance });
+		const resolve = jest.fn<(...args: any[]) => any>().mockResolvedValue(null);
+		const { check } = discoveryReachedOnceCheck({ findInstance, resolve });
 
 		await expect(check()).rejects.toThrow("down");
 		await expect(check()).resolves.toBe(true);
 		await expect(check()).resolves.toBe(true);
 		expect(findInstance).toHaveBeenCalledTimes(2);
+		// warmed once, for every public service and major
+		expect(resolve).toHaveBeenCalledWith("trader-trainer", 1);
+		expect(resolve).toHaveBeenCalledWith("financial-scraper", 2);
 	});
 });
