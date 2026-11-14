@@ -4,7 +4,7 @@ A release is a git tag `vX.Y.Z` pushed to `origin`. The tag triggers the **Relea
 
 ## 1. Cut the tag (`scripts/release.mjs`)
 
-`release:publish` runs from `main` and merges `development` itself; plain `release` assumes the merge is already done. `release:publish` commits with `git add -A`: the whole working tree enters the release commit, so start clean.
+`release:publish` runs from `main` and merges the **local** `development` itself, so `git pull --ff-only origin` both branches first; plain `release` assumes the merge is already done. `release:publish` commits with `git add -A`: the whole working tree enters the release commit, so start clean.
 
 | Command | Effect |
 | ------- | ------ |
@@ -32,72 +32,9 @@ A green run therefore means `deploy.yml` can resolve **and** verify every image 
 
 ## 3. Deploy
 
-Deployment is separate: the manual `deploy.yml` (`workflow_dispatch`) takes an image tag (`1.2.3` or `v1.2.3`), resolves it to digests and applies by digest. See [DEPLOY.md](../deployment/DEPLOY.md).
+Deployment is separate: the manual `deploy.yml` (`workflow_dispatch`) takes an image tag (`1.2.3` or `v1.2.3`), resolves it to digests and applies by digest. See [DEPLOY.md](../deployment/DEPLOY.md). The cluster must be able to pull the images: GHCR packages public, or pull credentials on the nodes ([CI/CD](../ci-cd/README.md#docker-image-tags)); a package exists only after the first push of its image.
 
 A release that adds or changes a ClusterRole or ClusterRoleBinding of an overlay (3.1.0: `prometheus-nodes`, ADR-0056) needs an admin step before its deployment, in each environment: the deploy-cluster identity may only read them (ADR-0041). From a checkout of the release, run `bash scripts/deploy-identity.sh cluster --namespace <namespace> --environment <overlay>` as cluster admin (staging-local: `bash deploy/staging-local/bootstrap.sh identities`), then deploy. 3.1.0 also needs the application identity re-run (the Role `deploy-app` gained `leases` for the collector Lease, ADR-0057): `bash scripts/deploy-identity.sh app --namespace <namespace> | base64 -w0 | gh secret set KUBECONFIG_<ENV>_APP --env <env>` (staging-local: the same `bootstrap.sh identities` does both). Without it, the deploy step "Check deploy-app Role" (`deploy/k8s/scripts/check-app-rbac.sh`) stops before any apply with that command, and the step "Check overlay ClusterRoles" (`deploy/k8s/scripts/check-cluster-rbac.sh`) stops before any apply and prints that command with the missing or different objects.
-
-## 4. First release of the current pipeline
-
-No release has been published by the current `release.yml` yet. The tags `v2.0.0` to `v2.0.3` are **not deployable** by `deploy.yml`: `v2.0.0`, `v2.0.1` and `v2.0.2` have failed Release runs, and `v2.0.3` was published by the old workflow under `ghcr.io/docteur-turboss/trading-model/<service>`, without `spire-tools` and `backup-tools`. `deploy.yml` reads `<registry>/<image>:<tag>`, so it stops at "Resolve image digests" for each of these tags. Even republished under the right path, these images would fail "Verify image signatures": they carry no cosign signature from `release.yml`. `image_tag: latest` fails the same way until the first release below is published.
-
-A human runs every step: merging to `main`, pushing the tag and deploying are never automated.
-
-### Prerequisites
-
-- `development` is green in CI (every job, `k8s` included) and holds everything the release must ship.
-- Repository variable `IMAGE_REGISTRY` is either unset (default `ghcr.io/<owner>`, lowercased) or a registry `GITHUB_TOKEN` can push to. `deploy.yml` reads the same variable.
-- The GitHub environment `staging` has the secrets listed in [DEPLOY.md](../deployment/DEPLOY.md#prerequisites-secrets) (`KUBECONFIG_STAGING`, alerting, backup bucket).
-- The staging cluster can pull from the registry: GHCR packages public, or pull credentials on the nodes ([CI/CD](../ci-cd/README.md#docker-image-tags)). The packages are created by the first push, so this can only be done after step 3.
-- A clean clone with `bun install --frozen-lockfile` done: `release:publish` commits with `git add -A`.
-
-### Steps
-
-1. Update both local branches. `release:publish` merges the **local** `development` into the local `main`:
-
-   ```bash
-   git checkout development && git pull --ff-only origin development
-   git checkout main && git pull --ff-only origin main
-   ```
-
-2. Preview, then publish. `release:publish` merges `development`, bumps the versions, writes `CHANGELOG.md`, commits `:rocket:(release): vX.Y.Z`, tags and runs `git push --follow-tags`:
-
-   ```bash
-   bun run release:dry
-   bun run release:publish
-   ```
-
-3. Check that the tag reached `origin` (the script already checks it; this is a second look):
-
-   ```bash
-   git tag -l vX.Y.Z
-   git ls-remote --tags origin vX.Y.Z
-   ```
-
-4. Wait for the **Release** run of the tag (Actions → Release, or `gh run list --workflow release.yml`). Every job must be green, `sign` and `verify-images` included.
-
-5. Check the 9 digests yourself, as `deploy.yml` will (log in first with `docker login ghcr.io` if the packages are private):
-
-   ```bash
-   REGISTRY=ghcr.io/<owner>   # or the value of IMAGE_REGISTRY, lowercased
-   TAG=X.Y.Z                  # no leading v
-   for img in discovery-server message-manager financial-scraper trader-trainer \
-              api-gateway audit-logger dlq-service spire-tools backup-tools; do
-     docker buildx imagetools inspect "$REGISTRY/$img:$TAG" --format '{{.Manifest.Digest}}' \
-       || echo "MISSING $img"
-   done
-   ```
-
-   The list is `env.IMAGES` of `.github/workflows/deploy.yml`: read it there if it has changed.
-
-6. Make the packages pullable by the staging cluster (see prerequisites).
-
-7. Run the first deployment on staging: Actions → **Deploy** → Run workflow, `environment: staging`, `image_tag: vX.Y.Z`, `canary: false`. Or:
-
-   ```bash
-   gh workflow run deploy.yml -f environment=staging -f image_tag=vX.Y.Z
-   ```
-
-   The run must pass "Resolve image digests", the rollout and the smoke test. Production follows the same way once staging is verified ([DEPLOY.md](../deployment/DEPLOY.md#production-deployment)).
 
 ## Compatibility with the previous release (ADR-0061)
 
