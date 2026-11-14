@@ -1,8 +1,4 @@
-import type {
-	GenomeFitnessMeta,
-	LamarckGenome,
-	PopMember,
-} from "./genome-types";
+import type { GenomeFitnessMeta, LamarckGenome, PopMember } from "./genome";
 import type { DeepReadonly } from "./shared-types";
 
 export interface TrackResult {

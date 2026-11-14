@@ -19,6 +19,7 @@ import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-sco
 import { buyAndHoldSharpe } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { WindowSet } from "../../../src/domain/genetic-algorithm/ga-runner";
+import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
 import {
 	ActivationType,
 	ConnectionType,
@@ -27,7 +28,6 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/domain/genetic-algorithm/genome";
-import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome-types";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 import type { TrainingSettings } from "../../../src/domain/training-settings";

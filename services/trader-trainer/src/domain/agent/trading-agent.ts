@@ -188,5 +188,3 @@ export class TradingAgent {
 		this.state.resetEpsilon();
 	}
 }
-
-export default TradingAgent;

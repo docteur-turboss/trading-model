@@ -5,7 +5,7 @@ import {
 	Price,
 	Reward,
 } from "@trading-model/primitives/primitives";
-import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
+import { TradingAgent, type TradingAgentConfig } from "../agent/trading-agent";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "../env/wallet-config";
 import type { FeatureVector } from "../feature-vector";
 import {

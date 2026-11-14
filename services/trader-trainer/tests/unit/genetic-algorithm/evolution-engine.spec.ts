@@ -12,7 +12,7 @@ import {
 	mutateWeights,
 } from "../../../src/domain/genetic-algorithm/evolution-engine";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
-import type { PopMember } from "../../../src/domain/genetic-algorithm/genome-types";
+import type { PopMember } from "../../../src/domain/genetic-algorithm/genome";
 import { createOffspring } from "../../../src/domain/genetic-algorithm/offspring-factory";
 import { selectParent } from "../../../src/domain/genetic-algorithm/selection";
 
