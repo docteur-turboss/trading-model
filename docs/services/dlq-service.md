@@ -1,6 +1,6 @@
 # DLQ Service
 
-**Package:** `dlq-service` (v2.0.0)
+**Package:** `dlq-service`
 **Path:** `services/dlq-service/`
 
 ## Role
@@ -9,25 +9,25 @@ Stores and manages dead letter entries — messages that could not be delivered 
 
 ## Dependencies
 
-| Dependency                          | Type          |
-| ----------------------------------- | ------------- |
-| `@trading-model/common`             | runtime       |
-| `@trading-model/address-manager`    | runtime       |
-| MongoDB                             | persistence   |
-| Redis                               | rate limiting |
+| Dependency                       | Type                               |
+| -------------------------------- | ---------------------------------- |
+| `@trading-model/common`          | runtime                            |
+| `@trading-model/address-manager` | runtime                            |
+| MongoDB                          | persistence                        |
+| Redis                            | auto-retry queue and replay claims |
 
 ## Endpoints
 
 All endpoints are mTLS-secured and served on **container port 3000**:
 
-| Method   | Path            | Description                                                      |
-| -------- | --------------- | ---------------------------------------------------------------- |
+| Method   | Path            | Description                                                                                                                                                        |
+| -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `POST`   | `/dlq`          | Store a new dead letter entry; internal callers only, the gateway does not expose it (ADR-0059, #845) (`DlqEntryWire`, `@trading-model/validation/wire/dlq-entry`) |
-| `GET`    | `/dlq`          | List dead letter entries (query `topic`, `limit` 1–1000, `offset` or `cursor`) |
-| `DELETE` | `/dlq`          | Delete entries by id (body `{ "ids": [...] }`, 1 to 1000 ids)    |
-| `POST`   | `/dlq/replay`   | Replay entries to message-manager (query `topic`, `limit`, `batchId`) |
-| `GET`    | `/health`       | Health check                                                     |
-| `GET`    | `/health/ready` | Readiness (registered with discovery once)                       |
+| `GET`    | `/dlq`          | List dead letter entries (query `topic`, `limit` 1–1000, `offset` or `cursor`)                                                                                     |
+| `DELETE` | `/dlq`          | Delete entries by id (body `{ "ids": [...] }`, 1 to 1000 ids)                                                                                                      |
+| `POST`   | `/dlq/replay`   | Replay entries to message-manager (query `topic`, `limit`, `batchId`)                                                                                              |
+| `GET`    | `/health`       | Health check                                                                                                                                                       |
+| `GET`    | `/health/ready` | Readiness (registered with discovery once)                                                                                                                         |
 
 The `/dlq` routes also require a signed request: `x-service-name` (one of
 `DLQ_ALLOWED_SERVICES`), `x-timestamp` (ms, at most 5 minutes old) and
