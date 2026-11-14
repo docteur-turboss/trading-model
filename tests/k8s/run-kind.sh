@@ -114,6 +114,8 @@ previous_checkout() {
 		printf '\nKIND_RELEASE_MARKER=previous\n' >>"$file"
 	done
 	log "release N-1: $PREVIOUS_REF = $(git -C "$PREVIOUS" log -1 --format='%h %s')"
+	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
+		echo "Release N-1: $PREVIOUS_REF = $(git -C "$PREVIOUS" rev-parse HEAD)" >>"$GITHUB_STEP_SUMMARY"
 }
 
 # "<image> <digest>" of the images tagged `$1` in the kind node, as deploy.yml
