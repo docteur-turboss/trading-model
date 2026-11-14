@@ -25,7 +25,7 @@ The market data tables are defined in the SQL migrations (`scripts/migrations/`,
 | `market_tickers`   | 24-hour ticker statistics |
 | `market_order_books` | Order book depth snapshots (ADR-0053) |
 
-See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper-financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript entity interfaces.
+See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript entity interfaces.
 
 ### Persistent volume
 

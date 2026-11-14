@@ -109,7 +109,7 @@ Four tables store market data:
 `market_publish_cursors` holds the candle publish backlog (see below) and
 `signals` (migration 006) the signals of every dimension ([Signals](#signals-adr-0036)).
 
-See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper-financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript interfaces.
+See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript interfaces.
 
 ## Background Jobs (Scheduled Tasks)
 
