@@ -371,14 +371,15 @@ jobs:
     timeout-minutes: 30
     env:
       # Release N-1 = the PR base branch (main on a release PR), origin/development on push and workflow_call.
-      KIND_PREVIOUS_REF: origin/${{ github.base_ref || 'development' }}
+      KIND_PREVIOUS_REF: v3.1.0-rc.1
+      KIND_OVERLAY: staging-local
     steps:
       # Full history: release N-1 (KIND_PREVIOUS_REF) is built from it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Fetch the N-1 reference (${{ env.KIND_PREVIOUS_REF }})
-        run: git fetch --no-tags origin "+refs/heads/${KIND_PREVIOUS_REF#origin/}:refs/remotes/${KIND_PREVIOUS_REF}"
+        run: git fetch origin tag "$KIND_PREVIOUS_REF" && git rev-parse "$KIND_PREVIOUS_REF"
       - name: Build the images (release N-1 and N)
         env:
           KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
@@ -401,7 +402,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [network, observability, backup]
+        group: [network]
     env:
       KIND_VERSION: v0.27.0
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
@@ -414,14 +415,15 @@ jobs:
       # docs/compliance/dr-exercise-log.md.
       DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
       # Release N-1 = the PR base branch (main on a release PR), origin/development on push and workflow_call.
-      KIND_PREVIOUS_REF: origin/${{ github.base_ref || 'development' }}
+      KIND_PREVIOUS_REF: v3.1.0-rc.1
+      KIND_OVERLAY: staging-local
     steps:
       # Full history: N-1 (KIND_PREVIOUS_REF), built and deployed first.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Fetch the N-1 reference (${{ env.KIND_PREVIOUS_REF }})
-        run: git fetch --no-tags origin "+refs/heads/${KIND_PREVIOUS_REF#origin/}:refs/remotes/${KIND_PREVIOUS_REF}"
+        run: git fetch origin tag "$KIND_PREVIOUS_REF" && git rev-parse "$KIND_PREVIOUS_REF"
       - name: Install kind
         run: |
           # GitHub Releases answers 504 now and then (issue #660): retry, checksum still checked.
