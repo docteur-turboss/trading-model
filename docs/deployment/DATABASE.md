@@ -70,38 +70,9 @@ The `financial-scraper` waits for `migrate` to complete (`condition: service_com
 
 ---
 
-## MongoDB — Shared Database Engine
+## MongoDB
 
-**Image:** `mongo:7`
-
-**Container:** `trading-mongo`
-
-A single MongoDB 7 instance serves **3 databases**, each owned by a different service.
-
-### Databases
-
-| Database                | Service               | Connection URI                                            | Status           |
-| ----------------------- | --------------------- | --------------------------------------------------------- | ---------------- |
-| `message-manager`       | message-manager       | `mongodb://mongo:27017/message-manager`                   | In-memory (Zod)  |
-| `audit-logger`          | audit-logger          | `mongodb://mongo:27017/audit-logger`                      | Operational      |
-| `dlq-service`           | dlq-service           | `mongodb://mongo:27017/dlq-service`                       | Operational      |
-
-### Persistent volume
-
-```yaml
-volumes:
-  - mongo-data:/data/db
-```
-
-### Schema approach
-
-Different services use different patterns:
-
-| Service               | Schema approach                                      |
-| --------------------- | ---------------------------------------------------- |
-| message-manager       | Zod validation schemas only (in-memory broker)       |
-| audit-logger          | Mongoose models for immutable audit events           |
-| dlq-service           | Mongoose models for dead-letter queue entries        |
+MongoDB 7 serves `audit-logger` (database `audit-logger`) and `dlq-service` (database `dlq`), authenticated (ADR-0067). Replica sets, users and connection settings: [databases.md](../architecture/databases.md#mongodb--message-manager-and-audit).
 
 ---
 
@@ -134,7 +105,7 @@ docker compose up -d
 
 ### MongoDB
 
-MongoDB uses schema-on-read. Mongoose models define document shapes at the application level. No migration scripts are required for MongoDB.
+MongoDB uses schema-on-read: no migration scripts.
 
 ---
 

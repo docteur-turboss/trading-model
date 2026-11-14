@@ -23,10 +23,10 @@ MongoDB 7 is used by several services via the native `mongodb` driver (no Mongoo
 
 | Service | Stores |
 | ------- | ------ |
-| **audit-logger** | Audit event persistence (replica set `mongo-audit`) |
-| **dlq-service** | Dead letter entries (replica set `mongo-dlq`) |
+| **audit-logger** | Audit event persistence (replica set `mongo-audit`, database `audit-logger`) |
+| **dlq-service** | Dead letter entries (replica set `mongo-dlq`, database `dlq`) |
 
-Network access (K8s, issue #727): MongoDB runs without authentication (issue #669) and without TLS, so the NetworkPolicies are the only barrier. Port 27017 of each replica set accepts only its owner service, its own members and its init Job (`mongo-audit-network-policy`: `audit-logger`, `mongodb-audit`, `mongodb-audit-init`; `mongodb-network-policy`: `dlq-service`, `mongodb`, `mongodb-init`), and port 9216 (exporter) only Prometheus. Backups and restores go through `kubectl exec` into the members, not the network. A new client is a label in that policy, checked on kind by `verify_mongo_ingress` (`tests/k8s/run-kind.sh`).
+Network access (K8s, issue #727): MongoDB runs without TLS, so the NetworkPolicies are a barrier next to the authentication below. Port 27017 of each replica set accepts only its owner service, its own members and its init Job (`mongo-audit-network-policy`: `audit-logger`, `mongodb-audit`, `mongodb-audit-init`; `mongodb-network-policy`: `dlq-service`, `mongodb`, `mongodb-init`), and port 9216 (exporter) only Prometheus. Backups and restores go through `kubectl exec` into the members, not the network. A new client is a label in that policy, checked on kind by `verify_mongo_ingress` (`tests/k8s/run-kind.sh`).
 
 Authentication (ADR-0067): a `keyFile` per replica set, and one user per client, all in `admin` (clients connect with `authSource=admin`), created by `deploy/mongo/users.js` (Jobs `mongo-*-users`, compose `mongo-users`):
 
