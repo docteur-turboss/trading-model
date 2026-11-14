@@ -2,8 +2,8 @@ import { describe, expect, it, jest } from "@jest/globals";
 import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/infrastructure/logger";
 import { RedisMessageJournal } from "../../../../src/adapters/outbound/redis-message-journal";
-import { JOURNAL_RETENTION_MS } from "../../../../src/application/ports/message-journal-port";
 import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../../../src/config/metrics";
+import { JOURNAL_RETENTION_MS } from "../../../../src/domain/ports/message-journal.port";
 import { createMockMessage } from "../../../fixtures/broker.fixture";
 
 const GROUP = { topic: "test.topic", service: "trader-trainer" } as never;
@@ -39,7 +39,7 @@ describe("RedisMessageJournal", () => {
 		const { redis, journal } = setup();
 		const message = createMockMessage("payload");
 
-		await journal.append(message, ["trader-trainer", "audit-logger-service"]);
+		await journal.append(message, ["trader-trainer", "audit-logger"]);
 
 		const commands = redis.call.mock.calls.map((args) => args.slice(0, 3));
 		expect(commands.map(([name]) => name)).toEqual([
@@ -219,11 +219,7 @@ describe("RedisMessageJournal", () => {
 		const { journal, redis } = setup();
 		const message = createMockMessage("payload");
 
-		await journal.append(
-			message,
-			["audit-logger-service"],
-			"audit-logger-service"
-		);
+		await journal.append(message, ["audit-logger"], "audit-logger");
 
 		const xadd = redis.call.mock.calls.find(
 			([name]) => name === "XADD"
@@ -232,7 +228,7 @@ describe("RedisMessageJournal", () => {
 			"message",
 			JSON.stringify(message),
 			"only",
-			"audit-logger-service",
+			"audit-logger",
 		]);
 		expect(
 			redis.call.mock.calls.filter(([name]) => name === "XGROUP")
@@ -245,7 +241,7 @@ describe("RedisMessageJournal", () => {
 			command === "XREADGROUP"
 				? [
 						"p:journal:test.topic",
-						[["1-0", [...stored(message), "only", "audit-logger-service"]]],
+						[["1-0", [...stored(message), "only", "audit-logger"]]],
 					]
 				: "OK"
 		);
@@ -327,6 +323,36 @@ describe("RedisMessageJournal", () => {
 			expect.anything(),
 			"2-0"
 		);
+	});
+
+	it("should issue every XCLAIM before any resolves and keep the XPENDING order", async () => {
+		const message = createMockMessage("payload");
+		const release: Array<() => void> = [];
+		const { journal, redis } = setup(async (command) => {
+			if (command === "XPENDING") {
+				return [
+					["1-0", "d", 20_000, 1],
+					["2-0", "d", 20_000, 1],
+				];
+			}
+			await new Promise<void>((resolve) => release.push(resolve));
+			return [["x", stored(message)]];
+		});
+
+		const claimed = journal.claimDue(
+			GROUP,
+			"c",
+			{ floorMs: 0, dueAfterMs: () => 0 },
+			10
+		);
+		await new Promise((resolve) => setImmediate(resolve));
+		expect(release).toHaveLength(2);
+		for (const resolve of release.reverse()) {
+			resolve();
+		}
+
+		expect((await claimed).map((entry) => entry.deliveries)).toEqual([2, 2]);
+		expect(redis.call).toHaveBeenCalledTimes(3);
 	});
 
 	it("should skip and acknowledge an entry trimmed from the stream while still pending", async () => {

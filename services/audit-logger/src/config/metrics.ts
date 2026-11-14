@@ -20,12 +20,6 @@ export const CHAIN_COLLISIONS_TOTAL = new promClient.Counter({
 	labelNames: ["outcome"] as const,
 });
 
-export const EVENTS_QUERY_DURATION_SECONDS = new promClient.Histogram({
-	name: "audit_events_query_duration_seconds",
-	help: "Audit event query latency in seconds",
-	buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
-});
-
 export const CHAIN_BROKEN = new promClient.Gauge({
 	name: "audit_chain_broken",
 	help: "1 when the last verification found the audit chain broken (ADR-0027)",

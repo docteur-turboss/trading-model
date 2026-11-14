@@ -1,4 +1,3 @@
-import { appendFile } from "node:fs/promises";
 import { describe, expect, it, jest } from "@jest/globals";
 import { isDeadLetterError } from "@trading-model/broker-message/shared/errors";
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
@@ -12,27 +11,24 @@ import type {
 } from "@trading-model/primitives/primitives";
 import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
 import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "../../../../src/domain/backoff-calculator";
-import { FileDlqRepository } from "../../../../src/infrastructure/fallback/dlq-repository";
 import { createMockMessage } from "../../../fixtures/broker.fixture";
 import { createMockHttpClient } from "../../../helpers/broker.helper";
 
-jest.mock("node:fs/promises");
-
 describe("HttpMessageDelivery", () => {
 	let mockHttpClient: ReturnType<typeof createMockHttpClient>;
-	let dqlRepository: FileDlqRepository;
+	let deadLetters: { insert: jest.Mock<(...args: any[]) => any> };
 	let delivery: HttpMessageDelivery;
 
 	beforeEach(() => {
 		mockHttpClient = createMockHttpClient();
-		dqlRepository = new FileDlqRepository("/tmp/test-dlq.jsonl");
-		delivery = new HttpMessageDelivery(mockHttpClient as never, dqlRepository);
+		deadLetters = { insert: jest.fn<(...args: any[]) => any>() };
+		delivery = new HttpMessageDelivery(mockHttpClient as never, deadLetters);
 	});
 
 	describe("send", () => {
 		it("should POST metadata and payload at the top level, as subscribers read them", async () => {
 			const message = createMockMessage({ key: "value" });
-			const context = { deliveryAttempt: 1 };
+			const context = { deliveryAttempt: 1 as SequenceNumber };
 
 			await delivery.send({
 				url: "http://example.com/callback" as URLString,
@@ -100,24 +96,17 @@ describe("HttpMessageDelivery", () => {
 	});
 
 	describe("markDeadLetter", () => {
-		it("should add the message to the DLQ repository", async () => {
+		it("should hand the message to the dead letter store", async () => {
 			const message = createMockMessage({ key: "value" });
 
 			await delivery.markDeadLetter({
+				service: "trader-trainer",
 				message,
 				reason: "REASON",
 				deliveryAttempt: 3 as SequenceNumber,
 			});
 
-			expect(appendFile).toHaveBeenCalledWith(
-				"/tmp/test-dlq.jsonl",
-				expect.stringContaining("REASON"),
-				"utf-8"
-			);
-			const written = JSON.parse(
-				(appendFile as unknown as jest.Mock<(...args: any[]) => any>).mock
-					.calls[0][1]
-			);
+			const written = deadLetters.insert.mock.calls[0][0];
 			expect(written.topic).toBe(message.metadata.topic);
 			expect(written.reason).toBe("REASON");
 			expect(written.deliveryAttempt).toBe(3);

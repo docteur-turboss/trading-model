@@ -55,7 +55,7 @@ jest.mock("../../../src/adapters/outbound/persistence/signal-store", () => ({
 }));
 
 const MOCK_LEASE_API = jest.fn((name: string) => ({ name }));
-jest.mock("../../../src/adapters/outbound/kubernetes/kubernetes-lease", () => ({
+jest.mock("@trading-model/reliability/kubernetes-lease", () => ({
 	KubernetesLease: jest.fn((identity: string, api: unknown) => ({
 		identity,
 		api,
@@ -63,8 +63,8 @@ jest.mock("../../../src/adapters/outbound/kubernetes/kubernetes-lease", () => ({
 	kubernetesLeaseApi: MOCK_LEASE_API,
 }));
 
+import { Leadership } from "@trading-model/reliability/leadership";
 import { SignalCronScheduler } from "../../../src/adapters/inbound/cron/signal.cron";
-import { CollectorLeadership } from "../../../src/application/collector-leadership";
 import {
 	createCollector,
 	createScrapeScheduler,
@@ -227,7 +227,7 @@ describe("config/container — createCollector", () => {
 
 	it("collects without election when no lease is named", async () => {
 		const collector = await createCollector(COLLECTING);
-		expect(collector).toBeInstanceOf(CollectorLeadership);
+		expect(collector).toBeInstanceOf(Leadership);
 		expect(MOCK_LEASE_API).not.toHaveBeenCalled();
 	});
 
@@ -236,7 +236,7 @@ describe("config/container — createCollector", () => {
 			...COLLECTING,
 			COLLECTOR_LEASE_NAME: "financial-scraper-collector",
 		});
-		expect(collector).toBeInstanceOf(CollectorLeadership);
+		expect(collector).toBeInstanceOf(Leadership);
 		expect(MOCK_LEASE_API).toHaveBeenCalledWith("financial-scraper-collector");
 		expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
 			"Collector leader election enabled",

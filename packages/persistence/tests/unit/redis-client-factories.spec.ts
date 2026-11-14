@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import Redis from "ioredis";
 import {
@@ -6,6 +9,7 @@ import {
 	buildFromConfig,
 	createFromUrl,
 	createSentinel,
+	SENTINEL_RETRY_STRATEGY,
 } from "../../src/redis-client-factories";
 
 jest.mock("ioredis", () => {
@@ -41,6 +45,13 @@ describe("BASE_RETRY_STRATEGY", () => {
 	it("should return null after 20 attempts", () => {
 		expect(BASE_RETRY_STRATEGY(21)).toBeNull();
 		expect(BASE_RETRY_STRATEGY(25)).toBeNull();
+	});
+});
+
+describe("SENTINEL_RETRY_STRATEGY", () => {
+	it("caps at 1 s and never gives up", () => {
+		expect(SENTINEL_RETRY_STRATEGY(1)).toBe(200);
+		expect(SENTINEL_RETRY_STRATEGY(100)).toBe(1000);
 	});
 });
 
@@ -95,6 +106,26 @@ describe("createSentinel", () => {
 		client.listeners.close();
 
 		expect(cleanup).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("createSentinel with TLS", () => {
+	it("should pass the CA and server name to the nodes and the sentinels", () => {
+		const dir = mkdtempSync(join(tmpdir(), "redis-tls-"));
+		const caPath = join(dir, "ca.crt");
+		writeFileSync(caPath, "PEM");
+		createSentinel({
+			sentinels: [{ host: "127.0.0.1" as never, port: 26380 as never }],
+			name: "mymaster",
+			tls: { caPath, servername: "redis" },
+		});
+		const options = (Redis as unknown as { lastOptions: Record<string, any> })
+			.lastOptions;
+		expect(options.enableTLSForSentinelMode).toBe(true);
+		for (const tls of [options.tls, options.sentinelTLS]) {
+			expect(tls.servername).toBe("redis");
+			expect(tls.ca.toString()).toBe("PEM");
+		}
 	});
 });
 

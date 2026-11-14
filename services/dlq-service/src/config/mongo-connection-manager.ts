@@ -1,4 +1,5 @@
 import { MongoConnectionManager as CommonMongoConnectionManager } from "@trading-model/persistence/mongo-connection-manager";
+import { mongoAuthFromEnv } from "@trading-model/persistence/mongo-utils";
 import type { Collection } from "mongodb";
 import type { Env } from "../infrastructure/config/env";
 import { IndexManager } from "./index-manager";
@@ -11,9 +12,19 @@ export class MongoConnectionManager extends CommonMongoConnectionManager {
 	private _missingCriticalIndexes: string[] = [];
 	private readonly _dlqCollectionName: string;
 
-	constructor(env: Pick<Env, "MONGO_URI" | "MONGO_DB" | "MONGO_COLLECTION">) {
+	constructor(
+		env: Pick<
+			Env,
+			| "MONGO_URI"
+			| "MONGO_DB"
+			| "MONGO_COLLECTION"
+			| "MONGO_USERNAME"
+			| "MONGO_PASSWORD"
+		>
+	) {
 		super({
 			uri: env.MONGO_URI,
+			auth: mongoAuthFromEnv(env),
 			dbName: env.MONGO_DB,
 			collectionName: env.MONGO_COLLECTION,
 			minPoolSize: 2,

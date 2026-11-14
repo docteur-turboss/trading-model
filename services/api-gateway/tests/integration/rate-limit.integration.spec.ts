@@ -22,7 +22,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		RATE_LIMIT_MAX: 2,
 		CACHE_TTL_MS: 30000,
 		AUTH_TOKEN_HEADER: "x-api-key",
-		AUTH_TOKENS: "test-token,other-token",
+		AUTH_TOKENS: "a:read:test-token,b:read:other-token",
 		PROXY_TIMEOUT_MS: 5000,
 		ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
 	},

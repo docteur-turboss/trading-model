@@ -88,31 +88,20 @@ echo "off-site copy required"
 ) && pass "BACKUP_REQUIRE_OFFSITE=true without bucket fails the run" ||
 	failed "a run without off-site copy passed despite BACKUP_REQUIRE_OFFSITE=true"
 
-echo "strip_gtid (dumps taken with --set-gtid-purged=ON)"
-stripped="$(printf '%s\n' \
-	'SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;' \
-	'SET @@SESSION.SQL_LOG_BIN= 0;' \
-	"SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'aaaa:1-5,'" \
-	"'bbbb:1-9';" \
-	'CREATE TABLE t (id INT);' \
-	"SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'cccc:1-2';" \
-	'INSERT INTO t VALUES (1);' \
-	'SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;' | strip_gtid)"
-[ "$stripped" = "$(printf '%s\n' 'CREATE TABLE t (id INT);' 'INSERT INTO t VALUES (1);')" ] &&
-	pass "GTID statements dropped (single and multi-line), the data kept" ||
-	failed "strip_gtid output: $stripped"
-
-echo "restore scripts find *.age backups (run without manifest, explicit --timestamp)"
+echo "restore scripts find *.age backups (through the run manifest)"
 BACKUPS="$WORK/backups"
 mkdir -p "$BACKUPS/mysql" "$BACKUPS/spire" "$BACKUPS/checkpoints"
-cp "$WORK/dump.sql.gz.age" "$BACKUPS/mysql/financial_scraper_2026-01-01_020000.sql.gz.age"
-echo '{}' | seal >"$BACKUPS/spire/keys_2026-01-01_020000.json.age"
-echo x | seal >"$BACKUPS/checkpoints/checkpoints_2026-01-01_020000.tar.gz.age"
+BACKUP_DIR="$BACKUPS" TIMESTAMP=2026-01-01_020000 OUTPUTS=() MANIFEST_ENTRIES=()
+write_dump mysql "$BACKUPS/mysql/financial_scraper_${TIMESTAMP}.sql.gz${AGE_SUFFIX}" sh -c "printf 'CREATE TABLE t (id INT);\n-- Dump completed\n' | gzip" 2>/dev/null
+# SPIRE: datastore + CA keys tar, the format of both scripts since ADR-0065.
+write_dump spire "$BACKUPS/spire/data_${TIMESTAMP}.tar${AGE_SUFFIX}" echo x 2>/dev/null
+write_dump checkpoints "$BACKUPS/checkpoints/checkpoints_${TIMESTAMP}.tar.gz${AGE_SUFFIX}" echo x 2>/dev/null
+write_manifest 2>/dev/null
 for script in restore.sh restore-k8s.sh; do
 	out="$(BACKUP_DIR="$BACKUPS" BACKUP_AGE_IDENTITY="$WORK/key.txt" bash "$ROOT/scripts/$script" --dry-run \
 		--components mysql,spire,checkpoints --timestamp 2026-01-01_020000 2>&1 || true)"
 	if echo "$out" | grep -q 'financial_scraper_2026-01-01_020000.sql.gz.age' &&
-		echo "$out" | grep -q 'keys_2026-01-01_020000.json.age'; then
+		echo "$out" | grep -q 'data_2026-01-01_020000.tar.age'; then
 		pass "$script resolves the encrypted files"
 	else
 		failed "$script did not find the encrypted files:"

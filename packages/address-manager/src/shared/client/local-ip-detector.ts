@@ -14,6 +14,7 @@ function _findFirstNonInternalIPv4(): string | null {
 	return null;
 }
 
+/** Detects the local IP address of the host. */
 export const LocalIPDetector = {
 	reset(): void {
 		_cachedIP = null;

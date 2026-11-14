@@ -14,6 +14,7 @@ function clientKey(req: Request): string {
 	return identity ? String(identity) : ipKeyGenerator(req.ip ?? "");
 }
 
+// In-memory store: counts per pod, so the effective limit is max x replicas (ADR-0047).
 export const DEFAULT_LIMITER = rateLimit({
 	windowMs: ENV.RATE_LIMIT_WINDOW_MS,
 	max: ENV.RATE_LIMIT_MAX,

@@ -23,7 +23,12 @@ STUB
 chmod +x "$WORK/bin/kubectl"
 export PATH="$WORK/bin:$PATH"
 
-ALL_CRDS='autoscaling.k8s.io/VerticalPodAutoscaler\nbitnami.com/SealedSecret\ncert-manager.io/ClusterIssuer\n'
+ALL_CRDS='autoscaling.k8s.io/VerticalPodAutoscaler
+bitnami.com/SealedSecret
+cert-manager.io/ClusterIssuer
+cert-manager.io/Issuer
+cert-manager.io/Certificate
+'
 ALL_HAVE='storageclass/rwx-csi ingressclass/nginx clusterissuer/letsencrypt-prod'
 # Minimal render: one object per kind of prerequisite, plus native kinds.
 RENDER='apiVersion: v1

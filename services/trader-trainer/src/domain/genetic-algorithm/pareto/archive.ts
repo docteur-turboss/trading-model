@@ -1,4 +1,4 @@
-import type { GenomeFitnessMeta, LamarckGenome } from "../genome-types";
+import type { GenomeFitnessMeta, LamarckGenome } from "../genome";
 import type { DeepReadonly } from "../shared-types";
 import type { ObjectiveVector } from "./domination";
 import { dominates } from "./domination";

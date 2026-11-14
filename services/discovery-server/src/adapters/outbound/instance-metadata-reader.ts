@@ -6,14 +6,14 @@ import {
 	ALL_SERVICE_NAMES,
 	type ServiceInstanceName,
 } from "@trading-model/primitives/service-instance-name";
-import type { RedisDepsWithoutToken } from "../../shared/redis-deps";
+import type { RedisDeps } from "../../shared/redis-deps";
 import {
 	instanceMetadata,
 	serviceInstancesSet,
 } from "../../shared/redis-key-builder";
 
 export class InstanceMetadataReader {
-	constructor(private readonly _deps: RedisDepsWithoutToken) {}
+	constructor(private readonly _deps: RedisDeps) {}
 
 	async getMetadata(
 		instanceId: InstanceId

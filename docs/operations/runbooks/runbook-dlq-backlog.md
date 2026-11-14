@@ -27,8 +27,7 @@ K8s** (`deploy/k8s/config/dlq-service.properties`), 5 by default (compose).
 Both read the same two counters: they usually fire together. With nothing
 added the ratio is undefined and `DLQDrainRateLow` stays silent. The
 dead-lettering itself is `MessagesDeadLettered`, and the path from
-message-manager to dlq-service is covered by `DeadLettersNotForwarded`,
-`DeadLettersRejected` and `MessagesLost`
+message-manager to dlq-service is covered by `DeadLettersRejected`
 ([runbook-message-bus-outage](runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost)).
 
 ## Symptom
@@ -118,5 +117,5 @@ A refused auto-retry replay is counted too, with no operator waiting for it.
 ## Escalation
 
 Warnings: handle within business hours. Escalate to the Engineering Manager if
-the backlog still grows after 4 hours, or if `MessagesLost` fires
-(critical, dead letters gone).
+the backlog still grows after 4 hours, or if `JournalEntriesTrimmed` fires
+(critical, messages gone).

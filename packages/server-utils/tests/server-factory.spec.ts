@@ -10,9 +10,14 @@ jest.mock("@trading-model/http/infrastructure/http-tls-loader", () => ({
 	}),
 }));
 
+jest.mock("../src/infrastructure/tls-watcher", () => ({
+	setupTlsWatcher: jest.fn().mockResolvedValue(undefined),
+}));
+
 import https from "node:https";
 import { loadTlsPemBundle } from "@trading-model/http/infrastructure/http-tls-loader";
 import { createAndStartHttpsServer } from "../src/adapters/inbound/server-factory";
+import { setupTlsWatcher } from "../src/infrastructure/tls-watcher";
 
 describe("createAndStartHttpsServer", () => {
 	beforeEach(() => {
@@ -34,7 +39,6 @@ describe("createAndStartHttpsServer", () => {
 				certPath: "cert.pem",
 				caPath: "ca.pem",
 			},
-			watchTls: false,
 		};
 
 		const result = await createAndStartHttpsServer(app, options as never);
@@ -42,9 +46,9 @@ describe("createAndStartHttpsServer", () => {
 		expect(loadTlsPemBundle).toHaveBeenCalledWith(options.tls);
 		expect(https.createServer).toHaveBeenCalledTimes(1);
 		expect(listen).toHaveBeenCalledWith(3000, expect.any(Function));
-		expect(result).toHaveProperty("raw");
 		expect(result).toHaveProperty("close");
 		expect(typeof result.close).toBe("function");
+		expect(setupTlsWatcher).toHaveBeenCalledTimes(1);
 	});
 
 	it("should configure TLSv1.3 and mTLS options", async () => {
@@ -62,7 +66,6 @@ describe("createAndStartHttpsServer", () => {
 				certPath: "cert.pem",
 				caPath: "ca.pem",
 			},
-			watchTls: false,
 		};
 
 		await createAndStartHttpsServer(app, options as never);
@@ -75,27 +78,6 @@ describe("createAndStartHttpsServer", () => {
 			}),
 			app
 		);
-	});
-
-	it("should NOT call setupTlsWatcher when watchTls is false", async () => {
-		const listen = jest.fn();
-		const close = jest.fn((cb?: (err?: Error) => void) => cb?.());
-		(https.createServer as jest.Mock).mockReturnValue({ listen, close });
-
-		const app = {} as never;
-		const options = {
-			port: 3000 as never,
-			tls: {
-				keyPath: "key.pem",
-				certPath: "cert.pem",
-				caPath: "ca.pem",
-			},
-			watchTls: false,
-		};
-
-		const result = await createAndStartHttpsServer(app, options as never);
-
-		expect(result).toBeDefined();
 	});
 
 	describe("HttpServer close", () => {
@@ -114,7 +96,6 @@ describe("createAndStartHttpsServer", () => {
 					certPath: "cert.pem",
 					caPath: "ca.pem",
 				},
-				watchTls: false,
 			};
 
 			const result = await createAndStartHttpsServer(app, options as never);
@@ -136,7 +117,6 @@ describe("createAndStartHttpsServer", () => {
 					certPath: "cert.pem",
 					caPath: "ca.pem",
 				},
-				watchTls: false,
 			};
 
 			const result = await createAndStartHttpsServer(app, options as never);

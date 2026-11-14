@@ -6,7 +6,6 @@ import {
 	type AuthorizationOptions,
 	buildTlsFromEnv,
 	createSecureServer,
-	type RateLimitConfig,
 } from "./create-secure-server";
 import type { ReadinessCheck } from "./readiness";
 import type { HttpsServer } from "./server-factory";
@@ -20,7 +19,6 @@ export interface ServiceServerOptions {
 	serviceId?: ServiceId;
 	routes: (app: Application) => void;
 	trustProxy?: boolean;
-	rateLimit?: RateLimitConfig;
 	readiness?: ReadinessCheck[];
 }
 
@@ -31,7 +29,6 @@ export function createServiceServer(
 		port: Port.of(options.env.PORT),
 		tls: buildTlsFromEnv(options.env),
 		trustProxy: options.trustProxy,
-		rateLimit: options.rateLimit,
 		authorize: _resolveAuthorization(options),
 		routes: options.routes,
 		readiness: options.readiness,
@@ -50,5 +47,5 @@ function _resolveAuthorization(
 				"Set ENFORCE_MTLS_STRICT=false to disable or provide a serviceId."
 		);
 	}
-	return { enabled: true, targetService: options.serviceId };
+	return { targetService: options.serviceId };
 }

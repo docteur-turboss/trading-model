@@ -24,26 +24,7 @@ describe("UnixTimestamp", () => {
 		expect(ts).toBeGreaterThanOrEqual(now);
 	});
 
-	it("should convert to Date", () => {
-		const date = UnixTimestamp.toDate(1000 as never);
-		expect(date).toBeInstanceOf(Date);
-		expect(date.getTime()).toBe(1000);
-	});
-
-	it("should compare timestamps", () => {
-		expect(UnixTimestamp.isAfter(200 as never, 100 as never)).toBe(true);
-		expect(UnixTimestamp.isAfter(100 as never, 200 as never)).toBe(false);
-		expect(UnixTimestamp.isBefore(100 as never, 200 as never)).toBe(true);
-	});
-
-	it("should add and subtract", () => {
+	it("should add milliseconds", () => {
 		expect(UnixTimestamp.add(100 as never, 50)).toBe(150);
-		expect(UnixTimestamp.subtract(100 as never, 50)).toBe(50);
-	});
-
-	it("should compute elapsed", () => {
-		const past = Date.now() - 1000;
-		const elapsed = UnixTimestamp.elapsed(past as never);
-		expect(elapsed).toBeGreaterThanOrEqual(900);
 	});
 });

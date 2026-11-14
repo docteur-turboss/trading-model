@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { ErrorCode, makeErrorCode } from "@trading-model/common/utils/errors";
+import {
+	ErrorCode,
+	errorProp,
+	makeErrorCode,
+} from "@trading-model/common/utils/errors";
+import { sleep } from "@trading-model/common/utils/sleep";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
@@ -20,6 +25,7 @@ import { computeAuditHash, hashedContentOf } from "../../../domain/audit-chain";
 import type { DateRange } from "../../../domain/date-range";
 import { EVENTS_COLLECTION, MongoAuditChainReader } from "./audit-chain-reader";
 import { type AuditPage, AuditQuerier } from "./audit-querier";
+import { StatsAggregator } from "./stats-aggregator";
 
 export interface AuditEventDocument {
 	receivedAt: Date;
@@ -46,7 +52,7 @@ export const METADATA_FIELDS = {
 } as const;
 
 /** Filters of `GET /events`; an absent field does not filter. */
-export interface AuditFilter {
+interface AuditFilter {
 	topic?: Topic;
 	publisher?: ServiceId;
 	correlationId?: CorrelationId;
@@ -85,6 +91,8 @@ const LEASE_YIELD_MS = 100;
 
 /** Events chained in one ordered insertMany. */
 const MAX_BATCH = 100;
+/** Queue cap: 10 batches bound memory when Mongo is slow; beyond it, 503 and message-manager retries. */
+const MAX_PENDING = 10 * MAX_BATCH;
 
 interface LeaseDocument {
 	_id: string;
@@ -115,19 +123,16 @@ const STORE_AS_HASHED = { ignoreUndefined: true } as const;
 
 /** The unique index a duplicate-key error hit, if it is one. */
 function duplicateKeyOf(err: unknown): string | undefined {
-	const error = err as {
-		code?: number;
-		keyPattern?: Record<string, unknown>;
-		errmsg?: string;
-	};
-	if (error?.code !== DUPLICATE_KEY) {
+	if (errorProp(err, "code") !== DUPLICATE_KEY) {
 		return;
 	}
-	if (error.keyPattern) {
-		return Object.keys(error.keyPattern)[0] ?? "";
+	const keyPattern = errorProp(err, "keyPattern");
+	if (keyPattern && typeof keyPattern === "object") {
+		return Object.keys(keyPattern)[0] ?? "";
 	}
 	// Bulk write errors carry the index name in the message, not keyPattern.
-	const msg = error.errmsg ?? "";
+	const errmsg = errorProp(err, "errmsg");
+	const msg = typeof errmsg === "string" ? errmsg : "";
 	if (msg.includes(METADATA_FIELDS.messageId)) {
 		return METADATA_FIELDS.messageId;
 	}
@@ -138,9 +143,9 @@ function duplicateKeyOf(err: unknown): string | undefined {
 function bulkFailureOf(
 	err: unknown
 ): { index: number; error: unknown } | undefined {
-	const writeErrors = (err as { writeErrors?: unknown })?.writeErrors;
+	const writeErrors = errorProp(err, "writeErrors");
 	const first = Array.isArray(writeErrors) ? writeErrors[0] : writeErrors;
-	const index = (first as { index?: unknown })?.index;
+	const index = errorProp(first, "index");
 	return typeof index === "number" ? { index, error: first } : undefined;
 }
 
@@ -148,6 +153,7 @@ export class AuditRepository {
 	private readonly _collection: Collection<AuditEventDocument>;
 	private readonly _lease: Collection<LeaseDocument>;
 	private readonly _querier: AuditQuerier;
+	private readonly _stats: StatsAggregator;
 	private readonly _chain: MongoAuditChainReader;
 	/** Events of this instance waiting for the next batch. */
 	private _pending: PendingWrite[] = [];
@@ -159,6 +165,7 @@ export class AuditRepository {
 		this._collection = db.collection<AuditEventDocument>(EVENTS_COLLECTION);
 		this._lease = db.collection<LeaseDocument>(LEASE_COLLECTION);
 		this._querier = new AuditQuerier(this._collection);
+		this._stats = new StatsAggregator(this._collection);
 		this._chain = new MongoAuditChainReader(db);
 	}
 
@@ -173,7 +180,7 @@ export class AuditRepository {
 			{ key: { chainSequence: 1 }, unique: true },
 		]);
 		// Off the request path: the first getStats finds the breakdown ready.
-		this._querier.warmStats();
+		this._stats.warm();
 	}
 
 	/**
@@ -185,6 +192,9 @@ export class AuditRepository {
 	 * messageId) is not recorded twice.
 	 */
 	insert(event: AuditEventDocument): Promise<void> {
+		if (this._pending.length >= MAX_PENDING) {
+			return Promise.reject(agentError("Audit write queue is full"));
+		}
 		return new Promise<void>((resolve, reject) => {
 			this._pending.push({
 				event,
@@ -214,7 +224,7 @@ export class AuditRepository {
 					// Fairness: let waiting replicas take a turn.
 					await this._release(owner);
 					held = false;
-					await new Promise((resolve) => setTimeout(resolve, LEASE_YIELD_MS));
+					await sleep(LEASE_YIELD_MS);
 				}
 				if (!(held && (await this._renew(owner)))) {
 					this._tail = null;
@@ -290,9 +300,7 @@ export class AuditRepository {
 			if (Date.now() > deadline) {
 				return false;
 			}
-			await new Promise((resolve) =>
-				setTimeout(resolve, LEASE_POLL_MS * (1 + Math.random()))
-			);
+			await sleep(LEASE_POLL_MS * (1 + Math.random()));
 		}
 		return true;
 	}
@@ -308,7 +316,7 @@ export class AuditRepository {
 			);
 			return true;
 		} catch (err) {
-			if ((err as { code?: number })?.code === DUPLICATE_KEY) {
+			if (errorProp(err, "code") === DUPLICATE_KEY) {
 				return false;
 			}
 			throw agentError("Failed to acquire the audit chain lease", {
@@ -413,6 +421,6 @@ export class AuditRepository {
 	}
 
 	getStats(): Promise<AuditStats> {
-		return this._querier.getStats();
+		return this._stats.getStats();
 	}
 }

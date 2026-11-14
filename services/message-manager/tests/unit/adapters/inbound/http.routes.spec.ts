@@ -58,8 +58,9 @@ describe("BROKER_ROUTES", () => {
 
 	it("should set timeout on incoming requests", () => {
 		const postRoute = router.stack.find(
-			(r: { route?: { methods?: Record<string, boolean> } }) =>
-				r.route?.methods?.post
+			(r) =>
+				(r.route as { methods?: Record<string, boolean> } | undefined)?.methods
+					?.post
 		);
 
 		const routeStack = (

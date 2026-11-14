@@ -8,7 +8,7 @@ jest.mock("../src/adapters/inbound/create-secure-server", () => ({
 		caPath: env.TLS_CA_PATH,
 	})),
 	createSecureServer: jest.fn((..._args: any[]) =>
-		Promise.resolve({ raw: {}, close: jest.fn<(...args: any[]) => any>() })
+		Promise.resolve({ close: jest.fn<(...args: any[]) => any>() })
 	),
 }));
 
@@ -48,7 +48,7 @@ describe("createServiceServer", () => {
 
 		expect(createSecureServer).toHaveBeenCalledWith(
 			expect.objectContaining({
-				authorize: { enabled: true, targetService: "api-gateway" },
+				authorize: { targetService: "api-gateway" },
 			})
 		);
 	});
@@ -62,7 +62,7 @@ describe("createServiceServer", () => {
 
 		expect(createSecureServer).toHaveBeenCalledWith(
 			expect.objectContaining({
-				authorize: { enabled: true, targetService: "api-gateway" },
+				authorize: { targetService: "api-gateway" },
 			})
 		);
 	});

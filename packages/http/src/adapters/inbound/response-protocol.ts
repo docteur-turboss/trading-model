@@ -49,6 +49,7 @@ function logServerError(
 	});
 }
 
+/** Maps an error to the HTTP response sent to the client. */
 export const ResponseProtocol = (
 	err: ErrorInput,
 	req: Request,

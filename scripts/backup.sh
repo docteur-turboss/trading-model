@@ -70,7 +70,8 @@ backup_mongodb() {
       mongodump_args+=(--oplog)
     fi
 
-    if write_dump mongodb "$file" docker exec "${container}" mongodump --quiet "${mongodump_args[@]}"; then
+    # The `backup` user (ADR-0067); the password stays in the container's env.
+    if write_dump mongodb "$file" docker exec "${container}" sh -c "mongodump --quiet ${mongodump_args[*]} --username backup --password \"\$MONGO_BACKUP_PASSWORD\" --authenticationDatabase admin"; then
       ok "MongoDB backup complete: ${container}"
       write_metric "mongodb" 1
       # One mongod in compose: this dump holds the audit-logger database too.

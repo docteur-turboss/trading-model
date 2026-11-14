@@ -12,7 +12,7 @@ import {
 import type { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
 import { CacheHealthRefresher } from "../../src/application/discovery/cache-health-refresher";
 import type { ServiceInstance } from "../../src/domain/client/type";
-import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../src/domain/ports/service-cache.port";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
@@ -30,7 +30,7 @@ function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 }
 
 describe("CacheHealthRefresher", () => {
-	let serviceCache: jest.Mocked<IServiceCache>;
+	let serviceCache: jest.Mocked<ServiceCachePort>;
 	let healthChecker: jest.Mocked<ServiceHealthChecker>;
 	let refresher: CacheHealthRefresher;
 
@@ -45,7 +45,7 @@ describe("CacheHealthRefresher", () => {
 			getCircuitState: jest.fn<(...args: any[]) => any>(),
 			deleteCircuitState: jest.fn<(...args: any[]) => any>(),
 			close: jest.fn<(...args: any[]) => any>(),
-		} as unknown as jest.Mocked<IServiceCache>;
+		} as unknown as jest.Mocked<ServiceCachePort>;
 		healthChecker = {
 			isHealthy: jest.fn<(...args: any[]) => any>(),
 		} as unknown as jest.Mocked<ServiceHealthChecker>;

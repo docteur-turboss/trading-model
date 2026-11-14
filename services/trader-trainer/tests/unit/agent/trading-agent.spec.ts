@@ -6,11 +6,13 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type {
+import type { PositiveInt } from "@trading-model/primitives/primitives";
+import {
+	Cash,
 	Percentage,
-	PositiveInt,
+	Price,
+	Volume,
 } from "@trading-model/primitives/primitives";
-import { Cash, Price, Volume } from "@trading-model/primitives/primitives";
 import type { TradingAgentConfig } from "../../../src/domain/agent/trading-agent";
 import { TradingAgent } from "../../../src/domain/agent/trading-agent";
 import {
@@ -36,7 +38,12 @@ function makeConfig(
 			enablePool: true,
 			poolMaxSize: 100 as PositiveInt,
 		},
-		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(100) },
+		wallet: {
+			initialCash: Cash.of(1000),
+			initialPrice: Price.of(100),
+			feeRate: Percentage.zero(),
+			executionCostRate: Percentage.zero(),
+		},
 		tradeAmount: Volume.of(1),
 		stateManagerCfg: {
 			epsilonStart: 0,
@@ -104,9 +111,10 @@ describe("TradingAgent", () => {
 			expect(epsilonAgent.state.getEpsilon()).toBe(1.0);
 		});
 
-		it("should use default wallet and state config when not provided", () => {
+		it("should use default state config when not provided", () => {
 			const a = new TradingAgent({
 				nnConfig: makeConfig().nnConfig,
+				wallet: makeConfig().wallet,
 			} as TradingAgentConfig);
 			expect(a.wallet).toBeDefined();
 		});
@@ -153,6 +161,7 @@ describe("TradingAgent", () => {
 						3 as PositiveInt,
 					],
 				},
+				wallet: makeConfig().wallet,
 				tradeAmount: Volume.of(5),
 			});
 
@@ -210,6 +219,22 @@ describe("TradingAgent", () => {
 			// the unit bought at 100 gained 10, less what buying it cost
 			expect(second.reward).toBeGreaterThan(9);
 			expect(second.reward).toBeLessThanOrEqual(10);
+		});
+
+		it("fills the decision at fillPrice, marked at price", () => {
+			const buyer = new TradingAgent(makeConfig());
+			jest
+				.spyOn((buyer as any)._agent.nn, "forward")
+				.mockReturnValue({ output: new Float32Array([0, 0, 1]) });
+
+			buyer.step(
+				new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				Price.of(100),
+				Price.of(104)
+			);
+
+			expect(buyer.wallet.getCash()).toBe(1000 - 104);
+			expect(buyer.wallet.getPrice()).toBe(100);
 		});
 
 		it("should update wallet price when price is provided", () => {

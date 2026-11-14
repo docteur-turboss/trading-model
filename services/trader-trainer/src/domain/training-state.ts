@@ -1,18 +1,18 @@
-import type {
-	Fitness,
-	Percentage,
-	PositiveInt,
-	Probability,
-	SharpeRatio,
+import {
+	type Fitness,
+	NonNegativeInt,
+	type Percentage,
+	type PositiveInt,
+	type Probability,
+	type SharpeRatio,
 } from "@trading-model/primitives/primitives";
-import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import type {
 	ActivationType,
 	FitnessType,
 	GenomeFitnessMeta,
+	LamarckGenome,
 	SelectionType,
 } from "./genetic-algorithm/genome";
-import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import { buildSummary } from "./genome-summary-builder";
 import type { TradingSymbol } from "./market-data-types";
@@ -20,10 +20,12 @@ import type { TradingSymbol } from "./market-data-types";
 /** Summary of the best trained agent for API responses. */
 export interface BestAgentSummary {
 	id: string;
-	generation: PositiveInt;
+	generation: NonNegativeInt;
 	fitness: Fitness;
 	sharpe: SharpeRatio;
 	avgPnl: number;
+	/** Segment sharpe, avgPnl and maxDrawdown were measured on (ADR-0068). */
+	evaluatedOn: "validation" | "test";
 	/** Largest fall of the cumulative evaluation PnL (`EpisodeScores.maxDrawdown`). */
 	maxDrawdown: number;
 	gaControl: {
@@ -53,21 +55,18 @@ interface LastTrainingInfoData {
 	bestGenome: DeepReadonly<LamarckGenome>;
 	bestFitness: Fitness;
 	bestFitnessMeta: GenomeFitnessMeta | undefined;
-	generation: PositiveInt;
-	generationContext: GenerationContext | null;
+	generation: NonNegativeInt;
 }
 
 export interface TrainingSnapshot {
 	readonly symbol: TradingSymbol;
-	readonly generation: PositiveInt;
-	readonly generationContext: GenerationContext | null;
+	readonly generation: NonNegativeInt;
 	buildBestAgentSummary(): BestAgentSummary | null;
 }
 
 export class NullLastTrainingInfo implements TrainingSnapshot {
 	readonly symbol: TradingSymbol = "" as TradingSymbol;
-	readonly generation: PositiveInt = 0 as unknown as PositiveInt;
-	readonly generationContext: GenerationContext | null = null;
+	readonly generation: NonNegativeInt = NonNegativeInt.of(0);
 
 	buildBestAgentSummary(): BestAgentSummary | null {
 		return null;
@@ -79,8 +78,7 @@ export class LastTrainingInfo implements TrainingSnapshot {
 	readonly bestGenome: DeepReadonly<LamarckGenome>;
 	readonly bestFitness: Fitness;
 	readonly bestFitnessMeta: GenomeFitnessMeta | undefined;
-	readonly generation: PositiveInt;
-	readonly generationContext: GenerationContext | null;
+	readonly generation: NonNegativeInt;
 
 	constructor(data: LastTrainingInfoData) {
 		this.symbol = data.symbol;
@@ -88,7 +86,6 @@ export class LastTrainingInfo implements TrainingSnapshot {
 		this.bestFitness = data.bestFitness;
 		this.bestFitnessMeta = data.bestFitnessMeta;
 		this.generation = data.generation;
-		this.generationContext = data.generationContext;
 	}
 
 	buildBestAgentSummary(): BestAgentSummary | null {
@@ -106,8 +103,7 @@ export class LastTrainingInfo implements TrainingSnapshot {
  * topology, RL and GA genes the summary needs.
  */
 export class ArtifactTrainingInfo implements TrainingSnapshot {
-	readonly generationContext: GenerationContext | null = null;
-	readonly generation: PositiveInt;
+	readonly generation: NonNegativeInt;
 	readonly symbol: TradingSymbol;
 
 	constructor(

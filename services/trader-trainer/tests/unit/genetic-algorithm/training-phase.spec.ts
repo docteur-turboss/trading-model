@@ -2,7 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 import { Cash, Price } from "@trading-model/primitives/primitives";
 import { FeatureVector } from "../../../src/domain/feature-vector";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
-import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome-types";
+import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
 import type {
 	RLBackend,
 	Transition,

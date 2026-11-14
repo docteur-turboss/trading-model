@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { CALLER, meshRequest, signedDlqHeaders } from "./helpers";
+import { CALLER, meshRequest, signedDlqHeaders, step } from "./helpers";
 
 const DLQ = "https://dlq-service:3000";
 
@@ -16,25 +16,27 @@ describe("DLQ E2E", () => {
 		expect(meshRequest(CALLER.scraper, `${DLQ}/health/ready`).status).toBe(200);
 	});
 
-	let storedId = "";
-
-	it("stores a signed dead letter entry", () => {
-		const { status, body } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
-			method: "POST",
-			body: entry,
-			headers: signedDlqHeaders(entry, "POST", "/dlq"),
+	it("stores a signed dead letter entry and lists it", async () => {
+		const storedId = await step("stores the entry", () => {
+			const { status, body } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
+				method: "POST",
+				body: entry,
+				headers: signedDlqHeaders(entry, "POST", "/dlq"),
+			});
+			expect(status).toBe(201);
+			const id = JSON.parse(body).id;
+			expect(id).toEqual(expect.any(String));
+			expect(id).not.toBe("");
+			return id as string;
 		});
-		expect(status).toBe(201);
-		storedId = JSON.parse(body).id;
-		expect(storedId).toEqual(expect.any(String));
-	});
 
-	it("lists the stored entry", () => {
-		const { status, body } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
-			headers: signedDlqHeaders(undefined, "GET", "/dlq"),
+		await step("lists the entry", () => {
+			const { status, body } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
+				headers: signedDlqHeaders(undefined, "GET", "/dlq"),
+			});
+			expect(status).toBe(200);
+			expect(JSON.stringify(JSON.parse(body).entries)).toContain(storedId);
 		});
-		expect(status).toBe(200);
-		expect(JSON.stringify(JSON.parse(body).entries)).toContain(storedId);
 	});
 
 	it("rejects an unsigned request", () => {

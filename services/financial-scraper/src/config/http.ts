@@ -1,6 +1,9 @@
-import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+import { computeExponentialBackoffWithJitter } from "@trading-model/common/utils/backoff-config";
 import { sleep } from "@trading-model/common/utils/sleep";
-import { isRetryableStatusPermissive } from "@trading-model/http/infrastructure/http-retry";
+import {
+	isRetryableStatusPermissive,
+	RETRY_JITTER_MS,
+} from "@trading-model/http/infrastructure/http-retry";
 import { DataSource, DurationMs } from "@trading-model/primitives/primitives";
 import axios, {
 	type AxiosError,
@@ -21,7 +24,20 @@ const RETRY_CONFIG = {
 	retries: 5,
 	baseDelayMs: DurationMs.of(300),
 	maxDelayMs: DurationMs.of(10000),
+	jitterMs: RETRY_JITTER_MS,
 };
+
+/** Longest Retry-After honoured: one scrape interval. Beyond it the error surfaces and the next cycle resumes. */
+const RETRY_AFTER_MAX_MS = 60_000;
+
+/** Retry-After of a 429, in ms. shortcut: seconds form only (the one Binance sends), HTTP dates are ignored. */
+function _retryAfterMs(error: AxiosError): number {
+	if (error.response?.status !== 429) {
+		return 0;
+	}
+	const seconds = Number(error.response.headers?.["retry-after"]);
+	return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
+}
 
 function _shouldRetry(error: AxiosError): boolean {
 	if (!error.response) {
@@ -31,7 +47,7 @@ function _shouldRetry(error: AxiosError): boolean {
 }
 
 function _getBackoffDelay(attempt: number): number {
-	return computeExponentialBackoff(attempt, RETRY_CONFIG);
+	return computeExponentialBackoffWithJitter(attempt, RETRY_CONFIG);
 }
 
 function _retryLimitReached(
@@ -42,10 +58,11 @@ function _retryLimitReached(
 
 function _executeRetry(
 	instance: AxiosInstance,
-	config: AxiosRequestConfig & { retryCount?: number }
+	config: AxiosRequestConfig & { retryCount?: number },
+	retryAfterMs: number
 ): Promise<unknown> {
 	config.retryCount!++;
-	const delay = _getBackoffDelay(config.retryCount!);
+	const delay = Math.max(_getBackoffDelay(config.retryCount!), retryAfterMs);
 	return sleep(delay).then(() => instance(config));
 }
 
@@ -61,7 +78,11 @@ function _createRetryInterceptor(
 		if (_retryLimitReached(config) || !_shouldRetry(error)) {
 			throw error;
 		}
-		return _executeRetry(instance, config);
+		const retryAfterMs = _retryAfterMs(error);
+		if (retryAfterMs > RETRY_AFTER_MAX_MS) {
+			throw error;
+		}
+		return _executeRetry(instance, config, retryAfterMs);
 	};
 }
 

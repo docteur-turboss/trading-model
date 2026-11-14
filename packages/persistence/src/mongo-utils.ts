@@ -49,3 +49,21 @@ export function findPaginated<TDocument extends Document>(
 		.limit(limit)
 		.toArray() as Promise<TDocument[]>;
 }
+
+/**
+ * The `auth` option of `MongoConnectionConfig` from `MONGO_USERNAME` /
+ * `MONGO_PASSWORD`; both or none, a half-set pair is a misconfiguration.
+ */
+export function mongoAuthFromEnv(env: {
+	MONGO_USERNAME?: string;
+	MONGO_PASSWORD?: string;
+}): { username: string; password: string } | undefined {
+	const { MONGO_USERNAME: username, MONGO_PASSWORD: password } = env;
+	if (username === undefined && password === undefined) {
+		return undefined;
+	}
+	if (!(username && password)) {
+		throw new Error("MONGO_USERNAME and MONGO_PASSWORD must be set together");
+	}
+	return { username, password };
+}

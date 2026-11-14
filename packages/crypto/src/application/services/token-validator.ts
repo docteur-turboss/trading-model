@@ -4,7 +4,6 @@ import { CryptoAlg } from "../../domain/constants/crypto-constants";
 
 export interface TokenValidationOptions {
 	maxAgeMs?: number;
-	allowSlidingExpiry?: boolean;
 	clockSkewToleranceMs?: number;
 }
 
@@ -69,18 +68,6 @@ function validateTimestamp(
 	return true;
 }
 
-function _verifyStoredToken(
-	storedToken: string | undefined | null,
-	signingSecret: string,
-	options?: TokenValidationOptions
-): boolean {
-	if (!(options?.allowSlidingExpiry && storedToken)) {
-		return false;
-	}
-	const storedFormat = checkTokenFormat(storedToken);
-	return Boolean(storedFormat && verifyHmac(storedFormat, signingSecret));
-}
-
 /** Returns true when the token is well formed, signed for the instance with the secret, and matches the stored token. */
 export function validInstanceToken(input: TokenValidationInput): boolean {
 	const { token, instanceId, signingSecret, storedToken, options } = input;
@@ -102,8 +89,5 @@ export function validInstanceToken(input: TokenValidationInput): boolean {
 	if (!verifyHmac(format, signingSecret)) {
 		return false;
 	}
-	if (storedToken === token) {
-		return true;
-	}
-	return _verifyStoredToken(storedToken, signingSecret, options);
+	return storedToken === token;
 }

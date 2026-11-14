@@ -18,7 +18,7 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		INSTANCE_ID: "instance-1",
 		TLS_KEY_PATH: "/etc/tls/key.pem",
 		TLS_CA_PATH: "/etc/tls/ca.pem",
-		SERVICE_NAME: "financial-scraper-service",
+		SERVICE_NAME: "financial-scraper",
 		MESSAGE_CALLBACK_PATH: "message",
 	},
 }));

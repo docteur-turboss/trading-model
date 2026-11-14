@@ -20,6 +20,7 @@ const SET_OBJECT = z.object({
 	quantity: VolumeSchema,
 });
 
+/** Validators of the market event payloads, by event type. */
 export const MARKET_EVENT_VALIDATORS = {
 	[MarketEvent.ExampleEvent]: z.void(),
 	[MarketEvent.TestEvent]: z.object({

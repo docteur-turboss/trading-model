@@ -1,5 +1,4 @@
 import { describe, expect, it } from "@jest/globals";
-import type { UnixTimestamp } from "@trading-model/primitives/primitives";
 import { DateRange } from "../../src/date-range";
 
 describe("DateRange", () => {
@@ -44,92 +43,6 @@ describe("DateRange", () => {
 			const range = DateRange.fromQueryParams("2024-01-01", "2024-12-31")!;
 			expect(range.start).toEqual(new Date("2024-01-01"));
 			expect(range.end).toEqual(new Date("2024-12-31"));
-		});
-	});
-
-	describe("contains", () => {
-		it("should return true when date is within range", () => {
-			const range = new DateRange(
-				new Date("2024-01-01"),
-				new Date("2024-12-31")
-			);
-			expect(range.contains(new Date("2024-06-15"))).toBe(true);
-		});
-
-		it("should return false when date is before start", () => {
-			const range = new DateRange(
-				new Date("2024-06-01"),
-				new Date("2024-12-31")
-			);
-			expect(range.contains(new Date("2024-01-01"))).toBe(false);
-		});
-
-		it("should return false when date is after end", () => {
-			const range = new DateRange(
-				new Date("2024-01-01"),
-				new Date("2024-06-30")
-			);
-			expect(range.contains(new Date("2024-12-31"))).toBe(false);
-		});
-
-		it("should include dates on boundaries", () => {
-			const range = new DateRange(
-				new Date("2024-01-01"),
-				new Date("2024-12-31")
-			);
-			expect(range.contains(new Date("2024-01-01"))).toBe(true);
-			expect(range.contains(new Date("2024-12-31"))).toBe(true);
-		});
-	});
-
-	describe("durationMs", () => {
-		it("should return duration when both dates are set", () => {
-			const range = new DateRange(
-				new Date("2024-01-01"),
-				new Date("2024-01-02")
-			);
-			expect(range.durationMs).toBe(86400000);
-		});
-
-		it("should return undefined when start is missing", () => {
-			const range = new DateRange(undefined, new Date("2024-01-02"));
-			expect(range.durationMs).toBeUndefined();
-		});
-
-		it("should return undefined when end is missing", () => {
-			const range = new DateRange(new Date("2024-01-01"), undefined);
-			expect(range.durationMs).toBeUndefined();
-		});
-	});
-
-	describe("overlaps", () => {
-		it("should return true when ranges overlap", () => {
-			const a = new DateRange(new Date("2024-01-01"), new Date("2024-06-30"));
-			const b = new DateRange(new Date("2024-03-01"), new Date("2024-09-30"));
-			expect(a.overlaps(b)).toBe(true);
-		});
-
-		it("should return false when ranges do not overlap", () => {
-			const a = new DateRange(new Date("2024-01-01"), new Date("2024-02-01"));
-			const b = new DateRange(new Date("2024-03-01"), new Date("2024-04-01"));
-			expect(a.overlaps(b)).toBe(false);
-		});
-
-		it("should return false when either range has undefined boundaries", () => {
-			const a = new DateRange(new Date("2024-01-01"), new Date("2024-06-30"));
-			const b = new DateRange(undefined, new Date("2024-03-01"));
-			expect(a.overlaps(b)).toBe(false);
-		});
-	});
-
-	describe("fromUnixTimestamps", () => {
-		it("should create range from unix timestamps", () => {
-			const range = DateRange.fromUnixTimestamps({
-				fromMs: 1704067200000 as UnixTimestamp,
-				toMs: 1735689599999 as UnixTimestamp,
-			});
-			expect(range.start).toEqual(new Date(1704067200000));
-			expect(range.end).toEqual(new Date(1735689599999));
 		});
 	});
 });

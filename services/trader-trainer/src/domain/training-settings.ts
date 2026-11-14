@@ -2,8 +2,10 @@ import { FitnessType } from "./genetic-algorithm/genome-control";
 
 /** Training hyper-parameters, resolved from the environment by the composition root. */
 export interface TrainingSettings {
-	/** Fraction of each window kept for validation (0..1). */
+	/** Fraction of the steps kept for validation, the selection (0..1). */
 	validationSplit: number;
+	/** Newest fraction of the steps kept for the final test, never selected on (0..1). */
+	testSplit: number;
 	walkForwardFolds: number;
 	generations: number;
 	populationSize: number;

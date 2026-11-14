@@ -36,7 +36,9 @@ function envelope(i) {
 }
 
 (async () => {
-	const client = await MongoClient.connect(process.env.MONGODB_URI);
+	const client = await MongoClient.connect(process.env.MONGODB_URI, {
+		auth: { username: process.env.MONGO_USERNAME, password: process.env.MONGO_PASSWORD },
+	});
 	const db = client.db();
 	const repository = new AuditRepository(db);
 	await repository.ensureIndexes();

@@ -8,6 +8,9 @@ import { DurationMs } from "@trading-model/primitives/primitives";
 
 const DEFAULT_RETRY_COUNT = 3 as PositiveInt;
 
+/** Random extra delay so callers hit by a common outage do not retry together. */
+const RETRY_JITTER_MS = DurationMs.of(100);
+
 function isRetryableStatus(code: number): boolean {
 	return (
 		code >= HTTP_STATUS.INTERNAL_SERVER_ERROR ||
@@ -42,6 +45,7 @@ function computeRetryDelay(
 		options ?? {
 			baseDelayMs: DurationMs.of(200),
 			maxDelayMs: DurationMs.of(5000),
+			jitterMs: RETRY_JITTER_MS,
 		}
 	);
 }
@@ -52,4 +56,5 @@ export {
 	isNonRetryableClientError,
 	isRetryableStatus,
 	isRetryableStatusPermissive,
+	RETRY_JITTER_MS,
 };

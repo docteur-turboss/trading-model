@@ -1,0 +1,14 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures and SealedSecret ciphertext (no real credential)"
+paths = [
+  '''(^|/)tests?/''',
+  '''\.spec\.ts$''',
+  '''\.test\.(sh|ts)$''',
+]
+regexTarget = "line"
+regexes = [
+  '''^\s+[A-Z0-9_]+: Ag[A-Za-z0-9+/]{300,}={0,2}$''', # SealedSecret ciphertext, decryptable only by the cluster controller
+]

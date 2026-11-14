@@ -15,11 +15,17 @@ export class TradeCostParams {
 		readonly amount: Volume,
 		readonly price: Price,
 		readonly feeRate: Percentage,
-		readonly decimals: DecimalPrecision
+		readonly decimals: DecimalPrecision,
+		/** Half-spread + slippage, a fraction of the price paid on every fill (ADR-0066). */
+		readonly executionCostRate: Percentage
 	) {}
 
-	private _computeBaseCost(): number {
-		return roundValue(this.amount * this.price, this.decimals);
+	/** `side` 1 = buy (pays above the price), -1 = sell (receives below it). */
+	private _computeBaseCost(side: 1 | -1): number {
+		return roundValue(
+			this.amount * this.price * (1 + side * this.executionCostRate),
+			this.decimals
+		);
 	}
 
 	private _computeFee(base: number): Cash {
@@ -27,14 +33,14 @@ export class TradeCostParams {
 	}
 
 	computeBuyCosts(): BuyCostResult {
-		const baseCost = this._computeBaseCost();
+		const baseCost = this._computeBaseCost(1);
 		const fee = this._computeFee(baseCost);
 		const totalCost = Cash.of(roundValue(baseCost + fee, this.decimals));
 		return { totalCost, fee };
 	}
 
 	computeSellProceeds(): SellProceedsResult {
-		const baseProceeds = this._computeBaseCost();
+		const baseProceeds = this._computeBaseCost(-1);
 		const fee = this._computeFee(baseProceeds);
 		const netProceeds = Cash.of(roundValue(baseProceeds - fee, this.decimals));
 		return { netProceeds, fee };

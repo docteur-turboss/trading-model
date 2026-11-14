@@ -46,7 +46,7 @@ paths:
       operationId: "postMessage"
       tags:
         - "audit-logger"
-      summary: "Record a message delivered by message-manager (every topic is subscribed)"
+      summary: "Record a message delivered by message-manager (audit, training and dlq topics are subscribed)"
       x-registry-entry: "receive"
       requestBody:
         required: true

@@ -315,6 +315,33 @@ describe("MarketDataBuffer", () => {
 			expect(steps[0].price).toBe(150);
 		});
 
+		it("fills each step at the next candle's open, the last at its close", () => {
+			const sym = TradingSymbol.of("BTCUSDT");
+			[
+				{ open: 90, close: 100 },
+				{ open: 101, close: 150 },
+				{ open: 152, close: 160 },
+			].forEach(({ open, close }, idx) => {
+				buffer.addData(
+					DataType.Candle,
+					sym,
+					makeCandle({
+						symbol: sym,
+						open: Price.of(open),
+						close: Price.of(close),
+						timestamp: UnixTimestamp.of(idx + 1),
+					})
+				);
+			});
+
+			const steps = buffer.buildMarketSteps(sym);
+
+			expect(steps.map((step) => [step.price, step.fillPrice])).toEqual([
+				[150, 152],
+				[160, undefined],
+			]);
+		});
+
 		it("should return empty array for unknown symbol", () => {
 			const steps = buffer.buildMarketSteps(TradingSymbol.of("UNKNOWN"));
 
@@ -646,8 +673,8 @@ describe("MarketDataBuffer", () => {
 			expect(result).toBeNull();
 		});
 
-		it("should return windows with 11+ candles (10+ steps)", () => {
-			feedCandles(buffer, "BTCUSDT", 11);
+		it("should return windows once all three segments reach 10 steps", () => {
+			feedCandles(buffer, "BTCUSDT", 100);
 
 			const result = buffer.getAllWindows(TradingSymbol.of("BTCUSDT")) as {
 				train: unknown[];

@@ -18,7 +18,6 @@ export const PUBLIC_ROUTES = [
 	"GET /discovery-server/services/:serviceName",
 	"GET /discovery-server/services/:serviceName/:instanceId",
 	"GET /dlq-service/dlq",
-	"POST /dlq-service/dlq",
 	"DELETE /dlq-service/dlq",
 	"POST /dlq-service/dlq/replay",
 	"GET /financial-scraper/candles/sources/:source",

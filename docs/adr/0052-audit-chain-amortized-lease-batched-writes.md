@@ -7,7 +7,7 @@
 
 ## Context
 
-ADR-0050 took the lease around each append: acquire, read the head, `insertOne`, release, so 4 Mongo round trips per event and about 9 events/s whatever the number of replicas (issue #557). audit-logger listens to every topic.
+ADR-0050 took the lease around each append: acquire, read the head, `insertOne`, release, so 4 Mongo round trips per event and about 9 events/s whatever the number of replicas (issue #557). audit-logger listens to the audit, training and DLQ topics (ADR-0027).
 
 Measured on a Mongo replica set (Testcontainers, 40 events per writer, all inserted at once, `audit-contention.db.spec.ts`):
 

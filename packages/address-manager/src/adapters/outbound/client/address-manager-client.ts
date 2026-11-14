@@ -3,6 +3,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
 import { logger } from "@trading-model/http/infrastructure/logger";
+import type { IPAddress } from "@trading-model/primitives/primitives";
 import { URLString } from "@trading-model/primitives/primitives";
 import { ServiceRegistrationWire } from "@trading-model/validation/wire/service-instance";
 import type { TokenManager } from "../../../application/client/token-manager";
@@ -15,6 +16,7 @@ import { LocalIPDetector } from "../../../shared/client/local-ip-detector";
 import { addressManagerError } from "../../../shared/errors";
 import { HeartbeatRefresher } from "./heartbeat-refresher";
 
+/** Client of the discovery server: registration, heartbeats and token refresh. */
 export class AddressManagerClient {
 	private readonly _heartbeatRefresher: HeartbeatRefresher;
 
@@ -42,7 +44,7 @@ export class AddressManagerClient {
 			instanceId: this._config.identity.instanceId,
 			port: this._config.servicePort,
 			version: this._config.serviceVersion,
-			ip: LocalIPDetector.getIP() as import("@trading-model/primitives/primitives").IPAddress,
+			ip: LocalIPDetector.getIP() as IPAddress,
 		};
 	}
 

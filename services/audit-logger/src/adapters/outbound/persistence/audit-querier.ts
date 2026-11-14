@@ -5,13 +5,8 @@ import {
 } from "@trading-model/primitives/pagination";
 import type { Collection } from "mongodb";
 
-import type {
-	AuditEventDocument,
-	AuditEventQuery,
-	AuditStats,
-} from "./audit-repository";
+import type { AuditEventDocument, AuditEventQuery } from "./audit-repository";
 import { buildAuditEventFilter } from "./filter-builder";
-import { StatsAggregator } from "./stats-aggregator";
 
 /** A page; `total` is absent when the caller asked for `withTotal=false`. */
 export type AuditPage = Omit<PaginationResult<AuditEventDocument>, "total"> & {
@@ -19,11 +14,7 @@ export type AuditPage = Omit<PaginationResult<AuditEventDocument>, "total"> & {
 };
 
 export class AuditQuerier {
-	private readonly _statsAggregator: StatsAggregator;
-
-	constructor(private readonly _collection: Collection<AuditEventDocument>) {
-		this._statsAggregator = new StatsAggregator(this._collection);
-	}
+	constructor(private readonly _collection: Collection<AuditEventDocument>) {}
 
 	async query(query: AuditEventQuery): Promise<AuditPage> {
 		const { page, limit, skip } = PaginationQuery.compute(query, 100);
@@ -50,14 +41,5 @@ export class AuditQuerier {
 
 	async findById(messageId: string): Promise<AuditEventDocument | null> {
 		return await this._collection.findOne({ "metadata.messageId": messageId });
-	}
-
-	/** Starts the first per-topic / per-publisher pass in the background. */
-	warmStats(): void {
-		this._statsAggregator.warm();
-	}
-
-	getStats(): Promise<AuditStats> {
-		return this._statsAggregator.getStats();
 	}
 }

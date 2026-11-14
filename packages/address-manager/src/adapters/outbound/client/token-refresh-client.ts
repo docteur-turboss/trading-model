@@ -6,6 +6,7 @@ import type { ServiceIdentity } from "@trading-model/primitives/service-identity
 import { RotatedTokenWire } from "@trading-model/validation/wire/service-instance";
 import type { AddressManagerConfig } from "../../../domain/config/address-manager-config";
 
+/** Asks the discovery server for a fresh registration token. */
 export class TokenRefreshClient {
 	constructor(
 		private readonly _httpClient: HttpClient,

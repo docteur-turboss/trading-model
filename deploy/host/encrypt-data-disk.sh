@@ -22,7 +22,8 @@
 #              Tang server, i.e. neither the disk nor the network alone
 # --service    systemd unit that must only start once the disk is mounted
 #              (k3s, k3s-agent, docker). Repeatable
-# --migrate    the mount point already holds data: stop the services, copy it
+# --migrate    the mount point already holds data: stop the services (k3s: also
+#              its containers), refuse if a process still uses it, copy it
 #              onto the encrypted disk and keep the original as
 #              <mount>.pre-encryption-<date> (delete it once checked)
 # --name       device-mapper name (default tmdata)
@@ -30,9 +31,9 @@
 #              /root/luks-recovery-<name>.key): move it OFF the machine
 # --wipe       mandatory confirmation that --device may be erased
 #
-# Needs: cryptsetup, clevis, clevis-luks, clevis-systemd, curl, jose, rsync
-# (Debian/Ubuntu: apt-get install cryptsetup clevis clevis-luks clevis-systemd
-# clevis-tpm2 curl jose rsync).
+# Needs: cryptsetup, clevis, clevis-luks, clevis-systemd, curl, jose, rsync,
+# lsof (--migrate) (Debian/Ubuntu: apt-get install cryptsetup clevis clevis-luks
+# clevis-systemd clevis-tpm2 curl jose rsync lsof).
 set -euo pipefail
 
 DEVICE=""
@@ -80,7 +81,7 @@ $WIPE || die "--wipe is required: every byte of $DEVICE is erased"
 for tool in cryptsetup clevis jose curl lsblk findmnt mkfs.ext4 blkid; do
 	command -v "$tool" >/dev/null || die "missing tool: $tool"
 done
-$MIGRATE && { command -v rsync >/dev/null || die "missing tool: rsync"; }
+$MIGRATE && { for tool in rsync lsof; do command -v "$tool" >/dev/null || die "missing tool: $tool"; done; }
 
 pins=${#TANGS[@]}
 $TPM2 && pins=$((pins + 1))
@@ -157,7 +158,18 @@ if $MIGRATE && [ -d "$MOUNT" ] && [ -n "$(ls -A "$MOUNT")" ]; then
 		for svc in "${SERVICES[@]}"; do
 			log "stopping $svc"
 			systemctl stop "$svc"
+			# Stopping k3s leaves its containers (MySQL, Redis, Mongo, SPIRE) running.
+			case "$svc" in
+			k3s | k3s-agent) k3s-killall.sh ;;
+			docker) systemctl stop docker.socket || log "docker.socket not stopped (unit absent?)" ;;
+			esac
 		done
+	fi
+	# Also covers a missing --service: nothing is moved while a process uses the mount point.
+	if holders="$(lsof +D "$MOUNT" 2>/dev/null)"; then
+		echo "$holders" >&2
+		cryptsetup close "$NAME" # the new disk holds no data yet; rerunning needs it closed
+		die "processes still use $MOUNT (listed above); /dev/mapper/$NAME is closed, the disk is formatted but empty. Stop them (or pass --service for their unit), restart any service stopped here if you give up, then rerun"
 	fi
 	previous="${MOUNT}.pre-encryption-$(date +%Y%m%d%H%M%S)"
 	log "moving $MOUNT to $previous"

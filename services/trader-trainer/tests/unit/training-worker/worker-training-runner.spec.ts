@@ -22,6 +22,7 @@ jest.mock("../../../src/config/metrics", () => {
 
 const SETTINGS: TrainingSettings = {
 	validationSplit: 0.2,
+	testSplit: 0.15,
 	walkForwardFolds: 1,
 	generations: 2,
 	populationSize: 4,

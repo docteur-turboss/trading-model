@@ -1,15 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { HttpMethod } from "@trading-model/contracts/signed-request";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
-import type {
-	DurationMs,
-	ServiceId,
-	UnixTimestamp,
-} from "@trading-model/primitives/primitives";
-import {
-	CallStatus,
-	Endpoint,
-} from "../../src/infrastructure/monitoring/service-call-tracker";
 
 jest.mock("../../src/infrastructure/metrics", () => ({
 	CIRCUIT_BREAKER_INSTANCES_TOTAL: {
@@ -40,20 +30,19 @@ jest.mock("prom-client", () => ({
 import { STATUS_ROUTES } from "../../src/adapters/inbound/routes/metrics.routes";
 import { PING_ROUTES } from "../../src/adapters/inbound/routes/ping.routes";
 import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
-import type { IServiceCache } from "../../src/domain/discovery/service-cache.interface";
+import type { ServiceCachePort } from "../../src/domain/ports/service-cache.port";
 import {
 	CACHE_ENTRY_COUNT,
 	CIRCUIT_BREAKER_INSTANCES_TOTAL,
 } from "../../src/infrastructure/metrics";
 import { MetricsCollector } from "../../src/infrastructure/monitoring/metrics-collector";
-import { ServiceCallTracker } from "../../src/infrastructure/monitoring/service-call-tracker";
 
 describe("MetricsCollector", () => {
 	let collector: MetricsCollector;
 	let circuitBreaker: jest.Mocked<
 		Pick<DiscoveryCircuitBreaker, "getStateSummary">
 	>;
-	let serviceCache: jest.Mocked<Pick<IServiceCache, "entries">>;
+	let serviceCache: jest.Mocked<Pick<ServiceCachePort, "entries">>;
 
 	function createMocks(): void {
 		circuitBreaker = {
@@ -66,19 +55,19 @@ describe("MetricsCollector", () => {
 
 		serviceCache = {
 			entries: jest.fn<() => Promise<never[]>>().mockResolvedValue([]),
-		} as unknown as jest.Mocked<Pick<IServiceCache, "entries">>;
+		} as unknown as jest.Mocked<Pick<ServiceCachePort, "entries">>;
 	}
 
 	beforeEach(() => {
 		createMocks();
 		collector = new MetricsCollector(
 			circuitBreaker as unknown as DiscoveryCircuitBreaker,
-			serviceCache as unknown as IServiceCache
+			serviceCache as unknown as ServiceCachePort
 		);
 	});
 
 	describe("constructor", () => {
-		test("creates SystemMetrics and ServiceCallTracker with default maxCallRecords", () => {
+		test("creates SystemMetrics", () => {
 			expect(collector.getMetrics()).toMatchObject({
 				memory: expect.objectContaining({
 					totalBytes: expect.any(Number),
@@ -96,29 +85,6 @@ describe("MetricsCollector", () => {
 				uptime: expect.any(Number),
 				collectedAt: expect.any(Number),
 			});
-			expect(collector.getServiceCallTracker()).toBeInstanceOf(
-				ServiceCallTracker
-			);
-		});
-
-		test("creates ServiceCallTracker with custom maxCallRecords", () => {
-			const customCollector = new MetricsCollector(
-				circuitBreaker as unknown as DiscoveryCircuitBreaker,
-				serviceCache as unknown as IServiceCache,
-				3
-			);
-			const tracker = customCollector.getServiceCallTracker();
-			for (let i = 0; i < 5; i++) {
-				tracker.record({
-					targetService: "svc" as unknown as ServiceId,
-					endpoint: Endpoint.of("/test"),
-					method: HttpMethod.Get,
-					timestamp: 0 as unknown as UnixTimestamp,
-					durationMs: 10 as DurationMs,
-					status: CallStatus.Success,
-				});
-			}
-			expect(tracker.getRecords()).toHaveLength(3);
 		});
 	});
 
@@ -142,14 +108,6 @@ describe("MetricsCollector", () => {
 				uptime: expect.any(Number),
 				collectedAt: expect.any(Number),
 			});
-		});
-	});
-
-	describe("getServiceCallTracker", () => {
-		test("returns the ServiceCallTracker instance", () => {
-			expect(collector.getServiceCallTracker()).toBeInstanceOf(
-				ServiceCallTracker
-			);
 		});
 	});
 
@@ -208,15 +166,6 @@ describe("MetricsCollector", () => {
 				cpu: expect.any(Object),
 				uptime: expect.any(Number),
 				collectedAt: expect.any(Number),
-				callTracker: expect.objectContaining({
-					totalCalls: expect.any(Number),
-					callsByService: expect.any(Object),
-					callsByEndpoint: expect.any(Object),
-					errorsTotal: expect.any(Number),
-					avgLatencyMs: expect.any(Number),
-					totalBytesSent: expect.any(Number),
-					totalBytesReceived: expect.any(Number),
-				}),
 			});
 		});
 

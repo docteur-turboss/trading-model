@@ -7,6 +7,7 @@ import {
 } from "@trading-model/server-utils/infrastructure/signal-handler";
 import type { ShutdownHandlerDeps } from "../application/types";
 
+/** Stops the address manager on process signals, and removes its signal handlers when asked. */
 export class ShutdownHandler {
 	private readonly _metricsTimer = new TimerHandle();
 	private _signalHandlersRegistered = false;

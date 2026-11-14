@@ -5,7 +5,7 @@ import { RedisSubscriptionStore } from "../../../../src/adapters/outbound/redis-
 import {
 	SUBSCRIPTION_TTL_MS,
 	type SubscriptionStorePort,
-} from "../../../../src/application/ports/subscription-store-port";
+} from "../../../../src/domain/ports/subscription-store.port";
 import { mockSubscribeParams } from "../../../fixtures/broker.fixture";
 
 /** Hash commands of ioredis over a Map, enough for RedisSubscriptionStore. */

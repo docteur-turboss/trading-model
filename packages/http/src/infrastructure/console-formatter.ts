@@ -3,6 +3,7 @@ import type { JsonObject } from "@trading-model/primitives/primitives";
 import { getCorrelationId } from "../adapters/inbound/correlation-id";
 import { safeStringify } from "./sensitive-data-sanitizer";
 
+/** Inputs of the console formatter for one log entry. */
 export interface FormatLogEntryParams {
 	label: string;
 	timestamp: number;

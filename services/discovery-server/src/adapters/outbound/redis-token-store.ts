@@ -3,7 +3,7 @@ import type {
 	InstanceId,
 } from "@trading-model/primitives/primitives";
 import type { InstanceTokenStorePort } from "../../domain/ports/instance-token-store.port";
-import type { RedisDepsWithoutToken } from "../../shared/redis-deps";
+import type { RedisDeps } from "../../shared/redis-deps";
 import { instanceToken } from "../../shared/redis-key-builder";
 
 /**
@@ -11,7 +11,7 @@ import { instanceToken } from "../../shared/redis-key-builder";
  * metadata cleanup (instance-cleanup-handler), so an expired lease drops it.
  */
 export class RedisTokenStore implements InstanceTokenStorePort {
-	constructor(private readonly _deps: RedisDepsWithoutToken) {}
+	constructor(private readonly _deps: RedisDeps) {}
 
 	async get(instanceId: InstanceId): Promise<AuthToken | undefined> {
 		const token = await this._deps.redis.get(this._key(instanceId));

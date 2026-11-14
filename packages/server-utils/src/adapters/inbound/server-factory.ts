@@ -15,11 +15,10 @@ import type { HttpServer } from "../../shared/server-types";
 export interface HttpsServerOptions {
 	port: Port;
 	tls: TlsPaths;
-	watchTls?: boolean;
 }
 
-/** The concrete HTTPS server handle, narrowed to the Node `https.Server` raw value. */
-export type HttpsServer = HttpServer<https.Server>;
+/** The running HTTPS server. */
+export type HttpsServer = HttpServer;
 
 export type { HttpServer };
 
@@ -68,9 +67,7 @@ export async function createAndStartHttpsServer(
 
 	_startListening(httpsServer, options.port);
 
-	if (options.watchTls) {
-		_watchTlsAsync(httpsServer, options.tls);
-	}
+	_watchTlsAsync(httpsServer, options.tls);
 
-	return { raw: httpsServer, close: _createCloseHandle(httpsServer) };
+	return { close: _createCloseHandle(httpsServer) };
 }

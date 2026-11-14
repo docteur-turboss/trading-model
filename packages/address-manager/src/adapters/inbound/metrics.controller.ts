@@ -2,6 +2,7 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import type { Request, Response } from "express";
 
+/** Express handler answering with the metrics snapshot of the service. */
 export function metricsController(req: Request, res: Response) {
 	const snapshot = req.app.locals.metricsSnapshot as
 		| (() => Record<string, unknown>)

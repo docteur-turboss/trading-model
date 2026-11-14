@@ -7,11 +7,13 @@ import {
 	Uptime,
 } from "@trading-model/primitives/primitives";
 
+/** Cumulative CPU times of the host, per mode. */
 export interface CpuTimes {
 	idle: DurationMs;
 	total: DurationMs;
 }
 
+/** Host and process metrics as served by the metrics endpoint. */
 export interface SystemMetricsPayload {
 	memory: {
 		totalBytes: Bytes;
@@ -30,6 +32,7 @@ export interface SystemMetricsPayload {
 	collectedAt: number;
 }
 
+/** CPU usage in percent between two CPU time samples. */
 export function computeCpuPercent(
 	totalIdle: number,
 	totalTick: number,
@@ -51,6 +54,7 @@ export function computeCpuPercent(
 	};
 }
 
+/** Reads the host and process metrics. */
 export class SystemMetrics {
 	private _previousCpuTimes: CpuTimes = {
 		idle: 0 as DurationMs,

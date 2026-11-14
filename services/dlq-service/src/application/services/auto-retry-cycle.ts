@@ -1,26 +1,22 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
-import {
-	toMessageId,
-	toTopic,
-	type URLString,
-} from "@trading-model/primitives/primitives";
+import { toTopic, type URLString } from "@trading-model/primitives/primitives";
 import type {
 	ClaimedEntry,
 	ClaimReleasePort,
 	DlqReplaySettings,
 	EntryClaimPort,
+	LogPort,
 	MessageManagerLocatorPort,
 	ReplayAuditPort,
 	RetryLedgerPort,
-} from "../../domain/ports/replay.ports";
+	ShutdownProbe,
+} from "../../domain/ports/replay.port";
 import { generateBatchId } from "../../shared/batch-id";
-import { emitReplayMetrics } from "../../shared/replay-metrics";
-import { isShuttingDown } from "../../shared/shutdown-flag";
 import type {
 	BatchResults,
 	DlqEntryRef,
 	ReplayBatchOptions,
 } from "../../shared/types";
+import { abandonExhaustedEntries, toEntryRefs } from "./replay-entries";
 
 export interface AutoRetryCycleDeps {
 	claims: EntryClaimPort;
@@ -30,6 +26,10 @@ export interface AutoRetryCycleDeps {
 	audit: ReplayAuditPort;
 	replayBatch(options: ReplayBatchOptions): Promise<BatchResults>;
 	settings: DlqReplaySettings;
+	logger: LogPort;
+	isShuttingDown: ShutdownProbe;
+	/** Counts the outcome of a replay batch. */
+	emitReplayMetrics(success: number, failed: number): void;
 }
 
 export interface AutoRetryCycle {
@@ -39,13 +39,9 @@ export interface AutoRetryCycle {
 }
 
 export function createAutoRetryCycle(deps: AutoRetryCycleDeps): AutoRetryCycle {
+	const { logger, isShuttingDown, emitReplayMetrics } = deps;
 	async function handleAbandonedEntries(source: string): Promise<void> {
-		const abandoned = await deps.retryLedger.abandonExhaustedEntries();
-		if (abandoned > 0) {
-			logger.warn(
-				`${source}: ${abandoned} entries abandoned after max retries`
-			);
-		}
+		await abandonExhaustedEntries(deps.retryLedger, logger, source);
 	}
 
 	async function resolveMMUrlOrSkip(): Promise<URLString | null> {
@@ -94,11 +90,7 @@ export function createAutoRetryCycle(deps: AutoRetryCycleDeps): AutoRetryCycle {
 		}
 
 		const { success, errors } = await executeAutoRetryReplay(
-			entries.map((entry) => ({
-				id: toMessageId(entry.id),
-				message: entry.message,
-				service: entry.service,
-			})),
+			toEntryRefs(entries),
 			messageManagerUrl,
 			batchId
 		);

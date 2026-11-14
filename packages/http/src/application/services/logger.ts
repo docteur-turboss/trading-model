@@ -1,12 +1,12 @@
-import { CircularBuffer } from "@trading-model/common/utils/circular-buffer";
 import { setLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type JsonObject,
 	type ProcessId,
+	UnixTimestamp,
 	UserId,
 } from "@trading-model/primitives/primitives";
 import { formatLogEntry } from "../../infrastructure/console-formatter";
-import { LogDispatcher } from "../../infrastructure/log-dispatcher";
+import { sendError } from "../../infrastructure/log-dispatcher";
 import {
 	isLogLevelAtLeast,
 	type LogEntry,
@@ -20,24 +20,18 @@ import { getNodeEnv, NODE_ENV } from "../../shared/node-env";
 export type { LogEntry, LogOptions };
 export { LogLevel };
 
+const UNKNOWN_USER = UserId.of("unknown");
+
+/** Writes structured log entries at or above the configured level. */
 export class Logger {
 	private _logLevel: LogLevel;
-	private _userId: UserId = UserId.of("unknown");
 	private readonly _processId: ProcessId;
-	private readonly _buffer: CircularBuffer<LogEntry>;
-	private readonly _dispatcher: LogDispatcher;
+	private readonly _env: string | undefined;
 
-	constructor(
-		logLevel: LogLevel = LogLevel.Info,
-		processId?: ProcessId,
-		buffer?: CircularBuffer<LogEntry>,
-		dispatcher?: LogDispatcher
-	) {
+	constructor(logLevel: LogLevel = LogLevel.Info, processId?: ProcessId) {
 		this._logLevel = logLevel;
 		this._processId = processId ?? generateProcessId(logLevel);
-		this._buffer = buffer ?? new CircularBuffer<LogEntry>(1000);
-		this._dispatcher =
-			dispatcher ?? new LogDispatcher(safeStringify, this._processId);
+		this._env = getNodeEnv();
 	}
 
 	private _log(level: LogLevel, message: string, context?: JsonObject): void {
@@ -48,7 +42,7 @@ export class Logger {
 		const { label, consoleFn } = this._consoleTarget(level);
 		this._emitLog(logEntry, label, consoleFn, context);
 		if (level === LogLevel.Error) {
-			this._dispatcher.sendError(logEntry);
+			void sendError(safeStringify, logEntry, this._env);
 		}
 	}
 
@@ -73,9 +67,14 @@ export class Logger {
 		message: string,
 		context?: JsonObject
 	): LogEntry {
-		return this._dispatcher.createLogEntry(level, message, this._userId, {
+		return {
+			timestamp: UnixTimestamp.now(),
+			level,
+			message,
 			context,
-		});
+			processId: this._processId || undefined,
+			userId: UNKNOWN_USER,
+		};
 	}
 
 	private _emitLog(
@@ -84,7 +83,6 @@ export class Logger {
 		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void,
 		context?: JsonObject
 	): void {
-		this._buffer.add(logEntry);
 		consoleFn(
 			formatLogEntry({
 				label,
@@ -109,14 +107,6 @@ export class Logger {
 
 	error(message: string, context?: JsonObject) {
 		this._log(LogLevel.Error, message, context);
-	}
-
-	setUserId(userId: UserId) {
-		this._userId = userId;
-	}
-
-	getLogs() {
-		return this._buffer.getAll();
 	}
 }
 

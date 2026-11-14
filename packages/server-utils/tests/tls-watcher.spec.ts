@@ -1,5 +1,15 @@
 const mockWatch = jest.fn().mockReturnValue({ unref: jest.fn() });
 const mockAccess = jest.fn().mockResolvedValue(undefined);
+const mockSetSecureContext = jest.fn();
+const mockLoadBundle = jest.fn();
+
+jest.mock("@trading-model/http/infrastructure/http-tls-loader", () => ({
+	loadTlsPemBundle: (...args: unknown[]) => mockLoadBundle(...args),
+}));
+
+jest.mock("@trading-model/common/config/tls-paths", () => ({
+	toSecureContextOptions: (bundle: unknown) => bundle,
+}));
 
 jest.mock("node:fs", () => ({
 	constants: { R_OK: 4 },
@@ -97,5 +107,46 @@ describe("setupTlsWatcher", () => {
 		await setupTlsWatcher(server, tls as never);
 
 		expect(mockWatch).not.toHaveBeenCalled();
+	});
+});
+
+describe("TLS context reload", () => {
+	const tls = {
+		keyPath: "certs/key.pem",
+		certPath: "certs/cert.pem",
+		caPath: "certs/ca.pem",
+	};
+	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+		mockAccess.mockResolvedValue(undefined);
+		mockLoadBundle.mockResolvedValue({ key: "k", cert: "c" });
+	});
+
+	async function fire(eventType: string): Promise<void> {
+		await setupTlsWatcher(
+			{ setSecureContext: mockSetSecureContext } as never,
+			tls as never
+		);
+		const onEvent = mockWatch.mock.calls[0][1] as (
+			e: string,
+			f: string | null
+		) => void;
+		onEvent(eventType, "key.pem");
+		await wait(350);
+	}
+
+	it("should reload the secure context once after a debounced change", async () => {
+		await fire("change");
+
+		expect(mockLoadBundle).toHaveBeenCalledTimes(1);
+		expect(mockSetSecureContext).toHaveBeenCalledTimes(1);
+	});
+
+	it("should ignore events other than change", async () => {
+		await fire("rename");
+
+		expect(mockSetSecureContext).not.toHaveBeenCalled();
 	});
 });

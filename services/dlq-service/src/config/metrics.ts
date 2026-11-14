@@ -27,11 +27,6 @@ export const metrics = {
 		name: "dlq_prune_errors_total",
 		help: "Total number of prune operation errors",
 	}),
-	entrySizeBytes: new promClient.Histogram({
-		name: "dlq_entry_size_bytes",
-		help: "Size distribution of DLQ entry payloads in bytes",
-		buckets: [1024, 5120, 10240, 51200, 102400, 512000, 1048576, 5242880],
-	}),
 	auditPublishFailures: new promClient.Counter({
 		name: "dlq_audit_publish_failures_total",
 		help: "DLQ events message-manager did not accept: missing from the audit trail (ADR-0059)",

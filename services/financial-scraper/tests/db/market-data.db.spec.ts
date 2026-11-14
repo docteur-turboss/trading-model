@@ -27,7 +27,7 @@ import { MySqlCandlePublishBacklog } from "../../src/adapters/outbound/persisten
 import {
 	insertCandles,
 	selectCandlesBy,
-} from "../../src/adapters/outbound/persistence/schema/candles-schema";
+} from "../../src/adapters/outbound/persistence/schema/candles.schema";
 import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 import {
 	insertTicker,
@@ -507,6 +507,20 @@ describe("market_publish_cursors — real MySQL", () => {
 		await expect(
 			MySqlCandlePublishBacklog.countFrom(SERIES, cursor)
 		).resolves.toBe(3);
+	});
+
+	it("should read the open time of the newest candle of the series", async () => {
+		await expect(
+			MySqlCandlePublishBacklog.lastCandleOpenTime(SERIES)
+		).resolves.toBeUndefined();
+		await insertCandles([candleOf(2), candleOf(0)]);
+		await insertCandles([
+			candle({ symbol: TradingSymbol.of("ETHUSDT"), timestamp: minute(9) }),
+		]);
+
+		await expect(
+			MySqlCandlePublishBacklog.lastCandleOpenTime(SERIES)
+		).resolves.toBe(minute(2));
 	});
 
 	it("should leave the trade count out when the column is null", async () => {

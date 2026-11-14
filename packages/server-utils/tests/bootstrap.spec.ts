@@ -2,14 +2,12 @@ jest.mock("../src/infrastructure/signal-handler", () => ({
 	setupProcessHandlers: jest.fn(),
 }));
 
-import type http from "node:http";
 import { createBootstrap } from "../src/application/services/bootstrap";
 import { setupProcessHandlers } from "../src/infrastructure/signal-handler";
 
 function createMockServer() {
 	return {
 		close: jest.fn().mockResolvedValue(undefined),
-		raw: {} as http.Server,
 	};
 }
 
@@ -71,5 +69,32 @@ describe("createBootstrap", () => {
 		await shutdown("SIGTERM");
 
 		expect(onStop).toHaveBeenCalled();
+	});
+});
+
+describe("createBootstrap logging via the registry", () => {
+	it("is silent without a registered logger, then logs through the HTTP logger once registered", () => {
+		process.env.LOG_LEVEL = "info";
+		jest.isolateModules(() => {
+			const {
+				setLogger,
+				NoopLogger,
+			} = require("@trading-model/contracts/logger-registry");
+			const {
+				createBootstrap: bootstrap,
+			} = require("../src/application/services/bootstrap");
+			const info = jest.spyOn(console, "info").mockImplementation(() => {});
+			const opts = { name: "svc", createServer: () => createMockServer() };
+			setLogger(NoopLogger);
+			bootstrap(opts);
+			expect(info).not.toHaveBeenCalled();
+			// importing the HTTP logger registers it (setLogger at import time)
+			require("@trading-model/http/infrastructure/logger");
+			bootstrap(opts);
+			expect(info).toHaveBeenCalledWith(
+				expect.stringContaining("Bootstrapping service")
+			);
+			info.mockRestore();
+		});
 	});
 });

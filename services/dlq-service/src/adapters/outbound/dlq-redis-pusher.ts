@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { withTimeout } from "@trading-model/common/utils/retry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { logger } from "../../config/logger";
@@ -13,7 +14,7 @@ export async function pushToRedisQueue(id: string): Promise<void> {
 	} catch (err) {
 		logger.warn("Failed to push entry to Redis queue", {
 			entryId: id,
-			error: (err as Error)?.message,
+			error: normalizeError(err).message,
 		});
 	}
 }

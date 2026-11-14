@@ -3,7 +3,7 @@ import type {
 	JournalEntry,
 	JournalGroup,
 	MessageJournalPort,
-} from "../../application/ports/message-journal-port";
+} from "../../domain/ports/message-journal.port";
 
 interface Pending {
 	lastAttemptAt: number;

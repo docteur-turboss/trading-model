@@ -16,7 +16,6 @@ function storeWith(client: Redis = redis): RedisInstanceStore {
 	return new RedisInstanceStore({
 		redis: client,
 		keyPrefix: KEY_PREFIX,
-		signingSecret: "db-spec-secret",
 	});
 }
 

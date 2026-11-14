@@ -491,7 +491,7 @@ const agent = new TradingAgent({
     ],
     activationFunctions: summary.network.hiddenLayers.map(l => l.activation),
   },
-  wallet: { initialCash: 1000, initialPrice: 1 },
+  wallet: { initialCash: 1000, initialPrice: 1, feeRate: 0.001, executionCostRate: 0.0005 },
   actionSpace: 'discrete',
   tradeAmount: 1,
   stateManagerCfg: {

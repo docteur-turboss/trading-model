@@ -25,7 +25,6 @@ import {
 	DELIVERY_LATENCY_SECONDS,
 	IN_FLIGHT_MESSAGES,
 	MESSAGES_DELIVERED_TOTAL,
-	MESSAGES_DLQ_ERROR_TOTAL,
 	MESSAGES_DLQ_TOTAL,
 	MESSAGES_PUBLISHED_TOTAL,
 	metricsHandler,
@@ -38,7 +37,6 @@ describe("metrics", () => {
 		expect(MESSAGES_PUBLISHED_TOTAL).toBeDefined();
 		expect(MESSAGES_DELIVERED_TOTAL).toBeDefined();
 		expect(MESSAGES_DLQ_TOTAL).toBeDefined();
-		expect(MESSAGES_DLQ_ERROR_TOTAL).toBeDefined();
 	});
 
 	it("should export all histograms", () => {
@@ -57,7 +55,7 @@ describe("metrics", () => {
 			set: jest.fn<(...args: any[]) => any>(),
 			send: jest.fn<(...args: any[]) => any>(),
 		} as any;
-		metricsHandler({} as any, res);
+		metricsHandler({} as any, res, jest.fn<(...args: any[]) => any>());
 		expect(res.set).toHaveBeenCalledWith("Content-Type", "text/plain");
 		expect(mockMetricsFn).toHaveBeenCalled();
 	});

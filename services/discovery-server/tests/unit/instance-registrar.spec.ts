@@ -47,7 +47,7 @@ import type { RedisDeps } from "../../src/shared/redis-deps";
 
 function makeInstance(): ServiceInstance {
 	return {
-		serviceName: "financial-scraper-service" as ServiceId,
+		serviceName: "financial-scraper" as ServiceId,
 		instanceId: "i1" as InstanceId,
 		host: "192.168.1.10" as IPAddress,
 		port: 8444 as Port,
@@ -68,37 +68,12 @@ describe("InstanceRegistrar", () => {
 		deps = {
 			redis: MOCK_REDIS,
 			keyPrefix: "test:",
-			signingSecret: "secret",
 		};
 		registrar = new InstanceRegistrar(deps);
 		mockExec.mockResolvedValue([
 			[null, "OK"],
 			[null, "OK"],
 		]);
-	});
-
-	describe("resolveToken", () => {
-		it("should generate and persist a new token when SET returns OK", async () => {
-			mockSet.mockResolvedValue("OK");
-
-			const token = await registrar.resolveToken("i1" as never);
-
-			expect(token).toContain(Buffer.from("i1", "utf8").toString("base64url"));
-			expect(mockSet).toHaveBeenCalledWith(
-				"test:instance:i1:token",
-				expect.any(String),
-				"NX"
-			);
-		});
-
-		it("should read existing token when SET returns null", async () => {
-			mockSet.mockResolvedValue(null);
-			mockGet.mockResolvedValue("existing-token");
-
-			const token = await registrar.resolveToken("i1" as never);
-
-			expect(token).toBe("existing-token");
-		});
 	});
 
 	describe("buildStoredInstance", () => {
@@ -132,14 +107,14 @@ describe("InstanceRegistrar", () => {
 	});
 
 	describe("registerInstance", () => {
-		it("should persist instance and return token", async () => {
+		it("should persist instance", async () => {
 			mockSet.mockResolvedValue("OK");
 			mockGet.mockResolvedValue(null);
 
-			const token = await registrar.registerInstance(makeInstance());
+			await registrar.registerInstance(makeInstance());
 
 			expect(mockSadd).toHaveBeenCalledWith(
-				"test:service:financial-scraper-service:instances",
+				"test:service:financial-scraper:instances",
 				"i1"
 			);
 			expect(mockSet).toHaveBeenCalledWith(
@@ -147,7 +122,7 @@ describe("InstanceRegistrar", () => {
 				expect.any(String)
 			);
 			expect(mockExec).toHaveBeenCalled();
-			expect(token).toContain(Buffer.from("i1", "utf8").toString("base64url"));
+			expect(mockSet).toHaveBeenCalledTimes(1);
 		});
 	});
 });

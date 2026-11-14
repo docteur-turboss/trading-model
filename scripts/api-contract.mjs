@@ -41,6 +41,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, relative, resolve } from "node:path";
+import { WORKSPACE_ROOTS, walk as walkFiles } from "./lib/fs.mjs";
 
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
@@ -78,6 +79,8 @@ const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/
 const SERVICE_TO_SERVICE = {
 	"discovery-server": ["POST /register", "POST /heartbeat", "POST /token/rotate", "POST /unregister"],
 	"audit-logger": ["POST /message"],
+	// Dead letters come from message-manager only (#845): a public deposit could be replayed to any service.
+	"dlq-service": ["POST /dlq"],
 	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["POST /message", "GET /models/:symbol/:version/weights"],
@@ -98,6 +101,7 @@ const CALLERS = {
 	"message-manager POST /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
 	"message-manager DELETE /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
 	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
+	"dlq-service POST /dlq": { caller: "services/message-manager", call: /\/dlq`|"\/dlq"/ },
 	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
 	"trader-trainer POST /message": { caller: "services/trader-trainer", call: /\.intents\(/ },
 };
@@ -154,15 +158,8 @@ const errors = [];
 
 // ── Source walking ───────────────────────────────────────────────────────────
 
-function walk(dir, out = [], extension = /\.tsx?$/) {
-	for (const entry of readdirSync(dir)) {
-		if (["node_modules", "dist", "coverage", ".git"].includes(entry)) continue;
-		const path = join(dir, entry);
-		if (statSync(path).isDirectory()) walk(path, out, extension);
-		else if (extension.test(path) && !/\.(spec|test)\.tsx?$/.test(path)) out.push(path);
-	}
-	return out;
-}
+const walk = (dir, extension = /\.tsx?$/) =>
+	walkFiles(dir, (file) => extension.test(file) && !/\.(spec|test)\.tsx?$/.test(file));
 
 function parse(file) {
 	return ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
@@ -468,7 +465,7 @@ function checkCallers() {
 	for (const route of [...Object.keys(CALLERS), ...Object.keys(AWAITING_CALLER)]) {
 		if (!listed.has(route)) errors.push(`CALLERS/AWAITING_CALLER lists "${route}", which is not a service-to-service route`);
 	}
-	for (const group of ["packages", "services"]) {
+	for (const group of WORKSPACE_ROOTS) {
 		for (const workspace of readdirSync(join(ROOT, group))) {
 			const src = join(ROOT, group, workspace, "src");
 			if (!existsSync(src)) continue;
@@ -916,7 +913,7 @@ function markdownFiles() {
 	return DOC_ROOTS.flatMap((root) => {
 		const path = join(ROOT, root);
 		if (!statSync(path, { throwIfNoEntry: false })) return [];
-		return statSync(path).isDirectory() ? walk(path, [], /\.md$/) : [path];
+		return statSync(path).isDirectory() ? walk(path, /\.md$/) : [path];
 	}).filter((file) => !DOC_EXCLUDED.test(rel(file)));
 }
 

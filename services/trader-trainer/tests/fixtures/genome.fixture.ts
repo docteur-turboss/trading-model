@@ -5,7 +5,7 @@ import { createDefaultGenome } from "../../src/domain/genetic-algorithm/factory"
 import type {
 	GenomeFitnessMeta,
 	LamarckGenome,
-} from "../../src/domain/genetic-algorithm/genome-types";
+} from "../../src/domain/genetic-algorithm/genome";
 import type { DeepReadonly } from "../../src/domain/genetic-algorithm/shared-types";
 
 export function makeMinimalBestGenome(): DeepReadonly<LamarckGenome> {

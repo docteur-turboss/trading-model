@@ -40,7 +40,7 @@ jest.mock(
 	() => ({ selectTickerBy })
 );
 jest.mock(
-	"../../../../src/adapters/outbound/persistence/schema/candles-schema",
+	"../../../../src/adapters/outbound/persistence/schema/candles.schema",
 	() => ({ selectCandlesBy })
 );
 const findForAsset = jest.fn<(...args: any[]) => any>();

@@ -1,34 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_IS_SHUTTING_DOWN = jest.fn<() => boolean>();
-
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
-	logger: {
-		info: jest.fn<(...args: any[]) => any>(),
-		warn: jest.fn<(...args: any[]) => any>(),
-		error: jest.fn<(...args: any[]) => any>(),
-	},
-}));
-
-jest.mock("../../src/config/metrics", () => ({
-	metrics: {
-		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
-		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
-	},
-}));
-
-jest.mock("../../src/shared/shutdown-flag", () => ({
-	isShuttingDown: MOCK_IS_SHUTTING_DOWN,
-}));
-
 import { Limit, toInstanceId } from "@trading-model/primitives/primitives";
 import {
 	type AutoRetryCycleDeps,
 	createAutoRetryCycle,
 } from "../../src/application/services/auto-retry-cycle";
+import { FakeLogger, FakeReplayMetrics, FakeShutdown } from "../support/fakes";
 
 function makeDeps(overrides?: { autoRetryEnabled?: boolean }) {
 	const deps = {
+		logger: new FakeLogger(),
+		shutdown: new FakeShutdown(),
+		metrics: new FakeReplayMetrics(),
 		claims: {
 			claimEntriesForRetry: jest.fn<(...args: any[]) => any>(),
 			claimEntriesByIds: jest.fn<(...args: any[]) => any>(),
@@ -57,27 +40,31 @@ function makeDeps(overrides?: { autoRetryEnabled?: boolean }) {
 			autoRetryLimit: Limit.of(50, 100),
 		},
 	};
-	return deps;
+	return {
+		...deps,
+		cycleDeps: {
+			...deps,
+			isShuttingDown: deps.shutdown.probe,
+			emitReplayMetrics: deps.metrics.emit,
+		} as unknown as AutoRetryCycleDeps,
+	};
 }
 
 describe("auto-retry-cycle", () => {
-	beforeEach(() => {
-		jest.clearAllMocks();
-		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
-	});
+	beforeEach(() => {});
 
 	it("should skip the tick when auto-retry is disabled", async () => {
 		const deps = makeDeps({ autoRetryEnabled: false });
-		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
+		await createAutoRetryCycle(deps.cycleDeps).tick();
 
 		expect(deps.messageManager.resolve).not.toHaveBeenCalled();
 		expect(deps.replayBatch).not.toHaveBeenCalled();
 	});
 
 	it("should skip when shutting down", async () => {
-		MOCK_IS_SHUTTING_DOWN.mockReturnValue(true);
 		const deps = makeDeps();
-		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
+		deps.shutdown.value = true;
+		await createAutoRetryCycle(deps.cycleDeps).tick();
 
 		expect(deps.replayBatch).not.toHaveBeenCalled();
 	});
@@ -85,7 +72,7 @@ describe("auto-retry-cycle", () => {
 	it("should skip when the message-manager URL is not available", async () => {
 		const deps = makeDeps();
 		deps.messageManager.resolve.mockResolvedValue(null);
-		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
+		await createAutoRetryCycle(deps.cycleDeps).tick();
 
 		expect(deps.claimRelease.releaseStaleClaims).not.toHaveBeenCalled();
 		expect(deps.replayBatch).not.toHaveBeenCalled();
@@ -98,7 +85,7 @@ describe("auto-retry-cycle", () => {
 		]);
 		deps.replayBatch.mockResolvedValue({ success: 1, errors: [] });
 
-		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
+		await createAutoRetryCycle(deps.cycleDeps).tick();
 
 		expect(deps.claimRelease.releaseStaleClaims).toHaveBeenCalled();
 		expect(deps.claims.claimEntriesForRetry).toHaveBeenCalledWith(
@@ -117,6 +104,7 @@ describe("auto-retry-cycle", () => {
 			expect.objectContaining({ topic: "dlq-service", success: 1, failed: 0 })
 		);
 		expect(deps.retryLedger.abandonExhaustedEntries).not.toHaveBeenCalled();
+		expect(deps.metrics.batches).toEqual([{ success: 1, failed: 0 }]);
 	});
 
 	it("should abandon exhausted entries when the replay has errors", async () => {
@@ -130,7 +118,7 @@ describe("auto-retry-cycle", () => {
 		});
 		deps.retryLedger.abandonExhaustedEntries.mockResolvedValue(5);
 
-		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
+		await createAutoRetryCycle(deps.cycleDeps).tick();
 
 		expect(deps.retryLedger.abandonExhaustedEntries).toHaveBeenCalled();
 		expect(deps.audit.notifyReplay).toHaveBeenCalledWith(
@@ -142,7 +130,7 @@ describe("auto-retry-cycle", () => {
 		const deps = makeDeps();
 		deps.claims.claimEntriesForRetry.mockResolvedValue([]);
 
-		await createAutoRetryCycle(deps as unknown as AutoRetryCycleDeps).tick();
+		await createAutoRetryCycle(deps.cycleDeps).tick();
 
 		expect(deps.retryLedger.abandonExhaustedEntries).toHaveBeenCalled();
 		expect(deps.replayBatch).not.toHaveBeenCalled();
@@ -152,9 +140,9 @@ describe("auto-retry-cycle", () => {
 		const deps = makeDeps();
 		deps.retryLedger.abandonExhaustedEntries.mockResolvedValue(2);
 
-		await createAutoRetryCycle(
-			deps as unknown as AutoRetryCycleDeps
-		).handleAbandonedEntries("DLQ Redis queue");
+		await createAutoRetryCycle(deps.cycleDeps).handleAbandonedEntries(
+			"DLQ Redis queue"
+		);
 
 		expect(deps.retryLedger.abandonExhaustedEntries).toHaveBeenCalledTimes(1);
 	});

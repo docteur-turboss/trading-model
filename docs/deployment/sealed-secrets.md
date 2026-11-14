@@ -56,12 +56,18 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=MYSQL_EXPORTER_PASSWORD='your-mysql-exporter-password' \
   --from-literal=DLQ_AUTH_HMAC_SECRET='your-dlq-hmac-secret' \
   --from-literal=GRAFANA_PASSWORD='your-grafana-password' \
-  --from-literal=HMAC_SECRET='your-hmac-secret' \
   --from-literal=REDIS_INTERNAL_PASSWORD='your-redis-ha-password' \
   --from-literal=REDIS_DISCOVERY_PASSWORD='your-discovery-redis-password' \
   --from-literal=REDIS_MESSAGE_MANAGER_PASSWORD='your-message-manager-redis-password' \
   --from-literal=REDIS_DLQ_PASSWORD='your-dlq-redis-password' \
   --from-literal=REDIS_EXPORTER_PASSWORD='your-exporter-redis-password' \
+  --from-literal=MONGO_ROOT_PASSWORD='your-mongo-root-password' \
+  --from-literal=MONGO_EXPORTER_PASSWORD='your-mongo-exporter-password' \
+  --from-literal=MONGO_BACKUP_PASSWORD='your-mongo-backup-password' \
+  --from-literal=MONGO_AUDIT_PASSWORD='your-mongo-audit-password' \
+  --from-literal=MONGO_DLQ_PASSWORD='your-mongo-dlq-password' \
+  --from-literal=MONGO_AUDIT_KEYFILE="$(openssl rand -hex 64)" \
+  --from-literal=MONGO_DLQ_KEYFILE="$(openssl rand -hex 64)" \
   --dry-run=client -o yaml > /tmp/plaintext-secret.yaml
 
 # Seal it (requires kubeseal CLI)
@@ -80,6 +86,43 @@ kubectl create secret generic trading-model-secrets -n trading-model   --from-li
 ```
 
 The final file must list ALL keys. `run-migrations.sh` refuses to apply a file that lacks a key of the live Secret. A file that adds a key is applied by `run-migrations.sh` before the migrations, which then wait for the controller to write the key: `db-migrate-user` and the database pods the overlay restarts see it (issue #698).
+
+### Removing an obsolete key (contract step, ADR-0040)
+
+`run-migrations.sh` compares the keys of the LIVE Secret with the file, not with what the previous release mounts. Remove a key in this order:
+
+1. Release N stops mounting the key (no `secretKeyRef` in `deploy/k8s`: `grep -r KEY deploy/k8s`). Publish it.
+2. Release N+1 removes the key from the SealedSecret file(s), `ci-render.mjs` and `init-sealed-secrets.sh`. The previous release (N) must be a published tag that no longer mounts it, otherwise its pods fail with `CreateContainerConfigError` on restart.
+3. Deploy N+1 with the GitHub environment variable `RETIRED_SECRET_KEYS="KEY"` (space-separated, read by `deploy.yml`): the guard then accepts the file without that key. The controller erases the key when the overlay is applied.
+4. Next release: stop passing it.
+
+### Rotating secrets
+
+```bash
+bash scripts/rotate-secrets.sh --component signing|tokens|dlq|all
+DRY_RUN=true bash scripts/rotate-secrets.sh --component dlq   # no merge, apply or restart
+```
+Before `kubectl apply` the script compares the live Secret keys with the file: a live key missing from `SEALED_SECRETS_FILE` stops it (the controller would erase that key). The merged file stays on disk; add the key with `kubeseal --merge-into`, then rerun.
+
+| Component | Key | Restarted |
+|-----------|-----|-----------|
+| `signing` | `SIGNING_SECRET` | discovery-server (services re-register) |
+| `tokens` | `AUTH_TOKENS` (`name:scopes:secret`, ADR-0059): only the entry named `API_KEY_NAME` (default `ops`, scopes `API_KEY_SCOPES`) is replaced, the other keys are kept | api-gateway |
+| `dlq` | `DLQ_AUTH_HMAC_SECRET` | message-manager + dlq-service |
+
+The script merges the new key into `SEALED_SECRETS_FILE` (default `deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, commit the result), applies it, waits until the live Secret holds the value, then restarts the consumers. It never prints a value and never puts one on a command line. `SEALED_SECRETS_FILE` must be the real sealed file of the overlay: a file with `CHANGE_ME` placeholders is refused before any `kubeseal` or `apply`.
+
+For `tokens`, the new key is written to a `0600` temporary file whose path is logged: give the key to the client, then delete the file. Without that file, read it with `kubectl get secret trading-model-secrets -n trading-model -o jsonpath='{.data.AUTH_TOKENS}' | base64 -d`.
+
+`--component all` has no rollback: if `dlq` fails after `signing`, the local file and the live Secret keep the keys already rotated. Fix the cause and rerun the failed component.
+
+### Rotate a database password
+
+`rotate-secrets.sh` refuses `MYSQL_*`, `MONGO_ROOT_PASSWORD` and `REDIS_*_PASSWORD`: the password must change in the database first, then in the Secret, then in the pods.
+
+1. Change it in the database (`ALTER USER ... IDENTIFIED BY` for MySQL; `ACL SETUSER <user> >new <-old` on every Redis node, or edit `redis-ha.sh` and rerun it; for Mongo `root`, `db.getSiblingDB("admin").changeUserPassword("root", <new>)` after `auth` with the old one; the other Mongo users are applied by the `mongo-*-users` Jobs on release).
+2. Merge the new value (`kubeseal --merge-into`, see above) and apply the file.
+3. Restart every consumer of the key (`kubectl rollout restart`), then the database pods for the exporter keys.
 
 ### 3. Apply
 

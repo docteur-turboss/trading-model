@@ -39,6 +39,7 @@ describe("DlqRedisQueue", () => {
 		connect: (onReconnect?: () => void) => Promise<boolean>;
 		push: (entryId: string, maxQueueSize?: number) => Promise<boolean>;
 		pop: () => Promise<string | null>;
+		popMany: (count: number) => Promise<string[]>;
 		isAvailable: () => boolean;
 		close: () => Promise<void>;
 	};
@@ -157,8 +158,24 @@ describe("DlqRedisQueue", () => {
 			expect(mockClient.eval).toHaveBeenCalledWith(
 				expect.any(String),
 				1,
-				"dlq:queue"
+				"dlq:queue",
+				1
 			);
+		});
+
+		it("popMany takes N entries in one eval, oldest first", async () => {
+			const mockClient = {
+				eval: jest
+					.fn<(...args: any[]) => any>()
+					.mockResolvedValue(["c", "b", "a"]),
+			};
+			MOCK_GET_CLIENT.mockReturnValue(mockClient);
+			MOCK_IS_AVAILABLE.mockReturnValue(true);
+
+			const result = await new DlqRedisQueueClass().popMany(3);
+
+			expect(result).toEqual(["a", "b", "c"]);
+			expect(mockClient.eval).toHaveBeenCalledTimes(1);
 		});
 
 		it("should return null when no entries", async () => {

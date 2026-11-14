@@ -1,7 +1,7 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { PositiveInt, toMessageId } from "@trading-model/primitives/primitives";
 import { REPLAY_BATCH_TIMEOUT_MS } from "../../domain/dlq-constants";
-import type { EntryDeliveryPort } from "../../domain/ports/replay.ports";
+import type { EntryDeliveryPort } from "../../domain/ports/replay.port";
 import type {
 	BatchReplayContext,
 	BatchResults,
@@ -74,7 +74,7 @@ function _recordFailedEntry(
 		id: entry?.id ?? toMessageId("unknown"),
 		error: errorMsg,
 	});
-	logger.error("DLQ replay entry failed", {
+	getLogger().error("DLQ replay entry failed", {
 		entryId: entry?.id,
 		error: errorMsg,
 		batchId: ctx.batchId,
@@ -90,7 +90,7 @@ function waitForBatchTimeout(
 	const promise = new Promise<void>((resolve) => {
 		handle = setTimeout(() => {
 			onTimeout();
-			logger.warn(
+			getLogger().warn(
 				"DLQ batch replay timeout — stopping new requests, waiting for in-flight",
 				{ batchId }
 			);
@@ -157,7 +157,7 @@ async function _drainBatchLoop(batchLoop: Promise<void>): Promise<void> {
 	try {
 		await batchLoop;
 	} catch {
-		logger.debug("Batch loop error already handled internally");
+		getLogger().debug("Batch loop error already handled internally");
 	}
 }
 

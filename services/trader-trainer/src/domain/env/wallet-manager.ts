@@ -10,8 +10,10 @@ import { WalletConfig, type WalletConfigParams } from "./wallet-config";
 export type { WalletConfigParams as WalletConfig };
 
 export interface WalletAPI {
-	buy: (amount: Volume) => boolean;
-	sell: (amount: Volume) => boolean;
+	/** Buys at `fillPrice`, the marked price when omitted. */
+	buy: (amount: Volume, fillPrice?: Price) => boolean;
+	/** Sells at `fillPrice`, the marked price when omitted. */
+	sell: (amount: Volume, fillPrice?: Price) => boolean;
 	setPrice: (newPrice: Price) => void;
 	getPosition: () => Volume;
 	getCash: () => Cash;
@@ -35,12 +37,12 @@ class Wallet implements WalletAPI {
 		});
 	}
 
-	buy(amount: Volume): boolean {
-		return this._executor.buy(amount);
+	buy(amount: Volume, fillPrice?: Price): boolean {
+		return this._executor.buy(amount, fillPrice);
 	}
 
-	sell(amount: Volume): boolean {
-		return this._executor.sell(amount);
+	sell(amount: Volume, fillPrice?: Price): boolean {
+		return this._executor.sell(amount, fillPrice);
 	}
 
 	setPrice(newPrice: Price): void {

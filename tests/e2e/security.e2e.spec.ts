@@ -33,8 +33,8 @@ describe("Security E2E", () => {
 
 		it("is not polluted through __proto__ / constructor keys", () => {
 			for (const payload of [
-				'{"serviceName":"financial-scraper-service","__proto__":{"polluted":true}}',
-				'{"serviceName":"financial-scraper-service","constructor":{"prototype":{"polluted":true}}}',
+				'{"serviceName":"financial-scraper","__proto__":{"polluted":true}}',
+				'{"serviceName":"financial-scraper","constructor":{"prototype":{"polluted":true}}}',
 			]) {
 				const status = register(JSON.parse(payload));
 				expect(status).toBeLessThan(500);

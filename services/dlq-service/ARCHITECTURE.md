@@ -23,8 +23,8 @@ services/dlq-service/
 ├── src/
 │   ├── domain/
 │   │   ├── dlq-status.ts, dlq-constants.ts
-│   │   └── ports/            # replay.ports.ts (claim, release, retry ledger, queue, delivery, audit, settings),
-│   │                         # dlq.ports.ts (entry store, storage availability, enqueue, metrics, audit, queue pop)
+│   │   └── ports/            # replay.port.ts (claim, release, retry ledger, queue, delivery, audit, settings),
+│   │                         # dlq.port.ts (entry store, storage availability, enqueue, metrics, audit, queue pop)
 │   ├── application/
 │   │   ├── index.ts      # Bootstrap: builds the app with createDlqApp(ENV), then connect, start, stop
 │   │   ├── server.ts     # Express server factory

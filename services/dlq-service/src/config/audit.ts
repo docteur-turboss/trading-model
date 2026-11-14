@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { HELPER } from "@trading-model/broker-message";
 import { createServiceMessageManager } from "@trading-model/broker-message/application/services/create-message-manager";
 import { normalizeError } from "@trading-model/common/utils/errors";
@@ -9,7 +8,6 @@ import type {
 } from "@trading-model/contracts/dlq-events";
 import {
 	toInstanceId,
-	toMessageId,
 	toServiceId,
 	toTopic,
 } from "@trading-model/primitives/primitives";
@@ -51,10 +49,7 @@ export async function publishDlqEvent<TEvent extends DlqEvent>(
 			instanceId: toInstanceId(ENV.INSTANCE_ID),
 			serviceName: toServiceId(ServiceInstanceName.DlqService),
 		})
-			.setDelivery({
-				mode: DeliveryMode.AtLeastOnce,
-				deduplicationId: toMessageId(randomUUID()),
-			})
+			.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 			.toJSON();
 		await _messageManager().post.indirect(payload, metadata);
 		return true;

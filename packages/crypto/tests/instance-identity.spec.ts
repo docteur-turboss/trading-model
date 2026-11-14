@@ -1,13 +1,9 @@
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	IPAddress,
 	Port,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
-import {
-	generateInstanceId,
-	verifyInstanceName,
-} from "../src/application/services/instance-identity";
+import { generateInstanceId } from "../src/application/services/instance-identity";
 
 describe("generateInstanceId", () => {
 	const endpoint = {
@@ -27,23 +23,5 @@ describe("generateInstanceId", () => {
 		const id1 = generateInstanceId(endpoint);
 		const id2 = generateInstanceId(endpoint);
 		expect(id1).not.toBe(id2);
-	});
-});
-
-describe("verifyInstanceName", () => {
-	it("should return true for valid ServiceInstanceName values", () => {
-		const validNames = Object.values(ServiceInstanceName);
-		for (const name of validNames) {
-			expect(verifyInstanceName(name)).toBe(true);
-		}
-	});
-
-	it("should return false for invalid values", () => {
-		expect(
-			verifyInstanceName("non-existent-service" as ServiceInstanceName)
-		).toBe(false);
-		expect(verifyInstanceName("some-random-name" as ServiceInstanceName)).toBe(
-			false
-		);
 	});
 });

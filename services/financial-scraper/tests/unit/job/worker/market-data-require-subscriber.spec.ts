@@ -4,7 +4,7 @@ import { toTopic } from "@trading-model/primitives/primitives";
 
 jest.mock("../../../../src/infrastructure/config/env", () => ({
 	ENV: {
-		SERVICE_NAME: "financial-scraper-service",
+		SERVICE_NAME: "financial-scraper",
 		INSTANCE_ID: "financial-scraper-1",
 		BINANCE_BASE_URL: "https://api.binance.com",
 	},

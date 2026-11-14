@@ -277,6 +277,7 @@ case "$*" in
 *"get pods"*) echo "mongo-0" ;;
 *"get service"*) echo "mysql-0" ;;
 *isWritablePrimary*) echo "true" ;;
+*"status.succeeded"*) echo -n 1 ;; # retention Job done
 esac
 exit 0
 STUB_EOF

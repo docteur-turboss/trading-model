@@ -3,9 +3,9 @@ import {
 	normalizeServiceName,
 	registryNamesFor,
 } from "@trading-model/common/utils/spiffe";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { logger } from "@trading-model/http/infrastructure/logger";
 import {
 	type DurationMs,
 	IPAddress,
@@ -18,6 +18,8 @@ import {
 import { ServiceInstancesWire } from "@trading-model/validation/wire/service-instance";
 
 const DISCOVERY_SERVICE = "discovery-server";
+/** How long an empty registry answer still serves the last known target (ADR-0071). */
+const EMPTY_REGISTRY_GRACE_MS = 60_000;
 
 /** Where a call goes: an IP (so callers can check it against a CIDR allowlist). */
 export interface ResolvedTarget {
@@ -29,6 +31,8 @@ export interface ResolvedTarget {
 interface CachedTarget {
 	target: ResolvedTarget | null;
 	expiresAt: UnixTimestamp;
+	/** When the registry last answered with a live instance. */
+	seenAt: UnixTimestamp;
 }
 
 /**
@@ -96,15 +100,28 @@ export class EndpointResolver {
 			alive = await this._aliveInstance(serviceName, majorVersion);
 		} catch (error) {
 			// Registry unreachable: the last known answer beats a 404 on a healthy service.
-			logger.warn("Registry unreachable, serving last known target", {
+			getLogger().warn("Registry unreachable, serving last known target", {
 				context: { serviceName, majorVersion, error: String(error) },
 			});
 			return cached?.target ?? null;
 		}
+		if (
+			!alive &&
+			cached?.target &&
+			Date.now() - cached.seenAt < EMPTY_REGISTRY_GRACE_MS
+		) {
+			// Registry emptied (Redis restart) while services re-register: entry left expired, so the next call asks again.
+			getLogger().warn("Registry answered empty, serving last known target", {
+				context: { serviceName, majorVersion },
+			});
+			return cached.target;
+		}
 		const target = alive ? await this._locate(serviceName, alive) : null;
+		const now = Date.now();
 		this._cache.set(key, {
 			target,
-			expiresAt: UnixTimestamp.of(Date.now() + this._cacheTtlMs),
+			expiresAt: UnixTimestamp.of(now + this._cacheTtlMs),
+			seenAt: UnixTimestamp.of(now),
 		});
 		return target;
 	}
@@ -131,7 +148,7 @@ export class EndpointResolver {
 	/**
 	 * First live registered instance of the service (of the wanted major
 	 * version, any when omitted), asked under every registry alias. The one
-	 * selection path: `resolve` (gateway) and `ServiceResolver.findService`
+	 * selection path: `resolve` (gateway) and `DiscoveryRetryHandler.lookup`
 	 * (address-manager) both go through it. Throws when the registry cannot be
 	 * reached; `undefined` means it answered and nothing matches.
 	 */
@@ -165,7 +182,7 @@ export class EndpointResolver {
 					ServiceInstancesWire
 				);
 				if (!Array.isArray(instances)) {
-					logger.warn("Registry answered with a malformed body", {
+					getLogger().warn("Registry answered with a malformed body", {
 						context: { serviceName, alias: name },
 					});
 					lastError = new Error(`Malformed registry answer for "${name}"`);

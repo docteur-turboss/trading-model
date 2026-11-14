@@ -1,0 +1,106 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { delimiter, join } from 'node:path';
+import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { checkEnvironment, checkForkApproval, RULES } from './check-environment-protection.mjs';
+
+const rule = (o = {}) => ({ type: 'required_reviewers', prevent_self_review: true, reviewers: [{ type: 'User' }], ...o });
+const env = (rules, custom = true) => ({ protection_rules: rules, deployment_branch_policy: custom ? { protected_branches: false, custom_branch_policies: true } : null });
+const tag = [{ type: 'tag', name: 'v*' }];
+
+test('absent environment', () => assert.match(checkEnvironment(null, [])[0], /does not exist/));
+test('no reviewer rule', () => assert.deepEqual(checkEnvironment(env([]), tag), ['no required reviewer']));
+test('empty reviewers', () => assert.deepEqual(checkEnvironment(env([rule({ reviewers: [] })]), tag), ['no required reviewer']));
+test('self-review allowed', () => assert.match(checkEnvironment(env([rule({ prevent_self_review: false })]), tag)[0], /self-review/));
+test('no branch limit', () => assert.match(checkEnvironment(env([rule()], false), tag)[0], /not limited/));
+test('no v* tag rule', () => assert.deepEqual(checkEnvironment(env([rule()]), [{ type: 'branch', name: 'v*' }]), ['no deployment tag rule "v*"']));
+test('compliant', () => assert.deepEqual(checkEnvironment(env([rule()]), tag), []));
+const br = (...n) => n.map((name) => ({ type: 'branch', name }));
+test('staging: development + main, no reviewer needed', () => assert.deepEqual(checkEnvironment(env([]), br('development', 'main'), RULES.staging), []));
+test('staging: no branch limit', () => assert.match(checkEnvironment(env([], false), [], RULES.staging)[0], /not limited/));
+test('staging: missing main', () => assert.deepEqual(checkEnvironment(env([]), br('development'), RULES.staging), ['no deployment branch rule "main"']));
+test('staging: extra branch', () => assert.deepEqual(checkEnvironment(env([]), br('development', 'main', 'x*'), RULES.staging), ['unexpected deployment branch rule "x*"']));
+const key = RULES['backup-key-check'];
+test('backup-key-check: main + reviewer', () => assert.deepEqual(checkEnvironment(env([rule({ prevent_self_review: false })]), br('main'), key), []));
+test('backup-key-check: no reviewer', () => assert.deepEqual(checkEnvironment(env([]), br('main'), key), ['no required reviewer']));
+test('backup-key-check: any branch', () => assert.match(checkEnvironment(env([rule()], false), [], key)[0], /not limited/));
+test('backup-key-check: main plus a wildcard', () => assert.deepEqual(checkEnvironment(env([rule()]), br('main', '*'), key), ['unexpected deployment branch rule "*"']));
+test('backup-key-check: tag instead of main', () => assert.equal(checkEnvironment(env([rule()]), [{ type: 'tag', name: 'main' }], key).length, 2));
+test('fork approval: all external contributors', () => assert.deepEqual(checkForkApproval({ approval_policy: 'all_external_contributors' }), []));
+test('fork approval: first-time contributors only', () => assert.match(checkForkApproval({ approval_policy: 'first_time_contributors' })[0], /"first_time_contributors"/));
+test('fork approval: unreadable', () => assert.match(checkForkApproval(null)[0], /"unknown"/));
+
+// CLI: fake `gh` (node script) first in PATH answers from FAKE_ROUTES {path: {status, body}}.
+const dir = mkdtempSync(join(tmpdir(), 'fakegh-'));
+writeFileSync(join(dir, 'gh.js'), `const r = JSON.parse(process.env.FAKE_ROUTES)[process.argv[3]];
+if (!r) { console.error('HTTP 404'); process.exit(1); }
+if (r.status !== 200) { console.error('HTTP ' + r.status); process.exit(1); }
+console.log(JSON.stringify(r.body));`);
+writeFileSync(join(dir, 'gh.cmd'), '@node "%~dp0gh.js" %*\r\n');
+writeFileSync(join(dir, 'gh'), '#!/bin/sh\nexec node "$(dirname "$0")/gh.js" "$@"\n');
+chmodSync(join(dir, 'gh'), 0o755);
+const script = fileURLToPath(new URL('./check-environment-protection.mjs', import.meta.url));
+const pathKey = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH'); // `Path` on Windows
+const run = (name, routes, extra = {}) => {
+  const r = spawnSync(process.execPath, [script, name, 'o/r'], {
+    encoding: 'utf8',
+    env: { ...process.env, [pathKey]: dir + delimiter + process.env[pathKey], FAKE_ROUTES: JSON.stringify(routes), ...extra },
+  });
+  return { code: r.status, out: r.stdout + r.stderr };
+};
+const base = 'repos/o/r/environments/';
+const ok = { [base + 'production']: { status: 200, body: env([rule()]) }, [base + 'production/deployment-branch-policies?per_page=100']: { status: 200, body: { branch_policies: tag } } };
+
+test('cli: 404 -> ::error:: + DEPLOY.md, exit 1 in production', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+  const r = run('production', {});
+  assert.equal(r.code, 1);
+  assert.match(r.out, /::error::.*does not exist.*DEPLOY\.md/);
+});
+test('cli: 404 on staging -> ::error::, exit 1; unknown environment -> ::warning::, exit 0', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+  const r = run('staging', {});
+  assert.equal(r.code, 1);
+  assert.match(r.out, /::error::.*DEPLOY\.md/);
+  const w = run('other', {});
+  assert.equal(w.code, 0);
+  assert.match(w.out, /::warning::/);
+});
+test('cli: 403 fails closed, never compliant', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+  const r = run('production', { [base + 'production']: { status: 403 } });
+  assert.notEqual(r.code, 0);
+  assert.doesNotMatch(r.out, /::warning::/);
+});
+test('cli: compliant -> exit 0, no output', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+  const r = run('production', ok);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.out.trim(), '');
+});
+test('cli: exists output for the deploy preflight', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+  const out = join(dir, 'github-output');
+  writeFileSync(out, '');
+  run('production', {}, { GITHUB_OUTPUT: out });
+  assert.equal(readFileSync(out, 'utf8').trim(), 'exists=false');
+  writeFileSync(out, '');
+  run('production', ok, { GITHUB_OUTPUT: out });
+  assert.equal(readFileSync(out, 'utf8').trim(), 'exists=true');
+});
+const fork = 'repos/o/r/actions/permissions/fork-pr-contributor-approval';
+test('cli: fork approval compliant -> exit 0, no output', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+  const r = run('--fork-approval', { [fork]: { status: 200, body: { approval_policy: 'all_external_contributors' } } });
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.out.trim(), '');
+});
+test('cli: fork approval not compliant -> ::error::, exit 1', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+  const r = run('--fork-approval', { [fork]: { status: 200, body: { approval_policy: 'first_time_contributors_new_to_github' } } });
+  assert.equal(r.code, 1);
+  assert.match(r.out, /::error::.*first_time_contributors_new_to_github.*STAGING_LOCAL\.md/);
+});
+for (const status of [403, 404, 500]) {
+  test(`cli: fork approval HTTP ${status} fails closed`, { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+    const r = run('--fork-approval', status === 404 ? {} : { [fork]: { status } });
+    assert.notEqual(r.code, 0);
+    assert.doesNotMatch(r.out, /::warning::/);
+  });
+}

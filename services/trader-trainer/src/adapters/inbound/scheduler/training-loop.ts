@@ -29,6 +29,7 @@ export class TrainingLoop {
 		private readonly _windowing: {
 			validationSplit: number;
 			walkForwardFolds: number;
+			testSplit: number;
 		}
 	) {}
 
@@ -53,7 +54,8 @@ export class TrainingLoop {
 		return hasEnoughTrainingData(
 			this._dataBuffer.getCandleCount(symbol),
 			this._windowing.validationSplit,
-			this._windowing.walkForwardFolds
+			this._windowing.walkForwardFolds,
+			this._windowing.testSplit
 		);
 	}
 

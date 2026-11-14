@@ -141,14 +141,20 @@ describe("scripts/retention-mysql.sh — real MySQL", () => {
 		expect(output).toContain("market_trades: 0 rows");
 	});
 
-	it("should purge signals on RETENTION_SIGNALS_DAYS and market data on RETENTION_DAYS", async () => {
+	it("should purge signals and order books on their own days and market data on RETENTION_DAYS", async () => {
 		await insertAged("market_candles", "timestamp", 60);
 		await insertAged("signals", "observed_at", 60);
+		await insertAged("market_order_books", "timestamp", 60);
 
-		retention({ RETENTION_DAYS: "100", RETENTION_SIGNALS_DAYS: "30" });
+		retention({
+			RETENTION_DAYS: "100",
+			RETENTION_SIGNALS_DAYS: "30",
+			RETENTION_ORDER_BOOKS_DAYS: "30",
+		});
 
 		expect(await count("market_candles")).toBe(1);
 		expect(await count("signals")).toBe(0);
+		expect(await count("market_order_books")).toBe(0);
 	});
 
 	it("should publish metrics and keep the last success time when a table fails", async () => {

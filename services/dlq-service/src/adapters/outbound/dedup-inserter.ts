@@ -6,11 +6,6 @@ export class DedupInserter {
 		doc: Record<string, unknown>,
 		messageId: string
 	): Promise<string> {
-		const existing = await _findExisting(col, messageId);
-		if (existing) {
-			return existing;
-		}
-
 		try {
 			const result = await col.insertOne(doc);
 			return result.insertedId.toHexString();
@@ -21,14 +16,6 @@ export class DedupInserter {
 			throw err;
 		}
 	}
-}
-
-async function _findExisting(
-	col: Collection,
-	messageId: string
-): Promise<string | null> {
-	const existing = await col.findOne({ messageId }, { projection: { _id: 1 } });
-	return existing ? existing._id.toHexString() : null;
 }
 
 function _isDuplicateKeyError(err: unknown): boolean {

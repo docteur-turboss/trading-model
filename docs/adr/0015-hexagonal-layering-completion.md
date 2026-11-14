@@ -30,7 +30,7 @@ Complete the ADR-0010 migration in every backend service, by **direct migration*
 - **Runtime settings** are injected as plain objects (`SchedulerConfig`, `TrainingSettings`, `DlqReplaySettings`). When configuration may change after wiring, the container exposes them as **getters reading `ENV` on access**.
 - **Metrics** reach the domain only through ports or hooks (`DiscoveryMetricsPort`, `GaTelemetry`, `MarketDataBuffer.onDataAdded`); the Prometheus collectors stay in `config/metrics.ts` / `infrastructure/monitoring/`.
 - **Reclassify before abstracting**: a file that builds HTTP responses is an inbound adapter, a file that queries MongoDB is an outbound adapter, whatever folder it lived in. Ports are introduced only for the orchestration that genuinely belongs to the application layer.
-- Entry points are `src/application/index.ts` in every service (dlq-service and trader-trainer moved from `infrastructure/…`); `package.json` `main`/`dev`, Dockerfile `CMD` and `scripts/generate-docs.mjs` were updated accordingly.
+- Entry points are `src/application/index.ts` in every service (dlq-service and trader-trainer moved from `infrastructure/…`); `package.json` `main`/`dev`, Dockerfile `CMD` and the TypeDoc config were updated accordingly.
 
 ### Changes per workspace
 

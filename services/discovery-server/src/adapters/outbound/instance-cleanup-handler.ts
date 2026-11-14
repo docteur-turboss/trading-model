@@ -1,6 +1,6 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import type { RedisDepsWithoutToken } from "../../shared/redis-deps";
+import type { RedisDeps } from "../../shared/redis-deps";
 import {
 	instanceMetadata,
 	instanceToken,
@@ -9,7 +9,7 @@ import {
 } from "../../shared/redis-key-builder";
 
 export async function removeInstanceSetAndMetadata(
-	deps: RedisDepsWithoutToken,
+	deps: RedisDeps,
 	identity: ServiceIdentity
 ): Promise<boolean> {
 	const multi = deps.redis.multi();

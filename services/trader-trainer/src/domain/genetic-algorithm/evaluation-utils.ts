@@ -5,10 +5,9 @@ import {
 } from "@trading-model/primitives/primitives";
 import { EpisodeScores } from "./episode-scores";
 import type { EvaluationPnl } from "./evaluation-phase";
-import type { GenomeFitnessMeta } from "./genome";
+import type { GenomeFitnessMeta, LamarckGenome, MarketStep } from "./genome";
 import { FitnessType } from "./genome-control";
 import { computeAdjustedFitness, estimateComplexity } from "./genome-fitness";
-import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 
@@ -71,6 +70,23 @@ export function barsPerYear(steps: readonly MarketStep[]): number | undefined {
 	}
 	gaps.sort((left, right) => left - right);
 	return MS_PER_YEAR / gaps[Math.floor(gaps.length / 2)];
+}
+
+/**
+ * Annualised Sharpe of holding one unit over the bars of every segment: the
+ * baseline of the published agent Sharpe, on the same bars and annualised the
+ * same way.
+ */
+export function buyAndHoldSharpe(
+	segments: readonly (readonly MarketStep[])[]
+): number {
+	const curve = segments.flatMap((steps) =>
+		steps
+			.slice(1)
+			.map((step, idx) => Number(step.price) - Number(steps[idx].price))
+	);
+	const perYear = barsPerYear(segments.flat());
+	return new EpisodeScores(curve).sharpe() * Math.sqrt(perYear ?? 1);
 }
 
 interface ComputeAllResultsContext extends EvaluationPnl {

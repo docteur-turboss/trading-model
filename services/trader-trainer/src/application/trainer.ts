@@ -1,24 +1,34 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type {
-	Fitness,
-	PositiveInt,
-} from "@trading-model/primitives/primitives";
+import { Fitness, NonNegativeInt } from "@trading-model/primitives/primitives";
 import {
 	BEST_FITNESS,
+	FEATURE_DRIFT_SCORE,
+	MODEL_ADMISSION_TOTAL,
 	MODEL_ARTIFACTS_TOTAL,
+	MODEL_BELOW_BUY_AND_HOLD_STREAK,
+	MODEL_BUY_AND_HOLD_SHARPE,
+	MODEL_MAX_DRAWDOWN,
+	MODEL_RETURN,
+	MODEL_SHARPE,
 	TRAINING_DURATION_SECONDS,
 	TRAINING_SESSIONS_TOTAL,
 	TRAINING_STATUS,
 } from "../config/metrics";
 import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
-import type { GenerationContext } from "../domain/genetic-algorithm/ga-runner";
+import { featureDriftScore } from "../domain/feature-drift";
+import { buyAndHoldSharpe } from "../domain/genetic-algorithm/evaluation-utils";
+import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
+import { assessAdmission } from "../domain/model-admission";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
-import type { ModelPublisherPort } from "../domain/ports/model-publisher.port";
+import type {
+	ModelPublisherPort,
+	StoredModelRef,
+} from "../domain/ports/model-publisher.port";
 import { validateTrainingPrerequisites } from "../domain/training-prerequisite-validator";
 import type { TrainingSettings } from "../domain/training-settings";
 import {
@@ -66,6 +76,12 @@ export class Trainer {
 		TradingSymbol,
 		TrainingSnapshot
 	>();
+	/** Normalization of the newest stored model of each symbol: drift baseline. */
+	private readonly _lastModels = new Map<
+		TradingSymbol,
+		{ createdAt: number; normalization: Record<string, unknown> }
+	>();
+	private readonly _belowBuyAndHold = new Map<TradingSymbol, number>();
 	/** The session in flight, and how to end it early (ADR-0058). */
 	private _session?: { abort: AbortController; done: Promise<TrainingResult> };
 
@@ -105,9 +121,15 @@ export class Trainer {
 		}
 		for (const symbol of symbols) {
 			try {
-				const latest = (await models.list(String(symbol)))[0];
+				const latest = await models.latest(String(symbol));
 				const manifest =
 					latest && (await models.manifest(String(symbol), latest.version));
+				if (manifest && !this._lastModels.has(symbol)) {
+					this._lastModels.set(symbol, {
+						createdAt: Date.parse(manifest.createdAt),
+						normalization: manifest.normalization,
+					});
+				}
 				if (manifest && !this._symbolSnapshots.has(symbol)) {
 					const snapshot = new ArtifactTrainingInfo(
 						String(symbol),
@@ -140,6 +162,7 @@ export class Trainer {
 		if (!validation.ok) {
 			return validation.error;
 		}
+		this._reportFeatureDrift(symbol);
 		const abort = new AbortController();
 		const done = this._train(symbol, validation.windowSets, abort.signal);
 		this._session = { abort, done };
@@ -162,7 +185,7 @@ export class Trainer {
 
 	private async _train(
 		symbol: TradingSymbol,
-		windowSets: import("../domain/genetic-algorithm/ga-runner").WindowSet[],
+		windowSets: WindowSet[],
 		signal: AbortSignal
 	): Promise<TrainingResult> {
 		this._status = TrainerStatus.Training;
@@ -173,8 +196,10 @@ export class Trainer {
 			const result = await this._runSession(symbol, windowSets, signal);
 			TRAINING_SESSIONS_TOTAL.inc({ result: "success" });
 			BEST_FITNESS.set({ symbol }, result.bestFitness);
-			await this._storeModel(result);
-			await this._publishModel(symbol);
+			const stored = await this._storeModel(result, windowSets);
+			if (stored) {
+				await this._publishModel(symbol, stored);
+			}
 			return result;
 		} catch (err) {
 			TRAINING_SESSIONS_TOTAL.inc({ result: "fail" });
@@ -190,7 +215,7 @@ export class Trainer {
 
 	private async _runSession(
 		symbol: TradingSymbol,
-		windowSets: import("../domain/genetic-algorithm/ga-runner").WindowSet[],
+		windowSets: WindowSet[],
 		signal: AbortSignal
 	): Promise<TrainingSuccess> {
 		const run: TrainingRunner = this._deps.runner ?? runInProcess;
@@ -203,10 +228,9 @@ export class Trainer {
 		const outcome = {
 			symbol,
 			bestGenome: result.bestGenome,
-			bestFitness: result.bestFitness as unknown as Fitness,
+			bestFitness: Fitness.of(result.bestFitness),
 			bestFitnessMeta: result.bestFitnessMeta,
-			generation: result.generation as unknown as PositiveInt,
-			generationContext: result.generationContext,
+			generation: NonNegativeInt.of(result.generation),
 		};
 		const snapshot = new LastTrainingInfo(outcome);
 		this._lastInfo = snapshot;
@@ -220,8 +244,13 @@ export class Trainer {
 	/**
 	 * Writes the best agent as a versioned artifact. A failed write is logged
 	 * and counted: the training itself succeeded, its result stays usable.
+	 * Returns the stored artifact's identity, `undefined` when nothing was
+	 * stored (nothing may then be published).
 	 */
-	private async _storeModel(result: TrainingSuccess): Promise<void> {
+	private async _storeModel(
+		result: TrainingSuccess,
+		windowSets: WindowSet[]
+	): Promise<StoredModelRef | undefined> {
 		const models = this._deps.models;
 		if (!models) {
 			return;
@@ -238,6 +267,9 @@ export class Trainer {
 			);
 			return;
 		}
+		const normalization = this._dataBuffer.snapshotNormalization(result.symbol);
+		const last = windowSets[windowSets.length - 1];
+		const admission = assessAdmission(result.bestFitnessMeta, last?.test ?? []);
 		try {
 			const stored = await models.save({
 				symbol: result.symbol,
@@ -245,13 +277,24 @@ export class Trainer {
 				bestGenome: result.bestGenome,
 				weights: new Float32Array(weights),
 				features: NETWORK_INPUT_LAYOUT,
-				normalization: this._dataBuffer.snapshotNormalization(result.symbol),
+				normalization,
 				summary,
+				admission,
 			});
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "stored" });
-			getLogger().info("Model stored", {
-				context: { symbol: result.symbol, version: stored.version },
+			const admissible = admission?.admissible ?? false;
+			MODEL_ADMISSION_TOTAL.inc({
+				result: admissible ? "admissible" : "rejected",
 			});
+			this._lastModels.set(result.symbol, {
+				createdAt: Date.parse(stored.createdAt),
+				normalization,
+			});
+			this._reportModelPerformance(result.symbol, summary, windowSets);
+			getLogger().info("Model stored", {
+				context: { symbol: result.symbol, version: stored.version, admissible },
+			});
+			return { version: stored.version, sha256: stored.sha256, admissible };
 		} catch (err) {
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "error" });
 			getLogger().error("Failed to store model artifact", {
@@ -263,7 +306,51 @@ export class Trainer {
 		}
 	}
 
-	private async _publishModel(symbol: TradingSymbol): Promise<void> {
+	/** Out-of-sample metrics of a stored model next to buy and hold on its bars. */
+	private _reportModelPerformance(
+		symbol: TradingSymbol,
+		summary: BestAgentSummary,
+		windowSets: WindowSet[]
+	): void {
+		const labels = { symbol, segment: summary.evaluatedOn };
+		const baseline = buyAndHoldSharpe(
+			summary.evaluatedOn === "test"
+				? [windowSets[windowSets.length - 1]?.test ?? []]
+				: windowSets.map((ws) => ws.validation)
+		);
+		MODEL_SHARPE.set(labels, summary.sharpe);
+		MODEL_RETURN.set(labels, summary.avgPnl);
+		MODEL_MAX_DRAWDOWN.set(labels, summary.maxDrawdown);
+		MODEL_BUY_AND_HOLD_SHARPE.set(labels, baseline);
+		const streak =
+			summary.sharpe < baseline
+				? (this._belowBuyAndHold.get(symbol) ?? 0) + 1
+				: 0;
+		this._belowBuyAndHold.set(symbol, streak);
+		MODEL_BELOW_BUY_AND_HOLD_STREAK.set({ symbol }, streak);
+	}
+
+	/** Drift of the data received since the newest stored model, before a session. */
+	private _reportFeatureDrift(symbol: TradingSymbol): void {
+		const model = this._lastModels.get(symbol);
+		const state = this._dataBuffer.getSymbolState(symbol);
+		if (!(model && state)) {
+			return;
+		}
+		const score = featureDriftScore(
+			state,
+			model.normalization,
+			model.createdAt
+		);
+		if (score !== undefined) {
+			FEATURE_DRIFT_SCORE.set({ symbol }, score);
+		}
+	}
+
+	private async _publishModel(
+		symbol: TradingSymbol,
+		stored: StoredModelRef
+	): Promise<void> {
 		const publisher = this._deps.publisher;
 		if (!publisher) {
 			return;
@@ -273,7 +360,7 @@ export class Trainer {
 			return;
 		}
 		try {
-			await publisher.publish(symbol, summary);
+			await publisher.publish(symbol, summary, stored);
 			getLogger().info("Model published", {
 				context: { symbol, agentId: summary.id },
 			});
@@ -300,9 +387,5 @@ export class Trainer {
 
 	getBestAgentSummary(): BestAgentSummary | null {
 		return this._lastInfo.buildBestAgentSummary();
-	}
-
-	getGenerationContext(): GenerationContext | null {
-		return this._lastInfo.generationContext;
 	}
 }

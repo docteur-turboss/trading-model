@@ -1,5 +1,5 @@
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { ServiceId } from "@trading-model/primitives/primitives";
+import { svidReadinessCheck } from "@trading-model/server-utils/adapters/inbound/readiness";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 
 import {
@@ -8,7 +8,7 @@ import {
 } from "../adapters/inbound/http/routes";
 import {
 	ADDRESS_MANAGER_ROUTES,
-	AddressManager,
+	REGISTRATION_READINESS,
 } from "../config/address-manager";
 import { MessageManagerListenExpress } from "../config/message-manager";
 import { metricsHandler } from "../config/metrics";
@@ -27,21 +27,7 @@ export function createServer(trainer: Trainer, models: TrainerRoutesOptions) {
 			ADDRESS_MANAGER_ROUTES(app);
 			MessageManagerListenExpress(app);
 		},
-		readiness: [
-			{
-				name: "message-bus",
-				check: async () => {
-					// biome-ignore lint/plugin: readiness probe: failure is the negative signal
-					try {
-						const target = await AddressManager.findService(
-							ServiceInstanceName.MessageManagerService
-						);
-						return Boolean(target);
-					} catch {
-						return false;
-					}
-				},
-			},
-		],
+		// No discovery lookup: resolution falls back to the last known address during a discovery outage.
+		readiness: [svidReadinessCheck(ENV), REGISTRATION_READINESS],
 	});
 }

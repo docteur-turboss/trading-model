@@ -1,10 +1,11 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import {
 	computeRetryDelay,
 	DEFAULT_RETRY_COUNT,
 	isNonRetryableClientError,
 	isRetryableStatus,
 	isRetryableStatusPermissive,
+	RETRY_JITTER_MS,
 } from "@trading-model/http/infrastructure/http-retry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 
@@ -83,6 +84,12 @@ describe("computeRetryDelay", () => {
 	it("should return a delay value", () => {
 		const delay = computeRetryDelay(1);
 		expect(delay).toBeGreaterThanOrEqual(0);
+	});
+
+	it("should add jitter by default", () => {
+		const random = jest.spyOn(Math, "random").mockReturnValue(0.5);
+		expect(computeRetryDelay(1)).toBe(400 + RETRY_JITTER_MS / 2);
+		random.mockRestore();
 	});
 
 	it("should respect custom options", () => {

@@ -32,10 +32,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { WORKSPACE_ROOTS, walk } from './lib/fs.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LIST = process.argv.includes('--list');
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', 'build']);
 
 /**
  * Optional variables that no profile sets on purpose. Each entry says why the
@@ -51,19 +51,7 @@ const ENV_KEY = /^\s*([A-Z][A-Z0-9_]{2,}):\s*(z\b|[A-Za-z]+Schema\b)/;
 const PARSED_ENV_READ = /\b(?:env|ENV)\.([A-Z][A-Z0-9_]{2,})\b/g;
 const PROCESS_ENV = /process\.env(?:\.([A-Z][A-Z0-9_]+)|\[\s*['"]([A-Z][A-Z0-9_]+)['"]\s*\])/g;
 
-function walk(path, accept, files = []) {
-  if (!existsSync(path)) return files;
-  if (statSync(path).isFile()) {
-    if (accept(path)) files.push(path);
-    return files;
-  }
-  for (const entry of readdirSync(path)) {
-    if (!SKIP_DIRS.has(entry)) walk(join(path, entry), accept, files);
-  }
-  return files;
-}
-
-const workspaces = ['services', 'packages'].flatMap((group) =>
+const workspaces = WORKSPACE_ROOTS.flatMap((group) =>
   readdirSync(join(ROOT, group)).map((entry) => join(ROOT, group, entry)),
 );
 const sourceFiles = workspaces.flatMap((dir) =>

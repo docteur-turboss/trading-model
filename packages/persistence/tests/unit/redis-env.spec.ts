@@ -104,6 +104,41 @@ describe("redisConnectionFromEnv", () => {
 		).toEqual({ mode: "single", url: "redis://redis:6379" });
 	});
 
+	it("should keep clear connections in optional mode, even with a CA", () => {
+		const connection = redisConnectionFromEnv({
+			REDIS_SENTINELS: K8S_SENTINELS,
+			REDIS_TLS_MODE: "optional",
+			REDIS_TLS_CA: "/etc/redis-tls/ca.crt",
+		});
+		expect(connection).toMatchObject({ mode: "sentinel" });
+		expect(connection).not.toHaveProperty("config.tls", expect.anything());
+	});
+
+	it("should turn TLS on in required mode, with the default server name", () => {
+		expect(
+			redisConnectionFromEnv({
+				REDIS_URL: "redis://redis:6380",
+				REDIS_TLS_MODE: "required",
+				REDIS_TLS_CA: "/etc/redis-tls/ca.crt",
+			})
+		).toMatchObject({
+			mode: "single",
+			tls: { caPath: "/etc/redis-tls/ca.crt", servername: "redis" },
+		});
+	});
+
+	it("should refuse required mode without a CA and an unknown mode", () => {
+		expect(() =>
+			redisConnectionFromEnv({
+				REDIS_URL: "redis://r:1",
+				REDIS_TLS_MODE: "required",
+			})
+		).toThrow("REDIS_TLS_CA");
+		expect(() =>
+			redisConnectionFromEnv({ REDIS_URL: "redis://r:1", REDIS_TLS_MODE: "on" })
+		).toThrow("optional or required");
+	});
+
 	it("should leave Redis off when nothing is configured", () => {
 		expect(redisConnectionFromEnv({ REDIS_URL: "" })).toBeUndefined();
 		expect(redisConnectionFromEnv({})).toBeUndefined();

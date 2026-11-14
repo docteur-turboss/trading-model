@@ -12,10 +12,11 @@ import { InMemoryTokenStore } from "../adapters/outbound/in-memory-token-store";
 import { InstanceStore } from "../adapters/outbound/instance-store";
 import { RedisInstanceStore } from "../adapters/outbound/redis-instance-store";
 import { RedisTokenStore } from "../adapters/outbound/redis-token-store";
+import { markRegistryAvailable } from "../domain/expiration";
 import { InstanceTokenManager } from "../domain/instance-token-manager";
 import { LeaseManager } from "../domain/lease-manager";
 import type { RegistryMetricsPort } from "../domain/ports/discovery-metrics.port";
-import type { IInstanceStore } from "../domain/ports/instance-store.interface";
+import type { InstanceStorePort } from "../domain/ports/instance-store.port";
 import type { InstanceTokenStorePort } from "../domain/ports/instance-token-store.port";
 import { ServiceRegistry } from "../domain/service-registry";
 import { prometheusDiscoveryMetrics } from "../infrastructure/monitoring/metrics";
@@ -27,7 +28,7 @@ export interface ServiceRegistryOptions {
 	/** HMAC secret for instance tokens; a random one is generated when absent. */
 	signingSecret?: string;
 	/** Defaults to the in-memory InstanceStore. */
-	instanceStore?: IInstanceStore;
+	instanceStore?: InstanceStorePort;
 	/** Defaults to an in-memory store: single replica only. */
 	tokenStore?: InstanceTokenStorePort;
 	/** Defaults to the Prometheus collectors. */
@@ -70,11 +71,9 @@ export function createDiscoveryApp(
 	const redisClient = redisConnection
 		? createRedisClient(redisConnection)
 		: undefined;
-	const instanceStore = _buildInstanceStore(
-		settings,
-		redisClient,
-		redisConnection?.mode
-	);
+	// Every (re)connection: the leases could not be renewed while Redis was away.
+	redisClient?.on("ready", () => markRegistryAvailable());
+	const instanceStore = _buildInstanceStore(redisClient, redisConnection?.mode);
 	// Replicas share the instance tokens through Redis: a heartbeat may reach
 	// any of them.
 	const registry = createServiceRegistry({
@@ -96,10 +95,9 @@ export function createDiscoveryApp(
 }
 
 function _buildInstanceStore(
-	settings: DiscoveryAppSettings,
 	redisClient: Redis | undefined,
 	redisMode: RedisConnectionMode | undefined
-): IInstanceStore {
+): InstanceStorePort {
 	if (!redisClient) {
 		logger.info("Redis registry disabled — using in-memory InstanceStore");
 		return new InstanceStore();
@@ -108,6 +106,5 @@ function _buildInstanceStore(
 	return new RedisInstanceStore({
 		redis: redisClient,
 		keyPrefix: DISCOVERY_KEY_PREFIX,
-		signingSecret: settings.SIGNING_SECRET ?? "",
 	});
 }

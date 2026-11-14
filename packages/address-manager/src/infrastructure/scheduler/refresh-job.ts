@@ -1,6 +1,7 @@
 import { intervalMsToCron } from "../../shared/scheduler/cron.util";
 import type { ScheduledJob } from "./scheduler";
 
+/** Creates a scheduled job that runs the refresh on the given interval. */
 export function createRefreshJob<TClient>(
 	client: TClient,
 	executeFn: (client: TClient) => Promise<void>,

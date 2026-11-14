@@ -67,7 +67,7 @@ export const AUDIT_API = {
 		method: "POST",
 		path: "/message",
 		summary:
-			"Record a message delivered by message-manager (every topic is subscribed)",
+			"Record a message delivered by message-manager (audit, training and dlq topics are subscribed)",
 		body: DeliveredEnvelope,
 		responses: {
 			/** Acknowledges the delivery, a redelivery included (same messageId). */

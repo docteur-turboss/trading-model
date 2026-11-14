@@ -13,6 +13,13 @@ export function normalizeError(err: unknown): Error {
 	return new Error(`Unknown error: ${String(err)}`);
 }
 
+/** Reads one field of a caught value of unknown shape (driver errors, plain objects); `undefined` for non-objects. */
+export function errorProp(err: unknown, key: string): unknown {
+	return err !== null && typeof err === "object"
+		? (err as Record<string, unknown>)[key]
+		: undefined;
+}
+
 export enum ErrorCode {
 	ServiceNotFound = "ServiceNotFoundError",
 	ServiceUnreachable = "ServiceUnreachableError",

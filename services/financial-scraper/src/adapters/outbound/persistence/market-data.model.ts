@@ -19,7 +19,7 @@ import type {
 	TickerData,
 	TradeData,
 } from "../../../domain/market-data.types";
-import { insertCandles as IinsertCandles } from "./schema/candles-schema";
+import { insertCandles as IinsertCandles } from "./schema/candles.schema";
 import { insertOrderBook as IinsertOrderBook } from "./schema/order-book.schema";
 import { insertTicker as IinsertTicker } from "./schema/ticker24h.schema";
 import { insertTrades as IinsertTrades } from "./schema/trades.schema";

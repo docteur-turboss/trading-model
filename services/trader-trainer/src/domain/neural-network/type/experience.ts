@@ -24,7 +24,7 @@ export interface ForwardContext {
 	layerOutputs: Float32Array[];
 }
 
-export interface LayerWeights {
+interface LayerWeights {
 	weights: Float32Array;
 	bias: Float32Array;
 }

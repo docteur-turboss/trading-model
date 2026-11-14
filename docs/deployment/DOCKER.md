@@ -40,45 +40,15 @@ Services on `backend-net` can reach each other by Docker service name (e.g. `dis
 
 ## Multi-stage Dockerfile
 
-All **TypeScript services** use the same 3-stage pattern. Example with `discovery-server/Dockerfile`:
+All 7 TypeScript services use the same 3-stage pattern, for example [`services/discovery-server/Dockerfile`](../../services/discovery-server/Dockerfile). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
 
-```dockerfile
-FROM oven/bun:1-alpine AS deps
-WORKDIR /app
-COPY package.json bun.lock ./
-COPY packages/ packages/
-COPY services/ services/
-RUN bun install --frozen-lockfile --production
+| Stage     | Base image | Operations |
+| --------- | ---------- | ---------- |
+| `deps`    | `oven/bun:1.4.4`, pinned by digest | Copy manifests, `bun install --frozen-lockfile --production` (prod dependencies only) |
+| `build`   | `oven/bun:1.4.4`, pinned by digest | Full `bun install --frozen-lockfile`, `bun run build` (shared packages) + `bun run build` (service) |
+| `runtime` | `node:26.13.0-alpine`, pinned by digest | Add `tini` (init process) and `curl` (healthcheck), remove npm/npx, copy artifacts from previous stages, run as `appuser`; `HEALTHCHECK` calls `/health/ready` over mTLS with the SVID; `CMD ["node", ...]` |
 
-FROM oven/bun:1-alpine AS build
-WORKDIR /app
-COPY package.json bun.lock ./
-COPY packages/ packages/
-COPY services/ services/
-RUN bun install --frozen-lockfile
-RUN bun run build
-WORKDIR /app/services/discovery-server
-RUN bun run build
-
-FROM oven/bun:1-alpine AS runtime
-WORKDIR /app
-RUN apk add --no-cache tini curl
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=build /app/packages ./packages
-COPY --from=build /app/services/discovery-server/package.json ./services/discovery-server/
-COPY --from=build /app/services/discovery-server/dist ./services/discovery-server/dist
-EXPOSE 3000
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["bun", "services/discovery-server/dist/application/index.js"]
-```
-
-**Stages:**
-
-| Stage     | Base image        | Operations                                                                               |
-| --------- | ----------------- | ---------------------------------------------------------------------------------------- |
-| `deps`    | `oven/bun:1-alpine` | Copy manifests, `bun install --frozen-lockfile --production` (prod dependencies only)   |
-| `build`   | `oven/bun:1-alpine` | Full `bun install --frozen-lockfile`, `bun run build` (all shared packages) + `bun run build` (service) |
-| `runtime` | `oven/bun:1-alpine` | Add `tini` (init process) and `curl` (healthchecks), copy artifacts from previous stages |
+Bun builds, Node runs: Bun exposes neither the peer certificate on HTTPS request sockets nor `server.setSecureContext`, which caller identity and SVID rotation need ([ADR-0011](../adr/0011-spiffe-spire-workload-identity.md)).
 
 The `--production` flag in the `deps` stage omits all `devDependencies`, so the runtime image only contains what is needed to serve traffic. `node_modules` comes entirely from the `deps` stage; the `build` stage only produces `dist/` artifacts.
 
@@ -146,6 +116,8 @@ Variables expected inside the container:
 | `AUDIT_PORT`     | `8450`  | audit-logger          |
 | `DLQ_PORT`       | `8452`  | dlq-service           |
 | `EDGE_PORT`      | `8449`  | edge-proxy (HTTP)     |
+
+Every published port (these seven, plus Prometheus 9090, Alertmanager 9093, Grafana 3001, Loki 3100 and Jaeger 16686) is bound to `127.0.0.1`: only the Docker host reaches them, never the LAN. Loki has no authentication and the edge speaks plain HTTP.
 
 ---
 

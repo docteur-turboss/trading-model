@@ -31,7 +31,8 @@ RUN bun run build
 # for caller identity and SVID rotation.
 FROM node:26.13.0-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94 AS runtime
 WORKDIR /app
-RUN apk add --no-cache tini curl
+# npm/npx are unused at runtime; their bundled deps (undici, brace-expansion) trip the release scan (ADR-0038).
+RUN apk add --no-cache tini curl && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 # Owned by appuser at copy time: a `chown -R /app` afterwards rewrites every
 # file of node_modules into a second layer (twice the size, and a step slow

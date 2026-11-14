@@ -1,4 +1,4 @@
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
@@ -11,7 +11,7 @@ import type { Topic } from "@trading-model/primitives/primitives";
 import type { DlqListOptions, StoredDlqEntry } from "../outbound/repository";
 import type { ListEntriesQuery } from "./api-routes";
 
-export interface DlqPaginationQuery {
+interface DlqPaginationQuery {
 	topic: Topic | undefined;
 	pagination: OffsetPagination & Partial<CursorPagination>;
 }
@@ -30,8 +30,8 @@ function _buildPaginationQuery({
 	};
 }
 
-export interface DlqListResponse {
-	entries: import("../outbound/repository").StoredDlqEntry[];
+interface DlqListResponse {
+	entries: StoredDlqEntry[];
 	pagination: OffsetPagination & Partial<CursorPagination>;
 }
 
@@ -75,6 +75,6 @@ async function _listEntries(
 	});
 	return sendResponse(
 		_buildListResponse({ entries, pagination }),
-		200 as HttpStatusCode
+		HTTP_STATUS.OK
 	);
 }

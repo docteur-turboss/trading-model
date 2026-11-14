@@ -1,5 +1,5 @@
 import { sleep } from "@trading-model/common/utils/sleep";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { getLogger } from "@trading-model/contracts/logger-registry";
 import { STALE_CLAIM_MS } from "../../domain/dlq-constants";
 import { activeReplays } from "./active-replay-counter";
 
@@ -16,7 +16,7 @@ export class ReplayDrainService {
 			return true;
 		}
 
-		logger.info(
+		getLogger().info(
 			`Waiting for ${activeReplays.count} in-flight replays to complete`
 		);
 		const deadline = Date.now() + DRAIN_TIMEOUT_MS;
@@ -27,7 +27,7 @@ export class ReplayDrainService {
 			return true;
 		}
 
-		logger.warn(
+		getLogger().warn(
 			`${activeReplays.count} replays did not complete within drain timeout — their claims are released as stale after ${STALE_CLAIM_MS} ms`
 		);
 		return false;

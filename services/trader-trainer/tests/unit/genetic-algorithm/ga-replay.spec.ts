@@ -13,8 +13,8 @@ import {
 	type WindowSet,
 } from "../../../src/domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../../../src/domain/genetic-algorithm/ga-telemetry";
+import type { MarketStep } from "../../../src/domain/genetic-algorithm/genome";
 import { createGAControlGenome } from "../../../src/domain/genetic-algorithm/genome-control";
-import type { MarketStep } from "../../../src/domain/genetic-algorithm/genome-types";
 import { makeSeededBackendFactory } from "../../../src/domain/genetic-algorithm/rl-backend";
 
 const INPUT_DIM = 32;

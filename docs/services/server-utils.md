@@ -13,7 +13,7 @@ Depends on `primitives`, `common`, `http` (+ `express`, `helmet`, `express-rate-
 | `@trading-model/server-utils/application/services/bootstrap` | `createBootstrap` | Start / stop sequence of a service |
 | `@trading-model/server-utils/adapters/inbound/service-server-factory` | `createServiceServer`, `ServiceServerOptions` | HTTPS server with mTLS |
 | `@trading-model/server-utils/adapters/inbound/metrics-handler` | `createMetricsHandler`, `metricsHandler` | Prometheus endpoint |
-| `@trading-model/server-utils/infrastructure/telemetry` | `initializeTelemetry`, `shutdownTelemetry`, `TelemetryConfig` | Tracing |
+| `@trading-model/server-utils/infrastructure/telemetry` | `startTelemetry`, `shutdownTelemetry` | Tracing |
 | `@trading-model/server-utils/adapters/inbound/readiness` | readiness handler | Readiness probe |
 
 ## Example

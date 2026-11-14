@@ -33,7 +33,6 @@ const fakeClient = {
 
 jest.mock("../../src/adapters/outbound/http-client-manager", () => ({
 	getHttpClient: () => Promise.resolve(fakeClient),
-	reloadHttpClientTls: () => Promise.resolve(),
 	closeHttpClient: () => Promise.resolve(),
 }));
 jest.mock("../../src/adapters/outbound/audit-notifier", () => ({

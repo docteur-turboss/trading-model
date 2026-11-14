@@ -1,5 +1,5 @@
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import {
@@ -52,24 +52,24 @@ export function createHeartbeatController(registry: ServiceRegistry): {
 			if (!ttl) {
 				return sendResponse(
 					{ error: "Instance not found" },
-					404 as HttpStatusCode
+					HTTP_STATUS.NOT_FOUND
 				);
 			}
 			incHeartbeatsTotal(id.serviceName);
-			return sendResponse({ ttl }, 200 as HttpStatusCode);
+			return sendResponse({ ttl }, HTTP_STATUS.OK);
 		},
 
 		rotateToken: async ({ body }, req) => {
 			await checkToken(registry, req, body.instanceId);
 			const token = await registry.updateToken(toInstanceId(body.instanceId));
-			return sendResponse({ token }, 200 as HttpStatusCode);
+			return sendResponse({ token }, HTTP_STATUS.OK);
 		},
 
 		/** Graceful shutdown: an instance removes its own lease (authenticated by its token). */
 		unregister: async ({ body }, req) => {
 			await checkToken(registry, req, body.instanceId);
 			await registry.removeInstance(identity(body));
-			return sendResponse(undefined, 204 as HttpStatusCode);
+			return sendResponse(undefined, HTTP_STATUS.NO_CONTENT);
 		},
 	};
 }

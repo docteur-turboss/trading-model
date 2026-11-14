@@ -3,6 +3,7 @@ import {
 	createPoolOptions,
 	DEFAULT_MONGO_POOL_OPTIONS,
 	findPaginated,
+	mongoAuthFromEnv,
 	resolvePoolSize,
 } from "../../src/mongo-utils";
 
@@ -74,5 +75,23 @@ describe("findPaginated", () => {
 		expect(skip).toHaveBeenCalledWith(5);
 		expect(limit).toHaveBeenCalledWith(10);
 		expect(toArray).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("mongoAuthFromEnv", () => {
+	it("returns the pair when both are set, nothing when neither is", () => {
+		expect(
+			mongoAuthFromEnv({ MONGO_USERNAME: "u", MONGO_PASSWORD: "p" })
+		).toEqual({ username: "u", password: "p" });
+		expect(mongoAuthFromEnv({})).toBeUndefined();
+	});
+
+	it("rejects a half-set pair", () => {
+		expect(() => mongoAuthFromEnv({ MONGO_USERNAME: "u" })).toThrow(
+			"must be set together"
+		);
+		expect(() => mongoAuthFromEnv({ MONGO_PASSWORD: "p" })).toThrow(
+			"must be set together"
+		);
 	});
 });

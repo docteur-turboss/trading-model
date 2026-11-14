@@ -11,6 +11,7 @@ import type { TrainingFailure } from "./training-types";
 interface WindowingSettings {
 	validationSplit: number;
 	walkForwardFolds: number;
+	testSplit: number;
 }
 
 export function validateTrainingPrerequisites(
@@ -39,12 +40,14 @@ export function validateTrainingPrerequisites(
 	const result = hasEnoughTrainingData(
 		candles.length,
 		windowing.validationSplit,
-		windowing.walkForwardFolds
+		windowing.walkForwardFolds,
+		windowing.testSplit
 	)
 		? dataBuffer.getAllWindows(
 				symbol,
 				windowing.validationSplit,
-				windowing.walkForwardFolds
+				windowing.walkForwardFolds,
+				windowing.testSplit
 			)
 		: null;
 	if (!result) {

@@ -13,6 +13,43 @@ spec:
   selector:
     app.kubernetes.io/component: alertmanager
 ---
+# Pod addresses of the gossip peers (production cluster, ADR-0062). Not-ready
+# pods are published so the peers find each other at start.
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-headless
+  labels:
+    app.kubernetes.io/component: alertmanager
+    app.kubernetes.io/part-of: trading-model
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - port: 9093
+      name: http
+    - port: 9094
+      name: cluster
+  selector:
+    app.kubernetes.io/component: alertmanager
+---
+# Ready pods only: Prometheus sends alerts to and scrapes these, so a starting
+# or draining pod is no failed target (ServiceDown on up == 0, ADR-0062).
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-ready
+  labels:
+    app.kubernetes.io/component: alertmanager
+    app.kubernetes.io/part-of: trading-model
+spec:
+  clusterIP: None
+  ports:
+    - port: 9093
+      name: http
+  selector:
+    app.kubernetes.io/component: alertmanager
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -260,3 +297,8 @@ spec:
       ports:
         - port: 9093
           protocol: TCP
+        # Gossip between the production replicas.
+        - port: 9094
+          protocol: TCP
+        - port: 9094
+          protocol: UDP

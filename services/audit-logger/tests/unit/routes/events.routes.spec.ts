@@ -15,17 +15,8 @@ import {
 } from "@trading-model/http/adapters/inbound/api-route/api-route";
 import express from "express";
 
-jest.mock("../../../src/config/metrics", () => ({
-	EVENTS_QUERY_DURATION_SECONDS: {
-		startTimer: jest
-			.fn<(...args: any[]) => any>()
-			.mockReturnValue(jest.fn<(...args: any[]) => any>()),
-	},
-}));
-
 import { AUDIT_API } from "../../../src/adapters/inbound/http/api-routes";
 import { eventsRoutes } from "../../../src/adapters/inbound/http/events.routes";
-import { EVENTS_QUERY_DURATION_SECONDS } from "../../../src/config/metrics";
 
 const RECEIVED = new Date("2026-10-28T12:00:00.000Z");
 
@@ -115,11 +106,6 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 				limit: 10,
 				withTotal: true,
 			});
-			const startTimer = EVENTS_QUERY_DURATION_SECONDS.startTimer as jest.Mock<
-				(...args: any[]) => any
-			>;
-			expect(startTimer).toHaveBeenCalledTimes(1);
-			expect(startTimer.mock.results[0].value).toHaveBeenCalledTimes(1);
 		});
 
 		it("leaves out the empty filters and caps the limit at 1000", async () => {

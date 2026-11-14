@@ -4,7 +4,7 @@ import { MTLSAuthorizationMiddleware } from "@trading-model/http/adapters/inboun
 import { ResponseProtocol } from "@trading-model/http/adapters/inbound/response-protocol";
 import type { ServiceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
-import { configureApp, RateLimitConfig } from "./configure-app";
+import { configureApp } from "./configure-app";
 import type { ReadinessCheck } from "./readiness";
 import {
 	createAndStartHttpsServer,
@@ -15,26 +15,16 @@ import {
 
 export { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 export type { HttpServer, HttpsServer, TlsPaths };
-export { RateLimitConfig };
 
-/** Options for enabling caller authorization (ACL) on a secure server. */
+/** Enables caller authorization (ACL, ADR-0011) on a secure server; omit it to disable. */
 export interface AuthorizationOptions {
 	/** The service this server enforces authorization on behalf of. */
 	targetService: ServiceId;
-	/** Explicit allowlist; falls back to {@link DEFAULT_ACL} when omitted. */
-	allowedCallers?: ServiceId[];
-	/**
-	 * Defaults to `true`. Authorization is enabled by default so that
-	 * caller identity from attested SVIDs (ADR-0011) is enforceable.
-	 * Set `ENFORCE_MTLS_STRICT=false` to disable.
-	 */
-	enabled?: boolean;
 }
 
 /** Options for creating an mTLS-secured HTTPS server. */
 export interface SecureServerOptions extends HttpsServerOptions {
 	routes: (app: Application) => void;
-	rateLimit?: RateLimitConfig;
 	trustProxy?: boolean;
 	authorize?: AuthorizationOptions;
 	readiness?: ReadinessCheck[];
@@ -52,20 +42,14 @@ export async function createSecureServer(
 	options: SecureServerOptions
 ): Promise<HttpsServer> {
 	const app = configureApp({
-		rateLimit: options.rateLimit,
 		trustProxy: options.trustProxy,
 		readiness: options.readiness,
 	});
 
 	app.use(MTLSAuthMiddleware);
 
-	if (options.authorize?.enabled) {
-		app.use(
-			MTLSAuthorizationMiddleware(
-				options.authorize.targetService,
-				options.authorize.allowedCallers
-			)
-		);
+	if (options.authorize) {
+		app.use(MTLSAuthorizationMiddleware(options.authorize.targetService));
 	}
 
 	options.routes(app);
@@ -75,6 +59,5 @@ export async function createSecureServer(
 	return await createAndStartHttpsServer(app, {
 		port: options.port,
 		tls: options.tls,
-		watchTls: options.watchTls ?? true,
 	});
 }

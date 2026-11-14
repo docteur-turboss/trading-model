@@ -1,6 +1,6 @@
+import type { LamarckGenome } from "../genome";
 import { mutateNetworkStructure } from "../genome-network/mutation";
 import { mutateRL } from "../genome-rl/mutation";
-import type { LamarckGenome } from "../genome-types";
 import { mutateSelfAdaptiveParams } from "./self-adaptive-mutation";
 
 export function mutateGenome(

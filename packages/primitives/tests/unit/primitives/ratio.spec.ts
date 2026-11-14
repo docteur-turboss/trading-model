@@ -12,28 +12,4 @@ describe("Ratio", () => {
 		expect(() => Ratio.of(Number.POSITIVE_INFINITY)).toThrow(RangeError);
 		expect(() => Ratio.of(Number.NaN)).toThrow(RangeError);
 	});
-
-	it("should return zero", () => {
-		expect(Ratio.zero()).toBe(0);
-	});
-
-	it("should convert to number", () => {
-		expect(Ratio.toNumber(2.5 as never)).toBe(2.5);
-	});
-
-	it("should add, subtract, multiply", () => {
-		expect(Ratio.add(1 as never, 2 as never)).toBe(3);
-		expect(Ratio.subtract(5 as never, 3 as never)).toBe(2);
-		expect(Ratio.multiply(2 as never, 3 as never)).toBe(6);
-	});
-
-	it("should compare", () => {
-		expect(Ratio.gt(5 as never, 3 as never)).toBe(true);
-		expect(Ratio.lt(3 as never, 5 as never)).toBe(true);
-	});
-
-	it("should compute absolute value", () => {
-		expect(Ratio.abs(-5 as never)).toBe(5);
-		expect(Ratio.abs(5 as never)).toBe(5);
-	});
 });

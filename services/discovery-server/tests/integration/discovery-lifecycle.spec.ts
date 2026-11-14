@@ -141,7 +141,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 
 	it("should register an instance via POST /register", async () => {
 		const result = await postJson("/register", {
-			serviceName: "financial-scraper-service",
+			serviceName: "financial-scraper",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
 			port: 8444,
@@ -155,7 +155,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 
 	it("should reject registration with missing required fields", async () => {
 		const result = await postJson("/register", {
-			serviceName: "financial-scraper-service",
+			serviceName: "financial-scraper",
 		});
 		expect(result.status).toBe(400);
 		expect(result.body).toHaveProperty("error", "Validation failed");
@@ -163,7 +163,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 
 	it("should reject registration with invalid IP", async () => {
 		const result = await postJson("/register", {
-			serviceName: "financial-scraper-service",
+			serviceName: "financial-scraper",
 			instanceId: "node-1",
 			ip: "not-an-ip",
 			port: 8444,
@@ -185,26 +185,26 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 
 	it("should list registered services via GET /services", async () => {
 		await postJson("/register", {
-			serviceName: "financial-scraper-service",
+			serviceName: "financial-scraper",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
 			port: 8444,
 		});
 		await postJson("/register", {
-			serviceName: "message-delivery-service",
+			serviceName: "message-manager",
 			instanceId: "msg-1",
 			ip: "10.0.0.2",
 			port: 8445,
 		});
 		const result = await getJson("/services");
 		expect(result.status).toBe(200);
-		expect(result.body).toContain("financial-scraper-service");
-		expect(result.body).toContain("message-delivery-service");
+		expect(result.body).toContain("financial-scraper");
+		expect(result.body).toContain("message-manager");
 	});
 
 	it("should handle full lifecycle: register → heartbeat → token rotate → get instance", async () => {
 		const registerResult = await postJson("/register", {
-			serviceName: "financial-scraper-service",
+			serviceName: "financial-scraper",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
 			port: 8444,
@@ -216,7 +216,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 
 		const heartbeatResult = await postJson(
 			"/heartbeat",
-			{ serviceName: "financial-scraper-service", instanceId: "node-1" },
+			{ serviceName: "financial-scraper", instanceId: "node-1" },
 			token
 		);
 		expect(heartbeatResult.status).toBe(200);
@@ -233,23 +233,21 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			.token as string;
 		expect(newToken).not.toBe(token);
 
-		const instanceResult = await getJson(
-			"/services/financial-scraper-service/node-1"
-		);
+		const instanceResult = await getJson("/services/financial-scraper/node-1");
 		expect(instanceResult.status).toBe(200);
 		expect(instanceResult.body).toHaveProperty("instanceId", "node-1");
 	});
 
 	it("should reject heartbeat with invalid token", async () => {
 		await postJson("/register", {
-			serviceName: "financial-scraper-service",
+			serviceName: "financial-scraper",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
 			port: 8444,
 		});
 		const result = await postJson(
 			"/heartbeat",
-			{ serviceName: "financial-scraper-service", instanceId: "node-1" },
+			{ serviceName: "financial-scraper", instanceId: "node-1" },
 			"invalid-token"
 		);
 		expect(result.status).toBe(401);
@@ -257,14 +255,14 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 
 	it("should unregister an instance with its own token", async () => {
 		const registered = await postJson("/register", {
-			serviceName: "financial-scraper-service",
+			serviceName: "financial-scraper",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
 			port: 8444,
 		});
 		const { token } = registered.body as { token: string };
 		const identity = {
-			serviceName: "financial-scraper-service",
+			serviceName: "financial-scraper",
 			instanceId: "node-1",
 		};
 
@@ -272,21 +270,21 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			401
 		);
 		expect((await postJson("/unregister", identity, token)).status).toBe(204);
-		expect(
-			(await getJson("/services/financial-scraper-service/node-1")).status
-		).toBe(404);
+		expect((await getJson("/services/financial-scraper/node-1")).status).toBe(
+			404
+		);
 	});
 
 	it("should get all instances for a service via GET /services/:name", async () => {
 		const instances = [
 			{
-				serviceName: "financial-scraper-service",
+				serviceName: "financial-scraper",
 				instanceId: "node-1",
 				ip: "10.0.0.1",
 				port: 8444,
 			},
 			{
-				serviceName: "financial-scraper-service",
+				serviceName: "financial-scraper",
 				instanceId: "node-2",
 				ip: "10.0.0.2",
 				port: 8444,
@@ -296,7 +294,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			await postJson("/register", inst);
 		}
 
-		const result = await getJson("/services/financial-scraper-service");
+		const result = await getJson("/services/financial-scraper");
 		expect(result.status).toBe(200);
 		expect(Array.isArray(result.body)).toBe(true);
 		expect((result.body as unknown[]).length).toBe(2);
@@ -304,7 +302,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 
 	it("should not return expired instances on GET /services/:name", async () => {
 		await postJson("/register", {
-			serviceName: "financial-scraper-service",
+			serviceName: "financial-scraper",
 			instanceId: "node-1",
 			ip: "10.0.0.1",
 			port: 8444,
@@ -312,7 +310,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 		const now = Date.now();
 		const clock = jest.spyOn(Date, "now").mockReturnValue(now + 60_000);
 
-		const result = await getJson("/services/financial-scraper-service");
+		const result = await getJson("/services/financial-scraper");
 
 		clock.mockRestore();
 		expect(result.status).toBe(200);
@@ -325,9 +323,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 	});
 
 	it("should return 404 for unknown instance on GET /services/:name/:id", async () => {
-		const result = await getJson(
-			"/services/financial-scraper-service/non-existent"
-		);
+		const result = await getJson("/services/financial-scraper/non-existent");
 		expect(result.status).toBe(404);
 	});
 });

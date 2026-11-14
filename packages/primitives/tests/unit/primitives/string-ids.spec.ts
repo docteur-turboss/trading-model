@@ -107,26 +107,6 @@ describe("DurationMs", () => {
 		expect(DurationMs.zero()).toBe(0);
 	});
 
-	it("should convert to seconds and minutes", () => {
-		expect(DurationMs.toSeconds(5000 as never)).toBe(5);
-		expect(DurationMs.toMinutes(60000 as never)).toBe(1);
-	});
-
-	it("should add and multiply", () => {
-		expect(DurationMs.add(1000 as never, 2000 as never)).toBe(3000);
-		expect(DurationMs.multiply(1000 as never, 3)).toBe(3000);
-	});
-
-	it("should compare durations", () => {
-		expect(DurationMs.isLongerThan(5000 as never, 3000 as never)).toBe(true);
-		expect(DurationMs.isShorterThan(3000 as never, 5000 as never)).toBe(true);
-	});
-
-	it("should create from seconds and minutes", () => {
-		expect(DurationMs.fromSeconds(5)).toBe(5000);
-		expect(DurationMs.fromMinutes(2)).toBe(120000);
-	});
-
 	it("should convert via helper functions", () => {
 		expect(toDurationMs(1000)).toBe(1000);
 	});
@@ -144,14 +124,6 @@ describe("SequenceNumber", () => {
 
 	it("should throw for non-integer", () => {
 		expect(() => SequenceNumber.of(1.5)).toThrow(RangeError);
-	});
-
-	it("should return next value", () => {
-		expect(SequenceNumber.next(5 as never)).toBe(6);
-	});
-
-	it("should convert to number", () => {
-		expect(SequenceNumber.toNumber(42 as never)).toBe(42);
 	});
 });
 

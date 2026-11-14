@@ -15,6 +15,7 @@ on:
       - 'scripts/fetch-offsite.sh'
       - 'scripts/verify-backup-key.sh'
       - 'scripts/sealed-secrets-backup-identity.sh'
+      - 'scripts/rotate-secrets.sh'
       - 'deploy/backup/**'
       - 'tests/backup/**'
       - 'tests/k8s/sealed-secrets-key-drill.sh'
@@ -60,6 +61,10 @@ jobs:
       # Selective MongoDB restore: --ns, --into-scratch, refusals (issue #335).
       - name: Test the selective MongoDB restore
         run: bash tests/backup/restore-mongo-ns.test.sh
+
+      # Retention purge after a MySQL restore: a failed Job ends the wait at once (issue #743).
+      - name: Test the post-restore retention purge
+        run: bash tests/backup/restore-retention-purge.test.sh
 
       # Same options against the real mongorestore of the compose image.
       - name: Test the selective MongoDB restore against a real mongorestore
@@ -171,6 +176,9 @@ jobs:
 
       - name: Test the key backup and restore scripts
         run: bash tests/backup/sealed-secrets-key.test.sh
+
+      - name: Test rotate-secrets.sh
+        run: bash tests/backup/rotate-secrets.test.sh
 
       - name: Build backup-tools
         run: docker build -q -t backup-tools deploy/backup

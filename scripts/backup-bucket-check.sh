@@ -5,6 +5,7 @@
 #            [--endpoint URL] [--min-days N] [--max-days N]
 #          AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_REGION=...
 #          BACKUP_S3_IMMUTABILITY_CHECK=enforce|warn
+#          BACKUP_S3_ALLOWED_REGIONS="eu-west-3 fr-par ..."
 #
 #  The off-site copy is the only one left after the loss (or the compromise)
 #  of the cluster, whose namespace holds the bucket's credentials. Only
@@ -27,7 +28,15 @@
 #      `daily/` lifecycle rule, default 31, ADR-0032): the daily copies of
 #      the DLQ, checkpoints and SPIRE CA keys would outlive their 31 days
 #      off-site (data minimisation), and the lifecycle rules could not expire
-#      them on time.
+#      them on time;
+#    - the bucket's region (`aws s3api get-bucket-location`; `null` is
+#      us-east-1, `EU` is eu-west-1) is not in BACKUP_S3_ALLOWED_REGIONS
+#      (space-separated, default: EU regions of AWS, Scaleway and OVH) or
+#      cannot be read (S3-compatible stores may not answer): the backups
+#      stay in the EU (GDPR art. 44, docs/compliance/third-party-dpas.md);
+#    - a lifecycle rule is missing (or the configuration unreadable) for
+#      `<prefix>daily/`, `weekly/` or `monthly/` (ADR-0032): the backup job
+#      has no aws CLI, so the copies there would never expire.
 #
 #  BACKUP_S3_IMMUTABILITY_CHECK: `enforce` (default in production) turns a
 #  problem into `::error::` and exit 1; `warn` (default elsewhere) into
@@ -73,6 +82,7 @@ done
 [[ "$MAX_DAYS" =~ ^[0-9]+$ ]] || usage_error "--max-days must be a number of days, not '${MAX_DAYS}'"
 [ "$MIN_DAYS" -le "$MAX_DAYS" ] || usage_error "--min-days (${MIN_DAYS}) is greater than --max-days (${MAX_DAYS})"
 
+ALLOWED_REGIONS="${BACKUP_S3_ALLOWED_REGIONS:-eu-central-1 eu-central-2 eu-west-1 eu-west-2 eu-west-3 eu-north-1 eu-south-1 eu-south-2 fr-par nl-ams pl-waw gra sbg rbx par}"
 MODE="${BACKUP_S3_IMMUTABILITY_CHECK:-}"
 if [ -z "$MODE" ]; then
 	if [ "$ENVIRONMENT" = production ]; then MODE=enforce; else MODE=warn; fi
@@ -144,4 +154,28 @@ fi
 [ "$retention" -le "$MAX_DAYS" ] ||
 	problem "Bucket ${name} locks files ${retention} days, more than the ${MAX_DAYS} days of the daily/ lifecycle rule: daily copies (DLQ, checkpoints, SPIRE CA keys) would outlive their retention (ADR-0032)"
 
-echo "Bucket ${name}: Object Lock COMPLIANCE, default retention ${retention} days (${MIN_DAYS} to ${MAX_DAYS} expected)"
+if ! location="$(aws "${endpoint[@]}" s3api get-bucket-location --bucket "$name" --output json 2>"$err")"; then
+	problem "Region of bucket ${name} not readable, cannot check it is in the allowed list (${ALLOWED_REGIONS}): $(tr '\n' ' ' <"$err")"
+fi
+region="$(jq -r '.LocationConstraint // "us-east-1"' <<<"$location" 2>/dev/null)" ||
+	problem "Region of bucket ${name} is not the JSON S3 returns: ${location}"
+[ "$region" != EU ] || region=eu-west-1
+case " ${ALLOWED_REGIONS} " in
+*" ${region} "*) ;;
+*) problem "Bucket ${name} is in region ${region}, not in the allowed list (${ALLOWED_REGIONS}): off-site backups must stay in the EU (GDPR art. 44, docs/compliance/third-party-dpas.md)" ;;
+esac
+
+prefix="${BUCKET#s3://}"
+prefix="${prefix#"$name"}"
+prefix="${prefix#/}"
+[ -z "$prefix" ] || prefix="${prefix%/}/"
+if ! rules="$(aws "${endpoint[@]}" s3api get-bucket-lifecycle-configuration --bucket "$name" --output json 2>"$err")"; then
+	problem "Lifecycle rules of bucket ${name} not readable (none set, credentials without s3:GetLifecycleConfiguration, or store without the call): $(tr '
+' ' ' <"$err")"
+fi
+for tier in daily weekly monthly; do
+	grep -qF "\"${prefix}${tier}/\"" <<<"$rules" ||
+		problem "Bucket ${name} has no lifecycle rule for ${prefix}${tier}/: those copies are never expired (BACKUP_DR.md, Off-site tiers)"
+done
+
+echo "Bucket ${name}: region ${region}, Object Lock COMPLIANCE, default retention ${retention} days (${MIN_DAYS} to ${MAX_DAYS} expected)"

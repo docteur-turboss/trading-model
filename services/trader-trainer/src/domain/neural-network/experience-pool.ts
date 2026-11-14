@@ -2,7 +2,7 @@ import { agentError } from "../../shared/errors";
 
 import type { Experience } from "./type";
 
-export interface IExperiencePool {
+export interface ExperiencePoolPort {
 	add(experience: Experience): void;
 	getPool(): Experience[];
 	getPoolSize(): number;
@@ -18,7 +18,7 @@ interface PrioritizedSample {
 	weights: Float32Array;
 }
 
-export interface IPrioritizedExperiencePool extends IExperiencePool {
+export interface PrioritizedExperiencePoolPort extends ExperiencePoolPort {
 	/** Draws `batchSize` experiences with replacement, proportionally to P(i). */
 	sampleWithWeights(batchSize: number): PrioritizedSample;
 	/** Sets p_i = |δ_i| + ε for each sampled id; unknown ids are ignored. */
@@ -36,7 +36,7 @@ export interface PerConfig {
 const PRIORITY_EPSILON = 1e-6;
 const DEFAULT_BETA_ANNEAL_RATE = 1e-4;
 
-const DISABLED_POOL: IExperiencePool = {
+const DISABLED_POOL: ExperiencePoolPort = {
 	add: () => {
 		// Intentional no-op.
 	},
@@ -48,7 +48,7 @@ const DISABLED_POOL: IExperiencePool = {
 	},
 };
 
-class ExperiencePool implements IExperiencePool {
+class ExperiencePool implements ExperiencePoolPort {
 	private _poolMap = new Map<number, Experience>();
 	protected _nextPoolId = 0;
 	private readonly _poolMaxSize: number;
@@ -134,7 +134,7 @@ class ExperiencePool implements IExperiencePool {
  */
 class PrioritizedExperiencePool
 	extends ExperiencePool
-	implements IPrioritizedExperiencePool
+	implements PrioritizedExperiencePoolPort
 {
 	/** p_i^α per pool id, scaled once when the priority changes. */
 	private readonly _priorities = new Map<number, number>();
@@ -254,7 +254,7 @@ export function createPrioritizedExperiencePool(
 	poolMaxSize: number,
 	perConfig: PerConfig,
 	rng: () => number = Math.random
-): IPrioritizedExperiencePool {
+): PrioritizedExperiencePoolPort {
 	return new PrioritizedExperiencePool(poolMaxSize, perConfig, rng);
 }
 
@@ -263,7 +263,7 @@ export function createExperiencePool(
 	poolMaxSize: number,
 	perConfig?: PerConfig & { prioritized: boolean },
 	rng: () => number = Math.random
-): IExperiencePool {
+): ExperiencePoolPort {
 	if (!enablePool) {
 		return DISABLED_POOL;
 	}

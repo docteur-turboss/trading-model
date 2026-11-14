@@ -8,24 +8,11 @@ describe("parseApiKey", () => {
 			name: "ops-alice",
 			scopes: ["read", "dlq:write"],
 			secret: "s3cr3t",
-			legacy: false,
 		});
 		expect(parseApiKey("grafana:read:abc")).toMatchObject({
 			name: "grafana",
 			scopes: ["read"],
 		});
-	});
-
-	it("accepts a bare secret for one release, with every scope, under a name that is not the secret", () => {
-		const key = parseApiKey("old-shared-secret");
-
-		expect(key).toMatchObject({
-			scopes: ["read", "dlq:write"],
-			secret: "old-shared-secret",
-			legacy: true,
-		});
-		expect((key as { name: string }).name).toMatch(/^legacy-[0-9a-f]{8}$/);
-		expect((key as { name: string }).name).not.toContain("old-shared");
 	});
 
 	it.each([
@@ -38,6 +25,13 @@ describe("parseApiKey", () => {
 
 		expect(result.error).toContain(reason);
 		expect(result.error).not.toContain(":s");
+	});
+
+	it("refuses a bare secret without quoting it", () => {
+		const result = parseApiKey("old-shared-secret") as { error: string };
+
+		expect(result.error).toContain("bare secret");
+		expect(result.error).not.toContain("old-shared");
 	});
 });
 

@@ -42,7 +42,7 @@ const METADATA = {
 	eventType: MarketEvent.TestEvent,
 	schemaVersion: "1.0.0",
 	publisher: {
-		serviceName: "financial-scraper-service",
+		serviceName: "financial-scraper",
 		instanceId: "financial-scraper-1",
 	},
 };
@@ -50,7 +50,7 @@ const METADATA = {
 async function publishInSpan(): Promise<
 	ReturnType<typeof createRecordingBrokerClient>["requests"]
 > {
-	const broker = createRecordingBrokerClient("financial-scraper-service");
+	const broker = createRecordingBrokerClient("financial-scraper");
 	const spanContext = trace.setSpanContext(ROOT_CONTEXT, {
 		traceId: TRACE_ID,
 		spanId: SPAN_ID,
@@ -84,7 +84,7 @@ describe("trace context on the bus", () => {
 	});
 
 	it("publishes without traceparent outside a span", async () => {
-		const broker = createRecordingBrokerClient("financial-scraper-service");
+		const broker = createRecordingBrokerClient("financial-scraper");
 		await broker.client.publish({ ping: true }, METADATA as never);
 
 		const [request] = broker.requests;

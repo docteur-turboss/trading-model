@@ -7,15 +7,15 @@ import {
 	PositiveInt,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type { DeadLetterStorePort } from "../../application/ports/dead-letter-store-port";
+import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
+import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "../../domain/backoff-calculator";
+import { DlqReason } from "../../domain/delivery-error-classifier";
+import type { DeadLetterStorePort } from "../../domain/ports/dead-letter-store.port";
 import type {
 	DeadLetterInput,
 	DeliverySendInput,
 	MessageDeliveryPort,
-} from "../../application/ports/message-delivery-port";
-import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
-import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "../../domain/backoff-calculator";
-import { DlqReason } from "../../domain/delivery-error-classifier";
+} from "../../domain/ports/message-delivery.port";
 
 /**
  * Answers saying the message itself is wrong (the subscriber's callback

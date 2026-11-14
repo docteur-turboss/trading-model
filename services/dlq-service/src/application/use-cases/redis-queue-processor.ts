@@ -1,9 +1,9 @@
 import type { URLString } from "@trading-model/primitives/primitives";
-import type { QueuePopPort } from "../../domain/ports/dlq.ports";
+import type { QueuePopPort } from "../../domain/ports/dlq.port";
 import type {
 	ClaimReleasePort,
 	MessageManagerLocatorPort,
-} from "../../domain/ports/replay.ports";
+} from "../../domain/ports/replay.port";
 
 export interface RedisQueueProcessorDeps {
 	queue: QueuePopPort;

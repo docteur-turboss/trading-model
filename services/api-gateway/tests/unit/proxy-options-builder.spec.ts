@@ -12,6 +12,7 @@ jest.mock("@trading-model/http/infrastructure/http-tls-loader", () => ({
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
+		AUTH_TOKEN_HEADER: "x-api-key",
 		PROXY_TIMEOUT_MS: 10000,
 		TLS_KEY_PATH: "/run/spire/svid/svid_key.pem",
 		TLS_CERT_PATH: "/run/spire/svid/svid.pem",

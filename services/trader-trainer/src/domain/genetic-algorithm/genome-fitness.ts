@@ -26,6 +26,8 @@ export interface GenomeFitnessMeta {
 	pnlCurve?: EpisodeScores;
 	/** Bars per year of the evaluated data: annualises the published ratios. */
 	barsPerYear?: number;
+	/** Segment the scores come from; absent: validation, the selection data. */
+	evaluatedOn?: "validation" | "test";
 }
 
 export interface Genome {
@@ -49,7 +51,13 @@ export interface PopMember {
 }
 
 export interface MarketStep {
+	/** Close of the bar: what the decision knows, and the wallet's mark. */
 	price: Price;
+	/**
+	 * Where the decision of this bar fills: the open of the next bar (ADR-0066).
+	 * Absent on the last bar of a series, which fills at its close.
+	 */
+	fillPrice?: Price;
 	features: FeatureVector;
 	timestamp?: number;
 }

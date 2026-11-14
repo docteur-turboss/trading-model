@@ -2,7 +2,7 @@ import type { ServiceInstanceName } from "@trading-model/common/config/services.
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import { InstanceId } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import type { IInstanceStore } from "../../domain/ports/instance-store.interface";
+import type { InstanceStorePort } from "../../domain/ports/instance-store.port";
 import type { RedisDeps } from "../../shared/redis-deps";
 import { instanceMetadata } from "../../shared/redis-key-builder";
 import { removeInstanceSetAndMetadata } from "./instance-cleanup-handler";
@@ -22,7 +22,7 @@ import { InstanceRegistrar } from "./instance-registrar";
  * @see InstanceStore — in-memory counterpart
  * @see CacheStore — client-side cache (address-manager)
  */
-export class RedisInstanceStore implements IInstanceStore {
+export class RedisInstanceStore implements InstanceStorePort {
 	public readonly reader: InstanceMetadataReader;
 	public readonly registrar: InstanceRegistrar;
 	public readonly heartbeatHandler: InstanceHeartbeatHandler;
@@ -39,7 +39,7 @@ export class RedisInstanceStore implements IInstanceStore {
 		);
 	}
 
-	registerInstance(instance: ServiceInstance): Promise<string> {
+	registerInstance(instance: ServiceInstance): Promise<void> {
 		return this.registrar.registerInstance(instance);
 	}
 
@@ -72,16 +72,5 @@ export class RedisInstanceStore implements IInstanceStore {
 
 	removeInstance(identity: ServiceIdentity): Promise<boolean> {
 		return removeInstanceSetAndMetadata(this.deps, identity);
-	}
-
-	async dump(): Promise<Record<string, ServiceInstance[]>> {
-		const serviceNames = await this.reader.listServiceNames();
-		const snapshot: Record<string, ServiceInstance[]> = {};
-		for (const name of serviceNames) {
-			snapshot[name as ServiceInstanceName] = await this.getInstances(
-				name as ServiceInstanceName
-			);
-		}
-		return snapshot;
 	}
 }

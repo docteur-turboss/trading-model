@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@trading-model/primitives": "*",
-    "@trading-model/contracts": "*"
+    "@trading-model/contracts": "*",
+    "axios": "^1.21.0"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",

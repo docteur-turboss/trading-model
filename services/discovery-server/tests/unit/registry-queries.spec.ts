@@ -66,7 +66,7 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 		app.use(express.json());
 		app.use((req, res, next) => REGISTRY_ROUTES(registry)(req, res, next));
 		await new Promise<void>((resolve) => {
-			server = app.listen(0, resolve);
+			server = app.listen(0, () => resolve());
 		});
 		baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 	});
@@ -82,35 +82,28 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 	/** GET the path, check the response against the route's entry. */
 	async function get(route: ApiRoute, path: string) {
 		const res = await fetch(`${baseUrl}${path}`);
-		const body = await res.json();
+		const body = (await res.json()) as any;
 		expect(responseIssues(route, res.status, body)).toEqual([]);
 		return { status: res.status, body };
 	}
 
 	it("lists the services with registered instances", async () => {
-		await registry.registerInstance(
-			instance("financial-scraper-service", "i1")
-		);
+		await registry.registerInstance(instance("financial-scraper", "i1"));
 
 		const { status, body } = await get(DISCOVERY_API.listServices, "/services");
 
 		expect(status).toBe(200);
-		expect(body).toEqual(["financial-scraper-service"]);
+		expect(body).toEqual(["financial-scraper"]);
 	});
 
 	describe("GET /services/:serviceName", () => {
 		it("answers the live instances, expired leases left out", async () => {
-			await registry.registerInstance(
-				instance("financial-scraper-service", "i1")
-			);
-			await registerExpired(
-				registry,
-				instance("financial-scraper-service", "i2")
-			);
+			await registry.registerInstance(instance("financial-scraper", "i1"));
+			await registerExpired(registry, instance("financial-scraper", "i2"));
 
 			const { status, body } = await get(
 				DISCOVERY_API.getServiceInstances,
-				"/services/financial-scraper-service"
+				"/services/financial-scraper"
 			);
 
 			expect(status).toBe(200);
@@ -128,30 +121,15 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 			expect(status).toBe(404);
 			expect(body).toEqual({ error: "Unknown service" });
 		});
-
-		it("answers 404 when the name does not verify", async () => {
-			jest
-				.spyOn(registry.tokenManager, "verifyInstanceName")
-				.mockReturnValue(false);
-
-			const { status } = await get(
-				DISCOVERY_API.getServiceInstances,
-				"/services/financial-scraper-service"
-			);
-
-			expect(status).toBe(404);
-		});
 	});
 
 	describe("GET /services/:serviceName/:instanceId", () => {
 		it("answers the instance", async () => {
-			await registry.registerInstance(
-				instance("financial-scraper-service", "i1")
-			);
+			await registry.registerInstance(instance("financial-scraper", "i1"));
 
 			const { status, body } = await get(
 				DISCOVERY_API.getInstance,
-				"/services/financial-scraper-service/i1"
+				"/services/financial-scraper/i1"
 			);
 
 			expect(status).toBe(200);
@@ -162,7 +140,7 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 		it.each([
 			[
 				"an unknown instance",
-				"/services/financial-scraper-service/nope",
+				"/services/financial-scraper/nope",
 				"Instance not found",
 			],
 			[
@@ -172,9 +150,7 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 			],
 			["an unknown service", "/services/unknown-service/i1", "Unknown service"],
 		])("answers 404 for %s", async (_label, path, error) => {
-			await registry.registerInstance(
-				instance("financial-scraper-service", "i1")
-			);
+			await registry.registerInstance(instance("financial-scraper", "i1"));
 
 			const { status, body } = await get(DISCOVERY_API.getInstance, path);
 
@@ -183,14 +159,11 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 		});
 
 		it("answers 404 for an expired lease", async () => {
-			await registerExpired(
-				registry,
-				instance("financial-scraper-service", "old")
-			);
+			await registerExpired(registry, instance("financial-scraper", "old"));
 
 			const { status } = await get(
 				DISCOVERY_API.getInstance,
-				"/services/financial-scraper-service/old"
+				"/services/financial-scraper/old"
 			);
 
 			expect(status).toBe(404);

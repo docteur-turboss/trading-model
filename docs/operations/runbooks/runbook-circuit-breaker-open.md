@@ -26,6 +26,10 @@ are not covered by this alert. message-manager's own breaker is separate:
 
 ## Symptom
 
+The shared HTTP client has its own breaker (per hostname and per service). Each
+call it refuses increments `http_circuit_breaker_rejections_total{target,kind}`;
+a sustained rate fires `HttpCircuitBreakerRejecting` (warning).
+
 A caller stopped sending requests to one instance of a dependency. With a
 single instance (or all of them open), the calls fail fast: discovery falls back
 to a stale cached instance (log `Circuit breaker exhausted — returning stale

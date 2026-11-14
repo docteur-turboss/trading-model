@@ -1,6 +1,11 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
+import { ENV } from "../../src/infrastructure/config/env";
 import { safeHeaders } from "../../src/shared/proxy-header-sanitizer";
 import { createReq } from "../helpers/express";
+
+jest.mock("../../src/infrastructure/config/env", () => ({
+	ENV: { AUTH_TOKEN_HEADER: "x-api-key" },
+}));
 
 describe("safeHeaders", () => {
 	it("forwards only the anonymized caller address", () => {
@@ -55,5 +60,20 @@ describe("safeHeaders", () => {
 		);
 
 		expect(headers["x-actor"]).toBeUndefined();
+	});
+
+	it("drops the configured AUTH_TOKEN_HEADER, whatever its name", () => {
+		const original = ENV.AUTH_TOKEN_HEADER;
+		ENV.AUTH_TOKEN_HEADER = "X-Gateway-Key";
+		try {
+			const headers = safeHeaders(
+				createReq({ headers: { "x-gateway-key": "secret", accept: "a" } })
+			);
+
+			expect(headers["x-gateway-key"]).toBeUndefined();
+			expect(headers.accept).toBe("a");
+		} finally {
+			ENV.AUTH_TOKEN_HEADER = original;
+		}
 	});
 });

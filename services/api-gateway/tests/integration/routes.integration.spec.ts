@@ -30,7 +30,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		CACHE_TTL_MS: 30000,
 		AUTH_TOKEN_HEADER: "x-api-key",
 		AUTH_TOKENS:
-			"test-token,secondary-token,reader:read:reader-secret,ops-alice:read+dlq:write:alice-secret",
+			"all:read+dlq:write:test-token,all2:read+dlq:write:secondary-token,reader:read:reader-secret,ops-alice:read+dlq:write:alice-secret",
 		PROXY_TIMEOUT_MS: 5000,
 		ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
 	},
@@ -311,7 +311,6 @@ describe("API Gateway — Routes Integration", () => {
 	});
 
 	it.each([
-		["POST", "/v1/dlq-service/dlq"],
 		["DELETE", "/v1/dlq-service/dlq"],
 		["POST", "/v1/dlq-service/dlq/replay"],
 	])("refuses %s %s with 403 to a read-only key", async (method, path) => {
@@ -325,6 +324,20 @@ describe("API Gateway — Routes Integration", () => {
 			body: { ids: ["a"] },
 		});
 		expect(result.status).toBe(403);
+		expect(forwardRequest).not.toHaveBeenCalled();
+	});
+
+	it("does not expose POST /dlq-service/dlq: an API client cannot store a dead letter to replay (#845)", async () => {
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const result = await request(server, "/v1/dlq-service/dlq", {
+			method: "POST",
+			headers: AUTH_HEADERS,
+			body: { service: "trader-service", message: { forged: true } },
+		});
+		expect(result.status).toBe(404);
 		expect(forwardRequest).not.toHaveBeenCalled();
 	});
 

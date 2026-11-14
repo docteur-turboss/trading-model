@@ -32,6 +32,7 @@ describe("dlq-constants", () => {
 			_id: 1,
 			topic: 1,
 			message: 1,
+			service: 1,
 			reason: 1,
 			deliveryAttempt: 1,
 			createdAt: 1,

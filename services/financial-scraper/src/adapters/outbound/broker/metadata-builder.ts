@@ -1,15 +1,20 @@
+import { randomUUID } from "node:crypto";
 import { HELPER } from "@trading-model/broker-message";
-import type { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { MarketEvent } from "@trading-model/contracts/market-events";
 import type { Signature } from "@trading-model/contracts/signed-request";
-import { toTopic } from "@trading-model/primitives/primitives";
+import { sha256Base64url } from "@trading-model/crypto/adapters/outbound/node-hash";
 import {
-	buildAuthContext,
-	buildDeliveryConfig,
-	buildIds,
-	buildPublisher,
-	computeSignature,
-} from "./message-builder";
+	toCorrelationId,
+	toInstanceId,
+	toRole,
+	toServiceId,
+	toSubject,
+	toTenantId,
+	toTopic,
+} from "@trading-model/primitives/primitives";
+import { ENV } from "../../../infrastructure/config/env";
 
 /**
  * Builds the metadata shared by the market data messages of one scrape cycle.
@@ -19,15 +24,25 @@ import {
 export function createMarketDataMetadata(
 	deliveryMode?: DeliveryMode
 ): typeof HELPER.metadataBuilder.prototype {
-	const authContext = buildAuthContext();
-	const signature = computeSignature(authContext);
+	const authContext = {
+		roles: ["Data", "Financial", "Scraper"].map(toRole),
+		subject: toSubject(ENV.SERVICE_NAME),
+		tenantId: toTenantId(ENV.INSTANCE_ID),
+	};
+	const signature = sha256Base64url(deterministicStringify(authContext));
 
 	return new HELPER.metadataBuilder(
 		toTopic(MarketEvent.FetchCandlestickSeries),
 		MarketEvent.FetchCandlestickSeries,
-		buildPublisher()
+		{
+			instanceId: toInstanceId(ENV.INSTANCE_ID),
+			serviceName: toServiceId(ENV.SERVICE_NAME),
+		}
 	)
-		.setDelivery(buildDeliveryConfig(deliveryMode))
+		.setDelivery({ mode: deliveryMode ?? DeliveryMode.AtLeastOnce })
 		.setSecurity({ authContext, signature: signature as Signature })
-		.setIds(buildIds());
+		.setIds({
+			causationId: toCorrelationId(randomUUID()),
+			correlationId: toCorrelationId(randomUUID()),
+		});
 }

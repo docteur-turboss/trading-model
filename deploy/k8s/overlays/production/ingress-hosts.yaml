@@ -1,7 +1,8 @@
-# Public host names of production (issue #415), copied into the Ingresses by
-# the component ../../ingress/hosts. Replace the example.com placeholders with
-# the real names before the first deploy: deploy.yml refuses production while
-# the rendered overlay contains example.com. Never applied (local-config).
+# Real host names of production (issues #415, #1131), copied into the Ingresses
+# by the component ../../ingress/hosts. deploy.yml refuses production if the
+# rendered overlay contains example.com. The ingress is not exposed to the
+# Internet: certificates come through DNS-01 (docs/deployment/KUBERNETES.md).
+# Never applied (local-config).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,5 +10,5 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 data:
-  api: api.trading-model.example.com
-  grafana: grafana.trading-model.example.com
+  api: api.trading.horus-turboss.fr
+  grafana: grafana.trading.horus-turboss.fr

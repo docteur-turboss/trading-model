@@ -3,6 +3,7 @@ import { createReq } from "../helpers/express";
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
+		AUTH_TOKEN_HEADER: "x-api-key",
 		PROXY_TIMEOUT_MS: 10000,
 		PROXY_MAX_RESPONSE_BYTES: 16,
 	},
@@ -520,7 +521,7 @@ describe("proxy-handler", () => {
 		);
 		const {
 			UpstreamResponseTooLargeError,
-		} = require("../../src/application/ports");
+		} = require("../../src/domain/ports/gateway.port");
 		const req = createReq({ method: "GET" });
 		await expect(
 			forward({ req, target: MOCK_TARGET, path: "/test" })

@@ -1,6 +1,6 @@
 import type { EvaluationPnl } from "./evaluation-phase";
 import type { WindowSet } from "./generation-types";
-import type { LamarckGenome } from "./genome-types";
+import type { LamarckGenome } from "./genome";
 import type { DeepReadonly } from "./shared-types";
 
 function invariant(condition: boolean, message: string): asserts condition {

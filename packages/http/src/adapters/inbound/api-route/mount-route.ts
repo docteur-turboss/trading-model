@@ -5,11 +5,13 @@ import type { ResponseObject } from "../response-exception/http-codes";
 import { sendResponse } from "../response-exception/send-response";
 import { type ApiRoute, type ApiRouteInput, parseRequest } from "./api-route";
 
+/** Handler of an API route: receives the validated input and the Express request. */
 export type ApiRouteHandler<Route extends ApiRoute> = (
 	input: ApiRouteInput<Route>,
 	req: Parameters<RequestHandler>[0]
 ) => ResponseObject | Promise<ResponseObject>;
 
+/** Options for mounting an API route on an Express router. */
 export interface MountRouteOptions {
 	/** Run before validation, in order (rate limiters, request signature...). */
 	middlewares?: RequestHandler[];

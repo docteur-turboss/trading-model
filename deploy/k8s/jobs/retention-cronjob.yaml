@@ -9,7 +9,7 @@
 #
 #  Metrics: /backups/metrics/retention.prom, served by backup-metrics-exporter.
 #  Alerts: RetentionFailed, RetentionStale (runbook BACKUP_DR.md#retention-job).
-#  Durations: RETENTION_DAYS / RETENTION_SIGNALS_DAYS (docs/deployment/ENV.md).
+#  Durations: RETENTION_DAYS / RETENTION_SIGNALS_DAYS / RETENTION_ORDER_BOOKS_DAYS (docs/deployment/ENV.md).
 # =============================================================================
 apiVersion: batch/v1
 kind: CronJob
@@ -33,6 +33,10 @@ spec:
       activeDeadlineSeconds: 14400
       ttlSecondsAfterFinished: 172800
       template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: retention
+            app.kubernetes.io/part-of: trading-model
         spec:
           serviceAccountName: backup-runner
           restartPolicy: Never
@@ -76,15 +80,25 @@ spec:
                       key: MYSQL_RETENTION_PASSWORD
                 - name: RETENTION_DAYS
                   value: "1827"
+                - name: RETENTION_ORDER_BOOKS_DAYS
+                  value: "180"
                 - name: RETENTION_BATCH_SIZE
                   value: "10000"
                 - name: RETENTION_PAUSE_SECONDS
                   value: "1"
+                - name: MYSQL_HOME
+                  value: /etc/mysql-client
                 - name: METRICS_FILE
                   value: /backups/metrics/retention.prom
               volumeMounts:
                 - name: scripts
                   mountPath: /scripts
+                  readOnly: true
+                - name: mysql-tls
+                  mountPath: /etc/mysql-tls
+                  readOnly: true
+                - name: mysql-client-tls
+                  mountPath: /etc/mysql-client
                   readOnly: true
                 - name: backup-data
                   mountPath: /backups
@@ -100,6 +114,12 @@ spec:
               configMap:
                 name: backup-scripts
                 defaultMode: 0555
+            - name: mysql-tls
+              secret:
+                secretName: mysql-client-retention
+            - name: mysql-client-tls
+              configMap:
+                name: mysql-client-tls
             - name: backup-data
               persistentVolumeClaim:
                 claimName: backup-data

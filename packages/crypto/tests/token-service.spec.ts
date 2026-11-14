@@ -4,11 +4,6 @@ describe("token-service", () => {
 		expect(typeof mod.generateInstanceId).toBe("function");
 	});
 
-	it("should re-export verifyInstanceName", () => {
-		const mod = require("../src/application/services/token-service");
-		expect(typeof mod.verifyInstanceName).toBe("function");
-	});
-
 	it("should re-export generateInstanceToken", () => {
 		const mod = require("../src/application/services/token-service");
 		expect(typeof mod.generateInstanceToken).toBe("function");

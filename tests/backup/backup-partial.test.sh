@@ -259,20 +259,23 @@ corrupt_plain "entry path outside BACKUP_DIR" \
 mv "$WORK/newest.json" "$newest"
 BACKUP_DIR="$ENCRYPTED_DIR" AGE_SUFFIX="$SAVED_SUFFIX"
 
-echo "backups taken before manifests"
+echo "runs without manifest"
 (printf '%s' "$DUMP_OK" | gzip | seal) >"$BACKUP_DIR/mysql/financial_scraper_2026-10-01_020000.sql.gz.age"
 out="$(restore_dry restore-k8s.sh --components mysql --timestamp 2026-10-01_020000 || true)"
-echo "$out" | grep -q 'has no manifest' && echo "$out" | grep -q 'Restoring mysql from: .*2026-10-01' &&
-	pass "restorable with an explicit --timestamp, with a warning" || failed "legacy run not restorable: $out"
-LEGACY="$WORK/legacy"
-mkdir -p "$LEGACY/mysql"
-cp "$BACKUP_DIR/mysql/financial_scraper_2026-10-01_020000.sql.gz.age" "$LEGACY/mysql/"
-if out="$(BACKUP_DIR="$LEGACY" bash "$ROOT/scripts/restore-k8s.sh" --dry-run --components mysql 2>&1)"; then
-	failed "a backup without manifest was picked implicitly"
-else
-	echo "$out" | grep -q 'no run manifest' && pass "never picked without --timestamp" ||
-		failed "unexpected refusal: $out"
-fi
+echo "$out" | grep -q 'no longer restorable' && ! echo "$out" | grep -q 'Restoring mysql from' &&
+	pass "refused with --timestamp: no manifest, no restore" || failed "run without manifest not refused: $out"
+
+echo "restore-k8s.sh restores SPIRE only from a run taken since ADR-0065"
+new_run 2026-11-05_020000
+write_dump spire "$BACKUP_DIR/spire/data_${TIMESTAMP}.tar.age" printf 'tar' 2>/dev/null
+write_manifest 2>/dev/null
+out="$(restore_dry restore-k8s.sh --components spire --timestamp 2026-11-05_020000 || true)"
+echo "$out" | grep -q 'Restoring spire from: .*data_2026-11-05_020000.tar' &&
+	! echo "$out" | grep -q 'taken before ADR-0065' &&
+	pass "a datastore + keys tar (data_<TS>.tar) is restored" || failed "data_ run: $out"
+out="$(restore_dry restore-k8s.sh --components spire --timestamp 2026-11-01_020000 || true)"
+echo "$out" | grep -q 'taken before ADR-0065' &&
+	pass "keys.json alone (datastore was in MySQL) is refused" || failed "keys_ run accepted: $out"
 
 echo "prune_old removes the partial files of a killed run"
 touch "$BACKUP_DIR/mysql/financial_scraper_2026-11-04_020000.sql.gz.age.partial"

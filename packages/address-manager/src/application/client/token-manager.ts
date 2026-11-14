@@ -6,6 +6,7 @@ import type { HttpClient } from "@trading-model/http/adapters/outbound/http-clie
 import { TokenRefreshClient } from "../../adapters/outbound/client/token-refresh-client";
 import type { AddressManagerConfig } from "../../domain/config/address-manager-config";
 
+/** Holds the registration token and refreshes it before it expires. */
 export class TokenManager {
 	private _token = "";
 	private readonly _refreshClient: TokenRefreshClient;

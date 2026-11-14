@@ -301,6 +301,20 @@ describe("K8s Redis HA start script — real failovers", () => {
 			/NOAUTH|WRONGPASS/
 		);
 		expect((await cli(master, "GET", foreign))[0]).toMatch(/^NOPERM/);
+		// Sentinels refuse a client without credentials too.
+		expect(
+			(
+				await cliAs(
+					sentinels[0],
+					undefined,
+					"",
+					"-p",
+					String(SENTINEL_PORT),
+					"SENTINEL",
+					"masters"
+				)
+			)[0]
+		).toMatch(/NOAUTH|WRONGPASS/);
 	});
 
 	// The redis_exporter sidecars (ADR-0056): metrics only, on nodes and sentinels.

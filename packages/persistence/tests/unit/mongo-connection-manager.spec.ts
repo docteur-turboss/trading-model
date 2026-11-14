@@ -40,8 +40,27 @@ function createMockClient(): MockClient {
 
 describe("MongoConnectionManager", () => {
 	beforeEach(() => {
+		MockMongoClient.mockClear();
 		mockClient = createMockClient();
 		MockMongoClient.mockReturnValue(mockClient);
+	});
+
+	it("should hand the credentials to the driver, not through the URI", async () => {
+		const auth = { username: "dlq-service", password: "pw" };
+		await new MongoConnectionManager({
+			uri: "mongodb://localhost:27017/?authSource=admin",
+			auth,
+			dbName: "test",
+		}).getConnection();
+		expect(MockMongoClient.mock.calls[0][1]).toMatchObject({ auth });
+	});
+
+	it("should send no auth option without credentials", async () => {
+		await new MongoConnectionManager({
+			uri: "mongodb://localhost:27017",
+			dbName: "test",
+		}).getConnection();
+		expect(MockMongoClient.mock.calls[0][1]).not.toHaveProperty("auth");
 	});
 
 	// The real driver behaviour is in tests/db/mongo-outage.db.spec.ts.

@@ -1,2 +1,18 @@
 # Reviewed exceptions to the release image scan (ADR-0038).
 # One CVE id per line, each with a comment: reason, owner, expiry date.
+# All entries: fixed upstream but not yet in the digest-pinned base image / binary;
+# owner docteur-turboss; expire 2026-12-11 (remove after the base bump).
+
+# spire-tools: spire-server 1.15.5 binary (go-jose, x/net)
+CVE-2026-116587
+CVE-2026-78661
+# backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib)
+CVE-2026-78669
+CVE-2026-56851
+CVE-2026-111943
+CVE-2026-78667
+CVE-2026-97031
+# db-migrate: debian 13.7 base of oven/bun (apt, zlib1g)
+CVE-2026-109518
+CVE-2026-76844
+CVE-2026-85091

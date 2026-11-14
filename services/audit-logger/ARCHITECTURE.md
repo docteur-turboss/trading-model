@@ -2,13 +2,13 @@
 
 ## Overview
 
-The Audit Logger provides immutable traceability for all platform events. It subscribes to every topic on the message bus, persists each event to MongoDB, and exposes a queryable REST API with pagination, filtering, and aggregate statistics.
+The Audit Logger provides immutable traceability for all platform events. It subscribes to the audit, training and dlq topics of the message bus (market data is kept in MySQL, ADR-0027), persists each event to MongoDB, and exposes a queryable REST API with pagination, filtering, and aggregate statistics.
 
 ## System Context
 
 ```mermaid
 graph LR
-    MM["Message Manager"] -->|POST /message<br/>all topics| AL["Audit Logger"]
+    MM["Message Manager"] -->|POST /message<br/>audit, training, dlq topics| AL["Audit Logger"]
     AL -->|Write| MDB[("MongoDB<br/>audit_events")]
     AL -->|Anchors| S3[("S3 Object Lock")]
     API["Client"] -->|GET /events| AL
@@ -51,7 +51,7 @@ services/audit-logger/
 ## Layer Architecture
 
 ```
-Message Bus (all topics)
+Message Bus (audit, training, dlq topics)
     │
     ▼
 BrokerMessage SDK ──→ onMessage handler

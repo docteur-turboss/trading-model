@@ -1,0 +1,7 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPointStrategy": "packages",
+  "entryPoints": ["packages/*", "services/*"],
+  "out": "docs/architecture/code",
+  "name": "trading-model"
+}

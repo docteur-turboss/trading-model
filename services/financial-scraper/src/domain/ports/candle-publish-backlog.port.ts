@@ -37,4 +37,6 @@ export interface CandlePublishBacklogPort {
 	): Promise<CandleData[]>;
 	/** Number of persisted candles opened at or after `cursor.publishedUntil`. */
 	countFrom(series: CandleSeries, cursor: PublishCursor): Promise<number>;
+	/** Open time of the newest persisted candle of the series (undefined: none). */
+	lastCandleOpenTime(series: CandleSeries): Promise<UnixTimestamp | undefined>;
 }

@@ -2,13 +2,17 @@ import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount
 import type { MongoConnectionManager } from "@trading-model/persistence/mongo-connection-manager";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import type { Application } from "express";
 import { Router } from "express";
 import { AUDIT_API } from "../adapters/inbound/http/api-routes";
 import { eventsRoutes } from "../adapters/inbound/http/events.routes";
 import { healthRoutes } from "../adapters/inbound/http/health.routes";
 import type { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
 import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
-import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
+import {
+	ADDRESS_MANAGER_ROUTES,
+	REGISTRATION_READINESS,
+} from "../config/address-manager";
 import { metricsHandler } from "../config/metrics";
 import { ENV } from "../infrastructure/config/env";
 
@@ -26,6 +30,7 @@ export function createServer(
 			_registerRoutes(app, auditRepo, messageHandler);
 		},
 		readiness: [
+			REGISTRATION_READINESS,
 			{
 				name: "mongo",
 				check: async () => {
@@ -42,7 +47,7 @@ export function createServer(
 }
 
 function _registerRoutes(
-	app: import("express").Application,
+	app: Application,
 	auditRepo: AuditRepository,
 	messageHandler: MessageHandler
 ): void {

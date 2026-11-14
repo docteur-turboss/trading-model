@@ -5,7 +5,7 @@
  * `late` starts telemetry after Express is loaded, the order issue #599 fixed.
  */
 const late = process.argv[2] === "late";
-const telemetry = require("../../dist/infrastructure/telemetry");
+const telemetry = require("../../src/infrastructure/telemetry");
 
 if (!late) telemetry.startTelemetry("api-gateway");
 const express = require("express");

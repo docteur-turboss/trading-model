@@ -12,8 +12,7 @@
 #  component from the newest run whose manifest lists it, with a warning per
 #  component. Every file is checked against its manifest (size,
 #  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
-#  anything is written, --dry-run included. Runs taken before manifests are
-#  only restored with an explicit --timestamp (see backup-lib.sh).
+#  anything is written, --dry-run included. A run without manifest is refused.
 # =============================================================================
 
 set -euo pipefail
@@ -40,20 +39,18 @@ fail() { log "✗ $*"; RESTORE_FAILURES=$((RESTORE_FAILURES + 1)); }
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
 
+# Restore needs every action: the `root` user (ADR-0067); the password stays in
+# the container env. admin.* is excluded: restoring admin.system.users drops the
+# session of root mid-restore (createIndexes: Unauthorized); `mongo-users` recreates them.
+MONGO_ROOT_RESTORE='mongorestore --gzip --drop --username root --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --nsExclude "admin.*"'
+
 restore_mongodb() {
   log "Starting MongoDB restore..."
   local src="${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}"
 
   for container in trading-mongo; do
-    # Runs taken before manifests: the archive, or a dump directory.
-    local legacy="" archive
-    if [ "$RESTORE_TIMESTAMP" != "latest" ]; then
-      legacy=$(backup_file "${src}/${container}.archive.gz")
-      if [ -z "$legacy" ] && [ -d "${src}/${container}" ] && [ -n "$(ls -A "${src}/${container}" 2>/dev/null)" ]; then
-        legacy="${src}/${container}"
-      fi
-    fi
-    resolve_and_verify mongodb "$legacy" || continue
+    local archive
+    resolve_and_verify mongodb || continue
     archive="$RESOLVED_FILE"
 
     if ! docker ps --filter "name=${container}" --format '{{.Names}}' | grep -q .; then
@@ -68,12 +65,12 @@ restore_mongodb() {
 
     local restore_ok=false
     if [ -f "$archive" ]; then
-      if open_backup "$archive" | docker exec -i "${container}" mongorestore --quiet --gzip --drop --archive; then
+      if open_backup "$archive" | docker exec -i "${container}" sh -c "$MONGO_ROOT_RESTORE --archive"; then
         restore_ok=true
       fi
     elif [ -d "$archive" ]; then
       docker cp "$archive/." "${container}:/tmp/restore_data/"
-      if docker exec "${container}" mongorestore --quiet --gzip --drop "/tmp/restore_data/"; then
+      if docker exec "${container}" sh -c "$MONGO_ROOT_RESTORE /tmp/restore_data/"; then
         restore_ok=true
       fi
       docker exec "${container}" rm -rf "/tmp/restore_data/"
@@ -91,7 +88,7 @@ restore_mongodb() {
 
 restore_mysql() {
   log "Starting MySQL restore..."
-  resolve_and_verify mysql "$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")" || return 0
+  resolve_and_verify mysql || return 0
   local file="$RESOLVED_FILE"
   verify_mysql_dump_complete "$file" || return 0
 
@@ -105,7 +102,7 @@ restore_mysql() {
     return
   fi
 
-  if open_backup "$file" | gunzip | strip_gtid | docker exec -i trading-mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --user=root'; then
+  if open_backup "$file" | gunzip | docker exec -i trading-mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --user=root'; then
     ok "MySQL restore complete"
     log "Verifying restore..."
     local tables
@@ -143,9 +140,7 @@ rebuild_redis_aof() {
 restore_redis() {
   log "Starting Redis restore..."
   local dest="${BACKUP_DIR}/redis"
-  resolve_and_verify redis:trading-redis \
-    "$(backup_file "${dest}/trading-redis_${RESTORE_TIMESTAMP}.rdb")" \
-    "$(backup_file "${dest}/redis-primary_${RESTORE_TIMESTAMP}.rdb")" || return 0
+  resolve_and_verify redis:trading-redis || return 0
   local file="$RESOLVED_FILE"
 
   if ! docker ps --filter "name=trading-redis" --format '{{.Names}}' | grep -q .; then
@@ -185,7 +180,7 @@ restore_redis() {
 
 restore_checkpoints() {
   log "Starting checkpoints restore..."
-  resolve_and_verify checkpoints "$(backup_file "${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz")" || return 0
+  resolve_and_verify checkpoints || return 0
   local file="$RESOLVED_FILE"
 
   if ! docker ps --filter "name=trading-trainer" --format '{{.Names}}' | grep -q .; then
@@ -203,13 +198,10 @@ restore_checkpoints() {
   ok "Checkpoints restore complete"
 }
 
-# Restores the SPIRE data directory (data_*.tar: CA keys + datastore), or
-# keys.json alone from backups taken before 2026-10 (keys_*.json).
+# Restores the SPIRE data directory (data_*.tar: CA keys + datastore).
 restore_spire() {
   log "Starting SPIRE server restore..."
-  resolve_and_verify spire \
-    "$(backup_file "${BACKUP_DIR}/spire/data_${RESTORE_TIMESTAMP}.tar")" \
-    "$(backup_file "${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json")" || return 0
+  resolve_and_verify spire || return 0
   local file="$RESOLVED_FILE"
 
   if ! docker ps -a --filter "name=trading-spire-server" --format '{{.Names}}' | grep -q .; then
@@ -227,11 +219,7 @@ restore_spire() {
   chmod 600 "$plain"
   open_backup "$file" > "$plain" || { rm -f "$plain"; fail "SPIRE restore failed: cannot read ${file}"; return; }
   docker stop trading-spire-server >/dev/null
-  case "$file" in
-    */data_*) docker cp - trading-spire-server:/run/spire < "$plain" && copied=true ;;
-    *) tar -C "$(dirname "$plain")" --transform "s|.*|data/keys.json|" -cf - "$(basename "$plain")" |
-      docker cp - trading-spire-server:/run/spire && copied=true ;;
-  esac
+  docker cp - trading-spire-server:/run/spire < "$plain" && copied=true
   rm -f "$plain"
   docker start trading-spire-server >/dev/null
   if ! $copied; then

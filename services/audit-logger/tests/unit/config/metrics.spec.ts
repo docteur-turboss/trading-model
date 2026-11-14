@@ -23,7 +23,6 @@ jest.mock("prom-client", () => ({
 
 import {
 	EVENTS_INGESTED_TOTAL,
-	EVENTS_QUERY_DURATION_SECONDS,
 	EVENTS_STORED_TOTAL,
 	metricsHandler,
 } from "../../../src/config/metrics";
@@ -35,10 +34,6 @@ describe("metrics", () => {
 
 	it("should export EVENTS_STORED_TOTAL counter", () => {
 		expect(EVENTS_STORED_TOTAL).toBeDefined();
-	});
-
-	it("should export EVENTS_QUERY_DURATION_SECONDS histogram", () => {
-		expect(EVENTS_QUERY_DURATION_SECONDS).toBeDefined();
 	});
 
 	it("metricsHandler should set content type and return metrics", () => {

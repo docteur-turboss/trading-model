@@ -10,8 +10,6 @@ import type {
 
 // Wire shapes of endpoints the adapter no longer types (binance.api exports no type for them).
 type BinanceHistoricalTrade = BinanceTradeResponse[number];
-type BinanceAggregateTradeResponse = Record<string, unknown>[];
-type BinanceTradingDayTicker = Record<string, unknown>;
 
 // Wire format of GET /api/v3/depth: levels are [price, quantity] string tuples.
 export const mockDepthResponse: BinanceDepthResponse = {
@@ -59,19 +57,6 @@ export const mockHistoricalTradeResponse: BinanceHistoricalTrade[] = [
 	},
 ];
 
-export const mockAggregateTradeResponse: BinanceAggregateTradeResponse = [
-	{
-		aggregateTradeId: 28457,
-		price: "4.00000100" as any,
-		quantity: "12.00000000" as any,
-		firstTradeId: 1,
-		lastTradeId: 2,
-		time: 1499865549590 as any,
-		isBuyerMaker: true,
-		isBestMatch: true,
-	},
-];
-
 export const mockCandlestickResponse: BinanceCandlestickData[] = [
 	{
 		openTime: 1499040000000 as any,
@@ -104,26 +89,6 @@ export const mock24hrTickerResponse: Binance24hrTickerStats[] = [
 		askPrice: "4.00000200" as any,
 		askQty: "10.00000000" as any,
 		volume: "8913.30000000" as any,
-		openTime: 1499783040000 as any,
-		closeTime: 1499869440000 as any,
-		firstId: 28385,
-		lastId: 28460,
-		count: 76,
-	},
-];
-
-export const mockTradingDayTickerResponse: BinanceTradingDayTicker[] = [
-	{
-		symbol: "BTCUSDT" as any,
-		priceChange: "-94.99999800" as any,
-		priceChangePercent: "-95.960" as any,
-		weightedAvgPrice: "0.29628482" as any,
-		openPrice: "99.00000000" as any,
-		highPrice: "100.00000000" as any,
-		lowPrice: "0.10000000" as any,
-		lastPrice: "4.00000200" as any,
-		volume: "8913.30000000" as any,
-		quoteVolume: "15.30000000" as any,
 		openTime: 1499783040000 as any,
 		closeTime: 1499869440000 as any,
 		firstId: 28385,

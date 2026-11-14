@@ -27,7 +27,11 @@ const ETH = TradingSymbol.of("ETHUSDT");
 const NOW = 1_800_000_000_000;
 const MINUTE = 60_000;
 const MAX_AGE = 15 * MINUTE;
-const WINDOWING = { validationSplit: 0.2, walkForwardFolds: 1 };
+const WINDOWING = {
+	validationSplit: 0.2,
+	testSplit: 0.15,
+	walkForwardFolds: 1,
+};
 
 describe("TrainingLoop", () => {
 	let train: jest.Mock<(symbol: TradingSymbol) => Promise<void>>;
@@ -207,7 +211,11 @@ describe("TrainingLoop", () => {
 	});
 
 	it("should follow the rule with walk-forward folds and a split other than 0.2", async () => {
-		const windowing = { validationSplit: 0.99, walkForwardFolds: 5 };
+		const windowing = {
+			validationSplit: 0.99,
+			testSplit: 0.15,
+			walkForwardFolds: 5,
+		};
 		const trainer = {
 			train,
 			isTraining: () => false,

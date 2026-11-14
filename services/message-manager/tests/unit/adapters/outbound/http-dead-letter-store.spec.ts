@@ -7,6 +7,7 @@ import {
 	HttpDeadLetterStore,
 	isPermanentRejection,
 } from "../../../../src/adapters/outbound/http-dead-letter-store";
+import { DLQ_REJECTED_TOTAL } from "../../../../src/config/metrics";
 
 const SECRET = "0123456789abcdef-secret";
 const URL = "https://10.0.0.7:3000/dlq";
@@ -83,6 +84,17 @@ describe("HttpDeadLetterStore", () => {
 		post.mockRejectedValueOnce(new Error("connect ECONNREFUSED"));
 
 		await expect(store.insert(ENTRY)).rejects.toThrow("ECONNREFUSED");
+	});
+
+	it("should count a permanent rejection and still throw it", async () => {
+		const { store, post } = createStore();
+		post.mockRejectedValueOnce(createHttpClientError("x", 400 as never));
+		const before = (await DLQ_REJECTED_TOTAL.get()).values[0]?.value ?? 0;
+
+		await expect(store.insert(ENTRY)).rejects.toThrow("x");
+
+		const after = await DLQ_REJECTED_TOTAL.get();
+		expect(after.values[0].value - before).toBe(1);
 	});
 
 	it("should refuse a secret dlq-service would never accept", () => {

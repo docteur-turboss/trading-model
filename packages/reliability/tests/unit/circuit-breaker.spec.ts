@@ -88,20 +88,6 @@ describe("CircuitBreaker", () => {
 		expect(cb.check("svc-a")).toBe("half-open");
 	});
 
-	it("isAllowed returns true when closed", () => {
-		const cb = new CircuitBreaker();
-		expect(cb.isAllowed("svc")).toBe(true);
-	});
-
-	it("isAllowed returns false when open", () => {
-		const cb = new CircuitBreaker({
-			failureThreshold: 1,
-			cooldownMs: 60000 as DurationMs,
-		});
-		cb.recordFailure("svc");
-		expect(cb.isAllowed("svc")).toBe(false);
-	});
-
 	it("getState returns the circuit state", () => {
 		const cb = new CircuitBreaker({
 			failureThreshold: 1,
@@ -129,58 +115,6 @@ describe("CircuitBreaker", () => {
 		});
 		cb.recordFailure("svc");
 		expect(cb.isOpen("svc")).toBe(true);
-	});
-
-	it("call executes function successfully", async () => {
-		const cb = new CircuitBreaker();
-		const result = await cb.call("svc", async () => "success");
-		expect(result).toBe("success");
-	});
-
-	it("call uses fallback when circuit is open", async () => {
-		const cb = new CircuitBreaker({
-			failureThreshold: 1,
-			cooldownMs: 60000 as DurationMs,
-		});
-		cb.recordFailure("svc");
-		const result = await cb.call(
-			"svc",
-			async () => "should not run",
-			() => "fallback"
-		);
-		expect(result).toBe("fallback");
-	});
-
-	it("call throws when circuit is open and no fallback", async () => {
-		const cb = new CircuitBreaker({
-			failureThreshold: 1,
-			cooldownMs: 60000 as DurationMs,
-		});
-		cb.recordFailure("svc");
-		await expect(
-			cb.call("svc", async () => "should not run")
-		).rejects.toThrow();
-	});
-
-	it("call uses fallback on function failure", async () => {
-		const cb = new CircuitBreaker();
-		const result = await cb.call(
-			"svc",
-			async () => {
-				throw new Error("fail");
-			},
-			() => "fallback"
-		);
-		expect(result).toBe("fallback");
-	});
-
-	it("call rethrows on function failure without fallback", async () => {
-		const cb = new CircuitBreaker();
-		await expect(
-			cb.call("svc", async () => {
-				throw new Error("fail");
-			})
-		).rejects.toThrow("fail");
 	});
 
 	it("clear resets all machines", () => {

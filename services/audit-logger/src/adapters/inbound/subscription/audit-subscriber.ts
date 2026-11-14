@@ -1,4 +1,4 @@
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
 import { EVENTS_INGESTED_TOTAL } from "../../../config/metrics";
@@ -19,6 +19,6 @@ export function createMessageHandler(
 		const envelope = body as DeliveredEnvelope;
 		EVENTS_INGESTED_TOTAL.inc({ topic: envelope.metadata.topic });
 		await auditRepo.insert(buildAuditDocument(envelope, auditRetentionDays));
-		return sendResponse({ status: "recorded" }, 200 as HttpStatusCode);
+		return sendResponse({ status: "recorded" }, HTTP_STATUS.OK);
 	};
 }

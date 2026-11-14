@@ -41,7 +41,6 @@ describe("metrics", () => {
 		expect(metrics.entriesReplayFailed).toBeDefined();
 		expect(metrics.entriesPruned).toBeDefined();
 		expect(metrics.pruneErrors).toBeDefined();
-		expect(metrics.entrySizeBytes).toBeDefined();
 		expect(metrics.collectionSize).toBeDefined();
 	});
 

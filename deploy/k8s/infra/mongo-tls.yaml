@@ -1,0 +1,106 @@
+# TLS of the MongoDB client port (issue #769, ADR-0060): server certificates from
+# an internal CA issued by cert-manager (a prerequisite, see mysql-tls.yaml),
+# verified by the clients (host name). Clients keep authenticating with their
+# password (ADR-0067); the CA key never leaves this CA Secret, pods mount
+# `ca.crt` only. mongod loads a certificate at start: after a renewal (30 days
+# before the 90-day end) restart the StatefulSets, docs/deployment/MONGO_TLS.md.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: mongo-selfsigned
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mongo-ca
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  isCA: true
+  commonName: trading-model-mongo-ca
+  secretName: mongo-ca
+  duration: 43800h
+  renewBefore: 2160h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: mongo-selfsigned
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: mongo-ca
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ca:
+    secretName: mongo-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mongo-dlq-tls
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  secretName: mongo-dlq-tls
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  usages:
+    - server auth
+    - client auth
+    - digital signature
+    - key encipherment
+  # One name per member: OpenSSL rejects "*.mongo-dlq-headless".
+  dnsNames:
+    - mongo-dlq
+    - mongo-dlq-0.mongo-dlq-headless
+    - mongo-dlq-1.mongo-dlq-headless
+    - mongo-dlq-2.mongo-dlq-headless
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  issuerRef:
+    name: mongo-ca
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mongo-audit-tls
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  secretName: mongo-audit-tls
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  usages:
+    - server auth
+    - client auth
+    - digital signature
+    - key encipherment
+  dnsNames:
+    - mongo-audit
+    - mongo-audit-0.mongo-audit-headless
+    - mongo-audit-1.mongo-audit-headless
+    - mongo-audit-2.mongo-audit-headless
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  issuerRef:
+    name: mongo-ca
+    kind: Issuer

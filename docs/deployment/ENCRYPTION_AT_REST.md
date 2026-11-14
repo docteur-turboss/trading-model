@@ -68,7 +68,7 @@ On each data host, with a **dedicated empty disk** (an extra VPS block volume,
 a second SSD). `--device` is erased:
 
 ```bash
-sudo apt-get install cryptsetup clevis clevis-luks clevis-systemd clevis-tpm2 curl jose rsync
+sudo apt-get install cryptsetup clevis clevis-luks clevis-systemd clevis-tpm2 curl jose rsync lsof
 
 # k3s: PVs (local-path), the datastore with the Secrets, images
 sudo deploy/host/encrypt-data-disk.sh --device /dev/sdb --mount /var/lib/rancher \
@@ -90,8 +90,10 @@ The script:
 3. binds Clevis (`sss` policy: the Tang servers and/or the TPM2, threshold);
 4. **proves the boot path**: opens the volume through Clevis alone (no
    passphrase) before creating the filesystem;
-5. with `--migrate`, stops the services and copies the existing data onto the
-   encrypted disk, keeping the original as `<mount>.pre-encryption-<date>`;
+5. with `--migrate` (take a fresh backup first), stops the services (k3s: also
+   its containers, via `k3s-killall.sh`), refuses if a process still uses the
+   mount point (the volume is then closed), then copies the existing data onto
+   the encrypted disk, keeping the original as `<mount>.pre-encryption-<date>`;
 6. writes `/etc/crypttab` (`luks,_netdev`: unlocked once the network is up)
    and `/etc/fstab` (`nofail`: a failed unlock does not block the boot, SSH
    stays reachable), enables `clevis-luks-askpass.path`, and adds
@@ -203,8 +205,13 @@ Monday 07:00 UTC, and on demand from the Actions tab). It runs
 image. Set up the GitHub environment `backup-key-check` once
 (Settings → Environments):
 
-- Deployment branches: the default branch only. No required reviewer: it
-  would block the scheduled run.
+- **Protect the environment before storing the escrow key** (issue #847):
+  deployment branches limited to `main` (selected branches, no other rule) and
+  at least one required reviewer. Without it, anyone with write access can
+  push a branch whose workflow prints the key. The job `check-environment` of
+  the workflow checks both with `ENVIRONMENT_READ_TOKEN` and refuses to run
+  `verify-escrow-key` otherwise. The weekly run waits for the reviewer's
+  approval (GitHub keeps it waiting up to 30 days).
 - Secret `BACKUP_ESCROW_AGE_IDENTITY`: the whole content of
   `escrow-key.txt` (the `AGE-SECRET-KEY-1…` line, comments allowed).
 - Secrets `BACKUP_S3_READ_ACCESS_KEY_ID` / `BACKUP_S3_READ_SECRET_ACCESS_KEY`:
@@ -212,6 +219,14 @@ image. Set up the GitHub environment `backup-key-check` once
   delete), distinct from the backup job's.
 - Variables `BACKUP_S3_BUCKET`, `BACKUP_S3_REGION`, and for a non-AWS store
   `BACKUP_S3_ENDPOINT`, `BACKUP_S3_PROVIDER` (same values as production).
+- Until a production bucket exists (issue #1135), the store checked is the
+  MinIO of the local kind staging, reachable only from its self-hosted runner:
+  repository variable `BACKUP_KEY_CHECK_RUNNER` = its label (`trading-staging`),
+  MinIO user `staging-keycheck` (policy `backup-key-check`: list and get on
+  `trading-staging-backup`), variables of the environment `staging`. The job then
+  runs the script on the runner (age and rclone, no Docker) after the fork pull
+  request approval check ([STAGING_LOCAL.md](STAGING_LOCAL.md#runner-isolation)).
+  For production, delete `BACKUP_KEY_CHECK_RUNNER` and set the production values.
 
 The job writes the key to a tmpfs, mode 600, deletes it in a final step that
 always runs, and publishes the report (key, run checked, result per

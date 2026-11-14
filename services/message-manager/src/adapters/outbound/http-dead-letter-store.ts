@@ -9,7 +9,8 @@ import {
 	ServiceId,
 	type URLString,
 } from "@trading-model/primitives/primitives";
-import type { DeadLetterStorePort } from "../../application/ports/dead-letter-store-port";
+import { DLQ_REJECTED_TOTAL } from "../../config/metrics";
+import type { DeadLetterStorePort } from "../../domain/ports/dead-letter-store.port";
 
 const DLQ_PATH = "/dlq";
 const REQUEST_TIMEOUT_MS = DurationMs.of(5000);
@@ -27,7 +28,8 @@ export interface HttpDeadLetterStoreOptions {
 
 /**
  * Stores dead letters in dlq-service (`POST /dlq`, signed request), where the
- * DLQ API lists and replays them.
+ * DLQ API lists and replays them. A failure is thrown: the journal entry then
+ * stays pending and is retried.
  */
 export class HttpDeadLetterStore implements DeadLetterStorePort {
 	constructor(private readonly _options: HttpDeadLetterStoreOptions) {
@@ -44,11 +46,18 @@ export class HttpDeadLetterStore implements DeadLetterStorePort {
 			{ serviceName: CALLER, method: HttpMethod.Post, path: DLQ_PATH, body },
 			this._options.secret
 		);
-		await this._options.httpClient.post(
-			await this._options.resolveUrl(),
-			body,
-			{ headers, timeoutMs: REQUEST_TIMEOUT_MS }
-		);
+		try {
+			await this._options.httpClient.post(
+				await this._options.resolveUrl(),
+				body,
+				{ headers, timeoutMs: REQUEST_TIMEOUT_MS }
+			);
+		} catch (err) {
+			if (isPermanentRejection(err)) {
+				DLQ_REJECTED_TOTAL.inc();
+			}
+			throw err;
+		}
 	}
 }
 

@@ -18,50 +18,6 @@ metadata:
     app.kubernetes.io/component: spire-agent
     app.kubernetes.io/part-of: trading-model
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: spire-agent-config
-  labels:
-    app.kubernetes.io/component: spire-agent
-    app.kubernetes.io/part-of: trading-model
-data:
-  # Rendered with -expandEnv: ${SPIRE_SERVER_ADDRESS} names the server of the
-  # application namespace (set per environment by overlays/<env>/node-agents).
-  agent.conf: |
-    agent {
-      trust_domain = "trading-model.local"
-      data_dir = "/run/spire/agent-data"
-      log_level = "INFO"
-      server_address = "${SPIRE_SERVER_ADDRESS}"
-      server_port = "8081"
-      socket_path = "/run/spire/agent-sockets/api.sock"
-      trust_bundle_path = "/run/spire/bundle/bundle.crt"
-    }
-
-    plugins {
-      NodeAttestor "k8s_psat" {
-        plugin_data {
-          cluster = "trading-model"
-          # Projected token with the spire-server audience (see the volume).
-          token_path = "/var/run/secrets/tokens/spire-agent"
-        }
-      }
-      KeyManager "disk" {
-        plugin_data {
-          directory = "/run/spire/agent-data"
-        }
-      }
-      WorkloadAttestor "k8s" {
-        plugin_data {
-          # DEV: set skip_kubelet_verification to false and provide
-          # kubelet_ca_path in production (ADR-0011 follow-up).
-          skip_kubelet_verification = true
-          node_name_env = "MY_NODE_NAME"
-        }
-      }
-    }
----
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:

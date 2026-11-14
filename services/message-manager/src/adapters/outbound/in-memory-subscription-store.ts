@@ -4,7 +4,7 @@ import {
 	type StoredSubscription,
 	SUBSCRIPTION_TTL_MS,
 	type SubscriptionStorePort,
-} from "../../application/ports/subscription-store-port";
+} from "../../domain/ports/subscription-store.port";
 
 /** Single-replica store (no Redis configured): lost on restart. */
 export class InMemorySubscriptionStore implements SubscriptionStorePort {

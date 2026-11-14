@@ -50,3 +50,28 @@ updates:
     directory: "/services/dlq-service"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/backup"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/spire"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/migrate"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "bun"
+    directory: "/deploy/migrate"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"

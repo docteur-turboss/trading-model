@@ -1,6 +1,6 @@
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { createDefaultGenome } from "./factory";
-import type { GAControlGenome, LamarckGenome } from "./genome-types";
+import type { GAControlGenome, LamarckGenome } from "./genome";
 import { createOffspring, type OffspringContext } from "./offspring-factory";
 import { type DeepReadonly, deepFreeze } from "./shared-types";
 import { makeGenomeId } from "./utils";

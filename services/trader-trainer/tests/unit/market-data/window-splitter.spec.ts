@@ -162,13 +162,13 @@ describe("WindowSplitter.getAllWindows", () => {
 	it("returns a single WindowSet when walkForwardFolds is 1", () => {
 		const r = withSteps(100).getAllWindows(ctx, 0.2, 1);
 		expect(Array.isArray(r)).toBe(false);
-		expect((r as { train: unknown[] }).train).toHaveLength(80);
+		expect((r as { train: unknown[] }).train).toHaveLength(68);
 	});
 
 	it("uses the default split and a single fold when called with the context only", () => {
 		const r = withSteps(100).getAllWindows(ctx);
 		expect(Array.isArray(r)).toBe(false);
-		expect((r as { train: unknown[] }).train).toHaveLength(80);
+		expect((r as { train: unknown[] }).train).toHaveLength(72);
 	});
 
 	it("returns null with fewer than MIN_TRAINING_STEPS steps", () => {

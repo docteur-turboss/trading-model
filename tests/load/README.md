@@ -5,7 +5,7 @@
 | Variable   | Default                 | Meaning                                                      |
 | ---------- | ----------------------- | ------------------------------------------------------------ |
 | `BASE_URL` | `http://localhost:8449` | Edge-proxy URL                                               |
-| `API_KEY`  | empty                   | A key of `GATEWAY_AUTH_TOKENS` (E2E overlay: `e2e-api-key`) |
+| `API_KEY`  | empty                   | A key of `GATEWAY_AUTH_TOKENS` (E2E overlay: `e2e-api-key-0123456789abcdef0123456789abcdef`) |
 
 Without a valid `API_KEY` the gateway answers 401: the checks fail and k6 exits non-zero.
 
@@ -13,8 +13,8 @@ Without a valid `API_KEY` the gateway answers 401: the checks fail and k6 exits 
 
 ```bash
 # Stack: docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml up -d --build --wait ...
-k6 run -e API_KEY=e2e-api-key tests/load/k6/smoke-test.js      # 30 s, 2 VUs (what CI runs)
-k6 run -e API_KEY=e2e-api-key tests/load/scenarios/candles.js  # 2 min ramp to 25 VUs
+k6 run -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef tests/load/k6/smoke-test.js      # 30 s, 2 VUs (what CI runs)
+k6 run -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef tests/load/scenarios/candles.js  # 2 min ramp to 25 VUs
 # Docker: docker run --rm -i --network host -v $PWD/tests/load:/load grafana/k6:1.4.0 run -e API_KEY=... /load/k6/smoke-test.js
 ```
 
@@ -46,6 +46,14 @@ services:
 docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f rate-limit-load.yml up -d --build --wait ...
 ```
 
+### Edge-proxy limit (429 before the gateway)
+
+The edge-proxy limits each client address to 20 r/s, burst 60 (`deploy/edge-proxy/default.conf`). Smoke and soak (<= 4 r/s) stay under it; `scenarios/*.js` (~50 r/s) and `k6/stress-test.js` do not and would get 429 from the edge. For those runs switch the edge limit off (the K8s ConfigMap is unchanged):
+
+```bash
+EDGE_LIMIT_KEY_INC=./deploy/edge-proxy/edge-limit-key.off.inc docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f rate-limit-load.yml up -d --build --wait ...
+```
+
 ## Scripts
 
 | Script                           | Route (all `GET`)                                | Thresholds |
@@ -66,12 +74,12 @@ docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f rate
 Run on a production-sized host. Nothing here is run by CI; no figure is committed until an operator measures it.
 
 1. **Prepare the host.** Free disk (Docker Desktop shares C: with other projects: `df -h /c`, keep 20 GB free), no other compose stack on the fixed `trading-*` names (or use the isolation overlay, see "Second stack" below), `.env` filled from `.env.example`. Stack up with the E2E overlay plus the rate-limit override above (`RATE_LIMIT_MAX: '1000000'` for stress and scenarios; for the soak see below).
-2. **Scenarios**: `k6 run -e API_KEY=e2e-api-key --summary-export=out/<name>.json tests/load/scenarios/<file>.js` for each of the three.
-3. **Stress**: `k6 run -e API_KEY=e2e-api-key --summary-export=out/stress.json tests/load/k6/stress-test.js`. Never report it as SLO evidence.
+2. **Scenarios**: `k6 run -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef --summary-export=out/<name>.json tests/load/scenarios/<file>.js` for each of the three.
+3. **Stress**: `k6 run -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef --summary-export=out/stress.json tests/load/k6/stress-test.js`. Never report it as SLO evidence.
 4. **Soak** (4 to 8 h):
    ```bash
    bash tests/load/soak-monitor.sh out/soak.csv 5 &      # samples every 5 min
-   k6 run -e API_KEY=e2e-api-key -e SOAK_DURATION=4h --summary-export=out/soak.json tests/load/k6/soak-test.js
+   k6 run -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef -e SOAK_DURATION=4h --summary-export=out/soak.json tests/load/k6/soak-test.js
    kill %1
    ```
 5. **GA benchmark**: `bun services/trader-trainer/bench/ga-generation.bench.ts > out/ga-bench.json` (twice: generations and fitness must match).
@@ -89,7 +97,7 @@ Run on a production-sized host. Nothing here is run by CI; no figure is committe
 P=soak
 docker compose -p $P -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f tests/load/docker-compose.isolate.yml up -d --build --wait
 MM_CONTAINER=$P-message-manager-1 bash tests/load/soak-monitor.sh out/soak.csv 1 $P- &
-docker run --rm -v "$PWD/tests/load:/load" grafana/k6:1.4.0 run -e BASE_URL=http://host.docker.internal:18449 -e API_KEY=e2e-api-key -e SOAK_DURATION=5m /load/k6/soak-test.js   # from the host: BASE_URL=http://localhost:18449
+docker run --rm -v "$PWD/tests/load:/load" grafana/k6:1.4.0 run -e BASE_URL=http://host.docker.internal:18449 -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef -e SOAK_DURATION=5m /load/k6/soak-test.js   # from the host: BASE_URL=http://localhost:18449
 kill %1
 docker compose -p $P -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f tests/load/docker-compose.isolate.yml down -v --rmi local
 ```

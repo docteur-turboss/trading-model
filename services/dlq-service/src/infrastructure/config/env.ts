@@ -8,6 +8,9 @@ const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape)
 	.extend(RedisEnvSchema.shape)
 	.extend({
 		MONGO_URI: z.string().default("mongodb://localhost:27017"),
+		/** The `dlq-service` MongoDB user (issue #669); unset: no authentication (dev). */
+		MONGO_USERNAME: z.string().min(1).optional(),
+		MONGO_PASSWORD: z.string().min(1).optional(),
 		MONGO_DB: z.string().default("dlq"),
 		MONGO_COLLECTION: z.string().default("dlq_entries"),
 		MAX_ENTRIES: z.coerce.number().int().positive().default(100000),

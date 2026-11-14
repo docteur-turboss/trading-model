@@ -11,10 +11,8 @@ describe("redis-key-builder", () => {
 	const PREFIX = "trading-model:discovery:";
 
 	it("serviceInstancesSet builds the set key", () => {
-		expect(
-			serviceInstancesSet(PREFIX, "financial-scraper-service" as never)
-		).toBe(
-			"trading-model:discovery:service:financial-scraper-service:instances"
+		expect(serviceInstancesSet(PREFIX, "financial-scraper" as never)).toBe(
+			"trading-model:discovery:service:financial-scraper:instances"
 		);
 	});
 

@@ -28,7 +28,7 @@ function needs(args) {
 		case "scale": return [[type(pos[0]) + "/scale", "get"], [type(pos[0]) + "/scale", "update"]];
 		case "annotate": case "set": return [[type(pos[verb === "set" ? 1 : 0]), "patch"]];
 		case "create": return pos[0] === "token" ? [] : [[type(pos[0]), "create"]];
-		case "rollout": return pos[0] === "undo"
+		case "rollout": return pos[0] === "undo" || pos[0] === "restart"
 			? [["replicasets", "list"], [type(pos[1]), "patch"]]
 			: [[type(pos[1]), "get"], [type(pos[1]), "watch"]];
 		default: return [];

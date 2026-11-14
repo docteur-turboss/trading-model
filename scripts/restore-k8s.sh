@@ -3,6 +3,7 @@
 #  Trading Model — Database Restore Script (Kubernetes)
 #  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mongodb-audit,mysql,checkpoints,spire]
 #          [--timestamp 2025-01-01_120000 | --until 2025-01-01T13:45:00Z]
+#          [--no-retention]
 #          [--allow-mixed-runs] [--ns <db.coll|db.*>]... [--into-scratch]
 #          BACKUP_DIR=/backups RESTORE_TIMESTAMP=2025-01-01_120000
 #          BACKUP_AGE_IDENTITY=~/backup-key.txt (to read *.age backups)
@@ -22,11 +23,10 @@
 #  newest whose manifest lists every one of them (issue #330; the timestamp is
 #  printed). None: exit 1. --allow-mixed-runs restores the old rule, each
 #  component from the newest run whose manifest lists it, with a warning per
-#  component (SPIRE keys and the `spire` database may then be out of step).
+#  component (MySQL and MongoDB may then be out of step with each other).
 #  Every file is checked against its manifest (size,
 #  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
-#  anything is written, --dry-run included. Runs taken before manifests are
-#  only restored with an explicit --timestamp (see backup-lib.sh).
+#  anything is written, --dry-run included. A run without manifest is refused.
 #
 #  Component `mongodb` restores both replica sets (operational, then audit);
 #  `mongodb-audit` the audit trail alone, e.g. from a weekly or monthly
@@ -43,10 +43,12 @@
 #  of the original databases, which are not touched (--nsFrom/--nsTo); without
 #  --ns it restores every namespace. Never restore `audit.*` in place with
 #  --ns (the hash chain, ADR-0027): refused; use --into-scratch.
-#  Without either option the mongorestore arguments are unchanged.
+#  Without either option the mongorestore arguments are unchanged, and the
+#  admin users and roles present before the restore are put back after it.
 #
-#  Restore MySQL before SPIRE: the SPIRE datastore (bundle, CA journal,
-#  entries) is the `spire` database, keys.json only holds the CA private keys.
+#  SPIRE (ADR-0065): its SQLite datastore and CA keys are one file of the run
+#  (spire/data_<TS>.tar), independent of MySQL. Runs taken before ADR-0065
+#  (spire/keys_<TS>.json, datastore in MySQL) are refused for SPIRE.
 #  Exits 1 when any step fails.
 # =============================================================================
 
@@ -57,8 +59,8 @@ RESTORE_TIMESTAMP="${RESTORE_TIMESTAMP:-latest}"
 DRY_RUN=false
 COMPONENTS="mongodb,mysql,checkpoints,spire"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
-# Writes keys.json into the SPIRE volume while the server is stopped (the
-# spire-server image has neither a shell nor tar).
+# Writes the SPIRE datastore and CA keys into the server volume while the
+# server is stopped (the spire-server image has neither a shell nor tar).
 # Explicit override wins; otherwise the image of the db-backup CronJob (the
 # digest deploy.yml applied), see resolve_helper_image (issue #323).
 RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-}"
@@ -71,6 +73,10 @@ CHECKED=false
 # --ns patterns and --into-scratch (issue #335).
 NS_INCLUDE=()
 INTO_SCRATCH=false
+# false (--no-retention): keep the rows past their retention (forensics).
+RUN_RETENTION=true
+# Upper bound for the purge Job (the CronJob allows 4 h: activeDeadlineSeconds).
+RETENTION_WAIT="${RETENTION_WAIT:-4h}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -81,6 +87,7 @@ while [[ $# -gt 0 ]]; do
     --allow-mixed-runs) ALLOW_MIXED_RUNS=true; shift ;;
     --ns) [ $# -ge 2 ] || { echo "--ns needs a pattern"; exit 1; }; NS_INCLUDE+=("$2"); shift 2 ;;
     --into-scratch) INTO_SCRATCH=true; shift ;;
+    --no-retention) RUN_RETENTION=false; shift ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -145,18 +152,6 @@ fail() { log "✗ $*"; RESTORE_FAILURES=$((RESTORE_FAILURES + 1)); }
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
 
-# Backup of the replica set labelled `$1` in the run directory `$2` taken
-# before manifests: `<label>.archive.gz`, or `<statefulset>-<n>.archive.gz`
-# for backups taken per pod (before 2026-10).
-legacy_mongo_archive() {
-  local label="$1" src="$2" primary="$3" archive
-  archive=$(backup_file "${src}/${label}.archive.gz")
-  if [ -z "$archive" ] && [ -n "$primary" ]; then
-    archive=$(find "$src" -maxdepth 1 \( -name "${primary%-*}-*.archive.gz" -o -name "${primary%-*}-*.archive.gz.age" \) 2>/dev/null | sort | head -1)
-  fi
-  echo "$archive"
-}
-
 # Field `$2` of PITR metadata file `$1` (decrypted).
 pitr_value() {
   open_backup "$1" | pitr_field "$2"
@@ -186,19 +181,34 @@ replay_oplog() {
   for archive in "$@"; do
     open_backup "$archive" | gunzip || return 1
   done | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- sh -c \
-    'd=$(mktemp -d) && chmod 700 "$d" && cat > "$d/oplog.bson" && mongorestore --quiet --oplogReplay --oplogLimit "$1:0" "$d"; rc=$?; rm -rf "$d"; exit $rc' \
+    'd=$(mktemp -d) && chmod 700 "$d" && cat > "$d/oplog.bson" && mongorestore --oplogReplay --oplogLimit "$1:0" --username root --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin "$d"; rc=$?; rm -rf "$d"; exit $rc' \
     sh "$UNTIL_EPOCH"
+}
+
+# Current `admin` users and roles of primary `$1` as extended JSON (kept in
+# memory, never written to disk).
+save_mongo_users() {
+  mongo_tool root "$1" mongosh --quiet --eval \
+    "const a = db.getSiblingDB('admin'); print(EJSON.stringify({u: a.system.users.find().toArray(), r: a.system.roles.find().toArray()}))"
+}
+
+# Replaces the users and roles of primary `$1` by the JSON `$2` of
+# save_mongo_users. The restored root has the password of the dump's day, so
+# the keyFile's internal user (`__system`) signs in instead.
+put_back_mongo_users() {
+  printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- sh -c \
+    'exec mongosh --quiet --username __system --password "$(cat /keyfile/keyfile)" --authenticationDatabase local --eval "$1"' sh \
+    "const s = EJSON.parse(require('fs').readFileSync(0, 'utf8')); const a = db.getSiblingDB('admin');
+for (const [c, docs] of [['system.users', s.u], ['system.roles', s.r]]) { a.getCollection(c).deleteMany({}); if (docs.length) a.getCollection(c).insertMany(docs); }"
 }
 
 # restore_mongodb <replica set label>...
 restore_mongodb() {
   log "Starting MongoDB restore ($*)..."
-  local label primary legacy=""
+  local label primary
   for label in "$@"; do
     primary=$(mongo_primary "$label") || primary=""
-    [ "$RESTORE_TIMESTAMP" = "latest" ] ||
-      legacy=$(legacy_mongo_archive "$label" "${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}" "$primary")
-    resolve_and_verify "$label" "$legacy" || continue
+    resolve_and_verify "$label" || continue
     if [ -z "$primary" ]; then
       fail "No writable MongoDB primary for ${label}"
       continue
@@ -238,7 +248,7 @@ restore_mongodb() {
 
     # The dumps carry their oplog (mongodump --oplog): replaying it brings the
     # restore to the point in time the dump ended.
-    local mr_args=(--quiet --gzip --archive --drop)
+    local mr_args=(--quiet --gzip --archive --drop) users_json=""
     if [ "${#NS_INCLUDE[@]}" -gt 0 ] || $INTO_SCRATCH; then
       # No --oplogReplay: refused by mongorestore with --nsInclude.
       local p
@@ -261,10 +271,20 @@ restore_mongodb() {
       fi
     else
       mr_args+=(--oplogReplay)
+      # --oplogReplay refuses --nsExclude and the dump holds the users of its
+      # day: save the current ones now, put them back after (ADR-0067).
+      if ! users_json=$(save_mongo_users "$primary"); then
+        fail "${label}: cannot read the current MongoDB users (nothing restored)"
+        continue
+      fi
     fi
-    if ! open_backup "$RESOLVED_FILE" | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- \
+    if ! open_backup "$RESOLVED_FILE" | MONGO_TOOL_STDIN=true mongo_tool root "${primary}" \
       mongorestore "${mr_args[@]}"; then
       fail "MongoDB restore failed: ${label} (${primary})"
+      continue
+    fi
+    if [ -n "$users_json" ] && ! put_back_mongo_users "$primary" "$users_json"; then
+      fail "${label}: the current MongoDB users could not be put back (${primary})"
       continue
     fi
     if [ "${#chain[@]}" -eq 0 ]; then
@@ -273,7 +293,9 @@ restore_mongodb() {
     fi
     # The chain starts before the dump did: replaying an entry the dump
     # already holds is harmless, oplog entries are idempotent.
-    if replay_oplog "$primary" "${chain[@]}"; then
+    # The replayed window may hold a user change of the dump's day: put the current users back again.
+    if replay_oplog "$primary" "${chain[@]}" &&
+      { [ -z "$users_json" ] || put_back_mongo_users "$primary" "$users_json"; }; then
       ok "MongoDB restore complete: ${label} (${primary}), up to ${UNTIL_SQL} UTC"
     else
       fail "MongoDB oplog replay failed: ${label} (${primary}); restore again"
@@ -302,9 +324,38 @@ replay_binlogs() {
   done
 }
 
+# Data policy: a restore must not bring back rows past their retention. Runs
+# the db-retention CronJob once (same user, secrets and metrics), waits for it.
+purge_expired_rows() {
+  if ! $RUN_RETENTION; then
+    warn "--no-retention: rows past their retention stay until the next db-retention run"
+    return
+  fi
+  local job
+  job="db-retention-post-restore-$(date -u +%Y%m%d%H%M%S)"
+  log "Purging rows past their retention (Job ${job})..."
+  # The Job has backoffLimit 0: a failed purge must end the wait at once, not after RETENTION_WAIT.
+  local wc wf
+  if kubectl create job -n "${K8S_NAMESPACE}" "$job" --from=cronjob/db-retention >/dev/null &&
+    {
+      kubectl wait -n "${K8S_NAMESPACE}" --for=condition=complete "job/${job}" --timeout="${RETENTION_WAIT}" >/dev/null 2>&1 &
+      wc=$!
+      kubectl wait -n "${K8S_NAMESPACE}" --for=condition=failed "job/${job}" --timeout="${RETENTION_WAIT}" >/dev/null 2>&1 &
+      wf=$!
+      wait -n "$wc" "$wf"
+      kill "$wc" "$wf" 2>/dev/null
+      [ "$(kubectl get -n "${K8S_NAMESPACE}" "job/${job}" -o jsonpath='{.status.succeeded}')" = "1" ]
+    }; then
+    ok "Retention purge complete (${job})"
+  else
+    kubectl logs -n "${K8S_NAMESPACE}" "job/${job}" --tail=20 2>&1 || true
+    fail "Retention purge failed (${job}): expired rows may be back, run it again"
+  fi
+}
+
 restore_mysql() {
   log "Starting MySQL restore..."
-  resolve_and_verify mysql "$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")" || return 0
+  resolve_and_verify mysql || return 0
   local file="$RESOLVED_FILE"
   verify_mysql_dump_complete "$file" || return 0
 
@@ -357,14 +408,16 @@ restore_mysql() {
     return
   fi
 
-  if ! open_backup "$file" | gunzip | strip_gtid | mysql_root_sh "${pod}" 'mysql --user=root'; then
+  if ! open_backup "$file" | gunzip | mysql_root_sh "${pod}" 'mysql --user=root'; then
     fail "MySQL restore failed (${pod})"
     return
   fi
   if [ "${#chain[@]}" -eq 0 ]; then
     ok "MySQL restore complete (${pod})"
+    purge_expired_rows
   elif replay_binlogs "$pod" "$pos" "${chain[@]}"; then
     ok "MySQL restore complete (${pod}), up to ${UNTIL_SQL} UTC"
+    purge_expired_rows
   else
     fail "MySQL binlog replay failed (${pod}): the data stopped between the dump and ${UNTIL_SQL} UTC, restore again"
   fi
@@ -372,7 +425,7 @@ restore_mysql() {
 
 restore_checkpoints() {
   log "Starting checkpoints restore..."
-  resolve_and_verify checkpoints "$(backup_file "${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz")" || return 0
+  resolve_and_verify checkpoints || return 0
   local file="$RESOLVED_FILE"
 
   local pod
@@ -395,12 +448,20 @@ restore_checkpoints() {
   fi
 }
 
-# Stops the SPIRE server, writes keys.json into its volume from a helper pod
-# running as the server's user, then starts the server again.
+# Stops the SPIRE server, writes the datastore and CA keys of the run
+# (data_<TS>.tar) into its volume from a helper pod running as the server's
+# user, then starts the server again. The WAL files of the replaced datastore
+# are removed: replayed onto the restored file they would corrupt it.
 restore_spire() {
-  log "Starting SPIRE CA key restore..."
-  resolve_and_verify spire "$(backup_file "${BACKUP_DIR}/spire/keys_${RESTORE_TIMESTAMP}.json")" || return 0
+  log "Starting SPIRE server restore..."
+  resolve_and_verify spire || return 0
   local file="$RESOLVED_FILE"
+  case "$file" in
+    */keys_*)
+      fail "SPIRE: ${file} was taken before ADR-0065 (datastore in MySQL): its CA keys do not match the SQLite datastore; restore a newer run, or let the server start a new CA (agents bootstrap again)"
+      return
+      ;;
+  esac
 
   local deploy="deployment/spire-server"
   local claim uid gid
@@ -414,7 +475,7 @@ restore_spire() {
   gid=$(kubectl get -n "${K8S_NAMESPACE}" "$deploy" -o jsonpath='{.spec.template.spec.securityContext.runAsGroup}')
 
   if $DRY_RUN; then
-    warn "[DRY-RUN] Would restore SPIRE CA key into claim ${claim} from ${file}"
+    warn "[DRY-RUN] Would restore the SPIRE datastore and CA keys into claim ${claim} from ${file}"
     return
   fi
 
@@ -468,7 +529,12 @@ EOF
   local written=false
   if kubectl wait -n "${K8S_NAMESPACE}" --for=condition=ready pod/spire-restore --timeout=120s >/dev/null &&
     kubectl exec -i -n "${K8S_NAMESPACE}" spire-restore -- \
-      sh -c 'umask 077 && cat > /data/keys.json.restore && mv /data/keys.json.restore /data/keys.json' < "$plain"; then
+      sh -c 'set -e; umask 077; rm -rf /data/restore.tmp; mkdir /data/restore.tmp
+        tar -xf - -C /data/restore.tmp datastore.sqlite3 keys-sqlite.json
+        rm -f /data/datastore.sqlite3-wal /data/datastore.sqlite3-shm
+        mv /data/restore.tmp/datastore.sqlite3 /data/datastore.sqlite3
+        mv /data/restore.tmp/keys-sqlite.json /data/keys-sqlite.json
+        rmdir /data/restore.tmp' < "$plain"; then
     written=true
   fi
   rm -f "$plain"
@@ -477,15 +543,15 @@ EOF
   log "Starting the SPIRE server..."
   kubectl scale -n "${K8S_NAMESPACE}" "$deploy" --replicas=1 >/dev/null
   if ! $written; then
-    fail "SPIRE restore failed: keys.json was not written (server restarted with its previous keys)"
+    fail "SPIRE restore failed: the datastore and CA keys were not written (server restarted with its previous state)"
     return
   fi
   if kubectl rollout status -n "${K8S_NAMESPACE}" "$deploy" --timeout=180s >/dev/null &&
     kubectl exec -n "${K8S_NAMESPACE}" "$deploy" -c spire-server -- \
       /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock >/dev/null; then
-    ok "SPIRE CA key restore complete"
+    ok "SPIRE server restore complete"
   else
-    fail "SPIRE server is not healthy after the CA key restore"
+    fail "SPIRE server is not healthy after the restore"
   fi
 }
 

@@ -71,21 +71,6 @@ describe("configureApp", () => {
 		expect(response.statusCode).toBe(404);
 	});
 
-	it("should return 429 when rate limited", async () => {
-		const app = configureApp({
-			rateLimit: {
-				windowMs: 60000 as never,
-				limit: 1 as never,
-			},
-		});
-
-		const response1 = await makeRequest(app as never, "GET", "/ping");
-		expect(response1.statusCode).toBe(200);
-
-		const response2 = await makeRequest(app as never, "GET", "/ping");
-		expect(response2.statusCode).toBe(429);
-	});
-
 	it("should set trust proxy when enabled", () => {
 		const app = configureApp({ trustProxy: true });
 

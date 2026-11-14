@@ -88,7 +88,7 @@ Mechanism allowing services to find each other dynamically. The discovery-server
 Risk-adjusted return metric: `(return - risk_free_rate) / standard_deviation_of_returns`. Higher values indicate better risk-adjusted performance.
 
 **SVID (SPIFFE Verifiable Identity Document)**
-Short-lived X.509 identity issued by the SPIRE Server after workload attestation, carrying a `spiffe://` URI SAN (ADR-0011). Rotated automatically (1h TTL). Replaces the decommissioned internal certificate-authority.
+Short-lived X.509 identity issued by the SPIRE Server after workload attestation, carrying a `spiffe://` URI SAN (ADR-0011). Rotated automatically (4 h TTL, ADR-0065). Replaces the decommissioned internal certificate-authority.
 
 ## T
 

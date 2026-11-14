@@ -6,13 +6,15 @@ import { TrainingEvent } from "@trading-model/contracts/training-events";
 import {
 	toCorrelationId,
 	toInstanceId,
-	toMessageId,
 	toServiceId,
 	toTopic,
 } from "@trading-model/primitives/primitives";
 import type { MessageManager } from "../../config/message-manager";
 import type { TradingSymbol } from "../../domain/market-data-types";
-import type { ModelPublisherPort } from "../../domain/ports/model-publisher.port";
+import type {
+	ModelPublisherPort,
+	StoredModelRef,
+} from "../../domain/ports/model-publisher.port";
 import type { BestAgentSummary } from "../../domain/training-state";
 
 const TOPIC = toTopic(TrainingEvent.ModelPublished);
@@ -27,10 +29,7 @@ function buildMetadata(ctx: PublishContext): MessageMetadata {
 		instanceId: toInstanceId(ctx.instanceId),
 		serviceName: toServiceId(ctx.trainerId),
 	})
-		.setDelivery({
-			mode: DeliveryMode.AtLeastOnce,
-			deduplicationId: toMessageId(randomUUID()),
-		})
+		.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 		.setIds({
 			causationId: toCorrelationId(randomUUID()),
 			correlationId: toCorrelationId(randomUUID()),
@@ -46,15 +45,20 @@ export class ModelPublisher implements ModelPublisherPort {
 
 	async publish(
 		symbol: TradingSymbol,
-		summary: BestAgentSummary
+		summary: BestAgentSummary,
+		stored: StoredModelRef
 	): Promise<void> {
 		const payload = {
+			version: stored.version,
+			sha256: stored.sha256,
 			symbol,
 			generation: summary.generation,
 			fitness: summary.fitness,
 			sharpe: summary.sharpe,
 			avgPnl: summary.avgPnl,
 			maxDrawdown: summary.maxDrawdown,
+			evaluatedOn: summary.evaluatedOn,
+			admissible: stored.admissible,
 			agentId: summary.id,
 			gaControl: {
 				populationSize: summary.gaControl.populationSize,

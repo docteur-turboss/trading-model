@@ -1,4 +1,3 @@
-import type { DurationMs } from "@trading-model/primitives/primitives";
 import { createEnumValues } from "../enum-utils";
 
 export enum MarketType {
@@ -46,29 +45,6 @@ export enum CandleInterval {
 export namespace CandleInterval {
 	export const values: () => CandleInterval[] =
 		createEnumValues(CandleInterval);
-
-	const IntervalToMsMap: Record<CandleInterval, DurationMs> = {
-		"1s": 1000 as DurationMs,
-		"1m": 60000 as DurationMs,
-		"3m": 180000 as DurationMs,
-		"5m": 300000 as DurationMs,
-		"15m": 900000 as DurationMs,
-		"30m": 1800000 as DurationMs,
-		"1h": 3600000 as DurationMs,
-		"2h": 7200000 as DurationMs,
-		"4h": 14400000 as DurationMs,
-		"6h": 21600000 as DurationMs,
-		"8h": 28800000 as DurationMs,
-		"12h": 43200000 as DurationMs,
-		"1d": 86400000 as DurationMs,
-		"3d": 259200000 as DurationMs,
-		"1w": 604800000 as DurationMs,
-		"1M": 2592000000 as DurationMs,
-	};
-
-	export function toMs(value: CandleInterval): number {
-		return IntervalToMsMap[value];
-	}
 }
 
 export enum TradeSide {

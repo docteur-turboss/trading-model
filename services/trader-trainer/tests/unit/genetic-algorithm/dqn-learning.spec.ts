@@ -6,11 +6,11 @@ import { FEATURE_DIM } from "../../../src/domain/feature-vector-codec";
 import { evalPhase } from "../../../src/domain/genetic-algorithm/evaluation-phase";
 import { lamarckianUpdate } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
-import { mutateRL } from "../../../src/domain/genetic-algorithm/genome-rl/mutation";
 import type {
 	LamarckGenome,
 	MarketStep,
-} from "../../../src/domain/genetic-algorithm/genome-types";
+} from "../../../src/domain/genetic-algorithm/genome";
+import { mutateRL } from "../../../src/domain/genetic-algorithm/genome-rl/mutation";
 import {
 	type BackendFactory,
 	makeTradingAgentBackend,

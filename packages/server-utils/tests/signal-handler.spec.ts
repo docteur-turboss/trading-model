@@ -141,6 +141,16 @@ describe("signal-handler", () => {
 		});
 	});
 
+	it("should ignore a second SIGTERM while shutting down", () => {
+		const shutdown = jest.fn().mockResolvedValue(undefined);
+		setupProcessHandlers(shutdown, jest.fn());
+
+		process.emit("SIGTERM");
+		process.emit("SIGTERM");
+
+		expect(shutdown).toHaveBeenCalledTimes(1);
+	});
+
 	describe("removeProcessHandlers", () => {
 		it("should remove all registered listeners and reset state", () => {
 			const removeSpy = jest.spyOn(process, "removeListener");

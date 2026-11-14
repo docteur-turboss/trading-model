@@ -36,7 +36,7 @@ graph TD
     MM -->|"MarketEvent (consumed)"| TT
     TT -->|"AgentPayload (published)"| MM
     MM -->|"events"| AL
-    AL -.->|"subscribe (all topics)"| MM
+    AL -.->|"subscribe (audit, training, dlq topics)"| MM
     MM -->|"dead letters"| DLQ
     DLQ -->|"replay"| MM
     DLQ -->|"dlq.* events"| MM
@@ -99,14 +99,14 @@ graph TD
 
 ### Not yet defined: downstream context
 
-No Strategy, Execution or Evaluation context exists: trained models and collected signals have no consumer, so the trading decision is not part of the system yet. Options and the proposed contract are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Proposed).
+No Strategy, Execution or Evaluation context exists: trained models and collected signals have no consumer, so the trading decision is not part of the system yet. Options and the proposed contract are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Proposed). A future Execution context, a Risk/Execution service separate from the model and from the decision consumer, must exist before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Proposed). It has no code and no consumer.
 
 ## Integration Patterns
 
 | Relationship           | Pattern              | Implementation                        |
 | ---------------------- | -------------------- | ------------------------------------- |
 | Market Data → Training | Pub/Sub (async)      | Message Manager topics                |
-| Any → Audit            | Pub/Sub (async)      | Audit-logger subscribes to all topics |
+| Any → Audit            | Pub/Sub (async)      | Audit-logger subscribes to audit, training and dlq topics |
 | Services → Discovery   | Request/Reply (sync) | HTTPS mTLS                            |
 | Services → Security    | Request/Reply (sync) | SPIFFE/SPIRE workload attestation + Workload API |
 | External → Platform    | Proxy (sync)         | API Gateway                           |

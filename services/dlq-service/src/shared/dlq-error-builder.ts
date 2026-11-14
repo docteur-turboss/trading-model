@@ -1,3 +1,4 @@
+import type { Span } from "@opentelemetry/api";
 import { SpanStatusCode } from "@opentelemetry/api";
 import {
 	type AppError,
@@ -17,26 +18,20 @@ export function isDlqCapacityError(err: unknown): err is AppError {
 }
 
 /** Closes the span of a request refused with a business reason. */
-export function rejectSpan(
-	span: import("@opentelemetry/api").Span,
-	message: string
-): void {
+export function rejectSpan(span: Span, message: string): void {
 	span.setStatus({ code: SpanStatusCode.ERROR, message });
 	span.end();
 }
 
 /** Logs a storage failure and closes the span of the request it failed. */
-export function failSpanOnStorageError(
-	span: import("@opentelemetry/api").Span,
-	err: unknown
-): void {
+export function failSpanOnStorageError(span: Span, err: unknown): void {
 	logger.error("Failed to persist DLQ entry — storage error", {
 		error: normalizeError(err).message,
 	});
-	span.recordException(err as Error);
+	span.recordException(normalizeError(err));
 	span.setStatus({
 		code: SpanStatusCode.ERROR,
-		message: (err as Error).message,
+		message: normalizeError(err).message,
 	});
 	span.end();
 }

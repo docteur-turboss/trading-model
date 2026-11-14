@@ -5,8 +5,8 @@ import type {
 	SubscriptionParams,
 	TopicSubscription,
 } from "../../domain/messaging-types";
-import type { MessageJournalPort } from "../ports/message-journal-port";
-import type { SubscriptionStorePort } from "../ports/subscription-store-port";
+import type { MessageJournalPort } from "../../domain/ports/message-journal.port";
+import type { SubscriptionStorePort } from "../../domain/ports/subscription-store.port";
 
 /**
  * Who is subscribed to what (shared store), and the journal group of each

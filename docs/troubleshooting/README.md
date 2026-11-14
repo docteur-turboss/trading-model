@@ -14,7 +14,7 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 | `docker compose` not found        | Docker not installed or v1 syntax            | Install Docker Desktop or `docker-compose-v2` package                                   |
 | First pull is very slow           | Initial download of database images          | This only happens once; subsequent runs use cached layers                               |
 | `trading-network` conflict        | Previous network not cleaned up              | `docker network rm trading-network`                                                     |
-| `docker compose build` slow       | No cache layers                              | Use `docker compose build --no-cache` or ensure `.dockerignore` is correct              |
+| `docker compose build` slow       | Large build context                          | Ensure `.dockerignore` is correct                                                       |
 | Containers have no network access | Docker DNS misconfiguration                  | Check `/etc/docker/daemon.json` DNS settings, restart Docker                            |
 
 ---
@@ -36,7 +36,7 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 
 | Symptom                            | Likely cause                              | Fix                                                                           |
 | ---------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------- |
-| `message-manager` fails to connect | Mongo not started                         | Check `docker compose logs mongo`                                             |
+| `Authentication failed` (audit-logger, dlq-service) | Volume created before authentication (ADR-0067) | `docker compose down -v`, or use the localhost exception (see the `mongo` service) |
 | Connection refused                 | Mongo not healthy yet                     | Wait for health check to pass                                                 |
 | Data not persisted                 | Named volume removed                      | Use `docker compose down` (keeps volumes) instead of `docker compose down -v` |
 | `mongosh` not found in container   | Mongo 7 uses `mongosh` instead of `mongo` | The health check already uses `mongosh`; verify image is `mongo:7`            |
@@ -104,7 +104,6 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 | Services can't reach each other             | Custom network conflict    | `docker network rm trading-network` and restart                                         |
 | `curl -k` (no `--cert`) to a service `/ping` fails | Expected: no client SVID   | Services only accept SPIFFE mTLS clients. Use `docker exec trading-discovery curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping`, or the gateway through `http://localhost:8449/v1/...` |
 | Connection refused on all ports             | Docker not running         | Start Docker Desktop or the Docker daemon                                               |
-| Host outside Docker cannot reach services   | UFW blocking ports         | Check `sudo ufw status` and ensure ports 8443-8446 are allowed                          |
 | DNS resolution fails inside containers      | Docker DNS config          | Edit `/etc/docker/daemon.json`: `{ "dns": ["1.1.1.1", "8.8.8.8"] }` then restart Docker |
 
 ---
@@ -113,11 +112,12 @@ Common issues grouped by category. For per-service debugging, see [Diagnostic Gu
 
 | Symptom                       | Likely cause                      | Fix                                                             |
 | ----------------------------- | --------------------------------- | --------------------------------------------------------------- |
-| `husky` pre-commit hook fails | Commit message format invalid     | Use `bun run commit` (interactive). See STANDARDS.md for format |
+| `husky` `commit-msg` hook fails | Commit message format invalid     | Use `bun run commit` (interactive). See [commit standards](../standards/commit-standards.md) |
 | `commitlint` error            | Non-conventional commit           | Rewrite commit message. Format: `<gitmoji>(<scope>): <subject>` |
-| Push rejected                 | Branch not up to date with `main` | `git pull --rebase origin main` and resolve conflicts           |
+| Push rejected                 | Branch not up to date with `development` | `git pull --rebase origin development` and resolve conflicts           |
 | `husky` not running           | Git hooks path not set            | Run `bunx husky install` or `git config core.hooksPath .husky`   |
-| `LF will be replaced by CRLF` | Line ending mismatch              | Set `git config core.autocrlf true` on Windows                  |
+| `LF will be replaced by CRLF` | Line ending mismatch              | `git config core.autocrlf false` in the repo, see [Windows line endings](../getting-started/quickstart.md#windows-line-endings) |
+| `bun run lint` fails on formatting on Windows, CI passes | Working tree checked out with CRLF | Renormalize the checkout, see [Windows line endings](../getting-started/quickstart.md#windows-line-endings) |
 
 ---
 

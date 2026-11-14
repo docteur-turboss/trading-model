@@ -63,6 +63,91 @@ spec:
                   key: GRAFANA_PASSWORD
             - name: GF_INSTALL_PLUGINS
               value: ""
+            # Per-person access (ADR-0063): no anonymous access, no local
+            # sign-up, Viewer by default. OIDC is on only when the optional
+            # Secret key GRAFANA_OIDC_ENABLED is "true" (an unset or empty
+            # variable leaves the Grafana default: off).
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_USERS_AUTO_ASSIGN_ORG_ROLE
+              value: Viewer
+            - name: GF_AUTH_GENERIC_OAUTH_NAME
+              value: OIDC
+            - name: GF_AUTH_GENERIC_OAUTH_SCOPES
+              value: openid email profile
+            - name: GF_AUTH_GENERIC_OAUTH_USE_PKCE
+              value: "true"
+            # Creates the Viewer account on first OIDC login (distinct from users.allow_sign_up).
+            - name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP
+              value: "true"
+            - name: GF_LOG_FILTERS
+              value: context:info
+            - name: GF_AUTH_GENERIC_OAUTH_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_ENABLED
+                  optional: true
+            # Same key as OIDC: with OIDC on, the public Ingress no longer offers
+            # the local password form (break-glass: runbook-grafana-break-glass.md).
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_ENABLED
+                  optional: true
+            # Basic auth still accepts admin:password on the API after the form is
+            # hidden (checked on this image): set the key to "false" with OIDC on.
+            - name: GF_AUTH_BASIC_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_BASIC_AUTH_ENABLED
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_CLIENT_ID
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_CLIENT_SECRET
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_AUTH_URL
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_TOKEN_URL
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_API_URL
+                  optional: true
+            - name: GF_AUTH_GENERIC_OAUTH_ALLOWED_DOMAINS
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_OIDC_ALLOWED_DOMAINS
+                  optional: true
+            - name: GF_SERVER_ROOT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: GRAFANA_ROOT_URL
+                  optional: true
           resources:
             requests:
               cpu: 100m
@@ -145,19 +230,6 @@ data:
               matcherRegex: '"trace_id":"([0-9a-f]+)"'
               datasourceUid: jaeger
               url: "$${__value.raw}"
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: grafana-pdb
-  labels:
-    app.kubernetes.io/component: grafana
-    app.kubernetes.io/part-of: trading-model
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/component: grafana
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

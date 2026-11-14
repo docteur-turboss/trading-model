@@ -20,9 +20,4 @@ describe("Probability", () => {
 		expect(() => Probability.of(Number.POSITIVE_INFINITY)).toThrow(RangeError);
 		expect(() => Probability.of(Number.NaN)).toThrow(RangeError);
 	});
-
-	it("should return zero and one", () => {
-		expect(Probability.zero()).toBe(0);
-		expect(Probability.one()).toBe(1);
-	});
 });

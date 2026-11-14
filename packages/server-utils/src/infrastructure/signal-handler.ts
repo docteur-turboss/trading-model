@@ -22,7 +22,13 @@ export function setupProcessHandlers(
 	if (cleanup) {
 		return;
 	}
+	let shuttingDown = false;
 	const onSignal = async (signal: "SIGTERM" | "SIGINT") => {
+		if (shuttingDown) {
+			logger.warn(`${signal} ignored: shutdown already in progress`);
+			return;
+		}
+		shuttingDown = true;
 		logger.warn(`${signal} received`);
 		await shutdown(signal);
 	};
@@ -37,7 +43,6 @@ export function setupProcessHandlers(
 			context: { reason },
 		});
 		hardShutdown(1);
-		process.exit(1);
 	};
 
 	process.on("SIGTERM", onSigTerm);

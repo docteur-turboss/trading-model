@@ -12,7 +12,7 @@ import type {
 	RLGenome,
 } from "./types";
 
-export function createRewardShapingGenome(): RewardShapingGenome {
+function createRewardShapingGenome(): RewardShapingGenome {
 	return {
 		clip: false,
 		clipBounds: new NumericRange(-1, 1),
@@ -23,7 +23,7 @@ export function createRewardShapingGenome(): RewardShapingGenome {
 	};
 }
 
-export function createHorizonGenome(): HorizonGenome {
+function createHorizonGenome(): HorizonGenome {
 	return {
 		maxEpisodeLength: PositiveInt.of(500),
 		nStepReturn: PositiveInt.of(1),
@@ -31,7 +31,7 @@ export function createHorizonGenome(): HorizonGenome {
 	};
 }
 
-export function createDiscretePolicyGenome(): DiscretePolicyGenome {
+function createDiscretePolicyGenome(): DiscretePolicyGenome {
 	return {
 		epsilonStart: Probability.of(1.0),
 		epsilonMin: Probability.of(0.05),
@@ -39,7 +39,7 @@ export function createDiscretePolicyGenome(): DiscretePolicyGenome {
 	};
 }
 
-export function createReplayBufferGenome(): ReplayBufferGenome {
+function createReplayBufferGenome(): ReplayBufferGenome {
 	return {
 		bufferSize: PositiveInt.of(10_000),
 		prioritized: false,

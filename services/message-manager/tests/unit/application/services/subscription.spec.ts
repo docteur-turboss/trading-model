@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
-import type { DurationMs, Topic } from "@trading-model/primitives/primitives";
-import type { MessageDeliveryPort } from "../../../../src/application/ports/message-delivery-port";
+import type {
+	DurationMs,
+	SequenceNumber,
+	Topic,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import { Subscription } from "../../../../src/application/services/subscription";
+import type { MessageDeliveryPort } from "../../../../src/domain/ports/message-delivery.port";
 import {
 	createMockMessage,
 	mockServiceIdentity,
@@ -113,7 +118,7 @@ describe("Subscription", () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Timeout"));
 
 			const message = createMockMessage("payload", {
-				emittedAt: new Date("2026-01-01T00:00:00Z"),
+				emittedAt: Date.parse("2026-01-01T00:00:00Z") as UnixTimestamp,
 				delivery: { mode: DeliveryMode.AtLeastOnce, ttl: 1 as DurationMs },
 			});
 			await dispatchUntilSettled(subscription, message);
@@ -173,7 +178,7 @@ describe("Subscription", () => {
 				message,
 				service: expect.any(String),
 				reason: "SINGLE_ATTEMPT_FAILED",
-				deliveryAttempt: 1,
+				deliveryAttempt: 1 as SequenceNumber,
 			});
 		});
 
@@ -194,7 +199,7 @@ describe("Subscription", () => {
 			});
 		});
 
-		it("should open circuit breaker after threshold failures and reject directly to DLQ", async () => {
+		it("should open circuit breaker after threshold failures and leave the message in the journal", async () => {
 			mockDeliveryPort.send.mockRejectedValue(new Error("Service down"));
 
 			const message = createMockMessage("payload", {
@@ -206,14 +211,11 @@ describe("Subscription", () => {
 			}
 
 			mockDeliveryPort.markDeadLetter.mockClear();
-			await dispatchUntilSettled(subscription, message);
+			mockDeliveryPort.send.mockClear();
+			expect(await subscription.deliver(message, 6)).toBe(false);
 
-			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
-				message,
-				service: expect.any(String),
-				reason: "OPEN",
-				deliveryAttempt: 5,
-			});
+			expect(mockDeliveryPort.markDeadLetter).not.toHaveBeenCalled();
+			expect(mockDeliveryPort.send).not.toHaveBeenCalled();
 		});
 
 		it("should reset circuit breaker on successful delivery", async () => {

@@ -3,6 +3,8 @@ import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { Request } from "express";
 
+import { ENV } from "../infrastructure/config/env";
+
 // x-real-ip carries the caller's address: only the anonymized
 // X-Forwarded-For set below reaches the services.
 // x-actor is set below from the API key: a client must not choose its own.
@@ -35,8 +37,11 @@ function addProxyHeaders(headers: Record<string, string>, req: Request): void {
 
 export function safeHeaders(req: Request): Record<string, string> {
 	const headers: Record<string, string> = {};
+	// AUTH_TOKEN_HEADER is configurable: the header carrying the key must not leave either.
+	const tokenHeader = ENV.AUTH_TOKEN_HEADER.toLowerCase();
 	for (const [key, value] of Object.entries(req.headers)) {
-		if (BLOCKED_HEADERS.has(key.toLowerCase())) {
+		const name = key.toLowerCase();
+		if (BLOCKED_HEADERS.has(name) || name === tokenHeader) {
 			continue;
 		}
 		if (typeof value === "string" || Array.isArray(value)) {

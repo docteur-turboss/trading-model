@@ -11,6 +11,8 @@ Migration 003 no longer holds the purge (a `DELETE` in a migration is irreversib
 
 ## Decision
 
+MySQL is the only 5-year record of market data: audit-logger no longer chains `MarketEvent` topics (ADR-0027).
+
 1. **MySQL identity.** User `retention`: `SELECT, DELETE` on the four tables only, granted table by table by `db-migrate-user`. Password: key `MYSQL_RETENTION_PASSWORD` of `trading-model-secrets`. The key is optional in the Job (a cluster without it skips the user and `db-retention` fails visibly) so no existing deploy breaks; production must seal it before the first deploy. `migrator` (DDL) is not reused. `db-migrate-user` runs a second time after the migrations, because a grant on a table needs the table.
 2. **Where it lives.** CronJob `db-retention` (`deploy/k8s/jobs/`), daily 03:30 UTC, image `backup-tools` (already released, digest-pinned, has the `mysql` client), script `scripts/retention-mysql.sh` from the `backup-scripts` ConfigMap, Pod Security `restricted`. No new image, no new kind. Compose: the same script run by the host in the MySQL container.
 3. **Durations.** `RETENTION_DAYS` (default 1827) for market data, `RETENTION_SIGNALS_DAYS` (default: `RETENTION_DAYS`) for signals. Market data is purged on `timestamp`, signals on `observed_at`.
@@ -24,3 +26,11 @@ Migration 003 no longer holds the purge (a `DELETE` in a migration is irreversib
 - The MySQL dumps keep 5 years (ADR-0032), so a purged row stays restorable from older dumps until they expire.
 - A job that never ran has no metric: `RetentionStale` needs one run (success or failure) to exist.
 - Partitioning with `DROP PARTITION` stays an option at larger volume; out of scope.
+
+## Amendment 2026-11 (issue #767): MySQL client TLS
+
+See [ADR-0060](./0060-database-client-traffic-unencrypted-in-cluster.md) (MySQL part done).
+
+The `retention` CronJob connects with `MYSQL_HOME=/etc/mysql-client` (ConfigMap `mysql-client-tls`: `ssl-mode=VERIFY_IDENTITY`, CA of Secret `mysql-tls`). `db-migrate-user` and the SPIRE init container use the same file.
+
+The CronJob presents the client certificate of user `retention` (`ssl-cert` / `ssl-key` of `my.cnf`, Secret `mysql-client-retention`).

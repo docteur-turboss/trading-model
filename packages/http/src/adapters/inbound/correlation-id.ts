@@ -38,6 +38,7 @@ export function runWithCorrelationId<TResult>(
 // An external client must not inject arbitrary data into logs: other ids are replaced.
 const VALID_INCOMING_ID = /^[A-Za-z0-9._-]{1,64}$/;
 
+/** Express middleware that attaches a correlation id to the request and the response. */
 export function correlationIdMiddleware(
 	req: Request,
 	res: Response,

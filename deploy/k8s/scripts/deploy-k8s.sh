@@ -95,7 +95,7 @@ cmd_apply() {
     kustomize_build "${K8S_DIR}/node-agents" | kubectl apply -f -
     log "Applying all Trading Model manifests..."
     # Immutable pod template: recreated (idempotent) by the apply (issue #727).
-    kubectl delete job -n "$NAMESPACE" mongo-audit-init mongo-dlq-init --ignore-not-found
+    kubectl delete job -n "$NAMESPACE" mongo-audit-users mongo-dlq-users mysql-cluster-init --ignore-not-found
     kustomize_build "${K8S_DIR}/" | kubectl apply -f -
   fi
 
@@ -205,8 +205,17 @@ cmd_migrate_down() {
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
-  sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
-    "${K8S_DIR}/jobs/migration-job-down.yaml" | kubectl apply -n "$NAMESPACE" -f -
+  # As run-migrations.sh: a mysql-0 without mysql-tls (staging-local, issue #1066) serves
+  # its auto-generated certificate, which the job cannot verify.
+  local verify=true
+  kubectl get pod mysql-0 -n "$NAMESPACE" -o jsonpath='{.spec.volumes[*].name}' 2>/dev/null |
+    grep -qw mysql-tls || verify=false
+  # activeDeadlineSeconds follows the wait-job.sh timeout (DEPLOY_TIMEOUT_FACTOR, issue #760).
+  sed -e "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
+    -e "s#^\( *\)- name: DB_SSL_CA\$#\1- name: DB_SSL_VERIFY\n\1  value: '$verify'\n&#" \
+    "${K8S_DIR}/jobs/migration-job-down.yaml" |
+    awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
+    kubectl apply -n "$NAMESPACE" -f -
 
   log "Waiting for migration rollback to complete..."
   bash "${K8S_DIR}/scripts/wait-job.sh" "$NAMESPACE" db-migrate-down 180
@@ -329,6 +338,14 @@ canary_start() {
     abort_canary "$canary_name" "Service $service does not route to $canary_name: the canary would receive no traffic."
   fi
   log "Service $service routes to $canary_name: ${routed}/${ready} ready endpoints (~$(( routed * 100 / ready ))% of traffic)"
+
+  # edge-proxy pools keep-alive connections to the gateway, opened before the canary existed:
+  # they only reach the primary. Fresh pods (surge, maxUnavailable 0) open new ones that kube-proxy spreads.
+  if [[ "$service" == "api-gateway" ]]; then
+    if ! kubectl rollout restart -n "$NAMESPACE" deployment/edge-proxy       || ! kubectl rollout status -n "$NAMESPACE" deployment/edge-proxy --timeout=180s; then
+      abort_canary "$canary_name" "edge-proxy restart failed: the canary would be judged on stale connections."
+    fi
+  fi
 }
 
 # Observation gate of one started canary. Exits (after deleting the canary) on failure.
@@ -461,8 +478,17 @@ cmd_smoke_test() {
     local name="${entry%%:*}"
     local url="${entry#*:}"
 
-    if kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
-         curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null | grep -q "200"; then
+    # Up to 12 answers, 5 s apart: one slow Redis connect just after the rollout is not a
+    # failed release (run 43367462523), and Redis now rolls last, right before this test:
+    # its Sentinel clients need time to resolve the master again (run 43634583251).
+    local code="" try
+    for try in $(seq 1 12); do
+      code=$(kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+        curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null || true)
+      [[ "$code" == "200" || "$try" -eq 12 ]] && break
+      sleep 5
+    done
+    if [[ "$code" == "200" ]]; then
       log "  ✓ $name is healthy"
     else
       err "  ✗ $name is NOT healthy"
@@ -522,6 +548,18 @@ prom_query() {
 # Candles persisted in the last 15 min (0 when the series is absent).
 fresh_candles() {
   prom_query 'sum%28increase%28fs_candles_persisted_total%5B15m%5D%29%29' | jq -r '.data.result[0].value[1] // "0"'
+}
+
+# Critical alerts firing now, one line each: every label as sorted compact JSON,
+# so two alerts of the same name never share a line. $1 = extra label matchers (URL-encoded).
+critical_alerts() {
+  prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${1}%7D" \
+    | jq -cS '.data.result[].metric | del(.__name__, .alertstate)'
+}
+
+# critical_alerts lines (stdin) as one readable list: name{label=value, ...},...
+alert_names() {
+  jq -rs 'map(.alertname + (del(.alertname, .severity) | to_entries | map("\(.key)=\(.value)") | join(", ") | if . == "" then "" else "{\(.)}" end)) | unique | join(",")'
 }
 
 # One pass of the post-deploy functional checks (see cmd_verify_release).
@@ -584,10 +622,17 @@ release_checks_once() {
     fi
   fi
 
-  critical="$(prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${ignored}%7D" \
-    | jq -r '.data.result[].metric | .alertname + (if .job then "{job=\(.job), instance=\(.instance // "")}" else "" end)')" || return 1
+  critical="$(critical_alerts "$ignored")" || return 1
+  # Alerts already firing before the deploy (deploy.yml records them in
+  # VERIFY_BASELINE_FILE) are reported, not blocking: a rollback cannot clear them.
+  if [[ -n "$critical" && -s "${VERIFY_BASELINE_FILE:-}" ]]; then
+    local before
+    before="$(grep -xFf "$VERIFY_BASELINE_FILE" <<<"$critical" | alert_names)"
+    [[ -n "$before" ]] && log "  - firing before the deploy, not blocking: ${before}"
+    critical="$(grep -vxFf "$VERIFY_BASELINE_FILE" <<<"$critical" || true)"
+  fi
   if [[ -n "$critical" ]]; then
-    err "  ✗ critical alert(s) firing: $(echo "$critical" | sort -u | paste -sd, -)"
+    err "  ✗ critical alert(s) firing: $(alert_names <<<"$critical")"
     return 1
   fi
   log "  ✓ no critical alert firing"
@@ -668,6 +713,9 @@ case "${1:-help}" in
   verify-release)
     cmd_verify_release
     ;;
+  firing-critical)
+    critical_alerts '%2Calertname!%3D%22Watchdog%22' | sort -u
+    ;;
   *)
     echo "Trading Model K8s Deploy Script"
     echo ""
@@ -683,6 +731,7 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
     echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
     echo "  $0 [-n namespace] verify-release        API via edge-proxy, fresh data, no critical alert (VERIFY_WINDOW_SECONDS)"
+    echo "  $0 [-n namespace] firing-critical       List the critical alerts firing now (Watchdog excluded)"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
     exit 1
     ;;

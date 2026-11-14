@@ -7,10 +7,6 @@ jest.mock("express-rate-limit", () => {
 	);
 });
 
-import type {
-	JournalGroupLag,
-	MessageJournalPort,
-} from "../../../src/application/ports/message-journal-port";
 import createBrokerModule, {
 	publishJournalLag,
 } from "../../../src/config/container";
@@ -18,6 +14,10 @@ import {
 	JOURNAL_OLDEST_PENDING_AGE_SECONDS,
 	JOURNAL_PENDING_ENTRIES,
 } from "../../../src/config/metrics";
+import type {
+	JournalGroupLag,
+	MessageJournalPort,
+} from "../../../src/domain/ports/message-journal.port";
 
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
@@ -29,10 +29,10 @@ jest.mock("@trading-model/http/adapters/outbound/http-client", () => {
 		post: jest.fn<(...args: any[]) => any>(),
 		get: jest.fn<(...args: any[]) => any>(),
 	};
-	const MockHttpClient = jest
-		.fn<(...args: any[]) => any>()
-		.mockImplementation(() => mockInstance);
-	MockHttpClient.createWithTls = jest.fn((..._args: any[]) => mockInstance);
+	const MockHttpClient = Object.assign(
+		jest.fn<(...args: any[]) => any>().mockImplementation(() => mockInstance),
+		{ createWithTls: jest.fn((..._args: any[]) => mockInstance) }
+	);
 	return { HttpClient: MockHttpClient };
 });
 
@@ -56,19 +56,6 @@ describe("createBrokerModule", () => {
 
 		expect(module.listen).toBeDefined();
 		expect(typeof module.listen).toBe("function");
-	});
-
-	it("should keep dead letters in the file without a dlq-service secret", async () => {
-		const module = createBrokerModule(
-			{
-				caPath: "/certs/ca.pem" as FilePath,
-				certPath: "/certs/cert.pem" as FilePath,
-				keyPath: "/certs/key.pem" as FilePath,
-			},
-			{ filePath: "/tmp/never-written.jsonl" }
-		);
-
-		await expect(module.forwardDeadLetters()).resolves.toBeUndefined();
 	});
 
 	it("should refuse a dlq-service secret shorter than 16 characters", () => {

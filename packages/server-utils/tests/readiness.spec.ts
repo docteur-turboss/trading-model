@@ -1,8 +1,10 @@
 import http from "node:http";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import express from "express";
 import {
 	createReadinessHandler,
 	type ReadinessCheck,
+	svidReadinessCheck,
 } from "../src/adapters/inbound/readiness";
 
 function makeRequest(
@@ -76,5 +78,43 @@ describe("createReadinessHandler", () => {
 		app.get("/health/ready", createReadinessHandler(checks));
 		const { statusCode } = await makeRequest(app, "/health/ready");
 		expect(statusCode).toBe(200);
+	});
+
+	it("should report a check that never answers as error within the bound", async () => {
+		const checks: ReadinessCheck[] = [
+			{ name: "hung", check: () => new Promise<boolean>(() => {}) },
+			{ name: "db", check: () => true },
+		];
+		const app = express();
+		app.get("/health/ready", createReadinessHandler(checks, DurationMs.of(50)));
+		const started = Date.now();
+		const { statusCode, body } = await makeRequest(app, "/health/ready");
+		expect(Date.now() - started).toBeLessThan(1000);
+		expect(statusCode).toBe(503);
+		expect(JSON.parse(body).checks).toEqual({ hung: "error", db: "ok" });
+	});
+
+	it("should let a check declaring a longer bound outlive the default bound", async () => {
+		const slow = () =>
+			new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 150));
+		const checks: ReadinessCheck[] = [
+			{ name: "slow", check: slow, timeoutMs: DurationMs.of(1000) },
+		];
+		const app = express();
+		app.get("/health/ready", createReadinessHandler(checks, DurationMs.of(50)));
+		const { statusCode } = await makeRequest(app, "/health/ready");
+		expect(statusCode).toBe(200);
+	});
+
+	it("svid check passes on readable files and rejects a missing one", async () => {
+		const env = {
+			TLS_KEY_PATH: __filename,
+			TLS_CERT_PATH: __filename,
+			TLS_CA_PATH: __filename,
+		};
+		await expect(svidReadinessCheck(env).check()).resolves.toBe(true);
+		await expect(
+			svidReadinessCheck({ ...env, TLS_CA_PATH: "/missing/ca.pem" }).check()
+		).rejects.toThrow();
 	});
 });

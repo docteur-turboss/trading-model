@@ -11,7 +11,6 @@ import {
 	_createHealthLimiter,
 	_createReplayLimiter,
 	_createWriteLimiter,
-	closeRateLimiters,
 } from "./rate-limiter";
 
 function _registerDlqRoutes(
@@ -71,5 +70,3 @@ export const DlqRoutes = (handlers: DlqHandlers): Router => {
 
 	return router;
 };
-
-export { closeRateLimiters };

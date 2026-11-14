@@ -1,4 +1,3 @@
-import { getLogger } from "@trading-model/contracts/logger-registry";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 import {
 	type CircuitBreakerConfig,
@@ -52,9 +51,6 @@ export class CircuitBreaker {
 	check(key: string): CircuitState {
 		return this.getMachine(key).check();
 	}
-	isAllowed(key: string): boolean {
-		return this.getMachine(key).isAllowed();
-	}
 	recordSuccess(key: string): void {
 		this.getMachine(key).recordSuccess();
 		this._latencyTracker?.delete(key);
@@ -70,32 +66,6 @@ export class CircuitBreaker {
 	}
 	getFailureCount(key: string): number {
 		return this.getMachine(key).getFailureCount();
-	}
-	async call<TResult>(
-		key: string,
-		fn: () => Promise<TResult>,
-		fallback?: () => TResult
-	): Promise<TResult> {
-		const machine = this.getMachine(key);
-		const state = machine.check();
-		if (state === CircuitState.OPEN) {
-			if (fallback) {
-				return fallback();
-			}
-			throw new Error(`Circuit breaker OPEN: ${key}`);
-		}
-		try {
-			const result = await fn();
-			machine.recordSuccess();
-			return result;
-		} catch (error) {
-			machine.recordFailure();
-			getLogger().warn(`Circuit breaker recorded failure for: ${key}`);
-			if (fallback) {
-				return fallback();
-			}
-			throw error;
-		}
 	}
 	recordLatency(key: string, durationMs: number): void {
 		const p99 = this._latencyTracker?.update(key, durationMs);

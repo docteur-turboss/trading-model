@@ -67,7 +67,7 @@ describe("LeaseManager", () => {
 			const replicaB = createServiceRegistry({ instanceStore });
 			await replicaA.registerInstance(validServiceInstance());
 			await replicaB.removeInstance({
-				serviceName: "financial-scraper-service",
+				serviceName: "financial-scraper",
 				instanceId: "test-instance-1",
 			} as never);
 			setRegisteredInstancesPerService.mockClear();
@@ -175,29 +175,35 @@ describe("LeaseManager", () => {
 			const registry = createServiceRegistry();
 
 			await registry.registerInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "expired-id" as InstanceId,
 				host: "1.1.1.1" as IPAddress,
 				port: 8080 as Port,
 				ttl: 1 as DurationMs,
 				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: Date.now() as UnixTimestamp,
+				lastHeartbeat: Date.now() as UnixTimestamp,
 			});
 
 			await registry.registerInstance({
-				serviceName: "financial-scraper-service" as ServiceId,
+				serviceName: "financial-scraper" as ServiceId,
 				instanceId: "alive-id" as InstanceId,
-				ip: "1.1.1.2",
+				host: "1.1.1.2" as IPAddress,
 				port: 8081 as Port,
 				ttl: 60000 as DurationMs,
 				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: Date.now() as UnixTimestamp,
+				lastHeartbeat: Date.now() as UnixTimestamp,
 			});
 
 			const lm = new LeaseManager(registry);
 			lm.start();
 			await jest.advanceTimersByTimeAsync(10000);
 
-			const remaining = registry.instanceStore.getInstances(
-				"financial-scraper-service" as unknown as ServiceInstanceName
+			const remaining = await registry.instanceStore.getInstances(
+				"financial-scraper" as unknown as ServiceInstanceName
 			);
 			expect(remaining).toHaveLength(1);
 			expect(remaining[0].instanceId).toBe("alive-id");
@@ -214,6 +220,9 @@ describe("LeaseManager", () => {
 				port: 8080 as Port,
 				ttl: 1 as DurationMs,
 				protocol: "mtls" as unknown as Protocol,
+				version: "1.0.0" as Version,
+				registeredAt: Date.now() as UnixTimestamp,
+				lastHeartbeat: Date.now() as UnixTimestamp,
 			});
 
 			jest.spyOn(registry, "removeInstance").mockImplementation(() => {

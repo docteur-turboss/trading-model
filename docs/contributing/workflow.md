@@ -246,3 +246,9 @@ git checkout main && git pull
 git merge development
 bun run release:publish   # tag vX.Y.Z → Release workflow, see release.md
 ```
+
+---
+
+## Compose port publication gate
+
+`bun run compose-ports:check` (CI `lint` job, `pre-push`) fails when a `docker-compose*.yml` publishes a `ports:` entry without host `127.0.0.1` (short `"9090:9090"` or long form without `host_ip: 127.0.0.1`). `expose:` and `ports: !reset []` are ignored. A real exception goes in `EXCEPTIONS` of `scripts/compose-ports-check.mjs` (empty on purpose). The E2E job then checks `docker ps` after `compose up`: no `0.0.0.0:` or `[::]:` publication may remain.

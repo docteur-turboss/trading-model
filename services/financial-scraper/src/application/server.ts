@@ -1,13 +1,17 @@
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import type { Application } from "express";
 
 import { FINANCIAL_ROUTES } from "../adapters/inbound/http/routes";
-import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
+import {
+	ADDRESS_MANAGER_ROUTES,
+	REGISTRATION_READINESS,
+} from "../config/address-manager";
 import { DATABASE } from "../config/db";
 import { metricsHandler } from "../config/metrics";
 import { ENV } from "../infrastructure/config/env";
 
-function _registerScraperRoutes(app: import("express").Application): void {
+function _registerScraperRoutes(app: Application): void {
 	app.use("/", FINANCIAL_ROUTES());
 	app.get("/metrics", metricsHandler);
 	ADDRESS_MANAGER_ROUTES(app);
@@ -24,6 +28,7 @@ export function createServer() {
 		serviceId: ServiceId.of("financial-scraper"),
 		routes: _registerScraperRoutes,
 		readiness: [
+			REGISTRATION_READINESS,
 			{
 				name: "mysql",
 				check: async () => {

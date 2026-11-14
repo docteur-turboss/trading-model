@@ -7,7 +7,7 @@ import type {
 	DlqMetricsPort,
 	EntryEnqueuePort,
 	StorageAvailabilityPort,
-} from "../../domain/ports/dlq.ports";
+} from "../../domain/ports/dlq.port";
 import {
 	failSpanOnStorageError,
 	isDlqCapacityError,

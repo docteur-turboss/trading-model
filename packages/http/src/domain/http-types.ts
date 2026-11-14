@@ -2,11 +2,12 @@ import type { TlsPemBundle } from "@trading-model/common/config/tls-paths";
 import { HttpMethod } from "@trading-model/contracts/signed-request";
 import type {
 	DurationMs,
-	PositiveInt,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
 
+/** Header value: a string checked by HttpHeaderValue.of. */
 export type HttpHeaderValue = string & { readonly brand: "HttpHeaderValue" };
+/** Constructor and validator of HttpHeaderValue. */
 export const HttpHeaderValue = {
 	of(value: string): HttpHeaderValue {
 		if (typeof value !== "string") {
@@ -18,15 +19,8 @@ export const HttpHeaderValue = {
 	},
 };
 
+/** Header map of an HTTP request or response. */
 export type HttpHeaders = Record<string, string>;
-
-/**
- * Abstract HTTP connection agent handle. Domain code never dereferences it;
- * infrastructure adapters narrow it to their runtime type (e.g. `node:https` `Agent`).
- */
-export interface HttpAgent {
-	destroy(): void;
-}
 
 interface HttpRequestOptions {
 	timeoutMs?: DurationMs;
@@ -40,15 +34,7 @@ interface HttpRequestOptions {
 	 * after the server acted on it.
 	 */
 	idempotent?: boolean;
-	agent?: HttpAgent;
 	serviceName?: ServiceId;
-	serviceInstanceCount?: PositiveInt;
-	/**
-	 * When using a custom trust bundle (mTLS / SPIFFE SVIDs), Node's default
-	 * hostname verification is disabled because SVIDs carry only a `spiffe://`
-	 * URI SAN. Set this to `true` to re-enable standard hostname verification.
-	 */
-	verifyHostname?: boolean;
 }
 
 export type { HttpRequestOptions };

@@ -1,4 +1,4 @@
-import type { HttpStatusCode } from "@trading-model/contracts/http-status";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	HEALTH_STATUS_OK,
 	type ResponseObject,
@@ -21,7 +21,7 @@ export function createHealthHandlers(deps: HealthDeps): HealthHandlers {
 		const count = await deps.entries.count();
 		return sendResponse(
 			{ status: HEALTH_STATUS_OK, entries: count },
-			200 as HttpStatusCode
+			HTTP_STATUS.OK
 		);
 	}
 
@@ -29,7 +29,7 @@ export function createHealthHandlers(deps: HealthDeps): HealthHandlers {
 		if (!deps.db.isConnected()) {
 			return sendResponse(
 				{ status: "not ready", reason: "Database not connected" },
-				503 as HttpStatusCode
+				HTTP_STATUS.SERVICE_UNAVAILABLE
 			);
 		}
 		return null;
@@ -43,7 +43,7 @@ export function createHealthHandlers(deps: HealthDeps): HealthHandlers {
 					status: "degraded",
 					reason: `Missing critical indexes: ${missingIndexes.join(", ")}`,
 				},
-				503 as HttpStatusCode
+				HTTP_STATUS.SERVICE_UNAVAILABLE
 			);
 		}
 		return null;
@@ -55,7 +55,7 @@ export function createHealthHandlers(deps: HealthDeps): HealthHandlers {
 		const count = await deps.entries.count();
 		return sendResponse(
 			{ status, entries: count, redis: redisOk ? "connected" : "unavailable" },
-			200 as HttpStatusCode
+			HTTP_STATUS.OK
 		);
 	}
 
