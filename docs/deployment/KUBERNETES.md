@@ -163,6 +163,10 @@ the rendered overlay still contains `example.com`, before anything is applied:
 cert-manager would keep failing Let's Encrypt orders for those names (rate
 limits) and the API would have no external entry. Staging only gets a warning.
 DNS records, cert-manager and the ingress controller stay outside this repo.
+The production ingress is not reachable from the Internet (home network):
+the `letsencrypt-prod` ClusterIssuer must use a DNS-01 solver (zone on
+Cloudflare, API token limited to DNS Edit + Zone Read on that zone), HTTP-01
+cannot complete.
 
 ### 4. Deploy all resources
 

@@ -9,5 +9,5 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 data:
-  api: api.trading-model.example.com
-  grafana: grafana.trading-model.example.com
+  api: api.trading.horus-turboss.fr
+  grafana: grafana.trading.horus-turboss.fr
