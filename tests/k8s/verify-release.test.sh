@@ -28,7 +28,9 @@ case "$*" in
 *) echo "unexpected kubectl call: $*" >&2; exit 9 ;;
 esac
 STUB
-printf '#!/usr/bin/env bash\necho "$*" >>"$STUB_DIR/sleep.log"\n' >"$WORK/bin/sleep"
+# The window loop counts real SECONDS: an instant sleep made it spin until the
+# deadline. One real second per call keeps the test short and bounded.
+printf '#!/usr/bin/env bash\necho "$*" >>"$STUB_DIR/sleep.log"\nexec /usr/bin/sleep 1\n' >"$WORK/bin/sleep"
 chmod +x "$WORK/bin/"*
 export PATH="$WORK/bin:$PATH" STUB_DIR="$WORK" VERIFY_WINDOW_SECONDS=0
 run() { : >"$WORK/kubectl.log"; : >"$WORK/sleep.log"; bash "$DEPLOY" verify-release >"$WORK/out" 2>&1; }
@@ -74,7 +76,7 @@ if STUB_ALERTS="$(alerts "$HB_A" "$HB_B")" VERIFY_BASELINE_FILE="$WORK/baseline"
 grep -q "critical alert(s) firing: HeartbeatStopped{service=api-gateway}$" "$WORK/out" && pass "names the other-label alert" || { failed "other-label alert not named"; cat "$WORK/out"; }
 
 echo "window: checks repeat"
-VERIFY_WINDOW_SECONDS=130 VERIFY_INTERVAL_SECONDS=60 run && pass "passes" || { failed "window should pass"; cat "$WORK/out"; }
+VERIFY_WINDOW_SECONDS=10 VERIFY_INTERVAL_SECONDS=1 run && pass "passes" || { failed "window should pass"; cat "$WORK/out"; }
 [ "$(wc -l <"$WORK/sleep.log")" -ge 2 ] && pass "slept between passes" || failed "no repetition"
 
 exit "$FAILED"
