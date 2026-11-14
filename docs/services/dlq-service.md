@@ -27,7 +27,7 @@ All endpoints are mTLS-secured and served on **container port 3000**:
 | `DELETE` | `/dlq`          | Delete entries by id (body `{ "ids": [...] }`, 1 to 1000 ids)    |
 | `POST`   | `/dlq/replay`   | Replay entries to message-manager (query `topic`, `limit`, `batchId`) |
 | `GET`    | `/health`       | Health check                                                     |
-| `GET`    | `/health/ready` | Readiness (dependencies)                                         |
+| `GET`    | `/health/ready` | Readiness (registered with discovery once)                       |
 
 The `/dlq` routes also require a signed request: `x-service-name` (one of
 `DLQ_ALLOWED_SERVICES`), `x-timestamp` (ms, at most 5 minutes old) and
