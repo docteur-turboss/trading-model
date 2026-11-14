@@ -54,6 +54,16 @@ echo "critical alert firing"
 if STUB_ALERTS='{"data":{"result":[{"metric":{"alertname":"MarketDataStale"}}]}}' run; then failed "critical alert should fail"; else pass "fails"; fi
 grep -q "MarketDataStale" "$WORK/out" && pass "names the alert" || failed "alert not named"
 
+echo "critical alert already firing before the deploy"
+TWO='{"data":{"result":[{"metric":{"alertname":"BackupIncrementalStale","job":"backup-metrics","instance":"x:9118"}},{"metric":{"alertname":"RedisDown"}}]}}'
+printf 'BackupIncrementalStale{job=backup-metrics, instance=x:9118}
+' >"$WORK/baseline"
+if STUB_ALERTS='{"data":{"result":[{"metric":{"alertname":"BackupIncrementalStale","job":"backup-metrics","instance":"x:9118"}}]}}' VERIFY_BASELINE_FILE="$WORK/baseline" run; then pass "baseline alert alone passes"; else failed "baseline alert should pass"; cat "$WORK/out"; fi
+grep -q "firing before the deploy, not blocking: BackupIncrementalStale" "$WORK/out" && pass "reports the baseline alert" || failed "baseline alert not reported"
+if STUB_ALERTS="$TWO" VERIFY_BASELINE_FILE="$WORK/baseline" run; then failed "new alert should fail"; else pass "new alert fails"; fi
+grep -q "critical alert(s) firing: RedisDown$" "$WORK/out" && pass "names only the new alert" || { failed "new alert not named alone"; cat "$WORK/out"; }
+STUB_ALERTS="$TWO" bash "$DEPLOY" firing-critical >"$WORK/firing" 2>&1 && [ "$(wc -l <"$WORK/firing")" = 2 ] && pass "firing-critical lists both" || { failed "firing-critical"; cat "$WORK/firing"; }
+
 echo "window: checks repeat"
 VERIFY_WINDOW_SECONDS=130 VERIFY_INTERVAL_SECONDS=60 run && pass "passes" || { failed "window should pass"; cat "$WORK/out"; }
 [ "$(wc -l <"$WORK/sleep.log")" -ge 2 ] && pass "slept between passes" || failed "no repetition"

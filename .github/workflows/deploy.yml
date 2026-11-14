@@ -761,6 +761,20 @@ jobs:
             Server-side dry-run of the apply=${{ steps.dry_run.outcome }}
         run: bash scripts/preflight-summary.sh "$ENV" "$TAG"
 
+      # Critical alerts firing before any change (e.g. one that waits for a
+      # production-only fix): verify-release reports them but fails only on the
+      # alerts this release raises. Prometheus unreachable = empty baseline.
+      - name: Record critical alerts firing before the deploy
+        if: ${{ !inputs.preflight_only }}
+        shell: bash
+        run: |
+          export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
+          f="$RUNNER_TEMP/alerts-before-deploy"
+          bash deploy/k8s/scripts/deploy-k8s.sh firing-critical | sed '/^$/d' >"$f" ||
+            { echo "::warning::Prometheus unreachable: no baseline, every critical alert fails verify-release"; : >"$f"; }
+          if [ -s "$f" ]; then echo "::warning::Critical alerts firing before the deploy (not blocking): $(paste -sd, - <"$f")"; fi
+          echo "VERIFY_BASELINE_FILE=$f" >>"$GITHUB_ENV"
+
       # SPIRE agent + SPIFFE CSI driver, in the privileged trading-model-node
       # namespace: the application namespace (restricted) cannot host them.
       - name: Apply SPIFFE node components

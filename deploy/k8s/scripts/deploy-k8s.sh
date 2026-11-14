@@ -549,6 +549,12 @@ fresh_candles() {
   prom_query 'sum%28increase%28fs_candles_persisted_total%5B15m%5D%29%29' | jq -r '.data.result[0].value[1] // "0"'
 }
 
+# Critical alerts firing now, one line each; $1 = extra label matchers (URL-encoded).
+critical_alerts() {
+  prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${1}%7D" \
+    | jq -r '.data.result[].metric | .alertname + (if .job then "{job=\(.job), instance=\(.instance // "")}" else "" end)'
+}
+
 # One pass of the post-deploy functional checks (see cmd_verify_release).
 # $1 = 1 when a missing market-data signal must fail now (last pass or data
 # already seen once), 0 while the first scrape may still be pending.
@@ -609,8 +615,15 @@ release_checks_once() {
     fi
   fi
 
-  critical="$(prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${ignored}%7D" \
-    | jq -r '.data.result[].metric | .alertname + (if .job then "{job=\(.job), instance=\(.instance // "")}" else "" end)')" || return 1
+  critical="$(critical_alerts "$ignored")" || return 1
+  # Alerts already firing before the deploy (deploy.yml records them in
+  # VERIFY_BASELINE_FILE) are reported, not blocking: a rollback cannot clear them.
+  if [[ -n "$critical" && -s "${VERIFY_BASELINE_FILE:-}" ]]; then
+    local before
+    before="$(grep -xFf "$VERIFY_BASELINE_FILE" <<<"$critical" | sort -u | paste -sd, -)"
+    [[ -n "$before" ]] && log "  - firing before the deploy, not blocking: ${before}"
+    critical="$(grep -vxFf "$VERIFY_BASELINE_FILE" <<<"$critical" || true)"
+  fi
   if [[ -n "$critical" ]]; then
     err "  ✗ critical alert(s) firing: $(echo "$critical" | sort -u | paste -sd, -)"
     return 1
@@ -693,6 +706,9 @@ case "${1:-help}" in
   verify-release)
     cmd_verify_release
     ;;
+  firing-critical)
+    critical_alerts '%2Calertname!%3D%22Watchdog%22' | sort -u
+    ;;
   *)
     echo "Trading Model K8s Deploy Script"
     echo ""
@@ -708,6 +724,7 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
     echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
     echo "  $0 [-n namespace] verify-release        API via edge-proxy, fresh data, no critical alert (VERIFY_WINDOW_SECONDS)"
+    echo "  $0 [-n namespace] firing-critical       List the critical alerts firing now (Watchdog excluded)"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
     exit 1
     ;;
