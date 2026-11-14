@@ -370,7 +370,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      # Release N-1 = main, the last release: every PR tests the real upgrade path, not only the release PR.
+      # Release N-1 = main (last release plus any hotfix): every PR tests the real upgrade path.
+      # On push to main and on the release run (workflow_call on the tag), N-1 = N: no upgrade tested there.
       KIND_PREVIOUS_REF: origin/main
     steps:
       # Full history: release N-1 (KIND_PREVIOUS_REF) is built from it.
@@ -413,7 +414,8 @@ jobs:
       # and not representative of production, the RTO is judged in
       # docs/compliance/dr-exercise-log.md.
       DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
-      # Release N-1 = main, the last release: every PR tests the real upgrade path, not only the release PR.
+      # Release N-1 = main (last release plus any hotfix): every PR tests the real upgrade path.
+      # On push to main and on the release run (workflow_call on the tag), N-1 = N: no upgrade tested there.
       KIND_PREVIOUS_REF: origin/main
     steps:
       # Full history: N-1 (KIND_PREVIOUS_REF), built and deployed first.
