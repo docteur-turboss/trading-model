@@ -48,7 +48,9 @@ if [ "$1" = get ] && [ "$2" = deployment ] && [[ $* == *terminationGracePeriodSe
 	exit 0
 fi
 if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0; fi
+if [ "$1" = get ] && [[ $2 == statefulset/* ]]; then [[ $* == *updateRevision* ]] && printf '%s-abc' "${2#*/}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
+if [ "$1" = wait ] || [ "$1" = delete ]; then exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
 if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] || [ "$3" = "statefulset/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
 if [ "$1" = get ] && [ "$2" = deployment ]; then
@@ -102,6 +104,13 @@ bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 		"$(grep -n 'rollout status statefulset/redis ' "$WORK/log" | cut -d: -f1)" ] &&
 	ok "rollback undoes every resource before waiting (Redis and its sentinels restart together)" ||
 	ko "rollback order: $(cat "$WORK/log")"
+
+printf 'statefulset/redis 3\n' >"$WORK/revs"
+: >"$WORK/log"
+STUB_PODS='redis-0 redis-abc False\nredis-1 redis-new True\nredis-2 redis-new False\nredis-3 redis-new\n' bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
+	grep -qx "delete pod redis-2 redis-3 -n ns" "$WORK/log" &&
+	[ "$(grep -n 'delete pod' "$WORK/log" | cut -d: -f1)" -lt "$(grep -n 'rollout status' "$WORK/log" | cut -d: -f1)" ] &&
+	ok "rollback deletes the not-ready pods of the failed revision only, before waiting" || ko "stuck pods: $(cat "$WORK/log")"
 
 : >"$WORK/log"
 STUB_GRACE="financial-scraper-collector=360 api-gateway=30" bash "$SCRIPT" wait ns >/dev/null &&

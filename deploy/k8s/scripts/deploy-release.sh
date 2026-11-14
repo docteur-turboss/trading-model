@@ -279,6 +279,23 @@ relax_mysql() {
 	done
 }
 
+# An OrderedReady StatefulSet waits for a pod of the failed revision to turn
+# ready before replacing it, which a stuck pod never does (Kubernetes "forced
+# rollback"). Once the controller has seen the undo, delete the pods that are
+# not ready and not on the restored revision; ready pods are left to it.
+replace_stuck_pods() {
+	local ns="$1" sts="$2" gen upd pods
+	gen=$(kubectl get "statefulset/$sts" -n "$ns" -o jsonpath='{.metadata.generation}') &&
+		kubectl wait "statefulset/$sts" -n "$ns" --for=jsonpath='{.status.observedGeneration}'="$gen" --timeout="$((60 * FACTOR))s" &&
+		upd=$(kubectl get "statefulset/$sts" -n "$ns" -o jsonpath='{.status.updateRevision}') && [ -n "$upd" ] &&
+		pods=$(kubectl get pods -n "$ns" -l "app.kubernetes.io/component=$sts" \
+			-o jsonpath='{range .items[*]}{.metadata.name} {.metadata.labels.controller-revision-hash} {.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}') ||
+		return 1
+	pods=$(awk -v upd="$upd" '$2 != upd && $3 != "True" {print $1}' <<<"$pods")
+	# shellcheck disable=SC2086
+	[ -z "$pods" ] || kubectl delete pod $pods -n "$ns"
+}
+
 rollback() {
 	local ns="$1" file="$2" dep rev failed=0 target entry undone=()
 	relax_mysql "$ns" || {
@@ -300,6 +317,10 @@ rollback() {
 	done <"$file"
 	for entry in "${undone[@]}"; do
 		read -r target dep rev <<<"$entry"
+		if [[ $target == statefulset/* ]] && ! replace_stuck_pods "$ns" "${target#*/}"; then
+			echo "::error::Could not replace the stuck pods of $dep"
+			failed=1
+		fi
 		# 180 s: measured in kind run 42498902230 (PR #685): the whole rollback settled in 47 s, slowest
 		# discovery-server at 33 s (drain). Kept: lowering it would also cut the real deploy.
 		if ! kubectl rollout status "$target" -n "$ns" --timeout="$((180 * FACTOR))s"; then
