@@ -225,12 +225,14 @@ spec:
                 until $M --eval 'db.hello().isWritablePrimary' | grep -qx true; do sleep 2; done
                 # The localhost exception allows createUser and nothing else (reading
                 # system.users is refused, run 43364583932); once a user exists it
-                # refuses createUser too: Unauthorized then means root is already there.
+                # refuses createUser too: Unauthorized then means root is already there;
+                # under --transitionToAuth an unauthenticated client may create, so it answers
+                # Location51003 (already exists).
                 $M --eval '
                   try {
                     db.getSiblingDB("admin").createUser({ user: "root", pwd: process.env.MONGO_ROOT_PASSWORD, roles: [{ role: "root", db: "admin" }] });
                   } catch (e) {
-                    if (e.codeName !== "Unauthorized") throw e;
+                    if (e.codeName !== "Unauthorized" && e.codeName !== "Location51003" && e.code !== 51003) throw e;
                   }' || exit 1
               fi
               exec sleep infinity
