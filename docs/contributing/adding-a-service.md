@@ -30,7 +30,7 @@ services/my-service/
 │   ├── fixtures/
 │   └── helpers/
 ├── docs/                  # Service-specific documentation
-├── Dockerfile             # Multi-stage, oven/bun:1-alpine, tini
+├── Dockerfile             # Bun build stages, Node runtime pinned by digest, non-root, tini
 ├── package.json
 ├── tsconfig.json
 └── jest.config.js
@@ -89,45 +89,20 @@ export function createServer() {
 
 ## Dockerfile
 
-All services follow the same multi-stage Docker pattern:
-
-```dockerfile
-FROM oven/bun:1-alpine AS deps
-WORKDIR /app
-COPY package.json bun.lock ./
-COPY packages/ packages/
-COPY services/ services/
-RUN bun install --frozen-lockfile --production
-
-FROM oven/bun:1-alpine AS build
-WORKDIR /app
-COPY package.json bun.lock ./
-COPY packages/ packages/
-COPY services/ services/
-RUN bun install --frozen-lockfile
-RUN bun run build
-WORKDIR /app/services/my-service
-RUN bun run build
-
-FROM oven/bun:1-alpine AS runtime
-WORKDIR /app
-RUN apk add --no-cache tini curl
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=build /app/packages ./packages
-COPY --from=build /app/services/my-service/package.json ./services/my-service/
-COPY --from=build /app/services/my-service/dist ./services/my-service/dist
-EXPOSE 3000
-ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["bun", "services/my-service/dist/application/index.js"]
-```
+Copy `services/message-manager/Dockerfile` and replace `message-manager` with the service name. It builds with Bun but runs on Node (Bun exposes neither the peer certificate on HTTPS sockets nor `server.setSecureContext`, which SPIFFE caller identity and SVID rotation need), pins every base image by digest, runs as `appuser`, and probes `https://localhost:3000/health/ready` with the SVID as client certificate.
 
 ## Registering in the Monorepo
 
-1. Add the service to `docker-compose.yml` following the existing service pattern
-2. Add a health check endpoint (`GET /ping`)
-3. Register with the discovery-server using `@trading-model/address-manager`
-4. Add documentation in `docs/services/my-service.md`
-5. Reference the new service in `docs/services/README.md`
+Each integration point below names what fails without it. Context: the "Docker Compose" and "CI/CD" sections of [`AGENTS.md`](../../AGENTS.md).
+
+1. `main` (or `bin` for an operator CLI) in `package.json`, every `src` file reachable from it: `bun run reach:check`; `@trading-model/*` imports declared: `bun run deps:check`
+2. Name in `ServiceInstanceName` (`packages/primitives/src/service-instance-name.ts`, read by the discovery registry through `ALL_SERVICE_NAMES`) and `PLATFORM_SERVICES` (`packages/common/src/config/workload-identity.ts`): `bun run api:check` (gateway paths); `parseServiceName` refuses an unknown name at runtime
+3. Caller ACL in `packages/http/src/adapters/inbound/acl-config.ts` (`acl-config.spec.ts`); each service-to-service route has a caller in `CALLERS` of `scripts/api-contract.mjs`, a public route goes in `PUBLIC_ROUTES` of the gateway: `bun run api:check` (`bun run api:write` regenerates the OpenAPI)
+4. `/metrics` route and a dependency-aware readiness check, service added to `SERVICES` of `scripts/observability-gate.mjs`: observability gate; scrape job in `observability/prometheus.yml` and `deploy/k8s/infra/prometheus.yaml` (no gate: check by hand)
+5. Compose service with its `spiffe-helper-<x>` sidecar, SPIRE entry in `deploy/spire/bootstrap.sh` (K8s: `deploy/spire/k8s-entries.sh`), the `x-logging` anchor, its own `INSTANCE_ID`, ports on `127.0.0.1`: `bun run compose-ports:check`, the rest only by the CI E2E job
+6. K8s manifest in `deploy/k8s/services/` with `topologySpreadConstraints`, NetworkPolicy in `deploy/k8s/base/network-policies.yaml`, config in `deploy/k8s/config/<service>.properties`, image in `deploy.yml` `IMAGES` and the `release.yml` matrices: `node tests/k8s/check-overlays.mjs`, then the CI `k8s` job on kind
+7. Every environment variable read by the code set by a deployment and documented in `docs/deployment/ENV.md`: `bun run config:check`
+8. `docs/services/my-service.md`, referenced in `docs/services/README.md`
 
 ## Next Steps
 
