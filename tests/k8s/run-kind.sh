@@ -15,7 +15,8 @@
 # KIND_PREVIOUS_REF (release N-1, default HEAD^1: the base branch of a PR merge
 # commit, the commit before on a push; locally e.g. origin/development),
 # KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
-# the data StatefulSets partitioned, issue #1066: with KIND_PREVIOUS_REF=v3.1.0-rc.1).
+# the data StatefulSets partitioned, issue #1066: with KIND_PREVIOUS_REF=v3.1.0-rc.1
+# RETIRED_SECRET_KEYS=HMAC_SECRET, as the GitHub environment of deploy.yml).
 # Needs docker, git, kubectl, node, jq.
 #
 # `all` deletes the cluster when it ends: a forgotten cluster keeps the whole
