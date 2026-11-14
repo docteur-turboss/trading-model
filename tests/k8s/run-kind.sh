@@ -273,8 +273,10 @@ apply_release() {
 	# (node-exporter is new in it, ADR-0056), with deploy-cluster.
 	$K kustomize "$1/deploy/k8s/overlays/staging/node-agents" |
 		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
-	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app |
-		kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f -
+	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app >"$WORK/app.yaml"
+	# Redis first, as deploy.yml (issue #1112).
+	KUBECONFIG="$WORK/app.kubeconfig" bash "$ROOT/deploy/k8s/scripts/deploy-release.sh" redis-first "$NS" <"$WORK/app.yaml" || return 1
+	kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f "$WORK/app.yaml"
 }
 
 # Release #924 never creates the MongoDB root user on an empty cluster (its
