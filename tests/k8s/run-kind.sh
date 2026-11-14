@@ -261,10 +261,12 @@ apply_release() {
 	render_kind "$1" "$2" "$file" || return 1
 	rendered="$(cat "$file")"
 	rm -f "$file"
-	# HMAC_SECRET: still read by an N-1 older than #868 (v3.1.0-rc.1).
 	[ "$1" != "$PREVIOUS" ] || rendered="$(sed -E -e '/^  (MYSQL|REDIS)_EXPORTER_PASSWORD: /d' \
-		-e 's/key: (MYSQL|REDIS)_EXPORTER_PASSWORD$/key: \1_EXPORTER_PASSWORD_BEFORE_ADR_0056/' \
-		-e 's/^  DLQ_AUTH_HMAC_SECRET: .*/&\n  HMAC_SECRET: dev-hmac-before-868/' <<<"$rendered")"
+		-e 's/key: (MYSQL|REDIS)_EXPORTER_PASSWORD$/key: \1_EXPORTER_PASSWORD_BEFORE_ADR_0056/' <<<"$rendered")"
+	# HMAC_SECRET: only an N-1 older than #868 (v3.1.0-rc.1) still reads it.
+	if [ "$1" = "$PREVIOUS" ] && grep -q 'key: HMAC_SECRET$' <<<"$rendered"; then
+		rendered="$(sed -e 's/^  DLQ_AUTH_HMAC_SECRET: .*/&\n  HMAC_SECRET: dev-hmac-before-868/' <<<"$rendered")"
+	fi
 	if [ ! -f "$WORK/app.kubeconfig" ]; then
 		echo "$rendered" | $K apply -f -
 		return
