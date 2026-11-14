@@ -549,10 +549,16 @@ fresh_candles() {
   prom_query 'sum%28increase%28fs_candles_persisted_total%5B15m%5D%29%29' | jq -r '.data.result[0].value[1] // "0"'
 }
 
-# Critical alerts firing now, one line each; $1 = extra label matchers (URL-encoded).
+# Critical alerts firing now, one line each: every label as sorted compact JSON,
+# so two alerts of the same name never share a line. $1 = extra label matchers (URL-encoded).
 critical_alerts() {
   prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${1}%7D" \
-    | jq -r '.data.result[].metric | .alertname + (if .job then "{job=\(.job), instance=\(.instance // "")}" else "" end)'
+    | jq -cS '.data.result[].metric | del(.__name__, .alertstate)'
+}
+
+# critical_alerts lines (stdin) as one readable list: name{label=value, ...},...
+alert_names() {
+  jq -rs 'map(.alertname + (del(.alertname, .severity) | to_entries | map("\(.key)=\(.value)") | join(", ") | if . == "" then "" else "{\(.)}" end)) | unique | join(",")'
 }
 
 # One pass of the post-deploy functional checks (see cmd_verify_release).
@@ -620,12 +626,12 @@ release_checks_once() {
   # VERIFY_BASELINE_FILE) are reported, not blocking: a rollback cannot clear them.
   if [[ -n "$critical" && -s "${VERIFY_BASELINE_FILE:-}" ]]; then
     local before
-    before="$(grep -xFf "$VERIFY_BASELINE_FILE" <<<"$critical" | sort -u | paste -sd, -)"
+    before="$(grep -xFf "$VERIFY_BASELINE_FILE" <<<"$critical" | alert_names)"
     [[ -n "$before" ]] && log "  - firing before the deploy, not blocking: ${before}"
     critical="$(grep -vxFf "$VERIFY_BASELINE_FILE" <<<"$critical" || true)"
   fi
   if [[ -n "$critical" ]]; then
-    err "  ✗ critical alert(s) firing: $(echo "$critical" | sort -u | paste -sd, -)"
+    err "  ✗ critical alert(s) firing: $(alert_names <<<"$critical")"
     return 1
   fi
   log "  ✓ no critical alert firing"

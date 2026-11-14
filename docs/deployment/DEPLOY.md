@@ -426,11 +426,14 @@ and is never printed), at least one candle persisted in the last 15 min
 (`Watchdog` excluded). Passes repeat over an observation window; any failed pass fails the
 step and triggers "Rollback on failure". Market data may be missing until the first pass
 that sees it, but must be present on the last pass and never disappear after. A critical
-alert already firing before the deploy does not fail the gate: the step "Record critical
-alerts firing before the deploy" lists them (`deploy-k8s.sh firing-critical`) into
-`VERIFY_BASELINE_FILE`, and `verify-release` only reports them, since a rollback cannot
-clear them (e.g. a backup alert waiting for a production-only fix). The same alert on a
-new instance, or any other alert, still fails. Staging skips the market-data
+alert already firing before the deploy does not fail the gate in staging: the step "Record
+critical alerts firing before the deploy", before any cluster change, lists them with all
+their labels (`deploy-k8s.sh firing-critical`) into `VERIFY_BASELINE_FILE`, and
+`verify-release` only reports them, since a rollback cannot clear them (e.g. a backup alert
+waiting for a production-only fix). An alert that differs by any label (another instance,
+service, symbol...) still fails. In production that step refuses to start the deploy while a
+critical alert fires. An alert of the baseline that resolves then fires again during the
+deploy with the same labels stays reported only. Staging skips the market-data
 check and ignores `MarketDataStale` (`VERIFY_REQUIRE_FRESH_DATA=false`, set by `deploy.yml`):
 there, missing market data only warns (`Verify market data resumed`).
 
