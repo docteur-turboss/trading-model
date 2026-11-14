@@ -6,7 +6,7 @@
 //    (default)  fail when docs/services/events/schemas.json is not up to date
 //    --write    regenerate it from EVENT_VALIDATORS (Zod 4 toJSONSchema)
 //    --compat   fail on a breaking change against the snapshot of the last
-//               stable release tag (vX.Y.Z); no tag or no snapshot there =
+//               release tag (vX.Y.Z[-rc.N]) holding a snapshot; none =
 //               nothing to compare, success. Intentional break: put the exact
 //               reported line in docs/services/events/breaking-exceptions.json.
 //
@@ -17,7 +17,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import { breakingChanges } from "./schema-compat.mjs";
+import { breakingChanges, releaseTags } from "./schema-compat.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const SNAPSHOT = "docs/services/events/schemas.json";
@@ -36,24 +36,22 @@ for (const type of Object.keys(EVENT_VALIDATORS).sort()) {
 const generated = `${JSON.stringify(snapshot, null, "\t")}\n`;
 const mode = process.argv[2] ?? "";
 
-/** Snapshot of the last stable tag, or undefined (with the reason printed). */
+/** Snapshot of the newest release tag (pre-releases included) that has one, or undefined. */
 function previousSnapshot() {
 	const git = (...args) => execFileSync("git", args, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-	const tag = git("tag", "--list", "v*", "--sort=-v:refname")
-		.split("\n")
-		.find((t) => /^v\d+\.\d+\.\d+$/.test(t));
-	if (!tag) {
-		console.log("contracts:compat: no stable release tag, nothing to compare");
-		return undefined;
+	// versionsort.suffix=- sorts v3.1.0-rc.1 before v3.1.0.
+	const tags = releaseTags(git("-c", "versionsort.suffix=-", "tag", "--list", "v*", "--sort=-v:refname"));
+	for (const tag of tags) {
+		try {
+			const schemas = JSON.parse(git("show", `${tag}:${SNAPSHOT}`));
+			console.log(`contracts:compat: comparing with ${tag}`);
+			return { tag, schemas };
+		} catch {
+			console.log(`contracts:compat: ${tag} has no ${SNAPSHOT}, trying the previous tag`);
+		}
 	}
-	let text;
-	try {
-		text = git("show", `${tag}:${SNAPSHOT}`);
-	} catch {
-		console.log(`contracts:compat: ${tag} has no ${SNAPSHOT}, nothing to compare`);
-		return undefined;
-	}
-	return { tag, schemas: JSON.parse(text) };
+	console.log("contracts:compat: no release tag with a snapshot, nothing to compare");
+	return undefined;
 }
 
 if (mode === "--write") {

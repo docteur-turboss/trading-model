@@ -727,8 +727,6 @@
 			"maxDrawdown",
 			"evaluatedOn",
 			"agentId",
-			"version",
-			"sha256",
 			"gaControl",
 			"network",
 			"rl"

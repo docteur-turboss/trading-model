@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { breakingChanges } from "./schema-compat.mjs";
+import { breakingChanges, releaseTags } from "./schema-compat.mjs";
 
 const base = { type: "object", properties: { a: { type: "string" }, k: { enum: ["x", "y"] } }, required: ["a"] };
 
@@ -25,4 +25,8 @@ test("type changed: breaking", () => {
 test("enum value removed: breaking", () => {
 	const next = { ...base, properties: { ...base.properties, k: { enum: ["x"] } } };
 	assert.deepEqual(breakingChanges(base, next), ['$.k: enum value "y" removed']);
+});
+
+test("release tags keep pre-releases, drop other tags", () => {
+	assert.deepEqual(releaseTags("v3.1.0\nv3.1.0-rc.1\nvfoo\nv3.0.0\n"), ["v3.1.0", "v3.1.0-rc.1", "v3.0.0"]);
 });

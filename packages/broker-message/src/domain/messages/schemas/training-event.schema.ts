@@ -16,8 +16,12 @@ export const TRAINING_EVENT_VALIDATORS = {
 		maxDrawdown: z.number().min(0),
 		evaluatedOn: z.enum(["validation", "test"]),
 		agentId: z.string(),
-		version: z.string().min(1),
-		sha256: z.string().regex(/^[0-9a-f]{64}$/),
+		// Optional: a trader-trainer of the previous release (3.1.0-rc.1) publishes without them (expand, ADR-0061).
+		version: z.string().min(1).optional(),
+		sha256: z
+			.string()
+			.regex(/^[0-9a-f]{64}$/)
+			.optional(),
 		admissible: z.boolean().optional(),
 		gaControl: z.object({
 			populationSize: z.number(),
@@ -41,5 +45,9 @@ export const TRAINING_EVENT_VALIDATORS = {
 			epsilonMin: z.number(),
 			epsilonDecay: z.number(),
 		}),
-	}) satisfies z.ZodType<TrainingModelPublishedPayload, unknown>,
+	}) satisfies z.ZodType<
+		Omit<TrainingModelPublishedPayload, "version" | "sha256"> &
+			Partial<Pick<TrainingModelPublishedPayload, "version" | "sha256">>,
+		unknown
+	>,
 };
