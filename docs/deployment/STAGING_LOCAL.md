@@ -109,8 +109,11 @@ staging deploy (issue #842).
   the backup job `needs:` it, so the self-hosted runner never gets
   `SEALED_SECRETS_BACKUP_KUBECONFIG` or the MinIO credentials on failure
   (issue #860).
-- Runner group limited to the workflows `deploy.yml` and
-  `sealed-secrets-key-backup.yml` ("Selected workflows"): runner groups need an
+- `backup-key-check.yml` too: when `BACKUP_KEY_CHECK_RUNNER` is set, job
+  `check-environment` (GitHub-hosted) runs the same check before
+  `verify-escrow-key` gets the escrow key on this runner (issue #1135).
+- Runner group limited to the workflows `deploy.yml`,
+  `sealed-secrets-key-backup.yml` and `backup-key-check.yml` ("Selected workflows"): runner groups need an
   organization. The repository belongs to a personal account, so this layer is
   missing; the approval setting is the only barrier. Move the repository to an
   organization to add it.
@@ -256,7 +259,9 @@ While it is down:
   above): expect the cold start of MySQL, Mongo and Redis before the smoke test
   passes. This is not measured; the smoke test waits `--timeout=120s` per Deployment
   (`deploy-k8s.sh`).
-- `backup-key-check.yml` and CI run on GitHub-hosted runners: not affected.
+- `backup-key-check.yml` (Monday 07:00 UTC) needs the runner and MinIO while
+  `BACKUP_KEY_CHECK_RUNNER` is set: its job stays queued or fails. CI runs on
+  GitHub-hosted runners: not affected.
 
 Stop it only when no backup window (02:00 to 04:00 UTC) matters to you, and
 start it before a deploy: `deploy.yml` fails on the self-hosted runner otherwise.
