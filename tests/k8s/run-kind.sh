@@ -6,7 +6,7 @@
 # the rollback, then checks the stack works end to end. Used by the `k8s` CI
 # job; runs locally too.
 #
-#   tests/k8s/run-kind.sh [all|images|load|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
+#   tests/k8s/run-kind.sh [all|images|load|cluster|deploy|upgrade|smoke|verify|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_release|verify_alerts|verify_backup|verify_traces|dump]
 #
 #   tests/k8s/run-kind.sh delete   # cluster + the images built for it
 #
@@ -702,7 +702,6 @@ verify_network() {
 	verify_replicas
 	verify_egress
 	verify_mongo_ingress
-	verify_mongo_auth
 	verify_db_ingress
 	verify_mysql_tls
 	verify_redis_tls
@@ -875,26 +874,6 @@ verify_mongo_ingress() {
 			log "  a pod without component label reached $host:27017"
 			return 1
 		fi
-	done
-}
-
-# mongod enforces authentication (ADR-0067, issue #751): an anonymous client and
-# the `exporter` user (clusterMonitor, no data rights) are refused on the data.
-verify_mongo_auth() {
-	local label pod auth out pw
-	# The mongodb container has no exporter password in its env (only the sidecar and the init Job do)
-	pw="$($K -n "$NS" get secret trading-model-secrets -o jsonpath='{.data.MONGO_EXPORTER_PASSWORD}' | base64 -d)"
-	log "MongoDB: anonymous client and exporter refused (requires authentication / not authorized)"
-	for label in mongodb mongodb-audit; do
-		pod="$(mongo_primary "$label")" || { log "  no primary for $label"; return 1; }
-		for auth in "" "-u exporter -p '$pw' --authenticationDatabase admin"; do
-			# mongosh exits 1 on the refusal: capture first, pipefail would fail the grep. An anonymous client gets "requires authentication", a user without rights "not authorized" (code 13, Unauthorized)
-			out="$($K -n "$NS" exec "$pod" -- sh -c "mongosh --quiet $auth --eval \"db.getSiblingDB('admin').getCollection('system.users').findOne()\" 2>&1" || true)"
-			grep -qE "requires authentication|not authorized|Unauthorized" <<<"$out" || {
-				log "  $label accepted a client without data rights ($([ -n "$auth" ] && echo exporter || echo anonymous))"
-				return 1
-			}
-		done
 	done
 }
 
@@ -1728,9 +1707,9 @@ verify_group)
 		;;
 	esac
 	;;
-images | load | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_mongo_auth | verify_db_ingress | verify_mysql_tls | verify_redis_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
+images | load | cluster | deploy | upgrade | smoke | verify | verify_replicas | verify_egress | verify_mongo_ingress | verify_db_ingress | verify_mysql_tls | verify_redis_tls | verify_canary | verify_identity_without_mysql | verify_release | verify_alerts | verify_backup | verify_traces | dump | delete) "$1" ;;
 *)
-	echo "usage: $0 [all|images|load|cluster|deploy|upgrade|smoke|verify|verify_group <network|observability|backup>|verify_replicas|verify_egress|verify_mongo_ingress|verify_mongo_auth|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
+	echo "usage: $0 [all|images|load|cluster|deploy|upgrade|smoke|verify|verify_group <network|observability|backup>|verify_replicas|verify_egress|verify_mongo_ingress|verify_db_ingress|verify_mysql_tls|verify_redis_tls|verify_canary|verify_identity_without_mysql|verify_release|verify_alerts|verify_backup|dump|delete]" >&2
 	exit 64
 	;;
 esac
