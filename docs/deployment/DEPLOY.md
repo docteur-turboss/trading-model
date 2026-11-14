@@ -200,9 +200,9 @@ Once per environment, before the first `db-backup` run: set the bucket's
 lifecycle rules for `daily/`, `weekly/`, `monthly/` and the two archive
 prefixes, then read them back
 ([BACKUP_DR.md, Off-site tiers](BACKUP_DR.md#off-site-tiers), ADR-0032).
-Nothing in the deployment checks them: the `backup-tools` image has no `aws`
-CLI, so each backup run only logs "Off-site lifecycle rules not verified". A
-missing rule loses nothing, but those copies are then never expired.
+`deploy.yml` (`backup-bucket-check.sh`) checks the `daily/`, `weekly/` and
+`monthly/` rules. A missing rule loses nothing, but those copies are then never
+expired.
 
 ### Deployment phases
 
@@ -303,13 +303,12 @@ the repository can check, and lists every gap in one run. What stays manual
    `ALERTMANAGER_DEADMAN_URL`, `ALERTMANAGER_PUSHOVER_USER_KEY`,
    `ALERTMANAGER_PUSHOVER_TOKEN` (all four required in staging and production), `SIGNAL_CONTACT_EMAIL`,
    `BACKUP_AGE_RECIPIENTS` (two distinct keys), `BACKUP_S3_*` for an Object Lock
-   bucket ([Prerequisites (off-site backup bucket)](#prerequisites-off-site-backup-bucket),
-   lifecycle rules not checked by the preflight), `AUDIT_ANCHOR_*` for the audit
+   bucket ([Prerequisites (off-site backup bucket)](#prerequisites-off-site-backup-bucket)), `AUDIT_ANCHOR_*` for the audit
    chain anchor bucket (ADR-0027).
 6. **Compliance**: the `Controller` and `Contact` fields of the
    [data processing register](../compliance/data-processing-register.md).
 
-Not checked by the preflight: the bucket lifecycle rules, the register, a
+Not checked by the preflight: the register, a
 canary or a real rollout (the preflight never starts a pod).
 
 ### Each production release

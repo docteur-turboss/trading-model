@@ -31,6 +31,6 @@ Options were put to the project owner on issue #292; the owner chose option 1 + 
 
 - About 30 daily, 12 weekly and 60 monthly copies of the audit and MySQL dumps off-site: storage cost proportional to their size. The local volume is unchanged.
 - Restoring a long tier goes through the bucket: the layout under each prefix is the volume's, and `fetch-offsite.sh --tier <tier>` fetches from it (issue #290). The weekly and monthly prefixes hold no operational `mongodb`, checkpoints or CA keys.
-- Off-site expiry relies on rules set outside the repository. A missing rule keeps copies forever, it never loses one; with rclone only (the `backup-tools` image), the rules are not verified by the job.
+- Off-site expiry relies on rules set outside the repository. A missing rule keeps copies forever, it never loses one; `backup-bucket-check.sh` verifies them at deploy.
 - Consistent with ADR-0027: audit anchors keep their own Object Lock retention (`AUDIT_RETENTION_DAYS`) in a separate bucket. No error is swallowed (ADR-0017): a failed retention plan is reported and prunes nothing.
 - Out of scope: Object Lock on the backup bucket (A3, decided in [ADR-0033](./0033-offsite-backup-bucket-object-lock.md): compliance, 30-31 days, so the lifecycle rules above stay the expiry), point-in-time recovery (issue #291), purge of market data in MySQL (DPIA action #2), PVC usage monitoring (A14).
