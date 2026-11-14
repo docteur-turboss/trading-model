@@ -15,8 +15,7 @@
 # KIND_PREVIOUS_REF (release N-1, default HEAD^1: the base branch of a PR merge
 # commit, the commit before on a push; locally e.g. origin/development),
 # KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
-# the data StatefulSets partitioned, issue #1066: with KIND_PREVIOUS_REF=v3.1.0-rc.1
-# RETIRED_SECRET_KEYS=HMAC_SECRET, as the GitHub environment of deploy.yml).
+# the data StatefulSets partitioned, issue #1066, e.g. with KIND_PREVIOUS_REF=v3.1.0-rc.1).
 # Needs docker, git, kubectl, node, jq.
 #
 # `all` deletes the cluster when it ends: a forgotten cluster keeps the whole
@@ -263,10 +262,6 @@ apply_release() {
 	rm -f "$file"
 	[ "$1" != "$PREVIOUS" ] || rendered="$(sed -E -e '/^  (MYSQL|REDIS)_EXPORTER_PASSWORD: /d' \
 		-e 's/key: (MYSQL|REDIS)_EXPORTER_PASSWORD$/key: \1_EXPORTER_PASSWORD_BEFORE_ADR_0056/' <<<"$rendered")"
-	# HMAC_SECRET: only an N-1 older than #868 (v3.1.0-rc.1) still reads it.
-	if [ "$1" = "$PREVIOUS" ] && grep -q 'key: HMAC_SECRET$' <<<"$rendered"; then
-		rendered="$(sed -e 's/^  DLQ_AUTH_HMAC_SECRET: .*/&\n  HMAC_SECRET: dev-hmac-before-868/' <<<"$rendered")"
-	fi
 	if [ ! -f "$WORK/app.kubeconfig" ]; then
 		echo "$rendered" | $K apply -f -
 		return

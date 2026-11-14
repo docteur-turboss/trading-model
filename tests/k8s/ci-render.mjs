@@ -49,6 +49,8 @@ stringData:
   MYSQL_SPIRE_PASSWORD: dev-mysql-spire
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
   GRAFANA_PASSWORD: dev-grafana
+  # Read only by release N-1 (v3.1.0-rc.1, before #868); drop in the release after v3.1.0-rc.2 (contract, issue #1081).
+  HMAC_SECRET: dev-hmac
   REDIS_INTERNAL_PASSWORD: dev-redis-internal-password
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
   REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
