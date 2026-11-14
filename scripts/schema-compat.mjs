@@ -45,3 +45,6 @@ export function breakingChanges(oldS, newS, path = "$") {
 	}
 	return out;
 }
+
+/** Release tags (stable and pre-release, vX.Y.Z[-id.N]) from `git tag` output, order kept. */
+export const releaseTags = (output) => output.split("\n").filter((t) => /^v\d+\.\d+\.\d+(-[\w.]+)?$/.test(t));

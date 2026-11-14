@@ -101,14 +101,20 @@ describe("training and DLQ events", () => {
 		expect(types.every((t) => t in EVENT_VALIDATORS)).toBe(true);
 	});
 
-	it("accepts training.model.published and refuses it without sha256", () => {
+	it("accepts training.model.published, also without version/sha256 (rc.1 publisher), refuses a malformed sha256", () => {
 		const type = "training.model.published";
 		expect(
 			MESSAGE_PAYLOAD_SCHEMA.safeParse({ type, data: model }).success
 		).toBe(true);
-		const { sha256: _omitted, ...noSha } = model;
+		const { sha256: _s, version: _v, ...rc1 } = model;
+		expect(MESSAGE_PAYLOAD_SCHEMA.safeParse({ type, data: rc1 }).success).toBe(
+			true
+		);
 		expect(
-			MESSAGE_PAYLOAD_SCHEMA.safeParse({ type, data: noSha }).success
+			MESSAGE_PAYLOAD_SCHEMA.safeParse({
+				type,
+				data: { ...model, sha256: "zz" },
+			}).success
 		).toBe(false);
 		// The ADR-0069 verdict reaches subscribers instead of being stripped.
 		const marked = MESSAGE_PAYLOAD_SCHEMA.safeParse({
