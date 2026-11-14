@@ -30,7 +30,7 @@ Lightweight health check.
 
 **`GET /health`**
 
-Liveness for admin/debug. Readiness (MongoDB ping) is `GET /health/ready`.
+Liveness for admin/debug. Readiness (MongoDB ping, registered with discovery once) is `GET /health/ready`.
 
 **Response:** `200 OK`
 
