@@ -39,8 +39,10 @@ function parseCsv(text: string, delimiter: string): Record<string, string>[] {
 			if (ch === "\r" && text[i + 1] === "\n") {
 				i++;
 			}
-			row.push(field);
-			rows.push(row);
+			if (row.length > 0 || field !== "") {
+				row.push(field);
+				rows.push(row);
+			}
 			row = [];
 			field = "";
 		} else {
@@ -78,14 +80,15 @@ async function readBounded(response: Response, host: string): Promise<string> {
 		}
 		chunks.push(chunk);
 	}
-	return Buffer.concat(chunks).toString("utf8");
+	return Buffer.concat(chunks).toString("utf8").replace(/^﻿/, "");
 }
 
 /**
- * `rest_api` protocol: GET of the request URL, JSON body (or CSV / text, as the source declares, 5 MB at most). Rejects on a
- * network error, after 10 s, or on a non-2xx status; no retry here, the
- * collector spaces the next ticks of a failing source. A body that cannot be
- * decoded rejects with an `InvalidPayloadError`.
+ * `rest_api` protocol: GET of the request URL, JSON body (or CSV / text, as
+ * the source declares), 5 MB at most, JSON included. Rejects on a network
+ * error, after 10 s, or on a non-2xx status; no retry here, the collector
+ * spaces the next ticks of a failing source. A body that cannot be decoded
+ * rejects with an `InvalidPayloadError`.
  */
 export function createRestApiWorker(userAgent: string): ProtocolWorker {
 	return async (request, auth, body) => {
