@@ -71,6 +71,8 @@ describe("signal registry — the shipped file", () => {
 describe("parseSignalRegistry", () => {
 	it.each([
 		["a crypto", "BTC", { assetClass: "crypto", replication: "physical" }],
+		["an equity", "AAPL", { assetClass: "equity", replication: "physical" }],
+		["a bond", "EA_AAA_10Y", { assetClass: "bond", replication: "physical" }],
 		[
 			"an etf, class out of the list",
 			"GLD",
@@ -84,6 +86,17 @@ describe("parseSignalRegistry", () => {
 	])("refuses exposure on %s", (_name, id, exposure) => {
 		const file = registry();
 		assetOf(file, id).exposure = exposure;
+
+		expect(() => parseSignalRegistry(file)).toThrow();
+	});
+
+	it("refuses exposure on a real estate asset", () => {
+		const file = registry();
+		Object.assign(assetOf(file, "BTC"), {
+			assetType: "real_estate",
+			identifier: { scheme: "insee", code: "75056" },
+			exposure: { assetClass: "real_estate", replication: "physical" },
+		});
 
 		expect(() => parseSignalRegistry(file)).toThrow();
 	});
