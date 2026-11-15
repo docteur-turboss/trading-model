@@ -31,8 +31,7 @@ Record the topology as deployed, including what it does not provide.
 
 | | Compose / staging / kind | Production |
 | --- | --- | --- |
-| Servers | 1 | StatefulSet of 3 (`mysql-0..2`), Group Replication plugin loaded, single-primary |
-| Members of the group | — | `mysql-0` only (bootstrapped by `mysql-cluster-init`) |
+| Servers | 1 | StatefulSet of 1 (`mysql-0`), single primary, GTID binlogs |
 | Write endpoint | `mysql` (compose) / `mysql-primary` | `mysql-primary` → pod `mysql-0` |
 | Failover | none | **none** |
 | Protection against data loss | encrypted daily backups (`scripts/backup-lib.sh`), restore drills | same |
@@ -50,7 +49,7 @@ The K8s split is kept: the audit trail (hash-chained, compliance) and the DLQ ha
 
 ### Making MySQL highly available
 
-Real HA is a separate decision, not taken here. The options are known: either finish Group Replication (join `mysql-1/2` with `START GROUP_REPLICATION`, restart the group on boot, and route writes to the elected primary through MySQL Router or a readiness probe on `group_replication_primary_member`), or drop to one MySQL replica and rely on backups and restore time. Issue #814 chose the second: the production StatefulSet runs `replicas: 1` (the SPIRE datastore left MySQL in ADR-0065, so no failover requirement remains). The Group Replication config and `mysql-cluster-init` stay: they bootstrap the one-member group on `mysql-0`, and a later HA decision can add members back.
+Real HA is a separate decision, not taken here. The options are known: either finish Group Replication (join `mysql-1/2` with `START GROUP_REPLICATION`, restart the group on boot, and route writes to the elected primary through MySQL Router or a readiness probe on `group_replication_primary_member`), or drop to one MySQL replica and rely on backups and restore time. Issue #814 chose the second: the production StatefulSet runs `replicas: 1` (the SPIRE datastore left MySQL in ADR-0065, so no failover requirement remains). The Group Replication config, the `mysql-cluster-init` Job and the `repl` user were removed (issue #1204, amends the earlier decision to keep them): a later HA decision goes through a standard MySQL operator, not this Job.
 
 ## Alternatives Considered
 
