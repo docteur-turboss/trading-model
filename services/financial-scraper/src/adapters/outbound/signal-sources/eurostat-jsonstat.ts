@@ -56,7 +56,10 @@ export const EUROSTAT_JSONSTAT: SourceAdapter = {
 		const [geo] = Object.keys(dimension.geo.category.index);
 		const times = Object.entries(dimension.time.category.index);
 		// A flat index is the time position only when every other dimension has one value.
-		if (id.at(-1) !== "time" || size.slice(0, -1).some((length) => length !== 1)) {
+		if (
+			id.at(-1) !== "time" ||
+			size.slice(0, -1).some((length) => length !== 1)
+		) {
 			throw new Error("Eurostat answer is not one series of one geo");
 		}
 		if (geo !== params.area || unit === undefined) {
