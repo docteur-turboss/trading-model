@@ -89,6 +89,10 @@ spec:
               value: /badger/key
             - name: BADGER_SPAN_STORE_TTL
               value: 72h
+            # Badger opens every table at start: 1 Gi was OOMKilled (#1278).
+            # The Go GC works under this soft limit before the kernel kills.
+            - name: GOMEMLIMIT
+              value: 1536MiB
           volumeMounts:
             - name: badger
               mountPath: /badger
@@ -98,19 +102,18 @@ spec:
               memory: 256Mi
             limits:
               cpu: 500m
-              memory: 1Gi
-          # Badger replays its journal from the PVC on start: liveness only
-          # begins once the UI answers (up to 5 min).
+              memory: 2Gi
           startupProbe:
             httpGet:
               path: /
               port: 16686
-            periodSeconds: 5
-            failureThreshold: 60
+            periodSeconds: 10
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /
               port: 16686
+            initialDelaySeconds: 10
             periodSeconds: 15
           readinessProbe:
             httpGet:

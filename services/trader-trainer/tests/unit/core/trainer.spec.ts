@@ -881,12 +881,8 @@ describe("Trainer — model publication", () => {
 			expect(baseline).not.toBeCloseTo(
 				buyAndHoldSharpe(windows.map((ws) => ws.validation))
 			);
-			// The verdict reads the test segment metrics and its bars (ADR-0069).
-			expect(models.save.mock.calls[0][0].admission).toMatchObject({
-				admissible: false,
-				evaluatedOn: "test",
-				criteria: { sharpe: summary?.sharpe, buyAndHoldSharpe: baseline },
-			});
+			// The test segment is under MIN_ADMISSION_TEST_BARS: no verdict (ADR-0069).
+			expect(models.save.mock.calls[0][0].admission).toBeUndefined();
 			expect(
 				await value(MODEL_BELOW_BUY_AND_HOLD_STREAK, { symbol: "BTCUSDT" })
 			).toBe(Number(summary?.sharpe) < Number(baseline) ? 1 : 0);
