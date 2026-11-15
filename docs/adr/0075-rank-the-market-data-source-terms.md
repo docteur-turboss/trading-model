@@ -2,9 +2,10 @@
 
 **Status:** Proposed
 **Date:** 2026-11
-**Related:** [ADR-0026](./0026-binance-public-market-data-kept.md) (amended: Decision 4 fallbacks re-ranked), [ADR-0036](./0036-signals-mvp-registry-collector-store-api.md) (Binance Vision terms), [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) (expand/contract), issues #1291, #1264
+**Related:** [ADR-0026](./0026-binance-public-market-data-kept.md) (amended: Decision 4 fallbacks re-ranked), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (Binance Vision terms), [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) (expand/contract), issues #1291, #1264
+**Verified by:** `bun run adr:check`
 
-Documentation only. Nothing here changes code, configuration or a manifest. The decision is the owner's.
+Documentation only. Nothing here changes code, configuration or a manifest. Owner decision (2026-11-15, issue #1291): option 1, double with Bitstamp. The ADR stays `Proposed` until the Binance terms are read and the Bitstamp agreement is signed.
 
 ## Context
 
