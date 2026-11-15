@@ -1,6 +1,6 @@
 # Runbook: Authentication Failures and ACL Denials
 
-**Severity:** SEV3 (warning)
+**Severity:** L3 (warning)
 **Alerts:** `ApiAuthFailuresHigh`, `MtlsAclDenials`
 
 ## ApiAuthFailuresHigh

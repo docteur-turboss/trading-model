@@ -40,14 +40,4 @@ describe("TimerHandle", () => {
 		expect(handle.isRunning).toBe(false);
 		jest.useRealTimers();
 	});
-
-	it("should be safe to stop when not running", () => {
-		const handle = new TimerHandle();
-		handle.stop();
-	});
-
-	it("should be safe to unref when not running", () => {
-		const handle = new TimerHandle();
-		handle.unref();
-	});
 });

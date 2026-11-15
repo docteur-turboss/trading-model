@@ -63,7 +63,7 @@ each component (checksum verified), or the run given by `--timestamp`.
 
 **Alerts:** `ServiceDown` on `financial-scraper` with MySQL connectivity
 errors, `MarketDataStale`  
-**Severity:** SEV1
+**Severity:** L1
 
 There is **no MySQL failover** (ADR-0020). Every client (financial-scraper,
 financial-scraper-collector, migration and retention Jobs) writes through
@@ -144,7 +144,7 @@ release; it goes away with the contract step of ADR-0065.
 
 **Alerts:** `CertificateExpiry` (an SVID with less than 1 hour left),
 workloads failing mTLS, pods stuck without SVID  
-**Severity:** SEV1
+**Severity:** L1
 
 One replica (`strategy: Recreate`), SQLite datastore and CA keys
 (`datastore.sqlite3`, `keys-sqlite.json`) on the RWO PVC `spire-server-data`
@@ -179,7 +179,7 @@ recovery window. Pods started meanwhile get no identity.
 
 **Alerts:** `ServiceDown` on `dlq-service` or `audit-logger`,
 `AuditChainBroken` after a restore  
-**Severity:** SEV1
+**Severity:** L1
 
 Two separate replica sets: `mongo-dlq-*` (dlq-service) and `mongo-audit-*`
 (audit-logger). Losing one member is absorbed by the election.
@@ -279,7 +279,7 @@ Exit 1 on any KO
 ## Redis Failover
 
 **Alert:** Multiple services showing degraded performance  
-**Severity:** SEV1-SEV2
+**Severity:** L1-L2
 
 ### Symptom Check
 

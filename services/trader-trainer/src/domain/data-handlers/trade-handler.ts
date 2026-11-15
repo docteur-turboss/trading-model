@@ -7,6 +7,7 @@ import { DataType } from "./data-types";
 // tradeId arrives as bigint or decimal string (bus JSON): `>` on two strings is lexicographic.
 function isNewTrade(trades: readonly TradeData[], trade: TradeData): boolean {
 	const last = trades[trades.length - 1];
+	// biome-ignore lint/nursery/noUselessTypeConversion: typed bigint, but a string at runtime (see above)
 	return last === undefined || BigInt(trade.tradeId) > BigInt(last.tradeId);
 }
 
