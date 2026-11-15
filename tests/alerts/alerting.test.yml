@@ -986,23 +986,26 @@ tests:
           - exp_labels: {severity: warning, topic: market.candlestick.series.fetch}
             exp_annotations:
               summary: 'Messages dead-lettered on market.candlestick.series.fetch'
-              description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in dlq-service (GET /dlq) to inspect and replay.'
+              description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in the dead stream of the topic (audit-dlq CLI) to inspect and replay.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
-  # One dead letter dlq-service refused for good (400, 413).
-  - name: dead letters dlq-service refused
+  # A dead stream with entries: the alert waits 5 minutes, stays while one is left.
+  - name: dead letters wait in a dead stream
     interval: 1m
     input_series:
-      - series: 'mm_dlq_rejected_total{job="message-manager",instance="m1"}'
-        values: '0 0 1x20'
+      - series: 'bus_dead_letters{job="message-manager",instance="m1",topic="market.candlestick.series.fetch"}'
+        values: '0 0 2x20'
     alert_rule_test:
-      - eval_time: 20m
-        alertname: DeadLettersRejected
+      - eval_time: 3m
+        alertname: BusDeadLetters
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: BusDeadLetters
         exp_alerts:
-          - exp_labels: {severity: warning}
+          - exp_labels: {severity: warning, topic: market.candlestick.series.fetch}
             exp_annotations:
-              summary: 'dlq-service refused dead letters'
-              description: 'dlq-service refused 1 dead letter(s) in the last hour (invalid or too large): their journal entries stay pending until trimmed after 24 h (a lost message, JournalEntriesTrimmed): fix the cause within 24 h, see the runbook and the message-manager logs.'
+              summary: 'Dead letters wait on market.candlestick.series.fetch'
+              description: '2 dead letter(s) wait in the dead stream of market.candlestick.series.fetch (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
   # market.ticker: dropped for 30 minutes, fires. market.trade: a burst at

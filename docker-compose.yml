@@ -113,6 +113,9 @@ services:
       - redis-server
       - --appendonly
       - ${REDIS_APPENDONLY:-no}
+      # A full Redis refuses writes (a publish fails visibly) instead of evicting journal entries (ADR-0073).
+      - --maxmemory-policy
+      - noeviction
       - --save
       - 900 1 300 10
     volumes:
@@ -599,8 +602,6 @@ services:
       MAX_ENTRIES: '100000'
       DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
       DLQ_ALLOWED_SERVICES: ${DLQ_ALLOWED_SERVICES:-message-manager,admin}
-      # Replays eligible dead letters through message-manager (ADR-0029).
-      DLQ_AUTO_RETRY_ENABLED: ${DLQ_AUTO_RETRY_ENABLED:-true}
     volumes:
       - svid-dlq:/run/spire/svid
     networks:

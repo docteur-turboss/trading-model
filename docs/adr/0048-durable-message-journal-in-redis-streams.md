@@ -1,6 +1,6 @@
 # ADR-0048: Durable Message Journal in Redis Streams — Accept First, Deliver Afterwards
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md)
 **Date:** 2026-11
 **Supersedes:** [ADR-0019](./0019-message-broker-as-built.md)
 **Related:** [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (removed the earlier Redis Streams code), [ADR-0016](./0016-shared-contracts-ownership.md) (publish timeout contract), [ADR-0023](./0023-discovery-registry-in-redis.md) (no `KEYS`), [ADR-0017](./0017-no-swallowed-errors.md)

@@ -400,17 +400,17 @@ groups:
           severity: warning
         annotations:
           summary: 'Messages dead-lettered on {{ $labels.topic }}'
-          description: 'message-manager gave up delivering {{ $value | humanize }} message(s) on {{ $labels.topic }} in the last hour. They are in dlq-service (GET /dlq) to inspect and replay.'
+          description: 'message-manager gave up delivering {{ $value | humanize }} message(s) on {{ $labels.topic }} in the last hour. They are in the dead stream of the topic (audit-dlq CLI) to inspect and replay.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
-      - alert: DeadLettersRejected
-        expr: sum(increase(mm_dlq_rejected_total[1h])) > 0
-        for: 0m
+      - alert: BusDeadLetters
+        expr: max by (topic) (bus_dead_letters) > 0
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: 'dlq-service refused dead letters'
-          description: 'dlq-service refused {{ $value | humanize }} dead letter(s) in the last hour (invalid or too large): their journal entries stay pending until trimmed after 24 h (a lost message, JournalEntriesTrimmed): fix the cause within 24 h, see the runbook and the message-manager logs.'
+          summary: 'Dead letters wait on {{ $labels.topic }}'
+          description: '{{ $value | humanize }} dead letter(s) wait in the dead stream of {{ $labels.topic }} (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
       # A DLQ delete or replay was done but message-manager refused its audit

@@ -102,7 +102,7 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
 | model-evaluator | address-manager, broker-message, common, contracts, http, primitives, server-utils, validation |
 | financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, server-utils, validation |
-| message-manager | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
+| message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability, server-utils, validation |
 | trader-service | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, server-utils, validation |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
