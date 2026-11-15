@@ -4,21 +4,21 @@ This directory contains Architecture Decision Records (ADRs) for the trading-mod
 
 ## What is an ADR?
 
-An ADR documents a significant architectural decision, including the context, alternatives considered, and the rationale for the chosen approach. ADRs are immutable once accepted — superseded decisions are documented in a new ADR that references the old one.
+An ADR documents a significant architectural decision, including the context, alternatives considered, and the rationale for the chosen approach. ADRs are immutable once accepted — superseded decisions are documented in a new ADR that references the old one. A superseded ADR may later be deleted: its index row stays with the status "Deleted", and git history keeps its text.
 
 ## Index
 
 | ADR                                           | Title                                                  | Status   | Date    |
 | --------------------------------------------- | ------------------------------------------------------ | -------- | ------- |
 | [ADR-0001](./0001-ga-dqn-training.md)         | Genetic Algorithm + Deep Q-Learning for Agent Training | Accepted | 2026-06 |
-| [ADR-0002](./0002-redis-pub-sub.md)           | Redis Streams for Inter-Service Messaging              | Superseded by [ADR-0019](./0019-message-broker-as-built.md) | 2026-06 |
-| [ADR-0003](./0003-mongodb-persistence.md)     | MongoDB for Audit and DLQ Persistence                    | Superseded by [ADR-0020](./0020-database-topology-as-deployed.md) | 2026-06 |
-| [ADR-0004](./0004-mysql-group-replication.md) | MySQL with Group Replication for Market Data           | Superseded by [ADR-0020](./0020-database-topology-as-deployed.md) | 2026-06 |
-| [ADR-0005](./0005-mtls-security.md)           | Mutual TLS for All Inter-Service Communication         | Superseded by [ADR-0011](./0011-spiffe-spire-workload-identity.md) | 2026-06 |
+| ADR-0002 | Redis Streams for Inter-Service Messaging | Deleted (superseded by ADR-0019) | 2026-06 |
+| ADR-0003 | MongoDB for Audit and DLQ Persistence | Deleted (superseded by ADR-0020) | 2026-06 |
+| ADR-0004 | MySQL with Group Replication for Market Data | Deleted (superseded by ADR-0020) | 2026-06 |
+| ADR-0005 | Mutual TLS for All Inter-Service Communication | Deleted (superseded by ADR-0011) | 2026-06 |
 | [ADR-0006](./0006-monorepo-bun-workspaces.md) | Monorepo Structure with bun Workspaces                 | Accepted | 2026-06 |
 | [ADR-0007](./0007-common-package-split.md)   | Common Package Split                                   | Implemented | 2026-06 |
-| [ADR-0008](./0008-message-broker-choice.md)  | Message Broker Choice                                  | Superseded by [ADR-0019](./0019-message-broker-as-built.md) | 2026-06 |
-| [ADR-0009](./0009-certificate-utils-structure.md) | Certificate Utils Structure                       | Superseded by [ADR-0011](./0011-spiffe-spire-workload-identity.md) | 2026-06 |
+| ADR-0008 | Message Broker Choice | Deleted (superseded by ADR-0019) | 2026-06 |
+| ADR-0009 | Certificate Utils Structure | Deleted (superseded by ADR-0011) | 2026-06 |
 | [ADR-0010](./0010-clean-architecture-migration.md) | Clean Architecture Migration                    | Implemented | 2026-06 |
 | [ADR-0011](./0011-spiffe-spire-workload-identity.md) | SPIFFE/SPIRE Workload Identity                 | Accepted | 2026-09 |
 | [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) | Dead Code Removal via Reachability Analysis and Runtime Entrypoint Fix | Accepted | 2026-10 |
@@ -82,6 +82,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0072](./0072-dns-routing-and-majors-served-by-services.md) | Route on Service DNS Names, Majors Served by the Services, Retire discovery-server | Accepted | 2026-11 |
 | [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md) | The Message Bus as a Redis Streams Library, Dead Letters in Dead Streams | Accepted | 2026-11 |
 | [ADR-0074](./0074-merge-shared-packages-into-six.md) | Merge the Twelve Shared Packages into Six, One Merge per PR | Accepted | 2026-11 |
+| [ADR-0075](./0075-non-commercial-signal-sources-admitted-and-tagged.md) | Free Personal-Use Signal Sources Are Admitted, Tagged by Their Terms | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

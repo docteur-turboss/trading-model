@@ -1,6 +1,6 @@
 # Runbook: Deployment Failure
 
-**Severity:** SEV1-SEV2  
+**Severity:** L1-L2  
 **Alert:** `HighErrorRate`, `ServiceDown` post-deployment
 
 ## Detection

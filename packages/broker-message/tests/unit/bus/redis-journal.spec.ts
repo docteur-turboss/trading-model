@@ -47,7 +47,6 @@ describe("RedisMessageJournal", () => {
 
 		const commands = redis.call.mock.calls.map((args) => args.slice(0, 3));
 		expect(commands.map(([name]) => name)).toEqual([
-			"EXISTS",
 			"XGROUP",
 			"XGROUP",
 			"XADD",
@@ -68,15 +67,15 @@ describe("RedisMessageJournal", () => {
 		);
 	});
 
-	it("should not register a group again once this process did", async () => {
+	it("should register the group on every append, never trusting a cache a retire elsewhere may have emptied", async () => {
 		const { redis, journal } = setup();
 
 		await journal.append(createMockMessage("a"), ["trader-trainer"]);
 		await journal.append(createMockMessage("b"), ["trader-trainer"]);
 
 		const names = redis.call.mock.calls.map(([name]) => name);
-		expect(names).toEqual(["EXISTS", "XGROUP", "XADD", "EXISTS", "XADD"]);
-		expect(redis.sadd).toHaveBeenCalledTimes(1);
+		expect(names).toEqual(["XGROUP", "XADD", "XGROUP", "XADD"]);
+		expect(redis.sadd).toHaveBeenCalledTimes(2);
 	});
 
 	it("should read with BLOCK on a connection of its own, and close it", async () => {
@@ -127,24 +126,6 @@ describe("RedisMessageJournal", () => {
 
 		const names = redis.call.mock.calls.map(([name]) => name);
 		expect(names).toEqual(["XGROUP", "XREADGROUP", "XGROUP"]);
-	});
-
-	it("should register a cached group again when the stream is gone before writing", async () => {
-		let streamExists = 1;
-		const { redis, journal } = setup(async (name) =>
-			name === "EXISTS" ? streamExists : "OK"
-		);
-		await journal.append(createMockMessage("a"), ["trader-trainer"]);
-		streamExists = 0;
-		redis.call.mockClear();
-
-		await journal.append(createMockMessage("b"), ["trader-trainer"]);
-
-		expect(redis.call.mock.calls.map(([name]) => name)).toEqual([
-			"EXISTS",
-			"XGROUP",
-			"XADD",
-		]);
 	});
 
 	it("should create the group again after NOGROUP in claimDue, and rethrow other errors", async () => {

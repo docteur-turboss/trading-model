@@ -1,6 +1,6 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { sha256Hex } from "@trading-model/crypto/node-crypto";
-import { SIGNAL_COLLECTIONS_TOTAL } from "../config/metrics";
+import { SIGNAL_COLLECTIONS_TOTAL, SIGNAL_SOURCES } from "../config/metrics";
 import {
 	InvalidPayloadError,
 	type ProtocolWorker,
@@ -30,6 +30,28 @@ export function zeroCollectionFailures(sources: readonly Source[]): void {
 		for (const result of FAILURES) {
 			SIGNAL_COLLECTIONS_TOTAL.inc({ source: id, result }, 0);
 		}
+	}
+}
+
+/** Sets `fs_signal_sources` and names the non-commercial sources (ADR-0075). */
+export function recordSourceTerms(sources: readonly Source[]): void {
+	SIGNAL_SOURCES.reset();
+	for (const { accessPolicy } of sources) {
+		SIGNAL_SOURCES.inc({
+			terms: accessPolicy.terms,
+			commercial_licence: accessPolicy.commercialLicence ?? "n/a",
+		});
+	}
+	const restricted = sources.filter(
+		(source) => source.accessPolicy.terms === "non-commercial"
+	);
+	if (restricted.length > 0) {
+		getLogger().warn("Non-commercial signal sources: no commercial use", {
+			sources: restricted.map(
+				(source) =>
+					`${source.id} (licence ${source.accessPolicy.commercialLicence})`
+			),
+		});
 	}
 }
 

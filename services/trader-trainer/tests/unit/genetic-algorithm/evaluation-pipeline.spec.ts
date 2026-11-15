@@ -179,12 +179,17 @@ describe("evaluateGenomeAllWindows", () => {
 			},
 		];
 		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
-		const result = await evaluateGenomeAllWindows(
+		await evaluateGenomeAllWindows(
 			genome as any,
 			windowSets,
 			backendFactory as any
 		);
-		expect(result.updatedGenome).toBeDefined();
+		// one decision every 3 bars: train bars 0,3,6,9 (4), then validation
+		// bars 0,3 (2) for each of the 2 evaluation episodes
+		const stepCalls = backendFactory.mock.results.map(
+			(r) => ((r.value as RLBackend).step as jest.Mock).mock.calls.length
+		);
+		expect(stepCalls).toEqual([4, 2, 2]);
 	});
 
 	it("should apply reward shaping with clip and normalize", async () => {

@@ -1,27 +1,53 @@
 import { describe, expect, it } from "@jest/globals";
-import { DurationMs } from "@trading-model/primitives/primitives/time-ids";
+import {
+	type DurationMs,
+	DurationMs as Ms,
+} from "@trading-model/primitives/primitives/time-ids";
 import {
 	computeExponentialBackoff,
 	computeExponentialBackoffWithJitter,
 } from "../../../src/utils/backoff-config";
 
-describe("backoff-config", () => {
-	it("should compute exponential backoff", () => {
-		const delay = computeExponentialBackoff(1, {
-			baseDelayMs: DurationMs.of(100),
-			maxDelayMs: DurationMs.of(10000),
-		});
-		expect(delay).toBeGreaterThanOrEqual(100);
-		expect(delay).toBeLessThanOrEqual(10000);
+const range = { baseDelayMs: Ms.of(100), maxDelayMs: Ms.of(500) };
+
+describe("computeExponentialBackoff", () => {
+	it("doubles from the base delay and caps at the max delay", () => {
+		expect(
+			[0, 1, 2, 3, 10].map((a) => computeExponentialBackoff(a, range))
+		).toEqual([100, 200, 400, 500, 500]);
 	});
 
-	it("should compute backoff with jitter", () => {
-		const delay = computeExponentialBackoffWithJitter(1, {
-			baseDelayMs: DurationMs.of(100),
-			maxDelayMs: DurationMs.of(10000),
-			jitterMs: DurationMs.of(50),
-		});
-		expect(delay).toBeGreaterThanOrEqual(0);
-		expect(delay).toBeLessThanOrEqual(10000);
+	it("defaults to 200 ms base and 5 s max", () => {
+		expect(computeExponentialBackoff(0, {})).toBe(200);
+		expect(computeExponentialBackoff(10, {})).toBe(5000);
+	});
+
+	it("rejects a base delay <= 0 or above the max delay", () => {
+		expect(() =>
+			computeExponentialBackoff(0, { baseDelayMs: 0 as DurationMs })
+		).toThrow(RangeError);
+		expect(() =>
+			computeExponentialBackoff(0, {
+				baseDelayMs: Ms.of(200),
+				maxDelayMs: Ms.of(100),
+			})
+		).toThrow(RangeError);
+	});
+});
+
+describe("computeExponentialBackoffWithJitter", () => {
+	it("adds a jitter in [0, jitterMs) to the backoff", () => {
+		for (let i = 0; i < 50; i++) {
+			const delay = computeExponentialBackoffWithJitter(1, {
+				...range,
+				jitterMs: Ms.of(50),
+			});
+			expect(delay).toBeGreaterThanOrEqual(200);
+			expect(delay).toBeLessThan(250);
+		}
+	});
+
+	it("adds nothing without jitter", () => {
+		expect(computeExponentialBackoffWithJitter(1, range)).toBe(200);
 	});
 });

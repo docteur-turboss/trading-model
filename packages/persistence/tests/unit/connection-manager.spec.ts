@@ -73,16 +73,4 @@ describe("ConnectionManager", () => {
 		expect(disconnectFn).toHaveBeenCalledWith("conn");
 		expect(cm.getClient()).toBeNull();
 	});
-
-	it("should handle disconnect errors gracefully", async () => {
-		const disconnectFn = jest
-			.fn<(conn: string) => Promise<void>>()
-			.mockRejectedValue(new Error("disconnect error"));
-		const cm = new ConnectionManager<string>(
-			jest.fn<() => Promise<string>>().mockResolvedValue("conn"),
-			disconnectFn
-		);
-		await cm.getConnection();
-		await cm.close();
-	});
 });

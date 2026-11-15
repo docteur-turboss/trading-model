@@ -1,7 +1,7 @@
 # Runbook: Message Bus Outage
 
 **Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `BusDeadLetters`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
-**Severity:** SEV1
+**Severity:** L1
 
 ## Architecture Context
 

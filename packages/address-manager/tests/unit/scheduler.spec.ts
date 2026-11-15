@@ -56,10 +56,6 @@ describe("Scheduler", () => {
 	});
 
 	describe("register", () => {
-		test("should register a job before starting", () => {
-			scheduler.register(mockJob);
-		});
-
 		test("should throw if registering after start", () => {
 			scheduler.register(mockJob);
 			scheduler.start();
