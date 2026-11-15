@@ -1,5 +1,5 @@
 import http from "node:http";
-import { configureApp } from "../src/configure-app";
+import { configureApp } from "../../src/configure-app";
 
 function makeRequest(
 	app: http.RequestListener,

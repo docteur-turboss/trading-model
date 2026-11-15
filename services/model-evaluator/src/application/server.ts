@@ -1,6 +1,6 @@
 import { mountRoute } from "@trading-model/http/api-route/mount-route";
+import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { ServiceId } from "@trading-model/primitives/primitives";
-import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
 import { Router } from "express";
 import { EVALUATOR_API } from "../adapters/inbound/api-routes";
 import type { createMessageHandler } from "../adapters/inbound/evaluation-subscriber";

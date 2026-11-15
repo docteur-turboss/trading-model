@@ -60,7 +60,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders |
 | `@trading-model/http` | HTTP middleware (mTLS auth, response protocol), HTTP client, logging pipeline |
 | `@trading-model/validation` | Zod schemas, DTOs, event enums, admin contracts |
-| `@trading-model/server-utils` | Secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
+| `@trading-model/http` | Secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness |
 | `@trading-model/address-manager` | Service discovery client with health-checking and token rotation |
 | `@trading-model/broker-message` | Inter-service messaging SDK with typed event subscriptions |

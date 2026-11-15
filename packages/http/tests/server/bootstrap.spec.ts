@@ -1,9 +1,9 @@
-jest.mock("../src/signal-handler", () => ({
+jest.mock("../../src/signal-handler", () => ({
 	setupProcessHandlers: jest.fn(),
 }));
 
-import { createBootstrap } from "../src/bootstrap";
-import { setupProcessHandlers } from "../src/signal-handler";
+import { createBootstrap } from "../../src/bootstrap";
+import { setupProcessHandlers } from "../../src/signal-handler";
 
 function createMockServer() {
 	return {
@@ -80,14 +80,14 @@ describe("createBootstrap logging via the registry", () => {
 				setLogger,
 				NoopLogger,
 			} = require("@trading-model/contracts/logger-registry");
-			const { createBootstrap: bootstrap } = require("../src/bootstrap");
+			const { createBootstrap: bootstrap } = require("../../src/bootstrap");
 			const info = jest.spyOn(console, "info").mockImplementation(() => {});
 			const opts = { name: "svc", createServer: () => createMockServer() };
 			setLogger(NoopLogger);
 			bootstrap(opts);
 			expect(info).not.toHaveBeenCalled();
 			// importing the HTTP logger registers it (setLogger at import time)
-			require("@trading-model/http/logger");
+			require("../../src/logger");
 			bootstrap(opts);
 			expect(info).toHaveBeenCalledWith(
 				expect.stringContaining("Bootstrapping service")

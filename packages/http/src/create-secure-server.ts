@@ -1,11 +1,11 @@
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
-import { MTLSAuthMiddleware } from "@trading-model/http/mtls-auth";
-import { MTLSAuthorizationMiddleware } from "@trading-model/http/mtls-authorization";
-import { ResponseProtocol } from "@trading-model/http/response-protocol";
 import type { ServiceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 import { configureApp } from "./configure-app";
+import { MTLSAuthMiddleware } from "./mtls-auth";
+import { MTLSAuthorizationMiddleware } from "./mtls-authorization";
 import type { ReadinessCheck } from "./readiness";
+import { ResponseProtocol } from "./response-protocol";
 import {
 	createAndStartHttpsServer,
 	type HttpServer,

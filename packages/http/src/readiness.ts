@@ -1,9 +1,9 @@
 import { access, constants } from "node:fs/promises";
 import type { TlsEnvVars } from "@trading-model/common/config/tls-paths";
 import { withTimeout } from "@trading-model/common/utils/retry";
-import { HEALTH_STATUS_OK } from "@trading-model/http/response-exception";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { RequestHandler } from "express";
+import { HEALTH_STATUS_OK } from "./response-exception";
 
 export interface ReadinessCheck {
 	name: string;

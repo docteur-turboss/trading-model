@@ -5,7 +5,7 @@ const MOCK_CREATE_SECURE_SERVER = jest
 	.fn<(...args: any[]) => any>()
 	.mockReturnValue({ close: jest.fn<(...args: any[]) => any>() });
 
-jest.mock("@trading-model/server-utils/service-server-factory", () => ({
+jest.mock("@trading-model/http/service-server-factory", () => ({
 	createServiceServer: MOCK_CREATE_SECURE_SERVER,
 }));
 
