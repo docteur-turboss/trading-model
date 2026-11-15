@@ -69,6 +69,37 @@ spec:
           labelSelector:
             matchLabels:
               app.kubernetes.io/component: edge-proxy
+      initContainers:
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Always
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: 8081
+            periodSeconds: 1
+            failureThreshold: 120
+          args:
+            - -config
+            - /etc/spiffe-helper/helper.conf
+          volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       containers:
         - name: edge-proxy
           image: nginx@sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4  # nginx 1.27.3-alpine
@@ -154,29 +185,6 @@ spec:
                   - /bin/sh
                   - -c
                   - sleep 5
-        - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
-          imagePullPolicy: IfNotPresent
-          args:
-            - -config
-            - /etc/spiffe-helper/helper.conf
-          volumeMounts:
-            - name: spiffe-helper-config
-              mountPath: /etc/spiffe-helper
-              readOnly: true
-            - name: spire-agent-socket
-              mountPath: /run/spire/agent-sockets
-            - name: svid
-              mountPath: /run/spire/svid
-          securityContext:
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
-            seccompProfile:
-              type: RuntimeDefault
       volumes:
         - name: nginx-conf
           configMap:

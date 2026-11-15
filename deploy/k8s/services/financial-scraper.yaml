@@ -70,6 +70,37 @@ spec:
           labelSelector:
             matchLabels:
               app.kubernetes.io/component: financial-scraper
+      initContainers:
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Always
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: 8081
+            periodSeconds: 1
+            failureThreshold: 120
+          args:
+            - -config
+            - /etc/spiffe-helper/helper.conf
+          volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       containers:
         - name: financial-scraper
           image: ghcr.io/trading-model/financial-scraper:latest
@@ -169,29 +200,6 @@ spec:
                   - /bin/sh
                   - -c
                   - sleep 10
-        - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
-          imagePullPolicy: IfNotPresent
-          args:
-            - -config
-            - /etc/spiffe-helper/helper.conf
-          volumeMounts:
-            - name: spiffe-helper-config
-              mountPath: /etc/spiffe-helper
-              readOnly: true
-            - name: spire-agent-socket
-              mountPath: /run/spire/agent-sockets
-            - name: svid
-              mountPath: /run/spire/svid
-          securityContext:
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
-            seccompProfile:
-              type: RuntimeDefault
       volumes:
         - name: spiffe-helper-config
           configMap:
@@ -282,6 +290,37 @@ spec:
         fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Always
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: 8081
+            periodSeconds: 1
+            failureThreshold: 120
+          args:
+            - -config
+            - /etc/spiffe-helper/helper.conf
+          volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       containers:
         - name: financial-scraper-collector
           image: ghcr.io/trading-model/financial-scraper:latest
@@ -395,29 +434,6 @@ spec:
                   - /bin/sh
                   - -c
                   - sleep 10
-        - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
-          imagePullPolicy: IfNotPresent
-          args:
-            - -config
-            - /etc/spiffe-helper/helper.conf
-          volumeMounts:
-            - name: spiffe-helper-config
-              mountPath: /etc/spiffe-helper
-              readOnly: true
-            - name: spire-agent-socket
-              mountPath: /run/spire/agent-sockets
-            - name: svid
-              mountPath: /run/spire/svid
-          securityContext:
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
-            seccompProfile:
-              type: RuntimeDefault
       volumes:
         - name: spiffe-helper-config
           configMap:
