@@ -13,6 +13,16 @@ TS=2026-01-01_000000
 
 mkdir -p "$WORK/bin" "$WORK/backups/mongodb/$TS"
 for l in mongodb mongodb-audit; do echo x | gzip >"$WORK/backups/mongodb/$TS/$l.archive.gz"; done
+# Run manifest: a run without one is refused.
+mkdir -p "$WORK/backups/manifests"
+{
+	echo "{\"version\":1,\"timestamp\":\"$TS\",\"entries\":["
+	for l in mongodb mongodb-audit; do
+		f="mongodb/$TS/$l.archive.gz"
+		echo "{\"component\":\"$l\",\"path\":\"$f\",\"size\":$(wc -c <"$WORK/backups/$f" | tr -d ' '),\"sha256\":\"$(sha256sum "$WORK/backups/$f" | cut -d' ' -f1)\"},"
+	done | sed '$ s/,$//'
+	echo "]}"
+} >"$WORK/backups/manifests/manifest_$TS.json"
 cat >"$WORK/bin/kubectl" <<'K'
 #!/usr/bin/env bash
 case "$1" in
@@ -81,16 +91,6 @@ check "malformed pattern refused" refused "expected <db>.<collection>"
 run --components mongodb --allow-mixed-runs --ns audit.audit_events --into-scratch
 check "audit into scratch allowed" test "$RC" -eq 0
 
-# A run manifest, so that `latest` resolves to that run.
-mkdir -p "$WORK/backups/manifests"
-{
-	echo "{\"version\":1,\"timestamp\":\"$TS\",\"entries\":["
-	for l in mongodb mongodb-audit; do
-		f="mongodb/$TS/$l.archive.gz"
-		echo "{\"component\":\"$l\",\"path\":\"$f\",\"size\":$(wc -c <"$WORK/backups/$f" | tr -d ' '),\"sha256\":\"$(sha256sum "$WORK/backups/$f" | cut -d' ' -f1)\"},"
-	done | sed '$ s/,$//'
-	echo "]}"
-} >"$WORK/backups/manifests/manifest_$TS.json"
 # No --timestamp: the scratch name comes from the run found, never "latest".
 : >"$WORK/calls"
 OUT="$(env PATH="$WORK/bin:$PATH" BACKUP_DIR="$WORK/backups" CALLS="$WORK/calls" 	bash "$ROOT/scripts/restore-k8s.sh" --components mongodb --allow-mixed-runs --into-scratch 2>&1)"

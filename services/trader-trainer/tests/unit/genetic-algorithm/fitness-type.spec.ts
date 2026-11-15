@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import { Cash, Price } from "@trading-model/primitives/primitives";
-import { FeatureVector } from "../../../src/domain/feature-vector";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { EVAL_EPSILON } from "../../../src/domain/genetic-algorithm/evaluation-phase";
 import { evaluateGenomeAllWindows } from "../../../src/domain/genetic-algorithm/evaluation-pipeline";
@@ -11,14 +11,14 @@ import {
 } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import { GenerationProcessor } from "../../../src/domain/genetic-algorithm/generation-processor";
+import type {
+	LamarckGenome,
+	MarketStep,
+} from "../../../src/domain/genetic-algorithm/genome";
 import {
 	createGAControlGenome,
 	FitnessType,
 } from "../../../src/domain/genetic-algorithm/genome-control";
-import type {
-	LamarckGenome,
-	MarketStep,
-} from "../../../src/domain/genetic-algorithm/genome-types";
 import type { RLBackend } from "../../../src/domain/genetic-algorithm/rl-backend";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
 

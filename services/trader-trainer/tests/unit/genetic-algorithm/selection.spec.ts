@@ -7,7 +7,7 @@ import type {
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
-import type { PopMember } from "../../../src/domain/genetic-algorithm/genome-types";
+import type { PopMember } from "../../../src/domain/genetic-algorithm/genome";
 import { selectParent } from "../../../src/domain/genetic-algorithm/selection";
 
 function makePopulation(): PopMember[] {

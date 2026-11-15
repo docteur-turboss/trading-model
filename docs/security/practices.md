@@ -115,21 +115,11 @@ TLS_CERT_PATH=/run/spire/svid/svid.pem
 TLS_CA_PATH=/run/spire/svid/bundle.pem
 
 # Gateway auth (api-gateway)
-AUTH_TOKENS=your-api-key-here
+AUTH_TOKENS=ops:read+dlq:write:<secret>
 AUTH_TOKEN_HEADER=x-api-key
 ```
 
-The gateway accepts the token as `x-api-key: <token>` or `Authorization: Bearer <token>`. Tokens are compared as SHA-256 digests with `timingSafeEqual`; the client identity (rate-limit key) is derived from the digest, never from the raw token.
-
-### Loading Order (Priority)
-
-```
-1. .env.local (if exists) - NOT committed
-2. .env.{NODE_ENV}.local - NOT committed
-3. .env.{NODE_ENV} - Committed (production values sanitized)
-4. .env - Committed
-5. .env.example - Reference only
-```
+The gateway accepts the token as `x-api-key: <token>` or `Authorization: Bearer <token>`. Tokens are compared as SHA-256 digests with `timingSafeEqual`; the client identity (rate-limit key) is derived from the digest, never from the raw token. Key format and the other variables: [ENV.md](../deployment/ENV.md).
 
 ## Dependencies
 

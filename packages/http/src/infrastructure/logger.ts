@@ -1,8 +1,4 @@
-/**
- * Transitional re-export shim (ADR-0010): the logger pipeline moved to
- * `application/services/logger`. This sub-path is preserved for backward
- * compatibility with existing consumers.
- */
+// Canonical logger entry point; the pipeline lives in application/services/logger.
 export {
 	createLogger,
 	type LogEntry,

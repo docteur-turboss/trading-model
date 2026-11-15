@@ -5,10 +5,9 @@ import {
 } from "@trading-model/primitives/primitives";
 import { EpisodeScores } from "./episode-scores";
 import type { EvaluationPnl } from "./evaluation-phase";
-import type { GenomeFitnessMeta } from "./genome";
+import type { GenomeFitnessMeta, LamarckGenome, MarketStep } from "./genome";
 import { FitnessType } from "./genome-control";
 import { computeAdjustedFitness, estimateComplexity } from "./genome-fitness";
-import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 

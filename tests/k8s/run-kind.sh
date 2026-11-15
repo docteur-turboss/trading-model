@@ -33,7 +33,7 @@ NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
-SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service"
+SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
@@ -91,8 +91,15 @@ retry() {
 # Builds the 10 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
 build_images() {
 	local root="$1" tag="$2" svc
+	# N-1 may predate a service: its image is a stand-in built from this checkout.
+	local have="" missing=""
+	for svc in $SERVICES; do
+		if docker compose -f "$root/docker-compose.yml" config --services | grep -qx "$svc"; then have="$have $svc"; else missing="$missing $svc"; fi
+	done
 	# shellcheck disable=SC2086
-	retry 3 docker compose -f "$root/docker-compose.yml" build $SERVICES spire-bootstrap
+	retry 3 docker compose -f "$root/docker-compose.yml" build $have spire-bootstrap
+	# shellcheck disable=SC2086
+	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" build $missing
 	retry 3 docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
 	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
 	local mroot="$root"
@@ -273,7 +280,9 @@ apply_release() {
 	# (node-exporter is new in it, ADR-0056), with deploy-cluster.
 	$K kustomize "$1/deploy/k8s/overlays/staging/node-agents" |
 		kubectl --kubeconfig "$WORK/cluster.kubeconfig" apply -f - || return 1
-	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app |
+	echo "$rendered" | bash "$ROOT/scripts/split-cluster-scope.sh" app >"$WORK/app.yaml"
+	# Redis last, as deploy.yml: `release` applies it after the rollout (issue #1156).
+	KUBECONFIG="$WORK/app.kubeconfig" bash "$ROOT/deploy/k8s/scripts/deploy-release.sh" without-redis "$NS" <"$WORK/app.yaml" |
 		kubectl --kubeconfig "$WORK/app.kubeconfig" apply -f -
 }
 
@@ -367,9 +376,11 @@ release() {
 	release_script release-replicas "$NS" || return 1
 	apply_release "$ROOT" "$1" || return 1
 	release_script wait "$NS" "${2:-180s}" || return 1
+	release_script redis-last "$NS" <"$WORK/app.yaml" || return 1
 	# Binds the users to their client certificates once mysql-0 serves the cert-manager certificate.
 	migrations "$ROOT" user-only || return 1
-	deploy_script smoke-test
+	deploy_script smoke-test || return 1
+	release_script forget "$NS"
 }
 
 # shellcheck source=tests/k8s/probe-availability.sh
@@ -491,9 +502,20 @@ upgrade() {
 		log "an upgrade whose api-gateway image does not exist passed"
 		return 1
 	fi
+	# A re-run of deploy.yml records again before its own rollback: it must find N-1, not N (issue #1192).
+	release_script record "$NS" "$WORK/revisions-rerun" >/dev/null
+	cmp -s "$WORK/revisions" "$WORK/revisions-rerun" || {
+		log "a re-run after the failed upgrade records other revisions than N-1"
+		diff "$WORK/revisions" "$WORK/revisions-rerun" || true
+		return 1
+	}
 	log "  the upgrade failed: rollback on failure (deploy-release.sh rollback)"
+	# rollback waits for every restored resource; a Deployment new in N is deleted, so no global wait
 	release_script rollback "$NS" "$WORK/revisions"
-	release_script wait "$NS" 300s
+	[ -z "$($K -n "$NS" get configmap deploy-revisions --ignore-not-found -o name)" ] || {
+		log "configmap/deploy-revisions left after a successful rollback: the next deploy would roll back to N-1"
+		return 1
+	}
 	# The first N-1 → N attempt ran db-migrate-user once, before the overlay that
 	# brings the exporter keys: the user exists only if their SealedSecret was
 	# applied before the Job (issue #698). MySQL stays on N (not rolled back).
@@ -507,6 +529,7 @@ upgrade() {
 	local dep template expected
 	while read -r dep template; do
 		expected="$(echo "$before_templates" | sed -n "s/^$dep //p")"
+		[ -n "$expected" ] || continue # new in release N: deleted by the rollback
 		[ "$template" = "$expected" ] || {
 			log "$dep is not back on its N-1 pod template after the rollback"
 			diff <(echo "$expected" | jq .) <(echo "$template" | jq .) || true
@@ -546,7 +569,7 @@ upgrade() {
 		log "migrations of release N-1 no longer applied after the rollback: $missing"
 		return 1
 	}
-	deploy_script smoke-test
+	SMOKE_SKIP=model-evaluator deploy_script smoke-test # new in N: deleted by the rollback
 	log "  rollback: every Deployment back on its N-1 pod template (image digests, $marked N-1 ConfigMaps), N-1 migrations applied"
 
 	log "migrate-down 1, then the migrations again"
@@ -1626,7 +1649,9 @@ dump() {
 		$K -n "$NS" logs "$pod" --all-containers --tail=60 || true
 		# Why the last container died (exit code, reason) and what it said.
 		$K -n "$NS" describe pod "$pod" | grep -E -A6 "Last State:" || true
-		$K -n "$NS" logs "$pod" --all-containers --previous --tail=30 2>&1 || true
+		for c in $($K -n "$NS" get pod "$pod" -o jsonpath='{range .status.containerStatuses[?(@.restartCount>0)]}{.name} {end}'); do
+			$K -n "$NS" logs "$pod" -c "$c" --previous --tail=30 2>&1 || true
+		done
 	done
 	# A retrying Job pod stays Running 1/1 above: show what it says (mysql-cluster-init loops on a failing ping).
 	echo "===== mysql-cluster-init"

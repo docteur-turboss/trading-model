@@ -54,7 +54,7 @@ plain() {
 
 # Writes and uploads run `$1` with the components `$2` (comma separated), the
 # way backup-k8s.sh does (write_dump, then write_manifest). `$3`: `nomanifest`
-# for a run taken before manifests (or whose manifest was not written).
+# for a run whose manifest was not written.
 backup_run() {
 	local ts="$1" part label
 	BACKUP_DIR="$WORK/local/$ts"
@@ -112,7 +112,7 @@ backup_run() {
 	}
 }
 
-# Taken before run manifests: only fetched with --timestamp.
+# No run manifest: refused, even with --timestamp.
 OLD=2026-10-30_020000
 GOOD=2026-10-31_020000
 # The mongodb-audit dump failed: upload_offsite never received it.
@@ -184,7 +184,7 @@ restore_lookup() {
 	(
 		export BACKUP_AGE_IDENTITY="$WORK/key.txt"
 		BACKUP_DIR="$1" RESTORE_TIMESTAMP="$2"
-		resolve_and_verify "$3" "" >/dev/null 2>&1 && echo "$RESOLVED_FILE"
+		resolve_and_verify "$3" >/dev/null 2>&1 && echo "$RESOLVED_FILE"
 	)
 }
 layout=true
@@ -205,12 +205,11 @@ fi
 grep -q "restore-k8s.sh --timestamp ${GOOD}" "$WORK/out" && pass "prints the restore command" || failed "no restore command in: $(cat "$WORK/out")"
 
 echo "--timestamp"
-if fetch --dest "$WORK/fetched-old" --timestamp "$OLD" &&
-	[ "$(find "$WORK/fetched-old" -type f | grep -c "$OLD")" = 5 ] &&
-	[ "$(find "$WORK/fetched-old" -type f | wc -l)" = 5 ] && grep -q "no run manifest" "$WORK/out"; then
-	pass "fetches the requested run ${OLD} only, taken before manifests (with a warning)"
+if fetch --dest "$WORK/fetched-old" --timestamp "$OLD"; then
+	failed "a run without manifest was fetched with --timestamp"
 else
-	failed "--timestamp ${OLD}: $(cat "$WORK/out")"
+	grep -q "manifests/manifest_${OLD}" "$WORK/out" && pass "a run without manifest is refused even with --timestamp" ||
+		failed "--timestamp ${OLD}: $(cat "$WORK/out")"
 fi
 if fetch --dest "$WORK/fetched-broken" --timestamp "$BROKEN"; then
 	failed "an incomplete run was fetched"

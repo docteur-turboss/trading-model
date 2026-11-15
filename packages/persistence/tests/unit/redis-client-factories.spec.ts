@@ -9,6 +9,7 @@ import {
 	buildFromConfig,
 	createFromUrl,
 	createSentinel,
+	SENTINEL_RETRY_STRATEGY,
 } from "../../src/redis-client-factories";
 
 jest.mock("ioredis", () => {
@@ -44,6 +45,13 @@ describe("BASE_RETRY_STRATEGY", () => {
 	it("should return null after 20 attempts", () => {
 		expect(BASE_RETRY_STRATEGY(21)).toBeNull();
 		expect(BASE_RETRY_STRATEGY(25)).toBeNull();
+	});
+});
+
+describe("SENTINEL_RETRY_STRATEGY", () => {
+	it("caps at 1 s and never gives up", () => {
+		expect(SENTINEL_RETRY_STRATEGY(1)).toBe(200);
+		expect(SENTINEL_RETRY_STRATEGY(100)).toBe(1000);
 	});
 });
 

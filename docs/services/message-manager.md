@@ -10,7 +10,7 @@ Pub/sub message brokering service with configurable delivery guarantees.
 | Port (host)      | `8444`                                                             |
 | Port (container) | `3000`                                                             |
 | Dependencies     | common, validation, http, server-utils, crypto, address-manager, broker-message |
-| Persistence      | None (in-memory dispatcher; dead letters in dlq-service)              |
+| Persistence      | Redis: subscriptions and the durable message journal (Streams, [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)); dead letters in dlq-service |
 | Validation       | Zod (dedicated schemas)                                            |
 
 ## Messaging Model
@@ -20,7 +20,7 @@ Pub/sub message brokering service with configurable delivery guarantees.
 - Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE` (single attempt, not an end-to-end guarantee: see [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md))
 - TTL-based message expiration with Dead Letter Queue routing (dlq-service)
 - Parallel dispatch to all subscribers of a topic
-- No write-ahead log or archive: messages are dispatched in memory; undeliverable messages are sent to dlq-service (the journal entry stays pending while it is unreachable)
+- Undeliverable messages are sent to dlq-service (the journal entry stays pending while it is unreachable)
 
 ## REST Endpoints
 

@@ -1,5 +1,5 @@
 import { NormalizationStats } from "../normalization-stats";
-import type { LamarckGenome, MarketStep } from "./genome-types";
+import type { LamarckGenome, MarketStep } from "./genome";
 import { RewardShaper } from "./reward-shaping";
 import type { RLBackend, Transition } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";

@@ -2,7 +2,7 @@ import type { Price } from "@trading-model/primitives/primitives";
 import { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
 import type { WindowSet } from "./genetic-algorithm/generation-types";
-import type { MarketStep } from "./genetic-algorithm/genome-types";
+import type { MarketStep } from "./genetic-algorithm/genome";
 import type { MarketDataContext } from "./market-data/market-data-context";
 import {
 	DEFAULT_TEST_SPLIT,

@@ -433,7 +433,7 @@ services:
       TRAINER_OBSERVE_POSITION: ${TRAINER_OBSERVE_POSITION:-true}
       # Model artifacts (ADR-0022), backed up by scripts/backup.sh (checkpoints)
       TRAINER_MODEL_DIR: /data/checkpoints/models
-      MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-}
+      MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-model-evaluator}
     volumes:
       - svid-trainer:/run/spire/svid
       - trainer-checkpoints:/data/checkpoints
@@ -531,6 +531,43 @@ services:
         condition: service_started
       mongo-users:
         condition: service_completed_successfully
+      discovery-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  Model Evaluator — offline evaluation of published models (ADR-0049, no order flow)
+  # ---------------------------------------------------------------------------
+  model-evaluator:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: services/model-evaluator/Dockerfile
+    container_name: trading-model-evaluator
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - '127.0.0.1:${MODEL_EVALUATOR_PORT:-8453}:3000'
+    environment:
+      <<: *message-env
+      APP_NAME: model-evaluator
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      SERVICE_NAME: model-evaluator
+      INSTANCE_ID: model-evaluator-1
+      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
+      EVALUATIONS_DIR: /data/evaluations
+    volumes:
+      - svid-evaluator:/run/spire/svid
+      - model-evaluations:/data/evaluations
+    networks:
+      - backend-net
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      spiffe-helper-evaluator:
+        condition: service_started
       discovery-server:
         condition: service_healthy
 
@@ -680,6 +717,21 @@ services:
       spire-agent:
         condition: service_healthy
 
+  spiffe-helper-evaluator:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    container_name: trading-helper-evaluator
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-evaluator:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
   spiffe-helper-dlq:
     logging: *default-logging
     image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
@@ -810,7 +862,7 @@ services:
   # backup-metrics-exporter does. Docker has no scheduler: the host runs backup.sh.
   backup-metrics-exporter:
     logging: *default-logging
-    image: busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+    image: busybox@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4
     container_name: trading-backup-metrics
     restart: unless-stopped
     user: '65534:65534'
@@ -914,7 +966,7 @@ services:
 
   node-exporter:
     logging: *default-logging
-    image: quay.io/prometheus/node-exporter:v1.10.2@sha256:337ff1d356b68d39cef853e8c6345de11ce7556bb34cda8bd205bcf2ed30b565
+    image: quay.io/prometheus/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
     container_name: trading-node-exporter
     restart: unless-stopped
     mem_limit: 128m
@@ -1022,7 +1074,7 @@ services:
   # Traces: services export OTLP/HTTP straight to Jaeger (no collector in compose).
   jaeger:
     logging: *default-logging
-    image: jaegertracing/all-in-one@sha256:7e9591218e7ddd51e568ef892e3ea190ae420ecf97c4d718910a3f57e076c216
+    image: jaegertracing/all-in-one@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
     container_name: trading-jaeger
     restart: unless-stopped
     ports:
@@ -1044,7 +1096,7 @@ services:
   # The proxy lets GET on /containers and /networks through; any POST answers 403.
   docker-socket-proxy:
     logging: *default-logging
-    image: tecnativa/docker-socket-proxy@sha256:9e4b9e7517a6b660f2cc903a19b257b1852d5b3344794e3ea334ff00ae677ac2
+    image: tecnativa/docker-socket-proxy@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     container_name: trading-docker-socket-proxy
     restart: unless-stopped
     environment:
@@ -1068,7 +1120,7 @@ services:
   # Logs: reads the container logs through the Docker API of docker-socket-proxy.
   promtail:
     logging: *default-logging
-    image: grafana/promtail@sha256:b3db8e7b1cba0e8c45ce2ae72ebddfd88ebdcae86383f1680edf0074e9010ff6
+    image: grafana/promtail@sha256:6cfa64ec432b24a912d640e2edb940eeae2666f61861a66c121d763dd7241381
     container_name: trading-promtail
     restart: unless-stopped
     mem_limit: 256m
@@ -1106,6 +1158,7 @@ volumes:
   mongo-data:
   redis-data:
   trainer-checkpoints:
+  model-evaluations:
   mysql-data:
   spire-server-data:
   spire-agent-data:
@@ -1119,6 +1172,7 @@ volumes:
   svid-gateway:
   svid-audit:
   svid-dlq:
+  svid-evaluator:
   svid-edge:
   svid-prometheus:
   svid-blackbox:

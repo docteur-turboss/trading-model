@@ -17,6 +17,7 @@ const MESH_SERVICES = [
 	"api-gateway",
 	"audit-logger",
 	"dlq-service",
+	"model-evaluator",
 ];
 
 describe("Smoke", () => {

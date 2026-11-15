@@ -2,11 +2,11 @@ import { describe, expect, it } from "@jest/globals";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
 import {
 	adaptGAControl,
 	createGAControlGenome,
 } from "../../../src/domain/genetic-algorithm/genome-control";
-import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome-types";
 import { RewardShaper } from "../../../src/domain/genetic-algorithm/reward-shaping";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
 import { NormalizationStats } from "../../../src/domain/normalization-stats";

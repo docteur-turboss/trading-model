@@ -48,7 +48,7 @@ export interface ReplayQueuePort {
 	isAvailable(): boolean;
 }
 
-export interface DeliveryTarget extends BatchContext {
+interface DeliveryTarget extends BatchContext {
 	messageManagerUrl: URLString;
 }
 

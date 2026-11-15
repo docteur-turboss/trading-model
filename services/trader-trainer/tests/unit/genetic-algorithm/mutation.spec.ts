@@ -4,6 +4,10 @@ import type {
 	PositiveInt,
 } from "@trading-model/primitives/primitives";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import type {
+	LayerGenome,
+	MutationGenome,
+} from "../../../src/domain/genetic-algorithm/genome";
 import {
 	ActivationType,
 	ConnectionType,
@@ -11,10 +15,6 @@ import {
 } from "../../../src/domain/genetic-algorithm/genome";
 import { mutateLayer } from "../../../src/domain/genetic-algorithm/genome-network/mutation";
 import { mutateDiscreteStepParam } from "../../../src/domain/genetic-algorithm/genome-rl/mutation";
-import type {
-	LayerGenome,
-	MutationGenome,
-} from "../../../src/domain/genetic-algorithm/genome-types";
 import { mutateGenome } from "../../../src/domain/genetic-algorithm/mutation/mutate";
 
 describe("Mutation - mutateLayer", () => {

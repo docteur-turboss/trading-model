@@ -18,7 +18,7 @@ Training service for trading agents using genetic algorithms and neural networks
 | Route                      | Method | Description                                         |
 | -------------------------- | ------ | --------------------------------------------------- |
 | `/ping`                    | GET    | Health check (built-in via `createServiceServer`)   |
-| `/health/ready`            | GET    | Readiness (SVID readable)                           |
+| `/health/ready`            | GET    | Readiness (SVID readable, registered once)          |
 | `/training-status`         | GET    | Current training status                             |
 | `/best-agent`              | GET    | Best trained agent                                  |
 | `/training-agents`         | GET    | Trained agents of every symbol                      |
@@ -186,7 +186,7 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 | `TRAINER_*`           | Generations, population size, time budget, etc. |
 | `TRAINER_MODEL_DIR`   | Model artifacts directory (`/data/checkpoints/models`) |
 | `TRAINER_MODEL_RETENTION` | Versions kept per symbol (default 20)        |
-| `MODEL_DOWNLOAD_CALLERS` | Services allowed to download weights (comma-separated, empty: nobody) |
+| `MODEL_DOWNLOAD_CALLERS` | Services allowed to download weights (comma-separated, empty: nobody; `model-evaluator` in compose and K8s) |
 
 ## Rate Limiting
 

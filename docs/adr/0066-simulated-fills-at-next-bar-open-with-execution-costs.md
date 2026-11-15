@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Amends:** [ADR-0025](./0025-ga-fitness-wired-to-fitness-type.md) (item 16: what a trade pays), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (criteria read after these costs)
-**Verified by:** `services/trader-trainer/tests/unit/env/wallet-manager.spec.ts`, `services/trader-trainer/tests/unit/core/market-data-buffer.spec.ts`, `services/trader-trainer/tests/unit/agent/trading-agent.spec.ts`, `services/trader-trainer/tests/unit/core/point-in-time.spec.ts`
+**Verified by:** `packages/model-runtime/tests/env/wallet-manager.spec.ts`, `services/trader-trainer/tests/unit/core/market-data-buffer.spec.ts`, `services/trader-trainer/tests/unit/agent/trading-agent.spec.ts`, `services/trader-trainer/tests/unit/core/point-in-time.spec.ts`
 
 ## Context
 

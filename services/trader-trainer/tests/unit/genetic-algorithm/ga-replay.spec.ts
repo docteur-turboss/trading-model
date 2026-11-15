@@ -1,20 +1,20 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { setLogger } from "@trading-model/contracts/logger-registry";
 import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import {
 	DurationMs,
 	type PositiveInt,
 	Price,
 } from "@trading-model/primitives/primitives";
-import { FeatureVector } from "../../../src/domain/feature-vector";
 import {
 	type GenerationContext,
 	GeneticAlgorithmRunner,
 	type WindowSet,
 } from "../../../src/domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../../../src/domain/genetic-algorithm/ga-telemetry";
+import type { MarketStep } from "../../../src/domain/genetic-algorithm/genome";
 import { createGAControlGenome } from "../../../src/domain/genetic-algorithm/genome-control";
-import type { MarketStep } from "../../../src/domain/genetic-algorithm/genome-types";
 import { makeSeededBackendFactory } from "../../../src/domain/genetic-algorithm/rl-backend";
 
 const INPUT_DIM = 32;

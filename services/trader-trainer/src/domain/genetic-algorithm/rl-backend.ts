@@ -1,19 +1,19 @@
 import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
+import type { FeatureVector } from "@trading-model/model-runtime/feature-vector";
+import {
+	ActivationType,
+	ConnectionType,
+	ExperienceKind,
+	InitialisationType,
+} from "@trading-model/model-runtime/neural-network/type";
 import {
 	Cash,
 	Percentage,
 	Price,
 	Reward,
 } from "@trading-model/primitives/primitives";
-import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
-import { DEFAULT_MAX_EXPOSURE_FRACTION } from "../env/wallet-config";
-import type { FeatureVector } from "../feature-vector";
-import {
-	ActivationType,
-	ConnectionType,
-	ExperienceKind,
-	InitialisationType,
-} from "../neural-network/type";
+import { TradingAgent, type TradingAgentConfig } from "../agent/trading-agent";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 interface StepInput {
@@ -29,7 +29,7 @@ interface StepInput {
  * 5 bps, well above the half-spread of the liquid Binance spot pairs, the
  * margin covering a market order's slippage and less liquid symbols.
  */
-export const EXECUTION_COST_RATE = 0.0005;
+const EXECUTION_COST_RATE = 0.0005;
 
 /**
  * A decision and what it earned. States are network inputs: market features

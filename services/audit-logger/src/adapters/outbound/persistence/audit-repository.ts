@@ -52,7 +52,7 @@ export const METADATA_FIELDS = {
 } as const;
 
 /** Filters of `GET /events`; an absent field does not filter. */
-export interface AuditFilter {
+interface AuditFilter {
 	topic?: Topic;
 	publisher?: ServiceId;
 	correlationId?: CorrelationId;

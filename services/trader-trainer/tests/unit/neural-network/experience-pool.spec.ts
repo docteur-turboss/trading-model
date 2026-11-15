@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { makePRNG } from "@trading-model/crypto/domain/services/prng";
 import {
+	type Experience,
+	ExperienceKind,
+} from "@trading-model/model-runtime/neural-network/type";
+import {
 	createExperiencePool,
 	createPrioritizedExperiencePool,
 	type PerConfig,
 	type PrioritizedExperiencePoolPort,
 } from "../../../src/domain/neural-network/experience-pool";
-import {
-	type Experience,
-	ExperienceKind,
-} from "../../../src/domain/neural-network/type";
 
 function makeExperience(value: number): Experience {
 	return {

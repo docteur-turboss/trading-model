@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import type { Probability } from "@trading-model/primitives/primitives";
 import { PositiveInt, Price } from "@trading-model/primitives/primitives";
-import { FeatureVector } from "../../../src/domain/feature-vector";
 
 jest.mock("../../../src/domain/agent/trading-agent", () => {
 	const makeMockAgent = () => ({
@@ -31,7 +31,7 @@ jest.mock("../../../src/domain/agent/trading-agent", () => {
 	};
 });
 
-jest.mock("../../../src/domain/env/wallet-manager", () => ({
+jest.mock("@trading-model/model-runtime/env/wallet-manager", () => ({
 	createWallet: jest.fn((..._args: any[]) => ({
 		buy: jest.fn((..._args: any[]) => true),
 		sell: jest.fn((..._args: any[]) => true),

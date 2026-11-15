@@ -24,7 +24,7 @@ export interface SnapshotRequest {
 	orderBookLimit?: Limit;
 }
 
-export interface BookTickerQuote {
+interface BookTickerQuote {
 	symbol: TradingSymbol;
 	bid: Price;
 	ask: Price;

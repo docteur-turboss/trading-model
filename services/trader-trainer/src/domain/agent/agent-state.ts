@@ -1,5 +1,5 @@
-import type { WalletAPI } from "../env/wallet-manager";
-import { FEATURE_LAYOUT } from "../feature-vector-codec";
+import type { WalletAPI } from "@trading-model/model-runtime/env/wallet-manager";
+import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
 
 /**
  * What the agent holds, appended to the market features: a decision's reward

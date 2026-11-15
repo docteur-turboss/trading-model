@@ -15,17 +15,17 @@
 # comes from the official MySQL repository, at the version of the server
 # (deploy/k8s/infra/mysql.yaml), checked with the key the mysql image ships.
 # age and rclone come from Oracle's EPEL mirror.
-FROM bitnami/kubectl@sha256:b29d8c1665b70817259ceecaea16ab27aab6368b48daf485d19436c809067492 AS kubectl
+FROM bitnami/kubectl@sha256:8919c149c2e3d6860e0143c117900e64d71395172aaef0e01e604bb98c8e7ce0 AS kubectl
 
-FROM mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a AS mysql
+FROM mysql@sha256:3819b2b23835c4a73c8b022fafc33c8095c0f81c929a8b7a84613d2fba6c52f5 AS mysql
 
-FROM oraclelinux:9-slim@sha256:38f3f1f40cd8f28d020f38d69fa30f8a9fe9f7e661dff78592f85d110ec4696d
+FROM oraclelinux:10-slim@sha256:5edf16c62270a7fa3012481efbef1921ba7159dc2441b99ed19eb6c0a88171cf
 COPY --from=mysql /etc/pki/rpm-gpg/RPM-GPG-KEY-mysql /etc/pki/rpm-gpg/RPM-GPG-KEY-mysql
 RUN printf '%s\n' '[mysql-8.4-community]' 'name=MySQL 8.4 Community' \
-		'baseurl=https://repo.mysql.com/yum/mysql-8.4-community/el/9/$basearch/' \
+		'baseurl=https://repo.mysql.com/yum/mysql-8.4-community/el/10/$basearch/' \
 		'enabled=1' 'gpgcheck=1' 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-mysql' 'module_hotfixes=true' \
 		>/etc/yum.repos.d/mysql-community.repo \
-	&& microdnf -y install oracle-epel-release-el9 \
+	&& microdnf -y install oracle-epel-release-el10 \
 	&& microdnf --setopt=install_weak_deps=0 -y install \
 		mysql-community-client-8.4.11 age rclone \
 		bash coreutils-single findutils gawk grep gzip sed tar diffutils \

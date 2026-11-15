@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { agentError } from "../../src/shared/errors";
+import { agentError } from "@trading-model/model-runtime/errors";
 
 describe("trader-trainer errors", () => {
 	it("build errors carrying their cause", () => {

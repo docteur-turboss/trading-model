@@ -1,4 +1,4 @@
-import type { LamarckGenome, PopMember } from "./genome-types";
+import type { LamarckGenome, PopMember } from "./genome";
 
 function _randomIndex(population: PopMember[], rng: () => number): number {
 	return Math.floor(rng() * population.length);

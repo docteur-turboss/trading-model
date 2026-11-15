@@ -4,8 +4,10 @@ import {
 	SharpeRatio,
 } from "@trading-model/primitives/primitives";
 import type { EpisodeScores } from "./genetic-algorithm/episode-scores";
-import type { GenomeFitnessMeta } from "./genetic-algorithm/genome";
-import type { LamarckGenome } from "./genetic-algorithm/genome-types";
+import type {
+	GenomeFitnessMeta,
+	LamarckGenome,
+} from "./genetic-algorithm/genome";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { ModelManifest } from "./model-artifact";
 import type { BestAgentSummary } from "./training-state";

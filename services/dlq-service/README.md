@@ -1,46 +1,12 @@
 # DLQ Service
 
-> Dead Letter Queue — stores and manages messages that could not be delivered after exhausting retry attempts.
+Stores messages the broker could not deliver, with replay, automatic retry and pruning.
 
-## Role
-
-Provides durable storage for undeliverable messages with replay capability, automatic retry, and periodic pruning. Integrates with the message-manager to receive undeliverable messages and re-inject them on demand.
-
-## Quick Start
-
-```bash
-bun run --filter dlq-service dev
-```
-
-Requires MongoDB 7+ and Redis 7+.
-
-## Configuration
-
-| Variable                 | Default                     | Description                  |
-| ------------------------ | --------------------------- | ---------------------------- |
-| `PORT`                   | `3000`                      | HTTPS listen port            |
-| `MONGO_URI`              | `mongodb://localhost:27017` | MongoDB connection           |
-| `MONGO_DB`               | `dlq-service`               | MongoDB database name        |
-| `REDIS_URL`              | `redis://localhost:6379`    | Redis connection             |
-| `MAX_ENTRIES`            | `100000`                    | Max stored DLQ entries       |
-| `DLQ_AUTO_RETRY_ENABLED` | `false` (`true` in compose and K8s) | Replay eligible entries automatically |
-| `PRUNE_INTERVAL_MS`      | `86400000`                  | Prune check interval (24h)   |
-| `ENTRY_TTL_MS`           | `2592000000`                | Entry TTL before prune (30d) |
-| `ADDRESS_MANAGER_URL`    | `https://localhost:8443`    | Discovery server URL         |
-
-## API
-
-See [API doc](../../docs/services/dlq-service.md) for full endpoint reference.
-
-## Architecture
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md).
-
-## Testing
+- Service doc (API, config, dependencies): [docs/services/dlq-service.md](../../docs/services/dlq-service.md)
+- Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md)
+- Environment variables: [ENV.md](../../docs/deployment/ENV.md#dlq-service--mongodb--redis)
+- Run and debug locally: [local service development](../../docs/getting-started/local-service-development.md)
 
 ```bash
-bun run test
-bun run test:coverage
+bun run --filter dlq-service test
 ```
-
-Coverage target: 80%.

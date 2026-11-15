@@ -1,6 +1,6 @@
 {
   "name": "financial-scraper",
-  "version": "3.1.0-rc.1",
+  "version": "3.1.0-rc.2",
   "description": "Fetches real-time prices of various financial assets",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {
@@ -36,7 +36,7 @@
     "@trading-model/reliability": "*",
     "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
-    "axios": "^1.21.0",
+    "axios": "^1.21.1",
     "express": "^5.3.0",
     "mysql2": "^3.24.6",
     "node-cron": "^4.6.0",

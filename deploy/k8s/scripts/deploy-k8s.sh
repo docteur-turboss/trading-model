@@ -4,7 +4,6 @@
 #  Usage:
 #    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests (dev cluster only, ALLOW_DEV_APPLY=1)
 #    ./deploy-k8s.sh [-n <namespace>] apply <service> # Apply a single service
-#    ./deploy-k8s.sh [-n <namespace>] delete          # Delete all resources
 #    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
 #    ./deploy-k8s.sh [-n <namespace>] rollback <service> [revision]
 #    ./deploy-k8s.sh [-n <namespace>] migrate-down [count|all]
@@ -122,19 +121,6 @@ cmd_apply() {
   fi
 
   log "Deployment complete."
-}
-
-cmd_delete() {
-  local service="${1:-}"
-  if [[ -n "$service" ]]; then
-    log "Deleting service: $service"
-    kubectl delete -n "$NAMESPACE" "deployment/${service}" --ignore-not-found
-    kubectl delete -n "$NAMESPACE" "service/${service}" --ignore-not-found
-  else
-    log "Deleting all Trading Model resources..."
-    kustomize_build "${K8S_DIR}/" | kubectl delete -f - --ignore-not-found
-  fi
-  log "Deletion complete."
 }
 
 cmd_status() {
@@ -467,6 +453,7 @@ cmd_smoke_test() {
     "api-gateway:https://api-gateway:3000/health/ready"
     "audit-logger:https://audit-logger:3000/health/ready"
     "dlq-service:https://dlq-service:3000/health/ready"
+    "model-evaluator:https://model-evaluator:3000/health/ready"
     "financial-scraper:https://financial-scraper:3000/health/ready"
     "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"
     "trader-trainer:https://trader-trainer:3000/health/ready"
@@ -477,14 +464,17 @@ cmd_smoke_test() {
   for entry in "${services[@]}"; do
     local name="${entry%%:*}"
     local url="${entry#*:}"
+    # SMOKE_SKIP: services absent from the release being checked (rollback test of tests/k8s/run-kind.sh)
+    [[ " ${SMOKE_SKIP:-} " == *" $name "* ]] && continue
 
-    # Up to 3 answers, 5 s apart, as the kubelet judges readiness (failureThreshold 3):
-    # one slow Redis connect just after the rollout is not a failed release (run 43367462523).
+    # Up to 12 answers, 5 s apart: one slow Redis connect just after the rollout is not a
+    # failed release (run 43367462523), and Redis now rolls last, right before this test:
+    # its Sentinel clients need time to resolve the master again (run 43634583251).
     local code="" try
-    for try in 1 2 3; do
+    for try in $(seq 1 12); do
       code=$(kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
         curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null || true)
-      [[ "$code" == "200" || "$try" -eq 3 ]] && break
+      [[ "$code" == "200" || "$try" -eq 12 ]] && break
       sleep 5
     done
     if [[ "$code" == "200" ]]; then
@@ -549,6 +539,18 @@ fresh_candles() {
   prom_query 'sum%28increase%28fs_candles_persisted_total%5B15m%5D%29%29' | jq -r '.data.result[0].value[1] // "0"'
 }
 
+# Critical alerts firing now, one line each: every label as sorted compact JSON,
+# so two alerts of the same name never share a line. $1 = extra label matchers (URL-encoded).
+critical_alerts() {
+  prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${1}%7D" \
+    | jq -cS '.data.result[].metric | del(.__name__, .alertstate)'
+}
+
+# critical_alerts lines (stdin) as one readable list: name{label=value, ...},...
+alert_names() {
+  jq -rs 'map(.alertname + (del(.alertname, .severity) | to_entries | map("\(.key)=\(.value)") | join(", ") | if . == "" then "" else "{\(.)}" end)) | unique | join(",")'
+}
+
 # One pass of the post-deploy functional checks (see cmd_verify_release).
 # $1 = 1 when a missing market-data signal must fail now (last pass or data
 # already seen once), 0 while the first scrape may still be pending.
@@ -609,10 +611,17 @@ release_checks_once() {
     fi
   fi
 
-  critical="$(prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${ignored}%7D" \
-    | jq -r '.data.result[].metric | .alertname + (if .job then "{job=\(.job), instance=\(.instance // "")}" else "" end)')" || return 1
+  critical="$(critical_alerts "$ignored")" || return 1
+  # Alerts already firing before the deploy (deploy.yml records them in
+  # VERIFY_BASELINE_FILE) are reported, not blocking: a rollback cannot clear them.
+  if [[ -n "$critical" && -s "${VERIFY_BASELINE_FILE:-}" ]]; then
+    local before
+    before="$(grep -xFf "$VERIFY_BASELINE_FILE" <<<"$critical" | alert_names)"
+    [[ -n "$before" ]] && log "  - firing before the deploy, not blocking: ${before}"
+    critical="$(grep -vxFf "$VERIFY_BASELINE_FILE" <<<"$critical" || true)"
+  fi
   if [[ -n "$critical" ]]; then
-    err "  ✗ critical alert(s) firing: $(echo "$critical" | sort -u | paste -sd, -)"
+    err "  ✗ critical alert(s) firing: $(alert_names <<<"$critical")"
     return 1
   fi
   log "  ✓ no critical alert firing"
@@ -662,9 +671,6 @@ case "${1:-help}" in
   apply)
     cmd_apply "${2:-}"
     ;;
-  delete)
-    cmd_delete "${2:-}"
-    ;;
   status)
     cmd_status
     ;;
@@ -693,12 +699,14 @@ case "${1:-help}" in
   verify-release)
     cmd_verify_release
     ;;
+  firing-critical)
+    critical_alerts '%2Calertname!%3D%22Watchdog%22' | sort -u
+    ;;
   *)
     echo "Trading Model K8s Deploy Script"
     echo ""
     echo "Usage:"
     echo "  $0 [-n namespace] apply [service]       Apply manifests"
-    echo "  $0 [-n namespace] delete [service]      Delete resources"
     echo "  $0 [-n namespace] status                Show cluster status"
     echo "  $0 [-n namespace] rollback <srv> [rev]  Rollback deployment"
     echo "  $0 [-n namespace] migrate-down [N|all]  Rollback N DB migrations (default: 1)"
@@ -708,6 +716,7 @@ case "${1:-help}" in
     echo "  $0 [-n namespace] smoke-test            Run smoke tests"
     echo "  $0 [-n namespace] verify-market-data    Wait for the collector to persist candles again"
     echo "  $0 [-n namespace] verify-release        API via edge-proxy, fresh data, no critical alert (VERIFY_WINDOW_SECONDS)"
+    echo "  $0 [-n namespace] firing-critical       List the critical alerts firing now (Watchdog excluded)"
     echo "Namespace defaults to trading-model (env: K8S_NAMESPACE)."
     exit 1
     ;;

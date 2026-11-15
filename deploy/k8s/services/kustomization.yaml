@@ -9,4 +9,5 @@ resources:
   - api-gateway.yaml
   - audit-logger.yaml
   - dlq-service.yaml
+  - model-evaluator.yaml
   - edge-proxy.yaml

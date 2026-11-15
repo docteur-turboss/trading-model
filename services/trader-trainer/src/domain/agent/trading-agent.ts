@@ -1,15 +1,15 @@
-import { type Price, Volume } from "@trading-model/primitives/primitives";
 import {
 	createWallet,
 	type WalletAPI,
 	type WalletConfig,
-} from "../env/wallet-manager";
-import { Agent } from "../neural-network/agent";
+} from "@trading-model/model-runtime/env/wallet-manager";
 import type {
 	Experience,
 	NeuralNetworkConfig,
 	QLearningExperience,
-} from "../neural-network/type";
+} from "@trading-model/model-runtime/neural-network/type";
+import { type Price, Volume } from "@trading-model/primitives/primitives";
+import { Agent } from "../neural-network/agent";
 import { ActionMapper } from "./action-mapper";
 import { TradeAction } from "./action-types";
 import { observe } from "./agent-state";
@@ -188,5 +188,3 @@ export class TradingAgent {
 		this.state.resetEpsilon();
 	}
 }
-
-export default TradingAgent;

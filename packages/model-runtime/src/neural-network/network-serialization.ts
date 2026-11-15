@@ -1,5 +1,5 @@
-import { agentError } from "../../shared/errors";
-import { sampleGaussian } from "../genetic-algorithm/noise";
+import { agentError } from "../errors";
+import { sampleGaussian } from "../noise";
 import type { LayerMemory } from "./type";
 
 /**

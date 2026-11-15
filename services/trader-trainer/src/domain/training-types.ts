@@ -5,7 +5,7 @@ import type {
 import type {
 	GenomeFitnessMeta,
 	LamarckGenome,
-} from "./genetic-algorithm/genome-types";
+} from "./genetic-algorithm/genome";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { TradingSymbol } from "./market-data-types";
 

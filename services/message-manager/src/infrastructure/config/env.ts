@@ -38,7 +38,7 @@ const MESSAGE_MANAGER_ENV_SCHEMA = BaseEnvSchema.extend(
 				path: ["REDIS_SENTINELS"],
 			});
 		}
-		// Without it dead letters sit in a pod-local file nobody replays.
+		// Dead letters are replayed by dlq-service, which needs the HMAC secret to authenticate them.
 		if (data.NODE_ENV === "production" && !data.DLQ_AUTH_HMAC_SECRET) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,

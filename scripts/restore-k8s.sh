@@ -26,8 +26,7 @@
 #  component (MySQL and MongoDB may then be out of step with each other).
 #  Every file is checked against its manifest (size,
 #  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
-#  anything is written, --dry-run included. Runs taken before manifests are
-#  only restored with an explicit --timestamp (see backup-lib.sh).
+#  anything is written, --dry-run included. A run without manifest is refused.
 #
 #  Component `mongodb` restores both replica sets (operational, then audit);
 #  `mongodb-audit` the audit trail alone, e.g. from a weekly or monthly
@@ -153,18 +152,6 @@ fail() { log "✗ $*"; RESTORE_FAILURES=$((RESTORE_FAILURES + 1)); }
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
 
-# Backup of the replica set labelled `$1` in the run directory `$2` taken
-# before manifests: `<label>.archive.gz`, or `<statefulset>-<n>.archive.gz`
-# for backups taken per pod (before 2026-10).
-legacy_mongo_archive() {
-  local label="$1" src="$2" primary="$3" archive
-  archive=$(backup_file "${src}/${label}.archive.gz")
-  if [ -z "$archive" ] && [ -n "$primary" ]; then
-    archive=$(find "$src" -maxdepth 1 \( -name "${primary%-*}-*.archive.gz" -o -name "${primary%-*}-*.archive.gz.age" \) 2>/dev/null | sort | head -1)
-  fi
-  echo "$archive"
-}
-
 # Field `$2` of PITR metadata file `$1` (decrypted).
 pitr_value() {
   open_backup "$1" | pitr_field "$2"
@@ -218,12 +205,10 @@ for (const [c, docs] of [['system.users', s.u], ['system.roles', s.r]]) { a.getC
 # restore_mongodb <replica set label>...
 restore_mongodb() {
   log "Starting MongoDB restore ($*)..."
-  local label primary legacy=""
+  local label primary
   for label in "$@"; do
     primary=$(mongo_primary "$label") || primary=""
-    [ "$RESTORE_TIMESTAMP" = "latest" ] ||
-      legacy=$(legacy_mongo_archive "$label" "${BACKUP_DIR}/mongodb/${RESTORE_TIMESTAMP}" "$primary")
-    resolve_and_verify "$label" "$legacy" || continue
+    resolve_and_verify "$label" || continue
     if [ -z "$primary" ]; then
       fail "No writable MongoDB primary for ${label}"
       continue
@@ -370,7 +355,7 @@ purge_expired_rows() {
 
 restore_mysql() {
   log "Starting MySQL restore..."
-  resolve_and_verify mysql "$(backup_file "${BACKUP_DIR}/mysql/financial_scraper_${RESTORE_TIMESTAMP}.sql.gz")" || return 0
+  resolve_and_verify mysql || return 0
   local file="$RESOLVED_FILE"
   verify_mysql_dump_complete "$file" || return 0
 
@@ -423,7 +408,7 @@ restore_mysql() {
     return
   fi
 
-  if ! open_backup "$file" | gunzip | strip_gtid | mysql_root_sh "${pod}" 'mysql --user=root'; then
+  if ! open_backup "$file" | gunzip | mysql_root_sh "${pod}" 'mysql --user=root'; then
     fail "MySQL restore failed (${pod})"
     return
   fi
@@ -440,7 +425,7 @@ restore_mysql() {
 
 restore_checkpoints() {
   log "Starting checkpoints restore..."
-  resolve_and_verify checkpoints "$(backup_file "${BACKUP_DIR}/checkpoints/checkpoints_${RESTORE_TIMESTAMP}.tar.gz")" || return 0
+  resolve_and_verify checkpoints || return 0
   local file="$RESOLVED_FILE"
 
   local pod
@@ -469,7 +454,7 @@ restore_checkpoints() {
 # are removed: replayed onto the restored file they would corrupt it.
 restore_spire() {
   log "Starting SPIRE server restore..."
-  resolve_and_verify spire "$(backup_file "${BACKUP_DIR}/spire/data_${RESTORE_TIMESTAMP}.tar")" || return 0
+  resolve_and_verify spire || return 0
   local file="$RESOLVED_FILE"
   case "$file" in
     */keys_*)

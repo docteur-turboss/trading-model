@@ -1,3 +1,4 @@
+import type { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import type {
 	DurationMs,
 	Fitness,
@@ -6,7 +7,6 @@ import type {
 	Price,
 	Ratio,
 } from "@trading-model/primitives/primitives";
-import type { FeatureVector } from "../feature-vector.js";
 import type { EpisodeScores } from "./episode-scores";
 import type { CrossoverGenome, GAControlGenome } from "./genome-control";
 import type { MutationGenome } from "./genome-mutation";

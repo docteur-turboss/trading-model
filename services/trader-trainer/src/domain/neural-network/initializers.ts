@@ -1,6 +1,6 @@
-import { sampleGaussian } from "../genetic-algorithm/noise";
+import { InitialisationType } from "@trading-model/model-runtime/neural-network/type";
+import { sampleGaussian } from "@trading-model/model-runtime/noise";
 import type { LayerDims } from "./layer-dims";
-import { InitialisationType } from "./type";
 
 interface WeightInitializer {
 	initialize(dims: LayerDims, rng?: () => number): number;

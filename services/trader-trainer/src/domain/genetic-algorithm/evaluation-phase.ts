@@ -1,4 +1,4 @@
-import type { LamarckGenome, MarketStep } from "./genome-types";
+import type { LamarckGenome, MarketStep } from "./genome";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 

@@ -1,6 +1,9 @@
-import { agentError } from "../../shared/errors";
+import { agentError } from "@trading-model/model-runtime/errors";
+import type {
+	ForwardContext,
+	QLearningExperience,
+} from "@trading-model/model-runtime/neural-network/type";
 import type { NeuralNetwork } from "./neural-network";
-import type { ForwardContext, QLearningExperience } from "./type";
 
 function _assertActionInRange(action: number, actionCount: number): void {
 	if (!Number.isInteger(action) || action < 0 || action >= actionCount) {
