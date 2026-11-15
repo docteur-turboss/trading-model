@@ -114,8 +114,6 @@ import { ModelPublisher } from "../../services/trader-trainer/src/adapters/outbo
  * starts being published.
  */
 const UNPUBLISHED_TOPICS: Record<string, string> = {
-	[MarketEvent.TestEvent]: "debug topic, no producer",
-	[MarketEvent.ExampleEvent]: "example topic, no producer",
 	[AuditEvent.AuditHeartbeat]: "reserved for audit heartbeats, no producer",
 	[AuditEvent.AuditGapDetected]: "reserved for audit gap reports, no producer",
 };

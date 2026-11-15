@@ -38,8 +38,8 @@ afterAll(() => {
 });
 
 const METADATA = {
-	topic: MarketEvent.TestEvent,
-	eventType: MarketEvent.TestEvent,
+	topic: MarketEvent.FetchCandlestickSeries,
+	eventType: MarketEvent.FetchCandlestickSeries,
 	schemaVersion: "1.0.0",
 	publisher: {
 		serviceName: "financial-scraper",

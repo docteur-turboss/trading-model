@@ -18,7 +18,7 @@ import type {
 import { MessageMetadataBuilder } from "../../src/messages/message-metadata-builder";
 
 const TEST_TOPIC = "test.event.created";
-const TEST_EVENT = "example.debug.create";
+const TEST_EVENT = "market.candlestick.series.fetch";
 const TEST_PUBLISHER = {
 	serviceName: ServiceInstanceName.DiscoveryService as unknown as ServiceId,
 	instanceId: "550e8400-e29b-41d4-a716-446655440000" as InstanceId,
@@ -111,8 +111,8 @@ describe("MessageMetadataBuilder", () => {
 	describe("setEventType", () => {
 		it("should set event type", () => {
 			const m = buildMinimalMetadata();
-			m.setEventType("example.show.create");
-			expect(m.toJSON().eventType).toBe("example.show.create");
+			m.setEventType("market.trade.recent.fetch");
+			expect(m.toJSON().eventType).toBe("market.trade.recent.fetch");
 		});
 	});
 

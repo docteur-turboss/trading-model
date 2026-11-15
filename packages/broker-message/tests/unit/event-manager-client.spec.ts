@@ -12,13 +12,13 @@ describe("EVENT_MANAGER", () => {
 		it("should register a listener for an event", () => {
 			const callback = jest.fn<(...args: any[]) => any>();
 
-			EVENT_MANAGER.on("example.debug.create" as never, callback);
+			EVENT_MANAGER.on("market.candlestick.series.fetch" as never, callback);
 
-			(EVENT_MANAGER as any).emit("example.debug.create" as never, {
-				debug: true,
+			(EVENT_MANAGER as any).emit("market.candlestick.series.fetch" as never, {
+				candle: [],
 			});
 
-			expect(callback).toHaveBeenCalledWith({ debug: true });
+			expect(callback).toHaveBeenCalledWith({ candle: [] });
 		});
 
 		it("should register multiple listeners for the same event", () => {
@@ -86,8 +86,8 @@ describe("EVENT_MANAGER", () => {
 		it("should support void events (no data)", () => {
 			const callback = jest.fn<(...args: any[]) => any>();
 
-			EVENT_MANAGER.on("example.show.create" as never, callback);
-			EVENT_MANAGER.emit("example.show.create" as never);
+			EVENT_MANAGER.on("market.trade.recent.fetch" as never, callback);
+			EVENT_MANAGER.emit("market.trade.recent.fetch" as never);
 
 			expect(callback).toHaveBeenCalled();
 		});
