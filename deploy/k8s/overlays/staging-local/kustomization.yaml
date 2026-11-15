@@ -84,7 +84,7 @@ patches:
       name: trading-model-secrets
 
   # mysqld of the 3.0.0 template (configMapGenerator below) serves its auto-generated
-  # certificate: the jobs (mysql-cluster-init, db-retention) encrypt without
+  # certificate: the jobs (db-retention) encrypt without
   # verifying it, as run-migrations.sh does for such a pod.
   - target:
       kind: ConfigMap

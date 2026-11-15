@@ -64,7 +64,7 @@ STATEFULSETS="redis redis-sentinel"
 REVISIONS_CM=deploy-revisions
 
 # Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
-INIT_JOBS="mysql-cluster-init mongo-audit-users mongo-dlq-users"
+INIT_JOBS="mongo-audit-users mongo-dlq-users"
 
 # Documents of the render on stdin that are (keep=1) or are not (keep=0) a Redis StatefulSet.
 redis_statefulsets() {
@@ -300,10 +300,10 @@ wait_rollout() {
 # not rolled back, so pods of release N-1 (plain, no certificate) would never
 # turn ready (readiness runs SELECT 1): lift both through the local socket,
 # which TLS rules do not touch, before the undo. A mysqld restart re-applies
-# the ON of group-replication.cnf; the next deploy binds the users again.
+# the ON of mysql.cnf; the next deploy binds the users again.
 relax_mysql() {
 	local ns="$1" pod
-	# Not the label alone: the mysql-cluster-init Job pod carries it too (no mysql container).
+	# Not the label alone: Job pods carry it too (no mysql container).
 	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name | grep -E "/mysql-[0-9]+$"); do
 		kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
 			m() { MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "$1"; }

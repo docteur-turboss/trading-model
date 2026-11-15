@@ -107,6 +107,8 @@ spec:
                 done
               fi
               echo "scraper and root require their client certificate"
+              # Former Group Replication account (issue #1204): shared the root password.
+              mysql -h mysql-primary -u root -e "DROP USER IF EXISTS 'repl'@'%'"
               if [ -n "$epw" ]; then
                 mysql -h mysql-primary -u root <<EOSQL
               CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '${epw}' WITH MAX_USER_CONNECTIONS 3;
