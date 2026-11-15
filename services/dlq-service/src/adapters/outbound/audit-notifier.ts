@@ -1,27 +1,6 @@
-import { DlqEvent, isDlqEventTopic } from "@trading-model/contracts/dlq-events";
-import type { Topic } from "@trading-model/primitives/primitives";
+import { DlqEvent } from "@trading-model/contracts/dlq-events";
 import { publishDlqEvent } from "../../config/audit";
 import type { ReplayAuditResult } from "../../domain/ports/replay.port";
-
-/** Does not wait: an incoming dead letter must not depend on the bus. */
-export function notifyAddAudit(
-	id: string,
-	topic: Topic | undefined,
-	reason: string | undefined,
-	actor: string | null
-): void {
-	// Its own event, dead-lettered: publishing another would loop while
-	// audit-logger cannot take them.
-	if (isDlqEventTopic(topic)) {
-		return;
-	}
-	void publishDlqEvent(DlqEvent.EntryAdded, {
-		entryId: id,
-		topic: topic ?? null,
-		reason: reason ?? null,
-		actor,
-	});
-}
 
 /** True when message-manager accepted the event, or there was nothing to record. */
 export function notifyReplayAudit(result: ReplayAuditResult): Promise<boolean> {

@@ -23,14 +23,6 @@ function _registerDlqRoutes(
 	// The signature covers the raw body: serviceAuth runs before validation.
 	mountRoute(
 		router,
-		DLQ_API.addEntry,
-		({ body }, req) => handlers.addEntry(body, actorOf(req)),
-		{
-			middlewares: [serviceAuth, writeLimiter],
-		}
-	);
-	mountRoute(
-		router,
 		DLQ_API.listEntries,
 		({ query }) => handlers.listEntries(query),
 		{

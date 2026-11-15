@@ -1,4 +1,5 @@
 import BrokerMessage from "@trading-model/broker-message";
+import { busJournalFromEnv } from "@trading-model/broker-message/create-message-manager";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
@@ -24,6 +25,7 @@ export async function createModelEvaluatorApp() {
 	});
 	const server = await createServer(createMessageHandler(evaluate));
 	const brokerMessage = new BrokerMessage({
+		journal: busJournalFromEnv(ENV),
 		addressManagerClient: AddressManager,
 		tlsPaths: tls,
 		instanceId: toInstanceId(ENV.INSTANCE_ID),

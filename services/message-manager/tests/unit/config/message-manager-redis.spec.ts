@@ -24,12 +24,12 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		TLS_KEY_PATH: "/etc/tls/key.pem",
 		TLS_CA_PATH: "/etc/tls/ca.pem",
 		REDIS_URL: "redis://redis:6379",
-		DLQ_AUTH_HMAC_SECRET: "0123456789abcdef",
 		JOURNAL_MIN_REPLICAS: 1,
 	},
 }));
 
-import { RedisMessageJournal } from "../../../src/adapters/outbound/redis-message-journal";
+import { RedisMessageJournal } from "@trading-model/broker-message/bus/redis-journal";
+import { RedisDeadLetterStore } from "../../../src/adapters/outbound/redis-dead-letter-store";
 import { RedisSubscriptionStore } from "../../../src/adapters/outbound/redis-subscription-store";
 import {
 	closeMessageManager,
@@ -56,10 +56,10 @@ describe("config/message-manager with Redis", () => {
 		expect(MOCK_STOP).toHaveBeenCalled();
 	});
 
-	it("should send the dead letters to dlq-service", () => {
-		expect(MOCK_BROKER_MODULE.mock.calls[0]?.[1]).toEqual({
-			dlqSecret: "0123456789abcdef",
-		});
+	it("should send the dead letters to the dead streams", () => {
+		expect(MOCK_BROKER_MODULE.mock.calls[0]?.[1]).toBeInstanceOf(
+			RedisDeadLetterStore
+		);
 	});
 
 	it("should close the Redis connection on shutdown", async () => {
