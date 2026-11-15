@@ -17,8 +17,9 @@ The compose stack keeps `http://localhost:8449` (edge-proxy).
 
 ## Selection in deploy.yml
 
-- Environment `staging`: deployment branches limited to `development` and `main`
-  (Settings → Environments → "Selected branches and tags", no other rule). It
+- Environment `staging`: deployment limited to the branches `development` and `main`
+  and the tags `v*` (Settings → Environments → "Selected branches and tags", no other
+  rule; the release deploys its tag, `--ref vX.Y.Z`). It
   holds `KUBECONFIG_STAGING_*`, `BACKUP_S3_*` and `AUDIT_ANCHOR_*`: without the rule
   a branch pushed by anyone with write access can print them (issue #847).
   `check-environment` reports a missing rule as `::error::` in the preflight
