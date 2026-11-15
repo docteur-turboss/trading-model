@@ -141,6 +141,23 @@
         "typescript": "^6.0.3",
       },
     },
+    "packages/model-runtime": {
+      "name": "@trading-model/model-runtime",
+      "version": "1.0.0",
+      "dependencies": {
+        "@trading-model/common": "*",
+        "@trading-model/contracts": "*",
+        "@trading-model/primitives": "*",
+      },
+      "devDependencies": {
+        "@jest/globals": "^30.5.2",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^26.6.6",
+        "jest": "^30.5.2",
+        "ts-jest": "^29.4.15",
+        "typescript": "^6.0.3",
+      },
+    },
     "packages/persistence": {
       "name": "@trading-model/persistence",
       "version": "1.0.0",
@@ -466,6 +483,7 @@
         "@trading-model/contracts": "*",
         "@trading-model/crypto": "*",
         "@trading-model/http": "*",
+        "@trading-model/model-runtime": "*",
         "@trading-model/primitives": "*",
         "@trading-model/reliability": "*",
         "@trading-model/server-utils": "*",
@@ -1057,6 +1075,8 @@
     "@trading-model/crypto": ["@trading-model/crypto@workspace:packages/crypto"],
 
     "@trading-model/http": ["@trading-model/http@workspace:packages/http"],
+
+    "@trading-model/model-runtime": ["@trading-model/model-runtime@workspace:packages/model-runtime"],
 
     "@trading-model/persistence": ["@trading-model/persistence@workspace:packages/persistence"],
 

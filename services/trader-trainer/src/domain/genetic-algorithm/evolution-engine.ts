@@ -3,7 +3,7 @@
  * Handles both structural genome mutations and weight-level operations.
  */
 
-import { sampleGaussian } from "./noise";
+import { sampleGaussian } from "@trading-model/model-runtime/noise";
 
 /**
  * Per-weight uniform crossover using separate RNG to produce a child weight vector.

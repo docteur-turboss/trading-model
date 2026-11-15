@@ -1,11 +1,11 @@
-import type { NumericRange } from "@trading-model/primitives/numeric-range";
-import type { PositiveInt } from "@trading-model/primitives/primitives";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
-} from "../../neural-network/type";
+} from "@trading-model/model-runtime/neural-network/type";
+import type { NumericRange } from "@trading-model/primitives/numeric-range";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
 
 export {
 	ActivationType,

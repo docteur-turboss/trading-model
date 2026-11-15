@@ -1,6 +1,6 @@
-import { ACTIVATIONS } from "./activation";
+import { ACTIVATIONS } from "@trading-model/model-runtime/neural-network/activation";
+import type { NeuralNetworkConfig } from "@trading-model/model-runtime/neural-network/type";
 import type { OutputDeltasContext } from "./backprop-engine";
-import type { NeuralNetworkConfig } from "./type";
 import { clipGradients } from "./utils";
 
 function validateLengths(output: Float32Array, target: Float32Array): void {

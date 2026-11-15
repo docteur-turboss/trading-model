@@ -8,7 +8,7 @@ This ADR is a proposal: the owner decides. It creates no service, no package, no
 
 ## Context
 
-The platform has no order chain. Of signal → decision → sizing → pre-trade checks → submission → acknowledgement → fill → position, only the decision exists, inside the trainer simulator (`services/trader-trainer/src/domain/env/trade-executor.ts`). Checked on `1ade1a18`:
+The platform has no order chain. Of signal → decision → sizing → pre-trade checks → submission → acknowledgement → fill → position, only the decision exists, inside the trainer simulator (`packages/model-runtime/src/env/trade-executor.ts`). Checked on `1ade1a18`:
 
 - No order code: `placeOrder`, `createOrder`, `/api/v3/order`, `X-MBX-APIKEY`, `BINANCE_API_KEY`, `testnet`, `killSwitch`, `stopLoss` have no occurrence in `services/*/src`. Real loss possible today: none, since nothing reaches an exchange.
 - [ADR-0049](./0049-downstream-context-for-models-and-signals.md) (Accepted: option B, offline) defines the contract of a model consumer but says "Live execution is out of scope" and sets no risk layer. A consumer that executes (its option C) would start from nothing and expose 100 % of the allocated capital.

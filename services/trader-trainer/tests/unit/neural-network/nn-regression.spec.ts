@@ -1,14 +1,14 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { ACTIVATIONS } from "../../../src/domain/neural-network/activation";
-import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
-import { mseLoss } from "../../../src/domain/neural-network/output-delta-computer";
+import { ACTIVATIONS } from "@trading-model/model-runtime/neural-network/activation";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
-} from "../../../src/domain/neural-network/type";
+} from "@trading-model/model-runtime/neural-network/type";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
+import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
+import { mseLoss } from "../../../src/domain/neural-network/output-delta-computer";
 
 jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: {},

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
 import type {
 	Fitness,
 	PositiveInt,
@@ -7,7 +8,6 @@ import type {
 import { DurationMs, Price } from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
-import { FEATURE_LAYOUT } from "../../../src/domain/feature-vector-codec";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";

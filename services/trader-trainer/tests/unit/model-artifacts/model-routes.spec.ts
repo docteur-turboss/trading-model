@@ -15,10 +15,10 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: { INSTANCE_ID: "trader-trainer-1" },
 }));
 
+import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
 import { TRAINER_API } from "../../../src/adapters/inbound/http/api-routes";
 import { TRAINER_ROUTES } from "../../../src/adapters/inbound/http/routes";
 import { FileModelArtifactStore } from "../../../src/adapters/outbound/file-model-artifact-store";
-import { FEATURE_LAYOUT } from "../../../src/domain/feature-vector-codec";
 
 const AGENT = {
 	id: "g-1",

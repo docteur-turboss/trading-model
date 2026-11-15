@@ -1,6 +1,6 @@
-import { agentError } from "../../shared/errors";
+import { agentError } from "@trading-model/model-runtime/errors";
 
-import type { Experience } from "./type";
+import type { Experience } from "@trading-model/model-runtime/neural-network/type";
 
 export interface ExperiencePoolPort {
 	add(experience: Experience): void;

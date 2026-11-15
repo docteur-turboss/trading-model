@@ -1,8 +1,8 @@
 import { describe, expect, it } from "@jest/globals";
 import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
+import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import { Price } from "@trading-model/primitives/primitives";
-import { FeatureVector } from "../../../src/domain/feature-vector";
-import { FEATURE_DIM } from "../../../src/domain/feature-vector-codec";
 import { evalPhase } from "../../../src/domain/genetic-algorithm/evaluation-phase";
 import { lamarckianUpdate } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";

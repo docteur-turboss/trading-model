@@ -1,14 +1,18 @@
-import { agentError } from "../../shared/errors";
-import { BackpropEngine } from "./backprop-engine";
-import { FeedForwardEngine } from "./feed-forward-engine";
+import { agentError } from "@trading-model/model-runtime/errors";
+import { FeedForwardEngine } from "@trading-model/model-runtime/neural-network/feed-forward-engine";
 import {
 	distributeAroundWeights as distributeAroundWeightsFn,
 	getWeights as getWeightsFn,
 	parameterCount as parameterCountFn,
 	setWeights as setWeightsFn,
-} from "./network-serialization";
+} from "@trading-model/model-runtime/neural-network/network-serialization";
+import type {
+	ForwardContext,
+	LayerMemory,
+	NeuralNetworkConfig,
+} from "@trading-model/model-runtime/neural-network/type";
+import { BackpropEngine } from "./backprop-engine";
 import { NeuralNetworkBuilder } from "./neural-network-builder";
-import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
 
 function _validateSize(kind: string, actual: number, expected: number): void {
 	if (actual !== expected) {
