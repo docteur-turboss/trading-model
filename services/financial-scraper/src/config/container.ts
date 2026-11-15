@@ -14,6 +14,7 @@ import { createProtocolWorkers } from "../adapters/outbound/signal-sources/proto
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
 import { createMarketDataController } from "../application/market-data.controller";
 import {
+	recordSourceTerms,
 	SignalCollector,
 	zeroCollectionFailures,
 } from "../application/signal-collector";
@@ -171,6 +172,7 @@ export function createSignalScheduler(
 		now: Date.now,
 		sleep,
 	});
+	recordSourceTerms(SIGNAL_REGISTRY.sources);
 	zeroCollectionFailures(sources);
 	return new SignalCronScheduler(sources, collector);
 }
