@@ -32,7 +32,6 @@ Record the topology as deployed, including what it does not provide.
 | | Compose / staging / kind | Production |
 | --- | --- | --- |
 | Servers | 1 | StatefulSet of 1 (`mysql-0`), single primary, GTID binlogs |
-| Members of the group | — | `mysql-0` only (bootstrapped by `mysql-cluster-init`) |
 | Write endpoint | `mysql` (compose) / `mysql-primary` | `mysql-primary` → pod `mysql-0` |
 | Failover | none | **none** |
 | Protection against data loss | encrypted daily backups (`scripts/backup-lib.sh`), restore drills | same |
