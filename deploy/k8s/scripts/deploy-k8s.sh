@@ -4,7 +4,6 @@
 #  Usage:
 #    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests (dev cluster only, ALLOW_DEV_APPLY=1)
 #    ./deploy-k8s.sh [-n <namespace>] apply <service> # Apply a single service
-#    ./deploy-k8s.sh [-n <namespace>] delete          # Delete all resources
 #    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
 #    ./deploy-k8s.sh [-n <namespace>] rollback <service> [revision]
 #    ./deploy-k8s.sh [-n <namespace>] migrate-down [count|all]
@@ -122,19 +121,6 @@ cmd_apply() {
   fi
 
   log "Deployment complete."
-}
-
-cmd_delete() {
-  local service="${1:-}"
-  if [[ -n "$service" ]]; then
-    log "Deleting service: $service"
-    kubectl delete -n "$NAMESPACE" "deployment/${service}" --ignore-not-found
-    kubectl delete -n "$NAMESPACE" "service/${service}" --ignore-not-found
-  else
-    log "Deleting all Trading Model resources..."
-    kustomize_build "${K8S_DIR}/" | kubectl delete -f - --ignore-not-found
-  fi
-  log "Deletion complete."
 }
 
 cmd_status() {
@@ -685,9 +671,6 @@ case "${1:-help}" in
   apply)
     cmd_apply "${2:-}"
     ;;
-  delete)
-    cmd_delete "${2:-}"
-    ;;
   status)
     cmd_status
     ;;
@@ -724,7 +707,6 @@ case "${1:-help}" in
     echo ""
     echo "Usage:"
     echo "  $0 [-n namespace] apply [service]       Apply manifests"
-    echo "  $0 [-n namespace] delete [service]      Delete resources"
     echo "  $0 [-n namespace] status                Show cluster status"
     echo "  $0 [-n namespace] rollback <srv> [rev]  Rollback deployment"
     echo "  $0 [-n namespace] migrate-down [N|all]  Rollback N DB migrations (default: 1)"
