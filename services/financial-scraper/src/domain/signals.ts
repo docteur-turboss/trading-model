@@ -206,6 +206,8 @@ const AccessPolicy = z
 		auth: z.union([z.literal("none"), SourceAuth]),
 		/** Most requests a minute the collector sends to the source: it spaces them. */
 		maxRequestsPerMinute: z.number().int().positive(),
+		/** Most requests a day of the free tier: a registry whose schedule exceeds it is refused. */
+		maxRequestsPerDay: z.number().int().positive().optional(),
 	})
 	.superRefine((policy, ctx) => {
 		const issue = (path: string, message: string) =>
@@ -264,6 +266,40 @@ export const Source = z.strictObject({
 	requests: z.array(SourceRequest).min(1),
 });
 export type Source = z.infer<typeof Source>;
+
+function _fieldSize(field: string, min: number, max: number): number {
+	const values = new Set<number>();
+	for (const part of field.split(",")) {
+		const [range = "", step = "1"] = part.split("/");
+		const [from = min, to = range.includes("-") ? max : from] =
+			range === "*" ? [min, max] : range.split("-").map(Number);
+		for (let value = from; value <= to; value += Number(step)) {
+			values.add(value);
+		}
+	}
+	return values.size;
+}
+
+/**
+ * Requests sent on the busiest day: ticks of a day times requests. The weekday
+ * field cannot make one weekday busier than another (every day has the same
+ * hours and minutes), so only seconds, minutes and hours count.
+ * shortcut: day-of-month and month are ignored, so a rare date overestimates.
+ */
+export function dailyRequests(source: {
+	schedule: string;
+	requests: readonly unknown[];
+}): number {
+	const fields = source.schedule.trim().split(/\s+/);
+	const [seconds = "0", minute = "*", hour = "*"] =
+		fields.length === 6 ? fields : ["0", ...fields];
+	return (
+		_fieldSize(seconds, 0, 59) *
+		_fieldSize(minute, 0, 59) *
+		_fieldSize(hour, 0, 23) *
+		source.requests.length
+	);
+}
 
 const Scalar = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 

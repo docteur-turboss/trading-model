@@ -106,4 +106,10 @@ export const SIGNAL_SOURCES = new promClient.Gauge({
 	labelNames: ["terms", "commercial_licence"] as const,
 });
 
+export const SIGNAL_SOURCE_DAILY_REQUESTS = new promClient.Gauge({
+	name: "fs_signal_source_daily_requests",
+	help: "Requests a day the schedule of a signal source plans",
+	labelNames: ["source"] as const,
+});
+
 export { metricsHandler };

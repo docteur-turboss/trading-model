@@ -5,6 +5,7 @@ import type { SourceAdapter } from "../domain/ports/signal-source.port";
 import {
 	Asset,
 	DATE_PLACEHOLDER,
+	dailyRequests,
 	SIGNAL_SCHEMA_VERSION,
 	Source,
 	SourceRequest,
@@ -215,6 +216,13 @@ export function parseSignalRegistry(raw: unknown): SignalRegistry {
 		if (!cron.validate(source.schedule)) {
 			problems.push(
 				`source ${source.id}: invalid schedule "${source.schedule}"`
+			);
+		}
+		const quota = source.accessPolicy.maxRequestsPerDay;
+		const planned = dailyRequests(source);
+		if (quota !== undefined && planned > quota) {
+			problems.push(
+				`source ${source.id}: schedule "${source.schedule}" sends ${planned} requests a day (${source.requests.length} requests per tick), over maxRequestsPerDay ${quota}`
 			);
 		}
 		problems.push(..._requestProblems(source, adapter, file.assets));

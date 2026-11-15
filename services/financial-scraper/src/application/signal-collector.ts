@@ -2,6 +2,7 @@ import { getLogger } from "@trading-model/contracts/logger-registry";
 import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_COLLECTIONS_TOTAL,
+	SIGNAL_SOURCE_DAILY_REQUESTS,
 	SIGNAL_SOURCE_QUARANTINED,
 	SIGNAL_SOURCES,
 } from "../config/metrics";
@@ -14,6 +15,7 @@ import {
 import type { SignalStorePort } from "../domain/ports/signal-store.port";
 import {
 	DATE_PLACEHOLDER,
+	dailyRequests,
 	type Protocol,
 	SIGNAL_SCHEMA_VERSION,
 	Signal,
@@ -41,6 +43,12 @@ export function zeroCollectionFailures(sources: readonly Source[]): void {
 			SIGNAL_COLLECTIONS_TOTAL.inc({ source: id, result }, 0);
 		}
 		SIGNAL_SOURCE_QUARANTINED.set({ source: id }, 0);
+	}
+	for (const source of sources) {
+		SIGNAL_SOURCE_DAILY_REQUESTS.set(
+			{ source: source.id },
+			dailyRequests(source)
+		);
 	}
 }
 
