@@ -139,6 +139,15 @@ export const SourceRequest = z.strictObject({
 });
 export type SourceRequest = z.infer<typeof SourceRequest>;
 
+/** The key sits in `SIGNAL_KEY_<SOURCE>`: a leak reaches one source only. */
+const SourceAuth = z.strictObject({
+	type: z.literal("api_key"),
+	env: z.string().regex(/^SIGNAL_KEY_[A-Z0-9_]+$/),
+	in: z.enum(["header", "query"]),
+	/** Header or query parameter name. */
+	name: z.string().regex(/^[\w-]+$/),
+});
+
 /**
  * §1.3: under which terms and how hard the source may be used. Terms are
  * free for any use, commercial and trading included, at most against
@@ -152,8 +161,8 @@ const AccessPolicy = z
 		termsUrl: z.url({ protocol: /^https$/ }),
 		/** Credit owed to the source; required by `attribution` terms. */
 		attribution: z.string().min(1).optional(),
-		/** No key nor account: per-source secrets are not supported yet. */
-		auth: z.literal("none"),
+		/** `none`, or a free API key read from the variable `env` (one per source), sent in a header or query parameter. */
+		auth: z.union([z.literal("none"), SourceAuth]),
 		/** Most requests a minute the collector sends to the source: it spaces them. */
 		maxRequestsPerMinute: z.number().int().positive(),
 	})

@@ -91,10 +91,10 @@ export class SignalCollector {
 		let result: CollectionResult = "fetch_error";
 		const ingestedAt = this._deps.now();
 		try {
-			const payload = await this._deps.workers[source.protocol]({
-				...request,
-				url: _expandUrl(request.url, ingestedAt),
-			});
+			const payload = await this._deps.workers[source.protocol](
+				{ ...request, url: _expandUrl(request.url, ingestedAt) },
+				source.accessPolicy.auth
+			);
 			result = "invalid_payload";
 			const signals = this._toSignals(source, request, payload, ingestedAt);
 			result = "store_error";

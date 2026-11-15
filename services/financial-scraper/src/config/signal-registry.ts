@@ -101,6 +101,11 @@ export function parseSignalRegistry(raw: unknown): SignalRegistry {
 		..._duplicates(file.sources.map((source) => source.id)).map(
 			(id) => `source ${id} declared twice`
 		),
+		..._duplicates(
+			file.sources.flatMap(({ accessPolicy: { auth } }) =>
+				auth === "none" ? [] : [auth.env]
+			)
+		).map((env) => `key variable ${env} used by two sources`),
 	];
 	for (const source of file.sources) {
 		const adapter = SOURCE_ADAPTERS.get(source.adapter);

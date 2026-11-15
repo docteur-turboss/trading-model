@@ -88,4 +88,10 @@ export const SIGNAL_COLLECTIONS_TOTAL = new promClient.Counter({
 	labelNames: ["source", "result"] as const,
 });
 
+export const SIGNAL_SOURCE_DISABLED = new promClient.Gauge({
+	name: "fs_signal_source_disabled",
+	help: "1 when a signal source is not scheduled (ADR-0036), by source and reason: missing_key (its SIGNAL_KEY_* variable is unset)",
+	labelNames: ["source", "reason"] as const,
+});
+
 export { metricsHandler };

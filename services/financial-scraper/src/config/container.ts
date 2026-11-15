@@ -18,7 +18,8 @@ import {
 	zeroCollectionFailures,
 } from "../application/signal-collector";
 import type { WorkerOrchestratorDeps } from "../application/worker-orchestrator";
-import { COLLECTOR_LEADER } from "./metrics";
+import type { Source } from "../domain/signals";
+import { COLLECTOR_LEADER, SIGNAL_SOURCE_DISABLED } from "./metrics";
 import { SIGNAL_REGISTRY } from "./signal-registry";
 
 /** Market data persistence use case backed by the MySQL repository. */
@@ -114,6 +115,31 @@ export function signalUserAgent(contactEmail: string): string {
 }
 
 /**
+ * The sources whose key is set. One without its key is skipped with a warning
+ * and `fs_signal_source_disabled{reason="missing_key"}` at 1; the others run
+ * (CI and dev machines hold no key).
+ */
+export function scheduledSources(
+	sources: readonly Source[],
+	env: NodeJS.ProcessEnv
+): Source[] {
+	return sources.filter(({ id, accessPolicy: { auth } }) => {
+		const missing = auth !== "none" && !env[auth.env];
+		SIGNAL_SOURCE_DISABLED.set(
+			{ source: id, reason: "missing_key" },
+			Number(missing)
+		);
+		if (missing) {
+			logger.warn("Signal source not scheduled: its API key is unset", {
+				source: id,
+				env: auth.env,
+			});
+		}
+		return !missing;
+	});
+}
+
+/**
  * Builds the cron of the signal registry sources (ADR-0036), or null when
  * this instance does not collect them.
  */
@@ -134,8 +160,9 @@ export function createSignalScheduler(
 		);
 		return null;
 	}
+	const sources = scheduledSources(SIGNAL_REGISTRY.sources, process.env);
 	logger.info("Signal collection enabled", {
-		sources: SIGNAL_REGISTRY.sources.map((source) => source.id),
+		sources: sources.map((source) => source.id),
 	});
 	const collector = new SignalCollector({
 		workers: createProtocolWorkers(signalUserAgent(contact)),
@@ -144,8 +171,8 @@ export function createSignalScheduler(
 		now: Date.now,
 		sleep,
 	});
-	zeroCollectionFailures(SIGNAL_REGISTRY.sources);
-	return new SignalCronScheduler(SIGNAL_REGISTRY.sources, collector);
+	zeroCollectionFailures(sources);
+	return new SignalCronScheduler(sources, collector);
 }
 
 export interface CollectorSettings
