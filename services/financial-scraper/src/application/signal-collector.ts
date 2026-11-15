@@ -2,9 +2,9 @@ import { getLogger } from "@trading-model/contracts/logger-registry";
 import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_COLLECTIONS_TOTAL,
-	SIGNAL_SOURCE_DAILY_REQUESTS,
 	SIGNAL_LAST_SUCCESS,
 	SIGNAL_NEWEST_OBSERVED,
+	SIGNAL_SOURCE_DAILY_REQUESTS,
 	SIGNAL_SOURCE_MAX_AGE,
 	SIGNAL_SOURCE_QUARANTINED,
 	SIGNAL_SOURCES,
