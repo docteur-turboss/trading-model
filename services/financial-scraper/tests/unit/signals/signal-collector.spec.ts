@@ -17,9 +17,11 @@ import {
 } from "../../../src/application/signal-collector";
 import {
 	SIGNAL_COLLECTIONS_TOTAL,
+	SIGNAL_SOURCE_QUARANTINED,
 	SIGNAL_SOURCES,
 } from "../../../src/config/metrics";
 import {
+	HttpStatusError,
 	InvalidPayloadError,
 	type Observation,
 	type SourceAdapter,
@@ -78,6 +80,8 @@ const worker = jest.fn<(request: unknown) => Promise<unknown>>();
 const save = jest.fn<(signals: unknown) => Promise<void>>();
 const sleep = jest.fn<(ms: number) => Promise<void>>();
 
+let clock = NOW;
+
 function collector(): SignalCollector {
 	return new SignalCollector({
 		workers: { rest_api: worker },
@@ -85,7 +89,7 @@ function collector(): SignalCollector {
 			["test-adapter", { dimensions: ["social"], normalize }],
 		]),
 		store: { save, findForAsset: jest.fn<(...args: any[]) => any>() },
-		now: () => NOW,
+		now: () => clock,
 		sleep,
 	});
 }
@@ -132,6 +136,8 @@ describe("recordSourceTerms", () => {
 
 beforeEach(() => {
 	jest.clearAllMocks();
+	clock = NOW;
+	SIGNAL_SOURCE_QUARANTINED.reset();
 	SIGNAL_COLLECTIONS_TOTAL.reset();
 	worker.mockResolvedValue({ payload: true });
 	normalize.mockReturnValue([OBSERVATION]);
@@ -305,6 +311,7 @@ describe("SignalCollector", () => {
 			[`${SOURCE.id}:fetch_error`]: 0,
 			[`${SOURCE.id}:invalid_payload`]: 0,
 			[`${SOURCE.id}:store_error`]: 0,
+			[`${SOURCE.id}:skipped_quarantine`]: 0,
 		});
 	});
 
@@ -316,5 +323,89 @@ describe("SignalCollector", () => {
 		await expect(counted()).resolves.toEqual({
 			"test-source:store_error": 1,
 		});
+	});
+});
+
+describe("quarantine of a failing source", () => {
+	const HOUR = 3_600_000;
+	const fail = (status = 500, retryAfter?: string) =>
+		worker.mockRejectedValue(new HttpStatusError("HTTP", status, retryAfter));
+	const quarantined = async () =>
+		(await SIGNAL_SOURCE_QUARANTINED.get()).values[0]?.value;
+
+	it("opens after 3 failed ticks, skips ticks, doubles on a failed trial and closes on success", async () => {
+		const c = collector();
+		fail();
+		for (let i = 0; i < 3; i++) {
+			await c.collect(ONE_REQUEST);
+		}
+		expect(worker).toHaveBeenCalledTimes(3);
+		expect(await quarantined()).toBe(1);
+
+		clock += HOUR - 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(3);
+		expect((await counted())["test-source:skipped_quarantine"]).toBe(1);
+
+		clock += 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(4);
+		clock += 2 * HOUR - 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(4);
+
+		clock += 1;
+		worker.mockResolvedValue({ payload: true });
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(5);
+		expect(await quarantined()).toBe(0);
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(6);
+	});
+
+	it("honours Retry-After in seconds and as an HTTP date", async () => {
+		fail(429, "7200");
+		const c = collector();
+		await c.collect(ONE_REQUEST);
+		clock += 2 * HOUR - 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(1);
+		clock += 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(2);
+
+		worker.mockClear();
+		clock = NOW;
+		fail(503, new Date(NOW + 5 * HOUR).toUTCString());
+		const d = collector();
+		await d.collect(ONE_REQUEST);
+		clock += 4 * HOUR;
+		await d.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(1);
+	});
+
+	it("quarantines a refused key (403) at the first failure for 24 h", async () => {
+		fail(403);
+		const c = collector();
+		await c.collect(ONE_REQUEST);
+		clock += 24 * HOUR - 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not count invalid_payload or store_error, and leaves other sources alone", async () => {
+		const c = collector();
+		save.mockRejectedValue(new Error("MySQL down"));
+		for (let i = 0; i < 4; i++) {
+			await c.collect(ONE_REQUEST);
+		}
+		expect(worker).toHaveBeenCalledTimes(4);
+
+		fail(403);
+		await c.collect(ONE_REQUEST);
+		worker.mockClear();
+		worker.mockResolvedValue({ payload: true });
+		await c.collect({ ...ONE_REQUEST, id: "other" });
+		expect(worker).toHaveBeenCalledTimes(1);
 	});
 });

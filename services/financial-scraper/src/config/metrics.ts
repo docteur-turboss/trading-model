@@ -84,8 +84,14 @@ export const EVENTS_PUBLISHED_TOTAL = new promClient.Counter({
 
 export const SIGNAL_COLLECTIONS_TOTAL = new promClient.Counter({
 	name: "fs_signal_collections_total",
-	help: "Signal source requests collected (ADR-0036), by source and result: success, fetch_error, invalid_payload (format changed), store_error",
+	help: "Signal source requests collected (ADR-0036), by source and result: success, fetch_error, invalid_payload (format changed), store_error, skipped_quarantine (tick skipped, source in quarantine)",
 	labelNames: ["source", "result"] as const,
+});
+
+export const SIGNAL_SOURCE_QUARANTINED = new promClient.Gauge({
+	name: "fs_signal_source_quarantined",
+	help: "1 while a signal source is in quarantine after repeated fetch failures, else 0",
+	labelNames: ["source"] as const,
 });
 
 export const SIGNAL_SOURCES = new promClient.Gauge({
