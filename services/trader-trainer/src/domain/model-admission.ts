@@ -13,6 +13,12 @@ export const ADMISSION_THRESHOLDS = {
 	minCalmar: 1.0,
 } as const;
 
+/**
+ * Fewest test bars a verdict needs: one day of one-minute bars. Below it the
+ * annualised ratios (x sqrt(barsPerYear), x barsPerYear) mean nothing (ADR-0069).
+ */
+export const MIN_ADMISSION_TEST_BARS = 1440;
+
 /** Verdict written in the manifest; `admissible` only makes a model eligible. */
 export interface ModelAdmission {
 	admissible: boolean;
@@ -30,7 +36,8 @@ export interface ModelAdmission {
 /**
  * Checks the ADR-0030 criteria on the test segment metrics of the published
  * genome. Undefined unless they were measured on the test segment: metrics of
- * the validation the selection read are biased upward (ADR-0068). Without bar
+ * the validation the selection read are biased upward (ADR-0068), and
+ * undefined under `MIN_ADMISSION_TEST_BARS` test bars. Without bar
  * timestamps (`barsPerYear` unknown) the ratios stay per bar.
  */
 export function assessAdmission(
@@ -38,7 +45,11 @@ export function assessAdmission(
 	test: readonly MarketStep[]
 ): ModelAdmission | undefined {
 	const curve = meta?.pnlCurve;
-	if (meta?.evaluatedOn !== "test" || !curve) {
+	if (
+		meta?.evaluatedOn !== "test" ||
+		!curve ||
+		test.length < MIN_ADMISSION_TEST_BARS
+	) {
 		return undefined;
 	}
 	const perYear = meta.barsPerYear ?? 1;
