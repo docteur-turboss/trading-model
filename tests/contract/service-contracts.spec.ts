@@ -70,7 +70,7 @@ jest.mock("../../services/audit-logger/src/config/metrics", () => ({
 }));
 // dlq-service publishes its events through the real broker client.
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
-	createServiceMessageManager: () => ({
+	createMessageManager: () => ({
 		messageManager: {
 			post: {
 				indirect: (payload: unknown, metadata: never) =>
@@ -80,7 +80,14 @@ jest.mock("@trading-model/broker-message/create-message-manager", () => ({
 	}),
 }));
 jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
-	ENV: { INSTANCE_ID: "dlq-service-1" },
+	ENV: {
+		INSTANCE_ID: "dlq-service-1",
+		SERVICE_NAME: "dlq-service",
+		MESSAGE_CALLBACK_PATH: "message",
+	},
+}));
+jest.mock("@trading-model/common/config/tls-paths", () => ({
+	buildTlsFromEnv: () => ({}),
 }));
 jest.mock("../../services/dlq-service/src/config/address-manager", () => ({
 	AddressManager: {},
