@@ -52,7 +52,8 @@ reconcile() {
   fi
   for sa in $SERVICE_ACCOUNTS; do
     id="spiffe://${TD}/ns/${NS}/sa/${sa}"
-    upsert_entry "$("$SERVER" entry show -socketPath "$SOCK" -spiffeID "$id")" \
+    # Filter on the selector too: an alias entry (financial-scraper-collector) shares the SPIFFE ID.
+    upsert_entry "$("$SERVER" entry show -socketPath "$SOCK" -spiffeID "$id" -selector "k8s:sa:${sa}")" \
       -spiffeID "$id" \
       -parentID "$AGENT_ID" \
       -selector "k8s:ns:${NS}" \
