@@ -30,7 +30,11 @@ describe("config/message-manager", () => {
 		).default;
 		expect(createBrokerModule).toHaveBeenCalledTimes(1);
 		expect(MESSAGE_MANAGER_ROUTES).toBe(
-			(createBrokerModule.mock.results[0]?.value as { listen: unknown }).listen
+			(
+				createBrokerModule.mock.results[0]?.value as
+					| { listen: unknown }
+					| undefined
+			)?.listen
 		);
 	});
 });
