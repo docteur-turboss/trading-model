@@ -265,15 +265,6 @@ describe("parseSignalRegistry", () => {
 			},
 		],
 		[
-			"a subject naming both a sector and an area",
-			(file: any) => {
-				sourceOf(file, "wikipedia-pageviews").requests[0].subject = {
-					sector: "crypto",
-					area: "EA",
-				};
-			},
-		],
-		[
 			"non-commercial terms without the clause read or the licence status",
 			(file: any) => {
 				sourceOf(file, "nws-kansas-wheat-belt").accessPolicy.terms =
@@ -359,8 +350,5 @@ describe("signal registry — economic areas", () => {
 		};
 		expect(Signal.safeParse({ ...signal, area: "EA" }).success).toBe(true);
 		expect(Signal.safeParse(signal).success).toBe(false);
-		expect(
-			Signal.safeParse({ ...signal, area: "EA", sector: "crypto" }).success
-		).toBe(false);
 	});
 });

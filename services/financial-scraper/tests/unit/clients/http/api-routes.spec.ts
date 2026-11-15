@@ -57,6 +57,7 @@ import {
 	SCRAPER_API,
 } from "../../../../src/adapters/inbound/http/api-routes";
 import { FINANCIAL_ROUTES } from "../../../../src/adapters/inbound/http/routes";
+import { SIGNAL_REGISTRY } from "../../../../src/config/signal-registry";
 
 const AT = new Date("2026-10-28T12:00:00.000Z");
 const MARKET = { symbol: "BTCUSDT", market: "crypto", source: "binance" };
@@ -362,6 +363,20 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 				to: Date.parse("2026-11-05T00:00:00Z"),
 				limit: MAX_SIGNALS_PER_ANSWER + 1,
 			});
+		});
+
+		it("passes the areas of the asset to the store", async () => {
+			const wheat = SIGNAL_REGISTRY.assets.get("WHEAT") as any;
+			SIGNAL_REGISTRY.assets.set("WHEAT", { ...wheat, areas: ["EA"] });
+			findForAsset.mockResolvedValue([]);
+
+			try {
+				await get(SCRAPER_API.assetSignals, `/signals/assets/WHEAT?${WINDOW}`);
+			} finally {
+				SIGNAL_REGISTRY.assets.set("WHEAT", wheat);
+			}
+
+			expect(findForAsset.mock.calls[0][0].areas).toEqual(["EA"]);
 		});
 
 		it("says truncated when the window holds more than one answer", async () => {

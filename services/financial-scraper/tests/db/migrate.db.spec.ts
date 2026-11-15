@@ -177,13 +177,13 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 			copy(file);
 		}
 		runner.run("up");
-		const insert = (id: string, asset: string | null, sector: string | null) =>
+		const insert = (id: string, column: string, subject: string) =>
 			db.query(
-				"INSERT INTO signals (id, schema_version, source_id, dimension, asset_id, sector, observed_at, ingested_at, confidence_score, payload) VALUES (?, 1, 's', 'market', ?, ?, NOW(3), NOW(3), 1, '{}')",
-				[id.repeat(64), asset, sector]
+				`INSERT INTO signals (id, schema_version, source_id, dimension, ${column}, observed_at, ingested_at, confidence_score, payload) VALUES (?, 1, 's', 'market', ?, NOW(3), NOW(3), 1, '{}')`,
+				[id.repeat(64), subject]
 			);
-		await insert("a", "BTC", null);
-		await insert("b", null, "crypto");
+		await insert("a", "asset_id", "BTC");
+		await insert("b", "sector", "crypto");
 
 		for (const file of [
 			"009_add_signal_area.up.sql",
@@ -194,10 +194,7 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		runner.run("up");
 
 		await expect(rows("SELECT id FROM signals")).resolves.toHaveLength(2);
-		await db.query(
-			"INSERT INTO signals (id, schema_version, source_id, dimension, area, observed_at, ingested_at, confidence_score, payload) VALUES (?, 1, 's', 'macro', 'EA', NOW(3), NOW(3), 1, '{}')",
-			["c".repeat(64)]
-		);
+		await insert("c", "area", "EA");
 		await expect(
 			db.query("UPDATE signals SET area = 'EA' WHERE id = ?", ["a".repeat(64)])
 		).rejects.toThrow(/chk_signals_one_subject/);

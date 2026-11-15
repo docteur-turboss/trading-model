@@ -104,4 +104,20 @@ describe("MySqlSignalStore", () => {
 			10,
 		]);
 	});
+
+	it("binds [null] when the asset has no areas, since IN () is a SQL error", async () => {
+		MOCK_QUERY.mockResolvedValue([[]]);
+
+		await MySqlSignalStore.findForAsset({
+			assetId: "WHEAT",
+			sector: "agriculture",
+			areas: [],
+			dimensions: ["market"],
+			from: 0,
+			to: 1,
+			limit: 10,
+		});
+
+		expect(MOCK_QUERY.mock.calls[0][1][2]).toEqual([null]);
+	});
 });
