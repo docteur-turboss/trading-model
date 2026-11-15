@@ -2,7 +2,7 @@
 # deploy/k8s/scripts/run-migrations.sh (issue #422) with a stub kubectl: the
 # MYSQL_MIGRATE_PASSWORD guard on a cluster that has the key, one that lacks it
 # (production: explicit error before any Job; staging: seeded), `user-only`, and
-# the TLS path read on pod mysql-0 (issue #1066).
+# the TLS path read on pod mysql-0 (issue #1066), a mysql-cluster-init Job left Failed (issue #1199).
 #   bash tests/k8s/run-migrations.test.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -18,7 +18,14 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"$STUB_LOG"
 if [ "$1" = apply ] && [ "${*: -1}" = - ]; then cat >>"$STUB_LOG.manifests"; exit 0; fi
-if [ "$1" = get ] && [ "$2" = job ]; then exit 1; fi # no mysql-cluster-init Job
+# STUB_INIT=Failed: a mysql-cluster-init Job left Failed, Complete once replaced. Otherwise no such Job.
+if [ "$1" = replace ]; then cat >"$STUB_LOG.replaced"; exit 0; fi
+if [ "$1" = get ] && [ "$2" = job ] && [ -n "${STUB_INIT:-}" ]; then
+  if [[ "$*" == *"-o json" ]]; then printf '{"metadata":{"uid":"u"},"spec":{"selector":{},"template":{"metadata":{"labels":{"job-name":"x","app":"mysql"}}}},"status":{}}'
+  elif grep -q '^replace' "$STUB_LOG"; then printf 'Complete '; else printf '%s ' "$STUB_INIT"; fi
+  exit 0
+fi
+if [ "$1" = get ] && [ "$2" = job ]; then exit 1; fi
 # The StatefulSet spec always has the TLS volume; pod mysql-0 has what STUB_POD_VOLUMES says.
 if [ "$1" = get ] && [ "$2" = statefulset ]; then printf 'mysql-data mysql-tls'; exit 0; fi
 if [ "$1" = get ] && [ "$2" = pod ] && [ "$3" = mysql-0 ]; then printf '%s' "${STUB_POD_VOLUMES:-}"; exit 0; fi
@@ -59,6 +66,11 @@ STUB_KEY= SEED_MIGRATE_PASSWORD=true run bash "$RUN" ns
 
 STUB_KEY=c2VjcmV0 run bash "$RUN" ns user-only
 { [ $RC = 0 ] && grep -q 'job/db-migrate-user ' "$STUB_LOG" && ! grep -q 'job/db-migrate ' "$STUB_LOG"; } && ok "user-only: no migration job" || ko "user-only"
+
+# Issue #1199: a bootstrap Job left Failed by an earlier deploy is run again, not fatal.
+STUB_KEY=c2VjcmV0 STUB_INIT=Failed run bash "$RUN" ns
+{ [ $RC = 0 ] && grep -q '^replace --force' "$STUB_LOG" && grep -q '"app": "mysql"' "$STUB_LOG.replaced" && ! grep -q 'uid\|selector\|job-name' "$STUB_LOG.replaced"; } &&
+  ok "mysql-cluster-init Failed: re-run without its generated selector, migrations go on" || ko "failed init: $OUT"
 
 # Issue #1066: a partitioned StatefulSet whose spec has mysql-tls but whose pod does not.
 STUB_KEY=c2VjcmV0 STUB_POD_VOLUMES=mysql-data run bash "$RUN" ns user-only

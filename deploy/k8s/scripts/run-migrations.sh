@@ -116,16 +116,30 @@ require_migrate_password() {
 # GROUP_REPLICATION, the server is super_read_only. A migration that runs then
 # fails halfway, and its retry fails on what the first try already applied.
 # The Job may be gone on an old namespace (deleted by hand): nothing to wait for.
-if kubectl get job mysql-cluster-init -n "$NS" >/dev/null 2>&1; then
-  # Poll both conditions: `kubectl wait --for=condition=complete` would sit
-  # out its whole timeout on a Job that has already failed.
-  state=""
-  for _ in $(seq 60); do
+# Poll both conditions: `kubectl wait --for=condition=complete` would sit
+# out its whole timeout on a Job that has already failed.
+init_state() {
+  local state=""
+  for _ in $(seq $((60 * ${DEPLOY_TIMEOUT_FACTOR:-1}))); do
     state=$(kubectl get job mysql-cluster-init -n "$NS" \
       -o jsonpath='{range .status.conditions[?(@.status=="True")]}{.type} {end}')
     case "$state" in *Complete*|*Failed*) break ;; esac
     sleep 5
   done
+  echo "$state"
+}
+if kubectl get job mysql-cluster-init -n "$NS" >/dev/null 2>&1; then
+  state=$(init_state)
+  # The Job left Failed by an earlier deploy (rolled back before the overlay re-created it)
+  # would block every later deploy (issue #1199): run it once more, it is idempotent.
+  if [[ "$state" == *Failed* ]]; then
+    echo "mysql-cluster-init failed in an earlier run: running it again"
+    kubectl get job mysql-cluster-init -n "$NS" -o json |
+      jq 'del(.status, .metadata.uid, .metadata.resourceVersion, .metadata.creationTimestamp, .metadata.managedFields, .spec.selector)
+        | .spec.template.metadata.labels |= del(.["controller-uid", "job-name", "batch.kubernetes.io/controller-uid", "batch.kubernetes.io/job-name"])' |
+      kubectl replace --force -n "$NS" -f -
+    state=$(init_state)
+  fi
   if [[ "$state" != *Complete* ]]; then
     echo "::error::MySQL group replication bootstrap (mysql-cluster-init) failed or timed out"
     kubectl logs -n "$NS" job/mysql-cluster-init --tail=50 || true
