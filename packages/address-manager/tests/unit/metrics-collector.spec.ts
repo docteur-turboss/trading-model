@@ -1,14 +1,4 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { CircuitState } from "@trading-model/primitives/circuit-state";
-
-jest.mock("../../src/metrics", () => ({
-	CIRCUIT_BREAKER_INSTANCES_TOTAL: {
-		set: jest.fn<(labels: { state: string }, value: number) => void>(),
-	},
-	CACHE_ENTRY_COUNT: {
-		set: jest.fn<(value: number) => void>(),
-	},
-}));
 
 jest.mock("../../src/routes/ping.routes", () => ({
 	PING_ROUTES: Symbol("PING_ROUTES"),
@@ -27,43 +17,14 @@ jest.mock("prom-client", () => ({
 	},
 }));
 
-import type { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
-import {
-	CACHE_ENTRY_COUNT,
-	CIRCUIT_BREAKER_INSTANCES_TOTAL,
-} from "../../src/metrics";
 import { MetricsCollector } from "../../src/monitoring/metrics-collector";
-import type { ServiceCachePort } from "../../src/ports/service-cache.port";
 import { STATUS_ROUTES } from "../../src/routes/metrics.routes";
 import { PING_ROUTES } from "../../src/routes/ping.routes";
 
 describe("MetricsCollector", () => {
 	let collector: MetricsCollector;
-	let circuitBreaker: jest.Mocked<
-		Pick<DiscoveryCircuitBreaker, "getStateSummary">
-	>;
-	let serviceCache: jest.Mocked<Pick<ServiceCachePort, "entries">>;
-
-	function createMocks(): void {
-		circuitBreaker = {
-			getStateSummary: jest
-				.fn<() => Record<string, number>>()
-				.mockReturnValue({ closed: 1, open: 2, "half-open": 3 }),
-		} as unknown as jest.Mocked<
-			Pick<DiscoveryCircuitBreaker, "getStateSummary">
-		>;
-
-		serviceCache = {
-			entries: jest.fn<() => Promise<never[]>>().mockResolvedValue([]),
-		} as unknown as jest.Mocked<Pick<ServiceCachePort, "entries">>;
-	}
-
 	beforeEach(() => {
-		createMocks();
-		collector = new MetricsCollector(
-			circuitBreaker as unknown as DiscoveryCircuitBreaker,
-			serviceCache as unknown as ServiceCachePort
-		);
+		collector = new MetricsCollector();
 	});
 
 	describe("constructor", () => {
@@ -108,28 +69,6 @@ describe("MetricsCollector", () => {
 				uptime: expect.any(Number),
 				collectedAt: expect.any(Number),
 			});
-		});
-	});
-
-	describe("collectSaturationMetrics", () => {
-		test("calls getStateSummary and entries, sets gauge values", async () => {
-			await collector.collectSaturationMetrics();
-
-			expect(circuitBreaker.getStateSummary).toHaveBeenCalledTimes(1);
-			expect(CIRCUIT_BREAKER_INSTANCES_TOTAL.set).toHaveBeenCalledWith(
-				{ state: "closed" },
-				1
-			);
-			expect(CIRCUIT_BREAKER_INSTANCES_TOTAL.set).toHaveBeenCalledWith(
-				{ state: "open" },
-				2
-			);
-			expect(CIRCUIT_BREAKER_INSTANCES_TOTAL.set).toHaveBeenCalledWith(
-				{ state: CircuitState.HALF_OPEN },
-				3
-			);
-			expect(serviceCache.entries).toHaveBeenCalledTimes(1);
-			expect(CACHE_ENTRY_COUNT.set).toHaveBeenCalledWith(0);
 		});
 	});
 

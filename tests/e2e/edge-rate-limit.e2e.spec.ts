@@ -2,7 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 import { e2eTestTimeout, externalRequest, GATEWAY_API_KEY } from "./helpers";
 
 const AUTH = { "x-api-key": GATEWAY_API_KEY };
-const PATH = "/v1/discovery-server/services";
+const PATH = "/v1/trader-trainer/training-status";
 
 /** Polls until the edge answers 200 again (the bucket drains at 20 r/s). */
 async function waitForBucket(): Promise<number> {

@@ -425,7 +425,7 @@ admin call, so a healthy environment gives it no traffic. Add a service to
 ### Release verification
 
 After the smoke test, `deploy.yml` runs `deploy-k8s.sh verify-release`. Each pass checks
-an API call through `edge-proxy` (`GET /v1/discovery-server/services`, 200 expected, with
+an API call through `edge-proxy` (`GET /v1/trader-trainer/training-status`, 200 expected, with
 the first `AUTH_TOKENS` key of the Secret `trading-model-secrets`: it goes through stdin
 and is never printed), at least one candle persisted in the last 15 min
 (`fs_candles_persisted_total`), and no `severity="critical"` alert firing in Prometheus

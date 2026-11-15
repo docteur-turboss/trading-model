@@ -97,7 +97,7 @@ Rotates the HMAC-SHA256 authentication token for a service instance. Requires mT
 
 ### Get All Services
 
-**`GET /services`**
+**`GET /v1/services`** (deprecated, ADR-0072)
 
 Names of the services with registered instances. Parameters and responses are declared in `src/adapters/inbound/http/api-routes.ts` (`DISCOVERY_API`, ADR-0021) and published in the [OpenAPI](openapi/api-gateway.yaml). Invalid input answers 400 `{ "error": "Validation failed", "details": [...] }`.
 
@@ -112,7 +112,7 @@ Names of the services with registered instances. Parameters and responses are de
 
 ### Get Services by Name
 
-**`GET /services/:serviceName`**
+**`GET /v1/services/:serviceName`** (deprecated, ADR-0072)
 
 Live instances of a service: expired leases are left out. An unknown service answers `404` `{ "error": "Unknown service" }`. Timestamps are epoch milliseconds; the instance token is never returned.
 
@@ -136,7 +136,7 @@ Live instances of a service: expired leases are left out. An unknown service ans
 
 ### Get Instance Details
 
-**`GET /services/:serviceName/:instanceId`**
+**`GET /v1/services/:serviceName/:instanceId`** (deprecated, ADR-0072)
 
 One live instance of the service. `404` `{ "error": "Instance not found" }` when the id is unknown, belongs to another service, or its lease has expired.
 
@@ -235,7 +235,7 @@ Controllers are created via factories that accept a `ServiceRegistry` instance.
 
 | File                         | Factory                     | Routes                                                                              |
 | ---------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
-| `adapters/inbound/http/register.routes.ts`  | `registryRoutes(registry)`  | `POST /register`, `GET /services`, `GET /services/:name`, `GET /services/:name/:id` |
+| `adapters/inbound/http/register.routes.ts`  | `registryRoutes(registry)`  | `POST /register`, `GET /v1/services`, `GET /v1/services/:name`, `GET /v1/services/:name/:id` (also without `/v1` in release N) |
 | `adapters/inbound/http/heartbeat.routes.ts` | `heartbeatRoutes(registry)` | `POST /heartbeat`, `POST /token/rotate`                                             |
 
 ## Deployment

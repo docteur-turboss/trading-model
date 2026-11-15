@@ -34,7 +34,7 @@ interface BinanceTrade {
 export type BinanceTradeResponse = BinanceTrade[];
 
 /** OHLCV + last price fields shared by Binance ticker responses (all strings as received from API). */
-export interface BinanceTickerBaseStats {
+interface BinanceTickerBaseStats {
 	symbol: TradingSymbol;
 	priceChange: PriceString;
 	priceChangePercent: PriceChangePercentString;

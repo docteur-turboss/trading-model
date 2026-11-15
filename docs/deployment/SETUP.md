@@ -141,8 +141,8 @@ for c in trading-discovery trading-message trading-scraper trading-trainer \
 done
 curl -s http://localhost:8449/ping       # edge-proxy (HTTP entry to the gateway under /v1 and /v2)
 
-# List registered services (through edge-proxy → gateway)
-curl -s http://localhost:8449/v1/discovery-server/services \
+# Call a public route (through edge-proxy → gateway)
+curl -s http://localhost:8449/v1/trader-trainer/training-status \
   -H "x-api-key: <AUTH_TOKENS value>" | jq .
 
 # Real-time logs
@@ -425,10 +425,10 @@ done
 curl -s http://localhost:8449/ping      # Edge proxy (HTTP)
 ```
 
-List registered services (through edge-proxy → gateway):
+Call a public route (through edge-proxy → gateway):
 
 ```bash
-curl -s http://localhost:8449/v1/discovery-server/services \
+curl -s http://localhost:8449/v1/trader-trainer/training-status \
   -H "x-api-key: <AUTH_TOKENS value>" | jq .
 ```
 

@@ -83,17 +83,6 @@ export class TradingAgent {
 		this._actionMapper = new ActionMapper({ ...cfg, rng: cfg.nnConfig.rng });
 	}
 
-	public mapOutputToAction(
-		output: Float32Array,
-		cfg?: TradingAgentConfig
-	): { action: TradeAction; amount: Volume } {
-		if (cfg) {
-			const mapper = new ActionMapper({ ...cfg, rng: cfg.nnConfig.rng });
-			return mapper.map(output);
-		}
-		return this._actionMapper.map(output);
-	}
-
 	/**
 	 * Marks the wallet to `price`, settles the previous decision's reward,
 	 * then decides and trades at `fillPrice` (the next bar's open, ADR-0066;

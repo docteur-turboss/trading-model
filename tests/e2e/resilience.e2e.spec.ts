@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it, jest } from "@jest/globals";
 import {
 	containerHealth,
+	externalRequest,
+	GATEWAY_API_KEY,
 	metric,
 	persistedCandles,
 	eventually as poll,
@@ -45,6 +47,24 @@ describe("Resilience E2E", () => {
 			return count > 0 ? count : undefined;
 		});
 		expect(subscribers).toBeGreaterThan(0);
+	});
+
+	// The gateway resolves the Service DNS name, never the registry (ADR-0072).
+	it("routes to a healthy service while Redis, hence the registry, is down", async () => {
+		execFileSync("docker", ["stop", "trading-redis"], { stdio: "ignore" });
+		try {
+			// Query unseen by the other suites: not served from the gateway cache.
+			const { status } = await externalRequest(
+				"/v2/financial-scraper/candles/symbols/BTCUSDT?limit=7",
+				{ headers: { "x-api-key": GATEWAY_API_KEY } }
+			);
+			expect(status).toBe(200);
+		} finally {
+			execFileSync("docker", ["start", "trading-redis"], { stdio: "ignore" });
+			await eventually("trading-redis healthy", () =>
+				containerHealth("trading-redis") === "healthy" ? true : undefined
+			);
+		}
 	});
 
 	it("keeps accepting heartbeats across a discovery restart", async () => {

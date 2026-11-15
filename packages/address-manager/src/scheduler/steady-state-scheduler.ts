@@ -1,32 +1,25 @@
 import type {
-	DurationMs,
 	InstanceId,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
 import type { AddressManagerClient } from "../client/address-manager-client";
 import type { TokenManager } from "../client/token-manager";
-import { CacheHealthRefresher } from "../discovery/cache-health-refresher";
-import type { ServiceHealthChecker } from "../discovery/service-health-checker";
 import type { HeartbeatManager } from "../heartbeat-manager";
-import type { ServiceCachePort } from "../ports/service-cache.port";
 import { createRefreshJob } from "./refresh-job";
 import { Scheduler } from "./scheduler";
 
-/** Options of SteadyStateScheduler: token, heartbeat and cache refresh settings. */
+/** Options of SteadyStateScheduler: token and heartbeat settings. */
 export interface SteadyStateSchedulerOptions {
 	tokenManager: TokenManager;
 	addressManagerClient: AddressManagerClient;
 	heartbeatManager: HeartbeatManager;
-	serviceCache: ServiceCachePort;
-	healthChecker: ServiceHealthChecker;
 	serviceName: ServiceId;
 	instanceId: InstanceId;
 	tokenRefreshIntervalMs: number;
 	ttlRefreshIntervalMs: number;
-	cacheTtlMs: DurationMs;
 }
 
-/** Schedules the periodic jobs of a registered service: token refresh, heartbeat, cache refresh. */
+/** Schedules the periodic jobs of a registered service: token refresh, heartbeat. */
 export class SteadyStateScheduler {
 	private readonly _scheduler = new Scheduler();
 
@@ -35,7 +28,6 @@ export class SteadyStateScheduler {
 	setup(): void {
 		this._registerTokenRefresh();
 		this._registerHeartbeat();
-		this._registerCacheRefresh();
 	}
 
 	start(): void {
@@ -62,16 +54,6 @@ export class SteadyStateScheduler {
 				this._options.addressManagerClient,
 				() => this._performHeartbeat(),
 				this._options.ttlRefreshIntervalMs
-			)
-		);
-	}
-
-	private _registerCacheRefresh(): void {
-		this._scheduler.register(
-			new CacheHealthRefresher(
-				this._options.serviceCache,
-				this._options.healthChecker,
-				this._options.cacheTtlMs / 2
 			)
 		);
 	}

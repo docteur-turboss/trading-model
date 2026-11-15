@@ -67,7 +67,7 @@ graph TD
 
 - **Owner:** `message-manager` + `dlq-service` (dead letters and replay are part of delivery, not observability)
 - **Core entities:** Message, Subscription, DeliveryAttempt, DeadLetterEntry
-- **Responsibilities:** Topic routing, delivery guarantees, retry (message-manager); dead-letter storage and replay back to message-manager (dlq-service). The broker stores no message (ADR-0019)
+- **Responsibilities:** Topic routing, delivery guarantees, retry (message-manager); dead-letter storage and replay back to message-manager (dlq-service). The broker keeps accepted messages in its Redis Streams journal until delivery (ADR-0048)
 - **Internal interfaces:** `MessageDeliveryPort`, `SubscriptionStorePort`
 - **Publishes (dlq-service):** `dlq.entry.added`, `dlq.replay.completed`, `dlq.entries.deleted`
 
@@ -87,7 +87,7 @@ graph TD
 
 - **Owner:** `audit-logger`
 - **Core entities:** AuditEvent
-- **Consumes:** All published events for audit trail (including `dlq.*`)
+- **Consumes:** audit, training and dlq topics (market data is not chained)
 - **Internal events:** `audit.heartbeat`, `audit.gap.detected`
 
 ### 7. Gateway Context
