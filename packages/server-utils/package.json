@@ -13,7 +13,7 @@
   "dependencies": {
     "@trading-model/primitives": "*",
     "@opentelemetry/api": "^1.10.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.301.1",
     "@opentelemetry/instrumentation-express": "^0.72.0",
     "@opentelemetry/instrumentation-http": "^0.301.1",
     "@opentelemetry/resources": "^3.0.0",
