@@ -47,6 +47,24 @@
 			},
 			"applicableDimensions": ["market", "macro"],
 			"sector": "sovereign_debt"
+		},
+		{
+			"id": "PARIS_RE",
+			"name": "Paris residential real estate",
+			"assetType": "real_estate",
+			"identifier": {
+				"scheme": "insee",
+				"code": "75056"
+			},
+			"applicableDimensions": [
+				"macro"
+			],
+			"sector": "real_estate",
+			"areas": [
+				"EA",
+				"FR",
+				"DE"
+			]
 		}
 	],
 	"sources": [
@@ -140,6 +158,171 @@
 					"select": { "assetType": "crypto" },
 					"dimension": "social",
 					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{asset.alias.wikipedia}/daily/{date-8}/{date-1}"
+				}
+			]
+		},
+		{
+			"id": "eurostat-house-price-index",
+			"protocol": "rest_api",
+			"adapter": "eurostat-jsonstat",
+			"schedule": "23 8 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [
+				{
+					"assetType": "real_estate",
+					"dimension": "macro"
+				}
+			],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://ec.europa.eu/eurostat/help/copyright-notice",
+				"attribution": "Source: Eurostat",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": {
+						"area": "EA"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=EA&sinceTimePeriod=2025-Q1&format=JSON",
+					"params": {
+						"metric": "house_price_index",
+						"area": "EA"
+					}
+				},
+				{
+					"subject": {
+						"area": "FR"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=FR&sinceTimePeriod=2025-Q1&format=JSON",
+					"params": {
+						"metric": "house_price_index",
+						"area": "FR"
+					}
+				},
+				{
+					"subject": {
+						"area": "DE"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=DE&sinceTimePeriod=2025-Q1&format=JSON",
+					"params": {
+						"metric": "house_price_index",
+						"area": "DE"
+					}
+				}
+			]
+		},
+		{
+			"id": "eurostat-hicp-inflation",
+			"protocol": "rest_api",
+			"adapter": "eurostat-jsonstat",
+			"schedule": "29 8 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [
+				{
+					"assetType": "real_estate",
+					"dimension": "macro"
+				}
+			],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://ec.europa.eu/eurostat/help/copyright-notice",
+				"attribution": "Source: Eurostat",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": {
+						"area": "EA"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=EA&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "hicp_annual_rate",
+						"area": "EA"
+					}
+				},
+				{
+					"subject": {
+						"area": "FR"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=FR&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "hicp_annual_rate",
+						"area": "FR"
+					}
+				},
+				{
+					"subject": {
+						"area": "DE"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=DE&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "hicp_annual_rate",
+						"area": "DE"
+					}
+				}
+			]
+		},
+		{
+			"id": "eurostat-unemployment",
+			"protocol": "rest_api",
+			"adapter": "eurostat-jsonstat",
+			"schedule": "37 8 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [
+				{
+					"assetType": "real_estate",
+					"dimension": "macro"
+				}
+			],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://ec.europa.eu/eurostat/help/copyright-notice",
+				"attribution": "Source: Eurostat",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": {
+						"area": "EA"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=EA&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "unemployment_rate",
+						"area": "EA"
+					}
+				},
+				{
+					"subject": {
+						"area": "FR"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=FR&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "unemployment_rate",
+						"area": "FR"
+					}
+				},
+				{
+					"subject": {
+						"area": "DE"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=DE&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "unemployment_rate",
+						"area": "DE"
+					}
 				}
 			]
 		}

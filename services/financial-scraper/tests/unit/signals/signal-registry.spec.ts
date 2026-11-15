@@ -35,6 +35,7 @@ describe("signal registry — the shipped file", () => {
 		expect([...new Set(dimensions)].sort()).toEqual([
 			"contextual",
 			"fundamental",
+			"macro",
 			"market",
 			"social",
 		]);
@@ -44,6 +45,7 @@ describe("signal registry — the shipped file", () => {
 			"AAPL",
 			"WHEAT",
 			"EA_AAA_10Y",
+			"PARIS_RE",
 		]);
 	});
 
@@ -101,10 +103,10 @@ describe("parseSignalRegistry", () => {
 			"a request on an area no asset has",
 			(file: any) => {
 				sourceOf(file, "nws-kansas-wheat-belt").requests[0].subject = {
-					area: "EA",
+					area: "US",
 				};
 			},
-			"source nws-kansas-wheat-belt, request 0: no asset in area EA",
+			"source nws-kansas-wheat-belt, request 0: no asset in area US",
 		],
 		[
 			"an unknown adapter",

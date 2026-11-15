@@ -183,6 +183,7 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
 | `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
+| `eurostat-house-price-index`, `eurostat-hicp-inflation`, `eurostat-unemployment` | macro | areas `EA`, `FR`, `DE` (served to `PARIS_RE` through its `areas`) | daily 08:23-08:37 UTC | `house_price_index` (quarterly, `prc_hpi_q`), `hicp_annual_rate` (`prc_hicp_minr`), `unemployment_rate` (`une_rt_m`) | attribution: "Source: Eurostat" (1) (2026-11-16, [copyright notice](https://ec.europa.eu/eurostat/help/copyright-notice): commercial reuse allowed with the source credited); `observedAt` = the dataset `updated` time, a revised value is a new signal, the Eurostat flag is in `details.flag` |
 
 **Adding a source**: read its terms, then an entry in the registry. A new
 payload format also needs an adapter in `src/adapters/outbound/signal-sources/`

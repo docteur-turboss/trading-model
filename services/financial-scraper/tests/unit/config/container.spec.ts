@@ -184,6 +184,9 @@ describe("config/container — createSignalScheduler", () => {
 				"sec-edgar-eps-diluted",
 				"nws-kansas-wheat-belt",
 				"wikipedia-pageviews",
+				"eurostat-house-price-index",
+				"eurostat-hicp-inflation",
+				"eurostat-unemployment",
 			],
 		});
 	});
