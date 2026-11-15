@@ -9,7 +9,7 @@
  * Data and PRNG seeds are fixed, so the same settings give the same generation
  * count and fitness; only the times and heap vary. JSON on stdout, progress on stderr.
  */
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
 import { Price } from "@trading-model/primitives/primitives";
 import { runInProcess } from "../src/application/training-session";
 import { FeatureVector } from "../src/domain/feature-vector";

@@ -28,7 +28,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -36,20 +36,17 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	},
 }));
 
-jest.mock(
-	"@trading-model/address-manager/application/discovery/endpoint-resolver",
-	() => ({
-		EndpointResolver: jest
-			.fn<(...args: any[]) => any>()
-			.mockImplementation(() => ({
-				resolve: jest.fn<(...args: any[]) => any>().mockResolvedValue({
-					host: "10.0.0.5",
-					port: 3000,
-					version: "1.2.0",
-				}),
-			})),
-	})
-);
+jest.mock("@trading-model/address-manager/discovery/endpoint-resolver", () => ({
+	EndpointResolver: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => ({
+			resolve: jest.fn<(...args: any[]) => any>().mockResolvedValue({
+				host: "10.0.0.5",
+				port: 3000,
+				version: "1.2.0",
+			}),
+		})),
+}));
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 	forwardRequest: jest.fn<(...args: any[]) => any>().mockResolvedValue({

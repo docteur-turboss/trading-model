@@ -30,6 +30,19 @@ const DISCOVERY_ENV_SCHEMA = BaseEnvSchema.extend(RedisEnvSchema.shape)
 				path: ["ALLOWED_REGISTRATION_CIDRS"],
 			});
 		}
+		// In memory, each replica would keep its own registry and tokens.
+		if (
+			data.NODE_ENV === "production" &&
+			!data.REDIS_URL &&
+			!data.REDIS_SENTINELS
+		) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message:
+					"REDIS_URL or REDIS_SENTINELS is required in production: the registry is shared by the replicas in Redis",
+				path: ["REDIS_SENTINELS"],
+			});
+		}
 		// Without it each process signs instance tokens with its own random
 		// secret: every restart, and every other replica, rejects them.
 		if (data.NODE_ENV === "production" && !data.SIGNING_SECRET) {

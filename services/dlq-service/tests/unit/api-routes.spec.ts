@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { parseRequest } from "@trading-model/http/adapters/inbound/api-route/api-route";
+import { parseRequest } from "@trading-model/http/api-route/api-route";
 import { DLQ_API } from "../../src/adapters/inbound/api-routes";
 
 describe("DLQ_API", () => {

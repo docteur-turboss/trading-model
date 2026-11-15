@@ -1,10 +1,7 @@
 import http from "node:http";
 import express from "express";
 import promClient from "prom-client";
-import {
-	httpMetricsMiddleware,
-	UNMATCHED_ROUTE,
-} from "../src/adapters/inbound/http-metrics";
+import { httpMetricsMiddleware, UNMATCHED_ROUTE } from "../src/http-metrics";
 
 function get(app: http.RequestListener, path: string): Promise<number> {
 	return new Promise((resolve, reject) => {
@@ -138,7 +135,7 @@ describe("build_info", () => {
 		process.env.BUILD_VERSION = "1.2.3";
 		process.env.GIT_SHA = "abc123";
 		await jest.isolateModulesAsync(async () => {
-			require("../src/adapters/inbound/http-metrics");
+			require("../src/http-metrics");
 			const fresh = require("prom-client");
 			const found = (await fresh.register.getMetricsAsJSON()).find(
 				(x: { name: string }) => x.name === "build_info"

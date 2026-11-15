@@ -1,7 +1,7 @@
 import BrokerMessage from "@trading-model/broker-message";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { toInstanceId } from "@trading-model/primitives/primitives";
 import { ENV } from "../infrastructure/config/env";
 import { AddressManager } from "./address-manager";

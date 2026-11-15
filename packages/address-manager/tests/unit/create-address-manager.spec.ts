@@ -9,17 +9,17 @@ const MOCK_ADDRESS_MANAGER_INSTANCE = {
 	listenExpress: jest.fn<(...args: any[]) => any>(),
 };
 
-jest.mock("../../src/application/address-manager", () => ({
+jest.mock("../../src/address-manager", () => ({
 	__esModule: true,
 	default: jest
 		.fn<(...args: any[]) => any>()
 		.mockImplementation(() => MOCK_ADDRESS_MANAGER_INSTANCE),
 }));
 
-import { createAddressManager } from "../../src/application/create-address-manager";
+import { createAddressManager } from "../../src/create-address-manager";
 
 describe("createAddressManager", () => {
-	const MINIMAL_ENV: import("../../src/application/create-address-manager").AddressManagerEnv =
+	const MINIMAL_ENV: import("../../src/create-address-manager").AddressManagerEnv =
 		{
 			ADDRESS_MANAGER_URL: "http://localhost:8443",
 			CACHE_TTL_MS: 60000,

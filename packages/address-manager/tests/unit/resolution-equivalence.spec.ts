@@ -7,8 +7,8 @@ jest.mock("node:dns/promises", () => ({
 	})),
 }));
 
-import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery-retry-handler";
-import { EndpointResolver } from "../../src/application/discovery/endpoint-resolver";
+import { DiscoveryRetryHandler } from "../../src/discovery/discovery-retry-handler";
+import { EndpointResolver } from "../../src/discovery/endpoint-resolver";
 
 const inst = (version: string, port: number) => ({
 	serviceName: "financial-scraper-service",

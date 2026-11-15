@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
 import { buildPopulationMeta } from "../../../src/domain/genetic-algorithm/pareto/nsga2";
 
 function linearRng(): () => number {

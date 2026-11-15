@@ -56,7 +56,7 @@ services/my-service/
 ## Entry Point (`src/application/index.ts`)
 
 ```typescript
-import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
+import { createBootstrap } from '@trading-model/server-utils/bootstrap';
 import { createServer } from './server';
 import '../config/env';
 
@@ -72,7 +72,7 @@ createBootstrap({
 
 ```typescript
 import { ServiceId } from '@trading-model/primitives/primitives';
-import { createServiceServer } from '@trading-model/server-utils/adapters/inbound/service-server-factory';
+import { createServiceServer } from '@trading-model/server-utils/service-server-factory';
 import { myRoutes } from '../adapters/inbound/my.routes';
 import { env } from '../config/env';
 
@@ -97,7 +97,7 @@ Each integration point below names what fails without it. Context: the "Docker C
 
 1. `main` (or `bin` for an operator CLI) in `package.json`, every `src` file reachable from it: `bun run reach:check`; `@trading-model/*` imports declared: `bun run deps:check`
 2. Name in `ServiceInstanceName` (`packages/primitives/src/service-instance-name.ts`, read by the discovery registry through `ALL_SERVICE_NAMES`): `parseServiceName` refuses an unknown name, at runtime only; `PLATFORM_SERVICES` (`packages/common/src/config/workload-identity.ts`): `bun run api:check` (gateway paths)
-3. Caller ACL in `packages/http/src/adapters/inbound/acl-config.ts` (`acl-config.spec.ts`); each service-to-service route has a caller in `CALLERS` of `scripts/api-contract.mjs`, a public route goes in `PUBLIC_ROUTES` of the gateway: `bun run api:check` (`bun run api:write` regenerates the OpenAPI)
+3. Caller ACL in `packages/http/src/acl-config.ts` (`acl-config.spec.ts`); each service-to-service route has a caller in `CALLERS` of `scripts/api-contract.mjs`, a public route goes in `PUBLIC_ROUTES` of the gateway: `bun run api:check` (`bun run api:write` regenerates the OpenAPI)
 4. `/metrics` route and a dependency-aware readiness check, service added to `SERVICES` of `scripts/observability-gate.mjs`: observability gate; scrape job in `observability/prometheus.yml` and `deploy/k8s/infra/prometheus.yaml` (no gate: check by hand)
 5. Compose service with its `spiffe-helper-<x>` sidecar, SPIRE entry in `deploy/spire/bootstrap.sh` (K8s: `deploy/spire/k8s-entries.sh`), an `INSTANCE_ID`: CI E2E job (`up --wait` fails without them); ports on `127.0.0.1`: `bun run compose-ports:check`; the `x-logging` anchor and an `INSTANCE_ID` no other service shares: no check, verify by hand
 6. K8s manifest in `deploy/k8s/services/` (listed in its `kustomization.yaml`) with `topologySpreadConstraints`, NetworkPolicy in `deploy/k8s/base/network-policies.yaml`, config in `deploy/k8s/config/<service>.properties`, image in `deploy.yml` `IMAGES` and the `release.yml` matrices: `node tests/k8s/check-overlays.mjs`, then the CI `k8s` job on kind

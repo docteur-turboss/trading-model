@@ -11,7 +11,3 @@ Guides for contributing to the trading-model project.
 | [Code Style](../standards/code-style.md) | Naming, Biome, import order |
 | [Documentation Standards](documentation-standards.md) | Documentation structure and conventions |
 | [Adding a Service](adding-a-service.md) | Step-by-step guide for creating a new microservice |
-
-## Quick Start
-
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the concise overview.

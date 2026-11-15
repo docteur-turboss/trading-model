@@ -1,4 +1,4 @@
-import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
+import { ResponseException } from "@trading-model/http/response-exception";
 import {
 	type InstanceId,
 	toAuthToken,

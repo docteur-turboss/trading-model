@@ -1,7 +1,7 @@
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
-import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
-import { toJsonWire } from "@trading-model/http/infrastructure/json-wire";
+import { mountRoute } from "@trading-model/http/api-route/mount-route";
+import { toJsonWire } from "@trading-model/http/json-wire";
+import { sendResponse } from "@trading-model/http/response-exception";
 import { Router } from "express";
 import type { Trainer } from "../../../application/trainer";
 import type { ModelArtifactStorePort } from "../../../domain/ports/model-artifact-store.port";

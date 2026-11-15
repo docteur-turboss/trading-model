@@ -22,7 +22,7 @@ function loadLogger(): {
 } {
 	let loaded: any;
 	jest.isolateModules(() => {
-		loaded = require("@trading-model/http/application/services/logger");
+		loaded = require("@trading-model/http/logger");
 	});
 	return loaded;
 }
@@ -49,7 +49,7 @@ describe("logger singleton", () => {
 			const {
 				logger: devLogger,
 				LogLevel,
-			} = require("@trading-model/http/application/services/logger");
+			} = require("@trading-model/http/logger");
 			expect((devLogger as any)._logLevel).toBe(LogLevel.Debug);
 		});
 	});
@@ -60,7 +60,7 @@ describe("logger singleton", () => {
 			const {
 				logger: stagingLogger,
 				LogLevel,
-			} = require("@trading-model/http/application/services/logger");
+			} = require("@trading-model/http/logger");
 			expect((stagingLogger as any)._logLevel).toBe(LogLevel.Info);
 		});
 	});
@@ -71,7 +71,7 @@ describe("logger singleton", () => {
 			const {
 				logger: prodLogger,
 				LogLevel,
-			} = require("@trading-model/http/application/services/logger");
+			} = require("@trading-model/http/logger");
 			expect((prodLogger as any)._logLevel).toBe(LogLevel.Warn);
 		});
 	});
@@ -82,7 +82,7 @@ describe("logger singleton", () => {
 			const {
 				logger: defaultLogger,
 				LogLevel,
-			} = require("@trading-model/http/application/services/logger");
+			} = require("@trading-model/http/logger");
 			expect((defaultLogger as any)._logLevel).toBe(LogLevel.Debug);
 		});
 	});

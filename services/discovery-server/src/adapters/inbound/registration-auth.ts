@@ -1,7 +1,7 @@
 import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
 import { normalizeServiceName } from "@trading-model/common/utils/spiffe";
-import { resolveMtlsIdentity } from "@trading-model/http/adapters/inbound/mtls-identity";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
+import { resolveMtlsIdentity } from "@trading-model/http/mtls-identity";
 import type { RequestHandler } from "express";
 
 /**

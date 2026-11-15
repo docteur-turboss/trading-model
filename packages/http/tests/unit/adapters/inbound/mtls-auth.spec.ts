@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
-import { MTLSAuthMiddleware } from "@trading-model/http/adapters/inbound/mtls-auth";
-import { mtlsDenialsTotal } from "@trading-model/http/infrastructure/outbound-metrics";
+import { MTLSAuthMiddleware } from "@trading-model/http/mtls-auth";
+import { mtlsDenialsTotal } from "@trading-model/http/outbound-metrics";
 import type { NextFunction, Request, Response } from "express";
 
 const count = async (reason: string) =>

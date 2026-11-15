@@ -18,7 +18,7 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"$STUB_LOG"
 if [ "$1" = apply ] && [ "${*: -1}" = - ]; then cat >>"$STUB_LOG.manifests"; exit 0; fi
-if [ "$1" = get ] && [ "$2" = job ]; then exit 1; fi # no mysql-cluster-init Job
+if [ "$1" = get ] && [ "$2" = job ]; then exit 1; fi
 # The StatefulSet spec always has the TLS volume; pod mysql-0 has what STUB_POD_VOLUMES says.
 if [ "$1" = get ] && [ "$2" = statefulset ]; then printf 'mysql-data mysql-tls'; exit 0; fi
 if [ "$1" = get ] && [ "$2" = pod ] && [ "$3" = mysql-0 ]; then printf '%s' "${STUB_POD_VOLUMES:-}"; exit 0; fi

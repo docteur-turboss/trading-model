@@ -19,11 +19,11 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
+jest.mock("@trading-model/http/catch-error", () => ({
 	catchSync: (fn: any) => fn,
 }));
 
-jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
+jest.mock("@trading-model/http/response-exception", () => {
 	const sendResponse = jest.fn((data: any, status: number) => ({
 		status,
 		data,
@@ -31,7 +31,7 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
 	return { sendResponse };
 });
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -39,28 +39,25 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	},
 }));
 
-jest.mock(
-	"@trading-model/address-manager/application/discovery/endpoint-resolver",
-	() => ({
-		EndpointResolver: jest
-			.fn<(...args: any[]) => any>()
-			.mockImplementation(() => ({
-				resolve: jest
-					.fn<(...args: any[]) => any>()
-					.mockImplementation((name: string) => {
-						// No trader-trainer instance is registered.
-						if (name === "trader-trainer") {
-							return Promise.resolve(null);
-						}
-						return Promise.resolve({
-							host: "10.0.1.5",
-							port: 3000,
-							version: "1.2.0",
-						});
-					}),
-			})),
-	})
-);
+jest.mock("@trading-model/address-manager/discovery/endpoint-resolver", () => ({
+	EndpointResolver: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(() => ({
+			resolve: jest
+				.fn<(...args: any[]) => any>()
+				.mockImplementation((name: string) => {
+					// No trader-trainer instance is registered.
+					if (name === "trader-trainer") {
+						return Promise.resolve(null);
+					}
+					return Promise.resolve({
+						host: "10.0.1.5",
+						port: 3000,
+						version: "1.2.0",
+					});
+				}),
+		})),
+}));
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 	forwardRequest: jest.fn<(...args: any[]) => any>().mockResolvedValue({

@@ -1,6 +1,6 @@
 import { ServiceId } from "@trading-model/primitives/primitives";
-import type { ReadinessCheck } from "@trading-model/server-utils/adapters/inbound/readiness";
-import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import type { ReadinessCheck } from "@trading-model/server-utils/readiness";
+import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
 import type { Application } from "express";
 import { HEARTBEAT_ROUTES } from "../adapters/inbound/http/heartbeat.routes";
 import { REGISTRY_ROUTES } from "../adapters/inbound/http/register.routes";

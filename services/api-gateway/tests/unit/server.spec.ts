@@ -1,20 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock(
-	"@trading-model/server-utils/adapters/inbound/service-server-factory",
-	() => ({
-		createServiceServer: jest
-			.fn<(...args: any[]) => any>()
-			.mockImplementation(
-				(opts: { env: unknown; routes: (app: any) => void }) => {
-					opts.routes({ use: jest.fn<(...args: any[]) => any>() });
-					return Promise.resolve({
-						close: jest.fn<(...args: any[]) => any>(),
-					});
-				}
-			),
-	})
-);
+jest.mock("@trading-model/server-utils/service-server-factory", () => ({
+	createServiceServer: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation(
+			(opts: { env: unknown; routes: (app: any) => void }) => {
+				opts.routes({ use: jest.fn<(...args: any[]) => any>() });
+				return Promise.resolve({
+					close: jest.fn<(...args: any[]) => any>(),
+				});
+			}
+		),
+}));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -38,7 +35,7 @@ jest.mock("../../src/adapters/inbound/router", () => ({
 	createRouter: jest.fn((..._args: any[]) => ({ stack: [] })),
 }));
 
-import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
 import {
 	createServer,
 	discoveryReachedOnceCheck,

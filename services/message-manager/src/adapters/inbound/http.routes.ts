@@ -1,6 +1,6 @@
 import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
-import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
-import { MTLSAuthorizationMiddleware } from "@trading-model/http/adapters/inbound/mtls-authorization";
+import { mountRoute } from "@trading-model/http/api-route/mount-route";
+import { MTLSAuthorizationMiddleware } from "@trading-model/http/mtls-authorization";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import {
 	type NextFunction,

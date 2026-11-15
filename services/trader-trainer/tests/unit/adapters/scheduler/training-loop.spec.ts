@@ -38,6 +38,8 @@ describe("TrainingLoop", () => {
 	let stopTraining: jest.Mock<() => Promise<void>>;
 	let lastClose: Map<TradingSymbol, number | undefined>;
 	let candleCount: number;
+	let history: { loadWindow: jest.Mock<(...args: any[]) => Promise<any[]>> };
+	let replaceCandles: jest.Mock<(...args: any[]) => void>;
 	let loop: TrainingLoop;
 
 	const runOnce = async (symbols: TradingSymbol[] = [BTC]) => {
@@ -55,6 +57,8 @@ describe("TrainingLoop", () => {
 		stopTraining = jest.fn(async () => {});
 		lastClose = new Map();
 		candleCount = 1000;
+		history = { loadWindow: jest.fn(async () => [{ timestamp: 1 }]) };
+		replaceCandles = jest.fn();
 		const trainer = {
 			train,
 			isTraining: () => false,
@@ -62,10 +66,11 @@ describe("TrainingLoop", () => {
 		} as unknown as Trainer;
 		const buffer = {
 			getMaxSize: () => 1000,
+			replaceCandles,
 			getCandleCount: () => candleCount,
 			getLastCandleCloseTime: (symbol: TradingSymbol) => lastClose.get(symbol),
 		} as unknown as MarketDataBuffer;
-		loop = new TrainingLoop(trainer, buffer, WINDOWING);
+		loop = new TrainingLoop(trainer, buffer, history, WINDOWING);
 	});
 
 	afterEach(() => {
@@ -178,16 +183,38 @@ describe("TrainingLoop", () => {
 		}
 	});
 
+	it("should train on the stored window ending now, not on the bus", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+
+		await runOnce();
+
+		expect(history.loadWindow).toHaveBeenCalledWith(BTC, NOW, 1000);
+		expect(replaceCandles).toHaveBeenCalledWith(BTC, [{ timestamp: 1 }]);
+		expect(train).toHaveBeenCalledWith(BTC);
+	});
+
+	it("should skip a symbol whose stored candles cannot be read", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+		history.loadWindow.mockRejectedValue(new Error("scraper down"));
+
+		await runOnce();
+
+		expect(train).not.toHaveBeenCalled();
+		expect(MOCK_LOGGER.error).toHaveBeenCalled();
+	});
+
 	it("should not train while a session is already running", async () => {
 		lastClose.set(BTC, NOW - MINUTE);
 		const busy = new TrainingLoop(
 			{ train, isTraining: () => true, stopTraining } as unknown as Trainer,
 			{
 				getMaxSize: () => 1000,
+				replaceCandles,
 				getCandleCount: () => candleCount,
 				getLastCandleCloseTime: (symbol: TradingSymbol) =>
 					lastClose.get(symbol),
 			} as unknown as MarketDataBuffer,
+			history,
 			WINDOWING
 		);
 
@@ -223,10 +250,11 @@ describe("TrainingLoop", () => {
 		} as unknown as Trainer;
 		const buffer = {
 			getMaxSize: () => 1000,
+			replaceCandles,
 			getCandleCount: () => candleCount,
 			getLastCandleCloseTime: () => NOW - MINUTE,
 		} as unknown as MarketDataBuffer;
-		loop = new TrainingLoop(trainer, buffer, windowing);
+		loop = new TrainingLoop(trainer, buffer, history, windowing);
 		for (const count of [13, 14, 50, 100]) {
 			candleCount = count;
 			train.mockClear();

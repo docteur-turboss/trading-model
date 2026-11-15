@@ -3,9 +3,9 @@ import {
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/primitives/primitives";
-import type { SteadyStateSchedulerOptions } from "../../src/application/scheduler/steady-state-scheduler";
-import { SteadyStateScheduler } from "../../src/application/scheduler/steady-state-scheduler";
-import type { ScheduledJob } from "../../src/infrastructure/scheduler/scheduler";
+import type { ScheduledJob } from "../../src/scheduler/scheduler";
+import type { SteadyStateSchedulerOptions } from "../../src/scheduler/steady-state-scheduler";
+import { SteadyStateScheduler } from "../../src/scheduler/steady-state-scheduler";
 
 const MOCK_SCHEDULER_INSTANCE = {
 	register: jest.fn<(job: unknown) => void>(),
@@ -13,7 +13,7 @@ const MOCK_SCHEDULER_INSTANCE = {
 	stop: jest.fn<() => void>(),
 };
 
-jest.mock("../../src/infrastructure/scheduler/scheduler", () => ({
+jest.mock("../../src/scheduler/scheduler", () => ({
 	Scheduler: jest
 		.fn<(...args: any[]) => any>()
 		.mockImplementation(() => MOCK_SCHEDULER_INSTANCE),

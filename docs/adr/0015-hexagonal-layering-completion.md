@@ -100,6 +100,10 @@ dlq-service and message-manager entry points already did startup only (connectio
 `bun run arch:check` (`scripts/architecture-check.mjs`, spec `tests/architecture/architecture-check.test.mjs`; `.husky/pre-push` and the CI `lint` job) reinstates, in a lighter form, the gate removed during this work. Over `packages/*/src` and `services/*/src` it reports:
 
 - **runtime import cycles** (strongly connected components; `import type` / `export type` are ignored);
-- **layer violations**: an `application/` file importing `adapters/` or `infrastructure/` (relative or `@trading-model/<pkg>/adapters|infrastructure/...`, type imports included). `application/index.ts`, `server.ts` and `telemetry.ts` are the startup files and are exempt.
+- **layer violations** (services only): an `application/` file importing `adapters/` or `infrastructure/` (relative or `@trading-model/<pkg>/adapters|infrastructure/...`, type imports included). `application/index.ts`, `server.ts` and `telemetry.ts` are the startup files and are exempt.
 
 The findings that existed when the gate came back are listed in `scripts/architecture-baseline.json` (ratchet): a finding absent from it fails, and a baseline entry that no longer exists fails too, so the baseline only shrinks. Never add an entry to let new code in: fix the import. Dynamic `import()` / `require()` edges are not followed.
+
+## Amendment (2026-11-15, issue #1212): library packages are flat
+
+The hexagonal layout applies to services only. Shared library packages (`crypto`, `http`, `server-utils`, `broker-message`, `address-manager`) have one folder or file per subject, without `domain/ application/ adapters/ infrastructure/`; the `layers` rule skips `packages/`, the cycle rule still covers it. Their `@trading-model/<pkg>/<path>` imports lost the layer segments. Other libraries (`validation`) keep their folders until moved the same way.

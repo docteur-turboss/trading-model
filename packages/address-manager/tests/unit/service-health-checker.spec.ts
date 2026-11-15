@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { Protocol } from "@trading-model/contracts/service-registry-types";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { HttpClient } from "@trading-model/http/http-client";
 import {
 	DurationMs,
 	IPAddress,
@@ -11,8 +11,8 @@ import {
 	UnixTimestamp,
 	URLString,
 } from "@trading-model/primitives/primitives";
-import { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
-import type { ServiceInstance } from "../../src/domain/client/type";
+import type { ServiceInstance } from "../../src/client/type";
+import { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
 
 type MockHttp = Record<"get" | "post", jest.Mock<(...args: any[]) => any>>;
 

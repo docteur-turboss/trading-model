@@ -68,6 +68,7 @@ describe("env configuration", () => {
 		process.env.TLS_CA_PATH = "/certs/ca.pem";
 		process.env.ERROR_URL_WEBHOOK = "https://hooks.example.com/error";
 		process.env.ALLOWED_REGISTRATION_CIDRS = "10.0.0.0/8";
+		process.env.REDIS_URL = "redis://localhost:6379";
 		process.env.SIGNING_SECRET =
 			"a-long-random-secret-0123456789abcdef0123456789abcdef";
 
@@ -79,6 +80,24 @@ describe("env configuration", () => {
 		expect(ENV.SIGNING_SECRET).toBe(
 			"a-long-random-secret-0123456789abcdef0123456789abcdef"
 		);
+	});
+
+	it("should refuse to start in production without Redis", () => {
+		const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+		process.env.NODE_ENV = "production";
+		process.env.TLS_KEY_PATH = "/certs/key.pem";
+		process.env.TLS_CERT_PATH = "/certs/cert.pem";
+		process.env.TLS_CA_PATH = "/certs/ca.pem";
+		process.env.SIGNING_SECRET =
+			"a-long-random-secret-0123456789abcdef0123456789abcdef";
+		delete process.env.REDIS_URL;
+		delete process.env.REDIS_SENTINELS;
+
+		expect(() => require("../../src/infrastructure/config/env")).toThrow(
+			"Environment validation failed"
+		);
+		expect(JSON.stringify(errorSpy.mock.calls)).toContain("REDIS_SENTINELS");
+		errorSpy.mockRestore();
 	});
 
 	it("should refuse to start in production without SIGNING_SECRET", () => {

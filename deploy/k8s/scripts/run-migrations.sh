@@ -112,27 +112,6 @@ require_migrate_password() {
   exit 1
 }
 
-# A ready mysql-0 is not enough: while mysql-cluster-init runs START
-# GROUP_REPLICATION, the server is super_read_only. A migration that runs then
-# fails halfway, and its retry fails on what the first try already applied.
-# The Job may be gone on an old namespace (deleted by hand): nothing to wait for.
-if kubectl get job mysql-cluster-init -n "$NS" >/dev/null 2>&1; then
-  # Poll both conditions: `kubectl wait --for=condition=complete` would sit
-  # out its whole timeout on a Job that has already failed.
-  state=""
-  for _ in $(seq 60); do
-    state=$(kubectl get job mysql-cluster-init -n "$NS" \
-      -o jsonpath='{range .status.conditions[?(@.status=="True")]}{.type} {end}')
-    case "$state" in *Complete*|*Failed*) break ;; esac
-    sleep 5
-  done
-  if [[ "$state" != *Complete* ]]; then
-    echo "::error::MySQL group replication bootstrap (mysql-cluster-init) failed or timed out"
-    kubectl logs -n "$NS" job/mysql-cluster-init --tail=50 || true
-    exit 1
-  fi
-fi
-
 apply_new_sealed_keys
 require_migrate_password
 # The jobs below mount the client certificate Secrets of cert-manager (issue #767), which the

@@ -5,7 +5,7 @@ import type { JsonObject } from "@trading-model/primitives/primitives";
  *
  * `common` is the base layer and must not depend on `@trading-model/http`.
  * The concrete logger lives in `@trading-model/http` and is registered into
- * this module at import time (see `packages/http/src/infrastructure/logger.ts`),
+ * this module at import time (see `packages/http/src/logger.ts`),
  * so all consumers keep the same singleton without a package-level cycle.
  */
 export interface LoggerPort {

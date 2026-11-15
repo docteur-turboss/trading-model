@@ -86,7 +86,7 @@ describe("Broker Schemas", () => {
 		it("should accept valid metadata", () => {
 			const result = PUBLISH_METADATA_SCHEMA.safeParse({
 				schemaVersion: "1.0",
-				eventType: "TestEvent",
+				eventType: "market.candlestick.series.fetch",
 				topic: "test.topic",
 				publisher: {
 					serviceName: ServiceInstanceName.FinancialScraperService,
@@ -102,7 +102,7 @@ describe("Broker Schemas", () => {
 				correlationId: "corr-123",
 				schemaVersion: "1.0",
 				causationId: "caus-456",
-				eventType: "TestEvent",
+				eventType: "market.candlestick.series.fetch",
 				topic: "test.topic",
 				publisher: {
 					serviceName: ServiceInstanceName.FinancialScraperService,
@@ -132,7 +132,7 @@ describe("Broker Schemas", () => {
 		it("should reject authContext with invalid shape", () => {
 			const result = PUBLISH_METADATA_SCHEMA.safeParse({
 				schemaVersion: "1.0",
-				eventType: "TestEvent",
+				eventType: "market.candlestick.series.fetch",
 				topic: "test.topic",
 				publisher: {
 					serviceName: ServiceInstanceName.FinancialScraperService,
@@ -148,7 +148,7 @@ describe("Broker Schemas", () => {
 
 		it("should reject missing schemaVersion", () => {
 			const result = PUBLISH_METADATA_SCHEMA.safeParse({
-				eventType: "TestEvent",
+				eventType: "market.candlestick.series.fetch",
 				topic: "test.topic",
 				publisher: {
 					serviceName: ServiceInstanceName.FinancialScraperService,
@@ -162,7 +162,7 @@ describe("Broker Schemas", () => {
 		it("should reject invalid delivery mode", () => {
 			const result = PUBLISH_METADATA_SCHEMA.safeParse({
 				schemaVersion: "1.0",
-				eventType: "TestEvent",
+				eventType: "market.candlestick.series.fetch",
 				topic: "test.topic",
 				publisher: {
 					serviceName: ServiceInstanceName.FinancialScraperService,
@@ -179,7 +179,7 @@ describe("Broker Schemas", () => {
 		it("should reject negative TTL", () => {
 			const result = PUBLISH_METADATA_SCHEMA.safeParse({
 				schemaVersion: "1.0",
-				eventType: "TestEvent",
+				eventType: "market.candlestick.series.fetch",
 				topic: "test.topic",
 				publisher: {
 					serviceName: ServiceInstanceName.FinancialScraperService,
@@ -201,7 +201,7 @@ describe("Broker Schemas", () => {
 				payload: { key: "value" },
 				metadata: {
 					schemaVersion: "1.0",
-					eventType: "TestEvent",
+					eventType: "market.candlestick.series.fetch",
 					topic: "test.topic",
 					publisher: {
 						serviceName: ServiceInstanceName.FinancialScraperService,
@@ -218,7 +218,7 @@ describe("Broker Schemas", () => {
 				payload: "string-payload",
 				metadata: {
 					schemaVersion: "1.0",
-					eventType: "TestEvent",
+					eventType: "market.candlestick.series.fetch",
 					topic: "test.topic",
 					publisher: {
 						serviceName: ServiceInstanceName.FinancialScraperService,
@@ -234,7 +234,7 @@ describe("Broker Schemas", () => {
 			const result = PUBLISH_SCHEMA.safeParse({
 				metadata: {
 					schemaVersion: "1.0",
-					eventType: "TestEvent",
+					eventType: "market.candlestick.series.fetch",
 					topic: "test.topic",
 					publisher: {
 						serviceName: ServiceInstanceName.FinancialScraperService,

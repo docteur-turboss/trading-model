@@ -45,7 +45,8 @@ function listProcessor(
 }
 
 const EVENT_PROCESSORS: Record<DataType, EventProcessor> = {
-	[DataType.Candle]: listProcessor("candle", DataType.Candle),
+	// Notification only: the candle window is read from the scraper (ADR-0044).
+	[DataType.Candle]: () => undefined,
 	[DataType.Trade]: listProcessor("trades", DataType.Trade),
 	[DataType.OrderBook]: listProcessor("orderBook", DataType.OrderBook, true),
 	[DataType.BookTicker]: listProcessor("bookTicker", DataType.BookTicker),

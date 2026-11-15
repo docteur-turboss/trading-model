@@ -5,7 +5,7 @@ import {
 	MarketEvent,
 	type MarketEventMap,
 } from "@trading-model/contracts/market-events";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { type Topic, toTopic } from "@trading-model/primitives/primitives";
 import { MessageManager } from "../../../config/message-manager";
 import { EVENTS_PUBLISHED_TOTAL } from "../../../config/metrics";

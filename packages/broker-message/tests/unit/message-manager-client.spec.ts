@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
-import { logger } from "@trading-model/http/infrastructure/logger";
-import { MessageManagerClient } from "../../src/adapters/outbound/message-manager-client";
+import { logger } from "@trading-model/http/logger";
+import { MessageManagerClient } from "../../src/message-manager-client";
 
 describe("MessageManagerClient", () => {
 	let client: MessageManagerClient;
@@ -42,13 +42,13 @@ describe("MessageManagerClient", () => {
 			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
 			httpClient.post.mockResolvedValue(undefined);
 
-			await client.subscribe(["example.debug.create"]);
+			await client.subscribe(["market.candlestick.series.fetch"]);
 
 			expect(addressManagerClient.findService).toHaveBeenCalled();
 			expect(httpClient.post).toHaveBeenCalledWith(
 				"https://192.168.1.100:3001/subscribe",
 				expect.objectContaining({
-					topic: "example.debug.create",
+					topic: "market.candlestick.series.fetch",
 					callbackPath: mockConfig.callbackPath,
 				}),
 				{ idempotent: true }
@@ -59,7 +59,10 @@ describe("MessageManagerClient", () => {
 			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
 			httpClient.post.mockResolvedValue(undefined);
 
-			await client.subscribe(["example.debug.create", "example.show.create"]);
+			await client.subscribe([
+				"market.candlestick.series.fetch",
+				"market.trade.recent.fetch",
+			]);
 
 			expect(httpClient.post).toHaveBeenCalledTimes(2);
 		});
@@ -67,18 +70,18 @@ describe("MessageManagerClient", () => {
 		it("should throw ServiceUnreachableError when service not found", async () => {
 			addressManagerClient.findService.mockResolvedValue(null);
 
-			await expect(client.subscribe(["example.debug.create"])).rejects.toThrow(
-				Error
-			);
+			await expect(
+				client.subscribe(["market.candlestick.series.fetch"])
+			).rejects.toThrow(Error);
 		});
 
 		it("should propagate MessageManagerError on subscription failure", async () => {
 			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
 			httpClient.post.mockRejectedValue(new Error("Network error"));
 
-			await expect(client.subscribe(["example.debug.create"])).rejects.toThrow(
-				"Failed to subscribe topic to Message Manager"
-			);
+			await expect(
+				client.subscribe(["market.candlestick.series.fetch"])
+			).rejects.toThrow("Failed to subscribe topic to Message Manager");
 		});
 
 		it("should throw MessageManagerError on generic error in subscribe", async () => {
@@ -86,9 +89,9 @@ describe("MessageManagerClient", () => {
 				new Error("Generic error")
 			);
 
-			await expect(client.subscribe(["example.debug.create"])).rejects.toThrow(
-				Error
-			);
+			await expect(
+				client.subscribe(["market.candlestick.series.fetch"])
+			).rejects.toThrow(Error);
 		});
 	});
 
@@ -97,7 +100,7 @@ describe("MessageManagerClient", () => {
 			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
 			httpClient.delete.mockResolvedValue(undefined);
 
-			await client.unsubscribe(["example.debug.create"]);
+			await client.unsubscribe(["market.candlestick.series.fetch"]);
 
 			expect(httpClient.delete).toHaveBeenCalled();
 		});
@@ -132,7 +135,7 @@ describe("MessageManagerClient", () => {
 					.mockImplementation(() => undefined);
 
 				await expect(
-					client.unsubscribe(["example.debug.create"])
+					client.unsubscribe(["market.candlestick.series.fetch"])
 				).resolves.toBeUndefined();
 				expect(warn).toHaveBeenCalledWith(
 					"Failed to unsubscribe topics from Message Manager",

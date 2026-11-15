@@ -1,4 +1,4 @@
-import { sha256Hex } from "@trading-model/crypto/adapters/outbound/node-hash";
+import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import type { DlqEntry } from "../adapters/outbound/repository";
 
 export interface EntryHash {

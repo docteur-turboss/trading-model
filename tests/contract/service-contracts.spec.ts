@@ -69,19 +69,16 @@ jest.mock("../../services/audit-logger/src/config/metrics", () => ({
 	EVENTS_INGESTED_TOTAL: { inc: () => undefined },
 }));
 // dlq-service publishes its events through the real broker client.
-jest.mock(
-	"@trading-model/broker-message/application/services/create-message-manager",
-	() => ({
-		createServiceMessageManager: () => ({
-			messageManager: {
-				post: {
-					indirect: (payload: unknown, metadata: never) =>
-						mockDlqBroker.client.publish(payload, metadata),
-				},
+jest.mock("@trading-model/broker-message/create-message-manager", () => ({
+	createServiceMessageManager: () => ({
+		messageManager: {
+			post: {
+				indirect: (payload: unknown, metadata: never) =>
+					mockDlqBroker.client.publish(payload, metadata),
 			},
-		}),
-	})
-);
+		},
+	}),
+}));
 jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
 	ENV: { INSTANCE_ID: "dlq-service-1" },
 }));
@@ -117,8 +114,6 @@ import { ModelPublisher } from "../../services/trader-trainer/src/adapters/outbo
  * starts being published.
  */
 const UNPUBLISHED_TOPICS: Record<string, string> = {
-	[MarketEvent.TestEvent]: "debug topic, no producer",
-	[MarketEvent.ExampleEvent]: "example topic, no producer",
 	[AuditEvent.AuditHeartbeat]: "reserved for audit heartbeats, no producer",
 	[AuditEvent.AuditGapDetected]: "reserved for audit gap reports, no producer",
 };
@@ -350,7 +345,10 @@ describe("service message contracts", () => {
 					expect(reception).toEqual({ status: 200 });
 				}
 
-				expect(bufferState()).not.toEqual(before);
+				// Candles only notify: the trainer reads them from the scraper (ADR-0044).
+				if (topic !== MarketEvent.FetchCandlestickSeries) {
+					expect(bufferState()).not.toEqual(before);
+				}
 			}
 		);
 

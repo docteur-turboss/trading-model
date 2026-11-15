@@ -198,7 +198,7 @@ Rules:
 ### Entry Point (`src/application/index.ts`)
 
 ```typescript
-import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
+import { createBootstrap } from '@trading-model/server-utils/bootstrap';
 import { createDiscoveryApp } from '../config/container';
 import { ENV } from '../infrastructure/config/env';
 import { createServer } from './server';
@@ -223,7 +223,7 @@ createBootstrap({
 
 ```typescript
 import { ServiceId } from '@trading-model/primitives/primitives';
-import { createServiceServer } from '@trading-model/server-utils/adapters/inbound/service-server-factory';
+import { createServiceServer } from '@trading-model/server-utils/service-server-factory';
 import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
 import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';

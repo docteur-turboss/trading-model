@@ -9,10 +9,10 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
-import { CacheHealthRefresher } from "../../src/application/discovery/cache-health-refresher";
-import type { ServiceInstance } from "../../src/domain/client/type";
-import type { ServiceCachePort } from "../../src/domain/ports/service-cache.port";
+import type { ServiceInstance } from "../../src/client/type";
+import { CacheHealthRefresher } from "../../src/discovery/cache-health-refresher";
+import type { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
+import type { ServiceCachePort } from "../../src/ports/service-cache.port";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {

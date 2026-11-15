@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { trace } from "@opentelemetry/api";
-import { runWithCorrelationId } from "@trading-model/http/adapters/inbound/correlation-id";
-import { formatLogEntry } from "@trading-model/http/infrastructure/console-formatter";
+import { formatLogEntry } from "@trading-model/http/console-formatter";
+import { runWithCorrelationId } from "@trading-model/http/correlation-id";
 import { toCorrelationId } from "@trading-model/primitives/primitives";
 
 describe("formatLogEntry", () => {

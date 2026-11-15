@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { HttpMethod } from "@trading-model/contracts/signed-request";
-import { verifySignature } from "@trading-model/crypto/application/services/request-signer";
-import { createHttpClientError } from "@trading-model/http/adapters/outbound/http-client-errors";
+import { verifySignature } from "@trading-model/crypto/request-signer";
+import { createHttpClientError } from "@trading-model/http/http-client-errors";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import {
 	HttpDeadLetterStore,

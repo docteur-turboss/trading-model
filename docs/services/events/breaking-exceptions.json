@@ -1,1 +1,10 @@
-[]
+[
+	{
+		"break": "example.debug.create $: event removed",
+		"reason": "topic de debug sans producteur, retiré du contrat (issue #1206)"
+	},
+	{
+		"break": "example.show.create $: event removed",
+		"reason": "topic de debug sans producteur, retiré du contrat (issue #1206)"
+	}
+]

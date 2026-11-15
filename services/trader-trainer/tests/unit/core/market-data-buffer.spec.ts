@@ -747,3 +747,21 @@ describe("MarketDataBuffer — observability hook", () => {
 		expect(onDataAdded).toHaveBeenLastCalledWith("ETHUSDT", 1, 2);
 	});
 });
+
+describe("MarketDataBuffer.replaceCandles", () => {
+	it("gives a buffer with a longer history the same window as a new one", () => {
+		const sym = TradingSymbol.of("BTCUSDT");
+		const window = Array.from({ length: 5 }, (_, i) =>
+			makeCandle({ symbol: sym, close: Price.of(100 + i) })
+		);
+		const fresh = new MarketDataBuffer();
+		const old = new MarketDataBuffer();
+		feedCandles(old, "BTCUSDT", 20, (i) => i * 7);
+
+		fresh.replaceCandles(sym, window);
+		old.replaceCandles(sym, window);
+
+		expect(old.getSymbolState(sym)).toEqual(fresh.getSymbolState(sym));
+		expect(old.getCandleCount(sym)).toBe(5);
+	});
+});

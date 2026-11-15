@@ -18,6 +18,10 @@ rules:
   - apiGroups: [""]
     resources: [pods/log]
     verbs: [get, list, watch]
+  # deploy-release.sh diagnose lists events (why a pod stays in ContainerCreating).
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [get, list, watch]
   # deploy-release.sh rollback replaces the stuck pods of a Redis StatefulSet.
   - apiGroups: [""]
     resources: [pods]

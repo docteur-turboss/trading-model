@@ -1653,9 +1653,6 @@ dump() {
 			$K -n "$NS" logs "$pod" -c "$c" --previous --tail=30 2>&1 || true
 		done
 	done
-	# A retrying Job pod stays Running 1/1 above: show what it says (mysql-cluster-init loops on a failing ping).
-	echo "===== mysql-cluster-init"
-	$K -n "$NS" logs job/mysql-cluster-init --tail=80 2>&1 || true
 	echo "===== mysql-0 (mysql)"
 	$K -n "$NS" logs mysql-0 -c mysql --tail=60 2>&1 | cut -c1-300 || true
 	# The databases of pods that look healthy: a restarted member may not serve.

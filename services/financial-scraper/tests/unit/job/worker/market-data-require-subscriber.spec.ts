@@ -18,7 +18,7 @@ jest.mock("../../../../src/config/metrics", () => ({
 	EVENTS_PUBLISHED_TOTAL: { inc: jest.fn<(...args: any[]) => any>() },
 }));
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		error: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),

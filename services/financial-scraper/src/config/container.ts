@@ -1,5 +1,5 @@
 import { sleep } from "@trading-model/common/utils/sleep";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 import {
 	type LeaderJob,

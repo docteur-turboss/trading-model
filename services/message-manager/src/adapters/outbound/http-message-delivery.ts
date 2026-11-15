@@ -1,8 +1,8 @@
 import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { runInMessageTraceContext } from "@trading-model/broker-message/shared/trace-context";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { isHttpClientError } from "@trading-model/http/adapters/outbound/http-client-errors";
+import type { HttpClient } from "@trading-model/http/http-client";
+import { isHttpClientError } from "@trading-model/http/http-client-errors";
 import {
 	PositiveInt,
 	UnixTimestamp,

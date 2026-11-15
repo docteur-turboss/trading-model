@@ -4,7 +4,7 @@ import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import {
 	createHttpClientError,
 	createHttpClientTimeoutError,
-} from "@trading-model/http/adapters/outbound/http-client-errors";
+} from "@trading-model/http/http-client-errors";
 import type {
 	SequenceNumber,
 	URLString,

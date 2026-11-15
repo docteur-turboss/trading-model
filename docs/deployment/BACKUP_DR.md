@@ -539,7 +539,7 @@ Without `METRICS_FILE` it publishes no metric (the script runs in the container)
 **Metrics** (`/backups/metrics/retention.prom`, served by `backup-metrics-exporter`): `retention_last_run_rows_deleted{table}`, `retention_last_success_timestamp` (kept on failure), `retention_last_status` (1 ok, 0 a table failed), `retention_last_run_duration_seconds`.
 
 **Runbook.**
-- `RetentionFailed`: `kubectl -n trading-model logs job/<db-retention-...>`: the line `ERROR <table>` names the table. Usual causes: MySQL down or read-only (group replication failover), `retention` user missing (`MYSQL_RETENTION_PASSWORD` absent: add it, rerun `db-migrate-user`), lock wait timeout (lower `RETENTION_BATCH_SIZE`). The next run resumes; nothing is lost.
+- `RetentionFailed`: `kubectl -n trading-model logs job/<db-retention-...>`: the line `ERROR <table>` names the table. Usual causes: MySQL down or read-only (failover), `retention` user missing (`MYSQL_RETENTION_PASSWORD` absent: add it, rerun `db-migrate-user`), lock wait timeout (lower `RETENTION_BATCH_SIZE`). The next run resumes; nothing is lost.
 - `RetentionStale`: `kubectl -n trading-model get cronjob db-retention` (suspended? last schedule?) and the job's pods (image pull, Secret key missing).
 - The deletes go through the binlogs (PITR, [ADR-0031](../adr/0031-point-in-time-recovery-hourly-archives.md)): a restore `--until` an instant replays them. The first purge of a large backlog writes a lot of binlog: watch `BackupVolumeFilling`.
 

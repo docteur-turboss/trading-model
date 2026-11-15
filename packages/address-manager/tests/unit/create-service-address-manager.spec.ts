@@ -1,15 +1,15 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { TokenManager } from "../../src/application/client/token-manager";
-import { HeartbeatManager } from "../../src/application/heartbeat-manager";
-import { RegistrationAttemptHandler } from "../../src/application/registration-attempt-handler";
+import { TokenManager } from "../../src/client/token-manager";
+import { HeartbeatManager } from "../../src/heartbeat-manager";
+import { RegistrationAttemptHandler } from "../../src/registration-attempt-handler";
 
 const mockTokenManager = new TokenManager({} as never, {} as never);
 
-jest.mock("../../src/application/create-address-manager", () => ({
+jest.mock("../../src/create-address-manager", () => ({
 	createAddressManager: () => ({ tokenManager: mockTokenManager }),
 }));
 
-import { createServiceAddressManager } from "../../src/application/create-service-address-manager";
+import { createServiceAddressManager } from "../../src/create-service-address-manager";
 
 describe("createServiceAddressManager REGISTRATION_READINESS", () => {
 	it("is false until the first registration succeeds, then stays true when discovery fails", async () => {

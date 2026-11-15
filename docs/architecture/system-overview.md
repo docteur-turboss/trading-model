@@ -129,11 +129,18 @@ sequenceDiagram
       Note over FS,DB: cursor stays: next cycle resends from MySQL<br/>alert MarketDataUnpublished after 15 min
     end
   end
+  opt each training session of the trainer
+    TT->>FS: GET /candles/symbols/:symbol (from, to = session start, keyset pages)
+    FS->>DB: read the stored candles
+    Note over TT: the candle window comes from MySQL, not from the bus (ADR-0044)
+  end
   opt a subscriber keeps failing (at-least-once, 10 attempts)
     MM->>DLQ: signed POST /dlq
     Note over MM,DLQ: dlq-service down: entry stays in the journal, retried
   end
 ```
+
+The trainer still subscribes to candles, as a notification only: its candle window is read per session.
 
 Each subscribed service gets one delivery per message, whatever its number of instances: message-manager groups the subscribed instances by service and posts to the service name, the Kubernetes Service picks the pod (consumer group, [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
 

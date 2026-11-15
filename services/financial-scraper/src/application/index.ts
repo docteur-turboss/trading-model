@@ -1,7 +1,7 @@
 import "./telemetry";
 import type { Leadership } from "@trading-model/reliability/leadership";
-import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
+import { createBootstrap } from "@trading-model/server-utils/bootstrap";
+import { shutdownTelemetry } from "@trading-model/server-utils/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { createCollector } from "../config/container";
 import { closeDatabase } from "../config/db";

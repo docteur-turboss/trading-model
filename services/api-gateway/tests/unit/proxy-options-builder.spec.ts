@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
-jest.mock("@trading-model/http/infrastructure/http-tls-loader", () => ({
+jest.mock("@trading-model/http/http-tls-loader", () => ({
 	buildHttpsAgentOptions: jest.fn((..._args: any[]) => ({
 		ca: "ca-pem",
 		cert: "cert-pem",
@@ -20,7 +20,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-import { buildHttpsAgentOptions } from "@trading-model/http/infrastructure/http-tls-loader";
+import { buildHttpsAgentOptions } from "@trading-model/http/http-tls-loader";
 import { buildProxyOptions } from "../../src/adapters/outbound/proxy-options-builder";
 
 const TARGET = { host: "10.0.1.5", port: 3000, version: "1.0.0" } as never;

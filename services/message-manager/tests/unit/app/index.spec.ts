@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_CREATE_BOOTSTRAP = jest.fn<(...args: any[]) => any>();
 
-jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
+jest.mock("@trading-model/server-utils/bootstrap", () => ({
 	createBootstrap: MOCK_CREATE_BOOTSTRAP,
 }));
 
@@ -34,7 +34,7 @@ jest.mock("../../../src/config/message-manager", () => ({
 	startDelivery: MOCK_START_DELIVERY,
 }));
 
-jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
+jest.mock("@trading-model/server-utils/telemetry", () => ({
 	startTelemetry: jest.fn<(...args: any[]) => any>(),
 	shutdownTelemetry: jest.fn(async (..._args: any[]) => undefined),
 }));

@@ -1,4 +1,4 @@
-import { makePRNG } from "../src/domain/services/prng";
+import { makePRNG } from "../src/prng";
 
 describe("makePRNG", () => {
 	it("should return a function", () => {

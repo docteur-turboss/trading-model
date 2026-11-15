@@ -1,9 +1,14 @@
 import "./telemetry";
+import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import type { Leadership } from "@trading-model/reliability/leadership";
-import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
-import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
+import { createBootstrap } from "@trading-model/server-utils/bootstrap";
+import { shutdownTelemetry } from "@trading-model/server-utils/telemetry";
+import { ScraperCandleHistory } from "../adapters/outbound/scraper-candle-history";
+import {
+	BOOTSTRAP_ADDRESS_MANAGER,
+	FIND_A_SERVICE,
+} from "../config/address-manager";
 import {
 	createTraderTrainerContainer,
 	createTrainingLeadership,
@@ -15,7 +20,10 @@ import { createServer } from "./server";
 let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | undefined;
 let leadership: Leadership | null = null;
 
-const CONTAINER = createTraderTrainerContainer(ENV);
+const CONTAINER = createTraderTrainerContainer(
+	ENV,
+	new ScraperCandleHistory(buildTlsFromEnv(ENV), FIND_A_SERVICE)
+);
 
 const { trainer, eventHandler, trainingLoop, symbols, models } = CONTAINER;
 

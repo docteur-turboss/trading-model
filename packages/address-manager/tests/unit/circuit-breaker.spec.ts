@@ -7,8 +7,8 @@ import {
 	jest,
 } from "@jest/globals";
 import { toInstanceId } from "@trading-model/primitives/primitives";
-import { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
-import { CIRCUIT_BREAKER_STATE } from "../../src/infrastructure/metrics";
+import { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
+import { CIRCUIT_BREAKER_STATE } from "../../src/metrics";
 
 describe("CircuitBreaker", () => {
 	let circuitBreaker: DiscoveryCircuitBreaker;

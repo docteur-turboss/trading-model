@@ -2,7 +2,7 @@ import { Protocol } from "@trading-model/contracts/service-registry-types";
 import {
 	defineRoute,
 	ErrorResponse,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import { z } from "zod";
 import {
 	HEARTBEAT_SCHEMA,

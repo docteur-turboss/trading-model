@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { MTLSAuthorizationMiddleware } from "@trading-model/http/adapters/inbound/mtls-authorization";
+import { MTLSAuthorizationMiddleware } from "@trading-model/http/mtls-authorization";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import type { NextFunction, Request, Response } from "express";
 

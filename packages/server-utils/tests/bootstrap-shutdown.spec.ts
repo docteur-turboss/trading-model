@@ -1,7 +1,4 @@
-import {
-	gracefulShutdown,
-	hardShutdown,
-} from "../src/application/services/bootstrap-shutdown";
+import { gracefulShutdown, hardShutdown } from "../src/bootstrap-shutdown";
 
 function createMockServer() {
 	return {

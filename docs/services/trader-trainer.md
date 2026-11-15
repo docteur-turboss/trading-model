@@ -192,7 +192,7 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 
 - **Window**: 1 minute
 - **Limit**: 1 000 requests per IP and per window
-- Default of the shared server (`packages/server-utils/src/adapters/inbound/configure-app.ts`); the trainer passes no `rateLimit` option
+- Default of the shared server (`packages/server-utils/src/configure-app.ts`); the trainer passes no `rateLimit` option
 
 ## TLS
 

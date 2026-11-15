@@ -6,10 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import {
-	Logger,
-	LogLevel,
-} from "@trading-model/http/application/services/logger";
+import { Logger, LogLevel } from "@trading-model/http/logger";
 
 describe("Logger", () => {
 	let logger: Logger;

@@ -3,7 +3,7 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	ResponseException,
 	sendResponse,
-} from "@trading-model/http/adapters/inbound/response-exception";
+} from "@trading-model/http/response-exception";
 
 describe("ResponseException", () => {
 	describe("response methods", () => {

@@ -3,7 +3,7 @@ import { sleep } from "@trading-model/common/utils/sleep";
 import {
 	isRetryableStatusPermissive,
 	RETRY_JITTER_MS,
-} from "@trading-model/http/infrastructure/http-retry";
+} from "@trading-model/http/http-retry";
 import { DataSource, DurationMs } from "@trading-model/primitives/primitives";
 import axios, {
 	type AxiosError,

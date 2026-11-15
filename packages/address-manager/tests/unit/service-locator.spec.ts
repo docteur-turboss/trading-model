@@ -9,13 +9,13 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
+import type { ServiceInstance } from "../../src/client/type";
+import type { DnsResolver } from "../../src/discovery/dns-resolver";
 import {
 	MappingServiceLocator,
 	MapResolver,
 	ServiceNameLocator,
-} from "../../src/application/discovery/service-locator";
-import type { ServiceInstance } from "../../src/domain/client/type";
-import type { DnsResolver } from "../../src/domain/discovery/dns-resolver";
+} from "../../src/discovery/service-locator";
 
 describe("ServiceNameLocator", () => {
 	let locator: ServiceNameLocator;

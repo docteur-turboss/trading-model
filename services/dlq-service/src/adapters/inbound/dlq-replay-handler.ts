@@ -6,7 +6,7 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/http/adapters/inbound/response-exception";
+} from "@trading-model/http/response-exception";
 import type {
 	ReplayRequest,
 	ReplayResult,
