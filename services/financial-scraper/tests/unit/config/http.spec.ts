@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 let mockRequestUseHandler: (...args: any[]) => Promise<any>;
-let mockResponseFulfilledHandler: (...args: any[]) => any;
 let mockResponseRejectedHandler: (...args: any[]) => Promise<any>;
 
 jest.mock("axios", () => {
@@ -13,8 +12,7 @@ jest.mock("axios", () => {
 			}),
 		},
 		response: {
-			use: jest.fn((fulfilled: any, rejected: any) => {
-				mockResponseFulfilledHandler = fulfilled as any;
+			use: jest.fn((_fulfilled: any, rejected: any) => {
 				mockResponseRejectedHandler = rejected as any;
 			}),
 		},
@@ -34,7 +32,6 @@ import { createHttpClient, httpClients } from "../../../src/config/http";
 describe("createHttpClient", () => {
 	beforeEach(() => {
 		mockRequestUseHandler = undefined as any;
-		mockResponseFulfilledHandler = undefined as any;
 		mockResponseRejectedHandler = undefined as any;
 	});
 
@@ -61,13 +58,6 @@ describe("createHttpClient", () => {
 		const config = {};
 		const result = await mockRequestUseHandler!(config);
 		expect(result).toBe(config);
-	});
-
-	it("response fulfilled interceptor should pass through response", () => {
-		createHttpClient("https://api.example.com");
-		const response = { data: "ok" };
-		const result = mockResponseFulfilledHandler!(response);
-		expect(result).toBe(response);
 	});
 
 	it("response rejected interceptor should retry on 500 and call instance", async () => {

@@ -5,12 +5,11 @@
 } from "@trading-model/primitives/primitives";
 import type { TickerData } from "../../../../domain/market-data.types";
 import { MarketType, SourceType } from "../../../../domain/market-data.types";
-import type {
-	Binance24hrTickerStatsResponse,
-	BinanceTickerBaseStats,
-} from "../binance.api";
+import type { Binance24hrTickerStatsResponse } from "../binance.api";
 
-function normalizeTickers(payload: BinanceTickerBaseStats[]): TickerData[] {
+export function normalizeTicker24h(
+	payload: Binance24hrTickerStatsResponse
+): TickerData[] {
 	return payload.map((item) => ({
 		market: MarketType.Crypto,
 		source: SourceType.Binance,
@@ -23,10 +22,4 @@ function normalizeTickers(payload: BinanceTickerBaseStats[]): TickerData[] {
 		volume: Volume.of(Number(item.volume)),
 		closeTimestamp: UnixTimestamp.of(item.closeTime),
 	}));
-}
-
-export function normalizeTicker24h(
-	payload: Binance24hrTickerStatsResponse
-): TickerData[] {
-	return normalizeTickers(payload);
 }
