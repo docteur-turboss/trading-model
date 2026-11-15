@@ -3,6 +3,6 @@
  * are loaded, so the instrumentations can patch them.
  */
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { startTelemetry } from "@trading-model/server-utils/telemetry";
+import { startTelemetry } from "@trading-model/http/telemetry";
 
 startTelemetry(ServiceInstanceName.TraderTrainerService);

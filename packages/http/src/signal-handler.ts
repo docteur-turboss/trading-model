@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/http/logger";
+import { logger } from "./logger";
 
 /** Callback signature for graceful shutdown. */
 export type ShutdownHandler = (signal: string) => Promise<void>;

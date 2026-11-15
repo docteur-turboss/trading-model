@@ -7,8 +7,8 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/logger";
 import { toInstanceId } from "@trading-model/primitives/primitives";
+import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;
 
