@@ -896,8 +896,8 @@ compares nothing. The kind drill runs it after the restore, and checks that it
 fails on an altered audit event. Then the service checks:
 
 ```bash
-# Check all services are registered (through edge-proxy → gateway)
-curl -s http://localhost:8449/v1/discovery-server/services -H "x-api-key: <AUTH_TOKENS value>"
+# Check the API answers (edge-proxy → gateway → trader-trainer)
+curl -s http://localhost:8449/v1/trader-trainer/training-status -H "x-api-key: <AUTH_TOKENS value>"
 
 # Check core service health (mTLS via SPIRE SVIDs, run inside a service container)
 for svc in discovery-server message-manager api-gateway; do

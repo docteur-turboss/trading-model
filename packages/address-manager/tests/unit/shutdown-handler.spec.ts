@@ -20,12 +20,6 @@ function createMockDeps(): jest.Mocked<ShutdownHandlerDeps> {
 				.fn<() => Promise<void>>()
 				.mockResolvedValue(undefined),
 		} as never,
-		serviceCache: {
-			close: jest.fn<() => void>(),
-		} as never,
-		circuitBreaker: {
-			clear: jest.fn<() => void>(),
-		} as never,
 	};
 }
 
@@ -44,23 +38,19 @@ describe("ShutdownHandler", () => {
 		expect(deps.registrationManager.stopRetrying).toHaveBeenCalled();
 	});
 
-	it("fullStop() should unregister, close cache and clear circuit breaker", async () => {
+	it("fullStop() should unregister", async () => {
 		await handler.fullStop();
 		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
-		expect(deps.serviceCache.close).toHaveBeenCalledTimes(1);
-		expect(deps.circuitBreaker.clear).toHaveBeenCalledTimes(1);
 	});
 
-	// The service still resolves its targets while it finishes in-flight work.
-	it("leaveRegistry() should unregister but keep the service cache", async () => {
+	it("leaveRegistry() should unregister", async () => {
 		await handler.leaveRegistry();
 		expect(deps.registrationManager.stopRetrying).toHaveBeenCalled();
 		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
-		expect(deps.serviceCache.close).not.toHaveBeenCalled();
 	});
 
 	it("fullStop() after leaveRegistry() should not unregister twice", async () => {
@@ -69,7 +59,6 @@ describe("ShutdownHandler", () => {
 		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
-		expect(deps.serviceCache.close).toHaveBeenCalledTimes(1);
 	});
 
 	it("fullStop() should handle unregisterService error gracefully", async () => {

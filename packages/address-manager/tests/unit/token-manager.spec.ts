@@ -19,15 +19,12 @@ describe("TokenManager", () => {
 			servicePort: 8080,
 			tokenRefreshIntervalMs: 300_000,
 			ttlRefreshIntervalMs: 300_000,
-			servicePingTimeoutMs: 2000,
-			cacheTtlMs: 60_000,
 			identity: { serviceName: "test-service", instanceId: "instance-1" },
 			tls: {
 				caPath: "/path/to/ca.pem",
 				certPath: "/path/to/cert.pem",
 				keyPath: "/path/to/key.pem",
 			},
-			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
 
 		manager = new TokenManager(httpClient, config);

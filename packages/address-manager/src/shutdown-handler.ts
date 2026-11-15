@@ -19,10 +19,7 @@ export class ShutdownHandler {
 		this._deps.registrationManager.stopRetrying();
 	}
 
-	/**
-	 * Leaves the registry but keeps discovering other services: callers stop
-	 * being routed here while in-flight work still resolves its targets.
-	 */
+	/** Leaves the registry (still read by release N-1 peers, ADR-0072). */
 	async leaveRegistry(): Promise<void> {
 		this.shutdown();
 		await this._tryUnregisterService();
@@ -30,8 +27,6 @@ export class ShutdownHandler {
 
 	async fullStop(): Promise<void> {
 		await this.leaveRegistry();
-		this._deps.serviceCache.close();
-		this._deps.circuitBreaker.clear();
 		this._metricsTimer.stop();
 	}
 

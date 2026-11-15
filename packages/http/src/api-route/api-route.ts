@@ -73,6 +73,8 @@ export interface ApiRoute {
 	 *   out at registration.
 	 */
 	security?: readonly ("SignedRequest" | "InstanceToken")[];
+	/** Public route kept one release before its removal (ADR-0072): `deprecated` in the OpenAPI. */
+	deprecated?: true;
 	params?: z.ZodType;
 	query?: z.ZodType;
 	body?: z.ZodType;

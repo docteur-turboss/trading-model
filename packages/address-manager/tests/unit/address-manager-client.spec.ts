@@ -69,8 +69,6 @@ describe("AddressManagerClient", () => {
 			serviceVersion: "2.0.0",
 			tokenRefreshIntervalMs: 300_000,
 			ttlRefreshIntervalMs: 300_000,
-			servicePingTimeoutMs: 2000,
-			cacheTtlMs: 60_000,
 			identity: {
 				serviceName: toServiceId("test-service"),
 				instanceId: toInstanceId("test-instance"),
@@ -80,7 +78,6 @@ describe("AddressManagerClient", () => {
 				certPath: "/path/to/cert.pem",
 				keyPath: "/path/to/key.pem",
 			},
-			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
 
 		client = new AddressManagerClient(

@@ -63,7 +63,7 @@ export const DLQ_API = {
 	}),
 	listEntries: defineRoute({
 		method: "GET",
-		path: "/dlq",
+		path: "/v1/dlq",
 		summary: "List stored entries, newest first",
 		security: ["SignedRequest"],
 		query: z.object({
@@ -92,7 +92,7 @@ export const DLQ_API = {
 	}),
 	deleteEntries: defineRoute({
 		method: "DELETE",
-		path: "/dlq",
+		path: "/v1/dlq",
 		summary: "Delete entries by id",
 		security: ["SignedRequest"],
 		body: z.object({ ids: z.array(z.string()).min(1).max(1000) }),
@@ -107,7 +107,7 @@ export const DLQ_API = {
 	}),
 	replayEntries: defineRoute({
 		method: "POST",
-		path: "/dlq/replay",
+		path: "/v1/dlq/replay",
 		summary: "Replay a batch of entries to message-manager",
 		security: ["SignedRequest"],
 		query: z.object({

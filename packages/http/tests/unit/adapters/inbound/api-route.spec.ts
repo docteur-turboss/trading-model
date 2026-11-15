@@ -38,7 +38,7 @@ const listEntries = defineRoute({
 
 const download = defineRoute({
 	method: "GET",
-	path: "/files/:name",
+	path: "/v2/files/:name",
 	summary: "Download a file",
 	responses: { 200: binary("application/octet-stream"), 404: ErrorResponse },
 });
@@ -182,7 +182,7 @@ describe("responseIssues", () => {
 		expect(responseIssues(download, 200, new Uint8Array([1, 2]))).toEqual([]);
 		expect(responseIssues(download, 200, new ArrayBuffer(2))).toEqual([]);
 		expect(responseIssues(download, 200, { not: "bytes" })).toEqual([
-			"GET /files/:name → 200: expected application/octet-stream bytes",
+			"GET /v2/files/:name → 200: expected application/octet-stream bytes",
 		]);
 	});
 
@@ -291,6 +291,15 @@ describe("mountRoute", () => {
 		expect([...bytes]).toEqual([0, 1, 255]);
 		expect(responseIssues(download, res.status, bytes)).toEqual([]);
 	});
+
+	// ADR-0072 release N: a public route also answers without its /v<major> for N-1 gateways.
+	it.each(["/v2/files/x", "/files/x"])(
+		"mounts a versioned route at %s",
+		async (path) => {
+			const res = await fetch(`${baseUrl}${path}`);
+			expect(res.status).toBe(200);
+		}
+	);
 
 	it("passes a handler error to the Express error handler", async () => {
 		const res = await fetch(`${baseUrl}/entries`, {

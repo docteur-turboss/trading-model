@@ -1,14 +1,6 @@
 import { HttpClient } from "@trading-model/http/http-client";
 import { AddressManagerClient } from "../client/address-manager-client";
 import { TokenManager } from "../client/token-manager";
-import { DiscoveryCircuitBreaker } from "../discovery/circuit-breaker";
-import { DiscoveryRetryHandler } from "../discovery/discovery-retry-handler";
-import { ServiceCache } from "../discovery/service-cache";
-import { ServiceHealthChecker } from "../discovery/service-health-checker";
-import {
-	MappingServiceLocator,
-	MapResolver,
-} from "../discovery/service-locator";
 import { HeartbeatManager } from "../heartbeat-manager";
 import { LifecycleManager } from "../lifecycle-manager";
 import {
@@ -30,19 +22,6 @@ export function buildAddressManagerDependencies(config: AddressManagerConfig) {
 		tokenManager,
 		config
 	);
-	const serviceCache = new ServiceCache(config.cacheTtlMs);
-	const circuitBreaker = new DiscoveryCircuitBreaker();
-	const healthChecker = new ServiceHealthChecker({
-		httpClient,
-		timeoutMs: config.servicePingTimeoutMs,
-		serviceLocator: config.dnsNameMap
-			? new MappingServiceLocator(new MapResolver(config.dnsNameMap))
-			: undefined,
-	});
-	const discovery = new DiscoveryRetryHandler(
-		{ httpClient, serviceCache, config, healthChecker },
-		circuitBreaker
-	);
 	const registrationManager = new RegistrationAttemptHandler({
 		addressManagerClient,
 		tokenManager,
@@ -63,23 +42,17 @@ export function buildAddressManagerDependencies(config: AddressManagerConfig) {
 		shutdownHandler: new ShutdownHandler({
 			registrationManager,
 			addressManagerClient,
-			serviceCache,
-			circuitBreaker,
 		}),
-		serviceCache,
 		serviceName: config.identity.serviceName,
 		instanceId: config.identity.instanceId,
 		tokenRefreshIntervalMs: config.tokenRefreshIntervalMs,
 		ttlRefreshIntervalMs: config.ttlRefreshIntervalMs,
-		cacheTtlMs: config.cacheTtlMs,
 		tokenManager,
 		addressManagerClient,
-		healthChecker,
 	});
 	return {
 		tokenManager,
-		discovery,
-		metricsCollector: new MetricsCollector(circuitBreaker, serviceCache),
+		metricsCollector: new MetricsCollector(),
 		lifecycleManager,
 	};
 }

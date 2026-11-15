@@ -7,26 +7,24 @@ import {
 } from "@trading-model/http/api-route/api-route";
 import { ResponseProtocol } from "@trading-model/http/response-protocol";
 import {
-	toDurationMs,
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/primitives/primitives";
 import express from "express";
 import { AddressManagerClient } from "../../packages/address-manager/src/client/address-manager-client";
 import { TokenManager } from "../../packages/address-manager/src/client/token-manager";
-import { DiscoveryRetryHandler } from "../../packages/address-manager/src/discovery/discovery-retry-handler";
-import { EndpointResolver } from "../../packages/address-manager/src/discovery/endpoint-resolver";
 import { DISCOVERY_API } from "../../services/discovery-server/src/adapters/inbound/http/api-routes";
 import { HEARTBEAT_ROUTES } from "../../services/discovery-server/src/adapters/inbound/http/heartbeat.routes";
 import { REGISTRY_ROUTES } from "../../services/discovery-server/src/adapters/inbound/http/register.routes";
 import { createServiceRegistry } from "../../services/discovery-server/src/config/container";
 
 /**
- * Discovery contract: address-manager (in every service) and the gateway's
- * resolver → discovery-server.
+ * Discovery contract: address-manager (in every service) → discovery-server.
+ * Release N of ADR-0072 still registers for N-1 peers; nothing asks the
+ * registry any more, so this file goes with discovery-server in N+1.
  *
  * The real client of address-manager (registration, heartbeat, token
- * rotation, unregistration, lookups) talks over HTTP to the real
+ * rotation, unregistration) talks over HTTP to the real
  * discovery-server routes. Every request must reach a DISCOVERY_API entry
  * and pass its schema; every answer must match the entry, and the client
  * must act on it (token kept, instance found). The two sides drifted once:
@@ -36,11 +34,6 @@ import { createServiceRegistry } from "../../services/discovery-server/src/confi
  * The caller's identity (mTLS SVID, IP allowlist) is not part of the
  * contract: those middlewares are let through.
  */
-
-// The platform DNS gives the address; the registry only says the version is alive.
-jest.mock("node:dns/promises", () => ({
-	lookup: jest.fn(async () => ({ address: "127.0.0.1", family: 4 })),
-}));
 
 jest.mock(
 	"../../services/discovery-server/src/adapters/inbound/registration-auth",
@@ -148,7 +141,6 @@ describe("discovery contract: address-manager → discovery-server", () => {
 	let exchanges: Exchange[];
 	let tokens: TokenManager;
 	let client: AddressManagerClient;
-	let resolver: DiscoveryRetryHandler;
 	let instanceId: string;
 
 	beforeAll(async () => {
@@ -170,7 +162,7 @@ describe("discovery contract: address-manager → discovery-server", () => {
 
 	const listInstances = async () =>
 		(await recordingHttpClient(exchanges).get(
-			`${baseUrl}/services/${SERVICE}`
+			`${baseUrl}/v1/services/${SERVICE}`
 		)) as { instanceId: string; host: string; port: number }[];
 
 	beforeEach(() => {
@@ -184,26 +176,9 @@ describe("discovery contract: address-manager → discovery-server", () => {
 			},
 			servicePort: 3000,
 			addressManagerUrl: baseUrl,
-			discoveryUrls: [baseUrl],
-			discoveryTimeoutMs: toDurationMs(5000),
 		} as never;
 		tokens = new TokenManager(http, config);
 		client = new AddressManagerClient(http, tokens, config);
-		resolver = new DiscoveryRetryHandler(
-			{
-				httpClient: http,
-				config,
-				serviceCache: {
-					set: async () => undefined,
-					delete: async () => undefined,
-				} as never,
-				healthChecker: {
-					locate: (instance: { host: string }) => instance.host,
-					isHealthy: async () => true,
-				} as never,
-			},
-			{} as never
-		);
 	});
 
 	/** Every exchange reached a route, passed its schema and was answered by it. */
@@ -277,29 +252,15 @@ describe("discovery contract: address-manager → discovery-server", () => {
 		]);
 	});
 
+	// Release N still answers N-1 lookups; N itself resolves by DNS (ADR-0072).
 	it("lookups find the registered instance where it registered", async () => {
 		await registered();
 
-		const found = await resolver.lookup(toServiceId(SERVICE));
 		const all = await listInstances();
 
-		expect(found).toMatchObject({ serviceName: SERVICE });
 		expect(
 			all.find((instance) => instance.instanceId === instanceId)
 		).toMatchObject({ host: "127.0.0.1", port: 3000 });
-	});
-
-	it("the gateway resolves the canonical name once the registry shows it alive", async () => {
-		await registered();
-		const gateway = new EndpointResolver(
-			`${baseUrl}/`,
-			60_000,
-			recordingHttpClient(exchanges) as never
-		);
-
-		const endpoint = await gateway.resolve(toServiceId("financial-scraper"), 1);
-
-		expect(endpoint).toMatchObject({ host: "127.0.0.1", port: 3000 });
 	});
 
 	it("unregistration removes the instance from lookups", async () => {

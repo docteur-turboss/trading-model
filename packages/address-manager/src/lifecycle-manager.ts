@@ -1,41 +1,32 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type {
-	DurationMs,
 	InstanceId,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
-import type { ServiceHealthChecker } from "./discovery/service-health-checker";
 import type { HeartbeatManager } from "./heartbeat-manager";
-import type { ServiceCachePort } from "./ports/service-cache.port";
 import { SteadyStateScheduler } from "./scheduler/steady-state-scheduler";
 import type { ShutdownHandler } from "./shutdown-handler";
 
-/** Options of LifecycleManager: registration, heartbeat, cache and intervals. */
+/** Options of LifecycleManager: registration, heartbeat and intervals. */
 export interface LifecycleManagerOptions {
 	registrationManager: { tryStickyRegistration(): Promise<void> };
 	heartbeatManager: HeartbeatManager;
 	shutdownHandler: ShutdownHandler;
-	serviceCache: ServiceCachePort;
 	serviceName: ServiceId;
 	instanceId: InstanceId;
 	tokenRefreshIntervalMs: number;
 	ttlRefreshIntervalMs: number;
-	cacheTtlMs: DurationMs;
 	tokenManager: TokenManager;
 	addressManagerClient: AddressManagerClient;
-	healthChecker: ServiceHealthChecker;
 }
 
 /** Handle returned by start: wait for readiness, stop, or leave the discovery. */
 export interface LifecycleHandle {
 	ready: Promise<void>;
 	stop: () => void;
-	/**
-	 * Stops heartbeats and unregisters, without closing the service cache:
-	 * other services can still be found. `stop` remains needed afterwards.
-	 */
+	/** Stops heartbeats and unregisters. `stop` remains needed afterwards. */
 	leave: () => Promise<void>;
 }
 

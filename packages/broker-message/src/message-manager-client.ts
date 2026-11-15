@@ -1,16 +1,9 @@
 import type addressManagerClient from "@trading-model/address-manager";
-import {
-	isServiceUnreachableError,
-	serviceUnreachableError,
-} from "@trading-model/address-manager/shared/errors";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { errorProp, normalizeError } from "@trading-model/common/utils/errors";
-import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
-import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { HttpClient } from "@trading-model/http/http-client";
-import { isNonRetryableClientError } from "@trading-model/http/http-retry";
 import { logger } from "@trading-model/http/logger";
 import {
 	DurationMs,
@@ -89,67 +82,26 @@ export class MessageManagerClient implements MessageClientPort {
 	}
 
 	private async _subscribeUrl(): Promise<URLString> {
-		const target = await this._findService(
+		const target = await this._addressManagerClient.findService(
 			ServiceInstanceName.MessageManagerService
 		);
 		return URLString.of(`https://${HostPort.toAddress(target)}/subscribe`);
 	}
 
-	private async _findService(
-		service: ServiceInstanceName
-	): Promise<ServiceInstance> {
-		const target = await this._addressManagerClient.findService(service);
-		if (!target) {
-			throw serviceUnreachableError(
-				`Unable to contact the service: ${service}`
-			);
-		}
-		return target;
-	}
-
-	/** POST the message and feed the outcome to the target instance's circuit breaker. */
+	/** POST the message to message-manager. */
 	private async _publishToService<TPayload = unknown>(
-		target: ServiceInstance,
+		target: HostPort,
 		payload: TPayload,
 		metadata: MessageMetadata
 	): Promise<void> {
-		const start = Date.now();
-		try {
-			await this._httpClient.post(
-				URLString.of(`https://${HostPort.toAddress(target)}/message`),
-				{ payload, metadata: withTraceparent(metadata) },
-				PUBLISH_OPTIONS
-			);
-		} catch (error) {
-			// A business 4xx proves the target is alive: it must not open the breaker.
-			const status = errorProp(error, "statusCode") as number | undefined;
-			const targetAnswered =
-				status !== undefined &&
-				isNonRetryableClientError(status) &&
-				status !== HTTP_STATUS.REQUEST_TIMEOUT;
-			if (targetAnswered) {
-				this._addressManagerClient.recordCallSuccess(
-					target.instanceId,
-					Date.now() - start
-				);
-			} else {
-				this._addressManagerClient.recordCallFailure(
-					target.instanceId,
-					Date.now() - start
-				);
-			}
-			throw error;
-		}
-		this._addressManagerClient.recordCallSuccess(
-			target.instanceId,
-			Date.now() - start
+		await this._httpClient.post(
+			URLString.of(`https://${HostPort.toAddress(target)}/message`),
+			{ payload, metadata: withTraceparent(metadata) },
+			PUBLISH_OPTIONS
 		);
 	}
 
 	private _wrapError(error: unknown, message: string): never {
-		if (isServiceUnreachableError(error)) {
-			throw error;
-		}
 		throw messageManagerError(message, { cause: normalizeError(error) });
 	}
 
@@ -158,7 +110,7 @@ export class MessageManagerClient implements MessageClientPort {
 		metadata: MessageMetadata
 	): Promise<void> {
 		try {
-			const target = await this._findService(
+			const target = await this._addressManagerClient.findService(
 				ServiceInstanceName.MessageManagerService
 			);
 			return await this._publishToService(target, payload, metadata);

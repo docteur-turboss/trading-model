@@ -59,7 +59,7 @@ EDGE_LIMIT_KEY_INC=./deploy/edge-proxy/edge-limit-key.off.inc docker compose -f 
 | Script                           | Route (all `GET`)                                | Thresholds |
 | -------------------------------- | ------------------------------------------------ | ---------- |
 | `scenarios/candles.js`           | `/v2/financial-scraper/candles/symbols/BTCUSDT`  | SLO        |
-| `scenarios/discovery-services.js`| `/v1/discovery-server/services`                  | SLO        |
+| `scenarios/training-status.js`   | `/v1/trader-trainer/training-status`             | SLO        |
 | `scenarios/audit-events.js`      | `/v1/audit-logger/events`                        | SLO        |
 | `k6/smoke-test.js`               | the three above                                  | SLO        |
 | `k6/stress-test.js`              | the three above, up to 100 VUs                   | stress (see below; objective, not measured), not the SLO |
