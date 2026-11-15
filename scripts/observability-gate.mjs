@@ -105,8 +105,6 @@ for (const service of SERVICES) {
     "packages",
     "server-utils",
     "src",
-    "adapters",
-    "inbound",
     "configure-app.ts"
   );
   const configureApp = readFileSync(configureAppPath, "utf-8");
