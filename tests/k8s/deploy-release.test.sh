@@ -43,6 +43,11 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 # Revisions: $STUB_REVS "dep=rev" (absent: no Deployment). Undo of $STUB_UNDO_FAILS fails.
 # Grace periods: $STUB_GRACE "dep=seconds" (absent: none in the template).
 echo "$*" >>"$STUB_LOG"
+# API server down: `get deployments` fails while the count in $STUB_API_DOWN is above 0.
+if [ "$2" = deployments ] && [ -n "${STUB_API_DOWN:-}" ] && [ "$(cat "$STUB_API_DOWN")" -gt 0 ]; then
+	echo $(($(cat "$STUB_API_DOWN") - 1)) >"$STUB_API_DOWN"
+	exit 1
+fi
 if [ "$1" = get ] && [ "$2" = deployment ] && [[ $* == *terminationGracePeriodSeconds* ]]; then
 	for pair in $STUB_GRACE; do [ "${pair%%=*}" = "$3" ] && printf '%s' "${pair#*=}"; done
 	exit 0
@@ -50,7 +55,7 @@ fi
 if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0; fi
 if [ "$1" = get ] && [[ $2 == statefulset/* ]]; then [[ $* == *updateRevision* ]] && printf '%s-abc' "${2#*/}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
-if [ "$1" = wait ] || [ "$1" = delete ]; then exit 0; fi
+if [ "$1" = wait ] || [ "$1" = delete ] || [ "$1" = create ] || [ "$2" = configmap ] || [ "$2" = deployments ]; then exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
 if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] || [ "$3" = "statefulset/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
 if [ "$1" = get ] && [ "$2" = deployment ]; then
@@ -80,6 +85,21 @@ printf 'discovery-server 4\napi-gateway 7\n' >"$WORK/revs"
 STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	grep -q "rollout undo deployment/api-gateway -n ns --to-revision=7" "$WORK/log" &&
 	ok "rollback undoes to the recorded revision" || ko "rollback: $(cat "$WORK/log")"
+
+printf '#!/bin/sh\necho "sleep $*" >>"$STUB_LOG"\n' >"$WORK/bin/sleep"
+chmod +x "$WORK/bin/sleep"
+echo 2 >"$WORK/api-down"
+: >"$WORK/log"
+STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1 &&
+	[ "$(grep -c '^sleep 10$' "$WORK/log")" -eq 2 ] && grep -q "rollout undo deployment/api-gateway -n ns --to-revision=7" "$WORK/log" &&
+	ok "rollback waits for the API server, then rolls back" || ko "rollback API wait: $(cat "$WORK/log")"
+echo 1000 >"$WORK/api-down"
+: >"$WORK/log"
+out="$(STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+	ko "rollback succeeded with the API server down" ||
+	{ [[ $out == *"API server unreachable for 300 s"* ]] && ! grep -q "rollout undo\|delete configmap" "$WORK/log" &&
+		ok "rollback gives up after 300 s of API server down, nothing undone, ConfigMap kept" || ko "rollback API down: $out"; }
+rm "$WORK/bin/sleep"
 
 printf 'discovery-server 4\nedge-proxy none\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
