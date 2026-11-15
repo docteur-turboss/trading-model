@@ -1022,7 +1022,7 @@ services:
   # Traces: services export OTLP/HTTP straight to Jaeger (no collector in compose).
   jaeger:
     logging: *default-logging
-    image: jaegertracing/all-in-one@sha256:7e9591218e7ddd51e568ef892e3ea190ae420ecf97c4d718910a3f57e076c216
+    image: jaegertracing/all-in-one@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
     container_name: trading-jaeger
     restart: unless-stopped
     ports:
