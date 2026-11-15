@@ -76,8 +76,6 @@ paths:
                     eventType:
                       type: "string"
                       enum:
-                        - "example.debug.create"
-                        - "example.show.create"
                         - "market.trade.recent.fetch"
                         - "market.ticker.24hr-stats.fetch"
                         - "market.candlestick.series.fetch"

@@ -95,7 +95,7 @@ describe("BrokerMessage", () => {
 		});
 
 		it("should call subscribe with topics", async () => {
-			const topics = ["example.debug.create"];
+			const topics = ["market.candlestick.series.fetch"];
 			await broker.intents(topics);
 			expect(
 				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe
@@ -107,13 +107,13 @@ describe("BrokerMessage", () => {
 				new Error("message-manager unreachable") as never
 			);
 			await expect(
-				broker.intents(["example.debug.create"])
+				broker.intents(["market.candlestick.series.fetch"])
 			).resolves.toBeUndefined();
 		});
 
 		it("should renew the subscriptions periodically (message-manager keeps them in memory)", async () => {
 			jest.useFakeTimers();
-			await broker.intents(["example.debug.create"]);
+			await broker.intents(["market.candlestick.series.fetch"]);
 			MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe.mockClear();
 
 			await jest.advanceTimersByTimeAsync(SUBSCRIPTION_REFRESH_MS * 2);
@@ -126,7 +126,7 @@ describe("BrokerMessage", () => {
 
 	describe("stopMessageManager", () => {
 		it("should call unsubscribe with topics", async () => {
-			const topics = ["example.debug.create"];
+			const topics = ["market.candlestick.series.fetch"];
 			await broker.intents(topics);
 			await broker.stopMessageManager();
 			expect(
@@ -136,14 +136,17 @@ describe("BrokerMessage", () => {
 
 		it("should call kill functions from event array", async () => {
 			const killFn = jest.fn<(...args: any[]) => any>();
-			EVENT_MANAGER.on("example.debug.create" as never as any, killFn);
+			EVENT_MANAGER.on(
+				"market.candlestick.series.fetch" as never as any,
+				killFn
+			);
 			broker = new BrokerMessage(defaultParams);
-			broker.on("example.debug.create" as never, killFn);
+			broker.on("market.candlestick.series.fetch" as never, killFn);
 			await broker.stopMessageManager();
 		});
 
 		it("should reset topics after stop", async () => {
-			const topics = ["example.debug.create"];
+			const topics = ["market.candlestick.series.fetch"];
 			await broker.intents(topics);
 			await broker.stopMessageManager();
 			expect(
@@ -155,16 +158,20 @@ describe("BrokerMessage", () => {
 	describe("on", () => {
 		it("should register an event listener and trigger on emit", () => {
 			const listener = jest.fn<(...args: any[]) => any>();
-			broker.on("example.debug.create" as never, listener);
-			(EVENT_MANAGER as any).emit("example.debug.create", { debug: true });
-			expect(listener).toHaveBeenCalledWith({ debug: true });
+			broker.on("market.candlestick.series.fetch" as never, listener);
+			(EVENT_MANAGER as any).emit("market.candlestick.series.fetch", {
+				candle: [],
+			});
+			expect(listener).toHaveBeenCalledWith({ candle: [] });
 		});
 
 		it("should trigger listener when event is emitted", () => {
 			const listener = jest.fn<(...args: any[]) => any>();
-			broker.on("example.debug.create" as never, listener);
-			(EVENT_MANAGER as any).emit("example.debug.create", { debug: true });
-			expect(listener).toHaveBeenCalledWith({ debug: true });
+			broker.on("market.candlestick.series.fetch" as never, listener);
+			(EVENT_MANAGER as any).emit("market.candlestick.series.fetch", {
+				candle: [],
+			});
+			expect(listener).toHaveBeenCalledWith({ candle: [] });
 		});
 	});
 

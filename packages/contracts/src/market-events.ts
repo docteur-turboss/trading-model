@@ -11,8 +11,6 @@ import type {
 } from "./market-data.types";
 
 export enum MarketEvent {
-	TestEvent = "example.debug.create",
-	ExampleEvent = "example.show.create",
 	FetchRecentTrades = "market.trade.recent.fetch",
 	Fetch24hrTickerStats = "market.ticker.24hr-stats.fetch",
 	FetchCandlestickSeries = "market.candlestick.series.fetch",
@@ -22,8 +20,6 @@ export enum MarketEvent {
 }
 
 export interface MarketEventMap {
-	[MarketEvent.TestEvent]: { debug: boolean };
-	[MarketEvent.ExampleEvent]: undefined;
 	[MarketEvent.FetchRecentTrades]: { trades: TradeData[] };
 	[MarketEvent.Fetch24hrTickerStats]: { ticker: TickerData[] };
 	[MarketEvent.FetchCandlestickSeries]: { candle: CandleData[] };
