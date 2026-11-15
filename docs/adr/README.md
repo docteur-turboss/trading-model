@@ -78,7 +78,8 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0068](./0068-test-segment-for-published-model-metrics.md) | Test Segment for the Published Model Metrics | Accepted | 2026-11 |
 | [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md) | Model Admission Verdict on the Test Segment | Accepted | 2026-11 |
 | [ADR-0070](./0070-replayed-dead-letter-reopens-its-entry.md) | A Replayed Dead Letter That Fails Again Reopens Its Entry | Accepted | 2026-11 |
-| [ADR-0071](./0071-empty-registry-serves-last-known-target.md) | An Empty Registry Answer Serves the Last Known Target for 60 Seconds | Accepted | 2026-11 |
+| [ADR-0071](./0071-empty-registry-serves-last-known-target.md) | An Empty Registry Answer Serves the Last Known Target for 60 Seconds | Superseded by [ADR-0072](./0072-gateway-routes-on-service-dns-majors-served-by-services.md) | 2026-11 |
+| [ADR-0072](./0072-gateway-routes-on-service-dns-majors-served-by-services.md) | The Gateway Routes on the Service DNS Name, Each Service Serves Its API Majors | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

@@ -26,6 +26,7 @@ export function createServer(
 	return createServiceServer({
 		env: ENV,
 		serviceId: ServiceId.of("audit-logger"),
+		apiVersions: [1],
 		routes: (app) => {
 			_registerRoutes(app, auditRepo, messageHandler);
 		},

@@ -24,7 +24,10 @@ import { MTLSAuthMiddleware } from "@trading-model/http/mtls-auth";
 import { MTLSAuthorizationMiddleware } from "@trading-model/http/mtls-authorization";
 import { ResponseProtocol } from "@trading-model/http/response-protocol";
 import { configureApp } from "../src/configure-app";
-import { createSecureServer } from "../src/create-secure-server";
+import {
+	apiVersionPrefix,
+	createSecureServer,
+} from "../src/create-secure-server";
 import { createAndStartHttpsServer } from "../src/server-factory";
 
 const mockApp = { use: jest.fn() };
@@ -176,5 +179,34 @@ describe("createSecureServer", () => {
 		const result = await createSecureServer(options);
 
 		expect(result).toBe(mockServer);
+	});
+});
+
+describe("apiVersionPrefix", () => {
+	function run(url: string) {
+		const req = { url };
+		const json = jest.fn();
+		const res = { status: jest.fn(() => ({ json })) };
+		const next = jest.fn();
+		apiVersionPrefix([2])(req as never, res as never, next);
+		return { url: req.url, next, status: res.status, json };
+	}
+
+	it.each([
+		["/v2/candles/symbols/BTC", "/candles/symbols/BTC"],
+		["/v2?page=1", "/?page=1"],
+		["/v2", "/"],
+		["/candles", "/candles"],
+		["/v2x/candles", "/v2x/candles"],
+	])("serves %s on the routes as %s", (url, routed) => {
+		const result = run(url);
+		expect(result.url).toBe(routed);
+		expect(result.next).toHaveBeenCalled();
+	});
+
+	it("answers 404 to a major the service does not serve", () => {
+		const result = run("/v1/candles");
+		expect(result.status).toHaveBeenCalledWith(404);
+		expect(result.next).not.toHaveBeenCalled();
 	});
 });

@@ -5,11 +5,6 @@ import express from "express";
 
 jest.setTimeout(15000);
 
-// The mTLS discovery client loads the SVID files at construction.
-jest.mock("../../src/config/container", () => ({
-	discoveryClient: { get: jest.fn<(...args: any[]) => any>() },
-}));
-
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		NODE_ENV: "test",
@@ -17,7 +12,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		TLS_KEY_PATH: "",
 		TLS_CERT_PATH: "",
 		TLS_CA_PATH: "",
-		DISCOVERY_SERVICE_URL: "http://localhost:3000",
 		RATE_LIMIT_WINDOW_MS: 60000,
 		RATE_LIMIT_MAX: 2,
 		CACHE_TTL_MS: 30000,
@@ -36,16 +30,10 @@ jest.mock("@trading-model/http/logger", () => ({
 	},
 }));
 
-jest.mock("@trading-model/address-manager/discovery/endpoint-resolver", () => ({
-	EndpointResolver: jest
+jest.mock("node:dns/promises", () => ({
+	lookup: jest
 		.fn<(...args: any[]) => any>()
-		.mockImplementation(() => ({
-			resolve: jest.fn<(...args: any[]) => any>().mockResolvedValue({
-				host: "10.0.0.5",
-				port: 3000,
-				version: "1.2.0",
-			}),
-		})),
+		.mockResolvedValue({ address: "10.0.0.5", family: 4 }),
 }));
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({

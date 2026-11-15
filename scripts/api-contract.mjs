@@ -54,14 +54,18 @@ const PUBLIC_ROUTES_PATH = join(ROOT, "services/api-gateway/src/shared/public-ro
 const API_MAJOR_VERSION = 1;
 
 /**
- * Major version a service registers in discovery, hence its gateway prefix
- * `/v<major>/<service>`: the major of APP_VERSION in its K8s config (compose
- * sets the same), 1 when unset (the address-manager default "1.0.0").
+ * Majors a service serves under `/v<major>`: the `apiVersions` its server
+ * passes to createServiceServer (ADR-0072), none when absent.
  */
-function serviceMajor(service) {
-	const file = join(ROOT, "deploy/k8s/config", `${service}.properties`);
-	const text = existsSync(file) ? readFileSync(file, "utf8") : "";
-	return Number(text.match(/^APP_VERSION=(\d+)\./m)?.[1] ?? API_MAJOR_VERSION);
+function servedMajors(service) {
+	const file = join(ROOT, "services", service, "src/application/server.ts");
+	const list = existsSync(file) ? readFileSync(file, "utf8").match(/apiVersions:\s*\[([\d,\s]*)\]/)?.[1] : undefined;
+	return (list ?? "").split(",").filter((v) => v.trim()).map(Number);
+}
+
+/** Majors of a service in PUBLIC_ROUTES. */
+function publicMajors(publicByService, service) {
+	return [...new Set(publicByService[service]?.map((route) => route.major))];
 }
 
 /** Services the gateway proxies to, by canonical (SPIFFE) name. */
@@ -384,7 +388,7 @@ function isInternal(service, route) {
 	return INFRASTRUCTURE_PATHS.has(route.path) || (SERVICE_TO_SERVICE[service] ?? []).includes(routeKey(route));
 }
 
-/** The gateway's PUBLIC_ROUTES (`METHOD /<service>/<path>`), by service. */
+/** The gateway's PUBLIC_ROUTES (`METHOD /v<major>/<service>/<path>`), by service. */
 function readPublicRoutes() {
 	const entries = [];
 	visit(parse(PUBLIC_ROUTES_PATH), (node) => {
@@ -400,12 +404,16 @@ function readPublicRoutes() {
 	if (entries.length === 0) errors.push(`${rel(PUBLIC_ROUTES_PATH)}: PUBLIC_ROUTES not found`);
 	const byService = Object.fromEntries(PROXIED_SERVICES.map((service) => [service, []]));
 	for (const entry of entries) {
-		const match = entry.match(/^(GET|POST|PUT|PATCH|DELETE) \/([a-z][a-z0-9-]*)(\/\S*)$/);
-		if (!match || !byService[match[2]]) {
-			errors.push(`PUBLIC_ROUTES: "${entry}" is not "METHOD /<proxied service>/<path>"`);
+		const match = entry.match(/^(GET|POST|PUT|PATCH|DELETE) \/v(\d+)\/([a-z][a-z0-9-]*)(\/\S*)$/);
+		if (!match || !byService[match[3]]) {
+			errors.push(`PUBLIC_ROUTES: "${entry}" is not "METHOD /v<major>/<proxied service>/<path>"`);
 			continue;
 		}
-		byService[match[2]].push({ method: match[1], path: match[3] });
+		const major = Number(match[2]);
+		if (!servedMajors(match[3]).includes(major)) {
+			errors.push(`PUBLIC_ROUTES: "${entry}": ${match[3]} does not list ${major} in the apiVersions of its server`);
+		}
+		byService[match[3]].push({ method: match[1], path: match[4], major });
 	}
 	return byService;
 }
@@ -703,8 +711,8 @@ function buildSpec(routesByService, publicByService) {
 		"  description: |",
 		"    Single external entry point of the platform. The gateway authenticates",
 		"    the request (API key), rate limits it, then proxies",
-		"    `/v{major}/{service}/{path}` to `{path}` on an instance of `{service}`",
-		"    registered in discovery with that major version.",
+		"    `/v{major}/{service}/{path}` to `{path}` on the Kubernetes Service (or",
+		"    compose service) `{service}`; a route is public for the majors listed.",
 		"",
 		"    Paths and methods are read from the code. Routes mounted from a",
 		"    registry entry (ADR-0021) also describe their parameters, request body",
@@ -713,7 +721,7 @@ function buildSpec(routesByService, publicByService) {
 		"",
 		"    Privacy: the truncated caller IP is logged for 31 days, see the Art. 13",
 		"    notice, https://github.com/docteur-turboss/trading-model/blob/main/docs/compliance/privacy-notice.md",
-		`  version: ${JSON.stringify(PROXIED_SERVICES.map((service) => `${service} v${serviceMajor(service)}`).join(", "))}`,
+		`  version: ${JSON.stringify(PROXIED_SERVICES.flatMap((service) => publicMajors(publicByService, service).map((major) => `${service} v${major}`)).join(", "))}`,
 		"servers:",
 		"  - url: http://localhost:8449",
 		"    description: Development (compose) — edge-proxy, which forwards /v{major} to the gateway over mTLS",
@@ -745,10 +753,10 @@ function buildSpec(routesByService, publicByService) {
 			meta: { tag: "api-gateway", summary: `Handled by the gateway (${route.file})`, auth: route.path !== "/ping" },
 		})),
 		...PROXIED_SERVICES.flatMap((service) =>
-			routesByService[service]
-				.filter((route) => publicByService[service].some((pub) => routeKey(pub) === routeKey(route)))
+			publicByService[service]
+				.flatMap((pub) => routesByService[service].filter((route) => routeKey(pub) === routeKey(route)).map((route) => ({ ...route, major: pub.major })))
 				.map((route) => ({
-					path: `/v${serviceMajor(service)}/${service}${route.path}`,
+					path: `/v${route.major}/${service}${route.path}`,
 					method: route.method,
 					meta: route.entry
 						? { tag: service, entry: route.entry, operation: route.operation }
@@ -930,14 +938,13 @@ function documentedGatewayUrls(publicByService, serviceNames) {
 		for (const match of readFileSync(file, "utf8").matchAll(GATEWAY_URL)) {
 			const path = `/${match[2]}`;
 			const service = serviceNames.get(match[2].split("/")[0]);
-			const major = service ? serviceMajor(service) : API_MAJOR_VERSION;
+			const majors = service ? publicMajors(publicByService, service) : [API_MAJOR_VERSION];
 			checked.push({
 				key: `${rel(file)} /v${match[1]}${path}`,
 				where: rel(file),
-				reason:
-					Number(match[1]) === major
-						? gatewayReason(path, null, publicByService, serviceNames)
-						: `the gateway serves ${service ?? "this service"} at /v${major}`,
+				reason: majors.includes(Number(match[1]))
+					? gatewayReason(path, null, publicByService, serviceNames)
+					: `the gateway serves ${service ?? "this service"} at /v${majors.join(", /v")}`,
 			});
 		}
 	}

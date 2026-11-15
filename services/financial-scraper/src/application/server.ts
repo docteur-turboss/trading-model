@@ -26,6 +26,7 @@ export function createServer() {
 	return createServiceServer({
 		env: ENV,
 		serviceId: ServiceId.of("financial-scraper"),
+		apiVersions: [2],
 		routes: _registerScraperRoutes,
 		readiness: [
 			REGISTRATION_READINESS,

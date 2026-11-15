@@ -20,6 +20,7 @@ export function createServer(trainer: Trainer, models: TrainerRoutesOptions) {
 	return createServiceServer({
 		env: ENV,
 		serviceId: ServiceId.of("trader-trainer"),
+		apiVersions: [1],
 		routes: (app) => {
 			app.use(TRAINER_ROUTES(trainer, models));
 			app.get("/metrics", metricsHandler);

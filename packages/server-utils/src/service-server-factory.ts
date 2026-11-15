@@ -20,6 +20,8 @@ export interface ServiceServerOptions {
 	routes: (app: Application) => void;
 	trustProxy?: boolean;
 	readiness?: ReadinessCheck[];
+	/** Public API majors served under `/v<major>` (ADR-0072). */
+	apiVersions?: readonly number[];
 }
 
 export function createServiceServer(
@@ -32,6 +34,7 @@ export function createServiceServer(
 		authorize: _resolveAuthorization(options),
 		routes: options.routes,
 		readiness: options.readiness,
+		apiVersions: options.apiVersions,
 	});
 }
 

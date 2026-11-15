@@ -3,7 +3,7 @@ import { MTLSAuthMiddleware } from "@trading-model/http/mtls-auth";
 import { MTLSAuthorizationMiddleware } from "@trading-model/http/mtls-authorization";
 import { ResponseProtocol } from "@trading-model/http/response-protocol";
 import type { ServiceId } from "@trading-model/primitives/primitives";
-import type { Application } from "express";
+import type { Application, RequestHandler } from "express";
 import { configureApp } from "./configure-app";
 import type { ReadinessCheck } from "./readiness";
 import {
@@ -28,6 +28,32 @@ export interface SecureServerOptions extends HttpsServerOptions {
 	trustProxy?: boolean;
 	authorize?: AuthorizationOptions;
 	readiness?: ReadinessCheck[];
+	/**
+	 * Public API majors the routes serve under `/v<major>` (ADR-0072), besides
+	 * the bare paths service-to-service callers use. Another `/v<n>` answers 404.
+	 */
+	apiVersions?: readonly number[];
+}
+
+/**
+ * Serves a listed `/v<major>/...` on the routes without its prefix, answers
+ * 404 to an unlisted major.
+ */
+export function apiVersionPrefix(majors: readonly number[]): RequestHandler {
+	return (req, res, next) => {
+		const match = /^\/v(\d+)(?=[/?]|$)/.exec(req.url);
+		if (!match) {
+			next();
+			return;
+		}
+		if (!majors.includes(Number(match[1]))) {
+			res.status(404).json({ error: `API version v${match[1]} not served` });
+			return;
+		}
+		const rest = req.url.slice(match[0].length);
+		req.url = rest.startsWith("/") ? rest : `/${rest}`;
+		next();
+	};
 }
 
 /**
@@ -52,6 +78,9 @@ export async function createSecureServer(
 		app.use(MTLSAuthorizationMiddleware(options.authorize.targetService));
 	}
 
+	if (options.apiVersions) {
+		app.use(apiVersionPrefix(options.apiVersions));
+	}
 	options.routes(app);
 
 	app.use(ResponseProtocol);

@@ -9,6 +9,7 @@ export function createServer(handlers: DlqHandlers) {
 	return createServiceServer({
 		env: ENV,
 		serviceId: ServiceId.of("dlq-service"),
+		apiVersions: [1],
 		trustProxy: true,
 		routes: (app) => {
 			app.use(DlqRoutes(handlers));

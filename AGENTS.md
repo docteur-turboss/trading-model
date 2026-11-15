@@ -16,7 +16,7 @@ bun run api:check               # OpenAPI up to date + documented routes reach r
 bun run api:write               # Regenerate docs/services/openapi/api-gateway.yaml from the routes
 bun run contracts:check          # Bus message JSON Schema snapshot (docs/services/events/schemas.json) up to date; contracts:write regenerates, contracts:compat compares with the last release tag (ADR-0061)
 bun run adr:check               # Every live ADR names its check; supersession + index consistent
-bun run test:contract           # Cross-service contracts, real code on both sides: messages (scraper/trainer → message-manager → trainer/audit-logger), dead letters, discovery (address-manager + gateway → discovery-server)
+bun run test:contract           # Cross-service contracts, real code on both sides: messages (scraper/trainer → message-manager → trainer/audit-logger), dead letters, discovery (address-manager → discovery-server)
 bun run reach:report            # Report src no service entry point (main/bin) reaches (--list for files)
 bun run reach:check             # Gate: fails on any unreachable src line or spec of dead code (ADR-0029)
 bun run arch:check              # Gate: fails on a new runtime import cycle or an application/ file importing adapters/infrastructure; ratcheted on scripts/architecture-baseline.json (ADR-0015)

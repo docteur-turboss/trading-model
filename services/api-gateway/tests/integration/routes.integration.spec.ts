@@ -12,11 +12,6 @@ import express from "express";
 
 jest.setTimeout(15000);
 
-// The mTLS discovery client loads the SVID files at construction.
-jest.mock("../../src/config/container", () => ({
-	discoveryClient: { get: jest.fn<(...args: any[]) => any>() },
-}));
-
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		NODE_ENV: "test",
@@ -24,7 +19,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		TLS_KEY_PATH: "",
 		TLS_CERT_PATH: "",
 		TLS_CA_PATH: "",
-		DISCOVERY_SERVICE_URL: "http://localhost:3000",
 		RATE_LIMIT_WINDOW_MS: 60000,
 		RATE_LIMIT_MAX: 1000,
 		CACHE_TTL_MS: 30000,
@@ -44,24 +38,15 @@ jest.mock("@trading-model/http/logger", () => ({
 	},
 }));
 
-jest.mock("@trading-model/address-manager/discovery/endpoint-resolver", () => ({
-	EndpointResolver: jest
+jest.mock("node:dns/promises", () => ({
+	lookup: jest
 		.fn<(...args: any[]) => any>()
-		.mockImplementation(() => ({
-			resolve: jest
-				.fn<(...args: any[]) => any>()
-				.mockImplementation((serviceName: string) => {
-					// No trader-trainer instance is registered.
-					if (serviceName === "trader-trainer") {
-						return Promise.resolve(null);
-					}
-					return Promise.resolve({
-						host: "10.0.0.5",
-						port: 3000,
-						version: "1.2.0",
-					});
-				}),
-		})),
+		.mockImplementation((name: string) =>
+			// No trader-trainer Service resolves.
+			name === "trader-trainer"
+				? Promise.reject(new Error("getaddrinfo ENOTFOUND trader-trainer"))
+				: Promise.resolve({ address: "10.0.0.5", family: 4 })
+		),
 }));
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
@@ -214,7 +199,7 @@ describe("API Gateway — Routes Integration", () => {
 		expect(call).toMatchObject({ path: "/events/stats" });
 	});
 
-	it("should return 404 when the service is not registered", async () => {
+	it("should return 503 when the service name does not resolve", async () => {
 		const app = createApp();
 		await new Promise<void>((resolve) => {
 			server = app.listen(0, () => resolve());
@@ -222,12 +207,8 @@ describe("API Gateway — Routes Integration", () => {
 		const result = await request(server, "/v1/trader-trainer/training-status", {
 			headers: AUTH_HEADERS,
 		});
-		expect(result.status).toBe(404);
-		expect(result.body).toMatchObject({
-			error: "Service not found",
-			service: "trader-trainer",
-			version: 1,
-		});
+		expect(result.status).toBe(503);
+		expect(result.body).toMatchObject({ error: "Service unavailable" });
 		expect(forwardRequest).not.toHaveBeenCalled();
 	});
 

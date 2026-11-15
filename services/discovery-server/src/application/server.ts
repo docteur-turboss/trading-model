@@ -25,6 +25,7 @@ export function createServer(
 	return createServiceServer({
 		env: ENV,
 		serviceId: ServiceId.of("discovery-server"),
+		apiVersions: [1],
 		routes: (app) => _mountDiscoveryRoutes(app, registry),
 		readiness: options?.readiness,
 	});

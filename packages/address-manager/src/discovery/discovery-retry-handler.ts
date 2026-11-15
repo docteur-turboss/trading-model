@@ -37,7 +37,6 @@ export interface DiscoveryRetryHandlerDeps {
 
 /** Finds a service address: cache first, then discovery behind the circuit breaker, retried and falling back to a stale entry. */
 export class DiscoveryRetryHandler {
-	/** Same selection logic as the gateway (ADR-0045). */
 	private readonly _endpoints: EndpointResolver;
 	private readonly _serviceCache: ServiceCachePort;
 	private readonly _healthChecker: ServiceHealthChecker;
@@ -50,7 +49,6 @@ export class DiscoveryRetryHandler {
 		this._healthChecker = deps.healthChecker;
 		this._endpoints = new EndpointResolver(
 			deps.config.addressManagerUrl,
-			Number(deps.config.cacheTtlMs),
 			deps.httpClient,
 			deps.config.discoveryTimeoutMs
 		);

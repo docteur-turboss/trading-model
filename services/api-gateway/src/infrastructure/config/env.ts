@@ -8,10 +8,6 @@ import { z } from "zod";
 import { parseApiKey } from "../../shared/api-keys";
 
 const API_GATEWAY_ENV_SHAPE = {
-	DISCOVERY_SERVICE_URL: z
-		.string()
-		.url()
-		.default("https://discovery-server:3000"),
 	RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
 	RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
 	CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),

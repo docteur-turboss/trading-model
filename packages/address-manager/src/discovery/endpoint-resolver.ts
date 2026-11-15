@@ -1,4 +1,3 @@
-import { lookup } from "node:dns/promises";
 import {
 	normalizeServiceName,
 	registryNamesFor,
@@ -8,51 +7,23 @@ import type { ServiceInstance } from "@trading-model/contracts/service-registry-
 import { HttpClient } from "@trading-model/http/http-client";
 import {
 	type DurationMs,
-	IPAddress,
-	type Port,
 	type ServiceId,
-	UnixTimestamp,
 	URLString,
-	type Version,
 } from "@trading-model/primitives/primitives";
 import { ServiceInstancesWire } from "@trading-model/validation/wire/service-instance";
 
 const DISCOVERY_SERVICE = "discovery-server";
-/** How long an empty registry answer still serves the last known target (ADR-0071). */
-const EMPTY_REGISTRY_GRACE_MS = 60_000;
-
-/** Where a call goes: an IP (so callers can check it against a CIDR allowlist). */
-export interface ResolvedTarget {
-	host: IPAddress;
-	port: Port;
-	version: Version;
-}
-
-interface CachedTarget {
-	target: ResolvedTarget | null;
-	expiresAt: UnixTimestamp;
-	/** When the registry last answered with a live instance. */
-	seenAt: UnixTimestamp;
-}
 
 /**
- * The one resolution strategy (ADR-0045): the registry says whether a major
- * version of the service is alive, the platform says where it is (DNS name of
- * the Service, resolved to an IP; kube-proxy / compose DNS spread the calls).
- * The registered instance IP is never used as the target.
+ * Registry lookups of the address-manager clients (ADR-0045). The gateway no
+ * longer asks the registry: it routes on the Service DNS name (ADR-0072).
  */
 export class EndpointResolver {
-	private readonly _cache = new Map<string, CachedTarget>();
-	private readonly _inFlight = new Map<
-		string,
-		Promise<ResolvedTarget | null>
-	>();
 	private readonly _discoveryUrl: string;
 	private readonly _httpClient: HttpClient;
 
 	constructor(
 		discoveryUrl: string,
-		private readonly _cacheTtlMs: number,
 		httpClient?: HttpClient,
 		private readonly _timeoutMs?: DurationMs
 	) {
@@ -65,91 +36,10 @@ export class EndpointResolver {
 		this._httpClient = httpClient ?? new HttpClient();
 	}
 
-	resolve(
-		serviceName: ServiceId,
-		majorVersion?: number
-	): Promise<ResolvedTarget | null> {
-		const key = `${serviceName}:v${majorVersion}`;
-		const cached = this._cache.get(key);
-		if (cached && Date.now() < cached.expiresAt) {
-			return Promise.resolve(cached.target);
-		}
-		// One lookup in flight per key: concurrent callers on an expired entry share it.
-		const pending = this._inFlight.get(key);
-		if (pending !== undefined) {
-			return pending;
-		}
-		const lookup = this._refresh(
-			key,
-			serviceName,
-			majorVersion,
-			cached
-		).finally(() => this._inFlight.delete(key));
-		this._inFlight.set(key, lookup);
-		return lookup;
-	}
-
-	private async _refresh(
-		key: string,
-		serviceName: ServiceId,
-		majorVersion: number | undefined,
-		cached: CachedTarget | undefined
-	): Promise<ResolvedTarget | null> {
-		let alive: ServiceInstance | undefined;
-		try {
-			alive = await this._aliveInstance(serviceName, majorVersion);
-		} catch (error) {
-			// Registry unreachable: the last known answer beats a 404 on a healthy service.
-			getLogger().warn("Registry unreachable, serving last known target", {
-				context: { serviceName, majorVersion, error: String(error) },
-			});
-			return cached?.target ?? null;
-		}
-		if (
-			!alive &&
-			cached?.target &&
-			Date.now() - cached.seenAt < EMPTY_REGISTRY_GRACE_MS
-		) {
-			// Registry emptied (Redis restart) while services re-register: entry left expired, so the next call asks again.
-			getLogger().warn("Registry answered empty, serving last known target", {
-				context: { serviceName, majorVersion },
-			});
-			return cached.target;
-		}
-		const target = alive ? await this._locate(serviceName, alive) : null;
-		const now = Date.now();
-		this._cache.set(key, {
-			target,
-			expiresAt: UnixTimestamp.of(now + this._cacheTtlMs),
-			seenAt: UnixTimestamp.of(now),
-		});
-		return target;
-	}
-
-	private async _locate(
-		serviceName: ServiceId,
-		instance: ServiceInstance
-	): Promise<ResolvedTarget> {
-		const isDiscovery =
-			String(normalizeServiceName(serviceName)) === DISCOVERY_SERVICE;
-		// Discovery never registers: it is reached at its configured URL.
-		const url = new URL(this._discoveryUrl);
-		const dnsName = isDiscovery
-			? url.hostname
-			: String(normalizeServiceName(serviceName));
-		const { address } = await lookup(dnsName, { family: 4 });
-		return {
-			host: IPAddress.of(address),
-			port: (isDiscovery ? Number(url.port || 443) : instance.port) as Port,
-			version: (isDiscovery ? "1.0.0" : instance.version) as Version,
-		};
-	}
-
 	/**
 	 * First live registered instance of the service (of the wanted major
-	 * version, any when omitted), asked under every registry alias. The one
-	 * selection path: `resolve` (gateway) and `DiscoveryRetryHandler.lookup`
-	 * (address-manager) both go through it. Throws when the registry cannot be
+	 * version, any when omitted), asked under every registry alias. Used by
+	 * `DiscoveryRetryHandler.lookup`. Throws when the registry cannot be
 	 * reached; `undefined` means it answered and nothing matches.
 	 */
 	findInstance(
@@ -203,18 +93,6 @@ export class EndpointResolver {
 		}
 		if (!answered) {
 			throw lastError;
-		}
-	}
-
-	invalidateCache(serviceName?: string): void {
-		if (!serviceName) {
-			this._cache.clear();
-			return;
-		}
-		for (const key of this._cache.keys()) {
-			if (key.startsWith(serviceName)) {
-				this._cache.delete(key);
-			}
 		}
 	}
 }

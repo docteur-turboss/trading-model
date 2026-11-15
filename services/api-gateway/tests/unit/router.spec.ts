@@ -1,14 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
-// The mTLS discovery client loads the SVID files at construction.
-jest.mock("../../src/config/container", () => ({
-	discoveryClient: { get: jest.fn<(...args: any[]) => any>() },
-}));
-
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
-		DISCOVERY_SERVICE_URL: "https://discovery:3000",
 		AUTH_TOKEN_HEADER: "x-api-key",
 		AUTH_TOKENS: "",
 		RATE_LIMIT_WINDOW_MS: 60000,
@@ -39,24 +33,15 @@ jest.mock("@trading-model/http/logger", () => ({
 	},
 }));
 
-jest.mock("@trading-model/address-manager/discovery/endpoint-resolver", () => ({
-	EndpointResolver: jest
+jest.mock("node:dns/promises", () => ({
+	lookup: jest
 		.fn<(...args: any[]) => any>()
-		.mockImplementation(() => ({
-			resolve: jest
-				.fn<(...args: any[]) => any>()
-				.mockImplementation((name: string) => {
-					// No trader-trainer instance is registered.
-					if (name === "trader-trainer") {
-						return Promise.resolve(null);
-					}
-					return Promise.resolve({
-						host: "10.0.1.5",
-						port: 3000,
-						version: "1.2.0",
-					});
-				}),
-		})),
+		.mockImplementation((name: string) =>
+			// No trader-trainer Service resolves.
+			name === "trader-trainer"
+				? Promise.reject(new Error("getaddrinfo ENOTFOUND trader-trainer"))
+				: Promise.resolve({ address: "10.0.1.5", family: 4 })
+		),
 }));
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
@@ -169,7 +154,7 @@ describe("router", () => {
 				["POST", "/v1/discovery-server/heartbeat"],
 				["POST", "/v1/message-manager/message"],
 				["DELETE", "/v1/message-manager/subscribe"],
-				["POST", "/v1/financial-scraper/candles/symbols/BTCUSDT"],
+				["POST", "/v2/financial-scraper/candles/symbols/BTCUSDT"],
 			]) {
 				expect(await get(path, method)).toEqual({
 					status: 404,
@@ -179,15 +164,36 @@ describe("router", () => {
 			expect(forwardRequest).not.toHaveBeenCalled();
 		});
 
-		it("should return 404 when no instance of the service is registered", async () => {
+		it("should return 503 when the service name does not resolve", async () => {
 			expect(await get("/v1/trader-trainer/training-status")).toEqual({
-				status: 404,
-				data: {
-					error: "Service not found",
-					service: "trader-trainer",
-					version: 1,
-				},
+				status: 503,
+				data: { error: "Service unavailable" },
 			});
+		});
+
+		// The registry is never asked: a Redis outage cannot turn a healthy service into a 404.
+		it("should forward to the service's DNS name on port 3000", async () => {
+			mockForwardSuccess({ data: "ok" });
+			const {
+				forwardRequest,
+			} = require("../../src/adapters/outbound/proxy-handler");
+			const { lookup } = require("node:dns/promises");
+
+			await get("/v1/audit-logger/events/dns");
+
+			expect(lookup).toHaveBeenCalledWith("audit-logger", { family: 4 });
+			expect(forwardRequest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					target: { host: "10.0.1.5", port: 3000 },
+					path: "/events/dns",
+				})
+			);
+		});
+
+		it("should return 404 for a major the route is not listed with", async () => {
+			expect(
+				await get("/v1/financial-scraper/candles/symbols/BTCUSDT")
+			).toEqual({ status: 404, data: { error: "Route not found" } });
 		});
 
 		/** A GET with a query string: Express leaves it out of `req.path` only. */
@@ -204,7 +210,7 @@ describe("router", () => {
 			} = require("../../src/adapters/outbound/proxy-handler");
 
 			await getUrl(
-				"/v1/financial-scraper/signals/assets/BTC?from=2026-11-01&to=2026-11-02"
+				"/v2/financial-scraper/signals/assets/BTC?from=2026-11-01&to=2026-11-02"
 			);
 
 			expect(forwardRequest).toHaveBeenCalledWith(

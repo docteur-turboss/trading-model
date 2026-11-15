@@ -15,15 +15,13 @@ import express from "express";
 import { AddressManagerClient } from "../../packages/address-manager/src/client/address-manager-client";
 import { TokenManager } from "../../packages/address-manager/src/client/token-manager";
 import { DiscoveryRetryHandler } from "../../packages/address-manager/src/discovery/discovery-retry-handler";
-import { EndpointResolver } from "../../packages/address-manager/src/discovery/endpoint-resolver";
 import { DISCOVERY_API } from "../../services/discovery-server/src/adapters/inbound/http/api-routes";
 import { HEARTBEAT_ROUTES } from "../../services/discovery-server/src/adapters/inbound/http/heartbeat.routes";
 import { REGISTRY_ROUTES } from "../../services/discovery-server/src/adapters/inbound/http/register.routes";
 import { createServiceRegistry } from "../../services/discovery-server/src/config/container";
 
 /**
- * Discovery contract: address-manager (in every service) and the gateway's
- * resolver → discovery-server.
+ * Discovery contract: address-manager (in every service) → discovery-server.
  *
  * The real client of address-manager (registration, heartbeat, token
  * rotation, unregistration, lookups) talks over HTTP to the real
@@ -287,19 +285,6 @@ describe("discovery contract: address-manager → discovery-server", () => {
 		expect(
 			all.find((instance) => instance.instanceId === instanceId)
 		).toMatchObject({ host: "127.0.0.1", port: 3000 });
-	});
-
-	it("the gateway resolves the canonical name once the registry shows it alive", async () => {
-		await registered();
-		const gateway = new EndpointResolver(
-			`${baseUrl}/`,
-			60_000,
-			recordingHttpClient(exchanges) as never
-		);
-
-		const endpoint = await gateway.resolve(toServiceId("financial-scraper"), 1);
-
-		expect(endpoint).toMatchObject({ host: "127.0.0.1", port: 3000 });
 	});
 
 	it("unregistration removes the instance from lookups", async () => {
