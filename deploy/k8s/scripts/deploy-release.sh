@@ -332,6 +332,19 @@ replace_stuck_pods() {
 	[ -z "$pods" ] || kubectl delete pod $pods -n "$ns"
 }
 
+# `rollout undo` restores the pod template but not last-applied-configuration: the next
+# client-side apply then deletes nothing that N-1 had and N moved (spiffe-helper from
+# containers to initContainers, issue #1337: "Duplicate value"). Align the containers.
+resync_last_applied() {
+	local ns="$1" dep="$2" ann='kubectl.kubernetes.io/last-applied-configuration' live new
+	live=$(kubectl get deployment "$dep" -n "$ns" -o json) || return 1
+	new=$(echo "$live" | jq -c --arg a "$ann" '. as $d | ($d.metadata.annotations[$a] // empty | fromjson)
+		| .spec.template.spec.containers = $d.spec.template.spec.containers
+		| if $d.spec.template.spec.initContainers then .spec.template.spec.initContainers = $d.spec.template.spec.initContainers
+		  else del(.spec.template.spec.initContainers) end') || return 1
+	[ -z "$new" ] || kubectl annotate deployment "$dep" -n "$ns" --overwrite "$ann=$new"
+}
+
 rollback() {
 	local ns="$1" file="$2" dep rev failed=0 target entry undone=() waited=0
 	# The apply may have failed because the API server went down (run 43665338171): wait for it.
@@ -360,6 +373,10 @@ rollback() {
 			echo "::error::Could not roll back $dep to revision $rev"
 			failed=1
 		else
+			if [[ $target == deployment/* ]] && ! resync_last_applied "$ns" "$dep"; then
+				echo "::error::Could not resync last-applied-configuration of $dep"
+				failed=1
+			fi
 			undone+=("$target $dep $rev")
 		fi
 	done <"$file"
