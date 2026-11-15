@@ -91,6 +91,8 @@ spec:
               value: 72h
             # Badger opens every table at start: 1 Gi was OOMKilled (#1278).
             # The Go GC works under this soft limit before the kernel kills.
+            # Measured on a 2.4 GB volume: start peak 0.6 GiB with it, 3.3 GiB
+            # without; steady ~320 MiB (request 384Mi).
             - name: GOMEMLIMIT
               value: 1536MiB
           volumeMounts:
@@ -99,7 +101,7 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 256Mi
+              memory: 384Mi
             limits:
               cpu: 500m
               memory: 2Gi
