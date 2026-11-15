@@ -18,6 +18,10 @@ export const PUBLIC_ROUTES = [
 	"GET /v1/audit-logger/events/:messageId",
 	"GET /v1/dlq-service/dlq",
 	"DELETE /v1/dlq-service/dlq",
+	// Deprecated in release N, removed with discovery-server in N+1 (ADR-0072).
+	"GET /v1/discovery-server/services",
+	"GET /v1/discovery-server/services/:serviceName",
+	"GET /v1/discovery-server/services/:serviceName/:instanceId",
 	"POST /v1/dlq-service/dlq/replay",
 	"GET /v2/financial-scraper/candles/sources/:source",
 	"GET /v2/financial-scraper/candles/symbols/:symbol",

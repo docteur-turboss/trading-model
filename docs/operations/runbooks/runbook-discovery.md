@@ -47,7 +47,7 @@ kubectl -n $NS get deploy $SVC
 kubectl -n $NS get pods -l app.kubernetes.io/component=$SVC -o wide
 kubectl -n $NS describe deploy $SVC | tail -20
 
-# 2. What discovery has registered (the gateway no longer exposes the registry, ADR-0072)
+# 2. What discovery has registered (the gateway route is deprecated by ADR-0072)
 kubectl port-forward -n $NS svc/prometheus 9090:9090 &
 curl -s 'http://localhost:9090/api/v1/query?query=discovery_registered_instances_per_service'
 

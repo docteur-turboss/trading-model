@@ -30,11 +30,15 @@ describe("API Gateway E2E", () => {
 		expect(status).toBe(200);
 	});
 
-	it("no longer exposes the discovery registry (ADR-0072)", async () => {
-		const { status } = await externalRequest("/v1/discovery-server/services", {
-			headers: AUTH,
-		});
-		expect(status).toBe(404);
+	it("still serves the deprecated discovery registry in release N (ADR-0072)", async () => {
+		const { status, body } = await externalRequest(
+			"/v1/discovery-server/services",
+			{ headers: AUTH }
+		);
+		expect(status).toBe(200);
+		expect(JSON.parse(body)).toEqual(
+			expect.arrayContaining(["financial-scraper"])
+		);
 	});
 
 	it("routes a canonical service name to its legacy registration name", async () => {

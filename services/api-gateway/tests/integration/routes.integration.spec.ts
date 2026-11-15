@@ -355,7 +355,6 @@ describe("API Gateway — Routes Integration", () => {
 	});
 
 	it.each([
-		["GET", "/v1/discovery-server/services"],
 		["GET", "/v2/audit-logger/events"],
 		["POST", "/v1/discovery-server/register"],
 		["POST", "/v1/discovery-server/heartbeat"],

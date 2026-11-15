@@ -162,7 +162,7 @@ describe("discovery contract: address-manager → discovery-server", () => {
 
 	const listInstances = async () =>
 		(await recordingHttpClient(exchanges).get(
-			`${baseUrl}/services/${SERVICE}`
+			`${baseUrl}/v1/services/${SERVICE}`
 		)) as { instanceId: string; host: string; port: number }[];
 
 	beforeEach(() => {

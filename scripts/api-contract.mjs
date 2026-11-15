@@ -72,9 +72,6 @@ const SERVICE_TO_SERVICE = {
 		"POST /heartbeat",
 		"POST /token/rotate",
 		"POST /unregister",
-		"GET /services",
-		"GET /services/:serviceName",
-		"GET /services/:serviceName/:instanceId",
 	],
 	"audit-logger": ["POST /message"],
 	"model-evaluator": ["POST /message"],
@@ -108,12 +105,7 @@ const CALLERS = {
 };
 
 /** Service-to-service routes kept without a caller, each with its reason. */
-const AWAITING_CALLER = {
-	// ADR-0072 release N: no longer public nor asked by release N code; removed with discovery-server in N+1.
-	"discovery-server GET /services": "release N-1 only, removed with discovery-server (ADR-0072)",
-	"discovery-server GET /services/:serviceName": "release N-1 gateway and services only, removed with discovery-server (ADR-0072)",
-	"discovery-server GET /services/:serviceName/:instanceId": "release N-1 only, removed with discovery-server (ADR-0072)",
-};
+const AWAITING_CALLER = {};
 
 /** A WebSocket server needs a client in the repository; none exists (ADR-0029). */
 const WEBSOCKET_SERVER = /new\s+WebSocketServer\(|\.on\(\s*["']upgrade["']|handleUpgrade\(/;
@@ -638,6 +630,7 @@ function schemaOperation(lines, method, path, { tag, entry, operation: key }, ga
 		summary: entry.summary,
 		"x-registry-entry": key,
 	};
+	if (entry.deprecated) op.deprecated = true;
 	if (entry.security?.length) {
 		op.security = [securityOf(entry, gateway)];
 	}
