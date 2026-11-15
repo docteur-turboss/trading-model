@@ -395,6 +395,41 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(body.truncated).toBe(true);
 		});
 
+		it("filters by dimension, metric and source, in the store", async () => {
+			findForAsset.mockResolvedValue([]);
+
+			await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/WHEAT?${WINDOW}&dimension=macro&metric=cpi&sourceId=s1`
+			);
+
+			expect(findForAsset).toHaveBeenCalledWith(
+				expect.objectContaining({
+					dimensions: ["macro"],
+					metric: "cpi",
+					sourceId: "s1",
+				})
+			);
+		});
+
+		it("answers 400 for an unknown dimension", async () => {
+			const { status } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/WHEAT?${WINDOW}&dimension=astrology`
+			);
+
+			expect(status).toBe(400);
+		});
+
+		it("lists the assets and the sources without key variables", async () => {
+			const assets = await get(SCRAPER_API.assets, "/signals/assets");
+			const sources = await get(SCRAPER_API.sources, "/signals/sources");
+
+			expect(assets.body.assets.map((a: any) => a.id)).toContain("WHEAT");
+			expect(sources.body.sources[0]).toHaveProperty("termsUrl");
+			expect(JSON.stringify(sources.body)).not.toContain('"env"');
+		});
+
 		it("answers 404 for an asset the registry does not know", async () => {
 			const { status } = await get(
 				SCRAPER_API.assetSignals,

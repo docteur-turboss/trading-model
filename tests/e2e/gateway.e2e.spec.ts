@@ -73,6 +73,16 @@ describe("API Gateway E2E", () => {
 		});
 	});
 
+	it("lists the registry assets and sources, without key variables", async () => {
+		const { status, body } = await externalRequest(
+			"/v2/financial-scraper/signals/sources",
+			{ headers: AUTH }
+		);
+		expect(status).toBe(200);
+		expect(JSON.parse(body).sources[0]).toHaveProperty("termsUrl");
+		expect(body).not.toContain('"env"');
+	});
+
 	it.each([
 		["/v1/discovery-server/register", "POST"],
 		["/v1/discovery-server/heartbeat", "POST"],
