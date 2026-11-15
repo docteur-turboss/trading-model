@@ -81,9 +81,9 @@ describe("loadTlsPemBundleSync", () => {
 
 	it("should load all TLS files", () => {
 		const result = loadTlsPemBundleSync({ caPath, certPath, keyPath });
-		expect(result.caPem).toBeDefined();
-		expect(result.certPem).toBeDefined();
-		expect(result.keyPem).toBeDefined();
+		expect(result.caPem).toContain("-----BEGIN CERTIFICATE-----");
+		expect(result.certPem).toContain("-----BEGIN CERTIFICATE-----");
+		expect(result.keyPem).toContain("-----BEGIN RSA PRIVATE KEY-----");
 	});
 });
 
@@ -102,7 +102,9 @@ describe("buildHttpsAgentOptions", () => {
 
 	it("should disable hostname verification when a custom trust bundle is present", () => {
 		const opts = buildHttpsAgentOptions({ caPath, certPath, keyPath });
-		expect(opts!.checkServerIdentity).toBeDefined();
+		expect(
+			opts!.checkServerIdentity?.("any-host", {} as never)
+		).toBeUndefined();
 	});
 });
 

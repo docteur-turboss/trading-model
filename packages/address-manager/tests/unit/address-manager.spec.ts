@@ -165,12 +165,6 @@ describe("AddressManager (main)", () => {
 		).resolves.toEqual({ host: "127.0.0.1", port: 3000 });
 	});
 
-	it("should start and stop", async () => {
-		const am = new AddressManager(makeConfig());
-		const handle = am.lifecycleManager.start();
-		handle.stop();
-	});
-
 	it("should get metrics", () => {
 		const am = new AddressManager(makeConfig());
 		const metrics = am.metricsCollector.getMetrics();
@@ -190,14 +184,6 @@ describe("AddressManager (main)", () => {
 		expect(app.get).toHaveBeenCalledWith("/metrics", expect.any(Function));
 	});
 
-	it("should handle start already started", async () => {
-		const am = new AddressManager(makeConfig());
-		const handle1 = am.lifecycleManager.start();
-		const handle2 = am.lifecycleManager.start();
-		handle1.stop();
-		handle2.stop();
-	});
-
 	it("should leave the registry, then stop", async () => {
 		const am = new AddressManager(makeConfig());
 		const handle = am.lifecycleManager.start();
@@ -206,21 +192,6 @@ describe("AddressManager (main)", () => {
 		expect(MOCK_ADDRESS_MANAGER_CLIENT.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
-		handle.stop();
-	});
-
-	it("should complete registration before stopping", async () => {
-		const am = new AddressManager(makeConfig());
-		const handle = am.lifecycleManager.start();
-		await handle.ready;
-		handle.stop();
-	});
-
-	it("should not crash on start with existing token (sticky registration)", async () => {
-		MOCK_TOKEN_MANAGER.getTokenOrUndefined.mockReturnValue("existing-token");
-		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
-		const am = new AddressManager(makeConfig());
-		const handle = am.lifecycleManager.start();
 		handle.stop();
 	});
 

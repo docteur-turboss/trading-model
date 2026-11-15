@@ -69,8 +69,12 @@ import {
 	createCollector,
 	createScrapeScheduler,
 	createSignalScheduler,
+	scheduledSources,
 	signalUserAgent,
 } from "../../../src/config/container";
+import { SIGNAL_SOURCE_DISABLED } from "../../../src/config/metrics";
+import { SIGNAL_REGISTRY } from "../../../src/config/signal-registry";
+import type { Source } from "../../../src/domain/signals";
 
 describe("config/container — createScrapeScheduler", () => {
 	beforeEach(() => {
@@ -182,6 +186,38 @@ describe("config/container — createSignalScheduler", () => {
 				"wikipedia-pageviews",
 			],
 		});
+	});
+});
+
+describe("config/container — scheduledSources", () => {
+	const [first, second] = SIGNAL_REGISTRY.sources;
+	const keyed = {
+		...first,
+		accessPolicy: {
+			...first.accessPolicy,
+			auth: {
+				type: "api_key",
+				env: "SIGNAL_KEY_FRED",
+				in: "header",
+				name: "x-key",
+			},
+		},
+	} as Source;
+
+	const gauge = () =>
+		SIGNAL_SOURCE_DISABLED.get().then((m) => JSON.stringify(m.values));
+
+	it("skips a source without its key, flags it, and keeps the others", async () => {
+		expect(scheduledSources([keyed, second], {})).toEqual([second]);
+		expect(await gauge()).toContain(
+			`"value":1,"labels":{"source":"${first.id}","reason":"missing_key"}`
+		);
+		expect(scheduledSources([keyed, second], { SIGNAL_KEY_FRED: "k" })).toEqual(
+			[keyed, second]
+		);
+		expect(await gauge()).toContain(
+			`"value":0,"labels":{"source":"${first.id}","reason":"missing_key"}`
+		);
 	});
 });
 

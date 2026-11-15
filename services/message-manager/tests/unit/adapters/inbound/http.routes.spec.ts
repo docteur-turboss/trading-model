@@ -24,31 +24,18 @@ describe("BROKER_ROUTES", () => {
 		expect(typeof router).toBe("function");
 	});
 
-	it("should define POST /message route", () => {
-		const route = router.stack.find(
-			(r: { route?: { path?: string } }) => r.route?.path === "/message"
-		);
-		expect(route).toBeDefined();
-	});
-
-	it("should define POST /message/replay route", () => {
-		const route = router.stack.find(
-			(r: { route?: { path?: string } }) => r.route?.path === "/message/replay"
-		);
-		expect(route).toBeDefined();
-	});
-
-	it("should define POST /subscribe route", () => {
-		const route = router.stack.find(
-			(r: { route?: { path?: string } }) => r.route?.path === "/subscribe"
-		);
-		expect(route).toBeDefined();
-	});
-
-	it("should define DELETE /subscribe route", () => {
-		const route = router.stack.find(
-			(r: { route?: { path?: string } }) => r.route?.path === "/subscribe"
-		);
+	it.each([
+		["post", "/message"],
+		["post", "/message/replay"],
+		["post", "/subscribe"],
+		["delete", "/subscribe"],
+	])("should define %s %s", (method, path) => {
+		const route = router.stack.find((r) => {
+			const layer = r.route as
+				| { path?: string; methods?: Record<string, boolean> }
+				| undefined;
+			return layer?.path === path && layer.methods?.[method] === true;
+		});
 		expect(route).toBeDefined();
 	});
 

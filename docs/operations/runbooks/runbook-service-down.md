@@ -1,6 +1,6 @@
 # Runbook: Service Down
 
-**Severity:** SEV1  
+**Severity:** L1  
 **Alert:** `ServiceDown`  
 **Affected:** Any trading-model service
 
