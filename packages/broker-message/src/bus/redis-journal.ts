@@ -92,7 +92,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		await this._deps.redis.call(
 			"XGROUP",
 			"DESTROY",
-			this._stream(group.topic),
+			this.stream(group.topic),
 			group.service
 		);
 	}

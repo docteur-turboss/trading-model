@@ -30,6 +30,17 @@ export class StreamRedis implements BusRedis {
 		return [...(this.sets.get(key) ?? [])];
 	}
 
+	async srem(key: string, ...members: string[]): Promise<number> {
+		const set = this.sets.get(key);
+		let removed = 0;
+		for (const member of members) {
+			if (set?.delete(member)) {
+				removed++;
+			}
+		}
+		return removed;
+	}
+
 	multi() {
 		const queued: [string, string[]][] = [];
 		const tx = {
