@@ -11,7 +11,7 @@ Depends on `common`, `primitives`, `contracts` plus `ioredis` and `mongodb`. Not
 | Import path | Exports | Purpose |
 |-------------|---------|---------|
 | `@trading-model/persistence/redis-env` | `redisConnectionFromEnv`, `parseRedisNodes`, `RedisEnv` | Builds the connection from `REDIS_SENTINELS` or `REDIS_URL` |
-| `@trading-model/persistence/redis-connection-manager` | `createRedisClient`, `createRedisConnectionManager` | Redis client lifecycle |
+| `@trading-model/persistence/redis-connection-manager` | `createRedisClient`, `RedisConnectionConfig` | Redis client creation |
 | `@trading-model/persistence/mongo-connection-manager` | `MongoConnectionManager`, `MongoConnectionConfig` | MongoDB client lifecycle |
 | `@trading-model/persistence/redis-key-builder` | `buildRedisKey`, `extendRedisKey`, `RedisKeyBuilder` | Prefixed keys (never `KEYS`) |
 | `@trading-model/persistence/store-adapter.interface` | store adapter port | Redis / in-memory stores behind one interface |

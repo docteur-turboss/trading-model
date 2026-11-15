@@ -88,6 +88,13 @@ import {
 import { createGAControlGenome } from "../../../src/domain/genetic-algorithm/genome-control";
 import { makeTradingAgentBackend } from "../../../src/domain/genetic-algorithm/rl-backend";
 
+function lastMockAgent(): Record<string, jest.Mock> {
+	const { TradingAgent } = jest.requireMock(
+		"../../../src/domain/agent/trading-agent"
+	) as { TradingAgent: jest.Mock };
+	return TradingAgent.mock.results.at(-1)?.value as Record<string, jest.Mock>;
+}
+
 describe("makeTradingAgentBackend", () => {
 	it("should create an RLBackend from a genome", () => {
 		const genome = {
@@ -190,7 +197,10 @@ describe("makeTradingAgentBackend", () => {
 			new Float32Array([0.5, 0.5, 0.5])
 		);
 		const output = backend.forwardPass(features);
-		expect(output).toBeDefined();
+		expect(output).toEqual(new Float32Array([0.5, 0.5, 0.5]));
+		const agent = lastMockAgent();
+		expect(agent.step).not.toHaveBeenCalled();
+		expect(agent.remember).not.toHaveBeenCalled();
 	});
 
 	it("should inject trainedWeights when present in genome", () => {
@@ -228,14 +238,23 @@ describe("makeTradingAgentBackend", () => {
 				mutationRate: 0.1,
 				crossoverRate: 0.5,
 			},
-			trainedWeights: [0.1, 0.2, 0.3, 0.4, 0.5],
+			// the mocked agent has 2 parameters
+			trainedWeights: [0.1, 0.2],
 			fitness: 0,
 		} as any;
 
-		const backend = makeTradingAgentBackend(genome as any);
-		expect(backend).toBeDefined();
-		const weights = backend.getWeights();
-		expect(weights).toBeDefined();
+		makeTradingAgentBackend(genome as any);
+		expect(lastMockAgent().setWeights).toHaveBeenCalledWith(
+			new Float32Array([0.1, 0.2])
+		);
+	});
+
+	it("should not inject trainedWeights of another size", () => {
+		makeTradingAgentBackend({
+			...getMinimalGenome(),
+			trainedWeights: [0.1, 0.2, 0.3],
+		} as any);
+		expect(lastMockAgent().setWeights).not.toHaveBeenCalled();
 	});
 
 	it("should call step and return reward", () => {

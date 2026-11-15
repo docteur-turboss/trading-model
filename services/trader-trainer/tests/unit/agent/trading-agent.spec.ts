@@ -75,11 +75,6 @@ describe("TradingAgent", () => {
 	});
 
 	describe("constructor", () => {
-		it("should create agent with wallet and state", () => {
-			expect(agent.wallet).toBeDefined();
-			expect(agent.state).toBeDefined();
-		});
-
 		it("should expose getWeights returning a Float32Array", () => {
 			const weights = agent.getWeights();
 			expect(weights).toBeInstanceOf(Float32Array);
@@ -117,7 +112,7 @@ describe("TradingAgent", () => {
 				nnConfig: makeConfig().nnConfig,
 				wallet: makeConfig().wallet,
 			} as TradingAgentConfig);
-			expect(a.wallet).toBeDefined();
+			expect(a.state.getEpsilon()).toBe(1.0);
 		});
 	});
 

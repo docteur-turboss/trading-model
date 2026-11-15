@@ -19,7 +19,6 @@ Welcome to the **trading-model** standards directory. This folder contains the c
 - [Security](../security/README.md) — Security practices and policies
 - [Documentation Standards](../contributing/documentation-standards.md) — Documentation structure and conventions
 - [Adding a Service](../contributing/adding-a-service.md) — Step-by-step guide for creating a new service
-- [Verification Protocol](verification-protocol.md) — Quality gates before commit, PR, release, deploy
 - [Health Endpoints](health-endpoints.md) — Health check endpoint standards
 - [Architecture Overview](../architecture/README.md) — Bounded contexts, databases
 - [SLO & Burn Rates](../operations/slo.md) — Service Level Objectives

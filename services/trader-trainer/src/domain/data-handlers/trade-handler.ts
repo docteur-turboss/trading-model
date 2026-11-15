@@ -1,8 +1,15 @@
 import type { TradeData } from "@trading-model/contracts/market-data.types";
 import { NormalizationStats } from "../normalization-stats";
 import type { DataHandler } from "./data-handler";
-import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
+import { pushWithMaxSize } from "./data-handler-utils";
 import { DataType } from "./data-types";
+
+// tradeId arrives as bigint or decimal string (bus JSON): `>` on two strings is lexicographic.
+function isNewTrade(trades: readonly TradeData[], trade: TradeData): boolean {
+	const last = trades[trades.length - 1];
+	// biome-ignore lint/nursery/noUselessTypeConversion: typed bigint, but a string at runtime (see above)
+	return last === undefined || BigInt(trade.tradeId) > BigInt(last.tradeId);
+}
 
 export const tradeHandler: DataHandler<TradeData> = {
 	dataType: DataType.Trade,
@@ -24,10 +31,10 @@ export const tradeHandler: DataHandler<TradeData> = {
 	// The scraper fetches the latest trades every cycle: a quiet symbol's
 	// trades come back several times.
 	isNew(state, trade) {
-		return isAfterLast(state.trades, trade, "tradeId");
+		return isNewTrade(state.trades, trade);
 	},
 	mutateState({ data, state, maxSize }) {
-		if (isAfterLast(state.trades, data, "tradeId")) {
+		if (isNewTrade(state.trades, data)) {
 			state.trades = pushWithMaxSize(state.trades, data, maxSize);
 		}
 	},

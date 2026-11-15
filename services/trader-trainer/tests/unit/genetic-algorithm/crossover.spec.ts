@@ -38,7 +38,8 @@ describe("Crossover - crossoverGenomes", () => {
 	test("should handle identical parents", () => {
 		const parent = createDefaultGenome("p");
 		const offspring = crossoverGenomes(parent, parent, rng);
-		expect(offspring).toBeDefined();
+		expect(offspring.id).toBe("p");
+		expect(offspring.network).toEqual(parent.network);
 	});
 
 	test("offspring should have valid network structure", () => {
