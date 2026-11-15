@@ -92,8 +92,8 @@ export ADMIN_TOKEN="change-me-to-a-long-random-key"  # Use your .env value
 ```
 
 ```bash
-# List registered services (via gateway proxy)
-curl -s http://localhost:8449/v1/discovery-server/services \
+# Call a public route (via gateway proxy)
+curl -s http://localhost:8449/v1/trader-trainer/training-status \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 

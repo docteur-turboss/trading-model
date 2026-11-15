@@ -43,7 +43,7 @@ Liveness for admin/debug. Readiness (MongoDB ping, registered with discovery onc
 
 ### Audit Events
 
-**`GET /events`**
+**`GET /v1/events`**
 
 List and filter audit events, newest first. Parameters and responses are declared in `src/adapters/inbound/http/api-routes.ts` (`AUDIT_API`, ADR-0021) and published in the [OpenAPI](openapi/api-gateway.yaml). Invalid input answers 400 `{ "error": "Validation failed", "details": [...] }`.
 
@@ -88,7 +88,7 @@ List and filter audit events, newest first. Parameters and responses are declare
 }
 ```
 
-**`GET /events/stats`**
+**`GET /v1/events/stats`**
 
 Aggregate audit statistics.
 
@@ -111,7 +111,7 @@ Aggregate audit statistics.
 }
 ```
 
-**`GET /events/:messageId`**
+**`GET /v1/events/:messageId`**
 
 Get a single audit event by its message ID.
 

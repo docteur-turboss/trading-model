@@ -1,10 +1,9 @@
 # ADR-0071: An Empty Registry Answer Serves the Last Known Target for 60 Seconds
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0072](./0072-dns-routing-and-majors-served-by-services.md)
 **Date:** 2026-11
 **Amends:** [ADR-0045](./0045-single-service-resolution-strategy.md) (§6: last-known target)
 **Related:** [ADR-0023](./0023-discovery-registry-in-redis.md), issue #1156, issue #1112
-**Verified by:** `packages/address-manager/tests/unit/endpoint-resolver.spec.ts`, `tests/k8s/run-kind.sh`
 
 ## Context
 

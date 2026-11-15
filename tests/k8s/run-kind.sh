@@ -732,19 +732,23 @@ verify_network() {
 	verify_mysql_tls
 	verify_redis_tls
 
-	log "external path: edge-proxy → api-gateway → discovery"
+	log "external path: edge-proxy → api-gateway → trader-trainer"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
 	local forward=$!
 	trap 'kill $forward 2>/dev/null || true' RETURN
 	wait_for 30 'curl -s -o /dev/null http://localhost:18449/'
-	local url="http://localhost:18449/v1/discovery-server/services"
+	local url="http://localhost:18449/v1/trader-trainer/training-status"
 	[ "$(curl -s -o /dev/null -w '%{http_code}' "$url")" = "401" ] || {
 		log "a request without API key was not rejected"
 		return 1
 	}
-	wait_for 120 "curl -sf -H 'x-api-key: $API_KEY' $url | grep -q financial-scraper"
-	log "  registered: $(curl -s -H "x-api-key: $API_KEY" "$url")"
+	wait_for 120 "curl -sf -o /dev/null -H 'x-api-key: $API_KEY' $url"
+	log "  training status: $(curl -s -H "x-api-key: $API_KEY" "$url")"
 
+	# Release N only (ADR-0072): N-1 gateways still read the registry. Removed in N+1.
+	local registry="curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://discovery-server:3000/services"
+	wait_for 120 "$K -n $NS exec deployment/financial-scraper -c financial-scraper -- $registry | grep -q financial-scraper"
+	log "  registered: $($K -n "$NS" exec deployment/financial-scraper -c financial-scraper -- $registry)"
 }
 
 verify_observability() {
@@ -833,7 +837,7 @@ verify_traces() {
 	local jaeger=$!
 	local result=0
 	wait_for 30 'curl -s -o /dev/null http://localhost:18451/ && curl -s -o /dev/null http://localhost:18686/' || result=1
-	[ "$result" = 0 ] && curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/discovery-server/services
+	[ "$result" = 0 ] && curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
 	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
 	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
 		log "  $(traces_span_services 2>&1)"
@@ -1078,7 +1082,7 @@ verify_canary() {
 	# keepalive_timeout (4 s), so each burst draws 12 new pod picks (~50% canary).
 	(while :; do
 		for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
-			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18450/v1/discovery-server/services &
+			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18450/v1/trader-trainer/training-status &
 		done
 		wait
 		sleep 5

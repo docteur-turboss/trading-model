@@ -145,7 +145,7 @@ const TrainerState = {
 export const TRAINER_API = {
 	bestAgent: defineRoute({
 		method: "GET",
-		path: "/best-agent",
+		path: "/v1/best-agent",
 		summary: "Best agent of the last trained symbol",
 		responses: {
 			200: z.object({
@@ -156,13 +156,13 @@ export const TRAINER_API = {
 	}),
 	trainingStatus: defineRoute({
 		method: "GET",
-		path: "/training-status",
+		path: "/v1/training-status",
 		summary: "Whether a training runs, on which symbol and generation",
 		responses: { 200: z.object({ data: z.object(TrainerState) }) },
 	}),
 	trainingAgents: defineRoute({
 		method: "GET",
-		path: "/training-agents",
+		path: "/v1/training-agents",
 		summary: "Best agent of every trained symbol",
 		responses: {
 			200: z.object({
@@ -176,7 +176,7 @@ export const TRAINER_API = {
 	}),
 	trainingAgent: defineRoute({
 		method: "GET",
-		path: "/training-agents/:symbol",
+		path: "/v1/training-agents/:symbol",
 		summary: "Best agent of a symbol, with its latest stored model",
 		params: z.object({ symbol: z.string().min(1).transform(brand(toSymbol)) }),
 		responses: {
@@ -192,7 +192,7 @@ export const TRAINER_API = {
 	}),
 	listModels: defineRoute({
 		method: "GET",
-		path: "/models/:symbol",
+		path: "/v1/models/:symbol",
 		summary: "Stored model versions of a symbol, newest first",
 		params: z.object({ symbol: MODEL_SYMBOL }),
 		responses: {
@@ -202,7 +202,7 @@ export const TRAINER_API = {
 	}),
 	getModel: defineRoute({
 		method: "GET",
-		path: "/models/:symbol/:version",
+		path: "/v1/models/:symbol/:version",
 		summary: "Manifest of a model version (everything but the weights)",
 		params: MODEL,
 		responses: {

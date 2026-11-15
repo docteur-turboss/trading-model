@@ -1,23 +1,12 @@
-import { CircuitState } from "@trading-model/primitives/circuit-state";
 import type { Application } from "express";
 import promClient from "prom-client";
-import type { DiscoveryCircuitBreaker } from "../discovery/circuit-breaker";
-import { CACHE_ENTRY_COUNT, CIRCUIT_BREAKER_INSTANCES_TOTAL } from "../metrics";
-import type { ServiceCachePort } from "../ports/service-cache.port";
 import { STATUS_ROUTES } from "../routes/metrics.routes";
 import { PING_ROUTES } from "../routes/ping.routes";
 import { SystemMetrics, type SystemMetricsPayload } from "./system-metrics";
 
 /** Collects the service metrics and exposes them over Express. */
 export class MetricsCollector {
-	private readonly _systemMetrics: SystemMetrics;
-
-	constructor(
-		private readonly _circuitBreaker: DiscoveryCircuitBreaker,
-		private readonly _serviceCache: ServiceCachePort
-	) {
-		this._systemMetrics = new SystemMetrics();
-	}
+	private readonly _systemMetrics = new SystemMetrics();
 
 	listenExpress(app: Application): void {
 		this._setupMetricsSnapshot(app);
@@ -39,24 +28,5 @@ export class MetricsCollector {
 
 	getMetrics(): SystemMetricsPayload {
 		return this._systemMetrics.collect();
-	}
-
-	async collectSaturationMetrics(): Promise<void> {
-		const summary = this._circuitBreaker.getStateSummary();
-		CIRCUIT_BREAKER_INSTANCES_TOTAL.set(
-			{ state: CircuitState.CLOSED },
-			summary[CircuitState.CLOSED]
-		);
-		CIRCUIT_BREAKER_INSTANCES_TOTAL.set(
-			{ state: CircuitState.OPEN },
-			summary[CircuitState.OPEN]
-		);
-		CIRCUIT_BREAKER_INSTANCES_TOTAL.set(
-			{ state: CircuitState.HALF_OPEN },
-			summary[CircuitState.HALF_OPEN]
-		);
-
-		const entries = await this._serviceCache.entries();
-		CACHE_ENTRY_COUNT.set(entries.length);
 	}
 }

@@ -820,16 +820,6 @@ data:
               description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
-          - alert: CircuitBreakerOpen
-            expr: address_manager_circuit_breaker_state == 1
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              summary: 'Circuit breaker open on {{ $labels.job }}'
-              description: 'The circuit breaker of {{ $labels.job }} for instance {{ $labels.instanceId }} is in OPEN state: calls to that instance are refused.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md'
-
           - alert: HttpCircuitBreakerRejecting
             expr: sum by (job, target, kind) (rate(http_circuit_breaker_rejections_total[5m])) > 0
             for: 10m

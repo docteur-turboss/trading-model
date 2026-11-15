@@ -11,7 +11,7 @@ import type { ServiceIdentity } from "@trading-model/primitives/service-identity
 interface AddressManagerConfig {
 	identity: ServiceIdentity;
 	servicePort: Port;
-	/** Version registered in discovery (discovery assumes "1.0.0" without it). */
+	/** Version registered in discovery, read by release N-1 gateways only (ADR-0072). */
 	serviceVersion?: string;
 	/** Discovery URL (a Service / load balancer in front of every replica). */
 	addressManagerUrl: string;
@@ -19,10 +19,6 @@ interface AddressManagerConfig {
 	tls: TlsPaths;
 	tokenRefreshIntervalMs: DurationMs;
 	ttlRefreshIntervalMs: DurationMs;
-	servicePingTimeoutMs: DurationMs;
-	discoveryTimeoutMs: DurationMs;
-
-	cacheTtlMs: DurationMs;
 	dnsNameMap?: Record<ServiceId, IPAddress>;
 }
 

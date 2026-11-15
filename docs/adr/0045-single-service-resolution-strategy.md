@@ -1,9 +1,8 @@
 # ADR-0045: One Service Resolution Strategy: Registry Says Alive, Platform Says Where
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0072](./0072-dns-routing-and-majors-served-by-services.md)
 **Date:** 2026-11
 **Related:** [ADR-0023](./0023-discovery-registry-in-redis.md) (registry stays, role narrowed), [ADR-0011](./0011-spiffe-spire-workload-identity.md) (unchanged), [ADR-0017](./0017-no-swallowed-errors.md)
-**Verified by:** `packages/address-manager/tests/unit/endpoint-resolver.spec.ts`, `packages/address-manager/tests/unit/resolution-equivalence.spec.ts`, `tests/contract/discovery-routes.spec.ts`, `services/api-gateway/tests/unit/server.spec.ts`, `tests/k8s/deploy-release.test.sh`
 
 ## Context
 

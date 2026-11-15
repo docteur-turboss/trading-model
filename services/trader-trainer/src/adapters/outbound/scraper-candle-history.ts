@@ -40,9 +40,7 @@ export class ScraperCandleHistory implements CandleHistoryPort {
 
 	constructor(
 		tls: TlsPaths,
-		private readonly _find: (
-			name: ServiceInstanceName
-		) => Promise<HostPort | undefined>
+		private readonly _find: (name: ServiceInstanceName) => Promise<HostPort>
 	) {
 		this._http = HttpClient.createWithTls(tls);
 	}
@@ -55,9 +53,6 @@ export class ScraperCandleHistory implements CandleHistoryPort {
 		const target = await this._find(
 			ServiceInstanceName.FinancialScraperService
 		);
-		if (!target) {
-			throw new Error("financial-scraper is not registered in discovery");
-		}
 		const base = `https://${HostPort.toAddress(target)}/candles/symbols/${symbol}`;
 		const window = `from=${new Date(at - size * MINUTE_MS).toISOString()}&to=${new Date(at).toISOString()}&limit=${PAGE_LIMIT}`;
 		const candles: CandleData[] = [];

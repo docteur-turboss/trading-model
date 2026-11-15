@@ -95,14 +95,18 @@ export const DISCOVERY_API = {
 	}),
 	listServices: defineRoute({
 		method: "GET",
-		path: "/services",
+		path: "/v1/services",
 		summary: "Names of the services with registered instances",
+		// Deprecated in release N, removed with discovery-server in N+1 (ADR-0072).
+		deprecated: true,
 		responses: { 200: z.array(z.string()) },
 	}),
 	getServiceInstances: defineRoute({
 		method: "GET",
-		path: "/services/:serviceName",
+		path: "/v1/services/:serviceName",
 		summary: "Live instances of a service (expired leases left out)",
+		// Deprecated in release N, removed with discovery-server in N+1 (ADR-0072).
+		deprecated: true,
 		params: SERVICE,
 		responses: {
 			200: z.array(ServiceInstance),
@@ -112,8 +116,10 @@ export const DISCOVERY_API = {
 	}),
 	getInstance: defineRoute({
 		method: "GET",
-		path: "/services/:serviceName/:instanceId",
+		path: "/v1/services/:serviceName/:instanceId",
 		summary: "One live instance of a service",
+		// Deprecated in release N, removed with discovery-server in N+1 (ADR-0072).
+		deprecated: true,
 		params: SERVICE.extend({ instanceId: z.string().min(1) }),
 		responses: { 200: ServiceInstance, 400: ErrorResponse, 404: ErrorResponse },
 	}),
