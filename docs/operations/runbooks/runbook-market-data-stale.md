@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
 **Severity:** L2 (the platform runs, but trades and training work on old data)
-**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `CandleDeliveryLagging`
+**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `SignalSourceStale`, `CandleDeliveryLagging`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -167,6 +167,32 @@ Read the `error` of the log line:
 
 The alert resolves within 15 minutes once a candle of the symbol is persisted
 again.
+
+## SignalSourceStale
+
+**Severity:** L4 (warning). A registry source (ADR-0036) has had no
+successful collection for longer than its threshold (`maxAgeSeconds` in
+`signal-registry.json`, else three periods of its `schedule`), and no failure
+was counted. Tell the three causes apart:
+
+```bash
+NS=trading-model
+# Age of the last success, newest observed value and threshold, by source
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO-   'http://localhost:9090/api/v1/query?query=time()-fs_signal_last_success_timestamp_seconds'
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO-   'http://localhost:9090/api/v1/query?query=time()-fs_signal_newest_observed_timestamp_seconds'
+```
+
+- **Lease lost**: `fs_collector_leader` is 0 on every pod (alert
+  `CollectorNoLeader`); see its section. Without a leader no source collects.
+- **Cron stopped**: a leader exists, but the source logs neither
+  "Signal collection failed" nor "Previous signal collection still running:
+  tick skipped" in `kubectl -n $NS logs deploy/financial-scraper-collector`:
+  its `schedule` is wrong, or its API key is unset
+  (`fs_signal_source_disabled`). Fix the registry or the secret and restart.
+- **Source stopped**: collections succeed (last success is recent) but
+  `newest_observed` does not move: the publisher stopped the series or
+  answers an empty list. Nothing to fix here; raise `maxAgeSeconds` or remove
+  the source from the registry if the stop is final.
 
 ## SignalCollectionFailing
 

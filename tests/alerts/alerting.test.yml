@@ -649,6 +649,32 @@ tests:
         alertname: SignalCollectionFailing
         exp_alerts: []
 
+  # A silent source alerts past its own threshold: hourly (max age 3 h) stops
+  # at 1 h, quarterly (max age 120 days) stays quiet. No series, no alert.
+  - name: a silent signal source alerts past its threshold, by source
+    interval: 1h
+    input_series:
+      - series: 'fs_signal_last_success_timestamp_seconds{job="financial-scraper-collector",instance="c",source="nws"}'
+        values: '0x10'
+      - series: 'fs_signal_source_max_age_seconds{job="financial-scraper-collector",instance="c",source="nws"}'
+        values: '10800x10'
+      - series: 'fs_signal_last_success_timestamp_seconds{job="financial-scraper-collector",instance="c",source="sec-quarterly"}'
+        values: '0x10'
+      - series: 'fs_signal_source_max_age_seconds{job="financial-scraper-collector",instance="c",source="sec-quarterly"}'
+        values: '10368000x10'
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: SignalSourceStale
+        exp_alerts: []
+      - eval_time: 4h
+        alertname: SignalSourceStale
+        exp_alerts:
+          - exp_labels: {severity: warning, source: nws}
+            exp_annotations:
+              summary: 'A signal source stopped producing'
+              description: 'nws has had no successful collection for 4h 0m 0s, beyond its freshness threshold (no failure counted: cron stopped, lease lost, or source silent).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalsourcestale'
+
   # ADR-0026: a geo-block (451) alerts at once; other errors (429, 5xx) and
   # 200s do not. The 451 series only exists once Binance starts refusing.
   - name: a Binance geo-block alerts, other Binance errors do not

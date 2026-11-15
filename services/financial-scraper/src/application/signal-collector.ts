@@ -1,6 +1,13 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { sha256Hex } from "@trading-model/crypto/node-crypto";
-import { SIGNAL_COLLECTIONS_TOTAL, SIGNAL_SOURCES } from "../config/metrics";
+import {
+	SIGNAL_COLLECTIONS_TOTAL,
+	SIGNAL_LAST_SUCCESS,
+	SIGNAL_NEWEST_OBSERVED,
+	SIGNAL_SOURCE_MAX_AGE,
+	SIGNAL_SOURCES,
+} from "../config/metrics";
+import { sourceMaxAgeSeconds } from "../domain/cron-period";
 import {
 	InvalidPayloadError,
 	type ProtocolWorker,
@@ -30,6 +37,36 @@ export function zeroCollectionFailures(sources: readonly Source[]): void {
 		for (const result of FAILURES) {
 			SIGNAL_COLLECTIONS_TOTAL.inc({ source: id, result }, 0);
 		}
+	}
+}
+
+/**
+ * Sets the freshness gauges of the sources this pod collects: timestamps read
+ * back from MySQL (a restart keeps a stale source stale; a source with no
+ * signal yet counts from `now`) and the stale threshold.
+ */
+export async function restoreFreshness(
+	sources: readonly Source[],
+	store: SignalStorePort,
+	now: number
+): Promise<void> {
+	const newest = await store.newestBySource();
+	for (const source of sources) {
+		const stored = newest.get(source.id);
+		SIGNAL_LAST_SUCCESS.set(
+			{ source: source.id },
+			(stored?.ingestedAt ?? now) / 1000
+		);
+		if (stored) {
+			SIGNAL_NEWEST_OBSERVED.set(
+				{ source: source.id },
+				stored.observedAt / 1000
+			);
+		}
+		SIGNAL_SOURCE_MAX_AGE.set(
+			{ source: source.id },
+			sourceMaxAgeSeconds(source)
+		);
 	}
 }
 
@@ -93,6 +130,8 @@ export function signalId(
  * never rejects.
  */
 export class SignalCollector {
+	private readonly _newest = new Map<string, number>();
+
 	constructor(private readonly _deps: SignalCollectorDeps) {}
 
 	async collect(source: Source): Promise<void> {
@@ -122,6 +161,14 @@ export class SignalCollector {
 			result = "store_error";
 			await this._deps.store.save(signals);
 			result = "success";
+			SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
+			for (const { observedAt } of signals) {
+				const seconds = Date.parse(observedAt) / 1000;
+				if (seconds > (this._newest.get(source.id) ?? 0)) {
+					this._newest.set(source.id, seconds);
+					SIGNAL_NEWEST_OBSERVED.set({ source: source.id }, seconds);
+				}
+			}
 			getLogger().debug("Signals collected", {
 				context: { source: source.id, count: signals.length },
 			});

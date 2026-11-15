@@ -583,6 +583,25 @@ describe("signals — real MySQL", () => {
 		await expect(findBtc()).resolves.toEqual([signal()]);
 	});
 
+	it("should give the newest ingested and observed instants of each source", async () => {
+		await MySqlSignalStore.save([
+			signal(),
+			signal({
+				id: "9".repeat(64),
+				observedAt: new Date(OBSERVED + 1000).toISOString(),
+			}),
+		]);
+
+		await expect(MySqlSignalStore.newestBySource()).resolves.toEqual(
+			new Map([
+				[
+					"wikipedia-pageviews",
+					{ ingestedAt: OBSERVED + 3000, observedAt: OBSERVED + 1000 },
+				],
+			])
+		);
+	});
+
 	it("should store a replayed signal once and keep its first value", async () => {
 		await MySqlSignalStore.save([signal()]);
 		await MySqlSignalStore.save([

@@ -30,6 +30,15 @@ const SELECT_FOR_ASSET_SQL = `SELECT ${COLUMNS} FROM signals
 	ORDER BY observed_at, id
 	LIMIT ?`;
 
+interface NewestRow extends RowDataPacket {
+	source_id: string;
+	ingested: Date;
+	observed: Date;
+}
+
+const NEWEST_SQL = `SELECT source_id, MAX(ingested_at) AS ingested, MAX(observed_at) AS observed
+	FROM signals GROUP BY source_id`;
+
 /** Rows were written from checked signals: the payload matches its dimension. */
 function _toSignal(row: SignalRow): Signal {
 	return {
@@ -65,6 +74,19 @@ export const MySqlSignalStore: SignalStorePort = {
 			JSON.stringify(signal.payload),
 		]);
 		await DATABASE.promise().query(INSERT_SQL, [rows]);
+	},
+
+	async newestBySource() {
+		const [rows] = await DATABASE.promise().query<NewestRow[]>(NEWEST_SQL);
+		return new Map(
+			rows.map((row) => [
+				row.source_id,
+				{
+					ingestedAt: row.ingested.getTime(),
+					observedAt: row.observed.getTime(),
+				},
+			])
+		);
 	},
 
 	async findForAsset({ assetId, sector, dimensions, from, to, limit }) {

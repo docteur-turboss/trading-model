@@ -164,6 +164,13 @@ describe("parseSignalRegistry", () => {
 			},
 			"source ecb-aaa-yield-10y, request 0: URL placeholder other than {date-N}",
 		],
+		[
+			"a maxAgeSeconds shorter than the period of the cron",
+			(file: any) => {
+				sourceOf(file, "nws-kansas-wheat-belt").maxAgeSeconds = 600;
+			},
+			"maxAgeSeconds is shorter than the period of schedule",
+		],
 	])("refuses %s", (_label, breakIt, message) => {
 		const file = registry();
 		breakIt(file);

@@ -250,6 +250,8 @@ export const Source = z.strictObject({
 	adapter: z.string().min(1),
 	/** node-cron expression; at each tick the requests run one after the other. */
 	schedule: z.string().min(1),
+	/** Age of the last collection beyond which the source is stale; default: three periods of `schedule`. */
+	maxAgeSeconds: z.number().positive().optional(),
 	/** Prior trust in the source, copied into the confidence of its signals. */
 	reliabilityScore: z.number().min(0).max(1),
 	/** §1.3: the (asset type, dimension) pairs the source can feed. */
