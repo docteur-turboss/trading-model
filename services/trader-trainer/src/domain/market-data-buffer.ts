@@ -1,3 +1,4 @@
+import type { CandleData } from "@trading-model/contracts/market-data.types";
 import type { Price } from "@trading-model/primitives/primitives";
 import { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
@@ -53,6 +54,12 @@ export class MarketDataBuffer {
 			this.getCandleCount(symbol),
 			this.getSymbols().length
 		);
+	}
+
+	/** Sets the candles of a symbol to exactly this window (stored candles, ADR-0044). */
+	replaceCandles(symbol: TradingSymbol, candles: CandleData[]): void {
+		this._stateManager.replaceCandles(symbol, candles);
+		this._onDataAdded?.(symbol, candles.length, this.getSymbols().length);
 	}
 
 	/**

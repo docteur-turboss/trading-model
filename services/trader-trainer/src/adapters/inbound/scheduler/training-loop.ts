@@ -6,6 +6,7 @@ import type { Trainer } from "../../../application/trainer";
 import { hasEnoughTrainingData } from "../../../domain/market-data/window-splitter";
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
 import type { TradingSymbol } from "../../../domain/market-data-types";
+import type { CandleHistoryPort } from "../../../domain/ports/candle-history.port";
 
 interface TrainingLoopConfig {
 	symbols: TradingSymbol[];
@@ -26,6 +27,7 @@ export class TrainingLoop {
 	constructor(
 		private readonly _trainer: Trainer,
 		private readonly _dataBuffer: MarketDataBuffer,
+		private readonly _history: CandleHistoryPort,
 		private readonly _windowing: {
 			validationSplit: number;
 			walkForwardFolds: number;
@@ -48,6 +50,30 @@ export class TrainingLoop {
 			runTraining,
 			DurationMs.of(intervalMs)
 		);
+	}
+
+	/**
+	 * The dataset is the stored window ending now, not what the bus delivered
+	 * since this pod started (ADR-0044). False when it cannot be read.
+	 */
+	private async _loadStoredCandles(symbol: TradingSymbol): Promise<boolean> {
+		try {
+			this._dataBuffer.replaceCandles(
+				symbol,
+				await this._history.loadWindow(
+					symbol,
+					Date.now(),
+					this._dataBuffer.getMaxSize()
+				)
+			);
+			return true;
+		} catch (err) {
+			getLogger().error("Stored candles unreadable: symbol skipped", {
+				context: { symbol },
+				error: normalizeError(err).message,
+			});
+			return false;
+		}
 	}
 
 	private _hasEnoughData(symbol: TradingSymbol): boolean {
@@ -106,6 +132,7 @@ export class TrainingLoop {
 			const index = (this._nextIndex + offset) % symbols.length;
 			const symbol = symbols[index];
 			if (
+				(await this._loadStoredCandles(symbol)) &&
 				this._hasEnoughData(symbol) &&
 				this._hasFreshData(symbol, maxDataAgeMs)
 			) {

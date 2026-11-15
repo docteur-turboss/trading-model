@@ -24,6 +24,7 @@ import {
 	type MarketDataBufferConfig,
 } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
+import type { CandleHistoryPort } from "../domain/ports/candle-history.port";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import { effectiveFitnessType } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
@@ -76,6 +77,7 @@ interface AppContainerConfig {
 	modelDir: string;
 	modelRetention: number;
 	instanceId: string;
+	history: CandleHistoryPort;
 }
 
 class ApplicationContainer {
@@ -129,11 +131,16 @@ class ApplicationContainer {
 			// Training is CPU-bound: off the thread that serves the API (issue #508).
 			runner: runInWorker,
 		});
-		this.trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer, {
-			validationSplit: config.validationSplit,
-			testSplit: config.testSplit,
-			walkForwardFolds: config.walkForwardFolds,
-		});
+		this.trainingLoop = new TrainingLoop(
+			this.trainer,
+			this.dataBuffer,
+			config.history,
+			{
+				validationSplit: config.validationSplit,
+				testSplit: config.testSplit,
+				walkForwardFolds: config.walkForwardFolds,
+			}
+		);
 	}
 }
 
@@ -159,7 +166,8 @@ interface TraderTrainerSettings {
 
 /** Builds the service container from the environment settings. */
 export function createTraderTrainerContainer(
-	settings: TraderTrainerSettings
+	settings: TraderTrainerSettings,
+	history: CandleHistoryPort
 ): ApplicationContainer {
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
@@ -178,6 +186,7 @@ export function createTraderTrainerContainer(
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,
+		history,
 	});
 }
 
