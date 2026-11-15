@@ -317,6 +317,8 @@ deploy() {
 	# audit-logger crash-loops past its progress deadline (run 43331271388).
 	# spire-agent is not waited for here: it needs the trust bundle of the overlay's spire-server.
 	$K -n trading-model-node rollout status daemonset/spiffe-csi-driver --timeout=300s
+	# hostPath dirs are root:root and fsGroup skips hostPath: the trainer (uid 10001) must write (#1246).
+	docker exec "${CLUSTER}-control-plane" install -d -o 10001 -g 10001 /var/local/kind-rwx/trainer-checkpoints
 	$K apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
 
 	# As deploy.yml: the receivers exist before Alertmanager starts, or its
