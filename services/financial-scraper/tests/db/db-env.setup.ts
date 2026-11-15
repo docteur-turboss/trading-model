@@ -1,3 +1,5 @@
+// A non-UTC process TZ: the pool must still store and read UTC (issue #1260).
+process.env.TZ = "Europe/Paris";
 // Point src/config/db.ts (which reads DB_* when the pool is created) at the
 // Testcontainers MySQL.
 const uri = new URL(process.env.TEST_MYSQL_URI as string);
