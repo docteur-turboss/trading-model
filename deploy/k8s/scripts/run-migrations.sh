@@ -116,31 +116,22 @@ require_migrate_password() {
 # GROUP_REPLICATION, the server is super_read_only. A migration that runs then
 # fails halfway, and its retry fails on what the first try already applied.
 # The Job may be gone on an old namespace (deleted by hand): nothing to wait for.
-# Poll both conditions: `kubectl wait --for=condition=complete` would sit
-# out its whole timeout on a Job that has already failed.
-init_state() {
-  local state=""
-  for _ in $(seq $((60 * ${DEPLOY_TIMEOUT_FACTOR:-1}))); do
+if kubectl get job mysql-cluster-init -n "$NS" >/dev/null 2>&1; then
+  # Poll both conditions: `kubectl wait --for=condition=complete` would sit
+  # out its whole timeout on a Job that has already failed.
+  state=""
+  for _ in $(seq 60); do
     state=$(kubectl get job mysql-cluster-init -n "$NS" \
       -o jsonpath='{range .status.conditions[?(@.status=="True")]}{.type} {end}')
     case "$state" in *Complete*|*Failed*) break ;; esac
     sleep 5
   done
-  echo "$state"
-}
-if kubectl get job mysql-cluster-init -n "$NS" >/dev/null 2>&1; then
-  state=$(init_state)
-  # The Job left Failed by an earlier deploy (rolled back before the overlay re-created it)
-  # would block every later deploy (issue #1199): run it once more, it is idempotent.
+  # A Failed Job has no START GROUP_REPLICATION left running, and group_replication_start_on_boot=off
+  # keeps mysql-0 writable. Fatal, it blocked every later deploy (issue #1199); the group stays
+  # offline (one member, no HA: ADR-0020) until the Job the overlay re-creates bootstraps it.
   if [[ "$state" == *Failed* ]]; then
-    echo "mysql-cluster-init failed in an earlier run: running it again"
-    kubectl get job mysql-cluster-init -n "$NS" -o json |
-      jq 'del(.status, .metadata.uid, .metadata.resourceVersion, .metadata.creationTimestamp, .metadata.managedFields, .spec.selector)
-        | .spec.template.metadata.labels |= del(.["controller-uid", "job-name", "batch.kubernetes.io/controller-uid", "batch.kubernetes.io/job-name"])' |
-      kubectl replace --force -n "$NS" -f -
-    state=$(init_state)
-  fi
-  if [[ "$state" != *Complete* ]]; then
+    echo "::warning::mysql-cluster-init failed, group replication offline on mysql-0: migrating anyway, the overlay runs the Job again (kubectl logs -n $NS mysql-0 -c mysql | grep MY-011636)"
+  elif [[ "$state" != *Complete* ]]; then
     echo "::error::MySQL group replication bootstrap (mysql-cluster-init) failed or timed out"
     kubectl logs -n "$NS" job/mysql-cluster-init --tail=50 || true
     exit 1
