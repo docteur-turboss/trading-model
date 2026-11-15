@@ -1,7 +1,5 @@
 {
-  "cycles": [
-    "services/audit-logger/src/adapters/outbound/persistence/audit-querier.ts | services/audit-logger/src/adapters/outbound/persistence/audit-repository.ts | services/audit-logger/src/adapters/outbound/persistence/filter-builder.ts"
-  ],
+  "cycles": [],
   "layers": [
     "packages/address-manager/src/application/address-manager.ts -> ../infrastructure/monitoring/metrics-collector",
     "packages/address-manager/src/application/client/token-manager.ts -> ../../adapters/outbound/client/token-refresh-client",
