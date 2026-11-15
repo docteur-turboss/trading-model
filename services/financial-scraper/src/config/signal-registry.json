@@ -96,6 +96,28 @@
 			]
 		},
 		{
+			"id": "cftc-cot-legacy",
+			"protocol": "rest_api",
+			"adapter": "cftc-cot-legacy",
+			"schedule": "45 15-23 * * 5",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "commodity_proxy", "dimension": "market" }],
+			"accessPolicy": {
+				"terms": "public-domain",
+				"termsUrl": "https://www.cftc.gov/webpolicy/index.htm",
+				"attribution": "Source: U.S. Commodity Futures Trading Commission (Commitments of Traders)",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": { "assetId": "WHEAT" },
+					"dimension": "market",
+					"url": "https://publicreporting.cftc.gov/resource/jun7-fc8e.json?cftc_contract_market_code=001612&$order=report_date_as_yyyy_mm_dd%20DESC&$limit=5"
+				}
+			]
+		},
+		{
 			"id": "nws-kansas-wheat-belt",
 			"protocol": "rest_api",
 			"adapter": "nws-latest-observation",

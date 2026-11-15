@@ -182,6 +182,7 @@ describe("config/container — createSignalScheduler", () => {
 			sources: [
 				"ecb-aaa-yield-10y",
 				"sec-edgar-eps-diluted",
+				"cftc-cot-legacy",
 				"nws-kansas-wheat-belt",
 				"wikipedia-pageviews",
 			],
