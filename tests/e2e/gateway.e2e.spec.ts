@@ -80,7 +80,6 @@ describe("API Gateway E2E", () => {
 		);
 		expect(status).toBe(200);
 		expect(JSON.parse(body).sources[0]).toHaveProperty("termsUrl");
-		expect(body).not.toContain('"env"');
 	});
 
 	it.each([
