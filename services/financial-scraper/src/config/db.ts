@@ -9,6 +9,8 @@ const POOL: Pool = createPool({
 	// BIGINT columns (market_trades.trade_id) past Number.MAX_SAFE_INTEGER come
 	// back as strings, which ts-sql-query turns into exact bigints.
 	supportBigNumbers: true,
+	// DATETIME columns hold UTC: do not follow the container TZ (driver default "local").
+	timezone: "Z",
 });
 
 const POOL_RUNNER = new MySql2PoolQueryRunner(POOL);
