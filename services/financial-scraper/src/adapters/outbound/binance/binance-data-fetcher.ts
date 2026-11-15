@@ -1,7 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { SymbolInterval } from "@trading-model/contracts/candlestick-query";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { type Limit, PositiveInt } from "@trading-model/primitives/primitives";
 import { SNAPSHOT_PARTS_FAILED_TOTAL } from "../../../config/metrics";
 import type {

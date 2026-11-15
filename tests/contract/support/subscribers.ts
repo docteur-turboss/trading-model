@@ -2,11 +2,11 @@ import type { EventMap } from "@trading-model/contracts/event-map";
 import {
 	type ApiRoute,
 	parseRequest,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
-import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
-import { BROKER_CALLBACK_API } from "../../../packages/broker-message/src/adapters/inbound/api-routes";
-import { MESSAGE_CONTROLLER } from "../../../packages/broker-message/src/adapters/inbound/messages.controller";
-import { EVENT_MANAGER } from "../../../packages/broker-message/src/application/services/event-manager-client";
+} from "@trading-model/http/api-route/api-route";
+import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
+import { BROKER_CALLBACK_API } from "../../../packages/broker-message/src/api-routes";
+import { EVENT_MANAGER } from "../../../packages/broker-message/src/event-manager-client";
+import { MESSAGE_CONTROLLER } from "../../../packages/broker-message/src/messages.controller";
 import { AUDIT_API } from "../../../services/audit-logger/src/adapters/inbound/http/api-routes";
 import { createMessageHandler } from "../../../services/audit-logger/src/adapters/inbound/subscription/audit-subscriber";
 import type { AuditEventDocument } from "../../../services/audit-logger/src/adapters/outbound/persistence/audit-repository";

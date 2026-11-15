@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
-import { LogLevel } from "@trading-model/http/infrastructure/log-types";
-import { generateProcessId } from "@trading-model/http/infrastructure/process-id-generator";
+import { LogLevel } from "@trading-model/http/log-types";
+import { generateProcessId } from "@trading-model/http/process-id-generator";
 
 describe("generateProcessId", () => {
 	it("should generate a process ID containing log level", () => {

@@ -1,4 +1,4 @@
-import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
+import { mountRoute } from "@trading-model/http/api-route/mount-route";
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import type { ServiceRegistry } from "../../../domain/service-registry";

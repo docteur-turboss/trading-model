@@ -158,17 +158,17 @@ In addition to the default export, the package exposes internal modules via deep
 
 | Import Path                                                       | Exports                                                                             |
 | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `@trading-model/address-manager/application/discovery/service-locator` | `ServiceLocator`, `ServiceNameLocator`, `IpAddressLocator`, `MappingServiceLocator` |
-| `@trading-model/address-manager/adapters/outbound/discovery/service-health-checker` | `ServiceHealthChecker`                                              |
-| `@trading-model/address-manager/adapters/outbound/discovery/service-cache` | `ServiceCache`                                                              |
-| `@trading-model/address-manager/application/discovery/discovery-retry-handler` | `DiscoveryRetryHandler`                                                          |
-| `@trading-model/address-manager/application/client/token-manager` | `TokenManager`                                                                      |
-| `@trading-model/address-manager/adapters/outbound/client/address-manager-client` | `AddressManagerClient`                                                  |
-| `@trading-model/address-manager/domain/client/type`               | `ServiceInstance`, `RegisterServicePayload`, `ServiceRegistrationResponse`          |
-| `@trading-model/address-manager/infrastructure/scheduler/scheduler` | `Scheduler`                                                                       |
-| `@trading-model/address-manager/infrastructure/scheduler/refresh-job` | `RefreshJob`                                                                    |
+| `@trading-model/address-manager/discovery/service-locator` | `ServiceLocator`, `ServiceNameLocator`, `IpAddressLocator`, `MappingServiceLocator` |
+| `@trading-model/address-manager/discovery/service-health-checker` | `ServiceHealthChecker`                                              |
+| `@trading-model/address-manager/discovery/service-cache` | `ServiceCache`                                                              |
+| `@trading-model/address-manager/discovery/discovery-retry-handler` | `DiscoveryRetryHandler`                                                          |
+| `@trading-model/address-manager/client/token-manager` | `TokenManager`                                                                      |
+| `@trading-model/address-manager/client/address-manager-client` | `AddressManagerClient`                                                  |
+| `@trading-model/address-manager/client/type`               | `ServiceInstance`, `RegisterServicePayload`, `ServiceRegistrationResponse`          |
+| `@trading-model/address-manager/scheduler/scheduler` | `Scheduler`                                                                       |
+| `@trading-model/address-manager/scheduler/refresh-job` | `RefreshJob`                                                                    |
 | `@trading-model/address-manager/shared/scheduler/cron.util`       | `intervalMsToCron` (sub-minute cron support via 6-field seconds format)             |
-| `@trading-model/address-manager/domain/config/address-manager-config` | `AddressManagerConfig`                                                          |
+| `@trading-model/address-manager/config/address-manager-config` | `AddressManagerConfig`                                                          |
 
 ## Environment Schema
 

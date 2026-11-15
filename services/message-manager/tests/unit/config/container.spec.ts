@@ -24,7 +24,7 @@ jest.mock("../../../src/config/address-manager", () => ({
 	BOOTSTRAP_ADDRESS_MANAGER: jest.fn<(...args: any[]) => any>(),
 }));
 
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => {
+jest.mock("@trading-model/http/http-client", () => {
 	const mockInstance = {
 		post: jest.fn<(...args: any[]) => any>(),
 		get: jest.fn<(...args: any[]) => any>(),

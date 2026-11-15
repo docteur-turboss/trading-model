@@ -1,8 +1,8 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
 import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import { DurationMs, ServiceId } from "@trading-model/primitives/primitives";
-import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
 import type { Application } from "express";
 
 import {

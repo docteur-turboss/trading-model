@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { MESSAGE_PAYLOAD_SCHEMA } from "@trading-model/broker-message/shared/barrel/message.schema";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import { MarketEvent } from "@trading-model/contracts/market-events";
-import { toJsonWire } from "@trading-model/http/infrastructure/json-wire";
+import { toJsonWire } from "@trading-model/http/json-wire";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import {
 	mock24hrTickerResponse,

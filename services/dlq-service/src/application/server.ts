@@ -1,5 +1,5 @@
 import { ServiceId } from "@trading-model/primitives/primitives";
-import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
 import type { DlqHandlers } from "../adapters/inbound/dlq-service";
 import { DlqRoutes } from "../adapters/inbound/routes";
 import { REGISTRATION_READINESS } from "../config/address-manager";

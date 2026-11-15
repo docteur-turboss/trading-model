@@ -12,8 +12,8 @@ import {
 import {
 	type ApiRoute,
 	responseIssues,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
-import { ResponseProtocol } from "@trading-model/http/adapters/inbound/response-protocol";
+} from "@trading-model/http/api-route/api-route";
+import { ResponseProtocol } from "@trading-model/http/response-protocol";
 import express from "express";
 
 jest.mock("../../src/adapters/inbound/registration-auth", () => ({

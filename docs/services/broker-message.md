@@ -89,7 +89,7 @@ Calls made to the Message Delivery Service:
 
 Internal HTTP client communicating with the message-manager.
 
-- **Import**: `@trading-model/broker-message/adapters/outbound/message-manager-client`
+- **Import**: `@trading-model/broker-message/message-manager-client`
 
 ```ts
 class MessageManagerClient {
@@ -155,7 +155,7 @@ Supported event validators: `exampleEvent`, `testEvent`, `fetchRecentTrades`, `f
 
 Typed EventEmitter for local broker event handling.
 
-- **Import**: `@trading-model/broker-message/application/services/event-manager-client`
+- **Import**: `@trading-model/broker-message/event-manager-client`
 
 ```ts
 EVENT_MANAGER.on(eventName, callback); // returns a cleanup function

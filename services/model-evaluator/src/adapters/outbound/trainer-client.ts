@@ -1,8 +1,8 @@
 import https from "node:https";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { buildHttpsAgentOptions } from "@trading-model/http/infrastructure/http-tls-loader";
+import { HttpClient } from "@trading-model/http/http-client";
+import { buildHttpsAgentOptions } from "@trading-model/http/http-tls-loader";
 import { URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";

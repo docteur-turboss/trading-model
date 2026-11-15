@@ -1,5 +1,5 @@
 import { HELPER } from "@trading-model/broker-message";
-import { createServiceMessageManager } from "@trading-model/broker-message/application/services/create-message-manager";
+import { createServiceMessageManager } from "@trading-model/broker-message/create-message-manager";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type {

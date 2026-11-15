@@ -1,6 +1,6 @@
 import http from "node:http";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { configureApp } from "@trading-model/server-utils/adapters/inbound/configure-app";
+import { configureApp } from "@trading-model/server-utils/configure-app";
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -27,7 +27,7 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),

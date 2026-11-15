@@ -65,8 +65,8 @@ All platform assets are documented in:
 
 - **mTLS mandatory:** All service-to-service HTTP communication requires mutual TLS 1.3 with X.509 SVIDs issued by SPIRE after workload attestation (ADR-0011)
 - **Databases, not encrypted in transit:** client connections to MongoDB, Redis and Sentinel are plain TCP inside the cluster, credentials included. Protection: NetworkPolicies, per-service credentials, LUKS2 on data disks. Residual risk accepted by the owner (ADR-0060); TLS is planned (issues #930, #769). MySQL client connections are TLS-verified with per-service client certificates and `require_secure_transport=ON` (issue #767, `docs/deployment/MYSQL_TLS.md`)
-- **Service identity:** Extracted from the certificate SAN (SPIFFE ID `spiffe://...`) via `@trading-model/http/adapters/inbound/mtls-auth.ts`
-- **Authorization:** ACL-based service-to-service access control via `@trading-model/http/adapters/inbound/mtls-authorization.ts`
+- **Service identity:** Extracted from the certificate SAN (SPIFFE ID `spiffe://...`) via `@trading-model/http/mtls-auth.ts`
+- **Authorization:** ACL-based service-to-service access control via `@trading-model/http/mtls-authorization.ts`
 
 ### 5.2 Authentication Methods
 
@@ -124,7 +124,7 @@ All logs pass through two layers of sensitive data redaction before persistence:
 1. **Sensitive-key patterns** — 11 patterns (token, password, IP keys, etc.) redacted in logged objects and in context objects before MongoDB write
 2. **PEM sanitizer** — Strips PEM blocks (certificates, private keys) from log output
 
-Implementation: `@trading-model/http/infrastructure/sensitive-data-sanitizer.ts`
+Implementation: `@trading-model/http/sensitive-data-sanitizer.ts`
 
 ## 9. Communications Security
 

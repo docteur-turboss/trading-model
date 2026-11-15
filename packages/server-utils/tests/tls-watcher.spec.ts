@@ -3,7 +3,7 @@ const mockAccess = jest.fn().mockResolvedValue(undefined);
 const mockSetSecureContext = jest.fn();
 const mockLoadBundle = jest.fn();
 
-jest.mock("@trading-model/http/infrastructure/http-tls-loader", () => ({
+jest.mock("@trading-model/http/http-tls-loader", () => ({
 	loadTlsPemBundle: (...args: unknown[]) => mockLoadBundle(...args),
 }));
 
@@ -21,7 +21,7 @@ jest.mock("node:fs/promises", () => ({
 }));
 
 import path from "node:path";
-import { setupTlsWatcher } from "../src/infrastructure/tls-watcher";
+import { setupTlsWatcher } from "../src/tls-watcher";
 
 describe("setupTlsWatcher", () => {
 	beforeEach(() => {

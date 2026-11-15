@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { HttpClient } from "@trading-model/http/http-client";
 import type { Dispatcher } from "../../src/application/services/dispatcher";
 import type { SubscriptionParams } from "../../src/domain/messaging-types";
 

@@ -1,6 +1,6 @@
 import os from "node:os";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import {
 	PositiveInt,
 	type TradingSymbol,

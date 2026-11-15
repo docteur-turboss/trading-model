@@ -6,7 +6,7 @@ import {
 	createAddEntry,
 } from "../../src/application/use-cases/add-entry-pipeline";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: { error: jest.fn<(...args: any[]) => any>() },
 }));
 

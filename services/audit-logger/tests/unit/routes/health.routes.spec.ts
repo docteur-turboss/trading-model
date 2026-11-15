@@ -5,12 +5,9 @@ import {
 	mockSendResponseModule,
 } from "../../helpers/middleware-mocks";
 
+jest.mock("@trading-model/http/catch-error", () => mockCatchSyncModule);
 jest.mock(
-	"@trading-model/http/adapters/inbound/catch-error",
-	() => mockCatchSyncModule
-);
-jest.mock(
-	"@trading-model/http/adapters/inbound/response-exception",
+	"@trading-model/http/response-exception",
 	() => mockSendResponseModule
 );
 

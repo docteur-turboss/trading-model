@@ -27,7 +27,7 @@ jest.mock("../../../../src/adapters/outbound/binance/normalizer", () => ({
 	},
 }));
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		warn: jest.fn<(...args: any[]) => any>(),
 		error: jest.fn<(...args: any[]) => any>(),

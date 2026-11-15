@@ -1,5 +1,5 @@
-import { generateRandomStr } from "@trading-model/crypto/adapters/outbound/node-random";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { generateRandomStr } from "@trading-model/crypto/node-crypto";
+import { logger } from "@trading-model/http/logger";
 import type { RedisConnectionMode } from "@trading-model/persistence/redis-config";
 import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
 import {

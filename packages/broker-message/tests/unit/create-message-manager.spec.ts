@@ -10,7 +10,7 @@ const MOCK_MESSAGE_MANAGER_INSTANCE = {
 	listenExpress: MOCK_LISTEN_EXPRESS,
 };
 
-jest.mock("../../src/application/services/broker-message", () => ({
+jest.mock("../../src/broker-message", () => ({
 	__esModule: true,
 	default: jest
 		.fn<(...args: any[]) => any>()
@@ -19,7 +19,7 @@ jest.mock("../../src/application/services/broker-message", () => ({
 
 jest.mock("@trading-model/address-manager", () => ({}));
 
-import { createMessageManager } from "../../src/application/services/create-message-manager";
+import { createMessageManager } from "../../src/create-message-manager";
 
 describe("createMessageManager", () => {
 	const options = {
@@ -39,8 +39,7 @@ describe("createMessageManager", () => {
 	});
 
 	it("should create a MessageManager instance with correct options", () => {
-		const MessageManagerClass =
-			require("../../src/application/services/broker-message").default;
+		const MessageManagerClass = require("../../src/broker-message").default;
 
 		createMessageManager(options);
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { RegistrationAttemptHandler } from "../../src/application/registration-attempt-handler";
+import { RegistrationAttemptHandler } from "../../src/registration-attempt-handler";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		error: jest.fn<(...args: any[]) => any>(),
 		info: jest.fn<(...args: any[]) => any>(),

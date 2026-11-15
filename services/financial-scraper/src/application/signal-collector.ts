@@ -1,5 +1,5 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { sha256Hex } from "@trading-model/crypto/adapters/outbound/node-hash";
+import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import { SIGNAL_COLLECTIONS_TOTAL } from "../config/metrics";
 import {
 	InvalidPayloadError,

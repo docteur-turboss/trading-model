@@ -28,7 +28,7 @@ refused. Service-to-service traffic is never denied in normal operation.
 1. Read the denial: `kubectl logs deploy/<job> -n trading-model | grep -i forbidden`
    (names the caller and target).
 2. `caller_not_allowed` / `no_policy` after a deploy: the ACL
-   (`packages/http/src/adapters/inbound/acl-config.ts`) lacks the new caller
+   (`packages/http/src/acl-config.ts`) lacks the new caller
    or route; fix it in code.
 3. Certificate reasons: check SVID rotation (`runbook-certificate-expiry`).
 4. Caller unknown and not expected: a probe from inside the cluster; treat as

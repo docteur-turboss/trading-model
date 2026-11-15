@@ -6,7 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { EVENT_MANAGER } from "../../src/application/services/event-manager-client";
+import { EVENT_MANAGER } from "../../src/event-manager-client";
 
 const MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE = {
 	subscribe: jest.fn<(...args: any[]) => any>(),
@@ -14,13 +14,13 @@ const MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE = {
 	publish: jest.fn<(...args: any[]) => any>(),
 };
 
-jest.mock("../../src/adapters/outbound/message-manager-client", () => ({
+jest.mock("../../src/message-manager-client", () => ({
 	MessageManagerClient: jest
 		.fn<(...args: any[]) => any>()
 		.mockImplementation(() => MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE),
 }));
 
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
+jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: Object.assign(
 		jest.fn<(...args: any[]) => any>().mockImplementation(() => ({})),
 		{ createWithTls: jest.fn((..._args: any[]) => ({})) }
@@ -29,13 +29,13 @@ jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 
 const MOCK_CREATE_CALLBACK_ROUTE = jest.fn<(...args: any[]) => any>();
 
-jest.mock("../../src/adapters/inbound/messages.routes", () => ({
+jest.mock("../../src/messages.routes", () => ({
 	CREATE_CALLBACK_ROUTE: jest.fn(
 		(..._args: any[]) => MOCK_CREATE_CALLBACK_ROUTE
 	),
 }));
 
-import { SUBSCRIPTION_REFRESH_MS } from "../../src/application/services/broker-message";
+import { SUBSCRIPTION_REFRESH_MS } from "../../src/broker-message";
 import BrokerMessage from "../../src/index";
 
 describe("BrokerMessage", () => {
@@ -66,7 +66,7 @@ describe("BrokerMessage", () => {
 		it("should use default callbackPath when not provided", () => {
 			const {
 				MessageManagerClient,
-			} = require("../../src/adapters/outbound/message-manager-client");
+			} = require("../../src/message-manager-client");
 			expect(MessageManagerClient).toHaveBeenCalledWith(
 				expect.any(Object),
 				expect.objectContaining({ callbackPath: "message" }),
@@ -77,7 +77,7 @@ describe("BrokerMessage", () => {
 		it("should use provided callbackPath", () => {
 			const {
 				MessageManagerClient,
-			} = require("../../src/adapters/outbound/message-manager-client");
+			} = require("../../src/message-manager-client");
 			jest.clearAllMocks();
 			new BrokerMessage({ ...defaultParams, callbackPath: "/custom" } as any);
 			expect(MessageManagerClient).toHaveBeenCalledWith(

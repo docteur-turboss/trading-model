@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 const mockVerifySignature = jest.fn<(...args: any[]) => any>();
 
-jest.mock("@trading-model/crypto/application/services/request-signer", () => ({
+jest.mock("@trading-model/crypto/request-signer", () => ({
 	verifySignature: (...args: unknown[]) => mockVerifySignature(...args),
 }));
 

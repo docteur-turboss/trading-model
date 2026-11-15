@@ -7,20 +7,17 @@ import {
 	test,
 } from "@jest/globals";
 import cron from "node-cron";
-import {
-	type ScheduledJob,
-	Scheduler,
-} from "../../src/infrastructure/scheduler/scheduler";
+import { type ScheduledJob, Scheduler } from "../../src/scheduler/scheduler";
 
 jest.mock("node-cron", () => ({
 	schedule: jest.fn<(...args: any[]) => any>(),
 }));
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: { error: jest.fn<(...args: any[]) => any>() },
 }));
 
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 
 const MOCK_LOGGER_ERROR = jest.mocked(logger.error);
 

@@ -1,4 +1,4 @@
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
 import { crossoverGenomes } from "./crossover/genome-crossover";
 import {
 	crossoverWeights,

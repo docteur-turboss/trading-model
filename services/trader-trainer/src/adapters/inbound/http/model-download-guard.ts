@@ -1,5 +1,5 @@
 import { normalizeServiceName } from "@trading-model/common/utils/spiffe";
-import { resolveMtlsIdentity } from "@trading-model/http/adapters/inbound/mtls-identity";
+import { resolveMtlsIdentity } from "@trading-model/http/mtls-identity";
 import type { RequestHandler } from "express";
 
 /** The caller's service, from its SPIFFE identity; `undefined` without one. */

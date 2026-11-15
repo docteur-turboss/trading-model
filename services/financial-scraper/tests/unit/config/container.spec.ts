@@ -12,7 +12,7 @@ const MOCK_LOGGER = {
 	error: jest.fn<(...args: any[]) => any>(),
 };
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: MOCK_LOGGER,
 }));
 

@@ -1,5 +1,5 @@
 import { TlsEnvVarsSchema } from "@trading-model/common/config/tls-paths";
-import { LogLevel } from "@trading-model/http/infrastructure/log-types";
+import { LogLevel } from "@trading-model/http/log-types";
 import { NODE_ENVS } from "@trading-model/http/shared/node-env";
 import { z } from "zod";
 

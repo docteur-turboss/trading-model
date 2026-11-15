@@ -1,9 +1,9 @@
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { HttpMethod } from "@trading-model/contracts/signed-request";
-import { buildSignedHeaders } from "@trading-model/crypto/application/services/request-signer";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { isHttpClientError } from "@trading-model/http/adapters/outbound/http-client-errors";
+import { buildSignedHeaders } from "@trading-model/crypto/request-signer";
+import type { HttpClient } from "@trading-model/http/http-client";
+import { isHttpClientError } from "@trading-model/http/http-client-errors";
 import {
 	DurationMs,
 	ServiceId,

@@ -4,7 +4,7 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/http/adapters/inbound/response-exception";
+} from "@trading-model/http/response-exception";
 import type { AddEntryResult } from "../../application/use-cases/add-entry-pipeline";
 import type { DeleteEntriesResult } from "../../application/use-cases/dlq-delete-handler";
 import type {

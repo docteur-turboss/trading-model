@@ -6,7 +6,7 @@ import {
 	isRetryableStatus,
 	isRetryableStatusPermissive,
 	RETRY_JITTER_MS,
-} from "@trading-model/http/infrastructure/http-retry";
+} from "@trading-model/http/http-retry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 
 describe("isRetryableStatus", () => {

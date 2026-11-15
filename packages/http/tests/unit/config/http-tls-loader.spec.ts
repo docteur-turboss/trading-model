@@ -33,7 +33,7 @@ import {
 	buildHttpsAgentOptions,
 	loadTlsPemBundleSync,
 	TLS_RELOAD_CHECK_INTERVAL_MS,
-} from "@trading-model/http/infrastructure/http-tls-loader";
+} from "@trading-model/http/http-tls-loader";
 import type { FilePath } from "@trading-model/primitives/primitives/file-path";
 
 const caPath = "/etc/tls/ca.pem" as unknown as FilePath;

@@ -7,11 +7,11 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { buildSignedHeaders } from "@trading-model/crypto/application/services/request-signer";
+import { buildSignedHeaders } from "@trading-model/crypto/request-signer";
 import {
 	type ApiRoute,
 	responseIssues,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import express from "express";
 
 jest.setTimeout(15000);
@@ -41,7 +41,7 @@ jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 			next(),
 }));
 
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
+jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: jest.fn<(...args: any[]) => any>(),
 }));
 

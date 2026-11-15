@@ -9,7 +9,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
+import { mountRoute } from "@trading-model/http/api-route/mount-route";
 import express, { Router } from "express";
 import { DLQ_API } from "../../src/adapters/inbound/api-routes";
 

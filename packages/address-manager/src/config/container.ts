@@ -1,25 +1,25 @@
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { AddressManagerClient } from "../adapters/outbound/client/address-manager-client";
-import { ServiceCache } from "../adapters/outbound/discovery/service-cache";
-import { ServiceHealthChecker } from "../adapters/outbound/discovery/service-health-checker";
-import { TokenManager } from "../application/client/token-manager";
-import { DiscoveryCircuitBreaker } from "../application/discovery/circuit-breaker";
-import { DiscoveryRetryHandler } from "../application/discovery/discovery-retry-handler";
+import { HttpClient } from "@trading-model/http/http-client";
+import { AddressManagerClient } from "../client/address-manager-client";
+import { TokenManager } from "../client/token-manager";
+import { DiscoveryCircuitBreaker } from "../discovery/circuit-breaker";
+import { DiscoveryRetryHandler } from "../discovery/discovery-retry-handler";
+import { ServiceCache } from "../discovery/service-cache";
+import { ServiceHealthChecker } from "../discovery/service-health-checker";
 import {
 	MappingServiceLocator,
 	MapResolver,
-} from "../application/discovery/service-locator";
-import { HeartbeatManager } from "../application/heartbeat-manager";
-import { LifecycleManager } from "../application/lifecycle-manager";
-import { RegistrationAttemptHandler } from "../application/registration-attempt-handler";
-import type { AddressManagerConfig } from "../domain/config/address-manager-config";
+} from "../discovery/service-locator";
+import { HeartbeatManager } from "../heartbeat-manager";
+import { LifecycleManager } from "../lifecycle-manager";
 import {
 	DiscoveryResult,
 	HEARTBEAT_TOTAL,
 	REGISTRATION_TOTAL,
-} from "../infrastructure/metrics";
-import { MetricsCollector } from "../infrastructure/monitoring/metrics-collector";
-import { ShutdownHandler } from "../infrastructure/shutdown-handler";
+} from "../metrics";
+import { MetricsCollector } from "../monitoring/metrics-collector";
+import { RegistrationAttemptHandler } from "../registration-attempt-handler";
+import { ShutdownHandler } from "../shutdown-handler";
+import type { AddressManagerConfig } from "./address-manager-config";
 
 /** Wires every address-manager dependency from the config. */
 export function buildAddressManagerDependencies(config: AddressManagerConfig) {

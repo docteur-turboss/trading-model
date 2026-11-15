@@ -4,18 +4,18 @@ import {
 	type ApiRoute,
 	parseRequest,
 	responseIssues,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
-import { ResponseProtocol } from "@trading-model/http/adapters/inbound/response-protocol";
+} from "@trading-model/http/api-route/api-route";
+import { ResponseProtocol } from "@trading-model/http/response-protocol";
 import {
 	toDurationMs,
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/primitives/primitives";
 import express from "express";
-import { AddressManagerClient } from "../../packages/address-manager/src/adapters/outbound/client/address-manager-client";
-import { TokenManager } from "../../packages/address-manager/src/application/client/token-manager";
-import { DiscoveryRetryHandler } from "../../packages/address-manager/src/application/discovery/discovery-retry-handler";
-import { EndpointResolver } from "../../packages/address-manager/src/application/discovery/endpoint-resolver";
+import { AddressManagerClient } from "../../packages/address-manager/src/client/address-manager-client";
+import { TokenManager } from "../../packages/address-manager/src/client/token-manager";
+import { DiscoveryRetryHandler } from "../../packages/address-manager/src/discovery/discovery-retry-handler";
+import { EndpointResolver } from "../../packages/address-manager/src/discovery/endpoint-resolver";
 import { DISCOVERY_API } from "../../services/discovery-server/src/adapters/inbound/http/api-routes";
 import { HEARTBEAT_ROUTES } from "../../services/discovery-server/src/adapters/inbound/http/heartbeat.routes";
 import { REGISTRY_ROUTES } from "../../services/discovery-server/src/adapters/inbound/http/register.routes";

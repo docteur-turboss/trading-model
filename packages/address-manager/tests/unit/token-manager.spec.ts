@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { HttpClient } from "@trading-model/http/http-client";
 import type { URLString } from "@trading-model/primitives/primitives";
-import { TokenManager } from "../../src/application/client/token-manager";
-import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
+import { TokenManager } from "../../src/client/token-manager";
+import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 
 describe("TokenManager", () => {
 	let httpClient: jest.Mocked<HttpClient>;

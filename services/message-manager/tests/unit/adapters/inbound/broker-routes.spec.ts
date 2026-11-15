@@ -12,7 +12,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import {
 	type ApiRoute,
 	responseIssues,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import { InstanceId, Topic } from "@trading-model/primitives/primitives";
 import express from "express";
 import { BROKER_API } from "../../../../src/adapters/inbound/api-routes";

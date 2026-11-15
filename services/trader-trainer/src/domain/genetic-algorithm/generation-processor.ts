@@ -1,4 +1,4 @@
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
 import { evaluateFitness } from "./evaluation-pipeline";
 import { createDefaultGenome } from "./factory";
 import { type GaTelemetry, NoopGaTelemetry } from "./ga-telemetry";

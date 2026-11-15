@@ -1,5 +1,5 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { z } from "zod";
 import { isObject } from "../domain/validation/primitives";
 

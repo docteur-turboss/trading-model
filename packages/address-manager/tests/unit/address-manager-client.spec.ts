@@ -13,7 +13,7 @@ import {
 } from "@trading-model/common/config/services.types";
 import { isAppError } from "@trading-model/common/utils/errors";
 import { Protocol } from "@trading-model/contracts/service-registry-types";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { HttpClient } from "@trading-model/http/http-client";
 import {
 	IPAddress,
 	Port,
@@ -24,10 +24,10 @@ import {
 	UnixTimestamp,
 	type URLString,
 } from "@trading-model/primitives/primitives";
-import { AddressManagerClient } from "../../src/adapters/outbound/client/address-manager-client";
-import type { TokenManager } from "../../src/application/client/token-manager";
-import type { ServiceRegistrationResponse } from "../../src/domain/client/type";
-import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
+import { AddressManagerClient } from "../../src/client/address-manager-client";
+import type { TokenManager } from "../../src/client/token-manager";
+import type { ServiceRegistrationResponse } from "../../src/client/type";
+import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 import { LocalIPDetector } from "../../src/shared/client/local-ip-detector";
 
 jest.mock("os");

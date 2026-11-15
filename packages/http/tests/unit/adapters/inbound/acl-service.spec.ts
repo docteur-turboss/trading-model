@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { AclService } from "@trading-model/http/adapters/inbound/acl-service";
+import { AclService } from "@trading-model/http/acl-service";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import type { Request } from "express";
 
@@ -94,7 +94,7 @@ describe("AclService", () => {
 describe("AclService denial metric", () => {
 	it("counts a denied caller", async () => {
 		const { mtlsDenialsTotal } = await import(
-			"@trading-model/http/infrastructure/outbound-metrics"
+			"@trading-model/http/outbound-metrics"
 		);
 		const count = async () =>
 			(await mtlsDenialsTotal.get()).values.find(

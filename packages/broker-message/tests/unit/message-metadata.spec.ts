@@ -15,7 +15,7 @@ import type {
 	TenantId,
 	Topic,
 } from "@trading-model/primitives/primitives";
-import { MessageMetadataBuilder } from "../../src/domain/messages/message-metadata-builder";
+import { MessageMetadataBuilder } from "../../src/messages/message-metadata-builder";
 
 const TEST_TOPIC = "test.event.created";
 const TEST_EVENT = "example.debug.create";

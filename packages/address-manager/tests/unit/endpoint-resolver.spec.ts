@@ -20,7 +20,7 @@ import {
 	isAllowedProxyIP,
 	parseCIDRList,
 } from "@trading-model/primitives/primitives";
-import { EndpointResolver } from "../../src/application/discovery/endpoint-resolver";
+import { EndpointResolver } from "../../src/discovery/endpoint-resolver";
 
 const makeInstance = (host: string, port: number, version: string) => ({
 	serviceName: "sector-allocator",

@@ -8,12 +8,9 @@ const MOCK_CREATE_SECURE_SERVER = jest
 	.fn<(...args: any[]) => any>()
 	.mockReturnValue({ close: jest.fn<(...args: any[]) => any>() });
 
-jest.mock(
-	"@trading-model/server-utils/adapters/inbound/service-server-factory",
-	() => ({
-		createServiceServer: MOCK_CREATE_SECURE_SERVER,
-	})
-);
+jest.mock("@trading-model/server-utils/service-server-factory", () => ({
+	createServiceServer: MOCK_CREATE_SECURE_SERVER,
+}));
 
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn((app: any) => app),

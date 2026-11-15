@@ -6,13 +6,13 @@ const MOCK_DISCOVERY_STOP = jest.fn<(...args: any[]) => any>();
 const MOCK_WARN = jest.fn<(...args: any[]) => any>();
 const MOCK_CLOSE_DB = jest.fn(async () => undefined);
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: { info: jest.fn(), error: jest.fn(), warn: MOCK_WARN },
 }));
-jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
+jest.mock("@trading-model/server-utils/bootstrap", () => ({
 	createBootstrap: MOCK_CREATE_BOOTSTRAP,
 }));
-jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
+jest.mock("@trading-model/server-utils/telemetry", () => ({
 	shutdownTelemetry: jest.fn(async () => undefined),
 }));
 jest.mock("../../src/application/telemetry", () => ({}));

@@ -39,6 +39,8 @@ test('application importing adapters or infrastructure fails, startup files are 
     [`${S}/adapters/db.ts`]: 'export const db = 1;',
     [`${S}/application/use-case.ts`]: "import { db } from '../adapters/db';\nexport const u = db;",
     [`${S}/application/server.ts`]: "import { db } from '../adapters/db';\nexport const s = db;",
+    'packages/lib/src/application/use.ts': "import { db } from '../adapters/db';\nexport const u = db;",
+    'packages/lib/src/adapters/db.ts': 'export const db = 1;',
     [`${S}/application/shared.ts`]: "import type { X } from '@trading-model/http/infrastructure/logger';\nexport type Y = X;",
   });
   try {

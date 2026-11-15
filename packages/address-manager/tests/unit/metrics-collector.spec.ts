@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 
-jest.mock("../../src/infrastructure/metrics", () => ({
+jest.mock("../../src/metrics", () => ({
 	CIRCUIT_BREAKER_INSTANCES_TOTAL: {
 		set: jest.fn<(labels: { state: string }, value: number) => void>(),
 	},
@@ -10,11 +10,11 @@ jest.mock("../../src/infrastructure/metrics", () => ({
 	},
 }));
 
-jest.mock("../../src/adapters/inbound/routes/ping.routes", () => ({
+jest.mock("../../src/routes/ping.routes", () => ({
 	PING_ROUTES: Symbol("PING_ROUTES"),
 }));
 
-jest.mock("../../src/adapters/inbound/routes/metrics.routes", () => ({
+jest.mock("../../src/routes/metrics.routes", () => ({
 	STATUS_ROUTES: Symbol("STATUS_ROUTES"),
 }));
 
@@ -27,15 +27,15 @@ jest.mock("prom-client", () => ({
 	},
 }));
 
-import { STATUS_ROUTES } from "../../src/adapters/inbound/routes/metrics.routes";
-import { PING_ROUTES } from "../../src/adapters/inbound/routes/ping.routes";
-import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
-import type { ServiceCachePort } from "../../src/domain/ports/service-cache.port";
+import type { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
 import {
 	CACHE_ENTRY_COUNT,
 	CIRCUIT_BREAKER_INSTANCES_TOTAL,
-} from "../../src/infrastructure/metrics";
-import { MetricsCollector } from "../../src/infrastructure/monitoring/metrics-collector";
+} from "../../src/metrics";
+import { MetricsCollector } from "../../src/monitoring/metrics-collector";
+import type { ServiceCachePort } from "../../src/ports/service-cache.port";
+import { STATUS_ROUTES } from "../../src/routes/metrics.routes";
+import { PING_ROUTES } from "../../src/routes/ping.routes";
 
 describe("MetricsCollector", () => {
 	let collector: MetricsCollector;

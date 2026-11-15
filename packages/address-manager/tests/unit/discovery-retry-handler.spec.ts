@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { Protocol } from "@trading-model/contracts/service-registry-types";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { HttpClient } from "@trading-model/http/http-client";
 import {
 	DurationMs,
 	FilePath,
@@ -13,15 +13,15 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
-import type { ServiceHealthChecker } from "../../src/adapters/outbound/discovery/service-health-checker";
-import type { DiscoveryCircuitBreaker } from "../../src/application/discovery/circuit-breaker";
-import { DiscoveryRetryHandler } from "../../src/application/discovery/discovery-retry-handler";
-import type { ServiceInstance } from "../../src/domain/client/type";
-import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
-import type { DiscoveryContext } from "../../src/domain/discovery/discovery-context";
-import type { ServiceCachePort } from "../../src/domain/ports/service-cache.port";
-import type { DiscoveryResult } from "../../src/infrastructure/metrics";
+import type { ServiceInstance } from "../../src/client/type";
+import type { AddressManagerConfig } from "../../src/config/address-manager-config";
+import type { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
+import type { DiscoveryContext } from "../../src/discovery/discovery-context";
+import { DiscoveryRetryHandler } from "../../src/discovery/discovery-retry-handler";
+import { ServiceCache } from "../../src/discovery/service-cache";
+import type { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
+import type { DiscoveryResult } from "../../src/metrics";
+import type { ServiceCachePort } from "../../src/ports/service-cache.port";
 
 jest.mock("@trading-model/contracts/logger-registry", () => {
 	const logger = {
@@ -33,7 +33,7 @@ jest.mock("@trading-model/contracts/logger-registry", () => {
 jest.mock("@trading-model/common/utils/sleep", () => ({
 	sleep: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
-jest.mock("../../src/infrastructure/metrics", () => ({
+jest.mock("../../src/metrics", () => ({
 	DiscoveryResult: {
 		Success: "success",
 		Failure: "failure",
@@ -44,7 +44,7 @@ jest.mock("../../src/infrastructure/metrics", () => ({
 
 import { sleep } from "@trading-model/common/utils/sleep";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { recordDiscoveryMetrics } from "../../src/infrastructure/metrics";
+import { recordDiscoveryMetrics } from "../../src/metrics";
 
 describe("DiscoveryRetryHandler", () => {
 	const FixedTimestamp = 1_700_000_000_000;

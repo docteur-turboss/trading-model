@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { isSensitiveKey } from "@trading-model/http/infrastructure/sensitive-data-sanitizer";
+import { isSensitiveKey } from "@trading-model/http/sensitive-data-sanitizer";
 
 describe("isSensitiveKey", () => {
 	it.each([

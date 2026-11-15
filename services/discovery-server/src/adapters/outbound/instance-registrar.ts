@@ -1,6 +1,6 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import type {
 	InstanceId,
 	UnixTimestamp,

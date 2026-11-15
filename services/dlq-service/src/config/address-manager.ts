@@ -1,4 +1,4 @@
-import { createServiceAddressManager } from "@trading-model/address-manager/application/create-service-address-manager";
+import { createServiceAddressManager } from "@trading-model/address-manager/create-service-address-manager";
 
 import { ENV } from "../infrastructure/config/env";
 

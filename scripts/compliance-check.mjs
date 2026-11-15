@@ -38,7 +38,7 @@ const lokiDays = parseInt(lokiHours, 10) / 24;
 const POLICY = 'docs/compliance/information-security-policy.md';
 const journalH = grab('services/message-manager/src/domain/ports/message-journal.port.ts', /JOURNAL_RETENTION_MS = (\d+) \* 60 \* 60 \* 1000/)[1];
 const mysqlDays = grab('scripts/retention-mysql.sh', /RETENTION_DAYS="\$\{RETENTION_DAYS:-(\d+)\}"/)[1];
-const keyPatterns = grab('packages/http/src/infrastructure/sensitive-data-sanitizer.ts', /SENSITIVE_KEY_PATTERNS = \[([\s\S]*?)\n\];/)[1]
+const keyPatterns = grab('packages/http/src/sensitive-data-sanitizer.ts', /SENSITIVE_KEY_PATTERNS = \[([\s\S]*?)\n\];/)[1]
   .split('\n')
   .filter((l) => l.trim().startsWith('/')).length;
 

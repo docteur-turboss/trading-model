@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { Request, Response } from "express";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -11,7 +11,7 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 }));
 
 const mockResolveMtlsIdentity = jest.fn<(...args: any[]) => any>();
-jest.mock("@trading-model/http/adapters/inbound/mtls-identity", () => ({
+jest.mock("@trading-model/http/mtls-identity", () => ({
 	resolveMtlsIdentity: mockResolveMtlsIdentity,
 }));
 
