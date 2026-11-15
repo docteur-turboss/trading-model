@@ -111,7 +111,6 @@ sequenceDiagram
   participant DB as MySQL
   participant MM as message-manager
   participant TT as trader-trainer
-  participant AL as audit-logger
   participant DLQ as dlq-service
   Note over FS: only the collector pod holding the Lease financial-scraper-collector runs the cycles (ADR-0057)
   loop each scrape cycle, per symbol
@@ -121,7 +120,6 @@ sequenceDiagram
     FS->>MM: POST /message (requireSubscriber)
     alt a subscriber is reachable
       MM->>TT: callback /message
-      MM->>AL: callback /message
       MM-->>FS: all deliveries settled
       FS->>DB: advance cursor
     else no subscriber (503) or message-manager down
