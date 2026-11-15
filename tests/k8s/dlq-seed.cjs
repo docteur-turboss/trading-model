@@ -1,26 +1,19 @@
-// Stores one dead letter in dlq-service the way message-manager does: request
-// signed by the image's own request-signer with DLQ_AUTH_HMAC_SECRET, sent
-// over mTLS with the pod's SVID (HttpDeadLetterStore). Run inside the
-// message-manager container by the restore drill (tests/k8s/run-kind.sh):
-//   kubectl exec -i deployment/message-manager -c message-manager -- node - < tests/k8s/dlq-seed.cjs
-// Prints the id dlq-service gave the entry.
+// Deletes the throwaway dead letter `argv[2]` through the dlq-service API:
+// dlq-service records dlq.entries.deleted, which grows the audit chain (nothing
+// posts dead letters over HTTP any more, ADR-0073). Request signed by the
+// image's own request-signer with DLQ_AUTH_HMAC_SECRET, sent over mTLS with
+// the pod's SVID. Run inside the message-manager container by the restore
+// drill (tests/k8s/run-kind.sh):
+//   kubectl exec -i deployment/message-manager -c message-manager -- node - <id> < tests/k8s/dlq-seed.cjs
 const fs = require("node:fs");
 const https = require("node:https");
 const {
 	buildSignedHeaders,
 } = require("/app/packages/crypto/dist/request-signer.js");
 
-const now = Date.now();
-const body = {
-	topic: "restore-drill",
-	message: { drill: "restore", seededAt: now },
-	reason: "restore drill: dead letter that must survive a restore",
-	deliveryAttempt: 3,
-	timestamp: now,
-	messageId: `restore-drill-${now}`,
-};
+const body = { ids: [process.argv[2]] };
 const headers = buildSignedHeaders(
-	{ serviceName: "message-manager", method: "POST", path: "/dlq", body },
+	{ serviceName: "message-manager", method: "DELETE", path: "/v1/dlq", body },
 	process.env.DLQ_AUTH_HMAC_SECRET
 );
 const svid = "/run/spire/svid";
@@ -28,8 +21,8 @@ const request = https.request(
 	{
 		host: "dlq-service",
 		port: 3000,
-		path: "/dlq",
-		method: "POST",
+		path: "/v1/dlq",
+		method: "DELETE",
 		headers: { ...headers, "content-type": "application/json" },
 		cert: fs.readFileSync(`${svid}/svid.pem`),
 		key: fs.readFileSync(`${svid}/svid_key.pem`),
@@ -43,11 +36,11 @@ const request = https.request(
 			text += chunk;
 		});
 		response.on("end", () => {
-			if (response.statusCode !== 201) {
+			if (response.statusCode !== 200) {
 				console.error(`dlq-service answered ${response.statusCode}: ${text}`);
 				process.exit(1);
 			}
-			console.log(JSON.parse(text).id);
+			console.log(text);
 		});
 	}
 );
