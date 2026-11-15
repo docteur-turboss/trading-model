@@ -282,6 +282,16 @@ describe("market_candles — real MySQL", () => {
 		expect(row.closeTimestamp.getTime()).toBe(T0 + 59_999);
 	});
 
+	it("should store the candle timestamp as UTC whatever the process TZ", async () => {
+		await insertCandles([candle()]);
+
+		// Raw value: a pool round trip alone cannot tell UTC from the process TZ.
+		const [rows] = await DATABASE.promise().query(
+			"SELECT CAST(timestamp AS CHAR) AS ts FROM market_candles"
+		);
+		expect((rows as { ts: string }[])[0].ts).toBe("2026-01-02 03:04:05.678000");
+	});
+
 	it("should update a re-fetched candle in place instead of duplicating it", async () => {
 		await insertCandles([candle()]);
 

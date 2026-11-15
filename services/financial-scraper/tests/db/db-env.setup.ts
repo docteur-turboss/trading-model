@@ -1,4 +1,5 @@
-// A non-UTC process TZ: the pool must still store and read UTC (issue #1260).
+// A non-UTC process TZ (issue #1260): the raw-value case in market-data.db.spec.ts
+// fails without `timezone: "Z"`; a round trip alone would not.
 process.env.TZ = "Europe/Paris";
 // Point src/config/db.ts (which reads DB_* when the pool is created) at the
 // Testcontainers MySQL.
