@@ -83,6 +83,22 @@ const IDENTIFIER_SCHEMES: Record<AssetType, readonly Identifier["scheme"][]> = {
 	commodity_proxy: ["ticker", "isin"],
 };
 
+/** What an ETF (or commodity proxy) holds and how it tracks it. */
+const Exposure = z.strictObject({
+	assetClass: z.enum([
+		"equity",
+		"bond",
+		"real_estate",
+		"commodity",
+		"money_market",
+		"crypto",
+		"mixed",
+	]),
+	/** `synthetic` = swap replication. */
+	replication: z.enum(["physical", "synthetic", "futures"]),
+	region: z.string().min(1).optional(),
+});
+
 function _unique(values: readonly unknown[]): boolean {
 	return new Set(values).size === values.length;
 }
@@ -103,6 +119,8 @@ export const Asset = z
 		sector: SectorId,
 		/** Economic areas whose signals go to this asset (macro data of the area). */
 		areas: z.array(AreaId).optional(),
+		/** Only for `etf` and `commodity_proxy`. */
+		exposure: Exposure.optional(),
 		/** The asset's name at a source or in a reference (`cik`, `wikipedia`, `figi`...), for request templates. */
 		aliases: z
 			.record(z.string().regex(/^[a-z][a-z0-9_]*$/), z.string().min(1))
@@ -115,6 +133,13 @@ export const Asset = z
 			message: "identifier scheme unused for this asset type",
 			path: ["identifier"],
 		}
+	)
+	.refine(
+		(asset) =>
+			!asset.exposure ||
+			asset.assetType === "etf" ||
+			asset.assetType === "commodity_proxy",
+		{ message: "exposure only for etf and commodity_proxy", path: ["exposure"] }
 	)
 	.refine((asset) => _unique(asset.applicableDimensions), {
 		message: "dimension listed twice",

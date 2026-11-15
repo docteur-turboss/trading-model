@@ -34,7 +34,17 @@
 			"assetType": "commodity_proxy",
 			"identifier": { "scheme": "ticker", "ticker": "WEAT", "exchange": "ARCX" },
 			"applicableDimensions": ["market", "contextual", "macro"],
-			"sector": "agriculture"
+			"sector": "agriculture",
+			"exposure": { "assetClass": "commodity", "replication": "futures", "region": "US" }
+		},
+		{
+			"id": "GLD",
+			"name": "SPDR Gold Shares",
+			"assetType": "etf",
+			"identifier": { "scheme": "isin", "isin": "US78463V1070" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "precious_metals",
+			"exposure": { "assetClass": "commodity", "replication": "physical" }
 		},
 		{
 			"id": "EA_AAA_10Y",

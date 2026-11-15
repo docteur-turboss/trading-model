@@ -43,6 +43,7 @@ describe("signal registry — the shipped file", () => {
 			"ETH",
 			"AAPL",
 			"WHEAT",
+			"GLD",
 			"EA_AAA_10Y",
 		]);
 	});
@@ -68,6 +69,25 @@ describe("signal registry — the shipped file", () => {
 });
 
 describe("parseSignalRegistry", () => {
+	it.each([
+		["a crypto", "BTC", { assetClass: "crypto", replication: "physical" }],
+		[
+			"an etf, class out of the list",
+			"GLD",
+			{ assetClass: "gold", replication: "physical" },
+		],
+		[
+			"an etf, replication out of the list",
+			"GLD",
+			{ assetClass: "commodity", replication: "swap" },
+		],
+	])("refuses exposure on %s", (_name, id, exposure) => {
+		const file = registry();
+		assetOf(file, id).exposure = exposure;
+
+		expect(() => parseSignalRegistry(file)).toThrow();
+	});
+
 	it.each([
 		[
 			"an asset declared twice",
