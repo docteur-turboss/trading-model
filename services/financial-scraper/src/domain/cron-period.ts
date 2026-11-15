@@ -1,6 +1,6 @@
 const MINUTE_MS = 60_000;
 const WINDOW_MINUTES = 400 * 1440;
-const PART = /^(\*|\d+(-\d+)?)(\/\d+)?$/;
+const PART = /^(\*|\d+(-\d+)?)(\/[1-9]\d*)?$/;
 
 function _field(text: string, min: number, max: number): Set<number> | null {
 	const values = new Set<number>();

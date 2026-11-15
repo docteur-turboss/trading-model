@@ -24,10 +24,14 @@ describe("cronMaxGapMs", () => {
 		expect(cronMaxGapMs("0 0 1 1 *")).toBeGreaterThanOrEqual(365 * DAY);
 	});
 
-	it.each(["0 9 * * mon", "0 0 1 jan *", "0 0 0 * * *", "0 0 29 2 *"])(
-		"cannot read %s",
-		(expression) => {
-			expect(cronMaxGapMs(expression)).toBeUndefined();
-		}
-	);
+	it.each([
+		"0 9 * * mon",
+		"0 0 1 jan *",
+		"0 0 0 * * *",
+		"0 0 29 2 *",
+		"*/0 * * * *",
+		"1-5/0 * * * *",
+	])("cannot read %s", (expression) => {
+		expect(cronMaxGapMs(expression)).toBeUndefined();
+	});
 });
