@@ -181,16 +181,14 @@ describe("RedisMessageJournal — real Redis", () => {
 });
 
 describe("RedisMessageJournal blocking reads — real Redis", () => {
-	it("should not register a known group again, and wake a blocked read on append", async () => {
+	it("should wake a blocked read on append", async () => {
 		const redis = replica();
-		const spy = jest.spyOn(redis, "call");
 		const journal = new RedisMessageJournal({
 			redis,
 			openBlockingRedis: () => replica(),
 			keyPrefix: KEY_PREFIX,
 		});
 		await journal.append(createMockMessage("m1"), [GROUP.service]);
-		spy.mockClear();
 
 		const read = journal.readNew(GROUP, "c1", 100, 5000);
 		await new Promise((resolve) => setTimeout(resolve, 100));
@@ -203,8 +201,6 @@ describe("RedisMessageJournal blocking reads — real Redis", () => {
 		process.stdout.write(`publish -> blocked read latency: ${latencyMs} ms
 `);
 		expect(latencyMs).toBeLessThan(500);
-		const names = spy.mock.calls.map(([name]) => name);
-		expect(names).toEqual(["EXISTS", "XADD"]);
 		journal.close();
 	});
 
@@ -304,5 +300,17 @@ describe("RedisMessageJournal.retire", () => {
 		expect(await redis.call("XINFO", "GROUPS", stream())).toEqual([]);
 		await journal.register(GROUP);
 		expect(await journal.groups()).toEqual([GROUP]);
+	});
+
+	it("should keep a message appended by a replica whose group another replica retired", async () => {
+		const a = journalOn(replica());
+		const b = journalOn(replica());
+		const other = { ...GROUP, service: "other-service" };
+		await a.append(createMockMessage("m1"), [GROUP.service, other.service]);
+		await b.retire(GROUP);
+
+		await a.append(createMockMessage("m2"), [GROUP.service, other.service]);
+
+		expect(await a.readNew(GROUP, "c1", 10)).toHaveLength(1);
 	});
 });

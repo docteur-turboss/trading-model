@@ -51,8 +51,6 @@ type StreamReply = [id: string, fields: string[] | null][] | null;
  */
 export class RedisMessageJournal implements MessageJournalPort {
 	private readonly _now: () => number;
-	/** Groups this process already created and listed: `append` skips them (invalidated on NOGROUP). */
-	private readonly _registered = new Set<string>();
 	private readonly _readers = new Map<
 		string,
 		Pick<Redis, "call" | "disconnect">
@@ -62,17 +60,15 @@ export class RedisMessageJournal implements MessageJournalPort {
 		this._now = _deps.now ?? Date.now;
 	}
 
-	/** Never cached: another replica may have retired the group since (a subscriber coming back recreates it). */
+	/** Idempotent, never cached: another replica may have retired the group since. */
 	async register(group: JournalGroup): Promise<void> {
 		const key = `${group.topic}|${group.service}`;
 		await this._ensureGroup(group);
 		await this._deps.redis.sadd(this._groupsKey(), key);
-		this._registered.add(key);
 	}
 
 	async retire(group: JournalGroup): Promise<void> {
 		const key = `${group.topic}|${group.service}`;
-		this._registered.delete(key);
 		await this._deps.redis.srem(this._groupsKey(), key);
 		await this._deps.redis.call(
 			"XGROUP",
@@ -96,19 +92,10 @@ export class RedisMessageJournal implements MessageJournalPort {
 		onlyFor?: string
 	): Promise<void> {
 		const { topic } = message.metadata;
-		// A stream Redis lost (restart without AOF) has no groups left: XADD would recreate it bare and the
-		// groups, created later at "$", would miss this message. Re-register before writing (ADR-0048 §1).
-		if (
-			Number(await this._deps.redis.call("EXISTS", this._stream(topic))) === 0
-		) {
-			for (const service of services) {
-				this._registered.delete(`${topic}|${service}`);
-			}
-		}
+		// Re-register on every append: a replica may have retired a group since, and a stream Redis lost
+		// (restart without AOF) has no groups left; a group created after XADD would miss this message (ADR-0048 §1).
 		await Promise.all(
-			services
-				.filter((service) => !this._registered.has(`${topic}|${service}`))
-				.map((service) => this.register({ topic, service }))
+			services.map((service) => this.register({ topic, service }))
 		);
 		const entryId = (await this._deps.redis.call(
 			"XADD",
@@ -353,7 +340,6 @@ export class RedisMessageJournal implements MessageJournalPort {
 		if (!(err instanceof Error && err.message.includes("NOGROUP"))) {
 			throw err;
 		}
-		this._registered.delete(`${group.topic}|${group.service}`);
 		await this.register(group);
 	}
 
