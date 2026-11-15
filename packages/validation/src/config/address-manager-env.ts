@@ -1,7 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { logger } from "@trading-model/http/logger";
 import { z } from "zod";
-import { isObject } from "../domain/validation/primitives";
+import { isObject } from "../wire/primitives";
 
 export const AddressManagerEnvSchema = z.object({
 	APP_NAME: z.string().min(1),

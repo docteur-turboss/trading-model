@@ -5,10 +5,13 @@
   "license": "ISC",
   "type": "commonjs",
   "exports": {
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "default": "./dist/*.js"
-    }
+    "./mongo-connection-manager": "./dist/mongo-connection-manager.js",
+    "./mongo-utils": "./dist/mongo-utils.js",
+    "./redis-client-builder": "./dist/redis-client-builder.js",
+    "./redis-config": "./dist/redis-config.js",
+    "./redis-connection-manager": "./dist/redis-connection-manager.js",
+    "./redis-env": "./dist/redis-env.js",
+    "./redis-key-builder": "./dist/redis-key-builder.js"
   },
   "dependencies": {
     "@trading-model/common": "*",

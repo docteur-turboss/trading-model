@@ -1,8 +1,8 @@
 import { DEFAULT_PRIVATE_CIDRS } from "@trading-model/primitives/primitives";
-import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
 import { weakSecretReason } from "@trading-model/validation/config/secret-strength";
+import { validateEnv } from "@trading-model/validation/config/validate-env";
 import { z } from "zod";
 
 const DISCOVERY_EXTRA = {

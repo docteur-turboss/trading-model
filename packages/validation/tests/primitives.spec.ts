@@ -1,7 +1,4 @@
-import {
-	isNonEmptyString,
-	isObject,
-} from "../src/domain/validation/primitives";
+import { isNonEmptyString, isObject } from "../src/wire/primitives";
 
 describe("isNonEmptyString", () => {
 	it.each([

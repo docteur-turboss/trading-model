@@ -5,10 +5,16 @@
   "license": "ISC",
   "type": "commonjs",
   "exports": {
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "default": "./dist/*.js"
-    }
+    "./env/wallet-config": "./dist/env/wallet-config.js",
+    "./env/wallet-manager": "./dist/env/wallet-manager.js",
+    "./errors": "./dist/errors.js",
+    "./feature-vector": "./dist/feature-vector.js",
+    "./feature-vector-codec": "./dist/feature-vector-codec.js",
+    "./neural-network/activation": "./dist/neural-network/activation.js",
+    "./neural-network/feed-forward-engine": "./dist/neural-network/feed-forward-engine.js",
+    "./neural-network/network-serialization": "./dist/neural-network/network-serialization.js",
+    "./neural-network/type": "./dist/neural-network/type.js",
+    "./noise": "./dist/noise.js"
   },
   "dependencies": {
     "@trading-model/primitives": "*",
