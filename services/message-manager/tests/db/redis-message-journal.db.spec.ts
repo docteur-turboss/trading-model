@@ -290,3 +290,19 @@ describe("accepted message interrupted by a process stop — real Redis", () => 
 		expect(of(GROUP.service)?.oldestPendingAgeMs).toBeGreaterThanOrEqual(0);
 	});
 });
+
+describe("RedisMessageJournal.retire", () => {
+	it("destroys the consumer group and forgets it, so lag() no longer counts it", async () => {
+		const redis = replica();
+		const journal = journalOn(redis);
+		await journal.append(createMockMessage("m1"), [GROUP.service]);
+		expect(await journal.lag()).toHaveLength(1);
+		await journal.retire(GROUP);
+		await journal.retire(GROUP);
+		expect(await journal.groups()).toEqual([]);
+		expect(await journal.lag()).toEqual([]);
+		expect(await redis.call("XINFO", "GROUPS", stream())).toEqual([]);
+		await journal.register(GROUP);
+		expect(await journal.groups()).toEqual([GROUP]);
+	});
+});

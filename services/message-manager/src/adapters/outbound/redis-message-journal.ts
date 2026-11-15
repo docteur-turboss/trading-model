@@ -12,7 +12,7 @@ import {
 } from "../../domain/ports/message-journal.port";
 
 export interface RedisMessageJournalDeps {
-	redis: Pick<Redis, "call" | "sadd" | "smembers">;
+	redis: Pick<Redis, "call" | "sadd" | "smembers" | "srem">;
 	/**
 	 * Opens a connection of its own for a blocking read (`XREADGROUP BLOCK`
 	 * holds its connection, so one per group); absent: reads never block.
@@ -62,14 +62,24 @@ export class RedisMessageJournal implements MessageJournalPort {
 		this._now = _deps.now ?? Date.now;
 	}
 
+	/** Never cached: another replica may have retired the group since (a subscriber coming back recreates it). */
 	async register(group: JournalGroup): Promise<void> {
 		const key = `${group.topic}|${group.service}`;
-		if (this._registered.has(key)) {
-			return;
-		}
 		await this._ensureGroup(group);
 		await this._deps.redis.sadd(this._groupsKey(), key);
 		this._registered.add(key);
+	}
+
+	async retire(group: JournalGroup): Promise<void> {
+		const key = `${group.topic}|${group.service}`;
+		this._registered.delete(key);
+		await this._deps.redis.srem(this._groupsKey(), key);
+		await this._deps.redis.call(
+			"XGROUP",
+			"DESTROY",
+			this._stream(group.topic),
+			group.service
+		);
 	}
 
 	/** Closes the blocking connections, which ends the reads waiting on them. */
@@ -96,7 +106,9 @@ export class RedisMessageJournal implements MessageJournalPort {
 			}
 		}
 		await Promise.all(
-			services.map((service) => this.register({ topic, service }))
+			services
+				.filter((service) => !this._registered.has(`${topic}|${service}`))
+				.map((service) => this.register({ topic, service }))
 		);
 		const entryId = (await this._deps.redis.call(
 			"XADD",
