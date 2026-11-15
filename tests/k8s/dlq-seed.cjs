@@ -12,6 +12,7 @@ const {
 } = require("/app/packages/crypto/dist/request-signer.js");
 
 const body = { ids: [process.argv[2]] };
+const payload = JSON.stringify(body);
 const headers = buildSignedHeaders(
 	{ serviceName: "message-manager", method: "DELETE", path: "/v1/dlq", body },
 	process.env.DLQ_AUTH_HMAC_SECRET
@@ -23,7 +24,12 @@ const request = https.request(
 		port: 3000,
 		path: "/v1/dlq",
 		method: "DELETE",
-		headers: { ...headers, "content-type": "application/json" },
+		// Node sends no framing for a DELETE body unless told (server answers an empty 400).
+		headers: {
+			...headers,
+			"content-type": "application/json",
+			"content-length": Buffer.byteLength(payload),
+		},
 		cert: fs.readFileSync(`${svid}/svid.pem`),
 		key: fs.readFileSync(`${svid}/svid_key.pem`),
 		ca: fs.readFileSync(`${svid}/bundle.pem`),
@@ -48,4 +54,4 @@ request.on("error", (err) => {
 	console.error(err.message);
 	process.exit(1);
 });
-request.end(JSON.stringify(body));
+request.end(payload);
