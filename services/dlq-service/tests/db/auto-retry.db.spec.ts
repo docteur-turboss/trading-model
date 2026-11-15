@@ -36,7 +36,6 @@ jest.mock("../../src/adapters/outbound/http-client-manager", () => ({
 	closeHttpClient: () => Promise.resolve(),
 }));
 jest.mock("../../src/adapters/outbound/audit-notifier", () => ({
-	notifyAddAudit: jest.fn<(...args: any[]) => any>(),
 	notifyReplayAudit: jest.fn<(...args: any[]) => any>(),
 	notifyDeleteAudit: jest.fn<(...args: any[]) => any>(),
 }));

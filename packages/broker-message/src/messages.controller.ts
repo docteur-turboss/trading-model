@@ -15,23 +15,22 @@ export const DELIVERED_IDS_MAX = 10_000;
 const deliveredIds = new Set<string>();
 
 /**
- * Dispatches a delivered message to the listeners of its topic. The envelope
- * is parsed by the route (BROKER_CALLBACK_API); the payload schema depends on
- * the topic, so it is checked here. The bus delivers at least once: a
- * `messageId` already emitted is acknowledged without being emitted again.
+ * Hands a delivered message to the listeners of its topic. The payload schema
+ * depends on the topic, so it is checked here. The bus delivers at least once:
+ * a `messageId` already emitted is not emitted again.
+ *
+ * @returns false when the payload does not match the schema of its topic.
  */
-export const MESSAGE_CONTROLLER: ApiRouteHandler<
-	(typeof BROKER_CALLBACK_API)["receive"]
-> = async ({ body: { metadata, payload } }) => {
+export async function deliverToListeners(
+	metadata: { topic: string; messageId?: string },
+	payload: unknown
+): Promise<boolean> {
 	const resultPayload = await MESSAGE_PAYLOAD_SCHEMA.safeParseAsync({
 		type: metadata.topic,
 		data: payload,
 	});
 	if (!resultPayload.success) {
-		return sendResponse(
-			{ error: "Invalid payload format" },
-			HTTP_STATUS.BAD_REQUEST
-		);
+		return false;
 	}
 
 	const { messageId } = metadata;
@@ -40,7 +39,7 @@ export const MESSAGE_CONTROLLER: ApiRouteHandler<
 			messageId,
 			topic: metadata.topic,
 		});
-		return sendResponse({ status: "delivered" }, HTTP_STATUS.OK);
+		return true;
 	}
 
 	// The payload as received (not its parsed copy), checked just above.
@@ -52,8 +51,16 @@ export const MESSAGE_CONTROLLER: ApiRouteHandler<
 			deliveredIds.delete(deliveredIds.values().next().value as string);
 		}
 	}
-	// Acknowledges the delivery: without a response message-manager waited for
-	// its timeout, retried 10 times and gave up (circuit open, "routed to DLQ")
-	// on every message, though the listeners had already received it.
-	return sendResponse({ status: "delivered" }, HTTP_STATUS.OK);
-};
+	return true;
+}
+
+/** Callback route of message-manager's HTTP delivery (kept for release N, ADR-0073). */
+export const MESSAGE_CONTROLLER: ApiRouteHandler<
+	(typeof BROKER_CALLBACK_API)["receive"]
+> = async ({ body: { metadata, payload } }) =>
+	(await deliverToListeners(metadata, payload))
+		? sendResponse({ status: "delivered" }, HTTP_STATUS.OK)
+		: sendResponse(
+				{ error: "Invalid payload format" },
+				HTTP_STATUS.BAD_REQUEST
+			);

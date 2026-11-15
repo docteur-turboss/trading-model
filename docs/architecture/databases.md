@@ -56,13 +56,14 @@ Inventory (issue #506). Address-manager caches in memory per process, so only th
 | ------- | ---------- | -------- | ------- |
 | discovery-server | `trading-model:discovery:*` | `GET SET DEL MGET SADD SREM SMEMBERS SISMEMBER SCARD MULTI EVAL` | Instance registry and tokens (ADR-0023) |
 | message-manager | `trading-model:message-manager:subscriptions:<topic>` | `HSET HGETALL HDEL PEXPIRE` | Broker subscriptions |
-| message-manager | `trading-model:message-manager:journal:<topic>`, `trading-model:message-manager:journal-groups` | `EXISTS XADD XDEL XREADGROUP XPENDING XCLAIM XACK XGROUP XINFO XRANGE WAIT SADD SMEMBERS` | Durable message journal (ADR-0048) |
+| message-manager | `trading-model:message-manager:journal:<topic>`, `trading-model:message-manager:journal-groups` | `EXISTS XADD XDEL XLEN XREADGROUP XPENDING XCLAIM XACK XGROUP XINFO XRANGE WAIT SADD SMEMBERS` | Durable message journal (ADR-0048) and dead streams `…:dead:<topic>` (ADR-0073) |
+| audit-logger, trader-trainer, model-evaluator, financial-scraper | same keys as message-manager (`trading-model:message-manager:journal*`, `…:dead:*`) | same stream commands | Bus library: publish and consume in process (ADR-0073); users created when `REDIS_<SERVICE>_PASSWORD` is set |
 | dlq-service | `dlq:queue` | `LLEN LPUSH LRANGE LTRIM EVAL EVALSHA SCRIPT LOAD` | Replay queue, a cache of the MongoDB entries (rebuilt from MongoDB; the HTTP rate limiter is in memory) |
 | redis_exporter sidecar (user `exporter`) | none | `PING INFO CLIENT SETNAME SLOWLOG GET/LEN LATENCY LATEST/HISTOGRAM`; on the sentinels `SENTINEL MASTERS/SENTINELS/SLAVES/REPLICAS/CKQUORUM` | Metrics (ADR-0056): never `CONFIG GET`, which would hand out `masterauth` |
 
 Dead letters live in MongoDB, not Redis.
 
-Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off and the sentinels require the password (2.x clients, which used neither, are refused); the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix, and the `exporter` user outside its read-only commands. Compose runs one unauthenticated Redis (dev).
+Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager`, `dlq-service`, and the four bus services) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off and the sentinels require the password (2.x clients, which used neither, are refused); the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix, and the `exporter` user outside its read-only commands. Compose runs one unauthenticated Redis (dev).
 
 ## Monitoring users (ADR-0056)
 

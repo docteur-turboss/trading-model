@@ -2254,6 +2254,11 @@ paths:
                         items:
                           type: "string"
                           pattern: "^[A-Z][A-Z0-9]{1,7}$"
+                      aliases:
+                        type: "object"
+                        additionalProperties:
+                          type: "string"
+                          minLength: 1
                     required:
                       - "id"
                       - "name"

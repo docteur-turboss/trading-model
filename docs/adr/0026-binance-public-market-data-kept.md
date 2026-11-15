@@ -23,7 +23,7 @@ The 13.09 audit (Décision 6) relayed a draft mentioning the closure of Binance 
 3. **The scraper never retries 403 or 418** (`isRetryableStatusPermissive`, `@trading-model/http`). 451 was already not retried. 5xx, 429, 408 and network errors are still retried with exponential backoff.
 4. **Ranked fallbacks**, applied in this order when the decision is re-examined:
    1. `BINANCE_BASE_URL=https://data-api.binance.vision`: same API and payloads, configuration change only. The scraper NetworkPolicy already allows egress to any public address on 443.
-   2. A MiCA-licensed exchange public API (Kraken, then Bitstamp): a second adapter implementing `MarketDataSourcePort` (Decision 6).
+   2. A MiCA-licensed exchange public API (Kraken, then Bitstamp): a second adapter implementing `MarketDataSourcePort` (Decision 6). *Amended by [ADR-0077](./0077-rank-the-market-data-source-terms.md) (Proposed): Bitstamp first, then Kraken.*
 5. **The decision is re-examined** on the first of:
    - `BinanceRestrictedLocation` firing, or 451s reported from any deployment region;
    - a decision on Binance's MiCA application in France (granted: re-check, nothing to do; refused: re-test the public API from every deployment region);

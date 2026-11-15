@@ -4,7 +4,6 @@ import {
 	type DlqHandlers,
 } from "../adapters/inbound/dlq-service";
 import {
-	notifyAddAudit,
 	notifyDeleteAudit,
 	notifyReplayAudit,
 } from "../adapters/outbound/audit-notifier";
@@ -14,7 +13,6 @@ import {
 	type DeliveryBookkeeping,
 	deliverEntry,
 } from "../adapters/outbound/delivery-executor";
-import { pushToRedisQueue } from "../adapters/outbound/dlq-redis-pusher";
 import {
 	closeHttpClient,
 	getHttpClient,
@@ -29,7 +27,6 @@ import { ClaimReleaseService } from "../application/services/claim-release-servi
 import { ClaimReplayOrchestrator } from "../application/services/redis-claim-replay-orchestrator";
 import { createReplayBatch } from "../application/services/replay-batch";
 import { ReplayDrainService } from "../application/services/replay-drain-service";
-import { createAddEntry } from "../application/use-cases/add-entry-pipeline";
 import { createDeleteEntries } from "../application/use-cases/dlq-delete-handler";
 import { createReplayEntries } from "../application/use-cases/dlq-replay-service";
 import { createRedisQueueProcessor } from "../application/use-cases/redis-queue-processor";
@@ -73,13 +70,11 @@ export interface DlqApp {
 }
 
 const metricsPort: DlqMetricsPort = {
-	entryAdded: () => metrics.entriesAdded.inc(1),
 	entriesDeleted: (count) => metrics.entriesDeleted.inc(count),
 	batchReplayed: emitReplayMetrics,
 };
 
 const auditPort: DlqAuditPort = {
-	notifyAdd: notifyAddAudit,
 	notifyDelete: notifyDeleteAudit,
 	notifyReplay: notifyReplayAudit,
 };
@@ -188,13 +183,6 @@ export function createDlqApp(env: Env): DlqApp {
 		},
 		queue: dlqRedisQueue,
 		useCases: {
-			addEntry: createAddEntry({
-				entries: repository,
-				storage: { isAvailable: () => mongo.isConnected() },
-				queue: { enqueue: pushToRedisQueue },
-				metrics: metricsPort,
-				audit: auditPort,
-			}),
 			deleteEntries: createDeleteEntries({
 				entries: repository,
 				metrics: metricsPort,

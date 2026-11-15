@@ -1,5 +1,4 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import {
 	createDlqHandlers,
 	type DlqHandlerDeps,
@@ -19,7 +18,6 @@ function setup(
 ) {
 	const deps: DlqHandlerDeps = {
 		useCases: {
-			addEntry: async () => ({ status: "added", id: "entry-1" }),
 			deleteEntries: async (ids) => ({
 				deleted: ids.length,
 				auditRecorded: true,
@@ -40,41 +38,12 @@ function setup(
 	return createDlqHandlers(deps);
 }
 
-const ENTRY = { topic: "t", message: {} } as never as DlqEntry;
-
 async function call<T>(p: Promise<{ data?: unknown; status?: number }>) {
 	const r = await p;
 	return { status: r.status, body: r.data as T };
 }
 
 describe("DLQ HTTP handlers", () => {
-	describe("addEntry", () => {
-		it.each([
-			[{ status: "added", id: "entry-1" }, 201, { id: "entry-1" }],
-			[
-				{ status: "rejected", reason: "too-large" },
-				400,
-				{ error: "Message payload exceeds maximum size of 5MB" },
-			],
-			[
-				{ status: "rejected", reason: "storage-unavailable" },
-				503,
-				{ code: "STORAGE_UNAVAILABLE" },
-			],
-			[
-				{ status: "capacity-reached" },
-				429,
-				{ error: "DLQ capacity limit reached, entry rejected" },
-			],
-			[{ status: "storage-error" }, 503, { code: "STORAGE_UNAVAILABLE" }],
-		] as const)("maps %j to %i", async (result, status, body) => {
-			const h = setup({ useCases: { addEntry: async () => result } });
-			const r = await call<Body>(h.addEntry(ENTRY, null) as never);
-			expect(r.status).toBe(status);
-			expect(r.body).toMatchObject(body);
-		});
-	});
-
 	describe("deleteEntries", () => {
 		it("returns the deleted count with 200", async () => {
 			const r = await call<Body>(

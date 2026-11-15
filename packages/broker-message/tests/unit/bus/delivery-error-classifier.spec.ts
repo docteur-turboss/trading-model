@@ -12,7 +12,7 @@ import {
 	ErrorActionType,
 	isDeliveryExhausted,
 	MAX_RETRIES,
-} from "../../../src/domain/delivery-error-classifier";
+} from "../../../src/bus/delivery-error-classifier";
 
 const transient = new Error("Transient error");
 
