@@ -88,4 +88,10 @@ export const SIGNAL_COLLECTIONS_TOTAL = new promClient.Counter({
 	labelNames: ["source", "result"] as const,
 });
 
+export const SIGNAL_SOURCES = new promClient.Gauge({
+	name: "fs_signal_sources",
+	help: "Registry sources (ADR-0075) by terms and commercial licence (n/a for free-for-any-use terms)",
+	labelNames: ["terms", "commercial_licence"] as const,
+});
+
 export { metricsHandler };

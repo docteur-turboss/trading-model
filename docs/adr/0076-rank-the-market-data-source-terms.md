@@ -1,4 +1,4 @@
-# ADR-0075: Rank the Market Data Source Terms Against the Licence Order, Add Bitstamp as Second Source
+# ADR-0076: Rank the Market Data Source Terms Against the Licence Order, Add Bitstamp as Second Source
 
 **Status:** Proposed
 **Date:** 2026-11
