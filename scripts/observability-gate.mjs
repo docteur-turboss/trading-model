@@ -126,7 +126,6 @@ for (const service of SERVICES) {
     "packages",
     "http",
     "src",
-    "infrastructure",
     "http-utils.ts"
   );
   const httpUtils = readFileSync(httpUtilsPath, "utf-8");
