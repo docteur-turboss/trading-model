@@ -102,7 +102,7 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     logging: *default-logging
-    image: redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+    image: redis@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53
     container_name: trading-redis
     restart: unless-stopped
     mem_limit: 512m
