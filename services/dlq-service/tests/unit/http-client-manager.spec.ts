@@ -53,11 +53,4 @@ describe("http-client-manager", () => {
 		const second = await mod.getHttpClient();
 		expect(first).toBe(second);
 	});
-
-	it("should close HTTP client", async () => {
-		const { closeHttpClient } = jest.requireActual(
-			"../../src/adapters/outbound/http-client-manager"
-		) as { closeHttpClient: () => void };
-		closeHttpClient();
-	});
 });

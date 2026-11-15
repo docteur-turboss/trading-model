@@ -8,9 +8,8 @@ import {
 	type StartedTestContainer,
 	Wait,
 } from "testcontainers";
-import type { ConnectionManager } from "../../src/connection-manager";
 import type { RedisConnectionConfig } from "../../src/redis-config";
-import { createRedisConnectionManager } from "../../src/redis-connection-manager";
+import { createRedisClient } from "../../src/redis-connection-manager";
 import { redisConnectionFromEnv } from "../../src/redis-env";
 
 const { composeImage } = require("../../../../scripts/compose-image.cjs") as {
@@ -152,7 +151,6 @@ describe("K8s Redis HA start script — real failovers", () => {
 	// Sentinels hand out network addresses; the client reaches each node
 	// through its mapped port instead.
 	const natMap: Record<string, { host: string; port: number }> = {};
-	let manager: ConnectionManager<Redis>;
 	let client: Redis;
 
 	const ipOf = (node: StartedTestContainer) =>
@@ -189,10 +187,8 @@ describe("K8s Redis HA start script — real failovers", () => {
 			REDIS_PASSWORD: PASSWORDS.discovery,
 			REDIS_SENTINEL_PASSWORD: PASSWORDS.internal,
 		}) as RedisConnectionConfig;
-		manager = createRedisConnectionManager(connection, {
-			natMap,
-		}) as ConnectionManager<Redis>;
-		client = await manager.getConnection();
+		client = createRedisClient(connection, { natMap });
+		await client.connect();
 	}, 240_000);
 
 	afterAll(async () => {
@@ -201,7 +197,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 				node.stop().catch(() => {})
 			)
 		);
-		await manager?.close();
+		client?.disconnect();
 		await network?.stop();
 	}, 120_000);
 

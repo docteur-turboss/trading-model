@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10
-**Related:** [ADR-0010](./0010-clean-architecture-migration.md) (layering conventions relied on by the cleanup), [ADR-0002](./0002-redis-pub-sub.md), [ADR-0003](./0003-mongodb-persistence.md), [ADR-0008](./0008-message-broker-choice.md) (decisions whose never-wired implementations are removed here)
+**Related:** [ADR-0010](./0010-clean-architecture-migration.md) (layering conventions relied on by the cleanup), ADR-0002 (deleted), ADR-0003 (deleted), ADR-0008 (deleted) (decisions whose never-wired implementations are removed here)
 **Verified by:** `bun run reach:check`, `services/message-manager/tests/unit/app/index.spec.ts`
 
 ## Context

@@ -7,9 +7,8 @@ import {
 	type StartedTestContainer,
 	Wait,
 } from "testcontainers";
-import type { ConnectionManager } from "../../src/connection-manager";
 import type { RedisConnectionConfig } from "../../src/redis-config";
-import { createRedisConnectionManager } from "../../src/redis-connection-manager";
+import { createRedisClient } from "../../src/redis-connection-manager";
 import { redisConnectionFromEnv } from "../../src/redis-env";
 
 const { composeImage } = require("../../../../scripts/compose-image.cjs") as {
@@ -31,7 +30,7 @@ interface Topology {
 	master: StartedTestContainer;
 	replica: StartedTestContainer;
 	sentinel: StartedTestContainer;
-	manager: ConnectionManager<Redis>;
+	client: Redis;
 }
 
 function startRedis(
@@ -75,7 +74,7 @@ function startSentinel(network: StartedNetwork, masterIp: string) {
 		.start();
 }
 
-/** One master, one replica and one sentinel, reached through a sentinel-mode manager. */
+/** One master, one replica and one sentinel, reached through a sentinel-mode client. */
 async function startTopology(): Promise<Topology> {
 	const network = await new Network().start();
 	const master = await startRedis(network);
@@ -100,10 +99,10 @@ async function startTopology(): Promise<Topology> {
 		REDIS_SENTINELS: `localhost:${sentinel.getMappedPort(SENTINEL_PORT)}`,
 		REDIS_SENTINEL_MASTER_NAME: MASTER_NAME,
 	}) as RedisConnectionConfig;
-	const manager = createRedisConnectionManager(connection, {
-		natMap,
-	}) as ConnectionManager<Redis>;
-	return { network, master, replica, sentinel, manager };
+	// Built the way services build it (createRedisClient + connect).
+	const client = createRedisClient(connection, { natMap });
+	await client.connect();
+	return { network, master, replica, sentinel, client };
 }
 
 /** Resolves once the sentinel names the replica as the master. */
@@ -177,26 +176,26 @@ async function expectServedByPromotedReplica(
 	).resolves.toMatchObject({ output: "written\n" });
 }
 
-describe("createRedisConnectionManager (sentinel) — real failover", () => {
+describe("createRedisClient (sentinel) — real failover", () => {
 	let topology: Topology | undefined;
 
 	afterEach(async () => {
 		if (!topology) {
 			return;
 		}
-		const { manager, sentinel, replica, master, network } = topology;
+		const { client, sentinel, replica, master, network } = topology;
 		topology = undefined;
 		// Stop the nodes first: quitting would wait on a frozen master.
 		await Promise.all(
 			[sentinel, replica, master].map((node) => node.stop().catch(() => {}))
 		);
-		await manager.close();
+		client.disconnect();
 		await network.stop();
 	}, 60_000);
 
 	it("should connect to the master the sentinel designates", async () => {
 		topology = await startTopology();
-		const client = await topology.manager.getConnection();
+		const { client } = topology;
 
 		await expect(client.set("key", "value")).resolves.toBe("OK");
 		await expect(role(client)).resolves.toBe("master");
@@ -204,7 +203,7 @@ describe("createRedisConnectionManager (sentinel) — real failover", () => {
 
 	it("should follow the promoted replica when the master dies, without losing replicated writes", async () => {
 		topology = await startTopology();
-		const client = await topology.manager.getConnection();
+		const { client } = topology;
 		await writeReplicated(client);
 
 		await topology.master.stop();
@@ -217,7 +216,7 @@ describe("createRedisConnectionManager (sentinel) — real failover", () => {
 	// closed connection has seen +switch-master, the window ioredis lost.
 	it("should survive a failover announced while it reconnects", async () => {
 		topology = await startTopology();
-		const client = await topology.manager.getConnection();
+		const { client } = topology;
 		await writeReplicated(client);
 		const connector = (client as unknown as { connector: SentinelInternals })
 			.connector;
@@ -239,7 +238,7 @@ describe("createRedisConnectionManager (sentinel) — real failover", () => {
 
 	it("should leave a frozen master for the promoted replica", async () => {
 		topology = await startTopology();
-		const client = await topology.manager.getConnection();
+		const { client } = topology;
 		await writeReplicated(client);
 
 		// The master stops answering but keeps its connections open.

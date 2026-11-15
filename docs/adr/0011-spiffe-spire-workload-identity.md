@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-09
-**Supersedes:** [ADR-0005](./0005-mtls-security.md) (issuance & identity model), [ADR-0009](./0009-certificate-utils-structure.md) (custom certificate format)
+**Supersedes:** ADR-0005 (deleted) (issuance & identity model), ADR-0009 (deleted) (custom certificate format)
 **Verified by:** `tests/e2e/security.e2e.spec.ts`, `tests/k8s/run-kind.sh`
 
 ## Context

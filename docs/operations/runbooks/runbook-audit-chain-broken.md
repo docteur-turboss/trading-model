@@ -1,6 +1,6 @@
 # Runbook: Audit Chain Broken or Not Verified
 
-**Severity:** SEV1 (`AuditChainBroken`), SEV2 (`AuditChainVerificationStale`, `AuditChainAnchoringStale`), SEV3 (`AuditChainNotAnchored`)
+**Severity:** L1 (`AuditChainBroken`), L2 (`AuditChainVerificationStale`, `AuditChainAnchoringStale`), L3 (`AuditChainNotAnchored`)
 **Alerts:** `AuditChainBroken`, `AuditChainVerificationStale`, `AuditChainAnchoringStale`, `AuditChainNotAnchored`
 **Decision:** [ADR-0027](../../adr/0027-audit-chain-verification-and-anchoring.md)
 
