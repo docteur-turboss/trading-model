@@ -1,39 +1,55 @@
 import { describe, expect, it } from "@jest/globals";
 import {
+	MarketType,
+	SourceType,
+} from "@trading-model/contracts/market-data.types";
+import { z } from "zod";
+import {
 	BaseMarketDataShape,
 	BidAskShape,
 	OhlcvShape,
 	OhlcvTickerShape,
 } from "../../../src/shared/schemas/market-data-schema";
 
+const BASE = {
+	symbol: "BTCUSDT",
+	timestamp: 1_700_000_000_000,
+	source: SourceType.values()[0],
+	market: MarketType.values()[0],
+};
+
 describe("market-data-schema", () => {
-	it("should export BaseMarketDataShape", () => {
-		expect(BaseMarketDataShape.symbol).toBeDefined();
-		expect(BaseMarketDataShape.timestamp).toBeDefined();
-		expect(BaseMarketDataShape.source).toBeDefined();
-		expect(BaseMarketDataShape.market).toBeDefined();
-	});
+	it.each([
+		["BaseMarketDataShape", BaseMarketDataShape, BASE],
+		[
+			"OhlcvShape",
+			OhlcvShape,
+			{ low: 1, open: 2, high: 3, close: 2, volume: 10 },
+		],
+		[
+			"OhlcvTickerShape",
+			OhlcvTickerShape,
+			{ low: 1, open: 2, high: 3, last: 2, volume: 10 },
+		],
+		["BidAskShape", BidAskShape, { bid: 1, ask: 2, bidQty: 3, askQty: 4 }],
+	] as const)(
+		"%s should accept a complete record and refuse one missing a field",
+		(_name, shape, valid) => {
+			const schema = z.object(shape);
+			expect(schema.safeParse(valid).success).toBe(true);
+			for (const key of Object.keys(valid)) {
+				const { [key]: _dropped, ...partial } = valid as Record<
+					string,
+					unknown
+				>;
+				expect(schema.safeParse(partial).success).toBe(false);
+			}
+		}
+	);
 
-	it("should export OhlcvShape", () => {
-		expect(OhlcvShape.low).toBeDefined();
-		expect(OhlcvShape.open).toBeDefined();
-		expect(OhlcvShape.high).toBeDefined();
-		expect(OhlcvShape.close).toBeDefined();
-		expect(OhlcvShape.volume).toBeDefined();
-	});
-
-	it("should export OhlcvTickerShape", () => {
-		expect(OhlcvTickerShape.low).toBeDefined();
-		expect(OhlcvTickerShape.open).toBeDefined();
-		expect(OhlcvTickerShape.high).toBeDefined();
-		expect(OhlcvTickerShape.last).toBeDefined();
-		expect(OhlcvTickerShape.volume).toBeDefined();
-	});
-
-	it("should export BidAskShape", () => {
-		expect(BidAskShape.bid).toBeDefined();
-		expect(BidAskShape.ask).toBeDefined();
-		expect(BidAskShape.bidQty).toBeDefined();
-		expect(BidAskShape.askQty).toBeDefined();
+	it("should refuse an unknown source or market", () => {
+		const schema = z.object(BaseMarketDataShape);
+		expect(schema.safeParse({ ...BASE, source: "nope" }).success).toBe(false);
+		expect(schema.safeParse({ ...BASE, market: "nope" }).success).toBe(false);
 	});
 });

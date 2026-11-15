@@ -3,17 +3,22 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 const MOCK_LOGGER = {
 	debug: jest.fn<(...args: any[]) => any>(),
 	error: jest.fn<(...args: any[]) => any>(),
+	warn: jest.fn<(...args: any[]) => any>(),
 };
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => MOCK_LOGGER,
 }));
 
 import {
+	recordSourceTerms,
 	SignalCollector,
 	signalId,
 	zeroCollectionFailures,
 } from "../../../src/application/signal-collector";
-import { SIGNAL_COLLECTIONS_TOTAL } from "../../../src/config/metrics";
+import {
+	SIGNAL_COLLECTIONS_TOTAL,
+	SIGNAL_SOURCES,
+} from "../../../src/config/metrics";
 import {
 	InvalidPayloadError,
 	type Observation,
@@ -93,6 +98,37 @@ async function counted(): Promise<Record<string, number>> {
 }
 
 const ONE_REQUEST: Source = { ...SOURCE, requests: [SOURCE.requests[0]] };
+
+describe("recordSourceTerms", () => {
+	it("counts sources by terms and commercial licence", async () => {
+		const restricted = {
+			...SOURCE.accessPolicy,
+			terms: "non-commercial",
+			restrictions: "personal use (read 2026-11-15)",
+			commercialLicence: "unknown",
+		} as const;
+
+		recordSourceTerms([
+			SOURCE,
+			{ ...SOURCE, accessPolicy: restricted },
+			{ ...SOURCE, accessPolicy: restricted },
+		]);
+
+		expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({ sources: expect.any(Array) })
+		);
+		const { values } = await SIGNAL_SOURCES.get();
+		expect(
+			values.map((v) => [v.labels.terms, v.labels.commercial_licence, v.value])
+		).toEqual(
+			expect.arrayContaining([
+				[SOURCE.accessPolicy.terms, "n/a", 1],
+				["non-commercial", "unknown", 2],
+			])
+		);
+	});
+});
 
 beforeEach(() => {
 	jest.clearAllMocks();

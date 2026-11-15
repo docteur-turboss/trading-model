@@ -75,12 +75,7 @@ This can be shaped to encourage desired behaviors:
 
 ## Wallet Simulation
 
-Each evaluation creates a virtual trading account:
-
-- **Initial capital**: 1000 units
-- **Trading**: Buy/sell at market price with configurable fees
-- **Constraints**: Max position size, cash sufficiency checks
-- **Metrics tracked**: P&L, return %, peak valuation, drawdown, fees
+Each evaluation trades on a virtual account: [wallet simulation](../reference/training-process.md#wallet-simulation).
 
 ## Complexity Penalty
 

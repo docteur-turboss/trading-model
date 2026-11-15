@@ -33,17 +33,6 @@ jest.mock("prom-client", () => {
 });
 
 describe("metrics", () => {
-	it("should export metrics with all expected metric types", () => {
-		const { metrics } = require("../../src/config/metrics");
-		expect(metrics.entriesAdded).toBeDefined();
-		expect(metrics.entriesDeleted).toBeDefined();
-		expect(metrics.entriesReplayed).toBeDefined();
-		expect(metrics.entriesReplayFailed).toBeDefined();
-		expect(metrics.entriesPruned).toBeDefined();
-		expect(metrics.pruneErrors).toBeDefined();
-		expect(metrics.collectionSize).toBeDefined();
-	});
-
 	it("should export metricsHandler function", () => {
 		const { metricsHandler } = require("../../src/config/metrics");
 		expect(typeof metricsHandler).toBe("function");

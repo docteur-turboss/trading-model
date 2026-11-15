@@ -1,6 +1,6 @@
 # Runbook: Market Data Stale
 
-**Severity:** SEV2 (the platform runs, but trades and training work on old data)
+**Severity:** L2 (the platform runs, but trades and training work on old data)
 **Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `CandleDeliveryLagging`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
@@ -131,7 +131,7 @@ a collector runs.
 
 ## SymbolMarketDataStale
 
-**Severity:** SEV2 (critical). No candle of one tracked symbol was persisted
+**Severity:** L2 (critical). No candle of one tracked symbol was persisted
 for 15 minutes while the others may still flow: the cycle counts as `success`
 and `MarketDataStale` (global sum) stays silent, but that symbol gets no new
 data and the trainer stops training it (`TRAINER_MAX_DATA_AGE_MS`). The
@@ -170,7 +170,7 @@ again.
 
 ## SignalCollectionFailing
 
-**Severity:** SEV4 (warning). Binance market data is not affected: only the
+**Severity:** L4 (warning). Binance market data is not affected: only the
 signals of one registry source (ADR-0036) are missing or stale. The alert
 stays on for 24 hours after the last failure.
 
