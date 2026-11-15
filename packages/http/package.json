@@ -1,7 +1,7 @@
 {
   "name": "@trading-model/http",
-  "version": "1.2.0",
-  "description": "HTTP platform — middleware, http client, logging extracted from @trading-model/common",
+  "version": "2.0.0",
+  "description": "HTTP platform: middleware, http client, logging, server bootstrap, secure server factory, telemetry",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
@@ -18,7 +18,15 @@
     "@trading-model/reliability": "*",
     "express": "^5.3.0",
     "prom-client": "^15.1.3",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
+    "@opentelemetry/instrumentation-express": "^0.72.0",
+    "@opentelemetry/instrumentation-http": "^0.300.0",
+    "@opentelemetry/resources": "^3.0.0",
+    "@opentelemetry/sdk-node": "^0.301.1",
+    "@opentelemetry/semantic-conventions": "^1.44.0",
+    "express-rate-limit": "^8.7.4",
+    "helmet": "^8.3.0"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",
@@ -28,7 +36,8 @@
     "@types/node": "^26.6.6",
     "jest": "^30.5.2",
     "ts-jest": "^29.4.15",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "ts-node": "^10.9.2"
   },
   "scripts": {
     "test": "jest",

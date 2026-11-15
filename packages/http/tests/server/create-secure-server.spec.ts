@@ -1,31 +1,31 @@
 import type { FilePath } from "@trading-model/primitives/primitives";
 
-jest.mock("../src/configure-app", () => ({
+jest.mock("../../src/configure-app", () => ({
 	configureApp: jest.fn(),
 }));
 
-jest.mock("@trading-model/http/mtls-auth", () => ({
+jest.mock("../../src/mtls-auth", () => ({
 	MTLSAuthMiddleware: jest.fn(),
 }));
 
-jest.mock("@trading-model/http/mtls-authorization", () => ({
+jest.mock("../../src/mtls-authorization", () => ({
 	MTLSAuthorizationMiddleware: jest.fn(() => "authorize-middleware"),
 }));
 
-jest.mock("@trading-model/http/response-protocol", () => ({
+jest.mock("../../src/response-protocol", () => ({
 	ResponseProtocol: jest.fn(),
 }));
 
-jest.mock("../src/server-factory", () => ({
+jest.mock("../../src/server-factory", () => ({
 	createAndStartHttpsServer: jest.fn(),
 }));
 
-import { MTLSAuthMiddleware } from "@trading-model/http/mtls-auth";
-import { MTLSAuthorizationMiddleware } from "@trading-model/http/mtls-authorization";
-import { ResponseProtocol } from "@trading-model/http/response-protocol";
-import { configureApp } from "../src/configure-app";
-import { createSecureServer } from "../src/create-secure-server";
-import { createAndStartHttpsServer } from "../src/server-factory";
+import { configureApp } from "../../src/configure-app";
+import { createSecureServer } from "../../src/create-secure-server";
+import { MTLSAuthMiddleware } from "../../src/mtls-auth";
+import { MTLSAuthorizationMiddleware } from "../../src/mtls-authorization";
+import { ResponseProtocol } from "../../src/response-protocol";
+import { createAndStartHttpsServer } from "../../src/server-factory";
 
 const mockApp = { use: jest.fn() };
 const mockServer = {

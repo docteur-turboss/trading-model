@@ -89,10 +89,10 @@ spec:
               value: /badger/key
             - name: BADGER_SPAN_STORE_TTL
               value: 72h
-            # Go GC works harder before the heap reaches the cgroup limit
-            # (OOMKilled at 1Gi, issue #1279); ~80 % of limits.memory.
+            # Badger opens every table at start: 1 Gi was OOMKilled (#1278).
+            # The Go GC works under this soft limit before the kernel kills.
             - name: GOMEMLIMIT
-              value: 1200MiB
+              value: 1536MiB
           volumeMounts:
             - name: badger
               mountPath: /badger
@@ -102,7 +102,13 @@ spec:
               memory: 256Mi
             limits:
               cpu: 500m
-              memory: 1536Mi
+              memory: 2Gi
+          startupProbe:
+            httpGet:
+              path: /
+              port: 16686
+            periodSeconds: 10
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /

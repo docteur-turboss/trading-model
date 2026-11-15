@@ -1,5 +1,5 @@
+import { metricsHandler } from "@trading-model/http/metrics-handler";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
-import { metricsHandler } from "@trading-model/server-utils/metrics-handler";
 import promClient from "prom-client";
 
 const circuitBreakerStates = Object.values(CircuitState)
