@@ -60,7 +60,7 @@ graph TD
 - **Owner:** `trader-trainer`
 - **Sub-contexts:** `genetic-algorithm` (population evolution), `neural-network` (agent learning)
 - **Core entities:** Genome, Agent, Wallet, Experience
-- **Consumes:** Market events from Market Data Context
+- **Consumes:** Market events from Market Data Context (not candles: it reads the stored candle window from `GET /candles/symbols/:symbol` at each session, ADR-0044)
 - **Publishes:** Agent payloads (best agent after each generation), `training.model.published` after each versioned artifact (ADR-0022)
 - **Consumers:** audit-logger (chain) and `model-evaluator`, the offline evaluation consumer (ADR-0049 option B): it is the only entry of `MODEL_DOWNLOAD_CALLERS`, verifies the weights against the manifest and records one evaluation per `(symbol, version)`; the replay on stored candles is not done yet. No decision, paper-trading or order consumer exists. The trainer does not read signals.
 

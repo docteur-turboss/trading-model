@@ -15,7 +15,6 @@ function fakeBuffer() {
 
 describe("DataEventHandler", () => {
 	it.each([
-		[MarketEvent.FetchCandlestickSeries, DataType.Candle, "candle"],
 		[MarketEvent.FetchRecentTrades, DataType.Trade, "trades"],
 		[
 			MarketEvent.FetchOrderBookTickerSnapshot,
@@ -32,6 +31,17 @@ describe("DataEventHandler", () => {
 			[type, "BTCUSDT", a],
 			[type, "ETHUSDT", b],
 		]);
+	});
+
+	it("candle event is a notification: nothing reaches the buffer", () => {
+		const { buffer, added } = fakeBuffer();
+		new DataEventHandler(buffer).handleEvent(
+			MarketEvent.FetchCandlestickSeries,
+			{
+				candle: [{ symbol: "BTCUSDT" }],
+			}
+		);
+		expect(added).toEqual([]);
 	});
 
 	it("order book keeps the first item only", () => {

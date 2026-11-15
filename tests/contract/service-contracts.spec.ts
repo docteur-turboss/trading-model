@@ -350,7 +350,10 @@ describe("service message contracts", () => {
 					expect(reception).toEqual({ status: 200 });
 				}
 
-				expect(bufferState()).not.toEqual(before);
+				// Candles only notify: the trainer reads them from the scraper (ADR-0044).
+				if (topic !== MarketEvent.FetchCandlestickSeries) {
+					expect(bufferState()).not.toEqual(before);
+				}
 			}
 		);
 
