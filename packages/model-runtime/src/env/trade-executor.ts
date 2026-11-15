@@ -34,19 +34,17 @@ export class TradeExecutor {
 		if (!Number.isFinite(amt) || amt <= 0) {
 			return false;
 		}
+		const price = validFillPrice(fillPrice);
 		const newPosition = Volume.of(
 			this._config.roundValue(this._state.position + amt)
 		);
-		// Refuse (not reduce) a buy whose position value exceeds the exposure cap.
+		// Refuse (not reduce) a buy whose position value at the fill price exceeds the exposure cap.
 		const maxValue =
 			this._config.maxExposureFraction * this._config.initialCash;
-		if (newPosition * this._state.price > maxValue) {
+		if (newPosition * price > maxValue) {
 			return false;
 		}
-		const { totalCost } = this._config.computeBuyCosts(
-			amount,
-			validFillPrice(fillPrice)
-		);
+		const { totalCost } = this._config.computeBuyCosts(amount, price);
 		if (Cash.gt(totalCost, this._state.cash)) {
 			return false;
 		}
