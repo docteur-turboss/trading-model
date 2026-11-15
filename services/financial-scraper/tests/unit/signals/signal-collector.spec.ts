@@ -384,6 +384,21 @@ describe("quarantine of a failing source", () => {
 		expect(worker).toHaveBeenCalledTimes(1);
 	});
 
+	it("doubles the deadline of a quarantine opened by Retry-After at each failed trial", async () => {
+		fail(429, "30");
+		const c = collector();
+		await c.collect(ONE_REQUEST);
+		clock += HOUR;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(2);
+		clock += 2 * HOUR - 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(2);
+		clock += 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(3);
+	});
+
 	it("quarantines a refused key (403) at the first failure for 24 h", async () => {
 		fail(403);
 		const c = collector();

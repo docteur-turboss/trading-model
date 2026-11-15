@@ -82,6 +82,8 @@ const QUARANTINE_AFTER = 3;
 
 interface Quarantine {
 	failures: number;
+	/** Quarantines opened so far: the back-off doubles with each. */
+	opened: number;
 	until: number;
 }
 
@@ -153,14 +155,14 @@ export class SignalCollector {
 			const failure = await this._collectRequest(source, request);
 			fetchFailure ??= failure;
 		}
-		this._track(source.id, fetchFailure, quarantine?.failures ?? 0);
+		this._track(source.id, fetchFailure, quarantine);
 	}
 
 	/** Opens, extends or closes the quarantine of a source after a tick. */
 	private _track(
 		sourceId: string,
 		fetchFailure: Error | undefined,
-		previous: number
+		previous: Quarantine | undefined
 	): void {
 		if (!fetchFailure) {
 			this._quarantines.delete(sourceId);
@@ -171,19 +173,17 @@ export class SignalCollector {
 		const http = fetchFailure instanceof HttpStatusError ? fetchFailure : null;
 		const retryAfter = _retryAfterMs(http?.retryAfter, now);
 		const refused = http?.status === 401 || http?.status === 403;
-		const failures = previous + 1;
+		const failures = (previous?.failures ?? 0) + 1;
 		if (!refused && retryAfter === 0 && failures < QUARANTINE_AFTER) {
-			this._quarantines.set(sourceId, { failures, until: 0 });
+			this._quarantines.set(sourceId, { failures, opened: 0, until: 0 });
 			return;
 		}
+		const opened = (previous?.opened ?? 0) + 1;
 		const backoff = refused
 			? 24 * HOUR_MS
-			: Math.min(
-					24 * HOUR_MS,
-					HOUR_MS * 2 ** Math.max(0, failures - QUARANTINE_AFTER)
-				);
+			: Math.min(24 * HOUR_MS, HOUR_MS * 2 ** (opened - 1));
 		const until = now + Math.max(backoff, retryAfter);
-		this._quarantines.set(sourceId, { failures, until });
+		this._quarantines.set(sourceId, { failures, opened, until });
 		SIGNAL_SOURCE_QUARANTINED.set({ source: sourceId }, 1);
 		getLogger().warn("Signal source quarantined", {
 			context: {
