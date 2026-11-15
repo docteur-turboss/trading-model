@@ -884,7 +884,7 @@ services:
   # no replica set collector.
   mongodb-exporter:
     logging: *default-logging
-    image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
+    image: percona/mongodb_exporter:0.54.0@sha256:934e9db87e85e0fa63654e73c3504845993a254e898783ca905e65a68848b5a4
     container_name: trading-mongodb-exporter
     restart: unless-stopped
     mem_limit: 128m
