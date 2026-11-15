@@ -18,6 +18,9 @@ const ROUTES: Record<string, [number, string]> = {
 	"/json": [200, '{"lastPrice":"1.5"}'],
 	"/down": [503, "maintenance"],
 	"/denied": [401, "bad key"],
+	"/csv": [200, 'a;b\r\n"x;1";"say ""hi"""\r\n2;3'],
+	"/badcsv": [200, "a,b\n1"],
+	"/big": [200, "x".repeat(5 * 1024 * 1024 + 1)],
 	"/html": [200, "<!DOCTYPE html><title>moved</title>"],
 };
 
@@ -42,7 +45,8 @@ describe("rest_api worker", () => {
 
 	function fetchPath(
 		path: string,
-		auth: Source["accessPolicy"]["auth"] = "none"
+		auth: Source["accessPolicy"]["auth"] = "none",
+		body?: Pick<Source, "format" | "delimiter">
 	) {
 		return createRestApiWorker("trading-model-test ops@example.org")(
 			{
@@ -51,7 +55,8 @@ describe("rest_api worker", () => {
 				url: `${base}${path}`,
 				params: {},
 			},
-			auth
+			auth,
+			body
 		);
 	}
 
@@ -72,6 +77,31 @@ describe("rest_api worker", () => {
 	it("rejects with an InvalidPayloadError on a body that is not JSON", async () => {
 		await expect(fetchPath("/html")).rejects.toBeInstanceOf(
 			InvalidPayloadError
+		);
+	});
+
+	it("decodes a declared CSV body and sends a CSV Accept", async () => {
+		await expect(
+			fetchPath("/csv", "none", { format: "csv", delimiter: ";" })
+		).resolves.toEqual([
+			{ a: "x;1", b: 'say "hi"' },
+			{ a: "2", b: "3" },
+		]);
+		expect(last?.headers.accept).toBe("text/csv");
+	});
+
+	it("refuses a CSV row of the wrong width", async () => {
+		await expect(
+			fetchPath("/badcsv", "none", { format: "csv" })
+		).rejects.toBeInstanceOf(InvalidPayloadError);
+	});
+
+	it("returns raw text and refuses a body over the bound", async () => {
+		await expect(
+			fetchPath("/html", "none", { format: "text" })
+		).resolves.toContain("moved");
+		await expect(fetchPath("/big", "none", { format: "text" })).rejects.toThrow(
+			/over/
 		);
 	});
 

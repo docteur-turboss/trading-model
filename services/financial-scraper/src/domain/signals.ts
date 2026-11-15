@@ -33,6 +33,9 @@ type AssetType = z.infer<typeof AssetType>;
 export const Protocol = z.enum(["rest_api"]);
 export type Protocol = z.infer<typeof Protocol>;
 
+/** Body of a `rest_api` answer: JSON (default), CSV (an array of records keyed by the header line) or the raw text. */
+const BodyFormat = z.enum(["json", "csv", "text"]);
+
 export const AssetId = z.string().regex(/^[A-Z0-9][A-Z0-9_-]{0,31}$/);
 const SectorId = z.string().regex(/^[a-z][a-z0-9_]{0,31}$/);
 /** Short code of an economic area (`EA`, `US`, `FR`...). */
@@ -252,6 +255,10 @@ const Coverage = z.strictObject({ assetType: AssetType, dimension: Dimension });
 export const Source = z.strictObject({
 	id: SourceId,
 	protocol: Protocol,
+	/** Body format the worker decodes; absent = `json`. */
+	format: BodyFormat.optional(),
+	/** `csv` only: field separator, absent = comma. */
+	delimiter: z.enum([",", ";"]).optional(),
 	/** Turns a payload of this source into observations (`SOURCE_ADAPTERS`). */
 	adapter: z.string().min(1),
 	/** node-cron expression; at each tick the requests run one after the other. */
