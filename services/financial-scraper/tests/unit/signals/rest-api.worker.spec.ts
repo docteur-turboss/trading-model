@@ -126,9 +126,10 @@ describe("rest_api worker", () => {
 		await expect(
 			fetchPath("/html", "none", { format: "text" })
 		).resolves.toContain("moved");
-		await expect(fetchPath("/big", "none", { format: "text" })).rejects.toThrow(
-			/over/
-		);
+		const big = fetchPath("/big", "none", { format: "text" });
+		await expect(big).rejects.toThrow(/over/);
+		await expect(big).rejects.not.toBeInstanceOf(InvalidPayloadError);
+		expect(chunksSent).toBeLessThan(20);
 	});
 
 	describe("API key", () => {
