@@ -92,7 +92,7 @@
 				{
 					"subject": { "area": "EA" },
 					"dimension": "macro",
-					"url": "https://data-api.ecb.europa.eu/service/data/ICP/M.U2.N.000000.4.ANR?lastNObservations=5&format=jsondata",
+					"url": "https://data-api.ecb.europa.eu/service/data/HICP/M.U2.N.000000.4D0.ANR?lastNObservations=5&format=jsondata",
 					"params": { "metric": "hicp_annual_rate", "area": "EA" }
 				}
 			]
