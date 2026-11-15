@@ -99,6 +99,10 @@ export const Asset = z
 		applicableDimensions: z.array(Dimension).min(1),
 		/** Level of the Sector Managers: sector signals go to every asset of the sector. */
 		sector: SectorId,
+		/** The asset's name at a source or in a reference (`cik`, `wikipedia`, `figi`...), for request templates. */
+		aliases: z
+			.record(z.string().regex(/^[a-z][a-z0-9_]*$/), z.string().min(1))
+			.optional(),
 	})
 	.refine(
 		(asset) =>
@@ -147,6 +151,28 @@ const SourceAuth = z.strictObject({
 	/** Header or query parameter name. */
 	name: z.string().regex(/^[\w-]+$/),
 });
+
+/**
+ * One request over many assets: `url` holds `{asset.ticker}`, `{asset.isin}`
+ * or `{asset.alias.<name>}`, filled (URL-encoded) for each asset the selector
+ * keeps. Unfolded into `SourceRequest`s at load (`parseSignalRegistry`).
+ */
+export const SourceTemplate = z.strictObject({
+	/** Assets kept: those listed and/or of this type and/or of this sector (at least one criterion). */
+	select: z
+		.strictObject({
+			assetIds: z.array(AssetId).min(1).optional(),
+			assetType: AssetType.optional(),
+			sector: SectorId.optional(),
+		})
+		.refine((select) => Object.keys(select).length > 0, {
+			message: "selector without criterion",
+		}),
+	dimension: Dimension,
+	url: z.string().startsWith("https://"),
+	params: z.record(z.string(), z.string()).default({}),
+});
+export type SourceTemplate = z.infer<typeof SourceTemplate>;
 
 /**
  * §1.3: under which terms and how hard the source may be used (ADR-0075,

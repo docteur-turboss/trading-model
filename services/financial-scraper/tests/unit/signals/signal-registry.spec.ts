@@ -81,11 +81,11 @@ describe("parseSignalRegistry", () => {
 		[
 			"a request on an unknown asset",
 			(file: any) => {
-				sourceOf(file, "wikipedia-pageviews").requests[0].subject = {
+				sourceOf(file, "ecb-aaa-yield-10y").requests[0].subject = {
 					assetId: "DOGE",
 				};
 			},
-			"source wikipedia-pageviews, request 0: unknown asset DOGE",
+			"source ecb-aaa-yield-10y, request 0: unknown asset DOGE",
 		],
 		[
 			"a request on a sector without asset",
@@ -121,7 +121,8 @@ describe("parseSignalRegistry", () => {
 		[
 			"a dimension the source does not cover",
 			(file: any) => {
-				sourceOf(file, "sec-edgar-eps-diluted").requests[0].dimension = "legal";
+				sourceOf(file, "sec-edgar-eps-diluted").templates[0].dimension =
+					"legal";
 			},
 			"source sec-edgar-eps-diluted, request 0: legal is not covered by the source or not applicable to its subject",
 		],
@@ -130,9 +131,9 @@ describe("parseSignalRegistry", () => {
 			(file: any) => {
 				const pageviews = sourceOf(file, "wikipedia-pageviews");
 				pageviews.covers.push({ assetType: "bond", dimension: "social" });
-				pageviews.requests[0].subject = { assetId: "EA_AAA_10Y" };
+				pageviews.templates[0].select = { assetIds: ["EA_AAA_10Y"] };
 			},
-			"source wikipedia-pageviews, request 0: social is not covered by the source or not applicable to its subject",
+			"source wikipedia-pageviews, template 0: social not applicable to asset EA_AAA_10Y",
 		],
 		[
 			"a dimension whose payload the adapter does not write",
@@ -158,10 +159,10 @@ describe("parseSignalRegistry", () => {
 		[
 			"a URL placeholder other than {date-N}",
 			(file: any) => {
-				sourceOf(file, "wikipedia-pageviews").requests[1].url =
-					"https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Ethereum/daily/{today}/{date-1}";
+				sourceOf(file, "ecb-aaa-yield-10y").requests[0].url =
+					"https://data-api.ecb.europa.eu/service/data/YC/{today}";
 			},
-			"source wikipedia-pageviews, request 1: URL placeholder other than {date-N}",
+			"source ecb-aaa-yield-10y, request 0: URL placeholder other than {date-N}",
 		],
 	])("refuses %s", (_label, breakIt, message) => {
 		const file = registry();
@@ -194,6 +195,107 @@ describe("parseSignalRegistry", () => {
 
 	it.each([
 		[
+			"a selector without criterion",
+			(t: any) => {
+				t.select = {};
+			},
+			"selector without criterion",
+		],
+		[
+			"a selector matching nothing",
+			(t: any) => {
+				t.select = { sector: "energy" };
+			},
+			"template 0: selector matches no asset",
+		],
+		[
+			"an unknown asset in the selector",
+			(t: any) => {
+				t.select = { assetIds: ["BTC", "DOGE"] };
+			},
+			"template 0: unknown asset DOGE",
+		],
+		[
+			"an unknown hole",
+			(t: any) => {
+				t.url += "?x={asset.figi}";
+			},
+			"unknown or misplaced hole",
+		],
+		[
+			"a hole in the host",
+			(t: any) => {
+				t.url = "https://{asset.alias.wikipedia}.example.org/{date-1}";
+			},
+			"unknown or misplaced hole",
+		],
+		[
+			"an asset without the alias",
+			(t: any) => {
+				t.select = { assetIds: ["BTC", "AAPL"] };
+			},
+			"template 0: asset AAPL has no alias.wikipedia",
+		],
+		[
+			"a dimension not applicable to a selected asset",
+			(t: any) => {
+				t.select = { sector: "sovereign_debt" };
+				t.url = "https://wikimedia.org/{date-1}";
+			},
+			"template 0: social not applicable to asset EA_AAA_10Y",
+		],
+	])("refuses a template with %s", (_label, breakIt, message) => {
+		const file = registry();
+		breakIt(sourceOf(file, "wikipedia-pageviews").templates[0]);
+
+		expect(() => parseSignalRegistry(file)).toThrow(message);
+	});
+
+	it("reports several template problems together", () => {
+		const file = registry();
+		const { templates } = sourceOf(file, "wikipedia-pageviews");
+		templates.push({ ...templates[0], select: { sector: "energy" } });
+		templates.push({ ...templates[0], select: { assetIds: ["AAPL"] } });
+
+		expect(() => parseSignalRegistry(file)).toThrow(
+			/matches no asset; .*asset AAPL has no alias.wikipedia/
+		);
+	});
+
+	it("unfolds the templates into the former requests, url-encoded", () => {
+		const request = (source: string) =>
+			SIGNAL_REGISTRY.sources.find((s) => s.id === source)?.requests;
+		const wiki = (title: string, assetId: string) => ({
+			subject: { assetId },
+			dimension: "social",
+			url: `https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/${title}/daily/{date-8}/{date-1}`,
+			params: {},
+		});
+
+		expect(request("wikipedia-pageviews")).toEqual([
+			wiki("Bitcoin", "BTC"),
+			wiki("Ethereum", "ETH"),
+		]);
+		expect(request("sec-edgar-eps-diluted")).toEqual([
+			{
+				subject: { assetId: "AAPL" },
+				dimension: "fundamental",
+				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/EarningsPerShareDiluted.json",
+				params: {},
+			},
+		]);
+
+		const file = registry();
+		assetOf(file, "BTC").aliases.wikipedia = "AC/DC?a b";
+		const loaded = parseSignalRegistry(file);
+		expect(
+			loaded.sources.find((s) => s.id === "wikipedia-pageviews")?.requests[0]
+				.url
+		).toContain("/user/AC%2FDC%3Fa%20b/daily/");
+	});
+
+	it.each([
+		[
 			"another schema version",
 			(file: any) => {
 				file.schemaVersion = 2;
@@ -209,7 +311,7 @@ describe("parseSignalRegistry", () => {
 		[
 			"a dimension outside the schema (real estate is an asset type)",
 			(file: any) => {
-				sourceOf(file, "wikipedia-pageviews").requests[0].dimension =
+				sourceOf(file, "ecb-aaa-yield-10y").requests[0].dimension =
 					"real_estate";
 			},
 		],
@@ -237,7 +339,7 @@ describe("parseSignalRegistry", () => {
 		[
 			"a request without dimension",
 			(file: any) => {
-				delete sourceOf(file, "wikipedia-pageviews").requests[0].dimension;
+				delete sourceOf(file, "ecb-aaa-yield-10y").requests[0].dimension;
 			},
 		],
 		[
@@ -255,7 +357,7 @@ describe("parseSignalRegistry", () => {
 		[
 			"a subject naming both an asset and a sector",
 			(file: any) => {
-				sourceOf(file, "wikipedia-pageviews").requests[0].subject = {
+				sourceOf(file, "ecb-aaa-yield-10y").requests[0].subject = {
 					assetId: "BTC",
 					sector: "crypto",
 				};

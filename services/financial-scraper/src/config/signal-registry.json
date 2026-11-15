@@ -7,7 +7,8 @@
 			"assetType": "crypto",
 			"identifier": { "scheme": "ticker", "ticker": "BTC" },
 			"applicableDimensions": ["market", "fundamental", "social", "legal", "macro"],
-			"sector": "crypto"
+			"sector": "crypto",
+			"aliases": { "wikipedia": "Bitcoin" }
 		},
 		{
 			"id": "ETH",
@@ -15,7 +16,8 @@
 			"assetType": "crypto",
 			"identifier": { "scheme": "ticker", "ticker": "ETH" },
 			"applicableDimensions": ["market", "fundamental", "social", "legal", "macro"],
-			"sector": "crypto"
+			"sector": "crypto",
+			"aliases": { "wikipedia": "Ethereum" }
 		},
 		{
 			"id": "AAPL",
@@ -23,7 +25,8 @@
 			"assetType": "equity",
 			"identifier": { "scheme": "isin", "isin": "US0378331005" },
 			"applicableDimensions": ["market", "fundamental", "social", "contextual", "legal", "macro"],
-			"sector": "technology"
+			"sector": "technology",
+			"aliases": { "cik": "0000320193" }
 		},
 		{
 			"id": "WHEAT",
@@ -84,11 +87,11 @@
 				"auth": "none",
 				"maxRequestsPerMinute": 60
 			},
-			"requests": [
+			"templates": [
 				{
-					"subject": { "assetId": "AAPL" },
+					"select": { "assetType": "equity" },
 					"dimension": "fundamental",
-					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/EarningsPerShareDiluted.json"
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/EarningsPerShareDiluted.json"
 				}
 			]
 		},
@@ -132,16 +135,11 @@
 				"auth": "none",
 				"maxRequestsPerMinute": 60
 			},
-			"requests": [
+			"templates": [
 				{
-					"subject": { "assetId": "BTC" },
+					"select": { "assetType": "crypto" },
 					"dimension": "social",
-					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Bitcoin/daily/{date-8}/{date-1}"
-				},
-				{
-					"subject": { "assetId": "ETH" },
-					"dimension": "social",
-					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Ethereum/daily/{date-8}/{date-1}"
+					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{asset.alias.wikipedia}/daily/{date-8}/{date-1}"
 				}
 			]
 		}
