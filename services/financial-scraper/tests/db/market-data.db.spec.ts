@@ -289,7 +289,7 @@ describe("market_candles — real MySQL", () => {
 		const [rows] = await DATABASE.promise().query(
 			"SELECT CAST(timestamp AS CHAR) AS ts FROM market_candles"
 		);
-		expect((rows as { ts: string }[])[0].ts).toBe("2026-01-02 03:04:05.678000");
+		expect((rows as { ts: string }[])[0].ts).toBe("2026-01-02 03:04:05.678");
 	});
 
 	it("should update a re-fetched candle in place instead of duplicating it", async () => {
