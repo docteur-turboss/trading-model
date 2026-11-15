@@ -89,6 +89,13 @@ spec:
               value: /badger/key
             - name: BADGER_SPAN_STORE_TTL
               value: 72h
+            # Issue #1247: at start Badger compacts the whole store at once (no
+            # memory option exposed). Measured on the 2.3 GB staging store:
+            # without GOMEMLIMIT the Go heap peaks at 3 GiB (OOM at 1Gi); with it
+            # 1.2 GiB anonymous at start, about 250 MiB once compacted. Keep it
+            # at about 80 % of the memory limit below.
+            - name: GOMEMLIMIT
+              value: 1600MiB
           volumeMounts:
             - name: badger
               mountPath: /badger
@@ -98,7 +105,14 @@ spec:
               memory: 256Mi
             limits:
               cpu: 500m
-              memory: 1Gi
+              memory: 2Gi
+          # The UI port opens after Badger: about 2.5 min on a cold 2.3 GB store.
+          startupProbe:
+            httpGet:
+              path: /
+              port: 16686
+            periodSeconds: 10
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /
