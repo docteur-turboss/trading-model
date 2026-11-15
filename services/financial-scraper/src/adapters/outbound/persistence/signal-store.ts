@@ -10,6 +10,7 @@ interface SignalRow extends RowDataPacket {
 	dimension: Signal["dimension"];
 	asset_id: string | null;
 	sector: string | null;
+	area: string | null;
 	observed_at: Date;
 	ingested_at: Date;
 	confidence_score: number;
@@ -18,13 +19,13 @@ interface SignalRow extends RowDataPacket {
 }
 
 const COLUMNS =
-	"id, schema_version, source_id, dimension, asset_id, sector, observed_at, ingested_at, confidence_score, payload";
+	"id, schema_version, source_id, dimension, asset_id, sector, area, observed_at, ingested_at, confidence_score, payload";
 
 /** A signal already stored keeps its row: a replayed collection changes nothing. */
 const INSERT_SQL = `INSERT INTO signals (${COLUMNS}) VALUES ? ON DUPLICATE KEY UPDATE id = id`;
 
 const SELECT_FOR_ASSET_SQL = `SELECT ${COLUMNS} FROM signals
-	WHERE (asset_id = ? OR (asset_id IS NULL AND sector = ?))
+	WHERE (asset_id = ? OR (asset_id IS NULL AND sector = ?) OR area IN (?))
 		AND dimension IN (?)
 		AND observed_at >= ? AND observed_at < ?
 	ORDER BY observed_at, id
@@ -39,6 +40,7 @@ function _toSignal(row: SignalRow): Signal {
 		dimension: row.dimension,
 		assetId: row.asset_id,
 		sector: row.sector,
+		area: row.area,
 		observedAt: row.observed_at.toISOString(),
 		ingestedAt: row.ingested_at.toISOString(),
 		confidenceScore: row.confidence_score,
@@ -46,7 +48,7 @@ function _toSignal(row: SignalRow): Signal {
 	} as Signal;
 }
 
-/** Signals on the MySQL `signals` table (migration 006). */
+/** Signals on the MySQL `signals` table (migrations 006, 009). */
 export const MySqlSignalStore: SignalStorePort = {
 	async save(signals) {
 		if (signals.length === 0) {
@@ -59,6 +61,7 @@ export const MySqlSignalStore: SignalStorePort = {
 			signal.dimension,
 			signal.assetId,
 			signal.sector,
+			signal.area,
 			new Date(signal.observedAt),
 			new Date(signal.ingestedAt),
 			signal.confidenceScore,
@@ -67,10 +70,19 @@ export const MySqlSignalStore: SignalStorePort = {
 		await DATABASE.promise().query(INSERT_SQL, [rows]);
 	},
 
-	async findForAsset({ assetId, sector, dimensions, from, to, limit }) {
+	async findForAsset({ assetId, sector, areas, dimensions, from, to, limit }) {
 		const [rows] = await DATABASE.promise().query<SignalRow[]>(
 			SELECT_FOR_ASSET_SQL,
-			[assetId, sector, dimensions, new Date(from), new Date(to), limit]
+			// `IN ()` is a syntax error: an asset without areas matches none.
+			[
+				assetId,
+				sector,
+				areas.length > 0 ? areas : [null],
+				dimensions,
+				new Date(from),
+				new Date(to),
+				limit,
+			]
 		);
 		return rows.map(_toSignal);
 	},

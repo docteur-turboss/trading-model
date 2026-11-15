@@ -190,7 +190,7 @@ Migration 008, ADR-0053. One row per depth snapshot the collector fetched (100 b
 
 ### `signals` — signals of every dimension
 
-Migration 006, ADR-0036. One observation about an asset or a whole sector, collected from the source registry (`services/financial-scraper/src/config/signal-registry.json`): the signal envelope in columns, its canonical payload in JSON.
+Migration 006, ADR-0036. One observation about an asset, a whole sector or an economic area, collected from the source registry (`services/financial-scraper/src/config/signal-registry.json`): the signal envelope in columns, its canonical payload in JSON.
 
 | Column | Type | Constraints | Description |
 | ------ | ---- | ----------- | ----------- |
@@ -198,14 +198,15 @@ Migration 006, ADR-0036. One observation about an asset or a whole sector, colle
 | `schema_version` | `SMALLINT UNSIGNED` | `NOT NULL` | `SIGNAL_SCHEMA_VERSION` the row was written with |
 | `source_id` | `VARCHAR(64)` | `NOT NULL` | Registry source |
 | `dimension` | `VARCHAR(32)` | `NOT NULL` | `market`, `fundamental`, `social`, `contextual`, `legal`, `macro` |
-| `asset_id` | `VARCHAR(32)` | `NULL` | Asset of the signal; null for a sector signal |
-| `sector` | `VARCHAR(32)` | `NULL` | Sector of a sector signal (e.g. weather for `agriculture`); null for an asset signal |
+| `asset_id` | `VARCHAR(32)` | `NULL` | Asset of the signal; null for a sector or area signal |
+| `sector` | `VARCHAR(32)` | `NULL` | Sector of a sector signal (e.g. weather for `agriculture`); null for an asset or area signal |
+| `area` | `VARCHAR(32)` | `NULL` | Migration 009. Economic area of an area signal (e.g. `EA`, macro data served to every asset listing it in `areas`); null otherwise |
 | `observed_at` | `DATETIME(3)` | `NOT NULL` | Never earlier than the value was public (point in time): the source's time when safe, else the first collection that saw it |
 | `ingested_at` | `DATETIME(3)` | `NOT NULL` | When the scraper fetched it |
 | `confidence_score` | `DOUBLE` | `NOT NULL` | Source reliability at collection time, 0–1 |
 | `payload` | `JSON` | `NOT NULL` | Canonical payload of the dimension (`PAYLOADS`): `metric` (e.g. `spot_rate_10y`, `us-gaap:EarningsPerShareDiluted`), `value`, `unit`, optional `details`, plus `period`, `filing`, `platform`/`topic`, `location`, `jurisdiction` or `area` depending on the dimension |
 
-**Constraint:** `chk_signals_one_subject`, exactly one of `asset_id` and `sector`. **Indexes:** `(asset_id, observed_at)` and `(sector, observed_at)`, the two halves of `GET /signals/assets/:assetId`.
+**Constraint:** `chk_signals_one_subject`, exactly one of `asset_id`, `sector` and `area`. **Indexes:** `(asset_id, observed_at)`, `(sector, observed_at)` and `(area, observed_at)`, the three parts of `GET /signals/assets/:assetId`. `009` down deletes the area rows.
 
 ### Shared base interface
 

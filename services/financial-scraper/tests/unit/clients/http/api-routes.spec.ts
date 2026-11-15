@@ -318,6 +318,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			dimension: "contextual",
 			assetId: null,
 			sector: "agriculture",
+			area: null,
 			observedAt: "2026-11-04T12:40:00.000Z",
 			ingestedAt: "2026-11-04T13:00:00.000Z",
 			confidenceScore: 0.8,
@@ -355,6 +356,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(findForAsset).toHaveBeenCalledWith({
 				assetId: "WHEAT",
 				sector: "agriculture",
+				areas: [],
 				dimensions: ["market", "contextual", "macro"],
 				from: Date.parse("2026-11-04"),
 				to: Date.parse("2026-11-05T00:00:00Z"),

@@ -122,6 +122,7 @@ describe("SignalCollector", () => {
 				dimension: "social",
 				assetId: "BTC",
 				sector: null,
+				area: null,
 				observedAt: "2026-11-04T12:00:00.000Z",
 				ingestedAt: "2026-11-04T12:03:00.000Z",
 				// The source reliability, kept for the consumers to weigh.
@@ -159,6 +160,20 @@ describe("SignalCollector", () => {
 
 		const [[sectorSignal]] = save.mock.calls[1] as [any[]];
 		expect(sectorSignal).toMatchObject({ assetId: null, sector: "crypto" });
+	});
+
+	it("stores an area request once, on the area, with an id stable at replay", async () => {
+		const areaSource = {
+			...SOURCE,
+			requests: [{ ...SOURCE.requests[1], subject: { area: "EA" } }],
+		};
+		await collector().collect(areaSource);
+		await collector().collect(areaSource);
+
+		const [[first]] = save.mock.calls[0] as [any[]];
+		const [[replay]] = save.mock.calls[1] as [any[]];
+		expect(first).toMatchObject({ assetId: null, sector: null, area: "EA" });
+		expect(replay.id).toBe(first.id);
 	});
 
 	it("gives a replayed observation the same id, another subject another id", async () => {

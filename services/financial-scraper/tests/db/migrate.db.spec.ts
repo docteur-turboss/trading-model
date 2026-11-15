@@ -1,4 +1,4 @@
-import { readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
 	afterAll,
@@ -167,5 +167,45 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 				"SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'fx\\_%' AND table_schema = DATABASE()"
 			)
 		).resolves.toEqual([]);
+	});
+
+	it("should add the signal area to a table holding asset and sector rows, and drop the area rows on down (migration 009)", async () => {
+		const real = join(__dirname, "../../../../scripts/migrations");
+		const copy = (file: string) =>
+			copyFileSync(join(real, file), join(runner.migrationsDir, file));
+		for (const file of ["006_add_signals.up.sql", "006_add_signals.down.sql"]) {
+			copy(file);
+		}
+		runner.run("up");
+		const insert = (id: string, asset: string | null, sector: string | null) =>
+			db.query(
+				"INSERT INTO signals (id, schema_version, source_id, dimension, asset_id, sector, observed_at, ingested_at, confidence_score, payload) VALUES (?, 1, 's', 'market', ?, ?, NOW(3), NOW(3), 1, '{}')",
+				[id.repeat(64), asset, sector]
+			);
+		await insert("a", "BTC", null);
+		await insert("b", null, "crypto");
+
+		for (const file of [
+			"009_add_signal_area.up.sql",
+			"009_add_signal_area.down.sql",
+		]) {
+			copy(file);
+		}
+		runner.run("up");
+
+		await expect(rows("SELECT id FROM signals")).resolves.toHaveLength(2);
+		await db.query(
+			"INSERT INTO signals (id, schema_version, source_id, dimension, area, observed_at, ingested_at, confidence_score, payload) VALUES (?, 1, 's', 'macro', 'EA', NOW(3), NOW(3), 1, '{}')",
+			["c".repeat(64)]
+		);
+		await expect(
+			db.query("UPDATE signals SET area = 'EA' WHERE id = ?", ["a".repeat(64)])
+		).rejects.toThrow(/chk_signals_one_subject/);
+
+		runner.run("down", "1");
+
+		await expect(
+			rows<{ id: string }>("SELECT LEFT(id, 1) AS id FROM signals ORDER BY id")
+		).resolves.toEqual([{ id: "a" }, { id: "b" }]);
 	});
 });

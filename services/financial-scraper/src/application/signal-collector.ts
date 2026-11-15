@@ -143,6 +143,7 @@ export class SignalCollector {
 				dimension,
 				assetId: "assetId" in subject ? subject.assetId : null,
 				sector: "sector" in subject ? subject.sector : null,
+				area: "area" in subject ? subject.area : null,
 				// Throws on an invalid date: the payload is then invalid.
 				observedAt: new Date(
 					observation.observedAt ?? ingestedAt

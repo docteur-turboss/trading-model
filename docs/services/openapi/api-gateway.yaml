@@ -2100,7 +2100,7 @@ paths:
       operationId: "getV2FinancialScraperSignalsAssetsAssetId"
       tags:
         - "financial-scraper"
-      summary: "Signals of an asset and of its sector, every dimension, observed in [from, to)"
+      summary: "Signals of an asset, of its sector and of its areas, every dimension, observed in [from, to)"
       x-registry-entry: "assetSignals"
       parameters:
         - name: "assetId"
@@ -2249,6 +2249,11 @@ paths:
                       sector:
                         type: "string"
                         pattern: "^[a-z][a-z0-9_]{0,31}$"
+                      areas:
+                        type: "array"
+                        items:
+                          type: "string"
+                          pattern: "^[A-Z][A-Z0-9]{1,7}$"
                     required:
                       - "id"
                       - "name"
@@ -2281,6 +2286,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2344,6 +2353,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2370,6 +2380,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2456,6 +2470,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2482,6 +2497,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2554,6 +2573,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2580,6 +2600,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2647,6 +2671,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2673,6 +2698,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2725,6 +2754,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2751,6 +2781,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2819,6 +2853,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
