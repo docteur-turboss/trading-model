@@ -9,10 +9,10 @@ const MOCK_CLOSE_DB = jest.fn(async () => undefined);
 jest.mock("@trading-model/http/logger", () => ({
 	logger: { info: jest.fn(), error: jest.fn(), warn: MOCK_WARN },
 }));
-jest.mock("@trading-model/server-utils/bootstrap", () => ({
+jest.mock("@trading-model/http/bootstrap", () => ({
 	createBootstrap: MOCK_CREATE_BOOTSTRAP,
 }));
-jest.mock("@trading-model/server-utils/telemetry", () => ({
+jest.mock("@trading-model/http/telemetry", () => ({
 	shutdownTelemetry: jest.fn(async () => undefined),
 }));
 jest.mock("../../src/application/telemetry", () => ({}));

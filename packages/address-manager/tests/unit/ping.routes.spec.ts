@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { PING_PATH } from "@trading-model/server-utils/shared/constants";
+import { PING_PATH } from "@trading-model/http/shared/constants";
 import { pingController } from "../../src/ping.controller";
 import { PING_ROUTES } from "../../src/routes/ping.routes";
 

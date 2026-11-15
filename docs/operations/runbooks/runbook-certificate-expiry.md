@@ -22,7 +22,7 @@ SPIRE manages SVID lifecycle automatically (ADR-0011):
 - `spiffe-helper` sidecars re-fetch SVIDs and rewrite `svid.pem`,
   `svid_key.pem`, `bundle.pem` in the shared volume.
 - The service TLS watcher hot-reloads the files on change
-  (`packages/server-utils/src/tls-watcher.ts`); outbound
+  (`packages/http/src/tls-watcher.ts`); outbound
   `HttpClient` re-reads them per request.
 
 ## Manual Renewal

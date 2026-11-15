@@ -44,7 +44,7 @@ services/my-service/
   "dependencies": {
     "@trading-model/common": "*",
     "@trading-model/validation": "*",
-    "@trading-model/server-utils": "*",
+    "@trading-model/http": "*",
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",
     "express": "^5.2.1",
@@ -56,7 +56,7 @@ services/my-service/
 ## Entry Point (`src/application/index.ts`)
 
 ```typescript
-import { createBootstrap } from '@trading-model/server-utils/bootstrap';
+import { createBootstrap } from '@trading-model/http/bootstrap';
 import { createServer } from './server';
 import '../config/env';
 
@@ -72,7 +72,7 @@ createBootstrap({
 
 ```typescript
 import { ServiceId } from '@trading-model/primitives/primitives';
-import { createServiceServer } from '@trading-model/server-utils/service-server-factory';
+import { createServiceServer } from '@trading-model/http/service-server-factory';
 import { myRoutes } from '../adapters/inbound/my.routes';
 import { env } from '../config/env';
 

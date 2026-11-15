@@ -129,7 +129,7 @@ Platform-level implementation reference docs (GA, NN, training) are in `docs/ref
 ### Code Block with Tag
 
 ```typescript
-import { createBootstrap } from '@trading-model/server-utils/bootstrap';
+import { createBootstrap } from '@trading-model/http/bootstrap';
 
 createBootstrap({
   name: 'Discovery',

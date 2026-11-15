@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/server-utils/bootstrap", () => ({
+jest.mock("@trading-model/http/bootstrap", () => ({
 	createBootstrap: jest.fn<(...args: any[]) => any>(),
 }));
 
@@ -61,7 +61,7 @@ describe("app/index", () => {
 
 	it("should call createBootstrap with correct options on load", () => {
 		const { createBootstrap } = jest.requireMock(
-			"@trading-model/server-utils/bootstrap"
+			"@trading-model/http/bootstrap"
 		) as {
 			createBootstrap: jest.Mock<(...args: any[]) => any>;
 		};

@@ -20,7 +20,6 @@
     "@trading-model/common": "*",
     "@trading-model/http": "*",
     "@trading-model/reliability": "*",
-    "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "express": "^5.3.0",
     "node-cron": "^4.6.0",

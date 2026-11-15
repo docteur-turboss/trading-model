@@ -90,7 +90,7 @@ All workspaces enforce an **80%** global threshold (statements, branches, functi
 | ------------------------------ | -------- | --------- | ----- | ---------- | --------- |
 | @trading-model/common          | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/validation      | 80%      | 80%       | 80%   | 80%        | Jest      |
-| @trading-model/server-utils    | 80%      | 80%       | 80%   | 80%        | Jest      |
+| @trading-model/http    | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/crypto          | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/broker-message  | 75%      | 80%       | 80%   | 80%        | Jest      |

@@ -118,7 +118,7 @@ const WEBSOCKET_SERVER = /new\s+WebSocketServer\(|\.on\(\s*["']upgrade["']|handl
 const ROUTE_PROVIDERS = [
 	{
 		mountedBy: /createServiceServer\(|createSecureServer\(/,
-		files: ["packages/server-utils/src/configure-app.ts"],
+		files: ["packages/http/src/configure-app.ts"],
 	},
 	{
 		mountedBy: /ADDRESS_MANAGER_ROUTES\(/,

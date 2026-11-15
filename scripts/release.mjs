@@ -68,7 +68,6 @@ const SCOPE_TO_PACKAGE = {
   http: 'packages/http',
   crypto: 'packages/crypto',
   validation: 'packages/validation',
-  'server-utils': 'packages/server-utils',
   'address-manager': 'packages/address-manager',
   broker: 'packages/broker-message',
   'api-gateway': 'services/api-gateway',
