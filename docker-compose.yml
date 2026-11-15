@@ -864,7 +864,7 @@ services:
 
   mysqld-exporter:
     logging: *default-logging
-    image: quay.io/prometheus/mysqld-exporter:v0.18.0@sha256:2598c0571f383708e19016d119bb45c06128a9ebc962c9f49483278ac5a94c41
+    image: quay.io/prometheus/mysqld-exporter:v0.21.0@sha256:afad0c59a154fea24ca5ea0e6f95f2b0b168601b111266963dc8a347715b5318
     container_name: trading-mysqld-exporter
     restart: unless-stopped
     mem_limit: 128m
