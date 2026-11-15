@@ -53,7 +53,6 @@ graph TD
 - **External dependency:** Binance API
 - **Publishes:** `market.trade.recent.fetch`, `market.candlestick.series.fetch`, `market.order-book.snapshot.fetch`, `market.ticker.24hr-stats.fetch`, `market.price-ticker.snapshot.fetch`, `market.order-book-ticker.snapshot.fetch`
 - **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; **no consumer yet** (trader-trainer and model-evaluator do not read them).
-- **Debug events:** `example.debug.create`, `example.show.create`
 
 ### 2. Training Context
 
