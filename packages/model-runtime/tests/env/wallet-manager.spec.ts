@@ -203,6 +203,18 @@ describe("Wallet module", () => {
 			expect(wallet.buy(Volume.of(cap / 2 + 1))).toBe(false);
 			expect(wallet.buy(Volume.of(cap / 2))).toBe(true);
 		});
+
+		test("checks the exposure cap at the fill price, not the marked price", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(100),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.5,
+			});
+			expect(wallet.buy(Volume.of(5), Price.of(120))).toBe(false);
+			expect(wallet.buy(Volume.of(5), Price.of(100))).toBe(true);
+		});
 	});
 
 	describe("Selling behavior", () => {
