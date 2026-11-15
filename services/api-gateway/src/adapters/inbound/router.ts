@@ -12,7 +12,7 @@ import {
 	parseCIDRList,
 	type ServiceId,
 } from "@trading-model/primitives/primitives";
-import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
 import type { Request } from "express";
 import { Router } from "express";
 import {

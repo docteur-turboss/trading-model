@@ -5,10 +5,22 @@
   "license": "ISC",
   "type": "commonjs",
   "exports": {
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "default": "./dist/*.js"
-    }
+    "./audit-events": "./dist/audit-events.js",
+    "./candlestick-query": "./dist/candlestick-query.js",
+    "./delivery-mode": "./dist/delivery-mode.js",
+    "./dlq-events": "./dist/dlq-events.js",
+    "./dlq-types": "./dist/dlq-types.js",
+    "./event-map": "./dist/event-map.js",
+    "./http-headers": "./dist/http-headers.js",
+    "./http-status": "./dist/http-status.js",
+    "./logger-registry": "./dist/logger-registry.js",
+    "./market-data.types": "./dist/market-data.types.js",
+    "./market-events": "./dist/market-events.js",
+    "./message-types": "./dist/message-types.js",
+    "./publish-timeout": "./dist/publish-timeout.js",
+    "./service-registry-types": "./dist/service-registry-types.js",
+    "./signed-request": "./dist/signed-request.js",
+    "./training-events": "./dist/training-events.js"
   },
   "dependencies": {
     "@trading-model/primitives": "*"

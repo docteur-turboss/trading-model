@@ -1,7 +1,7 @@
-import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
+import { validateEnv } from "@trading-model/validation/config/validate-env";
 import { z } from "zod";
 
 const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape)

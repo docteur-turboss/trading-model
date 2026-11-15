@@ -10,7 +10,7 @@ import {
 } from "@trading-model/http/response-exception";
 import type { ServiceId } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
 import type { Request } from "express";
 import {
 	type ProxyDeps,

@@ -2,7 +2,6 @@
   "cycles": [],
   "layers": [
     "services/api-gateway/src/application/proxy-dispatcher.ts -> ../infrastructure/config/metrics",
-    "services/api-gateway/src/application/proxy-dispatcher.ts -> @trading-model/validation/adapters/outbound/service-resolver.types",
     "services/audit-logger/src/application/chain-cli.ts -> ../infrastructure/config/env"
   ]
 }

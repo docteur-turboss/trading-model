@@ -1,5 +1,5 @@
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
 import type { Request } from "express";
 import {
 	proxyAndCache,

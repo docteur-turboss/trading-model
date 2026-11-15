@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { validateEnv } from "../src/application/services/validate-env";
 import { AddressManagerEnvSchema } from "../src/config/address-manager-env";
 import { BaseEnvSchema } from "../src/config/env";
 import { RedisEnvSchema } from "../src/config/redis-env";
+import { validateEnv } from "../src/config/validate-env";
 
 describe("BaseEnvSchema", () => {
 	it("uses defaults for optional fields", () => {
