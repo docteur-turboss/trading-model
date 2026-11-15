@@ -161,6 +161,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `COLLECTOR_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the collector pods compete for; only its holder runs the crons (ADR-0057). Set on `financial-scraper-collector` in K8s; empty (compose, dev): this instance collects | FS |
 | `SIGNAL_COLLECTION_ENABLED` | boolean (`true`/`1`) | `true` | no | Collects the signal registry sources (ADR-0036) where the scrape cron runs; `false` in CI, which must not call the real sources | FS |
 | `SIGNAL_CONTACT_EMAIL` | string (e-mail) | empty | no | Contact e-mail in the User-Agent of the signal sources (SEC EDGAR answers 403 without one); must be a functional, non-nominative address (project alias, no personal data sent to the US sources, see data-processing-register.md); never committed: `.env` for compose, GitHub environment secret for K8s. A value that is no e-mail disables the signal collection only | FS |
+| `SIGNAL_KEY_<SOURCE>` | string (API key) | unset | no | Free API key of one signal source (`accessPolicy.auth.env` of its registry entry, prefix `SIGNAL_KEY_` required, one variable per source), sent in the header or query parameter the entry declares; never in the registry, a log or an error. Unset: the source alone is not scheduled, a warning is logged and `fs_signal_source_disabled{source,reason="missing_key"}` is 1. Add it as an optional `secretKeyRef` of the collector (K8s) and in `.env.example` / `docker-compose.yml` with the source that needs it; no source uses a key yet | FS |
 
 ---
 
@@ -277,7 +278,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 16 chars), shared with message-manager | DLQ      |
 | `DLQ_ALLOWED_SERVICES`       | string  | `message-manager,admin`              | no       | Callers allowed to sign requests (`admin`: operator scripts such as `examples/manage-dlq.sh`) | DLQ      |
 | `DLQ_PRUNE_INTERVAL_MS`      | number  | `60000`                              | no       | Interval for pruning expired entries | DLQ      |
-| `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (`true` in compose and K8s)  | no       | Replay eligible entries automatically| DLQ      |
+| `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (no profile enables it, ADR-0073)| no       | Replay eligible entries automatically| DLQ      |
 | `DLQ_AUTO_RETRY_INTERVAL_MS` | number  | `30000`                              | no       | Interval between auto-retry attempts | DLQ      |
 | `DLQ_AUTO_RETRY_LIMIT`       | number  | `50`                                 | no       | Max auto-retry attempts per entry    | DLQ      |
 | `REDIS_URL`                  | string  | —                                    | no       | Redis URL of the `dlq:queue` list (the rate limiter is in memory, ADR-0047) | DLQ      |

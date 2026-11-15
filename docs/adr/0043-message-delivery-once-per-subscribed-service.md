@@ -1,6 +1,6 @@
 # ADR-0043: Message Delivery Once per Subscribed Service (Consumer Group)
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md)
 **Date:** 2026-11
 **Amends:** [ADR-0019](./0019-message-broker-as-built.md) (its "Subscriptions" and "Circuit breaker" items only; the HTTP broker without message persistence stands)
 **Related:** [ADR-0023](./0023-discovery-registry-in-redis.md) (addresses resolved by service name), issue #493

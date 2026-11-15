@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { Dimension, SourceRequest } from "../signals";
+import type { Dimension, Source, SourceRequest } from "../signals";
 
 /** What an adapter reads in a payload; the collector completes it into a `Signal`. */
 export interface Observation {
@@ -51,4 +51,7 @@ export class HttpStatusError extends Error {
 }
 
 /** Fetches one request with its source's protocol; rejects on a transport or HTTP error, or with `InvalidPayloadError`. */
-export type ProtocolWorker = (request: SourceRequest) => Promise<unknown>;
+export type ProtocolWorker = (
+	request: SourceRequest,
+	auth: Source["accessPolicy"]["auth"]
+) => Promise<unknown>;

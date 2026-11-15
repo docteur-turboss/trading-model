@@ -14,9 +14,6 @@ const MM_EXTRA_SHAPE = {
 			.min(16, "DLQ_AUTH_HMAC_SECRET must be at least 16 characters")
 			.optional()
 	),
-	// Replicas that must hold an accepted message before the publisher gets its
-	// 202 (Redis WAIT, ADR-0048). 0 on a single Redis node, 1+ with Sentinel.
-	JOURNAL_MIN_REPLICAS: z.coerce.number().int().min(0).default(0),
 } satisfies Record<string, z.ZodTypeAny>;
 
 const MESSAGE_MANAGER_ENV_SCHEMA = BaseEnvSchema.extend(

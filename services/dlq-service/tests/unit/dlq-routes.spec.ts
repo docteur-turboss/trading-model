@@ -40,10 +40,6 @@ describe("DLQ Routes", () => {
 
 		expect(paths).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({
-					path: "/dlq",
-					methods: expect.arrayContaining(["post"]),
-				}),
 				// Public routes: /v1 plus the release N alias (ADR-0072).
 				expect.objectContaining({
 					path: ["/v1/dlq", "/dlq"],

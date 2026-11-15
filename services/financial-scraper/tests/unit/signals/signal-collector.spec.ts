@@ -76,7 +76,7 @@ const OBSERVATION: Observation = {
 };
 
 const normalize = jest.fn<SourceAdapter["normalize"]>();
-const worker = jest.fn<(request: unknown) => Promise<unknown>>();
+const worker = jest.fn<(request: unknown, auth: unknown) => Promise<unknown>>();
 const save = jest.fn<(signals: unknown) => Promise<void>>();
 const sleep = jest.fn<(ms: number) => Promise<void>>();
 
@@ -149,7 +149,7 @@ describe("SignalCollector", () => {
 	it("wraps each canonical payload in a signal of the request's dimension and stores it", async () => {
 		await collector().collect(SOURCE);
 
-		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0]);
+		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0], "none");
 		expect(normalize).toHaveBeenCalledWith({ payload: true }, { params: {} });
 		expect(save).toHaveBeenNthCalledWith(1, [
 			{
@@ -190,10 +190,13 @@ describe("SignalCollector", () => {
 			requests: [{ ...SOURCE.requests[0], url }],
 		});
 
-		expect(worker).toHaveBeenCalledWith({
-			...SOURCE.requests[0],
-			url: "https://a.test/pageviews/daily/20261027/20261103?today=20261104",
-		});
+		expect(worker).toHaveBeenCalledWith(
+			{
+				...SOURCE.requests[0],
+				url: "https://a.test/pageviews/daily/20261027/20261103?today=20261104",
+			},
+			"none"
+		);
 	});
 
 	it("stores a sector request once, on the sector", async () => {

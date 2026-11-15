@@ -2,20 +2,37 @@ import type addressManagerClient from "@trading-model/address-manager";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
+import {
+	DlqEvent,
+	type DlqEventMap,
+	isDlqEventTopic,
+} from "@trading-model/contracts/dlq-events";
 import type {
 	EventEnumMap,
 	EventMap,
 	EventMessagesArgs,
 } from "@trading-model/contracts/event-map";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { HttpClient } from "@trading-model/http/http-client";
-import type { InstanceId } from "@trading-model/primitives/primitives";
+import {
+	type InstanceId,
+	toServiceId,
+	toTopic,
+} from "@trading-model/primitives/primitives";
 import type { Application } from "express";
+import { BusConsumer } from "./bus/consumer";
+import { DeadStreams } from "./bus/dead-streams";
+import { publishToBus } from "./bus/publisher";
+import type { RedisMessageJournal } from "./bus/redis-journal";
 import type { Listener } from "./event-manager-client";
 import { EVENT_MANAGER } from "./event-manager-client";
 import { MessageManagerClient } from "./message-manager-client";
 import { MessageMetadataBuilder } from "./messages/message-metadata-builder";
+import { deliverToListeners } from "./messages.controller";
 import { CREATE_CALLBACK_ROUTE } from "./messages.routes";
+import { deadLetterError } from "./shared/errors";
 
 /** Renewal period of topic subscriptions (also the retry delay after a failure). */
 export const SUBSCRIPTION_REFRESH_MS = 15_000;
@@ -33,20 +50,34 @@ export default class BrokerMessage {
 	private _topics: EventEnumMap[] = [];
 	private _refreshTimer?: ReturnType<typeof setInterval>;
 	private _eventCleanups: (() => void)[] = [];
+	private readonly _journal?: RedisMessageJournal;
+	private _consumer?: BusConsumer;
+	private readonly _serviceName: ServiceInstanceName;
+	private readonly _instanceId: InstanceId;
 
 	constructor({
+		journal,
 		addressManagerClient,
 		tlsPaths,
 		callbackPath: userCallbackPath,
 		instanceId,
 		serviceName,
 	}: {
+		/**
+		 * The bus in Redis (ADR-0073): when set, publishing is an `XADD` and the
+		 * subscribed topics are consumed in this process. Absent: HTTP through
+		 * message-manager.
+		 */
+		journal?: RedisMessageJournal;
 		instanceId: InstanceId;
 		callbackPath?: string;
 		tlsPaths: TlsPaths;
 		addressManagerClient: addressManagerClient;
 		serviceName: ServiceInstanceName;
 	}) {
+		this._journal = journal;
+		this._serviceName = serviceName;
+		this._instanceId = instanceId;
 		if (userCallbackPath) {
 			this._callbackPath = userCallbackPath;
 		}
@@ -71,12 +102,72 @@ export default class BrokerMessage {
 	): Promise<void> {
 		this._topics = topics as EventEnumMap[];
 		this._stopRefresh();
+		await this._consume();
 		await this._subscribeOnce();
 		this._refreshTimer = setInterval(
 			() => void this._subscribeOnce(),
 			SUBSCRIPTION_REFRESH_MS
 		);
 		this._refreshTimer.unref();
+	}
+
+	private async _consume(): Promise<void> {
+		const journal = this._journal;
+		if (!journal) {
+			return;
+		}
+		await this._consumer?.stop();
+		this._consumer = new BusConsumer({
+			journal,
+			deadStreams: new DeadStreams(journal),
+			service: this._serviceName,
+			handle: async ({ metadata, payload }) => {
+				if (!(await deliverToListeners(metadata, payload))) {
+					throw deadLetterError("Invalid payload format", {
+						reason: "REJECTED_BY_SUBSCRIBER",
+					});
+				}
+			},
+			onDeadLetter: (group, _message, reason, deadId) =>
+				this._publishDeadLetterEvent(group.topic, reason, deadId),
+		});
+		await this._consumer.start(this._topics);
+	}
+
+	/** The audit trail records each dead letter (a dead DLQ event does not publish another: it would loop). */
+	private _publishDeadLetterEvent(
+		topic: string,
+		reason: string,
+		entryId: string
+	): void {
+		if (isDlqEventTopic(topic)) {
+			return;
+		}
+		void this._postBus(DlqEvent.EntryAdded, {
+			entryId,
+			topic,
+			reason,
+			actor: null,
+		}).catch((err: unknown) =>
+			getLogger().error("Dead-letter event not published", {
+				context: { topic, entryId, error: normalizeError(err).message },
+			})
+		);
+	}
+
+	private _postBus<TEvent extends DlqEvent>(
+		event: TEvent,
+		payload: DlqEventMap[TEvent]
+	): Promise<void> {
+		return this.post.indirect(
+			payload,
+			new MessageMetadataBuilder(toTopic(event), event, {
+				instanceId: this._instanceId,
+				serviceName: toServiceId(this._serviceName),
+			})
+				.setDelivery({ mode: DeliveryMode.AtLeastOnce })
+				.toJSON()
+		);
 	}
 
 	private async _subscribeOnce(): Promise<void> {
@@ -103,6 +194,8 @@ export default class BrokerMessage {
 	/** Unsubscribes from all topics and cleans up event listeners. */
 	async stopMessageManager(): Promise<void> {
 		this._stopRefresh();
+		await this._consumer?.stop();
+		this._consumer = undefined;
 		await this._messageManagerClient.unsubscribe(this._topics);
 		this._topics = [];
 		for (const fn of this._eventCleanups) {
@@ -127,8 +220,12 @@ export default class BrokerMessage {
 	/** Publishes messages through the Message Manager. */
 	get post() {
 		const client = this._messageManagerClient;
+		const journal = this._journal;
 		return {
-			indirect: client.publish.bind(client),
+			indirect: journal
+				? (payload: unknown, metadata: MessageMetadata) =>
+						publishToBus(journal, payload, metadata)
+				: client.publish.bind(client),
 		};
 	}
 }

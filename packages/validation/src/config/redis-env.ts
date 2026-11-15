@@ -17,4 +17,6 @@ export const RedisEnvSchema = z.object({
 	REDIS_TLS_MODE: z.enum(["optional", "required"]).optional(),
 	REDIS_TLS_CA: z.string().optional(),
 	REDIS_TLS_SERVERNAME: z.string().optional(),
+	/** Replicas that must hold a bus write before it is accepted (`WAIT`, ADR-0048): 0 on one node, 1+ with Sentinel. */
+	JOURNAL_MIN_REPLICAS: z.coerce.number().int().min(0).default(0),
 });
