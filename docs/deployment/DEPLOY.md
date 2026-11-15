@@ -239,7 +239,10 @@ both collect for up to about 30 s (ADR-0057, Consequences).
 Rollback on failure is automatic: the workflow returns every Deployment to the
 revision it ran before the overlay (`rollout undo --to-revision`, see
 [Rollback](#rollback)). The overlay is applied by digest, so this returns to the
-previous image even when both deploys used `latest`.
+previous image even when both deploys used `latest`. Those revisions stay in
+ConfigMap `deploy-revisions` until a deploy or a rollback succeeds, so a re-run
+after an unfinished rollback still returns to them; delete it after repairing the
+cluster by hand.
 
 Two cases:
 

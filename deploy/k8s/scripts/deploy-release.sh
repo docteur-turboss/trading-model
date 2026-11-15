@@ -8,7 +8,8 @@
 #       Prints the Deployments a release rolls out.
 #   deploy-release.sh record <namespace> <revisions-file>
 #       Revision each Deployment runs before the overlay ("<deployment> <rev>",
-#       `none` when it does not exist yet).
+#       `none` when it does not exist yet), kept in configmap/deploy-revisions:
+#       while it exists, a new run reuses it instead.
 #   deploy-release.sh release-replicas <namespace>
 #       Deletes retired HPAs and the finished Mongo init Jobs (immutable pod
 #       template, recreated by the apply), then drops spec.replicas from
@@ -37,7 +38,10 @@
 #       the terminationGracePeriodSeconds of its pod template.
 #   deploy-release.sh rollback <namespace> <revisions-file>
 #       Returns every Deployment to the revision `record` wrote and waits for
-#       each rollout (180s); fails if any did not come back.
+#       each rollout (180s); fails if any did not come back. Waits first for the
+#       API server (300s); forgets the recorded revisions on success.
+#   deploy-release.sh forget <namespace>
+#       Deletes configmap/deploy-revisions: the release deployed.
 #
 # DEPLOY_TIMEOUT_FACTOR: integer the wait and rollback timeouts are multiplied
 # by (default 1; a slow cluster such as the local kind staging).
@@ -56,6 +60,8 @@ DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scrape
 # Redis and its sentinels: the services' credentials (ADR-0047) only work
 # against the nodes of their own release, so these roll out and back too.
 STATEFULSETS="redis redis-sentinel"
+
+REVISIONS_CM=deploy-revisions
 
 # Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
 INIT_JOBS="mysql-cluster-init mongo-audit-users mongo-dlq-users"
@@ -88,15 +94,24 @@ redis_last() {
 }
 
 usage() {
-	echo "usage: $0 without-redis <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file>" >&2
+	echo "usage: $0 without-redis <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file> | forget <ns>" >&2
 	exit 64
 }
 
 # Revision each Deployment runs before the overlay: the rollback returns to
 # exactly it (image and hashed ConfigMap), not to "the one before the
 # current", which is older than N for a Deployment the overlay left as is.
+# Kept in ConfigMap deploy-revisions until `forget` or a successful rollback: a re-run
+# after a rollback that could not finish (API server down) must return to N-1, not
+# to the half-applied N it now finds (issue #1192). Delete it after a manual fix.
 record() {
 	local ns="$1" file="$2" dep rev sts cr
+	kubectl get configmap "$REVISIONS_CM" -n "$ns" --ignore-not-found -o jsonpath='{.data.revisions}' >"$file" || return 1
+	if [ -s "$file" ]; then
+		echo "Revisions recorded by an unfinished deploy (configmap/$REVISIONS_CM):"
+		cat "$file"
+		return
+	fi
 	{
 		for sts in $STATEFULSETS; do
 			cr=$(kubectl get statefulset "$sts" -n "$ns" --ignore-not-found \
@@ -111,6 +126,11 @@ record() {
 			echo "$dep ${rev:-none}"
 		done
 	} | tee "$file"
+	kubectl create configmap "$REVISIONS_CM" -n "$ns" --from-file=revisions="$file"
+}
+
+forget() {
+	kubectl delete configmap "$REVISIONS_CM" -n "$1" --ignore-not-found
 }
 
 # Deployments driven by an HPA carry no spec.replicas in the overlay. A
@@ -313,7 +333,16 @@ replace_stuck_pods() {
 }
 
 rollback() {
-	local ns="$1" file="$2" dep rev failed=0 target entry undone=()
+	local ns="$1" file="$2" dep rev failed=0 target entry undone=() waited=0
+	# The apply may have failed because the API server went down (run 43665338171): wait for it.
+	until kubectl get deployments -n "$ns" >/dev/null; do
+		[ "$waited" -lt $((300 * FACTOR)) ] || {
+			echo "::error::API server unreachable for $waited s: nothing rolled back (configmap/$REVISIONS_CM kept for a re-run)"
+			return 1
+		}
+		sleep 10
+		waited=$((waited + 10))
+	done
 	relax_mysql "$ns" || {
 		echo "::error::Could not lift the MySQL TLS requirement: pods of the previous release cannot connect"
 		failed=1
@@ -348,6 +377,7 @@ rollback() {
 			failed=1
 		fi
 	done
+	[ "$failed" = 1 ] || forget "$ns"
 	return "$failed"
 }
 
@@ -361,5 +391,6 @@ redis-last) [ $# -eq 2 ] || usage; redis_last "$2" ;;
 dry-run) [ $# -eq 3 ] || usage; dry_run "$2" "$3" ;;
 wait) [ $# -ge 2 ] || usage; wait_rollout "$2" "${3:-180s}" ;;
 rollback) [ $# -eq 3 ] || usage; rollback "$2" "$3" ;;
+forget) [ $# -eq 2 ] || usage; forget "$2" ;;
 *) usage ;;
 esac

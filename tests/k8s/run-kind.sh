@@ -379,7 +379,8 @@ release() {
 	release_script redis-last "$NS" <"$WORK/app.yaml" || return 1
 	# Binds the users to their client certificates once mysql-0 serves the cert-manager certificate.
 	migrations "$ROOT" user-only || return 1
-	deploy_script smoke-test
+	deploy_script smoke-test || return 1
+	release_script forget "$NS"
 }
 
 # shellcheck source=tests/k8s/probe-availability.sh
@@ -501,9 +502,20 @@ upgrade() {
 		log "an upgrade whose api-gateway image does not exist passed"
 		return 1
 	fi
+	# A re-run of deploy.yml records again before its own rollback: it must find N-1, not N (issue #1192).
+	release_script record "$NS" "$WORK/revisions-rerun" >/dev/null
+	cmp -s "$WORK/revisions" "$WORK/revisions-rerun" || {
+		log "a re-run after the failed upgrade records other revisions than N-1"
+		diff "$WORK/revisions" "$WORK/revisions-rerun" || true
+		return 1
+	}
 	log "  the upgrade failed: rollback on failure (deploy-release.sh rollback)"
 	# rollback waits for every restored resource; a Deployment new in N is deleted, so no global wait
 	release_script rollback "$NS" "$WORK/revisions"
+	[ -z "$($K -n "$NS" get configmap deploy-revisions --ignore-not-found -o name)" ] || {
+		log "configmap/deploy-revisions left after a successful rollback: the next deploy would roll back to N-1"
+		return 1
+	}
 	# The first N-1 → N attempt ran db-migrate-user once, before the overlay that
 	# brings the exporter keys: the user exists only if their SealedSecret was
 	# applied before the Job (issue #698). MySQL stays on N (not rolled back).

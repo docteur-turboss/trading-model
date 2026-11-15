@@ -1043,6 +1043,8 @@ jobs:
               trading-model.dev/git-sha="${{ steps.src.outputs.sha }}" \
               trading-model.dev/release-version="$VERSION"
           done
+          # Deployed: a later failed deploy records the revisions afresh (issue #1192).
+          bash deploy/k8s/scripts/deploy-release.sh forget "$NS"
 
       # always() ensures orphans are cleaned up even when canary or rollout fails.
       - name: Clean up canary deployments (if enabled)
