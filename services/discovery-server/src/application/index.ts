@@ -1,8 +1,8 @@
 import "./telemetry";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { createBootstrap } from "@trading-model/http/bootstrap";
 import { logger } from "@trading-model/http/logger";
-import { createBootstrap } from "@trading-model/server-utils/bootstrap";
-import { shutdownTelemetry } from "@trading-model/server-utils/telemetry";
+import { shutdownTelemetry } from "@trading-model/http/telemetry";
 import { createDiscoveryApp } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";

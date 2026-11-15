@@ -5,8 +5,8 @@ import path from "node:path";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { toSecureContextOptions } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { loadTlsPemBundle } from "@trading-model/http/http-tls-loader";
-import { logger } from "@trading-model/http/logger";
+import { loadTlsPemBundle } from "./http-tls-loader";
+import { logger } from "./logger";
 
 async function reloadTlsContext(
 	server: https.Server,

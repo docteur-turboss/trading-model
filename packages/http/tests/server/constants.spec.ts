@@ -1,4 +1,4 @@
-import { PING_PATH } from "../src/shared/constants";
+import { PING_PATH } from "../../src/shared/constants";
 
 describe("PING_PATH", () => {
 	it("should equal /ping", () => {

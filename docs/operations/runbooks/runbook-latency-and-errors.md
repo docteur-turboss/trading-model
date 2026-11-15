@@ -6,7 +6,7 @@
 `SLOAvailabilitySlowBurn` / `SLOErrorRateSlowBurn` (warning).
 
 All of them read the shared HTTP middleware metrics of every service
-(`packages/server-utils`, `http_request_duration_seconds` and
+(`packages/http`, `http_request_duration_seconds` and
 `http_requests_total`, labels `method`, `path`, `status`), grouped by scrape
 `job`. Targets and error budgets: [slo.md](../slo.md).
 

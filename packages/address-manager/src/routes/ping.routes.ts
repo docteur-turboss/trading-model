@@ -1,4 +1,4 @@
-import { PING_PATH } from "@trading-model/server-utils/shared/constants";
+import { PING_PATH } from "@trading-model/http/shared/constants";
 import { Router } from "express";
 
 import { pingController } from "../ping.controller";

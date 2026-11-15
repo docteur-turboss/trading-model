@@ -38,7 +38,6 @@ export const SCOPES = [
   'router',
   'scraper',
   'scripts',
-  'server-utils',
   'tests',
   'trader-trainer',
   'trainer',
