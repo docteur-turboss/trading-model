@@ -40,21 +40,11 @@ export class EndpointResolver {
 	 * First live registered instance of the service (of the wanted major
 	 * version, any when omitted), asked under every registry alias. Used by
 	 * `DiscoveryRetryHandler.lookup`. Throws when the registry cannot be
-	 * reached; `undefined` means it answered and nothing matches.
+	 * reached; `undefined` means it answered and nothing matches. Routes use
+	 * canonical names (`financial-scraper`) while services register legacy ones
+	 * (`financial-scraper-service`): each alias is asked until one answers.
 	 */
-	findInstance(
-		serviceName: ServiceId,
-		majorVersion?: number
-	): Promise<ServiceInstance | undefined> {
-		return this._aliveInstance(serviceName, majorVersion);
-	}
-
-	/**
-	 * Routes use canonical names (`financial-scraper`) while services register
-	 * legacy ones (`financial-scraper-service`): each alias is asked until one
-	 * answers.
-	 */
-	private async _aliveInstance(
+	async findInstance(
 		serviceName: ServiceId,
 		majorVersion?: number
 	): Promise<ServiceInstance | undefined> {
