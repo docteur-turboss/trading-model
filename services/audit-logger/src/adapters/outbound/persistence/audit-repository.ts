@@ -5,17 +5,9 @@ import {
 	makeErrorCode,
 } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
-import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type { QueryEnvelope } from "@trading-model/primitives/pagination";
-import type {
-	CorrelationId,
-	InstanceId,
-	MessageId,
-	ServiceId,
-	Topic,
-} from "@trading-model/primitives/primitives";
+import type { ServiceId, Topic } from "@trading-model/primitives/primitives";
 import type { Collection, Db } from "mongodb";
 import {
 	CHAIN_COLLISIONS_TOTAL,
@@ -25,43 +17,14 @@ import { computeAuditHash, hashedContentOf } from "../../../domain/audit-chain";
 import type { DateRange } from "../../../domain/date-range";
 import { EVENTS_COLLECTION, MongoAuditChainReader } from "./audit-chain-reader";
 import { type AuditPage, AuditQuerier } from "./audit-querier";
+import {
+	type AuditEventDocument,
+	type AuditEventQuery,
+	METADATA_FIELDS,
+} from "./filter-builder";
 import { StatsAggregator } from "./stats-aggregator";
 
-export interface AuditEventDocument {
-	receivedAt: Date;
-	ttl: Date;
-	dataHash: string;
-	previousHash: string;
-	chainSequence: number;
-	metadata: {
-		topic: Topic;
-		eventType: EventEnumMap;
-		publisher: ServiceId;
-		instanceId: InstanceId;
-		messageId: MessageId;
-		correlationId?: CorrelationId;
-	};
-	payload: unknown;
-}
-
-export const METADATA_FIELDS = {
-	topic: "metadata.topic",
-	publisher: "metadata.publisher",
-	correlationId: "metadata.correlationId",
-	messageId: "metadata.messageId",
-} as const;
-
-/** Filters of `GET /events`; an absent field does not filter. */
-interface AuditFilter {
-	topic?: Topic;
-	publisher?: ServiceId;
-	correlationId?: CorrelationId;
-}
-
-export interface AuditEventQuery extends QueryEnvelope, AuditFilter {
-	/** `false` skips the count (`total` absent); default: counted. */
-	withTotal?: boolean;
-}
+export type { AuditEventDocument, AuditEventQuery };
 
 export interface AuditStats {
 	totalEvents: number;
