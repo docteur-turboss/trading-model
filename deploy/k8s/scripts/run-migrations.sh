@@ -126,7 +126,12 @@ if kubectl get job mysql-cluster-init -n "$NS" >/dev/null 2>&1; then
     case "$state" in *Complete*|*Failed*) break ;; esac
     sleep 5
   done
-  if [[ "$state" != *Complete* ]]; then
+  # A Failed Job has no START GROUP_REPLICATION left running, and group_replication_start_on_boot=off
+  # keeps mysql-0 writable. Fatal, it blocked every later deploy (issue #1199); the group stays
+  # offline (one member, no HA: ADR-0020) until the Job the overlay re-creates bootstraps it.
+  if [[ "$state" == *Failed* ]]; then
+    echo "::warning::mysql-cluster-init failed, group replication offline on mysql-0: migrating anyway, the overlay runs the Job again (kubectl logs -n $NS mysql-0 -c mysql | grep MY-011636)"
+  elif [[ "$state" != *Complete* ]]; then
     echo "::error::MySQL group replication bootstrap (mysql-cluster-init) failed or timed out"
     kubectl logs -n "$NS" job/mysql-cluster-init --tail=50 || true
     exit 1
