@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import { ParetoArchive } from "../../../src/domain/genetic-algorithm/pareto/archive";
 import type { ObjectiveVector } from "../../../src/domain/genetic-algorithm/pareto/domination";

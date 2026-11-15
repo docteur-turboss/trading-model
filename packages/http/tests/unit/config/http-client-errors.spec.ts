@@ -2,7 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	createHttpClientError,
 	createHttpClientTimeoutError,
-} from "@trading-model/http/adapters/outbound/http-client-errors";
+} from "@trading-model/http/http-client-errors";
 
 describe("HttpClientError", () => {
 	it("should create error with message", () => {

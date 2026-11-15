@@ -5,7 +5,7 @@
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { HttpClient } from "@trading-model/http/http-client";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import type { Application } from "express";

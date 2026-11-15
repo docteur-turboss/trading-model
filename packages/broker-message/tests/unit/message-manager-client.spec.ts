@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
-import { logger } from "@trading-model/http/infrastructure/logger";
-import { MessageManagerClient } from "../../src/adapters/outbound/message-manager-client";
+import { logger } from "@trading-model/http/logger";
+import { MessageManagerClient } from "../../src/message-manager-client";
 
 describe("MessageManagerClient", () => {
 	let client: MessageManagerClient;

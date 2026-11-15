@@ -1,7 +1,7 @@
 import {
 	defineRoute,
 	ErrorResponse,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import { z } from "zod";
 
 /** HTTP API of model-evaluator: the broker callback only (service-to-service). */

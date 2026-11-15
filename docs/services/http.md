@@ -10,17 +10,17 @@ Depends on `primitives`, `contracts`, `common`, `reliability` (+ `express`, `zod
 
 | Import path | Exports | Purpose |
 |-------------|---------|---------|
-| `@trading-model/http/adapters/inbound/response-exception` | `ResponseException`, `sendResponse`, `HTTP_CODE` | Typed error responses |
-| `@trading-model/http/infrastructure/logger` | `logger`, `createLogger`, `Logger`, `LogLevel` | Logger used by services (re-export shim, [ADR-0010](../adr/0010-clean-architecture-migration.md)) |
-| `@trading-model/http/adapters/inbound/api-route/mount-route` | `mountRoute`, `ApiRouteHandler` | Declarative route mounting |
-| `@trading-model/http/adapters/outbound/http-client` | `HttpClient` | mTLS client with retry and circuit breaker |
-| `@trading-model/http/adapters/inbound/api-route/api-route` | route definition types | Route metadata |
+| `@trading-model/http/response-exception` | `ResponseException`, `sendResponse`, `HTTP_CODE` | Typed error responses |
+| `@trading-model/http/logger` | `logger`, `createLogger`, `Logger`, `LogLevel` | Logger used by services (re-export shim, [ADR-0010](../adr/0010-clean-architecture-migration.md)) |
+| `@trading-model/http/api-route/mount-route` | `mountRoute`, `ApiRouteHandler` | Declarative route mounting |
+| `@trading-model/http/http-client` | `HttpClient` | mTLS client with retry and circuit breaker |
+| `@trading-model/http/api-route/api-route` | route definition types | Route metadata |
 
 ## Example
 
 ```typescript
-import { logger } from "@trading-model/http/infrastructure/logger";
-import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import { logger } from "@trading-model/http/logger";
+import { sendResponse } from "@trading-model/http/response-exception";
 ```
 
 ## See also

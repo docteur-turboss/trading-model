@@ -69,19 +69,16 @@ jest.mock("../../services/audit-logger/src/config/metrics", () => ({
 	EVENTS_INGESTED_TOTAL: { inc: () => undefined },
 }));
 // dlq-service publishes its events through the real broker client.
-jest.mock(
-	"@trading-model/broker-message/application/services/create-message-manager",
-	() => ({
-		createServiceMessageManager: () => ({
-			messageManager: {
-				post: {
-					indirect: (payload: unknown, metadata: never) =>
-						mockDlqBroker.client.publish(payload, metadata),
-				},
+jest.mock("@trading-model/broker-message/create-message-manager", () => ({
+	createServiceMessageManager: () => ({
+		messageManager: {
+			post: {
+				indirect: (payload: unknown, metadata: never) =>
+					mockDlqBroker.client.publish(payload, metadata),
 			},
-		}),
-	})
-);
+		},
+	}),
+}));
 jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
 	ENV: { INSTANCE_ID: "dlq-service-1" },
 }));

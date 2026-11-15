@@ -5,7 +5,7 @@ const mockFindService = jest.fn<(...args: any[]) => any>();
 const mockStart = jest.fn<(...args: any[]) => any>();
 
 jest.mock(
-	"@trading-model/address-manager/application/create-service-address-manager",
+	"@trading-model/address-manager/create-service-address-manager",
 	() => ({
 		createServiceAddressManager: jest.fn((..._args: any[]) => ({
 			AddressManager: {},

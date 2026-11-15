@@ -1,5 +1,5 @@
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
-import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
+import { metricsHandler } from "@trading-model/server-utils/metrics-handler";
 import promClient from "prom-client";
 
 export const metrics = {

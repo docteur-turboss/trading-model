@@ -15,7 +15,7 @@ import {
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
-import { circuitBreakerRejectionsTotal } from "../../src/infrastructure/outbound-metrics";
+import { circuitBreakerRejectionsTotal } from "../../src/outbound-metrics";
 
 jest.mock("https");
 jest.mock("fs", () => ({
@@ -58,9 +58,9 @@ import {
 	registerServiceName,
 	type ServiceInstanceName,
 } from "@trading-model/common/config/services.types";
-import { runWithCorrelationId } from "@trading-model/http/adapters/inbound/correlation-id";
-import { getDefaultCircuitRecorder } from "@trading-model/http/adapters/outbound/circuit-recorder";
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { getDefaultCircuitRecorder } from "@trading-model/http/circuit-recorder";
+import { runWithCorrelationId } from "@trading-model/http/correlation-id";
+import { HttpClient } from "@trading-model/http/http-client";
 import type {
 	PositiveInt,
 	ServiceId,

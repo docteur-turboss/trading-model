@@ -2,7 +2,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { HttpClient } from "@trading-model/http/http-client";
 import { URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";

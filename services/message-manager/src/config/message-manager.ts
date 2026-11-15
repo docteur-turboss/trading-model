@@ -3,7 +3,7 @@
  */
 
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
 import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
 import { RedisMessageJournal } from "../adapters/outbound/redis-message-journal";

@@ -2,7 +2,7 @@ import {
 	Protocol,
 	type ServiceInstance,
 } from "@trading-model/contracts/service-registry-types";
-import { brand } from "@trading-model/http/adapters/inbound/api-route/api-route";
+import { brand } from "@trading-model/http/api-route/api-route";
 import {
 	DurationMs,
 	IPAddress,

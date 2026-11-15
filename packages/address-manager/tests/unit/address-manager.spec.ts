@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
+jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: {
 		createWithTls: jest.fn<(...args: any[]) => any>().mockReturnValue({
 			get: jest.fn<(...args: any[]) => any>(),
@@ -11,7 +11,7 @@ jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	},
 }));
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -59,7 +59,7 @@ const MOCK_ADDRESS_MANAGER_CLIENT = (() => {
 	};
 	return impl;
 })();
-jest.mock("../../src/adapters/outbound/client/address-manager-client", () => ({
+jest.mock("../../src/client/address-manager-client", () => ({
 	AddressManagerClient: jest
 		.fn<(...args: any[]) => any>()
 		.mockReturnValue(MOCK_ADDRESS_MANAGER_CLIENT),
@@ -79,13 +79,13 @@ const MOCK_TOKEN_MANAGER = (() => {
 	};
 	return impl;
 })();
-jest.mock("../../src/application/client/token-manager", () => ({
+jest.mock("../../src/client/token-manager", () => ({
 	TokenManager: jest
 		.fn<(...args: any[]) => any>()
 		.mockReturnValue(MOCK_TOKEN_MANAGER),
 }));
 
-jest.mock("../../src/adapters/outbound/discovery/service-cache", () => ({
+jest.mock("../../src/discovery/service-cache", () => ({
 	ServiceCache: jest.fn<(...args: any[]) => any>().mockReturnValue({
 		get: jest.fn<(...args: any[]) => any>(),
 		set: jest.fn<(...args: any[]) => any>(),
@@ -96,10 +96,10 @@ jest.mock("../../src/adapters/outbound/discovery/service-cache", () => ({
 	}),
 }));
 
-jest.mock("../../src/application/discovery/discovery-retry-handler", () => {
+jest.mock("../../src/discovery/discovery-retry-handler", () => {
 	const actual = jest.requireActual<
-		typeof import("../../src/application/discovery/discovery-retry-handler")
-	>("../../src/application/discovery/discovery-retry-handler");
+		typeof import("../../src/discovery/discovery-retry-handler")
+	>("../../src/discovery/discovery-retry-handler");
 	actual.DiscoveryRetryHandler.prototype.findCachedService = jest
 		.fn<(...args: any[]) => any>()
 		.mockResolvedValue({
@@ -111,16 +111,13 @@ jest.mock("../../src/application/discovery/discovery-retry-handler", () => {
 	return actual;
 });
 
-jest.mock(
-	"../../src/adapters/outbound/discovery/service-health-checker",
-	() => ({
-		ServiceHealthChecker: jest.fn<(...args: any[]) => any>().mockReturnValue({
-			isHealthy: jest.fn<(...args: any[]) => any>().mockResolvedValue(true),
-			locate: jest.fn((instance: { host: string }) => instance.host),
-			recordLatency: jest.fn<(...args: any[]) => any>(),
-		}),
-	})
-);
+jest.mock("../../src/discovery/service-health-checker", () => ({
+	ServiceHealthChecker: jest.fn<(...args: any[]) => any>().mockReturnValue({
+		isHealthy: jest.fn<(...args: any[]) => any>().mockResolvedValue(true),
+		locate: jest.fn((instance: { host: string }) => instance.host),
+		recordLatency: jest.fn<(...args: any[]) => any>(),
+	}),
+}));
 
 import {
 	DurationMs,
@@ -130,8 +127,8 @@ import {
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/primitives/primitives";
-import AddressManager from "../../src/application/address-manager";
-import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
+import AddressManager from "../../src/address-manager";
+import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 
 function makeConfig(
 	overrides?: Partial<AddressManagerConfig>

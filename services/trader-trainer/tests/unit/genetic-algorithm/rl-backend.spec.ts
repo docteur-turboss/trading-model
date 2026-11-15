@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
 import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import { Price } from "@trading-model/primitives/primitives";

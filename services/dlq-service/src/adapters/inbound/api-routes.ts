@@ -2,7 +2,7 @@ import {
 	brand,
 	defineRoute,
 	ErrorResponse,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import { toTopic } from "@trading-model/primitives/primitives";
 import { DlqEntryWire } from "@trading-model/validation/wire/dlq-entry";
 import { z } from "zod";

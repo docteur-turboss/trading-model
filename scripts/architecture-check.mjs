@@ -5,7 +5,7 @@
  *   - runtime import cycles: strongly connected components of the import
  *     graph; `import type` / `export type` and imports whose specifiers are
  *     all `type` are ignored (erased at build, no initialisation order);
- *   - layer violations: a file under `application/` importing `adapters/` or
+ *   - layer violations (services only; libraries under `packages/` are flat, ADR-0015): a file under `application/` importing `adapters/` or
  *     `infrastructure/` (relative path or `@trading-model/<pkg>/adapters|infrastructure/...`),
  *     type imports included. Startup files `application/{index,server,telemetry}.ts` are exempt.
  *
@@ -105,7 +105,7 @@ export function analyze(root) {
   const layers = new Set();
   for (const file of files) {
     const from = rel(file);
-    const inApplication = /\/src\/(.*\/)?application\//.test(from);
+    const inApplication = from.startsWith('services/') && /\/src\/(.*\/)?application\//.test(from);
     const exempt = STARTUP.has(from.split('/').pop()) && /\/src\/application\/[^/]+$/.test(from);
     for (const { specifier, typeOnly } of importsOf(file)) {
       let target = null;

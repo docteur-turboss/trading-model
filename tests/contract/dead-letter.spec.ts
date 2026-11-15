@@ -1,4 +1,4 @@
-import { parseRequest } from "@trading-model/http/adapters/inbound/api-route/api-route";
+import { parseRequest } from "@trading-model/http/api-route/api-route";
 import { DLQ_API } from "../../services/dlq-service/src/adapters/inbound/api-routes";
 import { serviceAuth } from "../../services/dlq-service/src/adapters/inbound/auth";
 import { checkEntryAcceptable } from "../../services/dlq-service/src/application/use-cases/dlq-validator";

@@ -26,7 +26,7 @@ const EXCEPTIONS = join(ROOT, "docs/services/events/breaking-exceptions.json");
 // zod is a dependency of broker-message, not of the root.
 const { z } = createRequire(join(ROOT, "packages/broker-message/package.json"))("zod");
 const { EVENT_VALIDATORS } = await import(
-	join(ROOT, "packages/broker-message/src/domain/messages/schemas/message-payload.schema.ts")
+	join(ROOT, "packages/broker-message/src/messages/schemas/message-payload.schema.ts")
 );
 
 const snapshot = {};

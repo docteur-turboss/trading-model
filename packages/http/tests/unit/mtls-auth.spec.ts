@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
+jest.mock("@trading-model/http/catch-error", () => ({
 	catchSync: jest.fn((fn) => fn),
 }));
 
-jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
+jest.mock("@trading-model/http/response-exception", () => ({
 	ResponseException: (data: any) => ({
 		Forbidden: () => {
 			throw Object.assign(
@@ -27,7 +27,7 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
 	}),
 }));
 
-import { MTLSAuthMiddleware } from "@trading-model/http/adapters/inbound/mtls-auth";
+import { MTLSAuthMiddleware } from "@trading-model/http/mtls-auth";
 
 describe("MTLSAuthMiddleware", () => {
 	let req: any;

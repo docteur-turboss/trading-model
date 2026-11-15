@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { Request, Response } from "express";
-import { metricsController } from "../../src/adapters/inbound/metrics.controller";
+import { metricsController } from "../../src/metrics.controller";
 
 describe("metricsController", () => {
 	function mockReqRes(snapshot?: () => Record<string, unknown>) {

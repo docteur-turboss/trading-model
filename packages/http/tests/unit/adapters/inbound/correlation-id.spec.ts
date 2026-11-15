@@ -3,7 +3,7 @@ import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import {
 	correlationIdMiddleware,
 	getCorrelationId,
-} from "@trading-model/http/adapters/inbound/correlation-id";
+} from "@trading-model/http/correlation-id";
 import type { NextFunction, Request, Response } from "express";
 
 describe("correlationIdMiddleware", () => {

@@ -1,11 +1,11 @@
 import type { AddressInfo } from "node:net";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { responseIssues } from "@trading-model/http/adapters/inbound/api-route/api-route";
+import { responseIssues } from "@trading-model/http/api-route/api-route";
 import express from "express";
-import { BROKER_CALLBACK_API } from "../../src/adapters/inbound/api-routes";
-import { CREATE_CALLBACK_ROUTE } from "../../src/adapters/inbound/messages.routes";
-import { EVENT_MANAGER } from "../../src/application/services/event-manager-client";
+import { BROKER_CALLBACK_API } from "../../src/api-routes";
+import { EVENT_MANAGER } from "../../src/event-manager-client";
+import { CREATE_CALLBACK_ROUTE } from "../../src/messages.routes";
 
 const METADATA = {
 	topic: "example.debug.create",

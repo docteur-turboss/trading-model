@@ -8,9 +8,9 @@ import {
 	ErrorResponse,
 	parseRequest,
 	responseIssues,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
-import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
-import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception/send-response";
+} from "@trading-model/http/api-route/api-route";
+import { mountRoute } from "@trading-model/http/api-route/mount-route";
+import { sendResponse } from "@trading-model/http/response-exception/send-response";
 import express, {
 	type NextFunction,
 	type Request,

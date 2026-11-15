@@ -1,1 +1,1 @@
-export { logger } from "@trading-model/http/infrastructure/logger";
+export { logger } from "@trading-model/http/logger";

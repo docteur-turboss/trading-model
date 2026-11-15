@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 
 const get = jest.fn<(...args: any[]) => any>();
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
+jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: { createWithTls: () => ({ get }) },
 }));
 

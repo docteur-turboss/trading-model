@@ -3,10 +3,10 @@ import https from "node:https";
 import { describe, expect, it, jest } from "@jest/globals";
 
 const manifestGet = jest.fn<(...args: any[]) => any>();
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
+jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: { createWithTls: () => ({ get: manifestGet }) },
 }));
-jest.mock("@trading-model/http/infrastructure/http-tls-loader", () => ({
+jest.mock("@trading-model/http/http-tls-loader", () => ({
 	buildHttpsAgentOptions: () => ({}),
 }));
 jest.mock("../../src/config/address-manager", () => ({

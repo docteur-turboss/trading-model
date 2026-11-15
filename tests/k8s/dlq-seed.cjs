@@ -8,7 +8,7 @@ const fs = require("node:fs");
 const https = require("node:https");
 const {
 	buildSignedHeaders,
-} = require("/app/packages/crypto/dist/application/services/request-signer.js");
+} = require("/app/packages/crypto/dist/request-signer.js");
 
 const now = Date.now();
 const body = {

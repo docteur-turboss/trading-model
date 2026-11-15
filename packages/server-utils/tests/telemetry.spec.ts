@@ -12,10 +12,7 @@ jest.mock("@opentelemetry/exporter-trace-otlp-http", () => ({
 	OTLPTraceExporter: mockOtlpExporter,
 }));
 
-import {
-	shutdownTelemetry,
-	startTelemetry,
-} from "../src/infrastructure/telemetry";
+import { shutdownTelemetry, startTelemetry } from "../src/telemetry";
 
 describe("telemetry", () => {
 	beforeEach(() => {

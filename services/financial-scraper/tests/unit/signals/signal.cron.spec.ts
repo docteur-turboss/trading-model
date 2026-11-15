@@ -5,7 +5,7 @@ const MOCK_SCHEDULE = jest.fn<(...args: any[]) => any>(() => ({ stop: STOP }));
 jest.mock("node-cron", () => ({ schedule: MOCK_SCHEDULE }));
 
 const MOCK_LOGGER = { warn: jest.fn<(...args: any[]) => any>() };
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: MOCK_LOGGER,
 }));
 

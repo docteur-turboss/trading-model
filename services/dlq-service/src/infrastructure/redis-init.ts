@@ -1,5 +1,5 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 
 /** Connects the Redis queue and re-seeds it from MongoDB on every reconnect. */
 export async function ensureRedisQueue(

@@ -9,8 +9,8 @@ import {
 	toVersion,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { ServiceCache } from "../../src/adapters/outbound/discovery/service-cache";
-import type { ServiceInstance } from "../../src/domain/client/type";
+import type { ServiceInstance } from "../../src/client/type";
+import { ServiceCache } from "../../src/discovery/service-cache";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {

@@ -1,8 +1,8 @@
 import "./telemetry";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
-import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
+import { logger } from "@trading-model/http/logger";
+import { createBootstrap } from "@trading-model/server-utils/bootstrap";
+import { shutdownTelemetry } from "@trading-model/server-utils/telemetry";
 import { AddressManager } from "../config/address-manager";
 import { createDlqApp } from "../config/container";
 import { ENV } from "../infrastructure/config/env";

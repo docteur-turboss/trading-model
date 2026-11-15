@@ -13,7 +13,7 @@ import type {
 	Version,
 } from "@trading-model/primitives/primitives";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -99,9 +99,9 @@ describe("InstanceRegistrar", () => {
 			const result = await registrar.buildStoredInstance(instance, 3000);
 
 			expect(result.instanceId).toBe("i1");
-			const { logger } = jest.requireMock(
-				"@trading-model/http/infrastructure/logger"
-			) as { logger: { warn: jest.Mock<(...args: any[]) => any> } };
+			const { logger } = jest.requireMock("@trading-model/http/logger") as {
+				logger: { warn: jest.Mock<(...args: any[]) => any> };
+			};
 			expect(logger.warn).toHaveBeenCalled();
 		});
 	});

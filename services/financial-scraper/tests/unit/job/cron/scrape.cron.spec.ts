@@ -21,7 +21,7 @@ jest.mock("p-limit", () => {
 	return pLimit;
 });
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -37,14 +37,14 @@ const MOCK_PERSIST = jest.fn<(...args: any[]) => any>();
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () =>
 		(
-			jest.requireMock("@trading-model/http/infrastructure/logger") as {
+			jest.requireMock("@trading-model/http/logger") as {
 				logger: unknown;
 			}
 		).logger,
 	setLogger: () => {},
 }));
 
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { ScrapeCronOrchestrator } from "../../../../src/adapters/inbound/cron/scrape.cron";
 
 const MOCK_LOGGER = jest.mocked(logger);

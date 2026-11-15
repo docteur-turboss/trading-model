@@ -1,5 +1,5 @@
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
-import { brand } from "@trading-model/http/adapters/inbound/api-route/api-route";
+import { brand } from "@trading-model/http/api-route/api-route";
 import {
 	PositiveInt,
 	toMessageId,

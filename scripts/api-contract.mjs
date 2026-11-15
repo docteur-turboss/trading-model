@@ -124,14 +124,14 @@ const WEBSOCKET_SERVER = /new\s+WebSocketServer\(|\.on\(\s*["']upgrade["']|handl
 const ROUTE_PROVIDERS = [
 	{
 		mountedBy: /createServiceServer\(|createSecureServer\(/,
-		files: ["packages/server-utils/src/adapters/inbound/configure-app.ts"],
+		files: ["packages/server-utils/src/configure-app.ts"],
 	},
 	{
 		mountedBy: /ADDRESS_MANAGER_ROUTES\(/,
 		files: [
-			"packages/address-manager/src/infrastructure/monitoring/metrics-collector.ts",
-			"packages/address-manager/src/adapters/inbound/routes/ping.routes.ts",
-			"packages/address-manager/src/adapters/inbound/routes/metrics.routes.ts",
+			"packages/address-manager/src/monitoring/metrics-collector.ts",
+			"packages/address-manager/src/routes/ping.routes.ts",
+			"packages/address-manager/src/routes/metrics.routes.ts",
 		],
 	},
 	{
@@ -141,8 +141,8 @@ const ROUTE_PROVIDERS = [
 			{
 				method: "POST",
 				path: "/message",
-				file: "packages/broker-message/src/adapters/inbound/messages.routes.ts",
-				registry: { file: "packages/broker-message/src/adapters/inbound/api-routes.ts", name: "BROKER_CALLBACK_API", key: "receive" },
+				file: "packages/broker-message/src/messages.routes.ts",
+				registry: { file: "packages/broker-message/src/api-routes.ts", name: "BROKER_CALLBACK_API", key: "receive" },
 			},
 		],
 	},
@@ -264,7 +264,7 @@ const SOURCE_PATHS = join(ROOT, "scripts/api-contract.tsconfig.json");
 		}
 	}
 	const probe = Bun.resolveSync(
-		"@trading-model/http/adapters/inbound/api-route/api-route",
+		"@trading-model/http/api-route/api-route",
 		join(ROOT, "services/dlq-service/src")
 	);
 	if (!probe.replaceAll("\\", "/").includes("/packages/http/src/")) {
@@ -508,7 +508,7 @@ function operationId(method, path) {
 // Zod of the http package, which owns ErrorResponse: the registries' schemas
 // are converted with it.
 const { z } = createRequire(join(ROOT, "packages/http/package.json"))("zod");
-const { ErrorResponse } = await import(join(ROOT, "packages/http/src/adapters/inbound/api-route/api-route.ts"));
+const { ErrorResponse } = await import(join(ROOT, "packages/http/src/api-route/api-route.ts"));
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 
 /** JSON Schema of a Zod schema, OpenAPI 3.0 flavour, without Zod's noise. */

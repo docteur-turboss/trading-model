@@ -1,4 +1,4 @@
-import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
+import { metricsHandler } from "@trading-model/server-utils/metrics-handler";
 import promClient from "prom-client";
 
 /** `outcome`: recorded | duplicate. A refused model is a failed delivery, not an outcome. */

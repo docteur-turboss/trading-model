@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import { catchSync } from "@trading-model/http/catch-error";
 
 describe("catchSync", () => {
 	let req: any;

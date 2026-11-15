@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { createNext, createReq, createRes } from "../helpers/express";
 
-jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
+jest.mock("@trading-model/http/catch-error", () => ({
 	catchSync: (fn: any) => fn,
 }));
 
-jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
+jest.mock("@trading-model/http/response-exception", () => ({
 	sendResponse: (data: any, status: number) => ({ status, data }),
 }));
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		warn: jest.fn<(...args: any[]) => any>(),
 		info: jest.fn<(...args: any[]) => any>(),

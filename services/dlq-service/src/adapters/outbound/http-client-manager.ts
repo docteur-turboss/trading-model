@@ -1,5 +1,5 @@
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import { HttpClient } from "@trading-model/http/http-client";
 import { ENV } from "../../infrastructure/config/env";
 
 class SharedHttpClientManager {

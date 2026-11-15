@@ -2,8 +2,8 @@ import "./telemetry";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import type { Leadership } from "@trading-model/reliability/leadership";
-import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
+import { createBootstrap } from "@trading-model/server-utils/bootstrap";
+import { shutdownTelemetry } from "@trading-model/server-utils/telemetry";
 import { ScraperCandleHistory } from "../adapters/outbound/scraper-candle-history";
 import {
 	BOOTSTRAP_ADDRESS_MANAGER,

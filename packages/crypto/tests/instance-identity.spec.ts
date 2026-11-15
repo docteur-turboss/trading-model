@@ -3,7 +3,7 @@ import {
 	Port,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
-import { generateInstanceId } from "../src/application/services/instance-identity";
+import { generateInstanceId } from "../src/instance-identity";
 
 describe("generateInstanceId", () => {
 	const endpoint = {

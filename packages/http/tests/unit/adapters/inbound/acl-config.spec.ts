@@ -1,8 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import {
-	DEFAULT_ACL,
-	KnownService,
-} from "@trading-model/http/adapters/inbound/acl-config";
+import { DEFAULT_ACL, KnownService } from "@trading-model/http/acl-config";
 
 describe("DEFAULT_ACL", () => {
 	it("should contain entries for all known services", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock(
-	"@trading-model/address-manager/application/create-service-address-manager",
+	"@trading-model/address-manager/create-service-address-manager",
 	() => ({
 		createServiceAddressManager: jest.fn((..._args: any[]) => ({
 			AddressManager: {},

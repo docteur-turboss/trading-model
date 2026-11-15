@@ -1,9 +1,11 @@
 import { InstanceId } from "@trading-model/primitives/primitives";
-import { createHmacSha256Formatted } from "../src/adapters/outbound/node-hmac";
-import { generateRandomStr } from "../src/adapters/outbound/node-random";
-import { generateInstanceToken } from "../src/application/services/token-generator";
-import { validInstanceToken } from "../src/application/services/token-validator";
-import { CryptoAlg } from "../src/domain/constants/crypto-constants";
+import { CryptoAlg } from "../src/constants/crypto-constants";
+import {
+	createHmacSha256Formatted,
+	generateRandomStr,
+} from "../src/node-crypto";
+import { generateInstanceToken } from "../src/token-generator";
+import { validInstanceToken } from "../src/token-validator";
 
 function createLegacyToken(
 	instanceId: string,

@@ -5,7 +5,7 @@ const MOCK_INCREMENT_RETRY = jest.fn<(...args: any[]) => any>();
 const MOCK_RELEASE_CLAIM = jest.fn<(...args: any[]) => any>();
 const MOCK_IS_SHUTTING_DOWN = jest.fn<(...args: any[]) => any>();
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),

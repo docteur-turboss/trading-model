@@ -10,7 +10,7 @@ import type {
 	Version,
 } from "@trading-model/primitives/primitives";
 
-jest.mock("@trading-model/http/adapters/inbound/response-exception", () => ({
+jest.mock("@trading-model/http/response-exception", () => ({
 	ResponseException: jest.fn((body: any) => ({
 		Unauthorized: () => ({ type: "Unauthorized" as const, error: body }),
 	})),
@@ -20,7 +20,7 @@ jest.mock("@trading-model/validation/domain/validation/primitives", () => ({
 	isNonEmptyString: (v: any) => typeof v === "string" && v.trim().length > 0,
 }));
 
-import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
+import { ResponseException } from "@trading-model/http/response-exception";
 import { InMemoryTokenStore } from "../../src/adapters/outbound/in-memory-token-store";
 import { createServiceRegistry } from "../../src/config/container";
 import type { ServiceRegistry } from "../../src/domain/service-registry";

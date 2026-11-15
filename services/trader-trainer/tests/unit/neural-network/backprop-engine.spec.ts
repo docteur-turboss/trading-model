@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
 import { FeedForwardEngine } from "@trading-model/model-runtime/neural-network/feed-forward-engine";
 import {
 	ActivationType,

@@ -1,5 +1,5 @@
 import { ServiceId } from "@trading-model/primitives/primitives";
-import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
+import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
 import type { Application } from "express";
 
 import { FINANCIAL_ROUTES } from "../adapters/inbound/http/routes";

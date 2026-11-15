@@ -1,4 +1,4 @@
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
 import type { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import {

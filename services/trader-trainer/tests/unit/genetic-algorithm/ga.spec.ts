@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "@jest/globals";
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
 import { crossoverGenomes } from "../../../src/domain/genetic-algorithm/crossover/genome-crossover";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import { MaxBatchSize } from "../../../src/domain/genetic-algorithm/genome-rl/types";

@@ -1,5 +1,5 @@
 import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import {
 	isAllowedProxyIP,
 	parseCIDRList,

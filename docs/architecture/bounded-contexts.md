@@ -121,4 +121,4 @@ The historical single `EnumEventMessage` enum (mixing market data, certificate, 
 4. `DlqEvent` — `@trading-model/contracts/dlq-events`: dlq-service publishes `dlq.entry.added`, `dlq.replay.completed` and `dlq.entries.deleted` so the audit trail records what happens to undelivered messages
 5. Certificate/security events were **removed** with the CA decommission (ADR-0011)
 
-Per-context Zod schemas live in `@trading-model/broker-message/domain/messages/schemas` (metadata, message payload, market events, audit events).
+Per-context Zod schemas live in `@trading-model/broker-message/messages/schemas` (metadata, message payload, market events, audit events).

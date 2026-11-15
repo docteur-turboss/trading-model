@@ -1,6 +1,6 @@
 import type { DlqEntry } from "@trading-model/contracts/dlq-types";
 import type { Message } from "@trading-model/contracts/message-types";
-import { parseRequest } from "@trading-model/http/adapters/inbound/api-route/api-route";
+import { parseRequest } from "@trading-model/http/api-route/api-route";
 import { DLQ_API } from "../../../services/dlq-service/src/adapters/inbound/api-routes";
 import { deliverEntry } from "../../../services/dlq-service/src/adapters/outbound/delivery-executor";
 import { HttpMessageDelivery } from "../../../services/message-manager/src/adapters/outbound/http-message-delivery";

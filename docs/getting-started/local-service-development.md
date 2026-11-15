@@ -7,7 +7,7 @@ How to change one service and see it run. Supported method: **rebuild that servi
 Checked by running `bun run dev` in `services/message-manager` without Compose:
 
 1. Env validation fails first: `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID` and `ADDRESS_MANAGER_URL` are `Invalid input: expected string, received undefined`. These variables are set by `docker-compose.yml`, not by any file read by `bun run dev`.
-2. With them set to the Compose values (`/run/spire/svid/svid_key.pem`, `svid.pem`, `bundle.pem`), startup stops with `Failed to read TLS CA certificate from "/run/spire/svid/bundle.pem": ENOENT` (`packages/http/src/infrastructure/http-tls-loader.ts`).
+2. With them set to the Compose values (`/run/spire/svid/svid_key.pem`, `svid.pem`, `bundle.pem`), startup stops with `Failed to read TLS CA certificate from "/run/spire/svid/bundle.pem": ENOENT` (`packages/http/src/http-tls-loader.ts`).
 
 The `/run/spire/svid/*` paths are the values `docker-compose.yml` sets (and [ENV.md](../deployment/ENV.md) documents); only the `spiffe-helper-<x>` sidecar writes files there, with a SPIRE SVID (ADR-0011). Services also only accept mTLS peers with a SPIRE identity and find each other through discovery-server (itself behind mTLS). Nothing in the repository issues local SVIDs.
 

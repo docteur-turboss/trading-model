@@ -27,10 +27,9 @@ jest.mock("../../src/config/address-manager", () => ({
 	AddressManager: {},
 }));
 
-jest.mock(
-	"@trading-model/broker-message/application/services/create-message-manager",
-	() => ({ createServiceMessageManager: MOCK_CREATE })
-);
+jest.mock("@trading-model/broker-message/create-message-manager", () => ({
+	createServiceMessageManager: MOCK_CREATE,
+}));
 
 function load(): typeof import("../../src/config/audit") {
 	return jest.requireActual("../../src/config/audit");
