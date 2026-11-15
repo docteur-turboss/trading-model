@@ -5,7 +5,7 @@
 **Related:** [ADR-0026](./0026-binance-public-market-data-kept.md) (amended: Decision 4 fallbacks re-ranked), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (Binance Vision terms), [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) (expand/contract), issues #1291, #1264
 **Verified by:** `bun run adr:check`
 
-Documentation only. Nothing here changes code, configuration or a manifest. Owner decision (2026-11-15, issue #1291): option 1, double with Bitstamp. The ADR stays `Proposed` until the Binance terms are read and the Bitstamp agreement is signed.
+Documentation only. Nothing here changes code, configuration or a manifest. Owner decision (2026-11-15, issue #1291): option 1, double with Bitstamp. The ADR stays `Proposed` until Binance gives written confirmation and the Bitstamp agreement is signed.
 
 ## Context
 
@@ -17,7 +17,7 @@ Primary texts were fetched on 2026-11-15. A page that could not be read is marke
 
 | Source | Terms (URL) | Clause | Data offered | Limits | Rank |
 | --- | --- | --- | --- | --- | --- |
-| Binance `api.binance.com` | `https://www.binance.com/en/terms` | **Not readable**: the page is rendered by script and returned only its footer. The only public statement found is a forum thread (`dev.binance.vision/t/public-rest-api-for-commercial-use-case/23067`, 2024-11): no Binance reply, a community member's opinion that account terms "do not really apply" to keyless public endpoints | 1 m candles (`klines`), trades, 24 h tickers, depth | Weight-based, 429 then 418 ban (ADR-0026) | **Unclassified, treated as rank 2 without a commercial licence** until the terms are read |
+| Binance `api.binance.com` | `https://www.binance.com/en/terms` | **Not readable**: the page is rendered by script and returned only its footer. The only public statement found is a forum thread (`dev.binance.vision/t/public-rest-api-for-commercial-use-case/23067`, 2024-11): no Binance reply, a community member's opinion that account terms "do not really apply" to keyless public endpoints | 1 m candles (`klines`), trades, 24 h tickers, depth | Weight-based, 429 then 418 ban (ADR-0026) | **Rank 2, provisional** (owner's reading, 2026-11-15): free public access, personal and non-commercial research compatible with the general licence; free commercial use not established; no `api.binance.com`-specific commercial licence found; no explicit ban on commercial use of its raw data found. Conservative ranking, not a legal conclusion |
 | Binance `data-api.binance.vision` | `https://data.binance.vision/Binance_Vision-Terms_of_Use.pdf` (v1.0, 2026-08-26) | CC BY-NC-SA 4.0, "Commercial licensing is strictly excluded"; §4.2 forbids "live proprietary trading execution" (ADR-0036) | Same endpoints | Same | **Inadmissible** for trading |
 | Bitstamp | `https://www.bitstamp.net/api/` | "Bitstamp allows the incorporation and redistribution of our exchange data for commercial purposes", on request: contact `partners@bitstamp.net` and sign a "commercial use Data License Agreement" | OHLC (`step` in seconds), order book, trades (minute, hour, day) | 400 requests/s, 10 000 per 10 min by default | **Rank 2, commercial licence available** (to be signed) |
 | Kraken | `https://docs.kraken.com/api/docs/rest-api/get-ohlc-data` | No terms on the page; the legal page `kraken.com/legal/api-terms` answered 404 | OHLC 1 m to 15 d, depth, trades | OHLC: "up to 720 of the most recent entries", no older data | **Unclassified** (terms not found) |
@@ -25,7 +25,7 @@ Primary texts were fetched on 2026-11-15. A page that could not be read is marke
 
 ## Decision (proposed)
 
-1. **Binance is not rank 1.** No readable clause grants commercial use of `api.binance.com`; the only written terms found exclude it for the Vision host. The owner reads `binance.com/en/terms` and the Prohibited Use Policy in a browser and records the clauses here.
+1. **Binance is rank 2, provisional** (owner's reading, 2026-11-15). Not rank 1: no explicit grant of free commercial reuse. Not inadmissible: no clause found that bans commercial use of the raw data of this API. Condition: written confirmation from Binance before the source counts as commercially usable. The owner may still quote the clauses of `binance.com/en/terms` here.
 2. **Double, then decide.** Add Bitstamp as a second source (the only candidate with a stated commercial path). Keep Binance for research and training until its terms are read; any live trading stays blocked (algorithmic-trading-compliance §6 item 9).
 3. **Replace Binance only if** the owner's reading finds commercial use forbidden. Bitstamp becomes the primary by configuration.
 4. The owner signs the Bitstamp Data License Agreement before Bitstamp data feeds a traded model. Kraken and Coinbase are re-ranked once their terms are read (Kraken's 720-candle history also makes backfill slower).
