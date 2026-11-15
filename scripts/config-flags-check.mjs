@@ -41,7 +41,9 @@ const LIST = process.argv.includes('--list');
  * Optional variables that no profile sets on purpose. Each entry says why the
  * code behind it is still meant to exist; "nobody needs it yet" is not a reason.
  */
-const ALLOWED_UNSET = {};
+const ALLOWED_UNSET = {
+  DLQ_AUTO_RETRY_ENABLED: 'ADR-0072: no profile sets it (code default false) in release N; code and variable removed in N+1',
+};
 
 /** Profiles: what a real deployment can set. Tests and docs are not profiles. */
 const PROFILE_ROOTS = ['.env.example', 'docker-compose.yml', 'deploy', '.github/workflows/deploy.yml'];

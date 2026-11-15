@@ -7,9 +7,8 @@
 
 message-manager dead-letters a message it could not deliver after its retries
 and sends it to dlq-service (signed with `DLQ_AUTH_HMAC_SECRET`). dlq-service
-stores it in MongoDB and, with `DLQ_AUTO_RETRY_ENABLED=true` (compose and K8s),
-replays eligible entries to message-manager every `DLQ_AUTO_RETRY_INTERVAL_MS`
-(30 s), at most `DLQ_AUTO_RETRY_LIMIT` (50) per cycle. An entry that failed
+stores it in MongoDB. Nothing replays it by itself (`DLQ_AUTO_RETRY_ENABLED` unset = false,
+ADR-0072, default): replay by hand with `POST /dlq/replay`. An entry that failed
 `DLQ_RETRY_MAX_ATTEMPTS` replays is abandoned (kept, no longer retried): **3 in
 K8s** (`deploy/k8s/config/dlq-service.properties`), 5 by default (compose).
 
@@ -71,10 +70,9 @@ Common causes:
    message-manager to the same subscriber, fails again and is dead-lettered
    again (added grows with replayed failing). Step 2 names the topic; fix the
    subscriber first ([runbook-message-bus-outage](runbook-message-bus-outage.md#2-slow-or-failing-subscriber)).
-2. **Auto-retry disabled or skipped**: `DLQ_AUTO_RETRY_ENABLED` not `true`, or
-   the logs show `DLQ auto-retry: cannot resolve message-manager URL, skipping
-   cycle` (message-manager not registered in discovery:
-   [runbook-discovery](runbook-discovery.md)).
+2. **No manual replay yet**: entries stay `pending` until someone replays them.
+   If a replay fails with an unresolved message-manager URL, check
+   [runbook-discovery](runbook-discovery.md).
 3. **Burst larger than the replay capacity**: a big incident dead-lettered
    thousands of entries; 50 per 30 s cycle drains ~6,000 an hour. The alerts
    clear once the burst is drained.

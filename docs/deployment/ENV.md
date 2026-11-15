@@ -278,7 +278,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 16 chars), shared with message-manager | DLQ      |
 | `DLQ_ALLOWED_SERVICES`       | string  | `message-manager,admin`              | no       | Callers allowed to sign requests (`admin`: operator scripts such as `examples/manage-dlq.sh`) | DLQ      |
 | `DLQ_PRUNE_INTERVAL_MS`      | number  | `60000`                              | no       | Interval for pruning expired entries | DLQ      |
-| `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (`true` in compose and K8s)  | no       | Replay eligible entries automatically| DLQ      |
+| `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (ADR-0072)             | no       | Replay eligible entries automatically| DLQ      |
 | `DLQ_AUTO_RETRY_INTERVAL_MS` | number  | `30000`                              | no       | Interval between auto-retry attempts | DLQ      |
 | `DLQ_AUTO_RETRY_LIMIT`       | number  | `50`                                 | no       | Max auto-retry attempts per entry    | DLQ      |
 | `REDIS_URL`                  | string  | —                                    | no       | Redis URL of the `dlq:queue` list (the rate limiter is in memory, ADR-0047) | DLQ      |
