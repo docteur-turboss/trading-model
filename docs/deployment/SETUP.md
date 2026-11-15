@@ -54,7 +54,7 @@ Compiles the monorepo packages in this order (topological dependency chain):
 5. `model-runtime` (`packages/model-runtime`)
 6. `persistence` (`packages/persistence`)
 7. `http` (`packages/http`)
-8. `validation` (`packages/validation`) + `server-utils` (`packages/server-utils`)
+8. `validation` (`packages/validation`)
 9. `crypto` (`packages/crypto`)
 10. `address-manager` (`packages/address-manager`)
 11. `broker-message` (`packages/broker-message`)

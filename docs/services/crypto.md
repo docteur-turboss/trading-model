@@ -4,7 +4,7 @@ Hashing, HMAC, secure randomness, instance token generation and validation, and 
 
 ## Dependency rule
 
-Depends on `primitives`, `contracts`, `common`. Never import `http`, `validation` or `server-utils`.
+Depends on `primitives`, `contracts`, `common`. Never import `http` or `validation`.
 
 ## Main exports
 

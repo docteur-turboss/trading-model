@@ -43,7 +43,6 @@
     "@trading-model/persistence": "*",
     "@trading-model/crypto": "*",
     "@trading-model/http": "*",
-    "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.4",

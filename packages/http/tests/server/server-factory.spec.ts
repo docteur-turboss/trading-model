@@ -2,7 +2,7 @@ jest.mock("node:https", () => ({
 	createServer: jest.fn(),
 }));
 
-jest.mock("@trading-model/http/http-tls-loader", () => ({
+jest.mock("../../src/http-tls-loader", () => ({
 	loadTlsPemBundle: jest.fn().mockResolvedValue({
 		keyPem: "fake-key",
 		certPem: "fake-cert",
@@ -10,14 +10,14 @@ jest.mock("@trading-model/http/http-tls-loader", () => ({
 	}),
 }));
 
-jest.mock("../src/tls-watcher", () => ({
+jest.mock("../../src/tls-watcher", () => ({
 	setupTlsWatcher: jest.fn().mockResolvedValue(undefined),
 }));
 
 import https from "node:https";
-import { loadTlsPemBundle } from "@trading-model/http/http-tls-loader";
-import { createAndStartHttpsServer } from "../src/server-factory";
-import { setupTlsWatcher } from "../src/tls-watcher";
+import { loadTlsPemBundle } from "../../src/http-tls-loader";
+import { createAndStartHttpsServer } from "../../src/server-factory";
+import { setupTlsWatcher } from "../../src/tls-watcher";
 
 describe("createAndStartHttpsServer", () => {
 	beforeEach(() => {

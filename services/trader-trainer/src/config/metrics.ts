@@ -1,4 +1,4 @@
-import { metricsHandler } from "@trading-model/server-utils/metrics-handler";
+import { metricsHandler } from "@trading-model/http/metrics-handler";
 import promClient from "prom-client";
 
 /** Model artifacts written after a training (ADR-0022): stored, skipped or error. */

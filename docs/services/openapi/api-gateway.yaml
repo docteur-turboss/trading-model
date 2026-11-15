@@ -78,7 +78,7 @@ paths:
     get:
       operationId: getPing
       tags: [api-gateway]
-      summary: "Handled by the gateway (packages/server-utils/src/configure-app.ts)"
+      summary: "Handled by the gateway (packages/http/src/configure-app.ts)"
       security: []
       responses:
         "2XX": { description: Success }

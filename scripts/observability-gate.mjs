@@ -103,19 +103,19 @@ for (const service of SERVICES) {
   const configureAppPath = join(
     ROOT,
     "packages",
-    "server-utils",
+    "http",
     "src",
     "configure-app.ts"
   );
   const configureApp = readFileSync(configureAppPath, "utf-8");
   if (!configureApp.includes("httpMetricsMiddleware")) {
-    errors.push("server-utils: httpMetricsMiddleware not mounted in configure-app");
+    errors.push("http: httpMetricsMiddleware not mounted in configure-app");
   }
   if (!configureApp.includes("correlationIdMiddleware")) {
-    errors.push("server-utils: correlationIdMiddleware not mounted in configure-app");
+    errors.push("http: correlationIdMiddleware not mounted in configure-app");
   }
   if (!configureApp.includes('"/health/ready"')) {
-    errors.push("server-utils: /health/ready readiness route not mounted");
+    errors.push("http: /health/ready readiness route not mounted");
   }
 }
 
@@ -215,7 +215,7 @@ function emittedMetricNames() {
 
 /** Families exported by components this repo configures but does not code. */
 const EXPORTER_PREFIXES = [
-  // prom-client collectDefaultMetrics() (packages/server-utils configure-app)
+  // prom-client collectDefaultMetrics() (packages/http configure-app)
   "nodejs_", "process_",
   // blackbox-exporter probes (deploy/k8s/infra/blackbox-exporter.yaml)
   "probe_",

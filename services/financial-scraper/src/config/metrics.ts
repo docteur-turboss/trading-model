@@ -1,4 +1,4 @@
-import { metricsHandler } from "@trading-model/server-utils/metrics-handler";
+import { metricsHandler } from "@trading-model/http/metrics-handler";
 import promClient from "prom-client";
 
 export const COLLECTOR_LEADER = new promClient.Gauge({
