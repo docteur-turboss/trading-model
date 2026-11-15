@@ -91,7 +91,8 @@ spec:
               value: 72h
             # Issue #1247: at start Badger compacts the whole store at once (no
             # memory option exposed). Measured on the 2.3 GB staging store:
-            # without GOMEMLIMIT the Go heap peaks at 3 GiB (OOM at 1Gi); with it
+            # without GOMEMLIMIT memory peaks at 3 GiB, mostly idle heap the Go
+            # runtime keeps (live heap about 300 MB; OOM at 1Gi); with it
             # 1.2 GiB anonymous at start, about 250 MiB once compacted. Keep it
             # at about 80 % of the memory limit below.
             - name: GOMEMLIMIT
