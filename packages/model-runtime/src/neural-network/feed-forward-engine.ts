@@ -1,5 +1,5 @@
 import { agentError } from "../errors";
-import { type LayerComputationContext, LayerComputer } from "./layer-computer";
+import { LayerComputer } from "./layer-computer";
 import { NORMALIZERS, type NormalizeParams } from "./normalizers";
 import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
 
@@ -35,18 +35,6 @@ export class FeedForwardEngine {
 		};
 	}
 
-	private _computeLayer(
-		ctx: LayerComputationContext,
-		layerZValues: Float32Array[],
-		layerOutputs: Float32Array[]
-	): Float32Array {
-		const { preActivations, output } =
-			this._layerComputer.computeLayerOutput(ctx);
-		layerZValues.push(preActivations);
-		layerOutputs.push(output);
-		return output;
-	}
-
 	private _computeLayers(input: Float32Array): {
 		current: Float32Array;
 		layerZValues: Float32Array[];
@@ -58,16 +46,17 @@ export class FeedForwardEngine {
 		let current = input;
 
 		for (let layerIndex = 0; layerIndex < this._layers.length; layerIndex++) {
-			current = this._computeLayer(
+			const { preActivations, output } = this._layerComputer.computeLayerOutput(
 				{
 					layer: this._layers[layerIndex],
 					current,
 					layerIndex,
 					originalInput,
-				},
-				layerZValues,
-				layerOutputs
+				}
 			);
+			layerZValues.push(preActivations);
+			layerOutputs.push(output);
+			current = output;
 		}
 
 		return { current, layerZValues, layerOutputs };

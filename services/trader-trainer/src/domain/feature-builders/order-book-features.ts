@@ -3,33 +3,20 @@ import {
 	getAvgAsk,
 	getAvgBid,
 	getBidTotalQty,
-	type OrderBookData,
 } from "@trading-model/contracts/market-data.types";
 import type { Price, Ratio } from "@trading-model/primitives/primitives";
 import type { FeatureContext } from "../feature-context";
-import type { FeatureState } from "../market-data-types";
-import type { OrderBookAverages } from "../order-book-averages";
-
-function computeOrderBookAverages(ob: OrderBookData): OrderBookAverages {
-	return {
-		avgBid: getAvgBid(ob),
-		avgAsk: getAvgAsk(ob),
-		bidQty: getBidTotalQty(ob),
-		askQty: getAskTotalQty(ob),
-	};
-}
-
-function orderBookAverages(state: FeatureState): OrderBookAverages | null {
-	if (!state.orderBook) {
-		return null;
-	}
-	return computeOrderBookAverages(state.orderBook);
-}
 
 export function buildOrderBookFeatures(ctx: FeatureContext): void {
 	const { features, state } = ctx;
-	const obAvg = orderBookAverages(state);
-	if (obAvg) {
+	const ob = state.orderBook;
+	if (ob) {
+		const obAvg = {
+			avgBid: getAvgBid(ob),
+			avgAsk: getAvgAsk(ob),
+			bidQty: getBidTotalQty(ob),
+			askQty: getAskTotalQty(ob),
+		};
 		features.orderBook.avgBid = state.norm.book.bid.normalize(
 			obAvg.avgBid
 		) as Price;
