@@ -1,6 +1,6 @@
 {
   "name": "@trading-model/server-utils",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Server bootstrapping and HTTP server utilities extracted from @trading-model/common",
   "license": "ISC",
   "type": "commonjs",
@@ -17,13 +17,13 @@
     "@opentelemetry/instrumentation-express": "^0.72.0",
     "@opentelemetry/instrumentation-http": "^0.300.0",
     "@opentelemetry/resources": "^3.0.0",
-    "@opentelemetry/sdk-node": "^0.300.0",
+    "@opentelemetry/sdk-node": "^0.301.1",
     "@opentelemetry/semantic-conventions": "^1.44.0",
     "@trading-model/common": "*",
     "@trading-model/contracts": "*",
     "@trading-model/http": "*",
     "express": "^5.3.0",
-    "express-rate-limit": "^8.7.3",
+    "express-rate-limit": "^8.7.4",
     "helmet": "^8.3.0",
     "prom-client": "^15.1.3"
   },
