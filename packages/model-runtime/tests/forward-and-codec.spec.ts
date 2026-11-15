@@ -55,6 +55,20 @@ describe("FeedForwardEngine", () => {
 		expect(ctx.layerOutputs).toHaveLength(2);
 	});
 
+	test("keeps pre-activations apart from activated outputs", () => {
+		const layers = [layer(2, 2, 1, 0), layer(2, 1, 1, 1)];
+		const config = mergeConfig({
+			neuronsByLayer: [2, 2, 1] as never,
+			activationType: [ActivationType.Linear, ActivationType.Sigmoid],
+			connectionType: ConnectionType.FullyConnected,
+		});
+		const ctx = new FeedForwardEngine(config, layers).forward(
+			new Float32Array([1, 2])
+		);
+		expect(Array.from(ctx.layerZValues[1])).toEqual([7]);
+		expect(ctx.layerOutputs[1][0]).toBeCloseTo(1 / (1 + Math.exp(-7)));
+	});
+
 	test("dense-skip adds the input where sizes match", () => {
 		const layers = [layer(2, 2, 1, 0), layer(2, 1, 1, 0)];
 		const ctx = engine(ConnectionType.DenseSkip, layers).forward(

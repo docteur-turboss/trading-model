@@ -27,7 +27,16 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: { BINANCE_BASE_URL: "http://binance-stub:8080" },
 }));
 
+jest.mock("../../../src/config/metrics", () => ({
+	BINANCE_REQUESTS_TOTAL: { inc: jest.fn() },
+	BINANCE_REQUEST_DURATION_SECONDS: { observe: jest.fn() },
+}));
+
 import { createHttpClient, httpClients } from "../../../src/config/http";
+import {
+	BINANCE_REQUEST_DURATION_SECONDS,
+	BINANCE_REQUESTS_TOTAL,
+} from "../../../src/config/metrics";
 
 describe("createHttpClient", () => {
 	beforeEach(() => {
@@ -70,6 +79,64 @@ describe("createHttpClient", () => {
 		await promise;
 
 		jest.useRealTimers();
+	});
+
+	it("waits the exponential backoff before retrying", async () => {
+		createHttpClient("https://api.example.com");
+		const axiosMock = jest.requireMock("axios") as {
+			create: jest.Mock<(...args: any[]) => any>;
+		};
+		const instance = axiosMock.create.mock.results.at(-1)?.value as jest.Mock<
+			(...args: any[]) => any
+		>;
+		instance.mockClear();
+		jest.useFakeTimers();
+		// third retry: 300 ms base doubled twice, at least 1200 ms
+		const error = { config: { retryCount: 2 }, response: { status: 500 } };
+		const promise = mockResponseRejectedHandler!(error);
+		jest.advanceTimersByTime(1000);
+		await Promise.resolve();
+		expect(instance).not.toHaveBeenCalled();
+		jest.advanceTimersByTime(20000);
+		await promise;
+		expect(instance).toHaveBeenCalledTimes(1);
+		jest.useRealTimers();
+	});
+
+	it("records request count and duration per endpoint outside tests", async () => {
+		const axiosMock = jest.requireMock("axios") as {
+			create: jest.Mock<(...args: any[]) => any>;
+		};
+		const nodeEnv = process.env.NODE_ENV;
+		process.env.NODE_ENV = "production";
+		createHttpClient("https://api.example.com");
+		process.env.NODE_ENV = nodeEnv;
+		const { interceptors } = axiosMock.create.mock.results.at(-1)!.value as any;
+		const startTimer = interceptors.request.use.mock.calls.at(-1)[0];
+		const [onSuccess, onError] = interceptors.response.use.mock.calls.at(-1);
+		const inc = BINANCE_REQUESTS_TOTAL.inc as unknown as jest.Mock;
+		const observe =
+			BINANCE_REQUEST_DURATION_SECONDS.observe as unknown as jest.Mock;
+		inc.mockClear();
+		observe.mockClear();
+
+		const ok = startTimer({ url: "/api/v3/klines?symbol=BTCUSDT" });
+		const response = { config: ok, status: 200 };
+		expect(onSuccess(response)).toBe(response);
+		expect(inc).toHaveBeenCalledWith({ endpoint: "klines", status: "200" });
+
+		const failed = startTimer({ url: "/api/v3/trades" });
+		const error = { config: failed };
+		expect(() => onError(error)).toThrow();
+		expect(inc).toHaveBeenCalledWith({
+			endpoint: "trades",
+			status: "network_error",
+		});
+		expect(observe).toHaveBeenCalledTimes(2);
+		expect(observe).toHaveBeenCalledWith(
+			{ endpoint: "klines" },
+			expect.any(Number)
+		);
 	});
 
 	it("response rejected interceptor should not retry on 400", async () => {
