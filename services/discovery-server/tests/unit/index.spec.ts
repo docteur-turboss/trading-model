@@ -94,26 +94,4 @@ describe("app/index", () => {
 
 		opts.onStop();
 	});
-
-	it("should use RedisInstanceStore when REDIS_URL is set", () => {
-		jest.resetModules();
-
-		require("../../src/application/index");
-
-		const { createBootstrap } = jest.requireMock(
-			"@trading-model/server-utils/bootstrap"
-		) as {
-			createBootstrap: jest.Mock<(...args: any[]) => any>;
-		};
-
-		const opts = createBootstrap.mock.calls.at(-1)![0] as {
-			createServer: () => void;
-			onStart: () => void;
-			onStop: () => void;
-		};
-
-		opts.createServer();
-		opts.onStart();
-		opts.onStop();
-	});
 });

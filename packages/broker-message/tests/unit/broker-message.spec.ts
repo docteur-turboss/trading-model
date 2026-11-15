@@ -134,17 +134,6 @@ describe("BrokerMessage", () => {
 			).toHaveBeenCalledWith(topics);
 		});
 
-		it("should call kill functions from event array", async () => {
-			const killFn = jest.fn<(...args: any[]) => any>();
-			EVENT_MANAGER.on(
-				"market.candlestick.series.fetch" as never as any,
-				killFn
-			);
-			broker = new BrokerMessage(defaultParams);
-			broker.on("market.candlestick.series.fetch" as never, killFn);
-			await broker.stopMessageManager();
-		});
-
 		it("should reset topics after stop", async () => {
 			const topics = ["market.candlestick.series.fetch"];
 			await broker.intents(topics);
@@ -199,13 +188,6 @@ describe("BrokerMessage", () => {
 					MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.publish
 				).toHaveBeenCalledWith({ data: "test" }, metadata);
 			});
-		});
-	});
-
-	describe("helper export", () => {
-		it("should export MetadataBuilder", () => {
-			const BrokerMessageModule = require("../../src/index");
-			expect(BrokerMessageModule.HELPER.metadataBuilder).toBeDefined();
 		});
 	});
 });

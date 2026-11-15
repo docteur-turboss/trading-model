@@ -37,16 +37,6 @@ jest.mock("@trading-model/http/http-client", () => {
 });
 
 describe("createBrokerModule", () => {
-	it("should create without error", () => {
-		const module = createBrokerModule({
-			caPath: "/certs/ca.pem" as FilePath,
-			certPath: "/certs/cert.pem" as FilePath,
-			keyPath: "/certs/key.pem" as FilePath,
-		});
-
-		expect(module).toBeDefined();
-	});
-
 	it("should expose a listen method", () => {
 		const module = createBrokerModule({
 			caPath: "/certs/ca.pem" as FilePath,

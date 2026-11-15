@@ -89,7 +89,7 @@ This maintains diversity along the Pareto front — the set of solutions where n
 
 ### Pareto Archive
 
-A persistent store of all non-dominated solutions discovered across generations. A candidate is accepted if no existing archive member dominates it. Dominated members are evicted. The archive preserves the best trade-offs found during the entire evolution.
+A persistent store of the best trade-offs found during the whole evolution: [Pareto archive update](../reference/genetic-algorithm.md#3-pareto-archive-update).
 
 ### Objectives
 
@@ -120,12 +120,7 @@ This accelerates evolution because each generation starts from the learned weigh
 
 ## Termination
 
-Evolution stops when any condition is met:
-
-- A fitness threshold is reached
-- Stagnation exceeds patience limit
-- Maximum generations reached
-- Time budget exhausted
+Evolution stops on a fitness threshold, stagnation, a generation limit or a time budget: [termination check](../reference/genetic-algorithm.md#9-termination-check).
 
 ---
 

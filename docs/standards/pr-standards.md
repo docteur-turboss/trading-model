@@ -39,64 +39,6 @@ chore/update-typescript-6
 
 A PR template exists at `.github/PULL_REQUEST_TEMPLATE.md`. GitHub uses this template automatically when creating a PR.
 
-```markdown
-# Description
-
-Briefly describe what this PR does.
-
-## Type of Change
-
-- [ ] :sparkles: feat — New feature
-- [ ] :bug: fix — Bug fix
-- [ ] :memo: docs — Documentation
-- [ ] :recycle: refactor — Code restructuring
-- [ ] :white_check_mark: test — Tests
-- [ ] :wrench: chore — Configuration / tooling
-- [ ] :construction_worker: ci — CI/CD
-- [ ] :lock: security — Security
-
-## Changes
-
-### ✅ Additions
-
-- ...
-
-### :recycle: Modifications
-
-- ...
-
-### :fire: Removals
-
-- ...
-
-## Breaking Changes
-
-- [ ] Yes (describe below)
-- [ ] No
-
-If yes, describe impact and migration:
-
-## Tests
-
-- [ ] Existing tests pass
-- [ ] New tests added
-- [ ] Manual tests performed
-
-## Checklist
-
-- [ ] `bun run lint` — 0 errors
-- [ ] `bun run build` — Success
-- [ ] `bun run test` — All tests pass
-
-## Closes Issues
-
-Closes #<issue_number>
-
-## Additional Notes
-
-Any additional context useful for the reviewer.
-```
-
 ## Required Checks
 
 Before a PR can be merged, it must pass all of the following checks:
@@ -131,61 +73,6 @@ These checks run automatically via GitHub Actions in `.github/workflows/ci.yml`.
 | `documentation` | Documentation changes                 |
 | `refactor`      | Restructuring without behavior change |
 | `dependencies`  | Dependency updates                    |
-
-## Example PR Description
-
-```markdown
-# Description
-
-Centralize the `ServiceInstance` type in @trading-model/primitives to avoid
-duplication between discovery-server and message-manager.
-
-## Type of Change
-
-- [x] :recycle: refactor — Code restructuring
-
-## Changes
-
-### ✅ Additions
-
-- Type `ServiceId` in `packages/primitives/src/primitives/general-ids.ts`
-- Unit tests for the new type
-
-### :recycle: Modifications
-
-- Discovery-server now imports from `@trading-model/primitives`
-- Message-manager now imports from `@trading-model/primitives`
-- Removed duplicate definitions in each service
-
-### :fire: Removals
-
-- `services/discovery-server/src/types/service-instance.ts`
-- `services/message-manager/src/types/service-instance.ts`
-
-## Breaking Changes
-
-No — the type is identical, only the import path changes.
-
-## Tests
-
-- [x] Existing tests pass
-- [x] New tests added for the centralized type
-- [x] Manual tests performed (verified imports)
-
-## Checklist
-
-- [x] `bun run lint` — 0 errors
-- [x] `bun run build` — Success
-- [x] `bun run test` — All tests pass
-
-## Closes Issues
-
-Closes #89
-
-## Additional Notes
-
-This PR is part of the shared type standardization initiative (#85).
-```
 
 ## References
 

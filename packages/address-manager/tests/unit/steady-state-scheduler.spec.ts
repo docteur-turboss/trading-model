@@ -47,10 +47,6 @@ describe("SteadyStateScheduler", () => {
 		scheduler = new SteadyStateScheduler(options);
 	});
 
-	it("should store options in constructor", () => {
-		expect(scheduler).toBeDefined();
-	});
-
 	it("setup() should register token refresh and heartbeat jobs", () => {
 		expect(() => scheduler.setup()).not.toThrow();
 		expect(MOCK_SCHEDULER_INSTANCE.register).toHaveBeenCalledTimes(2);

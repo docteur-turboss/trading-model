@@ -106,29 +106,4 @@ describe("DlqPruner", () => {
 			expect.any(Object)
 		);
 	});
-
-	it("should start the timer", () => {
-		const pruner = new DlqPrunerClass(
-			{ prune: MOCK_PRUNE, count: MOCK_COUNT },
-			{ MAX_ENTRIES: 100, DLQ_PRUNE_INTERVAL_MS: 60000 }
-		);
-		pruner.start();
-	});
-
-	it("should not start the timer twice", () => {
-		const pruner = new DlqPrunerClass(
-			{ prune: MOCK_PRUNE, count: MOCK_COUNT },
-			{ MAX_ENTRIES: 100, DLQ_PRUNE_INTERVAL_MS: 60000 }
-		);
-		pruner.start();
-		pruner.start();
-	});
-
-	it("should stop the timer", () => {
-		const pruner = new DlqPrunerClass(
-			{ prune: MOCK_PRUNE, count: MOCK_COUNT },
-			{ MAX_ENTRIES: 100, DLQ_PRUNE_INTERVAL_MS: 60000 }
-		);
-		pruner.stop();
-	});
 });

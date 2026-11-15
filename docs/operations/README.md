@@ -7,7 +7,7 @@ This directory contains operational procedures, policies, and runbooks for the T
 | Document                               | Purpose                                                    |
 | -------------------------------------- | ---------------------------------------------------------- |
 | [SLO](slo.md)                          | Service Level Objectives and burn-rate alerting             |
-| [Incident Response](incident-response.md) | Severity levels, escalation, post-mortem                 |
+| [Incident Response](incident-response.md) | Checklist, escalation, channels                          |
 | [On-Call](on-call.md)                  | Rotation, responsibilities, quick commands                  |
 
 ## Runbooks

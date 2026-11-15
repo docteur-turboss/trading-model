@@ -14,18 +14,7 @@ The project uses two database engines: MySQL (**Financial Scraper**) and MongoDB
 
 **ORM:** `ts-sql-query` with a custom `DBConnection` wrapper.
 
-### Tables
-
-The market data tables are defined in the SQL migrations (`scripts/migrations/`, applied by the `migrate` service):
-
-| Table              | Content                   |
-| ------------------ | ------------------------- |
-| `market_candles`   | OHLCV candle data         |
-| `market_trades`    | Individual trade data     |
-| `market_tickers`   | 24-hour ticker statistics |
-| `market_order_books` | Order book depth snapshots (ADR-0053) |
-
-See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript entity interfaces.
+Tables, columns and keys: [databases.md](../architecture/databases.md#mysql--financial-scraper) and [table-schemas.md](../reference/table-schemas.md).
 
 ### Persistent volume
 
@@ -34,26 +23,7 @@ volumes:
   - mysql-data:/var/lib/mysql
 ```
 
-### Environment variables
-
-| Variable      | Default             | Description                      |
-| ------------- | ------------------- | -------------------------------- |
-| `DB_USER`     | `root`              | MySQL user                       |
-| `DB_PASSWORD` | `changeme`          | MySQL password                   |
-| `DB_NAME`     | `financial_scraper` | Database name                    |
-| `DB_HOST`     | `mysql`             | MySQL host (Docker service name) |
-| `DB_PORT`     | `3306`              | MySQL port                       |
-
-Defined in `docker-compose.yml` via `.env` variables:
-
-```yaml
-environment:
-  DB_USER: ${MYSQL_USER:-root}
-  DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
-  DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
-  DB_HOST: mysql
-  DB_PORT: '3306'
-```
+Connection variables (`DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_HOST`, `DB_PORT`): [ENV.md](ENV.md); compose fills them from `.env` (`MYSQL_USER`, `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`).
 
 ### Initialization
 

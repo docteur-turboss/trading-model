@@ -84,9 +84,8 @@ describe("router", () => {
 
 		const authLayer = nonRouteLayers.find(
 			(layer: any) =>
-				layer.name === "AUTH_MIDDLEWARE" ||
 				layer.handle ===
-					require("../../src/adapters/inbound/auth").AUTH_MIDDLEWARE
+				require("../../src/adapters/inbound/auth").AUTH_MIDDLEWARE
 		);
 
 		expect(authLayer).toBeDefined();
