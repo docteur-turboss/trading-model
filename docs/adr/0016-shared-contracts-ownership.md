@@ -58,4 +58,4 @@ The architecture audit of 2026-09-13 reported that `@trading-model/common` decla
 
 ### Amendment (issue #1210): explicit public entry points
 
-A package's `exports` lists each public subpath (`"./logger": "./dist/logger.js"`), never `"./*"`. Importing `@trading-model/<pkg>/(adapters|application|infrastructure|domain)/...` is an `arch:check` finding (ratcheted baseline). A type that a consumer's declaration emit needs must have its module listed too (TS2883). `common` keeps its subject globs (`config/*`, `utils/*`, `shared/*`).
+A package's `exports` lists each public subpath (`"./logger": "./dist/logger.js"`), never `"./*"`. Importing `@trading-model/<pkg>/(adapters|application|infrastructure|domain)/...` is an `arch:check` finding (ratcheted baseline). A type that a consumer's declaration emit needs must have its module listed too (TS2883). Its `tests/` is never exported. `knip.json` ignores `exports`/`types` on `packages/*/src/**` (knip does not follow inter-workspace imports to `src`), so an unused public entry is not caught by `deps:third-party`.

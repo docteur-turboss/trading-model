@@ -28,7 +28,7 @@ import ts from 'typescript';
 const SCOPE = '@trading-model/';
 const STARTUP = new Set(['index.ts', 'server.ts', 'telemetry.ts']);
 const DEEP_IMPORT = /^@trading-model\/[a-z-]+\/(adapters|application|infrastructure|domain)\//;
-const FORBIDDEN_LAYER =/(^|\/)(adapters|infrastructure)(\/|$)/;
+const FORBIDDEN_LAYER = /(^|\/)(adapters|infrastructure)(\/|$)/;
 
 const sourceFiles = (dir) => walk(dir, (file) => /\.tsx?$/.test(file) && !/\.(spec|test|d)\.tsx?$/.test(file));
 
