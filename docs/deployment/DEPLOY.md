@@ -129,7 +129,8 @@ branch rule anyone with write access can push a branch whose workflow names the
 environment and prints its secrets):
 
 - `staging` (`KUBECONFIG_STAGING_*`, `BACKUP_S3_*`, `AUDIT_ANCHOR_*`): "Selected
-  branches and tags" with exactly the branches `development` and `main`.
+  branches and tags" with exactly the branches `development` and `main` and the
+  tag rule `v*` (the release deploys its tag).
   A required reviewer is advised, not checked.
 - `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
   backup): "Selected branches and tags" with exactly the branch `main`, and at

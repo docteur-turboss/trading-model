@@ -21,7 +21,8 @@ const branch = (name) => ({ type: 'branch', name });
  */
 export const RULES = {
   production: { reviewer: 'strict', policies: [{ type: 'tag', name: 'v*' }] },
-  staging: { policies: [branch('development'), branch('main')], exact: true },
+  // Tags `v*`: the release deploys its tag (deploy.yml dispatched with --ref vX.Y.Z).
+  staging: { policies: [branch('development'), branch('main'), { type: 'tag', name: 'v*' }], exact: true },
   'backup-key-check': { reviewer: 'any', policies: [branch('main')], exact: true },
 };
 const FALLBACK = { reviewer: 'strict', policies: [] };
