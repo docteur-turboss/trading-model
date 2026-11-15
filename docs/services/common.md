@@ -67,7 +67,6 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | `deterministic-stringify.ts` | Deterministic JSON serialization for cryptographic signing (recursively sorts object keys) |
 | `anonymize-ip.ts` | IP anonymization for privacy-safe logging |
 | `comma-separated.ts` | Parse comma-separated env strings into arrays |
-| `delay-range.ts` | Compute a random delay within a range (jitter) |
 | `timer-handle.ts` | Timer handle abstraction (clear-safe timers) |
 | `spiffe.ts` | Re-export facade of the SPIFFE helpers defined in `config/workload-identity.ts` |
 
