@@ -10,6 +10,13 @@ function registry(): any {
 	return structuredClone(REGISTRY_FILE);
 }
 
+const KEY_AUTH = {
+	type: "api_key",
+	env: "SIGNAL_KEY_FRED",
+	in: "query",
+	name: "api_key",
+};
+
 function sourceOf(file: any, id: string): any {
 	return file.sources.find((source: { id: string }) => source.id === id);
 }
@@ -288,6 +295,22 @@ describe("parseSignalRegistry", () => {
 			"attribution terms without the credit to give",
 			(file: any) => {
 				delete sourceOf(file, "ecb-aaa-yield-10y").accessPolicy.attribution;
+			},
+		],
+		[
+			"a key variable outside SIGNAL_KEY_",
+			(file: any) => {
+				sourceOf(file, "ecb-aaa-yield-10y").accessPolicy.auth = {
+					...KEY_AUTH,
+					env: "PATH",
+				};
+			},
+		],
+		[
+			"a key variable shared by two sources",
+			(file: any) => {
+				sourceOf(file, "ecb-aaa-yield-10y").accessPolicy.auth = KEY_AUTH;
+				sourceOf(file, "wikipedia-pageviews").accessPolicy.auth = KEY_AUTH;
 			},
 		],
 		[
