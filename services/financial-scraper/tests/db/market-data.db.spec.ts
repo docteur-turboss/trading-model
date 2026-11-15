@@ -557,6 +557,7 @@ describe("signals — real MySQL", () => {
 			dimension: "social",
 			assetId: "BTC",
 			sector: null,
+			area: null,
 			observedAt: new Date(OBSERVED).toISOString(),
 			ingestedAt: new Date(OBSERVED + 3000).toISOString(),
 			confidenceScore: 0.3,
@@ -570,6 +571,7 @@ describe("signals — real MySQL", () => {
 		return MySqlSignalStore.findForAsset({
 			assetId: "BTC",
 			sector: "crypto",
+			areas: ["EA"],
 			dimensions: ["social"],
 			from: Date.UTC(2026, 10, 3),
 			to: Date.UTC(2026, 10, 4),
@@ -612,6 +614,8 @@ describe("signals — real MySQL", () => {
 			signal({ id: "3".repeat(64), assetId: null, sector: "crypto" }),
 			signal({ id: "4".repeat(64), assetId: "ETH" }),
 			signal({ id: "5".repeat(64), assetId: null, sector: "agriculture" }),
+			signal({ id: "9".repeat(64), assetId: null, area: "EA" }),
+			signal({ id: "a".repeat(64), assetId: null, area: "US" }),
 			// [from, to): the end of the window is out, its start in.
 			signal({ id: "6".repeat(64), observedAt: at(Date.UTC(2026, 10, 4)) }),
 			signal({ id: "7".repeat(64), observedAt: at(Date.UTC(2026, 10, 3)) }),
@@ -619,11 +623,17 @@ describe("signals — real MySQL", () => {
 
 		const ids = (await findBtc()).map((s) => s.id[0]);
 
-		expect(ids).toEqual(["7", "3", "2"]);
+		expect(ids).toEqual(["7", "3", "9", "2"]);
 		await expect(findBtc(2)).resolves.toHaveLength(2);
 	});
 
-	it("should refuse a row on both an asset and a sector", async () => {
+	it("should refuse a row on two subjects or none", async () => {
+		await expect(
+			MySqlSignalStore.save([signal({ assetId: null })])
+		).rejects.toThrow(/chk_signals_one_subject/);
+		await expect(
+			MySqlSignalStore.save([signal({ area: "EA" })])
+		).rejects.toThrow(/chk_signals_one_subject/);
 		await expect(
 			MySqlSignalStore.save([signal({ sector: "crypto" })])
 		).rejects.toThrow(/chk_signals_one_subject/);

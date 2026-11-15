@@ -4,6 +4,7 @@ import {
 	SIGNAL_REGISTRY,
 } from "../../../src/config/signal-registry";
 import REGISTRY_FILE from "../../../src/config/signal-registry.json";
+import { Signal } from "../../../src/domain/signals";
 
 /** A copy of the shipped registry to break one thing at a time. */
 function registry(): any {
@@ -95,6 +96,15 @@ describe("parseSignalRegistry", () => {
 				};
 			},
 			"source nws-kansas-wheat-belt, request 0: no asset in sector energy",
+		],
+		[
+			"a request on an area no asset has",
+			(file: any) => {
+				sourceOf(file, "nws-kansas-wheat-belt").requests[0].subject = {
+					area: "EA",
+				};
+			},
+			"source nws-kansas-wheat-belt, request 0: no asset in area EA",
 		],
 		[
 			"an unknown adapter",
@@ -439,5 +449,31 @@ describe("parseSignalRegistry", () => {
 		breakIt(file);
 
 		expect(() => parseSignalRegistry(file)).toThrow();
+	});
+});
+
+describe("signal registry — economic areas", () => {
+	it("gives an area request to the assets listing the area, and refuses a signal without or with two subjects", () => {
+		const file = registry();
+		assetOf(file, "EA_AAA_10Y").areas = ["EA"];
+		sourceOf(file, "ecb-aaa-yield-10y").requests[0].subject = { area: "EA" };
+
+		expect(() => parseSignalRegistry(file)).not.toThrow();
+
+		const signal = {
+			id: "a".repeat(64),
+			schemaVersion: 1,
+			sourceId: "ecb-aaa-yield-10y",
+			dimension: "legal",
+			assetId: null,
+			sector: null,
+			area: null,
+			observedAt: "2026-11-04T12:40:00.000Z",
+			ingestedAt: "2026-11-04T13:00:00.000Z",
+			confidenceScore: 0.9,
+			payload: { metric: "m", value: 1, unit: "u", jurisdiction: "EU" },
+		};
+		expect(Signal.safeParse({ ...signal, area: "EA" }).success).toBe(true);
+		expect(Signal.safeParse(signal).success).toBe(false);
 	});
 });

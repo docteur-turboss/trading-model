@@ -22,6 +22,7 @@ const SIGNAL: Signal = {
 	dimension: "contextual",
 	assetId: null,
 	sector: "agriculture",
+	area: null,
 	observedAt: "2026-11-04T12:40:00.000Z",
 	ingestedAt: "2026-11-04T13:00:00.000Z",
 	confidenceScore: 0.8,
@@ -36,6 +37,7 @@ const ROW = {
 	dimension: SIGNAL.dimension,
 	asset_id: null,
 	sector: "agriculture",
+	area: null,
 	observed_at: new Date(SIGNAL.observedAt),
 	ingested_at: new Date(SIGNAL.ingestedAt),
 	confidence_score: 0.8,
@@ -67,6 +69,7 @@ describe("MySqlSignalStore", () => {
 				"contextual",
 				null,
 				"agriculture",
+				null,
 				new Date("2026-11-04T12:40:00.000Z"),
 				new Date("2026-11-04T13:00:00.000Z"),
 				0.8,
@@ -83,6 +86,7 @@ describe("MySqlSignalStore", () => {
 		const signals = await MySqlSignalStore.findForAsset({
 			assetId: "WHEAT",
 			sector: "agriculture",
+			areas: ["EA"],
 			dimensions: ["market", "contextual"],
 			from,
 			to,
@@ -93,10 +97,27 @@ describe("MySqlSignalStore", () => {
 		expect(MOCK_QUERY.mock.calls[0][1]).toEqual([
 			"WHEAT",
 			"agriculture",
+			["EA"],
 			["market", "contextual"],
 			new Date(from),
 			new Date(to),
 			10,
 		]);
+	});
+
+	it("binds [null] when the asset has no areas, since IN () is a SQL error", async () => {
+		MOCK_QUERY.mockResolvedValue([[]]);
+
+		await MySqlSignalStore.findForAsset({
+			assetId: "WHEAT",
+			sector: "agriculture",
+			areas: [],
+			dimensions: ["market"],
+			from: 0,
+			to: 1,
+			limit: 10,
+		});
+
+		expect(MOCK_QUERY.mock.calls[0][1][2]).toEqual([null]);
 	});
 });

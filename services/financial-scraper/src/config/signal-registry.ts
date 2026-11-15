@@ -112,15 +112,18 @@ function _duplicates(ids: readonly string[]): string[] {
 	return ids.filter((id, index) => ids.indexOf(id) !== index);
 }
 
-/** The assets a request is about: its asset, or every asset of its sector. */
+/** The assets a request is about: its asset, or every asset of its sector or area. */
 function _subjectAssets(
 	request: SourceRequest,
 	assets: readonly Asset[]
 ): Asset[] {
 	const { subject } = request;
-	return "assetId" in subject
-		? assets.filter((asset) => asset.id === subject.assetId)
-		: assets.filter((asset) => asset.sector === subject.sector);
+	if ("assetId" in subject) {
+		return assets.filter((asset) => asset.id === subject.assetId);
+	}
+	return "sector" in subject
+		? assets.filter((asset) => asset.sector === subject.sector)
+		: assets.filter((asset) => asset.areas?.includes(subject.area));
 }
 
 function _requestProblems(
@@ -137,7 +140,9 @@ function _requestProblems(
 			problems.push(
 				"assetId" in subject
 					? `${where}: unknown asset ${subject.assetId}`
-					: `${where}: no asset in sector ${subject.sector}`
+					: "sector" in subject
+						? `${where}: no asset in sector ${subject.sector}`
+						: `${where}: no asset in area ${subject.area}`
 			);
 		}
 		// Collected for at least one asset that the source covers and to which the dimension applies.

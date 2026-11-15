@@ -217,12 +217,12 @@ export const SCRAPER_API = {
 		AT_DATE,
 		Candle
 	),
-	/** ADR-0036: every dimension, the sector signals of the asset included. */
+	/** ADR-0036: every dimension, the sector and area signals of the asset included. */
 	assetSignals: defineRoute({
 		method: "GET",
 		path: "/v2/signals/assets/:assetId",
 		summary:
-			"Signals of an asset and of its sector, every dimension, observed in [from, to)",
+			"Signals of an asset, of its sector and of its areas, every dimension, observed in [from, to)",
 		params: z.object({ assetId: AssetId }),
 		query: z
 			.object({ from: ISO_DATE_MS, to: ISO_DATE_MS })
