@@ -53,5 +53,6 @@ export class HttpStatusError extends Error {
 /** Fetches one request with its source's protocol; rejects on a transport or HTTP error, or with `InvalidPayloadError`. */
 export type ProtocolWorker = (
 	request: SourceRequest,
-	auth: Source["accessPolicy"]["auth"]
+	auth: Source["accessPolicy"]["auth"],
+	body?: Pick<Source, "format" | "delimiter">
 ) => Promise<unknown>;

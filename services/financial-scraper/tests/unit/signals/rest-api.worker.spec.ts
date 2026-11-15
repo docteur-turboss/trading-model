@@ -18,6 +18,9 @@ const ROUTES: Record<string, [number, string]> = {
 	"/json": [200, '{"lastPrice":"1.5"}'],
 	"/down": [503, "maintenance"],
 	"/denied": [401, "bad key"],
+	"/csv": [200, 'a;b\r\n"x;1";"say ""hi"""\r\n2;3'],
+	"/badcsv": [200, "a,b\n1"],
+	"/bom": [200, "﻿a,b\n1,2\n\n3,4\n\n"],
 	"/html": [200, "<!DOCTYPE html><title>moved</title>"],
 };
 
@@ -25,10 +28,27 @@ describe("rest_api worker", () => {
 	let server: Server;
 	let base: string;
 	let last: IncomingMessage | undefined;
+	let chunksSent = 0;
 
 	beforeAll(async () => {
 		server = createServer((req, res) => {
 			last = req;
+			if (req.url === "/big") {
+				// 1 MB chunks, 40 MB on offer: stops when the client hangs up.
+				res.writeHead(200);
+				chunksSent = 0;
+				const chunk = "x".repeat(1024 * 1024);
+				const timer = setInterval(() => {
+					if (res.destroyed || chunksSent >= 40) {
+						clearInterval(timer);
+						res.end();
+						return;
+					}
+					chunksSent++;
+					res.write(chunk);
+				}, 5);
+				return;
+			}
 			const [status, body] = ROUTES[(req.url ?? "").split("?")[0]] ?? [404, ""];
 			res.writeHead(status).end(body);
 		});
@@ -42,7 +62,8 @@ describe("rest_api worker", () => {
 
 	function fetchPath(
 		path: string,
-		auth: Source["accessPolicy"]["auth"] = "none"
+		auth: Source["accessPolicy"]["auth"] = "none",
+		body?: Pick<Source, "format" | "delimiter">
 	) {
 		return createRestApiWorker("trading-model-test ops@example.org")(
 			{
@@ -51,7 +72,8 @@ describe("rest_api worker", () => {
 				url: `${base}${path}`,
 				params: {},
 			},
-			auth
+			auth,
+			body
 		);
 	}
 
@@ -73,6 +95,41 @@ describe("rest_api worker", () => {
 		await expect(fetchPath("/html")).rejects.toBeInstanceOf(
 			InvalidPayloadError
 		);
+	});
+
+	it("decodes a declared CSV body and sends a CSV Accept", async () => {
+		await expect(
+			fetchPath("/csv", "none", { format: "csv", delimiter: ";" })
+		).resolves.toEqual([
+			{ a: "x;1", b: 'say "hi"' },
+			{ a: "2", b: "3" },
+		]);
+		expect(last?.headers.accept).toBe("text/csv");
+	});
+
+	it("drops a leading BOM and blank lines", async () => {
+		await expect(fetchPath("/bom", "none", { format: "csv" })).resolves.toEqual(
+			[
+				{ a: "1", b: "2" },
+				{ a: "3", b: "4" },
+			]
+		);
+	});
+
+	it("refuses a CSV row of the wrong width", async () => {
+		await expect(
+			fetchPath("/badcsv", "none", { format: "csv" })
+		).rejects.toBeInstanceOf(InvalidPayloadError);
+	});
+
+	it("returns raw text and refuses a body over the bound", async () => {
+		await expect(
+			fetchPath("/html", "none", { format: "text" })
+		).resolves.toContain("moved");
+		const big = fetchPath("/big", "none", { format: "text" });
+		await expect(big).rejects.toThrow(/over/);
+		await expect(big).rejects.not.toBeInstanceOf(InvalidPayloadError);
+		expect(chunksSent).toBeLessThan(20);
 	});
 
 	describe("API key", () => {
