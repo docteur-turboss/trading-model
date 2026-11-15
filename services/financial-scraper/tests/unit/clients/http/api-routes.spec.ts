@@ -367,13 +367,15 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 		it("passes the areas of the asset to the store", async () => {
 			const wheat = SIGNAL_REGISTRY.assets.get("WHEAT") as any;
-			SIGNAL_REGISTRY.assets.set("WHEAT", { ...wheat, areas: ["EA"] });
+			const lookup = jest
+				.spyOn(SIGNAL_REGISTRY.assets, "get")
+				.mockReturnValue({ ...wheat, areas: ["EA"] });
 			findForAsset.mockResolvedValue([]);
 
 			try {
 				await get(SCRAPER_API.assetSignals, `/signals/assets/WHEAT?${WINDOW}`);
 			} finally {
-				SIGNAL_REGISTRY.assets.set("WHEAT", wheat);
+				lookup.mockRestore();
 			}
 
 			expect(findForAsset.mock.calls[0][0].areas).toEqual(["EA"]);
