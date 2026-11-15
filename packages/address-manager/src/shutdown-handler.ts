@@ -4,7 +4,7 @@ import { logger } from "@trading-model/http/logger";
 import {
 	removeProcessHandlers,
 	setupProcessHandlers,
-} from "@trading-model/server-utils/signal-handler";
+} from "@trading-model/http/signal-handler";
 import type { ShutdownHandlerDeps } from "./types";
 
 /** Stops the address manager on process signals, and removes its signal handlers when asked. */

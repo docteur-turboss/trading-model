@@ -5,10 +5,10 @@ import type {
 	TlsPemBundle,
 } from "@trading-model/common/config/tls-paths";
 import { toSecureContextOptions } from "@trading-model/common/config/tls-paths";
-import { loadTlsPemBundle } from "@trading-model/http/http-tls-loader";
-import { logger } from "@trading-model/http/logger";
 import type { Port } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
+import { loadTlsPemBundle } from "./http-tls-loader";
+import { logger } from "./logger";
 import type { HttpServer } from "./shared/server-types";
 import { setupTlsWatcher } from "./tls-watcher";
 

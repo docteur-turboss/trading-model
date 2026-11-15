@@ -18,7 +18,6 @@ trading-model/
 │   ├── persistence/         # @trading-model/persistence
 │   ├── http/                # @trading-model/http
 │   ├── validation/          # @trading-model/validation
-│   ├── server-utils/        # @trading-model/server-utils
 │   ├── crypto/              # @trading-model/crypto
 │   ├── address-manager/     # @trading-model/address-manager
 │   └── broker-message/      # @trading-model/broker-message
@@ -83,10 +82,10 @@ Shared packages (base → derived):
 @trading-model/persistence      (Redis/Mongo connection managers, store adapters) → common, primitives, contracts
 @trading-model/http             (HTTP middleware, http client, logging) → primitives, contracts, common, reliability
 @trading-model/validation       (Zod schemas, DTOs, shared type contracts) → primitives, contracts, common, http
-@trading-model/server-utils     (secure HTTPS server factory, TLS watcher, bootstrap) → primitives, contracts, common, http
+@trading-model/http     (secure HTTPS server factory, TLS watcher, bootstrap) → primitives, contracts, common, http
 @trading-model/crypto           (hashing, signatures, crypto primitives) → primitives, contracts, common, validation
 
-@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, server-utils, validation
+@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, validation
 @trading-model/broker-message   (inter-service messaging SDK) → primitives, contracts, address-manager, common, http, validation
 ```
 
@@ -96,14 +95,14 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 
 | Service | Dependencies |
 | --- | --- |
-| api-gateway | address-manager, common, contracts, http, primitives, server-utils, validation |
-| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, server-utils, validation |
-| discovery-server | common, contracts, crypto, http, persistence, primitives, server-utils, validation |
-| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
-| model-evaluator | address-manager, broker-message, common, contracts, http, primitives, server-utils, validation |
-| financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, server-utils, validation |
-| message-manager | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
-| trader-service | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, server-utils, validation |
+| api-gateway | address-manager, common, contracts, http, primitives, validation |
+| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, validation |
+| discovery-server | common, contracts, crypto, http, persistence, primitives, validation |
+| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, validation |
+| model-evaluator | address-manager, broker-message, common, contracts, http, primitives, validation |
+| financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, validation |
+| message-manager | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, validation |
+| trader-service | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, validation |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
 
@@ -119,9 +118,9 @@ There is no frontend workspace: `admin-interface` was removed until a new one is
 | `@trading-model/persistence`     | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`)                                                                   | common, primitives, contracts |
 | `@trading-model/http`            | HTTP middleware (MTLSAuthMiddleware, ResponseProtocol, error tracking), HTTP client, concrete logging pipeline                                              | primitives, contracts, common, reliability |
 | `@trading-model/validation`      | Zod schemas, DTOs, event types, shared type contracts, admin contracts                                                                                  | primitives, contracts, common, http |
-| `@trading-model/server-utils`    | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry                                                         | primitives, contracts, common, http |
+| `@trading-model/http`    | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry                                                         | primitives, contracts, common, http |
 | `@trading-model/crypto`          | Hashing, request signing, token generation, secure randomness                                                                                           | primitives, contracts, common, validation |
-| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing                                              | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
+| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing                                              | primitives, contracts, common, persistence, http, reliability, validation |
 | `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                        | primitives, contracts, address-manager, common, http, validation |
 
 ## Workload Identity & Security Model
@@ -198,7 +197,7 @@ Rules:
 ### Entry Point (`src/application/index.ts`)
 
 ```typescript
-import { createBootstrap } from '@trading-model/server-utils/bootstrap';
+import { createBootstrap } from '@trading-model/http/bootstrap';
 import { createDiscoveryApp } from '../config/container';
 import { ENV } from '../infrastructure/config/env';
 import { createServer } from './server';
@@ -223,7 +222,7 @@ createBootstrap({
 
 ```typescript
 import { ServiceId } from '@trading-model/primitives/primitives';
-import { createServiceServer } from '@trading-model/server-utils/service-server-factory';
+import { createServiceServer } from '@trading-model/http/service-server-factory';
 import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
 import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';
@@ -259,9 +258,9 @@ Each package declares its exports via the `exports` field in `package.json`. Ent
 }
 ```
 
-> Post-split (2026-10), `common` no longer exports `middleware/`, `worker/`, `recovery/`, `reliability/`, `domain/`, `crl/`, `persistence/`, `http-headers`, `http-status` or `contracts/`. Those live in `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/reliability`, `@trading-model/persistence`, `@trading-model/http` and `@trading-model/server-utils` respectively (`worker/` and `recovery/` went to `@trading-model/jobs`, removed by ADR-0029). See the [package map](../services/common.md#package-map-post-split).
+> Post-split (2026-10), `common` no longer exports `middleware/`, `worker/`, `recovery/`, `reliability/`, `domain/`, `crl/`, `persistence/`, `http-headers`, `http-status` or `contracts/`. Those live in `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/reliability`, `@trading-model/persistence`, `@trading-model/http` and `@trading-model/http` respectively (`worker/` and `recovery/` went to `@trading-model/jobs`, removed by ADR-0029). See the [package map](../services/common.md#package-map-post-split).
 
-**@trading-model/validation**, **@trading-model/server-utils**, **@trading-model/crypto**, **@trading-model/address-manager** and **@trading-model/broker-message** (simplified exports):
+**@trading-model/validation**, **@trading-model/http**, **@trading-model/crypto**, **@trading-model/address-manager** and **@trading-model/broker-message** (simplified exports):
 
 ```json
 {

@@ -9,7 +9,7 @@ Pub/sub message brokering service with configurable delivery guarantees.
 | Service name     | `message-manager`                                         |
 | Port (host)      | `8444`                                                             |
 | Port (container) | `3000`                                                             |
-| Dependencies     | common, validation, http, server-utils, crypto, address-manager, broker-message |
+| Dependencies     | common, validation, http, crypto, address-manager, broker-message |
 | Persistence      | Redis: subscriptions and the durable message journal (Streams, [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)); dead letters in dlq-service |
 | Validation       | Zod (dedicated schemas)                                            |
 

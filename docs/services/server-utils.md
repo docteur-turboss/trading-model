@@ -1,4 +1,4 @@
-# @trading-model/server-utils — Server Bootstrap
+# @trading-model/http — Server Bootstrap
 
 HTTPS server factory with SPIFFE mTLS and SVID rotation, service bootstrap and graceful shutdown, `/metrics` handler, readiness and OpenTelemetry setup.
 
@@ -10,17 +10,17 @@ Depends on `primitives`, `common`, `http` (+ `express`, `helmet`, `express-rate-
 
 | Import path | Exports | Purpose |
 |-------------|---------|---------|
-| `@trading-model/server-utils/bootstrap` | `createBootstrap` | Start / stop sequence of a service |
-| `@trading-model/server-utils/service-server-factory` | `createServiceServer`, `ServiceServerOptions` | HTTPS server with mTLS |
-| `@trading-model/server-utils/metrics-handler` | `createMetricsHandler`, `metricsHandler` | Prometheus endpoint |
-| `@trading-model/server-utils/telemetry` | `startTelemetry`, `shutdownTelemetry` | Tracing |
-| `@trading-model/server-utils/readiness` | readiness handler | Readiness probe |
+| `@trading-model/http/bootstrap` | `createBootstrap` | Start / stop sequence of a service |
+| `@trading-model/http/service-server-factory` | `createServiceServer`, `ServiceServerOptions` | HTTPS server with mTLS |
+| `@trading-model/http/metrics-handler` | `createMetricsHandler`, `metricsHandler` | Prometheus endpoint |
+| `@trading-model/http/telemetry` | `startTelemetry`, `shutdownTelemetry` | Tracing |
+| `@trading-model/http/readiness` | readiness handler | Readiness probe |
 
 ## Example
 
 ```typescript
-import { createBootstrap } from "@trading-model/server-utils/bootstrap";
-import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
+import { createBootstrap } from "@trading-model/http/bootstrap";
+import { createServiceServer } from "@trading-model/http/service-server-factory";
 ```
 
 ## See also

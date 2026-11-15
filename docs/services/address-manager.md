@@ -15,7 +15,7 @@ Every microservice in the platform uses this package to register itself, discove
 - `@trading-model/primitives` — branded domain types (service identity, IDs)
 - `@trading-model/persistence` — store adapters (memory service cache)
 - `@trading-model/reliability` — heartbeat interfaces
-- `@trading-model/server-utils` — signal handling, `PING_PATH` constant
+- `@trading-model/http` — signal handling, `PING_PATH` constant
 - `express` — Express `Router`, `Application` types
 - `node-cron` — Scheduled job execution
 

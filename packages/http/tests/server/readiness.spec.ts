@@ -5,7 +5,7 @@ import {
 	createReadinessHandler,
 	type ReadinessCheck,
 	svidReadinessCheck,
-} from "../src/readiness";
+} from "../../src/readiness";
 
 function makeRequest(
 	app: express.Express,

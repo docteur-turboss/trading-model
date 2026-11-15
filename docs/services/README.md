@@ -14,9 +14,8 @@ This directory documents every package and service in the **trading-model** mono
 | `@trading-model/common`          | `packages/common/`          | [common.md](./common.md)                   |
 | `@trading-model/model-runtime`   | `packages/model-runtime/`   | [common.md](./common.md)                   |
 | `@trading-model/persistence`     | `packages/persistence/`     | [persistence.md](./persistence.md)                                          |
-| `@trading-model/http`            | `packages/http/`            | [http.md](./http.md)                                          |
+| `@trading-model/http`            | `packages/http/`            | [http.md](./http.md), [server-utils.md](./server-utils.md)                                          |
 | `@trading-model/validation`      | `packages/validation/`      | [validation.md](./validation.md)                                          |
-| `@trading-model/server-utils`    | `packages/server-utils/`    | [server-utils.md](./server-utils.md)                                          |
 | `@trading-model/crypto`          | `packages/crypto/`          | [crypto.md](./crypto.md)                                          |
 | `@trading-model/address-manager` | `packages/address-manager/` | [address-manager.md](./address-manager.md) |
 | `@trading-model/broker-message`  | `packages/broker-message/`  | [broker-message.md](./broker-message.md)   |

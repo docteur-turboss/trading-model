@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ShutdownHandler } from "../../src/shutdown-handler";
 import type { ShutdownHandlerDeps } from "../../src/types";
 
-jest.mock("@trading-model/server-utils/signal-handler", () => ({
+jest.mock("@trading-model/http/signal-handler", () => ({
 	setupProcessHandlers:
 		jest.fn<
 			(shutdown: () => Promise<void>, hardShutdown: () => void) => void
@@ -84,7 +84,7 @@ describe("ShutdownHandler", () => {
 		handler.setupSignalHandlers(scheduler);
 		const {
 			setupProcessHandlers,
-		} = require("@trading-model/server-utils/signal-handler");
+		} = require("@trading-model/http/signal-handler");
 		expect(setupProcessHandlers).toHaveBeenCalledTimes(1);
 	});
 
@@ -94,7 +94,7 @@ describe("ShutdownHandler", () => {
 		handler.setupSignalHandlers(scheduler);
 		const {
 			setupProcessHandlers,
-		} = require("@trading-model/server-utils/signal-handler");
+		} = require("@trading-model/http/signal-handler");
 		expect(setupProcessHandlers).toHaveBeenCalledTimes(1);
 	});
 
@@ -103,7 +103,7 @@ describe("ShutdownHandler", () => {
 		handler.setupSignalHandlers(scheduler);
 		const {
 			setupProcessHandlers,
-		} = require("@trading-model/server-utils/signal-handler");
+		} = require("@trading-model/http/signal-handler");
 		const shutdownFn = (
 			setupProcessHandlers as jest.Mock<(...args: any[]) => any>
 		).mock.calls[0][0] as () => Promise<void>;
@@ -118,7 +118,7 @@ describe("ShutdownHandler", () => {
 		handler.removeSignalHandlers();
 		const {
 			removeProcessHandlers,
-		} = require("@trading-model/server-utils/signal-handler");
+		} = require("@trading-model/http/signal-handler");
 		expect(removeProcessHandlers).toHaveBeenCalledTimes(1);
 	});
 

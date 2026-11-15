@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ServiceId } from "@trading-model/primitives/primitives";
 
-jest.mock("../src/create-secure-server", () => ({
+jest.mock("../../src/create-secure-server", () => ({
 	buildTlsFromEnv: jest.fn((env: Record<string, string>) => ({
 		keyPath: env.TLS_KEY_PATH,
 		certPath: env.TLS_CERT_PATH,
@@ -12,8 +12,8 @@ jest.mock("../src/create-secure-server", () => ({
 	),
 }));
 
-import { createSecureServer } from "../src/create-secure-server";
-import { createServiceServer } from "../src/service-server-factory";
+import { createSecureServer } from "../../src/create-secure-server";
+import { createServiceServer } from "../../src/service-server-factory";
 
 const ENV = {
 	PORT: 3000,

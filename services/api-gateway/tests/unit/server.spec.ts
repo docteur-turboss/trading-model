@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/server-utils/service-server-factory", () => ({
+jest.mock("@trading-model/http/service-server-factory", () => ({
 	createServiceServer: jest
 		.fn<(...args: any[]) => any>()
 		.mockImplementation(
@@ -35,7 +35,7 @@ jest.mock("../../src/adapters/inbound/router", () => ({
 	createRouter: jest.fn((..._args: any[]) => ({ stack: [] })),
 }));
 
-import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
+import { createServiceServer } from "@trading-model/http/service-server-factory";
 import {
 	createServer,
 	discoveryReachedOnceCheck,

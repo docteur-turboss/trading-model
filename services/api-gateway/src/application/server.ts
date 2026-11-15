@@ -1,10 +1,10 @@
 import type { EndpointResolver } from "@trading-model/address-manager/discovery/endpoint-resolver";
-import { ServiceId } from "@trading-model/primitives/primitives";
 import {
 	type ReadinessCheck,
 	svidReadinessCheck,
-} from "@trading-model/server-utils/readiness";
-import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
+} from "@trading-model/http/readiness";
+import { createServiceServer } from "@trading-model/http/service-server-factory";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 import { createRouter, RESOLVER } from "../adapters/inbound/router";
 import { ENV } from "../infrastructure/config/env";
