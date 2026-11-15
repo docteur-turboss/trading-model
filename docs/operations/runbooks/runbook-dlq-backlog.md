@@ -5,17 +5,15 @@
 
 ## What the counters mean
 
-message-manager dead-letters a message it could not deliver after its retries
-and sends it to dlq-service (signed with `DLQ_AUTH_HMAC_SECRET`). dlq-service
-stores it in MongoDB and, with `DLQ_AUTO_RETRY_ENABLED=true` (compose and K8s),
-replays eligible entries to message-manager every `DLQ_AUTO_RETRY_INTERVAL_MS`
-(30 s), at most `DLQ_AUTO_RETRY_LIMIT` (50) per cycle. An entry that failed
-`DLQ_RETRY_MAX_ATTEMPTS` replays is abandoned (kept, no longer retried): **3 in
-K8s** (`deploy/k8s/config/dlq-service.properties`), 5 by default (compose).
+Since ADR-0073, new dead letters go to the Redis dead streams, not to
+dlq-service: list, replay and delete them with `audit-dlq` (see
+[runbook-message-bus-outage](runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost)).
+dlq-service only keeps its historical MongoDB entries (readable, replayable
+and deletable through the API). There is no auto-retry any more. An entry that
+failed `DLQ_RETRY_MAX_ATTEMPTS` replays is abandoned (kept, no longer retried).
 
 - `dlq_entries_added_total`: entries stored by dlq-service.
-- `dlq_entries_replayed_total`: entries replayed with success (auto-retry or
-  `POST /dlq/replay`).
+- `dlq_entries_replayed_total`: entries replayed with success (`POST /dlq/replay`).
 - `dlq_entries_replay_failed_total`, `dlq_collection_size`: failed replays,
   entries currently stored.
 
@@ -47,15 +45,10 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
 kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=sum(rate(dlq_entries_replay_failed_total[15m]))'
 
-# 2. Which topics dead-letter (message-manager side)
-kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
-  'http://localhost:9090/api/v1/query?query=sum by (topic) (increase(mm_messages_dlq_total[1h]))'
+# 2. Why replays fail
+kubectl -n $NS logs deploy/dlq-service --tail=300 | grep -iE "replay|abandoned"
 
-# 3. Is auto-retry running, and why replays fail
-kubectl -n $NS exec deploy/dlq-service -c dlq-service -- printenv DLQ_AUTO_RETRY_ENABLED
-kubectl -n $NS logs deploy/dlq-service --tail=300 | grep -iE "auto-retry|replay|abandoned"
-
-# 4. dlq-service health (mTLS only: use its SVID)
+# 3. dlq-service health (mTLS only: use its SVID)
 kubectl exec -n $NS deployment/dlq-service -c dlq-service -- \
   curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
   https://localhost:3000/health
@@ -69,23 +62,18 @@ Common causes:
 
 1. **The subscriber is still failing**: a replay goes back through
    message-manager to the same subscriber, fails again and is dead-lettered
-   again (added grows with replayed failing). Step 2 names the topic; fix the
+   again (added grows with replayed failing). The replay logs name the topic; fix the
    subscriber first ([runbook-message-bus-outage](runbook-message-bus-outage.md#2-slow-or-failing-subscriber)).
-2. **Auto-retry disabled or skipped**: `DLQ_AUTO_RETRY_ENABLED` not `true`, or
-   the logs show `DLQ auto-retry: cannot resolve message-manager URL, skipping
-   cycle` (message-manager not registered in discovery:
-   [runbook-discovery](runbook-discovery.md)).
-3. **Burst larger than the replay capacity**: a big incident dead-lettered
-   thousands of entries; 50 per 30 s cycle drains ~6,000 an hour. The alerts
-   clear once the burst is drained.
-4. **dlq-service cannot reach MongoDB**: `/health` fails, see
+2. **Historical entries nobody replays**: with auto-retry gone, stored entries
+   stay until an operator replays or deletes them.
+3. **dlq-service cannot reach MongoDB**: `/health` fails, see
    [runbook-database-failover](runbook-database-failover.md#mongodb-dlq-and-audit-trail).
 
 ## Remediation
 
 - Fix the failing subscriber or message-manager first; replaying before that
   only feeds the loop.
-- Then drain: auto-retry does it by itself; to go faster, replay by topic
+- Then drain: replay by topic
   through the gateway (`signed_curl POST '/dlq/replay?topic=<topic>&limit=100'`
   with `examples/manage-dlq.sh`).
 - Abandoned entries (`DLQ_RETRY_MAX_ATTEMPTS` failed replays: 3 in K8s, 5 in
