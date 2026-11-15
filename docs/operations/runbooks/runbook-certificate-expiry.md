@@ -1,7 +1,7 @@
 # Runbook: SVID / TLS Certificate Expiry
 
 **Alert:** `CertificateExpiry`  
-**Severity:** SEV2 (warning), SEV1 (if expired)
+**Severity:** L2 (warning), L1 (if expired)
 
 ## Detection
 

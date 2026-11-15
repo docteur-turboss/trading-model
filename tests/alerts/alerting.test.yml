@@ -1469,6 +1469,41 @@ tests:
               description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
+  # Issue #1249: 4 h SVIDs (ADR-0065, entries made with -x509SVIDTTL 14400)
+  # renewed at half-life never fall below 2 h left; a rotation stalled since
+  # the first renewal at 120m (expiry still 14400) fires at 186m: below 1 h
+  # left from 181m, held for 5 min.
+  - name: certificate expiry stays silent on normal 4 h rotation and fires on stalled rotation
+    interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://api-gateway:3000/ping",service="api-gateway"}'
+        values: '14400x119 21600x119 28800x119'
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://dlq-service:3000/ping",service="dlq-service"}'
+        values: '14400x359'
+    alert_rule_test:
+      - eval_time: 180m
+        alertname: CertificateExpiry
+        exp_alerts: []
+      - eval_time: 185m
+        alertname: CertificateExpiry
+        exp_alerts: []
+      - eval_time: 186m
+        alertname: CertificateExpiry
+        exp_alerts:
+          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+            exp_annotations:
+              summary: 'SVID close to expiry on dlq-service'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
+      - eval_time: 350m
+        alertname: CertificateExpiry
+        exp_alerts:
+          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+            exp_annotations:
+              summary: 'SVID close to expiry on dlq-service'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
+
   # ── Infrastructure (issue #601, ADR-0056) ────────────────────────────
 
   - name: a container in CrashLoopBackOff for 5 minutes is reported, alone

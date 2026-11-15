@@ -64,7 +64,6 @@ There is no frontend for now: the admin SPA was removed until a new one is speci
 | [Testing Standards](standards/testing-standards.md) | Jest, coverage thresholds, patterns |
 | [Code Style](standards/code-style.md) | Naming, Biome, import order |
 | [JSDoc Standard](standards/jsdoc-standards.md) | JSDoc formatting rules |
-| [Verification Protocol](standards/verification-protocol.md) | Quality gates before commit, PR, release |
 | [Health Endpoints](standards/health-endpoints.md) | Health check endpoint standards |
 
 ## Reference

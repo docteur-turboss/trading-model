@@ -32,7 +32,7 @@ jest.mock("../../../src/config/metrics", () => ({
 	BINANCE_REQUEST_DURATION_SECONDS: { observe: jest.fn() },
 }));
 
-import { createHttpClient, httpClients } from "../../../src/config/http";
+import { createHttpClient } from "../../../src/config/http";
 import {
 	BINANCE_REQUEST_DURATION_SECONDS,
 	BINANCE_REQUESTS_TOTAL,
@@ -67,18 +67,6 @@ describe("createHttpClient", () => {
 		const config = {};
 		const result = await mockRequestUseHandler!(config);
 		expect(result).toBe(config);
-	});
-
-	it("response rejected interceptor should retry on 500 and call instance", async () => {
-		createHttpClient("https://api.example.com");
-		jest.useFakeTimers();
-
-		const error = { config: { retryCount: 0 }, response: { status: 500 } };
-		const promise = mockResponseRejectedHandler!(error).catch((e: any) => e);
-		jest.advanceTimersByTime(20000);
-		await promise;
-
-		jest.useRealTimers();
 	});
 
 	it("waits the exponential backoff before retrying", async () => {
@@ -150,18 +138,6 @@ describe("createHttpClient", () => {
 			threw = true;
 		}
 		expect(threw).toBe(true);
-	});
-
-	it("response rejected interceptor should retry on 429", async () => {
-		createHttpClient("https://api.example.com");
-		jest.useFakeTimers();
-
-		const error = { config: { retryCount: 0 }, response: { status: 429 } };
-		const promise = mockResponseRejectedHandler!(error).catch((e: any) => e);
-		jest.advanceTimersByTime(20000);
-		await promise;
-
-		jest.useRealTimers();
 	});
 
 	it("should wait for Retry-After on 429 and give up when it exceeds the bound", async () => {
@@ -242,46 +218,6 @@ describe("createHttpClient", () => {
 			threw = true;
 		}
 		expect(threw).toBe(true);
-	});
-
-	it("response rejected interceptor should handle missing retryCount", async () => {
-		createHttpClient("https://api.example.com");
-		jest.useFakeTimers();
-
-		const error = { config: {}, response: { status: 500 } };
-		const promise = mockResponseRejectedHandler!(error).catch((e: any) => e);
-		jest.advanceTimersByTime(20000);
-		await promise;
-
-		jest.useRealTimers();
-	});
-
-	it("response rejected interceptor should retry on network error", async () => {
-		createHttpClient("https://api.example.com");
-		jest.useFakeTimers();
-
-		const error = { config: { retryCount: 0 }, response: undefined };
-		const promise = mockResponseRejectedHandler!(error).catch((e: any) => e);
-		jest.advanceTimersByTime(20000);
-		await promise;
-
-		jest.useRealTimers();
-	});
-
-	it("request interceptor should wait when rate limit bucket is empty", async () => {
-		createHttpClient("https://api.wait-test.com");
-
-		await mockRequestUseHandler!({ weight: 1200 });
-
-		jest.useFakeTimers();
-		const promise = mockRequestUseHandler!({ weight: 1 });
-		jest.advanceTimersByTime(50);
-		await promise;
-		jest.useRealTimers();
-	});
-
-	it("should expose pre-built binance http client", () => {
-		expect(httpClients.binance).toBeDefined();
 	});
 
 	it("should build the binance http client on BINANCE_BASE_URL", () => {

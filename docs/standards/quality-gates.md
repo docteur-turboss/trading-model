@@ -16,39 +16,11 @@ Guarantee that code is production-ready, maintainable over time, and respects th
 
 ## Quality Gates
 
-### Commit message (Husky)
+The hooks and the workflow are the source of truth; this page does not copy them.
 
-There is no `pre-commit` hook. Commit format is validated on `git commit` by `commit-msg`:
-
-```bash
-# .husky/commit-msg
-bunx --no -- commitlint --edit $1 --config commitlint.config.mjs
-```
-
-### Pre-push (Husky)
-
-Triggered on every `git push` — must pass before the push completes:
-
-```bash
-# .husky/pre-push
-bunx @biomejs/biome check .
-bun run arch:check
-bun run build
-bun run test
-```
-
-### CI (GitHub Actions)
-
-Triggered on every push and PR — full validation:
-
-```bash
-bun run lint          # biome check
-bun run arch:check    # new runtime import cycle / application -> adapters|infrastructure import (ADR-0015)
-bun run build         # packages + services typecheck
-bun run test:coverage # tests + coverage (thresholds in each jest.config)
-bun run test:contract # contract tests
-bun run test:e2e      # E2E against Docker Compose
-```
+- Commit message: `.husky/commit-msg` (commitlint, `commitlint.config.mjs`). There is no `pre-commit` hook.
+- Pre-push: `.husky/pre-push`, every step must pass before the push completes.
+- CI: the jobs of `.github/workflows/ci.yml` (see [CI/CD](../ci-cd/README.md)).
 
 ## Linting
 
@@ -121,18 +93,6 @@ Strict rules enabled:
   ```
   :arrow_up:(deps): update express to 5.2.1
   ```
-
-## Pre-merge Checklist (PR)
-
-Before merging a PR, verify:
-
-- [ ] `bun run lint` — 0 errors
-- [ ] `bun run build` — Build succeeded
-- [ ] `bun run test` — All tests pass
-- [ ] `bun run test:coverage` — Coverage thresholds met
-- [ ] Code review approved (>= 1 approval)
-- [ ] No secrets committed
-- [ ] Compliance with naming and structure standards
 
 ## References
 

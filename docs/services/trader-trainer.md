@@ -203,12 +203,3 @@ All connections require TLS mutual authentication:
 | `TLS_KEY_PATH`  | Server private key    |
 | `TLS_CERT_PATH` | Server certificate    |
 | `TLS_CA_PATH`   | CA certificate bundle |
-
-## Related Documentation
-
-Detailed implementation reference:
-
-- [Genetic Algorithm](../reference/genetic-algorithm.md)
-- [Neural Network](../reference/neural-network.md)
-- [Training Process](../reference/training-process.md)
-- [Service Architecture](../../services/trader-trainer/ARCHITECTURE.md) — full module breakdown and design decisions

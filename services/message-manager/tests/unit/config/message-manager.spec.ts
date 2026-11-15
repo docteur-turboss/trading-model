@@ -22,7 +22,19 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 import { MESSAGE_MANAGER_ROUTES } from "../../../src/config/message-manager";
 
 describe("config/message-manager", () => {
-	it("should export MESSAGE_MANAGER_ROUTES", () => {
-		expect(MESSAGE_MANAGER_ROUTES).toBeDefined();
+	it("should bind the routes to the broker built at load time", () => {
+		const createBrokerModule = (
+			jest.requireMock("../../../src/config/container") as {
+				default: jest.Mock<(...args: any[]) => { listen: unknown }>;
+			}
+		).default;
+		expect(createBrokerModule).toHaveBeenCalledTimes(1);
+		expect(MESSAGE_MANAGER_ROUTES).toBe(
+			(
+				createBrokerModule.mock.results[0]?.value as
+					| { listen: unknown }
+					| undefined
+			)?.listen
+		);
 	});
 });

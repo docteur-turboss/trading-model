@@ -24,43 +24,11 @@ jest.mock("prom-client", () => ({
 	},
 }));
 
-import {
-	ACTIVE_REQUESTS,
-	AUTH_FAILURES_TOTAL,
-	CACHE_HIT_RATIO,
-	CACHE_SIZE,
-	metricsHandler,
-	PROXY_REQUEST_DURATION_SECONDS,
-	SERVICE_ERRORS_TOTAL,
-} from "../../src/infrastructure/config/metrics";
+import { metricsHandler } from "../../src/infrastructure/config/metrics";
 
 describe("metrics", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-	});
-
-	it("should export PROXY_REQUEST_DURATION_SECONDS histogram", () => {
-		expect(PROXY_REQUEST_DURATION_SECONDS).toBeDefined();
-	});
-
-	it("should export CACHE_HIT_RATIO gauge", () => {
-		expect(CACHE_HIT_RATIO).toBeDefined();
-	});
-
-	it("should export CACHE_SIZE gauge", () => {
-		expect(CACHE_SIZE).toBeDefined();
-	});
-
-	it("should export AUTH_FAILURES_TOTAL counter", () => {
-		expect(AUTH_FAILURES_TOTAL).toBeDefined();
-	});
-
-	it("should export SERVICE_ERRORS_TOTAL counter", () => {
-		expect(SERVICE_ERRORS_TOTAL).toBeDefined();
-	});
-
-	it("should export ACTIVE_REQUESTS gauge", () => {
-		expect(ACTIVE_REQUESTS).toBeDefined();
 	});
 
 	it("metricsHandler should set content type and send metrics", () => {

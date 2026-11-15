@@ -19,7 +19,6 @@
 | [Local staging](STAGING_LOCAL.md)      | Environment `staging` on a local kind cluster: MinIO, self-hosted runner, overlay `staging-local` |
 | [Backup & Disaster Recovery](BACKUP_DR.md) | Automated backups (MongoDB, MySQL, SPIRE), restore, DR plan, verification CI |
 | [Encryption at Rest](ENCRYPTION_AT_REST.md) | LUKS2 data disks unlocked by Clevis/Tang or TPM2 (self-hosted), age-encrypted backups |
-| [Multi-Region Deployment](MULTI_REGION.md) | Not supported: single region, what a second one would need                          |
 | [MySQL TLS](MYSQL_TLS.md)              | cert-manager certificates for MySQL, client verification, rotation                         |
 | [MongoDB TLS](MONGO_TLS.md)            | TLS for the MongoDB replica sets                                                           |
 | [Redis TLS](REDIS_TLS.md)              | TLS for Redis and Sentinel, `REDIS_TLS_MODE` rollout                                       |

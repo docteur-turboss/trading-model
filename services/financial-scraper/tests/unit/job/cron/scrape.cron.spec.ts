@@ -78,28 +78,22 @@ describe("ScrapeCronOrchestrator", () => {
 	});
 
 	describe("constructor", () => {
-		it("should create instance with default concurrency based on cpus * 2", () => {
-			const orchestrator = new ScrapeCronOrchestrator({ ...defaultConfig });
-			expect(orchestrator).toBeDefined();
-		});
+		// os.cpus() is mocked to 4 cpus: the default is min(8, symbols)
+		it.each([
+			["default concurrency capped at 2 symbols", {}, 2],
+			["provided maxConcurrency", { maxConcurrency: PositiveInt.of(3) }, 3],
+			["default concurrency capped at 1 symbol", { symbols: [BTC] }, 1],
+		])(
+			"should limit a cycle with the %s",
+			async (_name, overrides, expected) => {
+				MOCK_PERSIST.mockResolvedValue(undefined);
+				new ScrapeCronOrchestrator({ ...defaultConfig, ...overrides }).start();
 
-		it("should use provided maxConcurrency when specified", () => {
-			const orchestrator = new ScrapeCronOrchestrator({
-				...defaultConfig,
-				maxConcurrency: PositiveInt.of(3),
-			});
-			expect(orchestrator).toBeDefined();
-		});
+				await GET_CRON_HANDLER()();
 
-		it("should cap concurrency at symbols length", () => {
-			const orchestrator = new ScrapeCronOrchestrator({
-				schedule: "*/1 * * * *",
-				symbols: [BTC],
-				maxConcurrency: PositiveInt.of(100),
-				deps: DEPS,
-			});
-			expect(orchestrator).toBeDefined();
-		});
+				expect(jest.requireMock("p-limit")).toHaveBeenCalledWith(expected);
+			}
+		);
 	});
 
 	describe("start", () => {
