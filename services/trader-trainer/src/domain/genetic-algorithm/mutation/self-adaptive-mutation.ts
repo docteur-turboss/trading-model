@@ -1,6 +1,6 @@
+import { sampleGaussian } from "@trading-model/model-runtime/noise";
 import type { Percentage } from "@trading-model/primitives/primitives";
 import type { MutationGenome } from "../genome-mutation";
-import { sampleGaussian } from "../noise";
 import { clamp } from "../utils";
 
 export function mutateSelfAdaptiveParams(

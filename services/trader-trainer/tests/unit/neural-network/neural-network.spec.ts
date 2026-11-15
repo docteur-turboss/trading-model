@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import { makePRNG } from "@trading-model/crypto/domain/services/prng";
-import type {
-	Percentage,
-	PositiveInt,
-} from "@trading-model/primitives/primitives";
-import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
-import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
+import type { NeuralNetworkConfig } from "@trading-model/model-runtime/neural-network/type";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
-} from "../../../src/domain/neural-network/type";
+} from "@trading-model/model-runtime/neural-network/type";
+import type {
+	Percentage,
+	PositiveInt,
+} from "@trading-model/primitives/primitives";
+import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
 
 function makeConfig(
 	overrides?: Partial<NeuralNetworkConfig>

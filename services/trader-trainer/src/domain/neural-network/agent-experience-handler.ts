@@ -1,4 +1,10 @@
-import { agentError } from "../../shared/errors";
+import { agentError } from "@trading-model/model-runtime/errors";
+import type {
+	Experience,
+	NetworkArchitecture,
+	QLearningExperience,
+} from "@trading-model/model-runtime/neural-network/type";
+import { ExperienceKind } from "@trading-model/model-runtime/neural-network/type";
 import {
 	createExperiencePool,
 	type ExperiencePoolPort,
@@ -6,12 +12,6 @@ import {
 } from "./experience-pool";
 import type { NeuralNetwork } from "./neural-network";
 import { computeReplayTarget } from "./q-value-computer";
-import type {
-	Experience,
-	NetworkArchitecture,
-	QLearningExperience,
-} from "./type";
-import { ExperienceKind } from "./type";
 
 function _isPrioritized(
 	pool: ExperiencePoolPort

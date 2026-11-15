@@ -6,7 +6,7 @@ import {
 	Price,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import { createWallet } from "../../../src/domain/env/wallet-manager";
+import { createWallet } from "../../src/env/wallet-manager";
 
 describe("Wallet module", () => {
 	describe("Initialization", () => {

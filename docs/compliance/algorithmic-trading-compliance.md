@@ -30,7 +30,7 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 | Test | Implementation | Evidence |
 |---|---|---|
 | **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/adapters/outbound/binance/`) | Integration tests |
-| **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (1.0, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) rejects a buy that would take the position value above that fraction of the initial cash (`services/trader-trainer/src/domain/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
+| **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (1.0, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) rejects a buy that would take the position value above that fraction of the initial cash (`packages/model-runtime/src/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
 | **Kill functionality** — ability to halt trading | Not implemented. Prerequisite to any live execution (§6). Scope, triggers, re-arming and drill: [Loss Limits and Kill Switch Policy](risk-limits-policy.md) | ❌ Not implemented |
 
@@ -57,7 +57,7 @@ The platform should undergo an annual review covering:
 
 | Control | Implementation |
 |---|---|
-| **Max order volume/ value** | Partial: exposure cap `maxExposureFraction` only (`services/trader-trainer/src/domain/env/trade-executor.ts`): position value ≤ 1.0 × initial cash in training, no leverage. No per-order value limit |
+| **Max order volume/ value** | Partial: exposure cap `maxExposureFraction` only (`packages/model-runtime/src/env/trade-executor.ts`): position value ≤ 1.0 × initial cash in training, no leverage. No per-order value limit |
 | **Max order frequency** | Not implemented. No limit on orders per episode or per time unit; simulation only |
 | **Dual-channel price validation** | Not implemented — simulation only. For production: requires independent price feed comparison |
 | **Pre-trade risk checks** | Not implemented — simulation only. Required before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Proposed) |

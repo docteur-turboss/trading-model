@@ -1,11 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import type { Reward } from "@trading-model/primitives/primitives";
-import type { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
-import { computeReplayTarget } from "../../../src/domain/neural-network/q-value-computer";
 import {
 	ExperienceKind,
 	type QLearningExperience,
-} from "../../../src/domain/neural-network/type";
+} from "@trading-model/model-runtime/neural-network/type";
+import type { Reward } from "@trading-model/primitives/primitives";
+import type { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
+import { computeReplayTarget } from "../../../src/domain/neural-network/q-value-computer";
 
 const NEXT_Q = [1, 3, 2];
 

@@ -1,4 +1,4 @@
-import { FeatureVector } from "../../../domain/feature-vector";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import type { WindowSet } from "../../../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../../../domain/genetic-algorithm/ga-telemetry";
 import type { MarketStep } from "../../../domain/genetic-algorithm/genome-fitness";

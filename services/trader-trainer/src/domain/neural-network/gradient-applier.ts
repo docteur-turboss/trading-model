@@ -1,6 +1,6 @@
+import type { LayerMemory } from "@trading-model/model-runtime/neural-network/type";
 import type { LayerGradientContext } from "./backprop-engine";
 import type { NnTrainingDeps } from "./nn-training-deps";
-import type { LayerMemory } from "./type";
 
 function sgdStep(params: Float32Array, grads: Float32Array, lr: number): void {
 	for (let i = 0; i < params.length; i++) {

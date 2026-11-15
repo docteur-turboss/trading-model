@@ -1,0 +1,31 @@
+{
+  "name": "@trading-model/model-runtime",
+  "version": "1.0.0",
+  "description": "Runtime of a published model shared by trader-trainer and model-evaluator: network forward pass, 32-feature codec, portfolio simulator (ADR-0066)",
+  "license": "ISC",
+  "type": "commonjs",
+  "exports": {
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "dependencies": {
+    "@trading-model/primitives": "*",
+    "@trading-model/contracts": "*",
+    "@trading-model/common": "*"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.6.6",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.15",
+    "typescript": "^6.0.3"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "build": "tsc"
+  }
+}

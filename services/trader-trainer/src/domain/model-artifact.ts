@@ -1,4 +1,4 @@
-import { DEFAULT_MAX_EXPOSURE_FRACTION } from "./env/wallet-config";
+import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { ModelAdmission } from "./model-admission";

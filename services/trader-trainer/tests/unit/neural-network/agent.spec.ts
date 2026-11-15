@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { Agent } from "../../../src/domain/neural-network/agent";
-import type { NetworkArchitecture } from "../../../src/domain/neural-network/type";
+import type { NetworkArchitecture } from "@trading-model/model-runtime/neural-network/type";
 import {
 	ActivationType,
 	ConnectionType,
 	NormalisationType,
-} from "../../../src/domain/neural-network/type";
+} from "@trading-model/model-runtime/neural-network/type";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
+import { Agent } from "../../../src/domain/neural-network/agent";
 
 function makeConfig(
 	overrides?: Partial<NetworkArchitecture>

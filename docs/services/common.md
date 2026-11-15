@@ -21,7 +21,7 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 
 ## Package Map Post-Split
 
-The monorepo has **11 shared packages** under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
+The monorepo has **12 shared packages** under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
 
 | # | Package | Role | Dependencies |
 |---|---------|------|--------------|
@@ -29,13 +29,14 @@ The monorepo has **11 shared packages** under the `@trading-model/*` scope. Buil
 | 2 | `@trading-model/contracts` | Shared contracts: event/market-data types, http-status, http-headers, `LoggerPort` registry (setLogger/getLogger) | primitives |
 | 3 | `@trading-model/reliability` | Circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces | primitives, contracts |
 | 4 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE, TLS config, cache, sanitize, shared schemas | primitives, contracts |
-| 5 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`) | common, primitives, contracts (+ ioredis, mongodb) |
-| 6 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline | primitives, contracts, common, reliability |
-| 7 | `@trading-model/validation` | Environment validation, Zod schemas, DTOs, shared type contracts | primitives, contracts, common, http |
-| 8 | `@trading-model/server-utils` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
-| 9 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
-| 10 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
-| 11 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
+| 5 | `@trading-model/model-runtime` | Network forward pass, 32-feature codec, portfolio simulator (ADR-0066); moved out of the trainer | primitives, contracts, common |
+| 6 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`) | common, primitives, contracts (+ ioredis, mongodb) |
+| 7 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline | primitives, contracts, common, reliability |
+| 8 | `@trading-model/validation` | Environment validation, Zod schemas, DTOs, shared type contracts | primitives, contracts, common, http |
+| 9 | `@trading-model/server-utils` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
+| 10 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
+| 11 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
+| 12 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
 
 ## What Remains in `common`
 
