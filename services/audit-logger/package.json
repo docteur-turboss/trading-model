@@ -21,7 +21,8 @@
   "type": "commonjs",
   "main": "./dist/application/index.js",
   "bin": {
-    "audit-chain": "./dist/application/chain-cli.js"
+    "audit-chain": "./dist/application/chain-cli.js",
+    "audit-dlq": "./dist/application/dlq-cli.js"
   },
   "scripts": {
     "test": "jest",

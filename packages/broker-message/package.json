@@ -21,6 +21,7 @@
     "@trading-model/address-manager": "*",
     "@trading-model/common": "*",
     "@trading-model/http": "*",
+    "@trading-model/persistence": "*",
     "express": "^5.3.0",
     "zod": "^4.6.7"
   },

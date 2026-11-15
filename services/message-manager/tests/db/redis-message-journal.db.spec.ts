@@ -6,14 +6,14 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { JournalGroup } from "@trading-model/broker-message/bus/journal.port";
+import { RedisMessageJournal } from "@trading-model/broker-message/bus/redis-journal";
 import Redis from "ioredis";
 import { HttpMessageDelivery } from "../../src/adapters/outbound/http-message-delivery";
 import { InMemorySubscriptionStore } from "../../src/adapters/outbound/in-memory-subscription-store";
-import { RedisMessageJournal } from "../../src/adapters/outbound/redis-message-journal";
 import { DeliveryWorker } from "../../src/application/services/delivery-worker";
 import { Dispatcher } from "../../src/application/services/dispatcher";
 import { SubscriptionRegistry } from "../../src/application/services/subscription-registry";
-import type { JournalGroup } from "../../src/domain/ports/message-journal.port";
 import {
 	createMockMessage,
 	mockServiceIdentity,

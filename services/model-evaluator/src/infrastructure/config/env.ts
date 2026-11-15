@@ -1,6 +1,7 @@
 import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
+import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
 import { z } from "zod";
 
 const MODEL_EVALUATOR_ENV_SHAPE = {
@@ -9,7 +10,7 @@ const MODEL_EVALUATOR_ENV_SHAPE = {
 };
 
 export const ENV = validateEnv(
-	BaseEnvSchema.extend(AddressManagerEnvSchema.shape).extend(
-		MODEL_EVALUATOR_ENV_SHAPE
-	)
+	BaseEnvSchema.extend(AddressManagerEnvSchema.shape)
+		.extend(RedisEnvSchema.shape)
+		.extend(MODEL_EVALUATOR_ENV_SHAPE)
 );

@@ -1,9 +1,9 @@
-import type { Message } from "@trading-model/contracts/message-types";
 import type {
 	JournalEntry,
 	JournalGroup,
 	MessageJournalPort,
-} from "../../domain/ports/message-journal.port";
+} from "@trading-model/broker-message/bus/journal.port";
+import type { Message } from "@trading-model/contracts/message-types";
 
 interface Pending {
 	lastAttemptAt: number;

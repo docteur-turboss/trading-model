@@ -1,10 +1,12 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/logger";
-import { RedisMessageJournal } from "../../../../src/adapters/outbound/redis-message-journal";
-import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../../../src/config/metrics";
-import { JOURNAL_RETENTION_MS } from "../../../../src/domain/ports/message-journal.port";
-import { createMockMessage } from "../../../fixtures/broker.fixture";
+import {
+	JOURNAL_RETENTION_MS,
+	type JournalGroup,
+} from "../../../src/bus/journal.port";
+import { RedisMessageJournal } from "../../../src/bus/redis-journal";
+import { createMockMessage } from "../../fixtures/broker.fixture";
 
 const GROUP = { topic: "test.topic", service: "trader-trainer" } as never;
 const NOW = 1_700_000_000_000;
@@ -12,7 +14,8 @@ const NOW = 1_700_000_000_000;
 function setup(
 	call: (...args: string[]) => Promise<unknown> = async (name) =>
 		name === "EXISTS" ? 1 : "OK",
-	minReplicas?: number
+	minReplicas?: number,
+	onTrimmed?: (group: JournalGroup) => void
 ) {
 	const redis = {
 		call: jest.fn(call),
@@ -26,6 +29,7 @@ function setup(
 			keyPrefix: "p",
 			minReplicas,
 			now: () => NOW,
+			onTrimmed,
 		}),
 	};
 }
@@ -372,21 +376,18 @@ describe("RedisMessageJournal", () => {
 	});
 
 	it("should count and log as error an entry trimmed while still pending", async () => {
-		const { journal } = setup(async (command) =>
-			command === "XPENDING" ? [["1-0", "c", 20_000, 1]] : [["1-0", null]]
+		const onTrimmed = jest.fn();
+		const { journal } = setup(
+			async (command) =>
+				command === "XPENDING" ? [["1-0", "c", 20_000, 1]] : [["1-0", null]],
+			undefined,
+			onTrimmed
 		);
-		const count = async () =>
-			(await JOURNAL_TRIMMED_PENDING_TOTAL.get()).values.find(
-				(v) =>
-					v.labels.topic === "test.topic" &&
-					v.labels.service === "trader-trainer"
-			)?.value ?? 0;
-		const before = await count();
 		const error = jest.spyOn(logger, "error").mockImplementation(() => logger);
 
 		await journal.claimDue(GROUP, "c", { floorMs: 0, dueAfterMs: () => 0 }, 10);
 
-		expect((await count()) - before).toBe(1);
+		expect(onTrimmed).toHaveBeenCalledWith(GROUP);
 		expect(error).toHaveBeenCalledWith(
 			expect.stringContaining("trimmed"),
 			expect.objectContaining({ entryId: "1-0", topic: "test.topic" })

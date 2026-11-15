@@ -1,23 +1,38 @@
-import { messageManagerError } from "@trading-model/broker-message/shared/errors";
 import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/logger";
-import type Redis from "ioredis";
-import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../config/metrics";
+import { messageManagerError } from "../shared/errors";
 import {
 	JOURNAL_RETENTION_MS,
 	type JournalEntry,
 	type JournalGroup,
 	type JournalGroupLag,
 	type MessageJournalPort,
-} from "../../domain/ports/message-journal.port";
+} from "./journal.port";
+
+/** The ioredis commands the bus uses (a client of `@trading-model/persistence` fits). */
+export interface BusRedis {
+	call(command: string, ...args: string[]): Promise<unknown>;
+	sadd(key: string, ...members: string[]): Promise<unknown>;
+	smembers(key: string): Promise<string[]>;
+	/** `MULTI`/`EXEC`: each result is `[error, reply]`, `null` when the transaction was discarded. */
+	multi(): {
+		call(command: string, ...args: string[]): unknown;
+		exec(): Promise<[Error | null, unknown][] | null>;
+	};
+}
+
+export interface BlockingBusRedis {
+	call(command: string, ...args: string[]): Promise<unknown>;
+	disconnect(): void;
+}
 
 export interface RedisMessageJournalDeps {
-	redis: Pick<Redis, "call" | "sadd" | "smembers">;
+	redis: BusRedis;
 	/**
 	 * Opens a connection of its own for a blocking read (`XREADGROUP BLOCK`
 	 * holds its connection, so one per group); absent: reads never block.
 	 */
-	openBlockingRedis?: () => Pick<Redis, "call" | "disconnect">;
+	openBlockingRedis?: () => BlockingBusRedis;
 	keyPrefix: string;
 	/**
 	 * Replicas that must hold a write before it is accepted (`WAIT`): Sentinel
@@ -26,6 +41,8 @@ export interface RedisMessageJournalDeps {
 	 */
 	minReplicas?: number;
 	now?: () => number;
+	/** Called for each entry trimmed before delivery (a metric in message-manager). */
+	onTrimmed?: (group: JournalGroup) => void;
 }
 
 const WAIT_REPLICAS_TIMEOUT_MS = 2000;
@@ -53,10 +70,11 @@ export class RedisMessageJournal implements MessageJournalPort {
 	private readonly _now: () => number;
 	/** Groups this process already created and listed: `append` skips them (invalidated on NOGROUP). */
 	private readonly _registered = new Set<string>();
-	private readonly _readers = new Map<
+	private readonly _subscribed = new Map<
 		string,
-		Pick<Redis, "call" | "disconnect">
+		{ value: boolean; until: number }
 	>();
+	private readonly _readers = new Map<string, BlockingBusRedis>();
 
 	constructor(private readonly _deps: RedisMessageJournalDeps) {
 		this._now = _deps.now ?? Date.now;
@@ -89,7 +107,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		// A stream Redis lost (restart without AOF) has no groups left: XADD would recreate it bare and the
 		// groups, created later at "$", would miss this message. Re-register before writing (ADR-0048 §1).
 		if (
-			Number(await this._deps.redis.call("EXISTS", this._stream(topic))) === 0
+			Number(await this._deps.redis.call("EXISTS", this.stream(topic))) === 0
 		) {
 			for (const service of services) {
 				this._registered.delete(`${topic}|${service}`);
@@ -100,7 +118,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		);
 		const entryId = (await this._deps.redis.call(
 			"XADD",
-			this._stream(topic),
+			this.stream(topic),
 			"MINID",
 			"~",
 			String(this._now() - JOURNAL_RETENTION_MS),
@@ -118,12 +136,38 @@ export class RedisMessageJournal implements MessageJournalPort {
 			);
 			if (Number(replicated) < required) {
 				// The publisher will send again under a new messageId: drop this entry so it is not delivered twice.
-				await this._deps.redis.call("XDEL", this._stream(topic), entryId);
+				await this._deps.redis.call("XDEL", this.stream(topic), entryId);
 				throw messageManagerError(
 					`Message not accepted: journal write held by ${replicated} of ${required} replicas`
 				);
 			}
 		}
+	}
+
+	/** True when a consumer group reads the topic (cached 1 s): without one a message would reach nobody. */
+	async hasSubscribers(topic: string): Promise<boolean> {
+		const cached = this._subscribed.get(topic);
+		if (cached && cached.until > this._now()) {
+			return cached.value;
+		}
+		let value: boolean;
+		try {
+			value =
+				(
+					(await this._deps.redis.call(
+						"XINFO",
+						"GROUPS",
+						this.stream(topic)
+					)) as unknown[]
+				).length > 0;
+		} catch (err) {
+			if (!(err instanceof Error && err.message.includes("no such key"))) {
+				throw err;
+			}
+			value = false;
+		}
+		this._subscribed.set(topic, { value, until: this._now() + 1000 });
+		return value;
 	}
 
 	async groups(): Promise<JournalGroup[]> {
@@ -154,7 +198,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 				String(count),
 				...(blockMs ? ["BLOCK", String(blockMs)] : []),
 				"STREAMS",
-				this._stream(group.topic),
+				this.stream(group.topic),
 				">"
 			)) as typeof reply;
 		} catch (err) {
@@ -171,7 +215,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		retry: { floorMs: number; dueAfterMs: (deliveries: number) => number },
 		count: number
 	): Promise<JournalEntry[]> {
-		const stream = this._stream(group.topic);
+		const stream = this.stream(group.topic);
 		let pending: [
 			id: string,
 			consumer: string,
@@ -223,7 +267,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 				const reply = (await this._deps.redis.call(
 					"XINFO",
 					"GROUPS",
-					this._stream(topic)
+					this.stream(topic)
 				)) as unknown[][];
 				for (const flat of reply) {
 					const info = toRecord(flat);
@@ -244,7 +288,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 				if (!info) {
 					return undefined;
 				}
-				const stream = this._stream(group.topic);
+				const stream = this.stream(group.topic);
 				let count: number;
 				let oldestPending: string | null;
 				let unread: [string, unknown][];
@@ -291,7 +335,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 	async ack(group: JournalGroup, id: string): Promise<void> {
 		await this._deps.redis.call(
 			"XACK",
-			this._stream(group.topic),
+			this.stream(group.topic),
 			group.service,
 			id
 		);
@@ -307,10 +351,12 @@ export class RedisMessageJournal implements MessageJournalPort {
 		for (const [id, fields] of reply ?? []) {
 			const at = fields?.indexOf(FIELD) ?? -1;
 			const only = fields?.indexOf(ONLY_FIELD) ?? -1;
-			// Targeted replay: the other groups see the entry too and settle it unread.
+			// Targeted replay: the other groups see the entry too and settle it unread (not a loss).
 			const forOthers =
 				fields && only >= 0 && fields[only + 1] !== group.service;
-			if (fields && at >= 0 && !forOthers) {
+			if (fields && at >= 0 && forOthers) {
+				await this.ack(group, id);
+			} else if (fields && at >= 0) {
 				entries.push({
 					id,
 					message: JSON.parse(fields[at + 1] as string) as Message,
@@ -318,10 +364,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 				});
 			} else {
 				// Trimmed (24 h) before delivery: the message is gone for good, so it is counted, logged and alerted.
-				JOURNAL_TRIMMED_PENDING_TOTAL.inc({
-					topic: group.topic,
-					service: group.service,
-				});
+				this._deps.onTrimmed?.(group);
 				logger.error("Journal entry trimmed before delivery: message lost", {
 					topic: group.topic,
 					service: group.service,
@@ -364,7 +407,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 			await this._deps.redis.call(
 				"XGROUP",
 				"CREATE",
-				this._stream(group.topic),
+				this.stream(group.topic),
 				group.service,
 				"$",
 				"MKSTREAM"
@@ -376,7 +419,16 @@ export class RedisMessageJournal implements MessageJournalPort {
 		}
 	}
 
-	private _stream(topic: string): string {
+	/** Key prefix of the bus streams (`<prefix>:journal:<topic>`, `<prefix>:dead:<topic>`). */
+	get keyPrefix(): string {
+		return this._deps.keyPrefix;
+	}
+
+	get redis(): BusRedis {
+		return this._deps.redis;
+	}
+
+	stream(topic: string): string {
 		return `${this._deps.keyPrefix}:journal:${topic}`;
 	}
 

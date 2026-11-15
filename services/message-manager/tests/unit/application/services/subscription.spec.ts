@@ -30,7 +30,7 @@ async function dispatchUntilSettled(
 	message: ReturnType<typeof createMockMessage>
 ): Promise<void> {
 	for (let deliveries = 1; deliveries <= 20; deliveries++) {
-		if (await subscription.deliver(message, deliveries)) {
+		if (await subscription.deliver(message, deliveries, "1-0")) {
 			return;
 		}
 	}
@@ -103,6 +103,7 @@ describe("Subscription", () => {
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
+				entryId: "1-0",
 				message,
 				reason: "Unrecoverable",
 				deliveryAttempt: expect.any(Number),
@@ -125,6 +126,7 @@ describe("Subscription", () => {
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
+				entryId: "1-0",
 				message,
 				reason: "TTL_EXPIRED",
 				deliveryAttempt: expect.any(Number),
@@ -158,6 +160,7 @@ describe("Subscription", () => {
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
+				entryId: "1-0",
 				message,
 				reason: "Unrecoverable",
 				deliveryAttempt: expect.any(Number),
@@ -175,6 +178,7 @@ describe("Subscription", () => {
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
+				entryId: "1-0",
 				message,
 				service: expect.any(String),
 				reason: "SINGLE_ATTEMPT_FAILED",
@@ -192,6 +196,7 @@ describe("Subscription", () => {
 			await dispatchUntilSettled(subscription, message);
 
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
+				entryId: "1-0",
 				message,
 				reason: "MAX_RETRIES_EXCEEDED",
 				deliveryAttempt: expect.any(Number),
@@ -212,7 +217,7 @@ describe("Subscription", () => {
 
 			mockDeliveryPort.markDeadLetter.mockClear();
 			mockDeliveryPort.send.mockClear();
-			expect(await subscription.deliver(message, 6)).toBe(false);
+			expect(await subscription.deliver(message, 6, "1-0")).toBe(false);
 
 			expect(mockDeliveryPort.markDeadLetter).not.toHaveBeenCalled();
 			expect(mockDeliveryPort.send).not.toHaveBeenCalled();
@@ -306,6 +311,7 @@ describe("Subscription", () => {
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
+				entryId: "1-0",
 				message,
 				reason: "NO_REASON",
 				deliveryAttempt: expect.any(Number),

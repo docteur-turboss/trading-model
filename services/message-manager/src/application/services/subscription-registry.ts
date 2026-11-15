@@ -1,3 +1,4 @@
+import type { MessageJournalPort } from "@trading-model/broker-message/bus/journal.port";
 import type { Topic } from "@trading-model/primitives/primitives";
 import type { TopicBinding } from "@trading-model/primitives/topic-binding";
 import { SUBSCRIPTION_COUNT } from "../../config/metrics";
@@ -5,7 +6,6 @@ import type {
 	SubscriptionParams,
 	TopicSubscription,
 } from "../../domain/messaging-types";
-import type { MessageJournalPort } from "../../domain/ports/message-journal.port";
 import type { SubscriptionStorePort } from "../../domain/ports/subscription-store.port";
 
 /**

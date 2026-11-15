@@ -1,20 +1,20 @@
 import { randomUUID } from "node:crypto";
+import {
+	DELIVERY_ATTEMPT_TIMEOUT_MS,
+	retryDueMs,
+} from "@trading-model/broker-message/bus/backoff";
+import type {
+	JournalEntry,
+	JournalGroup,
+	MessageJournalPort,
+} from "@trading-model/broker-message/bus/journal.port";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
 	DELIVERY_LATENCY_SECONDS,
 	IN_FLIGHT_MESSAGES,
 } from "../../config/metrics";
-import {
-	DELIVERY_ATTEMPT_TIMEOUT_MS,
-	retryDueMs,
-} from "../../domain/backoff-calculator";
 import type { MessageDeliveryPort } from "../../domain/ports/message-delivery.port";
-import type {
-	JournalEntry,
-	JournalGroup,
-	MessageJournalPort,
-} from "../../domain/ports/message-journal.port";
 import { Subscription } from "./subscription";
 import type { SubscriptionRegistry } from "./subscription-registry";
 
@@ -178,7 +178,8 @@ export class DeliveryWorker {
 		try {
 			const settled = await subscription.deliver(
 				entry.message,
-				entry.deliveries
+				entry.deliveries,
+				entry.id
 			);
 			if (settled) {
 				await this._deps.journal.ack(group, entry.id);

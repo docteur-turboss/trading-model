@@ -4,7 +4,7 @@ import {
 	backoffDelay,
 	DELIVERY_ATTEMPT_TIMEOUT_MS,
 	retryDueMs,
-} from "../../../src/domain/backoff-calculator";
+} from "../../../src/bus/backoff";
 
 describe("backoffDelay", () => {
 	it("should double from 2s and stay within ±20% jitter", () => {
