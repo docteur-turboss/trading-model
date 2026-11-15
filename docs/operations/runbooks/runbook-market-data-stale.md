@@ -213,6 +213,17 @@ By `result`:
 - **`store_error`**: MySQL refuses the writes; see
   [runbook-database-failover](runbook-database-failover.md).
 
+**Quarantine.** After 3 consecutive ticks with a `fetch_error`, at once on
+a 401 or 403 or an answer with `Retry-After`, the collector skips the ticks
+of the source (counted `result="skipped_quarantine"`, so this alert stays on)
+until a deadline: 1 h doubling to 24 h, never before `Retry-After`. One trial
+request follows; a success closes it. Read it: gauge
+`fs_signal_source_quarantined{source}` = 1 and the "Signal source
+quarantined" log (`until`). Force a new trial: restart the collector
+(`kubectl -n $NS rollout restart deploy/financial-scraper-collector`); the
+state is in memory only. Fix the cause first (key, e-mail, rate), or the
+trial fails and the quarantine starts again.
+
 A collection that failed is not retried before the next schedule of its
 source; values the source still publishes then are collected again (ECB: last
 5, Wikimedia: 8 days, NWS: latest observation only).

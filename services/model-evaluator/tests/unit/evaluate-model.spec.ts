@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	readdir,
+	readFile,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
@@ -116,6 +123,23 @@ describe("evaluate a published model", () => {
 		await expect(
 			store.create({ symbol: "BTCUSDT" } as never)
 		).rejects.toThrow();
+	});
+
+	it("creates once under concurrency and ignores orphan temporaries", async () => {
+		const store = new FileEvaluationStore(dir);
+		const record = { symbol: "BTCUSDT", version: "v1" } as never;
+		await mkdir(join(dir, "BTCUSDT"));
+		await writeFile(join(dir, "BTCUSDT", ".tmp-orphan"), "{");
+		expect(await store.has("BTCUSDT", "v1")).toBe(false);
+		const results = await Promise.all([
+			store.create(record),
+			store.create(record),
+		]);
+		expect(results.filter(Boolean)).toHaveLength(1);
+		expect(await readdir(join(dir, "BTCUSDT"))).toEqual([
+			".tmp-orphan",
+			"v1.json",
+		]);
 	});
 
 	it("never writes outside the evaluations directory", async () => {

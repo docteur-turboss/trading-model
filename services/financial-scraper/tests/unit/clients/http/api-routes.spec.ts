@@ -57,6 +57,7 @@ import {
 	SCRAPER_API,
 } from "../../../../src/adapters/inbound/http/api-routes";
 import { FINANCIAL_ROUTES } from "../../../../src/adapters/inbound/http/routes";
+import { SIGNAL_REGISTRY } from "../../../../src/config/signal-registry";
 
 const AT = new Date("2026-10-28T12:00:00.000Z");
 const MARKET = { symbol: "BTCUSDT", market: "crypto", source: "binance" };
@@ -318,6 +319,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			dimension: "contextual",
 			assetId: null,
 			sector: "agriculture",
+			area: null,
 			observedAt: "2026-11-04T12:40:00.000Z",
 			ingestedAt: "2026-11-04T13:00:00.000Z",
 			confidenceScore: 0.8,
@@ -355,11 +357,28 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(findForAsset).toHaveBeenCalledWith({
 				assetId: "WHEAT",
 				sector: "agriculture",
+				areas: [],
 				dimensions: ["market", "contextual", "macro"],
 				from: Date.parse("2026-11-04"),
 				to: Date.parse("2026-11-05T00:00:00Z"),
 				limit: MAX_SIGNALS_PER_ANSWER + 1,
 			});
+		});
+
+		it("passes the areas of the asset to the store", async () => {
+			const wheat = SIGNAL_REGISTRY.assets.get("WHEAT") as any;
+			const lookup = jest
+				.spyOn(SIGNAL_REGISTRY.assets, "get")
+				.mockReturnValue({ ...wheat, areas: ["EA"] });
+			findForAsset.mockResolvedValue([]);
+
+			try {
+				await get(SCRAPER_API.assetSignals, `/signals/assets/WHEAT?${WINDOW}`);
+			} finally {
+				lookup.mockRestore();
+			}
+
+			expect(findForAsset.mock.calls[0][0].areas).toEqual(["EA"]);
 		});
 
 		it("says truncated when the window holds more than one answer", async () => {

@@ -21,9 +21,11 @@ import {
 	SIGNAL_LAST_SUCCESS,
 	SIGNAL_NEWEST_OBSERVED,
 	SIGNAL_SOURCE_MAX_AGE,
+	SIGNAL_SOURCE_QUARANTINED,
 	SIGNAL_SOURCES,
 } from "../../../src/config/metrics";
 import {
+	HttpStatusError,
 	InvalidPayloadError,
 	type Observation,
 	type SourceAdapter,
@@ -82,6 +84,8 @@ const worker = jest.fn<(request: unknown, auth: unknown) => Promise<unknown>>();
 const save = jest.fn<(signals: unknown) => Promise<void>>();
 const sleep = jest.fn<(ms: number) => Promise<void>>();
 
+let clock = NOW;
+
 function collector(): SignalCollector {
 	return new SignalCollector({
 		workers: { rest_api: worker },
@@ -93,7 +97,7 @@ function collector(): SignalCollector {
 			findForAsset: jest.fn<(...args: any[]) => any>(),
 			newestBySource: jest.fn<(...args: any[]) => any>(),
 		},
-		now: () => NOW,
+		now: () => clock,
 		sleep,
 	});
 }
@@ -140,6 +144,8 @@ describe("recordSourceTerms", () => {
 
 beforeEach(() => {
 	jest.clearAllMocks();
+	clock = NOW;
+	SIGNAL_SOURCE_QUARANTINED.reset();
 	SIGNAL_COLLECTIONS_TOTAL.reset();
 	SIGNAL_LAST_SUCCESS.reset();
 	SIGNAL_NEWEST_OBSERVED.reset();
@@ -169,6 +175,7 @@ describe("SignalCollector", () => {
 				dimension: "social",
 				assetId: "BTC",
 				sector: null,
+				area: null,
 				observedAt: "2026-11-04T12:00:00.000Z",
 				ingestedAt: "2026-11-04T12:03:00.000Z",
 				// The source reliability, kept for the consumers to weigh.
@@ -209,6 +216,20 @@ describe("SignalCollector", () => {
 
 		const [[sectorSignal]] = save.mock.calls[1] as [any[]];
 		expect(sectorSignal).toMatchObject({ assetId: null, sector: "crypto" });
+	});
+
+	it("stores an area request once, on the area, with an id stable at replay", async () => {
+		const areaSource = {
+			...SOURCE,
+			requests: [{ ...SOURCE.requests[1], subject: { area: "EA" } }],
+		};
+		await collector().collect(areaSource);
+		await collector().collect(areaSource);
+
+		const [[first]] = save.mock.calls[0] as [any[]];
+		const [[replay]] = save.mock.calls[1] as [any[]];
+		expect(first).toMatchObject({ assetId: null, sector: null, area: "EA" });
+		expect(replay.id).toBe(first.id);
 	});
 
 	it("gives a replayed observation the same id, another subject another id", async () => {
@@ -319,6 +340,7 @@ describe("SignalCollector", () => {
 			[`${SOURCE.id}:fetch_error`]: 0,
 			[`${SOURCE.id}:invalid_payload`]: 0,
 			[`${SOURCE.id}:store_error`]: 0,
+			[`${SOURCE.id}:skipped_quarantine`]: 0,
 		});
 	});
 
@@ -363,5 +385,104 @@ describe("SignalCollector", () => {
 		await expect(counted()).resolves.toEqual({
 			"test-source:store_error": 1,
 		});
+	});
+});
+
+describe("quarantine of a failing source", () => {
+	const HOUR = 3_600_000;
+	const fail = (status = 500, retryAfter?: string) =>
+		worker.mockRejectedValue(new HttpStatusError("HTTP", status, retryAfter));
+	const quarantined = async () =>
+		(await SIGNAL_SOURCE_QUARANTINED.get()).values[0]?.value;
+
+	it("opens after 3 failed ticks, skips ticks, doubles on a failed trial and closes on success", async () => {
+		const c = collector();
+		fail();
+		for (let i = 0; i < 3; i++) {
+			await c.collect(ONE_REQUEST);
+		}
+		expect(worker).toHaveBeenCalledTimes(3);
+		expect(await quarantined()).toBe(1);
+
+		clock += HOUR - 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(3);
+		expect((await counted())["test-source:skipped_quarantine"]).toBe(1);
+
+		clock += 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(4);
+		clock += 2 * HOUR - 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(4);
+
+		clock += 1;
+		worker.mockResolvedValue({ payload: true });
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(5);
+		expect(await quarantined()).toBe(0);
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(6);
+	});
+
+	it("honours Retry-After in seconds and as an HTTP date", async () => {
+		fail(429, "7200");
+		const c = collector();
+		await c.collect(ONE_REQUEST);
+		clock += 2 * HOUR - 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(1);
+		clock += 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(2);
+
+		worker.mockClear();
+		clock = NOW;
+		fail(503, new Date(NOW + 5 * HOUR).toUTCString());
+		const d = collector();
+		await d.collect(ONE_REQUEST);
+		clock += 4 * HOUR;
+		await d.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(1);
+	});
+
+	it("doubles the deadline of a quarantine opened by Retry-After at each failed trial", async () => {
+		fail(429, "30");
+		const c = collector();
+		await c.collect(ONE_REQUEST);
+		clock += HOUR;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(2);
+		clock += 2 * HOUR - 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(2);
+		clock += 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(3);
+	});
+
+	it("quarantines a refused key (403) at the first failure for 24 h", async () => {
+		fail(403);
+		const c = collector();
+		await c.collect(ONE_REQUEST);
+		clock += 24 * HOUR - 1;
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not count invalid_payload or store_error, and leaves other sources alone", async () => {
+		const c = collector();
+		save.mockRejectedValue(new Error("MySQL down"));
+		for (let i = 0; i < 4; i++) {
+			await c.collect(ONE_REQUEST);
+		}
+		expect(worker).toHaveBeenCalledTimes(4);
+
+		fail(403);
+		await c.collect(ONE_REQUEST);
+		worker.mockClear();
+		worker.mockResolvedValue({ payload: true });
+		await c.collect({ ...ONE_REQUEST, id: "other" });
+		expect(worker).toHaveBeenCalledTimes(1);
 	});
 });

@@ -100,6 +100,7 @@ function _registerSignalRoutes(router: Router): void {
 		const signals = await MySqlSignalStore.findForAsset({
 			assetId: asset.id,
 			sector: asset.sector,
+			areas: asset.areas ?? [],
 			dimensions: asset.applicableDimensions,
 			from: query.from,
 			to: query.to,

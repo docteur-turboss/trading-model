@@ -686,6 +686,23 @@ tests:
         alertname: SignalSourceStale
         exp_alerts: []
 
+  # A quarantined source only counts skipped_quarantine (its ticks make no
+  # request): the alert must stay on.
+  - name: a quarantined signal source keeps alerting
+    interval: 1h
+    input_series:
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="nws-latest-observation",result="skipped_quarantine"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 10h
+        alertname: SignalCollectionFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, source: nws-latest-observation}
+            exp_annotations:
+              summary: 'A signal source fails to be collected'
+              description: 'nws-latest-observation failed 10 collections in 24 hours: its signals are missing or stale (fetch_error: source down or refusing, 403 from SEC EDGAR without SIGNAL_CONTACT_EMAIL; invalid_payload: its format changed; store_error: MySQL).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalcollectionfailing'
+
   # ADR-0026: a geo-block (451) alerts at once; other errors (429, 5xx) and
   # 200s do not. The 451 series only exists once Binance starts refusing.
   - name: a Binance geo-block alerts, other Binance errors do not

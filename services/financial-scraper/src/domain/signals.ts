@@ -35,6 +35,8 @@ export type Protocol = z.infer<typeof Protocol>;
 
 export const AssetId = z.string().regex(/^[A-Z0-9][A-Z0-9_-]{0,31}$/);
 const SectorId = z.string().regex(/^[a-z][a-z0-9_]{0,31}$/);
+/** Short code of an economic area (`EA`, `US`, `FR`...). */
+const AreaId = z.string().regex(/^[A-Z][A-Z0-9]{1,7}$/);
 const SourceId = z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/);
 
 /** §1.1: how the outside world names an asset, by scheme rather than one `symbol`. */
@@ -99,6 +101,8 @@ export const Asset = z
 		applicableDimensions: z.array(Dimension).min(1),
 		/** Level of the Sector Managers: sector signals go to every asset of the sector. */
 		sector: SectorId,
+		/** Economic areas whose signals go to this asset (macro data of the area). */
+		areas: z.array(AreaId).optional(),
 		/** The asset's name at a source or in a reference (`cik`, `wikipedia`, `figi`...), for request templates. */
 		aliases: z
 			.record(z.string().regex(/^[a-z][a-z0-9_]*$/), z.string().min(1))
@@ -119,13 +123,15 @@ export const Asset = z
 export type Asset = z.infer<typeof Asset>;
 
 /**
- * What a request is about: one asset, or a whole sector when the data
- * concerns all its assets (weather for agriculture). A sector signal is
- * stored once and served with the signals of each asset of the sector.
+ * What a request is about: one asset, a whole sector when the data concerns
+ * all its assets (weather for agriculture), or an economic area (euro area
+ * inflation). A sector or area signal is stored once and served with the
+ * signals of each asset of the sector, or of the asset's `areas`.
  */
 export const Subject = z.union([
 	z.strictObject({ assetId: AssetId }),
 	z.strictObject({ sector: SectorId }),
+	z.strictObject({ area: AreaId }),
 ]);
 export type Subject = z.infer<typeof Subject>;
 
@@ -329,9 +335,10 @@ const ENVELOPE = {
 	id: z.string().regex(/^[0-9a-f]{64}$/),
 	schemaVersion: z.literal(SIGNAL_SCHEMA_VERSION),
 	sourceId: SourceId,
-	/** Exactly one of `assetId` and `sector` is set: the request subject. */
+	/** Exactly one of `assetId`, `sector` and `area` is set: the request subject. */
 	assetId: AssetId.nullable(),
 	sector: SectorId.nullable(),
+	area: AreaId.nullable(),
 	observedAt: z.iso.datetime(),
 	ingestedAt: z.iso.datetime(),
 	confidenceScore: z.number().min(0).max(1),
@@ -354,7 +361,11 @@ export const Signal = z
 		_branch("legal"),
 		_branch("macro"),
 	])
-	.refine((signal) => (signal.assetId === null) !== (signal.sector === null), {
-		message: "exactly one of assetId and sector must be set",
-	});
+	.refine(
+		(signal) =>
+			[signal.assetId, signal.sector, signal.area].filter(
+				(subject) => subject !== null
+			).length === 1,
+		{ message: "exactly one of assetId, sector and area must be set" }
+	);
 export type Signal = z.infer<typeof Signal>;

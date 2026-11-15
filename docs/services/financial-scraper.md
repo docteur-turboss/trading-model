@@ -193,7 +193,8 @@ observations) and its line in `SOURCE_ADAPTERS`. Nothing else changes.
 and when `SIGNAL_COLLECTION_ENABLED` is not `false` (CI turns it off): one cron
 task per source, requests one after the other, an overlapping tick skipped.
 Each request is fetched (GET, JSON, 10 s timeout, no retry: the next tick is the
-retry), normalized by its adapter, checked against the schema and stored.
+retry, unless the source is quarantined, see runbook-market-data-stale),
+normalized by its adapter, checked against the schema and stored.
 `fs_signal_collections_total{source,result}` counts the requests by result:
 `success`, `fetch_error`, `invalid_payload` (the source changed its format: logged,
 nothing stored), `store_error`. Every request sends the User-Agent
