@@ -35,7 +35,7 @@
     "@trading-model/http": "*",
     "@trading-model/model-runtime": "*",
     "@trading-model/reliability": "*",
-    "@trading-model/server-utils": "*",
+    "@trading-model/http": "*",
     "@trading-model/validation": "*",
     "express": "^5.3.0",
     "prom-client": "^15.1.3",

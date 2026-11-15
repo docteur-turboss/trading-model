@@ -1,12 +1,12 @@
 import { getHeapStatistics } from "node:v8";
-import { correlationIdMiddleware } from "@trading-model/http/correlation-id";
-import { HEALTH_STATUS_OK } from "@trading-model/http/response-exception";
 import express, { type Application } from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import promClient from "prom-client";
+import { correlationIdMiddleware } from "./correlation-id";
 import { httpMetricsMiddleware } from "./http-metrics";
 import { createReadinessHandler, type ReadinessCheck } from "./readiness";
+import { HEALTH_STATUS_OK } from "./response-exception";
 import { PING_PATH } from "./shared/constants";
 
 promClient.collectDefaultMetrics();
