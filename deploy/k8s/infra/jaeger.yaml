@@ -95,12 +95,10 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 1Gi
-            # Badger opens every table of the 72 h volume (2.3 G on staging,
-            # ~234 tables) at startup: 1Gi was OOMKilled there.
+              memory: 256Mi
             limits:
               cpu: 500m
-              memory: 2Gi
+              memory: 1Gi
           startupProbe:
             httpGet:
               path: /
