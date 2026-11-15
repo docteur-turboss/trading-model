@@ -1,6 +1,6 @@
 # Runbook: Message Bus Outage
 
-**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `DeadLettersRejected`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
+**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `BusDeadLetters`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
 **Severity:** L1
 
 ## Architecture Context
@@ -22,8 +22,8 @@ An outage affects:
 
 - `ServiceDown`: message-manager not scraped.
 - `MessageDeliveryLowSuccessRate`: more than 0.5 % of messages dead-lettered over 5 min.
-- `MessagesDeadLettered`: messages given up, now in dlq-service.
-- `DeadLettersRejected`: dlq-service refused dead letters for good.
+- `MessagesDeadLettered`: messages given up, now in the dead streams.
+- `BusDeadLetters`: a dead stream holds entries waiting for an operator.
 - `MessagesUnrouted`: a topic has had no subscriber for 10 min.
 - `JournalBacklogOld`: a subscriber has not acknowledged an entry for 15 min (see 7).
 - `JournalEntriesTrimmed`: undelivered journal entries were trimmed after 24 h: messages lost (see 6).
@@ -87,11 +87,17 @@ kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
 
 ### 4. Dead letters stuck, refused or lost
 
-**Symptoms:** `MessagesDeadLettered` (warning: they are in dlq-service, list them with `GET /v1/dlq-service/dlq` and replay with `POST /dlq/replay` through the edge-proxy) or `DeadLettersRejected` (warning). While dlq-service cannot take a dead letter, its journal entry stays pending (`JournalBacklogOld` after 15 min, see 7); message-manager logs the cause.
+**Symptoms:** `MessagesDeadLettered` or `BusDeadLetters` (warning). A dead letter is an entry of the stream `trading-model:message-manager:dead:<topic>` with its group, attempts and reason (ADR-0073). While Redis refuses the write, the journal entry stays pending (`JournalBacklogOld` after 15 min, see 7); message-manager logs the cause.
 
-**dlq-service unavailable:** check that dlq-service is up and ready (`MongoDB`), that message-manager reaches it, and that both read the same `DLQ_AUTH_HMAC_SECRET` (`trading-model-secrets`): a 401 means the secrets differ, a 403 that `message-manager` is missing from `DLQ_ALLOWED_SERVICES`. Once fixed, the pending entries are dead-lettered at their next retry; nothing to copy or replay.
+**Inspect, replay, delete** (inside an audit-logger pod; `<operator>` is recorded as the actor of the `dlq.*` audit event):
 
-**`DeadLettersRejected`:** dlq-service refused an entry for good (invalid, or a message too large; `mm_dlq_rejected_total`). Its journal entry stays pending, retried and refused again, until the 24 h trim drops it (`JournalEntriesTrimmed`, see 6). Find it from the message-manager logs and the `XPENDING` of the journal (7), and fix the cause (a payload over the dlq-service limit, a schema drift) within 24 h of the alert. Past that the message is lost for good (accepted loss, ADR-0019 §6): recover it from the source as in 6. There is no `.rejected` file any more.
+```
+node services/audit-logger/dist/application/dlq-cli.js <operator> list <topic>
+node services/audit-logger/dist/application/dlq-cli.js <operator> replay <topic> <id>...
+node services/audit-logger/dist/application/dlq-cli.js <operator> delete <topic> <id>...
+```
+
+A replay gives the entry back to the one group that failed, under its own `messageId`, then removes it from the dead stream. Fix the cause first (a payload the subscriber refuses, a schema drift), or it is dead-lettered again. Dead streams are never trimmed: the alert stays until they are empty.
 
 ### 5. Scraper publish backlog
 

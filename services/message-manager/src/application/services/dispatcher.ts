@@ -4,6 +4,8 @@
  * workers deliver it afterwards, outside the publisher's request.
  */
 
+import type { MessageJournalPort } from "@trading-model/broker-message/bus/journal.port";
+import { createMessage } from "@trading-model/broker-message/bus/message-factory";
 import { messageManagerError } from "@trading-model/broker-message/shared/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type {
@@ -14,12 +16,10 @@ import {
 	MESSAGES_PUBLISHED_TOTAL,
 	MESSAGES_UNROUTED_TOTAL,
 } from "../../config/metrics";
-import { createMessage } from "../../domain/message-factory";
 import type {
 	SubscriptionParams,
 	TopicSubscription,
 } from "../../domain/messaging-types";
-import type { MessageJournalPort } from "../../domain/ports/message-journal.port";
 import type { SubscriptionRegistry } from "./subscription-registry";
 
 export interface DispatcherDeps {

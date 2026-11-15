@@ -1,4 +1,3 @@
-import { isDeadLetterError } from "@trading-model/broker-message/shared/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type {
 	DurationMs,
@@ -6,6 +5,7 @@ import type {
 	SequenceNumber,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
+import { isDeadLetterError } from "../shared/errors";
 import type { DeliveryParams } from "./delivery-params";
 
 export enum DlqReason {

@@ -1,5 +1,7 @@
 import { HELPER } from "@trading-model/broker-message";
-import { createServiceMessageManager } from "@trading-model/broker-message/create-message-manager";
+import { createMessageManager } from "@trading-model/broker-message/create-message-manager";
+import { parseServiceName } from "@trading-model/common/config/services.types";
+import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type {
@@ -17,18 +19,20 @@ import { AddressManager } from "./address-manager";
 import { logger } from "./logger";
 import { metrics } from "./metrics";
 
-type MessageManager = ReturnType<
-	typeof createServiceMessageManager
->["messageManager"];
+type MessageManager = ReturnType<typeof createMessageManager>["messageManager"];
 
 let messageManager: MessageManager | undefined;
 
 /** Built on first use: the broker client loads the SVID. */
 function _messageManager(): MessageManager {
-	messageManager ??= createServiceMessageManager(
-		AddressManager,
-		ENV
-	).messageManager;
+	// No journal: the dlq-service Redis ACL user has no right on the bus streams (retired in N+1).
+	messageManager ??= createMessageManager({
+		addressManagerClient: AddressManager,
+		tlsPaths: buildTlsFromEnv(ENV),
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		serviceName: parseServiceName(ENV.SERVICE_NAME),
+		callbackPath: ENV.MESSAGE_CALLBACK_PATH,
+	}).messageManager;
 	return messageManager;
 }
 
