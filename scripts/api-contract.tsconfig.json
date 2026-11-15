@@ -20,6 +20,9 @@
       "@trading-model/http/*": [
         "../packages/http/src/*"
       ],
+      "@trading-model/model-runtime/*": [
+        "../packages/model-runtime/src/*"
+      ],
       "@trading-model/persistence/*": [
         "../packages/persistence/src/*"
       ],

@@ -1,7 +1,7 @@
+import { sampleGaussian } from "@trading-model/model-runtime/noise";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import type { LamarckGenome } from "../genome-fitness";
 import type { MutationGenome } from "../genome-mutation";
-import { sampleGaussian } from "../noise";
 import {
 	ActivationType,
 	ConnectionType,

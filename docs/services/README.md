@@ -12,6 +12,7 @@ This directory documents every package and service in the **trading-model** mono
 | `@trading-model/contracts`       | `packages/contracts/`       | [contracts.md](./contracts.md)                                          |
 | `@trading-model/reliability`     | `packages/reliability/`     | [reliability.md](./reliability.md)                                          |
 | `@trading-model/common`          | `packages/common/`          | [common.md](./common.md)                   |
+| `@trading-model/model-runtime`   | `packages/model-runtime/`   | [common.md](./common.md)                   |
 | `@trading-model/persistence`     | `packages/persistence/`     | [persistence.md](./persistence.md)                                          |
 | `@trading-model/http`            | `packages/http/`            | [http.md](./http.md)                                          |
 | `@trading-model/validation`      | `packages/validation/`      | [validation.md](./validation.md)                                          |

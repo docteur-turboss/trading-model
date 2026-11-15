@@ -1,4 +1,5 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import { buildBookTickerFeatures } from "./feature-builders/book-ticker-features";
 import { buildCandleFeatures } from "./feature-builders/candle-features";
 import { buildOrderBookFeatures } from "./feature-builders/order-book-features";
@@ -7,7 +8,6 @@ import { buildSlidingWindowFeatures } from "./feature-builders/sliding-window-fe
 import { buildTickerFeatures } from "./feature-builders/ticker-features";
 import { buildTradeFeatures } from "./feature-builders/trade-features";
 import type { FeatureBuilderContext } from "./feature-context";
-import { FeatureVector } from "./feature-vector";
 import type { FeatureState } from "./market-data-types";
 
 function initFeatures(

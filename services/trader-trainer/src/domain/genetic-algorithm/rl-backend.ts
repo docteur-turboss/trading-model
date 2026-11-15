@@ -1,4 +1,12 @@
 import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
+import type { FeatureVector } from "@trading-model/model-runtime/feature-vector";
+import {
+	ActivationType,
+	ConnectionType,
+	ExperienceKind,
+	InitialisationType,
+} from "@trading-model/model-runtime/neural-network/type";
 import {
 	Cash,
 	Percentage,
@@ -6,14 +14,6 @@ import {
 	Reward,
 } from "@trading-model/primitives/primitives";
 import { TradingAgent, type TradingAgentConfig } from "../agent/trading-agent";
-import { DEFAULT_MAX_EXPOSURE_FRACTION } from "../env/wallet-config";
-import type { FeatureVector } from "../feature-vector";
-import {
-	ActivationType,
-	ConnectionType,
-	ExperienceKind,
-	InitialisationType,
-} from "../neural-network/type";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 interface StepInput {

@@ -6,6 +6,13 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import {
+	ActivationType,
+	ConnectionType,
+	ExperienceKind,
+	InitialisationType,
+	NormalisationType,
+} from "@trading-model/model-runtime/neural-network/type";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import {
 	Cash,
@@ -15,13 +22,6 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { TradingAgentConfig } from "../../../src/domain/agent/trading-agent";
 import { TradingAgent } from "../../../src/domain/agent/trading-agent";
-import {
-	ActivationType,
-	ConnectionType,
-	ExperienceKind,
-	InitialisationType,
-	NormalisationType,
-} from "../../../src/domain/neural-network/type";
 
 function makeConfig(
 	overrides?: Partial<TradingAgentConfig>

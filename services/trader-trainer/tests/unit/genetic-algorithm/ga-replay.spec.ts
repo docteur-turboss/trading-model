@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { setLogger } from "@trading-model/contracts/logger-registry";
 import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import {
 	DurationMs,
 	type PositiveInt,
 	Price,
 } from "@trading-model/primitives/primitives";
-import { FeatureVector } from "../../../src/domain/feature-vector";
 import {
 	type GenerationContext,
 	GeneticAlgorithmRunner,

@@ -1,10 +1,10 @@
-import { ACTIVATIONS } from "./activation";
+import { ACTIVATIONS } from "@trading-model/model-runtime/neural-network/activation";
 import type {
 	ActivationType,
 	ForwardContext,
 	LayerMemory,
 	NeuralNetworkConfig,
-} from "./type";
+} from "@trading-model/model-runtime/neural-network/type";
 import { clipGradients } from "./utils";
 
 interface NeuronDeltaContext {

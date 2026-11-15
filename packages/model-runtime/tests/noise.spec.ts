@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { sampleGaussian } from "../../../src/domain/genetic-algorithm/noise";
+import { sampleGaussian } from "../src/noise";
 
 describe("Noise Samplers", () => {
 	const rng = () => 0.5;

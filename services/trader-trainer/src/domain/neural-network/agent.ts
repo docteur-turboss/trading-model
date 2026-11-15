@@ -1,7 +1,10 @@
-import { agentError } from "../../shared/errors";
+import { agentError } from "@trading-model/model-runtime/errors";
+import type {
+	NetworkArchitecture,
+	NeuralNetworkConfig,
+} from "@trading-model/model-runtime/neural-network/type";
 import { AgentExperienceHandler } from "./agent-experience-handler";
 import { NeuralNetwork } from "./neural-network";
-import type { NetworkArchitecture, NeuralNetworkConfig } from "./type";
 
 /**
  * Pairs a {@link NeuralNetwork} (forward pass, backprop, weights) with its

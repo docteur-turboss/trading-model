@@ -27,6 +27,7 @@ export const SCOPES = [
   'k8s',
   'message-manager',
   'model-evaluator',
+  'model-runtime',
   'middleware',
   'multiple',
   'observability',
