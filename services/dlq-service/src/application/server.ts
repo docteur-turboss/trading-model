@@ -1,8 +1,8 @@
 import { ServiceId } from "@trading-model/primitives/primitives";
-import { svidReadinessCheck } from "@trading-model/server-utils/readiness";
 import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
 import type { DlqHandlers } from "../adapters/inbound/dlq-service";
 import { DlqRoutes } from "../adapters/inbound/routes";
+import { REGISTRATION_READINESS } from "../config/address-manager";
 import { ENV } from "../infrastructure/config/env";
 
 export function createServer(handlers: DlqHandlers) {
@@ -13,6 +13,6 @@ export function createServer(handlers: DlqHandlers) {
 		routes: (app) => {
 			app.use(DlqRoutes(handlers));
 		},
-		readiness: [svidReadinessCheck(ENV)],
+		readiness: [REGISTRATION_READINESS],
 	});
 }

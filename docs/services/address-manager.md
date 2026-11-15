@@ -4,7 +4,7 @@ Client-side library of every service: where the other services are, and (until r
 
 ## Overview
 
-- **Addresses (ADR-0072):** `findService(name)` answers the service's DNS name (compose service, Kubernetes Service; `DNS_NAME_MAP` overrides a name outside Docker and Kubernetes) on port 3000. No registry is asked, no instance is picked: the platform spreads the calls over ready pods.
+- **Addresses (ADR-0072):** `findService(name)` answers the service's DNS name (compose service, Kubernetes Service; `DNS_NAME_MAP` overrides a name outside Docker and Kubernetes) on port 3000. No registry is asked, no instance is picked: the platform spreads the connections over ready pods (keep-alive: per connection, not per call).
 - **Registration (release N only):** register, heartbeat, token rotation and unregistration with discovery-server, read only by release N-1 gateways during the rollout. Removed with discovery-server in release N+1.
 - **Routes:** `/ping`, `/status` and `/metrics` of the service (`listenExpress`).
 
@@ -13,7 +13,7 @@ Client-side library of every service: where the other services are, and (until r
 ```ts
 import { createServiceAddressManager } from '@trading-model/address-manager/create-service-address-manager';
 
-const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES, FIND_A_SERVICE } =
+const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES, FIND_A_SERVICE, REGISTRATION_READINESS } =
   createServiceAddressManager(ENV);
 ```
 
@@ -23,8 +23,9 @@ const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES, FIND_
 | `BOOTSTRAP_ADDRESS_MANAGER()`| Starts registration and heartbeats; returns `{ ready, stop, leave }`   |
 | `ADDRESS_MANAGER_ROUTES(app)`| Mounts `/ping`, `/status`, `/metrics`                                  |
 | `FIND_A_SERVICE(name)`       | `Promise<{ host, port }>`: the DNS name of the service, port 3000      |
+| `REGISTRATION_READINESS`     | Readiness check `discovery-registration` (release N only)              |
 
-Readiness no longer depends on the registration: services gate on their SVID and their own databases.
+`REGISTRATION_READINESS` (`discovery-registration`): not Ready until the first registration, so release N-1 gateways find the pod in the registry. Release N only; removed with discovery-server in N+1 (ADR-0072).
 
 ## Lifecycle (release N)
 

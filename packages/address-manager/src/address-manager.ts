@@ -31,8 +31,8 @@ export default class AddressManager {
 	}
 
 	/**
-	 * The service's DNS name (ADR-0072): the platform spreads the calls over
-	 * ready pods, no registry is asked. `DNS_NAME_MAP` overrides a name outside
+	 * The service's DNS name (ADR-0072): the platform spreads the connections
+	 * over ready pods, no registry is asked. `DNS_NAME_MAP` overrides a name outside
 	 * Docker and Kubernetes.
 	 */
 	findService(serviceName: ServiceInstanceName): Promise<HostPort> {

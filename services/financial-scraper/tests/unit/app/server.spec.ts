@@ -14,6 +14,7 @@ jest.mock("@trading-model/server-utils/service-server-factory", () => ({
 
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn((app: any) => app),
+	REGISTRATION_READINESS: { name: "discovery-registration", check: () => true },
 }));
 
 jest.mock("../../../src/adapters/inbound/http/routes", () => ({

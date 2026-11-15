@@ -81,7 +81,7 @@ Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-lim
 ```
 
 - **Versioned Routing:** Pattern `/v{major}/{serviceName}/**`, allowed when `PUBLIC_ROUTES` lists it; each service serves its majors itself, an old major is removed one release after its successor (ADR-0072). Release N forwards the path without `/v{major}` (N-1 services); N+1 forwards it whole
-- **Service Resolution:** the canonical service name resolved by the platform DNS to an IP (checked against `ALLOWED_PROXY_CIDRS`), port 3000; no registry, the platform spreads calls over ready pods
+- **Service Resolution:** the canonical service name resolved by the platform DNS to an IP (checked against `ALLOWED_PROXY_CIDRS`), port 3000; no registry, the platform spreads connections over ready pods (keep-alive: per connection). A cached GET needs no lookup. The gateway does not read `DNS_NAME_MAP`
 - **Proxy:** Forwards HTTPS request via `https.request`, strips sensitive headers (`x-api-key`, `authorization`, `host`, `connection`), injects `x-forwarded-for`, `x-forwarded-proto`, `x-request-id`
 - **Startup order:** needs only its SVID (readiness `svid`)
 

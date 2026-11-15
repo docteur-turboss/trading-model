@@ -248,6 +248,18 @@ describe("router", () => {
 			expect(second).toEqual({ status: 200, data: { data: "ok" } });
 		});
 
+		it("serves a cached answer without a DNS lookup", async () => {
+			mockForwardSuccess({ data: "ok" });
+			const { lookup } = require("node:dns/promises");
+			const path = "/v1/audit-logger/events/cached-no-dns";
+
+			await get(path);
+			lookup.mockClear();
+			await get(path);
+
+			expect(lookup).not.toHaveBeenCalled();
+		});
+
 		it("should return 503 on proxy error without the cause", async () => {
 			const {
 				forwardRequest,

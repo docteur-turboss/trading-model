@@ -14,15 +14,15 @@ The owner accepted the retirement of discovery-server (ADR-0046 step 2, issue #1
 
 ## Decision
 
-1. **Address = DNS name.** The gateway resolves the canonical service name (`normalizeServiceName`) to an IP with the platform resolver, checks it against `ALLOWED_PROXY_CIDRS`, and proxies to port 3000. A name that does not resolve answers 503. Services find each other the same way (`AddressManager.findService`: DNS name, or `DNS_NAME_MAP` outside Docker and Kubernetes, port 3000). No registry is asked, no instance is picked: kube-proxy and compose DNS spread the calls over ready pods. The address-manager's instance cache, health checker and circuit breaker go (the shared HTTP client keeps its own breaker).
+1. **Address = DNS name.** The gateway resolves the canonical service name (`normalizeServiceName`) to an IP with the platform resolver, checks it against `ALLOWED_PROXY_CIDRS`, and proxies to port 3000. A name that does not resolve answers 503. Services find each other the same way (`AddressManager.findService`: DNS name, or `DNS_NAME_MAP` outside Docker and Kubernetes, port 3000; the gateway does not read `DNS_NAME_MAP`). No registry is asked, no instance is picked: kube-proxy and compose DNS spread the connections over ready pods; calls follow their keep-alive connection (`keepAlive: true`, `packages/http/src/http-utils.ts`), so the spread is per connection, not per call (the canary bias of issue #724). A GET answered from the gateway's response cache needs no lookup. The address-manager's instance cache, health checker and circuit breaker go (the shared HTTP client keeps its own breaker).
 2. **Majors are served by the services.** A public route's registry entry carries its major as the first segment of its path (`v2` for the scraper's candles route). A service mounts one route per major it supports and answers 404 to the others. The gateway's `PUBLIC_ROUTES` lists the public routes per major (`GET /v2/financial-scraper/candles/symbols/:symbol`); a major not listed answers 404 before any proxying. The OpenAPI follows from `PUBLIC_ROUTES` (`bun run api:write`). `APP_VERSION` no longer sets the gateway prefix.
 3. **Deprecation window.** When a service ships major N+1 of a route, major N stays in its registry and in `PUBLIC_ROUTES` for one more release, then is removed.
 4. **Service-to-service routes are not versioned.** They are internal, called by code released with the target, and guarded by the contract tests (`bun run test:contract`).
-5. **Readiness** no longer depends on a registration or on the registry: the gateway and the services gate on their SVID (and their own database).
+5. **Readiness** of the gateway no longer depends on the registry (SVID only). The services keep the `discovery-registration` readiness check in release N, so a pod is not Ready before N-1 gateways can find it in the registry; it goes in N+1 with discovery-server.
 
 ### Two releases (ADR-0040)
 
-- **Release N (expand):** everything above. The gateway still forwards the path without `/v<major>`, and `mountRoute` also mounts each versioned public route without its major, so N-1 gateways and N-1 services keep working during the rollout. Services still register and heartbeat, and discovery-server still runs, for N-1 gateways only; nothing in N reads the registry. The gateway no longer exposes discovery's `GET /services` routes.
+- **Release N (expand):** everything above. The gateway still forwards the path without `/v<major>`, and `mountRoute` also mounts each versioned public route without its major, so N-1 gateways and N-1 services keep working during the rollout. Services still register, heartbeat and gate their readiness on the registration, and discovery-server still runs, for N-1 gateways only; nothing in N reads the registry. The gateway no longer exposes discovery's `GET /services` routes.
 - **Release N+1 (contract):** the gateway forwards `/v<major><path>`; `mountRoute` drops the unversioned alias; callers of a public route (trainer → scraper candles, model-evaluator → trainer manifests) use the versioned path; discovery-server, the register/heartbeat/token calls of address-manager, the Redis keyspace `trading-model:discovery:*`, the ACL user `discovery`, its manifests, SPIRE entries, compose service, alerts, dashboards and runbooks are deleted. The `redis-last` rollout order of `deploy-release.sh` is re-examined then: it also protects the bus journal.
 
 ## Consequences
@@ -30,7 +30,7 @@ The owner accepted the retirement of discovery-server (ADR-0046 step 2, issue #1
 - No more 404 on healthy services when Redis restarts; the gateway's routing has no stateful dependency.
 - Two majors of a service can run side by side in the same pods, which neither the registry nor a single Service name allowed.
 - A major bump is a code change (registry paths, `PUBLIC_ROUTES`, OpenAPI), reviewed like any other; forgetting the old major's removal leaves a route the deprecation window says to delete.
-- Callers lose per-instance circuit breaking; the platform only routes to ready pods, and the HTTP client's breaker still fails fast on a failing service.
+- Callers lose per-instance circuit breaking; the platform only routes new connections to ready pods, and the HTTP client's breaker still fails fast on a failing service.
 - Until N+1, discovery-server keeps running with nothing of release N reading it.
 
 ## Alternatives Considered

@@ -92,6 +92,15 @@ const catchAllRoute = catchSync(async (req) => {
 		);
 	}
 
+	// Forwarded with the path and keyed in the cache: another query is another answer.
+	// Read before the DNS lookup: a cached answer needs no resolution.
+	const search = _search(req);
+	const cacheKey = `${req.method}:${req.path}${search}`;
+	const cached = tryServeFromCache(req.method, cacheKey, CACHE);
+	if (cached) {
+		return cached;
+	}
+
 	const target = await _resolve(serviceName);
 	if (!target) {
 		logger.warn("Service name does not resolve", {
@@ -127,14 +136,6 @@ const catchAllRoute = catchSync(async (req) => {
 			{ error: "Service unavailable" },
 			HTTP_STATUS.SERVICE_UNAVAILABLE
 		);
-	}
-
-	// Forwarded with the path and keyed in the cache: another query is another answer.
-	const search = _search(req);
-	const cacheKey = `${req.method}:${req.path}${search}`;
-	const cached = tryServeFromCache(req.method, cacheKey, CACHE);
-	if (cached) {
-		return cached;
 	}
 
 	// shortcut: release N forwards without /v<n> so N-1 services answer; N+1 forwards `/v${majorVersion}${path}` (ADR-0072).
