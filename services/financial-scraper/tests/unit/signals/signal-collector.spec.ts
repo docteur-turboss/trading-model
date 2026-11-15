@@ -80,7 +80,10 @@ const OBSERVATION: Observation = {
 };
 
 const normalize = jest.fn<SourceAdapter["normalize"]>();
-const worker = jest.fn<(request: unknown, auth: unknown) => Promise<unknown>>();
+const worker =
+	jest.fn<
+		(request: unknown, auth: unknown, source: unknown) => Promise<unknown>
+	>();
 const save = jest.fn<(signals: unknown) => Promise<void>>();
 const sleep = jest.fn<(ms: number) => Promise<void>>();
 
@@ -160,7 +163,7 @@ describe("SignalCollector", () => {
 	it("wraps each canonical payload in a signal of the request's dimension and stores it", async () => {
 		await collector().collect(SOURCE);
 
-		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0], "none");
+		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0], "none", SOURCE);
 		expect(normalize).toHaveBeenCalledWith({ payload: true }, { params: {} });
 		expect(save).toHaveBeenNthCalledWith(1, [
 			{
@@ -207,7 +210,8 @@ describe("SignalCollector", () => {
 				...SOURCE.requests[0],
 				url: "https://a.test/pageviews/daily/20261027/20261103?today=20261104",
 			},
-			"none"
+			"none",
+			expect.anything()
 		);
 	});
 
