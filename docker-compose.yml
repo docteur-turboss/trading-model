@@ -1005,7 +1005,7 @@ services:
   # Probes /ping of every service with its own SVID (CertificateExpiry).
   blackbox-exporter:
     logging: *default-logging
-    image: prom/blackbox-exporter@sha256:b04a9fef4fa086a02fc7fcd8dcdbc4b7b35cc30cdee860fdc6a19dd8b208d63e
+    image: prom/blackbox-exporter@sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13
     container_name: trading-blackbox
     restart: unless-stopped
     mem_limit: 64m
