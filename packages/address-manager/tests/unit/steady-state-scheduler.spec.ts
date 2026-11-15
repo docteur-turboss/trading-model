@@ -30,15 +30,10 @@ function createMockOptions(): jest.Mocked<SteadyStateSchedulerOptions> {
 				.fn<() => Promise<void>>()
 				.mockResolvedValue(undefined),
 		} as never,
-		serviceCache: {
-			entries: jest.fn<() => Promise<never[]>>().mockResolvedValue([]),
-		} as never,
-		healthChecker: {} as never,
 		serviceName: "test-service" as never,
 		instanceId: "test-instance" as never,
 		tokenRefreshIntervalMs: 60_000,
 		ttlRefreshIntervalMs: 30_000,
-		cacheTtlMs: 10_000 as never,
 	};
 }
 
@@ -56,9 +51,9 @@ describe("SteadyStateScheduler", () => {
 		expect(scheduler).toBeDefined();
 	});
 
-	it("setup() should register token refresh, heartbeat, and cache refresh jobs", () => {
+	it("setup() should register token refresh and heartbeat jobs", () => {
 		expect(() => scheduler.setup()).not.toThrow();
-		expect(MOCK_SCHEDULER_INSTANCE.register).toHaveBeenCalledTimes(3);
+		expect(MOCK_SCHEDULER_INSTANCE.register).toHaveBeenCalledTimes(2);
 	});
 
 	it("start() should delegate to internal scheduler", () => {

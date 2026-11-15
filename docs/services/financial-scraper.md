@@ -24,15 +24,15 @@ A client of 2.x must migrate: see [Breaking changes in 3.0.0](#breaking-changes-
 
 | Route                                    | Returns                                           | Parameter                                   |
 | ---------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
-| `/trade/sources/:source`                 | trades of a source                                | `binance`, `bloomberg` or `nyse`            |
-| `/trade/symbols/:symbol`                 | trades of a symbol                                | e.g. `BTCUSDT`                              |
-| `/trade/timestamp/:timestamp`            | trades at **exactly** this instant                | ISO date or date-time                       |
-| `/ticker/sources/:source`                | 24h tickers of a source                           | source                                      |
-| `/ticker/symbols/:symbol`                | 24h tickers of a symbol                           | symbol                                      |
-| `/ticker/timestamp/:timestamp`           | 24h tickers opened at **exactly** this instant    | ISO date or date-time                       |
-| `/candles/sources/:source`               | candles of a source                               | source                                      |
-| `/candles/symbols/:symbol`               | candles of a symbol                               | symbol                                      |
-| `/candles/timestamp/:timestamp`          | candles opened **after** this instant             | ISO date or date-time                       |
+| `/v2/trade/sources/:source`                 | trades of a source                                | `binance`, `bloomberg` or `nyse`            |
+| `/v2/trade/symbols/:symbol`                 | trades of a symbol                                | e.g. `BTCUSDT`                              |
+| `/v2/trade/timestamp/:timestamp`            | trades at **exactly** this instant                | ISO date or date-time                       |
+| `/v2/ticker/sources/:source`                | 24h tickers of a source                           | source                                      |
+| `/v2/ticker/symbols/:symbol`                | 24h tickers of a symbol                           | symbol                                      |
+| `/v2/ticker/timestamp/:timestamp`           | 24h tickers opened at **exactly** this instant    | ISO date or date-time                       |
+| `/v2/candles/sources/:source`               | candles of a source                               | source                                      |
+| `/v2/candles/symbols/:symbol`               | candles of a symbol                               | symbol                                      |
+| `/v2/candles/timestamp/:timestamp`          | candles opened **after** this instant             | ISO date or date-time                       |
 
 Every answer is bounded (ADR-0054). Query parameters:
 
@@ -214,7 +214,7 @@ the observation key, so a replayed collection stores nothing twice (the first
 value stays). A sector signal is stored once, with `sector` set and
 `asset_id` null.
 
-**Query**: `GET /signals/assets/:assetId?from=<date>&to=<date>` (through the
+**Query**: `GET /v2/signals/assets/:assetId?from=<date>&to=<date>` (through the
 gateway: `/v2/financial-scraper/signals/assets/:assetId`). `from` and `to` are
 ISO dates or date-times, the window is `[from, to)`. The answer holds the asset,
 then its own and its sector's signals of its applicable dimensions in the

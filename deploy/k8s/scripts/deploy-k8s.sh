@@ -565,7 +565,7 @@ release_checks_once() {
     return 1
   fi
   # The key goes through stdin (curl -H @-), never on a command line or in a log.
-  local path="/v1/discovery-server/services"
+  local path="/v1/trader-trainer/training-status"
   code="$(printf 'x-api-key: %s\n' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
     curl -s -o /dev/null -w '%{http_code}' -H @- "http://edge-proxy:8080${path}")" || code="000"
   if [[ "$code" != "200" ]]; then

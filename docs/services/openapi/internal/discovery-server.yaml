@@ -220,6 +220,172 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /services:
+    get:
+      operationId: "getServices"
+      tags:
+        - "discovery-server"
+      summary: "Names of the services with registered instances"
+      x-registry-entry: "listServices"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "array"
+                items:
+                  type: "string"
+  /services/{serviceName}:
+    get:
+      operationId: "getServicesServiceName"
+      tags:
+        - "discovery-server"
+      summary: "Live instances of a service (expired leases left out)"
+      x-registry-entry: "getServiceInstances"
+      parameters:
+        - name: "serviceName"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            minLength: 1
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "array"
+                items:
+                  type: "object"
+                  properties:
+                    instanceId:
+                      type: "string"
+                    serviceName:
+                      type: "string"
+                    host:
+                      type: "string"
+                    port:
+                      type: "integer"
+                    version:
+                      type: "string"
+                    protocol:
+                      type: "string"
+                      enum:
+                        - "http"
+                        - "https"
+                        - "mtls"
+                    ttl:
+                      type: "integer"
+                    registeredAt:
+                      type: "integer"
+                    lastHeartbeat:
+                      type: "integer"
+                    env:
+                      type: "string"
+                    region:
+                      type: "string"
+                  required:
+                    - "instanceId"
+                    - "serviceName"
+                    - "host"
+                    - "port"
+                    - "version"
+                    - "protocol"
+                    - "ttl"
+                    - "registeredAt"
+                    - "lastHeartbeat"
+                  additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /services/{serviceName}/{instanceId}:
+    get:
+      operationId: "getServicesServiceNameInstanceId"
+      tags:
+        - "discovery-server"
+      summary: "One live instance of a service"
+      x-registry-entry: "getInstance"
+      parameters:
+        - name: "serviceName"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            minLength: 1
+        - name: "instanceId"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            minLength: 1
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  instanceId:
+                    type: "string"
+                  serviceName:
+                    type: "string"
+                  host:
+                    type: "string"
+                  port:
+                    type: "integer"
+                  version:
+                    type: "string"
+                  protocol:
+                    type: "string"
+                    enum:
+                      - "http"
+                      - "https"
+                      - "mtls"
+                  ttl:
+                    type: "integer"
+                  registeredAt:
+                    type: "integer"
+                  lastHeartbeat:
+                    type: "integer"
+                  env:
+                    type: "string"
+                  region:
+                    type: "string"
+                required:
+                  - "instanceId"
+                  - "serviceName"
+                  - "host"
+                  - "port"
+                  - "version"
+                  - "protocol"
+                  - "ttl"
+                  - "registeredAt"
+                  - "lastHeartbeat"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /token/rotate:
     post:
       operationId: "postTokenRotate"

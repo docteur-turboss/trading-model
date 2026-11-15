@@ -1,20 +1,24 @@
-import { EndpointResolver } from "@trading-model/address-manager/discovery/endpoint-resolver";
+import { lookup } from "node:dns/promises";
+import { normalizeServiceName } from "@trading-model/common/utils/spiffe";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/catch-error";
 import { logger } from "@trading-model/http/logger";
 import { sendResponse } from "@trading-model/http/response-exception";
 import {
 	DurationMs,
+	IPAddress,
 	isAllowedProxyIP,
+	Port,
 	parseCIDRList,
+	type ServiceId,
 } from "@trading-model/primitives/primitives";
+import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
 import type { Request } from "express";
 import { Router } from "express";
 import {
 	proxyAndCache,
 	tryServeFromCache,
 } from "../../application/proxy-dispatcher";
-import { discoveryClient } from "../../config/container";
 import { ResponseCache } from "../../infrastructure/cache";
 import { ENV } from "../../infrastructure/config/env";
 import {
@@ -28,13 +32,29 @@ import { forwardRequest } from "../outbound/proxy-handler";
 import { AUTH_MIDDLEWARE, authOf } from "./auth";
 import { DEFAULT_LIMITER } from "./rate-limiter";
 
-export const RESOLVER = new EndpointResolver(
-	ENV.DISCOVERY_SERVICE_URL,
-	ENV.CACHE_TTL_MS,
-	discoveryClient
-);
+/** Every service listens on HTTPS port 3000 behind its DNS name. */
+const SERVICE_PORT = Port.of(3000);
 const CACHE = new ResponseCache(DurationMs.of(ENV.CACHE_TTL_MS));
 const ALLOWED_PROXY_RANGES = parseCIDRList(ENV.ALLOWED_PROXY_CIDRS);
+
+/**
+ * The service's DNS name (K8s Service, compose service) resolved to an IP, so
+ * it can be checked against ALLOWED_PROXY_CIDRS; no registry (ADR-0072).
+ */
+async function _resolve(
+	serviceName: ServiceId
+): Promise<ResolvedEndpoint | null> {
+	// biome-ignore lint/plugin: an unresolvable name is answered 503, not thrown
+	try {
+		const { address } = await lookup(
+			String(normalizeServiceName(serviceName)),
+			{ family: 4 }
+		);
+		return { host: IPAddress.of(address), port: SERVICE_PORT };
+	} catch {
+		return null;
+	}
+}
 
 /** The query string ("" or "?a=1"): `req.path`, which routes are matched on, leaves it out. */
 function _search(req: Request): string {
@@ -60,7 +80,7 @@ const catchAllRoute = catchSync(async (req) => {
 
 	const { majorVersion, serviceName, path } = parsed;
 
-	if (!isPublicRoute(req.method, serviceName, path)) {
+	if (!isPublicRoute(req.method, majorVersion, serviceName, path)) {
 		return sendResponse({ error: "Route not found" }, HTTP_STATUS.NOT_FOUND);
 	}
 
@@ -72,19 +92,15 @@ const catchAllRoute = catchSync(async (req) => {
 		);
 	}
 
-	const target = await RESOLVER.resolve(serviceName, majorVersion);
+	const target = await _resolve(serviceName);
 	if (!target) {
-		logger.warn("Service not found", {
+		logger.warn("Service name does not resolve", {
 			context: { serviceName, majorVersion },
 		});
 		SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
 		return sendResponse(
-			{
-				error: "Service not found",
-				service: serviceName,
-				version: majorVersion,
-			},
-			HTTP_STATUS.NOT_FOUND
+			{ error: "Service unavailable" },
+			HTTP_STATUS.SERVICE_UNAVAILABLE
 		);
 	}
 
@@ -121,6 +137,7 @@ const catchAllRoute = catchSync(async (req) => {
 		return cached;
 	}
 
+	// shortcut: release N forwards without /v<n> so N-1 services answer; N+1 forwards `/v${majorVersion}${path}` (ADR-0072).
 	const response = await proxyAndCache(
 		req,
 		target,

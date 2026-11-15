@@ -13,6 +13,5 @@ This directory contains executable examples for interacting with the trading-mod
 
 | File                                                     | Description                                         |
 | -------------------------------------------------------- | --------------------------------------------------- |
-| [`list-services.sh`](./list-services.sh)                 | List the registry, or the instances of one service  |
 | [`view-audit-trail.sh`](./view-audit-trail.sh)           | Query recent audit events                           |
 | [`manage-dlq.sh`](./manage-dlq.sh)                       | List, replay, and delete DLQ entries (signed)       |

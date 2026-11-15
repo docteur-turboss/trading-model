@@ -3,50 +3,67 @@ import { isPublicRoute } from "../../src/shared/public-routes";
 
 describe("isPublicRoute", () => {
 	it("accepts a public route, its parameters bound to any segment", () => {
-		expect(isPublicRoute("GET", "audit-logger", "/events")).toBe(true);
-		expect(isPublicRoute("GET", "audit-logger", "/events/abc-123")).toBe(true);
-		expect(isPublicRoute("POST", "dlq-service", "/dlq/replay")).toBe(true);
+		expect(isPublicRoute("GET", 1, "audit-logger", "/events")).toBe(true);
+		expect(isPublicRoute("GET", 1, "audit-logger", "/events/abc-123")).toBe(
+			true
+		);
+		expect(isPublicRoute("POST", 1, "dlq-service", "/dlq/replay")).toBe(true);
 	});
 
 	it("matches a legacy registration name on its canonical service", () => {
 		expect(
 			isPublicRoute(
 				"GET",
+				2,
 				"financial-scraper-service",
 				"/candles/symbols/BTCUSDT"
 			)
 		).toBe(true);
 	});
 
-	it("refuses service-to-service routes", () => {
-		expect(isPublicRoute("POST", "discovery-server", "/register")).toBe(false);
-		expect(isPublicRoute("POST", "discovery-server", "/heartbeat")).toBe(false);
-		expect(isPublicRoute("POST", "message-manager", "/message")).toBe(false);
-		expect(isPublicRoute("DELETE", "message-manager", "/subscribe")).toBe(
+	// ADR-0072: a service answers only the majors PUBLIC_ROUTES lists for it.
+	it("refuses a major the service does not serve", () => {
+		expect(
+			isPublicRoute("GET", 1, "financial-scraper", "/candles/symbols/BTCUSDT")
+		).toBe(false);
+		expect(isPublicRoute("GET", 2, "audit-logger", "/events")).toBe(false);
+	});
+
+	it("refuses service-to-service routes, and the registry", () => {
+		expect(isPublicRoute("POST", 1, "discovery-server", "/register")).toBe(
+			false
+		);
+		expect(isPublicRoute("GET", 1, "discovery-server", "/services")).toBe(
+			false
+		);
+		expect(isPublicRoute("POST", 1, "message-manager", "/message")).toBe(false);
+		expect(isPublicRoute("DELETE", 1, "message-manager", "/subscribe")).toBe(
 			false
 		);
 	});
 
 	it("refuses another method on a public path", () => {
-		expect(isPublicRoute("DELETE", "audit-logger", "/events")).toBe(false);
+		expect(isPublicRoute("DELETE", 1, "audit-logger", "/events")).toBe(false);
 	});
 
 	it("refuses extra, missing or empty segments", () => {
-		expect(isPublicRoute("GET", "audit-logger", "/events/a/b")).toBe(false);
-		expect(isPublicRoute("GET", "audit-logger", "/")).toBe(false);
-		expect(isPublicRoute("GET", "audit-logger", "/events/")).toBe(false);
-		expect(isPublicRoute("GET", "audit-logger", "/events//stats")).toBe(false);
+		expect(isPublicRoute("GET", 1, "audit-logger", "/events/a/b")).toBe(false);
+		expect(isPublicRoute("GET", 1, "audit-logger", "/")).toBe(false);
+		expect(isPublicRoute("GET", 1, "audit-logger", "/events/")).toBe(false);
+		expect(isPublicRoute("GET", 1, "audit-logger", "/events//stats")).toBe(
+			false
+		);
 	});
 
 	it("refuses a path that URL normalization would rewrite", () => {
 		for (const path of [
-			"/services/../register",
-			"/services/%2e%2e/register",
-			"/services/%2E./register",
-			"/services/./x",
-			"/services\\..\\register",
+			"/events/../stats",
+			"/events/%2e%2e/stats",
+			"/events/%2E./stats",
+			"/events/./x",
+			"/events\\..\\stats",
 		]) {
-			expect(isPublicRoute("GET", "discovery-server", path)).toBe(false);
+			expect(isPublicRoute("GET", 1, "audit-logger", path)).toBe(false);
 		}
 	});
 });

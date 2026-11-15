@@ -16,7 +16,7 @@
 //       Service-to-service routes must all come from an entry: they are
 //       published per service in docs/services/openapi/internal/<service>.yaml.
 //    2. The documentation cannot describe routes that do not exist: gateway
-//       URLs (`/v1/<service>/...`, public routes only) in any Markdown file, and the route tables
+//       URLs (`/v<major>/<service>/...`, public routes only) in any Markdown file, and the route tables
 //       of docs/services/<service>.md. Entries already broken are listed in
 //       api-contract-known-gaps.json: a new broken entry fails, and so does a
 //       listed entry that now works or no longer exists (the list can only
@@ -53,17 +53,6 @@ const IDENTITY_PATH = join(ROOT, "packages/common/src/config/workload-identity.t
 const PUBLIC_ROUTES_PATH = join(ROOT, "services/api-gateway/src/shared/public-routes.ts");
 const API_MAJOR_VERSION = 1;
 
-/**
- * Major version a service registers in discovery, hence its gateway prefix
- * `/v<major>/<service>`: the major of APP_VERSION in its K8s config (compose
- * sets the same), 1 when unset (the address-manager default "1.0.0").
- */
-function serviceMajor(service) {
-	const file = join(ROOT, "deploy/k8s/config", `${service}.properties`);
-	const text = existsSync(file) ? readFileSync(file, "utf8") : "";
-	return Number(text.match(/^APP_VERSION=(\d+)\./m)?.[1] ?? API_MAJOR_VERSION);
-}
-
 /** Services the gateway proxies to, by canonical (SPIFFE) name. */
 const PROXIED_SERVICES = [
 	"audit-logger",
@@ -78,7 +67,15 @@ const PROXIED_SERVICES = [
 /** Routes of proxied services that the gateway does not expose (PUBLIC_ROUTES). */
 const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/ping", "/status"]);
 const SERVICE_TO_SERVICE = {
-	"discovery-server": ["POST /register", "POST /heartbeat", "POST /token/rotate", "POST /unregister"],
+	"discovery-server": [
+		"POST /register",
+		"POST /heartbeat",
+		"POST /token/rotate",
+		"POST /unregister",
+		"GET /services",
+		"GET /services/:serviceName",
+		"GET /services/:serviceName/:instanceId",
+	],
 	"audit-logger": ["POST /message"],
 	"model-evaluator": ["POST /message"],
 	// Dead letters come from message-manager only (#845): a public deposit could be replayed to any service.
@@ -111,7 +108,12 @@ const CALLERS = {
 };
 
 /** Service-to-service routes kept without a caller, each with its reason. */
-const AWAITING_CALLER = {};
+const AWAITING_CALLER = {
+	// ADR-0072 release N: no longer public nor asked by release N code; removed with discovery-server in N+1.
+	"discovery-server GET /services": "release N-1 only, removed with discovery-server (ADR-0072)",
+	"discovery-server GET /services/:serviceName": "release N-1 gateway and services only, removed with discovery-server (ADR-0072)",
+	"discovery-server GET /services/:serviceName/:instanceId": "release N-1 only, removed with discovery-server (ADR-0072)",
+};
 
 /** A WebSocket server needs a client in the repository; none exists (ADR-0029). */
 const WEBSOCKET_SERVER = /new\s+WebSocketServer\(|\.on\(\s*["']upgrade["']|handleUpgrade\(/;
@@ -384,7 +386,7 @@ function isInternal(service, route) {
 	return INFRASTRUCTURE_PATHS.has(route.path) || (SERVICE_TO_SERVICE[service] ?? []).includes(routeKey(route));
 }
 
-/** The gateway's PUBLIC_ROUTES (`METHOD /<service>/<path>`), by service. */
+/** The gateway's PUBLIC_ROUTES (`METHOD /v<major>/<service>/<path>`), by service, path `/v<major>/<path>`. */
 function readPublicRoutes() {
 	const entries = [];
 	visit(parse(PUBLIC_ROUTES_PATH), (node) => {
@@ -400,12 +402,12 @@ function readPublicRoutes() {
 	if (entries.length === 0) errors.push(`${rel(PUBLIC_ROUTES_PATH)}: PUBLIC_ROUTES not found`);
 	const byService = Object.fromEntries(PROXIED_SERVICES.map((service) => [service, []]));
 	for (const entry of entries) {
-		const match = entry.match(/^(GET|POST|PUT|PATCH|DELETE) \/([a-z][a-z0-9-]*)(\/\S*)$/);
-		if (!match || !byService[match[2]]) {
-			errors.push(`PUBLIC_ROUTES: "${entry}" is not "METHOD /<proxied service>/<path>"`);
+		const match = entry.match(/^(GET|POST|PUT|PATCH|DELETE) \/(v[1-9]\d*)\/([a-z][a-z0-9-]*)(\/\S*)$/);
+		if (!match || !byService[match[3]]) {
+			errors.push(`PUBLIC_ROUTES: "${entry}" is not "METHOD /v<major>/<proxied service>/<path>"`);
 			continue;
 		}
-		byService[match[2]].push({ method: match[1], path: match[3] });
+		byService[match[3]].push({ method: match[1], path: `/${match[2]}${match[4]}` });
 	}
 	return byService;
 }
@@ -703,8 +705,9 @@ function buildSpec(routesByService, publicByService) {
 		"  description: |",
 		"    Single external entry point of the platform. The gateway authenticates",
 		"    the request (API key), rate limits it, then proxies",
-		"    `/v{major}/{service}/{path}` to `{path}` on an instance of `{service}`",
-		"    registered in discovery with that major version.",
+		"    `/v{major}/{service}/{path}` to the DNS name of `{service}` (ADR-0072).",
+		"    Each service lists the majors it serves; an old major is removed one",
+		"    release after its successor shipped.",
 		"",
 		"    Paths and methods are read from the code. Routes mounted from a",
 		"    registry entry (ADR-0021) also describe their parameters, request body",
@@ -713,7 +716,11 @@ function buildSpec(routesByService, publicByService) {
 		"",
 		"    Privacy: the truncated caller IP is logged for 31 days, see the Art. 13",
 		"    notice, https://github.com/docteur-turboss/trading-model/blob/main/docs/compliance/privacy-notice.md",
-		`  version: ${JSON.stringify(PROXIED_SERVICES.map((service) => `${service} v${serviceMajor(service)}`).join(", "))}`,
+		`  version: ${JSON.stringify(
+			PROXIED_SERVICES.filter((service) => publicByService[service].length > 0)
+				.map((service) => `${service} ${[...new Set(publicByService[service].map((route) => route.path.split("/")[1]))].join("/")}`)
+				.join(", ")
+		)}`,
 		"servers:",
 		"  - url: http://localhost:8449",
 		"    description: Development (compose) — edge-proxy, which forwards /v{major} to the gateway over mTLS",
@@ -733,7 +740,7 @@ function buildSpec(routesByService, publicByService) {
 		...yaml(ERROR_RESPONSE_SCHEMA, 6),
 		"  responses:",
 		"    Unauthorized: { description: Missing or invalid API key }",
-		"    NotFound: { description: \"Unknown route, or no registered instance of the service\" }",
+		"    NotFound: { description: \"Unknown route, or a major the service does not serve\" }",
 		"paths:",
 	];
 
@@ -748,7 +755,7 @@ function buildSpec(routesByService, publicByService) {
 			routesByService[service]
 				.filter((route) => publicByService[service].some((pub) => routeKey(pub) === routeKey(route)))
 				.map((route) => ({
-					path: `/v${serviceMajor(service)}/${service}${route.path}`,
+					path: route.path.replace(/^\/(v\d+)/, `/$1/${service}`),
 					method: route.method,
 					meta: route.entry
 						? { tag: service, entry: route.entry, operation: route.operation }
@@ -876,11 +883,11 @@ function routeReason(service, path, method, routesByService) {
 }
 
 /** Why a gateway path (`/<service>/<route>`, after `/v<major>`) reaches no public route, or null. */
-function gatewayReason(path, method, publicByService, serviceNames) {
+function gatewayReason(major, path, method, publicByService, serviceNames) {
 	const [service, ...segments] = path.split("/").filter(Boolean);
 	const canonical = serviceNames.get(service);
 	if (!canonical) return `no service named "${service}" behind the gateway`;
-	const reason = routeReason(canonical, `/${segments.join("/")}`, method, publicByService);
+	const reason = routeReason(canonical, `/v${major}/${segments.join("/")}`, method, publicByService);
 	return reason && `${reason} in PUBLIC_ROUTES`;
 }
 
@@ -928,16 +935,12 @@ function documentedGatewayUrls(publicByService, serviceNames) {
 	const checked = [];
 	for (const file of markdownFiles()) {
 		for (const match of readFileSync(file, "utf8").matchAll(GATEWAY_URL)) {
-			const path = `/${match[2]}`;
-			const service = serviceNames.get(match[2].split("/")[0]);
-			const major = service ? serviceMajor(service) : API_MAJOR_VERSION;
+			// A service doc lists its own versioned routes (`/v1/events`): checked as service routes below.
+			if (/^docs\/services\/[^/]+\.md$/.test(rel(file)) && !serviceNames.has(match[2].split("/")[0])) continue;
 			checked.push({
-				key: `${rel(file)} /v${match[1]}${path}`,
+				key: `${rel(file)} /v${match[1]}/${match[2]}`,
 				where: rel(file),
-				reason:
-					Number(match[1]) === major
-						? gatewayReason(path, null, publicByService, serviceNames)
-						: `the gateway serves ${service ?? "this service"} at /v${major}`,
+				reason: gatewayReason(match[1], `/${match[2]}`, null, publicByService, serviceNames),
 			});
 		}
 	}

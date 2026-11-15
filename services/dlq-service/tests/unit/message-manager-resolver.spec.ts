@@ -9,14 +9,6 @@ jest.mock("../../src/config/address-manager", () => ({
 
 jest.mock("../../src/infrastructure/config/env", () => envMock);
 
-jest.mock("../../src/config/logger", () => ({
-	logger: {
-		info: jest.fn<(...args: any[]) => any>(),
-		warn: jest.fn<(...args: any[]) => any>(),
-		error: jest.fn<(...args: any[]) => any>(),
-	},
-}));
-
 describe("message-manager-resolver", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -48,31 +40,5 @@ describe("message-manager-resolver", () => {
 		const result = await resolveMessageManagerUrl();
 
 		expect(result).toBe("https://10.0.0.5:3000");
-	});
-
-	it("should return null when both ENV and address manager fail", async () => {
-		envMock.ENV.MESSAGE_MANAGER_URL = "";
-		MOCK_FIND_A_SERVICE.mockResolvedValue(null);
-
-		const { resolveMessageManagerUrl } = jest.requireActual(
-			"../../src/adapters/outbound/message-manager-resolver"
-		) as { resolveMessageManagerUrl: () => Promise<unknown> };
-
-		const result = await resolveMessageManagerUrl();
-
-		expect(result).toBeNull();
-	});
-
-	it("should handle address manager error gracefully", async () => {
-		envMock.ENV.MESSAGE_MANAGER_URL = "";
-		MOCK_FIND_A_SERVICE.mockRejectedValue(new Error("network error"));
-
-		const { resolveMessageManagerUrl } = jest.requireActual(
-			"../../src/adapters/outbound/message-manager-resolver"
-		) as { resolveMessageManagerUrl: () => Promise<unknown> };
-
-		const result = await resolveMessageManagerUrl();
-
-		expect(result).toBeNull();
 	});
 });

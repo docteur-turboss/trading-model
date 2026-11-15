@@ -6,26 +6,35 @@ const AUTH = { "x-api-key": GATEWAY_API_KEY };
 /** External clients reach the gateway through the edge proxy (/v1 -> gateway). */
 describe("API Gateway E2E", () => {
 	it("rejects proxy requests without an API key", async () => {
-		const { status } = await externalRequest("/v1/discovery-server/services");
+		const { status } = await externalRequest(
+			"/v1/trader-trainer/training-status"
+		);
 		expect(status).toBe(401);
 	});
 
 	it("rejects an unknown API key", async () => {
-		const { status } = await externalRequest("/v1/discovery-server/services", {
-			headers: { "x-api-key": "not-a-key" },
-		});
+		const { status } = await externalRequest(
+			"/v1/trader-trainer/training-status",
+			{
+				headers: { "x-api-key": "not-a-key" },
+			}
+		);
 		expect(status).toBe(401);
 	});
 
-	it("proxies to discovery, which never registers itself", async () => {
-		const { status, body } = await externalRequest(
-			"/v1/discovery-server/services",
+	it("proxies to a service by its DNS name, no registry (ADR-0072)", async () => {
+		const { status } = await externalRequest(
+			"/v1/trader-trainer/training-status",
 			{ headers: AUTH }
 		);
 		expect(status).toBe(200);
-		expect(JSON.parse(body)).toEqual(
-			expect.arrayContaining(["financial-scraper"])
-		);
+	});
+
+	it("no longer exposes the discovery registry (ADR-0072)", async () => {
+		const { status } = await externalRequest("/v1/discovery-server/services", {
+			headers: AUTH,
+		});
+		expect(status).toBe(404);
 	});
 
 	it("routes a canonical service name to its legacy registration name", async () => {

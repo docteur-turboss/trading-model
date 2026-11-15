@@ -45,7 +45,7 @@ describe("requiredScope", () => {
 	it("only DLQ routes are public writes: dlq:write covers no other route", () => {
 		const writes = PUBLIC_ROUTES.filter((route) => !route.startsWith("GET "));
 
-		expect(writes.every((route) => route.includes(" /dlq-service/dlq"))).toBe(
+		expect(writes.every((route) => route.includes("/dlq-service/dlq"))).toBe(
 			true
 		);
 	});

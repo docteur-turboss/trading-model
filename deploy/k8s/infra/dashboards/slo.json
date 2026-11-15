@@ -179,31 +179,6 @@
         }
       },
       {
-        "title": "Circuit Breaker Status",
-        "type": "stat",
-        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 18 },
-        "targets": [
-          {
-            "expr": "address_manager_circuit_breaker_state",
-            "legendFormat": "{{job}} {{instanceId}}"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "mappings": [
-              { "type": "value", "value": "0", "text": "CLOSED" },
-              { "type": "value", "value": "1", "text": "OPEN" },
-              { "type": "value", "value": "2", "text": "HALF-OPEN" }
-            ],
-            "color": { "mode": "thresholds" },
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
-            }
-          }
-        }
-      },
-      {
         "title": "Messages In Flight",
         "type": "timeseries",
         "gridPos": { "h": 6, "w": 12, "x": 0, "y": 24 },

@@ -164,55 +164,55 @@ function query<
 
 export const SCRAPER_API = {
 	tradesBySource: query(
-		"/trade/sources/:source",
+		"/v2/trade/sources/:source",
 		"Trades of a source",
 		BY_SOURCE,
 		Trade
 	),
 	tradesBySymbol: query(
-		"/trade/symbols/:symbol",
+		"/v2/trade/symbols/:symbol",
 		"Trades of a symbol",
 		BY_SYMBOL,
 		Trade
 	),
 	tradesAt: query(
-		"/trade/timestamp/:timestamp",
+		"/v2/trade/timestamp/:timestamp",
 		"Trades at exactly this instant",
 		AT_DATE,
 		Trade
 	),
 	tickersBySource: query(
-		"/ticker/sources/:source",
+		"/v2/ticker/sources/:source",
 		"24h tickers of a source",
 		BY_SOURCE,
 		Ticker
 	),
 	tickersBySymbol: query(
-		"/ticker/symbols/:symbol",
+		"/v2/ticker/symbols/:symbol",
 		"24h tickers of a symbol",
 		BY_SYMBOL,
 		Ticker
 	),
 	tickersAt: query(
-		"/ticker/timestamp/:timestamp",
+		"/v2/ticker/timestamp/:timestamp",
 		"24h tickers opened at exactly this instant",
 		AT_DATE,
 		Ticker
 	),
 	candlesBySource: query(
-		"/candles/sources/:source",
+		"/v2/candles/sources/:source",
 		"Candles of a source",
 		BY_SOURCE,
 		Candle
 	),
 	candlesBySymbol: query(
-		"/candles/symbols/:symbol",
+		"/v2/candles/symbols/:symbol",
 		"Candles of a symbol",
 		BY_SYMBOL,
 		Candle
 	),
 	candlesSince: query(
-		"/candles/timestamp/:timestamp",
+		"/v2/candles/timestamp/:timestamp",
 		"Candles opened after a date",
 		AT_DATE,
 		Candle
@@ -220,7 +220,7 @@ export const SCRAPER_API = {
 	/** ADR-0036: every dimension, the sector signals of the asset included. */
 	assetSignals: defineRoute({
 		method: "GET",
-		path: "/signals/assets/:assetId",
+		path: "/v2/signals/assets/:assetId",
 		summary:
 			"Signals of an asset and of its sector, every dimension, observed in [from, to)",
 		params: z.object({ assetId: AssetId }),

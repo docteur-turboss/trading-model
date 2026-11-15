@@ -9,7 +9,7 @@ Single external entry point for the system. Routes, authenticates, rate-limits, 
 | Service name     | `api-gateway`                             |
 | Port (host)      | `8448`                                    |
 | Port (container) | `3000`                                    |
-| Dependencies     | `@trading-model/common`, discovery-server |
+| Dependencies     | `@trading-model/common` |
 
 ## REST Endpoints
 
@@ -32,7 +32,7 @@ Lightweight health check.
 
 **`/v{version}/{serviceName}/{path}`**
 
-Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/shared/public-routes.ts`, published as `docs/services/openapi/api-gateway.yaml`) to the target internal service, resolved via the Discovery Server. Any other route answers `404` before resolution: the gateway calls services with its own SVID, so proxying service-to-service routes (discovery `/register` or `/heartbeat`, message-manager `/message` or `/subscribe`...) would lend its identity to every API client. A path that URL normalization would change (`..`, `%2e`, `\`) is refused too.
+Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/shared/public-routes.ts`, published as `docs/services/openapi/api-gateway.yaml`) to the target internal service, reached at its DNS name (ADR-0072). `PUBLIC_ROUTES` lists each route per major (`/v2/financial-scraper/candles/symbols/:symbol`): a major a service does not serve answers `404`. Any other route answers `404` before resolution: the gateway calls services with its own SVID, so proxying service-to-service routes (discovery `/register` or `/heartbeat`, message-manager `/message` or `/subscribe`...) would lend its identity to every API client. A path that URL normalization would change (`..`, `%2e`, `\`) is refused too.
 
 **Headers:**
 
@@ -56,8 +56,7 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 | `403`  | Key lacks the scope  | `{ "error": "Forbidden", "reason": "API key lacks the <scope> scope" }` |
 | `429`  | Rate limited         | `{ "error": "Too many requests", "retryAfter": <seconds> }` |
 | `404`  | Not a public route   | `{ "error": "Route not found" }`                            |
-| `404`  | Service not found    | `{ "error": "Service not found" }`                          |
-| `503`  | Service unavailable  | `{ "error": "Service unavailable" }` (cause in the log only) |
+| `503`  | Service unavailable  | `{ "error": "Service unavailable" }` (name does not resolve or call failed; cause in the log only) |
 
 ## Rate Limiting
 
@@ -78,20 +77,19 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 ## Architecture
 
 ```
-Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-limit → resolve Discovery → proxy mTLS → service
+Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-limit → DNS name → proxy mTLS → service
 ```
 
-- **Versioned Routing:** Pattern `/v{major}/{serviceName}/**` — resolved via Discovery Server, filtered by major version
-- **Service Resolution:** `EndpointResolver` (`@trading-model/address-manager`, ADR-0045) asks Discovery Server whether the major version is alive, resolves the Service DNS name to an IP, caches with configurable TTL; the platform spreads calls
+- **Versioned Routing:** Pattern `/v{major}/{serviceName}/**`, allowed when `PUBLIC_ROUTES` lists it; each service serves its majors itself, an old major is removed one release after its successor (ADR-0072). Release N forwards the path without `/v{major}` (N-1 services); N+1 forwards it whole
+- **Service Resolution:** the canonical service name resolved by the platform DNS to an IP (checked against `ALLOWED_PROXY_CIDRS`), port 3000; no registry, the platform spreads calls over ready pods
 - **Proxy:** Forwards HTTPS request via `https.request`, strips sensitive headers (`x-api-key`, `authorization`, `host`, `connection`), injects `x-forwarded-for`, `x-forwarded-proto`, `x-request-id`
-- **Startup order:** Position 6 (depends on discovery-server:healthy)
+- **Startup order:** needs only its SVID (readiness `svid`)
 
 ## Environment Variables
 
 | Variable                | Default                         | Description                  |
 | ----------------------- | ------------------------------- | ---------------------------- |
 | `PORT`                  | `3000`                          | Service listen port          |
-| `DISCOVERY_SERVICE_URL` | `https://discovery-server:3000` | Discovery server URL         |
 | `RATE_LIMIT_WINDOW_MS`  | `60000`                         | Rate limit window (ms)       |
 | `RATE_LIMIT_MAX`        | `100`                           | Max requests per window      |
 | `CACHE_TTL_MS`          | `30000`                         | In-memory cache TTL (ms)     |

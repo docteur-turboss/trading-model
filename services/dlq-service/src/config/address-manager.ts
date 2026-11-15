@@ -2,7 +2,6 @@ import { createServiceAddressManager } from "@trading-model/address-manager/crea
 
 import { ENV } from "../infrastructure/config/env";
 
-const { AddressManager, FIND_A_SERVICE, REGISTRATION_READINESS } =
-	createServiceAddressManager(ENV);
+const { AddressManager, FIND_A_SERVICE } = createServiceAddressManager(ENV);
 
-export { AddressManager, FIND_A_SERVICE, REGISTRATION_READINESS };
+export { AddressManager, FIND_A_SERVICE };

@@ -23,9 +23,6 @@ export class TrainerClient {
 		const target = await FIND_A_SERVICE(
 			ServiceInstanceName.TraderTrainerService
 		);
-		if (!target) {
-			throw new Error("trader-trainer is not registered in discovery");
-		}
 		return `https://${HostPort.toAddress(target)}`;
 	}
 

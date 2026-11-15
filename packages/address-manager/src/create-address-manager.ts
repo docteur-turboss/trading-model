@@ -29,9 +29,6 @@ function _buildAddressManagerConfig(env: AddressManagerEnv) {
 function _buildCoreConfig(env: AddressManagerEnv) {
 	return {
 		addressManagerUrl: env.ADDRESS_MANAGER_URL,
-		cacheTtlMs: DurationMs.of(env.CACHE_TTL_MS),
-		discoveryTimeoutMs: DurationMs.of(env.DISCOVERY_TIMEOUT_MS),
-		servicePingTimeoutMs: DurationMs.of(env.SERVICE_PING_TIMEOUT_MS),
 		servicePort: Port.of(env.PORT),
 		serviceVersion: env.APP_VERSION,
 		tokenRefreshIntervalMs: DurationMs.of(env.TOKEN_REFRESH_INTERVAL_MS),

@@ -107,7 +107,6 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 
 | Variable              | Type   | Default                          | Required | Description                     | Services |
 | --------------------- | ------ | -------------------------------- | -------- | ------------------------------- | -------- |
-| `DISCOVERY_SERVICE_URL` | URL  | `https://discovery-server:3000`  | **yes**  | Discovery server URL            | GW       |
 | `RATE_LIMIT_WINDOW_MS` | number | `60000`                         | no       | Rate limit window (ms)          | GW       |
 | `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window, per pod: effective limit per client = value x replicas (HPA 2-8), i.e. 200 to 800 per 60 s by default (ADR-0047) | GW       |
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |

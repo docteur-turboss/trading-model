@@ -6,7 +6,6 @@ const {
 	AddressManager,
 	BOOTSTRAP_ADDRESS_MANAGER,
 	FIND_A_SERVICE,
-	REGISTRATION_READINESS,
 } = createServiceAddressManager(ENV);
 
 export {
@@ -14,5 +13,4 @@ export {
 	AddressManager,
 	BOOTSTRAP_ADDRESS_MANAGER,
 	FIND_A_SERVICE,
-	REGISTRATION_READINESS,
 };

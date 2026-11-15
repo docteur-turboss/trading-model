@@ -48,7 +48,6 @@ describe("env", () => {
 		expect(env.AUTH_TOKENS).toBe("");
 		expect(env.AUTH_STRICT).toBe(true);
 		expect(env.PROXY_TIMEOUT_MS).toBe(10000);
-		expect(env.DISCOVERY_SERVICE_URL).toBe("https://discovery-server:3000");
 	});
 
 	it("should coerce string env vars to numbers", () => {
@@ -149,16 +148,5 @@ describe("env", () => {
 			process.env.AUTH_STRICT = "false";
 			expect(refusal()).toContain("AUTH_STRICT cannot be false in production");
 		});
-	});
-
-	it("should accept custom DISCOVERY_SERVICE_URL", () => {
-		process.env.TLS_KEY_PATH = "/certs/key.pem";
-		process.env.TLS_CERT_PATH = "/certs/cert.pem";
-		process.env.TLS_CA_PATH = "/certs/ca.pem";
-		process.env.DISCOVERY_SERVICE_URL = "https://custom-discovery:8443";
-
-		const env = loadEnv();
-
-		expect(env.DISCOVERY_SERVICE_URL).toBe("https://custom-discovery:8443");
 	});
 });

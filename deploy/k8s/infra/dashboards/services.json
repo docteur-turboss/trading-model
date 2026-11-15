@@ -42,25 +42,6 @@
       ]
     },
     {
-      "title": "Circuit Breaker State",
-      "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
-      "targets": [
-        {
-          "expr": "count(address_manager_circuit_breaker_state == 0)",
-          "legendFormat": "Closed"
-        },
-        {
-          "expr": "count(address_manager_circuit_breaker_state == 1)",
-          "legendFormat": "Open"
-        },
-        {
-          "expr": "count(address_manager_circuit_breaker_state == 2)",
-          "legendFormat": "Half-Open"
-        }
-      ]
-    },
-    {
       "title": "DLQ Size (entries)",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 12 },
