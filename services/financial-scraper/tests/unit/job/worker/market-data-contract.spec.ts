@@ -25,7 +25,10 @@ jest.mock("../../../../src/config/message-manager", () => ({
 	MessageManager: { post: { indirect: jest.fn<(...args: any[]) => any>() } },
 }));
 
-import { buildResponse } from "../../../../src/adapters/outbound/binance/binance-data-fetcher";
+import {
+	buildResponse,
+	CLOSE_MARGIN_MS,
+} from "../../../../src/adapters/outbound/binance/binance-data-fetcher";
 import { buildMarketDataEntries } from "../../../../src/adapters/outbound/broker/market-data-sender";
 
 /** Same conversions as the HttpClient request body (bigint → string, Set → array). */
@@ -83,5 +86,25 @@ describe("published market data contract", () => {
 
 		expect(snapshot.candles).toBeUndefined();
 		expect(snapshot.priceTicker).toEqual({ BTCUSDT: 50000 });
+	});
+
+	it.each([
+		[CLOSE_MARGIN_MS - 1, 0],
+		[CLOSE_MARGIN_MS + 1, 1],
+	])("a candle closed %i ms ago: %i kept", (age, kept) => {
+		const now = 1_700_000_000_000;
+		jest.spyOn(Date, "now").mockReturnValue(now);
+
+		const snapshot = buildResponse(
+			{ symbol: toSymbol("BTCUSDT"), interval: CandleInterval.Min1 },
+			{
+				candlesRaw: [
+					{ ...mockCandlestickResponse[0], closeTime: (now - age) as never },
+				],
+			}
+		);
+		jest.restoreAllMocks();
+
+		expect(snapshot.candles).toHaveLength(kept);
 	});
 });
