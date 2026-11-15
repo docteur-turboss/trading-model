@@ -112,4 +112,22 @@ export const SIGNAL_SOURCE_DAILY_REQUESTS = new promClient.Gauge({
 	labelNames: ["source"] as const,
 });
 
+export const SIGNAL_LAST_SUCCESS = new promClient.Gauge({
+	name: "fs_signal_last_success_timestamp_seconds",
+	help: "Unix time of the last successful collection of a signal source, restored from MySQL at start; exposed only by the collecting pod (alert SignalSourceStale)",
+	labelNames: ["source"] as const,
+});
+
+export const SIGNAL_NEWEST_OBSERVED = new promClient.Gauge({
+	name: "fs_signal_newest_observed_timestamp_seconds",
+	help: "Unix time of the newest observedAt stored for a signal source (a source can answer 200 with old data)",
+	labelNames: ["source"] as const,
+});
+
+export const SIGNAL_SOURCE_MAX_AGE = new promClient.Gauge({
+	name: "fs_signal_source_max_age_seconds",
+	help: "Age of the last collection beyond which a signal source is stale (alert SignalSourceStale)",
+	labelNames: ["source"] as const,
+});
+
 export { metricsHandler };

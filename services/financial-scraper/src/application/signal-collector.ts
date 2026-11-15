@@ -3,9 +3,13 @@ import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_COLLECTIONS_TOTAL,
 	SIGNAL_SOURCE_DAILY_REQUESTS,
+	SIGNAL_LAST_SUCCESS,
+	SIGNAL_NEWEST_OBSERVED,
+	SIGNAL_SOURCE_MAX_AGE,
 	SIGNAL_SOURCE_QUARANTINED,
 	SIGNAL_SOURCES,
 } from "../config/metrics";
+import { sourceMaxAgeSeconds } from "../domain/cron-period";
 import {
 	HttpStatusError,
 	InvalidPayloadError,
@@ -48,6 +52,36 @@ export function zeroCollectionFailures(sources: readonly Source[]): void {
 		SIGNAL_SOURCE_DAILY_REQUESTS.set(
 			{ source: source.id },
 			dailyRequests(source)
+		);
+	}
+}
+
+/**
+ * Sets the freshness gauges of the sources this pod collects: timestamps read
+ * back from MySQL (a restart keeps a stale source stale; a source with no
+ * signal yet counts from `now`) and the stale threshold.
+ */
+export async function restoreFreshness(
+	sources: readonly Source[],
+	store: SignalStorePort,
+	now: number
+): Promise<void> {
+	const newest = await store.newestBySource();
+	for (const source of sources) {
+		const stored = newest.get(source.id);
+		SIGNAL_LAST_SUCCESS.set(
+			{ source: source.id },
+			(stored?.ingestedAt ?? now) / 1000
+		);
+		if (stored) {
+			SIGNAL_NEWEST_OBSERVED.set(
+				{ source: source.id },
+				stored.observedAt / 1000
+			);
+		}
+		SIGNAL_SOURCE_MAX_AGE.set(
+			{ source: source.id },
+			sourceMaxAgeSeconds(source)
 		);
 	}
 }
@@ -219,6 +253,14 @@ export class SignalCollector {
 			result = "store_error";
 			await this._deps.store.save(signals);
 			result = "success";
+			SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
+			if (signals.length > 0) {
+				SIGNAL_NEWEST_OBSERVED.set(
+					{ source: source.id },
+					Math.max(...signals.map(({ observedAt }) => Date.parse(observedAt))) /
+						1000
+				);
+			}
 			getLogger().debug("Signals collected", {
 				context: { source: source.id, count: signals.length },
 			});

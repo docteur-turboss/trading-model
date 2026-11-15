@@ -17,3 +17,10 @@ data:
     svid_key_file_name = "svid_key.pem"
     svid_bundle_file_name = "bundle.pem"
     daemon_mode = true
+
+    health_checks {
+      listener_enabled = true
+      bind_ip = "0.0.0.0"
+      bind_port = 8081
+      readiness_path = "/ready"
+    }

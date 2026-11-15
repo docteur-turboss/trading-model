@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { z } from "zod";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
+import { cronMaxGapMs } from "../domain/cron-period";
 import type { SourceAdapter } from "../domain/ports/signal-source.port";
 import {
 	Asset,
@@ -27,7 +28,22 @@ const SourceDeclaration = Source.omit({ requests: true })
 	})
 	.refine((source) => source.requests.length + source.templates.length > 0, {
 		message: "no request nor template",
-	});
+	})
+	.refine(
+		(source) => {
+			const gap = cronMaxGapMs(source.schedule);
+			if (!cron.validate(source.schedule)) {
+				return true; // reported with the other problems
+			}
+			return source.maxAgeSeconds === undefined
+				? gap !== undefined
+				: gap === undefined || source.maxAgeSeconds * 1000 >= gap;
+		},
+		{
+			message:
+				"maxAgeSeconds is shorter than the period of schedule, or schedule is unreadable (names, 6 fields, rarer than yearly) without maxAgeSeconds",
+		}
+	);
 
 const RegistryFile = z.strictObject({
 	schemaVersion: z.literal(SIGNAL_SCHEMA_VERSION),

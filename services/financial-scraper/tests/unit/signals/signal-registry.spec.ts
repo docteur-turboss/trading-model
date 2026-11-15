@@ -174,6 +174,13 @@ describe("parseSignalRegistry", () => {
 			},
 			"source ecb-aaa-yield-10y, request 0: URL placeholder other than {date-N}",
 		],
+		[
+			"a maxAgeSeconds shorter than the period of the cron",
+			(file: any) => {
+				sourceOf(file, "nws-kansas-wheat-belt").maxAgeSeconds = 600;
+			},
+			"maxAgeSeconds is shorter than the period of schedule",
+		],
 	])("refuses %s", (_label, breakIt, message) => {
 		const file = registry();
 		breakIt(file);
@@ -474,6 +481,19 @@ describe("parseSignalRegistry", () => {
 		breakIt(file);
 
 		expect(() => parseSignalRegistry(file)).toThrow();
+	});
+});
+
+describe("signal registry — freshness threshold", () => {
+	it("refuses a schedule it cannot read unless maxAgeSeconds is given", () => {
+		const file = registry();
+		sourceOf(file, file.sources[0].id).schedule = "0 9 * * mon";
+
+		expect(() => parseSignalRegistry(file)).toThrow(/unreadable/);
+
+		file.sources[0].maxAgeSeconds = 86_400 * 30;
+
+		expect(() => parseSignalRegistry(file)).not.toThrow();
 	});
 });
 
