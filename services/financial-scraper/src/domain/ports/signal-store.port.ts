@@ -19,6 +19,10 @@ interface AssetSignalsQuery {
 export interface SignalStorePort {
 	/** Stores the signals; one already stored (same id) is left as it was. */
 	save(signals: readonly Signal[]): Promise<void>;
+	/** Per source: epoch ms of its newest `ingested_at` and `observed_at`. */
+	newestBySource(): Promise<
+		Map<string, { ingestedAt: number; observedAt: number }>
+	>;
 	/** Signals of the asset and of its sector and areas observed in [from, to), oldest first, at most `limit`. */
 	findForAsset(query: AssetSignalsQuery): Promise<Signal[]>;
 }

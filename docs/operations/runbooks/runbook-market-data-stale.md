@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
 **Severity:** L2 (the platform runs, but trades and training work on old data)
-**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `CandleDeliveryLagging`
+**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `SignalSourceStale`, `CandleDeliveryLagging`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -167,6 +167,23 @@ Read the `error` of the log line:
 
 The alert resolves within 15 minutes once a candle of the symbol is persisted
 again.
+
+## SignalSourceStale
+
+**Severity:** L4 (warning). A registry source (ADR-0036) has had no
+successful collection for longer than its threshold (`maxAgeSeconds` in
+`signal-registry.json`, else three periods of its `schedule`), with no failure
+counted. A source that answers 200 with an empty list still counts as a
+success: compare `fs_signal_newest_observed_timestamp_seconds` by hand for it.
+
+- **Lease lost**: `fs_collector_leader` is 0 on every pod (alert
+  `CollectorNoLeader`); see its section.
+- **Cron stopped**: a leader exists but the source logs neither
+  "Signal collection failed" nor "Previous signal collection still running:
+  tick skipped": its `schedule` is wrong or its API key is unset
+  (`fs_signal_source_disabled`). Fix the registry or secret, restart.
+- **Source stopped** (a tick that hangs, publisher down without error):
+  raise `maxAgeSeconds` or remove the source if the stop is final.
 
 ## SignalCollectionFailing
 

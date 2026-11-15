@@ -15,6 +15,7 @@ import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adap
 import { createMarketDataController } from "../application/market-data.controller";
 import {
 	recordSourceTerms,
+	restoreFreshness,
 	SignalCollector,
 	zeroCollectionFailures,
 } from "../application/signal-collector";
@@ -174,6 +175,11 @@ export function createSignalScheduler(
 	});
 	recordSourceTerms(SIGNAL_REGISTRY.sources);
 	zeroCollectionFailures(sources);
+	restoreFreshness(sources, MySqlSignalStore, Date.now()).catch((err) =>
+		logger.error("Signal freshness gauges not restored from MySQL", {
+			error: err,
+		})
+	);
 	return new SignalCronScheduler(sources, collector);
 }
 

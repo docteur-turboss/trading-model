@@ -11,12 +11,16 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 
 import {
 	recordSourceTerms,
+	restoreFreshness,
 	SignalCollector,
 	signalId,
 	zeroCollectionFailures,
 } from "../../../src/application/signal-collector";
 import {
 	SIGNAL_COLLECTIONS_TOTAL,
+	SIGNAL_LAST_SUCCESS,
+	SIGNAL_NEWEST_OBSERVED,
+	SIGNAL_SOURCE_MAX_AGE,
 	SIGNAL_SOURCE_QUARANTINED,
 	SIGNAL_SOURCES,
 } from "../../../src/config/metrics";
@@ -88,7 +92,11 @@ function collector(): SignalCollector {
 		adapters: new Map([
 			["test-adapter", { dimensions: ["social"], normalize }],
 		]),
-		store: { save, findForAsset: jest.fn<(...args: any[]) => any>() },
+		store: {
+			save,
+			findForAsset: jest.fn<(...args: any[]) => any>(),
+			newestBySource: jest.fn<(...args: any[]) => any>(),
+		},
 		now: () => clock,
 		sleep,
 	});
@@ -139,6 +147,9 @@ beforeEach(() => {
 	clock = NOW;
 	SIGNAL_SOURCE_QUARANTINED.reset();
 	SIGNAL_COLLECTIONS_TOTAL.reset();
+	SIGNAL_LAST_SUCCESS.reset();
+	SIGNAL_NEWEST_OBSERVED.reset();
+	SIGNAL_SOURCE_MAX_AGE.reset();
 	worker.mockResolvedValue({ payload: true });
 	normalize.mockReturnValue([OBSERVATION]);
 	save.mockResolvedValue(undefined);
@@ -330,6 +341,39 @@ describe("SignalCollector", () => {
 			[`${SOURCE.id}:invalid_payload`]: 0,
 			[`${SOURCE.id}:store_error`]: 0,
 			[`${SOURCE.id}:skipped_quarantine`]: 0,
+		});
+	});
+
+	it("moves the freshness gauges on success only", async () => {
+		const gauge = async (g: typeof SIGNAL_LAST_SUCCESS) =>
+			(await g.get()).values.map((v) => v.value);
+		worker.mockRejectedValueOnce(new Error("down"));
+		await collector().collect(ONE_REQUEST);
+		expect(await gauge(SIGNAL_LAST_SUCCESS)).toEqual([]);
+
+		await collector().collect(ONE_REQUEST);
+		expect(await gauge(SIGNAL_LAST_SUCCESS)).toEqual([NOW / 1000]);
+		expect(await gauge(SIGNAL_NEWEST_OBSERVED)).toEqual([OBSERVED_AT / 1000]);
+	});
+
+	it("restores the gauges from the store, the threshold from the cron", async () => {
+		const newestBySource = async () =>
+			new Map([["test-source", { ingestedAt: 5000, observedAt: 2000 }]]);
+		const other = { ...SOURCE, id: "empty", schedule: "0 0 * * *" };
+		await restoreFreshness([SOURCE, other], { newestBySource } as any, NOW);
+
+		const values = async (g: typeof SIGNAL_LAST_SUCCESS) =>
+			Object.fromEntries(
+				(await g.get()).values.map((v) => [v.labels.source, v.value])
+			);
+		expect(await values(SIGNAL_LAST_SUCCESS)).toEqual({
+			"test-source": 5,
+			empty: NOW / 1000,
+		});
+		expect(await values(SIGNAL_NEWEST_OBSERVED)).toEqual({ "test-source": 2 });
+		expect(await values(SIGNAL_SOURCE_MAX_AGE)).toEqual({
+			"test-source": 900,
+			empty: 259_200,
 		});
 	});
 
