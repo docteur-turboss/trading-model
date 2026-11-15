@@ -1,6 +1,5 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { sha256Hex } from "@trading-model/crypto/node-crypto";
-import { sourceMaxAgeSeconds } from "../domain/cron-period";
 import {
 	SIGNAL_COLLECTIONS_TOTAL,
 	SIGNAL_LAST_SUCCESS,
@@ -9,6 +8,7 @@ import {
 	SIGNAL_SOURCE_QUARANTINED,
 	SIGNAL_SOURCES,
 } from "../config/metrics";
+import { sourceMaxAgeSeconds } from "../domain/cron-period";
 import {
 	HttpStatusError,
 	InvalidPayloadError,
