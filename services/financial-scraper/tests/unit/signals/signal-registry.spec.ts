@@ -164,6 +164,18 @@ describe("parseSignalRegistry", () => {
 		expect(() => parseSignalRegistry(file)).toThrow(message);
 	});
 
+	it("admits a non-commercial source with the clause and the licence status", () => {
+		const file = registry();
+		Object.assign(sourceOf(file, "nws-kansas-wheat-belt").accessPolicy, {
+			terms: "non-commercial",
+			restrictions: "personal use only (read 2026-11-15)",
+			commercialLicence: "available",
+			commercialLicenceUrl: "https://example.com/licence",
+		});
+
+		expect(() => parseSignalRegistry(file)).not.toThrow();
+	});
+
 	it("reports every problem at once", () => {
 		const file = registry();
 		sourceOf(file, "wikipedia-pageviews").adapter = "reddit";
@@ -345,10 +357,33 @@ describe("parseSignalRegistry", () => {
 			},
 		],
 		[
-			"terms that restrict the use (non-commercial)",
+			"non-commercial terms without the clause read or the licence status",
 			(file: any) => {
 				sourceOf(file, "nws-kansas-wheat-belt").accessPolicy.terms =
 					"non-commercial";
+			},
+		],
+		[
+			"non-commercial terms with an available licence but no URL",
+			(file: any) => {
+				Object.assign(sourceOf(file, "nws-kansas-wheat-belt").accessPolicy, {
+					terms: "non-commercial",
+					restrictions: "personal use only (read 2026-11-15)",
+					commercialLicence: "available",
+				});
+			},
+		],
+		[
+			"a commercial licence on free-for-any-use terms",
+			(file: any) => {
+				sourceOf(file, "nws-kansas-wheat-belt").accessPolicy.commercialLicence =
+					"unknown";
+			},
+		],
+		[
+			"terms outside the three classes",
+			(file: any) => {
+				sourceOf(file, "nws-kansas-wheat-belt").accessPolicy.terms = "paid";
 			},
 		],
 		[

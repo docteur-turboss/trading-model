@@ -166,31 +166,70 @@ export const SourceTemplate = z.strictObject({
 export type SourceTemplate = z.infer<typeof SourceTemplate>;
 
 /**
- * §1.3: under which terms and how hard the source may be used. Terms are
- * free for any use, commercial and trading included, at most against
- * attribution: other terms (non-commercial, research only...) cannot be
- * written, so such a source cannot enter the registry.
+ * §1.3: under which terms and how hard the source may be used (ADR-0075,
+ * amends ADR-0036). `public-domain` and `attribution` are free for any use,
+ * commercial included. `non-commercial` is free for personal or research use
+ * only: it quotes the clause read and says whether a commercial licence
+ * exists. Sources paid for the use made, or with no terms found, cannot be written.
  */
 const AccessPolicy = z
 	.strictObject({
-		terms: z.enum(["public-domain", "attribution"]),
+		terms: z.enum(["public-domain", "attribution", "non-commercial"]),
 		/** The terms (ToS, licence) read when the source was added. */
 		termsUrl: z.url({ protocol: /^https$/ }),
 		/** Credit owed to the source; required by `attribution` terms. */
 		attribution: z.string().min(1).optional(),
+		/** `non-commercial` only: the clause read, quoted short, with the reading date. */
+		restrictions: z.string().min(1).optional(),
+		/** `non-commercial` only: is there a commercial licence (recorded, never bought). */
+		commercialLicence: z
+			.enum(["available", "unavailable", "unknown"])
+			.optional(),
+		/** Where to get the licence; required when `commercialLicence` is `available`. */
+		commercialLicenceUrl: z.url({ protocol: /^https$/ }).optional(),
 		/** No key nor account: per-source secrets are not supported yet. */
 		auth: z.literal("none"),
 		/** Most requests a minute the collector sends to the source: it spaces them. */
 		maxRequestsPerMinute: z.number().int().positive(),
 	})
-	.refine(
-		(policy) =>
-			policy.terms === "public-domain" || policy.attribution !== undefined,
-		{
-			message: "attribution terms need the credit to give",
-			path: ["attribution"],
+	.superRefine((policy, ctx) => {
+		const issue = (path: string, message: string) =>
+			ctx.addIssue({ code: "custom", path: [path], message });
+		const restricted = policy.terms === "non-commercial";
+		if (policy.terms === "attribution" && policy.attribution === undefined) {
+			issue("attribution", "attribution terms need the credit to give");
 		}
-	);
+		for (const key of [
+			"restrictions",
+			"commercialLicence",
+			"commercialLicenceUrl",
+		] as const) {
+			if (!restricted && policy[key] !== undefined) {
+				issue(key, `${key} only applies to non-commercial terms`);
+			}
+		}
+		if (!restricted) {
+			return;
+		}
+		if (policy.restrictions === undefined) {
+			issue("restrictions", "non-commercial terms need the clause read");
+		}
+		if (policy.commercialLicence === undefined) {
+			issue(
+				"commercialLicence",
+				"non-commercial terms need a commercial licence status"
+			);
+		}
+		if (
+			policy.commercialLicence === "available" &&
+			policy.commercialLicenceUrl === undefined
+		) {
+			issue(
+				"commercialLicenceUrl",
+				"an available commercial licence needs its URL"
+			);
+		}
+	});
 
 /** §1.3: a pair the source can feed. */
 const Coverage = z.strictObject({ assetType: AssetType, dimension: Dimension });
