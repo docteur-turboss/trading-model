@@ -4,7 +4,7 @@ Zod schemas and validation of the process environment (`validateEnv`), plus shar
 
 ## Dependency rule
 
-Depends on `primitives`, `contracts`, `common`, `http` (+ `zod`). `crypto` depends on it; never import `server-utils` or `crypto` from here.
+Depends on `primitives`, `contracts`, `common`, `http` (+ `zod`). `crypto` depends on it; never import `crypto` from here.
 
 ## Main exports
 
