@@ -96,10 +96,10 @@ Recommendation: start without attention. Hand-write attention only if the ablati
 
 ### 7. Artifact contract
 
-A model is one symbol today (`ModelManifest.symbol`, `training.model.published`, `/v1/models/:symbol`). Proposed, all additive (ADR-0061):
+A model is one symbol today (`ModelManifest.symbol`, `training.model.published`, the per-symbol model routes of the trainer). Proposed, all additive (ADR-0061):
 
 - Manifest: optional `role` (`asset` by default, then `encoder`, `sector`, `allocator`) and optional `components: [{ role, id, version, sha256 }]` naming the shared parts an analyst depends on. A reader N-1 ignores unknown fields and reads the analyst as a normal symbol model; `symbol` stays set for analysts.
-- Shared encoder, sector manager and allocator: published under the same store with `symbol` replaced by a group id (`encoder:candles-1h`, `sector:energy`, `allocator:default`), version rules of ADR-0022 unchanged. Their weights route is the existing `/models/:symbol/:version/weights` with the group id as the path value; no new route in step 1 to 3.
+- Shared encoder, sector manager and allocator: published under the same store with `symbol` replaced by a group id (`encoder:candles-1h`, `sector:energy`, `allocator:default`), version rules of ADR-0022 unchanged. Their weights are served by the existing per-symbol weights route with the group id as the symbol value; no new route in step 1 to 3.
 - Event: `training.model.published` keeps its payload and adds the optional `role`; consumers that do not know it treat the event as an asset model. No new topic.
 - Cross-version rule: a component is immutable; an analyst names the encoder version it was trained with, so replacing an encoder never changes a published analyst.
 
@@ -117,7 +117,7 @@ Each step sits behind a flag (ADR-0039), has its measure on the test segment (AD
 | --- | --- | --- | --- | --- |
 | 0 (open) | signal window #1297, signal inputs #1298, mask gene #1299, daily bars #1300, event trigger #1301 | one flag each | manifest `features.fields` (existing field) | each already defined in its issue |
 | 1 (cheapest proof) | shared trunk trained on N symbols, per-asset head, existing dense code | `FEATURE_SHARED_TRUNK` | manifest optional `components` | on 10 symbols: median test-segment fitness within 5 % of the per-symbol models, session time at most one third of 10 sessions (about 6 to 11 min against 17 to 33 min) |
-| 2 | one encoder per data type, evolved apart | `FEATURE_SHARED_ENCODERS` | manifest `role`, event `role`; group ids in the weights route | step 1 fitness kept at equal or lower cost; mask (step 0) removes a group without loss |
+| 2 | one encoder per data type, evolved apart | `FEATURE_SHARED_ENCODERS` | manifest `role`, event `role`; group ids as symbol in the model routes | step 1 fitness kept at equal or lower cost; mask (step 0) removes a group without loss |
 | 3 | per-asset action space plus topology genes (vector size, depth) | `FEATURE_TOPOLOGY_GENES` | genome inside the manifest (free-form record) | genomes with different topologies cross without error (homologous crossover spec); fitness not below step 2 |
 | 4 | sector manager with mean pooling, then ablate attention | `FEATURE_SECTOR_MANAGER` | `role: sector`, evaluator replays a sector | sector portfolio beats the equal-weight mix of its analysts on the test segment (Sharpe and drawdown, ADR-0030 criteria) |
 | 5 | allocator and portfolio replay | `FEATURE_ALLOCATOR` | evaluator multi-asset replay, ADR-0064 intent input | portfolio beats equal-weight across classes at the same drawdown cap; no limit breach in replay |
