@@ -130,8 +130,6 @@ export function signalId(
  * never rejects.
  */
 export class SignalCollector {
-	private readonly _newest = new Map<string, number>();
-
 	constructor(private readonly _deps: SignalCollectorDeps) {}
 
 	async collect(source: Source): Promise<void> {
@@ -162,12 +160,12 @@ export class SignalCollector {
 			await this._deps.store.save(signals);
 			result = "success";
 			SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
-			for (const { observedAt } of signals) {
-				const seconds = Date.parse(observedAt) / 1000;
-				if (seconds > (this._newest.get(source.id) ?? 0)) {
-					this._newest.set(source.id, seconds);
-					SIGNAL_NEWEST_OBSERVED.set({ source: source.id }, seconds);
-				}
+			if (signals.length > 0) {
+				SIGNAL_NEWEST_OBSERVED.set(
+					{ source: source.id },
+					Math.max(...signals.map(({ observedAt }) => Date.parse(observedAt))) /
+						1000
+				);
 			}
 			getLogger().debug("Signals collected", {
 				context: { source: source.id, count: signals.length },

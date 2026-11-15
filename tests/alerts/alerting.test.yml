@@ -650,7 +650,7 @@ tests:
         exp_alerts: []
 
   # A silent source alerts past its own threshold: hourly (max age 3 h) stops
-  # at 1 h, quarterly (max age 120 days) stays quiet. No series, no alert.
+  # at 1 h, quarterly (max age 120 days) last ran 90 days ago and stays quiet.
   - name: a silent signal source alerts past its threshold, by source
     interval: 1h
     input_series:
@@ -659,7 +659,7 @@ tests:
       - series: 'fs_signal_source_max_age_seconds{job="financial-scraper-collector",instance="c",source="nws"}'
         values: '10800x10'
       - series: 'fs_signal_last_success_timestamp_seconds{job="financial-scraper-collector",instance="c",source="sec-quarterly"}'
-        values: '0x10'
+        values: '-7776000x10'
       - series: 'fs_signal_source_max_age_seconds{job="financial-scraper-collector",instance="c",source="sec-quarterly"}'
         values: '10368000x10'
     alert_rule_test:
@@ -672,8 +672,19 @@ tests:
           - exp_labels: {severity: warning, source: nws}
             exp_annotations:
               summary: 'A signal source stopped producing'
-              description: 'nws has had no successful collection for 4h 0m 0s, beyond its freshness threshold (no failure counted: cron stopped, lease lost, or source silent).'
+              description: 'nws has had no successful collection for 4h 0m 0s, beyond its freshness threshold (no failure counted: cron stopped or lease lost).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalsourcestale'
+
+  # No collecting pod (HTTP replicas, SIGNAL_COLLECTION_ENABLED=false): no series, no alert.
+  - name: no signal freshness series, no stale alert
+    interval: 1h
+    input_series:
+      - series: 'up{job="financial-scraper-collector",instance="c"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 4h
+        alertname: SignalSourceStale
+        exp_alerts: []
 
   # ADR-0026: a geo-block (451) alerts at once; other errors (429, 5xx) and
   # 200s do not. The 451 series only exists once Binance starts refusing.

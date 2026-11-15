@@ -29,10 +29,19 @@ const SourceDeclaration = Source.omit({ requests: true })
 		message: "no request nor template",
 	})
 	.refine(
-		(source) =>
-			source.maxAgeSeconds === undefined ||
-			source.maxAgeSeconds * 1000 >= cronMaxGapMs(source.schedule),
-		{ message: "maxAgeSeconds is shorter than the period of schedule" }
+		(source) => {
+			const gap = cronMaxGapMs(source.schedule);
+			if (!cron.validate(source.schedule)) {
+				return true; // reported with the other problems
+			}
+			return source.maxAgeSeconds === undefined
+				? gap !== undefined
+				: gap === undefined || source.maxAgeSeconds * 1000 >= gap;
+		},
+		{
+			message:
+				"maxAgeSeconds is shorter than the period of schedule, or schedule is unreadable (names, 6 fields, rarer than yearly) without maxAgeSeconds",
+		}
 	);
 
 const RegistryFile = z.strictObject({

@@ -172,27 +172,18 @@ again.
 
 **Severity:** L4 (warning). A registry source (ADR-0036) has had no
 successful collection for longer than its threshold (`maxAgeSeconds` in
-`signal-registry.json`, else three periods of its `schedule`), and no failure
-was counted. Tell the three causes apart:
-
-```bash
-NS=trading-model
-# Age of the last success, newest observed value and threshold, by source
-kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO-   'http://localhost:9090/api/v1/query?query=time()-fs_signal_last_success_timestamp_seconds'
-kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO-   'http://localhost:9090/api/v1/query?query=time()-fs_signal_newest_observed_timestamp_seconds'
-```
+`signal-registry.json`, else three periods of its `schedule`), with no failure
+counted. A source that answers 200 with an empty list still counts as a
+success: compare `fs_signal_newest_observed_timestamp_seconds` by hand for it.
 
 - **Lease lost**: `fs_collector_leader` is 0 on every pod (alert
-  `CollectorNoLeader`); see its section. Without a leader no source collects.
-- **Cron stopped**: a leader exists, but the source logs neither
+  `CollectorNoLeader`); see its section.
+- **Cron stopped**: a leader exists but the source logs neither
   "Signal collection failed" nor "Previous signal collection still running:
-  tick skipped" in `kubectl -n $NS logs deploy/financial-scraper-collector`:
-  its `schedule` is wrong, or its API key is unset
-  (`fs_signal_source_disabled`). Fix the registry or the secret and restart.
-- **Source stopped**: collections succeed (last success is recent) but
-  `newest_observed` does not move: the publisher stopped the series or
-  answers an empty list. Nothing to fix here; raise `maxAgeSeconds` or remove
-  the source from the registry if the stop is final.
+  tick skipped": its `schedule` is wrong or its API key is unset
+  (`fs_signal_source_disabled`). Fix the registry or secret, restart.
+- **Source stopped** (a tick that hangs, publisher down without error):
+  raise `maxAgeSeconds` or remove the source if the stop is final.
 
 ## SignalCollectionFailing
 

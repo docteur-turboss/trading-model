@@ -597,10 +597,7 @@ groups:
           description: '{{ $labels.source }} failed {{ $value | humanize }} collections in 24 hours: its signals are missing or stale (fetch_error: source down or refusing, 403 from SEC EDGAR without SIGNAL_CONTACT_EMAIL; invalid_payload: its format changed; store_error: MySQL).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalcollectionfailing'
 
-      # A source can go silent without failing: cron never fired, 200 with an empty
-      # list, series stopped, lease lost. Threshold per source (maxAgeSeconds, else
-      # three periods of its cron). max by (source): the pods that do not hold the
-      # lease only restored the MySQL value at start; no collecting pod, no series.
+      # No successful collection past the source threshold (maxAgeSeconds, else 3 cron periods); no collecting pod, no series.
       - alert: SignalSourceStale
         expr: time() - max by (source) (fs_signal_last_success_timestamp_seconds) > max by (source) (fs_signal_source_max_age_seconds)
         for: 0m
@@ -608,7 +605,7 @@ groups:
           severity: warning
         annotations:
           summary: 'A signal source stopped producing'
-          description: '{{ $labels.source }} has had no successful collection for {{ $value | humanizeDuration }}, beyond its freshness threshold (no failure counted: cron stopped, lease lost, or source silent).'
+          description: '{{ $labels.source }} has had no successful collection for {{ $value | humanizeDuration }}, beyond its freshness threshold (no failure counted: cron stopped or lease lost).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalsourcestale'
 
       # The scraper persists before publishing and sends the waiting candles

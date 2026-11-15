@@ -448,3 +448,16 @@ describe("parseSignalRegistry", () => {
 		expect(() => parseSignalRegistry(file)).toThrow();
 	});
 });
+
+describe("signal registry — freshness threshold", () => {
+	it("refuses a schedule it cannot read unless maxAgeSeconds is given", () => {
+		const file = registry();
+		sourceOf(file, file.sources[0].id).schedule = "0 9 * * mon";
+
+		expect(() => parseSignalRegistry(file)).toThrow(/unreadable/);
+
+		file.sources[0].maxAgeSeconds = 86_400 * 30;
+
+		expect(() => parseSignalRegistry(file)).not.toThrow();
+	});
+});
