@@ -2249,6 +2249,11 @@ paths:
                       sector:
                         type: "string"
                         pattern: "^[a-z][a-z0-9_]{0,31}$"
+                      aliases:
+                        type: "object"
+                        additionalProperties:
+                          type: "string"
+                          minLength: 1
                     required:
                       - "id"
                       - "name"

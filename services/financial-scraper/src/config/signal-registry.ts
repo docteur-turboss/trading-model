@@ -7,7 +7,8 @@ import {
 	DATE_PLACEHOLDER,
 	SIGNAL_SCHEMA_VERSION,
 	Source,
-	type SourceRequest,
+	SourceRequest,
+	SourceTemplate,
 } from "../domain/signals";
 import REGISTRY_FILE from "./signal-registry.json";
 
@@ -17,11 +18,95 @@ export interface SignalRegistry {
 	sources: readonly Source[];
 }
 
+/** A source as written in the file: `requests` and/or `templates`. */
+const SourceDeclaration = Source.omit({ requests: true })
+	.extend({
+		requests: z.array(SourceRequest).default([]),
+		templates: z.array(SourceTemplate).default([]),
+	})
+	.refine((source) => source.requests.length + source.templates.length > 0, {
+		message: "no request nor template",
+	});
+
 const RegistryFile = z.strictObject({
 	schemaVersion: z.literal(SIGNAL_SCHEMA_VERSION),
 	assets: z.array(Asset).min(1),
-	sources: z.array(Source),
+	sources: z.array(SourceDeclaration),
 });
+
+const HOLE = /\{asset\.(ticker|isin|alias\.[a-z][a-z0-9_]*)\}/g;
+
+function _holeValue(asset: Asset, hole: string): string | undefined {
+	const { identifier } = asset;
+	if (hole.startsWith("alias.")) {
+		return asset.aliases?.[hole.slice(6)];
+	}
+	if (hole === "ticker" && identifier.scheme === "ticker") {
+		return identifier.ticker;
+	}
+	return hole === "isin" && identifier.scheme === "isin"
+		? identifier.isin
+		: undefined;
+}
+
+/** Unfolds the templates of a source into requests; every problem goes to `problems`. */
+function _expandTemplates(
+	source: { id: string; templates: readonly SourceTemplate[] },
+	assets: readonly Asset[],
+	problems: string[]
+): SourceRequest[] {
+	return source.templates.flatMap((template, index) => {
+		const where = `source ${source.id}, template ${index}`;
+		const { assetIds, assetType, sector } = template.select;
+		for (const id of assetIds ?? []) {
+			if (!assets.some((asset) => asset.id === id)) {
+				problems.push(`${where}: unknown asset ${id}`);
+			}
+		}
+		const selected = assets.filter(
+			(asset) =>
+				(!assetIds || assetIds.includes(asset.id)) &&
+				(!assetType || asset.assetType === assetType) &&
+				(!sector || asset.sector === sector)
+		);
+		if (selected.length === 0) {
+			problems.push(`${where}: selector matches no asset`);
+		}
+		const holes = [...template.url.matchAll(HOLE)].map((match) => match[1]);
+		const stray = /\{(?!date-\d)/.test(template.url.replace(HOLE, ""));
+		// A hole in the host would let an asset value pick the host.
+		if (stray || /^https:\/\/[^/?#]*\{/.test(template.url)) {
+			problems.push(`${where}: unknown or misplaced hole in ${template.url}`);
+		}
+		return selected.flatMap((asset) => {
+			if (!asset.applicableDimensions.includes(template.dimension)) {
+				problems.push(
+					`${where}: ${template.dimension} not applicable to asset ${asset.id}`
+				);
+				return [];
+			}
+			const missing = holes.filter(
+				(hole) => _holeValue(asset, hole) === undefined
+			);
+			for (const hole of missing) {
+				problems.push(`${where}: asset ${asset.id} has no ${hole}`);
+			}
+			if (missing.length > 0) {
+				return [];
+			}
+			return [
+				{
+					subject: { assetId: asset.id },
+					dimension: template.dimension,
+					url: template.url.replace(HOLE, (_, hole: string) =>
+						encodeURIComponent(_holeValue(asset, hole) as string)
+					),
+					params: template.params,
+				},
+			];
+		});
+	});
+}
 
 function _duplicates(ids: readonly string[]): string[] {
 	return ids.filter((id, index) => ids.indexOf(id) !== index);
@@ -102,7 +187,17 @@ export function parseSignalRegistry(raw: unknown): SignalRegistry {
 			(id) => `source ${id} declared twice`
 		),
 	];
-	for (const source of file.sources) {
+	const sources: Source[] = [];
+	for (const declared of file.sources) {
+		const { templates: _templates, ...rest } = declared;
+		const source = {
+			...rest,
+			requests: [
+				...declared.requests,
+				..._expandTemplates(declared, file.assets, problems),
+			],
+		};
+		sources.push(source);
 		const adapter = SOURCE_ADAPTERS.get(source.adapter);
 		if (!adapter) {
 			problems.push(`source ${source.id}: unknown adapter ${source.adapter}`);
@@ -119,7 +214,7 @@ export function parseSignalRegistry(raw: unknown): SignalRegistry {
 	}
 	return {
 		assets: new Map(file.assets.map((asset) => [asset.id, asset])),
-		sources: file.sources,
+		sources,
 	};
 }
 
