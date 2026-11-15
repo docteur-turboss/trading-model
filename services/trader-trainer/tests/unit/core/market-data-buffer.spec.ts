@@ -611,6 +611,30 @@ describe("MarketDataBuffer", () => {
 			}
 		});
 
+		it("compares trade ids numerically, as bigint or decimal string", () => {
+			const sym = TradingSymbol.of("BTCUSDT");
+			const ids = [
+				"9999999999",
+				"10000000000",
+				"10000000000",
+				"9999999999",
+				BigInt("10000000001"),
+			];
+			for (const tradeId of ids) {
+				buffer.addData(DataType.Trade, sym, {
+					...makeTrade("BTCUSDT"),
+					tradeId: tradeId as any,
+				});
+			}
+
+			const trades = (buffer as any)._stateManager.states.get(sym)!.trades;
+			expect(trades.map((t: any) => String(t.tradeId))).toEqual([
+				"9999999999",
+				"10000000000",
+				"10000000001",
+			]);
+		});
+
 		it("should bound trade count by maxSize", () => {
 			const buf = new MarketDataBuffer({ maxSize: 5 });
 			for (let _i = 0; _i < 10; _i++) {
