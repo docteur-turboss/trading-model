@@ -185,6 +185,7 @@ describe("config/container — createSignalScheduler", () => {
 				"ecb-deposit-facility-rate",
 				"ecb-euro-reference-rates",
 				"sec-edgar-eps-diluted",
+				"cftc-cot-legacy",
 				"nws-kansas-wheat-belt",
 				"wikipedia-pageviews",
 				"eurostat-house-price-index",
