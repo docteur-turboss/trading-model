@@ -194,6 +194,93 @@
 			]
 		},
 		{
+			"id": "sec-edgar-revenue",
+			"protocol": "rest_api",
+			"adapter": "sec-edgar-company-concept",
+			"schedule": "27 6 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://www.sec.gov/privacy",
+				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"templates": [
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"params": { "metric": "us-gaap:Revenues" },
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/Revenues.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"params": { "metric": "us-gaap:Revenues" },
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/RevenueFromContractWithCustomerExcludingAssessedTax.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"params": { "metric": "us-gaap:Revenues" },
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/SalesRevenueNet.json"
+				}
+			]
+		},
+		{
+			"id": "sec-edgar-core-facts",
+			"protocol": "rest_api",
+			"adapter": "sec-edgar-company-concept",
+			"schedule": "37 6 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://www.sec.gov/privacy",
+				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"templates": [
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/OperatingIncomeLoss.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/NetIncomeLoss.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/Assets.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/Liabilities.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/StockholdersEquity.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/CashAndCashEquivalentsAtCarryingValue.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/dei/EntityCommonStockSharesOutstanding.json"
+				}
+			]
+		},
+		{
 			"id": "cftc-cot-legacy",
 			"protocol": "rest_api",
 			"adapter": "cftc-cot-legacy",

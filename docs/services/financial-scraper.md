@@ -184,9 +184,18 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | `ecb-deposit-facility-rate` | macro | area `EA` | weekdays 15:35 UTC (changes are irregular) | `deposit_facility_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-euro-reference-rates` | macro | area `EA` | weekdays 16:07 UTC (after the ECB release) | `eur_{usd,gbp,chf,jpy}_reference_rate` | attribution: "Source: ECB statistics" (1) |
 | `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
+| `sec-edgar-revenue` | fundamental | equities with a `cik` alias | daily | `us-gaap:Revenues` (tags `Revenues`, `RevenueFromContractWithCustomerExcludingAssessedTax`, `SalesRevenueNet`) | attribution: SEC (1) |
+| `sec-edgar-core-facts` | fundamental | equities with a `cik` alias | daily | `us-gaap:{OperatingIncomeLoss,NetIncomeLoss,Assets,Liabilities,StockholdersEquity,CashAndCashEquivalentsAtCarryingValue}`, `dei:EntityCommonStockSharesOutstanding` | attribution: SEC (1) |
 | `cftc-cot-legacy` | market | `WHEAT` (contract 001602) | Fridays and Mondays after a holiday, hourly 15:45-23:45 UTC | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = release 15:30 ET, 3 business days after the Tuesday | public domain, CFTC acknowledged (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
 | `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
+
+EDGAR facts use `companyconcept`, one request per concept and company (10 per
+company a day, under the 10 requests/s fair-access limit and `maxRequestsPerMinute`):
+`companyfacts` answers several MB per company, past the 5 MB body cap. A concept a
+company never reported answers 404, a fetch failure that quarantines its source: the
+revenue tags have their own source so they do not take the others with them. Units
+stay as filed (`USD`, `USD/shares`, `shares`), never converted.
 
 **Adding a source**: read its terms, then an entry in the registry. A new
 payload format also needs an adapter in `src/adapters/outbound/signal-sources/`
