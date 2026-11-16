@@ -28,9 +28,9 @@
 //   - the data StatefulSets of staging-local (DATA_STATEFULSETS) set a
 //     partition >= replicas, so a release never restarts their single pods;
 //     staging (CI keeps testing their restarts) and production set none
-//     (issue #700); the database ones mount no ConfigMap by a bare name: a
+//     (issue #700); they mount no ConfigMap by a bare name: a
 //     restarted partitioned pod would read the newest release's content, not
-//     its revision's (issue #1456)
+//     its revision's (issues #1456, #1460)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -351,7 +351,7 @@ for (const env of OVERLAYS) {
 			errors.push("production: alertmanager has no --cluster.peer (ADR-0062)");
 		}
 		if (name === "prometheus" && sts && env === "production") {
-			const config = docs.find((doc) => doc.kind === "ConfigMap" && doc.name === "prometheus-config")?.text ?? "";
+			const config = docs.find((doc) => doc.kind === "ConfigMap" && doc.name?.startsWith("prometheus-config-"))?.text ?? "";
 			if (!sts.text.includes("--enable-feature=expand-external-labels")) errors.push("production: prometheus lacks --enable-feature=expand-external-labels, so the replica label stays a literal ${HOSTNAME} (ADR-0062)");
 			if (/\\n\s+--/.test(sts.text)) errors.push("prometheus: literal backslash-n inside the launch command (merges two flags on one line)");
 			if (!/external_labels:\s+replica: '\$\{HOSTNAME\}'/.test(config)) errors.push("production: prometheus external label replica: '${HOSTNAME}' missing (ADR-0062)");
@@ -366,9 +366,9 @@ for (const env of OVERLAYS) {
 			errors.push(`${env}: StatefulSet ${name} not found`);
 			continue;
 		}
-		for (const [, cm] of DATABASES.includes(name) ? sts.text.matchAll(/configMap:\n(?: +.*\n)*? +name: (\S+)$/gm) : []) {
+		for (const [, cm] of sts.text.matchAll(/configMap:\n(?: +.*\n)*? +name: (\S+)$/gm)) {
 			if (!/-[245-9bcdfghkmt]{10}$/.test(cm) && !BARE_CONFIGMAPS.has(cm)) {
-				errors.push(`${env}: StatefulSet ${name} mounts ConfigMap ${cm} by a bare name: generate it (configMapGenerator, hash suffix) so a restarted pod keeps its revision's config (issue #1456)`);
+				errors.push(`${env}: StatefulSet ${name} mounts ConfigMap ${cm} by a bare name: generate it (configMapGenerator, hash suffix) so a restarted pod keeps its revision's config (issues #1456, #1460)`);
 			}
 		}
 		const replicas = Number(sts.text.match(/^ {2}replicas: (\d+)$/m)?.[1] ?? 1);

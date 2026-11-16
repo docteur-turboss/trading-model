@@ -78,7 +78,7 @@ the dashboards are rebuilt from git: the Grafana provisioning
 (its local database on `grafana-data`: user accounts, UI-only edits, annotations).
 Alerts are not affected: the rules live in `observability/alerting.yml`,
 and Alertmanager receives them again once Prometheus restarts.
-Known gap: the Kubernetes Loki ConfigMap (`deploy/k8s/infra/loki.yaml`) sets no
+Known gap: the Kubernetes Loki ConfigMap (`deploy/k8s/infra/config/local-config.yaml`) sets no
 `retention_period`, so the 31-day window above is enforced only by the Compose
 configuration (`observability/loki-config.yml`).
 
