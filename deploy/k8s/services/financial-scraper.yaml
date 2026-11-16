@@ -404,6 +404,13 @@ spec:
                   name: trading-model-secrets
                   key: SIGNAL_KEY_FRED
                   optional: true
+            # Free Twelve Data key (ADR-0080). Absent: that source alone is disabled.
+            - name: SIGNAL_KEY_TWELVEDATA
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: SIGNAL_KEY_TWELVEDATA
+                  optional: true
           resources:
             requests:
               cpu: 100m

@@ -84,6 +84,7 @@ on 2026-11-04:
 | ECB Data Portal (`data-api.ecb.europa.eu`) | Euro area AAA government bond yield, 10-year | No | [Free reuse](https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html), commercial included, "Source: ECB statistics", data not modified |
 | SEC EDGAR (`data.sec.gov`, United States) | XBRL facts of company filings (Apple EPS) | No | [May be copied or redistributed without permission](https://www.sec.gov/privacy), cite the SEC; fair access: User-Agent with a contact e-mail, at most 10 requests/s |
 | US National Weather Service (`api.weather.gov`) | Latest observation of a weather station (Hutchinson, Kansas) | No | [Public domain](https://www.weather.gov/disclaimer), no endorsement implied; User-Agent required |
+| Twelve Data (`api.twelvedata.com`) | Daily prices of equities and ETFs | No | Free tier, internal use: §2.3(l) no "Use Free Tier data for commercial purposes"; §16.2(a) data deleted within 30 days of termination ([terms](https://twelvedata.com/terms)); API key and User-Agent sent |
 | Wikimedia Analytics API (`wikimedia.org`) | Daily views of Wikipedia articles | No: counts only | [CC0 1.0](https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/documentation/access-policy.html); User-Agent with a contact required |
 
 Rejected for their terms: Open-Meteo's free API (non-commercial only) and
@@ -98,7 +99,7 @@ sources, not processors, and no personal data received.
 | Third Party        | Role                | PII? | DPA Required?                      |
 | ------------------ | ------------------- | ---- | ---------------------------------- |
 | Binance API        | Market data source  | No   | No — documented above              |
-| ECB, SEC EDGAR, NWS, Wikimedia | Signal sources (ADR-0036) | No | No — documented above |
+| ECB, SEC EDGAR, NWS, Wikimedia, Twelve Data | Signal sources (ADR-0036) | No | No — documented above |
 | GitHub Actions     | CI/CD pipeline      | No   | No — no data processed             |
 | Docker Hub / GHCR  | Container registry  | No   | No — infrastructure only           |
 | Slack or Discord   | Alert notifications | No (alert text) | to be confirmed by the operator — sheet below |
