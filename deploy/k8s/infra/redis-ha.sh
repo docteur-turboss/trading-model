@@ -154,7 +154,7 @@ acl_args() {
 	print_args +role +info +multi +exec +slaveof +replicaof +subscribe +publish
 	print_args "+config|rewrite" "+client|setname" "+client|kill" "+script|kill"
 	service_user discovery "${REDIS_DISCOVERY_PASSWORD:-}" "trading-model:discovery:*" +get +set +del +mget +sadd +srem +smembers +sismember +scard +eval +evalsha "+script|load"
-	service_user message-manager "${REDIS_MESSAGE_MANAGER_PASSWORD:-}" "trading-model:message-manager:*" +hset +hgetall +hdel +pexpire +sadd +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
+	service_user message-manager "${REDIS_MESSAGE_MANAGER_PASSWORD:-}" "trading-model:message-manager:*" +hset +hgetall +hdel +pexpire +sadd +srem +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
 	# Bus users (ADR-0073): publish and consume the journal in process, bus prefix and stream commands only.
 	service_user audit-logger "${REDIS_AUDIT_LOGGER_PASSWORD:-}" "trading-model:message-manager:*" +sadd +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
 	service_user trader-trainer "${REDIS_TRADER_TRAINER_PASSWORD:-}" "trading-model:message-manager:*" +sadd +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
