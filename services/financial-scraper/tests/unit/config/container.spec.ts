@@ -191,10 +191,10 @@ describe("config/container — createSignalScheduler", () => {
 				"nws-kansas-wheat-belt",
 				"wikipedia-pageviews",
 				"federal-register-documents",
-				"dvf-commune-sales",
 				"eurostat-house-price-index",
 				"eurostat-hicp-inflation",
 				"eurostat-unemployment",
+				"dvf-commune-sales",
 			],
 		});
 	});
