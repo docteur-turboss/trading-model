@@ -37,7 +37,6 @@ import {
 	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
 	MARKET_DATA_SYMBOLS,
-	POPULATION_SIZE,
 	QLEARNING_TRAIN_ERRORS,
 	reportInputGroups,
 	STAGNATION_GENERATIONS,
@@ -46,9 +45,8 @@ import {
 
 /** Binds the GA engine hooks to the Prometheus collectors. */
 const PROMETHEUS_GA_TELEMETRY: GaTelemetry = {
-	generationStarted(generation, populationSize) {
+	generationStarted(generation) {
 		CURRENT_GENERATION.set(generation);
-		POPULATION_SIZE.set(populationSize);
 	},
 	stagnationUpdated(stagnation) {
 		STAGNATION_GENERATIONS.set(stagnation);

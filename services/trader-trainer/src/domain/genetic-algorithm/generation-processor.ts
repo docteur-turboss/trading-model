@@ -71,10 +71,7 @@ export class GenerationProcessor {
 
 	async runGeneration(startTime?: number): Promise<GenerationContext> {
 		this._generation++;
-		this._telemetry.generationStarted(
-			this._generation,
-			this._population.length
-		);
+		this._telemetry.generationStarted(this._generation);
 		const { ctrl, rng } = this._initRunParams();
 		const evalResult = await evaluateFitness({
 			population: this._population,

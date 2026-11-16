@@ -106,7 +106,7 @@ A quantile has no error budget to burn, so the alerts stay single-window:
 ## Burn Rate Alerts
 
 The following alerts are configured in `observability/alerting.yml` (copied
-into `deploy/k8s/infra/prometheus.yaml`):
+into `deploy/k8s/infra/config/alerting.yml`):
 
 - `SLOAvailabilityFastBurn`, `SLOAvailabilitySlowBurn`: 99.9% SLO, multi-window multi-burn-rate (1h/5m at 14.4x, 6h/30m at 6x).
 - `SLOErrorBudgetLow`: less than 20% of the 30d budget left (recording rule `slo:sli_error:ratio_rate30d`).

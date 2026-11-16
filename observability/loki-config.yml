@@ -1,6 +1,6 @@
 # Loki Configuration — log aggregation for trading-model
 # Single-binary mode (no microservices) for Docker Compose. Loki 3.x: TSDB
-# index (schema v13), as in deploy/k8s/infra/loki.yaml; boltdb-shipper's
+# index (schema v13), as in deploy/k8s/infra/config/local-config.yaml; boltdb-shipper's
 # shared_store and the table manager no longer exist.
 
 auth_enabled: false

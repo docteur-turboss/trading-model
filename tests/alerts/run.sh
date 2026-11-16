@@ -14,12 +14,7 @@ trap 'rm -rf "$WORK"' EXIT
 chmod 755 "$WORK"
 
 # The K8s rules, as Prometheus reads them from the ConfigMap.
-bun -e '
-const fs = require("node:fs");
-for (const doc of fs.readFileSync("deploy/k8s/infra/prometheus.yaml", "utf8").split(/^---$/m)) {
-	const data = Bun.YAML.parse(doc)?.data;
-	if (data?.["alerting.yml"]) fs.writeFileSync(process.argv[1], data["alerting.yml"]);
-}' "$WORK/k8s-alerting.yml"
+cp deploy/k8s/infra/config/alerting.yml "$WORK/k8s-alerting.yml"
 
 if command -v promtool >/dev/null; then
 	K8S_RULES="$WORK/k8s-alerting.yml"
