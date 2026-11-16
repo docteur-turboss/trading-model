@@ -151,7 +151,7 @@ Schema v1, the model of the design note's §1: `src/domain/signals.ts`
   (asset type, dimension) pairs it can feed), `accessPolicy`,
   `reliabilityScore`, an adapter, a cron `schedule` and its requests (subject
   `assetId` or `sector`, `dimension`, HTTPS URL, adapter `params`). A URL may
-  hold `{date-N}`: the UTC date N days before the collection, as YYYYMMDD.
+  hold `{date-N}`: the UTC date N days before the collection, as YYYYMMDD; `{year}`: its UTC year.
 - **Signal**: an envelope (`sourceId`, `dimension`, `assetId` or `sector`,
   `observedAt`, `ingestedAt`, `confidenceScore`) and the canonical `payload` of
   its dimension: a measure (`metric`, `value`, `unit`, optional `details`) plus
@@ -179,15 +179,18 @@ for the use made, or with no terms found, cannot be declared. The gauge
 
 | Source id | Dimension | Subject | Schedule | Metrics | Terms (rank; commercial licence) |
 | --- | --- | --- | --- | --- | --- |
-| `ecb-aaa-yield-10y` | market | `EA_AAA_10Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_10y` | attribution: "Source: ECB statistics" (1) |
+| `ecb-aaa-yield-10y` | market | `EA_AAA_{2,10,30}Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_{2,10,30}y` | attribution: "Source: ECB statistics" (1) |
+| `treasury-par-yield-curve` | market | `US_TREASURY_{2,10,30}Y` (bond) | weekdays 21:17-23:17 UTC (CSV of the year, one row per business day) | `par_yield_{2,10,30}y` (percent) | public domain, work of the US government (17 U.S.C. 105) (1) |
 | `ecb-hicp-annual-rate` | macro | area `EA` | daily 11:17 UTC (HICP is monthly) | `hicp_annual_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-deposit-facility-rate` | macro | area `EA` | weekdays 15:35 UTC (changes are irregular) | `deposit_facility_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-euro-reference-rates` | macro | area `EA` | weekdays 16:07 UTC (after the ECB release) | `eur_{usd,gbp,chf,jpy}_reference_rate` | attribution: "Source: ECB statistics" (1) |
+| `fred-us-macro` | macro | area `US` (AAPL, WHEAT, GLD) | daily 13:47 UTC; key `SIGNAL_KEY_FRED`, 1000 requests a day declared (FRED sets none) | `DFF` fed funds rate (Board of Governors, daily), `CPIAUCSL` CPI (BLS, monthly), `UNRATE` unemployment (BLS, monthly), `GDPC1` real GDP (BEA, quarterly); `observedAt` = vintage `realtime_start`, a revision is a second signal. Left out: ICE BofA credit spreads (third-party copyright) | attribution: FRED notice (read 2026-11-16, terms_of_use.html: third-party series need the owner's permission, agency series are public domain by origin) (1) |
 | `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
 | `sec-edgar-revenue` | fundamental | equities with a `cik` alias | daily | `us-gaap:Revenues` (tags `Revenues`, `RevenueFromContractWithCustomerExcludingAssessedTax`, `SalesRevenueNet`) | attribution: SEC (1) |
 | `sec-edgar-core-facts` | fundamental | equities with a `cik` alias | daily | `us-gaap:{OperatingIncomeLoss,NetIncomeLoss,Assets,Liabilities,StockholdersEquity,CashAndCashEquivalentsAtCarryingValue}`, `dei:EntityCommonStockSharesOutstanding` | attribution: SEC (1) |
 | `cftc-cot-legacy` | market | `WHEAT` (contract 001602) | Fridays and Mondays after a holiday, hourly 15:45-23:45 UTC | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = release 15:30 ET, 3 business days after the Tuesday | public domain, CFTC acknowledged (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
+| `nasa-power-crop-regions` | contextual | sector `agriculture` | daily (5 points: Beauce, Poltava, Mato Grosso, Rio Grande do Sul, Riverina) | `T2M`, `PRECTOTCORR`, `GWETROOT` (latest day with a value, observations only) | attribution (NASA POWER) |
 | `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
 | `eurostat-house-price-index`, `eurostat-hicp-inflation`, `eurostat-unemployment` | macro | areas `EA`, `FR`, `DE` (served to `PARIS_RE` through its `areas`) | daily 08:23-08:37 UTC | `house_price_index` (quarterly, `prc_hpi_q`), `hicp_annual_rate` (`prc_hicp_minr`), `unemployment_rate` (`une_rt_m`) | attribution: "Source: Eurostat" (1) (2026-11-16, [copyright notice](https://ec.europa.eu/eurostat/help/copyright-notice): commercial reuse allowed with the source credited); `observedAt` = the dataset `updated` time, a revised value is a new signal, the Eurostat flag is in `details.flag` |
 | `federal-register-documents` | legal | sectors `crypto` (SEC, CFTC), `technology` (FTC) | daily | `documents_final_rules`, `documents_proposed_rules`, `documents_notices` | public domain (US government work, govinfo policy, read 2026-11-16) |

@@ -1,4 +1,4 @@
-import type { Dimension, Signal } from "../signals";
+import type { Dimension, Signal } from "@trading-model/validation/wire/signals";
 
 interface AssetSignalsQuery {
 	assetId: string;

@@ -8,6 +8,8 @@ import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
 
 const TRAINER_ENV_SHAPE = {
 	TRAINER_SYMBOLS: z.string().default("BTCUSDT,ETHUSDT"),
+	/** `SYMBOL:ASSET` pairs (`BTCUSDT:BTC,ETHUSDT:ETH`): the registry asset whose signals a session reads. Empty: none (ADR-0036). */
+	TRAINER_SYMBOL_ASSETS: z.string().default(""),
 	/** Model artifacts (ADR-0022): on the checkpoint volume shared by the replicas. */
 	TRAINER_MODEL_DIR: z.string().min(1).default("/data/checkpoints/models"),
 	TRAINER_MODEL_RETENTION: z.coerce.number().int().min(1).default(20),
@@ -46,7 +48,9 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_LEASE_NAME: z.string().trim().default(""),
 } satisfies Record<string, z.ZodTypeAny>;
 
-const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(AddressManagerEnvSchema)
+export const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
+	AddressManagerEnvSchema
+)
 	.extend(RedisEnvSchema.shape)
 	.extend(TRAINER_ENV_SHAPE);
 

@@ -59,8 +59,10 @@
 			],
 			"sector": "technology",
 			"aliases": {
-				"cik": "0000320193"
-			}
+				"cik": "0000320193",
+				"wikipedia": "Apple Inc."
+			},
+			"areas": ["US"]
 		},
 		{
 			"id": "WHEAT",
@@ -81,7 +83,8 @@
 				"assetClass": "commodity",
 				"replication": "futures",
 				"region": "US"
-			}
+			},
+			"areas": ["US"]
 		},
 		{
 			"id": "GLD",
@@ -99,7 +102,8 @@
 			"exposure": {
 				"assetClass": "commodity",
 				"replication": "physical"
-			}
+			},
+			"areas": ["US"]
 		},
 		{
 			"id": "EA_AAA_10Y",
@@ -115,9 +119,49 @@
 				"macro"
 			],
 			"sector": "sovereign_debt",
-			"areas": [
-				"EA"
-			]
+			"areas": ["EA"]
+		},
+		{
+			"id": "EA_AAA_2Y",
+			"name": "Euro area AAA government bonds, 2-year",
+			"assetType": "bond",
+			"identifier": { "scheme": "series", "provider": "ECB", "key": "YC.B.U2.EUR.4F.G_N_A.SV_C_YM.SR_2Y" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt",
+			"areas": ["EA"]
+		},
+		{
+			"id": "EA_AAA_30Y",
+			"name": "Euro area AAA government bonds, 30-year",
+			"assetType": "bond",
+			"identifier": { "scheme": "series", "provider": "ECB", "key": "YC.B.U2.EUR.4F.G_N_A.SV_C_YM.SR_30Y" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt",
+			"areas": ["EA"]
+		},
+		{
+			"id": "US_TREASURY_2Y",
+			"name": "US Treasury par yield, 2-year",
+			"assetType": "bond",
+			"identifier": { "scheme": "series", "provider": "US Treasury", "key": "daily_treasury_yield_curve.2Y" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt"
+		},
+		{
+			"id": "US_TREASURY_10Y",
+			"name": "US Treasury par yield, 10-year",
+			"assetType": "bond",
+			"identifier": { "scheme": "series", "provider": "US Treasury", "key": "daily_treasury_yield_curve.10Y" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt"
+		},
+		{
+			"id": "US_TREASURY_30Y",
+			"name": "US Treasury par yield, 30-year",
+			"assetType": "bond",
+			"identifier": { "scheme": "series", "provider": "US Treasury", "key": "daily_treasury_yield_curve.30Y" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt"
 		},
 		{
 			"id": "PARIS_RE",
@@ -165,9 +209,55 @@
 					},
 					"dimension": "market",
 					"url": "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y?lastNObservations=5&format=jsondata",
-					"params": {
-						"metric": "spot_rate_10y"
-					}
+					"params": { "metric": "spot_rate_10y" }
+				},
+				{
+					"subject": { "assetId": "EA_AAA_2Y" },
+					"dimension": "market",
+					"url": "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_2Y?lastNObservations=5&format=jsondata",
+					"params": { "metric": "spot_rate_2y" }
+				},
+				{
+					"subject": { "assetId": "EA_AAA_30Y" },
+					"dimension": "market",
+					"url": "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_30Y?lastNObservations=5&format=jsondata",
+					"params": { "metric": "spot_rate_30y" }
+				}
+			]
+		},
+		{
+			"id": "treasury-par-yield-curve",
+			"protocol": "rest_api",
+			"format": "csv",
+			"adapter": "treasury-par-yield-curve",
+			"schedule": "17 21-23 * * 1-5",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "bond", "dimension": "market" }],
+			"accessPolicy": {
+				"terms": "public-domain",
+				"termsUrl": "https://www.law.cornell.edu/uscode/text/17/105",
+				"attribution": "Source: U.S. Department of the Treasury",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": { "assetId": "US_TREASURY_2Y" },
+					"dimension": "market",
+					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{year}/all?type=daily_treasury_yield_curve&field_tdr_date_value={year}&page&_format=csv",
+					"params": { "column": "2 Yr", "metric": "par_yield_2y" }
+				},
+				{
+					"subject": { "assetId": "US_TREASURY_10Y" },
+					"dimension": "market",
+					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{year}/all?type=daily_treasury_yield_curve&field_tdr_date_value={year}&page&_format=csv",
+					"params": { "column": "10 Yr", "metric": "par_yield_10y" }
+				},
+				{
+					"subject": { "assetId": "US_TREASURY_30Y" },
+					"dimension": "market",
+					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{year}/all?type=daily_treasury_yield_curve&field_tdr_date_value={year}&page&_format=csv",
+					"params": { "column": "30 Yr", "metric": "par_yield_30y" }
 				}
 			]
 		},
@@ -483,6 +573,54 @@
 			]
 		},
 		{
+			"id": "nasa-power-crop-regions",
+			"protocol": "rest_api",
+			"adapter": "nasa-power-daily",
+			"schedule": "17 7 * * *",
+			"reliabilityScore": 0.7,
+			"covers": [{ "assetType": "commodity_proxy", "dimension": "contextual" }],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://power.larc.nasa.gov/docs/referencing/",
+				"attribution": "Data: NASA Langley Research Center POWER Project",
+				"auth": "none",
+				"maxRequestsPerMinute": 10,
+				"maxRequestsPerDay": 5
+			},
+			"requests": [
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://power.larc.nasa.gov/api/temporal/daily/point?community=AG&parameters=T2M,PRECTOTCORR,GWETROOT&latitude=48.3&longitude=1.8&start={date-8}&end={date-1}&format=JSON",
+					"params": { "name": "beauce-fr", "variables": "T2M,PRECTOTCORR,GWETROOT" }
+				},
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://power.larc.nasa.gov/api/temporal/daily/point?community=AG&parameters=T2M,PRECTOTCORR,GWETROOT&latitude=49.6&longitude=34.5&start={date-8}&end={date-1}&format=JSON",
+					"params": { "name": "poltava-ua", "variables": "T2M,PRECTOTCORR,GWETROOT" }
+				},
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://power.larc.nasa.gov/api/temporal/daily/point?community=AG&parameters=T2M,PRECTOTCORR,GWETROOT&latitude=-13&longitude=-55.5&start={date-8}&end={date-1}&format=JSON",
+					"params": { "name": "mato-grosso-br", "variables": "T2M,PRECTOTCORR,GWETROOT" }
+				},
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://power.larc.nasa.gov/api/temporal/daily/point?community=AG&parameters=T2M,PRECTOTCORR,GWETROOT&latitude=-28.5&longitude=-53&start={date-8}&end={date-1}&format=JSON",
+					"params": { "name": "rio-grande-do-sul-br", "variables": "T2M,PRECTOTCORR,GWETROOT" }
+				},
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://power.larc.nasa.gov/api/temporal/daily/point?community=AG&parameters=T2M,PRECTOTCORR,GWETROOT&latitude=-34.7&longitude=146.5&start={date-8}&end={date-1}&format=JSON",
+					"params": { "name": "riverina-au", "variables": "T2M,PRECTOTCORR,GWETROOT" }
+				}
+			]
+		},
+		{
 			"id": "wikipedia-pageviews",
 			"protocol": "rest_api",
 			"adapter": "wikimedia-pageviews",
@@ -511,7 +649,58 @@
 					},
 					"dimension": "social",
 					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{asset.alias.wikipedia}/daily/{date-8}/{date-1}"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "social",
+					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{asset.alias.wikipedia}/daily/{date-8}/{date-1}"
 				}
+			]
+		},
+		{
+			"id": "fred-us-macro",
+			"protocol": "rest_api",
+			"adapter": "fred-series-observations",
+			"schedule": "47 13 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [
+				{ "assetType": "equity", "dimension": "macro" },
+				{ "assetType": "etf", "dimension": "macro" },
+				{ "assetType": "commodity_proxy", "dimension": "macro" }
+			],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://fred.stlouisfed.org/docs/api/terms_of_use.html",
+				"attribution": "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
+				"auth": { "type": "api_key", "env": "SIGNAL_KEY_FRED", "in": "query", "name": "api_key" },
+				"maxRequestsPerMinute": 60,
+				"maxRequestsPerDay": 1000
+			},
+			"requests": [
+				{
+					"subject": { "area": "US" },
+					"dimension": "macro",
+					"url": "https://api.stlouisfed.org/fred/series/observations?series_id=DFF&file_type=json&realtime_start=1776-07-04&realtime_end=9999-12-31&sort_order=desc&limit=1000",
+					"params": { "metric": "fed_funds_effective_rate", "area": "US", "unit": "percent", "period": "day", "series": "DFF" }
+				},
+				{
+					"subject": { "area": "US" },
+					"dimension": "macro",
+					"url": "https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&file_type=json&realtime_start=1776-07-04&realtime_end=9999-12-31&sort_order=desc&limit=1000",
+					"params": { "metric": "cpi_all_urban_index", "area": "US", "unit": "index_1982_84_100", "period": "month", "series": "CPIAUCSL" }
+				},
+				{
+					"subject": { "area": "US" },
+					"dimension": "macro",
+					"url": "https://api.stlouisfed.org/fred/series/observations?series_id=UNRATE&file_type=json&realtime_start=1776-07-04&realtime_end=9999-12-31&sort_order=desc&limit=1000",
+					"params": { "metric": "unemployment_rate", "area": "US", "unit": "percent", "period": "month", "series": "UNRATE" }
+				},
+				{
+					"subject": { "area": "US" },
+					"dimension": "macro",
+					"url": "https://api.stlouisfed.org/fred/series/observations?series_id=GDPC1&file_type=json&realtime_start=1776-07-04&realtime_end=9999-12-31&sort_order=desc&limit=1000",
+					"params": { "metric": "real_gdp", "area": "US", "unit": "billion_usd_2017", "period": "quarter", "series": "GDPC1" }
+			}
 			]
 		},
 		{

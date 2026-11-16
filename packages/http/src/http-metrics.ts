@@ -41,7 +41,12 @@ export const UNMATCHED_ROUTE = "unmatched";
 
 // The route pattern (`/v1/:service/instances`), known once the router matched:
 // raw URLs carry ids and names, one series each.
-function _routeLabel(req: Request): string {
+// A service that routes through `router.use` (no `req.route`) sets `res.locals.routeLabel` to a bounded pattern.
+function _routeLabel(req: Request, res: Response): string {
+	const label = (res.locals as { routeLabel?: unknown }).routeLabel;
+	if (typeof label === "string") {
+		return label;
+	}
 	const route = (req.route as { path?: unknown } | undefined)?.path;
 	if (typeof route !== "string") {
 		return UNMATCHED_ROUTE;
@@ -61,7 +66,7 @@ export function httpMetricsMiddleware(
 	// gauge never leaks.
 	res.once("close", () => {
 		const duration = (performance.now() - start) / 1000;
-		const path = _routeLabel(req);
+		const path = _routeLabel(req, res);
 		const method = req.method;
 
 		HTTP_REQUESTS_TOTAL.inc({ method, path, status: String(res.statusCode) });

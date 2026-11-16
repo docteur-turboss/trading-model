@@ -10,5 +10,6 @@ paths = [
 ]
 regexTarget = "line"
 regexes = [
+  '''"scheme": "series", "provider": "[^"]+", "key": "[^"]+" \},?$''', # signal-registry.json: public ECB / Treasury series keys
   '''^\s+[A-Z0-9_]+: Ag[A-Za-z0-9+/]{300,}={0,2}$''', # SealedSecret ciphertext, decryptable only by the cluster controller
 ]

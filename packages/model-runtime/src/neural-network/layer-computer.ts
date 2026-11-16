@@ -49,7 +49,12 @@ export class LayerComputer {
 		activation: ActivationType
 	): Float32Array {
 		const { fn } = ACTIVATIONS[activation];
-		return preActivations.map((value) => fn(value));
+		// preActivations is kept as the layer's z values: write to a new array.
+		const output = new Float32Array(preActivations.length);
+		for (let i = 0; i < output.length; i++) {
+			output[i] = fn(preActivations[i]);
+		}
+		return output;
 	}
 
 	private _applySkipConnection(
