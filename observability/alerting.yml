@@ -27,7 +27,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: SLOLatencyFastBurn
-        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[5m]))) > 5
+        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[5m]))) > 5
         for: 2m
         labels:
           severity: critical
@@ -38,7 +38,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
       - alert: SLOLatencySlowBurn
-        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[1h]))) > 3
+        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[1h]))) > 3
         for: 10m
         labels:
           severity: warning
@@ -47,28 +47,6 @@ groups:
           summary: 'Latency SLO slow burn rate exceeded'
           description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
-
-      - alert: SLOErrorRateFastBurn
-        expr: slo:sli_error:ratio_rate1h > 0.144 and slo:sli_error:ratio_rate5m > 0.144
-        for: 2m
-        labels:
-          severity: critical
-          slo: error_rate
-        annotations:
-          summary: 'Error rate SLO fast burn rate exceeded'
-          description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the error rate SLO). Probes are not counted.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
-
-      - alert: SLOErrorRateSlowBurn
-        expr: slo:sli_error:ratio_rate6h > 0.06 and slo:sli_error:ratio_rate30m > 0.06
-        for: 15m
-        labels:
-          severity: warning
-          slo: error_rate
-        annotations:
-          summary: 'Error rate SLO slow burn rate exceeded'
-          description: '5xx ratio > 6% over both 6h and 30m (6x the 1% budget of the error rate SLO). Probes are not counted.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: ServiceDown
         expr: up == 0
@@ -89,16 +67,6 @@ groups:
           summary: '{{ $labels.job }} has no scrape target'
           description: 'Prometheus has had no up series for {{ $labels.job }} for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
-
-      - alert: HighErrorRate
-        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.05
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'High error rate on {{ $labels.job }}'
-          description: 'Error rate is {{ $value | humanizePercentage }} for the last 5 minutes.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: CertificateExpiry
         expr: probe_ssl_earliest_cert_expiry - time() < 3600

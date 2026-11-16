@@ -36,7 +36,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{path!~\"/ping|/health/ready|/metrics\"}[5m])) by (le, job))",
           "legendFormat": "{{job}}"
         }
       ]

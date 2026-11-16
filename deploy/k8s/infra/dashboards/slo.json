@@ -38,7 +38,7 @@
         "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{path!~\"/ping|/health/ready|/metrics\"}[5m])) by (le))",
             "legendFormat": "P95 Latency"
           }
         ],
@@ -157,7 +157,7 @@
         "gridPos": { "h": 6, "w": 10, "x": 6, "y": 18 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{path!~\"/ping|/health/ready|/metrics\"}[5m])) by (le, job))",
             "format": "table",
             "instant": true
           }

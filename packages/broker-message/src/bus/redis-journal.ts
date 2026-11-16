@@ -242,7 +242,8 @@ export class RedisMessageJournal implements MessageJournalPort {
 		group: JournalGroup,
 		consumer: string,
 		retry: { floorMs: number; dueAfterMs: (deliveries: number) => number },
-		count: number
+		count: number,
+		skip: ReadonlySet<string> = new Set()
 	): Promise<JournalEntry[]> {
 		const stream = this.stream(group.topic);
 		let pending: [
@@ -260,15 +261,18 @@ export class RedisMessageJournal implements MessageJournalPort {
 				String(retry.floorMs),
 				"-",
 				"+",
-				String(count)
+				String(count + skip.size)
 			)) as typeof pending;
 		} catch (err) {
 			await this._recoverNoGroup(err, group);
 			return [];
 		}
-		const due = pending.filter(
-			([, , idleMs, deliveries]) => idleMs >= retry.dueAfterMs(deliveries)
-		);
+		const due = pending
+			.filter(
+				([id, , idleMs, deliveries]) =>
+					!skip.has(id) && idleMs >= retry.dueAfterMs(deliveries)
+			)
+			.slice(0, count);
 		// MIN-IDLE makes each claim atomic: of two replicas, one wins. Promise.all keeps the XPENDING order.
 		const batches = await Promise.all(
 			due.map(async ([id, , , deliveries]) => {

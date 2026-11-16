@@ -326,6 +326,8 @@ services:
       # Contact e-mail in the User-Agent of the signal sources (ADR-0036): SEC
       # EDGAR answers 403 without one. From .env only: the repository is public.
       SIGNAL_CONTACT_EMAIL: ${SIGNAL_CONTACT_EMAIL:-}
+      SIGNAL_KEY_EIA: ${SIGNAL_KEY_EIA:-}
+      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       SIGNAL_KEY_FRED: ${SIGNAL_KEY_FRED:-}
       SIGNAL_KEY_TWELVEDATA: ${SIGNAL_KEY_TWELVEDATA:-}
       DB_USER: ${MYSQL_USER:-root}
