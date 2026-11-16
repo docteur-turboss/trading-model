@@ -21,6 +21,8 @@ metadata:
     app.kubernetes.io/component: audit-logger
     app.kubernetes.io/part-of: trading-model
 spec:
+  # Fixed: one lease holder writes the chain (ADR-0050), more pods only contend.
+  replicas: 2
   strategy:
     # Surge first: with one replica (staging), maxUnavailable 1 left no ready
     # pod until the new one was ready (issue #699, as discovery-server #486).
