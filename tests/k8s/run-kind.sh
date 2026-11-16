@@ -1099,6 +1099,14 @@ verify_alerts() {
 # fresh market data, no critical alert. One pass (no observation window).
 verify_release() {
 	log "release gate (deploy-k8s.sh verify-release)"
+	# The upgrade restarts message-manager: its deliberate 503 "no subscriber" refusals can
+	# fire SLOAvailabilityFastBurn for a few minutes (5 m window, low kind traffic). Wait for
+	# it to clear (max 8 min) so the gate judges the settled stack; a persistent alert still fails it.
+	local waited=0
+	while [[ -n "$(deploy_script firing-critical 2>/dev/null)" ]] && (( waited < 480 )); do
+		sleep 30
+		waited=$((waited + 30))
+	done
 	VERIFY_WINDOW_SECONDS=0 deploy_script verify-release
 }
 

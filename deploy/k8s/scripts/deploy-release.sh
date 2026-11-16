@@ -142,8 +142,9 @@ forget() {
 release_replicas() {
 	local ns="$1" ann='kubectl.kubernetes.io/last-applied-configuration' dep last
 	# Retired HPAs: apply never prunes, and a live one would keep scaling its
-	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501).
-	kubectl delete hpa/trader-trainer-hpa -n "$ns" --ignore-not-found
+	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501);
+	# audit-logger runs 2 fixed pods (one lease holder writes, issue #1395).
+	kubectl delete hpa/trader-trainer-hpa hpa/audit-logger-hpa -n "$ns" --ignore-not-found
 	# A Job's pod template is immutable: apply fails on a finished init Job
 	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.

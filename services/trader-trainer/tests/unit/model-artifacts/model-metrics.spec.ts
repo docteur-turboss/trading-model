@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
 import type {
 	Fitness,
@@ -8,9 +9,9 @@ import type {
 import { DurationMs, Price } from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
+import { SIMULATOR_PARAMS } from "../../../src/domain/genetic-algorithm/rl-backend";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
 import { buildSummary } from "../../../src/domain/genome-summary-builder";
 import {
@@ -233,5 +234,28 @@ describe("admission of a model (ADR-0069)", () => {
 			{ version: "v", createdAt: new Date(0), sha256: "0".repeat(64) }
 		);
 		expect(manifest.admission).toEqual(admission);
+	});
+
+	it("the manifest carries the replay window and the simulator", () => {
+		const window = { from: 0, testFrom: 600, to: 720 };
+		const manifest = buildModelManifest(
+			{
+				symbol: "BTCUSDT",
+				instanceId: "trader-trainer-1",
+				bestGenome: createDefaultGenome("g-1", 4 as PositiveInt) as never,
+				weights: new Float32Array([1]),
+				features: { dim: 1, fields: ["close"] },
+				normalization: {},
+				summary: summaryOf(EPISODES),
+				window,
+			},
+			{ version: "v", createdAt: new Date(0), sha256: "0".repeat(64) }
+		);
+		expect(manifest.replay).toEqual({
+			...window,
+			intervalMs: 60_000,
+			evalEpsilon: 0.05,
+			simulator: SIMULATOR_PARAMS,
+		});
 	});
 });
