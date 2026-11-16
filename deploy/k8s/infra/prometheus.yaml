@@ -1051,7 +1051,7 @@ data:
           # ── Application SLI Alerts ────────────────────────────────────
 
           - alert: MessageDeliveryLowSuccessRate
-            expr: (sum by (job) (rate(mm_messages_published_total[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) / ((sum by (job) (rate(mm_messages_published_total[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) + (sum by (job) (rate(mm_messages_dlq_total[5m])) or sum by (job) (rate(mm_messages_published_total[5m])) * 0)) < 0.995
+            expr: (sum by (job) (rate(mm_messages_delivered_total{status="success"}[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) / ((sum by (job) (rate(mm_messages_delivered_total{status="success"}[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) + (sum by (job) (rate(mm_messages_dlq_total[5m])) or sum by (job) (rate(mm_messages_delivered_total{status="success"}[5m])) * 0)) < 0.995
             for: 5m
             labels:
               severity: critical

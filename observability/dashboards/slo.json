@@ -215,7 +215,7 @@
         "gridPos": { "h": 6, "w": 8, "x": 0, "y": 30 },
         "targets": [
           {
-            "expr": "sum(rate(mm_messages_published_total[5m])) / (sum(rate(mm_messages_published_total[5m])) + sum(rate(mm_messages_dlq_total[5m]))) * 100",
+            "expr": "sum(rate(mm_messages_delivered_total{status=\"success\"}[5m])) / (sum(rate(mm_messages_delivered_total{status=\"success\"}[5m])) + sum(rate(mm_messages_dlq_total[5m]))) * 100",
             "legendFormat": "Delivery Rate"
           }
         ],

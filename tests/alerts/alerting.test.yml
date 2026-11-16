@@ -308,8 +308,8 @@ tests:
               description: 'Trainer completion rate is 0% over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
-  # Every message goes to the DLQ: no published series at all.
-  - name: message-manager publishes nothing, everything goes to the DLQ
+  # Every message goes to the DLQ: no successful delivery series at all.
+  - name: no delivery succeeds, everything goes to the DLQ
     interval: 1m
     input_series:
       - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market-data",reason="timeout"}'
@@ -327,7 +327,7 @@ tests:
   - name: message-manager delivers 99.9%
     interval: 1m
     input_series:
-      - series: 'mm_messages_published_total{job="message-manager",instance="m",topic="market-data"}'
+      - series: 'mm_messages_delivered_total{job="message-manager",instance="m",topic="market-data",status="success"}'
         values: '0+999x30'
       - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market-data",reason="timeout"}'
         values: '0+1x30'

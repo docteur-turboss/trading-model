@@ -8,6 +8,7 @@ import {
 	type JournalGroupLag,
 	type MessageJournalPort,
 } from "./journal.port";
+import { JOURNAL_TRIMMED_PENDING_TOTAL } from "./metrics";
 
 /** The ioredis commands the bus uses (a client of `@trading-model/persistence` fits). */
 export interface BusRedis {
@@ -49,8 +50,6 @@ export interface RedisMessageJournalDeps {
 	 */
 	minReplicas?: number;
 	now?: () => number;
-	/** Called for each entry trimmed before delivery (a metric in message-manager). */
-	onTrimmed?: (group: JournalGroup) => void;
 }
 
 const WAIT_REPLICAS_TIMEOUT_MS = 2000;
@@ -397,7 +396,10 @@ export class RedisMessageJournal implements MessageJournalPort {
 				});
 			} else {
 				// Trimmed (24 h) before delivery: the message is gone for good, so it is counted, logged and alerted.
-				this._deps.onTrimmed?.(group);
+				JOURNAL_TRIMMED_PENDING_TOTAL.inc({
+					topic: group.topic,
+					service: group.service,
+				});
 				logger.error("Journal entry trimmed before delivery: message lost", {
 					topic: group.topic,
 					service: group.service,
