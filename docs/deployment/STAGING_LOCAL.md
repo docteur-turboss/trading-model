@@ -159,6 +159,9 @@ enforced by `tests/k8s/check-overlays.mjs`):
 - a new cluster (or a deleted StatefulSet) gets the current template;
 - a pod deleted or evicted comes back with the template of its revision, not
   the newest one;
+- the Redis ACL written by `redis-ha.sh` reaches a partitioned `redis-0` only
+  with the planned `redis` / `redis-sentinel` restart: code must not need a
+  new Redis command in the release that grants it;
 - until restarted, the pods lack what the new template adds. 3.1.0: no
   exporter, so no Prometheus target and no `mysql_up` / `redis_up` /
   `mongodb_up` series. `MySQLDown`, `RedisDown` and `MongoDBDown` stay silent

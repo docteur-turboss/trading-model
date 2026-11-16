@@ -128,7 +128,20 @@ export class DeadStreams {
 	}
 
 	async length(topic: string): Promise<number> {
-		return Number(await this._journal.redis.call("XLEN", this._dead(topic)));
+		// XINFO STREAM, not XLEN: the N-1 message-manager ACL grants +xinfo only.
+		try {
+			const flat = (await this._journal.redis.call(
+				"XINFO",
+				"STREAM",
+				this._dead(topic)
+			)) as unknown[];
+			return Number(flat[flat.indexOf("length") + 1]);
+		} catch (err) {
+			if (err instanceof Error && err.message.includes("no such key")) {
+				return 0;
+			}
+			throw err;
+		}
 	}
 
 	private async _range(

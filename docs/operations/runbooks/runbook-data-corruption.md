@@ -44,8 +44,6 @@ kubectl exec -n trading-model mysql-0 -c mysql -- \
   > corrupted_mysql_$(date +%Y%m%d_%H%M%S).sql
 
 # MongoDB dumps stay inside the pod (/tmp): copy them out with kubectl cp
-kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- \
-  mongodump --db dlq --out /tmp/dump_$(date +%Y%m%d_%H%M%S)
 kubectl exec -n trading-model mongo-audit-0 -c mongodb -- \
   mongodump --db audit --out /tmp/dump_audit_$(date +%Y%m%d_%H%M%S)
 
