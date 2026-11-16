@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { makePRNG } from "@trading-model/crypto/prng";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import type {
 	Fitness,
 	PositiveInt,
 	Ratio,
 } from "@trading-model/primitives/primitives";
 import { DurationMs } from "@trading-model/primitives/primitives";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import {
 	crossoverWeights,
 	mutateWeights,

@@ -1,7 +1,16 @@
 import { describe, expect, it } from "@jest/globals";
-import { isPublicRoute } from "../../src/shared/public-routes";
+import { matchPublicRoute } from "../../src/shared/public-routes";
+
+const isPublicRoute = (...args: Parameters<typeof matchPublicRoute>) =>
+	matchPublicRoute(...args) !== undefined;
 
 describe("isPublicRoute", () => {
+	it("returns the route pattern, never the raw path", () => {
+		expect(matchPublicRoute("GET", 1, "audit-logger", "/events/abc-123")).toBe(
+			"/v1/audit-logger/events/:messageId"
+		);
+	});
+
 	it("accepts a public route, its parameters bound to any segment", () => {
 		expect(isPublicRoute("GET", 1, "audit-logger", "/events")).toBe(true);
 		expect(isPublicRoute("GET", 1, "audit-logger", "/events/abc-123")).toBe(

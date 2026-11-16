@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-let mockRequestUseHandler: (...args: any[]) => Promise<any>;
+let mockRequestUseHandlers: ((...args: any[]) => any)[] = [];
 let mockResponseRejectedHandler: (...args: any[]) => Promise<any>;
 
 jest.mock("axios", () => {
@@ -8,7 +8,7 @@ jest.mock("axios", () => {
 	mockInstance.interceptors = {
 		request: {
 			use: jest.fn((fulfilled: any) => {
-				mockRequestUseHandler = fulfilled as any;
+				mockRequestUseHandlers.push(fulfilled as any);
 			}),
 		},
 		response: {
@@ -40,7 +40,7 @@ import {
 
 describe("createHttpClient", () => {
 	beforeEach(() => {
-		mockRequestUseHandler = undefined as any;
+		mockRequestUseHandlers = [];
 		mockResponseRejectedHandler = undefined as any;
 	});
 
@@ -58,14 +58,14 @@ describe("createHttpClient", () => {
 	it("request interceptor should return config with weight", async () => {
 		createHttpClient("https://api.example.com");
 		const config = { weight: 1 };
-		const result = await mockRequestUseHandler!(config);
+		const result = await mockRequestUseHandlers[0](config);
 		expect(result).toBe(config);
 	});
 
 	it("request interceptor should handle config without weight", async () => {
 		createHttpClient("https://api.example.com");
 		const config = {};
-		const result = await mockRequestUseHandler!(config);
+		const result = await mockRequestUseHandlers[0](config);
 		expect(result).toBe(config);
 	});
 
@@ -168,6 +168,32 @@ describe("createHttpClient", () => {
 			response: { status: 429, headers: { "retry-after": "3600" } },
 		};
 		expect(() => mockResponseRejectedHandler!(tooLong)).toThrow();
+	});
+
+	it("stamps the deadline once per request and the retry check enforces it", () => {
+		jest.useFakeTimers();
+		createHttpClient("https://api.example.com");
+		const stamp = mockRequestUseHandlers[1];
+		const config: any = { retryCount: 1 };
+		stamp(config);
+		expect(config.deadline).toBe(Date.now() + 45_000);
+		jest.advanceTimersByTime(40_000);
+		stamp(config);
+		expect(config.deadline).toBe(Date.now() + 5000);
+		expect(() =>
+			mockResponseRejectedHandler!({ config, response: { status: 500 } })
+		).toThrow();
+		jest.useRealTimers();
+	});
+
+	it("stops retrying when the next attempt would end past the deadline", () => {
+		createHttpClient("https://api.example.com");
+		const error = {
+			config: { retryCount: 1, deadline: Date.now() + 5000 },
+			response: { status: 500 },
+		};
+		expect(() => mockResponseRejectedHandler!(error)).toThrow();
+		expect(error.config.retryCount).toBe(1);
 	});
 
 	it.each([403, 418, 451])(

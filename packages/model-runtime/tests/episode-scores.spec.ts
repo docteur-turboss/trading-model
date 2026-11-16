@@ -1,4 +1,4 @@
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
+import { EpisodeScores } from "../src/episode-scores";
 
 describe("EpisodeScores near-zero dispersion", () => {
 	it("sharpe is continuous between std 1e-11 and 1e-9", () => {
