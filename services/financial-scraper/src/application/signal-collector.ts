@@ -13,6 +13,7 @@ import { sourceMaxAgeSeconds } from "../domain/cron-period";
 import {
 	HttpStatusError,
 	InvalidPayloadError,
+	NOT_MODIFIED,
 	type ProtocolWorker,
 	type SourceAdapter,
 } from "../domain/ports/signal-source.port";
@@ -34,7 +35,7 @@ const FAILURES = [
 	"store_error",
 	"skipped_quarantine",
 ] as const;
-type CollectionResult = "success" | (typeof FAILURES)[number];
+type CollectionResult = "success" | "not_modified" | (typeof FAILURES)[number];
 
 /**
  * Sets the failure counters of every source to 0: a series born at its first
@@ -244,15 +245,23 @@ export class SignalCollector {
 		let fetchFailure: Error | undefined;
 		const ingestedAt = this._deps.now();
 		try {
-			const payload = await this._deps.workers[source.protocol](
-				{ ...request, url: _expandUrl(request.url, ingestedAt) },
+			const worker = this._deps.workers[source.protocol];
+			const url = _expandUrl(request.url, ingestedAt);
+			const payload = await worker(
+				{ ...request, url },
 				source.accessPolicy.auth,
 				source
 			);
+			if (payload === NOT_MODIFIED) {
+				result = "not_modified";
+				SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
+				return undefined;
+			}
 			result = "invalid_payload";
 			const signals = this._toSignals(source, request, payload, ingestedAt);
 			result = "store_error";
 			await this._deps.store.save(signals);
+			worker.confirm?.(url);
 			result = "success";
 			SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
 			if (signals.length > 0) {

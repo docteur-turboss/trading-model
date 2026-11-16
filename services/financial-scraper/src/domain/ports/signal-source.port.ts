@@ -50,9 +50,16 @@ export class HttpStatusError extends Error {
 	}
 }
 
+/** Resolved by a worker when the source answered 304: nothing changed since the last 200. */
+export const NOT_MODIFIED = Symbol("not_modified");
+
 /** Fetches one request with its source's protocol; rejects on a transport or HTTP error, or with `InvalidPayloadError`. */
-export type ProtocolWorker = (
-	request: SourceRequest,
-	auth: Source["accessPolicy"]["auth"],
-	body?: Pick<Source, "format" | "delimiter">
-) => Promise<unknown>;
+export interface ProtocolWorker {
+	(
+		request: SourceRequest,
+		auth: Source["accessPolicy"]["auth"],
+		body?: Pick<Source, "format" | "delimiter">
+	): Promise<unknown>;
+	/** Called with the request URL once its body is stored: only then may a 304 stand for it. */
+	confirm?: (url: string) => void;
+}
