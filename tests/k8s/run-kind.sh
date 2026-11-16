@@ -95,8 +95,10 @@ build_images() {
 	local root="$1" tag="$2" svc services="$SERVICES${3:+ $3}"
 	# N-1 may predate a service: its image is a stand-in built from this checkout.
 	local have="" missing=""
+	# list first: `| grep -q` exits early and SIGPIPEs compose under pipefail
+	local listed; listed=$(docker compose -f "$root/docker-compose.yml" config --services)
 	for svc in $services; do
-		if docker compose -f "$root/docker-compose.yml" config --services | grep -qx "$svc"; then have="$have $svc"; else missing="$missing $svc"; fi
+		if grep -qx "$svc" <<<"$listed"; then have="$have $svc"; else missing="$missing $svc"; fi
 	done
 	# shellcheck disable=SC2086
 	retry 3 docker compose -f "$root/docker-compose.yml" build $have spire-bootstrap
