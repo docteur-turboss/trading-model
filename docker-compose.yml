@@ -102,7 +102,7 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     logging: *default-logging
-    image: redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+    image: redis@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53
     container_name: trading-redis
     restart: unless-stopped
     mem_limit: 512m
@@ -373,6 +373,7 @@ services:
       # EDGAR answers 403 without one. From .env only: the repository is public.
       SIGNAL_CONTACT_EMAIL: ${SIGNAL_CONTACT_EMAIL:-}
       SIGNAL_KEY_FRED: ${SIGNAL_KEY_FRED:-}
+      SIGNAL_KEY_TWELVEDATA: ${SIGNAL_KEY_TWELVEDATA:-}
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
@@ -910,7 +911,7 @@ services:
 
   mysqld-exporter:
     logging: *default-logging
-    image: quay.io/prometheus/mysqld-exporter:v0.18.0@sha256:2598c0571f383708e19016d119bb45c06128a9ebc962c9f49483278ac5a94c41
+    image: quay.io/prometheus/mysqld-exporter:v0.21.0@sha256:afad0c59a154fea24ca5ea0e6f95f2b0b168601b111266963dc8a347715b5318
     container_name: trading-mysqld-exporter
     restart: unless-stopped
     mem_limit: 128m
@@ -930,7 +931,7 @@ services:
   # no replica set collector.
   mongodb-exporter:
     logging: *default-logging
-    image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
+    image: percona/mongodb_exporter:0.54.0@sha256:934e9db87e85e0fa63654e73c3504845993a254e898783ca905e65a68848b5a4
     container_name: trading-mongodb-exporter
     restart: unless-stopped
     mem_limit: 128m
@@ -946,7 +947,7 @@ services:
   # Compose Redis has no ACL (single dev node): no exporter user.
   redis-exporter:
     logging: *default-logging
-    image: oliver006/redis_exporter:v1.80.0@sha256:cd5fad1591e585db5b58beec7fca427027c61a4349f50109af67cf2f07964d02
+    image: oliver006/redis_exporter:v1.97.0@sha256:f5f903fbe77571d455ede0453b084d6840bc62fc105efac001034421cab83b99
     container_name: trading-redis-exporter
     restart: unless-stopped
     mem_limit: 128m
@@ -1051,7 +1052,7 @@ services:
   # Probes /ping of every service with its own SVID (CertificateExpiry).
   blackbox-exporter:
     logging: *default-logging
-    image: prom/blackbox-exporter@sha256:b04a9fef4fa086a02fc7fcd8dcdbc4b7b35cc30cdee860fdc6a19dd8b208d63e
+    image: prom/blackbox-exporter@sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13
     container_name: trading-blackbox
     restart: unless-stopped
     mem_limit: 64m

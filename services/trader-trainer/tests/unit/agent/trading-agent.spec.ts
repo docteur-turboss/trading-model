@@ -306,7 +306,7 @@ describe("TradingAgent", () => {
 
 			agent.resetEpisode();
 
-			expect(agent.getExperiencePool().length).toBe(0);
+			expect(agent.replay(1, 0.9)).toBe(0);
 		});
 
 		it("should not carry the last decision's reward into the next episode", () => {

@@ -56,6 +56,10 @@ Every 60 seconds:
     4. Store best genome
 ```
 
+### Event-driven decisions
+
+Behind `FEATURE_EVENT_DRIVEN_DECISIONS` (default off) the agent decides only on bars where a detector fires (price move or volume spike), at least `minGap` bars apart; the thresholds and `minGap` are genes, the network sees the bars since its last decision, and returns are discounted by the bars elapsed. Off: it decides every `frameSkip` bars. See ADR-0076 §5.
+
 ## Reward Shaping
 
 The agent receives a reward after each trading step:
