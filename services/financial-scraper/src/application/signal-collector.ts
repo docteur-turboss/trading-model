@@ -13,6 +13,7 @@ import { sourceMaxAgeSeconds } from "../domain/cron-period";
 import {
 	HttpStatusError,
 	InvalidPayloadError,
+	NOT_MODIFIED,
 	type ProtocolWorker,
 	type SourceAdapter,
 } from "../domain/ports/signal-source.port";
@@ -34,7 +35,7 @@ const FAILURES = [
 	"store_error",
 	"skipped_quarantine",
 ] as const;
-type CollectionResult = "success" | (typeof FAILURES)[number];
+type CollectionResult = "success" | "not_modified" | (typeof FAILURES)[number];
 
 /**
  * Sets the failure counters of every source to 0: a series born at its first
@@ -249,6 +250,11 @@ export class SignalCollector {
 				source.accessPolicy.auth,
 				source
 			);
+			if (payload === NOT_MODIFIED) {
+				result = "not_modified";
+				SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
+				return undefined;
+			}
 			result = "invalid_payload";
 			const signals = this._toSignals(source, request, payload, ingestedAt);
 			result = "store_error";

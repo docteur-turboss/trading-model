@@ -2,6 +2,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	HttpStatusError,
 	InvalidPayloadError,
+	NOT_MODIFIED,
 	type ProtocolWorker,
 } from "../../../domain/ports/signal-source.port";
 
@@ -89,8 +90,14 @@ async function readBounded(response: Response, host: string): Promise<string> {
  * error, after 10 s, or on a non-2xx status; no retry here, the collector
  * spaces the next ticks of a failing source. A body that cannot be decoded
  * rejects with an `InvalidPayloadError`.
+ *
+ * Validators (`ETag`, `Last-Modified`) of the last 200 are kept in memory per
+ * expanded URL, without the body, and sent back; a 304 resolves `NOT_MODIFIED`.
+ * A `{date-N}` URL changes every day, so its entry is not reused from one day
+ * to the next: left as is on purpose. Lost on restart.
  */
 export function createRestApiWorker(userAgent: string): ProtocolWorker {
+	const validators = new Map<string, Record<string, string>>();
 	return async (request, auth, body) => {
 		const url = new URL(request.url);
 		const format = body?.format ?? "json";
@@ -107,6 +114,8 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 				url.searchParams.set(auth.name, key);
 			}
 		}
+		const cacheKey = url.href;
+		Object.assign(headers, validators.get(cacheKey));
 		// Rethrown with the host only: a query key must not reach a log.
 		const response = await fetch(url, {
 			headers,
@@ -114,6 +123,10 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 		}).catch((err: unknown) => {
 			throw new Error(`${normalizeError(err).name} from ${url.host}`);
 		});
+		if (response.status === 304) {
+			await response.body?.cancel();
+			return NOT_MODIFIED;
+		}
 		if (!response.ok) {
 			await response.body?.cancel();
 			throw new HttpStatusError(
@@ -122,6 +135,12 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 				response.headers.get("retry-after") ?? undefined
 			);
 		}
+		const etag = response.headers.get("etag");
+		const modified = response.headers.get("last-modified");
+		validators.set(cacheKey, {
+			...(etag && { "if-none-match": etag }),
+			...(modified && { "if-modified-since": modified }),
+		});
 		// Read, then parse: a body cut by the network stays a transport error.
 		const text = await readBounded(response, url.host);
 		try {

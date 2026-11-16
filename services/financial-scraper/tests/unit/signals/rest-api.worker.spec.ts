@@ -2,7 +2,10 @@ import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
 import { createRestApiWorker } from "../../../src/adapters/outbound/signal-sources/rest-api.worker";
-import { InvalidPayloadError } from "../../../src/domain/ports/signal-source.port";
+import {
+	InvalidPayloadError,
+	NOT_MODIFIED,
+} from "../../../src/domain/ports/signal-source.port";
 import type { Source } from "../../../src/domain/signals";
 
 const KEY = "s3cr3t-key-value";
@@ -47,6 +50,15 @@ describe("rest_api worker", () => {
 					chunksSent++;
 					res.write(chunk);
 				}, 5);
+				return;
+			}
+			if (req.url?.startsWith("/etag")) {
+				const tag = req.url.endsWith("2") ? '"v2"' : '"v1"';
+				if (req.headers["if-none-match"] === tag) {
+					res.writeHead(304).end();
+				} else {
+					res.writeHead(200, { etag: tag }).end('{"n":1}');
+				}
 				return;
 			}
 			const [status, body] = ROUTES[(req.url ?? "").split("?")[0]] ?? [404, ""];
@@ -130,6 +142,27 @@ describe("rest_api worker", () => {
 		await expect(big).rejects.toThrow(/over/);
 		await expect(big).rejects.not.toBeInstanceOf(InvalidPayloadError);
 		expect(chunksSent).toBeLessThan(20);
+	});
+
+	it("sends validators back, takes a 304 as NOT_MODIFIED and forgets them on restart", async () => {
+		const worker = createRestApiWorker("ua");
+		const run = (path: string) =>
+			worker(
+				{
+					subject: { assetId: "BTC" },
+					dimension: "market",
+					url: `${base}${path}`,
+					params: {},
+				},
+				"none"
+			);
+		await expect(run("/etag")).resolves.toEqual({ n: 1 });
+		await expect(run("/etag")).resolves.toBe(NOT_MODIFIED);
+		expect(last?.headers["if-none-match"]).toBe('"v1"');
+		await expect(fetchPath("/etag")).resolves.toEqual({ n: 1 });
+		// A new URL is a new entry; a 200 replaces the validators.
+		await expect(run("/json")).resolves.toEqual({ lastPrice: "1.5" });
+		expect(last?.headers["if-none-match"]).toBeUndefined();
 	});
 
 	describe("API key", () => {
