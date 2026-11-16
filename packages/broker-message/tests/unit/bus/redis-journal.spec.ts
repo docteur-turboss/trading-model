@@ -67,15 +67,79 @@ describe("RedisMessageJournal", () => {
 		);
 	});
 
-	it("should register the group on every append, never trusting a cache a retire elsewhere may have emptied", async () => {
-		const { redis, journal } = setup();
+	it("should register a group once a second, and again once it is retired", async () => {
+		let now = NOW;
+		const redis = {
+			call: jest.fn<(...args: any[]) => any>(async () => "OK"),
+			sadd: jest.fn(async (..._args: any[]) => 1),
+			srem: jest.fn(async (..._args: any[]) => 1),
+		};
+		const journal = new RedisMessageJournal({
+			redis: redis as never,
+			keyPrefix: "p",
+			now: () => now,
+		});
+		const groups = () =>
+			redis.call.mock.calls.filter(([name]) => name === "XGROUP").length;
 
 		await journal.append(createMockMessage("a"), ["trader-trainer"]);
 		await journal.append(createMockMessage("b"), ["trader-trainer"]);
+		expect(groups()).toBe(1);
 
-		const names = redis.call.mock.calls.map(([name]) => name);
-		expect(names).toEqual(["XGROUP", "XADD", "XGROUP", "XADD"]);
-		expect(redis.sadd).toHaveBeenCalledTimes(2);
+		now += 1001;
+		await journal.append(createMockMessage("c"), ["trader-trainer"]);
+		expect(groups()).toBe(2);
+
+		await journal.retire(GROUP);
+		await journal.append(createMockMessage("d"), ["trader-trainer"]);
+		expect(groups()).toBe(4); // retire's DESTROY + the new CREATE
+	});
+
+	it("should cap the stream length every 100th append instead of the 24 h trim", async () => {
+		const { redis, journal } = setup();
+
+		for (let i = 0; i < 100; i++) {
+			await journal.append(createMockMessage("a"), ["trader-trainer"]);
+		}
+
+		const xadds = redis.call.mock.calls.filter(([name]) => name === "XADD");
+		expect(xadds[98]?.[2]).toBe("MINID");
+		expect(xadds[99]?.slice(2, 5)).toEqual(["MAXLEN", "~", "100000"]);
+	});
+
+	it("should write and WAIT on a connection of its own, apart from XACK", async () => {
+		const writer = {
+			call: jest.fn(async (command: string, ..._args: any[]) =>
+				command === "WAIT" ? 1 : "9-0"
+			),
+			disconnect: jest.fn<(...args: any[]) => any>(),
+		};
+		const { redis } = setup();
+		const opened = jest.fn(() => writer as never);
+		const journal = new RedisMessageJournal({
+			redis: redis as never,
+			openWriteRedis: opened,
+			keyPrefix: "p",
+			minReplicas: 1,
+		});
+
+		await journal.append(createMockMessage("a"), ["trader-trainer"]);
+		await journal.append(createMockMessage("b"), ["trader-trainer"]);
+		await journal.ack(GROUP, "1-0");
+		journal.close();
+
+		expect(opened).toHaveBeenCalledTimes(1);
+		expect(writer.call.mock.calls.map(([name]) => name)).toEqual([
+			"XADD",
+			"WAIT",
+			"XADD",
+			"WAIT",
+		]);
+		expect(redis.call.mock.calls.map(([name]) => name)).toEqual([
+			"XGROUP",
+			"XACK",
+		]);
+		expect(writer.disconnect).toHaveBeenCalledTimes(1);
 	});
 
 	it("should read with BLOCK on a connection of its own, and close it", async () => {
