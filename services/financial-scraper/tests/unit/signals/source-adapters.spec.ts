@@ -690,6 +690,18 @@ describe("eia-open-data", () => {
 		expect(observedAt).toBe(Date.parse("2027-01-21T15:30:00Z"));
 	});
 
+	it("dates natural gas storage at the collection, its Thursday report is not the petroleum one", () => {
+		const gas = Object.values(fixture("eia-open-data-series")).find(
+			(body) => (body as { response: { data: { units: string }[] } }).response.data[0].units === "BCF"
+		);
+
+		const [{ observedAt }] = EIA_OPEN_DATA.normalize(gas, {
+			params: { metric: "natural_gas_storage" },
+		});
+
+		expect(observedAt).toBeUndefined();
+	});
+
 	it("keeps a revised value as a second signal", () => {
 		const revised = structuredClone(crude);
 		revised.response.data[0].value = "414000";

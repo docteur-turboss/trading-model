@@ -27,7 +27,8 @@ const NEW_YORK_HOUR = new Intl.DateTimeFormat("en-US", {
 
 /**
  * The Weekly Petroleum Status Report comes out Wednesday 10:30 ET after the
- * Friday it describes, Thursday when a federal holiday falls on Monday to
+ * Friday it describes (natural gas storage has its own Thursday report, so
+ * it takes the collection time), Thursday when a federal holiday falls on Monday to
  * Wednesday (eia.gov/petroleum/supply/weekly/schedule.php).
  */
 function _publishedAt(friday: string) {
@@ -64,7 +65,10 @@ export const EIA_OPEN_DATA: SourceAdapter = {
 	normalize(payload, { params }) {
 		return Rows.parse(payload).response.data.map((row, index) => ({
 			key: `${row.period}|${row.value}`,
-			observedAt: index === 0 ? _publishedAt(row.period) : undefined,
+			observedAt:
+				index === 0 && params.metric !== "natural_gas_storage"
+					? _publishedAt(row.period)
+					: undefined,
 			payload: {
 				metric: params.metric,
 				value: row.value,
