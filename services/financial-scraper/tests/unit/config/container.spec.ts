@@ -190,6 +190,7 @@ describe("config/container — createSignalScheduler", () => {
 				"cftc-cot-legacy",
 				"nws-kansas-wheat-belt",
 				"wikipedia-pageviews",
+				"federal-register-documents",
 			],
 		});
 	});
