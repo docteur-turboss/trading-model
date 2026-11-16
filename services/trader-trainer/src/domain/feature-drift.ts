@@ -12,10 +12,6 @@ interface StoredStats {
 /** Normalized fields read from the live buffer, by the data type that feeds them. */
 const LIVE_SOURCES: [DataType, keyof BaseSymbolState][] = [
 	[DataType.Candle, "candles"],
-	[DataType.Trade, "trades"],
-	[DataType.OrderBook, "orderBooks"],
-	[DataType.BookTicker, "bookTickers"],
-	[DataType.Ticker, "tickers24h"],
 ];
 
 function isStoredStats(value: unknown): value is StoredStats {
