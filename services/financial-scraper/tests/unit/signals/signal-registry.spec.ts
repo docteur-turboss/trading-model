@@ -61,13 +61,18 @@ describe("signal registry — the shipped file", () => {
 		]);
 	});
 
-	it("only holds sources free for any use, without key", () => {
+	it("only holds sources free for any use", () => {
 		const policies = SIGNAL_REGISTRY.sources.map((s) => s.accessPolicy);
 
 		expect(new Set(policies.map((p) => p.terms))).toEqual(
 			new Set(["attribution", "public-domain"])
 		);
-		expect(policies.every((p) => p.auth === "none")).toBe(true);
+		// A free key is allowed: a source without it is disabled alone.
+		expect(
+			policies.every(
+				(p) => p.auth === "none" || p.auth.env.startsWith("SIGNAL_KEY_")
+			)
+		).toBe(true);
 	});
 
 	it("requests Federal Register counts up to yesterday, one metric per document type", () => {
@@ -160,10 +165,10 @@ describe("parseSignalRegistry", () => {
 			"a request on an area no asset has",
 			(file: any) => {
 				sourceOf(file, "nws-kansas-wheat-belt").requests[0].subject = {
-					area: "US",
+					area: "JP",
 				};
 			},
-			"source nws-kansas-wheat-belt, request 0: no asset in area US",
+			"source nws-kansas-wheat-belt, request 0: no asset in area JP",
 		],
 		[
 			"an unknown adapter",
