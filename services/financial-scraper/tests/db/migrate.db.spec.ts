@@ -206,7 +206,7 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		).resolves.toEqual([{ id: "a" }, { id: "b" }]);
 	});
 
-	it("should add the paged read indexes on up, use them without filesort, and drop them on down (migration 010)", async () => {
+	it("should add the paged read indexes on up, use them without filesort, and drop them on down (migration 011)", async () => {
 		const real = join(__dirname, "../../../../scripts/migrations");
 		for (const file of readdirSync(real)) {
 			copyFileSync(join(real, file), join(runner.migrationsDir, file));
