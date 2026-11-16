@@ -373,7 +373,6 @@ spec:
                   name: trading-model-secrets
                   key: SIGNAL_KEY_EIA
                   optional: true
-                  optional: true
             # FRED API key (#1265), sealed by the owner. Absent: that source
             # alone is disabled.
             - name: SIGNAL_KEY_FRED
