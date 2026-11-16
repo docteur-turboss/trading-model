@@ -373,6 +373,8 @@ services:
       # EDGAR answers 403 without one. From .env only: the repository is public.
       SIGNAL_CONTACT_EMAIL: ${SIGNAL_CONTACT_EMAIL:-}
       SIGNAL_KEY_FRED: ${SIGNAL_KEY_FRED:-}
+      # Same file as the K8s ConfigMap financial-scraper-signal-registry (issue #1308).
+      SIGNAL_REGISTRY_FILE: /etc/signal-registry/signal-registry.json
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
@@ -380,6 +382,7 @@ services:
       DB_PORT: '3306'
     volumes:
       - svid-scraper:/run/spire/svid
+      - ./services/financial-scraper/src/config/signal-registry.json:/etc/signal-registry/signal-registry.json:ro
     networks:
       - backend-net
       - data-net
