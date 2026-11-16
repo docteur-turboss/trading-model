@@ -27,6 +27,7 @@ import {
 import {
 	HttpStatusError,
 	InvalidPayloadError,
+	NOT_MODIFIED,
 	type Observation,
 	type SourceAdapter,
 } from "../../../src/domain/ports/signal-source.port";
@@ -80,10 +81,13 @@ const OBSERVATION: Observation = {
 };
 
 const normalize = jest.fn<SourceAdapter["normalize"]>();
-const worker =
+const confirm = jest.fn<(url: string) => void>();
+const worker = Object.assign(
 	jest.fn<
 		(request: unknown, auth: unknown, source: unknown) => Promise<unknown>
-	>();
+	>(),
+	{ confirm }
+);
 const save = jest.fn<(signals: unknown) => Promise<void>>();
 const sleep = jest.fn<(ms: number) => Promise<void>>();
 
@@ -346,6 +350,25 @@ describe("SignalCollector", () => {
 			[`${SOURCE.id}:store_error`]: 0,
 			[`${SOURCE.id}:skipped_quarantine`]: 0,
 		});
+	});
+
+	it("counts a 304 as a collection: no adapter, no store, fresh gauge", async () => {
+		worker.mockResolvedValueOnce(NOT_MODIFIED);
+		await collector().collect(ONE_REQUEST);
+		expect(normalize).not.toHaveBeenCalled();
+		expect(save).not.toHaveBeenCalled();
+		expect((await counted())[`${SOURCE.id}:not_modified`]).toBe(1);
+		expect(
+			(await SIGNAL_LAST_SUCCESS.get()).values.map((v) => v.value)
+		).toEqual([NOW / 1000]);
+	});
+
+	it("confirms the validators after the save only, not on a store error", async () => {
+		save.mockRejectedValueOnce(new Error("mysql down"));
+		await collector().collect(ONE_REQUEST);
+		expect(confirm).not.toHaveBeenCalled();
+		await collector().collect(ONE_REQUEST);
+		expect(confirm).toHaveBeenCalledTimes(1);
 	});
 
 	it("moves the freshness gauges on success only", async () => {
