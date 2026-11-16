@@ -245,8 +245,10 @@ export class SignalCollector {
 		let fetchFailure: Error | undefined;
 		const ingestedAt = this._deps.now();
 		try {
-			const payload = await this._deps.workers[source.protocol](
-				{ ...request, url: _expandUrl(request.url, ingestedAt) },
+			const worker = this._deps.workers[source.protocol];
+			const url = _expandUrl(request.url, ingestedAt);
+			const payload = await worker(
+				{ ...request, url },
 				source.accessPolicy.auth,
 				source
 			);
@@ -259,6 +261,7 @@ export class SignalCollector {
 			const signals = this._toSignals(source, request, payload, ingestedAt);
 			result = "store_error";
 			await this._deps.store.save(signals);
+			worker.confirm?.(url);
 			result = "success";
 			SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
 			if (signals.length > 0) {

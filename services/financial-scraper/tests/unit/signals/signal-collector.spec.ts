@@ -81,10 +81,13 @@ const OBSERVATION: Observation = {
 };
 
 const normalize = jest.fn<SourceAdapter["normalize"]>();
-const worker =
+const confirm = jest.fn<(url: string) => void>();
+const worker = Object.assign(
 	jest.fn<
 		(request: unknown, auth: unknown, source: unknown) => Promise<unknown>
-	>();
+	>(),
+	{ confirm }
+);
 const save = jest.fn<(signals: unknown) => Promise<void>>();
 const sleep = jest.fn<(ms: number) => Promise<void>>();
 
@@ -358,6 +361,14 @@ describe("SignalCollector", () => {
 		expect(
 			(await SIGNAL_LAST_SUCCESS.get()).values.map((v) => v.value)
 		).toEqual([NOW / 1000]);
+	});
+
+	it("confirms the validators after the save only, not on a store error", async () => {
+		save.mockRejectedValueOnce(new Error("mysql down"));
+		await collector().collect(ONE_REQUEST);
+		expect(confirm).not.toHaveBeenCalled();
+		await collector().collect(ONE_REQUEST);
+		expect(confirm).toHaveBeenCalledTimes(1);
 	});
 
 	it("moves the freshness gauges on success only", async () => {

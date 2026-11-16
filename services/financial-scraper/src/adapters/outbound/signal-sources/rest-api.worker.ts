@@ -92,13 +92,16 @@ async function readBounded(response: Response, host: string): Promise<string> {
  * rejects with an `InvalidPayloadError`.
  *
  * Validators (`ETag`, `Last-Modified`) of the last 200 are kept in memory per
- * expanded URL, without the body, and sent back; a 304 resolves `NOT_MODIFIED`.
+ * expanded URL, without the body, once the collector calls `confirm(url)` after
+ * storing it (a 304 must never hide a body that was not stored); they are sent
+ * back and a 304 resolves `NOT_MODIFIED`.
  * A `{date-N}` URL changes every day, so its entry is not reused from one day
  * to the next: left as is on purpose. Lost on restart.
  */
 export function createRestApiWorker(userAgent: string): ProtocolWorker {
 	const validators = new Map<string, Record<string, string>>();
-	return async (request, auth, body) => {
+	const pending = new Map<string, Record<string, string>>();
+	const worker: ProtocolWorker = async (request, auth, body) => {
 		const url = new URL(request.url);
 		const format = body?.format ?? "json";
 		const headers: Record<string, string> = {
@@ -114,8 +117,7 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 				url.searchParams.set(auth.name, key);
 			}
 		}
-		const cacheKey = url.href;
-		Object.assign(headers, validators.get(cacheKey));
+		Object.assign(headers, validators.get(request.url));
 		// Rethrown with the host only: a query key must not reach a log.
 		const response = await fetch(url, {
 			headers,
@@ -137,7 +139,8 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 		}
 		const etag = response.headers.get("etag");
 		const modified = response.headers.get("last-modified");
-		validators.set(cacheKey, {
+		validators.delete(request.url);
+		pending.set(request.url, {
 			...(etag && { "if-none-match": etag }),
 			...(modified && { "if-modified-since": modified }),
 		});
@@ -155,4 +158,12 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 			);
 		}
 	};
+	worker.confirm = (url) => {
+		const entry = pending.get(url);
+		if (entry) {
+			validators.set(url, entry);
+			pending.delete(url);
+		}
+	};
+	return worker;
 }

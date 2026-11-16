@@ -27,6 +27,8 @@ const ROUTES: Record<string, [number, string]> = {
 	"/html": [200, "<!DOCTYPE html><title>moved</title>"],
 };
 
+let serverTag = '"v1"';
+
 describe("rest_api worker", () => {
 	let server: Server;
 	let base: string;
@@ -53,7 +55,7 @@ describe("rest_api worker", () => {
 				return;
 			}
 			if (req.url?.startsWith("/etag")) {
-				const tag = req.url.endsWith("2") ? '"v2"' : '"v1"';
+				const tag = serverTag;
 				if (req.headers["if-none-match"] === tag) {
 					res.writeHead(304).end();
 				} else {
@@ -144,24 +146,27 @@ describe("rest_api worker", () => {
 		expect(chunksSent).toBeLessThan(20);
 	});
 
-	it("sends validators back, takes a 304 as NOT_MODIFIED and forgets them on restart", async () => {
+	it("sends confirmed validators back, 200 after a 304 replaces them, restart forgets them", async () => {
 		const worker = createRestApiWorker("ua");
-		const run = (path: string) =>
-			worker(
-				{
-					subject: { assetId: "BTC" },
-					dimension: "market",
-					url: `${base}${path}`,
-					params: {},
-				},
+		const url = `${base}/etag`;
+		const run = (w = worker) =>
+			w(
+				{ subject: { assetId: "BTC" }, dimension: "market", url, params: {} },
 				"none"
 			);
-		await expect(run("/etag")).resolves.toEqual({ n: 1 });
-		await expect(run("/etag")).resolves.toBe(NOT_MODIFIED);
+		serverTag = '"v1"';
+		await expect(run()).resolves.toEqual({ n: 1 });
+		// Not confirmed (body not stored): the next call is complete.
+		await expect(run()).resolves.toEqual({ n: 1 });
+		worker.confirm?.(url);
+		await expect(run()).resolves.toBe(NOT_MODIFIED);
 		expect(last?.headers["if-none-match"]).toBe('"v1"');
-		await expect(fetchPath("/etag")).resolves.toEqual({ n: 1 });
-		// A new URL is a new entry; a 200 replaces the validators.
-		await expect(run("/json")).resolves.toEqual({ lastPrice: "1.5" });
+		serverTag = '"v2"';
+		await expect(run()).resolves.toEqual({ n: 1 });
+		worker.confirm?.(url);
+		await expect(run()).resolves.toBe(NOT_MODIFIED);
+		expect(last?.headers["if-none-match"]).toBe('"v2"');
+		await expect(run(createRestApiWorker("ua"))).resolves.toEqual({ n: 1 });
 		expect(last?.headers["if-none-match"]).toBeUndefined();
 	});
 
