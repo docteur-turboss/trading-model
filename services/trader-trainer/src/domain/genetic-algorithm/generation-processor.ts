@@ -181,6 +181,7 @@ export class GenerationProcessor {
 			rng,
 			generation: this._generation,
 			telemetry: this._telemetry,
+			protectCandleGroup: this._cfg.protectCandleGroup,
 		});
 	}
 

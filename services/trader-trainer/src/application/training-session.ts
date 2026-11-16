@@ -160,6 +160,7 @@ class TrainingSession {
 			signal: this._signal,
 			eventDriven: this._settings.eventDriven,
 			inputGroups: this._settings.inputGroups,
+			protectCandleGroup: this._settings.protectCandleGroup,
 		});
 	}
 }

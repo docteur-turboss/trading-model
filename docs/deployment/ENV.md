@@ -126,6 +126,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_SIGNAL_FEATURES`         | string       | empty             | no       | `SUBJECT:dimension:metric` list (`BTC:social:pageviews`, subject = asset, sector or area): signals fed to the network as value, age and confidence inputs, 3 per metric (ADR-0081); read only with `FEATURE_SIGNAL_INPUTS`; each key must match the format or the service refuses to start; a key that finds no signal in the window logs a warning and trains on zeros | TT       |
 | `FEATURE_SIGNAL_INPUTS`           | boolean      | `false`           | no       | Feature flag (ADR-0039): `true` appends the `TRAINER_SIGNAL_FEATURES` inputs to the 18 market inputs; `false`: input and published genome as before | TT       |
 | `FEATURE_INPUT_MASK_GENE`         | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0082): `true` lets the GA evolve a mask over the input groups (candle, window, one per signal metric); `false`: no mask, genome and manifest as before | TT       |
+| `TRAINER_INPUT_MASK_PROTECT_CANDLE` | boolean    | `false`           | no       | `true` keeps the candle group active in every mask the GA evolves (ADR-0082); read only with `FEATURE_INPUT_MASK_GENE` | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
 | `TRAINER_VALIDATION_SPLIT`        | number (]0, 1[) | `0.15`            | no       | Fraction of the steps left after the test cut, used for validation (selection) | TT       |
 | `TRAINER_TEST_SPLIT`              | number (]0, 1[) | `0.15`            | no       | Newest fraction of the steps never used by training nor selection; published metrics come from it (ADR-0068) | TT       |
@@ -382,6 +383,7 @@ TRAINER_SYMBOL_ASSETS=
 TRAINER_SIGNAL_FEATURES=
 FEATURE_SIGNAL_INPUTS=false
 FEATURE_INPUT_MASK_GENE=false
+TRAINER_INPUT_MASK_PROTECT_CANDLE=false
 TRAINER_DATA_WINDOW=500
 TRAINER_VALIDATION_SPLIT=0.15
 TRAINER_TEST_SPLIT=0.15

@@ -20,5 +20,5 @@ The GA evolves layers, learning genes and its own control, not what the network 
 ## Consequences
 
 - The order book, book ticker, trades and ticker groups of the issue do not exist as network inputs (ADR-0078): they are not groups.
-- Protecting the candle group by configuration is not implemented.
+- `TRAINER_INPUT_MASK_PROTECT_CANDLE=true` keeps the candle group active in every offspring mask (default false).
 - `model-evaluator` does not run the network: it keeps the manifest as sent.

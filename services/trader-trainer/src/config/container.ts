@@ -85,6 +85,7 @@ interface AppContainerConfig {
 	signalKeys: string[];
 	eventDriven: boolean;
 	inputGroups?: string[];
+	protectCandleGroup?: boolean;
 	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
@@ -136,6 +137,7 @@ class ApplicationContainer {
 				observePosition: config.observePosition,
 				eventDriven: config.eventDriven,
 				inputGroups: config.inputGroups,
+				protectCandleGroup: config.protectCandleGroup,
 			},
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
@@ -176,6 +178,7 @@ interface TraderTrainerSettings {
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
 	FEATURE_INPUT_MASK_GENE?: boolean;
+	TRAINER_INPUT_MASK_PROTECT_CANDLE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
 	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
 	TRAINER_SIGNAL_FEATURES?: string;
@@ -213,6 +216,7 @@ export function createTraderTrainerContainer(
 		inputGroups: settings.FEATURE_INPUT_MASK_GENE
 			? inputGroupNames(signalKeys)
 			: undefined,
+		protectCandleGroup: settings.TRAINER_INPUT_MASK_PROTECT_CANDLE,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,

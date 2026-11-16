@@ -33,6 +33,8 @@ export interface GARunnerConfig {
 	eventDriven?: boolean;
 	/** FEATURE_INPUT_MASK_GENE: names of the input groups the genome masks; absent: no mask gene. */
 	inputGroups?: string[];
+	/** The candle group stays active in every mask. */
+	protectCandleGroup?: boolean;
 }
 
 export interface GenerationContext {

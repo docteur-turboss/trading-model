@@ -19,6 +19,8 @@ export interface TrainingSettings {
 	eventDriven?: boolean;
 	/** FEATURE_INPUT_MASK_GENE (ADR-0082): names of the input groups the genome masks. */
 	inputGroups?: string[];
+	/** ADR-0082: the candle group stays active in every mask. */
+	protectCandleGroup?: boolean;
 	/**
 	 * Added to the default PRNG seeds (0 = defaults): independent, still
 	 * reproducible runs on the same data (MT4 walk-forward, ADR-0030).
