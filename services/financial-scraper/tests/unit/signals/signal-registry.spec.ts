@@ -206,12 +206,12 @@ describe("parseSignalRegistry", () => {
 			"source nws-kansas-wheat-belt, request 0: params",
 		],
 		[
-			"a URL placeholder other than {date-N}",
+			"a URL placeholder other than {date-N} or {year}",
 			(file: any) => {
 				sourceOf(file, "ecb-aaa-yield-10y").requests[0].url =
 					"https://data-api.ecb.europa.eu/service/data/YC/{today}";
 			},
-			"source ecb-aaa-yield-10y, request 0: URL placeholder other than {date-N}",
+			"source ecb-aaa-yield-10y, request 0: URL placeholder other than {date-N} or {year}",
 		],
 		[
 			"a maxAgeSeconds shorter than the period of the cron",

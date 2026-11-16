@@ -142,12 +142,14 @@ function _retryAfterMs(header: string | undefined, now: number): number {
 }
 
 function _expandUrl(url: string, ingestedAt: number): string {
-	return url.replace(DATE_PLACEHOLDER, (_placeholder, days: string) =>
-		new Date(ingestedAt - Number(days) * DAY_MS)
-			.toISOString()
-			.slice(0, 10)
-			.replace(/-/g, "")
-	);
+	return url.replace(DATE_PLACEHOLDER, (_placeholder, days?: string) => {
+		const date = new Date(
+			ingestedAt - Number(days ?? 0) * DAY_MS
+		).toISOString();
+		return days === undefined
+			? date.slice(0, 4)
+			: date.slice(0, 10).replace(/-/g, "");
+	});
 }
 
 /** Same source, subject, metric and key give the same id: a replay stores nothing twice. */

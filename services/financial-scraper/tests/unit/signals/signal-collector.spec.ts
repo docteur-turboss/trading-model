@@ -202,7 +202,7 @@ describe("SignalCollector", () => {
 
 	it("puts the dates of the collection in place of the {date-N} placeholders", async () => {
 		const url =
-			"https://a.test/pageviews/daily/{date-8}/{date-1}?today={date-0}";
+			"https://a.test/pageviews/daily/{date-8}/{date-1}?today={date-0}&y={year}";
 
 		await collector().collect({
 			...SOURCE,
@@ -212,7 +212,7 @@ describe("SignalCollector", () => {
 		expect(worker).toHaveBeenCalledWith(
 			{
 				...SOURCE.requests[0],
-				url: "https://a.test/pageviews/daily/20261027/20261103?today=20261104",
+				url: "https://a.test/pageviews/daily/20261027/20261103?today=20261104&y=2026",
 			},
 			"none",
 			expect.anything()

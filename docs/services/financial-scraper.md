@@ -151,7 +151,7 @@ Schema v1, the model of the design note's §1: `src/domain/signals.ts`
   (asset type, dimension) pairs it can feed), `accessPolicy`,
   `reliabilityScore`, an adapter, a cron `schedule` and its requests (subject
   `assetId` or `sector`, `dimension`, HTTPS URL, adapter `params`). A URL may
-  hold `{date-N}`: the UTC date N days before the collection, as YYYYMMDD.
+  hold `{date-N}`: the UTC date N days before the collection, as YYYYMMDD; `{year}`: its UTC year.
 - **Signal**: an envelope (`sourceId`, `dimension`, `assetId` or `sector`,
   `observedAt`, `ingestedAt`, `confidenceScore`) and the canonical `payload` of
   its dimension: a measure (`metric`, `value`, `unit`, optional `details`) plus

@@ -157,19 +157,19 @@
 				{
 					"subject": { "assetId": "US_TREASURY_2Y" },
 					"dimension": "market",
-					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_yield_curve&field_tdr_date_value=2026&page&_format=csv",
+					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{year}/all?type=daily_treasury_yield_curve&field_tdr_date_value={year}&page&_format=csv",
 					"params": { "column": "2 Yr", "metric": "par_yield_2y" }
 				},
 				{
 					"subject": { "assetId": "US_TREASURY_10Y" },
 					"dimension": "market",
-					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_yield_curve&field_tdr_date_value=2026&page&_format=csv",
+					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{year}/all?type=daily_treasury_yield_curve&field_tdr_date_value={year}&page&_format=csv",
 					"params": { "column": "10 Yr", "metric": "par_yield_10y" }
 				},
 				{
 					"subject": { "assetId": "US_TREASURY_30Y" },
 					"dimension": "market",
-					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_yield_curve&field_tdr_date_value=2026&page&_format=csv",
+					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{year}/all?type=daily_treasury_yield_curve&field_tdr_date_value={year}&page&_format=csv",
 					"params": { "column": "30 Yr", "metric": "par_yield_30y" }
 				}
 			]
