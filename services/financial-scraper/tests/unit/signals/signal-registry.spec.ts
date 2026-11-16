@@ -357,6 +357,7 @@ describe("parseSignalRegistry", () => {
 		],
 	])("refuses a template with %s", (_label, breakIt, message) => {
 		const file = registry();
+		delete assetOf(file, "AAPL").aliases.wikipedia;
 		breakIt(sourceOf(file, "wikipedia-pageviews").templates[0]);
 
 		expect(() => parseSignalRegistry(file)).toThrow(message);
@@ -364,6 +365,7 @@ describe("parseSignalRegistry", () => {
 
 	it("reports several template problems together", () => {
 		const file = registry();
+		delete assetOf(file, "AAPL").aliases.wikipedia;
 		const { templates } = sourceOf(file, "wikipedia-pageviews");
 		templates.push({ ...templates[0], select: { sector: "energy" } });
 		templates.push({ ...templates[0], select: { assetIds: ["AAPL"] } });
@@ -386,6 +388,7 @@ describe("parseSignalRegistry", () => {
 		expect(request("wikipedia-pageviews")).toEqual([
 			wiki("Bitcoin", "BTC"),
 			wiki("Ethereum", "ETH"),
+			wiki("Apple%20Inc.", "AAPL"),
 		]);
 		expect(request("sec-edgar-eps-diluted")).toEqual([
 			{

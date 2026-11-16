@@ -59,7 +59,8 @@
 			],
 			"sector": "technology",
 			"aliases": {
-				"cik": "0000320193"
+				"cik": "0000320193",
+				"wikipedia": "Apple Inc."
 			},
 			"areas": ["US"]
 		},
@@ -598,6 +599,11 @@
 					"select": {
 						"assetType": "crypto"
 					},
+					"dimension": "social",
+					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{asset.alias.wikipedia}/daily/{date-8}/{date-1}"
+				},
+				{
+					"select": { "assetType": "equity" },
 					"dimension": "social",
 					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{asset.alias.wikipedia}/daily/{date-8}/{date-1}"
 				}
