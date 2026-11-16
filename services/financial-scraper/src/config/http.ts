@@ -27,7 +27,7 @@ const RETRY_CONFIG = {
 	jitterMs: RETRY_JITTER_MS,
 };
 
-/** Longest Retry-After honoured: one scrape interval. Beyond it the error surfaces and the next cycle resumes. */
+/** Longest Retry-After honoured (also cut by the retry deadline). Beyond it the error surfaces and the next cycle resumes. */
 const RETRY_AFTER_MAX_MS = 60_000;
 
 /** Total time one request may spend retrying, below the 60 s scrape cycle so a slow cycle never makes the next tick skip. */
