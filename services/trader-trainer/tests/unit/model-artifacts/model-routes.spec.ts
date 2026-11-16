@@ -154,7 +154,7 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 		expect(body.data).toMatchObject({
 			version,
 			weights: { length: 3, sha256 },
-			features: { dim: 32 },
+			features: { dim: 18 },
 		});
 		expect(JSON.stringify(body)).not.toContain("trainedWeights");
 	});

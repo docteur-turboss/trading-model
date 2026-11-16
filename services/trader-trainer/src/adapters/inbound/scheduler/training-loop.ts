@@ -2,11 +2,19 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
+import { Dimension } from "@trading-model/validation/wire/signals";
 import type { Trainer } from "../../../application/trainer";
+import {
+	LAST_CANDLE_AGE_SECONDS,
+	SIGNAL_NEWEST_AGE_SECONDS,
+	SIGNAL_READ_ERRORS_TOTAL,
+	SIGNAL_WINDOW_SIZE,
+} from "../../../config/metrics";
 import { hasEnoughTrainingData } from "../../../domain/market-data/window-splitter";
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
 import type { TradingSymbol } from "../../../domain/market-data-types";
 import type { CandleHistoryPort } from "../../../domain/ports/candle-history.port";
+import type { SignalHistoryPort } from "../../../domain/ports/signal-history.port";
 
 interface TrainingLoopConfig {
 	symbols: TradingSymbol[];
@@ -32,6 +40,12 @@ export class TrainingLoop {
 			validationSplit: number;
 			walkForwardFolds: number;
 			testSplit: number;
+		},
+		/** Symbol to asset: only these symbols have their signal window read. */
+		private readonly _signals?: {
+			history: SignalHistoryPort;
+			assets: ReadonlyMap<TradingSymbol, string>;
+			windowMs: number;
 		}
 	) {}
 
@@ -76,6 +90,49 @@ export class TrainingLoop {
 		}
 	}
 
+	/**
+	 * Measures the signals a session could use; they do not reach the model
+	 * yet. A failed read is counted and the session goes on without them.
+	 */
+	private async _observeSignals(symbol: TradingSymbol): Promise<void> {
+		const assetId = this._signals?.assets.get(symbol);
+		if (!(this._signals && assetId)) {
+			return;
+		}
+		const now = Date.now();
+		try {
+			const signals = await this._signals.history.loadWindow(
+				assetId,
+				now - this._signals.windowMs,
+				now
+			);
+			for (const dimension of Dimension.options) {
+				const labels = { symbol, dimension };
+				const observed = signals
+					.filter((signal) => signal.dimension === dimension)
+					.map((signal) => Date.parse(signal.observedAt));
+				SIGNAL_WINDOW_SIZE.set(labels, observed.length);
+				if (observed.length > 0) {
+					SIGNAL_NEWEST_AGE_SECONDS.set(
+						labels,
+						(now - Math.max(...observed)) / 1000
+					);
+				} else {
+					SIGNAL_NEWEST_AGE_SECONDS.remove(labels);
+				}
+			}
+			getLogger().info("Signal window read", {
+				context: { symbol, assetId, signals: signals.length },
+			});
+		} catch (err) {
+			SIGNAL_READ_ERRORS_TOTAL.inc({ symbol });
+			getLogger().error("Signals unreadable: session trains without them", {
+				context: { symbol, assetId },
+				error: normalizeError(err).message,
+			});
+		}
+	}
+
 	private _hasEnoughData(symbol: TradingSymbol): boolean {
 		return hasEnoughTrainingData(
 			this._dataBuffer.getCandleCount(symbol),
@@ -91,6 +148,7 @@ export class TrainingLoop {
 			lastClose === undefined
 				? Number.POSITIVE_INFINITY
 				: Date.now() - lastClose;
+		LAST_CANDLE_AGE_SECONDS.set({ symbol }, ageMs / 1000);
 		const fresh = ageMs <= maxDataAgeMs;
 		this._reportFreshnessChange(symbol, fresh, lastClose);
 		return fresh;
@@ -138,6 +196,9 @@ export class TrainingLoop {
 			) {
 				// Advance before training: a rejected train() still passes the turn.
 				this._nextIndex = (index + 1) % symbols.length;
+				if (this._signals?.assets.has(symbol)) {
+					await this._observeSignals(symbol);
+				}
 				await this._trainer.train(symbol);
 				return;
 			}

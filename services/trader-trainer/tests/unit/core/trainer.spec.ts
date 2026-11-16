@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
+import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
 import type { PositiveInt, Ratio } from "@trading-model/primitives/primitives";
 import {
@@ -15,8 +17,7 @@ import {
 	MODEL_RETURN,
 	MODEL_SHARPE,
 } from "../../../src/config/metrics";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
-import { buyAndHoldSharpe } from "../../../src/domain/genetic-algorithm/evaluation-utils";
+import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { WindowSet } from "../../../src/domain/genetic-algorithm/ga-runner";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
@@ -409,7 +410,7 @@ describe("Trainer", () => {
 			expect(summary!.sharpe).toBeGreaterThan(0);
 			expect(summary!.avgPnl).toBeGreaterThan(0);
 			expect(summary!.gaControl.populationSize).toBe(20);
-			expect(summary!.network.inputDim).toBe(33);
+			expect(summary!.network.inputDim).toBe(19);
 			expect(summary!.network.outputDim).toBe(3);
 			expect(summary!.network.hiddenLayers.length).toBe(2);
 		});
@@ -701,7 +702,7 @@ describe("Trainer — model publication", () => {
 				symbol: "BTCUSDT",
 				instanceId: "trader-trainer-2",
 				features: {
-					dim: 33,
+					dim: 19,
 					fields: expect.arrayContaining(["CandleClose", "AgentExposure"]),
 				},
 				summary: { id: genome.id },
@@ -711,6 +712,32 @@ describe("Trainer — model publication", () => {
 				candle: { close: { count: expect.any(Number) } },
 			});
 			expect(artifact.normalization.candle.close.count).toBeGreaterThan(0);
+		});
+
+		it("stores the replay window: first candle open, first test step, last candle close (ADR-0079)", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const models = fakeStore();
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+			});
+			const symbol = TradingSymbol.of("BTCUSDT");
+
+			await trainer.train(symbol);
+
+			const candles = dataBuffer.getSymbolState(symbol)?.candles ?? [];
+			const windows = dataBuffer.getAllWindows(symbol) as any;
+			const test = (Array.isArray(windows) ? windows.at(-1) : windows).test;
+			const { window } = models.save.mock.calls[0][0];
+			expect(window).toEqual({
+				from: candles[0].timestamp,
+				testFrom: test[0].timestamp,
+				to: candles[candles.length - 1].closeTimestamp,
+			});
+			// The test segment is the newest part of the window, and opens after `from`.
+			expect(window.testFrom).toBeGreaterThan(window.from);
+			expect(window.testFrom).toBeLessThan(window.to);
 		});
 
 		it("stopTraining ends the session in flight, then stores and publishes its model (ADR-0058)", async () => {
@@ -772,6 +799,7 @@ describe("Trainer — model publication", () => {
 				const { trainedWeights: _w, ...g } = genome;
 				return {
 					version: "v1",
+					features: NETWORK_INPUT_LAYOUT,
 					genome: JSON.parse(JSON.stringify(g)),
 					metrics: {
 						generation: 3,
@@ -810,6 +838,21 @@ describe("Trainer — model publication", () => {
 				expect(
 					trainer.getSnapshotForSymbol(sym)?.buildBestAgentSummary()?.id
 				).toBe(genome.id);
+			});
+
+			it("skips a model published with another feature layout (ADR-0078)", async () => {
+				const models = fakeStore();
+				models.latest.mockResolvedValue({ version: "v1" } as never);
+				models.manifest.mockResolvedValue({
+					...(await storedManifest()),
+					features: { dim: 33, fields: [] },
+				} as never);
+				const trainer = new Trainer(dataBuffer, {
+					settings: TEST_TRAINING_SETTINGS,
+					models,
+				});
+				await trainer.rehydrate([sym]);
+				expect(trainer.getSnapshotForSymbol(sym)).toBeUndefined();
 			});
 
 			it("leaves no snapshot without manifest", async () => {

@@ -11,7 +11,6 @@ const DISCOVERY_EXTRA = {
 		.int()
 		.positive()
 		.default(1_000 * 60 * 10),
-	ERROR_URL_WEBHOOK: z.union([z.string().url(), z.literal("")]).default(""),
 	// Empty means unset: compose passes `${SIGNING_SECRET:-}`.
 	SIGNING_SECRET: z.preprocess(
 		(value) => (value === "" ? undefined : value),

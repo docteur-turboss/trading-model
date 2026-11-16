@@ -1,5 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import {
 	clamp,
 	makeGenomeId,

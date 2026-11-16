@@ -92,11 +92,14 @@ describe("router", () => {
 	});
 
 	describe("catch-all handler", () => {
+		let lastRes: { locals: { routeLabel?: string } };
+
 		function getHandler() {
+			lastRes = { locals: {} };
 			const nonRouteLayers = router.stack.filter((l: any) => !l.route);
-			return nonRouteLayers[nonRouteLayers.length - 1].handle as unknown as (
-				req: unknown
-			) => Promise<any>;
+			const handle = nonRouteLayers[nonRouteLayers.length - 1]
+				.handle as unknown as (req: unknown, res: unknown) => Promise<any>;
+			return (req: unknown) => handle(req, lastRes);
 		}
 
 		function mockForwardSuccess(body: unknown) {
@@ -142,6 +145,14 @@ describe("router", () => {
 		function get(path: string, method = "GET") {
 			return getHandler()(createReq({ method, path, url: path }));
 		}
+
+		it("labels the request with its public route pattern, not the raw path", async () => {
+			mockForwardSuccess({ data: "ok" });
+			await get("/v1/audit-logger/events/abc-123");
+			expect(lastRes.locals.routeLabel).toBe(
+				"/v1/audit-logger/events/:messageId"
+			);
+		});
 
 		it("should return 404 for a route the gateway does not expose", async () => {
 			const {
@@ -210,7 +221,8 @@ describe("router", () => {
 
 			expect(await getUrl("/v1/audit-logger/events?page=2")).toEqual({
 				status: 200,
-				data: { page: 2 },
+				data: JSON.stringify({ page: 2 }),
+				contentType: "application/json",
 			});
 		});
 
@@ -230,7 +242,8 @@ describe("router", () => {
 
 			expect(await get(url)).toEqual({
 				status: 200,
-				data: { error: "unsigned" },
+				data: JSON.stringify({ error: "unsigned" }),
+				contentType: "application/json",
 			});
 		});
 
@@ -239,12 +252,19 @@ describe("router", () => {
 			const path = "/v1/audit-logger/events/cached-test";
 
 			const first = await get(path);
-			expect(first).toEqual({ status: 200, data: { data: "ok" } });
+			expect(first).toEqual({
+				status: 200,
+				data: JSON.stringify({ data: "ok" }),
+				contentType: "application/json",
+			});
 
 			mockForwardSuccess({ data: "should-not-reach" });
 
 			const second = await get(path);
-			expect(second).toEqual({ status: 200, data: { data: "ok" } });
+			expect(second).toEqual({
+				status: 200,
+				data: JSON.stringify({ data: "ok" }),
+			});
 		});
 
 		it("serves a cached answer without a DNS lookup", async () => {
@@ -283,7 +303,11 @@ describe("router", () => {
 					body: { name: "test" },
 				})
 			);
-			expect(result).toEqual({ status: 200, data: { saved: true } });
+			expect(result).toEqual({
+				status: 200,
+				data: JSON.stringify({ saved: true }),
+				contentType: "application/json",
+			});
 		});
 
 		it.each([
@@ -354,6 +378,7 @@ describe("router", () => {
 			expect(await get("/v1/audit-logger/events/plain-text")).toEqual({
 				status: 200,
 				data: "plain text response",
+				contentType: "text/plain",
 			});
 		});
 

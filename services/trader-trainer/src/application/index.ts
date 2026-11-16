@@ -5,6 +5,7 @@ import { createBootstrap } from "@trading-model/http/bootstrap";
 import { shutdownTelemetry } from "@trading-model/http/telemetry";
 import type { Leadership } from "@trading-model/reliability/leadership";
 import { ScraperCandleHistory } from "../adapters/outbound/scraper-candle-history";
+import { ScraperSignalHistory } from "../adapters/outbound/scraper-signal-history";
 import {
 	BOOTSTRAP_ADDRESS_MANAGER,
 	FIND_A_SERVICE,
@@ -22,10 +23,11 @@ let leadership: Leadership | null = null;
 
 const CONTAINER = createTraderTrainerContainer(
 	ENV,
-	new ScraperCandleHistory(buildTlsFromEnv(ENV), FIND_A_SERVICE)
+	new ScraperCandleHistory(buildTlsFromEnv(ENV), FIND_A_SERVICE),
+	new ScraperSignalHistory(buildTlsFromEnv(ENV), FIND_A_SERVICE)
 );
 
-const { trainer, eventHandler, trainingLoop, symbols, models } = CONTAINER;
+const { trainer, trainingLoop, symbols, models } = CONTAINER;
 
 /** MODEL_DOWNLOAD_CALLERS, comma-separated service names (ADR-0022). */
 const MODEL_DOWNLOAD_CALLERS = parseCommaSeparated(ENV.MODEL_DOWNLOAD_CALLERS);
@@ -36,14 +38,6 @@ createBootstrap({
 		createServer(trainer, { models, downloadCallers: MODEL_DOWNLOAD_CALLERS }),
 	onStart: async () => {
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
-
-		// Broker messages are emitted under their topic (the MarketEvent value).
-		const intents = eventHandler.getSubscribedIntents();
-		for (const event of intents) {
-			MessageManager.on(event, (data) => eventHandler.handleEvent(event, data));
-		}
-
-		await MessageManager.intents(intents);
 
 		await trainer.rehydrate(symbols);
 

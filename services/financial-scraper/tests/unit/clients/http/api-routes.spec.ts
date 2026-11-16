@@ -355,6 +355,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 						replication: "futures",
 						region: "US",
 					},
+					areas: ["US"],
 					aliases: { twelvedata: "WEAT" },
 				},
 				signals: [SIGNAL],
@@ -363,7 +364,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(findForAsset).toHaveBeenCalledWith({
 				assetId: "WHEAT",
 				sector: "agriculture",
-				areas: [],
+				areas: ["US"],
 				dimensions: ["market", "contextual", "macro"],
 				from: Date.parse("2026-11-04"),
 				to: Date.parse("2026-11-05T00:00:00Z"),

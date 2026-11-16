@@ -84,13 +84,13 @@
       ]
     },
     {
-      "title": "Market Data Received (candles/s)",
+      "title": "Newest stored candle age (s)",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 8, "x": 0, "y": 12 },
       "targets": [
         {
-          "expr": "sum(rate(tt_market_data_received_total[5m]))",
-          "legendFormat": "candles/s"
+          "expr": "max(tt_last_candle_age_seconds)",
+          "legendFormat": "age"
         }
       ]
     },

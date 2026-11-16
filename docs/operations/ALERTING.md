@@ -93,7 +93,7 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `TrainerNoLeader` | no trainer pod reports `tt_training_leader` = 1 for 5 min: no trainer holds the Lease, nothing is trained (ADR-0058); the read routes still answer | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoLeaderProlonged` | `critical` (page): same condition as `TrainerNoLeader` for 30 min, far beyond a rollout handover (end of a generation plus a few seconds) | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoModelStored` | a trainer holds the Lease but no model was stored (`tt_model_artifacts_total{result="stored"}`) for 5 h (2 h after a start), whatever the cause: sessions failing, nothing trained, writes failing | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
-| `TrainerMarketDataStale` | no candle reached the trainer for 15 min (`tt_market_data_received_total`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `TrainerMarketDataStale` | newest stored candle read by the trainer older than 15 min for every symbol (`tt_last_candle_age_seconds`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ModelBelowBuyAndHold` | the last 3 stored models of a symbol have an out-of-sample Sharpe below buy and hold on the same bars (`tt_model_below_buy_and_hold_streak`, Lease holder only; `segment="test"`, ADR-0068) | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
 | `TrainerFeatureDrift` | for 1 h, a normalized field of a symbol received since its newest stored model has a mean more than 3 standard deviations from the statistics stored with that model (`tt_feature_drift_score`) | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
 | `MarketDataUnpublished` | persisted candles of a symbol have waited 15 min for the bus (`fs_unpublished_candles`): sent from MySQL once message-manager answers, the trainer lags meanwhile | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
@@ -101,7 +101,6 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `SymbolMarketDataStale` | no candle of one symbol persisted for 15 min while the others may still flow (`fs_candles_persisted_total{symbol}`): symbol rejected, klines failing or candles refused by the normalizer, by symbol | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
 | `SignalCollectionFailing` | a signal source (ADR-0036) failed a collection in the last 24 h, by source: fetch error (403 from SEC EDGAR without contact e-mail), changed format or MySQL | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `SignalSourceStale` | a signal source (ADR-0036) had no successful collection for longer than its threshold (`maxAgeSeconds`, else three cron periods), by source, with no failure counted | [runbook-market-data-stale#signalsourcestale](runbooks/runbook-market-data-stale.md#signalsourcestale) |
-| `CandleDeliveryLagging` | under 50% of the candles persisted by the scraper reached the trainer over 30 min, for 15 min (data freshness SLO, `slo.md`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `MessageDeliveryLowSuccessRate` | less than 99.5% of the messages delivered (the rest dead-lettered) | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `MessagesDeadLettered` | message-manager gave up on messages: they are in dlq-service (`GET /dlq`) to inspect and replay | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `BusDeadLetters` | A dead stream holds entries (`bus_dead_letters`): a subscriber group gave up on them, an operator replays or deletes them with `audit-dlq` | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
@@ -188,7 +187,6 @@ file absent from the repository, or on an anchor that matches no heading.
 | `SignalSourceStale` | warning | [runbook-market-data-stale#signalsourcestale](runbooks/runbook-market-data-stale.md#signalsourcestale) |
 | `MarketDataUnpublished` | warning | [runbook-message-bus-outage#5-scraper-publish-backlog](runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog) |
 | `TrainerMarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
-| `CandleDeliveryLagging` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoModelStored` | critical | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |
 | `ModelBelowBuyAndHold` | warning | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
@@ -242,7 +240,7 @@ Compose runs the same datasources as K8s, each one fed:
 
 - **Logs**: `promtail` reads the compose containers through the Docker API of `docker-socket-proxy` (the only holder of `/var/run/docker.sock`, read-only mount; the proxy refuses every `POST`, ADR-0011 amendment) and pushes to Loki with the K8s `json` pipeline (labels `component`, `job`, `container`, `level`). Check: Grafana → Explore → Loki → `{component="api-gateway"}`.
 - **Traces**: services export OTLP/HTTP straight to `jaeger:4318` (`OTEL_EXPORTER_OTLP_ENDPOINT`); there is no OTel collector in compose. UI on `JAEGER_PORT` (default 16686).
-- **SVID expiry**: `blackbox-exporter` probes `/ping` of the 7 services with its own SVID (`spiffe-helper-blackbox`, SPIRE entry `blackbox-exporter` made by `spire-bootstrap`). `/ping` answers before the ACL, so any valid SVID passes. `CertificateExpiry` carries the `service` label in both environments (one target per service in `observability/prometheus.yml` and `deploy/k8s/infra/prometheus.yaml`).
+- **SVID expiry**: `blackbox-exporter` probes `/ping` of every service with its own SVID (`spiffe-helper-blackbox`, SPIRE entry `blackbox-exporter` made by `spire-bootstrap`). `/ping` answers before the ACL, so any valid SVID passes. `CertificateExpiry` carries the `service` label in both environments (one target per service in `observability/prometheus.yml` and `deploy/k8s/infra/prometheus.yaml`).
 
 ## Reloading the Prometheus configuration
 

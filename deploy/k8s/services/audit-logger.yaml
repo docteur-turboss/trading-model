@@ -21,6 +21,8 @@ metadata:
     app.kubernetes.io/component: audit-logger
     app.kubernetes.io/part-of: trading-model
 spec:
+  # Fixed: one lease holder writes the chain (ADR-0050), more pods only contend.
+  replicas: 2
   strategy:
     # Surge first: with one replica (staging), maxUnavailable 1 left no ready
     # pod until the new one was ready (issue #699, as discovery-server #486).
@@ -128,6 +130,8 @@ spec:
                 name: audit-anchor-s3
                 optional: true
           env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=192
             - name: MONGO_USERNAME
               value: audit-logger
             - name: MONGO_PASSWORD
@@ -139,8 +143,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: ERROR_URL_WEBHOOK
-              value: ""
           resources:
             requests:
               cpu: 100m

@@ -10,7 +10,7 @@ import {
 	Leadership,
 	SOLE_INSTANCE_LEASE,
 } from "@trading-model/reliability/leadership";
-import { DataEventHandler } from "../adapters/inbound/events/event-handlers";
+import { AssetId } from "@trading-model/validation/wire/signals";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
@@ -26,6 +26,7 @@ import {
 import type { TradingSymbol } from "../domain/market-data-types";
 import type { CandleHistoryPort } from "../domain/ports/candle-history.port";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
+import type { SignalHistoryPort } from "../domain/ports/signal-history.port";
 import { effectiveFitnessType } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
@@ -33,7 +34,6 @@ import {
 	CURRENT_GENERATION,
 	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
-	MARKET_DATA_RECEIVED_TOTAL,
 	MARKET_DATA_SYMBOLS,
 	POPULATION_SIZE,
 	QLEARNING_TRAIN_ERRORS,
@@ -61,6 +61,9 @@ const PROMETHEUS_GA_TELEMETRY: GaTelemetry = {
 	},
 };
 
+/** How far back from the session instant the signal window reaches. */
+const SIGNAL_WINDOW_MS = 30 * 24 * 3_600_000;
+
 interface AppContainerConfig {
 	bufferSize: number;
 	symbols: TradingSymbol[];
@@ -78,12 +81,12 @@ interface AppContainerConfig {
 	modelRetention: number;
 	instanceId: string;
 	history: CandleHistoryPort;
+	signals: ConstructorParameters<typeof TrainingLoop>[4];
 }
 
 class ApplicationContainer {
 	public readonly symbols: TradingSymbol[];
 	public readonly dataBuffer: MarketDataBuffer;
-	public readonly eventHandler: DataEventHandler;
 	public readonly trainer: Trainer;
 	public readonly models: ModelArtifactStorePort;
 	public readonly trainingLoop: TrainingLoop;
@@ -97,11 +100,9 @@ class ApplicationContainer {
 			onDataAdded: (symbol, candleCount, symbolCount) => {
 				MARKET_DATA_BUFFER_SIZE.set({ symbol: String(symbol) }, candleCount);
 				MARKET_DATA_SYMBOLS.set(symbolCount);
-				MARKET_DATA_RECEIVED_TOTAL.inc();
 			},
 		};
 		this.dataBuffer = new MarketDataBuffer(bufferConfig);
-		this.eventHandler = new DataEventHandler(this.dataBuffer);
 
 		const { instanceId } = config;
 		const publisher = new ModelPublisher(MessageManager, {
@@ -139,7 +140,8 @@ class ApplicationContainer {
 				validationSplit: config.validationSplit,
 				testSplit: config.testSplit,
 				walkForwardFolds: config.walkForwardFolds,
-			}
+			},
+			config.signals
 		);
 	}
 }
@@ -148,6 +150,8 @@ interface TraderTrainerSettings {
 	TRAINER_DATA_WINDOW: number;
 	/** Comma-separated symbols, e.g. "BTCUSDT,ETHUSDT". */
 	TRAINER_SYMBOLS: string;
+	/** `SYMBOL:ASSET` pairs, comma-separated; empty: no signals read. */
+	TRAINER_SYMBOL_ASSETS: string;
 	TRAINER_VALIDATION_SPLIT: number;
 	TRAINER_TEST_SPLIT: number;
 	TRAINER_WALK_FORWARD_FOLDS: number;
@@ -167,7 +171,8 @@ interface TraderTrainerSettings {
 /** Builds the service container from the environment settings. */
 export function createTraderTrainerContainer(
 	settings: TraderTrainerSettings,
-	history: CandleHistoryPort
+	history: CandleHistoryPort,
+	signalHistory: SignalHistoryPort
 ): ApplicationContainer {
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
@@ -187,6 +192,16 @@ export function createTraderTrainerContainer(
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,
 		history,
+		signals: {
+			history: signalHistory,
+			assets: new Map(
+				parseCommaSeparated(settings.TRAINER_SYMBOL_ASSETS).map((pair) => {
+					const [symbol, asset] = pair.split(":");
+					return [toSymbol(symbol), AssetId.parse(asset)];
+				})
+			),
+			windowMs: SIGNAL_WINDOW_MS,
+		},
 	});
 }
 

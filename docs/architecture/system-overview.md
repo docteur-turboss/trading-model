@@ -2,7 +2,7 @@
 
 Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md) (broker), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
 
-> **Offline consumer only.** Trained models (`training.model.published`, weights route open to `model-evaluator` alone through `MODEL_DOWNLOAD_CALLERS`) are verified and recorded by the offline `model-evaluator`; collected signals (`GET /financial-scraper/signals/assets/:assetId`) are read by no service. There is no paper-trading or execution context. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Accepted).
+> **Offline consumer only.** Trained models (`training.model.published`, weights route open to `model-evaluator` alone through `MODEL_DOWNLOAD_CALLERS`) are verified and recorded by the offline `model-evaluator`; collected signals (`GET /financial-scraper/signals/assets/:assetId`) are only read and measured by trader-trainer for the symbols of `TRAINER_SYMBOL_ASSETS` (empty by default), not yet fed to the model. There is no paper-trading or execution context. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Accepted).
 
 ## 1. C4 level 1 — Context
 
@@ -117,7 +117,7 @@ sequenceDiagram
     FS->>B: fetch candles
     FS->>DB: persist candles
     FS->>DB: read market_publish_cursors, next persisted candles
-    FS->>MM: POST /message (requireSubscriber)
+    FS->>MM: POST /message
     alt a subscriber is reachable
       MM->>TT: callback /message
       MM-->>FS: all deliveries settled
@@ -138,7 +138,7 @@ sequenceDiagram
   end
 ```
 
-The trainer still subscribes to candles, as a notification only: its candle window is read per session.
+The trainer subscribes to no topic: its candle window is read from financial-scraper at each session ([ADR-0078](../adr/0078-trainer-features-from-candles-only.md)).
 
 Each subscribed service gets one delivery per message, whatever its number of instances: message-manager groups the subscribed instances by service and posts to the service name, the Kubernetes Service picks the pod (consumer group, [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
 

@@ -1,4 +1,4 @@
-# ADR-0078: Daily Equity and ETF Prices from the Twelve Data Free Tier, as `market` Signals
+# ADR-0080: Daily Equity and ETF Prices from the Twelve Data Free Tier, as `market` Signals
 
 **Status:** Accepted
 **Date:** 2026-11

@@ -28,7 +28,6 @@ Training service for trading agents using genetic algorithms and neural networks
 | `/models/:symbol/:version/weights` | GET | Weights: service-to-service only, `MODEL_DOWNLOAD_CALLERS` |
 | `/status`                  | GET    | Address-manager metrics snapshot                    |
 | `/metrics`                 | GET    | Prometheus metrics                                  |
-| `/message`                 | POST   | Message bus callback (market data ingestion)        |
 
 ### `GET /ping`
 
@@ -140,20 +139,9 @@ The `TRAINER_MODEL_RETENTION` newest versions are kept per symbol (default 20). 
 | network           | object | Neural network architecture              |
 | rl                | object | Reinforcement learning hyperparameters   |
 
-## Market Data Subscription
+## Market Data
 
-The service subscribes to **6 topics** via the message-manager:
-
-| Topic                                     | Data                |
-| ----------------------------------------- | ------------------- |
-| `market.candlestick.series.fetch`         | OHLCV candles       |
-| `market.trade.recent.fetch`               | Recent trades       |
-| `market.order-book.snapshot.fetch`        | Order book snapshot |
-| `market.order-book-ticker.snapshot.fetch` | Best bid/ask        |
-| `market.ticker.24hr-stats.fetch`          | 24h statistics      |
-| `market.price-ticker.snapshot.fetch`      | Current price       |
-
-Data is stored in a `MarketDataBuffer` (configurable window via `TRAINER_DATA_WINDOW`).
+The service subscribes to no topic (ADR-0078): the features are built from the candles alone, read from the stored candles of financial-scraper, so every bar of a window has the same inputs whatever the age of the pod. Candles are stored in a `MarketDataBuffer` (configurable window via `TRAINER_DATA_WINDOW`).
 
 Candles are kept strictly increasing in time per symbol: a candle with the timestamp of the last one replaces it, an older one is dropped, and neither is counted again by the normalizers. A training refuses to start on a series with duplicated or out-of-order timestamps, since a repeated candle would sit in both a training and a validation window.
 
@@ -187,12 +175,6 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 | `TRAINER_MODEL_DIR`   | Model artifacts directory (`/data/checkpoints/models`) |
 | `TRAINER_MODEL_RETENTION` | Versions kept per symbol (default 20)        |
 | `MODEL_DOWNLOAD_CALLERS` | Services allowed to download weights (comma-separated, empty: nobody; `model-evaluator` in compose and K8s) |
-
-## Rate Limiting
-
-- **Window**: 1 minute
-- **Limit**: 1 000 requests per IP and per window
-- Default of the shared server (`packages/http/src/configure-app.ts`); the trainer passes no `rateLimit` option
 
 ## TLS
 

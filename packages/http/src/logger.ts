@@ -6,7 +6,6 @@ import {
 	UserId,
 } from "@trading-model/primitives/primitives";
 import { formatLogEntry } from "./console-formatter";
-import { sendError } from "./log-dispatcher";
 import {
 	isLogLevelAtLeast,
 	type LogEntry,
@@ -14,7 +13,6 @@ import {
 	type LogOptions,
 } from "./log-types";
 import { generateProcessId } from "./process-id-generator";
-import { safeStringify } from "./sensitive-data-sanitizer";
 import { getNodeEnv, NODE_ENV } from "./shared/node-env";
 
 export type { LogEntry, LogOptions };
@@ -26,12 +24,10 @@ const UNKNOWN_USER = UserId.of("unknown");
 export class Logger {
 	private _logLevel: LogLevel;
 	private readonly _processId: ProcessId;
-	private readonly _env: string | undefined;
 
 	constructor(logLevel: LogLevel = LogLevel.Info, processId?: ProcessId) {
 		this._logLevel = logLevel;
 		this._processId = processId ?? generateProcessId(logLevel);
-		this._env = getNodeEnv();
 	}
 
 	private _log(level: LogLevel, message: string, context?: JsonObject): void {
@@ -41,9 +37,6 @@ export class Logger {
 		const logEntry = this._buildLogEntry(level, message, context);
 		const { label, consoleFn } = this._consoleTarget(level);
 		this._emitLog(logEntry, label, consoleFn, context);
-		if (level === LogLevel.Error) {
-			void sendError(safeStringify, logEntry, this._env);
-		}
 	}
 
 	private _consoleTarget(level: LogLevel): {

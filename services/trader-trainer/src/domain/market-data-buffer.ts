@@ -1,6 +1,5 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
-import type { Price } from "@trading-model/primitives/primitives";
-import { DataType } from "./data-handlers/data-types";
+import type { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
 import type { WindowSet } from "./genetic-algorithm/generation-types";
 import type { MarketStep } from "./genetic-algorithm/genome";
@@ -62,27 +61,6 @@ export class MarketDataBuffer {
 		this._onDataAdded?.(symbol, candles.length, this.getSymbols().length);
 	}
 
-	/**
-	 * Latest prices, stamped `at` reception: a candle's features read the
-	 * latest one known at its close (ADR-0030). Kept for tracked symbols only.
-	 */
-	setPriceSnapshot(
-		prices: Record<TradingSymbol, Price>,
-		at: number = Date.now()
-	): void {
-		for (const [symbol, price] of Object.entries(prices) as [
-			TradingSymbol,
-			Price,
-		][]) {
-			if (this._stateManager.states.has(symbol)) {
-				this._stateManager.addData(DataType.Price, symbol, {
-					price,
-					timestamp: at,
-				});
-			}
-		}
-	}
-
 	getSymbols(): TradingSymbol[] {
 		return this._stateManager.getSymbols();
 	}
@@ -113,13 +91,6 @@ export class MarketDataBuffer {
 	buildMarketSteps(symbol: TradingSymbol): MarketStep[] {
 		const ctx: MarketDataContext = { symbol };
 		return this._windowSplitter.buildMarketSteps(ctx);
-	}
-
-	splitTrainValidation(
-		steps: MarketStep[],
-		validationSplit: number
-	): WindowSet {
-		return this._windowSplitter.splitTrainValidation(steps, validationSplit);
 	}
 
 	getAllWindows(

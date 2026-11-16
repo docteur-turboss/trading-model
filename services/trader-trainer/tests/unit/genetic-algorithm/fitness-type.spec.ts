@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@jest/globals";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
+import { barsPerYear } from "@trading-model/model-runtime/replay-metrics";
 import { Cash, Price } from "@trading-model/primitives/primitives";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { EVAL_EPSILON } from "../../../src/domain/genetic-algorithm/evaluation-phase";
 import { evaluateGenomeAllWindows } from "../../../src/domain/genetic-algorithm/evaluation-pipeline";
 import {
-	barsPerYear,
 	computeFitness,
 	FAILED_FITNESS,
 } from "../../../src/domain/genetic-algorithm/evaluation-utils";

@@ -6,6 +6,8 @@ import { MySql2PoolQueryRunner } from "ts-sql-query/queryRunners/MySql2PoolQuery
 const POOL: Pool = createPool({
 	...createDbConfigFromEnv(),
 	connectionLimit: 10,
+	// Fail past 100 waiting queries (10x the pool) instead of queueing without bound.
+	queueLimit: 100,
 	// BIGINT columns (market_trades.trade_id) past Number.MAX_SAFE_INTEGER come
 	// back as strings, which ts-sql-query turns into exact bigints.
 	supportBigNumbers: true,

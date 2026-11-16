@@ -2,7 +2,7 @@ import { createServiceMessageManager } from "@trading-model/broker-message/creat
 import { ENV } from "../infrastructure/config/env";
 import { AddressManager } from "./address-manager";
 
-export const {
-	messageManager: MessageManager,
-	messageManagerListenExpress: MessageManagerListenExpress,
-} = createServiceMessageManager(AddressManager, ENV);
+export const { messageManager: MessageManager } = createServiceMessageManager(
+	AddressManager,
+	ENV
+);

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "@jest/globals";
+import { Signal } from "@trading-model/validation/wire/signals";
 import {
 	parseSignalRegistry,
 	SIGNAL_REGISTRY,
 } from "../../../src/config/signal-registry";
 import REGISTRY_FILE from "../../../src/config/signal-registry.json";
-import { Signal } from "../../../src/domain/signals";
 
 /** A copy of the shipped registry to break one thing at a time. */
 function registry(): any {
@@ -46,7 +46,17 @@ describe("signal registry — the shipped file", () => {
 			"AAPL",
 			"WHEAT",
 			"GLD",
+			"BORDEAUX_RE",
+			"NANTES_RE",
+			"LILLE_RE",
+			"MONTPELLIER_RE",
 			"EA_AAA_10Y",
+			"EA_AAA_2Y",
+			"EA_AAA_30Y",
+			"US_TREASURY_2Y",
+			"US_TREASURY_10Y",
+			"US_TREASURY_30Y",
+			"PARIS_RE",
 		]);
 	});
 
@@ -60,16 +70,20 @@ describe("signal registry — the shipped file", () => {
 		]);
 	});
 
-	it("keeps sources free for any use without key, only Twelve Data is non-commercial", () => {
+	it("only holds free sources, Twelve Data alone is non-commercial", () => {
+		const policies = SIGNAL_REGISTRY.sources.map((s) => s.accessPolicy);
+
 		expect(
 			SIGNAL_REGISTRY.sources
-				.filter(
-					(s) =>
-						s.accessPolicy.terms === "non-commercial" ||
-						s.accessPolicy.auth !== "none"
-				)
+				.filter((s) => s.accessPolicy.terms === "non-commercial")
 				.map((s) => s.id)
 		).toEqual(["twelvedata-daily-prices"]);
+		// A free key is allowed: a source without it is disabled alone.
+		expect(
+			policies.every(
+				(p) => p.auth === "none" || p.auth.env.startsWith("SIGNAL_KEY_")
+			)
+		).toBe(true);
 	});
 
 	it("requests Federal Register counts up to yesterday, one metric per document type", () => {
@@ -162,10 +176,10 @@ describe("parseSignalRegistry", () => {
 			"a request on an area no asset has",
 			(file: any) => {
 				sourceOf(file, "nws-kansas-wheat-belt").requests[0].subject = {
-					area: "US",
+					area: "JP",
 				};
 			},
-			"source nws-kansas-wheat-belt, request 0: no asset in area US",
+			"source nws-kansas-wheat-belt, request 0: no asset in area JP",
 		],
 		[
 			"an unknown adapter",
@@ -228,12 +242,12 @@ describe("parseSignalRegistry", () => {
 			"source nws-kansas-wheat-belt, request 0: params",
 		],
 		[
-			"a URL placeholder other than {date-N}",
+			"a URL placeholder other than {date-N} or {year}",
 			(file: any) => {
 				sourceOf(file, "ecb-aaa-yield-10y").requests[0].url =
 					"https://data-api.ecb.europa.eu/service/data/YC/{today}";
 			},
-			"source ecb-aaa-yield-10y, request 0: URL placeholder other than {date-N}",
+			"source ecb-aaa-yield-10y, request 0: URL placeholder other than {date-N} or {year}",
 		],
 		[
 			"a maxAgeSeconds shorter than the period of the cron",
@@ -349,6 +363,7 @@ describe("parseSignalRegistry", () => {
 		],
 	])("refuses a template with %s", (_label, breakIt, message) => {
 		const file = registry();
+		delete assetOf(file, "AAPL").aliases.wikipedia;
 		breakIt(sourceOf(file, "wikipedia-pageviews").templates[0]);
 
 		expect(() => parseSignalRegistry(file)).toThrow(message);
@@ -356,6 +371,7 @@ describe("parseSignalRegistry", () => {
 
 	it("reports several template problems together", () => {
 		const file = registry();
+		delete assetOf(file, "AAPL").aliases.wikipedia;
 		const { templates } = sourceOf(file, "wikipedia-pageviews");
 		templates.push({ ...templates[0], select: { sector: "energy" } });
 		templates.push({ ...templates[0], select: { assetIds: ["AAPL"] } });
@@ -378,6 +394,7 @@ describe("parseSignalRegistry", () => {
 		expect(request("wikipedia-pageviews")).toEqual([
 			wiki("Bitcoin", "BTC"),
 			wiki("Ethereum", "ETH"),
+			wiki("Apple%20Inc.", "AAPL"),
 		]);
 		expect(request("sec-edgar-eps-diluted")).toEqual([
 			{
