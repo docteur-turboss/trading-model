@@ -51,8 +51,9 @@ describe("BINANCE_WEIGHTS", () => {
 			expect(BINANCE_WEIGHTS.change24hrStats(100)).toBe(40);
 		});
 
-		it("should return 80 for > 100 symbols", () => {
+		it("should return 80 for > 100 symbols or all symbols (0)", () => {
 			expect(BINANCE_WEIGHTS.change24hrStats(101)).toBe(80);
+			expect(BINANCE_WEIGHTS.change24hrStats(0)).toBe(80);
 		});
 	});
 

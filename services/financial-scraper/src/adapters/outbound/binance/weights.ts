@@ -31,7 +31,10 @@ export const BINANCE_WEIGHTS = {
 	trades: (): ApiWeight => WEIGHT.TRADES,
 	candlesticks: (): ApiWeight => WEIGHT.CANDLESTICKS,
 	change24hrStats: (symbolLength: number): ApiWeight => {
-		if (symbolLength <= 20 && symbolLength !== 0) {
+		if (symbolLength === 0) {
+			return WEIGHT.CHANGE_24HR_HIGH;
+		}
+		if (symbolLength <= 20) {
 			return WEIGHT.CHANGE_24HR_LOW;
 		}
 		if (symbolLength <= 100) {

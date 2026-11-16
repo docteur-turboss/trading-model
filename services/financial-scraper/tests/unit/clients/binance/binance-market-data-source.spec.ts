@@ -139,6 +139,13 @@ describe("BinanceMarketDataSource", () => {
 		});
 	});
 
+	it("asks for all symbols (undefined) above 100 symbols", () => {
+		const many = Array.from({ length: 101 }, (_, i) => `S${i}USDT`) as any[];
+		new BinanceMarketDataSource().beginCycle(many);
+
+		expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith(undefined);
+	});
+
 	describe("fetchSnapshot", () => {
 		it("should call all 6 Binance client functions in parallel", async () => {
 			await source.fetchSnapshot(request);
