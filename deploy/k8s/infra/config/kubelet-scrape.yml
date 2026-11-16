@@ -1,0 +1,39 @@
+scrape_configs:
+  # Kubelet of every node, with this pod's ServiceAccount token and
+  # nodes/metrics (ClusterRole prometheus-nodes). The serving certificate is
+  # verified against the cluster CA: the nodes need serverTLSBootstrap and
+  # approved CSRs (docs/deployment/KUBERNETES.md). Staging overlays replace
+  # this key to skip verification (kubelet certificates self-signed on kind).
+  # Only the series the alerts and dashboards read are kept.
+  - job_name: 'kubelet'
+    scheme: https
+    authorization:
+      credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: node
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'kubelet_volume_stats_(used|capacity|available)_bytes'
+        action: keep
+
+  - job_name: 'cadvisor'
+    scheme: https
+    metrics_path: /metrics/cadvisor
+    authorization:
+      credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: node
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
+        action: keep
