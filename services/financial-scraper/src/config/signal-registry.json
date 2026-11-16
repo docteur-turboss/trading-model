@@ -26,7 +26,7 @@
 			"identifier": { "scheme": "isin", "isin": "US0378331005" },
 			"applicableDimensions": ["market", "fundamental", "social", "contextual", "legal", "macro"],
 			"sector": "technology",
-			"aliases": { "cik": "0000320193", "tiingo": "AAPL" }
+			"aliases": { "cik": "0000320193", "twelvedata": "AAPL" }
 		},
 		{
 			"id": "WHEAT",
@@ -36,7 +36,7 @@
 			"applicableDimensions": ["market", "contextual", "macro"],
 			"sector": "agriculture",
 			"exposure": { "assetClass": "commodity", "replication": "futures", "region": "US" },
-			"aliases": { "tiingo": "WEAT" }
+			"aliases": { "twelvedata": "WEAT" }
 		},
 		{
 			"id": "GLD",
@@ -46,7 +46,7 @@
 			"applicableDimensions": ["market", "macro"],
 			"sector": "precious_metals",
 			"exposure": { "assetClass": "commodity", "replication": "physical" },
-			"aliases": { "tiingo": "GLD" }
+			"aliases": { "twelvedata": "GLD" }
 		},
 		{
 			"id": "EA_AAA_10Y",
@@ -242,9 +242,9 @@
 			]
 		},
 		{
-			"id": "tiingo-daily-prices",
+			"id": "twelvedata-daily-prices",
 			"protocol": "rest_api",
-			"adapter": "tiingo-daily-prices",
+			"adapter": "twelvedata-daily-prices",
 			"schedule": "30 1 * * 2-6",
 			"reliabilityScore": 0.9,
 			"covers": [
@@ -254,18 +254,18 @@
 			],
 			"accessPolicy": {
 				"terms": "non-commercial",
-				"termsUrl": "https://www.tiingo.com/about/pricing",
-				"restrictions": "Free tier licence \"Internal Use Only\": \"you may only use the data for your own personal use\" (read 2026-11-16)",
+				"termsUrl": "https://twelvedata.com/terms",
+				"restrictions": "§2.3(l): no \"Use Free Tier data for commercial purposes\"; §2.2(a): store Data \"solely for Internal Use\"; §16.2(a): \"All Data must be deleted within 30 days\" after termination (read 2026-11-16)",
 				"commercialLicence": "available",
-				"commercialLicenceUrl": "https://www.tiingo.com/about/pricing",
-				"auth": { "type": "api_key", "env": "SIGNAL_KEY_TIINGO", "in": "query", "name": "token" },
-				"maxRequestsPerMinute": 10,
-				"maxRequestsPerDay": 1000
+				"commercialLicenceUrl": "https://twelvedata.com/pricing",
+				"auth": { "type": "api_key", "env": "SIGNAL_KEY_TWELVEDATA", "in": "query", "name": "apikey" },
+				"maxRequestsPerMinute": 8,
+				"maxRequestsPerDay": 800
 			},
 			"templates": [
-				{ "select": { "assetType": "equity" }, "dimension": "market", "url": "https://api.tiingo.com/tiingo/daily/{asset.alias.tiingo}/prices" },
-				{ "select": { "assetType": "etf" }, "dimension": "market", "url": "https://api.tiingo.com/tiingo/daily/{asset.alias.tiingo}/prices" },
-				{ "select": { "assetType": "commodity_proxy" }, "dimension": "market", "url": "https://api.tiingo.com/tiingo/daily/{asset.alias.tiingo}/prices" }
+				{ "select": { "assetType": "equity" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=1" },
+				{ "select": { "assetType": "etf" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=1" },
+				{ "select": { "assetType": "commodity_proxy" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=1" }
 			]
 		},
 		{

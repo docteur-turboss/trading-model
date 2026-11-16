@@ -7,7 +7,7 @@ import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-so
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
-import { TIINGO_DAILY_PRICES } from "../../../src/adapters/outbound/signal-sources/tiingo-daily-prices";
+import { TWELVEDATA_DAILY_PRICES } from "../../../src/adapters/outbound/signal-sources/twelvedata-daily-prices";
 import { WIKIMEDIA_PAGEVIEWS } from "../../../src/adapters/outbound/signal-sources/wikimedia-pageviews";
 import { PAYLOADS } from "../../../src/domain/signals";
 
@@ -35,7 +35,7 @@ describe("SOURCE_ADAPTERS", () => {
 			"federal-register-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
-			"tiingo-daily-prices",
+			"twelvedata-daily-prices",
 			"wikimedia-pageviews",
 		]);
 	});
@@ -50,7 +50,7 @@ describe("SOURCE_ADAPTERS", () => {
 			"nws-latest-observation",
 			{ variables: "temperature,relativeHumidity" },
 		],
-		[TIINGO_DAILY_PRICES, "tiingo-daily-prices", {}],
+		[TWELVEDATA_DAILY_PRICES, "twelvedata-daily-prices", {}],
 		[WIKIMEDIA_PAGEVIEWS, "wikimedia-pageviews", {}],
 		[
 			FEDERAL_REGISTER_DAILY,
@@ -515,10 +515,10 @@ describe("cftc-cot-legacy", () => {
 	});
 });
 
-describe("tiingo-daily-prices", () => {
-	it("gives six metrics per session, observed from 17:30 New York that day", () => {
-		const observations = TIINGO_DAILY_PRICES.normalize(
-			fixture("tiingo-daily-prices"),
+describe("twelvedata-daily-prices", () => {
+	it("gives five metrics per session, keyed and dated by the session day", () => {
+		const observations = TWELVEDATA_DAILY_PRICES.normalize(
+			fixture("twelvedata-daily-prices"),
 			NO_PARAMS
 		);
 
@@ -529,43 +529,36 @@ describe("tiingo-daily-prices", () => {
 			["high", 275.1],
 			["low", 271.2],
 			["close", 273.5],
-			["adjusted_close", 273.5],
 			["volume", 48210000],
 		]);
 		expect(new Set(observations.map((o) => o.key))).toEqual(
 			new Set(["2026-11-13"])
 		);
-		// 17:30 EST = 22:30Z, never before the close (16:00 EST = 21:00Z).
-		expect(observations[0].observedAt).toBe(Date.parse("2026-11-13T22:30:00Z"));
 		expect(observations[0].payload.period).toEqual({
 			start: "2026-11-13",
 			end: "2026-11-13",
 		});
+		// No release time: the collection time stands, never before the close.
+		expect(observations.every((o) => o.observedAt === undefined)).toBe(true);
 	});
 
-	it("takes daylight saving time into account", () => {
-		const [row] = fixture("tiingo-daily-prices");
-		const [first] = TIINGO_DAILY_PRICES.normalize(
-			[{ ...row, date: "2026-07-10T00:00:00.000Z" }],
-			NO_PARAMS
-		);
-
-		expect(first.observedAt).toBe(Date.parse("2026-07-10T21:30:00Z"));
-	});
-
-	it("gives nothing for a day without quotation (empty answer)", () => {
-		expect(TIINGO_DAILY_PRICES.normalize([], NO_PARAMS)).toEqual([]);
+	it("gives nothing for a day without quotation (no value)", () => {
+		expect(
+			TWELVEDATA_DAILY_PRICES.normalize({ values: [] }, NO_PARAMS)
+		).toEqual([]);
 	});
 
 	it.each([
-		["a missing value", (r: any) => ({ ...r, adjClose: undefined })],
+		["a missing value", (r: any) => ({ ...r, close: undefined })],
 		["a null value", (r: any) => ({ ...r, close: null })],
-		["a changed format", () => ({ detail: "Invalid token" })],
+		["an empty value", (r: any) => ({ ...r, close: "" })],
+		["a changed format", () => undefined],
 	])("throws on %s", (_name, change) => {
-		const [row] = fixture("tiingo-daily-prices");
+		const payload = fixture("twelvedata-daily-prices");
+		const bad = change(payload.values[0])
+			? { values: [change(payload.values[0])] }
+			: { code: 401, message: "Invalid API key", status: "error" };
 
-		expect(() =>
-			TIINGO_DAILY_PRICES.normalize([change(row)], NO_PARAMS)
-		).toThrow();
+		expect(() => TWELVEDATA_DAILY_PRICES.normalize(bad, NO_PARAMS)).toThrow();
 	});
 });

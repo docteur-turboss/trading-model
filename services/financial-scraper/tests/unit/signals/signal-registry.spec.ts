@@ -60,7 +60,7 @@ describe("signal registry — the shipped file", () => {
 		]);
 	});
 
-	it("keeps sources free for any use without key, only Tiingo is non-commercial", () => {
+	it("keeps sources free for any use without key, only Twelve Data is non-commercial", () => {
 		expect(
 			SIGNAL_REGISTRY.sources
 				.filter(
@@ -69,7 +69,7 @@ describe("signal registry — the shipped file", () => {
 						s.accessPolicy.auth !== "none"
 				)
 				.map((s) => s.id)
-		).toEqual(["tiingo-daily-prices"]);
+		).toEqual(["twelvedata-daily-prices"]);
 	});
 
 	it("requests Federal Register counts up to yesterday, one metric per document type", () => {

@@ -374,8 +374,8 @@ services:
       # Contact e-mail in the User-Agent of the signal sources (ADR-0036): SEC
       # EDGAR answers 403 without one. From .env only: the repository is public.
       SIGNAL_CONTACT_EMAIL: ${SIGNAL_CONTACT_EMAIL:-}
-      # Free Tiingo key of the daily prices (ADR-0078), from .env only.
-      SIGNAL_KEY_TIINGO: ${SIGNAL_KEY_TIINGO:-}
+      # Free Twelve Data key of the daily prices (ADR-0078), from .env only.
+      SIGNAL_KEY_TWELVEDATA: ${SIGNAL_KEY_TWELVEDATA:-}
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}

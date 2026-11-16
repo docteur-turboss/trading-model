@@ -151,7 +151,7 @@ Schema v1, the model of the design note's §1: `src/domain/signals.ts`
   (asset type, dimension) pairs it can feed), `accessPolicy`,
   `reliabilityScore`, an adapter, a cron `schedule` and its requests (subject
   `assetId` or `sector`, `dimension`, HTTPS URL, adapter `params`). A URL may
-  hold `{date-N}`: the UTC date N days before the collection, as YYYYMMDD.
+  hold `{date-N}`: the UTC date N days before the collection, as YYYYMMDD; `{year}`: its UTC year.
 - **Signal**: an envelope (`sourceId`, `dimension`, `assetId` or `sector`,
   `observedAt`, `ingestedAt`, `confidenceScore`) and the canonical `payload` of
   its dimension: a measure (`metric`, `value`, `unit`, optional `details`) plus
@@ -179,15 +179,29 @@ for the use made, or with no terms found, cannot be declared. The gauge
 
 | Source id | Dimension | Subject | Schedule | Metrics | Terms (rank; commercial licence) |
 | --- | --- | --- | --- | --- | --- |
-| `ecb-aaa-yield-10y` | market | `EA_AAA_10Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_10y` | attribution: "Source: ECB statistics" (1) |
+| `ecb-aaa-yield-10y` | market | `EA_AAA_{2,10,30}Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_{2,10,30}y` | attribution: "Source: ECB statistics" (1) |
+| `treasury-par-yield-curve` | market | `US_TREASURY_{2,10,30}Y` (bond) | weekdays 21:17-23:17 UTC (CSV of the year, one row per business day) | `par_yield_{2,10,30}y` (percent) | public domain, work of the US government (17 U.S.C. 105) (1) |
 | `ecb-hicp-annual-rate` | macro | area `EA` | daily 11:17 UTC (HICP is monthly) | `hicp_annual_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-deposit-facility-rate` | macro | area `EA` | weekdays 15:35 UTC (changes are irregular) | `deposit_facility_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-euro-reference-rates` | macro | area `EA` | weekdays 16:07 UTC (after the ECB release) | `eur_{usd,gbp,chf,jpy}_reference_rate` | attribution: "Source: ECB statistics" (1) |
+| `fred-us-macro` | macro | area `US` (AAPL, WHEAT, GLD) | daily 13:47 UTC; key `SIGNAL_KEY_FRED`, 1000 requests a day declared (FRED sets none) | `DFF` fed funds rate (Board of Governors, daily), `CPIAUCSL` CPI (BLS, monthly), `UNRATE` unemployment (BLS, monthly), `GDPC1` real GDP (BEA, quarterly); `observedAt` = vintage `realtime_start`, a revision is a second signal. Left out: ICE BofA credit spreads (third-party copyright) | attribution: FRED notice (read 2026-11-16, terms_of_use.html: third-party series need the owner's permission, agency series are public domain by origin) (1) |
 | `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
+| `sec-edgar-revenue` | fundamental | equities with a `cik` alias | daily | `us-gaap:Revenues` (tags `Revenues`, `RevenueFromContractWithCustomerExcludingAssessedTax`, `SalesRevenueNet`) | attribution: SEC (1) |
+| `sec-edgar-core-facts` | fundamental | equities with a `cik` alias | daily | `us-gaap:{OperatingIncomeLoss,NetIncomeLoss,Assets,Liabilities,StockholdersEquity,CashAndCashEquivalentsAtCarryingValue}`, `dei:EntityCommonStockSharesOutstanding` | attribution: SEC (1) |
 | `cftc-cot-legacy` | market | `WHEAT` (contract 001602) | Fridays and Mondays after a holiday, hourly 15:45-23:45 UTC | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = release 15:30 ET, 3 business days after the Tuesday | public domain, CFTC acknowledged (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
+| `nasa-power-crop-regions` | contextual | sector `agriculture` | daily (5 points: Beauce, Poltava, Mato Grosso, Rio Grande do Sul, Riverina) | `T2M`, `PRECTOTCORR`, `GWETROOT` (latest day with a value, observations only) | attribution (NASA POWER) |
 | `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
+| `dvf-commune-sales` | market | `BORDEAUX_RE`, `NANTES_RE`, `LILLE_RE`, `MONTPELLIER_RE` (INSEE communes) | Mondays 06:17 UTC (DVF is published twice a year, URL year `2025` to bump by hand) | `sales_count`, `median_price_per_m2_apartment`, `median_price_per_m2_house`; per commune and year, one sale counted once; sales without price or surface, or with several dwellings of different surfaces, only in `details.excluded`; several dwelling rows of the same type and surface count as one dwelling (the file cannot tell two identical flats from one on two lots: about 1 % of kept sales on the 2025 files, price/m2 overstated for a real twin sale); a corrected value is a second signal; no sale-level field is stored | attribution: DGFiP / Etalab, Licence Ouverte 2.0 (1) |
+| `eurostat-house-price-index`, `eurostat-hicp-inflation`, `eurostat-unemployment` | macro | areas `EA`, `FR`, `DE` (served to `PARIS_RE` through its `areas`) | daily 08:23-08:37 UTC | `house_price_index` (quarterly, `prc_hpi_q`), `hicp_annual_rate` (`prc_hicp_minr`), `unemployment_rate` (`une_rt_m`) | attribution: "Source: Eurostat" (1) (2026-11-16, [copyright notice](https://ec.europa.eu/eurostat/help/copyright-notice): commercial reuse allowed with the source credited); `observedAt` = the dataset `updated` time, a revised value is a new signal, the Eurostat flag is in `details.flag` |
 | `federal-register-documents` | legal | sectors `crypto` (SEC, CFTC), `technology` (FTC) | daily | `documents_final_rules`, `documents_proposed_rules`, `documents_notices` | public domain (US government work, govinfo policy, read 2026-11-16) |
+
+EDGAR facts use `companyconcept`, one request per concept and company (10 per
+company a day, under the 10 requests/s fair-access limit and `maxRequestsPerMinute`):
+`companyfacts` answers several MB per company, past the 5 MB body cap. A concept a
+company never reported answers 404: the EDGAR sources set `notFoundIsEmpty`, so a 404 is
+`not_found` (no fact), not a fetch failure, and quarantines nothing. Units
+stay as filed (`USD`, `USD/shares`, `shares`), never converted.
 
 **Adding a source**: read its terms, then an entry in the registry. A new
 payload format also needs an adapter in `src/adapters/outbound/signal-sources/`
@@ -201,7 +215,7 @@ Each request is fetched (GET, JSON, 10 s timeout, no retry: the next tick is the
 retry, unless the source is quarantined, see runbook-market-data-stale),
 normalized by its adapter, checked against the schema and stored.
 `fs_signal_collections_total{source,result}` counts the requests by result:
-`success`, `not_modified` (304: nothing to store, counts as fresh), `fetch_error`, `invalid_payload` (the source changed its format: logged,
+`success`, `not_modified` (304: nothing to store, counts as fresh), `not_found` (404 on a source with `notFoundIsEmpty`: no fact, not a failure), `fetch_error`, `invalid_payload` (the source changed its format: logged,
 nothing stored), `store_error`. Every request sends the User-Agent
 `automated news analysis <SIGNAL_CONTACT_EMAIL>`: SEC EDGAR answers 403
 without the e-mail; NWS and Wikimedia accept the repository URL sent when it
@@ -215,7 +229,7 @@ the Binance collection goes on.
 the source's own time when it gives a safe one (an EDGAR fact once its filing
 day is over, US Eastern), otherwise the first collection that saw the value
 (the ECB, NWS and Wikimedia give no release time; the store keeps that first
-row; Tiingo: ADR-0078). The NWS measurement time, earlier than its publication, is in
+row). The NWS measurement time, earlier than its publication, is in
 `details.measuredAt`. The period a value refers to is in the payload
 (`period`). `confidenceScore` is the source's
 `reliabilityScore` when collected. Both are served with every signal, never

@@ -85,7 +85,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0075](./0075-non-commercial-signal-sources-admitted-and-tagged.md) | Free Personal-Use Signal Sources Are Admitted, Tagged by Their Terms | Accepted | 2026-11 |
 | [ADR-0076](./0076-multi-asset-trainer-shared-encoders-and-agent-hierarchy.md) | Multi-Asset Trainer: Shared Encoders, a Three-Level Agent Hierarchy and a Migration Path in Flagged Steps | Proposed | 2026-11 |
 | [ADR-0077](./0077-rank-the-market-data-source-terms.md) | Rank the Market Data Source Terms Against the Licence Order, Add Bitstamp as Second Source | Proposed | 2026-11 |
-| [ADR-0078](./0078-daily-prices-from-tiingo-free-tier.md) | Daily Equity and ETF Prices from the Tiingo Free Tier, as `market` Signals | Accepted | 2026-11 |
+| [ADR-0078](./0078-daily-prices-from-twelve-data-free-tier.md) | Daily Equity and ETF Prices from the Twelve Data Free Tier, as `market` Signals | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

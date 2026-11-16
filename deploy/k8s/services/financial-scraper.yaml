@@ -371,12 +371,12 @@ spec:
                   name: signal-contact
                   key: SIGNAL_CONTACT_EMAIL
                   optional: true
-            # Free Tiingo key (ADR-0078). Absent: the source alone is not scheduled.
-            - name: SIGNAL_KEY_TIINGO
+            # Free Twelve Data key (ADR-0078). Absent: the source alone is not scheduled.
+            - name: SIGNAL_KEY_TWELVEDATA
               valueFrom:
                 secretKeyRef:
                   name: trading-model-secrets
-                  key: SIGNAL_KEY_TIINGO
+                  key: SIGNAL_KEY_TWELVEDATA
                   optional: true
           resources:
             requests:
