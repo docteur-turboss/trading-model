@@ -125,6 +125,8 @@ spec:
             - configMapRef:
                 name: discovery-server-config
           env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=192
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -140,8 +142,6 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: SIGNING_SECRET
-            - name: ERROR_URL_WEBHOOK
-              value: ""
           resources:
             requests:
               cpu: 100m

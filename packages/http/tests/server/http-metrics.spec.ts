@@ -71,6 +71,19 @@ describe("httpMetricsMiddleware", () => {
 		]);
 	});
 
+	it("prefers the pattern a handler left in res.locals.routeLabel", async () => {
+		const app = express();
+		app.use(httpMetricsMiddleware);
+		app.use((_req, res) => {
+			res.locals.routeLabel = "/v1/svc/items/:id";
+			res.send("ok");
+		});
+		await get(app, "/v1/svc/items/42");
+
+		const counter = await metric("http_requests_total");
+		expect(counter.values[0].labels.path).toBe("/v1/svc/items/:id");
+	});
+
 	it("puts every unmatched URL in one series", async () => {
 		const app = buildApp();
 		await get(app, "/wp-login.php");

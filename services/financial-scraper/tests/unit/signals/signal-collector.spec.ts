@@ -202,7 +202,7 @@ describe("SignalCollector", () => {
 
 	it("puts the dates of the collection in place of the {date-N} placeholders", async () => {
 		const url =
-			"https://a.test/pageviews/daily/{date-8}/{date-1}?today={date-0}";
+			"https://a.test/pageviews/daily/{date-8}/{date-1}?today={date-0}&y={year}";
 
 		await collector().collect({
 			...SOURCE,
@@ -212,7 +212,7 @@ describe("SignalCollector", () => {
 		expect(worker).toHaveBeenCalledWith(
 			{
 				...SOURCE.requests[0],
-				url: "https://a.test/pageviews/daily/20261027/20261103?today=20261104",
+				url: "https://a.test/pageviews/daily/20261027/20261103?today=20261104&y=2026",
 			},
 			"none",
 			expect.anything()
@@ -486,6 +486,31 @@ describe("quarantine of a failing source", () => {
 		clock += 1;
 		await c.collect(ONE_REQUEST);
 		expect(worker).toHaveBeenCalledTimes(3);
+	});
+
+	it("counts a 404 as no fact, never a failure, when the source opts in, and stores the 200s", async () => {
+		const c = collector();
+		const optIn: Source = {
+			...SOURCE,
+			accessPolicy: { ...SOURCE.accessPolicy, notFoundIsEmpty: true },
+		};
+		normalize.mockReturnValue([OBSERVATION]);
+		save.mockResolvedValue(undefined);
+		for (let i = 0; i < 3; i++) {
+			worker
+				.mockRejectedValueOnce(new HttpStatusError("HTTP", 404))
+				.mockResolvedValueOnce({ payload: true });
+			await c.collect(optIn);
+		}
+
+		expect(save).toHaveBeenCalledTimes(3);
+		expect(await quarantined()).toBe(0);
+		expect((await counted())["test-source:not_found"]).toBe(3);
+		fail(404);
+		for (let i = 0; i < 3; i++) {
+			await c.collect(ONE_REQUEST);
+		}
+		expect(await quarantined()).toBe(1);
 	});
 
 	it("quarantines a refused key (403) at the first failure for 24 h", async () => {

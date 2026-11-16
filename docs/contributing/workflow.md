@@ -201,7 +201,7 @@ dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta
 
 main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
               (if OK)     bun run   full CI           deploy.yml
-                          release   docker (10 images) production
+                          release   docker (service and tool images) production
 ```
 
 ---

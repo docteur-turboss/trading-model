@@ -588,7 +588,7 @@ groups:
       # days (ECB) or hourly (NWS): one day covers every schedule. The failure
       # series are born at 0 when the collector starts (zeroCollectionFailures).
       - alert: SignalCollectionFailing
-        expr: sum by (source) (increase(fs_signal_collections_total{result!~"success|not_modified"}[1d])) > 0
+        expr: sum by (source) (increase(fs_signal_collections_total{result!~"success|not_modified|not_found"}[1d])) > 0
         for: 0m
         labels:
           severity: warning

@@ -121,6 +121,8 @@ spec:
             - configMapRef:
                 name: dlq-service-config
           env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=192
             - name: MONGO_USERNAME
               value: dlq-service
             - name: MONGO_PASSWORD
@@ -148,8 +150,6 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: DLQ_AUTH_HMAC_SECRET
-            - name: ERROR_URL_WEBHOOK
-              value: ""
           resources:
             requests:
               cpu: 100m

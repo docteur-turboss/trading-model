@@ -17,13 +17,13 @@ Offline consumer of trained models (ADR-0049, option B). No order flow, no marke
 
 ## Not done yet
 
-The replay of the model on stored candles and signals, and the ADR-0030 metrics (`replay: "not-run"` in the record). It needs the network forward, the feature codec and the portfolio simulator shared with the trainer, and is a separate change (owner decision on issue #1141: option 3).
+The replay of the model on stored candles and signals, and the ADR-0030 metrics (`replay: "not-run"` in the record). It needs the network forward, the feature codec and the portfolio simulator shared with the trainer, and is a separate change (owner decision on issue #1141: option 3). The trainer manifest now carries the window and simulator to replay (ADR-0079); the consumer is issue #1256, second pull request.
 
 ## Dependencies
 
 | Dependency | Type |
 | --- | --- |
-| discovery-server | Registration, resolution of trader-trainer |
+| discovery-server | Registration only, kept for N-1 gateways (resolution is by Service DNS name, ADR-0072) |
 | message-manager | Subscription to `training.model.published`, delivery |
 | trader-trainer | Manifest and weights (service-to-service) |
 | PVC `model-evaluations-pvc` | Evaluation records (one replica, `Recreate`) |

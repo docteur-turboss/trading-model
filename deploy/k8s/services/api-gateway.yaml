@@ -121,6 +121,8 @@ spec:
             - configMapRef:
                 name: api-gateway-config
           env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=192
             - name: AUTH_TOKENS
               valueFrom:
                 secretKeyRef:

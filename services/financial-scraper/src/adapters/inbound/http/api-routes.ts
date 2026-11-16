@@ -9,15 +9,15 @@ import {
 	toSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { z } from "zod";
-import type { MarketDataPage } from "../../../domain/market-data.types";
 import {
 	Asset,
 	AssetId,
+	AssetSignalsResponse,
 	Dimension,
-	Signal,
-	Source,
-} from "../../../domain/signals";
+} from "@trading-model/validation/wire/signals";
+import { z } from "zod";
+import type { MarketDataPage } from "../../../domain/market-data.types";
+import { Source } from "../../../domain/signals";
 
 /**
  * HTTP API of financial-scraper (ADR-0021): market data and signal queries. Each entry
@@ -244,13 +244,7 @@ export const SCRAPER_API = {
 				path: ["to"],
 			}),
 		responses: {
-			200: z.object({
-				asset: Asset,
-				/** Oldest first. */
-				signals: z.array(Signal),
-				/** More than MAX_SIGNALS_PER_ANSWER (5000) signals: narrow the window. */
-				truncated: z.boolean(),
-			}),
+			200: AssetSignalsResponse,
 			400: ErrorResponse,
 			404: ErrorResponse,
 		},

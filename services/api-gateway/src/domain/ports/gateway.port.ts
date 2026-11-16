@@ -7,7 +7,11 @@ type ForwardRequestPort = (opts: {
 	req: Request;
 	target: ResolvedEndpoint;
 	path: string;
-}) => Promise<{ status: HttpStatusCode; body: string }>;
+}) => Promise<{
+	status: HttpStatusCode;
+	body: string;
+	headers?: Record<string, string | string[] | undefined>;
+}>;
 
 /**
  * The upstream answer passed PROXY_MAX_RESPONSE_BYTES: the forward port cut
