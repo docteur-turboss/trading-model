@@ -268,10 +268,10 @@ describe("K8s Redis HA start script — real failovers", () => {
 		await expect(
 			first("audit-logger", "XRANGE", journalKey, "-", "+", "COUNT", "1")
 		).resolves.not.toMatch(/^NOPERM/);
-		// Dead stream length (XINFO STREAM) and journal retire (SREM): granted at N-1 and N.
+		// Dead stream length (XINFO STREAM) and journal retire (SREM): granted to every bus user.
 		await expect(
 			first(
-				"message-manager",
+				"audit-logger",
 				"XINFO",
 				"STREAM",
 				"trading-model:message-manager:dead:t"
@@ -279,7 +279,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 		).resolves.not.toMatch(/^NOPERM/);
 		await expect(
 			first(
-				"message-manager",
+				"audit-logger",
 				"SREM",
 				"trading-model:message-manager:subscriptions:t",
 				"g"
