@@ -11,15 +11,12 @@
  *   bun scripts/mt4-walk-forward.ts --data btc.json,eth.json --out results.json
  *     [--segments 12] [--window 500] [--test 100] [--population 20]
  *     [--generations 30] [--fitness total_pnl,sharpe,composite]
- *     [--variants shown] [--seeds 3] [--seed-base 0] [--features klines]
+ *     [--variants shown] [--seeds 3] [--seed-base 0]
  *   bun scripts/mt4-walk-forward.ts --merge a.json,b.json   # summary only
  *
  * Variants: `shown` / `hidden` = the agent sees its position or a constant
- * (ADR-0025). Features: `candles` feeds the candles only; `klines` adds what
- * the candle files allow rebuilding at each close (ADR-0030): the 24h ticker
- * from the previous 24 hours of candles, and the candle's trades as one buyer
- * and one seller aggregate trade from its taker volumes. Binance publishes no
- * order book history: those inputs stay 0.
+ * (ADR-0025). The only features are the candles'
+ * (ADR-0078).
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import {
@@ -27,7 +24,6 @@ import {
 	CandleInterval,
 	MarketType,
 	SourceType,
-	TradeSide,
 } from "@trading-model/contracts/market-data.types";
 import {
 	Price,
@@ -47,7 +43,6 @@ import { MarketDataBuffer } from "../src/domain/market-data-buffer";
 import { ADMISSION_THRESHOLDS } from "../src/domain/model-admission";
 
 const INITIAL_CASH = 1000;
-const DAY_MS = 86_400_000;
 
 /** ADR-0030 success criteria: all must hold. */
 const CRITERIA = {
@@ -78,7 +73,6 @@ interface Options {
 	seeds: number;
 	/** First seed: parallel runs each take a slice of the seeds. */
 	seedBase: number;
-	features: "candles" | "klines";
 	merge?: string[];
 }
 
@@ -88,7 +82,6 @@ interface SegmentResult {
 	fitness: string;
 	variant: string;
 	seed: number;
-	features: string;
 	testFrom: string;
 	testTo: string;
 	/** Mean final PnL of the evaluation episodes, % of the initial cash. */
@@ -125,7 +118,6 @@ function parseArgs(argv: string[]): Options {
 		variants: arg("variants", "shown").split(","),
 		seeds: Number(arg("seeds", "3")),
 		seedBase: Number(arg("seed-base", "0")),
-		features: arg("features", "klines") as Options["features"],
 		merge,
 	};
 }
@@ -146,85 +138,13 @@ function toCandle(symbol: TradingSymbol, kline: Kline): CandleData {
 	};
 }
 
-/** The 24h ticker known at the close of `klines[idx]`, if 24h are covered. */
-function addTicker(
-	buffer: MarketDataBuffer,
-	symbol: TradingSymbol,
-	klines: Kline[],
-	idx: number
-): void {
-	const close = klines[idx][6];
-	let first = idx;
-	while (first > 0 && klines[first - 1][0] >= close + 1 - DAY_MS) {
-		first--;
-	}
-	if (klines[first][0] > close + 1 - DAY_MS) {
-		return;
-	}
-	const day = klines.slice(first, idx + 1);
-	buffer.addData(DataType.Ticker, symbol, {
-		symbol,
-		source: SourceType.Binance,
-		market: MarketType.Crypto,
-		timestamp: UnixTimestamp.of(day[0][0]),
-		closeTimestamp: UnixTimestamp.of(close),
-		open: Price.of(day[0][1]),
-		high: Price.of(Math.max(...day.map((kline) => kline[2]))),
-		low: Price.of(Math.min(...day.map((kline) => kline[3]))),
-		last: Price.of(klines[idx][4]),
-		volume: Volume.of(day.reduce((sum, kline) => sum + kline[5], 0)),
-	});
-}
-
-/** The candle's trades as one buyer and one seller aggregate trade. */
-function addTrades(
-	buffer: MarketDataBuffer,
-	symbol: TradingSymbol,
-	kline: Kline,
-	idx: number
-): void {
-	const [, , , , close, volume, closeTime, quoteVolume, , takerBuy] = kline;
-	if (!(volume > 0) || takerBuy === undefined) {
-		return;
-	}
-	const vwap = quoteVolume > 0 ? quoteVolume / volume : close;
-	const parts: [TradeSide, number][] = [
-		[TradeSide.Buy, takerBuy],
-		[TradeSide.Sell, volume - takerBuy],
-	];
-	parts.forEach(([side, quantity], part) => {
-		buffer.addData(DataType.Trade, symbol, {
-			symbol,
-			source: SourceType.Binance,
-			market: MarketType.Crypto,
-			timestamp: UnixTimestamp.of(closeTime - 1),
-			price: Price.of(vwap),
-			quantity: Volume.of(Math.max(0, quantity)),
-			side,
-			tradeId: BigInt(2 * idx + part + 1),
-		});
-	});
-}
-
 /** Market steps of `klines` as the trainer builds them from its buffer. */
-function marketSteps(
-	symbol: TradingSymbol,
-	klines: Kline[],
-	features: Options["features"]
-): MarketStep[] {
+function marketSteps(symbol: TradingSymbol, klines: Kline[]): MarketStep[] {
 	const buffer = new MarketDataBuffer({ maxSize: 2 * klines.length + 10 });
-	klines.forEach((kline, idx) => {
+	for (const kline of klines) {
 		buffer.addData(DataType.Candle, symbol, toCandle(symbol, kline));
-		if (features === "klines") {
-			addTicker(buffer, symbol, klines, idx);
-			addTrades(buffer, symbol, kline, idx);
-		}
-	});
+	}
 	return buffer.buildMarketSteps(symbol);
-}
-
-function dayOfBars(klines: Kline[]): number {
-	return Math.max(1, Math.round(DAY_MS / (klines[1][0] - klines[0][0])));
 }
 
 /** Mean over episodes of each bar's PnL. */
@@ -248,18 +168,11 @@ async function runSegment(
 	const observePosition = run.variant !== "hidden";
 	const end = klines.length - (opts.segments - 1 - run.segment) * opts.test;
 	const start = end - opts.test - opts.window;
-	// One day of candles before the window, so that its first steps already
-	// have a 24h ticker; their steps are dropped. Features are point in time
-	// (ADR-0030): later candles never change an earlier step.
-	const lead = Math.min(start, dayOfBars(klines));
-	if (start - lead < 0) {
+	if (start < 0) {
 		throw new Error("not enough candles for these segments");
 	}
-	const steps = marketSteps(
-		symbol,
-		klines.slice(start - lead, end),
-		opts.features
-	).slice(Math.max(0, lead - 1));
+	// Features are point in time (ADR-0030): later candles never change an earlier step.
+	const steps = marketSteps(symbol, klines.slice(start, end));
 	const trainSteps = steps.slice(0, -opts.test);
 	const test = steps.slice(-opts.test);
 	const split = Math.floor(trainSteps.length * 0.8);
@@ -300,7 +213,6 @@ async function runSegment(
 	return {
 		symbol,
 		...run,
-		features: opts.features,
 		testFrom: new Date(Number(test[0].timestamp)).toISOString(),
 		testTo: new Date(Number(test[test.length - 1].timestamp)).toISOString(),
 		returnPct: (100 * mean(episodePnl)) / INITIAL_CASH,
@@ -479,7 +391,7 @@ function summariseGroup(rows: SegmentResult[], label: string): void {
 function summarise(results: SegmentResult[]): void {
 	const groups = new Map<string, SegmentResult[]>();
 	for (const row of results) {
-		const key = `fitness ${row.fitness}, ${row.variant}, ${row.features}`;
+		const key = `fitness ${row.fitness}, ${row.variant}`;
 		groups.set(key, [...(groups.get(key) ?? []), row]);
 	}
 	for (const [label, rows] of groups) {
@@ -503,9 +415,6 @@ async function main(): Promise<void> {
 			symbol: string;
 			klines: Kline[];
 		};
-		if (opts.features === "klines" && klines[0].length < 10) {
-			throw new Error(`${file}: no taker volumes, fetch it again`);
-		}
 		const sym = TradingSymbol.of(symbol);
 		for (const fitness of opts.fitness) {
 			for (
