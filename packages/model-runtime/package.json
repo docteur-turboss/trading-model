@@ -1,7 +1,7 @@
 {
   "name": "@trading-model/model-runtime",
   "version": "1.0.0",
-  "description": "Runtime of a published model used by trader-trainer: network forward pass, 32-feature codec, portfolio simulator (ADR-0066)",
+  "description": "Runtime of a published model used by trader-trainer: network forward pass, feature codec, portfolio simulator (ADR-0066)",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
