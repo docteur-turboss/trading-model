@@ -67,6 +67,29 @@ describe("signal registry — the shipped file", () => {
 		);
 		expect(policies.every((p) => p.auth === "none")).toBe(true);
 	});
+
+	it("requests Federal Register counts up to yesterday, one metric per document type", () => {
+		const metrics = [
+			["NOTICE", "documents_notices"],
+			["PRORULE", "documents_proposed_rules"],
+			["RULE", "documents_final_rules"],
+		];
+		const requests = sourceOf(
+			registry(),
+			"federal-register-documents"
+		).requests;
+		for (const sector of ["crypto", "technology"]) {
+			const mine = requests.filter((r: any) => r.subject.sector === sector);
+			const pairs = mine.map((r: any) => [
+				/\[type\]\[\]=(\w+)/.exec(r.url)?.[1],
+				r.params.metric,
+			]);
+			expect(pairs.sort()).toEqual(metrics);
+		}
+		for (const r of requests) {
+			expect(r.url).toContain("[publication_date][lte]={date-1}&");
+		}
+	});
 });
 
 describe("parseSignalRegistry", () => {
