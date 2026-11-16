@@ -192,6 +192,9 @@ describe("config/container — createSignalScheduler", () => {
 				"nasa-power-crop-regions",
 				"wikipedia-pageviews",
 				"federal-register-documents",
+				"eurostat-house-price-index",
+				"eurostat-hicp-inflation",
+				"eurostat-unemployment",
 			],
 		});
 	});

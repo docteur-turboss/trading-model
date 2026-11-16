@@ -5,46 +5,101 @@
 			"id": "BTC",
 			"name": "Bitcoin",
 			"assetType": "crypto",
-			"identifier": { "scheme": "ticker", "ticker": "BTC" },
-			"applicableDimensions": ["market", "fundamental", "social", "legal", "macro"],
+			"identifier": {
+				"scheme": "ticker",
+				"ticker": "BTC"
+			},
+			"applicableDimensions": [
+				"market",
+				"fundamental",
+				"social",
+				"legal",
+				"macro"
+			],
 			"sector": "crypto",
-			"aliases": { "wikipedia": "Bitcoin" }
+			"aliases": {
+				"wikipedia": "Bitcoin"
+			}
 		},
 		{
 			"id": "ETH",
 			"name": "Ether",
 			"assetType": "crypto",
-			"identifier": { "scheme": "ticker", "ticker": "ETH" },
-			"applicableDimensions": ["market", "fundamental", "social", "legal", "macro"],
+			"identifier": {
+				"scheme": "ticker",
+				"ticker": "ETH"
+			},
+			"applicableDimensions": [
+				"market",
+				"fundamental",
+				"social",
+				"legal",
+				"macro"
+			],
 			"sector": "crypto",
-			"aliases": { "wikipedia": "Ethereum" }
+			"aliases": {
+				"wikipedia": "Ethereum"
+			}
 		},
 		{
 			"id": "AAPL",
 			"name": "Apple Inc.",
 			"assetType": "equity",
-			"identifier": { "scheme": "isin", "isin": "US0378331005" },
-			"applicableDimensions": ["market", "fundamental", "social", "contextual", "legal", "macro"],
+			"identifier": {
+				"scheme": "isin",
+				"isin": "US0378331005"
+			},
+			"applicableDimensions": [
+				"market",
+				"fundamental",
+				"social",
+				"contextual",
+				"legal",
+				"macro"
+			],
 			"sector": "technology",
-			"aliases": { "cik": "0000320193" }
+			"aliases": {
+				"cik": "0000320193"
+			}
 		},
 		{
 			"id": "WHEAT",
 			"name": "Wheat, through the Teucrium Wheat Fund",
 			"assetType": "commodity_proxy",
-			"identifier": { "scheme": "ticker", "ticker": "WEAT", "exchange": "ARCX" },
-			"applicableDimensions": ["market", "contextual", "macro"],
+			"identifier": {
+				"scheme": "ticker",
+				"ticker": "WEAT",
+				"exchange": "ARCX"
+			},
+			"applicableDimensions": [
+				"market",
+				"contextual",
+				"macro"
+			],
 			"sector": "agriculture",
-			"exposure": { "assetClass": "commodity", "replication": "futures", "region": "US" }
+			"exposure": {
+				"assetClass": "commodity",
+				"replication": "futures",
+				"region": "US"
+			}
 		},
 		{
 			"id": "GLD",
 			"name": "SPDR Gold Shares",
 			"assetType": "etf",
-			"identifier": { "scheme": "isin", "isin": "US78463V1070" },
-			"applicableDimensions": ["market", "macro"],
+			"identifier": {
+				"scheme": "isin",
+				"isin": "US78463V1070"
+			},
+			"applicableDimensions": [
+				"market",
+				"macro"
+			],
 			"sector": "precious_metals",
-			"exposure": { "assetClass": "commodity", "replication": "physical" }
+			"exposure": {
+				"assetClass": "commodity",
+				"replication": "physical"
+			}
 		},
 		{
 			"id": "EA_AAA_10Y",
@@ -55,9 +110,32 @@
 				"provider": "ECB",
 				"key": "YC.B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y"
 			},
-			"applicableDimensions": ["market", "macro"],
+			"applicableDimensions": [
+				"market",
+				"macro"
+			],
 			"sector": "sovereign_debt",
-			"areas": ["EA"]
+			"areas": [
+				"EA"
+			]
+		},
+		{
+			"id": "PARIS_RE",
+			"name": "Paris residential real estate",
+			"assetType": "real_estate",
+			"identifier": {
+				"scheme": "insee",
+				"code": "75056"
+			},
+			"applicableDimensions": [
+				"macro"
+			],
+			"sector": "real_estate",
+			"areas": [
+				"EA",
+				"FR",
+				"DE"
+			]
 		}
 	],
 	"sources": [
@@ -67,7 +145,12 @@
 			"adapter": "ecb-sdmx-series",
 			"schedule": "7 15 * * 1-5",
 			"reliabilityScore": 0.95,
-			"covers": [{ "assetType": "bond", "dimension": "market" }],
+			"covers": [
+				{
+					"assetType": "bond",
+					"dimension": "market"
+				}
+			],
 			"accessPolicy": {
 				"terms": "attribution",
 				"termsUrl": "https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html",
@@ -77,10 +160,14 @@
 			},
 			"requests": [
 				{
-					"subject": { "assetId": "EA_AAA_10Y" },
+					"subject": {
+						"assetId": "EA_AAA_10Y"
+					},
 					"dimension": "market",
 					"url": "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y?lastNObservations=5&format=jsondata",
-					"params": { "metric": "spot_rate_10y" }
+					"params": {
+						"metric": "spot_rate_10y"
+					}
 				}
 			]
 		},
@@ -90,7 +177,12 @@
 			"adapter": "ecb-sdmx-series",
 			"schedule": "17 11 * * *",
 			"reliabilityScore": 0.95,
-			"covers": [{ "assetType": "bond", "dimension": "macro" }],
+			"covers": [
+				{
+					"assetType": "bond",
+					"dimension": "macro"
+				}
+			],
 			"accessPolicy": {
 				"terms": "attribution",
 				"termsUrl": "https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html",
@@ -100,10 +192,15 @@
 			},
 			"requests": [
 				{
-					"subject": { "area": "EA" },
+					"subject": {
+						"area": "EA"
+					},
 					"dimension": "macro",
 					"url": "https://data-api.ecb.europa.eu/service/data/HICP/M.U2.N.000000.4D0.ANR?lastNObservations=5&format=jsondata",
-					"params": { "metric": "hicp_annual_rate", "area": "EA" }
+					"params": {
+						"metric": "hicp_annual_rate",
+						"area": "EA"
+					}
 				}
 			]
 		},
@@ -113,7 +210,12 @@
 			"adapter": "ecb-sdmx-series",
 			"schedule": "35 15 * * 1-5",
 			"reliabilityScore": 0.95,
-			"covers": [{ "assetType": "bond", "dimension": "macro" }],
+			"covers": [
+				{
+					"assetType": "bond",
+					"dimension": "macro"
+				}
+			],
 			"accessPolicy": {
 				"terms": "attribution",
 				"termsUrl": "https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html",
@@ -123,10 +225,15 @@
 			},
 			"requests": [
 				{
-					"subject": { "area": "EA" },
+					"subject": {
+						"area": "EA"
+					},
 					"dimension": "macro",
 					"url": "https://data-api.ecb.europa.eu/service/data/FM/B.U2.EUR.4F.KR.DFR.LEV?lastNObservations=5&format=jsondata",
-					"params": { "metric": "deposit_facility_rate", "area": "EA" }
+					"params": {
+						"metric": "deposit_facility_rate",
+						"area": "EA"
+					}
 				}
 			]
 		},
@@ -136,7 +243,12 @@
 			"adapter": "ecb-sdmx-series",
 			"schedule": "7 16 * * 1-5",
 			"reliabilityScore": 0.95,
-			"covers": [{ "assetType": "bond", "dimension": "macro" }],
+			"covers": [
+				{
+					"assetType": "bond",
+					"dimension": "macro"
+				}
+			],
 			"accessPolicy": {
 				"terms": "attribution",
 				"termsUrl": "https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html",
@@ -146,28 +258,48 @@
 			},
 			"requests": [
 				{
-					"subject": { "area": "EA" },
+					"subject": {
+						"area": "EA"
+					},
 					"dimension": "macro",
 					"url": "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?lastNObservations=5&format=jsondata",
-					"params": { "metric": "eur_usd_reference_rate", "area": "EA" }
+					"params": {
+						"metric": "eur_usd_reference_rate",
+						"area": "EA"
+					}
 				},
 				{
-					"subject": { "area": "EA" },
+					"subject": {
+						"area": "EA"
+					},
 					"dimension": "macro",
 					"url": "https://data-api.ecb.europa.eu/service/data/EXR/D.GBP.EUR.SP00.A?lastNObservations=5&format=jsondata",
-					"params": { "metric": "eur_gbp_reference_rate", "area": "EA" }
+					"params": {
+						"metric": "eur_gbp_reference_rate",
+						"area": "EA"
+					}
 				},
 				{
-					"subject": { "area": "EA" },
+					"subject": {
+						"area": "EA"
+					},
 					"dimension": "macro",
 					"url": "https://data-api.ecb.europa.eu/service/data/EXR/D.CHF.EUR.SP00.A?lastNObservations=5&format=jsondata",
-					"params": { "metric": "eur_chf_reference_rate", "area": "EA" }
+					"params": {
+						"metric": "eur_chf_reference_rate",
+						"area": "EA"
+					}
 				},
 				{
-					"subject": { "area": "EA" },
+					"subject": {
+						"area": "EA"
+					},
 					"dimension": "macro",
 					"url": "https://data-api.ecb.europa.eu/service/data/EXR/D.JPY.EUR.SP00.A?lastNObservations=5&format=jsondata",
-					"params": { "metric": "eur_jpy_reference_rate", "area": "EA" }
+					"params": {
+						"metric": "eur_jpy_reference_rate",
+						"area": "EA"
+					}
 				}
 			]
 		},
@@ -177,7 +309,12 @@
 			"adapter": "sec-edgar-company-concept",
 			"schedule": "17 6 * * *",
 			"reliabilityScore": 0.95,
-			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
+			"covers": [
+				{
+					"assetType": "equity",
+					"dimension": "fundamental"
+				}
+			],
 			"accessPolicy": {
 				"terms": "attribution",
 				"termsUrl": "https://www.sec.gov/privacy",
@@ -188,7 +325,9 @@
 			},
 			"templates": [
 				{
-					"select": { "assetType": "equity" },
+					"select": {
+						"assetType": "equity"
+					},
 					"dimension": "fundamental",
 					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/EarningsPerShareDiluted.json"
 				}
@@ -289,7 +428,12 @@
 			"adapter": "cftc-cot-legacy",
 			"schedule": "45 15-23 * * 1,5",
 			"reliabilityScore": 0.95,
-			"covers": [{ "assetType": "commodity_proxy", "dimension": "market" }],
+			"covers": [
+				{
+					"assetType": "commodity_proxy",
+					"dimension": "market"
+				}
+			],
 			"accessPolicy": {
 				"terms": "public-domain",
 				"termsUrl": "https://www.cftc.gov/webpolicy/index.htm",
@@ -299,7 +443,9 @@
 			},
 			"requests": [
 				{
-					"subject": { "assetId": "WHEAT" },
+					"subject": {
+						"assetId": "WHEAT"
+					},
 					"dimension": "market",
 					"url": "https://publicreporting.cftc.gov/resource/jun7-fc8e.json?cftc_contract_market_code=001602&$order=report_date_as_yyyy_mm_dd%20DESC&$limit=5"
 				}
@@ -311,7 +457,12 @@
 			"adapter": "nws-latest-observation",
 			"schedule": "5 * * * *",
 			"reliabilityScore": 0.8,
-			"covers": [{ "assetType": "commodity_proxy", "dimension": "contextual" }],
+			"covers": [
+				{
+					"assetType": "commodity_proxy",
+					"dimension": "contextual"
+				}
+			],
 			"accessPolicy": {
 				"terms": "public-domain",
 				"termsUrl": "https://www.weather.gov/disclaimer",
@@ -320,7 +471,9 @@
 			},
 			"requests": [
 				{
-					"subject": { "sector": "agriculture" },
+					"subject": {
+						"sector": "agriculture"
+					},
 					"dimension": "contextual",
 					"url": "https://api.weather.gov/stations/KHUT/observations/latest",
 					"params": {
@@ -384,8 +537,14 @@
 			"schedule": "41 6 * * *",
 			"reliabilityScore": 0.3,
 			"covers": [
-				{ "assetType": "crypto", "dimension": "social" },
-				{ "assetType": "equity", "dimension": "social" }
+				{
+					"assetType": "crypto",
+					"dimension": "social"
+				},
+				{
+					"assetType": "equity",
+					"dimension": "social"
+				}
 			],
 			"accessPolicy": {
 				"terms": "public-domain",
@@ -395,7 +554,9 @@
 			},
 			"templates": [
 				{
-					"select": { "assetType": "crypto" },
+					"select": {
+						"assetType": "crypto"
+					},
 					"dimension": "social",
 					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{asset.alias.wikipedia}/daily/{date-8}/{date-1}"
 				}
@@ -408,8 +569,14 @@
 			"schedule": "30 7 * * *",
 			"reliabilityScore": 0.9,
 			"covers": [
-				{ "assetType": "crypto", "dimension": "legal" },
-				{ "assetType": "equity", "dimension": "legal" }
+				{
+					"assetType": "crypto",
+					"dimension": "legal"
+				},
+				{
+					"assetType": "equity",
+					"dimension": "legal"
+				}
 			],
 			"accessPolicy": {
 				"terms": "public-domain",
@@ -419,40 +586,229 @@
 			},
 			"requests": [
 				{
-					"subject": { "sector": "crypto" },
+					"subject": {
+						"sector": "crypto"
+					},
 					"dimension": "legal",
 					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=securities-and-exchange-commission&conditions[agencies][]=commodity-futures-trading-commission&conditions[type][]=RULE",
-					"params": { "metric": "documents_final_rules" }
+					"params": {
+						"metric": "documents_final_rules"
+					}
 				},
 				{
-					"subject": { "sector": "crypto" },
+					"subject": {
+						"sector": "crypto"
+					},
 					"dimension": "legal",
 					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=securities-and-exchange-commission&conditions[agencies][]=commodity-futures-trading-commission&conditions[type][]=PRORULE",
-					"params": { "metric": "documents_proposed_rules" }
+					"params": {
+						"metric": "documents_proposed_rules"
+					}
 				},
 				{
-					"subject": { "sector": "crypto" },
+					"subject": {
+						"sector": "crypto"
+					},
 					"dimension": "legal",
 					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=securities-and-exchange-commission&conditions[agencies][]=commodity-futures-trading-commission&conditions[type][]=NOTICE",
-					"params": { "metric": "documents_notices" }
+					"params": {
+						"metric": "documents_notices"
+					}
 				},
 				{
-					"subject": { "sector": "technology" },
+					"subject": {
+						"sector": "technology"
+					},
 					"dimension": "legal",
 					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=federal-trade-commission&conditions[type][]=RULE",
-					"params": { "metric": "documents_final_rules" }
+					"params": {
+						"metric": "documents_final_rules"
+					}
 				},
 				{
-					"subject": { "sector": "technology" },
+					"subject": {
+						"sector": "technology"
+					},
 					"dimension": "legal",
 					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=federal-trade-commission&conditions[type][]=PRORULE",
-					"params": { "metric": "documents_proposed_rules" }
+					"params": {
+						"metric": "documents_proposed_rules"
+					}
 				},
 				{
-					"subject": { "sector": "technology" },
+					"subject": {
+						"sector": "technology"
+					},
 					"dimension": "legal",
 					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=federal-trade-commission&conditions[type][]=NOTICE",
-					"params": { "metric": "documents_notices" }
+					"params": {
+						"metric": "documents_notices"
+					}
+				}
+			]
+		},
+		{
+			"id": "eurostat-house-price-index",
+			"protocol": "rest_api",
+			"adapter": "eurostat-jsonstat",
+			"schedule": "23 8 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [
+				{
+					"assetType": "real_estate",
+					"dimension": "macro"
+				}
+			],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://ec.europa.eu/eurostat/help/copyright-notice",
+				"attribution": "Source: Eurostat",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": {
+						"area": "EA"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=EA&sinceTimePeriod=2025-Q1&format=JSON",
+					"params": {
+						"metric": "house_price_index",
+						"area": "EA"
+					}
+				},
+				{
+					"subject": {
+						"area": "FR"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=FR&sinceTimePeriod=2025-Q1&format=JSON",
+					"params": {
+						"metric": "house_price_index",
+						"area": "FR"
+					}
+				},
+				{
+					"subject": {
+						"area": "DE"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=DE&sinceTimePeriod=2025-Q1&format=JSON",
+					"params": {
+						"metric": "house_price_index",
+						"area": "DE"
+					}
+				}
+			]
+		},
+		{
+			"id": "eurostat-hicp-inflation",
+			"protocol": "rest_api",
+			"adapter": "eurostat-jsonstat",
+			"schedule": "29 8 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [
+				{
+					"assetType": "real_estate",
+					"dimension": "macro"
+				}
+			],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://ec.europa.eu/eurostat/help/copyright-notice",
+				"attribution": "Source: Eurostat",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": {
+						"area": "EA"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=EA&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "hicp_annual_rate",
+						"area": "EA"
+					}
+				},
+				{
+					"subject": {
+						"area": "FR"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=FR&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "hicp_annual_rate",
+						"area": "FR"
+					}
+				},
+				{
+					"subject": {
+						"area": "DE"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=DE&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "hicp_annual_rate",
+						"area": "DE"
+					}
+				}
+			]
+		},
+		{
+			"id": "eurostat-unemployment",
+			"protocol": "rest_api",
+			"adapter": "eurostat-jsonstat",
+			"schedule": "37 8 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [
+				{
+					"assetType": "real_estate",
+					"dimension": "macro"
+				}
+			],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://ec.europa.eu/eurostat/help/copyright-notice",
+				"attribution": "Source: Eurostat",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": {
+						"area": "EA"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=EA&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "unemployment_rate",
+						"area": "EA"
+					}
+				},
+				{
+					"subject": {
+						"area": "FR"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=FR&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "unemployment_rate",
+						"area": "FR"
+					}
+				},
+				{
+					"subject": {
+						"area": "DE"
+					},
+					"dimension": "macro",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=DE&sinceTimePeriod=2026-01&format=JSON",
+					"params": {
+						"metric": "unemployment_rate",
+						"area": "DE"
+					}
 				}
 			]
 		}
