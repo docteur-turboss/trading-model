@@ -17,10 +17,27 @@ export interface RewardShapingGenome {
 	sparse: boolean;
 }
 
+/**
+ * When to decide (ADR-0076 §5). Present only behind
+ * FEATURE_EVENT_DRIVEN_DECISIONS; `mode` is set at creation and never
+ * mutated, so a population shares one network width.
+ */
+export interface DecisionGenome {
+	mode: "every_bar" | "on_event";
+	/** |close move| over the event window (fraction) that fires the detector. */
+	priceMove: number;
+	/** Volume in standard deviations (`volumeRatio`) that fires the detector. */
+	volumeMultiple: number;
+	/** Fewest bars between two decisions. */
+	minGap: PositiveInt;
+}
+
 export interface HorizonGenome {
 	maxEpisodeLength: PositiveInt;
 	nStepReturn: PositiveInt;
 	frameSkip: PositiveInt;
+	/** Decision timing; absent: every bar (every `frameSkip` bars). */
+	decision?: DecisionGenome;
 }
 
 export interface DiscretePolicyGenome {
