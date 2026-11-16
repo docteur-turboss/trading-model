@@ -47,6 +47,7 @@ describe("signal registry — the shipped file", () => {
 			"WHEAT",
 			"GLD",
 			"EA_AAA_10Y",
+			"PARIS_RE",
 		]);
 	});
 

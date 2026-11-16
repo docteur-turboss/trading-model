@@ -9,7 +9,7 @@ message-manager is an HTTP pub/sub broker with a durable Redis Streams journal (
 
 - **A publish is answered (202) once the message is in the journal** (one Redis stream per topic, one consumer group per subscriber service, key `trading-model:message-manager:journal:<topic>`); the workers of every replica deliver and retry afterwards. A stop or a crash of a replica loses nothing: another replica claims its pending entries within about 30 s. Messages accepted for a service that does not subscribe wait for it up to 24 h. The journal is Redis state with no backup: AOF and replication protect it, so a Redis outage stops publishing (503) and losing Redis with its replicas loses what was not delivered yet. Inspect a backlog with `XPENDING <journal key> <service>`; never `KEYS`.
 - **Subscriptions live in Redis** (one hash per topic, `REDIS_SENTINELS`), expire 60 s after their last renewal, and subscribers renew every 15 s. Without Redis, message-manager cannot route anything.
-- **A message published with no subscriber is dropped** and counted (`mm_messages_unrouted_total`), except when it sets `delivery.requireSubscriber`: the publish is refused (503) and the publisher keeps it. The scraper candles do (publish cursor): after an outage longer than 60 s the subscriptions have expired, and the candle backlog waits in MySQL until the trainer renews its subscription (15 s) instead of being lost.
+- **A message published with no subscriber is dropped** and counted (`mm_messages_unrouted_total`) (`delivery.requireSubscriber` refuses it with 503 instead; no publisher sets it since the trainer stopped subscribing, #1252).
 - **Dead letters go to dlq-service** (signed `POST /dlq`). While it cannot take one, or while a subscriber's circuit breaker is open, the message stays pending in the journal and is retried (no local file): it is only lost if it stays pending past the 24 h trim (`JournalEntriesTrimmed`).
 
 An outage affects:
@@ -103,7 +103,7 @@ A replay gives the entry back to the one group that failed, under its own `messa
 
 **Symptoms:** `fs_unpublished_candles` grows on the collector, `fs_publishes_skipped_total` grows (a publish held up to `PUBLISH_ACCEPT_TIMEOUT_MS`, 15 s), the scraper logs `Previous publish still in flight: skipped` or `Market data publish failed`. MySQL is still fed: the scraper persists before publishing and does not wait for the bus.
 
-Nothing is lost: the candles persisted while the bus is down stay in MySQL past the series publish cursor (`market_publish_cursors`, migration 005) and go out oldest first, 100 per cycle, once message-manager answers again, even after a collector restart. Fix the bus and `fs_unpublished_candles` falls back to 0; until then the trainer lags (`TrainerMarketDataStale` once it has received nothing for 15 min). To skip a backlog on purpose (e.g. after a very long outage, if old candles are not wanted), move the cursor: `UPDATE market_publish_cursors SET published_until = NOW(3) WHERE symbol = '<SYMBOL>'` (UTC session); the skipped candles stay in MySQL only.
+Nothing is lost: the candles persisted while the bus is down stay in MySQL past the series publish cursor (`market_publish_cursors`, migration 005) and go out oldest first, 100 per cycle, once message-manager answers again, even after a collector restart. Fix the bus and `fs_unpublished_candles` falls back to 0; until then the scraper publishes lag (the trainer reads MySQL, not the bus). To skip a backlog on purpose (e.g. after a very long outage, if old candles are not wanted), move the cursor: `UPDATE market_publish_cursors SET published_until = NOW(3) WHERE symbol = '<SYMBOL>'` (UTC session); the skipped candles stay in MySQL only.
 
 ### 6. Journal entries trimmed before delivery
 
@@ -130,7 +130,7 @@ kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli --scan --pattern 'tra
 
 # 3. Metrics: mm_messages_delivered_total{status="success"} grows again,
 #    mm_messages_unrouted_total stops growing
-# 4. Market data reaches the trainer: TrainerMarketDataStale resolves
+# 4. Unpublished candles drain: MarketDataUnpublished resolves
 ```
 
 ## Prevention

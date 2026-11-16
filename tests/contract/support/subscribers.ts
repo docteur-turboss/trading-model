@@ -1,21 +1,12 @@
-import type { EventMap } from "@trading-model/contracts/event-map";
 import {
 	type ApiRoute,
 	parseRequest,
 } from "@trading-model/http/api-route/api-route";
 import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
-import { BROKER_CALLBACK_API } from "../../../packages/broker-message/src/api-routes";
-import { EVENT_MANAGER } from "../../../packages/broker-message/src/event-manager-client";
-import { MESSAGE_CONTROLLER } from "../../../packages/broker-message/src/messages.controller";
 import { AUDIT_API } from "../../../services/audit-logger/src/adapters/inbound/http/api-routes";
 import { createMessageHandler } from "../../../services/audit-logger/src/adapters/inbound/subscription/audit-subscriber";
 import type { AuditEventDocument } from "../../../services/audit-logger/src/adapters/outbound/persistence/audit-repository";
 import { auditedTopics } from "../../../services/audit-logger/src/config/audited-topics";
-import {
-	DataEventHandler,
-	type SubscribedMarketEvent,
-} from "../../../services/trader-trainer/src/adapters/inbound/events/event-handlers";
-import { MarketDataBuffer } from "../../../services/trader-trainer/src/domain/market-data-buffer";
 
 /** Outcome of one delivery: the HTTP answer and what the handler saw. */
 export interface Reception {
@@ -42,37 +33,6 @@ async function throughRoute<Route extends ApiRoute>(
 	} catch (error) {
 		return { status: (error as { status?: number }).status ?? 500, error };
 	}
-}
-
-/**
- * trader-trainer as subscribed: the broker-message callback controller every
- * subscriber mounts, then the trainer's own handler feeding a real buffer.
- */
-export function createTrainerSubscriber(): {
-	topics: SubscribedMarketEvent[];
-	buffer: MarketDataBuffer;
-	receive: (body: unknown) => Promise<Reception>;
-	dispose: () => void;
-} {
-	const buffer = new MarketDataBuffer();
-	const handler = new DataEventHandler(buffer);
-	const topics = handler.getSubscribedIntents();
-	const cleanups = topics.map((topic) =>
-		EVENT_MANAGER.on(topic as keyof EventMap, (data) =>
-			handler.handleEvent(topic, data)
-		)
-	);
-	return {
-		topics,
-		buffer,
-		receive: (body) =>
-			throughRoute(BROKER_CALLBACK_API.receive, MESSAGE_CONTROLLER, body),
-		dispose: () => {
-			for (const cleanup of cleanups) {
-				cleanup();
-			}
-		},
-	};
 }
 
 /** audit-logger as subscribed: its `/message` handler and an in-memory store. */

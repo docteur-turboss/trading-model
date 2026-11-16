@@ -84,7 +84,7 @@ export const EVENTS_PUBLISHED_TOTAL = new promClient.Counter({
 
 export const SIGNAL_COLLECTIONS_TOTAL = new promClient.Counter({
 	name: "fs_signal_collections_total",
-	help: "Signal source requests collected (ADR-0036), by source and result: success, not_modified (304, nothing to store), fetch_error, invalid_payload (format changed), store_error, skipped_quarantine (tick skipped, source in quarantine)",
+	help: "Signal source requests collected (ADR-0036), by source and result: success, not_modified (304, nothing to store), not_found (404 on a source that opts in: no fact), fetch_error, invalid_payload (format changed), store_error, skipped_quarantine (tick skipped, source in quarantine)",
 	labelNames: ["source", "result"] as const,
 });
 

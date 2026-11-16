@@ -185,10 +185,15 @@ describe("config/container — createSignalScheduler", () => {
 				"ecb-deposit-facility-rate",
 				"ecb-euro-reference-rates",
 				"sec-edgar-eps-diluted",
+				"sec-edgar-revenue",
+				"sec-edgar-core-facts",
 				"cftc-cot-legacy",
 				"nws-kansas-wheat-belt",
 				"wikipedia-pageviews",
 				"federal-register-documents",
+				"eurostat-house-price-index",
+				"eurostat-hicp-inflation",
+				"eurostat-unemployment",
 			],
 		});
 	});

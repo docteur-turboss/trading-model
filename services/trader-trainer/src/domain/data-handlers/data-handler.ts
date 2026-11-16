@@ -4,13 +4,8 @@ import type {
 	SymbolState,
 	TradingSymbol,
 } from "../market-data-types";
-import { bookTickerHandler } from "./book-ticker-handler";
 import { candleHandler } from "./candle-handler";
 import type { DataType } from "./data-types";
-import { orderBookHandler } from "./order-book-handler";
-import { priceHandler } from "./price-handler";
-import { tickerHandler } from "./ticker-handler";
-import { tradeHandler } from "./trade-handler";
 
 interface MutateStateContext<TData = unknown> {
 	symbol: TradingSymbol;
@@ -37,12 +32,5 @@ export interface DataHandler<TData = unknown> {
 }
 
 export function createDefaultHandlers(): DataHandler[] {
-	return [
-		candleHandler,
-		tradeHandler,
-		orderBookHandler,
-		bookTickerHandler,
-		tickerHandler,
-		priceHandler,
-	];
+	return [candleHandler];
 }

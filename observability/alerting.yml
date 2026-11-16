@@ -588,7 +588,7 @@ groups:
       # days (ECB) or hourly (NWS): one day covers every schedule. The failure
       # series are born at 0 when the collector starts (zeroCollectionFailures).
       - alert: SignalCollectionFailing
-        expr: sum by (source) (increase(fs_signal_collections_total{result!~"success|not_modified"}[1d])) > 0
+        expr: sum by (source) (increase(fs_signal_collections_total{result!~"success|not_modified|not_found"}[1d])) > 0
         for: 0m
         labels:
           severity: warning
@@ -621,25 +621,14 @@ groups:
           description: '{{ $value | humanize }} persisted {{ $labels.symbol }} candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
 
-      - alert: CandleDeliveryLagging
-        expr: sum(increase(fs_candles_persisted_total[30m])) > 0 and sum(increase(tt_market_data_received_total[30m])) < 0.5 * sum(increase(fs_candles_persisted_total[30m]))
-        for: 15m
-        labels:
-          severity: warning
-          slo: data_freshness
-        annotations:
-          summary: 'Less than half of the persisted candles reach the trainer'
-          description: 'financial-scraper persisted candles over the last 30m but trader-trainer received under 50% of them: the scraper to trainer path is lagging or dropping data.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
-
       - alert: TrainerMarketDataStale
-        expr: sum(increase(tt_market_data_received_total[15m])) == 0
+        expr: min(tt_last_candle_age_seconds) > 900
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: 'trader-trainer receives no market data'
-          description: 'No candle reached the trainer buffer in 15 minutes: the scraper, message-manager or the trainer subscription is broken.'
+          summary: 'trader-trainer reads no fresh candle'
+          description: 'At its last session the newest stored candle of every symbol was over 15 minutes old: the scraper no longer feeds MySQL or the trainer cannot read it.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
       # The useful output of the trainer is a stored model, whatever stops it
