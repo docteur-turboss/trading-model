@@ -27,7 +27,7 @@ function assetOf(file: any, id: string): any {
 }
 
 describe("signal registry — the shipped file", () => {
-	it("loads with test sources of the four MVP dimensions", () => {
+	it("loads with sources of the five dimensions that have one", () => {
 		const dimensions = SIGNAL_REGISTRY.sources.flatMap((source) =>
 			source.requests.map((request) => request.dimension)
 		);
@@ -35,6 +35,7 @@ describe("signal registry — the shipped file", () => {
 		expect([...new Set(dimensions)].sort()).toEqual([
 			"contextual",
 			"fundamental",
+			"legal",
 			"market",
 			"social",
 		]);

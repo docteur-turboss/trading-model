@@ -183,6 +183,7 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
 | `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
+| `federal-register-documents` | legal | sectors `crypto` (SEC, CFTC), `technology` (FTC) | daily | `documents_final_rules`, `documents_proposed_rules`, `documents_notices` | public domain (US government work, govinfo policy, read 2026-11-16) |
 
 **Adding a source**: read its terms, then an entry in the registry. A new
 payload format also needs an adapter in `src/adapters/outbound/signal-sources/`
