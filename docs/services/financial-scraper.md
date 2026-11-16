@@ -187,6 +187,7 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | `cftc-cot-legacy` | market | `WHEAT` (contract 001602) | Fridays and Mondays after a holiday, hourly 15:45-23:45 UTC | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = release 15:30 ET, 3 business days after the Tuesday | public domain, CFTC acknowledged (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
 | `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
+| `eia-weekly-energy` | contextual | sector `energy` (`XLE`) | Wednesdays and Thursdays, hourly 14:35-22:35 UTC (report Wednesday 10:30 ET, Thursday after a holiday) | `crude_oil_stocks`, `gasoline_stocks`, `natural_gas_storage`, `crude_oil_production` (series `WCESTUS1`, `WGTSTUS1`, `NW2_EPG0_SWO_R48_BCF`, `WCRFPUS2`); key `SIGNAL_KEY_EIA` (query `api_key`), 500 requests a day (EIA documents no figure); `observedAt` = report time for the newest week only; value in the key: a revision is a second signal | public domain, EIA acknowledged (read 2026-11-16) (1) |
 | `federal-register-documents` | legal | sectors `crypto` (SEC, CFTC), `technology` (FTC) | daily | `documents_final_rules`, `documents_proposed_rules`, `documents_notices` | public domain (US government work, govinfo policy, read 2026-11-16) |
 
 **Adding a source**: read its terms, then an entry in the registry. A new

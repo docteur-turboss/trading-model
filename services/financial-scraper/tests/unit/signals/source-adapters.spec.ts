@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
+import { EIA_OPEN_DATA } from "../../../src/adapters/outbound/signal-sources/eia-open-data";
 import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-sources/federal-register-daily";
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
@@ -31,6 +32,7 @@ describe("SOURCE_ADAPTERS", () => {
 		expect([...SOURCE_ADAPTERS.keys()].sort()).toEqual([
 			"cftc-cot-legacy",
 			"ecb-sdmx-series",
+			"eia-open-data",
 			"federal-register-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
@@ -49,6 +51,7 @@ describe("SOURCE_ADAPTERS", () => {
 			{ variables: "temperature,relativeHumidity" },
 		],
 		[WIKIMEDIA_PAGEVIEWS, "wikimedia-pageviews", {}],
+		[EIA_OPEN_DATA, "eia-open-data", { metric: "crude_oil_stocks" }],
 		[
 			FEDERAL_REGISTER_DAILY,
 			"federal-register-daily",
@@ -444,6 +447,78 @@ describe("federal-register-daily", () => {
 				{ results: [] },
 				{ params: { metric: "m" } }
 			)
+		).toThrow();
+	});
+});
+
+describe("eia-open-data", () => {
+	const crude = fixture("eia-open-data");
+	const CONTEXT = { params: { metric: "crude_oil_stocks" } };
+
+	it("reads the value and unit of a week, the newest at the report time", () => {
+		const [latest, previous] = EIA_OPEN_DATA.normalize(crude, CONTEXT);
+
+		expect(latest.payload).toMatchObject({
+			metric: "crude_oil_stocks",
+			value: 414417,
+			unit: "MBBL",
+			details: { weekEnding: "2026-11-06" },
+		});
+		// Veterans Day (Wednesday 11 Nov) delays the report to Thursday 10:30 EST.
+		expect(latest.observedAt).toBe(Date.parse("2026-11-12T15:30:00Z"));
+		expect(previous.observedAt).toBeUndefined();
+		expect(latest.key).toBe("2026-11-06|414417");
+	});
+
+	it("reports on Wednesday, one hour earlier in UTC under daylight saving time", () => {
+		const row = (period: string) => ({
+			response: { data: [{ period, value: "1", units: "MBBL" }] },
+		});
+
+		expect(
+			EIA_OPEN_DATA.normalize(row("2026-10-30"), CONTEXT)[0].observedAt
+		).toBe(Date.parse("2026-11-04T15:30:00Z"));
+		expect(
+			EIA_OPEN_DATA.normalize(row("2026-10-23"), CONTEXT)[0].observedAt
+		).toBe(Date.parse("2026-10-28T14:30:00Z"));
+	});
+
+	it("delays the report past a Monday holiday", () => {
+		const [{ observedAt }] = EIA_OPEN_DATA.normalize(
+			{
+				response: {
+					data: [{ period: "2027-01-15", value: "1", units: "MBBL" }],
+				},
+			},
+			CONTEXT
+		);
+
+		// Martin Luther King Day, Monday 18 Jan 2027: the report moves to Thursday.
+		expect(observedAt).toBe(Date.parse("2027-01-21T15:30:00Z"));
+	});
+
+	it("keeps a revised value as a second signal", () => {
+		const revised = structuredClone(crude);
+		revised.response.data[0].value = "414000";
+
+		const keys = [crude, revised].map(
+			(body) => EIA_OPEN_DATA.normalize(body, CONTEXT)[0].key
+		);
+
+		expect(new Set(keys).size).toBe(2);
+	});
+
+	it("reads the other series with their units", () => {
+		const units = Object.values(fixture("eia-open-data-series")).map(
+			(body) => EIA_OPEN_DATA.normalize(body, CONTEXT)[0].payload.unit
+		);
+
+		expect(units).toEqual(["MBBL", "BCF", "MBBL/D"]);
+	});
+
+	it("throws on a changed format", () => {
+		expect(() =>
+			EIA_OPEN_DATA.normalize({ response: { rows: [] } }, CONTEXT)
 		).toThrow();
 	});
 });

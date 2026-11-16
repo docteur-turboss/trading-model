@@ -1,0 +1,77 @@
+import { z } from "zod";
+import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
+import { federalHolidays } from "./cftc-cot-legacy";
+
+/** `GET https://api.eia.gov/v2/<route>/data/?facets[series][]=<id>`: weekly rows, the value a string. */
+const Rows = z.object({
+	response: z.object({
+		data: z.array(
+			z.object({
+				period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+				value: z
+					.string()
+					.regex(/^-?\d+(\.\d+)?$/)
+					.transform(Number),
+				units: z.string().min(1),
+			})
+		),
+	}),
+});
+
+const DAY_MS = 86_400_000;
+const NEW_YORK_HOUR = new Intl.DateTimeFormat("en-US", {
+	timeZone: "America/New_York",
+	hour: "numeric",
+	hourCycle: "h23",
+});
+
+/**
+ * The Weekly Petroleum Status Report comes out Wednesday 10:30 ET after the
+ * Friday it describes, Thursday when a federal holiday falls on Monday to
+ * Wednesday (eia.gov/petroleum/supply/weekly/schedule.php).
+ */
+function _publishedAt(friday: string) {
+	const monday = Date.parse(`${friday}T00:00:00Z`) + 3 * DAY_MS;
+	const holidays = federalHolidays(new Date(monday).getUTCFullYear());
+	const delayed = [0, 1, 2].some((offset) =>
+		holidays.has(monday + offset * DAY_MS)
+	);
+	const utc1030Est = monday + (delayed ? 3 : 2) * DAY_MS + 15.5 * 3_600_000;
+	// 10:30 EST is 15:30Z, 10:30 EDT is 14:30Z.
+	return Number(NEW_YORK_HOUR.format(utc1030Est)) === 10
+		? utc1030Est
+		: utc1030Est - 3_600_000;
+}
+
+/** The series are US-wide: the contextual payload gets the centre of the contiguous states. */
+const US_CENTRE = {
+	latitude: 39.83,
+	longitude: -98.58,
+	name: "United States",
+};
+
+/**
+ * EIA open data (US government work: public domain, "Source: U.S. Energy
+ * Information Administration" asked): weekly stocks and production of one
+ * series, newest weeks first. Only the newest row takes the report time as
+ * `observedAt`: an older row is seen again later and a revised value is
+ * published after that time, so those take the collection time. The value is
+ * part of the key: a revision is a second signal, the first one stays.
+ */
+export const EIA_OPEN_DATA: SourceAdapter = {
+	dimensions: ["contextual"],
+	params: z.object({ metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/) }),
+	normalize(payload, { params }) {
+		return Rows.parse(payload).response.data.map((row, index) => ({
+			key: `${row.period}|${row.value}`,
+			observedAt: index === 0 ? _publishedAt(row.period) : undefined,
+			payload: {
+				metric: params.metric,
+				value: row.value,
+				unit: row.units,
+				location: US_CENTRE,
+				details: { weekEnding: row.period },
+			},
+		}));
+	},
+};

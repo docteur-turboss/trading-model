@@ -47,6 +47,15 @@
 			"exposure": { "assetClass": "commodity", "replication": "physical" }
 		},
 		{
+			"id": "XLE",
+			"name": "Energy Select Sector SPDR Fund",
+			"assetType": "etf",
+			"identifier": { "scheme": "isin", "isin": "US81369Y5069" },
+			"applicableDimensions": ["market", "contextual"],
+			"sector": "energy",
+			"exposure": { "assetClass": "equity", "replication": "physical", "region": "US" }
+		},
+		{
 			"id": "EA_AAA_10Y",
 			"name": "Euro area AAA government bonds, 10-year",
 			"assetType": "bond",
@@ -315,6 +324,48 @@
 					"dimension": "legal",
 					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=federal-trade-commission&conditions[type][]=NOTICE",
 					"params": { "metric": "documents_notices" }
+				}
+			]
+		},
+		{
+			"id": "eia-weekly-energy",
+			"protocol": "rest_api",
+			"adapter": "eia-open-data",
+			"schedule": "35 14-22 * * 3,4",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "etf", "dimension": "contextual" }],
+			"accessPolicy": {
+				"terms": "public-domain",
+				"termsUrl": "https://www.eia.gov/about/copyrights_reuse.php",
+				"attribution": "Source: U.S. Energy Information Administration",
+				"auth": { "type": "api_key", "env": "SIGNAL_KEY_EIA", "in": "query", "name": "api_key" },
+				"maxRequestsPerMinute": 30,
+				"maxRequestsPerDay": 500
+			},
+			"requests": [
+				{
+					"subject": { "sector": "energy" },
+					"dimension": "contextual",
+					"url": "https://api.eia.gov/v2/petroleum/stoc/wstk/data/?frequency=weekly&data[0]=value&facets[series][]=WCESTUS1&sort[0][column]=period&sort[0][direction]=desc&length=5",
+					"params": { "metric": "crude_oil_stocks" }
+				},
+				{
+					"subject": { "sector": "energy" },
+					"dimension": "contextual",
+					"url": "https://api.eia.gov/v2/petroleum/stoc/wstk/data/?frequency=weekly&data[0]=value&facets[series][]=WGTSTUS1&sort[0][column]=period&sort[0][direction]=desc&length=5",
+					"params": { "metric": "gasoline_stocks" }
+				},
+				{
+					"subject": { "sector": "energy" },
+					"dimension": "contextual",
+					"url": "https://api.eia.gov/v2/natural-gas/stor/wkly/data/?frequency=weekly&data[0]=value&facets[series][]=NW2_EPG0_SWO_R48_BCF&sort[0][column]=period&sort[0][direction]=desc&length=5",
+					"params": { "metric": "natural_gas_storage" }
+				},
+				{
+					"subject": { "sector": "energy" },
+					"dimension": "contextual",
+					"url": "https://api.eia.gov/v2/petroleum/sum/sndw/data/?frequency=weekly&data[0]=value&facets[series][]=WCRFPUS2&sort[0][column]=period&sort[0][direction]=desc&length=5",
+					"params": { "metric": "crude_oil_production" }
 				}
 			]
 		}
