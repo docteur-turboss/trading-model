@@ -15,6 +15,7 @@ import {
 	MODEL_RETURN,
 	MODEL_SHARPE,
 } from "../../../src/config/metrics";
+import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
 import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { buyAndHoldSharpe } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
@@ -409,7 +410,7 @@ describe("Trainer", () => {
 			expect(summary!.sharpe).toBeGreaterThan(0);
 			expect(summary!.avgPnl).toBeGreaterThan(0);
 			expect(summary!.gaControl.populationSize).toBe(20);
-			expect(summary!.network.inputDim).toBe(33);
+			expect(summary!.network.inputDim).toBe(19);
 			expect(summary!.network.outputDim).toBe(3);
 			expect(summary!.network.hiddenLayers.length).toBe(2);
 		});
@@ -701,7 +702,7 @@ describe("Trainer — model publication", () => {
 				symbol: "BTCUSDT",
 				instanceId: "trader-trainer-2",
 				features: {
-					dim: 33,
+					dim: 19,
 					fields: expect.arrayContaining(["CandleClose", "AgentExposure"]),
 				},
 				summary: { id: genome.id },
@@ -772,6 +773,7 @@ describe("Trainer — model publication", () => {
 				const { trainedWeights: _w, ...g } = genome;
 				return {
 					version: "v1",
+					features: NETWORK_INPUT_LAYOUT,
 					genome: JSON.parse(JSON.stringify(g)),
 					metrics: {
 						generation: 3,
@@ -810,6 +812,21 @@ describe("Trainer — model publication", () => {
 				expect(
 					trainer.getSnapshotForSymbol(sym)?.buildBestAgentSummary()?.id
 				).toBe(genome.id);
+			});
+
+			it("skips a model published with another feature layout (ADR-0078)", async () => {
+				const models = fakeStore();
+				models.latest.mockResolvedValue({ version: "v1" } as never);
+				models.manifest.mockResolvedValue({
+					...(await storedManifest()),
+					features: { dim: 33, fields: [] },
+				} as never);
+				const trainer = new Trainer(dataBuffer, {
+					settings: TEST_TRAINING_SETTINGS,
+					models,
+				});
+				await trainer.rehydrate([sym]);
+				expect(trainer.getSnapshotForSymbol(sym)).toBeUndefined();
 			});
 
 			it("leaves no snapshot without manifest", async () => {

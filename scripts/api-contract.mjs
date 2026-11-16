@@ -77,7 +77,7 @@ const SERVICE_TO_SERVICE = {
 	"model-evaluator": ["POST /message"],
 	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
-	"trader-trainer": ["POST /message", "GET /models/:symbol/:version/weights"],
+	"trader-trainer": ["GET /models/:symbol/:version/weights"],
 };
 
 /**
@@ -98,7 +98,6 @@ const CALLERS = {
 	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
 	"model-evaluator POST /message": { caller: "services/model-evaluator", call: /\.intents\(/ },
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "services/model-evaluator", call: /\/weights`/ },
-	"trader-trainer POST /message": { caller: "services/trader-trainer", call: /\.intents\(/ },
 };
 
 /** Service-to-service routes kept without a caller, each with its reason. */

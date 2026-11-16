@@ -3,6 +3,7 @@ import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Trainer } from "../../../application/trainer";
+import { LAST_CANDLE_AGE_SECONDS } from "../../../config/metrics";
 import { hasEnoughTrainingData } from "../../../domain/market-data/window-splitter";
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
 import type { TradingSymbol } from "../../../domain/market-data-types";
@@ -91,6 +92,7 @@ export class TrainingLoop {
 			lastClose === undefined
 				? Number.POSITIVE_INFINITY
 				: Date.now() - lastClose;
+		LAST_CANDLE_AGE_SECONDS.set({ symbol }, ageMs / 1000);
 		const fresh = ageMs <= maxDataAgeMs;
 		this._reportFreshnessChange(symbol, fresh, lastClose);
 		return fresh;

@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
 **Severity:** L2 (the platform runs, but trades and training work on old data)
-**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `SignalSourceStale`, `CandleDeliveryLagging`
+**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `SignalSourceStale`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -16,8 +16,7 @@ dependencies (MySQL, Redis), not that candles arrive.
 | `ScrapeCyclesFailing` | cycles run but fail (Binance, MySQL) |
 | `SymbolMarketDataStale` | one symbol gets no candle, the others do: see [SymbolMarketDataStale](#symbolmarketdatastale) |
 | `BinanceRestrictedLocation` | Binance geo-blocks the collector (451): apply the ADR-0026 fallback |
-| `CandleDeliveryLagging` | delivery is partial: under half of the persisted candles reach the trainer (message-manager backlog, dead letters, subscription) |
-| `TrainerMarketDataStale` alone | delivery: the scraper persists, the trainer receives nothing (message-manager, subscription) |
+| `TrainerMarketDataStale` alone | read: the scraper persists, the trainer reads no fresh candle (scraper candle route, ACL, MySQL) |
 
 ## Triage (Kubernetes)
 
@@ -87,14 +86,15 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
      address on 443; check DNS and the node's outbound access.
 4. **MySQL writes failing**: cycles fail (`ScrapeCyclesFailing`), MySQL errors
    in the logs; see [runbook-database-failover](runbook-database-failover.md).
-5. **Trainer only** (`TrainerMarketDataStale` alone): message-manager or the
-   trainer subscription; see [runbook-message-bus-outage](runbook-message-bus-outage.md).
+5. **Trainer only** (`TrainerMarketDataStale` alone): the trainer logs "Stored candles unreadable"
+   or reads an old window; check the scraper candle read route
+   route and the trainer ACL.
 
 ## Resolution check
 
 `sum(increase(fs_candles_persisted_total[15m]))` and
-`sum(increase(tt_market_data_received_total[15m]))` grow again; the alerts
-resolve within 15 minutes.
+`min(tt_last_candle_age_seconds)` falls under 900 at the next training session
+(`TRAINER_INTERVAL_MS`); the alerts resolve then.
 
 ## CollectorNoLeader
 

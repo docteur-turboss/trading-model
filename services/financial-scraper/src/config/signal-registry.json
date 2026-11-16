@@ -273,13 +273,103 @@
 				"termsUrl": "https://www.sec.gov/privacy",
 				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
 				"auth": "none",
-				"maxRequestsPerMinute": 60
+				"maxRequestsPerMinute": 60,
+				"notFoundIsEmpty": true
 			},
 			"templates": [
 				{
 					"select": { "assetType": "equity" },
 					"dimension": "fundamental",
 					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/EarningsPerShareDiluted.json"
+				}
+			]
+		},
+		{
+			"id": "sec-edgar-revenue",
+			"protocol": "rest_api",
+			"adapter": "sec-edgar-company-concept",
+			"schedule": "27 6 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://www.sec.gov/privacy",
+				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
+				"auth": "none",
+				"maxRequestsPerMinute": 60,
+				"notFoundIsEmpty": true
+			},
+			"templates": [
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"params": { "metric": "us-gaap:Revenues" },
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/Revenues.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"params": { "metric": "us-gaap:Revenues" },
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/RevenueFromContractWithCustomerExcludingAssessedTax.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"params": { "metric": "us-gaap:Revenues" },
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/SalesRevenueNet.json"
+				}
+			]
+		},
+		{
+			"id": "sec-edgar-core-facts",
+			"protocol": "rest_api",
+			"adapter": "sec-edgar-company-concept",
+			"schedule": "37 6 * * *",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://www.sec.gov/privacy",
+				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
+				"auth": "none",
+				"maxRequestsPerMinute": 60,
+				"notFoundIsEmpty": true
+			},
+			"templates": [
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/OperatingIncomeLoss.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/NetIncomeLoss.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/Assets.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/Liabilities.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/StockholdersEquity.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/CashAndCashEquivalentsAtCarryingValue.json"
+				},
+				{
+					"select": { "assetType": "equity" },
+					"dimension": "fundamental",
+					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/dei/EntityCommonStockSharesOutstanding.json"
 				}
 			]
 		},
@@ -350,6 +440,61 @@
 					"select": { "assetType": "crypto" },
 					"dimension": "social",
 					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{asset.alias.wikipedia}/daily/{date-8}/{date-1}"
+				}
+			]
+		},
+		{
+			"id": "federal-register-documents",
+			"protocol": "rest_api",
+			"adapter": "federal-register-daily",
+			"schedule": "30 7 * * *",
+			"reliabilityScore": 0.9,
+			"covers": [
+				{ "assetType": "crypto", "dimension": "legal" },
+				{ "assetType": "equity", "dimension": "legal" }
+			],
+			"accessPolicy": {
+				"terms": "public-domain",
+				"termsUrl": "https://www.govinfo.gov/about/policies",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": { "sector": "crypto" },
+					"dimension": "legal",
+					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=securities-and-exchange-commission&conditions[agencies][]=commodity-futures-trading-commission&conditions[type][]=RULE",
+					"params": { "metric": "documents_final_rules" }
+				},
+				{
+					"subject": { "sector": "crypto" },
+					"dimension": "legal",
+					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=securities-and-exchange-commission&conditions[agencies][]=commodity-futures-trading-commission&conditions[type][]=PRORULE",
+					"params": { "metric": "documents_proposed_rules" }
+				},
+				{
+					"subject": { "sector": "crypto" },
+					"dimension": "legal",
+					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=securities-and-exchange-commission&conditions[agencies][]=commodity-futures-trading-commission&conditions[type][]=NOTICE",
+					"params": { "metric": "documents_notices" }
+				},
+				{
+					"subject": { "sector": "technology" },
+					"dimension": "legal",
+					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=federal-trade-commission&conditions[type][]=RULE",
+					"params": { "metric": "documents_final_rules" }
+				},
+				{
+					"subject": { "sector": "technology" },
+					"dimension": "legal",
+					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=federal-trade-commission&conditions[type][]=PRORULE",
+					"params": { "metric": "documents_proposed_rules" }
+				},
+				{
+					"subject": { "sector": "technology" },
+					"dimension": "legal",
+					"url": "https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[publication_date][gte]={date-8}&conditions[publication_date][lte]={date-1}&conditions[agencies][]=federal-trade-commission&conditions[type][]=NOTICE",
+					"params": { "metric": "documents_notices" }
 				}
 			]
 		}

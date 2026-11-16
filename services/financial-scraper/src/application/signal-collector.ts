@@ -35,7 +35,11 @@ const FAILURES = [
 	"store_error",
 	"skipped_quarantine",
 ] as const;
-type CollectionResult = "success" | "not_modified" | (typeof FAILURES)[number];
+type CollectionResult =
+	| "success"
+	| "not_modified"
+	| "not_found"
+	| (typeof FAILURES)[number];
 
 /**
  * Sets the failure counters of every source to 0: a series born at its first
@@ -279,6 +283,19 @@ export class SignalCollector {
 		} catch (err) {
 			if (err instanceof InvalidPayloadError) {
 				result = "invalid_payload";
+			}
+			if (
+				result === "fetch_error" &&
+				source.accessPolicy.notFoundIsEmpty &&
+				err instanceof HttpStatusError &&
+				err.status === 404
+			) {
+				result = "not_found";
+				SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
+				getLogger().debug("Signal source has no fact", {
+					context: { source: source.id, subject: request.subject },
+				});
+				return undefined;
 			}
 			if (result === "fetch_error") {
 				fetchFailure = err instanceof Error ? err : new Error(String(err));

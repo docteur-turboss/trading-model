@@ -25,7 +25,7 @@ const CONTAINER = createTraderTrainerContainer(
 	new ScraperCandleHistory(buildTlsFromEnv(ENV), FIND_A_SERVICE)
 );
 
-const { trainer, eventHandler, trainingLoop, symbols, models } = CONTAINER;
+const { trainer, trainingLoop, symbols, models } = CONTAINER;
 
 /** MODEL_DOWNLOAD_CALLERS, comma-separated service names (ADR-0022). */
 const MODEL_DOWNLOAD_CALLERS = parseCommaSeparated(ENV.MODEL_DOWNLOAD_CALLERS);
@@ -36,14 +36,6 @@ createBootstrap({
 		createServer(trainer, { models, downloadCallers: MODEL_DOWNLOAD_CALLERS }),
 	onStart: async () => {
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
-
-		// Broker messages are emitted under their topic (the MarketEvent value).
-		const intents = eventHandler.getSubscribedIntents();
-		for (const event of intents) {
-			MessageManager.on(event, (data) => eventHandler.handleEvent(event, data));
-		}
-
-		await MessageManager.intents(intents);
 
 		await trainer.rehydrate(symbols);
 

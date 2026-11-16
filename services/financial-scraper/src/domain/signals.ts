@@ -234,6 +234,8 @@ const AccessPolicy = z
 		auth: z.union([z.literal("none"), SourceAuth]),
 		/** Most requests a minute the collector sends to the source: it spaces them. */
 		maxRequestsPerMinute: z.number().int().positive(),
+		/** A 404 means "no fact for this request" (EDGAR companyconcept: a concept the company never reported), not a fetch failure. */
+		notFoundIsEmpty: z.boolean().optional(),
 		/** Most requests a day of the free tier: a registry whose schedule exceeds it is refused. */
 		maxRequestsPerDay: z.number().int().positive().optional(),
 	})

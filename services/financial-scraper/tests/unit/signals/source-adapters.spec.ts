@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
+import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-sources/federal-register-daily";
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
@@ -31,6 +32,7 @@ describe("SOURCE_ADAPTERS", () => {
 		expect([...SOURCE_ADAPTERS.keys()].sort()).toEqual([
 			"cftc-cot-legacy",
 			"ecb-sdmx-series",
+			"federal-register-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
 			"treasury-par-yield-curve",
@@ -54,6 +56,11 @@ describe("SOURCE_ADAPTERS", () => {
 			{ column: "10 Yr", metric: "par_yield_10y" },
 		],
 		[WIKIMEDIA_PAGEVIEWS, "wikimedia-pageviews", {}],
+		[
+			FEDERAL_REGISTER_DAILY,
+			"federal-register-daily",
+			{ metric: "documents_final_rules" },
+		],
 	] as const)(
 		"%#: writes the canonical payload of its dimension",
 		(adapter, name, params) => {
@@ -292,6 +299,44 @@ describe("sec-edgar-company-concept", () => {
 		});
 	});
 
+	it("gives one metric to the revenue tags of two companies, each filing its own fact, units kept", () => {
+		const fact = (accn: string, form: string, val: number) => ({
+			start: "2023-01-01",
+			end: "2023-12-31",
+			val,
+			accn,
+			fy: 2023,
+			fp: "FY",
+			form,
+			filed: "2024-02-01",
+		});
+		const revenue = (tag: string, unit: string, facts: object[]) => ({
+			taxonomy: "us-gaap",
+			tag,
+			units: { [unit]: facts },
+		});
+		const params = { params: { metric: "us-gaap:Revenues" } };
+
+		const [a, b, c] = [
+			revenue("Revenues", "USD", [fact("a-1", "10-K", 5)]),
+			revenue("SalesRevenueNet", "EUR", [
+				fact("b-1", "10-K", 7),
+				fact("b-2", "10-K/A", 8),
+			]),
+		].flatMap((payload) =>
+			SEC_EDGAR_COMPANY_CONCEPT.normalize(payload, params)
+		);
+
+		expect([a, b, c].map((o) => o.payload.metric)).toEqual([
+			"us-gaap:Revenues",
+			"us-gaap:Revenues",
+			"us-gaap:Revenues",
+		]);
+		expect(b.payload).toMatchObject({ unit: "EUR", value: 7 });
+		// The 10-K/A is a second signal; the 10-K one stays.
+		expect(new Set([a.key, b.key, c.key]).size).toBe(3);
+	});
+
 	it("throws on a fact without filing date", () => {
 		const payload = fixture("sec-edgar-company-concept");
 		delete payload.units["USD/shares"][1].filed;
@@ -414,6 +459,37 @@ describe("wikimedia-pageviews", () => {
 		payload.items[0].granularity = "hourly";
 
 		expect(() => WIKIMEDIA_PAGEVIEWS.normalize(payload, NO_PARAMS)).toThrow();
+	});
+});
+
+describe("federal-register-daily", () => {
+	it("gives an explicit zero for a day without publication, stamped at the close of the day", () => {
+		const observations = FEDERAL_REGISTER_DAILY.normalize(
+			fixture("federal-register-daily"),
+			{ params: { metric: "documents_final_rules" } }
+		);
+
+		expect(observations).toHaveLength(9);
+		expect(observations[1]).toEqual({
+			key: "2026-11-06",
+			observedAt: Date.UTC(2026, 10, 7, 5),
+			payload: {
+				metric: "documents_final_rules",
+				value: 1,
+				unit: "documents",
+				jurisdiction: "US",
+			},
+		});
+		expect(observations[6].payload.value).toBe(0); // 2026-11-11, Veterans Day
+	});
+
+	it("throws on a changed format", () => {
+		expect(() =>
+			FEDERAL_REGISTER_DAILY.normalize(
+				{ results: [] },
+				{ params: { metric: "m" } }
+			)
+		).toThrow();
 	});
 });
 

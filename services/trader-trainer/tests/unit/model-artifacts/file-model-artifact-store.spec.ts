@@ -37,7 +37,7 @@ function artifact(weights: number[], symbol = "BTCUSDT"): NewModelArtifact {
 		instanceId: "trader-trainer-1",
 		bestGenome: {
 			id: "g-1",
-			network: { inputDim: 32, outputDim: 3 },
+			network: { inputDim: 18, outputDim: 3 },
 			rl: { gamma: 0.99 },
 			trainedWeights: new Float32Array(weights),
 		} as never,
@@ -91,8 +91,8 @@ describe("FileModelArtifactStore", () => {
 			createdAt: "2026-10-29T10:15:30.123Z",
 			producedBy: { instanceId: "trader-trainer-1" },
 			weights: { file: "weights.f32", dtype: "float32-le", length: 3, sha256 },
-			genome: { id: "g-1", network: { inputDim: 32 } },
-			features: { dim: 32 },
+			genome: { id: "g-1", network: { inputDim: 18 } },
+			features: { dim: 18 },
 			normalization: { candle: { close: { count: 3 } } },
 			metrics: { generation: 7, fitness: 1.25, sharpe: 0.8, maxDrawdown: 3.5 },
 		});

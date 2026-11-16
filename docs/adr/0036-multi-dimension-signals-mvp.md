@@ -111,8 +111,8 @@ Adding a source of a known format is an entry in `signal-registry.json` with its
 - Nothing consumes the signals: injecting confidence and age as features, and Sector Managers, wait for an agent architecture that does not exist yet.
 - No crypto or equity price among the signals: no source of them is free for any use. The candles of the Binance pipeline (ADR-0026) remain the market data of the trainer, under Binance's terms.
 - "First collected" times depend on the schedule: the first collection after a deployment stamps the whole returned window (8 days of page views, 5 ECB periods) with its own time.
+- The canonical payloads were designed with the MVP sources (the note leaves them open): `macro` has none yet, so its payload is a first guess, to confirm with its first source before production. `legal` is confirmed unchanged by the Federal Register counts (`jurisdiction` `US`, unit `documents`).
 - SEC EDGAR answers 403 where `SIGNAL_CONTACT_EMAIL` is unset (each environment needs the GitHub secret). The `attribution` sources must be credited wherever their data is published: the signals API serves the credit (`attribution`, `terms`, `termsUrl`) on its sources route; a client that publishes outside gives that text.
-- The canonical payloads were designed with the MVP sources (the note leaves them open): `legal` and `macro` have none yet, so their payloads are a first guess, to confirm with their first source before production.
 - Periods are dates: an intraday period (rain over the last hour) stays in the metric name.
 - The registry is bundled: a new source needs a release.
 - Values are numbers: text (posts, filing text) needs schema v2 with an enrichment step.
