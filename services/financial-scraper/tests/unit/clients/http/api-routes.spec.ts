@@ -395,6 +395,89 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(body.truncated).toBe(true);
 		});
 
+		it("without filter, queries the asset's own dimensions and no metric or source", async () => {
+			findForAsset.mockResolvedValue([]);
+
+			await get(SCRAPER_API.assetSignals, `/signals/assets/WHEAT?${WINDOW}`);
+
+			const call = findForAsset.mock.calls[0][0];
+			expect(call.dimensions).toEqual(["market", "contextual", "macro"]);
+			expect(call.metric).toBeUndefined();
+			expect(call.sourceId).toBeUndefined();
+		});
+
+		it.each([
+			["dimension", "dimension=macro", { dimensions: ["macro"] }],
+			["metric", "metric=cpi", { metric: "cpi" }],
+			["sourceId", "sourceId=s1", { sourceId: "s1" }],
+			[
+				"all three",
+				"dimension=macro&metric=cpi&sourceId=s1",
+				{ dimensions: ["macro"], metric: "cpi", sourceId: "s1" },
+			],
+		])("filters by %s, in the store", async (_l, search, expected) => {
+			findForAsset.mockResolvedValue([]);
+
+			await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/WHEAT?${WINDOW}&${search}`
+			);
+
+			const call = findForAsset.mock.calls[0][0];
+			expect(call).toEqual(expect.objectContaining(expected));
+			for (const key of ["metric", "sourceId"] as const) {
+				if (!(key in expected)) {
+					expect(call[key]).toBeUndefined();
+				}
+			}
+		});
+
+		it("answers an empty list for a dimension the asset does not use", async () => {
+			findForAsset.mockResolvedValue([]);
+
+			const { status, body } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/WHEAT?${WINDOW}&dimension=fundamental`
+			);
+
+			expect(status).toBe(200);
+			expect(body.signals).toEqual([]);
+			expect(findForAsset.mock.calls[0][0].dimensions).toEqual([]);
+		});
+
+		it("answers 400 for an unknown dimension", async () => {
+			const { status } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/WHEAT?${WINDOW}&dimension=astrology`
+			);
+
+			expect(status).toBe(400);
+		});
+
+		it("lists the assets and the sources without key variables", async () => {
+			const real = SIGNAL_REGISTRY.sources[0] as any;
+			const spy = jest.replaceProperty(SIGNAL_REGISTRY, "sources", [
+				{
+					...real,
+					accessPolicy: {
+						...real.accessPolicy,
+						auth: { env: "SECRET_KEY_VAR" },
+					},
+				},
+			] as any);
+			let sources: any;
+			try {
+				sources = await get(SCRAPER_API.sources, "/signals/sources");
+			} finally {
+				spy.restore();
+			}
+			const assets = await get(SCRAPER_API.assets, "/signals/assets");
+
+			expect(assets.body.assets.map((a: any) => a.id)).toContain("WHEAT");
+			expect(sources.body.sources[0]).toHaveProperty("termsUrl");
+			expect(JSON.stringify(sources.body)).not.toContain("SECRET_KEY_VAR");
+		});
+
 		it("answers 404 for an asset the registry does not know", async () => {
 			const { status } = await get(
 				SCRAPER_API.assetSignals,

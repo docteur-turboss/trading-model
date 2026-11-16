@@ -180,6 +180,9 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | Source id | Dimension | Subject | Schedule | Metrics | Terms (rank; commercial licence) |
 | --- | --- | --- | --- | --- | --- |
 | `ecb-aaa-yield-10y` | market | `EA_AAA_10Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_10y` | attribution: "Source: ECB statistics" (1) |
+| `ecb-hicp-annual-rate` | macro | area `EA` | daily 11:17 UTC (HICP is monthly) | `hicp_annual_rate` | attribution: "Source: ECB statistics" (1) |
+| `ecb-deposit-facility-rate` | macro | area `EA` | weekdays 15:35 UTC (changes are irregular) | `deposit_facility_rate` | attribution: "Source: ECB statistics" (1) |
+| `ecb-euro-reference-rates` | macro | area `EA` | weekdays 16:07 UTC (after the ECB release) | `eur_{usd,gbp,chf,jpy}_reference_rate` | attribution: "Source: ECB statistics" (1) |
 | `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
 | `cftc-cot-legacy` | market | `WHEAT` (contract 001602) | Fridays and Mondays after a holiday, hourly 15:45-23:45 UTC | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = release 15:30 ET, 3 business days after the Tuesday | public domain, CFTC acknowledged (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |

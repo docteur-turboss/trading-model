@@ -27,6 +27,8 @@ const INSERT_SQL = `INSERT INTO signals (${COLUMNS}) VALUES ? ON DUPLICATE KEY U
 const SELECT_FOR_ASSET_SQL = `SELECT ${COLUMNS} FROM signals
 	WHERE (asset_id = ? OR (asset_id IS NULL AND sector = ?) OR area IN (?))
 		AND dimension IN (?)
+		AND (? IS NULL OR source_id = ?)
+		AND (? IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(payload, '$.metric')) = ?)
 		AND observed_at >= ? AND observed_at < ?
 	ORDER BY observed_at, id
 	LIMIT ?`;
@@ -92,7 +94,17 @@ export const MySqlSignalStore: SignalStorePort = {
 		);
 	},
 
-	async findForAsset({ assetId, sector, areas, dimensions, from, to, limit }) {
+	async findForAsset({
+		assetId,
+		sector,
+		areas,
+		dimensions,
+		sourceId = null,
+		metric = null,
+		from,
+		to,
+		limit,
+	}) {
 		const [rows] = await DATABASE.promise().query<SignalRow[]>(
 			SELECT_FOR_ASSET_SQL,
 			// `IN ()` is a syntax error: an asset without areas matches none.
@@ -101,6 +113,10 @@ export const MySqlSignalStore: SignalStorePort = {
 				sector,
 				areas.length > 0 ? areas : [null],
 				dimensions,
+				sourceId,
+				sourceId,
+				metric,
+				metric,
 				new Date(from),
 				new Date(to),
 				limit,

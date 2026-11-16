@@ -106,6 +106,12 @@ export const SIGNAL_SOURCES = new promClient.Gauge({
 	labelNames: ["terms", "commercial_licence"] as const,
 });
 
+export const SIGNAL_SOURCE_DAILY_REQUESTS = new promClient.Gauge({
+	name: "fs_signal_source_daily_requests",
+	help: "Requests a day the schedule of a signal source plans",
+	labelNames: ["source"] as const,
+});
+
 export const SIGNAL_LAST_SUCCESS = new promClient.Gauge({
 	name: "fs_signal_last_success_timestamp_seconds",
 	help: "Unix time of the last successful collection of a signal source, restored from MySQL at start; exposed only by the collecting pod (alert SignalSourceStale)",

@@ -27,7 +27,7 @@ function assetOf(file: any, id: string): any {
 }
 
 describe("signal registry — the shipped file", () => {
-	it("loads with test sources of the four MVP dimensions", () => {
+	it("loads with test sources of the five dimensions", () => {
 		const dimensions = SIGNAL_REGISTRY.sources.flatMap((source) =>
 			source.requests.map((request) => request.dimension)
 		);
@@ -35,6 +35,7 @@ describe("signal registry — the shipped file", () => {
 		expect([...new Set(dimensions)].sort()).toEqual([
 			"contextual",
 			"fundamental",
+			"macro",
 			"market",
 			"social",
 		]);
@@ -101,10 +102,10 @@ describe("parseSignalRegistry", () => {
 			"a request on an area no asset has",
 			(file: any) => {
 				sourceOf(file, "nws-kansas-wheat-belt").requests[0].subject = {
-					area: "EA",
+					area: "US",
 				};
 			},
-			"source nws-kansas-wheat-belt, request 0: no asset in area EA",
+			"source nws-kansas-wheat-belt, request 0: no asset in area US",
 		],
 		[
 			"an unknown adapter",
@@ -199,6 +200,31 @@ describe("parseSignalRegistry", () => {
 
 		expect(() => parseSignalRegistry(file)).not.toThrow();
 	});
+
+	it.each([
+		["0 * * * *", 30, 500, true],
+		["0 6 * * *", 30, 500, false],
+		["7 15 * * 1-5", 30, 30, false],
+		["0 * * * *", 30, undefined, false],
+	])(
+		"checks schedule %s (%i requests) against quota %s",
+		(schedule, count, quota, refused) => {
+			const file = registry();
+			const source = sourceOf(file, "nws-kansas-wheat-belt");
+			source.schedule = schedule;
+			source.requests = Array.from({ length: count }, () => source.requests[0]);
+			source.accessPolicy.maxRequestsPerDay = quota;
+
+			const check = () => parseSignalRegistry(file);
+			if (refused) {
+				expect(check).toThrow(
+					/sends 720 requests a day.*maxRequestsPerDay 500/
+				);
+			} else {
+				expect(check).not.toThrow();
+			}
+		}
+	);
 
 	it("reports every problem at once", () => {
 		const file = registry();
