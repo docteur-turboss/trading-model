@@ -1,5 +1,6 @@
+import type { Dimension } from "@trading-model/validation/wire/signals";
 import type { z } from "zod";
-import type { Dimension, Source, SourceRequest } from "../signals";
+import type { Source, SourceRequest } from "../signals";
 
 /** What an adapter reads in a payload; the collector completes it into a `Signal`. */
 export interface Observation {

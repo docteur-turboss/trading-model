@@ -1,13 +1,15 @@
+import {
+	Asset,
+	SIGNAL_SCHEMA_VERSION,
+} from "@trading-model/validation/wire/signals";
 import cron from "node-cron";
 import { z } from "zod";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
 import { cronMaxGapMs } from "../domain/cron-period";
 import type { SourceAdapter } from "../domain/ports/signal-source.port";
 import {
-	Asset,
 	DATE_PLACEHOLDER,
 	dailyRequests,
-	SIGNAL_SCHEMA_VERSION,
 	Source,
 	SourceRequest,
 	SourceTemplate,
@@ -182,7 +184,7 @@ function _requestProblems(
 			);
 		}
 		if (/[{}]/.test(request.url.replace(DATE_PLACEHOLDER, ""))) {
-			problems.push(`${where}: URL placeholder other than {date-N}`);
+			problems.push(`${where}: URL placeholder other than {date-N} or {year}`);
 		}
 		const params = adapter?.params?.safeParse(request.params);
 		if (params?.success === false) {

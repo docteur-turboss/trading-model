@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
+import { PAYLOADS } from "@trading-model/validation/wire/signals";
 import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
 import { EUROSTAT_JSONSTAT } from "../../../src/adapters/outbound/signal-sources/eurostat-jsonstat";
@@ -10,9 +11,9 @@ import { NASA_POWER_DAILY } from "../../../src/adapters/outbound/signal-sources/
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
+import { TREASURY_PAR_YIELD_CURVE } from "../../../src/adapters/outbound/signal-sources/treasury-par-yield-curve";
 import { WIKIMEDIA_PAGEVIEWS } from "../../../src/adapters/outbound/signal-sources/wikimedia-pageviews";
 import { signalId } from "../../../src/application/signal-collector";
-import { PAYLOADS } from "../../../src/domain/signals";
 
 /**
  * Payloads as the sources sent them on 2026-11-04 (ECB Data Portal,
@@ -41,6 +42,7 @@ describe("SOURCE_ADAPTERS", () => {
 			"nasa-power-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
+			"treasury-par-yield-curve",
 			"wikimedia-pageviews",
 		]);
 	});
@@ -64,6 +66,11 @@ describe("SOURCE_ADAPTERS", () => {
 			NASA_POWER_DAILY,
 			"nasa-power-daily",
 			{ name: "poltava-ua", variables: "T2M,PRECTOTCORR" },
+		],
+		[
+			TREASURY_PAR_YIELD_CURVE,
+			"treasury-par-yield-curve",
+			{ column: "10 Yr", metric: "par_yield_10y" },
 		],
 		[WIKIMEDIA_PAGEVIEWS, "wikimedia-pageviews", {}],
 		[
@@ -749,6 +756,63 @@ describe("nasa-power-daily", () => {
 			NASA_POWER_DAILY.normalize(
 				{ properties: {} },
 				{ params: { name: "x", variables: "T2M" } }
+			)
+		).toThrow();
+	});
+});
+
+describe("treasury-par-yield-curve", () => {
+	const rows = fixture("treasury-par-yield-curve");
+	const context = (column: string) => ({
+		params: { column, metric: "par_yield_2y" },
+	});
+
+	it("gives one value per day for the requested maturity, keyed by the day", () => {
+		const observations = TREASURY_PAR_YIELD_CURVE.normalize(
+			rows,
+			context("2 Yr")
+		);
+
+		expect(
+			observations.map(({ key, payload }) => [key, payload.value])
+		).toEqual(
+			rows.map((row: any) => [
+				row.Date.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"),
+				Number(row["2 Yr"]),
+			])
+		);
+		expect(observations[0].payload).toMatchObject({
+			unit: "percent",
+			period: { start: observations[0].key, end: observations[0].key },
+		});
+	});
+
+	it("skips a maturity not published (N/A, blank) and a day without a row", () => {
+		const gaps = [
+			{ ...rows[0], "2 Yr": "N/A" },
+			{ ...rows[1], "2 Yr": "" },
+		];
+
+		expect(TREASURY_PAR_YIELD_CURVE.normalize(gaps, context("2 Yr"))).toEqual(
+			[]
+		);
+		expect(TREASURY_PAR_YIELD_CURVE.normalize([], context("2 Yr"))).toEqual([]);
+	});
+
+	it("throws on a changed format", () => {
+		expect(() =>
+			TREASURY_PAR_YIELD_CURVE.normalize(rows, context("2 Year"))
+		).toThrow('without a "2 Year" column');
+		expect(() =>
+			TREASURY_PAR_YIELD_CURVE.normalize(
+				[{ ...rows[0], "2 Yr": "abc" }],
+				context("2 Yr")
+			)
+		).toThrow();
+		expect(() =>
+			TREASURY_PAR_YIELD_CURVE.normalize(
+				[{ Date: "2026-11-13" }],
+				context("2 Yr")
 			)
 		).toThrow();
 	});
