@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
+import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
 import type { PositiveInt, Ratio } from "@trading-model/primitives/primitives";
 import {
@@ -16,8 +18,6 @@ import {
 	MODEL_SHARPE,
 } from "../../../src/config/metrics";
 import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
-import { buyAndHoldSharpe } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { WindowSet } from "../../../src/domain/genetic-algorithm/ga-runner";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";

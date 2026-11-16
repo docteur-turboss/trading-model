@@ -1,3 +1,4 @@
+import { barsPerYear } from "@trading-model/model-runtime/replay-metrics";
 /**
  * EvaluationPipeline: Orchestrates RL training and evaluation phases.
  * Trains each genome on its own experience (training-phase), keeps the
@@ -11,11 +12,7 @@ import type {
 	GenomeEvaluationContext,
 } from "./evaluation-phase";
 import { evalPhase } from "./evaluation-phase";
-import {
-	barsPerYear,
-	computeAllResults,
-	lamarckianUpdate,
-} from "./evaluation-utils";
+import { computeAllResults, lamarckianUpdate } from "./evaluation-utils";
 import {
 	validateEvalResult,
 	validateGenomeInputs,
