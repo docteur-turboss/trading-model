@@ -350,6 +350,11 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 					identifier: { scheme: "ticker", ticker: "WEAT", exchange: "ARCX" },
 					applicableDimensions: ["market", "contextual", "macro"],
 					sector: "agriculture",
+					exposure: {
+						assetClass: "commodity",
+						replication: "futures",
+						region: "US",
+					},
 				},
 				signals: [SIGNAL],
 				truncated: false,
@@ -363,6 +368,18 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 				to: Date.parse("2026-11-05T00:00:00Z"),
 				limit: MAX_SIGNALS_PER_ANSWER + 1,
 			});
+		});
+
+		it("answers 200 with an empty list for an asset without signal", async () => {
+			findForAsset.mockResolvedValue([]);
+
+			const { status, body } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/GLD?${WINDOW}`
+			);
+
+			expect(status).toBe(200);
+			expect(body).toMatchObject({ signals: [], truncated: false });
 		});
 
 		it("passes the areas of the asset to the store", async () => {

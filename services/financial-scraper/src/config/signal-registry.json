@@ -34,7 +34,17 @@
 			"assetType": "commodity_proxy",
 			"identifier": { "scheme": "ticker", "ticker": "WEAT", "exchange": "ARCX" },
 			"applicableDimensions": ["market", "contextual", "macro"],
-			"sector": "agriculture"
+			"sector": "agriculture",
+			"exposure": { "assetClass": "commodity", "replication": "futures", "region": "US" }
+		},
+		{
+			"id": "GLD",
+			"name": "SPDR Gold Shares",
+			"assetType": "etf",
+			"identifier": { "scheme": "isin", "isin": "US78463V1070" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "precious_metals",
+			"exposure": { "assetClass": "commodity", "replication": "physical" }
 		},
 		{
 			"id": "EA_AAA_10Y",
@@ -180,6 +190,28 @@
 					"select": { "assetType": "equity" },
 					"dimension": "fundamental",
 					"url": "https://data.sec.gov/api/xbrl/companyconcept/CIK{asset.alias.cik}/us-gaap/EarningsPerShareDiluted.json"
+				}
+			]
+		},
+		{
+			"id": "cftc-cot-legacy",
+			"protocol": "rest_api",
+			"adapter": "cftc-cot-legacy",
+			"schedule": "45 15-23 * * 1,5",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "commodity_proxy", "dimension": "market" }],
+			"accessPolicy": {
+				"terms": "public-domain",
+				"termsUrl": "https://www.cftc.gov/webpolicy/index.htm",
+				"attribution": "Source: U.S. Commodity Futures Trading Commission (Commitments of Traders)",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": { "assetId": "WHEAT" },
+					"dimension": "market",
+					"url": "https://publicreporting.cftc.gov/resource/jun7-fc8e.json?cftc_contract_market_code=001602&$order=report_date_as_yyyy_mm_dd%20DESC&$limit=5"
 				}
 			]
 		},
