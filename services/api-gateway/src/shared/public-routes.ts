@@ -45,12 +45,13 @@ export const PUBLIC_ROUTES = [
 
 interface RoutePattern {
 	method: string;
+	path: string;
 	segments: string[];
 }
 
 const PATTERNS: readonly RoutePattern[] = PUBLIC_ROUTES.map((route) => {
 	const [method, path] = route.split(" ");
-	return { method, segments: path.split("/").slice(1) };
+	return { method, path, segments: path.split("/").slice(1) };
 });
 
 function matches(pattern: RoutePattern, segments: string[]): boolean {
@@ -65,26 +66,27 @@ function matches(pattern: RoutePattern, segments: string[]): boolean {
 }
 
 /**
- * True when `method /v<major>/<service><path>` is a public route. The path must already
- * be in normal form: the proxy resolves it with `new URL`, which would turn
- * `/services/../register` (or `%2e%2e`, `\`) into another route than the one
- * matched here.
+ * The `PUBLIC_ROUTES` pattern (`/v1/audit-logger/events/:messageId`) that
+ * `method /v<major>/<service><path>` matches, or undefined when it is not a
+ * public route. The path must already be in normal form: the proxy resolves
+ * it with `new URL`, which would turn `/services/../register` (or `%2e%2e`,
+ * `\`) into another route than the one matched here.
  */
-export function isPublicRoute(
+export function matchPublicRoute(
 	method: string,
 	majorVersion: number,
 	serviceName: string,
 	path: string
-): boolean {
+): string | undefined {
 	if (new URL(path, "https://gateway.invalid").pathname !== path) {
-		return false;
+		return undefined;
 	}
 	const segments = [
 		`v${majorVersion}`,
 		String(normalizeServiceName(serviceName)),
 		...path.split("/").slice(1),
 	];
-	return PATTERNS.some(
+	return PATTERNS.find(
 		(pattern) => pattern.method === method && matches(pattern, segments)
-	);
+	)?.path;
 }

@@ -37,9 +37,27 @@ jest.mock(
 );
 
 jest.mock(
-	"../../../src/adapters/outbound/persistence/market-data.model",
+	"../../../src/adapters/outbound/persistence/schema/candles.schema",
 	() => ({
-		MarketDataModel: {},
+		insertCandles: jest.fn<(...args: any[]) => any>(),
+	})
+);
+jest.mock(
+	"../../../src/adapters/outbound/persistence/schema/trades.schema",
+	() => ({
+		insertTrades: jest.fn<(...args: any[]) => any>(),
+	})
+);
+jest.mock(
+	"../../../src/adapters/outbound/persistence/schema/order-book.schema",
+	() => ({
+		insertOrderBook: jest.fn<(...args: any[]) => any>(),
+	})
+);
+jest.mock(
+	"../../../src/adapters/outbound/persistence/schema/ticker24h.schema",
+	() => ({
+		insertTicker: jest.fn<(...args: any[]) => any>(),
 	})
 );
 
@@ -181,14 +199,21 @@ describe("config/container — createSignalScheduler", () => {
 		expect(MOCK_LOGGER.info).toHaveBeenCalledWith("Signal collection enabled", {
 			sources: [
 				"ecb-aaa-yield-10y",
+				"treasury-par-yield-curve",
 				"ecb-hicp-annual-rate",
 				"ecb-deposit-facility-rate",
 				"ecb-euro-reference-rates",
 				"sec-edgar-eps-diluted",
+				"sec-edgar-revenue",
+				"sec-edgar-core-facts",
 				"cftc-cot-legacy",
 				"nws-kansas-wheat-belt",
+				"nasa-power-crop-regions",
 				"wikipedia-pageviews",
 				"federal-register-documents",
+				"eurostat-house-price-index",
+				"eurostat-hicp-inflation",
+				"eurostat-unemployment",
 			],
 		});
 	});

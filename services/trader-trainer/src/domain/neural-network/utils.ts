@@ -6,8 +6,8 @@ export function clipGradients(
 		return delta;
 	}
 	let sum = 0;
-	for (const value of delta) {
-		sum += value * value;
+	for (let i = 0; i < delta.length; i++) {
+		sum += delta[i] * delta[i];
 	}
 	const norm = Math.sqrt(sum);
 	if (norm > maxNorm) {

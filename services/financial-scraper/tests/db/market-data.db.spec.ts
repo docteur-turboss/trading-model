@@ -22,6 +22,7 @@ import {
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
+import type { Signal } from "@trading-model/validation/wire/signals";
 import { createConnection } from "mysql2/promise";
 import { MySqlCandlePublishBacklog } from "../../src/adapters/outbound/persistence/candle-publish-backlog";
 import {
@@ -45,7 +46,6 @@ import type {
 	TickerData,
 	TradeData,
 } from "../../src/domain/market-data.types";
-import type { Signal } from "../../src/domain/signals";
 import { createMigrateRunner } from "./migrate-runner";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../../scripts/migrations");

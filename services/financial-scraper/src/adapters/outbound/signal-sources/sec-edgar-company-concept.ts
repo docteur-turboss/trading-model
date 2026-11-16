@@ -37,9 +37,11 @@ const CompanyConcept = z.object({
  */
 export const SEC_EDGAR_COMPANY_CONCEPT: SourceAdapter = {
 	dimensions: ["fundamental"],
-	normalize(payload) {
+	/** `metric` renames the concept: several XBRL tags of one measure (revenue) then give one metric. */
+	params: z.object({ metric: z.string().min(1).optional() }),
+	normalize(payload, { params }) {
 		const concept = CompanyConcept.parse(payload);
-		const metric = `${concept.taxonomy}:${concept.tag}`;
+		const metric = params.metric ?? `${concept.taxonomy}:${concept.tag}`;
 		return Object.entries(concept.units).flatMap(([unit, facts]) =>
 			facts.map((fact) => ({
 				key: [fact.accn, fact.start ?? "", fact.end, unit].join("|"),

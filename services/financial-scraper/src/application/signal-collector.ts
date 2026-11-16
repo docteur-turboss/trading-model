@@ -1,6 +1,10 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
+	SIGNAL_SCHEMA_VERSION,
+	Signal,
+} from "@trading-model/validation/wire/signals";
+import {
 	SIGNAL_COLLECTIONS_TOTAL,
 	SIGNAL_LAST_SUCCESS,
 	SIGNAL_NEWEST_OBSERVED,
@@ -22,8 +26,6 @@ import {
 	DATE_PLACEHOLDER,
 	dailyRequests,
 	type Protocol,
-	SIGNAL_SCHEMA_VERSION,
-	Signal,
 	type Source,
 	type SourceRequest,
 	type Subject,
@@ -35,7 +37,11 @@ const FAILURES = [
 	"store_error",
 	"skipped_quarantine",
 ] as const;
-type CollectionResult = "success" | "not_modified" | (typeof FAILURES)[number];
+type CollectionResult =
+	| "success"
+	| "not_modified"
+	| "not_found"
+	| (typeof FAILURES)[number];
 
 /**
  * Sets the failure counters of every source to 0: a series born at its first
@@ -142,12 +148,14 @@ function _retryAfterMs(header: string | undefined, now: number): number {
 }
 
 function _expandUrl(url: string, ingestedAt: number): string {
-	return url.replace(DATE_PLACEHOLDER, (_placeholder, days: string) =>
-		new Date(ingestedAt - Number(days) * DAY_MS)
-			.toISOString()
-			.slice(0, 10)
-			.replace(/-/g, "")
-	);
+	return url.replace(DATE_PLACEHOLDER, (_placeholder, days?: string) => {
+		const date = new Date(
+			ingestedAt - Number(days ?? 0) * DAY_MS
+		).toISOString();
+		return days === undefined
+			? date.slice(0, 4)
+			: date.slice(0, 10).replace(/-/g, "");
+	});
 }
 
 /** Same source, subject, metric and key give the same id: a replay stores nothing twice. */
@@ -277,6 +285,19 @@ export class SignalCollector {
 		} catch (err) {
 			if (err instanceof InvalidPayloadError) {
 				result = "invalid_payload";
+			}
+			if (
+				result === "fetch_error" &&
+				source.accessPolicy.notFoundIsEmpty &&
+				err instanceof HttpStatusError &&
+				err.status === 404
+			) {
+				result = "not_found";
+				SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
+				getLogger().debug("Signal source has no fact", {
+					context: { source: source.id, subject: request.subject },
+				});
+				return undefined;
 			}
 			if (result === "fetch_error") {
 				fetchFailure = err instanceof Error ? err : new Error(String(err));

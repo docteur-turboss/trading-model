@@ -1,4 +1,3 @@
-import os from "node:os";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import { logger } from "@trading-model/http/logger";
 import {
@@ -24,6 +23,9 @@ export interface CronConfig {
 	deps: WorkerOrchestratorDeps;
 }
 
+/** Host-independent cap: os.cpus() reports the node cores, not the pod CPU limit. */
+const DEFAULT_MAX_CONCURRENCY = 8;
+
 export class ScrapeCronOrchestrator {
 	private readonly _maxConcurrency: PositiveInt;
 	private _workerOrchestrator: WorkerOrchestrator;
@@ -31,10 +33,9 @@ export class ScrapeCronOrchestrator {
 	private _task?: NoOverlapTask;
 
 	constructor(private readonly _config: CronConfig) {
-		const cpuBased = os.cpus().length * 2;
 		const maxConcurrency =
 			_config.maxConcurrency ??
-			PositiveInt.of(Math.min(cpuBased, _config.symbols.length));
+			PositiveInt.of(Math.min(DEFAULT_MAX_CONCURRENCY, _config.symbols.length));
 
 		this._maxConcurrency = maxConcurrency;
 		this._workerOrchestrator = this._createWorker();

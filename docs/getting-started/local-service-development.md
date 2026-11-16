@@ -1,6 +1,6 @@
 # Local service development
 
-How to change one service and see it run. Supported method: **rebuild that service's container in the Compose stack**. Running a service outside a container (`bun run dev`) is **not supported**, for any of the 7 services (`discovery-server`, `message-manager`, `financial-scraper`, `trader-trainer`, `api-gateway`, `audit-logger`, `dlq-service`): they all share the same `dev` script and the same TLS requirement.
+How to change one service and see it run. Supported method: **rebuild that service's container in the Compose stack**. Running a service outside a container (`bun run dev`) is **not supported**, for any service (`discovery-server`, `message-manager`, `financial-scraper`, `trader-trainer`, `api-gateway`, `audit-logger`, `dlq-service`, `model-evaluator`): they all share the same `dev` script and the same TLS requirement.
 
 ## Why `bun run dev` does not work alone
 

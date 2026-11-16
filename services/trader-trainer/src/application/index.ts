@@ -5,6 +5,7 @@ import { createBootstrap } from "@trading-model/http/bootstrap";
 import { shutdownTelemetry } from "@trading-model/http/telemetry";
 import type { Leadership } from "@trading-model/reliability/leadership";
 import { ScraperCandleHistory } from "../adapters/outbound/scraper-candle-history";
+import { ScraperSignalHistory } from "../adapters/outbound/scraper-signal-history";
 import {
 	BOOTSTRAP_ADDRESS_MANAGER,
 	FIND_A_SERVICE,
@@ -22,7 +23,8 @@ let leadership: Leadership | null = null;
 
 const CONTAINER = createTraderTrainerContainer(
 	ENV,
-	new ScraperCandleHistory(buildTlsFromEnv(ENV), FIND_A_SERVICE)
+	new ScraperCandleHistory(buildTlsFromEnv(ENV), FIND_A_SERVICE),
+	new ScraperSignalHistory(buildTlsFromEnv(ENV), FIND_A_SERVICE)
 );
 
 const { trainer, trainingLoop, symbols, models } = CONTAINER;
