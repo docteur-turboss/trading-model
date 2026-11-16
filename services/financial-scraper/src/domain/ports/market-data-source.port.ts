@@ -1,4 +1,7 @@
-import type { DataSource } from "@trading-model/primitives/primitives";
+import type {
+	DataSource,
+	TradingSymbol,
+} from "@trading-model/primitives/primitives";
 import type {
 	MarketDataSnapshot,
 	SnapshotRequest,
@@ -10,5 +13,7 @@ import type {
  */
 export interface MarketDataSourcePort {
 	readonly id: DataSource;
+	/** Called once per cycle before its snapshots: lets a source fetch in one request what every symbol shares. */
+	beginCycle?(symbols: TradingSymbol[]): void;
 	fetchSnapshot(request: SnapshotRequest): Promise<MarketDataSnapshot>;
 }
