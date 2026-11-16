@@ -4,6 +4,7 @@ import { describe, expect, it } from "@jest/globals";
 import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
 import { FRED_SERIES_OBSERVATIONS } from "../../../src/adapters/outbound/signal-sources/fred-series-observations";
+import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-sources/federal-register-daily";
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
@@ -32,6 +33,7 @@ describe("SOURCE_ADAPTERS", () => {
 			"cftc-cot-legacy",
 			"ecb-sdmx-series",
 			"fred-series-observations",
+			"federal-register-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
 			"wikimedia-pageviews",
@@ -49,6 +51,11 @@ describe("SOURCE_ADAPTERS", () => {
 			{ variables: "temperature,relativeHumidity" },
 		],
 		[WIKIMEDIA_PAGEVIEWS, "wikimedia-pageviews", {}],
+		[
+			FEDERAL_REGISTER_DAILY,
+			"federal-register-daily",
+			{ metric: "documents_final_rules" },
+		],
 	] as const)(
 		"%#: writes the canonical payload of its dimension",
 		(adapter, name, params) => {
@@ -466,6 +473,37 @@ describe("wikimedia-pageviews", () => {
 		payload.items[0].granularity = "hourly";
 
 		expect(() => WIKIMEDIA_PAGEVIEWS.normalize(payload, NO_PARAMS)).toThrow();
+	});
+});
+
+describe("federal-register-daily", () => {
+	it("gives an explicit zero for a day without publication, stamped at the close of the day", () => {
+		const observations = FEDERAL_REGISTER_DAILY.normalize(
+			fixture("federal-register-daily"),
+			{ params: { metric: "documents_final_rules" } }
+		);
+
+		expect(observations).toHaveLength(9);
+		expect(observations[1]).toEqual({
+			key: "2026-11-06",
+			observedAt: Date.UTC(2026, 10, 7, 5),
+			payload: {
+				metric: "documents_final_rules",
+				value: 1,
+				unit: "documents",
+				jurisdiction: "US",
+			},
+		});
+		expect(observations[6].payload.value).toBe(0); // 2026-11-11, Veterans Day
+	});
+
+	it("throws on a changed format", () => {
+		expect(() =>
+			FEDERAL_REGISTER_DAILY.normalize(
+				{ results: [] },
+				{ params: { metric: "m" } }
+			)
+		).toThrow();
 	});
 });
 
