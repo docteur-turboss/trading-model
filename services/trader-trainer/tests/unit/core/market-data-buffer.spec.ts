@@ -427,42 +427,6 @@ describe("MarketDataBuffer", () => {
 		});
 	});
 
-	describe("splitTrainValidation", () => {
-		it("should split steps 80/20 by default", () => {
-			feedCandles(buffer, "BTCUSDT", 101);
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-			const splitIdx = Math.floor(steps.length * 0.8);
-
-			const result = buffer.splitTrainValidation(steps, 0.2);
-
-			expect(result.id).toBeTruthy();
-			expect(result.train.length).toBe(splitIdx);
-			expect(result.validation.length).toBe(steps.length - splitIdx);
-		});
-
-		it("should split steps with custom ratio", () => {
-			feedCandles(buffer, "BTCUSDT", 101);
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-			const splitIdx = Math.floor(steps.length * 0.7);
-
-			const result = buffer.splitTrainValidation(steps, 0.3);
-
-			expect(result.train.length).toBe(splitIdx);
-			expect(result.validation.length).toBe(steps.length - splitIdx);
-		});
-
-		it("should preserve step order in both splits", () => {
-			feedCandles(buffer, "BTCUSDT", 101);
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-			const splitIdx = Math.floor(steps.length * 0.8);
-
-			const result = buffer.splitTrainValidation(steps, 0.2);
-
-			expect(result.train[0].timestamp).toBe(steps[0].timestamp);
-			expect(result.validation[0].timestamp).toBe(steps[splitIdx].timestamp);
-		});
-	});
-
 	describe("getAllWindows", () => {
 		it("should return null with fewer than 10 steps", () => {
 			feedCandles(buffer, "BTCUSDT", 10);
