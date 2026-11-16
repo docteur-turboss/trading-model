@@ -190,6 +190,7 @@ describe("config/container — createSignalScheduler", () => {
 				"sec-edgar-core-facts",
 				"cftc-cot-legacy",
 				"nws-kansas-wheat-belt",
+				"nasa-power-crop-regions",
 				"wikipedia-pageviews",
 				"federal-register-documents",
 				"eurostat-house-price-index",

@@ -7,11 +7,13 @@ import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/e
 import { EUROSTAT_JSONSTAT } from "../../../src/adapters/outbound/signal-sources/eurostat-jsonstat";
 import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-sources/federal-register-daily";
 import { FRED_SERIES_OBSERVATIONS } from "../../../src/adapters/outbound/signal-sources/fred-series-observations";
+import { NASA_POWER_DAILY } from "../../../src/adapters/outbound/signal-sources/nasa-power-daily";
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
 import { TREASURY_PAR_YIELD_CURVE } from "../../../src/adapters/outbound/signal-sources/treasury-par-yield-curve";
 import { WIKIMEDIA_PAGEVIEWS } from "../../../src/adapters/outbound/signal-sources/wikimedia-pageviews";
+import { signalId } from "../../../src/application/signal-collector";
 
 /**
  * Payloads as the sources sent them on 2026-11-04 (ECB Data Portal,
@@ -37,6 +39,7 @@ describe("SOURCE_ADAPTERS", () => {
 			"eurostat-jsonstat",
 			"federal-register-daily",
 			"fred-series-observations",
+			"nasa-power-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
 			"treasury-par-yield-curve",
@@ -58,6 +61,11 @@ describe("SOURCE_ADAPTERS", () => {
 			NWS_LATEST_OBSERVATION,
 			"nws-latest-observation",
 			{ variables: "temperature,relativeHumidity" },
+		],
+		[
+			NASA_POWER_DAILY,
+			"nasa-power-daily",
+			{ name: "poltava-ua", variables: "T2M,PRECTOTCORR" },
 		],
 		[
 			TREASURY_PAR_YIELD_CURVE,
@@ -686,6 +694,68 @@ describe("cftc-cot-legacy", () => {
 			CFTC_COT_LEGACY.normalize(
 				[{ ...rows[0], open_interest_all: "" }],
 				NO_PARAMS
+			)
+		).toThrow();
+	});
+});
+
+describe("nasa-power-daily", () => {
+	it("keeps the latest day with a value, skips fill values and absent variables", () => {
+		const observations = NASA_POWER_DAILY.normalize(
+			fixture("nasa-power-daily"),
+			{
+				params: {
+					name: "poltava-ua",
+					variables: "T2M,PRECTOTCORR,GWETROOT,NOPE",
+				},
+			}
+		);
+
+		expect(
+			observations.map((o) => [
+				o.payload.metric,
+				o.payload.value,
+				o.payload.unit,
+			])
+		).toEqual([
+			["T2M", 3.15, "C"],
+			["PRECTOTCORR", 1.33, "mm/day"],
+			["GWETROOT", 0.54, "1"],
+		]);
+		expect(observations[0].payload.details).toEqual({
+			measuredAt: "2026-11-12",
+		});
+	});
+
+	it("gives no signal for a point with no value", () => {
+		const empty = {
+			geometry: { coordinates: [1, 2] },
+			properties: { parameter: { T2M: { "20261112": -999 } } },
+			parameters: { T2M: { units: "C" } },
+		};
+		expect(
+			NASA_POWER_DAILY.normalize(empty, {
+				params: { name: "x", variables: "T2M" },
+			})
+		).toEqual([]);
+	});
+
+	it("gives two points of the same day two distinct ids", () => {
+		const keyOf = (name: string) =>
+			NASA_POWER_DAILY.normalize(fixture("nasa-power-daily"), {
+				params: { name, variables: "T2M" },
+			})[0].key;
+		const subject = { sector: "agriculture" } as const;
+		expect(signalId("s", subject, "T2M", keyOf("beauce-fr"))).not.toBe(
+			signalId("s", subject, "T2M", keyOf("poltava-ua"))
+		);
+	});
+
+	it("rejects a changed format", () => {
+		expect(() =>
+			NASA_POWER_DAILY.normalize(
+				{ properties: {} },
+				{ params: { name: "x", variables: "T2M" } }
 			)
 		).toThrow();
 	});
