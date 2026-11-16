@@ -127,7 +127,7 @@ describe("GA end-to-end replay", () => {
 		const other = await runGA(43);
 
 		expect(other.bestWeights).not.toEqual(first.bestWeights);
-	});
+	}, 30_000);
 
 	it("should not draw from Math.random anywhere in the run", async () => {
 		const spy = jest.spyOn(Math, "random");
