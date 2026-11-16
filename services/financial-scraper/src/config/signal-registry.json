@@ -106,6 +106,38 @@
 			"areas": ["US"]
 		},
 		{
+			"id": "BORDEAUX_RE",
+			"name": "Housing market of Bordeaux",
+			"assetType": "real_estate",
+			"identifier": { "scheme": "insee", "code": "33063" },
+			"applicableDimensions": ["market"],
+			"sector": "real_estate"
+		},
+		{
+			"id": "NANTES_RE",
+			"name": "Housing market of Nantes",
+			"assetType": "real_estate",
+			"identifier": { "scheme": "insee", "code": "44109" },
+			"applicableDimensions": ["market"],
+			"sector": "real_estate"
+		},
+		{
+			"id": "LILLE_RE",
+			"name": "Housing market of Lille",
+			"assetType": "real_estate",
+			"identifier": { "scheme": "insee", "code": "59350" },
+			"applicableDimensions": ["market"],
+			"sector": "real_estate"
+		},
+		{
+			"id": "MONTPELLIER_RE",
+			"name": "Housing market of Montpellier",
+			"assetType": "real_estate",
+			"identifier": { "scheme": "insee", "code": "34172" },
+			"applicableDimensions": ["market"],
+			"sector": "real_estate"
+		},
+		{
 			"id": "EA_AAA_10Y",
 			"name": "Euro area AAA government bonds, 10-year",
 			"assetType": "bond",
@@ -950,6 +982,44 @@
 						"metric": "unemployment_rate",
 						"area": "DE"
 					}
+				}
+			]
+		},
+		{
+			"id": "dvf-commune-sales",
+			"protocol": "rest_api",
+			"format": "csv",
+			"adapter": "dvf-commune-sales",
+			"schedule": "17 6 * * 1",
+			"reliabilityScore": 0.9,
+			"covers": [{ "assetType": "real_estate", "dimension": "market" }],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://www.etalab.gouv.fr/licence-ouverte-open-licence/",
+				"attribution": "Source: DGFiP, Demandes de valeurs foncieres (DVF geolocalisees, Etalab), Licence Ouverte 2.0",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": { "assetId": "BORDEAUX_RE" },
+					"dimension": "market",
+					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/2025/communes/33/33063.csv"
+				},
+				{
+					"subject": { "assetId": "NANTES_RE" },
+					"dimension": "market",
+					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/2025/communes/44/44109.csv"
+				},
+				{
+					"subject": { "assetId": "LILLE_RE" },
+					"dimension": "market",
+					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/2025/communes/59/59350.csv"
+				},
+				{
+					"subject": { "assetId": "MONTPELLIER_RE" },
+					"dimension": "market",
+					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/2025/communes/34/34172.csv"
 				}
 			]
 		}
