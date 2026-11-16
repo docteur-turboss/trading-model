@@ -4,6 +4,7 @@ import { describe, expect, it } from "@jest/globals";
 import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
 import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-sources/federal-register-daily";
+import { NASA_POWER_DAILY } from "../../../src/adapters/outbound/signal-sources/nasa-power-daily";
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
@@ -32,6 +33,7 @@ describe("SOURCE_ADAPTERS", () => {
 			"cftc-cot-legacy",
 			"ecb-sdmx-series",
 			"federal-register-daily",
+			"nasa-power-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
 			"wikimedia-pageviews",
@@ -47,6 +49,11 @@ describe("SOURCE_ADAPTERS", () => {
 			NWS_LATEST_OBSERVATION,
 			"nws-latest-observation",
 			{ variables: "temperature,relativeHumidity" },
+		],
+		[
+			NASA_POWER_DAILY,
+			"nasa-power-daily",
+			{ name: "poltava-ua", variables: "T2M,PRECTOTCORR" },
 		],
 		[WIKIMEDIA_PAGEVIEWS, "wikimedia-pageviews", {}],
 		[
@@ -545,6 +552,40 @@ describe("cftc-cot-legacy", () => {
 			CFTC_COT_LEGACY.normalize(
 				[{ ...rows[0], open_interest_all: "" }],
 				NO_PARAMS
+			)
+		).toThrow();
+	});
+});
+
+describe("nasa-power-daily", () => {
+	it("keeps the latest day with a value, skips fill values and absent variables", () => {
+		const observations = NASA_POWER_DAILY.normalize(
+			fixture("nasa-power-daily"),
+			{
+				params: { name: "poltava-ua", variables: "T2M,GWETROOT,NOPE" },
+			}
+		);
+
+		expect(
+			observations.map((o) => [
+				o.payload.metric,
+				o.payload.value,
+				o.payload.unit,
+			])
+		).toEqual([
+			["T2M", 3.15, "C"],
+			["GWETROOT", expect.any(Number), "1"],
+		]);
+		expect(observations[0].payload.details).toEqual({
+			measuredAt: "2026-11-12",
+		});
+	});
+
+	it("rejects a changed format", () => {
+		expect(() =>
+			NASA_POWER_DAILY.normalize(
+				{ properties: {} },
+				{ params: { name: "x", variables: "T2M" } }
 			)
 		).toThrow();
 	});

@@ -330,6 +330,54 @@
 			]
 		},
 		{
+			"id": "nasa-power-crop-regions",
+			"protocol": "rest_api",
+			"adapter": "nasa-power-daily",
+			"schedule": "17 7 * * *",
+			"reliabilityScore": 0.7,
+			"covers": [{ "assetType": "commodity_proxy", "dimension": "contextual" }],
+			"accessPolicy": {
+				"terms": "attribution",
+				"termsUrl": "https://power.larc.nasa.gov/docs/referencing/",
+				"attribution": "Data: NASA Langley Research Center POWER Project",
+				"auth": "none",
+				"maxRequestsPerMinute": 10,
+				"maxRequestsPerDay": 5
+			},
+			"requests": [
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://power.larc.nasa.gov/api/temporal/daily/point?community=AG&parameters=T2M,PRECTOTCORR,GWETROOT&latitude=48.3&longitude=1.8&start={date-8}&end={date-1}&format=JSON",
+					"params": { "name": "beauce-fr", "variables": "T2M,PRECTOTCORR,GWETROOT" }
+				},
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://power.larc.nasa.gov/api/temporal/daily/point?community=AG&parameters=T2M,PRECTOTCORR,GWETROOT&latitude=49.6&longitude=34.5&start={date-8}&end={date-1}&format=JSON",
+					"params": { "name": "poltava-ua", "variables": "T2M,PRECTOTCORR,GWETROOT" }
+				},
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://power.larc.nasa.gov/api/temporal/daily/point?community=AG&parameters=T2M,PRECTOTCORR,GWETROOT&latitude=-13&longitude=-55.5&start={date-8}&end={date-1}&format=JSON",
+					"params": { "name": "mato-grosso-br", "variables": "T2M,PRECTOTCORR,GWETROOT" }
+				},
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://power.larc.nasa.gov/api/temporal/daily/point?community=AG&parameters=T2M,PRECTOTCORR,GWETROOT&latitude=-28.5&longitude=-53&start={date-8}&end={date-1}&format=JSON",
+					"params": { "name": "rio-grande-do-sul-br", "variables": "T2M,PRECTOTCORR,GWETROOT" }
+				},
+				{
+					"subject": { "sector": "agriculture" },
+					"dimension": "contextual",
+					"url": "https://power.larc.nasa.gov/api/temporal/daily/point?community=AG&parameters=T2M,PRECTOTCORR,GWETROOT&latitude=-34.7&longitude=146.5&start={date-8}&end={date-1}&format=JSON",
+					"params": { "name": "riverina-au", "variables": "T2M,PRECTOTCORR,GWETROOT" }
+				}
+			]
+		},
+		{
 			"id": "wikipedia-pageviews",
 			"protocol": "rest_api",
 			"adapter": "wikimedia-pageviews",
