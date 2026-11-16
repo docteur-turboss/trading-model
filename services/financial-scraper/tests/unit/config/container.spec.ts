@@ -192,6 +192,9 @@ describe("config/container — createSignalScheduler", () => {
 				"wikipedia-pageviews",
 				"federal-register-documents",
 				"dvf-commune-sales",
+				"eurostat-house-price-index",
+				"eurostat-hicp-inflation",
+				"eurostat-unemployment",
 			],
 		});
 	});

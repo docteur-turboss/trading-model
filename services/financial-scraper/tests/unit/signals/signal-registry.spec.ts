@@ -51,6 +51,7 @@ describe("signal registry — the shipped file", () => {
 			"LILLE_RE",
 			"MONTPELLIER_RE",
 			"EA_AAA_10Y",
+			"PARIS_RE",
 		]);
 	});
 
