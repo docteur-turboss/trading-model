@@ -117,7 +117,7 @@ sequenceDiagram
     FS->>B: fetch candles
     FS->>DB: persist candles
     FS->>DB: read market_publish_cursors, next persisted candles
-    FS->>MM: POST /message (requireSubscriber)
+    FS->>MM: POST /message
     alt a subscriber is reachable
       MM->>TT: callback /message
       MM-->>FS: all deliveries settled
