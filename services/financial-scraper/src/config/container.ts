@@ -8,7 +8,10 @@ import {
 } from "@trading-model/reliability/leadership";
 import { z } from "zod";
 import { SignalCronScheduler } from "../adapters/inbound/cron/signal.cron";
-import { MarketDataModel } from "../adapters/outbound/persistence/market-data.model";
+import { insertCandles } from "../adapters/outbound/persistence/schema/candles.schema";
+import { insertOrderBook } from "../adapters/outbound/persistence/schema/order-book.schema";
+import { insertTicker } from "../adapters/outbound/persistence/schema/ticker24h.schema";
+import { insertTrades } from "../adapters/outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store";
 import { createProtocolWorkers } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
@@ -25,7 +28,12 @@ import { COLLECTOR_LEADER, SIGNAL_SOURCE_DISABLED } from "./metrics";
 import { SIGNAL_REGISTRY } from "./signal-registry";
 
 /** Market data persistence use case backed by the MySQL repository. */
-export const MarketDataController = createMarketDataController(MarketDataModel);
+export const MarketDataController = createMarketDataController({
+	insertCandles,
+	insertTrades,
+	insertOrderBook: (data) => insertOrderBook([data]),
+	insertTicker,
+});
 
 /**
  * Wires the scrape cycle: market data source, broker publisher, persistence
