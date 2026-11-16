@@ -267,8 +267,8 @@ fi
 
 echo "--dry-run"
 if fetch --dest "$WORK/fetched-dry" --dry-run && [ ! -e "$WORK/fetched-dry" ] &&
-	[ "$(grep -c "Would fetch" "$WORK/out")" = 6 ] && grep -q "$GOOD" "$WORK/out"; then
-	pass "lists the 6 files of ${GOOD} (manifest included) and copies nothing"
+	[ "$(grep -c "Would fetch" "$WORK/out")" = 5 ] && grep -q "$GOOD" "$WORK/out"; then
+	pass "lists the 5 files of ${GOOD} (manifest included) and copies nothing"
 else
 	failed "--dry-run: $(cat "$WORK/out")"
 fi
@@ -298,7 +298,7 @@ else
 	failed "long tiers hold: $long_tiers"
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered" &&
-	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 6 ] &&
+	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 5 ] &&
 	[ -f "$WORK/fetched-tiered/mysql/financial_scraper_${TIERED}.sql.gz.age" ]; then
 	pass "a tiered bucket is read from daily/ by default, in the layout restore-k8s.sh reads"
 else
@@ -462,7 +462,7 @@ echo "verify-backup-key.sh --offsite (issue #327)"
 # The key the runs were sealed for decrypts the newest complete run; another
 # key does not. The run is fetched into a temporary directory, removed after.
 if bash "$ROOT/scripts/verify-backup-key.sh" --identity "$WORK/key.txt" --offsite >"$WORK/out" 2>&1 &&
-	grep -q "Run: ${GOOD}" "$WORK/out" && grep -q "Result: PASS (5 component(s) decrypted)" "$WORK/out"; then
+	grep -q "Run: ${GOOD}" "$WORK/out" && grep -q "Result: PASS (4 component(s) decrypted)" "$WORK/out"; then
 	pass "the backup key decrypts every component of ${GOOD}, fetched from the bucket"
 else
 	failed "verify-backup-key.sh --offsite: $(cat "$WORK/out")"

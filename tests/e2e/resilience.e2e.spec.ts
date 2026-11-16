@@ -88,7 +88,10 @@ describe("Resilience E2E", () => {
 				await eventually("a candle persisted while the bus is down", () =>
 					persistedCandles("BTCUSDT") > before ? true : undefined
 				);
-				await restart("trading-scraper");
+				// Not "healthy": its readiness needs the registry, which lives in the Redis that is down.
+				execFileSync("docker", ["restart", "trading-scraper"], {
+					stdio: "ignore",
+				});
 				const afterRestart = persistedCandles("BTCUSDT");
 				await eventually("a candle persisted after the scraper restart", () =>
 					persistedCandles("BTCUSDT") > afterRestart ? true : undefined

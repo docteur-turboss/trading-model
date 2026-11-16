@@ -6,5 +6,13 @@
 	{
 		"break": "example.show.create $: event removed",
 		"reason": "topic de debug sans producteur, retiré du contrat (issue #1206)"
+	},
+	{
+		"break": "audit.heartbeat $.serviceName: enum value \"dlq-service\" removed",
+		"reason": "service retiré (issue #1241, ADR-0073 release N+1)"
+	},
+	{
+		"break": "audit.heartbeat $.serviceName: enum value \"message-manager\" removed",
+		"reason": "service retiré (issue #1241, ADR-0073 release N+1)"
 	}
 ]
