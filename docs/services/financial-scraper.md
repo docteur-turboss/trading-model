@@ -200,7 +200,7 @@ Each request is fetched (GET, JSON, 10 s timeout, no retry: the next tick is the
 retry, unless the source is quarantined, see runbook-market-data-stale),
 normalized by its adapter, checked against the schema and stored.
 `fs_signal_collections_total{source,result}` counts the requests by result:
-`success`, `fetch_error`, `invalid_payload` (the source changed its format: logged,
+`success`, `not_modified` (304: nothing to store, counts as fresh), `fetch_error`, `invalid_payload` (the source changed its format: logged,
 nothing stored), `store_error`. Every request sends the User-Agent
 `automated news analysis <SIGNAL_CONTACT_EMAIL>`: SEC EDGAR answers 403
 without the e-mail; NWS and Wikimedia accept the repository URL sent when it

@@ -615,6 +615,8 @@ tests:
         values: '0+1x60'
       - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="ecb-aaa-yield-10y",result="fetch_error"}'
         values: '0x60'
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="ecb-hicp",result="not_modified"}'
+        values: '0+1x60'
     alert_rule_test:
       - eval_time: 30h
         alertname: SignalCollectionFailing
