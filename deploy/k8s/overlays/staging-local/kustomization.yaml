@@ -6,6 +6,7 @@ kind: Kustomization
 # the GitHub environment `staging` sets K8S_OVERLAY=staging-local.
 resources:
   - ../staging
+  - mysql-group-replication-config.yaml
 
 patches:
   # No public DNS name for Let's Encrypt: self-signed certificates
@@ -107,7 +108,8 @@ configMapGenerator:
   # with 3.1.0-rc.1): MySQL without mysql-tls, MongoDB without TLS nor keyFile (issue
   # #1066). Clients connect as that template accepts (MySQL in clear, MongoDB without
   # tls=true) until the planned switch of STAGING_LOCAL.md, "TLS and keyFile switch",
-  # which removes these three entries and the mysql-client-tls patch above.
+  # which removes these three entries, the mysql-client-tls patch above and
+  # mysql-group-replication-config.yaml.
   - name: financial-scraper-config
     behavior: merge
     literals:

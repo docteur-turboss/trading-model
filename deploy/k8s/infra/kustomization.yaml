@@ -29,6 +29,15 @@ configMapGenerator:
   - name: mongo-users-script
     files:
       - users.js=../../mongo/users.js
+  # mysqld config of mysql.yaml, hashed: a partitioned or restarted pod keeps the
+  # config of its own revision, never a newer release's (issue #1456).
+  - name: mysql-config
+    files:
+      - mysql.cnf
+    options:
+      labels:
+        app.kubernetes.io/component: mysql
+        app.kubernetes.io/part-of: trading-model
 
 # Alertmanager notification credentials: Secret alertmanager-credentials,
 # written by deploy.yml from the GitHub environment, not generated here (a

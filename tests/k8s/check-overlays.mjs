@@ -28,7 +28,9 @@
 //   - the data StatefulSets of staging-local (DATA_STATEFULSETS) set a
 //     partition >= replicas, so a release never restarts their single pods;
 //     staging (CI keeps testing their restarts) and production set none
-//     (issue #700)
+//     (issue #700); the database ones mount no ConfigMap by a bare name: a
+//     restarted partitioned pod would read the newest release's content, not
+//     its revision's (issue #1456)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -47,7 +49,10 @@ const SINGLETONS = {
 	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector", env: "COLLECTOR_LEASE_NAME" },
 };
 // Data and observability StatefulSets of staging-local held by a partition (issue #700).
-const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit", "alertmanager", "grafana", "loki", "prometheus"];
+const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
+const DATA_STATEFULSETS = [...DATABASES, "alertmanager", "grafana", "loki", "prometheus"];
+// Bare names a database may mount: also applied by name outside kustomize (run-migrations.sh), read by the exporter sidecar only.
+const BARE_CONFIGMAPS = new Set(["mysql-client-tls"]);
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 
 function render(dir) {
@@ -360,6 +365,11 @@ for (const env of OVERLAYS) {
 		if (!sts) {
 			errors.push(`${env}: StatefulSet ${name} not found`);
 			continue;
+		}
+		for (const [, cm] of DATABASES.includes(name) ? sts.text.matchAll(/configMap:\n(?: +.*\n)*? +name: (\S+)$/gm) : []) {
+			if (!/-[245-9bcdfghkmt]{10}$/.test(cm) && !BARE_CONFIGMAPS.has(cm)) {
+				errors.push(`${env}: StatefulSet ${name} mounts ConfigMap ${cm} by a bare name: generate it (configMapGenerator, hash suffix) so a restarted pod keeps its revision's config (issue #1456)`);
+			}
 		}
 		const replicas = Number(sts.text.match(/^ {2}replicas: (\d+)$/m)?.[1] ?? 1);
 		const partition = Number(sts.text.match(/^ {6}partition: (\d+)$/m)?.[1] ?? 0);
