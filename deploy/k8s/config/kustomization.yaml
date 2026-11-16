@@ -32,6 +32,13 @@ configMapGenerator:
     envs: [financial-scraper.properties]
     options:
       labels: {app.kubernetes.io/component: financial-scraper, app.kubernetes.io/part-of: trading-model}
+  # Signal registry (ADR-0036, issue #1308): the repository file, mounted by
+  # both financial-scraper Deployments, so a new asset needs no image release.
+  - name: financial-scraper-signal-registry
+    files:
+      - signal-registry.json=../../../services/financial-scraper/src/config/signal-registry.json
+    options:
+      labels: {app.kubernetes.io/component: financial-scraper, app.kubernetes.io/part-of: trading-model}
   - name: trader-trainer-config
     envs: [trader-trainer.properties]
     options:
