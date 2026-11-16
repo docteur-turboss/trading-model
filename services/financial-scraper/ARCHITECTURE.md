@@ -27,10 +27,10 @@ WorkerOrchestrator ─── fetch → publish → persist, per symbol
      ▼
 MarketDataController.persist()
      │
-     ├── MarketDataModel.insertCandles()   → MySQL (market_candles)
-     ├── MarketDataModel.insertTrades()    → MySQL (market_trades)
-     ├── MarketDataModel.insertOrderBook() → MySQL (market_order_books)
-     └── MarketDataModel.insertTicker()    → MySQL (market_tickers)
+     ├── insertCandles()   → MySQL (market_candles)
+     ├── insertTrades()    → MySQL (market_trades)
+     ├── insertOrderBook() → MySQL (market_order_books)
+     └── insertTicker()    → MySQL (market_tickers)
 ```
 
 ## Scheduling Flow
@@ -99,7 +99,7 @@ The publisher sends 6 events to the message bus for each symbol:
 
 ### 4. Persistence Layer (`src/adapters/outbound/persistence/`)
 
-Storage schemas live in `src/adapters/outbound/persistence/schema/`; market data types in `src/domain/market-data.types.ts`. The persistence use case `createMarketDataController()` (`src/application/market-data.controller.ts`) depends on `MarketDataRepositoryPort` (`src/domain/ports/`); `src/config/container.ts` wires it to the MySQL `MarketDataModel` and exports the `MarketDataController` instance plus the scrape-cycle dependencies of `WorkerOrchestrator`.
+Storage schemas live in `src/adapters/outbound/persistence/schema/`; market data types in `src/domain/market-data.types.ts`. The persistence use case `createMarketDataController()` (`src/application/market-data.controller.ts`) depends on `MarketDataRepositoryPort` (`src/domain/ports/`); `src/config/container.ts` wires it to the schema insert functions and exports the `MarketDataController` instance plus the scrape-cycle dependencies of `WorkerOrchestrator`.
 
 | Component                    | Storage                           | Tables/Structures                                                                        |
 | ---------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -108,7 +108,7 @@ Storage schemas live in `src/adapters/outbound/persistence/schema/`; market data
 | `schema/ticker24h.schema.ts` | MySQL                             | `market_tickers` — id, symbol, market, source, OHLC, volume, timestamps                  |
 | `schema/order-book.schema.ts` | MySQL                            | `market_order_books` — symbol, market, source, timestamp, bids/asks (JSON); write only (ADR-0053) |
 
-The `MarketDataModel` class (in `src/adapters/outbound/persistence/market-data.model.ts`) provides a unified facade over all schema modules. `MarketDataController.persist()` (built in `src/config/container.ts`) conditionally delegates to it.
+`MarketDataController.persist()` (built in `src/config/container.ts`) conditionally delegates to the schema insert functions, the order book wrapped as a one-element array.
 
 ### 5. REST API (`src/adapters/inbound/http/`)
 
