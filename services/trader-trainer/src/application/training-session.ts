@@ -160,6 +160,7 @@ class TrainingSession {
 			onGeneration,
 			telemetry: this._telemetry,
 			signal: this._signal,
+			eventDriven: this._settings.eventDriven,
 		});
 	}
 }
