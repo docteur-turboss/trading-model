@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
+import { PAYLOADS } from "@trading-model/validation/wire/signals";
 import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
 import { EUROSTAT_JSONSTAT } from "../../../src/adapters/outbound/signal-sources/eurostat-jsonstat";
@@ -9,7 +10,6 @@ import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-so
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
 import { WIKIMEDIA_PAGEVIEWS } from "../../../src/adapters/outbound/signal-sources/wikimedia-pageviews";
-import { PAYLOADS } from "../../../src/domain/signals";
 
 /**
  * Payloads as the sources sent them on 2026-11-04 (ECB Data Portal,

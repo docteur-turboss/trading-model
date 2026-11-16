@@ -1,10 +1,10 @@
 import { describe, expect, it } from "@jest/globals";
+import { Signal } from "@trading-model/validation/wire/signals";
 import {
 	parseSignalRegistry,
 	SIGNAL_REGISTRY,
 } from "../../../src/config/signal-registry";
 import REGISTRY_FILE from "../../../src/config/signal-registry.json";
-import { Signal } from "../../../src/domain/signals";
 
 /** A copy of the shipped registry to break one thing at a time. */
 function registry(): any {
