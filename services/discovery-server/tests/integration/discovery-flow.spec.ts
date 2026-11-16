@@ -25,7 +25,6 @@ jest.mock("@trading-model/http/logger", () => ({
 jest.mock("../../src/infrastructure/config/env", () => ({
 	env: {
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
-		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
 	},
 }));
 

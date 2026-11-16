@@ -143,8 +143,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: ERROR_URL_WEBHOOK
-              value: ""
             # Signs the dead letters sent to dlq-service (same key as dlq-service).
             - name: DLQ_AUTH_HMAC_SECRET
               valueFrom:

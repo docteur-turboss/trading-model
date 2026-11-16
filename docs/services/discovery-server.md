@@ -219,7 +219,6 @@ Manages leases and periodically cleans up expired instances. Accepts a `ServiceR
 | Environment variable          | Default           | Description                       |
 | ----------------------------- | ----------------- | --------------------------------- |
 | `CLEANUP_SERVICE_INTERVAL_MS` | `600000` (10 min) | Expired instance cleanup interval |
-| `ERROR_URL_WEBHOOK`           | _(none)_          | Webhook URL for error notifications |
 
 Instances are automatically removed from the registry if their TTL expires without a heartbeat.
 
