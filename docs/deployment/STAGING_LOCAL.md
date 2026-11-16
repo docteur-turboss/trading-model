@@ -159,8 +159,8 @@ enforced by `tests/k8s/check-overlays.mjs`):
 - a new cluster (or a deleted StatefulSet) gets the current template;
 - a pod deleted, evicted or restarted comes back with the template of its
   revision, not the newest one, but a ConfigMap it mounts by a bare name
-  (no hash suffix) is read as the last deploy left it (issue #1456; enforced
-  for the databases by `tests/k8s/check-overlays.mjs`). The 3.0.0 `mysql`
+  (no hash suffix) is read as the last deploy left it (issues #1456, #1460; enforced
+  for every partitioned StatefulSet by `tests/k8s/check-overlays.mjs`). The 3.0.0 `mysql`
   template mounts `mysql-group-replication-config`, which the overlay renders
   with the 3.0.0 content (no TLS); if mysql-0 refuses every client
   (`require_secure_transport=ON` without TLS), apply it again and restart the

@@ -370,8 +370,7 @@ What it does not restore (still at N+1 after a rollback):
   `spire-tools` image of the release, and the infrastructure ones);
 - the other StatefulSets (MySQL, MongoDB...), CronJobs, Jobs, HPAs, PDBs,
   NetworkPolicies, Services, the SPIFFE node agents (`trading-model-node`) and
-  the fixed-name ConfigMaps (`spiffe-helper-config`, infrastructure configs,
-  `backup-encryption`);
+  the fixed-name ConfigMaps (`backup-encryption`, `mysql-client-tls`);
 - the database schema: migrations already applied stay applied;
 - the `kubectl.kubernetes.io/last-applied-configuration` annotation:
   `rollout undo` changes the pod template only, so the annotation still holds
