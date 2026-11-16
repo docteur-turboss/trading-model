@@ -91,26 +91,24 @@ class ExperiencePool implements ExperiencePoolPort {
 		return this._poolMap;
 	}
 
-	private _validateBatchSize(entries: Experience[], batchSize: number): void {
-		if (batchSize > entries.length) {
+	/** Partial Fisher-Yates in O(batchSize): live ids are contiguous, so slot i is id `first + i`. */
+	public samplePool(batchSize: number): Experience[] {
+		const size = this._poolMap.size;
+		if (batchSize > size) {
 			throw agentError(
-				`Requested batch size ${batchSize} exceeds pool size ${entries.length}.`
+				`Requested batch size ${batchSize} exceeds pool size ${size}.`
 			);
 		}
-	}
-
-	private _shuffleEntries(entries: Experience[]): void {
-		for (let i = entries.length - 1; i > 0; i--) {
-			const j = Math.floor(this._rng() * (i + 1));
-			[entries[i], entries[j]] = [entries[j], entries[i]];
+		const first = this._nextPoolId - size;
+		const swapped = new Map<number, number>();
+		const batch: Experience[] = [];
+		for (let i = 0; i < batchSize; i++) {
+			const j = i + Math.floor(this._rng() * (size - i));
+			const slot = swapped.get(j) ?? j;
+			swapped.set(j, swapped.get(i) ?? i);
+			batch.push(this._poolMap.get(first + slot) as Experience);
 		}
-	}
-
-	public samplePool(batchSize: number): Experience[] {
-		const entries = [...this._poolMap.values()];
-		this._validateBatchSize(entries, batchSize);
-		this._shuffleEntries(entries);
-		return entries.slice(0, batchSize);
+		return batch;
 	}
 
 	public clearPool(): void {
