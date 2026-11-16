@@ -20,7 +20,6 @@ export interface TradingAgentConfig {
 	nnConfig: NeuralNetworkConfig;
 	wallet: WalletConfig;
 	tradeAmount?: Volume;
-	/** Action space of the network outputs (default `sell_hold_buy`). */
 	actionSet?: ActionSetId;
 	stateManagerCfg?: StateManagerConfig;
 	/** Show the position to the network (default); false feeds a constant. */
@@ -67,7 +66,6 @@ interface StepResult {
 export class TradingAgent {
 	private readonly _agent: Agent;
 	private readonly _observePosition: boolean;
-	/** Cash value of the position the simulator allows (riskLimits.maxExposureFraction). */
 	private readonly _exposureCash: number;
 	private readonly _tradeCash: number | undefined;
 	/** PnL just before the previous decision's trade; null before the first. */
@@ -120,7 +118,7 @@ export class TradingAgent {
 		);
 		const executed = ACTION_EXECUTORS[action](
 			this.wallet,
-			this._tradeSize(action, amount, share),
+			this._tradeSize(action, amount, share, fillPrice),
 			fillPrice
 		);
 		this._pnlBeforeLastTrade = markedPnl;
@@ -137,10 +135,11 @@ export class TradingAgent {
 	private _tradeSize(
 		action: TradeAction,
 		mapped: Volume,
-		share?: number
+		share?: number,
+		fillPrice?: Price
 	): Volume {
 		if (share !== undefined) {
-			return this._partialSize(action, share);
+			return this._partialSize(action, share, fillPrice);
 		}
 		if (this._tradeCash === undefined || action === TradeAction.Hold) {
 			return mapped;
@@ -152,15 +151,19 @@ export class TradingAgent {
 		return Volume.of(Math.floor(units * VolumeDecimals) / VolumeDecimals);
 	}
 
-	/** A share of the room left under the exposure cap (buy) or of the position (sell). */
-	private _partialSize(action: TradeAction, share: number): Volume {
+	private _partialSize(
+		action: TradeAction,
+		share: number,
+		fillPrice?: Price
+	): Volume {
 		const position = Number(this.wallet.getPosition());
 		const base =
 			action === TradeAction.Sell
 				? position
 				: Math.max(
 						0,
-						this._exposureCash / Number(this.wallet.getPrice()) - position
+						this._exposureCash / Number(fillPrice ?? this.wallet.getPrice()) -
+							position
 					);
 		return Volume.of(
 			Math.floor(base * share * VolumeDecimals) / VolumeDecimals

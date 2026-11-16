@@ -4,7 +4,6 @@ import { TradeAction } from "./action-types";
 interface ActionMap {
 	action: TradeAction;
 	amount: Volume;
-	/** Fraction of the room (buy) or of the position (sell); absent: `amount`. */
 	share?: number;
 	/** Output unit that drove the decision; the one Q-learning updates. */
 	outputIndex: number;
@@ -56,7 +55,6 @@ export type ActionSetId = keyof typeof ACTION_SETS;
 export const DEFAULT_ACTION_SET: ActionSetId = "sell_hold_buy";
 export const ACTION_SET_IDS = Object.keys(ACTION_SETS) as ActionSetId[];
 
-/** Ordered action names of a set, as the manifest records them: `buy_25`, `hold`. */
 export function actionLabels(id: ActionSetId): string[] {
 	return (ACTION_SETS[id] as readonly ActionEntry[]).map((entry) =>
 		entry.share === undefined

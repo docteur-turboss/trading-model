@@ -34,8 +34,34 @@ const withSet = (id: (typeof ACTION_SET_IDS)[number]): LamarckGenome => {
 	};
 };
 
+const agentWith = (pick: number) => {
+	let call = 0;
+	return new TradingAgent({
+		nnConfig: {
+			neuronsByLayer: [5 as PositiveInt, 4 as PositiveInt, 5 as PositiveInt],
+			activationType: [ActivationType.Relu, ActivationType.Linear],
+			initialisationType: InitialisationType.Zeros,
+			normalisationType: NormalisationType.None,
+			connectionType: ConnectionType.FullyConnected,
+			learningRate: 0.01 as Percentage,
+			rng: () => (call++ % 2 === 0 ? 0 : pick),
+		},
+		wallet: {
+			initialCash: Cash.of(1000),
+			initialPrice: Price.of(100),
+			feeRate: Percentage.zero(),
+			executionCostRate: Percentage.zero(),
+			maxExposureFraction: 0.5,
+		},
+		actionSet: "sized_50_100",
+		stateManagerCfg: { epsilonStart: 1, epsilonMin: 1, epsilonDecay: 1 },
+	} as never);
+};
+const position = (a: TradingAgent) => Number(a.wallet.getPosition());
+const x = new Float32Array(4);
+
 describe("action space gene", () => {
-	test("each set sizes the output layer; labels are ordered", () => {
+	test("sets size the output layer; labels are ordered", () => {
 		for (const id of ACTION_SET_IDS) {
 			expect(actionLabels(id)).toHaveLength(ACTION_SETS[id].length);
 		}
@@ -48,56 +74,58 @@ describe("action space gene", () => {
 		const b = createDefaultGenome("b").network;
 		for (const r of [0.1, 0.9]) {
 			const child = crossoverNetwork({ left: a, right: b, rng: () => r });
-			const set = child.actionSet ?? "sell_hold_buy";
-			expect(child.outputDim).toBe(ACTION_SETS[set].length);
+			expect(child.outputDim).toBe(
+				ACTION_SETS[child.actionSet ?? "sell_hold_buy"].length
+			);
 		}
 	});
 
-	test("mutation changes the set only behind the gene", () => {
+	test("flag off: same seed gives the same network, no set key, no rng drawn for it", () => {
 		const base = createDefaultGenome("m") as LamarckGenome;
-		const mutationConfig = base.mutation;
-		const rng = () => 0;
-		const off = mutateNetworkStructure({ genome: base, mutationConfig, rng });
-		expect(off.actionSet).toBeUndefined();
-		expect(off.outputDim).toBe(3);
-		const gaControl = { ...base.gaControl, actionSetGene: true };
-		const on = mutateNetworkStructure({
-			genome: { ...base, gaControl },
-			mutationConfig,
-			rng,
+		const draws = (gaControl: LamarckGenome["gaControl"]) => {
+			let n = 0;
+			const net = mutateNetworkStructure({
+				genome: { ...base, gaControl },
+				mutationConfig: base.mutation,
+				rng: () => {
+					n++;
+					return 0.99;
+				},
+			});
+			return { net, n };
+		};
+		const off = draws(base.gaControl);
+		const on = draws({ ...base.gaControl, actionSetGene: true });
+		expect(off.net).toEqual({
+			...base.network,
+			hiddenLayers: off.net.hiddenLayers,
+			normalization: off.net.normalization,
 		});
-		expect(on.outputDim).toBe(
-			ACTION_SETS[on.actionSet ?? "sell_hold_buy"].length
-		);
+		expect("actionSet" in off.net).toBe(false);
+		expect(off.net.outputDim).toBe(3);
+		expect(on.n).toBe(off.n + 1);
+		const same = crossoverNetwork({
+			left: base.network,
+			right: base.network,
+			rng: () => 0.99,
+		});
+		expect("actionSet" in same).toBe(false);
 	});
 
-	test("partial orders stay under the exposure cap and the position", () => {
-		const seq = [0, 0.99]; // explore, last output
-		let call = 0;
-		const agent = new TradingAgent({
-			nnConfig: {
-				neuronsByLayer: [5 as PositiveInt, 4 as PositiveInt, 5 as PositiveInt],
-				activationType: [ActivationType.Relu, ActivationType.Linear],
-				initialisationType: InitialisationType.Zeros,
-				normalisationType: NormalisationType.None,
-				connectionType: ConnectionType.FullyConnected,
-				learningRate: 0.01 as Percentage,
-				rng: () => (call++ % 2 === 0 ? seq[0] : seq[1]),
-			},
-			wallet: {
-				initialCash: Cash.of(1000),
-				initialPrice: Price.of(100),
-				feeRate: Percentage.zero(),
-				executionCostRate: Percentage.zero(),
-				maxExposureFraction: 0.5,
-			},
-			actionSet: "sized_50_100",
-			stateManagerCfg: { epsilonStart: 1, epsilonMin: 1, epsilonDecay: 1 },
-		} as never);
-		const x = new Float32Array(4);
-		agent.step(x); // buy 100 % of the room: 5 units = 500 cash
-		expect(Number(agent.wallet.getPosition())).toBe(5);
-		agent.step(x); // room is 0: the order is refused, never exceeds the cap
-		expect(Number(agent.wallet.getPosition())).toBe(5);
+	test("orders never exceed the cap (even at a higher fill price) or the position", () => {
+		const sellAll = agentWith(0);
+		sellAll.step(x);
+		expect(position(sellAll)).toBe(0);
+
+		const buy = agentWith(0.99);
+		buy.step(x);
+		expect(position(buy)).toBe(5);
+		buy.step(x);
+		expect(position(buy)).toBe(5);
+
+		const dearFill = agentWith(0.99);
+		dearFill.step(x, Price.of(100), Price.of(110));
+		expect(position(dearFill)).toBeGreaterThan(4);
+		expect(position(dearFill) * 110).toBeLessThanOrEqual(500);
 	});
 });
