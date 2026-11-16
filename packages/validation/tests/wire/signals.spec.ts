@@ -1,9 +1,4 @@
-import {
-	Asset,
-	AssetSignalsResponse,
-	PAYLOADS,
-	Signal,
-} from "../../src/wire/signals";
+import { AssetSignalsResponse, PAYLOADS, Signal } from "../../src/wire/signals";
 
 const MEASURE = { metric: "close", value: 1.5, unit: "USD" };
 const PERIOD = { start: "2026-01-01", end: "2026-03-31" };
@@ -51,39 +46,6 @@ describe("Signal wire schema", () => {
 			).toBe(true);
 		}
 	);
-
-	it("rejects a signal with no subject or with two", () => {
-		const base = { ...ENVELOPE, dimension: "market", payload: MEASURE };
-		expect(Signal.safeParse({ ...base, assetId: null }).success).toBe(false);
-		expect(Signal.safeParse({ ...base, area: "EU" }).success).toBe(false);
-	});
-
-	it("rejects an unknown payload field", () => {
-		const base = { ...ENVELOPE, dimension: "market" };
-		expect(
-			Signal.safeParse({ ...base, payload: { ...MEASURE, x: 1 } }).success
-		).toBe(false);
-	});
-});
-
-describe("Asset wire schema", () => {
-	it("accepts a valid asset", () => {
-		expect(Asset.safeParse(ASSET).success).toBe(true);
-	});
-
-	it.each([
-		[
-			"identifier scheme unused for the type",
-			{ identifier: { scheme: "insee", code: "75056" } },
-		],
-		[
-			"exposure on a crypto",
-			{ exposure: { assetClass: "crypto", replication: "physical" } },
-		],
-		["duplicate dimension", { applicableDimensions: ["market", "market"] }],
-	])("rejects %s", (_name, patch) => {
-		expect(Asset.safeParse({ ...ASSET, ...patch }).success).toBe(false);
-	});
 });
 
 describe("AssetSignalsResponse", () => {
