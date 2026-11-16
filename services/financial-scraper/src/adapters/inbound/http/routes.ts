@@ -88,6 +88,31 @@ function _registerCandleRoutes(router: Router): void {
 }
 
 function _registerSignalRoutes(router: Router): void {
+	mountRoute(router, SCRAPER_API.assets, () =>
+		sendResponse(
+			{ assets: [...SIGNAL_REGISTRY.assets.values()] },
+			HTTP_STATUS.OK
+		)
+	);
+	// Never the key variable (`accessPolicy.auth`).
+	mountRoute(router, SCRAPER_API.sources, () =>
+		sendResponse(
+			{
+				sources: SIGNAL_REGISTRY.sources.map(
+					({ id, covers, schedule, reliabilityScore, accessPolicy }) => ({
+						id,
+						covers,
+						schedule,
+						reliabilityScore,
+						terms: accessPolicy.terms,
+						termsUrl: accessPolicy.termsUrl,
+						attribution: accessPolicy.attribution,
+					})
+				),
+			},
+			HTTP_STATUS.OK
+		)
+	);
 	mountRoute(router, SCRAPER_API.assetSignals, async ({ params, query }) => {
 		const asset = SIGNAL_REGISTRY.assets.get(params.assetId);
 		if (!asset) {
@@ -101,7 +126,11 @@ function _registerSignalRoutes(router: Router): void {
 			assetId: asset.id,
 			sector: asset.sector,
 			areas: asset.areas ?? [],
-			dimensions: asset.applicableDimensions,
+			dimensions: query.dimension
+				? asset.applicableDimensions.filter((name) => name === query.dimension)
+				: asset.applicableDimensions,
+			sourceId: query.sourceId,
+			metric: query.metric,
 			from: query.from,
 			to: query.to,
 			limit: MAX_SIGNALS_PER_ANSWER + 1,

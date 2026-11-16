@@ -8,6 +8,10 @@ interface AssetSignalsQuery {
 	areas: readonly string[];
 	/** The asset's applicable dimensions: signals of the others are left out. */
 	dimensions: readonly Dimension[];
+	/** Only the signals of this source. */
+	sourceId?: string;
+	/** Only the signals of this metric (`payload.metric`). */
+	metric?: string;
 	/** Epoch milliseconds, inclusive. */
 	from: number;
 	/** Epoch milliseconds, exclusive. */
