@@ -488,9 +488,14 @@ describe("treasury-par-yield-curve", () => {
 	});
 
 	it("gives one value per day for the requested maturity, keyed by the day", () => {
-		const observations = TREASURY_PAR_YIELD_CURVE.normalize(rows, context("2 Yr"));
+		const observations = TREASURY_PAR_YIELD_CURVE.normalize(
+			rows,
+			context("2 Yr")
+		);
 
-		expect(observations.map(({ key, payload }) => [key, payload.value])).toEqual(
+		expect(
+			observations.map(({ key, payload }) => [key, payload.value])
+		).toEqual(
 			rows.map((row: any) => [
 				row.Date.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"),
 				Number(row["2 Yr"]),
@@ -503,9 +508,14 @@ describe("treasury-par-yield-curve", () => {
 	});
 
 	it("skips a maturity not published (N/A, blank) and a day without a row", () => {
-		const gaps = [{ ...rows[0], "2 Yr": "N/A" }, { ...rows[1], "2 Yr": "" }];
+		const gaps = [
+			{ ...rows[0], "2 Yr": "N/A" },
+			{ ...rows[1], "2 Yr": "" },
+		];
 
-		expect(TREASURY_PAR_YIELD_CURVE.normalize(gaps, context("2 Yr"))).toEqual([]);
+		expect(TREASURY_PAR_YIELD_CURVE.normalize(gaps, context("2 Yr"))).toEqual(
+			[]
+		);
 		expect(TREASURY_PAR_YIELD_CURVE.normalize([], context("2 Yr"))).toEqual([]);
 	});
 
@@ -514,10 +524,16 @@ describe("treasury-par-yield-curve", () => {
 			TREASURY_PAR_YIELD_CURVE.normalize(rows, context("2 Year"))
 		).toThrow('without a "2 Year" column');
 		expect(() =>
-			TREASURY_PAR_YIELD_CURVE.normalize([{ ...rows[0], "2 Yr": "abc" }], context("2 Yr"))
+			TREASURY_PAR_YIELD_CURVE.normalize(
+				[{ ...rows[0], "2 Yr": "abc" }],
+				context("2 Yr")
+			)
 		).toThrow();
 		expect(() =>
-			TREASURY_PAR_YIELD_CURVE.normalize([{ Date: "2026-11-13" }], context("2 Yr"))
+			TREASURY_PAR_YIELD_CURVE.normalize(
+				[{ Date: "2026-11-13" }],
+				context("2 Yr")
+			)
 		).toThrow();
 	});
 });
