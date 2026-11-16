@@ -26,7 +26,7 @@
 			"identifier": { "scheme": "isin", "isin": "US0378331005" },
 			"applicableDimensions": ["market", "fundamental", "social", "contextual", "legal", "macro"],
 			"sector": "technology",
-			"aliases": { "cik": "0000320193" }
+			"aliases": { "cik": "0000320193", "wikipedia": "Apple Inc." }
 		},
 		{
 			"id": "WHEAT",
@@ -348,6 +348,11 @@
 			"templates": [
 				{
 					"select": { "assetType": "crypto" },
+					"dimension": "social",
+					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{asset.alias.wikipedia}/daily/{date-8}/{date-1}"
+				},
+				{
+					"select": { "assetType": "equity" },
 					"dimension": "social",
 					"url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/{asset.alias.wikipedia}/daily/{date-8}/{date-1}"
 				}
