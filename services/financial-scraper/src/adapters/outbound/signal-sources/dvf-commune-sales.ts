@@ -32,7 +32,10 @@ function _median(values: number[]) {
  * counted once. Kept: a "Vente" with a price and exactly one distinct
  * dwelling (type + built surface); the others (no price, no surface, several
  * dwellings with different surfaces: the price cannot be split) are counted in
- * `details.excluded`. Only per-commune aggregates leave this function: no
+ * `details.excluded`. Known limit: the file cannot tell two identical dwellings
+ * (same type and surface) from one dwelling on two lots, so a real twin sale
+ * is read as one dwelling and its price/m2 is overstated (about 1 % of kept
+ * sales have repeated rows on the 2025 files). Only per-commune aggregates leave this function: no
  * address, parcel or date of a sale. No kept sale is no signal.
  * The key holds the values, so a corrected publication is a second signal.
  */

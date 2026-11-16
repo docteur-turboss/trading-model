@@ -552,6 +552,23 @@ describe("dvf-commune-sales", () => {
 		expect(metrics(bad).median_price_per_m2_house).toBeUndefined();
 	});
 
+	it("reads two identical dwelling rows as one dwelling (known limit)", () => {
+		const twin = [
+			...rows,
+			...["a", "b"].map((id) => ({
+				...rows[0],
+				id_mutation: "2025-twin",
+				id_parcelle: id,
+				type_local: "Appartement",
+				surface_reelle_bati: "50",
+				valeur_fonciere: "200000",
+			})),
+		];
+
+		expect(metrics(twin).sales_count?.value).toBe(4);
+		expect(metrics(twin).sales_count?.details).toEqual({ excluded: 2 });
+	});
+
 	it("leaks no field of an individual sale", () => {
 		const text = JSON.stringify(DVF_COMMUNE_SALES.normalize(rows, NO_PARAMS));
 
