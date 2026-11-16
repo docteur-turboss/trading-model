@@ -85,6 +85,7 @@ export function computeAllResults(ctx: ComputeAllResultsContext): {
 			variance: scores.variance(),
 			rawScores: scores,
 			pnlCurve: curve,
+			...(ctx.decisions === undefined ? {} : { decisions: ctx.decisions }),
 			...(ctx.barsPerYear === undefined
 				? {}
 				: { barsPerYear: ctx.barsPerYear }),

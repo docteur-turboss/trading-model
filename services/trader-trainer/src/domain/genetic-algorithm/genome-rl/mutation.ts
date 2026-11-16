@@ -6,6 +6,7 @@ import type {
 	Probability,
 } from "@trading-model/primitives/primitives";
 import { clamp } from "../utils";
+import { mutateDecision } from "./decision";
 import { MaxBatchSize, type RLGenome, type RLScalars } from "./types";
 
 /**
@@ -110,6 +111,9 @@ function _mutateHorizon(
 				rl.horizon.frameSkip,
 				rng
 			) as PositiveInt,
+			...(rl.horizon.decision && {
+				decision: mutateDecision(rl.horizon.decision, rng),
+			}),
 		},
 	};
 }

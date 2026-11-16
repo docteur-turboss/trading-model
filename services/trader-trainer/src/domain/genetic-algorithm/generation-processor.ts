@@ -56,7 +56,7 @@ export class GenerationProcessor {
 			...createDefaultGenome("base").gaControl,
 			...baseControl,
 		} as GAControlGenome);
-		this._population = createInitialPopulation(ctrl);
+		this._population = createInitialPopulation(ctrl, this._cfg.eventDriven);
 		this._generation = 0;
 		this._archive = new ParetoArchive();
 		this._stagnationTracker = new StagnationTracker();

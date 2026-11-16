@@ -15,6 +15,8 @@ export interface TrainingSettings {
 	fitnessType: FitnessType;
 	/** Show the agent its position (default true, ADR-0025). */
 	observePosition?: boolean;
+	/** FEATURE_EVENT_DRIVEN_DECISIONS (ADR-0039): the population decides on market events. */
+	eventDriven?: boolean;
 	/**
 	 * Added to the default PRNG seeds (0 = defaults): independent, still
 	 * reproducible runs on the same data (MT4 walk-forward, ADR-0030).
