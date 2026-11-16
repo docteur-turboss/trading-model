@@ -25,6 +25,8 @@ import {
 	MarketType,
 	SourceType,
 } from "@trading-model/contracts/market-data.types";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
+import { barsPerYear } from "@trading-model/model-runtime/replay-metrics";
 import {
 	Price,
 	TradingSymbol,
@@ -33,9 +35,7 @@ import {
 } from "@trading-model/primitives/primitives";
 import { runInProcess } from "../src/application/training-session";
 import { DataType } from "../src/domain/data-handlers/data-types";
-import { EpisodeScores } from "../src/domain/genetic-algorithm/episode-scores";
 import { evalPhase } from "../src/domain/genetic-algorithm/evaluation-phase";
-import { barsPerYear } from "../src/domain/genetic-algorithm/evaluation-utils";
 import type { MarketStep } from "../src/domain/genetic-algorithm/genome";
 import { FitnessType } from "../src/domain/genetic-algorithm/genome-control";
 import { makeSeededBackendFactory } from "../src/domain/genetic-algorithm/rl-backend";

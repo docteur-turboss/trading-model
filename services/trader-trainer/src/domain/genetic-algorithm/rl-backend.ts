@@ -26,11 +26,19 @@ interface StepInput {
 }
 
 /**
- * Half-spread + slippage paid on every fill, on top of the fee (ADR-0066):
- * 5 bps, well above the half-spread of the liquid Binance spot pairs, the
- * margin covering a market order's slippage and less liquid symbols.
+ * Simulator parameters of every training and evaluation episode, written in the
+ * manifest `replay` block (ADR-0079). Each trade moves `tradeFraction` of the
+ * initial cash, whatever the asset's price, and pays the Binance spot taker fee
+ * plus `executionCostRate` (ADR-0066): 5 bps of half-spread and slippage, well
+ * above the half-spread of the liquid spot pairs.
  */
-const EXECUTION_COST_RATE = 0.0005;
+export const SIMULATOR_PARAMS = {
+	initialCash: 1000,
+	feeRate: 0.001,
+	executionCostRate: 0.0005,
+	tradeFraction: 0.1,
+	observePosition: true,
+} as const;
 
 /**
  * A decision and what it earned. States are network inputs: market features
@@ -132,18 +140,17 @@ function _buildAgentConfig(
 	// Q-learning picks among a finite set of actions: sell / hold / buy.
 	return {
 		nnConfig: _buildNNConfig(genome, rng),
-		// Each trade moves 10 % of the initial cash, whatever the asset's price,
-		// and pays the Binance spot taker fee plus half-spread and slippage.
 		wallet: {
-			initialCash: Cash.of(1000),
+			initialCash: Cash.of(SIMULATOR_PARAMS.initialCash),
 			initialPrice: Price.of(1),
-			feeRate: Percentage.of(0.001),
-			executionCostRate: Percentage.of(EXECUTION_COST_RATE),
+			feeRate: Percentage.of(SIMULATOR_PARAMS.feeRate),
+			executionCostRate: Percentage.of(SIMULATOR_PARAMS.executionCostRate),
 			maxExposureFraction: DEFAULT_MAX_EXPOSURE_FRACTION,
 		},
-		tradeFraction: 0.1,
+		tradeFraction: SIMULATOR_PARAMS.tradeFraction,
 		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy),
-		observePosition: options.observePosition ?? true,
+		observePosition:
+			options.observePosition ?? SIMULATOR_PARAMS.observePosition,
 	};
 }
 

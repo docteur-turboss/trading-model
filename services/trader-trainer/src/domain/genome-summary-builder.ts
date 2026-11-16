@@ -1,9 +1,9 @@
+import type { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import {
 	type Fitness,
 	NonNegativeInt,
 	SharpeRatio,
 } from "@trading-model/primitives/primitives";
-import type { EpisodeScores } from "./genetic-algorithm/episode-scores";
 import type {
 	GenomeFitnessMeta,
 	LamarckGenome,
