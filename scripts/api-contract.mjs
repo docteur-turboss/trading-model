@@ -57,9 +57,7 @@ const API_MAJOR_VERSION = 1;
 const PROXIED_SERVICES = [
 	"audit-logger",
 	"discovery-server",
-	"dlq-service",
 	"financial-scraper",
-	"message-manager",
 	"model-evaluator",
 	"trader-trainer",
 ];
@@ -73,9 +71,6 @@ const SERVICE_TO_SERVICE = {
 		"POST /token/rotate",
 		"POST /unregister",
 	],
-	"audit-logger": ["POST /message"],
-	"model-evaluator": ["POST /message"],
-	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
 };
@@ -91,12 +86,6 @@ const CALLERS = {
 	"discovery-server POST /heartbeat": { caller: "packages/address-manager", call: /\/heartbeat`/ },
 	"discovery-server POST /token/rotate": { caller: "packages/address-manager", call: /\/token\/rotate`/ },
 	"discovery-server POST /unregister": { caller: "packages/address-manager", call: /_url\("\/unregister"\)/ },
-	"message-manager POST /message": { caller: "packages/broker-message", call: /\}\/message`/ },
-	"message-manager POST /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
-	"message-manager DELETE /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
-	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
-	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
-	"model-evaluator POST /message": { caller: "services/model-evaluator", call: /\.intents\(/ },
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "services/model-evaluator", call: /\/weights`/ },
 };
 
@@ -122,18 +111,6 @@ const ROUTE_PROVIDERS = [
 			"packages/address-manager/src/monitoring/metrics-collector.ts",
 			"packages/address-manager/src/routes/ping.routes.ts",
 			"packages/address-manager/src/routes/metrics.routes.ts",
-		],
-	},
-	{
-		// broker-message CREATE_CALLBACK_ROUTE, default callback path "message"
-		mountedBy: /MessageManagerListenExpress\(/,
-		routes: [
-			{
-				method: "POST",
-				path: "/message",
-				file: "packages/broker-message/src/messages.routes.ts",
-				registry: { file: "packages/broker-message/src/api-routes.ts", name: "BROKER_CALLBACK_API", key: "receive" },
-			},
 		],
 	},
 ];
@@ -255,7 +232,7 @@ const SOURCE_PATHS = join(ROOT, "scripts/api-contract.tsconfig.json");
 	}
 	const probe = Bun.resolveSync(
 		"@trading-model/http/api-route/api-route",
-		join(ROOT, "services/dlq-service/src")
+		join(ROOT, "services/audit-logger/src")
 	);
 	if (!probe.replaceAll("\\", "/").includes("/packages/http/src/")) {
 		console.error(`@trading-model/* resolves to ${probe}, not to the sources: run through \`bun run api:check\``);

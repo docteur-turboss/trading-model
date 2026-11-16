@@ -21,7 +21,6 @@ export const AddressManagerEnvSchema = z.object({
 		.int()
 		.positive()
 		.default(2000),
-	MESSAGE_CALLBACK_PATH: z.string().min(1).default("message"),
 
 	DNS_NAME_MAP: z
 		.string()

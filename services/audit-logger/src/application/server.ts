@@ -1,13 +1,9 @@
-import { mountRoute } from "@trading-model/http/api-route/mount-route";
 import { createServiceServer } from "@trading-model/http/service-server-factory";
 import type { MongoConnectionManager } from "@trading-model/persistence/mongo-connection-manager";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
-import { Router } from "express";
-import { AUDIT_API } from "../adapters/inbound/http/api-routes";
 import { eventsRoutes } from "../adapters/inbound/http/events.routes";
 import { healthRoutes } from "../adapters/inbound/http/health.routes";
-import type { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
 import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
 import {
 	ADDRESS_MANAGER_ROUTES,
@@ -16,18 +12,15 @@ import {
 import { metricsHandler } from "../config/metrics";
 import { ENV } from "../infrastructure/config/env";
 
-type MessageHandler = ReturnType<typeof createMessageHandler>;
-
 export function createServer(
 	auditRepo: AuditRepository,
-	mongoManager: MongoConnectionManager,
-	messageHandler: MessageHandler
+	mongoManager: MongoConnectionManager
 ) {
 	return createServiceServer({
 		env: ENV,
 		serviceId: ServiceId.of("audit-logger"),
 		routes: (app) => {
-			_registerRoutes(app, auditRepo, messageHandler);
+			_registerRoutes(app, auditRepo);
 		},
 		readiness: [
 			REGISTRATION_READINESS,
@@ -46,16 +39,9 @@ export function createServer(
 	});
 }
 
-function _registerRoutes(
-	app: Application,
-	auditRepo: AuditRepository,
-	messageHandler: MessageHandler
-): void {
+function _registerRoutes(app: Application, auditRepo: AuditRepository): void {
 	app.use("/", healthRoutes());
 	app.use("/", eventsRoutes(auditRepo));
-	const broker = Router();
-	mountRoute(broker, AUDIT_API.receive, messageHandler);
-	app.use(broker);
 	app.get("/metrics", metricsHandler);
 	ADDRESS_MANAGER_ROUTES(app);
 }

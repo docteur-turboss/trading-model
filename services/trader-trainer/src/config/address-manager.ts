@@ -3,7 +3,6 @@ import { createServiceAddressManager } from "@trading-model/address-manager/crea
 import { ENV } from "../infrastructure/config/env";
 
 const {
-	AddressManager,
 	BOOTSTRAP_ADDRESS_MANAGER,
 	ADDRESS_MANAGER_ROUTES,
 	FIND_A_SERVICE,
@@ -12,7 +11,6 @@ const {
 
 export {
 	ADDRESS_MANAGER_ROUTES,
-	AddressManager,
 	BOOTSTRAP_ADDRESS_MANAGER,
 	FIND_A_SERVICE,
 	REGISTRATION_READINESS,

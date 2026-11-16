@@ -50,31 +50,7 @@ const AuditEvent = z.object({
 	payload: z.unknown(),
 });
 
-/**
- * Metadata as delivered: the topic is required, every other field is kept as
- * sent (the audit records messages, it does not judge them).
- */
-const DeliveredMetadata = z.looseObject({ topic: z.string().min(1) });
-
-/** A delivery from message-manager (http-message-delivery.ts). */
-const DeliveredEnvelope = z.looseObject({
-	metadata: DeliveredMetadata,
-	payload: z.unknown().optional(),
-});
-
 export const AUDIT_API = {
-	receive: defineRoute({
-		method: "POST",
-		path: "/message",
-		summary:
-			"Record a message delivered by message-manager (audit, training and dlq topics are subscribed)",
-		body: DeliveredEnvelope,
-		responses: {
-			/** Acknowledges the delivery, a redelivery included (same messageId). */
-			200: z.object({ status: z.literal("recorded") }),
-			400: ErrorResponse,
-		},
-	}),
 	listEvents: defineRoute({
 		method: "GET",
 		path: "/v1/events",

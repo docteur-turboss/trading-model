@@ -10,7 +10,6 @@ import { TrainerClient } from "../adapters/outbound/trainer-client";
 import { createEvaluateModel } from "../application/evaluate-model";
 import { createServer } from "../application/server";
 import { ENV } from "../infrastructure/config/env";
-import { AddressManager } from "./address-manager";
 
 export type ModelEvaluatorApp = Awaited<
 	ReturnType<typeof createModelEvaluatorApp>
@@ -23,14 +22,15 @@ export async function createModelEvaluatorApp() {
 		store: new FileEvaluationStore(ENV.EVALUATIONS_DIR),
 		trainer: new TrainerClient(tls),
 	});
-	const server = await createServer(createMessageHandler(evaluate));
+	const server = await createServer();
 	const brokerMessage = new BrokerMessage({
 		journal: busJournalFromEnv(ENV),
-		addressManagerClient: AddressManager,
-		tlsPaths: tls,
 		instanceId: toInstanceId(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.ModelEvaluatorService,
 	});
-	await brokerMessage.intents([TrainingEvent.ModelPublished]);
+	await brokerMessage.intents(
+		[TrainingEvent.ModelPublished],
+		createMessageHandler(evaluate)
+	);
 	return { server, brokerMessage };
 }

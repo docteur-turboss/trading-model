@@ -106,6 +106,10 @@ const MOCK_BROKER_MESSAGE_INSTANCE = {
 	stopMessageManager: jest.fn<(...args: any[]) => any>(),
 };
 
+jest.mock("@trading-model/broker-message/create-message-manager", () => ({
+	busJournalFromEnv: jest.fn(() => ({})),
+}));
+
 jest.mock("@trading-model/broker-message", () => {
 	return {
 		__esModule: true,
@@ -166,8 +170,7 @@ describe("Audit Logger entry point (index.ts)", () => {
 			expect(dropRetiredCollections).toHaveBeenCalledWith(MOCK_DB as never);
 			expect(createServer).toHaveBeenCalledWith(
 				MOCK_AUDIT_REPOSITORY_INSTANCE,
-				expect.anything(),
-				expect.any(Function)
+				expect.anything()
 			);
 			expect(server).toBe(MOCK_HTTP_SERVER);
 		});

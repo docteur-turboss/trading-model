@@ -118,7 +118,6 @@ describe("AddressManagerEnvSchema", () => {
 		expect(result.TTL_REFRESH_INTERVAL_MS).toBe(15000);
 		expect(result.MESSAGE_BUS_INIT_TIMEOUT_MS).toBe(2000);
 		expect(result.MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS).toBe(2000);
-		expect(result.MESSAGE_CALLBACK_PATH).toBe("message");
 		expect(result.DNS_NAME_MAP).toEqual({});
 	});
 

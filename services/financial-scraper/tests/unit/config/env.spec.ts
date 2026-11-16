@@ -26,7 +26,6 @@ describe("env", () => {
 		process.env.ADDRESS_MANAGER_URL = "https://address-manager.example.com";
 		process.env.MESSAGE_BUS_INIT_TIMEOUT_MS = "2000";
 		process.env.MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS = "2000";
-		process.env.MESSAGE_CALLBACK_PATH = "message";
 	};
 
 	it("should export env with default values when optional vars missing", () => {

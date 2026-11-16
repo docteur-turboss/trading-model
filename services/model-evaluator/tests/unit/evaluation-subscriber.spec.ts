@@ -5,21 +5,15 @@ const SHA = "a".repeat(64);
 const call = (
 	handler: ReturnType<typeof createMessageHandler>,
 	payload: unknown
-) =>
-	handler(
-		{
-			body: { metadata: { topic: "training.model.published" }, payload },
-		} as never,
-		{} as never
-	);
+) => handler({ metadata: { topic: "training.model.published" }, payload });
 
 describe("training.model.published handler", () => {
-	it("evaluates a valid event and acknowledges it", async () => {
+	it("evaluates a valid event", async () => {
 		const evaluate = jest
 			.fn<(...args: any[]) => any>()
 			.mockResolvedValue("recorded");
 		const handler = createMessageHandler(evaluate as never);
-		const res = await call(handler, {
+		await call(handler, {
 			symbol: "BTCUSDT",
 			version: "v1",
 			sha256: SHA,
@@ -27,15 +21,13 @@ describe("training.model.published handler", () => {
 		expect(evaluate).toHaveBeenCalledWith(
 			expect.objectContaining({ symbol: "BTCUSDT", version: "v1" })
 		);
-		expect(res).toMatchObject({ status: 200, data: { status: "recorded" } });
 	});
 
-	it("answers 400 to a malformed payload without evaluating", async () => {
+	it("rejects a malformed payload without evaluating", async () => {
 		const evaluate = jest.fn<(...args: any[]) => any>();
-		const res = await call(createMessageHandler(evaluate as never), {
-			symbol: "../x",
-		});
+		await expect(
+			call(createMessageHandler(evaluate as never), { symbol: "../x" })
+		).rejects.toThrow();
 		expect(evaluate).not.toHaveBeenCalled();
-		expect(res).toMatchObject({ status: 400 });
 	});
 });

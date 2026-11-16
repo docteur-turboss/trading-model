@@ -13,8 +13,8 @@ import {
 describe("workload-identity", () => {
 	describe("buildSpiffeId", () => {
 		it("should build a platform SPIFFE ID with the default namespace", () => {
-			expect(buildSpiffeId("message-manager")).toBe(
-				`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/message-manager`
+			expect(buildSpiffeId("audit-logger")).toBe(
+				`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/audit-logger`
 			);
 		});
 
@@ -33,7 +33,7 @@ describe("workload-identity", () => {
 
 	describe("isSpiffeId", () => {
 		it("should accept valid SPIFFE IDs", () => {
-			expect(isSpiffeId(buildSpiffeId("dlq-service"))).toBe(true);
+			expect(isSpiffeId(buildSpiffeId("audit-logger"))).toBe(true);
 		});
 
 		it("should reject non-SPIFFE identities", () => {
@@ -82,9 +82,6 @@ describe("workload-identity", () => {
 
 	describe("normalizeServiceName", () => {
 		it("should map legacy discovery-registry names onto canonical names", () => {
-			expect(normalizeServiceName("message-delivery-service")).toBe(
-				ServiceId.of("message-manager")
-			);
 			expect(normalizeServiceName("audit-logger-service")).toBe(
 				ServiceId.of("audit-logger")
 			);

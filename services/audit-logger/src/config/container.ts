@@ -105,11 +105,7 @@ export function createAuditServer(
 	auditRepo: AuditRepository,
 	mongoManager: MongoConnectionManager
 ): ReturnType<typeof createServer> {
-	const messageHandler = createMessageHandler(
-		auditRepo,
-		ENV.AUDIT_RETENTION_DAYS
-	);
-	return createServer(auditRepo, mongoManager, messageHandler);
+	return createServer(auditRepo, mongoManager);
 }
 
 export async function createRepositories(
@@ -145,7 +141,9 @@ export async function createAuditLoggerApp() {
 		DurationMs.of(ENV.AUDIT_CHAIN_INTERVAL_MS)
 	);
 	const server = await createAuditServer(auditRepo, mongoManager);
-	const { brokerMessage } = await createBrokerMessage();
+	const { brokerMessage } = await createBrokerMessage(
+		createMessageHandler(auditRepo, ENV.AUDIT_RETENTION_DAYS)
+	);
 	return {
 		server,
 		mongoManager,

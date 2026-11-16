@@ -3,7 +3,6 @@ import { ENV } from "../infrastructure/config/env";
 
 const {
 	ADDRESS_MANAGER_ROUTES,
-	AddressManager,
 	BOOTSTRAP_ADDRESS_MANAGER,
 	FIND_A_SERVICE,
 	REGISTRATION_READINESS,
@@ -11,7 +10,6 @@ const {
 
 export {
 	ADDRESS_MANAGER_ROUTES,
-	AddressManager,
 	BOOTSTRAP_ADDRESS_MANAGER,
 	FIND_A_SERVICE,
 	REGISTRATION_READINESS,

@@ -22,7 +22,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		ADDRESS_MANAGER_URL: "http://localhost:3000",
 		MESSAGE_BUS_INIT_TIMEOUT_MS: 5000,
 		MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: 5000,
-		MESSAGE_CALLBACK_PATH: "message",
 	},
 }));
 

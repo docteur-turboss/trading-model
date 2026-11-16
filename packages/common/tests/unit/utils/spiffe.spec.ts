@@ -34,8 +34,8 @@ describe("extractCanonicalServiceName", () => {
 	});
 
 	it("should extract last segment from SPIFFE identities", () => {
-		expect(extractCanonicalServiceName(buildSpiffeId("dlq-service"))).toBe(
-			ServiceId.of("dlq-service")
+		expect(extractCanonicalServiceName(buildSpiffeId("api-gateway"))).toBe(
+			ServiceId.of("api-gateway")
 		);
 	});
 
@@ -65,9 +65,9 @@ describe("registryNamesFor", () => {
 	});
 
 	it("maps a legacy name back to the same set", () => {
-		expect(registryNamesFor("message-delivery-service")).toEqual([
-			"message-delivery-service",
-			"message-manager",
+		expect(registryNamesFor("financial-scraper-service")).toEqual([
+			"financial-scraper-service",
+			"financial-scraper",
 		]);
 	});
 });

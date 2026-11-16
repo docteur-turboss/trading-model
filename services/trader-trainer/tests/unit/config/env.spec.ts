@@ -27,7 +27,6 @@ function makeValidEnv(): Record<string, string> {
 		SERVICE_PING_TIMEOUT_MS: "5000",
 		TOKEN_REFRESH_INTERVAL_MS: "30000",
 		TTL_REFRESH_INTERVAL_MS: "30000",
-		MESSAGE_CALLBACK_PATH: "/callback",
 	};
 }
 

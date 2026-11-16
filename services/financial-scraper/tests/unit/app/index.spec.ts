@@ -31,7 +31,6 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		ADDRESS_MANAGER_URL: "https://address-manager.example.com",
 		MESSAGE_BUS_INIT_TIMEOUT_MS: "2000",
 		MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: "2000",
-		MESSAGE_CALLBACK_PATH: "message",
 		SYMBOLS_TO_TRACK: [],
 		SCRAPE_INTERVAL: "*/1 * * * *",
 		SCRAPE_SCHEDULER_ENABLED: true,
