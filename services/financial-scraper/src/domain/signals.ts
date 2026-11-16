@@ -164,6 +164,17 @@ export const Source = z.strictObject({
 	/** §1.3: the (asset type, dimension) pairs the source can feed. */
 	covers: z.array(Coverage).min(1),
 	accessPolicy: AccessPolicy,
+	/**
+	 * History request of `signal-backfill`: `url` holds `{from}` and `{to}` (YYYY-MM-DD,
+	 * inclusive) and the asset holes of a template; `pageDays` is the widest window one request may cover.
+	 * Absent: the source cannot be backfilled.
+	 */
+	history: z
+		.strictObject({
+			url: z.string().startsWith("https://"),
+			pageDays: z.number().int().positive(),
+		})
+		.optional(),
 	requests: z.array(SourceRequest).min(1),
 });
 export type Source = z.infer<typeof Source>;

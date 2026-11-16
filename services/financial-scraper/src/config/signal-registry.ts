@@ -68,6 +68,16 @@ function _holeValue(asset: Asset, hole: string): string | undefined {
 		: undefined;
 }
 
+/** Fills the asset holes of a URL (URL-encoded); undefined when the asset lacks one. */
+export function fillAssetHoles(url: string, asset: Asset): string | undefined {
+	const holes = [...url.matchAll(HOLE)].map((match) => match[1] as string);
+	return holes.some((hole) => _holeValue(asset, hole) === undefined)
+		? undefined
+		: url.replace(HOLE, (_, hole: string) =>
+				encodeURIComponent(_holeValue(asset, hole) as string)
+			);
+}
+
 /** Unfolds the templates of a source into requests; every problem goes to `problems`. */
 function _expandTemplates(
 	source: { id: string; templates: readonly SourceTemplate[] },
@@ -241,6 +251,17 @@ export function parseSignalRegistry(raw: unknown): SignalRegistry {
 		if (quota !== undefined && planned > quota) {
 			problems.push(
 				`source ${source.id}: schedule "${source.schedule}" sends ${planned} requests a day (${source.requests.length} requests per tick), over maxRequestsPerDay ${quota}`
+			);
+		}
+		const history = source.history?.url;
+		if (
+			history &&
+			(!(history.includes("{from}") && history.includes("{to}")) ||
+				/\{/.test(history.replace(HOLE, "").replace(/\{(from|to)\}/g, "")) ||
+				/^https:\/\/[^/?#]*\{/.test(history))
+		) {
+			problems.push(
+				`source ${source.id}: history url needs {from} and {to}, no other hole than asset ones, none in the host`
 			);
 		}
 		problems.push(..._requestProblems(source, adapter, file.assets));
