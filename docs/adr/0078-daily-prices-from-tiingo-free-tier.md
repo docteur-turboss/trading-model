@@ -16,7 +16,6 @@ No equity or ETF price is collected: ADR-0036 found no source free for any use. 
 | Twelve Data ([terms](https://twelvedata.com/terms)) | §2.3(l): no "Use Free Tier data for commercial purposes" | 800 requests a day, 8 a minute | US, partial Europe | yes | 2 |
 | Finnhub ([terms](https://finnhub.io/terms-of-service)) | "strictly for personal use unless explicitly stated otherwise"; no redistribution of derived results | 60 requests a minute | US | no | 2 |
 | Tiingo ([pricing](https://www.tiingo.com/about/pricing)) | Free tier licence "Internal Use Only": "you may only use the data for your own personal use" | 1000 requests a day, 50 an hour, 500 symbols a month | US equities and ETFs | `adjClose` (splits and dividends) | 2 |
-| Marketstack | Terms not read | | | | not retained |
 
 No source reaches rank 1. Of the rank 2 sources, Tiingo gives the largest daily quota and the adjusted close at no cost, and sells a commercial licence.
 
@@ -31,4 +30,5 @@ No source reaches rank 1. Of the rank 2 sources, Tiingo gives the largest daily 
 
 - The collection runs only where the key is set; the `fs_signal_sources` gauge and the startup log list the source as `non-commercial`. Commercial use needs the Tiingo commercial licence first.
 - Coverage is US-listed only: UCITS ETFs and European equities stay uncovered.
-- The data processing register is unchanged: Tiingo receives the key and the collector IP only.
+- Tiingo receives the key, the collector IP and the functional User-Agent address (United States): added to the data processing register and the third-party DPA table.
+- Tiingo's terms of use (`app.tiingo.com/legal/terms`) answer 403 to automated clients (read 2026-11-16): the clause quoted is the pricing page licence row. The owner reads the terms and confirms before the merge. Marketstack's terms could not be read (redirect to a page of links only): not compared.

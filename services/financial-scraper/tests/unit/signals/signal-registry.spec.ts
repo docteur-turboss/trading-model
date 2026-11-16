@@ -59,19 +59,16 @@ describe("signal registry — the shipped file", () => {
 		]);
 	});
 
-	it("holds sources free for any use without key, and only the personal-use ones with a key", () => {
-		const keyed = SIGNAL_REGISTRY.sources.filter(
-			(s) => s.accessPolicy.auth !== "none"
-		);
-
-		expect(keyed.map((s) => [s.id, s.accessPolicy.terms])).toEqual([
-			["tiingo-daily-prices", "non-commercial"],
-		]);
+	it("keeps sources free for any use without key, only Tiingo is non-commercial", () => {
 		expect(
 			SIGNAL_REGISTRY.sources
-				.filter((s) => s.accessPolicy.terms !== "non-commercial")
-				.every((s) => s.accessPolicy.auth === "none")
-		).toBe(true);
+				.filter(
+					(s) =>
+						s.accessPolicy.terms === "non-commercial" ||
+						s.accessPolicy.auth !== "none"
+				)
+				.map((s) => s.id)
+		).toEqual(["tiingo-daily-prices"]);
 	});
 });
 
