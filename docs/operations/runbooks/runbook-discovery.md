@@ -4,8 +4,8 @@
 
 ## How registration works
 
-Every service with an address-manager (message-manager, financial-scraper,
-trader-trainer, audit-logger, dlq-service) registers each of its instances
+Every service with an address-manager (financial-scraper,
+trader-trainer, audit-logger, model-evaluator) registers each of its instances
 with discovery-server (`POST /register`, mTLS), then renews its lease with a
 heartbeat (`POST /heartbeat`, every `TTL_REFRESH_INTERVAL_MS`, default 15 s,
 authenticated by its instance token). Leases and tokens live in Redis

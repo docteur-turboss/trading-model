@@ -2,7 +2,7 @@
 
 **Severity:** L2 (the platform runs, but trades and training work on old data)
 **Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `SignalSourceStale`
-**Affected:** financial-scraper (collector), message-manager, trader-trainer
+**Affected:** financial-scraper (collector), trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
 dependencies (MySQL, Redis), not that candles arrive.

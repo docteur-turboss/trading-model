@@ -101,13 +101,13 @@ describe("createSecureServer", () => {
 			},
 			routes: jest.fn(),
 			authorize: {
-				targetService: "message-manager" as never,
+				targetService: "audit-logger" as never,
 			},
 		};
 
 		await createSecureServer(options);
 
-		expect(MTLSAuthorizationMiddleware).toHaveBeenCalledWith("message-manager");
+		expect(MTLSAuthorizationMiddleware).toHaveBeenCalledWith("audit-logger");
 		expect(mockApp.use).toHaveBeenCalledWith("authorize-middleware");
 	});
 

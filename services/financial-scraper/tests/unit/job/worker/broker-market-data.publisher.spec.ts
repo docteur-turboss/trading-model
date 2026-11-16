@@ -70,7 +70,7 @@ describe("BrokerMarketDataPublisher", () => {
 
 	it("should resolve with the parts whose publish failed instead of rejecting", async () => {
 		MOCK_MESSAGE_MANAGER_INDIRECT.mockRejectedValueOnce(
-			new Error("message-manager unreachable")
+			new Error("bus unreachable")
 		);
 
 		await expect(
