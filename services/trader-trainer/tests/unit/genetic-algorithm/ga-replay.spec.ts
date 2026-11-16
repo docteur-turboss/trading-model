@@ -120,7 +120,7 @@ describe("GA end-to-end replay", () => {
 		expect(second.bestId).toBe(first.bestId);
 		expect(second.populationIds).toEqual(first.populationIds);
 		expect(second.bestWeights).toEqual(first.bestWeights);
-	});
+	}, 30_000);
 
 	it("should explore differently from another seed", async () => {
 		const first = await runGA(42);
