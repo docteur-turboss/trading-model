@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
+import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
@@ -27,6 +28,7 @@ const NO_PARAMS = { params: {} };
 describe("SOURCE_ADAPTERS", () => {
 	it("names every adapter a registry source can use", () => {
 		expect([...SOURCE_ADAPTERS.keys()].sort()).toEqual([
+			"cftc-cot-legacy",
 			"ecb-sdmx-series",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
@@ -37,6 +39,7 @@ describe("SOURCE_ADAPTERS", () => {
 	// The collector checks every payload against its dimension's schema.
 	it.each([
 		[ECB_SDMX_SERIES, "ecb-sdmx-series", { metric: "spot_rate_10y" }],
+		[CFTC_COT_LEGACY, "cftc-cot-legacy", {}],
 		[SEC_EDGAR_COMPANY_CONCEPT, "sec-edgar-company-concept", {}],
 		[
 			NWS_LATEST_OBSERVATION,
@@ -404,5 +407,69 @@ describe("wikimedia-pageviews", () => {
 		payload.items[0].granularity = "hourly";
 
 		expect(() => WIKIMEDIA_PAGEVIEWS.normalize(payload, NO_PARAMS)).toThrow();
+	});
+});
+
+describe("cftc-cot-legacy", () => {
+	const rows = fixture("cftc-cot-legacy");
+
+	it("nets the positions and stamps the Friday release after the Tuesday", () => {
+		const observations = CFTC_COT_LEGACY.normalize([rows[0]], NO_PARAMS);
+
+		expect(observations.map(({ payload }) => payload)).toEqual([
+			expect.objectContaining({ metric: "net_position_funds" }),
+			expect.objectContaining({ metric: "net_position_producers" }),
+			expect.objectContaining({ metric: "open_interest" }),
+		]);
+		const [funds, producers, openInterest] = observations;
+		expect(funds.payload.value).toBe(
+			Number(rows[0].noncomm_positions_long_all) -
+				Number(rows[0].noncomm_positions_short_all)
+		);
+		expect(producers.payload.value).toBe(
+			Number(rows[0].comm_positions_long_all) -
+				Number(rows[0].comm_positions_short_all)
+		);
+		expect(openInterest.payload.value).toBe(Number(rows[0].open_interest_all));
+		// 2026-11-03 is a Tuesday: released Friday 6 Nov 15:30 EST = 20:30Z
+		expect(funds.key).toBe("2026-11-03");
+		expect(funds.observedAt).toBe(Date.parse("2026-11-06T20:30:00Z"));
+	});
+
+	it("follows daylight saving time", () => {
+		const [{ observedAt }] = CFTC_COT_LEGACY.normalize(
+			[{ ...rows[0], report_date_as_yyyy_mm_dd: "2026-10-27T00:00:00.000" }],
+			NO_PARAMS
+		);
+
+		expect(observedAt).toBe(Date.parse("2026-10-30T19:30:00Z"));
+	});
+
+	it.each([
+		["2026-11-24", "2026-11-30T20:30:00Z"], // Thanksgiving week: Monday
+		["2026-12-22", "2026-12-28T20:30:00Z"], // Christmas observed Friday
+	])("delays the release of %s past a federal holiday", (tuesday, release) => {
+		const [{ observedAt }] = CFTC_COT_LEGACY.normalize(
+			[{ ...rows[0], report_date_as_yyyy_mm_dd: `${tuesday}T00:00:00.000` }],
+			NO_PARAMS
+		);
+
+		expect(observedAt).toBe(Date.parse(release));
+	});
+
+	it("gives nothing for a week without report", () => {
+		expect(CFTC_COT_LEGACY.normalize([], NO_PARAMS)).toEqual([]);
+	});
+
+	it("throws on a missing or blank field", () => {
+		const { open_interest_all: _, ...missing } = rows[0];
+
+		expect(() => CFTC_COT_LEGACY.normalize([missing], NO_PARAMS)).toThrow();
+		expect(() =>
+			CFTC_COT_LEGACY.normalize(
+				[{ ...rows[0], open_interest_all: "" }],
+				NO_PARAMS
+			)
+		).toThrow();
 	});
 });
