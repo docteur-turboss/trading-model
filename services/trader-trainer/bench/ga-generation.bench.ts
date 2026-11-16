@@ -10,10 +10,10 @@
  * count and fitness; only the times and heap vary. JSON on stdout, progress on stderr.
  */
 import { makePRNG } from "@trading-model/crypto/prng";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
+import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import { Price } from "@trading-model/primitives/primitives";
 import { runInProcess } from "../src/application/training-session";
-import { FeatureVector } from "../src/domain/feature-vector";
-import { FEATURE_DIM } from "../src/domain/feature-vector-codec";
 import type { WindowSet } from "../src/domain/genetic-algorithm/ga-runner";
 import { NoopGaTelemetry } from "../src/domain/genetic-algorithm/ga-telemetry";
 import { FitnessType } from "../src/domain/genetic-algorithm/genome-control";
@@ -70,60 +70,65 @@ const telemetry = {
 		}),
 };
 
-const t0 = performance.now();
-const result = await runInProcess(
-	windowSets,
-	{
-		validationSplit: 0.2,
-		walkForwardFolds: 1,
-		generations,
-		populationSize,
-		// Large: the generation count, not the time budget, ends the run.
-		timeBudgetMs: 24 * 3_600_000,
-		episodesPerIndividual,
-		fitnessType: FitnessType.TotalPnl,
-		seedOffset,
-	},
-	telemetry
-);
-const end = performance.now();
-
-const msPerGeneration = starts.map((step, idx) =>
-	Math.round((idx + 1 < starts.length ? starts[idx + 1].at : end) - step.at)
-);
-const mem = process.memoryUsage();
-const sorted = [...msPerGeneration].sort((lhs, rhs) => lhs - rhs);
-
-console.log(
-	JSON.stringify(
+async function main() {
+	const t0 = performance.now();
+	const result = await runInProcess(
+		windowSets,
 		{
-			schema: 1,
-			config: {
-				generations,
-				populationSize,
-				episodesPerIndividual,
-				steps,
-				seedOffset,
-			},
-			env: {
-				runtime: `bun ${Bun.version}`,
-				platform: process.platform,
-				arch: process.arch,
-			},
-			generationsRun: result.generation,
-			bestFitness: result.bestFitness,
-			totalMs: Math.round(end - t0),
-			msPerGeneration,
-			medianMsPerGeneration: sorted[Math.floor(sorted.length / 2)] ?? 0,
-			heapUsedStartBytes: starts[0]?.heapUsed ?? 0,
-			heapUsedEndBytes: mem.heapUsed,
-			heapUsedPeakSampleBytes: Math.max(
-				...starts.map((step) => step.heapUsed),
-				0
-			),
-			rssEndBytes: mem.rss,
+			validationSplit: 0.2,
+			testSplit: 0,
+			walkForwardFolds: 1,
+			generations,
+			populationSize,
+			// Large: the generation count, not the time budget, ends the run.
+			timeBudgetMs: 24 * 3_600_000,
+			episodesPerIndividual,
+			fitnessType: FitnessType.TotalPnl,
+			seedOffset,
 		},
-		null,
-		2
-	)
-);
+		telemetry
+	);
+	const end = performance.now();
+
+	const msPerGeneration = starts.map((step, idx) =>
+		Math.round((idx + 1 < starts.length ? starts[idx + 1].at : end) - step.at)
+	);
+	const mem = process.memoryUsage();
+	const sorted = [...msPerGeneration].sort((lhs, rhs) => lhs - rhs);
+
+	console.log(
+		JSON.stringify(
+			{
+				schema: 1,
+				config: {
+					generations,
+					populationSize,
+					episodesPerIndividual,
+					steps,
+					seedOffset,
+				},
+				env: {
+					runtime: `bun ${process.versions.bun}`,
+					platform: process.platform,
+					arch: process.arch,
+				},
+				generationsRun: result.generation,
+				bestFitness: result.bestFitness,
+				totalMs: Math.round(end - t0),
+				msPerGeneration,
+				medianMsPerGeneration: sorted[Math.floor(sorted.length / 2)] ?? 0,
+				heapUsedStartBytes: starts[0]?.heapUsed ?? 0,
+				heapUsedEndBytes: mem.heapUsed,
+				heapUsedPeakSampleBytes: Math.max(
+					...starts.map((step) => step.heapUsed),
+					0
+				),
+				rssEndBytes: mem.rss,
+			},
+			null,
+			2
+		)
+	);
+}
+
+void main();

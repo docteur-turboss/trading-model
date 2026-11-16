@@ -92,11 +92,14 @@ describe("router", () => {
 	});
 
 	describe("catch-all handler", () => {
+		let lastRes: { locals: { routeLabel?: string } };
+
 		function getHandler() {
+			lastRes = { locals: {} };
 			const nonRouteLayers = router.stack.filter((l: any) => !l.route);
-			return nonRouteLayers[nonRouteLayers.length - 1].handle as unknown as (
-				req: unknown
-			) => Promise<any>;
+			const handle = nonRouteLayers[nonRouteLayers.length - 1]
+				.handle as unknown as (req: unknown, res: unknown) => Promise<any>;
+			return (req: unknown) => handle(req, lastRes);
 		}
 
 		function mockForwardSuccess(body: unknown) {
@@ -142,6 +145,14 @@ describe("router", () => {
 		function get(path: string, method = "GET") {
 			return getHandler()(createReq({ method, path, url: path }));
 		}
+
+		it("labels the request with its public route pattern, not the raw path", async () => {
+			mockForwardSuccess({ data: "ok" });
+			await get("/v1/audit-logger/events/abc-123");
+			expect(lastRes.locals.routeLabel).toBe(
+				"/v1/audit-logger/events/:messageId"
+			);
+		});
 
 		it("should return 404 for a route the gateway does not expose", async () => {
 			const {

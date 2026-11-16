@@ -56,7 +56,6 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		TOKEN_REFRESH_INTERVAL_MS: "60000",
 		TTL_REFRESH_INTERVAL_MS: "15000",
 		ADDRESS_MANAGER_URL: "https://address-manager.example.com",
-		ERROR_URL_WEBHOOK: "https://webhook.example.com/error",
 		MESSAGE_BUS_INIT_TIMEOUT_MS: "2000",
 		MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: "2000",
 		MESSAGE_CALLBACK_PATH: "message",

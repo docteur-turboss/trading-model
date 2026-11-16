@@ -137,8 +137,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: ERROR_URL_WEBHOOK
-              value: ""
           resources:
             requests:
               cpu: 500m
