@@ -197,7 +197,6 @@ services:
     environment:
       <<: *core-env
       SERVICE_NAME: discovery-server
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       CLEANUP_SERVICE_INTERVAL_MS: '600000'
       # Signs the instance tokens kept in Redis: stable across restarts.
       # Required with NODE_ENV=production (discovery refuses to start).
@@ -319,7 +318,6 @@ services:
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: message-manager
       INSTANCE_ID: message-manager-1
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       # Signs the dead letters sent to dlq-service: same key as dlq-service.
       DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
     # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
@@ -374,7 +372,7 @@ services:
       # Contact e-mail in the User-Agent of the signal sources (ADR-0036): SEC
       # EDGAR answers 403 without one. From .env only: the repository is public.
       SIGNAL_CONTACT_EMAIL: ${SIGNAL_CONTACT_EMAIL:-}
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
+      SIGNAL_KEY_FRED: ${SIGNAL_KEY_FRED:-}
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
@@ -422,6 +420,7 @@ services:
       SERVICE_NAME: trader-trainer
       INSTANCE_ID: trader-trainer-1
       TRAINER_SYMBOLS: ${TRAINER_SYMBOLS:-BTCUSDT,ETHUSDT}
+      TRAINER_SYMBOL_ASSETS: ${TRAINER_SYMBOL_ASSETS:-}
       TRAINER_DATA_WINDOW: ${TRAINER_DATA_WINDOW:-500}
       TRAINER_VALIDATION_SPLIT: ${TRAINER_VALIDATION_SPLIT:-0.15}
       TRAINER_TEST_SPLIT: ${TRAINER_TEST_SPLIT:-0.15}
@@ -512,7 +511,6 @@ services:
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: audit-logger
       INSTANCE_ID: audit-logger-1
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       MONGODB_URI: mongodb://mongo:27017/audit-logger?authSource=admin
       MONGO_USERNAME: audit-logger
       MONGO_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0067)}
@@ -553,7 +551,6 @@ services:
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: model-evaluator
       INSTANCE_ID: model-evaluator-1
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       EVALUATIONS_DIR: /data/evaluations
     volumes:
       - svid-evaluator:/run/spire/svid
@@ -590,7 +587,6 @@ services:
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: dlq-service
       INSTANCE_ID: dlq-service-1
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       MONGO_URI: mongodb://mongo:27017/?authSource=admin
       MONGO_USERNAME: dlq-service
       MONGO_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}

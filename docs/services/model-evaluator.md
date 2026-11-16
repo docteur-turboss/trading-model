@@ -23,7 +23,7 @@ The replay of the model on stored candles and signals, and the ADR-0030 metrics 
 
 | Dependency | Type |
 | --- | --- |
-| discovery-server | Registration, resolution of trader-trainer |
+| discovery-server | Registration only, kept for N-1 gateways (resolution is by Service DNS name, ADR-0072) |
 | message-manager | Subscription to `training.model.published`, delivery |
 | trader-trainer | Manifest and weights (service-to-service) |
 | PVC `model-evaluations-pvc` | Evaluation records (one replica, `Recreate`) |

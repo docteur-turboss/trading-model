@@ -1,16 +1,20 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
+import { PAYLOADS } from "@trading-model/validation/wire/signals";
 import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
 import { DVF_COMMUNE_SALES } from "../../../src/adapters/outbound/signal-sources/dvf-commune-sales";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
 import { EUROSTAT_JSONSTAT } from "../../../src/adapters/outbound/signal-sources/eurostat-jsonstat";
 import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-sources/federal-register-daily";
+import { FRED_SERIES_OBSERVATIONS } from "../../../src/adapters/outbound/signal-sources/fred-series-observations";
+import { NASA_POWER_DAILY } from "../../../src/adapters/outbound/signal-sources/nasa-power-daily";
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
+import { TREASURY_PAR_YIELD_CURVE } from "../../../src/adapters/outbound/signal-sources/treasury-par-yield-curve";
 import { WIKIMEDIA_PAGEVIEWS } from "../../../src/adapters/outbound/signal-sources/wikimedia-pageviews";
-import { PAYLOADS } from "../../../src/domain/signals";
+import { signalId } from "../../../src/application/signal-collector";
 
 /**
  * Payloads as the sources sent them on 2026-11-04 (ECB Data Portal,
@@ -36,8 +40,11 @@ describe("SOURCE_ADAPTERS", () => {
 			"ecb-sdmx-series",
 			"eurostat-jsonstat",
 			"federal-register-daily",
+			"fred-series-observations",
+			"nasa-power-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
+			"treasury-par-yield-curve",
 			"wikimedia-pageviews",
 		]);
 	});
@@ -58,6 +65,16 @@ describe("SOURCE_ADAPTERS", () => {
 			"nws-latest-observation",
 			{ variables: "temperature,relativeHumidity" },
 		],
+		[
+			NASA_POWER_DAILY,
+			"nasa-power-daily",
+			{ name: "poltava-ua", variables: "T2M,PRECTOTCORR" },
+		],
+		[
+			TREASURY_PAR_YIELD_CURVE,
+			"treasury-par-yield-curve",
+			{ column: "10 Yr", metric: "par_yield_10y" },
+		],
 		[WIKIMEDIA_PAGEVIEWS, "wikimedia-pageviews", {}],
 		[
 			FEDERAL_REGISTER_DAILY,
@@ -77,6 +94,63 @@ describe("SOURCE_ADAPTERS", () => {
 			}
 		}
 	);
+});
+
+describe("fred-series-observations", () => {
+	const params = {
+		metric: "unemployment_rate",
+		area: "US",
+		unit: "percent",
+		period: "month",
+		series: "UNRATE",
+	};
+
+	it('keeps one signal per vintage, stamped at its publication, and skips "."', () => {
+		const observations = FRED_SERIES_OBSERVATIONS.normalize(
+			fixture("fred-unrate"),
+			{ params }
+		);
+		expect(observations.map((o) => [o.key, o.payload.value])).toEqual([
+			["2026-09-01@2026-10-03", 4.3],
+			["2026-09-01@2026-11-07", 4.4],
+		]);
+		expect(observations[1]).toMatchObject({
+			observedAt: Date.parse("2026-11-07"),
+			payload: { period: { start: "2026-09-01", end: "2026-09-30" } },
+		});
+		for (const { payload } of observations) {
+			expect(PAYLOADS.macro.safeParse(payload).success).toBe(true);
+		}
+	});
+
+	it("gives a day and a quarter their own period", () => {
+		const row = (date: string) => ({
+			observations: [{ realtime_start: "2026-11-01", date, value: "1" }],
+		});
+		const end = (period: string, date: string) =>
+			(
+				FRED_SERIES_OBSERVATIONS.normalize(row(date), {
+					params: { ...params, period },
+				})[0].payload.period as { end: string }
+			).end;
+		expect(end("day", "2026-11-03")).toBe("2026-11-03");
+		expect(end("quarter", "2026-07-01")).toBe("2026-09-30");
+	});
+
+	it("skips an empty value instead of reading it as 0", () => {
+		const body = {
+			observations: [
+				{ realtime_start: "2026-11-01", date: "2026-10-01", value: " " },
+			],
+		};
+		expect(FRED_SERIES_OBSERVATIONS.normalize(body, { params })).toEqual([]);
+	});
+
+	it("throws on a body that is not FRED observations", () => {
+		expect(() =>
+			FRED_SERIES_OBSERVATIONS.normalize({ error_code: 400 }, { params })
+		).toThrow();
+	});
 });
 
 describe("ecb-sdmx-series", () => {
@@ -694,6 +768,125 @@ describe("dvf-commune-sales", () => {
 		expect(DVF_COMMUNE_SALES.normalize([], NO_PARAMS)).toEqual([]);
 		expect(() =>
 			DVF_COMMUNE_SALES.normalize([{ id_mutation: "x" }], NO_PARAMS)
+		).toThrow();
+	});
+});
+
+describe("nasa-power-daily", () => {
+	it("keeps the latest day with a value, skips fill values and absent variables", () => {
+		const observations = NASA_POWER_DAILY.normalize(
+			fixture("nasa-power-daily"),
+			{
+				params: {
+					name: "poltava-ua",
+					variables: "T2M,PRECTOTCORR,GWETROOT,NOPE",
+				},
+			}
+		);
+
+		expect(
+			observations.map((o) => [
+				o.payload.metric,
+				o.payload.value,
+				o.payload.unit,
+			])
+		).toEqual([
+			["T2M", 3.15, "C"],
+			["PRECTOTCORR", 1.33, "mm/day"],
+			["GWETROOT", 0.54, "1"],
+		]);
+		expect(observations[0].payload.details).toEqual({
+			measuredAt: "2026-11-12",
+		});
+	});
+
+	it("gives no signal for a point with no value", () => {
+		const empty = {
+			geometry: { coordinates: [1, 2] },
+			properties: { parameter: { T2M: { "20261112": -999 } } },
+			parameters: { T2M: { units: "C" } },
+		};
+		expect(
+			NASA_POWER_DAILY.normalize(empty, {
+				params: { name: "x", variables: "T2M" },
+			})
+		).toEqual([]);
+	});
+
+	it("gives two points of the same day two distinct ids", () => {
+		const keyOf = (name: string) =>
+			NASA_POWER_DAILY.normalize(fixture("nasa-power-daily"), {
+				params: { name, variables: "T2M" },
+			})[0].key;
+		const subject = { sector: "agriculture" } as const;
+		expect(signalId("s", subject, "T2M", keyOf("beauce-fr"))).not.toBe(
+			signalId("s", subject, "T2M", keyOf("poltava-ua"))
+		);
+	});
+
+	it("rejects a changed format", () => {
+		expect(() =>
+			NASA_POWER_DAILY.normalize(
+				{ properties: {} },
+				{ params: { name: "x", variables: "T2M" } }
+			)
+		).toThrow();
+	});
+});
+
+describe("treasury-par-yield-curve", () => {
+	const rows = fixture("treasury-par-yield-curve");
+	const context = (column: string) => ({
+		params: { column, metric: "par_yield_2y" },
+	});
+
+	it("gives one value per day for the requested maturity, keyed by the day", () => {
+		const observations = TREASURY_PAR_YIELD_CURVE.normalize(
+			rows,
+			context("2 Yr")
+		);
+
+		expect(
+			observations.map(({ key, payload }) => [key, payload.value])
+		).toEqual(
+			rows.map((row: any) => [
+				row.Date.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"),
+				Number(row["2 Yr"]),
+			])
+		);
+		expect(observations[0].payload).toMatchObject({
+			unit: "percent",
+			period: { start: observations[0].key, end: observations[0].key },
+		});
+	});
+
+	it("skips a maturity not published (N/A, blank) and a day without a row", () => {
+		const gaps = [
+			{ ...rows[0], "2 Yr": "N/A" },
+			{ ...rows[1], "2 Yr": "" },
+		];
+
+		expect(TREASURY_PAR_YIELD_CURVE.normalize(gaps, context("2 Yr"))).toEqual(
+			[]
+		);
+		expect(TREASURY_PAR_YIELD_CURVE.normalize([], context("2 Yr"))).toEqual([]);
+	});
+
+	it("throws on a changed format", () => {
+		expect(() =>
+			TREASURY_PAR_YIELD_CURVE.normalize(rows, context("2 Year"))
+		).toThrow('without a "2 Year" column');
+		expect(() =>
+			TREASURY_PAR_YIELD_CURVE.normalize(
+				[{ ...rows[0], "2 Yr": "abc" }],
+				context("2 Yr")
+			)
+		).toThrow();
+		expect(() =>
+			TREASURY_PAR_YIELD_CURVE.normalize(
+				[{ Date: "2026-11-13" }],
+				context("2 Yr")
+			)
 		).toThrow();
 	});
 });

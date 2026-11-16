@@ -4,7 +4,7 @@ Express middleware (mTLS identity and authorization, correlation id, ACL), respo
 
 ## Dependency rule
 
-Depends on `primitives`, `contracts`, `common`, `reliability` (+ `express`, `zod`, `prom-client`, `helmet`, `express-rate-limit`, OpenTelemetry API and SDK). `validation` and `crypto` depend on it, so it must not import them.
+Depends on `primitives`, `contracts`, `common`, `reliability` (+ `express`, `zod`, `prom-client`, `helmet`, OpenTelemetry API and SDK). `validation` and `crypto` depend on it, so it must not import them.
 
 ## Main exports
 

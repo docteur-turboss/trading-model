@@ -1,7 +1,7 @@
+import type { Signal } from "@trading-model/validation/wire/signals";
 import type { RowDataPacket } from "mysql2";
 import { DATABASE } from "../../../config/db";
 import type { SignalStorePort } from "../../../domain/ports/signal-store.port";
-import type { Signal } from "../../../domain/signals";
 
 interface SignalRow extends RowDataPacket {
 	id: string;
