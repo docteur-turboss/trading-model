@@ -125,6 +125,8 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | --------------------------------- | ------------ | ----------------- | -------- | ------------------------------------ | -------- |
 | `TRAINER_SYMBOLS`                 | string       | `BTCUSDT,ETHUSDT` | no       | Comma-separated trading symbols      | TT       |
 | `TRAINER_SYMBOL_ASSETS`           | string       | empty             | no       | `SYMBOL:ASSET` pairs (`BTCUSDT:BTC,ETHUSDT:ETH`): registry asset whose point-in-time signal window (30 days) a session reads and measures; empty: no call | TT       |
+| `TRAINER_SIGNAL_FEATURES`       | string       | empty             | no       | `SUBJECT:dimension:metric` list (`BTC:social:pageviews`, subject = asset, sector or area): signals fed to the network as value, age and confidence inputs, 3 per metric (ADR-0079); read only with `FEATURE_SIGNAL_INPUTS` | TT       |
+| `FEATURE_SIGNAL_INPUTS`           | boolean      | `false`           | no       | Feature flag (ADR-0039): `true` appends the `TRAINER_SIGNAL_FEATURES` inputs to the 18 market inputs; `false`: input and published genome as before | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
 | `TRAINER_VALIDATION_SPLIT`        | number (]0, 1[) | `0.15`            | no       | Fraction of the steps left after the test cut, used for validation (selection) | TT       |
 | `TRAINER_TEST_SPLIT`              | number (]0, 1[) | `0.15`            | no       | Newest fraction of the steps never used by training nor selection; published metrics come from it (ADR-0068) | TT       |
@@ -377,6 +379,8 @@ MYSQL_DATABASE=financial_scraper
 # Trader-Trainer
 TRAINER_SYMBOLS=BTCUSDT,ETHUSDT
 TRAINER_SYMBOL_ASSETS=
+TRAINER_SIGNAL_FEATURES=
+FEATURE_SIGNAL_INPUTS=false
 TRAINER_DATA_WINDOW=500
 TRAINER_VALIDATION_SPLIT=0.15
 TRAINER_TEST_SPLIT=0.15

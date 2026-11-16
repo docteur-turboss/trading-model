@@ -85,9 +85,11 @@ describe("TrainingLoop", () => {
 				throw new Error("404");
 			}),
 		};
+		const setSignals = jest.fn();
 		const buffer = {
 			getMaxSize: () => 1000,
 			replaceCandles,
+			setSignals,
 			getCandleCount: () => candleCount,
 			getLastCandleCloseTime: (symbol: TradingSymbol) => lastClose.get(symbol),
 		} as unknown as MarketDataBuffer;
@@ -119,6 +121,7 @@ describe("TrainingLoop", () => {
 			NOW - DAY,
 			NOW
 		);
+		expect(setSignals).toHaveBeenCalledWith(BTC, []); // unreadable: no signal input
 		expect(train).toHaveBeenCalledTimes(2);
 	});
 

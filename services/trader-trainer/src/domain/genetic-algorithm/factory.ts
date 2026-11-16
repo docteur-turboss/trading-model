@@ -10,12 +10,13 @@ import { createRLGenome } from "./genome-rl/create";
 
 export function createDefaultGenome(
 	id: string,
-	generation = 0 as PositiveInt
+	generation = 0 as PositiveInt,
+	inputDim?: number
 ): Genome {
 	return {
 		id: id as GenomeId,
 		generation: generation as PositiveInt,
-		network: createNetworkGenome(),
+		network: createNetworkGenome(inputDim),
 		rl: createRLGenome(),
 		mutation: createMutationGenome(),
 		crossover: createCrossoverGenome(),

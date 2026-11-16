@@ -25,9 +25,12 @@ function _createDefaultHiddenLayers(): NetworkGenome["hiddenLayers"] {
 	];
 }
 
-export function createNetworkGenome(): NetworkGenome {
+/** `inputDim`: the size of the encoded steps when they carry signal inputs. */
+export function createNetworkGenome(
+	inputDim: number = NETWORK_INPUT_LAYOUT.dim
+): NetworkGenome {
 	return {
-		inputDim: PositiveInt.of(NETWORK_INPUT_LAYOUT.dim),
+		inputDim: PositiveInt.of(inputDim),
 		outputDim: PositiveInt.of(3),
 		hiddenLayers: _createDefaultHiddenLayers(),
 		normalization: NormalisationType.None,

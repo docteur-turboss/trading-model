@@ -1,5 +1,6 @@
 import type { WalletAPI } from "@trading-model/model-runtime/env/wallet-manager";
 import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
+import { signalFieldNames } from "../signal-features";
 
 /**
  * What the agent holds, appended to the market features: a decision's reward
@@ -9,13 +10,21 @@ import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-code
  *   raw [0, 1] value learned measurably worse (ADR-0025).
  */
 const AGENT_STATE_FIELDS = ["AgentExposure"] as const;
-const AGENT_STATE_DIM = AGENT_STATE_FIELDS.length;
+export const AGENT_STATE_DIM = AGENT_STATE_FIELDS.length;
 
-/** Inputs of the trading network (model artifacts, ADR-0022, ADR-0025). */
-export const NETWORK_INPUT_LAYOUT: { dim: number; fields: string[] } = {
-	dim: FEATURE_LAYOUT.dim + AGENT_STATE_DIM,
-	fields: [...FEATURE_LAYOUT.fields, ...AGENT_STATE_FIELDS],
-};
+/** Inputs of the trading network (model artifacts, ADR-0022, ADR-0025); `signalKeys`: ADR-0079. */
+export function networkInputLayout(signalKeys: readonly string[] = []): {
+	dim: number;
+	fields: string[];
+} {
+	const signals = signalFieldNames(signalKeys);
+	return {
+		dim: FEATURE_LAYOUT.dim + signals.length + AGENT_STATE_DIM,
+		fields: [...FEATURE_LAYOUT.fields, ...signals, ...AGENT_STATE_FIELDS],
+	};
+}
+
+export const NETWORK_INPUT_LAYOUT = networkInputLayout();
 
 /** Exposure shown when the position is hidden: always "flat". */
 const HIDDEN_EXPOSURE = -1;

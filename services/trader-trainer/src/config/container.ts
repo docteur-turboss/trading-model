@@ -27,6 +27,7 @@ import type { TradingSymbol } from "../domain/market-data-types";
 import type { CandleHistoryPort } from "../domain/ports/candle-history.port";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type { SignalHistoryPort } from "../domain/ports/signal-history.port";
+import { parseSignalKeys } from "../domain/signal-features";
 import { effectiveFitnessType } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
@@ -76,6 +77,7 @@ interface AppContainerConfig {
 	episodesPerIndividual: number;
 	fitnessType: FitnessType;
 	observePosition: boolean;
+	signalKeys: string[];
 	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
@@ -97,6 +99,7 @@ class ApplicationContainer {
 			maxSize: config.bufferSize,
 			maxMemoryBytes: (config.bufferMemoryLimitMb ?? 512) * 1024 * 1024,
 			evictionPolicy: EvictionPolicy.Lru,
+			signalKeys: config.signalKeys,
 			onDataAdded: (symbol, candleCount, symbolCount) => {
 				MARKET_DATA_BUFFER_SIZE.set({ symbol: String(symbol) }, candleCount);
 				MARKET_DATA_SYMBOLS.set(symbolCount);
@@ -163,6 +166,9 @@ interface TraderTrainerSettings {
 	/** Feature flag (ADR-0039); false: `total_pnl` only. Default true. */
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
+	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
+	TRAINER_SIGNAL_FEATURES?: string;
+	FEATURE_SIGNAL_INPUTS?: boolean;
 	TRAINER_MODEL_DIR: string;
 	TRAINER_MODEL_RETENTION: number;
 	INSTANCE_ID: string;
@@ -188,6 +194,9 @@ export function createTraderTrainerContainer(
 		episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
 		fitnessType: effectiveFitnessType(settings),
 		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
+		signalKeys: settings.FEATURE_SIGNAL_INPUTS
+			? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
+			: [],
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,
