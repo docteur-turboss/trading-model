@@ -13,6 +13,8 @@ export interface QLearningExperience extends ExperienceBase {
 	done: boolean;
 	/** Index of the output unit the policy acted on (not necessarily the argmax). */
 	action: number;
+	/** Bootstrap discount of this transition (γ^bars elapsed); absent: the batch's. */
+	discount?: number;
 }
 
 export type Experience = QLearningExperience;

@@ -4,6 +4,7 @@ import type {
 	PositiveInt,
 	Probability,
 } from "@trading-model/primitives/primitives";
+import { crossoverDecision } from "./decision";
 import type {
 	DiscretePolicyGenome,
 	HorizonGenome,
@@ -50,6 +51,10 @@ function crossoverHorizon(ctx: {
 		frameSkip: Math.round(
 			crossoverFn(left.frameSkip, right.frameSkip)
 		) as PositiveInt,
+		...(left.decision &&
+			right.decision && {
+				decision: crossoverDecision(left.decision, right.decision, crossoverFn),
+			}),
 	};
 }
 
