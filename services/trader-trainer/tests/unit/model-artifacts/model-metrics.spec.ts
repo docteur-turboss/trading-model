@@ -197,6 +197,11 @@ describe("admission of a model (ADR-0069)", () => {
 		});
 	});
 
+	it("is never admissible when the model made no decision", () => {
+		const meta = { ...(testMeta(100) as object), decisions: 0 } as never;
+		expect(assessAdmission(meta, bars([5, 4, 3, 2]))?.admissible).toBe(false);
+	});
+
 	it("gives no verdict on validation metrics, which the selection read", () => {
 		const meta = { pnlCurve: curve, barsPerYear: 100 } as never;
 		expect(assessAdmission(meta, bars([5, 4]))).toBeUndefined();
