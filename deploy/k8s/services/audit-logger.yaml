@@ -130,6 +130,8 @@ spec:
                 name: audit-anchor-s3
                 optional: true
           env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=192
             - name: MONGO_USERNAME
               value: audit-logger
             - name: MONGO_PASSWORD
