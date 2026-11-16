@@ -451,7 +451,6 @@
         "@trading-model/contracts": "*",
         "@trading-model/crypto": "*",
         "@trading-model/http": "*",
-        "@trading-model/http": "*",
         "@trading-model/model-runtime": "*",
         "@trading-model/primitives": "*",
         "@trading-model/reliability": "*",
