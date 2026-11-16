@@ -30,6 +30,9 @@ const RETRY_CONFIG = {
 /** Longest Retry-After honoured: one scrape interval. Beyond it the error surfaces and the next cycle resumes. */
 const RETRY_AFTER_MAX_MS = 60_000;
 
+/** Total time one request may spend retrying, below the 60 s scrape cycle so a slow cycle never makes the next tick skip. */
+const RETRY_DEADLINE_MS = 45_000;
+
 /** Retry-After of a 429, in ms. shortcut: seconds form only (the one Binance sends), HTTP dates are ignored. */
 function _retryAfterMs(error: AxiosError): number {
 	if (error.response?.status !== 429) {
@@ -39,9 +42,16 @@ function _retryAfterMs(error: AxiosError): number {
 	return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
 }
 
-type RetryConfig = AxiosRequestConfig & { retryCount?: number };
+type RetryConfig = AxiosRequestConfig & {
+	retryCount?: number;
+	deadline?: number;
+};
 
 function _attachRetryInterceptor(instance: AxiosInstance): void {
+	instance.interceptors.request.use((config) => {
+		(config as RetryConfig).deadline ??= Date.now() + RETRY_DEADLINE_MS;
+		return config;
+	});
 	instance.interceptors.response.use(undefined, (error: AxiosError) => {
 		const config = error.config as RetryConfig | undefined;
 		if (!config) {
@@ -58,11 +68,18 @@ function _attachRetryInterceptor(instance: AxiosInstance): void {
 		) {
 			throw error;
 		}
-		config.retryCount++;
 		const delay = Math.max(
-			computeExponentialBackoffWithJitter(config.retryCount, RETRY_CONFIG),
+			computeExponentialBackoffWithJitter(config.retryCount + 1, RETRY_CONFIG),
 			retryAfterMs
 		);
+		// the next attempt may run a full timeout: it must end before the deadline
+		if (
+			Date.now() + delay + DEFAULT_TIMEOUT >
+			(config.deadline ?? Number.POSITIVE_INFINITY)
+		) {
+			throw error;
+		}
+		config.retryCount++;
 		return sleep(delay).then(() => instance(config));
 	});
 }

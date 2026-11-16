@@ -170,6 +170,16 @@ describe("createHttpClient", () => {
 		expect(() => mockResponseRejectedHandler!(tooLong)).toThrow();
 	});
 
+	it("stops retrying when the next attempt would end past the deadline", () => {
+		createHttpClient("https://api.example.com");
+		const error = {
+			config: { retryCount: 1, deadline: Date.now() + 5000 },
+			response: { status: 500 },
+		};
+		expect(() => mockResponseRejectedHandler!(error)).toThrow();
+		expect(error.config.retryCount).toBe(1);
+	});
+
 	it.each([403, 418, 451])(
 		"response rejected interceptor should not retry on %i (Binance WAF, IP ban, restricted location)",
 		async (status) => {
