@@ -83,29 +83,52 @@ export class BusConsumer {
 			dueAfterMs: retryDueMs,
 		};
 		let lastClaim = 0;
-		while (!this._stopped) {
-			try {
-				const claim = Date.now() - lastClaim >= CLAIM_EVERY_MS;
-				if (claim) {
-					lastClaim = Date.now();
+		// A slow entry holds only its own slot: reads refill the free ones.
+		const inFlight = new Set<Promise<void>>();
+		try {
+			while (!this._stopped) {
+				try {
+					if (inFlight.size >= BATCH) {
+						await Promise.race(inFlight);
+						continue;
+					}
+					const claim = Date.now() - lastClaim >= CLAIM_EVERY_MS;
+					if (claim) {
+						lastClaim = Date.now();
+					}
+					const entries = claim
+						? await journal.claimDue(
+								group,
+								this._consumer,
+								retry,
+								BATCH - inFlight.size
+							)
+						: [];
+					const free = BATCH - inFlight.size - entries.length;
+					if (free > 0) {
+						entries.push(
+							...(await journal.readNew(group, this._consumer, free, BLOCK_MS))
+						);
+					}
+					for (const entry of entries) {
+						const task = this._process(group, entry).finally(() =>
+							inFlight.delete(task)
+						);
+						inFlight.add(task);
+					}
+				} catch (err) {
+					if (this._stopped) {
+						return;
+					}
+					getLogger().error("Bus consumer loop failed", {
+						context: { topic: group.topic, service: group.service },
+						error: normalizeError(err),
+					});
+					await new Promise((resolve) => setTimeout(resolve, BLOCK_MS));
 				}
-				const entries = [
-					...(claim
-						? await journal.claimDue(group, this._consumer, retry, BATCH)
-						: []),
-					...(await journal.readNew(group, this._consumer, BATCH, BLOCK_MS)),
-				];
-				await Promise.all(entries.map((entry) => this._process(group, entry)));
-			} catch (err) {
-				if (this._stopped) {
-					return;
-				}
-				getLogger().error("Bus consumer loop failed", {
-					context: { topic: group.topic, service: group.service },
-					error: normalizeError(err),
-				});
-				await new Promise((resolve) => setTimeout(resolve, BLOCK_MS));
 			}
+		} finally {
+			await Promise.all(inFlight);
 		}
 	}
 

@@ -104,6 +104,36 @@ describe("BusConsumer", () => {
 		expect(pendingOf(redis)).toBe(0);
 	});
 
+	it("should handle a later entry while an earlier one is still slow, and let stop() wait for it", async () => {
+		const handled: unknown[] = [];
+		let release = () => {};
+		const slow = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const {
+			consumer: c,
+			journal,
+			redis,
+		} = consumer(async (m) => {
+			if (m.payload === "slow") {
+				await slow;
+			}
+			handled.push(m.payload);
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "slow", METADATA);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		await publishToBus(journal, "fast", METADATA);
+		await until(() => handled.includes("fast"));
+
+		expect(handled).toEqual(["fast"]);
+		const stopped = c.stop();
+		release();
+		await stopped;
+		expect(handled).toEqual(["fast", "slow"]);
+		expect(pendingOf(redis)).toBe(0);
+	});
+
 	it("should leave a failed message pending for its retry", async () => {
 		const {
 			consumer: c,
