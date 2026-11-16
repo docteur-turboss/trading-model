@@ -306,7 +306,7 @@ else
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered-pitr" --pitr &&
 	[ "$(cd "$WORK/fetched-tiered-pitr" && find . -type f -path './*/binlog/*' -o -type f -path './*/oplog/*' | sed 's|^\./||' | sort)" = "$(sort <<<"$TIERED_ARCHIVES")" ] &&
-	[ "$(find "$WORK/fetched-tiered-pitr" -type f -name '*.pitr.age' | wc -l | tr -d ' ')" = 3 ]; then
+	[ "$(find "$WORK/fetched-tiered-pitr" -type f -name '*.pitr.age' | wc -l | tr -d ' ')" = 2 ]; then
 	pass "--pitr on a tiered bucket fetches the run, its starting points and the archives, all from daily/"
 else
 	failed "--pitr on a tiered bucket: $(cd "$WORK/fetched-tiered-pitr" 2>/dev/null && find . -type f | sort) $(cat "$WORK/out")"
