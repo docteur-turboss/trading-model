@@ -85,6 +85,8 @@ export class BusConsumer {
 		let lastClaim = 0;
 		// A slow entry holds only its own slot: reads refill the free ones.
 		const inFlight = new Set<Promise<void>>();
+		// Entries whose handler still runs: a claim must not start them twice.
+		const handling = new Set<string>();
 		try {
 			while (!this._stopped) {
 				try {
@@ -101,7 +103,8 @@ export class BusConsumer {
 								group,
 								this._consumer,
 								retry,
-								BATCH - inFlight.size
+								BATCH - inFlight.size,
+								handling
 							)
 						: [];
 					const free = BATCH - inFlight.size - entries.length;
@@ -111,9 +114,11 @@ export class BusConsumer {
 						);
 					}
 					for (const entry of entries) {
-						const task = this._process(group, entry).finally(() =>
-							inFlight.delete(task)
-						);
+						handling.add(entry.id);
+						const task = this._process(group, entry).finally(() => {
+							inFlight.delete(task);
+							handling.delete(entry.id);
+						});
 						inFlight.add(task);
 					}
 				} catch (err) {

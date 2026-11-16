@@ -134,6 +134,27 @@ describe("BusConsumer", () => {
 		expect(pendingOf(redis)).toBe(0);
 	});
 
+	it("should not claim again an entry whose handler is still running", async () => {
+		let calls = 0;
+		let release = () => {};
+		const slow = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const { consumer: c, journal } = consumer(async () => {
+			calls++;
+			await slow;
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "slow", METADATA);
+		// The fake Redis reports every pending entry as due; claims run every 2 s.
+		await new Promise((resolve) => setTimeout(resolve, 2500));
+		const stopped = c.stop();
+		release();
+		await stopped;
+
+		expect(calls).toBe(1);
+	});
+
 	it("should leave a failed message pending for its retry", async () => {
 		const {
 			consumer: c,
