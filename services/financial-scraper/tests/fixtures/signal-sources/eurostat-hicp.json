@@ -1,0 +1,93 @@
+{
+ "version": "2.0",
+ "class": "dataset",
+ "label": "Harmonised index of consumer prices (HICP) - ECOICOP ver.2 - indices and rates of change, monthly data",
+ "source": "ESTAT",
+ "updated": "2026-11-04T11:00:00+0100",
+ "value": {
+  "0": 2.4,
+  "1": 2.6,
+  "2": 3.4,
+  "3": 3.8
+ },
+ "status": {
+  "3": "e"
+ },
+ "id": [
+  "freq",
+  "unit",
+  "coicop18",
+  "geo",
+  "time"
+ ],
+ "size": [
+  1,
+  1,
+  1,
+  1,
+  4
+ ],
+ "dimension": {
+  "freq": {
+   "label": "Time frequency",
+   "category": {
+    "index": {
+     "M": 0
+    },
+    "label": {
+     "M": "Monthly"
+    }
+   }
+  },
+  "unit": {
+   "label": "Unit of measure",
+   "category": {
+    "index": {
+     "RCH_A": 0
+    },
+    "label": {
+     "RCH_A": "Annual rate of change"
+    }
+   }
+  },
+  "coicop18": {
+   "label": "Classification of individual consumption by purpose (COICOP) - 2018",
+   "category": {
+    "index": {
+     "TOTAL": 0
+    },
+    "label": {
+     "TOTAL": "Total"
+    }
+   }
+  },
+  "geo": {
+   "label": "Geopolitical entity (reporting)",
+   "category": {
+    "index": {
+     "FR": 0
+    },
+    "label": {
+     "FR": "France"
+    }
+   }
+  },
+  "time": {
+   "label": "Time",
+   "category": {
+    "index": {
+     "2026-07": 0,
+     "2026-08": 1,
+     "2026-09": 2,
+     "2026-10": 3
+    },
+    "label": {
+     "2026-07": "2026-07",
+     "2026-08": "2026-08",
+     "2026-09": "2026-09",
+     "2026-10": "2026-10"
+    }
+   }
+  }
+ }
+}

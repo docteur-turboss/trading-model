@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
+import { EUROSTAT_JSONSTAT } from "../../../src/adapters/outbound/signal-sources/eurostat-jsonstat";
 import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-sources/federal-register-daily";
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
@@ -32,6 +33,7 @@ describe("SOURCE_ADAPTERS", () => {
 		expect([...SOURCE_ADAPTERS.keys()].sort()).toEqual([
 			"cftc-cot-legacy",
 			"ecb-sdmx-series",
+			"eurostat-jsonstat",
 			"federal-register-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
@@ -43,6 +45,11 @@ describe("SOURCE_ADAPTERS", () => {
 	// The collector checks every payload against its dimension's schema.
 	it.each([
 		[ECB_SDMX_SERIES, "ecb-sdmx-series", { metric: "spot_rate_10y" }],
+		[
+			EUROSTAT_JSONSTAT,
+			"eurostat-house-price-index",
+			{ metric: "house_price_index", area: "FR" },
+		],
 		[CFTC_COT_LEGACY, "cftc-cot-legacy", {}],
 		[SEC_EDGAR_COMPANY_CONCEPT, "sec-edgar-company-concept", {}],
 		[
@@ -459,6 +466,74 @@ describe("wikimedia-pageviews", () => {
 		payload.items[0].granularity = "hourly";
 
 		expect(() => WIKIMEDIA_PAGEVIEWS.normalize(payload, NO_PARAMS)).toThrow();
+	});
+});
+
+describe("eurostat-jsonstat", () => {
+	const hpi = { params: { metric: "house_price_index", area: "FR" } };
+
+	it("reads a quarter whole, keeps the provisional flag, stamps the update time", () => {
+		const observations = EUROSTAT_JSONSTAT.normalize(
+			fixture("eurostat-house-price-index"),
+			hpi
+		);
+
+		expect(observations.map((o) => o.key)).toEqual([
+			"2025-Q4:127.46",
+			"2026-Q1:126.56",
+			"2026-Q2:125.54",
+		]);
+		expect(observations[2]).toEqual({
+			key: "2026-Q2:125.54",
+			observedAt: Date.parse("2026-10-01T11:00:00+0200"),
+			payload: {
+				metric: "house_price_index",
+				value: 125.54,
+				unit: "I15_Q",
+				area: "FR",
+				period: { start: "2026-04-01", end: "2026-06-30" },
+				details: { flag: "p" },
+			},
+		});
+	});
+
+	it("reads a month, and leaves out a missing value", () => {
+		const observations = EUROSTAT_JSONSTAT.normalize(
+			fixture("eurostat-unemployment"),
+			{ params: { metric: "unemployment_rate", area: "DE" } }
+		);
+
+		// The fixture has no value for 2026-10.
+		expect(observations.map((o) => o.payload.period)).toEqual([
+			{ start: "2026-07-01", end: "2026-07-31" },
+			{ start: "2026-08-01", end: "2026-08-31" },
+			{ start: "2026-09-01", end: "2026-09-30" },
+		]);
+	});
+
+	it("gives a revised value another key, so a second signal", () => {
+		const payload = fixture("eurostat-hicp");
+		payload.value["3"] = 3.9;
+
+		const keys = EUROSTAT_JSONSTAT.normalize(payload, {
+			params: { metric: "hicp_annual_rate", area: "FR" },
+		}).map((o) => o.key);
+
+		expect(keys).toContain("2026-10:3.9");
+		expect(keys).not.toContain("2026-10:3.8");
+	});
+
+	it("throws on a country the answer does not hold", () => {
+		const payload = fixture("eurostat-hicp");
+		payload.size[3] = 0;
+		payload.dimension.geo.category.index = {};
+		payload.value = {};
+
+		expect(() =>
+			EUROSTAT_JSONSTAT.normalize(payload, {
+				params: { metric: "hicp_annual_rate", area: "FR" },
+			})
+		).toThrow("not one series of one geo");
 	});
 });
 

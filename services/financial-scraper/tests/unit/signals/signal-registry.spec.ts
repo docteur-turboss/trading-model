@@ -52,6 +52,7 @@ describe("signal registry — the shipped file", () => {
 			"US_TREASURY_2Y",
 			"US_TREASURY_10Y",
 			"US_TREASURY_30Y",
+			"PARIS_RE",
 		]);
 	});
 
