@@ -59,11 +59,9 @@ rate(tt_training_sessions_total[3h])`.
 
 ### 7. Data Freshness
 
-- **Definition:** Proportion of candles persisted by financial-scraper that
-  reach trader-trainer.
-- **Measurement:** Prometheus `increase(tt_market_data_received_total[30m]) /
-increase(fs_candles_persisted_total[30m])`, both summed over all replicas.
-- **Source:** financial-scraper, trader-trainer.
+- **Definition:** Age of the newest candle the trainer reads from financial-scraper.
+- **Measurement:** Prometheus `min(tt_last_candle_age_seconds)`, read at each session.
+- **Source:** trader-trainer.
 
 ## SLOs
 
@@ -75,14 +73,13 @@ increase(fs_candles_persisted_total[30m])`, both summed over all replicas.
 | Message Delivery    | ≥ 99.95% | 30d    | `MessageDeliveryLowSuccessRate`: < 99.5% over 5m (no slow burn) |
 | DLQ Drain Ratio     | ≥ 1.0    | 30d    | `DLQSizeGrowing`, `DLQDrainRateLow` (no slow burn) |
 | Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 3h; `TrainingCompletionRateCritical` (critical, pages): < 50% over 3h (no slow burn) |
-| Data Freshness      | ≥ 90%    | 30d    | `CandleDeliveryLagging`: < 50% over 30m, for 15m; `MarketDataStale` / `TrainerMarketDataStale` when nothing flows |
+| Data Freshness      | ≤ 15 min | 30d    | `MarketDataStale` / `TrainerMarketDataStale` |
 
 The Message Delivery, DLQ and Training SLOs have no slow-burn alert: their
 traffic is low and bursty, so a 1h ratio flaps on a handful of events. A
 dead-lettered message already raises `MessagesDeadLettered`, and the existing
 alert on each SLI catches sustained loss. Adding them needs a minimum-volume
-guard first. `CandleDeliveryLagging` is set at 50%, not at the 90% target, until
-the real ratio is measured in production.
+guard first.
 
 ### Availability SLO (99.9%) and Error Rate SLO (< 1%)
 
@@ -117,7 +114,6 @@ into `deploy/k8s/infra/prometheus.yaml`):
 - `SLOErrorBudgetLow`: less than 20% of the 30d budget left (recording rule `slo:sli_error:ratio_rate30d`).
 - `SLOLatencyFastBurn`, `SLOLatencySlowBurn`: P95 ≤ 2s SLO, 5m and 1h windows.
 - `MessageDeliveryLowSuccessRate`, `DLQDrainRateLow`, `TrainingCompletionRateLow`: one alert per SLI.
-- `CandleDeliveryLagging`: data freshness SLO.
 
 The burn-rate rules and the budget read the recording rules `slo:sli_error:ratio_rate{5m,30m,1h,6h,30d}`, which exclude `/ping`, `/health/ready` and `/metrics`.
 

@@ -129,11 +129,11 @@ export const MARKET_DATA_BUFFER_SIZE = new promClient.Gauge({
 	labelNames: ["symbol"] as const,
 });
 
-// Grows with every candle the trainer receives: flat means the market data
-// stopped reaching it (alert TrainerMarketDataStale).
-export const MARKET_DATA_RECEIVED_TOTAL = new promClient.Counter({
-	name: "tt_market_data_received_total",
-	help: "Total market data candles added to the buffer",
+// High for every symbol: the scraper stopped feeding MySQL (alert TrainerMarketDataStale).
+export const LAST_CANDLE_AGE_SECONDS = new promClient.Gauge({
+	name: "tt_last_candle_age_seconds",
+	help: "Age of the newest candle of the stored window, read at the last training session",
+	labelNames: ["symbol"] as const,
 });
 
 export const MARKET_DATA_SYMBOLS = new promClient.Gauge({

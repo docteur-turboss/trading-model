@@ -103,7 +103,7 @@ A replay gives the entry back to the one group that failed, under its own `messa
 
 **Symptoms:** `fs_unpublished_candles` grows on the collector, `fs_publishes_skipped_total` grows (a publish held up to `PUBLISH_ACCEPT_TIMEOUT_MS`, 15 s), the scraper logs `Previous publish still in flight: skipped` or `Market data publish failed`. MySQL is still fed: the scraper persists before publishing and does not wait for the bus.
 
-Nothing is lost: the candles persisted while the bus is down stay in MySQL past the series publish cursor (`market_publish_cursors`, migration 005) and go out oldest first, 100 per cycle, once message-manager answers again, even after a collector restart. Fix the bus and `fs_unpublished_candles` falls back to 0; until then the trainer lags (`TrainerMarketDataStale` once it has received nothing for 15 min). To skip a backlog on purpose (e.g. after a very long outage, if old candles are not wanted), move the cursor: `UPDATE market_publish_cursors SET published_until = NOW(3) WHERE symbol = '<SYMBOL>'` (UTC session); the skipped candles stay in MySQL only.
+Nothing is lost: the candles persisted while the bus is down stay in MySQL past the series publish cursor (`market_publish_cursors`, migration 005) and go out oldest first, 100 per cycle, once message-manager answers again, even after a collector restart. Fix the bus and `fs_unpublished_candles` falls back to 0; until then the scraper publishes lag (the trainer reads MySQL, not the bus). To skip a backlog on purpose (e.g. after a very long outage, if old candles are not wanted), move the cursor: `UPDATE market_publish_cursors SET published_until = NOW(3) WHERE symbol = '<SYMBOL>'` (UTC session); the skipped candles stay in MySQL only.
 
 ### 6. Journal entries trimmed before delivery
 
@@ -130,7 +130,7 @@ kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli --scan --pattern 'tra
 
 # 3. Metrics: mm_messages_delivered_total{status="success"} grows again,
 #    mm_messages_unrouted_total stops growing
-# 4. Market data reaches the trainer: TrainerMarketDataStale resolves
+# 4. Unpublished candles drain: MarketDataUnpublished resolves
 ```
 
 ## Prevention

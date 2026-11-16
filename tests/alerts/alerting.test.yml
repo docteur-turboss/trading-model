@@ -105,24 +105,6 @@ tests:
       # Only "steady" is expected above: "spike" (9% over 5m, 0.8% over 1h) and
       # "probes" (all 5xx on /ping, /health/ready) must not fire.
 
-  # 1000 candles persisted per 30 min, 100 reach the trainer: freshness SLO.
-  - name: candles persisted but not delivered to the trainer
-    interval: 1m
-    input_series:
-      - series: 'fs_candles_persisted_total{job="financial-scraper",instance="s"}'
-        values: '0+33x60'
-      - series: 'tt_market_data_received_total{job="trader-trainer",instance="t"}'
-        values: '0+3x60'
-    alert_rule_test:
-      - eval_time: 50m
-        alertname: CandleDeliveryLagging
-        exp_alerts:
-          - exp_labels: {severity: warning, slo: data_freshness}
-            exp_annotations:
-              summary: 'Less than half of the persisted candles reach the trainer'
-              description: 'financial-scraper persisted candles over the last 30m but trader-trainer received under 50% of them: the scraper to trainer path is lagging or dropping data.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
-
   # 90% of the requests in < 0.1s, 10% between 5s and 10s: p95 = 7.5s, over
   # the job (all paths together).
   - name: p95 latency is computed per job and can exceed 5s
@@ -363,8 +345,8 @@ tests:
         values: '1x40'
       - series: 'fs_candles_persisted_total{job="financial-scraper",instance="s"}'
         values: '0x40'
-      - series: 'tt_market_data_received_total{job="trader-trainer",instance="t"}'
-        values: '0x40'
+      - series: 'tt_last_candle_age_seconds{job="trader-trainer",instance="t",symbol="BTCUSDT"}'
+        values: '3600x40'
     alert_rule_test:
       - eval_time: 25m
         alertname: MarketDataStale
@@ -379,8 +361,8 @@ tests:
         exp_alerts:
           - exp_labels: {severity: critical}
             exp_annotations:
-              summary: 'trader-trainer receives no market data'
-              description: 'No candle reached the trainer buffer in 15 minutes: the scraper, message-manager or the trainer subscription is broken.'
+              summary: 'trader-trainer reads no fresh candle'
+              description: 'At its last session the newest stored candle of every symbol was over 15 minutes old: the scraper no longer feeds MySQL or the trainer cannot read it.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
       - eval_time: 25m
         alertname: ServiceDown
@@ -527,8 +509,8 @@ tests:
         values: '0x40'
       - series: 'fs_candles_persisted_total{job="financial-scraper-collector",instance="c"}'
         values: '0+12x40'
-      - series: 'tt_market_data_received_total{job="trader-trainer",instance="t"}'
-        values: '0+12x40'
+      - series: 'tt_last_candle_age_seconds{job="trader-trainer",instance="t",symbol="BTCUSDT"}'
+        values: '60x40'
     alert_rule_test:
       - eval_time: 25m
         alertname: MarketDataStale

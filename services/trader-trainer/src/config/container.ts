@@ -32,7 +32,6 @@ import {
 	CURRENT_GENERATION,
 	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
-	MARKET_DATA_RECEIVED_TOTAL,
 	MARKET_DATA_SYMBOLS,
 	POPULATION_SIZE,
 	QLEARNING_TRAIN_ERRORS,
@@ -95,7 +94,6 @@ class ApplicationContainer {
 			onDataAdded: (symbol, candleCount, symbolCount) => {
 				MARKET_DATA_BUFFER_SIZE.set({ symbol: String(symbol) }, candleCount);
 				MARKET_DATA_SYMBOLS.set(symbolCount);
-				MARKET_DATA_RECEIVED_TOTAL.inc();
 			},
 		};
 		this.dataBuffer = new MarketDataBuffer(bufferConfig);

@@ -138,7 +138,7 @@ sequenceDiagram
   end
 ```
 
-The trainer still subscribes to candles, as a notification only: its candle window is read per session.
+The trainer subscribes to no topic: its candle window is read from financial-scraper at each session ([ADR-0078](../adr/0078-trainer-features-from-candles-only.md)).
 
 Each subscribed service gets one delivery per message, whatever its number of instances: message-manager groups the subscribed instances by service and posts to the service name, the Kubernetes Service picks the pod (consumer group, [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
 
