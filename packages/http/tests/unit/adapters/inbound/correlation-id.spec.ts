@@ -2,8 +2,11 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import {
 	correlationIdMiddleware,
+	getBusCorrelationId,
 	getCorrelationId,
+	runWithCorrelationId,
 } from "@trading-model/http/correlation-id";
+import { toCorrelationId } from "@trading-model/primitives/primitives";
 import type { NextFunction, Request, Response } from "express";
 
 describe("correlationIdMiddleware", () => {
@@ -115,5 +118,17 @@ describe("correlationIdMiddleware", () => {
 		await new Promise<void>((resolve) => setImmediate(resolve));
 
 		expect(observed).toBe("ctx-async");
+	});
+
+	it("getBusCorrelationId only returns UUID ids", () => {
+		const uuid = "550e8400-e29b-41d4-a716-446655440000";
+
+		expect(
+			runWithCorrelationId(toCorrelationId(uuid), getBusCorrelationId)
+		).toBe(uuid);
+		expect(
+			runWithCorrelationId(toCorrelationId("ctx-1"), getBusCorrelationId)
+		).toBeUndefined();
+		expect(getBusCorrelationId()).toBeUndefined();
 	});
 });

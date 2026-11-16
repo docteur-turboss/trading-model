@@ -1140,7 +1140,9 @@ services:
         condition: service_started
       docker-socket-proxy:
         condition: service_healthy
-    command: -config.file=/etc/promtail/promtail.yml
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
+    command: -config.file=/etc/promtail/promtail.yml -config.expand-env=true
 
 networks:
   docker-api-net:
