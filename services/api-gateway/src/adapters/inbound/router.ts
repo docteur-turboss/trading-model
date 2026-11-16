@@ -27,7 +27,7 @@ import {
 } from "../../infrastructure/config/metrics";
 import { requiredScope } from "../../shared/api-keys";
 import { parseRequestPath } from "../../shared/path-parser";
-import { isPublicRoute } from "../../shared/public-routes";
+import { matchPublicRoute } from "../../shared/public-routes";
 import { forwardRequest } from "../outbound/proxy-handler";
 import { AUTH_MIDDLEWARE, authOf } from "./auth";
 import { DEFAULT_LIMITER } from "./rate-limiter";
@@ -63,7 +63,7 @@ function _search(req: Request): string {
 	return index === -1 ? "" : url.slice(index);
 }
 
-const catchAllRoute = catchSync(async (req) => {
+const catchAllRoute = catchSync(async (req, res) => {
 	const parsed = parseRequestPath(req);
 	if (!parsed) {
 		return sendResponse(
@@ -80,9 +80,12 @@ const catchAllRoute = catchSync(async (req) => {
 
 	const { majorVersion, serviceName, path } = parsed;
 
-	if (!isPublicRoute(req.method, majorVersion, serviceName, path)) {
+	const pattern = matchPublicRoute(req.method, majorVersion, serviceName, path);
+	if (!pattern) {
 		return sendResponse({ error: "Route not found" }, HTTP_STATUS.NOT_FOUND);
 	}
+
+	res.locals.routeLabel = pattern;
 
 	const scope = requiredScope(req.method);
 	if (!authOf(req).apiKeyScopes.includes(scope)) {
