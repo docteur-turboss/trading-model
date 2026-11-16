@@ -692,7 +692,9 @@ describe("eia-open-data", () => {
 
 	it("dates natural gas storage at the collection, its Thursday report is not the petroleum one", () => {
 		const gas = Object.values(fixture("eia-open-data-series")).find(
-			(body) => (body as { response: { data: { units: string }[] } }).response.data[0].units === "BCF"
+			(body) =>
+				(body as { response: { data: { units: string }[] } }).response.data[0]
+					.units === "BCF"
 		);
 
 		const [{ observedAt }] = EIA_OPEN_DATA.normalize(gas, {
