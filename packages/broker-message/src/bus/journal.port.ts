@@ -64,13 +64,15 @@ export interface MessageJournalPort {
 	/**
 	 * Pending entries whose last attempt is older than `dueAfterMs(deliveries)`
 	 * (never below `floorMs`), taken over by `consumer`: whichever replica
-	 * owned them, even a dead one.
+	 * owned them, even a dead one. Ids in `skip` (still being handled by the
+	 * caller) are left alone: not claimed, so their delivery count stays right.
 	 */
 	claimDue(
 		group: JournalGroup,
 		consumer: string,
 		retry: { floorMs: number; dueAfterMs: (deliveries: number) => number },
-		count: number
+		count: number,
+		skip?: ReadonlySet<string>
 	): Promise<JournalEntry[]>;
 	/**
 	 * Backlog of every group: a bounded number of calls per group, none per
