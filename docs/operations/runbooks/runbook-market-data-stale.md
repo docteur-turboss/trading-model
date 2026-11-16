@@ -237,4 +237,4 @@ kubectl -n $NS exec deploy/financial-scraper-collector -c financial-scraper-coll
   node dist/application/signal-backfill.js --source <id> [--asset <id>] --from 2020-01-01 --to 2026-11-01
 ```
 
-Pages are sent at `maxRequestsPerMinute`, within what `maxRequestsPerDay` leaves after the cron. Exit 1 (failure, or quota reached: log `Daily quota reached`) keeps the pages stored; run the same command again to resume after the last one. Signal ids match the normal collection, so overlap or replay stores nothing twice.
+Pages are sent at `maxRequestsPerMinute`, within what `maxRequestsPerDay` leaves after the cron. Exit 1 (failure, or quota reached: log `Daily quota reached`) keeps the pages stored; run the same command again to resume after the last one (the count of the UTC day is kept, so reruns the same day share the quota). Progress is in the pod's temp dir: a restarted pod starts over, which is harmless (same ids) but resends the pages. Signal ids match the normal collection, so overlap or replay stores nothing twice.

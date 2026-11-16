@@ -117,6 +117,7 @@ describe("signal-backfill", () => {
 			["2026-02-01", "2026-01-01"],
 			["2026-01-01", "2026-12-01"],
 			["x", "2026-01-01"],
+			["2026-02-31", "2026-03-05"],
 		]) {
 			const t = setup(SOURCE);
 			const args = [
@@ -156,5 +157,21 @@ describe("signal-backfill", () => {
 		expect(await runBackfill(wide, t.deps)).toBe(1);
 		expect(t.urls).toHaveLength(3);
 		expect(t.errors.join()).toContain("quota");
+	});
+
+	it("shares the daily quota between two runs of the same day", async () => {
+		const t = setup(SOURCE);
+		const wide = [
+			"--source",
+			"s",
+			"--from",
+			"2026-01-01",
+			"--to",
+			"2026-02-15",
+		];
+		await runBackfill(wide, t.deps);
+		const urls = t.urls.length;
+		expect(await runBackfill(wide, t.deps)).toBe(1);
+		expect(t.urls).toHaveLength(urls);
 	});
 });

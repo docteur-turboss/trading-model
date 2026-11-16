@@ -40,28 +40,25 @@ export async function runBackfill(
 	for (let i = 0; i < args.length; i += 2) {
 		opts.set(args[i] ?? "", args[i + 1] ?? "");
 	}
-	const [sourceId, assetId, from, to] = [
-		"--source",
-		"--asset",
-		"--from",
-		"--to",
-	].map((name) => opts.get(name));
+	const known = ["--source", "--asset", "--from", "--to"];
+	if ([...opts.keys()].some((flag) => !known.includes(flag))) {
+		deps.err(USAGE);
+		return 2;
+	}
+	const [sourceId, assetId, from, to] = known.map((name) => opts.get(name));
 	const source = deps.registry.sources.find(({ id }) => id === sourceId);
-	const validDates = [from, to].every(
-		(date) =>
-			date !== undefined && DATE.test(date) && !Number.isNaN(Date.parse(date))
-	);
-	const refusal = source
-		? source.history
-			? !validDates ||
-				(from ?? "") > (to ?? "") ||
-				(to ?? "") > _day(deps.now())
-				? "Dates must be YYYY-MM-DD, from <= to, to not in the future"
-				: undefined
-			: `Source ${source.id} declares no history request`
-		: USAGE;
-	if (refusal || !source?.history || !from || !to) {
-		deps.err(refusal ?? USAGE);
+	if (!(source && from && to)) {
+		deps.err(USAGE);
+		return 2;
+	}
+	if (!source.history) {
+		deps.err(`Source ${source.id} declares no history request`);
+		return 2;
+	}
+	const real = (date: string) =>
+		DATE.test(date) && _day(Date.parse(date)) === date;
+	if (!(real(from) && real(to)) || from > to || to > _day(deps.now())) {
+		deps.err("Dates must be YYYY-MM-DD, from <= to, to not in the future");
 		return 2;
 	}
 	const requests = source.requests.filter(
@@ -74,8 +71,8 @@ export async function runBackfill(
 	}
 	const { url, pageDays } = source.history;
 	const spacingMs = 60_000 / source.accessPolicy.maxRequestsPerMinute;
-	// The normal collection keeps its share of the daily quota.
-	let budget =
+	// The normal collection keeps its share of the daily quota; runs of the same UTC day share the rest.
+	const limit =
 		source.accessPolicy.maxRequestsPerDay === undefined
 			? Number.POSITIVE_INFINITY
 			: source.accessPolicy.maxRequestsPerDay - dailyRequests(source);
@@ -96,7 +93,9 @@ export async function runBackfill(
 		let start = Date.parse(done ?? from) + (done ? DAY_MS : 0);
 		while (start <= Date.parse(to)) {
 			const end = Math.min(start + (pageDays - 1) * DAY_MS, Date.parse(to));
-			if (budget <= 0) {
+			const quotaKey = `quota:${source.id}:${_day(deps.now())}`;
+			const used = Number(deps.progress.get(quotaKey) ?? 0);
+			if (used >= limit) {
 				deps.err(`Daily quota reached at ${_day(start)}: run again tomorrow`);
 				return 1;
 			}
@@ -104,7 +103,7 @@ export async function runBackfill(
 				await deps.sleep(spacingMs);
 			}
 			sent = true;
-			budget--;
+			deps.progress.set(quotaKey, String(used + 1));
 			try {
 				await deps.collector.backfillPage(source, {
 					...request,

@@ -253,17 +253,6 @@ export function parseSignalRegistry(raw: unknown): SignalRegistry {
 				`source ${source.id}: schedule "${source.schedule}" sends ${planned} requests a day (${source.requests.length} requests per tick), over maxRequestsPerDay ${quota}`
 			);
 		}
-		const history = source.history?.url;
-		if (
-			history &&
-			(!(history.includes("{from}") && history.includes("{to}")) ||
-				/\{/.test(history.replace(HOLE, "").replace(/\{(from|to)\}/g, "")) ||
-				/^https:\/\/[^/?#]*\{/.test(history))
-		) {
-			problems.push(
-				`source ${source.id}: history url needs {from} and {to}, no other hole than asset ones, none in the host`
-			);
-		}
 		problems.push(..._requestProblems(source, adapter, file.assets));
 	}
 	if (problems.length > 0) {

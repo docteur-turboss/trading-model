@@ -171,7 +171,21 @@ export const Source = z.strictObject({
 	 */
 	history: z
 		.strictObject({
-			url: z.string().startsWith("https://"),
+			url: z
+				.string()
+				.startsWith("https://")
+				.refine(
+					(url) =>
+						url.includes("{from}") &&
+						url.includes("{to}") &&
+						!/\{/.test(
+							url
+								.replace(/\{asset\.(ticker|isin|alias\.[a-z][a-z0-9_]*)\}/g, "")
+								.replace(/\{(from|to)\}/g, "")
+						) &&
+						!/^https:\/\/[^/?#]*\{/.test(url),
+					"history url needs {from} and {to}, no other hole than asset ones, none in the host"
+				),
 			pageDays: z.number().int().positive(),
 		})
 		.optional(),
