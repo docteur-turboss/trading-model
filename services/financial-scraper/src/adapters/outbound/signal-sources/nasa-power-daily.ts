@@ -51,7 +51,7 @@ export const NASA_POWER_DAILY: SourceAdapter = {
 			const [day, value] = latest;
 			return [
 				{
-					key: `${variable}-${day}`,
+					key: `${name}-${variable}-${day}`,
 					payload: {
 						metric: variable,
 						value,

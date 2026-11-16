@@ -10,6 +10,7 @@ import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-so
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
 import { WIKIMEDIA_PAGEVIEWS } from "../../../src/adapters/outbound/signal-sources/wikimedia-pageviews";
+import { signalId } from "../../../src/application/signal-collector";
 import { PAYLOADS } from "../../../src/domain/signals";
 
 /**
@@ -637,7 +638,10 @@ describe("nasa-power-daily", () => {
 		const observations = NASA_POWER_DAILY.normalize(
 			fixture("nasa-power-daily"),
 			{
-				params: { name: "poltava-ua", variables: "T2M,GWETROOT,NOPE" },
+				params: {
+					name: "poltava-ua",
+					variables: "T2M,PRECTOTCORR,GWETROOT,NOPE",
+				},
 			}
 		);
 
@@ -649,11 +653,36 @@ describe("nasa-power-daily", () => {
 			])
 		).toEqual([
 			["T2M", 3.15, "C"],
-			["GWETROOT", expect.any(Number), "1"],
+			["PRECTOTCORR", 1.33, "mm/day"],
+			["GWETROOT", 0.54, "1"],
 		]);
 		expect(observations[0].payload.details).toEqual({
 			measuredAt: "2026-11-12",
 		});
+	});
+
+	it("gives no signal for a point with no value", () => {
+		const empty = {
+			geometry: { coordinates: [1, 2] },
+			properties: { parameter: { T2M: { "20261112": -999 } } },
+			parameters: { T2M: { units: "C" } },
+		};
+		expect(
+			NASA_POWER_DAILY.normalize(empty, {
+				params: { name: "x", variables: "T2M" },
+			})
+		).toEqual([]);
+	});
+
+	it("gives two points of the same day two distinct ids", () => {
+		const keyOf = (name: string) =>
+			NASA_POWER_DAILY.normalize(fixture("nasa-power-daily"), {
+				params: { name, variables: "T2M" },
+			})[0].key;
+		const subject = { sector: "agriculture" } as const;
+		expect(signalId("s", subject, "T2M", keyOf("beauce-fr"))).not.toBe(
+			signalId("s", subject, "T2M", keyOf("poltava-ua"))
+		);
 	});
 
 	it("rejects a changed format", () => {
