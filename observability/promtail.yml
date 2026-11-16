@@ -1,6 +1,7 @@
 # promtail for docker-compose: tails the containers of this compose project
 # through the Docker API (no /var/lib/docker mount, so it also works under
-# Docker Desktop). Same json pipeline as deploy/k8s/node-agents/promtail.yaml.
+# Docker Desktop). Only this project: the filter value is the project name
+# Compose gives the promtail service (-config.expand-env). Same json pipeline as deploy/k8s/node-agents/promtail.yaml.
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -18,7 +19,7 @@ scrape_configs:
         refresh_interval: 10s
         filters:
           - name: label
-            values: ['com.docker.compose.project']
+            values: ['com.docker.compose.project=${COMPOSE_PROJECT_NAME}']
     relabel_configs:
       - source_labels: [__meta_docker_container_label_com_docker_compose_service]
         target_label: component
