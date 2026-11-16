@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Related:** [ADR-0025](./0025-fitness-type-and-dqn-genes.md) (genes), [ADR-0039](./0039-configuration-feature-flags.md) (feature flags), [ADR-0081](./0081-signal-inputs-to-the-network.md) (signal inputs)
+**Related:** [ADR-0025](./0025-ga-fitness-wired-to-fitness-type.md) (genes), [ADR-0039](./0039-configuration-feature-flags.md) (feature flags), [ADR-0081](./0081-signal-inputs-to-the-network.md) (signal inputs)
 **Verified by:** `services/trader-trainer/tests/unit/genetic-algorithm/input-mask.spec.ts`, `bun run config:check`
 
 ## Context
