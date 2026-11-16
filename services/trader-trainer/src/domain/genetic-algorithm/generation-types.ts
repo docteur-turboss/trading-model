@@ -29,6 +29,8 @@ export interface GARunnerConfig {
 	telemetry?: GaTelemetry;
 	/** Aborted: the run ends after the current generation with its best genome so far (ADR-0058). */
 	signal?: AbortSignal;
+	/** FEATURE_EVENT_DRIVEN_DECISIONS: the population decides on market events. */
+	eventDriven?: boolean;
 }
 
 export interface GenerationContext {

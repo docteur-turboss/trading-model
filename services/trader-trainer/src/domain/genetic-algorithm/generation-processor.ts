@@ -60,6 +60,7 @@ export class GenerationProcessor {
 		const step = this._cfg.windowSets[0]?.train[0];
 		this._population = createInitialPopulation(
 			ctrl,
+			this._cfg.eventDriven,
 			step && step.features.toFloat32Array().length + AGENT_STATE_DIM
 		);
 		this._generation = 0;

@@ -37,7 +37,7 @@ Raw market data (prices, volumes, order book) is transformed into a 32-dimension
 | History | 7 | Last 8 closes sliding window |
 | Bias | 1 | Constant 1.0 (bias term) |
 
-Normalization (z-score) is applied per-symbol with running statistics, ensuring the network receives stable inputs despite changing market prices. Each step only sees the data known at its candle's close, statistics included (ADR-0030): no future value leaks into training or validation. With `FEATURE_SIGNAL_INPUTS`, the signals of `TRAINER_SIGNAL_FEATURES` add a value, an age and a confidence input each (ADR-0080).
+Normalization (z-score) is applied per-symbol with running statistics, ensuring the network receives stable inputs despite changing market prices. Each step only sees the data known at its candle's close, statistics included (ADR-0030): no future value leaks into training or validation. With `FEATURE_SIGNAL_INPUTS`, the signals of `TRAINER_SIGNAL_FEATURES` add a value, an age and a confidence input each (ADR-0081).
 
 ## Training Loop
 
@@ -55,6 +55,10 @@ Every 60 seconds:
        f. Check termination
     4. Store best genome
 ```
+
+### Event-driven decisions
+
+Behind `FEATURE_EVENT_DRIVEN_DECISIONS` (default off) the agent decides only on bars where a detector fires (price move or volume spike), at least `minGap` bars apart; the thresholds and `minGap` are genes, the network sees the bars since its last decision, and returns are discounted by the bars elapsed. Off: it decides every `frameSkip` bars. See ADR-0076 §5.
 
 ## Reward Shaping
 

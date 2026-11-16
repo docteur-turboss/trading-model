@@ -78,6 +78,7 @@ interface AppContainerConfig {
 	fitnessType: FitnessType;
 	observePosition: boolean;
 	signalKeys: string[];
+	eventDriven: boolean;
 	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
@@ -127,6 +128,7 @@ class ApplicationContainer {
 				episodesPerIndividual: config.episodesPerIndividual,
 				fitnessType: config.fitnessType,
 				observePosition: config.observePosition,
+				eventDriven: config.eventDriven,
 			},
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
@@ -165,6 +167,7 @@ interface TraderTrainerSettings {
 	TRAINER_FITNESS_TYPE: FitnessType;
 	/** Feature flag (ADR-0039); false: `total_pnl` only. Default true. */
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
+	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
 	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
 	TRAINER_SIGNAL_FEATURES?: string;
@@ -197,6 +200,7 @@ export function createTraderTrainerContainer(
 		signalKeys: settings.FEATURE_SIGNAL_INPUTS
 			? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
 			: [],
+		eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,

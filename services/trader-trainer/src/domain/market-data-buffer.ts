@@ -20,7 +20,7 @@ export interface MarketDataBufferConfig {
 	maxSize?: number;
 	maxMemoryBytes?: number;
 	evictionPolicy?: EvictionPolicy;
-	/** Signal metrics fed to the network after the market inputs (ADR-0080); empty: none. */
+	/** Signal metrics fed to the network after the market inputs (ADR-0081); empty: none. */
 	signalKeys?: readonly string[];
 	/** Observability hook, called with the per-symbol candle count and the symbol count. */
 	onDataAdded?: (

@@ -14,7 +14,7 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_SYMBOLS: z.string().default("BTCUSDT,ETHUSDT"),
 	/** `SYMBOL:ASSET` pairs (`BTCUSDT:BTC,ETHUSDT:ETH`): the registry asset whose signals a session reads. Empty: none (ADR-0036). */
 	TRAINER_SYMBOL_ASSETS: z.string().default(""),
-	/** `SUBJECT:dimension:metric` list (`BTC:social:pageviews`): the signals fed to the network as value, age and confidence inputs (ADR-0080). Used only with FEATURE_SIGNAL_INPUTS. */
+	/** `SUBJECT:dimension:metric` list (`BTC:social:pageviews`): the signals fed to the network as value, age and confidence inputs (ADR-0081). Used only with FEATURE_SIGNAL_INPUTS. */
 	TRAINER_SIGNAL_FEATURES: z
 		.string()
 		.default("")
@@ -52,6 +52,8 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_FITNESS_TYPE: z.enum(FitnessType).default(FitnessType.TotalPnl),
 	/** Feature flag (ADR-0039, fitness override): false forces `total_pnl` whatever TRAINER_FITNESS_TYPE says. */
 	FEATURE_RISK_ADJUSTED_FITNESS: featureFlag(true),
+	/** Feature flag (ADR-0039): true makes the agent decide on market events, not every bar (ADR-0076 §5). */
+	FEATURE_EVENT_DRIVEN_DECISIONS: featureFlag(false),
 	/** Show the agent its position; false to measure what it is worth (ADR-0025). */
 	TRAINER_OBSERVE_POSITION: z.stringbool().default(true),
 	/**

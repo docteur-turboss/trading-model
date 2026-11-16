@@ -1,4 +1,4 @@
-# ADR-0080: Signals Enter the Network as Value, Age and Confidence Inputs
+# ADR-0081: Signals Enter the Network as Value, Age and Confidence Inputs
 
 **Status:** Accepted
 **Date:** 2026-11

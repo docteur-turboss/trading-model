@@ -7,12 +7,14 @@ import { makeGenomeId } from "./utils";
 
 export function createInitialPopulation(
 	ctrl: DeepReadonly<GAControlGenome>,
+	eventDriven = false,
 	inputDim?: number
 ): DeepReadonly<LamarckGenome>[] {
 	return Array.from({ length: ctrl.population.size }, (_unused, index) => {
 		const baseGenome = createDefaultGenome(
 			makeGenomeId(0, index),
 			0 as PositiveInt,
+			eventDriven,
 			inputDim
 		) as LamarckGenome;
 		return deepFreeze({

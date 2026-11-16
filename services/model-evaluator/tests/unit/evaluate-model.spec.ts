@@ -50,7 +50,7 @@ describe("evaluate a published model", () => {
 		return { evaluate, calls };
 	};
 
-	it("reads a manifest from before and one from after the signal inputs (ADR-0080)", () => {
+	it("reads a manifest from before and one from after the signal inputs (ADR-0081)", () => {
 		const base = { ...MANIFEST, features: { dim: 19, fields: ["Bias"] } };
 		const withSignals = {
 			...base,

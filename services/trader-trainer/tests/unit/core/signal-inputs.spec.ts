@@ -8,6 +8,7 @@ import {
 import type { Signal } from "@trading-model/validation/wire/signals";
 import {
 	AGENT_STATE_DIM,
+	eventInputLayout,
 	NETWORK_INPUT_LAYOUT,
 	networkInputLayout,
 } from "../../../src/domain/agent/agent-state";
@@ -19,7 +20,7 @@ import { createInitialPopulation } from "../../../src/domain/genetic-algorithm/p
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 import { makeCandle } from "../../fixtures/market-data.fixture";
 
-// ADR-0080: signals enter the network as value, age and confidence inputs.
+// ADR-0081: signals enter the network as value, age and confidence inputs.
 const SYMBOL = TradingSymbol.of("BTCUSDT");
 const KEY = "BTC:social:pageviews";
 const MINUTE = 60_000;
@@ -67,7 +68,7 @@ const inputs = (buffer: MarketDataBuffer) =>
 		.buildMarketSteps(SYMBOL)
 		.map((step) => Array.from(step.features.signals));
 
-describe("signal inputs (ADR-0080)", () => {
+describe("signal inputs (ADR-0081)", () => {
 	it("reads a value from the step its observedAt allows, not before", () => {
 		const published = closeOf(30);
 		const raw = inputs(
@@ -129,8 +130,11 @@ describe("signal inputs (ADR-0080)", () => {
 			`SignalConfidence:${KEY}`,
 		]);
 		expect(
-			createDefaultGenome("g", 0 as never, layout.dim).network.inputDim
+			createDefaultGenome("g", 0 as never, false, layout.dim).network.inputDim
 		).toBe(layout.dim);
+		expect(
+			createDefaultGenome("g", 0 as never, true, layout.dim).network.inputDim
+		).toBe(eventInputLayout([KEY]).dim);
 	});
 
 	it("publishes the same initial genomes with the flag off, and 19 + 3n inputs with n metrics", () => {

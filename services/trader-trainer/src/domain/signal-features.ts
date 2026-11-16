@@ -2,7 +2,7 @@ import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import type { Signal } from "@trading-model/validation/wire/signals";
 import type { MarketStep } from "./genetic-algorithm/genome";
 
-/** Inputs per metric: value, age, confidence (ADR-0080). */
+/** Inputs per metric: value, age, confidence (ADR-0081). */
 const SIGNAL_INPUTS_PER_METRIC = 3;
 const MAX_AGE_MS = 365 * 24 * 3_600_000;
 const HOUR_MS = 3_600_000;
