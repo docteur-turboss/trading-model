@@ -15,8 +15,8 @@
     "./neural-network/feed-forward-engine": "./dist/neural-network/feed-forward-engine.js",
     "./neural-network/network-serialization": "./dist/neural-network/network-serialization.js",
     "./neural-network/type": "./dist/neural-network/type.js",
-    "./replay-metrics": "./dist/replay-metrics.js",
-    "./noise": "./dist/noise.js"
+    "./noise": "./dist/noise.js",
+    "./replay-metrics": "./dist/replay-metrics.js"
   },
   "dependencies": {
     "@trading-model/primitives": "*",
