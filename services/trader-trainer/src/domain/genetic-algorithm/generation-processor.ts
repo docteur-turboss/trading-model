@@ -104,14 +104,6 @@ export class GenerationProcessor {
 		});
 		this._cfg.onGeneration?.(ctx);
 		this._telemetry.stagnationUpdated(ctx.stagnation);
-		if (this._cfg.inputGroups) {
-			this._telemetry.inputMasks?.(
-				this._cfg.inputGroups,
-				ctx.population.flatMap((genome) =>
-					genome.network.inputMask ? [genome.network.inputMask] : []
-				)
-			);
-		}
 		return ctx;
 	}
 

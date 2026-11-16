@@ -12,11 +12,6 @@ export interface GaTelemetry {
 	genomeEvaluated(durationMs: number): void;
 	/** Crossovers of one generation that copied a parent because the weight lengths differ. */
 	crossoverFallbacks(count: number): void;
-	/** Input masks of the generation's population, in the order of the `groups` names. */
-	inputMasks?(
-		groups: readonly string[],
-		masks: readonly (readonly boolean[])[]
-	): void;
 }
 
 export const NoopGaTelemetry: GaTelemetry = {

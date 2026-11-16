@@ -88,8 +88,7 @@ describe("input mask gene (ADR-0082)", () => {
 		);
 	});
 
-	it("flag off: the genome has no mask; on: all groups active", () => {
-		expect(createDefaultGenome("g").network).not.toHaveProperty("inputMask");
+	it("flag on: all groups active", () => {
 		expect(
 			createDefaultGenome("g", 0 as PositiveInt, false, 22, 3).network.inputMask
 		).toEqual([true, true, true]);

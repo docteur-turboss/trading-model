@@ -38,7 +38,6 @@ import {
 	MARKET_DATA_BUFFER_SIZE,
 	MARKET_DATA_SYMBOLS,
 	QLEARNING_TRAIN_ERRORS,
-	reportInputGroups,
 	STAGNATION_GENERATIONS,
 	TRAINING_LEADER,
 } from "./metrics";
@@ -59,9 +58,6 @@ const PROMETHEUS_GA_TELEMETRY: GaTelemetry = {
 	},
 	crossoverFallbacks(count) {
 		CROSSOVER_FALLBACK_TOTAL.inc(count);
-	},
-	inputMasks(groups, masks) {
-		reportInputGroups("population", groups, masks);
 	},
 };
 

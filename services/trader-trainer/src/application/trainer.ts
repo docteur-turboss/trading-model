@@ -254,11 +254,9 @@ export class Trainer {
 		};
 		const publishedMask = result.bestGenome.network.inputMask;
 		if (publishedMask) {
-			reportInputGroups(
-				"published",
-				inputGroupNames(this._dataBuffer.signalKeys),
-				[publishedMask]
-			);
+			const groups = inputGroupNames(this._dataBuffer.signalKeys);
+			reportInputGroups("published", groups, [publishedMask]);
+			reportInputGroups("population", groups, result.inputMasks ?? []);
 		}
 		const snapshot = new LastTrainingInfo(outcome);
 		this._lastInfo = snapshot;
