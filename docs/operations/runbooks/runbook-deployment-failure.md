@@ -1,7 +1,7 @@
 # Runbook: Deployment Failure
 
 **Severity:** L1-L2  
-**Alert:** `HighErrorRate`, `ServiceDown` post-deployment
+**Alert:** `SLOAvailabilityFastBurn`, `ServiceDown` post-deployment
 
 ## Detection
 

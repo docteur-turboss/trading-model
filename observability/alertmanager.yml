@@ -97,5 +97,5 @@ inhibit_rules:
     target_matchers: ['severity="warning"', 'job=~".+"']
     equal: ['job']
   - source_matchers: ['alertname="ServiceDown"']
-    target_matchers: ['alertname=~"HighErrorRate|SLO.*"']
+    target_matchers: ['alertname=~"SLO.*"']
     equal: ['job']

@@ -50,6 +50,7 @@ describe("signal registry — the shipped file", () => {
 			"NANTES_RE",
 			"LILLE_RE",
 			"MONTPELLIER_RE",
+			"XLE",
 			"EA_AAA_10Y",
 			"EA_AAA_2Y",
 			"EA_AAA_30Y",
@@ -68,6 +69,22 @@ describe("signal registry — the shipped file", () => {
 		expect(weather?.requests.map((request) => request.subject)).toEqual([
 			{ sector: "agriculture" },
 		]);
+	});
+
+	it("gives the EIA series to the whole energy sector, its key only in the query", () => {
+		const eia = SIGNAL_REGISTRY.sources.find(
+			(source) => source.id === "eia-weekly-energy"
+		);
+
+		expect(eia?.requests.map((request) => request.subject)).toEqual(
+			new Array(4).fill({ sector: "energy" })
+		);
+		expect(eia?.accessPolicy.auth).toMatchObject({
+			env: "SIGNAL_KEY_EIA",
+			in: "query",
+		});
+		expect(eia?.accessPolicy.maxRequestsPerDay).toBeDefined();
+		expect(SIGNAL_REGISTRY.assets.get("XLE")?.sector).toBe("energy");
 	});
 
 	it("only holds free sources, Twelve Data alone is non-commercial", () => {
@@ -167,10 +184,10 @@ describe("parseSignalRegistry", () => {
 			"a request on a sector without asset",
 			(file: any) => {
 				sourceOf(file, "nws-kansas-wheat-belt").requests[0].subject = {
-					sector: "energy",
+					sector: "healthcare",
 				};
 			},
-			"source nws-kansas-wheat-belt, request 0: no asset in sector energy",
+			"source nws-kansas-wheat-belt, request 0: no asset in sector healthcare",
 		],
 		[
 			"a request on an area no asset has",
@@ -321,7 +338,7 @@ describe("parseSignalRegistry", () => {
 		[
 			"a selector matching nothing",
 			(t: any) => {
-				t.select = { sector: "energy" };
+				t.select = { sector: "healthcare" };
 			},
 			"template 0: selector matches no asset",
 		],
@@ -373,7 +390,7 @@ describe("parseSignalRegistry", () => {
 		const file = registry();
 		delete assetOf(file, "AAPL").aliases.wikipedia;
 		const { templates } = sourceOf(file, "wikipedia-pageviews");
-		templates.push({ ...templates[0], select: { sector: "energy" } });
+		templates.push({ ...templates[0], select: { sector: "healthcare" } });
 		templates.push({ ...templates[0], select: { assetIds: ["AAPL"] } });
 
 		expect(() => parseSignalRegistry(file)).toThrow(

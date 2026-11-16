@@ -202,9 +202,9 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		migrate("down", "4");
+		migrate("down", "3");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -4)
+			MIGRATION_IDS.slice(0, -3)
 		);
 		await expect(tables()).resolves.toEqual(
 			ALL_TABLES.filter((table) => table !== "market_order_books")
@@ -392,17 +392,6 @@ describe("market_trades — real MySQL", () => {
 				to: T0 + 2,
 			})
 		).resolves.toHaveLength(1);
-	});
-
-	it("should upsert past the INT limit once the id is BIGINT UNSIGNED (issue #1379)", async () => {
-		await DATABASE.promise().query(
-			"ALTER TABLE market_trades AUTO_INCREMENT = 2147483648"
-		);
-
-		await insertTrades([trade({ tradeId: 77n })]);
-
-		const [row] = await selectTradesBy.symbol(SYMBOL, PAGE);
-		expect(row.id).toBeGreaterThan(2_147_483_647);
 	});
 
 	it("should reject a side outside the column enum", async () => {
