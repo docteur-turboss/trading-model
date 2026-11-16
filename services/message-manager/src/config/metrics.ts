@@ -1,5 +1,5 @@
+import { metricsHandler } from "@trading-model/http/metrics-handler";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
-import { metricsHandler } from "@trading-model/server-utils/metrics-handler";
 import promClient from "prom-client";
 
 const circuitBreakerStates = Object.values(CircuitState)
@@ -48,9 +48,10 @@ export const JOURNAL_OLDEST_PENDING_AGE_SECONDS = new promClient.Gauge({
 	labelNames: ["topic", "service"] as const,
 });
 
-export const DLQ_REJECTED_TOTAL = new promClient.Counter({
-	name: "mm_dlq_rejected_total",
-	help: "Dead letters dlq-service refused for good (invalid or too large); the journal entry stays pending until trimmed",
+export const BUS_DEAD_LETTERS = new promClient.Gauge({
+	name: "bus_dead_letters",
+	help: "Entries in the dead stream of a topic: dead letters an operator has not replayed or deleted yet (ADR-0073)",
+	labelNames: ["topic"] as const,
 });
 
 export const DELIVERY_LATENCY_SECONDS = new promClient.Histogram({

@@ -10,7 +10,7 @@ import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 import { makeCandle } from "../../fixtures/market-data.fixture";
 
 // ADR-0030: a candle's features read only what was known at its close.
-// ADR-0074: the candle window is their only source.
+// ADR-0078: the candle window is their only source.
 const SYMBOL = TradingSymbol.of("BTCUSDT");
 const MINUTE = 60_000;
 const T0 = 1_700_000_000_000;
@@ -45,7 +45,7 @@ const features = (buffer: MarketDataBuffer) =>
 		.buildMarketSteps(SYMBOL)
 		.map((step) => Array.from(step.features.toFloat32Array()));
 
-describe("point-in-time features (ADR-0030, ADR-0074)", () => {
+describe("point-in-time features (ADR-0030, ADR-0078)", () => {
 	it("leaves every past step unchanged when later data arrives", () => {
 		const past = features(bufferWith(20));
 		const later = features(bufferWith(40)).slice(0, past.length);

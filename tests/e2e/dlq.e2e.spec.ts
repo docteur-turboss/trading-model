@@ -1,58 +1,27 @@
 import { describe, expect, it } from "@jest/globals";
-import { CALLER, meshRequest, signedDlqHeaders, step } from "./helpers";
+import { CALLER, meshRequest, signedDlqHeaders } from "./helpers";
 
 const DLQ = "https://dlq-service:3000";
 
 describe("DLQ E2E", () => {
-	const entry = {
-		topic: "e2e.test.topic",
-		message: { key: "value", sequence: 1 },
-		reason: "E2E test - simulated failure",
-		deliveryAttempt: 3,
-		timestamp: new Date().toISOString(),
-	};
-
 	it("reports MongoDB ready", () => {
 		expect(meshRequest(CALLER.scraper, `${DLQ}/health/ready`).status).toBe(200);
 	});
 
-	it("stores a signed dead letter entry and lists it", async () => {
-		const storedId = await step("stores the entry", () => {
-			const { status, body } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
-				method: "POST",
-				body: entry,
-				headers: signedDlqHeaders(entry, "POST", "/dlq"),
-			});
-			expect(status).toBe(201);
-			const id = JSON.parse(body).id;
-			expect(id).toEqual(expect.any(String));
-			expect(id).not.toBe("");
-			return id as string;
+	it("lists the entries for a signed caller", () => {
+		const { status } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
+			headers: signedDlqHeaders(undefined, "GET", "/dlq"),
 		});
-
-		await step("lists the entry", () => {
-			const { status, body } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
-				headers: signedDlqHeaders(undefined, "GET", "/dlq"),
-			});
-			expect(status).toBe(200);
-			expect(JSON.stringify(JSON.parse(body).entries)).toContain(storedId);
-		});
+		expect(status).toBe(200);
 	});
 
-	it("rejects an unsigned request", () => {
+	it("no longer takes dead letters: they go to the dead streams (ADR-0073)", () => {
+		const entry = { topic: "e2e.test.topic", message: {} };
 		const { status } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
 			method: "POST",
 			body: entry,
+			headers: signedDlqHeaders(entry, "POST", "/dlq"),
 		});
-		expect([401, 403]).toContain(status);
-	});
-
-	it("rejects a request signed with another secret", () => {
-		const { status } = meshRequest(CALLER.message, `${DLQ}/dlq`, {
-			method: "POST",
-			body: entry,
-			headers: signedDlqHeaders(entry, "POST", "/dlq", "not-the-secret"),
-		});
-		expect(status).toBe(401);
+		expect(status).toBe(404);
 	});
 });

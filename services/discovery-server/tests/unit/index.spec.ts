@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/server-utils/bootstrap", () => ({
+jest.mock("@trading-model/http/bootstrap", () => ({
 	createBootstrap: jest.fn<(...args: any[]) => any>(),
 }));
 
@@ -61,7 +61,7 @@ describe("app/index", () => {
 
 	it("should call createBootstrap with correct options on load", () => {
 		const { createBootstrap } = jest.requireMock(
-			"@trading-model/server-utils/bootstrap"
+			"@trading-model/http/bootstrap"
 		) as {
 			createBootstrap: jest.Mock<(...args: any[]) => any>;
 		};
@@ -92,28 +92,6 @@ describe("app/index", () => {
 
 		opts.onStart();
 
-		opts.onStop();
-	});
-
-	it("should use RedisInstanceStore when REDIS_URL is set", () => {
-		jest.resetModules();
-
-		require("../../src/application/index");
-
-		const { createBootstrap } = jest.requireMock(
-			"@trading-model/server-utils/bootstrap"
-		) as {
-			createBootstrap: jest.Mock<(...args: any[]) => any>;
-		};
-
-		const opts = createBootstrap.mock.calls.at(-1)![0] as {
-			createServer: () => void;
-			onStart: () => void;
-			onStop: () => void;
-		};
-
-		opts.createServer();
-		opts.onStart();
 		opts.onStop();
 	});
 });

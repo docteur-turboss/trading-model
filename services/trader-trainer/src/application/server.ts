@@ -1,6 +1,6 @@
+import { svidReadinessCheck } from "@trading-model/http/readiness";
+import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { ServiceId } from "@trading-model/primitives/primitives";
-import { svidReadinessCheck } from "@trading-model/server-utils/readiness";
-import { createServiceServer } from "@trading-model/server-utils/service-server-factory";
 
 import {
 	TRAINER_ROUTES,

@@ -1,9 +1,9 @@
-import type { Message } from "@trading-model/contracts/message-types";
 import type {
 	JournalEntry,
 	JournalGroup,
 	MessageJournalPort,
-} from "../../domain/ports/message-journal.port";
+} from "@trading-model/broker-message/bus/journal.port";
+import type { Message } from "@trading-model/contracts/message-types";
 
 interface Pending {
 	lastAttemptAt: number;
@@ -56,6 +56,12 @@ export class InMemoryMessageJournal implements MessageJournalPort {
 		for (const wake of [...this._waiters]) {
 			wake();
 		}
+	}
+
+	retire(group: JournalGroup): Promise<void> {
+		this._groups.delete(keyOf(group));
+		this._known.delete(keyOf(group));
+		return Promise.resolve();
 	}
 
 	groups(): Promise<JournalGroup[]> {

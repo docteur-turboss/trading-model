@@ -5,14 +5,20 @@
   "license": "ISC",
   "type": "commonjs",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "default": "./dist/*.js"
-    }
+    ".": "./dist/index.js",
+    "./bus/backoff": "./dist/bus/backoff.js",
+    "./bus/consumer": "./dist/bus/consumer.js",
+    "./bus/dead-streams": "./dist/bus/dead-streams.js",
+    "./bus/delivery-error-classifier": "./dist/bus/delivery-error-classifier.js",
+    "./bus/delivery-metadata-extractor": "./dist/bus/delivery-metadata-extractor.js",
+    "./bus/journal.port": "./dist/bus/journal.port.js",
+    "./bus/message-factory": "./dist/bus/message-factory.js",
+    "./bus/publisher": "./dist/bus/publisher.js",
+    "./bus/redis-journal": "./dist/bus/redis-journal.js",
+    "./create-message-manager": "./dist/create-message-manager.js",
+    "./shared/barrel/message.schema": "./dist/shared/barrel/message.schema.js",
+    "./shared/errors": "./dist/shared/errors.js",
+    "./shared/trace-context": "./dist/shared/trace-context.js"
   },
   "dependencies": {
     "@trading-model/primitives": "*",
@@ -21,6 +27,7 @@
     "@trading-model/address-manager": "*",
     "@trading-model/common": "*",
     "@trading-model/http": "*",
+    "@trading-model/persistence": "*",
     "express": "^5.3.0",
     "zod": "^4.6.7"
   },

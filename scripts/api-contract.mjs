@@ -75,8 +75,6 @@ const SERVICE_TO_SERVICE = {
 	],
 	"audit-logger": ["POST /message"],
 	"model-evaluator": ["POST /message"],
-	// Dead letters come from message-manager only (#845): a public deposit could be replayed to any service.
-	"dlq-service": ["POST /dlq"],
 	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
@@ -97,7 +95,6 @@ const CALLERS = {
 	"message-manager POST /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
 	"message-manager DELETE /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
 	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
-	"dlq-service POST /dlq": { caller: "services/message-manager", call: /\/dlq`|"\/dlq"/ },
 	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
 	"model-evaluator POST /message": { caller: "services/model-evaluator", call: /\.intents\(/ },
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "services/model-evaluator", call: /\/weights`/ },
@@ -117,7 +114,7 @@ const WEBSOCKET_SERVER = /new\s+WebSocketServer\(|\.on\(\s*["']upgrade["']|handl
 const ROUTE_PROVIDERS = [
 	{
 		mountedBy: /createServiceServer\(|createSecureServer\(/,
-		files: ["packages/server-utils/src/configure-app.ts"],
+		files: ["packages/http/src/configure-app.ts"],
 	},
 	{
 		mountedBy: /ADDRESS_MANAGER_ROUTES\(/,

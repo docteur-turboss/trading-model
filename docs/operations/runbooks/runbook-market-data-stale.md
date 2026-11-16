@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
-**Severity:** SEV2 (the platform runs, but trades and training work on old data)
-**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `CandleDeliveryLagging`
+**Severity:** L2 (the platform runs, but trades and training work on old data)
+**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `SignalSourceStale`, `CandleDeliveryLagging`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -131,7 +131,7 @@ a collector runs.
 
 ## SymbolMarketDataStale
 
-**Severity:** SEV2 (critical). No candle of one tracked symbol was persisted
+**Severity:** L2 (critical). No candle of one tracked symbol was persisted
 for 15 minutes while the others may still flow: the cycle counts as `success`
 and `MarketDataStale` (global sum) stays silent, but that symbol gets no new
 data and the trainer stops training it (`TRAINER_MAX_DATA_AGE_MS`). The
@@ -168,9 +168,26 @@ Read the `error` of the log line:
 The alert resolves within 15 minutes once a candle of the symbol is persisted
 again.
 
+## SignalSourceStale
+
+**Severity:** L4 (warning). A registry source (ADR-0036) has had no
+successful collection for longer than its threshold (`maxAgeSeconds` in
+`signal-registry.json`, else three periods of its `schedule`), with no failure
+counted. A source that answers 200 with an empty list still counts as a
+success: compare `fs_signal_newest_observed_timestamp_seconds` by hand for it.
+
+- **Lease lost**: `fs_collector_leader` is 0 on every pod (alert
+  `CollectorNoLeader`); see its section.
+- **Cron stopped**: a leader exists but the source logs neither
+  "Signal collection failed" nor "Previous signal collection still running:
+  tick skipped": its `schedule` is wrong or its API key is unset
+  (`fs_signal_source_disabled`). Fix the registry or secret, restart.
+- **Source stopped** (a tick that hangs, publisher down without error):
+  raise `maxAgeSeconds` or remove the source if the stop is final.
+
 ## SignalCollectionFailing
 
-**Severity:** SEV4 (warning). Binance market data is not affected: only the
+**Severity:** L4 (warning). Binance market data is not affected: only the
 signals of one registry source (ADR-0036) are missing or stale. The alert
 stays on for 24 hours after the last failure.
 
@@ -195,6 +212,17 @@ By `result`:
   fixture; nothing is stored until the adapter is fixed.
 - **`store_error`**: MySQL refuses the writes; see
   [runbook-database-failover](runbook-database-failover.md).
+
+**Quarantine.** After 3 consecutive ticks with a `fetch_error`, at once on
+a 401 or 403 or an answer with `Retry-After`, the collector skips the ticks
+of the source (counted `result="skipped_quarantine"`, so this alert stays on)
+until a deadline: 1 h doubling to 24 h, never before `Retry-After`. One trial
+request follows; a success closes it. Read it: gauge
+`fs_signal_source_quarantined{source}` = 1 and the "Signal source
+quarantined" log (`until`). Force a new trial: restart the collector
+(`kubectl -n $NS rollout restart deploy/financial-scraper-collector`); the
+state is in memory only. Fix the cause first (key, e-mail, rate), or the
+trial fails and the quarantine starts again.
 
 A collection that failed is not retried before the next schedule of its
 source; values the source still publishes then are collected again (ECB: last

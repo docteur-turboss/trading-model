@@ -42,14 +42,16 @@ test('application importing adapters or infrastructure fails, startup files are 
     'packages/lib/src/application/use.ts': "import { db } from '../adapters/db';\nexport const u = db;",
     'packages/lib/src/adapters/db.ts': 'export const db = 1;',
     [`${S}/application/shared.ts`]: "import type { X } from '@trading-model/http/infrastructure/logger';\nexport type Y = X;",
+    [`${S}/config/deep.ts`]: "import { v } from '@trading-model/validation/domain/primitives';\nexport const d = v;",
   });
   try {
     const found = analyze(root);
     assert.deepEqual(found.layers, [
       `${S}/application/shared.ts -> @trading-model/http/infrastructure/logger`,
       `${S}/application/use-case.ts -> ../adapters/db`,
+      `${S}/config/deep.ts -> @trading-model/validation/domain/primitives`,
     ]);
-    assert.equal(compare(found, none).length, 2);
+    assert.equal(compare(found, none).length, 3);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

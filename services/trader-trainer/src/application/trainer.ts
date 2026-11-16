@@ -129,7 +129,7 @@ export class Trainer {
 					JSON.stringify(manifest.features) !==
 						JSON.stringify(NETWORK_INPUT_LAYOUT)
 				) {
-					// Published before the 18-input layout (ADR-0074): retrained, not served.
+					// Published before the 18-input layout (ADR-0078): retrained, not served.
 					getLogger().warn("Stored model has another feature layout, skipped", {
 						context: { symbol, version: manifest.version },
 					});

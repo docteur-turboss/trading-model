@@ -67,7 +67,7 @@ jest.mock("../../services/audit-logger/src/config/metrics", () => ({
 }));
 // dlq-service publishes its events through the real broker client.
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
-	createServiceMessageManager: () => ({
+	createMessageManager: () => ({
 		messageManager: {
 			post: {
 				indirect: (payload: unknown, metadata: never) =>
@@ -77,14 +77,20 @@ jest.mock("@trading-model/broker-message/create-message-manager", () => ({
 	}),
 }));
 jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
-	ENV: { INSTANCE_ID: "dlq-service-1" },
+	ENV: {
+		INSTANCE_ID: "dlq-service-1",
+		SERVICE_NAME: "dlq-service",
+		MESSAGE_CALLBACK_PATH: "message",
+	},
+}));
+jest.mock("@trading-model/common/config/tls-paths", () => ({
+	buildTlsFromEnv: () => ({}),
 }));
 jest.mock("../../services/dlq-service/src/config/address-manager", () => ({
 	AddressManager: {},
 }));
 
 import {
-	notifyAddAudit,
 	notifyDeleteAudit,
 	notifyReplayAudit,
 } from "../../services/dlq-service/src/adapters/outbound/audit-notifier";
@@ -113,6 +119,8 @@ import { ModelPublisher } from "../../services/trader-trainer/src/adapters/outbo
 const UNPUBLISHED_TOPICS: Record<string, string> = {
 	[AuditEvent.AuditHeartbeat]: "reserved for audit heartbeats, no producer",
 	[AuditEvent.AuditGapDetected]: "reserved for audit gap reports, no producer",
+	[DlqEvent.EntryAdded]:
+		"written into the journal by message-manager's dead-letter store (bus-library.spec.ts, dead-letter.spec.ts)",
 };
 
 const ALL_TOPICS: string[] = [
@@ -163,7 +171,6 @@ async function publishScrapeCycle(): Promise<Publication[]> {
 }
 
 async function publishDlqEvents(): Promise<Publication[]> {
-	notifyAddAudit("entry-1", "market.trade.recent.fetch" as never, "OPEN", null);
 	// The human actions wait for message-manager to accept their event (ADR-0059).
 	await expect(
 		notifyReplayAudit({
@@ -176,8 +183,6 @@ async function publishDlqEvents(): Promise<Publication[]> {
 	await expect(notifyDeleteAudit(["entry-1"], 1, "ops-alice")).resolves.toBe(
 		true
 	);
-	// The add does not wait for its publish.
-	await new Promise((resolve) => setImmediate(resolve));
 	return publicationsOf("dlq-service", mockDlqBroker.requests);
 }
 
@@ -268,7 +273,7 @@ describe("service message contracts", () => {
 		it("every published topic has at least one subscriber", () => {
 			const unconsumed = publications
 				.map((p) => p.topic)
-				// Market data: no subscriber since ADR-0074 (the trainer reads stored candles).
+				// Market data: no subscriber since ADR-0078 (the trainer reads stored candles).
 				.filter((topic) => !Object.values<string>(MarketEvent).includes(topic))
 				.filter((topic) => !subscribers.some((s) => s.topics.includes(topic)));
 
@@ -344,7 +349,7 @@ describe("service message contracts", () => {
 		);
 	});
 
-	describe("dead letters replayed by dlq-service reach the subscribers again", () => {
+	describe("dead letters replayed by the CLI reach the subscribers again", () => {
 		const receivers = [{ topics: audit.topics, receive: audit.receive }];
 
 		it.each(ALL_TOPICS.filter((t) => !(t in UNPUBLISHED_TOPICS)))(
@@ -358,31 +363,24 @@ describe("service message contracts", () => {
 						throw new Error(first.error);
 					}
 
-					const { stored, replay } = await deadLetterAndReplay(first.message);
+					const { stored, replayed } = await deadLetterAndReplay(first.message);
 					expect(stored.topic).toBe(topic);
-
-					const replayed = await relayThroughMessageManager(replay);
-					expect(replayed).toMatchObject({ accepted: true });
-					if (!replayed.accepted) {
-						continue;
-					}
 					// ADR-0043: only the failed service, under the original messageId.
-					expect(replayed.journaledFor).toEqual({
-						services: ["audit-logger"],
-						onlyFor: "audit-logger",
-					});
-					expect(replayed.message.metadata.messageId).toBe(
-						first.message.metadata.messageId
-					);
-					expect((replayed.delivered as { payload: unknown }).payload).toEqual(
+					expect(stored.group).toBe("audit-logger");
+					expect(replayed.map((m) => m.metadata.messageId)).toEqual([
+						first.message.metadata.messageId,
+					]);
+					const delivered = {
+						metadata: replayed[0]?.metadata,
+						payload: replayed[0]?.payload,
+					};
+					expect(delivered.payload).toEqual(
 						(first.delivered as { payload: unknown }).payload
 					);
 					for (const receiver of receivers.filter((r) =>
 						r.topics.includes(topic)
 					)) {
-						expect((await receiver.receive(replayed.delivered)).status).toBe(
-							200
-						);
+						expect((await receiver.receive(delivered)).status).toBe(200);
 					}
 				}
 			}

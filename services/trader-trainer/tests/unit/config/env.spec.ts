@@ -19,7 +19,8 @@ const TRADER_TRAINER_ENV_SCHEMA = z.object({
 	MESSAGE_CALLBACK_PATH: z.string().min(1).default("message"),
 	TRAINER_SYMBOLS: z.string().default("BTCUSDT,ETHUSDT"),
 	TRAINER_DATA_WINDOW: z.coerce.number().int().positive().default(500),
-	TRAINER_VALIDATION_SPLIT: z.coerce.number().min(0).max(1).default(0.2),
+	TRAINER_VALIDATION_SPLIT: z.coerce.number().gt(0).lt(1).default(0.2),
+	TRAINER_TEST_SPLIT: z.coerce.number().gt(0).lt(1).default(0.15),
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
 	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
 	TRAINER_TIME_BUDGET_MS: z.coerce.number().int().positive().default(300000),
@@ -132,6 +133,26 @@ describe("Env Schema", () => {
 		expect(result.success).toBe(false);
 	});
 
+	it.each(["TRAINER_TEST_SPLIT", "TRAINER_VALIDATION_SPLIT"])(
+		"should refuse %s of 0 or 1 and accept 0.15",
+		(name) => {
+			for (const bad of ["0", "1"]) {
+				expect(
+					TRADER_TRAINER_ENV_SCHEMA.safeParse({
+						...makeValidEnv(),
+						[name]: bad,
+					}).success
+				).toBe(false);
+			}
+			expect(
+				TRADER_TRAINER_ENV_SCHEMA.safeParse({
+					...makeValidEnv(),
+					[name]: "0.15",
+				}).success
+			).toBe(true);
+		}
+	);
+
 	it("should reject non-positive TRAINER_GENERATIONS", () => {
 		const env = makeValidEnv();
 		env.TRAINER_GENERATIONS = "0";
@@ -157,23 +178,5 @@ describe("Env Schema", () => {
 		const result = TRADER_TRAINER_ENV_SCHEMA.safeParse(env);
 
 		expect(result.success).toBe(false);
-	});
-
-	it("should accept boundary TRAINER_VALIDATION_SPLIT of 0", () => {
-		const env = makeValidEnv();
-		env.TRAINER_VALIDATION_SPLIT = "0";
-
-		const result = TRADER_TRAINER_ENV_SCHEMA.safeParse(env);
-
-		expect(result.success).toBe(true);
-	});
-
-	it("should accept boundary TRAINER_VALIDATION_SPLIT of 1", () => {
-		const env = makeValidEnv();
-		env.TRAINER_VALIDATION_SPLIT = "1";
-
-		const result = TRADER_TRAINER_ENV_SCHEMA.safeParse(env);
-
-		expect(result.success).toBe(true);
 	});
 });

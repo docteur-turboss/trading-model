@@ -1,5 +1,7 @@
-import { DurationMs } from "@trading-model/primitives/primitives/time-ids";
-import { DelayRange } from "./delay-range";
+import {
+	DurationMs,
+	toDurationMs,
+} from "@trading-model/primitives/primitives/time-ids";
 
 export interface BackoffConfig {
 	baseDelayMs?: DurationMs;
@@ -7,26 +9,30 @@ export interface BackoffConfig {
 	jitterMs?: DurationMs;
 }
 
-function _delayRange(options: BackoffConfig): DelayRange {
-	return new DelayRange({
-		baseMs: options.baseDelayMs ?? DurationMs.of(200),
-		maxMs: options.maxDelayMs ?? DurationMs.of(5000),
-	});
-}
-
 export function computeExponentialBackoff(
 	attempt: number,
 	options: BackoffConfig
 ): DurationMs {
-	return _delayRange(options).backoff(attempt);
+	const base = options.baseDelayMs ?? DurationMs.of(200);
+	const max = options.maxDelayMs ?? DurationMs.of(5000);
+	if (base <= 0) {
+		throw new RangeError(`baseDelayMs (${base}) must be > 0`);
+	}
+	if (base > max) {
+		throw new RangeError(
+			`baseDelayMs (${base}) must be <= maxDelayMs (${max})`
+		);
+	}
+	return toDurationMs(Math.min(base * 2 ** attempt, max));
 }
 
 export function computeExponentialBackoffWithJitter(
 	attempt: number,
 	options: BackoffConfig
 ): DurationMs {
-	return _delayRange(options).withJitter(
-		attempt,
-		options.jitterMs ?? DurationMs.of(0)
+	const jitter = options.jitterMs ?? 0;
+	return toDurationMs(
+		computeExponentialBackoff(attempt, options) +
+			(jitter > 0 ? Math.random() * jitter : 0)
 	);
 }

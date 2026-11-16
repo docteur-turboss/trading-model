@@ -6,7 +6,7 @@ import type { NormalizationManager } from "../normalization-manager";
  * Visits each candle with the normalisation statistics of the candles known at
  * its close, oldest first (ADR-0030): statistics of the whole window would
  * leak the future into training and into walk-forward validation. The window
- * is the only input, so two pods build the same steps (ADR-0074).
+ * is the only input, so two pods build the same steps (ADR-0078).
  */
 export function forEachPointInTime(
 	state: SymbolState,

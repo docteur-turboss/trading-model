@@ -164,19 +164,28 @@ sources), checked at startup: a broken registry stops the service. A
 request's dimension must be covered by its source for the asset type of its
 subject, apply to that asset, and be written by the adapter.
 
-Every source must be free for any use, trading included:
-`accessPolicy.terms` is `public-domain` or `attribution` (with the credit to
-give), and `termsUrl` points to the terms read; `auth` is `none` and
-`maxRequestsPerMinute` spaces the requests of the source. Other terms
-(non-commercial, research only) cannot be declared: Open-Meteo's free API and
-Binance's `data-api.binance.vision` (CC BY-NC-SA 4.0) were rejected for that.
+Every source must be free (ADR-0075), by order of preference: rank 1, free for
+any use, trading included (`accessPolicy.terms` `public-domain` or
+`attribution`, with the credit to give); rank 2, free for personal or research
+use only (`non-commercial`), kept only if no rank 1 source gives the same data.
+A `non-commercial` source carries `restrictions` (clause read, with date) and
+`commercialLicence` (`available` with `commercialLicenceUrl`, `unavailable`,
+`unknown`); the other terms refuse both. `termsUrl` points to the terms read;
+`auth` is `none` and `maxRequestsPerMinute` spaces the requests. A source paid
+for the use made, or with no terms found, cannot be declared. The gauge
+`fs_signal_sources{terms,commercial_licence}` and a startup log name the
+`non-commercial` sources. Open-Meteo's free API and Binance's
+`data-api.binance.vision` (CC BY-NC-SA 4.0) are rank 2 candidates, not added yet.
 
-| Source id | Dimension | Subject | Schedule | Metrics | Terms |
+| Source id | Dimension | Subject | Schedule | Metrics | Terms (rank; commercial licence) |
 | --- | --- | --- | --- | --- | --- |
-| `ecb-aaa-yield-10y` | market | `EA_AAA_10Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_10y` | attribution: "Source: ECB statistics" |
-| `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC |
-| `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain |
-| `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) |
+| `ecb-aaa-yield-10y` | market | `EA_AAA_10Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_10y` | attribution: "Source: ECB statistics" (1) |
+| `ecb-hicp-annual-rate` | macro | area `EA` | daily 11:17 UTC (HICP is monthly) | `hicp_annual_rate` | attribution: "Source: ECB statistics" (1) |
+| `ecb-deposit-facility-rate` | macro | area `EA` | weekdays 15:35 UTC (changes are irregular) | `deposit_facility_rate` | attribution: "Source: ECB statistics" (1) |
+| `ecb-euro-reference-rates` | macro | area `EA` | weekdays 16:07 UTC (after the ECB release) | `eur_{usd,gbp,chf,jpy}_reference_rate` | attribution: "Source: ECB statistics" (1) |
+| `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
+| `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
+| `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
 
 **Adding a source**: read its terms, then an entry in the registry. A new
 payload format also needs an adapter in `src/adapters/outbound/signal-sources/`
@@ -187,7 +196,8 @@ observations) and its line in `SOURCE_ADAPTERS`. Nothing else changes.
 and when `SIGNAL_COLLECTION_ENABLED` is not `false` (CI turns it off): one cron
 task per source, requests one after the other, an overlapping tick skipped.
 Each request is fetched (GET, JSON, 10 s timeout, no retry: the next tick is the
-retry), normalized by its adapter, checked against the schema and stored.
+retry, unless the source is quarantined, see runbook-market-data-stale),
+normalized by its adapter, checked against the schema and stored.
 `fs_signal_collections_total{source,result}` counts the requests by result:
 `success`, `fetch_error`, `invalid_payload` (the source changed its format: logged,
 nothing stored), `store_error`. Every request sends the User-Agent

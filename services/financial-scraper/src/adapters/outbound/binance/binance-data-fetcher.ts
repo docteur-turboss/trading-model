@@ -29,6 +29,9 @@ export interface RawBinanceData {
 	bookTickerRaw?: Awaited<ReturnType<typeof getOrderBookTicker>>;
 }
 
+/** Pod clock may run ahead of Binance's: a still-open candle must not pass for closed (the cursor never goes back). */
+export const CLOSE_MARGIN_MS = 2000;
+
 type RawKey = keyof RawBinanceData;
 
 const PART_OF: Record<RawKey, SnapshotPart> = {
@@ -145,7 +148,7 @@ export function buildResponse(
 			candlesRaw &&
 			normalizePart(query, "candles", () =>
 				BinanceNormalizer.candles(query, candlesRaw).filter(
-					(candle) => candle.closeTimestamp < fetchedAt
+					(candle) => candle.closeTimestamp + CLOSE_MARGIN_MS < fetchedAt
 				)
 			),
 		ticker24h:

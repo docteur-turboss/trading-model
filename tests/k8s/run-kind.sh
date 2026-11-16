@@ -317,6 +317,8 @@ deploy() {
 	# audit-logger crash-loops past its progress deadline (run 43331271388).
 	# spire-agent is not waited for here: it needs the trust bundle of the overlay's spire-server.
 	$K -n trading-model-node rollout status daemonset/spiffe-csi-driver --timeout=300s
+	# hostPath dirs are root:root and fsGroup skips hostPath: the trainer (uid 10001) must write (#1246).
+	docker exec "${CLUSTER}-control-plane" install -d -o 10001 -g 10001 /var/local/kind-rwx/trainer-checkpoints
 	$K apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
 
 	# As deploy.yml: the receivers exist before Alertmanager starts, or its
@@ -1175,15 +1177,23 @@ audit_chain() {
 	mongo_eval mongodb-audit "const AUDIT_DB = 'audit'; $(cat "$ROOT/tests/backup/audit-chain.js")"
 }
 
-# Stores a dead letter in dlq-service the way message-manager does; prints its id.
+# Stores a dead letter in the dlq-service MongoDB (nothing posts them over HTTP
+# since ADR-0073; the entry stays readable there) and prints its id. A second,
+# throwaway entry is deleted through the API so dlq.entries.deleted grows the chain.
 seed_dead_letter() {
-	$K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - <"$ROOT/tests/k8s/dlq-seed.cjs"
+	local ts keep drop
+	ts="$(date +%s%N)"
+	local doc="topic: 'restore-drill', message: {drill: 'restore'}, service: 'message-manager', reason: 'restore drill', deliveryAttempt: 3, retryCount: 0, dlqPassCount: 1, createdAt: new Date()"
+	keep="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.insertOne({messageId: 'restore-drill-$ts', contentHash: 'k$ts', $doc}).insertedId.toHexString())" | tail -1)"
+	drop="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.insertOne({messageId: 'restore-drill-d$ts', contentHash: 'd$ts', $doc}).insertedId.toHexString())" | tail -1)"
+	$K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - "$drop" <"$ROOT/tests/k8s/dlq-seed.cjs" >&2
+	echo "$keep"
 }
 
 # Waits up to 300 s for field `$1` (count or last) of the audit chain to exceed
 # `$2`. Market data is no longer chained (#992): the chain only grows on audit,
-# training and DLQ events, so a dead letter (dlq.entry.added) is stored every
-# 30 s until it does; dlq-service publishes it without waiting, one can be lost.
+# training and DLQ events, so a dead letter is seeded (and one deleted) every
+# 30 s until it does; dlq-service publishes without waiting, one can be lost.
 audit_grows() {
 	local waited=0
 	until [ "$(audit_chain | json_field "$1")" -gt "$2" ] 2>/dev/null; do

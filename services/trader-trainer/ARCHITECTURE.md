@@ -37,7 +37,7 @@ The GA loop stops when **any** of these conditions is met (checked in order):
 
 ### Service Dependencies
 
-**Financial Scraper**: candle window read over HTTP at each session (ADR-0044); the trainer subscribes to no bus topic (ADR-0074). **Message Manager** (`@trading-model/broker-message`): only used to publish models.
+**Financial Scraper**: candle window read over HTTP at each session (ADR-0044); the trainer subscribes to no bus topic (ADR-0078). **Message Manager** (`@trading-model/broker-message`): only used to publish models.
 
 **Address Manager** (`@trading-model/address-manager`): Service discovery and health monitoring. Every instance registers with the address manager for dynamic endpoint resolution, health check pings, and TTL management.
 
@@ -218,190 +218,17 @@ Sell: cash += amount * price - fees; position -= amount
 
 ### 4. **domain/neural-network/** - Deep Q-Learning Agent
 
-#### NeuralNetwork
-
-Fully-connected feedforward network with configurable:
-
-- **Layers**: Input → Hidden Layers... → Output
-- **Activations**: ReLU, Tanh, Sigmoid, GELU, ELU, Mish, LeakyReLU, Linear
-- **Optimizer**: plain SGD
-- **Loss Function**: mean squared error
-- **Normalizations**: MinMax, Z-score, Robust, Batch Norm, Layer Norm
-
-**Forward Pass**:
-
-```
-output = activation(weight @ input + bias)
-```
-
-**Backward Propagation**:
-
-- Gradient computation via chain rule
-- Weight updates by SGD
-- Support for batch training
-
-#### Agent
-
-Wraps NeuralNetwork with:
-
-- **Experience Replay Pool**: Stores (state, action, reward, next_state, done) tuples
-- **Q-Learning Updates**: Applies Bellman equation
-- **Fast Inference**: Optimized forward pass for trading
-
-**Experience Storage**:
-
-```typescript
-interface Experience {
-  state: Float32Array;
-  action: number;
-  reward: number;
-  nextState: Float32Array;
-  done: boolean;
-}
-```
-
----
+See [Neural Network — Reference](../../docs/reference/neural-network.md).
 
 ### 5. **domain/genetic-algorithm/** - Evolution Engine
 
-#### GeneticAlgorithmRunner
-
-Main evolution loop orchestrating:
-
-1. **Initialization**: Create initial population of random genomes
-2. **Evaluation**: Each genome → TradingAgent → fitness score
-3. **Selection**: Choose parents by tournament
-4. **Genetic Operators**:
-   - **Mutation**: Gaussian perturbations with a fixed sigma
-   - **Crossover**: Uniform
-5. **Environmental Selection**: Keep best + maintain diversity
-6. **Termination**: Check convergence, generation limit, diversity
-
-**Population Dynamics**:
-
-- Size adapts to available memory
-- Penalizes computational complexity
-- Maintains speciation via distance metrics
-- Archives Pareto-optimal solutions
-
-#### Genome Structure
-
-```typescript
-interface Genome {
-  network: {
-    inputDim: number;
-    outputDim: number;
-    hiddenLayers: Array<{
-      neurons: number;
-      activation: ActivationType;
-      connectionType: ConnectionType;
-      normalization: NormalisationType;
-    }>;
-  };
-  rl: {
-    discretePolicy: {
-      learningRate: number;
-      gamma: number;
-      epsilon: number;
-      epsilonDecay: number;
-    };
-    replayBuffer: {
-      bufferSize: number;
-      batchSize: number;
-    };
-  };
-  mutation: {
-    rates: { rate: number; sigma: number };
-    structural: { addNeuronRate: number; removeNeuronRate: number; addLayerRate: number; removeLayerRate: number };
-  };
-  crossover: {
-    probability: number;
-  };
-}
-```
-
-#### Key Operators
-
-**Mutation**:
-
-- Gaussian noise, sigma evolved with the genome
-- Hyperparameter mutation capability
-- Complexity penalty on mutation strength
-
-**Crossover**: uniform, each gene comes from either parent with probability 0.5.
-
-**Fitness Calculation**:
-
-Fitness of the run's `TRAINER_FITNESS_TYPE` on the wallet PnL of the validation window (ADR-0025):
-
-```
-fitness = metric(episode PnL | bar PnL curve) - |metric| * 0.15 * complexity_penalty
-```
-
-**Metrics**:
-
-- Total P&L
-- Sharpe Ratio
-- Sortino Ratio (downside risk)
-- Calmar Ratio
-- Max Drawdown
-- Win Rate
-
-#### Adaptive Control
-
-Automatically adjusts:
-
-- Mutation rate based on population diversity
-- Crossover rate based on convergence
-- Population size based on available memory
-- Termination conditions (stagnation, diversity loss)
+See [Genetic Algorithm — Reference](../../docs/reference/genetic-algorithm.md): genome, operators, NSGA-II, fitness (ADR-0025), adaptive control.
 
 ---
 
 ## Training Loop
 
-```
-Initialize population P = [G₁, G₂, ..., Gₙ]
-
-for generation t = 1 to max_generations:
-
-  for each genome Gᵢ in P:
-    agent = create_agent_from(Gᵢ)
-
-    for each market window w:
-      for each price sample (price, features):
-        reward = agent.step(features, price)
-
-      evaluate agent on returns
-
-    fitness[i] = compute_fitness(returns, metrics)
-
-  # Environmental selection
-  elite = keep_best_k(P, fitness, k=0.1*n)
-
-  # Reproduction
-  offspring = []
-  while len(offspring) < n - k:
-    parent1 = select(P, fitness)
-    parent2 = select(P, fitness)
-
-    child = crossover(parent1, parent2)
-    child = mutate(child)
-    child = repair_if_invalid(child)
-
-    offspring.append(child)
-
-  P = elite + offspring
-
-  # Adaptive control
-  mutation_rate = adapt_mutation(diversity)
-  crossover_rate = adapt_crossover(convergence)
-
-  if termination_condition_met(P, fitness):
-    break
-
-return best_genome_from(P)
-```
+See [Training Process — Reference](../../docs/reference/training-process.md).
 
 ---
 

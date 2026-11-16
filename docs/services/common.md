@@ -11,13 +11,13 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 > - Contracts (event types, market-data, http-status, http-headers, LoggerPort registry) → `@trading-model/contracts`
 > - Reliability (circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces) → `@trading-model/reliability`
 > - Persistence (Redis/Mongo connection managers, store adapters, key builders) → `@trading-model/persistence`
-> - Server bootstrap / secure HTTPS factory → `@trading-model/server-utils`
+> - Server bootstrap / secure HTTPS factory → `@trading-model/http`
 > - Environment validation & Zod schemas → `@trading-model/validation`
 > - Crypto primitives → `@trading-model/crypto`
 > - HTTP middleware, HTTP client, logging system → `@trading-model/http`
 > - Distributed worker protocol & orphan recovery → `@trading-model/jobs` (removed by ADR-0029: no producer, no worker)
 
-`common` depends on `@trading-model/primitives` and `@trading-model/contracts` (plus external `zod`, `express`). It has **no** dependency on `http`, `validation`, `server-utils` or `crypto`.
+`common` depends on `@trading-model/primitives` and `@trading-model/contracts` (plus external `zod`, `express`). It has **no** dependency on `http`, `validation` or `crypto`.
 
 ## Package Map Post-Split
 
@@ -33,9 +33,9 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | 6 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`) | common, primitives, contracts (+ ioredis, mongodb) |
 | 7 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline | primitives, contracts, common, reliability |
 | 8 | `@trading-model/validation` | Environment validation, Zod schemas, DTOs, shared type contracts | primitives, contracts, common, http |
-| 9 | `@trading-model/server-utils` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
+| 9 | `@trading-model/http` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
 | 10 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
-| 11 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
+| 11 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, validation |
 | 12 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
 
 ## What Remains in `common`
@@ -67,7 +67,6 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | `deterministic-stringify.ts` | Deterministic JSON serialization for cryptographic signing (recursively sorts object keys) |
 | `anonymize-ip.ts` | IP anonymization for privacy-safe logging |
 | `comma-separated.ts` | Parse comma-separated env strings into arrays |
-| `delay-range.ts` | Compute a random delay within a range (jitter) |
 | `timer-handle.ts` | Timer handle abstraction (clear-safe timers) |
 | `spiffe.ts` | Re-export facade of the SPIFFE helpers defined in `config/workload-identity.ts` |
 
@@ -155,7 +154,7 @@ import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 | Domain primitives (branded types, pagination, identities) | `@trading-model/primitives` |
 | Circuit breakers, latency tracker, heartbeats | `@trading-model/reliability` |
 | Redis/Mongo stores, connection managers, `redis-config` | `@trading-model/persistence` |
-| Server bootstrap, secure HTTPS factory, TLS loading | `@trading-model/server-utils` |
+| Server bootstrap, secure HTTPS factory, TLS loading | `@trading-model/http` |
 | Environment validation (Zod) | `@trading-model/validation` |
 | Crypto primitives (PRNG, random string) | `@trading-model/crypto` |
 | HTTP middleware, HTTP client | `@trading-model/http` |

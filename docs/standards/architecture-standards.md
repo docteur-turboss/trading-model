@@ -86,7 +86,7 @@ Shared packages (base → derived):
 @trading-model/server-utils     (secure HTTPS server factory, TLS watcher, bootstrap) → primitives, contracts, common, http
 @trading-model/crypto           (hashing, signatures, crypto primitives) → primitives, contracts, common, validation
 
-@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, server-utils, validation
+@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, validation
 @trading-model/broker-message   (inter-service messaging SDK) → primitives, contracts, address-manager, common, http, validation
 ```
 
@@ -96,14 +96,14 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 
 | Service | Dependencies |
 | --- | --- |
-| api-gateway | common, contracts, http, primitives, server-utils, validation |
-| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, server-utils, validation |
-| discovery-server | common, contracts, crypto, http, persistence, primitives, server-utils, validation |
-| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
-| model-evaluator | address-manager, broker-message, common, contracts, http, primitives, server-utils, validation |
-| financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, server-utils, validation |
-| message-manager | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
-| trader-service | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, server-utils, validation |
+| api-gateway | common, contracts, http, primitives, validation |
+| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, validation |
+| discovery-server | common, contracts, crypto, http, persistence, primitives, validation |
+| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, validation |
+| model-evaluator | address-manager, broker-message, common, contracts, http, primitives, validation |
+| financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, validation |
+| message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability, validation |
+| trader-service | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, validation |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
 
@@ -121,7 +121,7 @@ There is no frontend workspace: `admin-interface` was removed until a new one is
 | `@trading-model/validation`      | Zod schemas, DTOs, event types, shared type contracts, admin contracts                                                                                  | primitives, contracts, common, http |
 | `@trading-model/server-utils`    | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry                                                         | primitives, contracts, common, http |
 | `@trading-model/crypto`          | Hashing, request signing, token generation, secure randomness                                                                                           | primitives, contracts, common, validation |
-| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing                                              | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
+| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing                                              | primitives, contracts, common, persistence, http, reliability, validation |
 | `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                        | primitives, contracts, address-manager, common, http, validation |
 
 ## Workload Identity & Security Model

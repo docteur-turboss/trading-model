@@ -158,7 +158,7 @@ describe("BinanceMarketDataSource", () => {
 
 		it("should leave out the candle that is still open", async () => {
 			const now = Date.now();
-			const closed = { symbol: BTC, closeTimestamp: now - 1 };
+			const closed = { symbol: BTC, closeTimestamp: now - 5_000 };
 			const open = { symbol: BTC, closeTimestamp: now + 60_000 };
 			MOCK_NORMALIZER_CANDLES.mockReturnValue([closed, open] as never);
 

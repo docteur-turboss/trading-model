@@ -5,10 +5,10 @@
   "license": "ISC",
   "type": "commonjs",
   "exports": {
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "default": "./dist/*.js"
-    }
+    "./node-crypto": "./dist/node-crypto.js",
+    "./prng": "./dist/prng.js",
+    "./request-signer": "./dist/request-signer.js",
+    "./token-service": "./dist/token-service.js"
   },
   "dependencies": {
     "@trading-model/primitives": "*",

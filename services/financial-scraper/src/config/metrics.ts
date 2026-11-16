@@ -1,4 +1,4 @@
-import { metricsHandler } from "@trading-model/server-utils/metrics-handler";
+import { metricsHandler } from "@trading-model/http/metrics-handler";
 import promClient from "prom-client";
 
 export const COLLECTOR_LEADER = new promClient.Gauge({
@@ -84,8 +84,50 @@ export const EVENTS_PUBLISHED_TOTAL = new promClient.Counter({
 
 export const SIGNAL_COLLECTIONS_TOTAL = new promClient.Counter({
 	name: "fs_signal_collections_total",
-	help: "Signal source requests collected (ADR-0036), by source and result: success, fetch_error, invalid_payload (format changed), store_error",
+	help: "Signal source requests collected (ADR-0036), by source and result: success, fetch_error, invalid_payload (format changed), store_error, skipped_quarantine (tick skipped, source in quarantine)",
 	labelNames: ["source", "result"] as const,
+});
+
+export const SIGNAL_SOURCE_QUARANTINED = new promClient.Gauge({
+	name: "fs_signal_source_quarantined",
+	help: "1 while a signal source is in quarantine after repeated fetch failures, else 0",
+	labelNames: ["source"] as const,
+});
+
+export const SIGNAL_SOURCE_DISABLED = new promClient.Gauge({
+	name: "fs_signal_source_disabled",
+	help: "1 when a signal source is not scheduled (ADR-0036), by source and reason: missing_key (its SIGNAL_KEY_* variable is unset)",
+	labelNames: ["source", "reason"] as const,
+});
+
+export const SIGNAL_SOURCES = new promClient.Gauge({
+	name: "fs_signal_sources",
+	help: "Registry sources (ADR-0075) by terms and commercial licence (n/a for free-for-any-use terms)",
+	labelNames: ["terms", "commercial_licence"] as const,
+});
+
+export const SIGNAL_SOURCE_DAILY_REQUESTS = new promClient.Gauge({
+	name: "fs_signal_source_daily_requests",
+	help: "Requests a day the schedule of a signal source plans",
+	labelNames: ["source"] as const,
+});
+
+export const SIGNAL_LAST_SUCCESS = new promClient.Gauge({
+	name: "fs_signal_last_success_timestamp_seconds",
+	help: "Unix time of the last successful collection of a signal source, restored from MySQL at start; exposed only by the collecting pod (alert SignalSourceStale)",
+	labelNames: ["source"] as const,
+});
+
+export const SIGNAL_NEWEST_OBSERVED = new promClient.Gauge({
+	name: "fs_signal_newest_observed_timestamp_seconds",
+	help: "Unix time of the newest observedAt stored for a signal source (a source can answer 200 with old data)",
+	labelNames: ["source"] as const,
+});
+
+export const SIGNAL_SOURCE_MAX_AGE = new promClient.Gauge({
+	name: "fs_signal_source_max_age_seconds",
+	help: "Age of the last collection beyond which a signal source is stale (alert SignalSourceStale)",
+	labelNames: ["source"] as const,
 });
 
 export { metricsHandler };

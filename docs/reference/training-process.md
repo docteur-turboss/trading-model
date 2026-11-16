@@ -9,7 +9,7 @@
 On startup:
 
 1. `createBootstrap` initializes Express with TLS, rate limiting, and routes
-2. Each session reads the candle window from the scraper (no bus subscription, ADR-0074) into `MarketDataBuffer` which maintains per-symbol state with running normalizers
+2. Each session reads the candle window from the scraper (no bus subscription, ADR-0078) into `MarketDataBuffer` which maintains per-symbol state with running normalizers
 
 ## 2. Training Trigger
 
@@ -32,7 +32,7 @@ For each symbol, `getAllWindows()`:
 
 1. Calls `buildMarketSteps()` to convert raw market data into `MarketStep[]`
    - Each step contains: `price`, `features` (18-dim Float32Array), `timestamp`
-   - **Point in time** (ADR-0030): a candle's features read only what was known at its close: the candles closed by then, and normalisation statistics of those candles only. Later data never changes an earlier step. Only the candles feed the features (ADR-0074): a new pod and an old one build the same steps
+   - **Point in time** (ADR-0030): a candle's features read only what was known at its close: the candles closed by then, and normalisation statistics of those candles only. Later data never changes an earlier step. Only the candles feed the features (ADR-0078): a new pod and an old one build the same steps
 2. Splits into train/validation sets using `TRAINER_VALIDATION_SPLIT`
 
 **Feature vector** (18 dimensions):

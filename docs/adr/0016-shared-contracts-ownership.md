@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0007](./0007-common-package-split.md) (common split), [ADR-0010](./0010-clean-architecture-migration.md) (DDD layout), [ADR-0015](./0015-hexagonal-layering-completion.md) (hard-migration convention)
-**Verified by:** `bun run deps:check`
+**Verified by:** `bun run deps:check`, `bun run arch:check` (public entry points, issue #1210)
 
 ## Context
 
@@ -55,3 +55,7 @@ The architecture audit of 2026-09-13 reported that `@trading-model/common` decla
 ### Out of scope
 
 `common/config/services.types` is still a re-export of `primitives/service-instance-name` (71 importers). It should be removed the same way in a follow-up.
+
+### Amendment (issue #1210): explicit public entry points
+
+A package's `exports` lists each public subpath (`"./logger": "./dist/logger.js"`), never `"./*"`. Importing `@trading-model/<pkg>/(adapters|application|infrastructure|domain)/...` is an `arch:check` finding (ratcheted baseline). A type that a consumer's declaration emit needs must have its module listed too (TS2883). Its `tests/` is never exported. `knip.json` ignores `exports`/`types` on `packages/*/src/**` (knip does not follow inter-workspace imports to `src`), so an unused public entry is not caught by `deps:third-party`.

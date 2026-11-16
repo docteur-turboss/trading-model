@@ -4,7 +4,6 @@ import {
 	ErrorResponse,
 } from "@trading-model/http/api-route/api-route";
 import { toTopic } from "@trading-model/primitives/primitives";
-import { DlqEntryWire } from "@trading-model/validation/wire/dlq-entry";
 import { z } from "zod";
 
 /**
@@ -30,10 +29,6 @@ const StoredDlqEntry = z.object({
 	createdAt: z.iso.datetime(),
 });
 
-const StorageUnavailable = ErrorResponse.extend({
-	code: z.literal("STORAGE_UNAVAILABLE"),
-});
-
 const DELETED = z.object({ deleted: z.number().int() });
 
 const REPLAYED = z.object({
@@ -47,20 +42,6 @@ const REPLAYED = z.object({
 const SIGNED = { 401: ErrorResponse, 403: ErrorResponse } as const;
 
 export const DLQ_API = {
-	addEntry: defineRoute({
-		method: "POST",
-		path: "/dlq",
-		summary: "Store a dead-lettered message",
-		security: ["SignedRequest"],
-		body: DlqEntryWire,
-		responses: {
-			201: z.object({ id: z.string() }),
-			400: ErrorResponse,
-			...SIGNED,
-			429: ErrorResponse,
-			503: StorageUnavailable,
-		},
-	}),
 	listEntries: defineRoute({
 		method: "GET",
 		path: "/v1/dlq",

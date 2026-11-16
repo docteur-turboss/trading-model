@@ -43,13 +43,14 @@ describe("Selection - selectParent", () => {
 	test("tournament selection with k=1 should return random parent", () => {
 		const pop = makePopulation();
 		const parent = selectParent(pop, () => 0.0, 1);
-		expect(parent).toBeDefined();
+		expect(parent).toBe(pop[0].genome);
 	});
 
 	test("tournament selection should pick challenger with higher fitness", () => {
 		const pop = makePopulation();
+		// draws indices 0, 2, 4: fitness 0.1, 0.8, 0.6
 		const parent = selectParent(pop, makeAlternating(0.01, 0.4, 0.8), 3);
-		expect(parent).toBeDefined();
+		expect(parent).toBe(pop[2].genome);
 	});
 
 	test("should handle population with all zero fitness", () => {
@@ -64,7 +65,8 @@ describe("Selection - selectParent", () => {
 				rawScores: new EpisodeScores([0, 0, 0]),
 			},
 		}));
+		// a tie never replaces the first draw (index 2)
 		const parent = selectParent(pop, rng);
-		expect(parent).toBeDefined();
+		expect(parent).toBe(pop[2].genome);
 	});
 });

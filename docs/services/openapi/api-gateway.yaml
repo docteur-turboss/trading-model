@@ -78,7 +78,7 @@ paths:
     get:
       operationId: getPing
       tags: [api-gateway]
-      summary: "Handled by the gateway (packages/server-utils/src/configure-app.ts)"
+      summary: "Handled by the gateway (packages/http/src/configure-app.ts)"
       security: []
       responses:
         "2XX": { description: Success }
@@ -2095,12 +2095,168 @@ paths:
           description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
+  /v2/financial-scraper/signals/assets:
+    get:
+      operationId: "getV2FinancialScraperSignalsAssets"
+      tags:
+        - "financial-scraper"
+      summary: "Assets of the signal registry"
+      x-registry-entry: "assets"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  assets:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        id:
+                          type: "string"
+                          pattern: "^[A-Z0-9][A-Z0-9_-]{0,31}$"
+                        name:
+                          type: "string"
+                          minLength: 1
+                        assetType:
+                          type: "string"
+                          enum:
+                            - "crypto"
+                            - "equity"
+                            - "bond"
+                            - "real_estate"
+                            - "etf"
+                            - "commodity_proxy"
+                        identifier:
+                          oneOf:
+                            - type: "object"
+                              properties:
+                                scheme:
+                                  type: "string"
+                                  enum:
+                                    - "ticker"
+                                ticker:
+                                  type: "string"
+                                  pattern: "^[A-Z0-9.-]{1,16}$"
+                                exchange:
+                                  type: "string"
+                                  pattern: "^[A-Z0-9]{4}$"
+                              required:
+                                - "scheme"
+                                - "ticker"
+                              additionalProperties: false
+                            - type: "object"
+                              properties:
+                                scheme:
+                                  type: "string"
+                                  enum:
+                                    - "isin"
+                                isin:
+                                  type: "string"
+                                  pattern: "^[A-Z]{2}[A-Z0-9]{9}\\d$"
+                              required:
+                                - "scheme"
+                                - "isin"
+                              additionalProperties: false
+                            - type: "object"
+                              properties:
+                                scheme:
+                                  type: "string"
+                                  enum:
+                                    - "contract"
+                                chain:
+                                  type: "string"
+                                  pattern: "^[a-z0-9-]{1,32}$"
+                                address:
+                                  type: "string"
+                                  minLength: 1
+                                  maxLength: 128
+                              required:
+                                - "scheme"
+                                - "chain"
+                                - "address"
+                              additionalProperties: false
+                            - type: "object"
+                              properties:
+                                scheme:
+                                  type: "string"
+                                  enum:
+                                    - "insee"
+                                code:
+                                  type: "string"
+                                  pattern: "^(\\d{5}|2[AB]\\d{3})$"
+                              required:
+                                - "scheme"
+                                - "code"
+                              additionalProperties: false
+                            - type: "object"
+                              properties:
+                                scheme:
+                                  type: "string"
+                                  enum:
+                                    - "series"
+                                provider:
+                                  type: "string"
+                                  minLength: 1
+                                key:
+                                  type: "string"
+                                  minLength: 1
+                              required:
+                                - "scheme"
+                                - "provider"
+                                - "key"
+                              additionalProperties: false
+                        applicableDimensions:
+                          minItems: 1
+                          type: "array"
+                          items:
+                            type: "string"
+                            enum:
+                              - "market"
+                              - "fundamental"
+                              - "social"
+                              - "contextual"
+                              - "legal"
+                              - "macro"
+                        sector:
+                          type: "string"
+                          pattern: "^[a-z][a-z0-9_]{0,31}$"
+                        areas:
+                          type: "array"
+                          items:
+                            type: "string"
+                            pattern: "^[A-Z][A-Z0-9]{1,7}$"
+                        aliases:
+                          type: "object"
+                          additionalProperties:
+                            type: "string"
+                            minLength: 1
+                      required:
+                        - "id"
+                        - "name"
+                        - "assetType"
+                        - "identifier"
+                        - "applicableDimensions"
+                        - "sector"
+                      additionalProperties: false
+                required:
+                  - "assets"
+                additionalProperties: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/signals/assets/{assetId}:
     get:
       operationId: "getV2FinancialScraperSignalsAssetsAssetId"
       tags:
         - "financial-scraper"
-      summary: "Signals of an asset and of its sector, every dimension, observed in [from, to)"
+      summary: "Signals of an asset, of its sector and of its areas, every dimension, observed in [from, to)"
       x-registry-entry: "assetSignals"
       parameters:
         - name: "assetId"
@@ -2129,6 +2285,30 @@ paths:
               - type: "string"
                 format: "date"
                 pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        - name: "dimension"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+            enum:
+              - "market"
+              - "fundamental"
+              - "social"
+              - "contextual"
+              - "legal"
+              - "macro"
+        - name: "metric"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+            minLength: 1
+        - name: "sourceId"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+            minLength: 1
       responses:
         "200":
           description: "OK"
@@ -2249,6 +2429,16 @@ paths:
                       sector:
                         type: "string"
                         pattern: "^[a-z][a-z0-9_]{0,31}$"
+                      areas:
+                        type: "array"
+                        items:
+                          type: "string"
+                          pattern: "^[A-Z][A-Z0-9]{1,7}$"
+                      aliases:
+                        type: "object"
+                        additionalProperties:
+                          type: "string"
+                          minLength: 1
                     required:
                       - "id"
                       - "name"
@@ -2281,6 +2471,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2344,6 +2538,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2370,6 +2565,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2456,6 +2655,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2482,6 +2682,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2554,6 +2758,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2580,6 +2785,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2647,6 +2856,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2673,6 +2883,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2725,6 +2939,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2751,6 +2966,10 @@ paths:
                               nullable: true
                               type: "string"
                               pattern: "^[a-z][a-z0-9_]{0,31}$"
+                            area:
+                              nullable: true
+                              type: "string"
+                              pattern: "^[A-Z][A-Z0-9]{1,7}$"
                             observedAt:
                               type: "string"
                               format: "date-time"
@@ -2819,6 +3038,7 @@ paths:
                             - "sourceId"
                             - "assetId"
                             - "sector"
+                            - "area"
                             - "observedAt"
                             - "ingestedAt"
                             - "confidenceScore"
@@ -2848,6 +3068,84 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /v2/financial-scraper/signals/sources:
+    get:
+      operationId: "getV2FinancialScraperSignalsSources"
+      tags:
+        - "financial-scraper"
+      summary: "Sources of the signal registry, with their terms of use"
+      x-registry-entry: "sources"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  sources:
+                    type: "array"
+                    items:
+                      type: "object"
+                      properties:
+                        id:
+                          type: "string"
+                          pattern: "^[a-z0-9][a-z0-9-]{0,63}$"
+                        covers:
+                          minItems: 1
+                          type: "array"
+                          items:
+                            type: "object"
+                            properties:
+                              assetType:
+                                type: "string"
+                                enum:
+                                  - "crypto"
+                                  - "equity"
+                                  - "bond"
+                                  - "real_estate"
+                                  - "etf"
+                                  - "commodity_proxy"
+                              dimension:
+                                type: "string"
+                                enum:
+                                  - "market"
+                                  - "fundamental"
+                                  - "social"
+                                  - "contextual"
+                                  - "legal"
+                                  - "macro"
+                            required:
+                              - "assetType"
+                              - "dimension"
+                            additionalProperties: false
+                        schedule:
+                          type: "string"
+                        reliabilityScore:
+                          type: "number"
+                        terms:
+                          type: "string"
+                        termsUrl:
+                          type: "string"
+                        attribution:
+                          type: "string"
+                      required:
+                        - "id"
+                        - "covers"
+                        - "schedule"
+                        - "reliabilityScore"
+                        - "terms"
+                        - "termsUrl"
+                      additionalProperties: false
+                required:
+                  - "sources"
+                additionalProperties: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/ticker/sources/{source}:
     get:
       operationId: "getV2FinancialScraperTickerSourcesSource"

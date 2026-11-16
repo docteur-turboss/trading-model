@@ -35,6 +35,8 @@ prereqs() {
 	kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER}/cert-manager.yaml"
 	kubectl apply -f "https://raw.githubusercontent.com/kubernetes/autoscaler/${VPA}/vertical-pod-autoscaler/deploy/vpa-v1-crd-gen.yaml"
 	bash "$ROOT/scripts/install-sealed-secrets.sh"
+	# hostPath dirs are root:root and fsGroup skips hostPath: the trainer (uid 10001) must write (#1246).
+	docker exec trading-staging-control-plane install -d -o 10001 -g 10001 /var/local/kind-rwx/trainer-checkpoints
 	kubectl apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
 	# No access log at the controller: it would hold the full caller IP, User-Agent
 	# and Referer on the node (data-processing register, activity 6; issue #732).

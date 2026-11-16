@@ -146,6 +146,8 @@ spec:
           args:
             - "--appendonly"
             - "yes"
+            - "--maxmemory-policy"
+            - "noeviction"
             - "--save"
             - "900"
             - "1"
@@ -584,6 +586,7 @@ spec:
                   - audit-logger
                   - financial-scraper
                   - trader-trainer
+                  - model-evaluator
                   - redis
                   - redis-sentinel
                   - redis-cert-cache

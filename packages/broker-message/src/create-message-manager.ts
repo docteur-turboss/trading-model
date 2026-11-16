@@ -5,14 +5,22 @@ import {
 	type TlsEnvVars,
 	type TlsPaths,
 } from "@trading-model/common/config/tls-paths";
+import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
+import {
+	type RedisEnv,
+	redisConnectionFromEnv,
+} from "@trading-model/persistence/redis-env";
 import { toInstanceId } from "@trading-model/primitives/primitives";
 import MessageManagerClass from "./broker-message";
+import { RedisMessageJournal } from "./bus/redis-journal";
 import type { MessageManagerConfig } from "./types/config";
 
 /** Configuration options for creating a MessageManager instance. */
 export interface MessageManagerOptions extends MessageManagerConfig {
 	addressManagerClient: addressManagerClient;
 	tlsPaths: TlsPaths;
+	/** The bus in Redis (ADR-0073); absent: HTTP through message-manager. */
+	journal?: RedisMessageJournal;
 }
 
 /** Creates a MessageManager instance with its bound Express listener.
@@ -28,10 +36,33 @@ export function createMessageManager(options: MessageManagerOptions) {
 	};
 }
 
-interface ServiceEnv extends TlsEnvVars {
+/** Key prefix of the bus streams, kept from message-manager (ADR-0073: a rename would lose entries). */
+export const BUS_KEY_PREFIX = "trading-model:message-manager";
+
+interface ServiceEnv extends TlsEnvVars, RedisEnv {
 	INSTANCE_ID: string;
 	SERVICE_NAME: string;
 	MESSAGE_CALLBACK_PATH: string;
+}
+
+/**
+ * The bus of a service (ADR-0073): the journal in the shared Redis, or
+ * `undefined` without Redis settings (then the service goes through message-manager over HTTP).
+ */
+export function busJournalFromEnv(
+	env: RedisEnv & { JOURNAL_MIN_REPLICAS?: number }
+): RedisMessageJournal | undefined {
+	const connection = redisConnectionFromEnv(env);
+	if (!connection) {
+		return undefined;
+	}
+	const redis = createRedisClient(connection);
+	return new RedisMessageJournal({
+		redis: redis as never,
+		openBlockingRedis: () => redis.duplicate() as never,
+		keyPrefix: BUS_KEY_PREFIX,
+		minReplicas: env.JOURNAL_MIN_REPLICAS,
+	});
 }
 
 /**
@@ -45,6 +76,7 @@ export function createServiceMessageManager(
 	env: ServiceEnv
 ) {
 	return createMessageManager({
+		journal: busJournalFromEnv(env),
 		addressManagerClient,
 		tlsPaths: buildTlsFromEnv(env),
 		instanceId: toInstanceId(env.INSTANCE_ID),

@@ -5,14 +5,9 @@
   "license": "ISC",
   "type": "commonjs",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "default": "./dist/*.js"
-    }
+    ".": "./dist/index.js",
+    "./create-service-address-manager": "./dist/create-service-address-manager.js",
+    "./lifecycle-manager": "./dist/lifecycle-manager.js"
   },
   "dependencies": {
     "@trading-model/primitives": "*",
@@ -20,7 +15,6 @@
     "@trading-model/common": "*",
     "@trading-model/http": "*",
     "@trading-model/reliability": "*",
-    "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "express": "^5.3.0",
     "node-cron": "^4.6.0",

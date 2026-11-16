@@ -177,12 +177,6 @@ describe("EvolutionEngine", () => {
 			}));
 		}
 
-		it("should select a parent from population", () => {
-			const population = makePop([10, 20, 30]);
-			const parent = selectParent(population, rng);
-			expect(parent).toBeDefined();
-		});
-
 		it("should return a member of the population", () => {
 			const population = makePop([10]);
 			const parent = selectParent(population, rng);

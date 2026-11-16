@@ -51,7 +51,6 @@ docs/
 │   ├── pr-standards.md                  # Pull request standards
 │   ├── testing-standards.md             # Testing standards
 │   ├── quality-gates.md                 # Quality standards
-│   ├── verification-protocol.md         # Verification protocol
 │   ├── jsdoc-standards.md               # JSDoc writing rules
 │   └── health-endpoints.md              # Health check standards
 ├── security/                            # Security documentation
@@ -74,7 +73,6 @@ docs/
 │   ├── ENV.md                           # Environment variables
 │   ├── SETUP.md                         # Machine setup
 │   ├── KUBERNETES.md                    # K8s configuration
-│   ├── MULTI_REGION.md                  # Multi-region: not supported, prerequisites
 │   ├── sealed-secrets.md               # Encrypted K8s secrets
 │   └── BACKUP_DR.md                     # Backup & disaster recovery
 ├── operations/                          # Operational procedures
@@ -131,7 +129,7 @@ Platform-level implementation reference docs (GA, NN, training) are in `docs/ref
 ### Code Block with Tag
 
 ```typescript
-import { createBootstrap } from '@trading-model/server-utils/bootstrap';
+import { createBootstrap } from '@trading-model/http/bootstrap';
 
 createBootstrap({
   name: 'Discovery',
@@ -140,7 +138,7 @@ createBootstrap({
 ```
 
 ```bash
-bun run build:common && bun run build:address-manager && bun run build:broker-message
+bun run --filter @trading-model/common --filter @trading-model/address-manager --filter @trading-model/broker-message build
 ```
 
 ```yaml

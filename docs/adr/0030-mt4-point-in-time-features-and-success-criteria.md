@@ -44,7 +44,7 @@ The 2026-09-13 architecture audit put MT4 on the mid-term roadmap: once ingestio
 
    A track record is a symbol's test segments chained in time order, for one seed: PnL per bar (mean over the evaluation episodes), annualised from the bar spacing; returns and drawdowns are in % of the initial cash, on which trades are sized (ADR-0025 item 16).
 
-3. **Protocol** (`services/trader-trainer/scripts/mt4-walk-forward.ts`): 500 training candles (its own 80 / 20 train / validation split), then 100 test candles never seen by training, segment after segment; the real `TrainingSession`, population 20, 30 generations, 10 evaluation episodes. `seedOffset` (`TrainingSettings`, 0 = the default seeds) makes the seeds independent and reproducible. The features are the candles alone since ADR-0074 (the former `--features klines` option rebuilt a 24h ticker and trades from the candle files). The script prints PASS / FAIL for each criterion.
+3. **Protocol** (`services/trader-trainer/scripts/mt4-walk-forward.ts`): 500 training candles (its own 80 / 20 train / validation split), then 100 test candles never seen by training, segment after segment; the real `TrainingSession`, population 20, 30 generations, 10 evaluation episodes. `seedOffset` (`TrainingSettings`, 0 = the default seeds) makes the seeds independent and reproducible. The features are the candles alone since ADR-0078 (the former `--features klines` option rebuilt a 24h ticker and trades from the candle files). The script prints PASS / FAIL for each criterion.
 
 ## Alternatives Considered
 

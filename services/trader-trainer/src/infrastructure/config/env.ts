@@ -1,7 +1,8 @@
-import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { featureFlag } from "@trading-model/validation/config/feature-flags";
+import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
+import { validateEnv } from "@trading-model/validation/config/validate-env";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
 
@@ -13,9 +14,9 @@ const TRAINER_ENV_SHAPE = {
 	/** Services allowed to download model weights; empty: nobody. */
 	MODEL_DOWNLOAD_CALLERS: z.string().default(""),
 	TRAINER_DATA_WINDOW: z.coerce.number().int().positive().default(500),
-	TRAINER_VALIDATION_SPLIT: z.coerce.number().min(0).max(1).default(0.15),
+	TRAINER_VALIDATION_SPLIT: z.coerce.number().gt(0).lt(1).default(0.15),
 	/** Newest fraction never used by training nor selection; published metrics come from it (ADR-0068). */
-	TRAINER_TEST_SPLIT: z.coerce.number().min(0).max(1).default(0.15),
+	TRAINER_TEST_SPLIT: z.coerce.number().gt(0).lt(1).default(0.15),
 	TRAINER_WALK_FORWARD_FOLDS: z.coerce.number().int().min(1).max(20).default(1),
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
 	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
@@ -43,8 +44,8 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_LEASE_NAME: z.string().trim().default(""),
 } satisfies Record<string, z.ZodTypeAny>;
 
-const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
-	AddressManagerEnvSchema
-).extend(TRAINER_ENV_SHAPE);
+const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(AddressManagerEnvSchema)
+	.extend(RedisEnvSchema.shape)
+	.extend(TRAINER_ENV_SHAPE);
 
 export const ENV = validateEnv(TRADER_TRAINER_ENV_SCHEMA);

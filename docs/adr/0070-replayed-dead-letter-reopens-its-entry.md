@@ -4,7 +4,7 @@
 **Date:** 2026-11
 **Amends:** [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md) (§7: deduplication on `<messageId>:<service>`)
 **Related:** issue #1005, issue #531
-**Verified by:** `services/dlq-service/tests/db/claims.db.spec.ts`, `tests/e2e/dead-letter-flow.e2e.spec.ts`
+**Verified by:** `services/dlq-service/tests/db/claims.db.spec.ts`, `tests/contract/dead-letter.spec.ts`
 
 ## Context
 

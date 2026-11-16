@@ -18,46 +18,6 @@ describe("audit-notifier", () => {
 		MOCK_PUBLISH.mockResolvedValue(true);
 	});
 
-	describe("notifyAddAudit", () => {
-		it("publishes the added entry with its actor", () => {
-			load().notifyAddAudit(
-				"e1",
-				"market.trade.recent.fetch" as never,
-				"OPEN",
-				"ops-alice"
-			);
-
-			expect(MOCK_PUBLISH).toHaveBeenCalledWith("dlq.entry.added", {
-				entryId: "e1",
-				topic: "market.trade.recent.fetch",
-				reason: "OPEN",
-				actor: "ops-alice",
-			});
-		});
-
-		it("sends null for an unknown topic, reason or actor", () => {
-			load().notifyAddAudit("e1", undefined, undefined, null);
-
-			expect(MOCK_PUBLISH).toHaveBeenCalledWith("dlq.entry.added", {
-				entryId: "e1",
-				topic: null,
-				reason: null,
-				actor: null,
-			});
-		});
-
-		it("publishes nothing for a dead-lettered DLQ event (no loop)", () => {
-			load().notifyAddAudit(
-				"e1",
-				"dlq.entry.added" as never,
-				"TTL_EXPIRED",
-				null
-			);
-
-			expect(MOCK_PUBLISH).not.toHaveBeenCalled();
-		});
-	});
-
 	describe("notifyReplayAudit", () => {
 		it("publishes nothing for an empty batch, and has nothing to miss", async () => {
 			await expect(

@@ -21,7 +21,8 @@
   "type": "commonjs",
   "main": "./dist/application/index.js",
   "bin": {
-    "audit-chain": "./dist/application/chain-cli.js"
+    "audit-chain": "./dist/application/chain-cli.js",
+    "audit-dlq": "./dist/application/dlq-cli.js"
   },
   "scripts": {
     "test": "jest",
@@ -40,7 +41,6 @@
     "@trading-model/http": "*",
     "@trading-model/persistence": "*",
     "@trading-model/primitives": "*",
-    "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "express": "^5.3.0",
     "mongodb": "^7.8.0",

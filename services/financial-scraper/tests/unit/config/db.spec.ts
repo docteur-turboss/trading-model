@@ -22,17 +22,16 @@ jest.mock("ts-sql-query/queryRunners/MySql2PoolQueryRunner", () => ({
 	MySql2PoolQueryRunner: jest.fn<(...args: any[]) => any>(),
 }));
 
+import { MySqlConnection } from "ts-sql-query/connections/MySqlConnection";
 import { createDBConnection, DATABASE } from "../../../src/config/db";
 
 describe("config/db", () => {
-	it("should export DATABASE pool", () => {
-		expect(DATABASE).toBeDefined();
+	it("should export the pool it created", () => {
+		expect(DATABASE).toBe(MOCK_CREATE_POOL.mock.results[0]?.value);
 	});
 
-	it("should export createDBConnection function", () => {
-		expect(createDBConnection).toBeDefined();
-		const instance = createDBConnection();
-		expect(instance).toBeDefined();
+	it("should create a MySqlConnection", () => {
+		expect(createDBConnection()).toBeInstanceOf(MySqlConnection);
 	});
 
 	it("should create pool with expected config", () => {

@@ -108,7 +108,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 import { DLQ_API } from "../../src/adapters/inbound/api-routes";
 import { createDlqHandlers } from "../../src/adapters/inbound/dlq-service";
 import { DlqRoutes } from "../../src/adapters/inbound/routes";
-import { createAddEntry } from "../../src/application/use-cases/add-entry-pipeline";
 import { createDeleteEntries } from "../../src/application/use-cases/dlq-delete-handler";
 import { createReplayEntries } from "../../src/application/use-cases/dlq-replay-service";
 
@@ -122,12 +121,10 @@ const dlqClaimManager = {
 	claimEntriesForRetry: jest.fn<(...args: any[]) => any>(),
 };
 const metricsPort = {
-	entryAdded: () => undefined,
 	entriesDeleted: () => undefined,
 	batchReplayed: () => undefined,
 };
 const auditPort = {
-	notifyAdd: () => undefined,
 	notifyDelete: jest.fn<(...args: any[]) => Promise<boolean>>(async () => true),
 	notifyReplay: async () => true,
 };
@@ -136,13 +133,6 @@ const handlers = createDlqHandlers({
 	db: { isConnected: () => true, getMissingCriticalIndexes: () => [] },
 	queue: { isAvailable: () => true },
 	useCases: {
-		addEntry: createAddEntry({
-			entries: dlqRepository,
-			storage: { isAvailable: () => true },
-			queue: { enqueue: async () => undefined },
-			metrics: metricsPort,
-			audit: auditPort,
-		}),
 		deleteEntries: createDeleteEntries({
 			entries: dlqRepository,
 			metrics: metricsPort,
@@ -311,90 +301,15 @@ describe("DLQ Service — Routes Integration", () => {
 		});
 	});
 
-	it("POST /dlq should reject a request without a service identity", async () => {
-		await start();
-		const result = await request(server, "/dlq", {
-			method: "POST",
-			body: validEntry,
-		});
-		expect(result.status).toBe(403);
-		expect(result.body).toEqual({ error: "Unauthorized service" });
-		expectDocumented(DLQ_API.addEntry, result);
-		expect(dlqRepository.insert).not.toHaveBeenCalled();
-	});
-
-	it("POST /dlq should reject a service that is not allowed", async () => {
-		await start();
-		const result = await request(server, "/dlq", {
-			method: "POST",
-			body: validEntry,
-			headers: signHeaders(validEntry, "POST", "/dlq", "rogue-service"),
-		});
-		expect(result.status).toBe(403);
-		expect(dlqRepository.insert).not.toHaveBeenCalled();
-	});
-
-	it("POST /dlq should reject an invalid signature", async () => {
-		await start();
-		const result = await request(server, "/dlq", {
-			method: "POST",
-			body: validEntry,
-			headers: {
-				...signHeaders(validEntry, "POST", "/dlq"),
-				"x-signature": "0".repeat(64),
-			},
-		});
-		expect(result.status).toBe(401);
-		expect(result.body).toEqual({ error: "Invalid or expired signature" });
-		expectDocumented(DLQ_API.addEntry, result);
-		expect(dlqRepository.insert).not.toHaveBeenCalled();
-	});
-
-	it("POST /dlq should persist a validly signed entry", async () => {
+	it("POST /dlq is gone: dead letters live in the dead streams (ADR-0073)", async () => {
 		await start();
 		const result = await request(server, "/dlq", {
 			method: "POST",
 			body: validEntry,
 			headers: signHeaders(validEntry, "POST", "/dlq"),
 		});
-		expect(result.status).toBe(201);
-		expect(result.body).toEqual({ id: "entry-1" });
-		expectDocumented(DLQ_API.addEntry, result);
-		expect(dlqRepository.insert).toHaveBeenCalledTimes(1);
-	});
-
-	it("POST /dlq should reject an invalid body with 400", async () => {
-		await start();
-		const invalidBody = { reason: "missing required fields" };
-		const result = await request(server, "/dlq", {
-			method: "POST",
-			body: invalidBody,
-			headers: signHeaders(invalidBody, "POST", "/dlq"),
-		});
-		expect(result.status).toBe(400);
-		expect(result.body).toEqual({
-			error: "Validation failed",
-			details: expect.arrayContaining([
-				expect.objectContaining({ field: "body.deliveryAttempt" }),
-				expect.objectContaining({ field: "body.timestamp" }),
-			]),
-		});
-		expectDocumented(DLQ_API.addEntry, result);
+		expect(result.status).toBe(404);
 		expect(dlqRepository.insert).not.toHaveBeenCalled();
-	});
-
-	it("POST /dlq should accept the contract format (epoch milliseconds)", async () => {
-		await start();
-		const entry = { ...validEntry, timestamp: Date.now() };
-		const result = await request(server, "/dlq", {
-			method: "POST",
-			body: entry,
-			headers: signHeaders(entry, "POST", "/dlq"),
-		});
-		expect(result.status).toBe(201);
-		expect(dlqRepository.insert).toHaveBeenCalledWith(
-			expect.objectContaining({ timestamp: entry.timestamp })
-		);
 	});
 
 	it("GET /dlq should list entries for an allowed service", async () => {

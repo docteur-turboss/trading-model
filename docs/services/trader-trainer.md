@@ -141,7 +141,7 @@ The `TRAINER_MODEL_RETENTION` newest versions are kept per symbol (default 20). 
 
 ## Market Data
 
-The service subscribes to no topic (ADR-0074): the features are built from the candles alone, read from the stored candles of financial-scraper, so every bar of a window has the same inputs whatever the age of the pod. Candles are stored in a `MarketDataBuffer` (configurable window via `TRAINER_DATA_WINDOW`).
+The service subscribes to no topic (ADR-0078): the features are built from the candles alone, read from the stored candles of financial-scraper, so every bar of a window has the same inputs whatever the age of the pod. Candles are stored in a `MarketDataBuffer` (configurable window via `TRAINER_DATA_WINDOW`).
 
 Candles are kept strictly increasing in time per symbol: a candle with the timestamp of the last one replaces it, an older one is dropped, and neither is counted again by the normalizers. A training refuses to start on a series with duplicated or out-of-order timestamps, since a repeated candle would sit in both a training and a validation window.
 
@@ -180,7 +180,7 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 
 - **Window**: 1 minute
 - **Limit**: 1 000 requests per IP and per window
-- Default of the shared server (`packages/server-utils/src/configure-app.ts`); the trainer passes no `rateLimit` option
+- Default of the shared server (`packages/http/src/configure-app.ts`); the trainer passes no `rateLimit` option
 
 ## TLS
 
@@ -191,12 +191,3 @@ All connections require TLS mutual authentication:
 | `TLS_KEY_PATH`  | Server private key    |
 | `TLS_CERT_PATH` | Server certificate    |
 | `TLS_CA_PATH`   | CA certificate bundle |
-
-## Related Documentation
-
-Detailed implementation reference:
-
-- [Genetic Algorithm](../reference/genetic-algorithm.md)
-- [Neural Network](../reference/neural-network.md)
-- [Training Process](../reference/training-process.md)
-- [Service Architecture](../../services/trader-trainer/ARCHITECTURE.md) — full module breakdown and design decisions

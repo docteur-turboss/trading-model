@@ -16,7 +16,7 @@
  *
  * Variants: `shown` / `hidden` = the agent sees its position or a constant
  * (ADR-0025). The only features are the candles'
- * (ADR-0074).
+ * (ADR-0078).
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import {

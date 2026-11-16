@@ -13,7 +13,10 @@ import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/facto
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
 import { buildSummary } from "../../../src/domain/genome-summary-builder";
-import { assessAdmission } from "../../../src/domain/model-admission";
+import {
+	assessAdmission,
+	MIN_ADMISSION_TEST_BARS,
+} from "../../../src/domain/model-admission";
 import { buildModelManifest } from "../../../src/domain/model-artifact";
 
 /** cumulative PnL: 3, -2, 0, -4, 6 -> drawdown 7 (peak 3, trough -4). */
@@ -164,8 +167,14 @@ describe("training.model.published identity of the artifact", () => {
 describe("admission of a model (ADR-0069)", () => {
 	// Per bar: Sharpe 0.335, Sortino 0.8, Calmar 0.4 (mean 0.4, drawdown 1).
 	const curve = new EpisodeScores([1, -0.5, 2, 0.5, -1]);
-	const bars = (prices: number[]) =>
-		prices.map((price) => ({ price: Price.of(price), features: [] as never }));
+	// Straight line from the first to the last price over `count` bars.
+	const bars = (prices: number[], count = MIN_ADMISSION_TEST_BARS) => {
+		const [first, last] = [prices[0], prices[prices.length - 1]];
+		return Array.from({ length: count }, (_, i) => ({
+			price: Price.of(first + ((last - first) * i) / (count - 1)),
+			features: [] as never,
+		}));
+	};
 	const testMeta = (barsPerYear: number) =>
 		({ evaluatedOn: "test", pnlCurve: curve, barsPerYear }) as never;
 
@@ -197,6 +206,15 @@ describe("admission of a model (ADR-0069)", () => {
 				bars([5, 4])
 			)
 		).toBeUndefined();
+	});
+
+	it("gives no verdict under the minimum of test bars", () => {
+		const prices = [5, 4, 3, 2];
+		expect(
+			assessAdmission(testMeta(100), bars(prices, MIN_ADMISSION_TEST_BARS - 1))
+		).toBeUndefined();
+		expect(assessAdmission(testMeta(100), bars(prices, 75))).toBeUndefined();
+		expect(assessAdmission(testMeta(100), bars(prices))).toBeDefined();
 	});
 
 	it("the manifest carries the verdict", () => {

@@ -12,8 +12,8 @@ Every trained model was stored and announced by `training.model.published` whate
 ## Decision
 
 1. After each session the trainer checks, on the test segment metrics of the published genome (ADR-0068), the ADR-0030 criteria one segment allows, after fees and execution costs: annualised Sharpe >= 1.0, Sortino >= 1.5, Calmar (annualised mean bar PnL / max drawdown) >= 1.0, and Sharpe above buy and hold's on the same test bars. Thresholds are domain constants (`ADMISSION_THRESHOLDS`, shared with `mt4-walk-forward.ts`). The t-statistic and the stability need several segments and seeds: they stay MT4 criteria.
-2. No verdict without test segment metrics: validation metrics are biased by the selection.
-3. The manifest carries `admission: { admissible, evaluatedOn: "test", criteria, thresholds }`; `training.model.published` carries `admissible` (optional field, ADR-0061); `tt_model_admission_total{result="admissible|rejected"}` counts them. A manifest without `admission` is not admissible.
+2. No verdict without test segment metrics: validation metrics are biased by the selection. No verdict either under `MIN_ADMISSION_TEST_BARS` = 1440 test bars (one day of one-minute bars): the ratios are annualised (x sqrt(`barsPerYear`), x `barsPerYear` for Calmar), and on a few dozen bars a tiny positive mean passes every threshold.
+3. The manifest carries `admission: { admissible, evaluatedOn: "test", criteria, thresholds }`; `training.model.published` carries `admissible` (optional field, ADR-0061); `tt_model_admission_total{result="admissible|rejected"}` counts them. A manifest without `admission` is not admissible; the trainer counts it as `rejected`.
 4. A rejected model is still stored and published: the audit-logger keeps the trace and the failure stays visible.
 5. `admissible` makes a model eligible, not live: no automatic promotion. A model's first use for decision is a manual promotion, and real capital still needs MT4 to pass (ADR-0030, ADR-0049 §1.4).
 
@@ -27,4 +27,4 @@ Every trained model was stored and announced by `training.model.published` whate
 
 ## Consequences
 
-About 75 test bars make one noisy estimate: an admissible model may be lucky (ADR-0030 results), hence the manual promotion. Manifests written before this ADR have no `admission`.
+Even 1440 test bars make one noisy estimate: an admissible model may be lucky (ADR-0030 results), hence the manual promotion. With the default window (`TRAINER_DATA_WINDOW` 500, `TRAINER_TEST_SPLIT` 0.15: 75 test bars) no verdict is given until the window is raised to about 9600 bars (1440 / 0.15); the default is unchanged (memory and session duration). Manifests written before this ADR have no `admission`.

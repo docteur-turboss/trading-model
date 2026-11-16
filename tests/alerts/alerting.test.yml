@@ -649,6 +649,60 @@ tests:
         alertname: SignalCollectionFailing
         exp_alerts: []
 
+  # A silent source alerts past its own threshold: hourly (max age 3 h) stops
+  # at 1 h, quarterly (max age 120 days) last ran 90 days ago and stays quiet.
+  - name: a silent signal source alerts past its threshold, by source
+    interval: 1h
+    input_series:
+      - series: 'fs_signal_last_success_timestamp_seconds{job="financial-scraper-collector",instance="c",source="nws"}'
+        values: '0x10'
+      - series: 'fs_signal_source_max_age_seconds{job="financial-scraper-collector",instance="c",source="nws"}'
+        values: '10800x10'
+      - series: 'fs_signal_last_success_timestamp_seconds{job="financial-scraper-collector",instance="c",source="sec-quarterly"}'
+        values: '-7776000x10'
+      - series: 'fs_signal_source_max_age_seconds{job="financial-scraper-collector",instance="c",source="sec-quarterly"}'
+        values: '10368000x10'
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: SignalSourceStale
+        exp_alerts: []
+      - eval_time: 4h
+        alertname: SignalSourceStale
+        exp_alerts:
+          - exp_labels: {severity: warning, source: nws}
+            exp_annotations:
+              summary: 'A signal source stopped producing'
+              description: 'nws has had no successful collection for 4h 0m 0s, beyond its freshness threshold (no failure counted: cron stopped or lease lost).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalsourcestale'
+
+  # No collecting pod (HTTP replicas, SIGNAL_COLLECTION_ENABLED=false): no series, no alert.
+  - name: no signal freshness series, no stale alert
+    interval: 1h
+    input_series:
+      - series: 'up{job="financial-scraper-collector",instance="c"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 4h
+        alertname: SignalSourceStale
+        exp_alerts: []
+
+  # A quarantined source only counts skipped_quarantine (its ticks make no
+  # request): the alert must stay on.
+  - name: a quarantined signal source keeps alerting
+    interval: 1h
+    input_series:
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="nws-latest-observation",result="skipped_quarantine"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 10h
+        alertname: SignalCollectionFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, source: nws-latest-observation}
+            exp_annotations:
+              summary: 'A signal source fails to be collected'
+              description: 'nws-latest-observation failed 10 collections in 24 hours: its signals are missing or stale (fetch_error: source down or refusing, 403 from SEC EDGAR without SIGNAL_CONTACT_EMAIL; invalid_payload: its format changed; store_error: MySQL).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalcollectionfailing'
+
   # ADR-0026: a geo-block (451) alerts at once; other errors (429, 5xx) and
   # 200s do not. The 451 series only exists once Binance starts refusing.
   - name: a Binance geo-block alerts, other Binance errors do not
@@ -967,23 +1021,26 @@ tests:
           - exp_labels: {severity: warning, topic: market.candlestick.series.fetch}
             exp_annotations:
               summary: 'Messages dead-lettered on market.candlestick.series.fetch'
-              description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in dlq-service (GET /dlq) to inspect and replay.'
+              description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in the dead stream of the topic (audit-dlq CLI) to inspect and replay.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
-  # One dead letter dlq-service refused for good (400, 413).
-  - name: dead letters dlq-service refused
+  # A dead stream with entries: the alert waits 5 minutes, stays while one is left.
+  - name: dead letters wait in a dead stream
     interval: 1m
     input_series:
-      - series: 'mm_dlq_rejected_total{job="message-manager",instance="m1"}'
-        values: '0 0 1x20'
+      - series: 'bus_dead_letters{job="message-manager",instance="m1",topic="market.candlestick.series.fetch"}'
+        values: '0 0 2x20'
     alert_rule_test:
-      - eval_time: 20m
-        alertname: DeadLettersRejected
+      - eval_time: 3m
+        alertname: BusDeadLetters
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: BusDeadLetters
         exp_alerts:
-          - exp_labels: {severity: warning}
+          - exp_labels: {severity: warning, topic: market.candlestick.series.fetch}
             exp_annotations:
-              summary: 'dlq-service refused dead letters'
-              description: 'dlq-service refused 1 dead letter(s) in the last hour (invalid or too large): their journal entries stay pending until trimmed after 24 h (a lost message, JournalEntriesTrimmed): fix the cause within 24 h, see the runbook and the message-manager logs.'
+              summary: 'Dead letters wait on market.candlestick.series.fetch'
+              description: '2 dead letter(s) wait in the dead stream of market.candlestick.series.fetch (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
   # market.ticker: dropped for 30 minutes, fires. market.trade: a burst at
@@ -1461,6 +1518,41 @@ tests:
         values: '3600+0x20'
     alert_rule_test:
       - eval_time: 10m
+        alertname: CertificateExpiry
+        exp_alerts:
+          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+            exp_annotations:
+              summary: 'SVID close to expiry on dlq-service'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
+
+  # Issue #1249: 4 h SVIDs (ADR-0065, entries made with -x509SVIDTTL 14400)
+  # renewed at half-life never fall below 2 h left; a rotation stalled since
+  # the first renewal at 120m (expiry still 14400) fires at 186m: below 1 h
+  # left from 181m, held for 5 min.
+  - name: certificate expiry stays silent on normal 4 h rotation and fires on stalled rotation
+    interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://api-gateway:3000/ping",service="api-gateway"}'
+        values: '14400x119 21600x119 28800x119'
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://dlq-service:3000/ping",service="dlq-service"}'
+        values: '14400x359'
+    alert_rule_test:
+      - eval_time: 180m
+        alertname: CertificateExpiry
+        exp_alerts: []
+      - eval_time: 185m
+        alertname: CertificateExpiry
+        exp_alerts: []
+      - eval_time: 186m
+        alertname: CertificateExpiry
+        exp_alerts:
+          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+            exp_annotations:
+              summary: 'SVID close to expiry on dlq-service'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
+      - eval_time: 350m
         alertname: CertificateExpiry
         exp_alerts:
           - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}

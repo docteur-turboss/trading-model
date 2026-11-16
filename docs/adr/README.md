@@ -4,21 +4,21 @@ This directory contains Architecture Decision Records (ADRs) for the trading-mod
 
 ## What is an ADR?
 
-An ADR documents a significant architectural decision, including the context, alternatives considered, and the rationale for the chosen approach. ADRs are immutable once accepted — superseded decisions are documented in a new ADR that references the old one.
+An ADR documents a significant architectural decision, including the context, alternatives considered, and the rationale for the chosen approach. ADRs are immutable once accepted — superseded decisions are documented in a new ADR that references the old one. A superseded ADR may later be deleted: its index row stays with the status "Deleted", and git history keeps its text.
 
 ## Index
 
 | ADR                                           | Title                                                  | Status   | Date    |
 | --------------------------------------------- | ------------------------------------------------------ | -------- | ------- |
 | [ADR-0001](./0001-ga-dqn-training.md)         | Genetic Algorithm + Deep Q-Learning for Agent Training | Accepted | 2026-06 |
-| [ADR-0002](./0002-redis-pub-sub.md)           | Redis Streams for Inter-Service Messaging              | Superseded by [ADR-0019](./0019-message-broker-as-built.md) | 2026-06 |
-| [ADR-0003](./0003-mongodb-persistence.md)     | MongoDB for Audit and DLQ Persistence                    | Superseded by [ADR-0020](./0020-database-topology-as-deployed.md) | 2026-06 |
-| [ADR-0004](./0004-mysql-group-replication.md) | MySQL with Group Replication for Market Data           | Superseded by [ADR-0020](./0020-database-topology-as-deployed.md) | 2026-06 |
-| [ADR-0005](./0005-mtls-security.md)           | Mutual TLS for All Inter-Service Communication         | Superseded by [ADR-0011](./0011-spiffe-spire-workload-identity.md) | 2026-06 |
+| ADR-0002 | Redis Streams for Inter-Service Messaging | Deleted (superseded by ADR-0019) | 2026-06 |
+| ADR-0003 | MongoDB for Audit and DLQ Persistence | Deleted (superseded by ADR-0020) | 2026-06 |
+| ADR-0004 | MySQL with Group Replication for Market Data | Deleted (superseded by ADR-0020) | 2026-06 |
+| ADR-0005 | Mutual TLS for All Inter-Service Communication | Deleted (superseded by ADR-0011) | 2026-06 |
 | [ADR-0006](./0006-monorepo-bun-workspaces.md) | Monorepo Structure with bun Workspaces                 | Accepted | 2026-06 |
 | [ADR-0007](./0007-common-package-split.md)   | Common Package Split                                   | Implemented | 2026-06 |
-| [ADR-0008](./0008-message-broker-choice.md)  | Message Broker Choice                                  | Superseded by [ADR-0019](./0019-message-broker-as-built.md) | 2026-06 |
-| [ADR-0009](./0009-certificate-utils-structure.md) | Certificate Utils Structure                       | Superseded by [ADR-0011](./0011-spiffe-spire-workload-identity.md) | 2026-06 |
+| ADR-0008 | Message Broker Choice | Deleted (superseded by ADR-0019) | 2026-06 |
+| ADR-0009 | Certificate Utils Structure | Deleted (superseded by ADR-0011) | 2026-06 |
 | [ADR-0010](./0010-clean-architecture-migration.md) | Clean Architecture Migration                    | Implemented | 2026-06 |
 | [ADR-0011](./0011-spiffe-spire-workload-identity.md) | SPIFFE/SPIRE Workload Identity                 | Accepted | 2026-09 |
 | [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) | Dead Code Removal via Reachability Analysis and Runtime Entrypoint Fix | Accepted | 2026-10 |
@@ -50,12 +50,12 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) | Locked, Resumable Schema Migrations and the Expand/Contract Rule | Accepted | 2026-11 |
 | [ADR-0041](./0041-least-privilege-deploy-identities.md) | Least-Privilege Deploy Identities — Application and Cluster-Scope, Bounded Tokens | Accepted | 2026-11 |
 | [ADR-0042](./0042-singleton-collector-with-verified-recovery.md) | Singleton Collector Kept, Recovery Verified After Each Deploy | Superseded by [ADR-0057](./0057-collector-handover-through-a-lease.md) | 2026-11 |
-| [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md) | Message Delivery Once per Subscribed Service (Consumer Group) | Accepted | 2026-11 |
+| [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md) | Message Delivery Once per Subscribed Service (Consumer Group) | Superseded by [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md) | 2026-11 |
 | [ADR-0044](./0044-singleton-trainer.md) | trader-trainer Runs as a Singleton | Accepted | 2026-11 |
 | [ADR-0045](./0045-single-service-resolution-strategy.md) | One Service Resolution Strategy: Registry Says Alive, Platform Says Where | Superseded by [ADR-0072](./0072-dns-routing-and-majors-served-by-services.md) | 2026-11 |
 | [ADR-0046](./0046-simplification-trajectory.md) | Simplification Trajectory for the Services, Broker, Discovery and DLQ | Accepted | 2026-11 |
 | [ADR-0047](./0047-redis-isolation-per-service.md) | Redis Isolated Per Service — ACL Users, In-Process Address Cache, In-Memory DLQ Rate Limiter | Accepted | 2026-11 |
-| [ADR-0048](./0048-durable-message-journal-in-redis-streams.md) | Durable Message Journal in Redis Streams — Accept First, Deliver Afterwards | Accepted | 2026-11 |
+| [ADR-0048](./0048-durable-message-journal-in-redis-streams.md) | Durable Message Journal in Redis Streams — Accept First, Deliver Afterwards | Superseded by [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md) | 2026-11 |
 | [ADR-0049](./0049-downstream-context-for-models-and-signals.md) | Downstream Context and Contract for Trained Models and Collected Signals | Accepted | 2026-11 |
 | [ADR-0050](./0050-audit-chain-single-writer-lease.md) | One Writer at a Time on the Audit Chain Head (Lease) | Accepted | 2026-11 |
 | [ADR-0051](./0051-mysql-retention-cronjob.md) | MySQL Retention Job for Market Data and Signals (CronJob, `retention` User) | Accepted | 2026-11 |
@@ -80,8 +80,12 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0070](./0070-replayed-dead-letter-reopens-its-entry.md) | A Replayed Dead Letter That Fails Again Reopens Its Entry | Accepted | 2026-11 |
 | [ADR-0071](./0071-empty-registry-serves-last-known-target.md) | An Empty Registry Answer Serves the Last Known Target for 60 Seconds | Superseded by [ADR-0072](./0072-dns-routing-and-majors-served-by-services.md) | 2026-11 |
 | [ADR-0072](./0072-dns-routing-and-majors-served-by-services.md) | Route on Service DNS Names, Majors Served by the Services, Retire discovery-server | Accepted | 2026-11 |
-| [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md) | The Message Bus as a Redis Streams Library, Dead Letters in Dead Streams | Proposed | 2026-11 |
-| [ADR-0074](./0074-trainer-features-from-candles-only.md) | The Trainer's Features Come From the Candle Window Alone | Accepted | 2026-11 |
+| [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md) | The Message Bus as a Redis Streams Library, Dead Letters in Dead Streams | Accepted | 2026-11 |
+| [ADR-0074](./0074-merge-shared-packages-into-six.md) | Merge the Twelve Shared Packages into Six, One Merge per PR | Accepted | 2026-11 |
+| [ADR-0075](./0075-non-commercial-signal-sources-admitted-and-tagged.md) | Free Personal-Use Signal Sources Are Admitted, Tagged by Their Terms | Accepted | 2026-11 |
+| [ADR-0076](./0076-multi-asset-trainer-shared-encoders-and-agent-hierarchy.md) | Multi-Asset Trainer: Shared Encoders, a Three-Level Agent Hierarchy and a Migration Path in Flagged Steps | Proposed | 2026-11 |
+| [ADR-0077](./0077-rank-the-market-data-source-terms.md) | Rank the Market Data Source Terms Against the Licence Order, Add Bitstamp as Second Source | Proposed | 2026-11 |
+| [ADR-0078](./0078-trainer-features-from-candles-only.md) | The Trainer's Features Come From the Candle Window Alone | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 
