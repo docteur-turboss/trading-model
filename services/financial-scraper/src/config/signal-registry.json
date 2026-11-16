@@ -99,7 +99,7 @@
 			"id": "cftc-cot-legacy",
 			"protocol": "rest_api",
 			"adapter": "cftc-cot-legacy",
-			"schedule": "45 15-23 * * 5",
+			"schedule": "45 15-23 * * 1,5",
 			"reliabilityScore": 0.95,
 			"covers": [{ "assetType": "commodity_proxy", "dimension": "market" }],
 			"accessPolicy": {
@@ -113,7 +113,7 @@
 				{
 					"subject": { "assetId": "WHEAT" },
 					"dimension": "market",
-					"url": "https://publicreporting.cftc.gov/resource/jun7-fc8e.json?cftc_contract_market_code=001612&$order=report_date_as_yyyy_mm_dd%20DESC&$limit=5"
+					"url": "https://publicreporting.cftc.gov/resource/jun7-fc8e.json?cftc_contract_market_code=001602&$order=report_date_as_yyyy_mm_dd%20DESC&$limit=5"
 				}
 			]
 		},

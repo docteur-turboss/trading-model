@@ -405,10 +405,19 @@ describe("cftc-cot-legacy", () => {
 		expect(observedAt).toBe(Date.parse("2026-10-30T19:30:00Z"));
 	});
 
-	it("replays to the same keys and gives nothing for a week without report", () => {
-		expect(CFTC_COT_LEGACY.normalize(rows, NO_PARAMS)).toEqual(
-			CFTC_COT_LEGACY.normalize(rows, NO_PARAMS)
+	it.each([
+		["2026-11-24", "2026-11-30T20:30:00Z"], // Thanksgiving week: Monday
+		["2026-12-22", "2026-12-28T20:30:00Z"], // Christmas observed Friday
+	])("delays the release of %s past a federal holiday", (tuesday, release) => {
+		const [{ observedAt }] = CFTC_COT_LEGACY.normalize(
+			[{ ...rows[0], report_date_as_yyyy_mm_dd: `${tuesday}T00:00:00.000` }],
+			NO_PARAMS
 		);
+
+		expect(observedAt).toBe(Date.parse(release));
+	});
+
+	it("gives nothing for a week without report", () => {
 		expect(CFTC_COT_LEGACY.normalize([], NO_PARAMS)).toEqual([]);
 	});
 

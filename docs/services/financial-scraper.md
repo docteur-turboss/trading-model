@@ -181,7 +181,7 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | --- | --- | --- | --- | --- | --- |
 | `ecb-aaa-yield-10y` | market | `EA_AAA_10Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_10y` | attribution: "Source: ECB statistics" (1) |
 | `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
-| `cftc-cot-legacy` | market | `WHEAT` (contract 001612) | Fridays, hourly 15:45-23:45 UTC (report out at 15:30 ET) | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = Friday 15:30 ET | public domain, CFTC acknowledged (1) |
+| `cftc-cot-legacy` | market | `WHEAT` (contract 001602) | Fridays and Mondays after a holiday, hourly 15:45-23:45 UTC | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = release 15:30 ET, 3 business days after the Tuesday | public domain, CFTC acknowledged (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
 | `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
 
