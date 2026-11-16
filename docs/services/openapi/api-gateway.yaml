@@ -1295,6 +1295,47 @@ paths:
                           - "criteria"
                           - "thresholds"
                         additionalProperties: false
+                      replay:
+                        type: "object"
+                        properties:
+                          from:
+                            type: "integer"
+                          testFrom:
+                            type: "integer"
+                          to:
+                            type: "integer"
+                          intervalMs:
+                            type: "integer"
+                          evalEpsilon:
+                            type: "number"
+                          simulator:
+                            type: "object"
+                            properties:
+                              initialCash:
+                                type: "number"
+                              feeRate:
+                                type: "number"
+                              executionCostRate:
+                                type: "number"
+                              tradeFraction:
+                                type: "number"
+                              observePosition:
+                                type: "boolean"
+                            required:
+                              - "initialCash"
+                              - "feeRate"
+                              - "executionCostRate"
+                              - "tradeFraction"
+                              - "observePosition"
+                            additionalProperties: false
+                        required:
+                          - "from"
+                          - "testFrom"
+                          - "to"
+                          - "intervalMs"
+                          - "evalEpsilon"
+                          - "simulator"
+                        additionalProperties: false
                     required:
                       - "formatVersion"
                       - "symbol"

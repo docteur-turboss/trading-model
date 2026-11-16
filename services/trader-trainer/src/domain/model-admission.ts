@@ -1,4 +1,4 @@
-import { buyAndHoldSharpe } from "./genetic-algorithm/evaluation-utils";
+import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import type { GenomeFitnessMeta, MarketStep } from "./genetic-algorithm/genome";
 import { annualisedSharpe } from "./genome-summary-builder";
 
