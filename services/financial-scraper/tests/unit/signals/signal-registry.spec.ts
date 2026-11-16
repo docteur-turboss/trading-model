@@ -87,7 +87,7 @@ describe("signal registry — the shipped file", () => {
 		expect(SIGNAL_REGISTRY.assets.get("XLE")?.sector).toBe("energy");
 	});
 
-		it("only holds sources free for any use", () => {
+	it("only holds sources free for any use", () => {
 		const policies = SIGNAL_REGISTRY.sources.map((s) => s.accessPolicy);
 
 		expect(new Set(policies.map((p) => p.terms))).toEqual(
