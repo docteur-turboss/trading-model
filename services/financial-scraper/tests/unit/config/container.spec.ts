@@ -181,6 +181,9 @@ describe("config/container — createSignalScheduler", () => {
 		expect(MOCK_LOGGER.info).toHaveBeenCalledWith("Signal collection enabled", {
 			sources: [
 				"ecb-aaa-yield-10y",
+				"ecb-hicp-annual-rate",
+				"ecb-deposit-facility-rate",
+				"ecb-euro-reference-rates",
 				"sec-edgar-eps-diluted",
 				"nws-kansas-wheat-belt",
 				"wikipedia-pageviews",
