@@ -63,6 +63,18 @@ describe("configureApp", () => {
 		expect(JSON.parse(response.body)).toEqual({ status: "ok" });
 	});
 
+	it("should not rate limit: 1001 requests on one route get no 429", async () => {
+		const app = configureApp();
+		const statuses = new Set<number>();
+		for (let i = 0; i < 1001; i++) {
+			statuses.add(
+				(await makeRequest(app as never, "GET", "/ping")).statusCode
+			);
+		}
+
+		expect([...statuses]).toEqual([200]);
+	}, 60000);
+
 	it("should return 404 for unknown routes", async () => {
 		const app = configureApp();
 
