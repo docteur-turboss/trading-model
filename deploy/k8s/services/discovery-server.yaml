@@ -125,6 +125,8 @@ spec:
             - configMapRef:
                 name: discovery-server-config
           env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=192
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
