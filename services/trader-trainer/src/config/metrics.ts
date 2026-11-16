@@ -136,6 +136,24 @@ export const LAST_CANDLE_AGE_SECONDS = new promClient.Gauge({
 	labelNames: ["symbol"] as const,
 });
 
+export const SIGNAL_WINDOW_SIZE = new promClient.Gauge({
+	name: "tt_signal_window_size",
+	help: "Signals of the symbol's asset in the point-in-time window read at the last training session",
+	labelNames: ["symbol", "dimension"] as const,
+});
+
+export const SIGNAL_NEWEST_AGE_SECONDS = new promClient.Gauge({
+	name: "tt_signal_newest_age_seconds",
+	help: "Age of the newest signal of the window per dimension, at the last training session",
+	labelNames: ["symbol", "dimension"] as const,
+});
+
+export const SIGNAL_READ_ERRORS_TOTAL = new promClient.Counter({
+	name: "tt_signal_read_errors_total",
+	help: "Signal windows that could not be read (the session trains without them)",
+	labelNames: ["symbol"] as const,
+});
+
 export const MARKET_DATA_SYMBOLS = new promClient.Gauge({
 	name: "tt_market_data_symbols",
 	help: "Number of tracked symbols in buffer",

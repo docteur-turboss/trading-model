@@ -124,6 +124,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | Variable                          | Type         | Default           | Required | Description                          | Services |
 | --------------------------------- | ------------ | ----------------- | -------- | ------------------------------------ | -------- |
 | `TRAINER_SYMBOLS`                 | string       | `BTCUSDT,ETHUSDT` | no       | Comma-separated trading symbols      | TT       |
+| `TRAINER_SYMBOL_ASSETS`           | string       | empty             | no       | `SYMBOL:ASSET` pairs (`BTCUSDT:BTC,ETHUSDT:ETH`): registry asset whose point-in-time signal window (30 days) a session reads and measures; empty: no call | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
 | `TRAINER_VALIDATION_SPLIT`        | number (]0, 1[) | `0.15`            | no       | Fraction of the steps left after the test cut, used for validation (selection) | TT       |
 | `TRAINER_TEST_SPLIT`              | number (]0, 1[) | `0.15`            | no       | Newest fraction of the steps never used by training nor selection; published metrics come from it (ADR-0068) | TT       |
@@ -375,6 +376,7 @@ MYSQL_DATABASE=financial_scraper
 
 # Trader-Trainer
 TRAINER_SYMBOLS=BTCUSDT,ETHUSDT
+TRAINER_SYMBOL_ASSETS=
 TRAINER_DATA_WINDOW=500
 TRAINER_VALIDATION_SPLIT=0.15
 TRAINER_TEST_SPLIT=0.15
