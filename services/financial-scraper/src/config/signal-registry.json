@@ -58,6 +58,48 @@
 			"applicableDimensions": ["market", "macro"],
 			"sector": "sovereign_debt",
 			"areas": ["EA"]
+		},
+		{
+			"id": "EA_AAA_2Y",
+			"name": "Euro area AAA government bonds, 2-year",
+			"assetType": "bond",
+			"identifier": { "scheme": "series", "provider": "ECB", "key": "YC.B.U2.EUR.4F.G_N_A.SV_C_YM.SR_2Y" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt",
+			"areas": ["EA"]
+		},
+		{
+			"id": "EA_AAA_30Y",
+			"name": "Euro area AAA government bonds, 30-year",
+			"assetType": "bond",
+			"identifier": { "scheme": "series", "provider": "ECB", "key": "YC.B.U2.EUR.4F.G_N_A.SV_C_YM.SR_30Y" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt",
+			"areas": ["EA"]
+		},
+		{
+			"id": "US_TREASURY_2Y",
+			"name": "US Treasury par yield, 2-year",
+			"assetType": "bond",
+			"identifier": { "scheme": "series", "provider": "US Treasury", "key": "daily_treasury_yield_curve.2Y" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt"
+		},
+		{
+			"id": "US_TREASURY_10Y",
+			"name": "US Treasury par yield, 10-year",
+			"assetType": "bond",
+			"identifier": { "scheme": "series", "provider": "US Treasury", "key": "daily_treasury_yield_curve.10Y" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt"
+		},
+		{
+			"id": "US_TREASURY_30Y",
+			"name": "US Treasury par yield, 30-year",
+			"assetType": "bond",
+			"identifier": { "scheme": "series", "provider": "US Treasury", "key": "daily_treasury_yield_curve.30Y" },
+			"applicableDimensions": ["market", "macro"],
+			"sector": "sovereign_debt"
 		}
 	],
 	"sources": [
@@ -81,6 +123,54 @@
 					"dimension": "market",
 					"url": "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y?lastNObservations=5&format=jsondata",
 					"params": { "metric": "spot_rate_10y" }
+				},
+				{
+					"subject": { "assetId": "EA_AAA_2Y" },
+					"dimension": "market",
+					"url": "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_2Y?lastNObservations=5&format=jsondata",
+					"params": { "metric": "spot_rate_2y" }
+				},
+				{
+					"subject": { "assetId": "EA_AAA_30Y" },
+					"dimension": "market",
+					"url": "https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_30Y?lastNObservations=5&format=jsondata",
+					"params": { "metric": "spot_rate_30y" }
+				}
+			]
+		},
+		{
+			"id": "treasury-par-yield-curve",
+			"protocol": "rest_api",
+			"format": "csv",
+			"adapter": "treasury-par-yield-curve",
+			"schedule": "17 21-23 * * 1-5",
+			"reliabilityScore": 0.95,
+			"covers": [{ "assetType": "bond", "dimension": "market" }],
+			"accessPolicy": {
+				"terms": "public-domain",
+				"termsUrl": "https://www.law.cornell.edu/uscode/text/17/105",
+				"attribution": "Source: U.S. Department of the Treasury",
+				"auth": "none",
+				"maxRequestsPerMinute": 60
+			},
+			"requests": [
+				{
+					"subject": { "assetId": "US_TREASURY_2Y" },
+					"dimension": "market",
+					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_yield_curve&field_tdr_date_value=2026&page&_format=csv",
+					"params": { "column": "2 Yr", "metric": "par_yield_2y" }
+				},
+				{
+					"subject": { "assetId": "US_TREASURY_10Y" },
+					"dimension": "market",
+					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_yield_curve&field_tdr_date_value=2026&page&_format=csv",
+					"params": { "column": "10 Yr", "metric": "par_yield_10y" }
+				},
+				{
+					"subject": { "assetId": "US_TREASURY_30Y" },
+					"dimension": "market",
+					"url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_yield_curve&field_tdr_date_value=2026&page&_format=csv",
+					"params": { "column": "30 Yr", "metric": "par_yield_30y" }
 				}
 			]
 		},
