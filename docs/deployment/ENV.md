@@ -389,8 +389,6 @@ TRAINER_OBSERVE_POSITION=true
 
 # API Gateway auth
 AUTH_TOKENS=ops-alice:read+dlq:write:token1,grafana:read:token2
-
-# Error webhook (optional)
 ```
 
 > **Never commit the `.env` file.** It is in `.gitignore`. Use `.env.example` as a template.
