@@ -54,7 +54,7 @@ export class ScraperSignalHistory implements SignalHistoryPort {
 					added++;
 				}
 			}
-			const last = answer.signals.at(-1);
+			const last = answer.signals[answer.signals.length - 1];
 			if (!(answer.truncated && last)) {
 				break;
 			}
