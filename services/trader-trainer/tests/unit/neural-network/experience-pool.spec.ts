@@ -64,6 +64,18 @@ describe("createExperiencePool", () => {
 			expect(() => pool.samplePool(6)).toThrow(/exceeds pool size/);
 		});
 
+		it("should sample distinct live experiences after eviction", () => {
+			const pool = createExperiencePool(true, 4, undefined, makePRNG(7));
+			for (let i = 0; i < 9; i++) {
+				pool.add(makeExperience(i));
+			}
+
+			const batch = pool.samplePool(4);
+
+			expect(new Set(batch).size).toBe(4);
+			expect(batch.every((exp) => pool.getPool().includes(exp))).toBe(true);
+		});
+
 		it("should clear the pool", () => {
 			const pool = createExperiencePool(true, 10);
 			pool.add(makeExperience(1));

@@ -28,12 +28,10 @@ jest.mock("@trading-model/http/mtls-identity", () => ({
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
-		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
 		ALLOWED_REGISTRATION_CIDRS: "",
 	},
 	env: {
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
-		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
 	},
 }));
 

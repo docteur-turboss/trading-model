@@ -1,6 +1,5 @@
 import { getHeapStatistics } from "node:v8";
 import express, { type Application } from "express";
-import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import promClient from "prom-client";
 import { correlationIdMiddleware } from "./correlation-id";
@@ -22,24 +21,13 @@ new promClient.Gauge({
 	},
 });
 
-function _buildRateLimiter(): ReturnType<typeof rateLimit> {
-	// Coarse per-IP guard for an mTLS-only mesh: it must fit normal service
-	// traffic (heartbeats, token refresh, lookups, publishes). The former
-	// 100 per 15 min was exhausted by one service's heartbeats alone.
-	return rateLimit({
-		windowMs: 60 * 1000,
-		limit: 1000,
-		message: "Too many requests from this IP, please try again later.",
-	});
-}
-
 function _addPingRoute(app: Application): void {
 	app.get(PING_PATH, (_req, res) => {
 		res.json({ status: HEALTH_STATUS_OK });
 	});
 }
 
-/** Configures the Express app, body parsers, rate limiter, and ping route. */
+/** Configures the Express app, body parsers, and ping route. */
 export function configureApp(
 	config: { trustProxy?: boolean; readiness?: ReadinessCheck[] } = {}
 ): Application {
@@ -51,7 +39,6 @@ export function configureApp(
 	app.use(httpMetricsMiddleware);
 	app.use(express.json({ limit: "1mb" }));
 	app.use(express.urlencoded({ extended: false }));
-	app.use(_buildRateLimiter());
 	_addPingRoute(app);
 	if (config.readiness !== undefined) {
 		app.get("/health/ready", createReadinessHandler(config.readiness));
