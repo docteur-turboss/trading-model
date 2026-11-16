@@ -1,16 +1,22 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
+import { PAYLOADS } from "@trading-model/validation/wire/signals";
 import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
+import { DVF_COMMUNE_SALES } from "../../../src/adapters/outbound/signal-sources/dvf-commune-sales";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
+import { EIA_OPEN_DATA } from "../../../src/adapters/outbound/signal-sources/eia-open-data";
 import { EUROSTAT_JSONSTAT } from "../../../src/adapters/outbound/signal-sources/eurostat-jsonstat";
 import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-sources/federal-register-daily";
 import { FRED_SERIES_OBSERVATIONS } from "../../../src/adapters/outbound/signal-sources/fred-series-observations";
+import { NASA_POWER_DAILY } from "../../../src/adapters/outbound/signal-sources/nasa-power-daily";
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
+import { TREASURY_PAR_YIELD_CURVE } from "../../../src/adapters/outbound/signal-sources/treasury-par-yield-curve";
+import { TWELVEDATA_DAILY_PRICES } from "../../../src/adapters/outbound/signal-sources/twelvedata-daily-prices";
 import { WIKIMEDIA_PAGEVIEWS } from "../../../src/adapters/outbound/signal-sources/wikimedia-pageviews";
-import { PAYLOADS } from "../../../src/domain/signals";
+import { signalId } from "../../../src/application/signal-collector";
 
 /**
  * Payloads as the sources sent them on 2026-11-04 (ECB Data Portal,
@@ -32,12 +38,17 @@ describe("SOURCE_ADAPTERS", () => {
 	it("names every adapter a registry source can use", () => {
 		expect([...SOURCE_ADAPTERS.keys()].sort()).toEqual([
 			"cftc-cot-legacy",
+			"dvf-commune-sales",
 			"ecb-sdmx-series",
+			"eia-open-data",
 			"eurostat-jsonstat",
 			"federal-register-daily",
 			"fred-series-observations",
+			"nasa-power-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
+			"treasury-par-yield-curve",
+			"twelvedata-daily-prices",
 			"wikimedia-pageviews",
 		]);
 	});
@@ -51,13 +62,26 @@ describe("SOURCE_ADAPTERS", () => {
 			{ metric: "house_price_index", area: "FR" },
 		],
 		[CFTC_COT_LEGACY, "cftc-cot-legacy", {}],
+		[TWELVEDATA_DAILY_PRICES, "twelvedata-daily-prices", {}],
+		[DVF_COMMUNE_SALES, "dvf-commune-sales", {}],
 		[SEC_EDGAR_COMPANY_CONCEPT, "sec-edgar-company-concept", {}],
 		[
 			NWS_LATEST_OBSERVATION,
 			"nws-latest-observation",
 			{ variables: "temperature,relativeHumidity" },
 		],
+		[
+			NASA_POWER_DAILY,
+			"nasa-power-daily",
+			{ name: "poltava-ua", variables: "T2M,PRECTOTCORR" },
+		],
+		[
+			TREASURY_PAR_YIELD_CURVE,
+			"treasury-par-yield-curve",
+			{ column: "10 Yr", metric: "par_yield_10y" },
+		],
 		[WIKIMEDIA_PAGEVIEWS, "wikimedia-pageviews", {}],
+		[EIA_OPEN_DATA, "eia-open-data", { metric: "crude_oil_stocks" }],
 		[
 			FEDERAL_REGISTER_DAILY,
 			"federal-register-daily",
@@ -620,6 +644,92 @@ describe("federal-register-daily", () => {
 	});
 });
 
+describe("eia-open-data", () => {
+	const crude = fixture("eia-open-data");
+	const CONTEXT = { params: { metric: "crude_oil_stocks" } };
+
+	it("reads the value and unit of a week, the newest at the report time", () => {
+		const [latest, previous] = EIA_OPEN_DATA.normalize(crude, CONTEXT);
+
+		expect(latest.payload).toMatchObject({
+			metric: "crude_oil_stocks",
+			value: 414417,
+			unit: "MBBL",
+			details: { weekEnding: "2026-11-06" },
+		});
+		// Veterans Day (Wednesday 11 Nov) delays the report to Thursday 10:30 EST.
+		expect(latest.observedAt).toBe(Date.parse("2026-11-12T15:30:00Z"));
+		expect(previous.observedAt).toBeUndefined();
+		expect(latest.key).toBe("2026-11-06|414417");
+	});
+
+	it("reports on Wednesday, one hour earlier in UTC under daylight saving time", () => {
+		const row = (period: string) => ({
+			response: { data: [{ period, value: "1", units: "MBBL" }] },
+		});
+
+		expect(
+			EIA_OPEN_DATA.normalize(row("2026-10-30"), CONTEXT)[0].observedAt
+		).toBe(Date.parse("2026-11-04T15:30:00Z"));
+		expect(
+			EIA_OPEN_DATA.normalize(row("2026-10-23"), CONTEXT)[0].observedAt
+		).toBe(Date.parse("2026-10-28T14:30:00Z"));
+	});
+
+	it("delays the report past a Monday holiday", () => {
+		const [{ observedAt }] = EIA_OPEN_DATA.normalize(
+			{
+				response: {
+					data: [{ period: "2027-01-15", value: "1", units: "MBBL" }],
+				},
+			},
+			CONTEXT
+		);
+
+		// Martin Luther King Day, Monday 18 Jan 2027: the report moves to Thursday.
+		expect(observedAt).toBe(Date.parse("2027-01-21T15:30:00Z"));
+	});
+
+	it("dates natural gas storage at the collection, its Thursday report is not the petroleum one", () => {
+		const gas = Object.values(fixture("eia-open-data-series")).find(
+			(body) =>
+				(body as { response: { data: { units: string }[] } }).response.data[0]
+					.units === "BCF"
+		);
+
+		const [{ observedAt }] = EIA_OPEN_DATA.normalize(gas, {
+			params: { metric: "natural_gas_storage" },
+		});
+
+		expect(observedAt).toBeUndefined();
+	});
+
+	it("keeps a revised value as a second signal", () => {
+		const revised = structuredClone(crude);
+		revised.response.data[0].value = "414000";
+
+		const keys = [crude, revised].map(
+			(body) => EIA_OPEN_DATA.normalize(body, CONTEXT)[0].key
+		);
+
+		expect(new Set(keys).size).toBe(2);
+	});
+
+	it("reads the other series with their units", () => {
+		const units = Object.values(fixture("eia-open-data-series")).map(
+			(body) => EIA_OPEN_DATA.normalize(body, CONTEXT)[0].payload.unit
+		);
+
+		expect(units).toEqual(["MBBL", "BCF", "MBBL/D"]);
+	});
+
+	it("throws on a changed format", () => {
+		expect(() =>
+			EIA_OPEN_DATA.normalize({ response: { rows: [] } }, CONTEXT)
+		).toThrow();
+	});
+});
+
 describe("cftc-cot-legacy", () => {
 	const rows = fixture("cftc-cot-legacy");
 
@@ -680,6 +790,245 @@ describe("cftc-cot-legacy", () => {
 				[{ ...rows[0], open_interest_all: "" }],
 				NO_PARAMS
 			)
+		).toThrow();
+	});
+});
+
+describe("dvf-commune-sales", () => {
+	// Bordeaux 2025 (geo-dvf, 2026-11-16): 3 sales kept, 2 with several dwellings of different surfaces.
+	const rows: Record<string, string>[] = fixture("dvf-commune-sales");
+	const metrics = (payload: unknown) =>
+		Object.fromEntries(
+			DVF_COMMUNE_SALES.normalize(payload, NO_PARAMS).map(({ payload: p }) => [
+				p.metric,
+				p,
+			])
+		);
+
+	it("counts a multi-lot sale once and takes the median per type", () => {
+		const out = metrics(rows);
+
+		expect(out.sales_count?.value).toBe(3);
+		expect(out.median_price_per_m2_apartment?.value).toBe(7352.94);
+		expect(out.median_price_per_m2_house?.value).toBe(4907.61);
+		expect(out.sales_count?.details).toEqual({ excluded: 2 });
+		expect(out.sales_count?.period).toEqual({
+			start: "2025-01-01",
+			end: "2025-12-31",
+		});
+	});
+
+	it("excludes sales without price or surface and counts them", () => {
+		const bad = rows.map((row) =>
+			row.id_mutation === "2025-384863"
+				? { ...row, valeur_fonciere: "" }
+				: row.id_mutation === "2025-384864"
+					? { ...row, surface_reelle_bati: "" }
+					: row
+		);
+
+		expect(metrics(bad).sales_count?.details).toEqual({ excluded: 4 });
+		expect(metrics(bad).median_price_per_m2_house).toBeUndefined();
+	});
+
+	it("reads two identical dwelling rows as one dwelling (known limit)", () => {
+		const twin = [
+			...rows,
+			...["a", "b"].map((id) => ({
+				...rows[0],
+				id_mutation: "2025-twin",
+				id_parcelle: id,
+				type_local: "Appartement",
+				surface_reelle_bati: "50",
+				valeur_fonciere: "200000",
+			})),
+		];
+
+		expect(metrics(twin).sales_count?.value).toBe(4);
+		expect(metrics(twin).sales_count?.details).toEqual({ excluded: 2 });
+	});
+
+	it("leaks no field of an individual sale", () => {
+		const text = JSON.stringify(DVF_COMMUNE_SALES.normalize(rows, NO_PARAMS));
+
+		expect(text).not.toMatch(
+			/2025-38|500000|370000|296850|valeur|adresse|parcelle/
+		);
+	});
+
+	it("gives no signal and no error for a commune without sale, and throws on a changed format", () => {
+		expect(DVF_COMMUNE_SALES.normalize([], NO_PARAMS)).toEqual([]);
+		expect(() =>
+			DVF_COMMUNE_SALES.normalize([{ id_mutation: "x" }], NO_PARAMS)
+		).toThrow();
+	});
+});
+
+describe("nasa-power-daily", () => {
+	it("keeps the latest day with a value, skips fill values and absent variables", () => {
+		const observations = NASA_POWER_DAILY.normalize(
+			fixture("nasa-power-daily"),
+			{
+				params: {
+					name: "poltava-ua",
+					variables: "T2M,PRECTOTCORR,GWETROOT,NOPE",
+				},
+			}
+		);
+
+		expect(
+			observations.map((o) => [
+				o.payload.metric,
+				o.payload.value,
+				o.payload.unit,
+			])
+		).toEqual([
+			["T2M", 3.15, "C"],
+			["PRECTOTCORR", 1.33, "mm/day"],
+			["GWETROOT", 0.54, "1"],
+		]);
+		expect(observations[0].payload.details).toEqual({
+			measuredAt: "2026-11-12",
+		});
+	});
+
+	it("gives no signal for a point with no value", () => {
+		const empty = {
+			geometry: { coordinates: [1, 2] },
+			properties: { parameter: { T2M: { "20261112": -999 } } },
+			parameters: { T2M: { units: "C" } },
+		};
+		expect(
+			NASA_POWER_DAILY.normalize(empty, {
+				params: { name: "x", variables: "T2M" },
+			})
+		).toEqual([]);
+	});
+
+	it("gives two points of the same day two distinct ids", () => {
+		const keyOf = (name: string) =>
+			NASA_POWER_DAILY.normalize(fixture("nasa-power-daily"), {
+				params: { name, variables: "T2M" },
+			})[0].key;
+		const subject = { sector: "agriculture" } as const;
+		expect(signalId("s", subject, "T2M", keyOf("beauce-fr"))).not.toBe(
+			signalId("s", subject, "T2M", keyOf("poltava-ua"))
+		);
+	});
+
+	it("rejects a changed format", () => {
+		expect(() =>
+			NASA_POWER_DAILY.normalize(
+				{ properties: {} },
+				{ params: { name: "x", variables: "T2M" } }
+			)
+		).toThrow();
+	});
+});
+
+describe("treasury-par-yield-curve", () => {
+	const rows = fixture("treasury-par-yield-curve");
+	const context = (column: string) => ({
+		params: { column, metric: "par_yield_2y" },
+	});
+
+	it("gives one value per day for the requested maturity, keyed by the day", () => {
+		const observations = TREASURY_PAR_YIELD_CURVE.normalize(
+			rows,
+			context("2 Yr")
+		);
+
+		expect(
+			observations.map(({ key, payload }) => [key, payload.value])
+		).toEqual(
+			rows.map((row: any) => [
+				row.Date.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"),
+				Number(row["2 Yr"]),
+			])
+		);
+		expect(observations[0].payload).toMatchObject({
+			unit: "percent",
+			period: { start: observations[0].key, end: observations[0].key },
+		});
+	});
+
+	it("skips a maturity not published (N/A, blank) and a day without a row", () => {
+		const gaps = [
+			{ ...rows[0], "2 Yr": "N/A" },
+			{ ...rows[1], "2 Yr": "" },
+		];
+
+		expect(TREASURY_PAR_YIELD_CURVE.normalize(gaps, context("2 Yr"))).toEqual(
+			[]
+		);
+		expect(TREASURY_PAR_YIELD_CURVE.normalize([], context("2 Yr"))).toEqual([]);
+	});
+
+	it("throws on a changed format", () => {
+		expect(() =>
+			TREASURY_PAR_YIELD_CURVE.normalize(rows, context("2 Year"))
+		).toThrow('without a "2 Year" column');
+		expect(() =>
+			TREASURY_PAR_YIELD_CURVE.normalize(
+				[{ ...rows[0], "2 Yr": "abc" }],
+				context("2 Yr")
+			)
+		).toThrow();
+		expect(() =>
+			TREASURY_PAR_YIELD_CURVE.normalize(
+				[{ Date: "2026-11-13" }],
+				context("2 Yr")
+			)
+		).toThrow();
+	});
+});
+
+describe("twelvedata-daily-prices", () => {
+	it("gives five metrics per session, keyed and dated by the session day", () => {
+		const observations = TWELVEDATA_DAILY_PRICES.normalize(
+			fixture("twelvedata-daily-prices"),
+			NO_PARAMS
+		);
+
+		expect(
+			observations.map((o) => [o.payload.metric, o.payload.value])
+		).toEqual([
+			["open", 272],
+			["high", 275.1],
+			["low", 271.2],
+			["close", 273.5],
+			["volume", 48210000],
+		]);
+		expect(new Set(observations.map((o) => o.key))).toEqual(
+			new Set(["2026-11-13"])
+		);
+		expect(observations[0].payload.period).toEqual({
+			start: "2026-11-13",
+			end: "2026-11-13",
+		});
+		// No release time: the collection time stands, never before the close.
+		expect(observations.every((o) => o.observedAt === undefined)).toBe(true);
+	});
+
+	it("gives nothing for a day without quotation (no value)", () => {
+		expect(
+			TWELVEDATA_DAILY_PRICES.normalize({ values: [] }, NO_PARAMS)
+		).toEqual([]);
+	});
+
+	it.each([
+		["a missing value", (r: any) => ({ values: [{ ...r, close: undefined }] })],
+		["a null value", (r: any) => ({ values: [{ ...r, close: null }] })],
+		["an empty value", (r: any) => ({ values: [{ ...r, close: "" }] })],
+		[
+			"a changed format",
+			() => ({ code: 401, message: "Invalid API key", status: "error" }),
+		],
+	])("throws on %s", (_name, change) => {
+		const [row] = fixture("twelvedata-daily-prices").values;
+
+		expect(() =>
+			TWELVEDATA_DAILY_PRICES.normalize(change(row), NO_PARAMS)
 		).toThrow();
 	});
 });

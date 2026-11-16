@@ -38,11 +38,6 @@ export class NeuralNetwork {
 		return this._feedForward.forward(input);
 	}
 
-	/** One gradient step on (inputs, targets); returns the loss before the step. */
-	public train(inputs: Float32Array, targets: Float32Array): number {
-		return this.trainFrom(this._feedForward.forward(inputs), targets);
-	}
-
 	/** `train` on a forward pass already made with the current weights. */
 	public trainFrom(context: ForwardContext, targets: Float32Array): number {
 		const sizes = this._config.neuronsByLayer;

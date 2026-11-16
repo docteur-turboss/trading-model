@@ -103,6 +103,14 @@ patches:
         path: /spec/maxReplicas
         value: 1
 
+  - target:
+      kind: Deployment
+      name: audit-logger
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
   # One replica per StatefulSet: a PDB minAvailable of 2 would block every
   # node drain (issue #417).
   - target:

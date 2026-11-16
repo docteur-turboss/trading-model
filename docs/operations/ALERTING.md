@@ -13,8 +13,8 @@ Prometheus itself ─┘                                                        
 
 | What | Where |
 | --- | --- |
-| Rules | `observability/alerting.yml`, copied into the K8s ConfigMap `prometheus-config` (`deploy/k8s/infra/prometheus.yaml`) |
-| Routing | `observability/alertmanager.yml`, copied into the K8s ConfigMap `alertmanager-config` (`deploy/k8s/infra/alertmanager.yaml`) |
+| Rules | `observability/alerting.yml`, copied into the K8s ConfigMap `prometheus-config` (`deploy/k8s/infra/config/alerting.yml`) |
+| Routing | `observability/alertmanager.yml`, copied into the K8s ConfigMap `alertmanager-config` (`deploy/k8s/infra/config/alertmanager.yml`) |
 | Credentials, K8s | Secret `alertmanager-credentials` (keys `SLACK_WEBHOOK_URL`, `PUSHOVER_USER_KEY`, `PUSHOVER_TOKEN`, `DEADMAN_URL`), written by `deploy.yml` from the GitHub environment secrets `ALERTMANAGER_SLACK_WEBHOOK_URL`, `ALERTMANAGER_PUSHOVER_USER_KEY`, `ALERTMANAGER_PUSHOVER_TOKEN`, `ALERTMANAGER_DEADMAN_URL` |
 | Credentials, compose | one file per key in `ALERTMANAGER_CREDENTIALS_DIR` (default `observability/alertmanager-credentials/`, git-ignored) |
 
@@ -135,12 +135,9 @@ file absent from the repository, or on an anchor that matches no heading.
 | `SLOAvailabilitySlowBurn` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOLatencyFastBurn` | critical | [runbook-latency-and-errors#slolatencyfastburn](runbooks/runbook-latency-and-errors.md#slolatencyfastburn) |
 | `SLOLatencySlowBurn` | warning | [runbook-latency-and-errors#slolatencyfastburn](runbooks/runbook-latency-and-errors.md#slolatencyfastburn) |
-| `SLOErrorRateFastBurn` | critical | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
-| `SLOErrorRateSlowBurn` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOErrorBudgetLow` | warning | [runbook-latency-and-errors#slo-error-budget-low](runbooks/runbook-latency-and-errors.md#slo-error-budget-low) |
 | `ServiceDown` | critical | [runbook-service-down](runbooks/runbook-service-down.md) |
 | `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
-| `HighErrorRate` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `CertificateExpiry` | warning | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
 | `HttpCircuitBreakerRejecting` | warning | [runbook-circuit-breaker-open#symptom](runbooks/runbook-circuit-breaker-open.md#symptom) |
 | `DLQSizeGrowing` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
@@ -240,7 +237,7 @@ Compose runs the same datasources as K8s, each one fed:
 
 - **Logs**: `promtail` reads the compose containers through the Docker API of `docker-socket-proxy` (the only holder of `/var/run/docker.sock`, read-only mount; the proxy refuses every `POST`, ADR-0011 amendment) and pushes to Loki with the K8s `json` pipeline (labels `component`, `job`, `container`, `level`). Check: Grafana → Explore → Loki → `{component="api-gateway"}`.
 - **Traces**: services export OTLP/HTTP straight to `jaeger:4318` (`OTEL_EXPORTER_OTLP_ENDPOINT`); there is no OTel collector in compose. UI on `JAEGER_PORT` (default 16686).
-- **SVID expiry**: `blackbox-exporter` probes `/ping` of the 7 services with its own SVID (`spiffe-helper-blackbox`, SPIRE entry `blackbox-exporter` made by `spire-bootstrap`). `/ping` answers before the ACL, so any valid SVID passes. `CertificateExpiry` carries the `service` label in both environments (one target per service in `observability/prometheus.yml` and `deploy/k8s/infra/prometheus.yaml`).
+- **SVID expiry**: `blackbox-exporter` probes `/ping` of every service with its own SVID (`spiffe-helper-blackbox`, SPIRE entry `blackbox-exporter` made by `spire-bootstrap`). `/ping` answers before the ACL, so any valid SVID passes. `CertificateExpiry` carries the `service` label in both environments (one target per service in `observability/prometheus.yml` and `deploy/k8s/infra/prometheus.yaml`).
 
 ## Reloading the Prometheus configuration
 

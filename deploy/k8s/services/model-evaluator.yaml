@@ -100,12 +100,12 @@ spec:
             - configMapRef:
                 name: model-evaluator-config
           env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=192
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: ERROR_URL_WEBHOOK
-              value: ""
           resources:
             requests:
               cpu: 50m

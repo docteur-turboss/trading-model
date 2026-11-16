@@ -1,12 +1,13 @@
 {
   "name": "@trading-model/model-runtime",
   "version": "1.0.0",
-  "description": "Runtime of a published model used by trader-trainer: network forward pass, 32-feature codec, portfolio simulator (ADR-0066)",
+  "description": "Runtime of a published model used by trader-trainer: network forward pass, feature codec, portfolio simulator (ADR-0066)",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
     "./env/wallet-config": "./dist/env/wallet-config.js",
     "./env/wallet-manager": "./dist/env/wallet-manager.js",
+    "./episode-scores": "./dist/episode-scores.js",
     "./errors": "./dist/errors.js",
     "./feature-vector": "./dist/feature-vector.js",
     "./feature-vector-codec": "./dist/feature-vector-codec.js",
@@ -14,7 +15,8 @@
     "./neural-network/feed-forward-engine": "./dist/neural-network/feed-forward-engine.js",
     "./neural-network/network-serialization": "./dist/neural-network/network-serialization.js",
     "./neural-network/type": "./dist/neural-network/type.js",
-    "./noise": "./dist/noise.js"
+    "./noise": "./dist/noise.js",
+    "./replay-metrics": "./dist/replay-metrics.js"
   },
   "dependencies": {
     "@trading-model/primitives": "*",

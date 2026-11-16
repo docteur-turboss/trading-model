@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import { FileEvaluationStore } from "../../src/adapters/outbound/file-evaluation-store";
 import { createEvaluateModel } from "../../src/application/evaluate-model";
 import {
-	type ModelManifest,
+	ModelManifest,
 	PublishedModel,
 } from "../../src/domain/model-evaluation";
 
@@ -49,6 +49,23 @@ describe("evaluate a published model", () => {
 		});
 		return { evaluate, calls };
 	};
+
+	it("reads a manifest from before and one from after the signal inputs (ADR-0081)", () => {
+		const base = { ...MANIFEST, features: { dim: 19, fields: ["Bias"] } };
+		const withSignals = {
+			...base,
+			features: {
+				dim: 22,
+				fields: ["Bias", "SignalValue:BTC:social:pageviews"],
+			},
+			normalization: {
+				signals: { "BTC:social:pageviews": { mean: 1, std: 2 } },
+			},
+		};
+
+		expect(ModelManifest.safeParse(base).success).toBe(true);
+		expect(ModelManifest.safeParse(withSignals).success).toBe(true);
+	});
 
 	it("records one evaluation and nothing more for a redelivery", async () => {
 		const { evaluate, calls } = evaluator();

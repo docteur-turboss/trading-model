@@ -120,6 +120,23 @@ const ModelManifest = z.object({
 			}),
 		})
 		.optional(),
+	/** Window and simulator to replay the model (ADR-0079); absent on older manifests. */
+	replay: z
+		.object({
+			from: z.number().int(),
+			testFrom: z.number().int(),
+			to: z.number().int(),
+			intervalMs: z.number().int(),
+			evalEpsilon: z.number(),
+			simulator: z.object({
+				initialCash: z.number(),
+				feeRate: z.number(),
+				executionCostRate: z.number(),
+				tradeFraction: z.number(),
+				observePosition: z.boolean(),
+			}),
+		})
+		.optional(),
 });
 
 const MODEL_SYMBOL = z.string().regex(MODEL_SYMBOL_PATTERN);

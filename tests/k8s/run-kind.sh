@@ -1099,6 +1099,14 @@ verify_alerts() {
 # fresh market data, no critical alert. One pass (no observation window).
 verify_release() {
 	log "release gate (deploy-k8s.sh verify-release)"
+	# The upgrade restarts message-manager: its deliberate 503 "no subscriber" refusals can
+	# fire SLOAvailabilityFastBurn for a few minutes (5 m window, low kind traffic). Wait for
+	# it to clear (max 8 min) so the gate judges the settled stack; a persistent alert still fails it.
+	local waited=0
+	while [[ -n "$(deploy_script firing-critical 2>/dev/null)" ]] && (( waited < 480 )); do
+		sleep 30
+		waited=$((waited + 30))
+	done
 	VERIFY_WINDOW_SECONDS=0 deploy_script verify-release
 }
 
@@ -1656,9 +1664,25 @@ dump() {
 		grep -E "no subscriber|Subscri|Shutting|drain|listening" | cut -c1-400 || true
 	$K -n "$NS" logs deployment/trader-trainer -c trader-trainer --tail=-1 2>/dev/null |
 		grep -iE "subscri" | cut -c1-400 | tail -40 || true
+	prometheus_diagnostics
 	echo "===== market data in MySQL"
 	mysql_root "SELECT 'candles', COUNT(*) FROM financial_scraper.market_candles UNION ALL SELECT 'trades', COUNT(*) FROM financial_scraper.market_trades" 2>&1 || true
 	mysql_diagnostics
+}
+
+# Which route and status code feed an SLO alert: non-zero 5xx over 1 h, SLI error ratios, firing alerts.
+prometheus_diagnostics() {
+	echo "===== Prometheus: 5xx by job/path/status (1 h), SLI error ratios, firing alerts"
+	local q url="http://localhost:9090/api/v1" row='"\(.metric | to_entries | map("\(.key)=\(.value)") | join(" ")) \(.value[1])"'
+	for q in 'sum by (job, path, status) (increase(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h]))' \
+		'slo:sli_error:ratio_rate5m' 'slo:sli_error:ratio_rate1h'; do
+		echo "--- $q"
+		$K -n "$NS" exec prometheus-0 -c prometheus -- wget -T 10 -qO- "$url/query?query=$(jq -rn --arg q "$q" '$q | @uri')" 2>&1 |
+			jq -r ".data.result[] | select((.value[1] | tonumber) > 0) | $row" 2>&1 | head -40 || true
+	done
+	echo "--- alerts firing"
+	$K -n "$NS" exec prometheus-0 -c prometheus -- wget -T 10 -qO- "$url/alerts" 2>&1 |
+		jq -r '.data.alerts[] | select(.state == "firing") | "\(.labels | to_entries | map("\(.key)=\(.value)") | join(" ")) activeAt=\(.activeAt)"' 2>&1 | head -40 || true
 }
 
 # What mysqld sees in the pod: which option files it can read, and why not.

@@ -1,10 +1,10 @@
 import path from "node:path";
 import { Worker, type WorkerOptions } from "node:worker_threads";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import type {
 	TrainingRunner,
 	TrainingSessionResult,
 } from "../../../application/training-session";
-import { EpisodeScores } from "../../../domain/genetic-algorithm/episode-scores";
 import type { GenomeFitnessMeta } from "../../../domain/genetic-algorithm/genome-fitness";
 import {
 	encodeWindowSets,

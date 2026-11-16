@@ -1,11 +1,9 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { barsPerYear } from "@trading-model/model-runtime/replay-metrics";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import { evalPhase } from "../domain/genetic-algorithm/evaluation-phase";
-import {
-	barsPerYear,
-	computeAllResults,
-} from "../domain/genetic-algorithm/evaluation-utils";
+import { computeAllResults } from "../domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../domain/genetic-algorithm/factory";
 import {
 	type GenerationContext,
@@ -161,6 +159,7 @@ class TrainingSession {
 			onGeneration,
 			telemetry: this._telemetry,
 			signal: this._signal,
+			eventDriven: this._settings.eventDriven,
 		});
 	}
 }

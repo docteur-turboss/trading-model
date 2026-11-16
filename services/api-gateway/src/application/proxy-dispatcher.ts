@@ -17,10 +17,7 @@ import {
 	type ResponseCachePort,
 	UpstreamResponseTooLargeError,
 } from "../domain/ports/gateway.port";
-import {
-	ACTIVE_REQUESTS,
-	PROXY_REQUEST_DURATION_SECONDS,
-} from "../infrastructure/config/metrics";
+import { PROXY_REQUEST_DURATION_SECONDS } from "../infrastructure/config/metrics";
 
 interface ProxyContext {
 	serviceName: ServiceId;
@@ -37,13 +34,14 @@ export async function proxyAndCache(
 ): Promise<ResponseObject> {
 	const start = performance.now();
 	let status: number = HTTP_STATUS.SERVICE_UNAVAILABLE;
-	ACTIVE_REQUESTS.inc();
 	try {
 		const result = await forward({ req, target, path: ctx.path });
-		const parsedBody = tryParseJson(result.body);
-		tryCacheResponse(req, ctx, result, parsedBody, cache);
+		const contentType = result.headers?.["content-type"];
+		const type = typeof contentType === "string" ? contentType : undefined;
+		tryCacheResponse(req, ctx, result, /json/i.test(type ?? ""), cache);
 		status = result.status;
-		return sendResponse(parsedBody ?? result.body, result.status);
+		// Relayed as received: no parse, no re-serialization.
+		return { ...sendResponse(result.body, result.status), contentType: type };
 	} catch (err: unknown) {
 		const tooLarge = err instanceof UpstreamResponseTooLargeError;
 		if (tooLarge) {
@@ -66,7 +64,6 @@ export async function proxyAndCache(
 			{ service: ctx.serviceName, status: String(status) },
 			(performance.now() - start) / 1000
 		);
-		ACTIVE_REQUESTS.dec();
 	}
 }
 
@@ -74,7 +71,7 @@ function tryCacheResponse(
 	req: Request,
 	ctx: ProxyContext,
 	result: { status: HttpStatusCode; body: string },
-	parsed: unknown,
+	isJson: boolean,
 	cache: ResponseCachePort
 ): void {
 	// A signed answer (DLQ) is for its signer only: cached, it would be served
@@ -83,11 +80,11 @@ function tryCacheResponse(
 	if (
 		req.method === "GET" &&
 		result.status === HTTP_STATUS.OK &&
-		parsed &&
+		isJson &&
 		!signed
 	) {
 		cache.set(ctx.cacheKey, {
-			data: parsed,
+			data: result.body,
 			status: result.status,
 			bytes: result.body.length,
 		});
@@ -114,15 +111,6 @@ function buildProxyErrorResponse(
 		{ error: "Service unavailable" },
 		HTTP_STATUS.SERVICE_UNAVAILABLE
 	);
-}
-
-function tryParseJson(raw: string): unknown | null {
-	// biome-ignore lint/plugin: parse helper: null means not JSON
-	try {
-		return JSON.parse(raw) as unknown;
-	} catch {
-		return null;
-	}
 }
 
 export function tryServeFromCache(

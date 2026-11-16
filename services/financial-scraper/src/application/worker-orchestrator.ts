@@ -97,6 +97,7 @@ export class WorkerOrchestrator {
 	}
 
 	async executeAll(): Promise<void> {
+		this._deps.source.beginCycle?.(this._symbols);
 		const limiter = await _createLimiter(this._maxConcurrency);
 
 		const settled = await Promise.allSettled(

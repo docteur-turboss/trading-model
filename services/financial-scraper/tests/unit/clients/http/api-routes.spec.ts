@@ -356,6 +356,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 						region: "US",
 					},
 					areas: ["US"],
+					aliases: { twelvedata: "WEAT" },
 				},
 				signals: [SIGNAL],
 				truncated: false,

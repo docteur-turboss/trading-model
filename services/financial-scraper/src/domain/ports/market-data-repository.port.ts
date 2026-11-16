@@ -5,7 +5,7 @@ import type {
 	TradeData,
 } from "../market-data.types";
 
-/** Market data persistence (implemented by the MySQL MarketDataModel). */
+/** Market data persistence (implemented by the MySQL schema insert functions). */
 export interface MarketDataRepositoryPort {
 	insertCandles(data: CandleData[]): Promise<void>;
 	insertTrades(data: TradeData[]): Promise<void>;

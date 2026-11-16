@@ -2,16 +2,27 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import type { Mock } from "jest-mock";
 
-jest.mock("../../src/adapters/outbound/persistence/market-data.model", () => ({
-	MarketDataModel: {
-		insertCandles: jest.fn<(...args: any[]) => any>(),
-		insertTrades: jest.fn<(...args: any[]) => any>(),
-		insertOrderBook: jest.fn<(...args: any[]) => any>(),
-		insertTicker: jest.fn<(...args: any[]) => any>(),
-	},
-}));
+jest.mock(
+	"../../src/adapters/outbound/persistence/schema/candles.schema",
+	() => ({ insertCandles: jest.fn<(...args: any[]) => any>() })
+);
+jest.mock(
+	"../../src/adapters/outbound/persistence/schema/trades.schema",
+	() => ({ insertTrades: jest.fn<(...args: any[]) => any>() })
+);
+jest.mock(
+	"../../src/adapters/outbound/persistence/schema/order-book.schema",
+	() => ({ insertOrderBook: jest.fn<(...args: any[]) => any>() })
+);
+jest.mock(
+	"../../src/adapters/outbound/persistence/schema/ticker24h.schema",
+	() => ({ insertTicker: jest.fn<(...args: any[]) => any>() })
+);
 
-import { MarketDataModel } from "../../src/adapters/outbound/persistence/market-data.model";
+import { insertCandles } from "../../src/adapters/outbound/persistence/schema/candles.schema";
+import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
+import { insertTicker } from "../../src/adapters/outbound/persistence/schema/ticker24h.schema";
+import { insertTrades } from "../../src/adapters/outbound/persistence/schema/trades.schema";
 import { MarketDataController } from "../../src/config/container";
 
 describe("MarketDataController — persist integration", () => {
@@ -33,18 +44,10 @@ describe("MarketDataController — persist integration", () => {
 			fetchedAt: Date.now(),
 		});
 
-		expect((MarketDataModel.insertCandles as Mock).mock.calls[0][0]).toBe(
-			mockCandles
-		);
-		expect((MarketDataModel.insertTrades as Mock).mock.calls[0][0]).toBe(
-			mockTrades
-		);
-		expect((MarketDataModel.insertOrderBook as Mock).mock.calls[0][0]).toBe(
-			mockOrderBook
-		);
-		expect((MarketDataModel.insertTicker as Mock).mock.calls[0][0]).toBe(
-			mockTicker24h
-		);
+		expect((insertCandles as Mock).mock.calls[0][0]).toBe(mockCandles);
+		expect((insertTrades as Mock).mock.calls[0][0]).toBe(mockTrades);
+		expect((insertOrderBook as Mock).mock.calls[0][0]).toEqual([mockOrderBook]);
+		expect((insertTicker as Mock).mock.calls[0][0]).toBe(mockTicker24h);
 	});
 
 	it("should only persist which is truthy candles trades ticker", async () => {
@@ -55,8 +58,8 @@ describe("MarketDataController — persist integration", () => {
 			fetchedAt: Date.now(),
 		});
 
-		expect(MarketDataModel.insertCandles).toHaveBeenCalledTimes(1);
-		expect(MarketDataModel.insertOrderBook).not.toHaveBeenCalled();
+		expect(insertCandles).toHaveBeenCalledTimes(1);
+		expect(insertOrderBook).not.toHaveBeenCalled();
 	});
 
 	it("should skip empty arrays", async () => {
@@ -66,8 +69,8 @@ describe("MarketDataController — persist integration", () => {
 			fetchedAt: Date.now(),
 		});
 
-		expect(MarketDataModel.insertCandles).not.toHaveBeenCalled();
-		expect(MarketDataModel.insertTrades).not.toHaveBeenCalled();
+		expect(insertCandles).not.toHaveBeenCalled();
+		expect(insertTrades).not.toHaveBeenCalled();
 	});
 
 	it("should handle empty payload gracefully", async () => {
@@ -75,24 +78,24 @@ describe("MarketDataController — persist integration", () => {
 			fetchedAt: Date.now(),
 		});
 
-		expect(MarketDataModel.insertCandles).not.toHaveBeenCalled();
-		expect(MarketDataModel.insertTrades).not.toHaveBeenCalled();
-		expect(MarketDataModel.insertOrderBook).not.toHaveBeenCalled();
-		expect(MarketDataModel.insertTicker).not.toHaveBeenCalled();
+		expect(insertCandles).not.toHaveBeenCalled();
+		expect(insertTrades).not.toHaveBeenCalled();
+		expect(insertOrderBook).not.toHaveBeenCalled();
+		expect(insertTicker).not.toHaveBeenCalled();
 	});
 
 	it("should call all insert methods concurrently", async () => {
 		const order: string[] = [];
 
-		(MarketDataModel.insertCandles as Mock).mockImplementation(() => {
+		(insertCandles as Mock).mockImplementation(() => {
 			order.push("candles");
 			return Promise.resolve();
 		});
-		(MarketDataModel.insertTrades as Mock).mockImplementation(() => {
+		(insertTrades as Mock).mockImplementation(() => {
 			order.push("trades");
 			return Promise.resolve();
 		});
-		(MarketDataModel.insertTicker as Mock).mockImplementation(() => {
+		(insertTicker as Mock).mockImplementation(() => {
 			order.push("ticker");
 			return Promise.resolve();
 		});

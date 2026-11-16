@@ -1,5 +1,6 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import { Fitness, NonNegativeInt } from "@trading-model/primitives/primitives";
 import {
 	BEST_FITNESS,
@@ -15,15 +16,19 @@ import {
 	TRAINING_SESSIONS_TOTAL,
 	TRAINING_STATUS,
 } from "../config/metrics";
-import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
+import {
+	eventInputLayout,
+	networkInputLayout,
+} from "../domain/agent/agent-state";
 import { featureDriftScore } from "../domain/feature-drift";
-import { buyAndHoldSharpe } from "../domain/genetic-algorithm/evaluation-utils";
+import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
 import { assessAdmission } from "../domain/model-admission";
+import type { ModelReplayWindow } from "../domain/model-artifact";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type {
 	ModelPublisherPort,
@@ -127,7 +132,9 @@ export class Trainer {
 				if (
 					manifest &&
 					JSON.stringify(manifest.features) !==
-						JSON.stringify(NETWORK_INPUT_LAYOUT)
+						JSON.stringify(networkInputLayout(this._dataBuffer.signalKeys)) &&
+					JSON.stringify(manifest.features) !==
+						JSON.stringify(eventInputLayout(this._dataBuffer.signalKeys))
 				) {
 					// Published before the 18-input layout (ADR-0078): retrained, not served.
 					getLogger().warn("Stored model has another feature layout, skipped", {
@@ -287,10 +294,13 @@ export class Trainer {
 				instanceId: this._deps.instanceId ?? "trader-trainer",
 				bestGenome: result.bestGenome,
 				weights: new Float32Array(weights),
-				features: NETWORK_INPUT_LAYOUT,
+				features: isEventDriven(result.bestGenome.rl.horizon)
+					? eventInputLayout(this._dataBuffer.signalKeys)
+					: networkInputLayout(this._dataBuffer.signalKeys),
 				normalization,
 				summary,
 				admission,
+				window: this._replayWindow(result.symbol, last),
 			});
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "stored" });
 			const admissible = admission?.admissible ?? false;
@@ -315,6 +325,23 @@ export class Trainer {
 				},
 			});
 		}
+	}
+
+	/** Candle window of the session, for the manifest `replay` block (ADR-0079). */
+	private _replayWindow(
+		symbol: TradingSymbol,
+		last: WindowSet | undefined
+	): ModelReplayWindow | undefined {
+		const candles = this._dataBuffer.getSymbolState(symbol)?.candles ?? [];
+		const testFrom = last?.test?.[0]?.timestamp;
+		if (candles.length === 0 || testFrom === undefined) {
+			return;
+		}
+		return {
+			from: candles[0].timestamp,
+			testFrom,
+			to: candles[candles.length - 1].closeTimestamp,
+		};
 	}
 
 	/** Out-of-sample metrics of a stored model next to buy and hold on its bars. */

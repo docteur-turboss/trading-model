@@ -1,16 +1,22 @@
 import { describe, expect, it } from "@jest/globals";
+import { runWithCorrelationId } from "@trading-model/http/correlation-id";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
 import type {
 	Fitness,
 	PositiveInt,
 	Ratio,
 } from "@trading-model/primitives/primitives";
-import { DurationMs, Price } from "@trading-model/primitives/primitives";
+import {
+	DurationMs,
+	Price,
+	toCorrelationId,
+} from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
+import { SIMULATOR_PARAMS } from "../../../src/domain/genetic-algorithm/rl-backend";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
 import { buildSummary } from "../../../src/domain/genome-summary-builder";
 import {
@@ -162,6 +168,20 @@ describe("training.model.published identity of the artifact", () => {
 	it("carries the stored version, sha256 and admission verdict", async () => {
 		expect(await publishedPayload()).toMatchObject(STORED);
 	});
+
+	it("carries the caller's correlation id, or draws one outside a request", async () => {
+		const inRequest = await runWithCorrelationId(
+			toCorrelationId("550e8400-e29b-41d4-a716-446655440000"),
+			() => publishedMessage()
+		);
+
+		expect(inRequest.metadata.correlationId).toBe(
+			"550e8400-e29b-41d4-a716-446655440000"
+		);
+		expect((await publishedMessage()).metadata.correlationId).not.toBe(
+			"550e8400-e29b-41d4-a716-446655440000"
+		);
+	});
 });
 
 describe("admission of a model (ADR-0069)", () => {
@@ -195,6 +215,11 @@ describe("admission of a model (ADR-0069)", () => {
 			minSortino: 1.5,
 			minCalmar: 1,
 		});
+	});
+
+	it("is never admissible when the model made no decision", () => {
+		const meta = { ...(testMeta(100) as object), decisions: 0 } as never;
+		expect(assessAdmission(meta, bars([5, 4, 3, 2]))?.admissible).toBe(false);
 	});
 
 	it("gives no verdict on validation metrics, which the selection read", () => {
@@ -233,5 +258,28 @@ describe("admission of a model (ADR-0069)", () => {
 			{ version: "v", createdAt: new Date(0), sha256: "0".repeat(64) }
 		);
 		expect(manifest.admission).toEqual(admission);
+	});
+
+	it("the manifest carries the replay window and the simulator", () => {
+		const window = { from: 0, testFrom: 600, to: 720 };
+		const manifest = buildModelManifest(
+			{
+				symbol: "BTCUSDT",
+				instanceId: "trader-trainer-1",
+				bestGenome: createDefaultGenome("g-1", 4 as PositiveInt) as never,
+				weights: new Float32Array([1]),
+				features: { dim: 1, fields: ["close"] },
+				normalization: {},
+				summary: summaryOf(EPISODES),
+				window,
+			},
+			{ version: "v", createdAt: new Date(0), sha256: "0".repeat(64) }
+		);
+		expect(manifest.replay).toEqual({
+			...window,
+			intervalMs: 60_000,
+			evalEpsilon: 0.05,
+			simulator: SIMULATOR_PARAMS,
+		});
 	});
 });

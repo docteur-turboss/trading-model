@@ -27,6 +27,7 @@ const ETH = TradingSymbol.of("ETHUSDT");
 const NOW = 1_800_000_000_000;
 const MINUTE = 60_000;
 const MAX_AGE = 15 * MINUTE;
+const DAY = 24 * 60 * MINUTE;
 const WINDOWING = {
 	validationSplit: 0.2,
 	testSplit: 0.15,
@@ -75,6 +76,53 @@ describe("TrainingLoop", () => {
 
 	afterEach(() => {
 		jest.restoreAllMocks();
+	});
+
+	it("should read signals only for a mapped symbol and train without them when the read fails", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+		const signalHistory = {
+			loadWindow: jest.fn<(...args: any[]) => Promise<any[]>>(async () => {
+				throw new Error("404");
+			}),
+		};
+		const setSignals = jest.fn();
+		const buffer = {
+			getMaxSize: () => 1000,
+			replaceCandles,
+			setSignals,
+			getCandleCount: () => candleCount,
+			getLastCandleCloseTime: (symbol: TradingSymbol) => lastClose.get(symbol),
+		} as unknown as MarketDataBuffer;
+		const trainer = {
+			train,
+			isTraining: () => false,
+			stopTraining,
+		} as unknown as Trainer;
+		const signals = (assets: [TradingSymbol, string][]) => ({
+			history: signalHistory,
+			assets: new Map(assets),
+			windowMs: DAY,
+		});
+
+		loop = new TrainingLoop(trainer, buffer, history, WINDOWING, signals([]));
+		await runOnce();
+		expect(signalHistory.loadWindow).not.toHaveBeenCalled();
+
+		loop = new TrainingLoop(
+			trainer,
+			buffer,
+			history,
+			WINDOWING,
+			signals([[BTC, "BTC"]])
+		);
+		await runOnce();
+		expect(signalHistory.loadWindow).toHaveBeenCalledWith(
+			"BTC",
+			NOW - DAY,
+			NOW
+		);
+		expect(setSignals).toHaveBeenCalledWith(BTC, []); // unreadable: no signal input
+		expect(train).toHaveBeenCalledTimes(2);
 	});
 
 	it("should train a symbol whose newest candle is recent", async () => {

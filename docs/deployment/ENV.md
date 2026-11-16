@@ -55,7 +55,6 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, AL, DLQ |
 | `DISCOVERY_TIMEOUT_MS`            | number | `5000`                          | no       | Timeout of the calls to the discovery server     | MM, FS, TT, AL, DLQ |
 | `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object); not read by the gateway | MM, FS, TT, AL, DLQ |
-| `ERROR_URL_WEBHOOK`               | URL    | _(empty)_                       | no       | Error notification webhook endpoint              | MM, FS, TT, DS, AL, DLQ |
 | `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, AL, DLQ |
 | `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, AL, DLQ |
 | `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
@@ -84,7 +83,6 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 | Variable                      | Type   | Default          | Required | Description                        | Services |
 | ----------------------------- | ------ | ---------------- | -------- | ---------------------------------- | -------- |
 | `CLEANUP_SERVICE_INTERVAL_MS` | number | `600000` (10min) | no       | Interval for expired lease cleanup | DS       |
-| `ERROR_URL_WEBHOOK`           | URL    | —                | no       | Error notification webhook         | DS       |
 | `SIGNING_SECRET`              | string | —                | **yes** in production | HMAC secret of the instance tokens (in production: at least 32 characters, no `change-me`; start refused otherwise); shared by the replicas, stable across restarts (random per process otherwise) | DS |
 | `REDIS_URL`                   | string | —                | **yes** in production (or `REDIS_SENTINELS`) | Redis URL for distributed registry; in memory otherwise (outside production) | DS       |
 | `ALLOWED_REGISTRATION_CIDRS`  | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs allowed to register. Empty: the check is off; in production the service refuses to start | DS |
@@ -124,6 +122,9 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | Variable                          | Type         | Default           | Required | Description                          | Services |
 | --------------------------------- | ------------ | ----------------- | -------- | ------------------------------------ | -------- |
 | `TRAINER_SYMBOLS`                 | string       | `BTCUSDT,ETHUSDT` | no       | Comma-separated trading symbols      | TT       |
+| `TRAINER_SYMBOL_ASSETS`           | string       | empty             | no       | `SYMBOL:ASSET` pairs (`BTCUSDT:BTC,ETHUSDT:ETH`): registry asset whose point-in-time signal window (30 days) a session reads and measures; empty: no call | TT       |
+| `TRAINER_SIGNAL_FEATURES`         | string       | empty             | no       | `SUBJECT:dimension:metric` list (`BTC:social:pageviews`, subject = asset, sector or area): signals fed to the network as value, age and confidence inputs, 3 per metric (ADR-0081); read only with `FEATURE_SIGNAL_INPUTS`; each key must match the format or the service refuses to start; a key that finds no signal in the window logs a warning and trains on zeros | TT       |
+| `FEATURE_SIGNAL_INPUTS`           | boolean      | `false`           | no       | Feature flag (ADR-0039): `true` appends the `TRAINER_SIGNAL_FEATURES` inputs to the 18 market inputs; `false`: input and published genome as before | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
 | `TRAINER_VALIDATION_SPLIT`        | number (]0, 1[) | `0.15`            | no       | Fraction of the steps left after the test cut, used for validation (selection) | TT       |
 | `TRAINER_TEST_SPLIT`              | number (]0, 1[) | `0.15`            | no       | Newest fraction of the steps never used by training nor selection; published metrics come from it (ADR-0068) | TT       |
@@ -136,6 +137,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_FITNESS_TYPE`            | enum         | `total_pnl`       | no       | GA scalar fitness: `total_pnl`, `sharpe`, `sortino`, `calmar`, `composite` (ADR-0025) | TT       |
 | `FEATURE_RISK_ADJUSTED_FITNESS`   | boolean      | `true`            | no       | Feature flag (ADR-0039): `false` forces fitness `total_pnl` whatever `TRAINER_FITNESS_TYPE` says. Invalid value: refused at startup | TT       |
 | `FEATURE_ACTION_SPACE_GENE`        | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076): `true` lets the GA mutate the action set (partial order sizes, recorded as `actions` in the manifest); `false`: `sell_hold_buy`, never mutated | TT       |
+| `FEATURE_EVENT_DRIVEN_DECISIONS`   | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 §5): `true` makes the agent decide on market events (price move, volume) instead of every bar; network gets a 33rd input `BarsSinceDecision`. `false`: genome and manifest unchanged. Invalid value: refused at startup | TT       |
 | `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
 | `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |
 | `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas | TT       |
@@ -162,7 +164,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `COLLECTOR_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the collector pods compete for; only its holder runs the crons (ADR-0057). Set on `financial-scraper-collector` in K8s; empty (compose, dev): this instance collects | FS |
 | `SIGNAL_COLLECTION_ENABLED` | boolean (`true`/`1`) | `true` | no | Collects the signal registry sources (ADR-0036) where the scrape cron runs; `false` in CI, which must not call the real sources | FS |
 | `SIGNAL_CONTACT_EMAIL` | string (e-mail) | empty | no | Contact e-mail in the User-Agent of the signal sources (SEC EDGAR answers 403 without one); must be a functional, non-nominative address (project alias, no personal data sent to the US sources, see data-processing-register.md); never committed: `.env` for compose, GitHub environment secret for K8s. A value that is no e-mail disables the signal collection only | FS |
-| `SIGNAL_KEY_<SOURCE>` | string (API key) | unset | no | Free API key of one signal source (`accessPolicy.auth.env` of its registry entry, prefix `SIGNAL_KEY_` required, one variable per source), sent in the header or query parameter the entry declares; never in the registry, a log or an error. Unset: the source alone is not scheduled, a warning is logged and `fs_signal_source_disabled{source,reason="missing_key"}` is 1. Add it as an optional `secretKeyRef` of the collector (K8s) and in `.env.example` / `docker-compose.yml` with the source that needs it; used by `fred-us-macro` (`SIGNAL_KEY_FRED`) | FS |
+| `SIGNAL_KEY_<SOURCE>` | string (API key) | unset | no | Free API key of one signal source (`accessPolicy.auth.env` of its registry entry, prefix `SIGNAL_KEY_` required, one variable per source), sent in the header or query parameter the entry declares; never in the registry, a log or an error. Unset: the source alone is not scheduled, a warning is logged and `fs_signal_source_disabled{source,reason="missing_key"}` is 1. Add it as an optional `secretKeyRef` of the collector (K8s) and in `.env.example` / `docker-compose.yml` with the source that needs it; used by `fred-us-macro` (`SIGNAL_KEY_FRED`) `eia-weekly-energy` (`SIGNAL_KEY_EIA`, free registration at eia.gov/opendata/register.php) and `twelvedata-daily-prices` (`SIGNAL_KEY_TWELVEDATA`, ADR-0080) | FS |
 
 ---
 
@@ -376,6 +378,9 @@ MYSQL_DATABASE=financial_scraper
 
 # Trader-Trainer
 TRAINER_SYMBOLS=BTCUSDT,ETHUSDT
+TRAINER_SYMBOL_ASSETS=
+TRAINER_SIGNAL_FEATURES=
+FEATURE_SIGNAL_INPUTS=false
 TRAINER_DATA_WINDOW=500
 TRAINER_VALIDATION_SPLIT=0.15
 TRAINER_TEST_SPLIT=0.15
@@ -390,9 +395,6 @@ TRAINER_OBSERVE_POSITION=true
 
 # API Gateway auth
 AUTH_TOKENS=ops-alice:read+dlq:write:token1,grafana:read:token2
-
-# Error webhook (optional)
-ERROR_URL_WEBHOOK=
 ```
 
 > **Never commit the `.env` file.** It is in `.gitignore`. Use `.env.example` as a template.

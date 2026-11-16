@@ -33,17 +33,23 @@ function _refillBucket(bucket: RateLimitBucket): void {
 	bucket.lastRefill = now;
 }
 
-export async function acquireToken(
-	baseURL: string,
-	weight: number
-): Promise<void> {
+const QUEUE_TAILS: Record<string, Promise<void>> = {};
+
+async function _take(baseURL: string, weight: number): Promise<void> {
 	const bucket = _getBucket(baseURL);
-	while (true) {
+	_refillBucket(bucket);
+	while (bucket.tokens < weight) {
+		await sleep(((weight - bucket.tokens) / bucket.refillRate) * 1000);
 		_refillBucket(bucket);
-		if (bucket.tokens >= weight) {
-			bucket.tokens -= weight;
-			return;
-		}
-		await sleep(50);
 	}
+	bucket.tokens -= weight;
+}
+
+/** Serves requests of one base URL in arrival order: a heavy one is never overtaken. */
+export function acquireToken(baseURL: string, weight: number): Promise<void> {
+	const turn = (QUEUE_TAILS[baseURL] ?? Promise.resolve()).then(() =>
+		_take(baseURL, weight)
+	);
+	QUEUE_TAILS[baseURL] = turn;
+	return turn;
 }

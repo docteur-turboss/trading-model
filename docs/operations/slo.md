@@ -22,14 +22,15 @@ and Error Budgets for the trading-model microservices platform.
 
 - **Definition:** 95th percentile of HTTP request duration.
 - **Measurement:** Prometheus `histogram_quantile(0.95,
-rate(http_request_duration_seconds_bucket[5m]))`.
+rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[5m]))`
+  (same technical-route exclusion as the error SLI).
   The histogram has a `status_class` label (`2xx`..`5xx`); the SLO and alert
   rules aggregate it away (`sum by (job, le)`), so the P95 counts every
   response, errors included. For successes only, add
   `{status_class="2xx"}` to the selector.
 - **Source:** All HTTP-serving services.
 
-### 3. Error Rate
+### 3. Error Rate (SLI of the availability SLO)
 
 - **Definition:** Proportion of HTTP responses with status 5xx.
 - **Measurement:** Prometheus `rate(http_requests_total{status=~"5.."}[5m])
@@ -37,10 +38,9 @@ rate(http_request_duration_seconds_bucket[5m]))`.
 - **Source:** All HTTP-serving services.
 
 ### 4. Message Delivery Success Rate
-
-- **Definition:** Proportion of messages successfully delivered by message-manager.
-- **Measurement:** Prometheus `rate(mm_messages_published_total[5m]) /
-(rate(mm_messages_published_total[5m]) + rate(mm_messages_dlq_total[5m]))`.
+- **Definition:** Proportion of delivery outcomes that succeed: a message accepted but not delivered (subscriber down, retries pending) no longer counts as success once it is dead-lettered.
+- **Measurement:** Prometheus `rate(mm_messages_delivered_total{status="success"}[5m]) /
+(rate(mm_messages_delivered_total{status="success"}[5m]) + rate(mm_messages_dlq_total[5m]))`.
 - **Source:** message-manager.
 
 ### 5. DLQ Drain Rate
@@ -68,7 +68,6 @@ rate(tt_training_sessions_total[3h])`.
 | SLI                 | Target   | Window | Alerts |
 | ------------------- | -------- | ------ | ------ |
 | Availability        | ≥ 99.9%  | 30d    | fast: 5xx > 1.44% over 1h and 5m (14.4x); slow: > 0.6% over 6h and 30m (6x) |
-| Error Rate          | < 1%     | 30d    | fast: 5xx > 14.4% over 1h and 5m (14.4x); slow: > 6% over 6h and 30m (6x) |
 | Latency P95         | ≤ 2s     | 30d    | fast: P95 > 5s over 5m; slow: P95 > 3s over 1h (single window) |
 | Message Delivery    | ≥ 99.95% | 30d    | `MessageDeliveryLowSuccessRate`: < 99.5% over 5m (no slow burn) |
 | DLQ Drain Ratio     | ≥ 1.0    | 30d    | `DLQSizeGrowing`, `DLQDrainRateLow` (no slow burn) |
@@ -81,11 +80,11 @@ dead-lettered message already raises `MessagesDeadLettered`, and the existing
 alert on each SLI catches sustained loss. Adding them needs a minimum-volume
 guard first.
 
-### Availability SLO (99.9%) and Error Rate SLO (< 1%)
+### Availability SLO (99.9%)
 
 Multi-window multi-burn-rate: an alert fires only when the long window (the
 budget is really burning) and the short window (it is still burning) both
-exceed the threshold. Thresholds are the burn rate times the budget (0.1% and 1%).
+exceed the threshold. Thresholds are the burn rate times the budget (0.1%).
 
 - Fast burn, 14.4x: windows 1h and 5m, `for: 2m`, critical (2% of a 30d budget in 1h).
 - Slow burn, 6x: windows 6h and 30m, `for: 15m`, warning (5% of a 30d budget in 6h).
@@ -107,10 +106,9 @@ A quantile has no error budget to burn, so the alerts stay single-window:
 ## Burn Rate Alerts
 
 The following alerts are configured in `observability/alerting.yml` (copied
-into `deploy/k8s/infra/prometheus.yaml`):
+into `deploy/k8s/infra/config/alerting.yml`):
 
 - `SLOAvailabilityFastBurn`, `SLOAvailabilitySlowBurn`: 99.9% SLO, multi-window multi-burn-rate (1h/5m at 14.4x, 6h/30m at 6x).
-- `SLOErrorRateFastBurn`, `SLOErrorRateSlowBurn`: < 1% error rate SLO, same windows.
 - `SLOErrorBudgetLow`: less than 20% of the 30d budget left (recording rule `slo:sli_error:ratio_rate30d`).
 - `SLOLatencyFastBurn`, `SLOLatencySlowBurn`: P95 ≤ 2s SLO, 5m and 1h windows.
 - `MessageDeliveryLowSuccessRate`, `DLQDrainRateLow`, `TrainingCompletionRateLow`: one alert per SLI.

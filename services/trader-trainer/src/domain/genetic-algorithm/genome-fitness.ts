@@ -1,3 +1,4 @@
+import type { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import type { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import type {
 	DurationMs,
@@ -7,7 +8,6 @@ import type {
 	Price,
 	Ratio,
 } from "@trading-model/primitives/primitives";
-import type { EpisodeScores } from "./episode-scores";
 import type { CrossoverGenome, GAControlGenome } from "./genome-control";
 import type { MutationGenome } from "./genome-mutation";
 import type { NetworkGenome } from "./genome-network/types";
@@ -26,6 +26,8 @@ export interface GenomeFitnessMeta {
 	pnlCurve?: EpisodeScores;
 	/** Bars per year of the evaluated data: annualises the published ratios. */
 	barsPerYear?: number;
+	/** Decisions taken over the evaluation episodes; 0: the model never trades. */
+	decisions?: number;
 	/** Segment the scores come from; absent: validation, the selection data. */
 	evaluatedOn?: "validation" | "test";
 }

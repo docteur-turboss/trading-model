@@ -2,7 +2,9 @@ import type { EventMap } from "@trading-model/contracts/event-map";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
+import { runWithCorrelationId } from "@trading-model/http/correlation-id";
 import { sendResponse } from "@trading-model/http/response-exception";
+import { toCorrelationId } from "@trading-model/primitives/primitives";
 import type { BROKER_CALLBACK_API } from "./api-routes";
 import { EVENT_MANAGER } from "./event-manager-client";
 import { MESSAGE_PAYLOAD_SCHEMA } from "./shared/barrel/message.schema";
@@ -22,7 +24,11 @@ const deliveredIds = new Set<string>();
  * @returns false when the payload does not match the schema of its topic.
  */
 export async function deliverToListeners(
-	metadata: { topic: string; messageId?: string },
+	metadata: {
+		topic: string;
+		messageId?: string;
+		correlationId?: string;
+	},
 	payload: unknown
 ): Promise<boolean> {
 	const resultPayload = await MESSAGE_PAYLOAD_SCHEMA.safeParseAsync({
@@ -43,7 +49,14 @@ export async function deliverToListeners(
 	}
 
 	// The payload as received (not its parsed copy), checked just above.
-	EVENT_MANAGER.emit(metadata.topic as keyof EventMap, payload as never);
+	// Listeners run in the message's correlation context: their logs and outgoing calls carry it.
+	const emit = () =>
+		EVENT_MANAGER.emit(metadata.topic as keyof EventMap, payload as never);
+	if (metadata.correlationId) {
+		runWithCorrelationId(toCorrelationId(metadata.correlationId), emit);
+	} else {
+		emit();
+	}
 	// Remembered only after a successful emit: a listener that throws must leave the redelivery possible.
 	if (messageId) {
 		deliveredIds.add(messageId);

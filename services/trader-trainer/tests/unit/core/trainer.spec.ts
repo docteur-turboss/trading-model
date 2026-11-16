@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
+import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
 import type { PositiveInt, Ratio } from "@trading-model/primitives/primitives";
 import {
@@ -16,8 +18,6 @@ import {
 	MODEL_SHARPE,
 } from "../../../src/config/metrics";
 import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
-import { buyAndHoldSharpe } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { WindowSet } from "../../../src/domain/genetic-algorithm/ga-runner";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
@@ -712,6 +712,32 @@ describe("Trainer — model publication", () => {
 				candle: { close: { count: expect.any(Number) } },
 			});
 			expect(artifact.normalization.candle.close.count).toBeGreaterThan(0);
+		});
+
+		it("stores the replay window: first candle open, first test step, last candle close (ADR-0079)", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const models = fakeStore();
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+			});
+			const symbol = TradingSymbol.of("BTCUSDT");
+
+			await trainer.train(symbol);
+
+			const candles = dataBuffer.getSymbolState(symbol)?.candles ?? [];
+			const windows = dataBuffer.getAllWindows(symbol) as any;
+			const test = (Array.isArray(windows) ? windows.at(-1) : windows).test;
+			const { window } = models.save.mock.calls[0][0];
+			expect(window).toEqual({
+				from: candles[0].timestamp,
+				testFrom: test[0].timestamp,
+				to: candles[candles.length - 1].closeTimestamp,
+			});
+			// The test segment is the newest part of the window, and opens after `from`.
+			expect(window.testFrom).toBeGreaterThan(window.from);
+			expect(window.testFrom).toBeLessThan(window.to);
 		});
 
 		it("stopTraining ends the session in flight, then stores and publishes its model (ADR-0058)", async () => {

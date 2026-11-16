@@ -1,4 +1,9 @@
 import { NormalizationStats } from "../normalization-stats";
+import {
+	barsSinceDecision,
+	decisionBars,
+	isEventDriven,
+} from "./decision-events";
 import type { LamarckGenome, MarketStep } from "./genome";
 import { RewardShaper } from "./reward-shaping";
 import type { RLBackend, Transition } from "./rl-backend";
@@ -14,14 +19,21 @@ interface TrainPhaseContext {
 interface PendingDecision {
 	state: Float32Array;
 	action: number;
+	/**
+	 * Time of the decision: the bar when event-driven (the discount counts the
+	 * bars elapsed), else its rank (a fixed cadence).
+	 */
+	clock: number;
 	/** Shaped reward, known once the next decision's price came. */
 	reward?: number;
 }
 
-/** Σ γ^i · r_i over the settled rewards of `decisions`, oldest first. */
+/** Σ γ^(clock_i − clock_0) · r_i over the settled rewards, oldest first. */
 function _nStepReturn(decisions: PendingDecision[], gamma: number): number {
 	return decisions.reduce(
-		(sum, decision, idx) => sum + gamma ** idx * (decision.reward ?? 0),
+		(sum, decision) =>
+			sum +
+			gamma ** (decision.clock - decisions[0].clock) * (decision.reward ?? 0),
 		0
 	);
 }
@@ -80,7 +92,8 @@ class TransitionWriter {
  * and every stored transition triggers a minibatch replay.
  *
  * The reward of a decision is the wallet PnL it earned until the next
- * decision (frameSkip bars later). Only complete n-step transitions are
+ * decision (frameSkip bars later, or the next event). An event-driven
+ * genome discounts by the bars elapsed, not by the decisions. Only complete n-step transitions are
  * stored: the last n decisions of the window, whose return the window cuts
  * short, are not.
  */
@@ -92,11 +105,17 @@ export function trainPhase(ctx: TrainPhaseContext): void {
 		new NormalizationStats()
 	);
 	const writer = new TransitionWriter(backend, genome);
+	const eventDriven = isEventDriven(horizon);
 	const maxT = Math.min(trainData.length, horizon.maxEpisodeLength);
+	const bars = decisionBars(trainData.slice(0, maxT), horizon);
 	const pending: PendingDecision[] = [];
 
-	for (let index = 0; index < maxT; index += horizon.frameSkip) {
-		const { reward, action, state } = backend.step(trainData[index]);
+	for (const [rank, index] of bars.entries()) {
+		const clock = eventDriven ? index : rank;
+		const { reward, action, state } = backend.step(
+			trainData[index],
+			eventDriven ? barsSinceDecision(bars, rank) : undefined
+		);
 		const last = pending[pending.length - 1];
 		if (last) {
 			last.reward = shaper.shape(reward);
@@ -109,9 +128,10 @@ export function trainPhase(ctx: TrainPhaseContext): void {
 				reward: _nStepReturn([head, ...pending], gamma),
 				nextState: state,
 				done: false,
+				...(eventDriven && { discount: gamma ** (clock - head.clock) }),
 			});
 		}
-		pending.push({ state, action });
+		pending.push({ state, action, clock });
 	}
 
 	writer.close(genome.rl.rewardShaping.sparse ? shaper.episodeBonus() : null);
