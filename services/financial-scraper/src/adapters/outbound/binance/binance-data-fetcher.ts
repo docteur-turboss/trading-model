@@ -2,7 +2,11 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import type { SymbolInterval } from "@trading-model/contracts/candlestick-query";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import { logger } from "@trading-model/http/logger";
-import { type Limit, PositiveInt } from "@trading-model/primitives/primitives";
+import {
+	type Limit,
+	PositiveInt,
+	type TradingSymbol,
+} from "@trading-model/primitives/primitives";
 import { SNAPSHOT_PARTS_FAILED_TOTAL } from "../../../config/metrics";
 import type {
 	MarketDataSnapshot,
@@ -34,6 +38,38 @@ export const CLOSE_MARGIN_MS = 2000;
 
 type RawKey = keyof RawBinanceData;
 
+/** One request per ticker endpoint for the whole cycle, shared by its symbols. */
+export interface TickerBatch {
+	ticker24hRaw: Promise<Awaited<ReturnType<typeof get24hrTickerStats>>>;
+	priceTickerRaw: Promise<Awaited<ReturnType<typeof getSymbolPriceTicker>>>;
+	bookTickerRaw: Promise<Awaited<ReturnType<typeof getOrderBookTicker>>>;
+}
+
+/** Starts the three ticker requests of a cycle; over 100 symbols asks for all (Binance caps `symbols` at 100). */
+export function fetchTickerBatch(symbols: TradingSymbol[]): TickerBatch {
+	const list = symbols.length > 100 ? undefined : symbols;
+	const batch = {
+		ticker24hRaw: get24hrTickerStats(list),
+		priceTickerRaw: getSymbolPriceTicker(list),
+		bookTickerRaw: getOrderBookTicker(list),
+	};
+	// Each symbol reports the failure; none stays unhandled when no symbol reads it.
+	void Promise.allSettled(Object.values(batch));
+	return batch;
+}
+
+/** The rows of one symbol; absent from the batch response is that symbol's error. */
+async function rowsOf<Row extends { symbol: string }>(
+	batch: Promise<Row[]>,
+	symbol: TradingSymbol
+): Promise<Row[]> {
+	const rows = (await batch).filter((row) => row.symbol === symbol);
+	if (rows.length === 0) {
+		throw new Error(`${symbol} absent from the ticker response`);
+	}
+	return rows;
+}
+
 const PART_OF: Record<RawKey, SnapshotPart> = {
 	orderBookRaw: "orderBook",
 	tradesRaw: "recentTrades",
@@ -50,7 +86,8 @@ const PART_OF: Record<RawKey, SnapshotPart> = {
  * (a 451 stays a 451 for the caller).
  */
 export async function fetchAllRawData(
-	opts: SnapshotRequest
+	opts: SnapshotRequest,
+	tickers?: TickerBatch
 ): Promise<RawBinanceData> {
 	const { symbol, candleLimit, candleStartTime, tradeLimit, orderBookLimit } =
 		opts;
@@ -73,9 +110,18 @@ export async function fetchAllRawData(
 				interval,
 				startTime: candleStartTime,
 			}),
-		ticker24hRaw: () => get24hrTickerStats([symbol]),
-		priceTickerRaw: () => getSymbolPriceTicker([symbol]),
-		bookTickerRaw: () => getOrderBookTicker([symbol]),
+		ticker24hRaw: () =>
+			tickers
+				? rowsOf(tickers.ticker24hRaw, symbol)
+				: get24hrTickerStats([symbol]),
+		priceTickerRaw: () =>
+			tickers
+				? rowsOf(tickers.priceTickerRaw, symbol)
+				: getSymbolPriceTicker([symbol]),
+		bookTickerRaw: () =>
+			tickers
+				? rowsOf(tickers.bookTickerRaw, symbol)
+				: getOrderBookTicker([symbol]),
 	};
 
 	const keys = Object.keys(requests) as RawKey[];

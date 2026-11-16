@@ -121,6 +121,24 @@ describe("BinanceMarketDataSource", () => {
 		expect(source.id).toBe(DataSource.Binance);
 	});
 
+	describe("beginCycle", () => {
+		it("fetches each ticker endpoint once for all symbols and isolates a missing one", async () => {
+			MOCK24HR_TICKER_STATS.mockResolvedValueOnce([{ symbol: BTC }] as any);
+			MOCK_SYMBOL_PRICE_TICKER.mockResolvedValueOnce([{ symbol: BTC }] as any);
+			MOCK_ORDER_BOOK_TICKER.mockResolvedValueOnce([{ symbol: BTC }] as any);
+			const cycle = new BinanceMarketDataSource();
+			cycle.beginCycle([BTC, ETH]);
+			await cycle.fetchSnapshot({ symbol: BTC });
+			const eth = await cycle.fetchSnapshot({ symbol: ETH });
+
+			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledTimes(1);
+			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC, ETH]);
+			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledTimes(1);
+			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledTimes(1);
+			expect(eth.ticker24h).toBeUndefined();
+		});
+	});
+
 	describe("fetchSnapshot", () => {
 		it("should call all 6 Binance client functions in parallel", async () => {
 			await source.fetchSnapshot(request);
