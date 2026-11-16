@@ -11,7 +11,13 @@ import {
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 import type { MarketDataPage } from "../../../domain/market-data.types";
-import { Asset, AssetId, Signal } from "../../../domain/signals";
+import {
+	Asset,
+	AssetId,
+	Dimension,
+	Signal,
+	Source,
+} from "../../../domain/signals";
 
 /**
  * HTTP API of financial-scraper (ADR-0021): market data and signal queries. Each entry
@@ -225,7 +231,14 @@ export const SCRAPER_API = {
 			"Signals of an asset, of its sector and of its areas, every dimension, observed in [from, to)",
 		params: z.object({ assetId: AssetId }),
 		query: z
-			.object({ from: ISO_DATE_MS, to: ISO_DATE_MS })
+			.object({
+				from: ISO_DATE_MS,
+				to: ISO_DATE_MS,
+				/** Filters, applied in SQL; without them, everything. */
+				dimension: Dimension.optional(),
+				metric: z.string().min(1).optional(),
+				sourceId: z.string().min(1).optional(),
+			})
 			.refine((window) => window.from < window.to, {
 				message: "from must be before to",
 				path: ["to"],
@@ -240,6 +253,32 @@ export const SCRAPER_API = {
 			}),
 			400: ErrorResponse,
 			404: ErrorResponse,
+		},
+	}),
+	assets: defineRoute({
+		method: "GET",
+		path: "/v2/signals/assets",
+		summary: "Assets of the signal registry",
+		responses: { 200: z.object({ assets: z.array(Asset) }) },
+	}),
+	sources: defineRoute({
+		method: "GET",
+		path: "/v2/signals/sources",
+		summary: "Sources of the signal registry, with their terms of use",
+		responses: {
+			200: z.object({
+				sources: z.array(
+					z.object({
+						id: Source.shape.id,
+						covers: Source.shape.covers,
+						schedule: z.string(),
+						reliabilityScore: z.number(),
+						terms: z.string(),
+						termsUrl: z.string(),
+						attribution: z.string().optional(),
+					})
+				),
+			}),
 		},
 	}),
 } as const;

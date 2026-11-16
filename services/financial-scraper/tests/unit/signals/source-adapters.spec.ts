@@ -95,6 +95,46 @@ describe("ecb-sdmx-series", () => {
 		});
 	});
 
+	it.each([
+		[
+			"ecb-sdmx-hicp",
+			"hicp_annual_rate",
+			"2026-06",
+			"2026-06-01",
+			"2026-06-30",
+			2.8,
+		],
+		[
+			"ecb-sdmx-dfr",
+			"deposit_facility_rate",
+			"2025-06-11",
+			"2025-06-11",
+			"2025-06-11",
+			2,
+		],
+		[
+			"ecb-sdmx-eurusd",
+			"eur_usd_reference_rate",
+			"2026-11-11",
+			"2026-11-11",
+			"2026-11-11",
+			1.1127,
+		],
+	])(
+		"writes a macro payload for %s with the area param",
+		(name, metric, key, start, end, value) => {
+			const [first] = ECB_SDMX_SERIES.normalize(fixture(name), {
+				params: { metric, area: "EA" },
+			});
+
+			expect(first).toMatchObject({
+				key,
+				payload: { metric, value, area: "EA", period: { start, end } },
+			});
+			expect(first).not.toHaveProperty("observedAt");
+		}
+	);
+
 	it("leaves out a day without value", () => {
 		const payload = fixture("ecb-sdmx-series");
 		const [series] = Object.values<any>(payload.dataSets[0].series);
