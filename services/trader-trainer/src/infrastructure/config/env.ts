@@ -44,7 +44,9 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_LEASE_NAME: z.string().trim().default(""),
 } satisfies Record<string, z.ZodTypeAny>;
 
-const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(AddressManagerEnvSchema)
+export const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
+	AddressManagerEnvSchema
+)
 	.extend(RedisEnvSchema.shape)
 	.extend(TRAINER_ENV_SHAPE);
 
