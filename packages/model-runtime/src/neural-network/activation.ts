@@ -5,6 +5,8 @@ interface ActivationDefinition {
 	derivative(activation: number, preActivation: number): number;
 }
 
+const SQRT_2_PI = Math.sqrt(2 / Math.PI);
+
 function _geluTanhVal(sqrt2Pi: number, preActivation: number): number {
 	return Math.tanh(sqrt2Pi * (preActivation + 0.044715 * preActivation ** 3));
 }
@@ -51,21 +53,20 @@ const Elu: ActivationDefinition = {
 };
 
 const Gelu: ActivationDefinition = {
-	fn: (input) =>
-		0.5 * input * (1 + _geluTanhVal(Math.sqrt(2 / Math.PI), input)),
+	fn: (input) => 0.5 * input * (1 + _geluTanhVal(SQRT_2_PI, input)),
 	derivative: (_activation, preActivation) => {
-		const sqrt2Pi = Math.sqrt(2 / Math.PI);
-		const tanhVal = _geluTanhVal(sqrt2Pi, preActivation);
-		return _geluDerivative(tanhVal, preActivation, sqrt2Pi);
+		const tanhVal = _geluTanhVal(SQRT_2_PI, preActivation);
+		return _geluDerivative(tanhVal, preActivation, SQRT_2_PI);
 	},
 };
 
 const Mish: ActivationDefinition = {
 	fn: (input) => input * Math.tanh(Math.log(1 + Math.exp(input))),
 	derivative: (_activation, preActivation) => {
-		const softplus = Math.log(1 + Math.exp(preActivation));
+		const exp = Math.exp(preActivation);
+		const softplus = Math.log(1 + exp);
 		const tanhVal = Math.tanh(softplus);
-		const sigmoid = Math.exp(preActivation) / (1 + Math.exp(preActivation));
+		const sigmoid = exp / (1 + exp);
 		return tanhVal + preActivation * (1 - tanhVal ** 2) * sigmoid;
 	},
 };

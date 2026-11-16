@@ -19,7 +19,7 @@ import { createInitialPopulation } from "../../../src/domain/genetic-algorithm/p
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 import { makeCandle } from "../../fixtures/market-data.fixture";
 
-// ADR-0079: signals enter the network as value, age and confidence inputs.
+// ADR-0080: signals enter the network as value, age and confidence inputs.
 const SYMBOL = TradingSymbol.of("BTCUSDT");
 const KEY = "BTC:social:pageviews";
 const MINUTE = 60_000;
@@ -67,7 +67,7 @@ const inputs = (buffer: MarketDataBuffer) =>
 		.buildMarketSteps(SYMBOL)
 		.map((step) => Array.from(step.features.signals));
 
-describe("signal inputs (ADR-0079)", () => {
+describe("signal inputs (ADR-0080)", () => {
 	it("reads a value from the step its observedAt allows, not before", () => {
 		const published = closeOf(30);
 		const raw = inputs(

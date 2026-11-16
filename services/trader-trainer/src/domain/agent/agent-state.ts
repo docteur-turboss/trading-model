@@ -12,7 +12,7 @@ import { signalFieldNames } from "../signal-features";
 const AGENT_STATE_FIELDS = ["AgentExposure"] as const;
 export const AGENT_STATE_DIM = AGENT_STATE_FIELDS.length;
 
-/** Inputs of the trading network (model artifacts, ADR-0022, ADR-0025); `signalKeys`: ADR-0079. */
+/** Inputs of the trading network (model artifacts, ADR-0022, ADR-0025); `signalKeys`: ADR-0080. */
 export function networkInputLayout(signalKeys: readonly string[] = []): {
 	dim: number;
 	fields: string[];

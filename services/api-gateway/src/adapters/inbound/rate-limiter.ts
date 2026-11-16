@@ -11,7 +11,7 @@ import { ENV } from "../../infrastructure/config/env";
 function clientKey(req: Request): string {
 	const identity = (req as Request & { clientIdentity?: string })
 		.clientIdentity;
-	return identity ? String(identity) : ipKeyGenerator(req.ip ?? "");
+	return identity || ipKeyGenerator(req.ip ?? "");
 }
 
 // In-memory store: counts per pod, so the effective limit is max x replicas (ADR-0047).

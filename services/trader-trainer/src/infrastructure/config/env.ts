@@ -14,7 +14,7 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_SYMBOLS: z.string().default("BTCUSDT,ETHUSDT"),
 	/** `SYMBOL:ASSET` pairs (`BTCUSDT:BTC,ETHUSDT:ETH`): the registry asset whose signals a session reads. Empty: none (ADR-0036). */
 	TRAINER_SYMBOL_ASSETS: z.string().default(""),
-	/** `SUBJECT:dimension:metric` list (`BTC:social:pageviews`): the signals fed to the network as value, age and confidence inputs (ADR-0079). Used only with FEATURE_SIGNAL_INPUTS. */
+	/** `SUBJECT:dimension:metric` list (`BTC:social:pageviews`): the signals fed to the network as value, age and confidence inputs (ADR-0080). Used only with FEATURE_SIGNAL_INPUTS. */
 	TRAINER_SIGNAL_FEATURES: z
 		.string()
 		.default("")

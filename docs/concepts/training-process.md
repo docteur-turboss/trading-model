@@ -37,7 +37,7 @@ Raw market data (prices, volumes, order book) is transformed into a 32-dimension
 | History | 7 | Last 8 closes sliding window |
 | Bias | 1 | Constant 1.0 (bias term) |
 
-Normalization (z-score) is applied per-symbol with running statistics, ensuring the network receives stable inputs despite changing market prices. Each step only sees the data known at its candle's close, statistics included (ADR-0030): no future value leaks into training or validation. With `FEATURE_SIGNAL_INPUTS`, the signals of `TRAINER_SIGNAL_FEATURES` add a value, an age and a confidence input each (ADR-0079).
+Normalization (z-score) is applied per-symbol with running statistics, ensuring the network receives stable inputs despite changing market prices. Each step only sees the data known at its candle's close, statistics included (ADR-0030): no future value leaks into training or validation. With `FEATURE_SIGNAL_INPUTS`, the signals of `TRAINER_SIGNAL_FEATURES` add a value, an age and a confidence input each (ADR-0080).
 
 ## Training Loop
 

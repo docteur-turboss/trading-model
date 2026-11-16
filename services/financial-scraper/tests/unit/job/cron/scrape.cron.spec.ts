@@ -6,10 +6,6 @@ import {
 	TradingSymbol,
 } from "@trading-model/primitives/primitives";
 
-jest.mock("os", () => ({
-	cpus: jest.fn((..._args: any[]) => new Array(4).fill({})),
-}));
-
 const MOCK_CRON_SCHEDULE = jest.fn<(...args: any[]) => any>();
 jest.mock("node-cron", () => ({
 	schedule: MOCK_CRON_SCHEDULE,
@@ -78,11 +74,20 @@ describe("ScrapeCronOrchestrator", () => {
 	});
 
 	describe("constructor", () => {
-		// os.cpus() is mocked to 4 cpus: the default is min(8, symbols)
+		// the default is min(8, symbols), whatever the host cores
 		it.each([
 			["default concurrency capped at 2 symbols", {}, 2],
 			["provided maxConcurrency", { maxConcurrency: PositiveInt.of(3) }, 3],
 			["default concurrency capped at 1 symbol", { symbols: [BTC] }, 1],
+			[
+				"default concurrency capped at 8",
+				{
+					symbols: Array.from({ length: 20 }, (_, i) =>
+						TradingSymbol.of(`S${i}USDT`)
+					),
+				},
+				8,
+			],
 		])(
 			"should limit a cycle with the %s",
 			async (_name, overrides, expected) => {

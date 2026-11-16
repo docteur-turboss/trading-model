@@ -20,7 +20,7 @@ export interface MarketDataBufferConfig {
 	maxSize?: number;
 	maxMemoryBytes?: number;
 	evictionPolicy?: EvictionPolicy;
-	/** Signal metrics fed to the network after the market inputs (ADR-0079); empty: none. */
+	/** Signal metrics fed to the network after the market inputs (ADR-0080); empty: none. */
 	signalKeys?: readonly string[];
 	/** Observability hook, called with the per-symbol candle count and the symbol count. */
 	onDataAdded?: (
@@ -111,13 +111,6 @@ export class MarketDataBuffer {
 	buildMarketSteps(symbol: TradingSymbol): MarketStep[] {
 		const ctx: MarketDataContext = { symbol };
 		return this._windowSplitter.buildMarketSteps(ctx);
-	}
-
-	splitTrainValidation(
-		steps: MarketStep[],
-		validationSplit: number
-	): WindowSet {
-		return this._windowSplitter.splitTrainValidation(steps, validationSplit);
 	}
 
 	getAllWindows(

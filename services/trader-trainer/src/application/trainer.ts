@@ -1,5 +1,6 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import { Fitness, NonNegativeInt } from "@trading-model/primitives/primitives";
 import {
 	BEST_FITNESS,
@@ -17,13 +18,13 @@ import {
 } from "../config/metrics";
 import { networkInputLayout } from "../domain/agent/agent-state";
 import { featureDriftScore } from "../domain/feature-drift";
-import { buyAndHoldSharpe } from "../domain/genetic-algorithm/evaluation-utils";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
 import { assessAdmission } from "../domain/model-admission";
+import type { ModelReplayWindow } from "../domain/model-artifact";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type {
 	ModelPublisherPort,
@@ -291,6 +292,7 @@ export class Trainer {
 				normalization,
 				summary,
 				admission,
+				window: this._replayWindow(result.symbol, last),
 			});
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "stored" });
 			const admissible = admission?.admissible ?? false;
@@ -315,6 +317,23 @@ export class Trainer {
 				},
 			});
 		}
+	}
+
+	/** Candle window of the session, for the manifest `replay` block (ADR-0079). */
+	private _replayWindow(
+		symbol: TradingSymbol,
+		last: WindowSet | undefined
+	): ModelReplayWindow | undefined {
+		const candles = this._dataBuffer.getSymbolState(symbol)?.candles ?? [];
+		const testFrom = last?.test?.[0]?.timestamp;
+		if (candles.length === 0 || testFrom === undefined) {
+			return;
+		}
+		return {
+			from: candles[0].timestamp,
+			testFrom,
+			to: candles[candles.length - 1].closeTimestamp,
+		};
 	}
 
 	/** Out-of-sample metrics of a stored model next to buy and hold on its bars. */

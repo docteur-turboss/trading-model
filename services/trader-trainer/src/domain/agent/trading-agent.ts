@@ -4,7 +4,6 @@ import {
 	type WalletConfig,
 } from "@trading-model/model-runtime/env/wallet-manager";
 import type {
-	Experience,
 	NeuralNetworkConfig,
 	QLearningExperience,
 } from "@trading-model/model-runtime/neural-network/type";
@@ -164,10 +163,6 @@ export class TradingAgent {
 
 	public parameterCount(): number {
 		return this._agent.nn.parameterCount();
-	}
-
-	public getExperiencePool(): Experience[] {
-		return this._agent.experience.getPool();
 	}
 
 	public resetEpisode(): void {
