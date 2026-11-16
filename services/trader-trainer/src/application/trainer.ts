@@ -17,8 +17,8 @@ import {
 	TRAINING_STATUS,
 } from "../config/metrics";
 import {
-	EVENT_INPUT_LAYOUT,
-	NETWORK_INPUT_LAYOUT,
+	eventInputLayout,
+	networkInputLayout,
 } from "../domain/agent/agent-state";
 import { featureDriftScore } from "../domain/feature-drift";
 import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
@@ -132,9 +132,9 @@ export class Trainer {
 				if (
 					manifest &&
 					JSON.stringify(manifest.features) !==
-						JSON.stringify(NETWORK_INPUT_LAYOUT) &&
+						JSON.stringify(networkInputLayout(this._dataBuffer.signalKeys)) &&
 					JSON.stringify(manifest.features) !==
-						JSON.stringify(EVENT_INPUT_LAYOUT)
+						JSON.stringify(eventInputLayout(this._dataBuffer.signalKeys))
 				) {
 					// Published before the 18-input layout (ADR-0078): retrained, not served.
 					getLogger().warn("Stored model has another feature layout, skipped", {
@@ -295,8 +295,8 @@ export class Trainer {
 				bestGenome: result.bestGenome,
 				weights: new Float32Array(weights),
 				features: isEventDriven(result.bestGenome.rl.horizon)
-					? EVENT_INPUT_LAYOUT
-					: NETWORK_INPUT_LAYOUT,
+					? eventInputLayout(this._dataBuffer.signalKeys)
+					: networkInputLayout(this._dataBuffer.signalKeys),
 				normalization,
 				summary,
 				admission,

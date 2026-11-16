@@ -1,4 +1,5 @@
 import { makePRNG } from "@trading-model/crypto/prng";
+import { AGENT_STATE_DIM } from "../agent/agent-state";
 import { evaluateFitness } from "./evaluation-pipeline";
 import { createDefaultGenome } from "./factory";
 import { type GaTelemetry, NoopGaTelemetry } from "./ga-telemetry";
@@ -56,7 +57,12 @@ export class GenerationProcessor {
 			...createDefaultGenome("base").gaControl,
 			...baseControl,
 		} as GAControlGenome);
-		this._population = createInitialPopulation(ctrl, this._cfg.eventDriven);
+		const step = this._cfg.windowSets[0]?.train[0];
+		this._population = createInitialPopulation(
+			ctrl,
+			this._cfg.eventDriven,
+			step && step.features.toFloat32Array().length + AGENT_STATE_DIM
+		);
 		this._generation = 0;
 		this._archive = new ParetoArchive();
 		this._stagnationTracker = new StagnationTracker();

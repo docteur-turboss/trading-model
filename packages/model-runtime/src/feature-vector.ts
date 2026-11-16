@@ -5,6 +5,8 @@ export type { CandleFeatures } from "./features/candle-features";
 export class FeatureVector {
 	candle: CandleFeatures;
 	bias = 0;
+	/** Optional signal inputs (value, age, confidence per metric), after the market block. */
+	signals: Float32Array = new Float32Array(0);
 	private readonly _slidingWindow: Float32Array;
 
 	constructor(data?: Float32Array) {

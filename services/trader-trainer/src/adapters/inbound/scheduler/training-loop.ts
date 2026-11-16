@@ -15,6 +15,7 @@ import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
 import type { TradingSymbol } from "../../../domain/market-data-types";
 import type { CandleHistoryPort } from "../../../domain/ports/candle-history.port";
 import type { SignalHistoryPort } from "../../../domain/ports/signal-history.port";
+import { signalKey } from "../../../domain/signal-features";
 
 interface TrainingLoopConfig {
 	symbols: TradingSymbol[];
@@ -91,8 +92,9 @@ export class TrainingLoop {
 	}
 
 	/**
-	 * Measures the signals a session could use; they do not reach the model
-	 * yet. A failed read is counted and the session goes on without them.
+	 * Measures the signals a session could use and hands them to the buffer,
+	 * which builds the network's signal inputs from them (FEATURE_SIGNAL_INPUTS).
+	 * A failed read is counted and the session goes on without them.
 	 */
 	private async _observeSignals(symbol: TradingSymbol): Promise<void> {
 		const assetId = this._signals?.assets.get(symbol);
@@ -106,6 +108,16 @@ export class TrainingLoop {
 				now - this._signals.windowMs,
 				now
 			);
+			this._dataBuffer.setSignals(symbol, signals);
+			const found = new Set(signals.map(signalKey));
+			const missing = this._dataBuffer.signalKeys.filter(
+				(key) => !found.has(key)
+			);
+			if (missing.length > 0) {
+				getLogger().warn("Configured signal keys found no signal: zeros", {
+					context: { symbol, assetId, keys: missing },
+				});
+			}
 			for (const dimension of Dimension.options) {
 				const labels = { symbol, dimension };
 				const observed = signals
@@ -126,6 +138,7 @@ export class TrainingLoop {
 			});
 		} catch (err) {
 			SIGNAL_READ_ERRORS_TOTAL.inc({ symbol });
+			this._dataBuffer.setSignals(symbol, []);
 			getLogger().error("Signals unreadable: session trains without them", {
 				context: { symbol, assetId },
 				error: normalizeError(err).message,
