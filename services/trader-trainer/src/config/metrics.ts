@@ -118,11 +118,6 @@ export const STAGNATION_GENERATIONS = new promClient.Gauge({
 	help: "Consecutive generations without improvement",
 });
 
-export const POPULATION_SIZE = new promClient.Gauge({
-	name: "tt_population_size",
-	help: "Current GA population size",
-});
-
 export const MARKET_DATA_BUFFER_SIZE = new promClient.Gauge({
 	name: "tt_market_data_buffer_size",
 	help: "Current market data buffer entries",

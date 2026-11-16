@@ -1,6 +1,5 @@
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import type { DurationMs } from "@trading-model/primitives/primitives";
-import { CACHE_HIT_RATIO, CACHE_SIZE } from "./config/metrics";
 
 export interface ResponseCacheEntry<TData = unknown> {
 	data: TData;
@@ -18,8 +17,6 @@ const MAX_BYTES = 32 * 1024 * 1024;
 export class ResponseCache {
 	private readonly _store = new Map<string, ResponseCacheEntry>();
 	private _bytes = 0;
-	private _hits = 0;
-	private _total = 0;
 
 	private readonly _defaultTtlMs: DurationMs;
 
@@ -28,26 +25,17 @@ export class ResponseCache {
 	}
 
 	get<TData = unknown>(key: string): ResponseCacheEntry<TData> | undefined {
-		this._total++;
 		const entry = this._store.get(key);
 		if (!entry) {
-			this._recordHitRatio();
 			return;
 		}
 
 		if (Date.now() > entry.expiresAt) {
 			this._remove(key);
-			this._recordHitRatio();
 			return;
 		}
 
-		this._hits++;
-		this._recordHitRatio();
 		return entry as ResponseCacheEntry<TData>;
-	}
-
-	private _recordHitRatio(): void {
-		CACHE_HIT_RATIO.set(this._hits / this._total);
 	}
 
 	set<TData = unknown>(
@@ -58,7 +46,6 @@ export class ResponseCache {
 		this._remove(key);
 		const bytes = value.bytes ?? 0;
 		if (bytes > MAX_BYTES) {
-			CACHE_SIZE.set(this._store.size);
 			return;
 		}
 		// Map keeps insertion order: drop the oldest entries first.
@@ -70,7 +57,6 @@ export class ResponseCache {
 			expiresAt: Date.now() + (ttlMs ?? this._defaultTtlMs),
 		});
 		this._bytes += bytes;
-		CACHE_SIZE.set(this._store.size);
 	}
 
 	private _remove(key: string): void {
