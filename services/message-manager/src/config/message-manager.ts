@@ -38,6 +38,7 @@ const JOURNAL = SUBSCRIPTION_REDIS
 	? new RedisMessageJournal({
 			redis: SUBSCRIPTION_REDIS,
 			openBlockingRedis: () => SUBSCRIPTION_REDIS.duplicate(),
+			openWriteRedis: () => SUBSCRIPTION_REDIS.duplicate(),
 			keyPrefix: SUBSCRIPTION_KEY_PREFIX,
 			minReplicas: ENV.JOURNAL_MIN_REPLICAS,
 			onTrimmed: ({ topic, service }) =>

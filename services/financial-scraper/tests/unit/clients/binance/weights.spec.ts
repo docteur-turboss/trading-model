@@ -51,21 +51,22 @@ describe("BINANCE_WEIGHTS", () => {
 			expect(BINANCE_WEIGHTS.change24hrStats(100)).toBe(40);
 		});
 
-		it("should return 80 for > 100 symbols", () => {
+		it("should return 80 for > 100 symbols or all symbols (0)", () => {
 			expect(BINANCE_WEIGHTS.change24hrStats(101)).toBe(80);
+			expect(BINANCE_WEIGHTS.change24hrStats(0)).toBe(80);
 		});
 	});
 
 	describe("symbolPriceTicker", () => {
-		it("should return 4 for any symbol count", () => {
-			expect(BINANCE_WEIGHTS.symbolPriceTicker(1)).toBe(4);
+		it("should return 2 for one symbol and 4 for several", () => {
+			expect(BINANCE_WEIGHTS.symbolPriceTicker(1)).toBe(2);
 			expect(BINANCE_WEIGHTS.symbolPriceTicker(100)).toBe(4);
 		});
 	});
 
 	describe("orderBookTicker", () => {
-		it("should return 4 for any symbol count", () => {
-			expect(BINANCE_WEIGHTS.orderBookTicker(1)).toBe(4);
+		it("should return 2 for one symbol and 4 for several", () => {
+			expect(BINANCE_WEIGHTS.orderBookTicker(1)).toBe(2);
 			expect(BINANCE_WEIGHTS.orderBookTicker(100)).toBe(4);
 		});
 	});
