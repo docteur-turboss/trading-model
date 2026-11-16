@@ -5,6 +5,7 @@ import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { MarketEvent } from "@trading-model/contracts/market-events";
 import type { Signature } from "@trading-model/contracts/signed-request";
 import { sha256Base64url } from "@trading-model/crypto/node-crypto";
+import { getBusCorrelationId } from "@trading-model/http/correlation-id";
 import {
 	toCorrelationId,
 	toInstanceId,
@@ -43,6 +44,6 @@ export function createMarketDataMetadata(
 		.setSecurity({ authContext, signature: signature as Signature })
 		.setIds({
 			causationId: toCorrelationId(randomUUID()),
-			correlationId: toCorrelationId(randomUUID()),
+			correlationId: getBusCorrelationId() ?? toCorrelationId(randomUUID()),
 		});
 }
