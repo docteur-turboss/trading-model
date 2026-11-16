@@ -1,8 +1,8 @@
 import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
 import { CFTC_COT_LEGACY } from "./cftc-cot-legacy";
 import { ECB_SDMX_SERIES } from "./ecb-sdmx-series";
-import { FRED_SERIES_OBSERVATIONS } from "./fred-series-observations";
 import { FEDERAL_REGISTER_DAILY } from "./federal-register-daily";
+import { FRED_SERIES_OBSERVATIONS } from "./fred-series-observations";
 import { NWS_LATEST_OBSERVATION } from "./nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "./sec-edgar-company-concept";
 import { WIKIMEDIA_PAGEVIEWS } from "./wikimedia-pageviews";

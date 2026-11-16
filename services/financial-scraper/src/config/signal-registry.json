@@ -309,7 +309,7 @@
 					"dimension": "macro",
 					"url": "https://api.stlouisfed.org/fred/series/observations?series_id=GDPC1&file_type=json&realtime_start=1776-07-04&realtime_end=9999-12-31&sort_order=desc&limit=1000",
 					"params": { "metric": "real_gdp", "area": "US", "unit": "billion_usd_2017", "period": "quarter", "series": "GDPC1" }
-t			}
+			}
 			]
 		},
 		{
