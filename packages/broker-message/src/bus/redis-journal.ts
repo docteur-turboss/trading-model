@@ -54,7 +54,7 @@ export interface RedisMessageJournalDeps {
 }
 
 const WAIT_REPLICAS_TIMEOUT_MS = 2000;
-/** Approximate cap of a journal stream, applied every `CAP_EVERY` appends: bounds a burst the 24 h `MINID` would keep. */
+/** Approximate cap of a journal stream, applied every `CAP_EVERY` appends: bounds a burst the 24 h `MINID` would keep. Unmeasured: 100 000 × ~1 KB ≈ 100 MB per stream, against 512 Mi of Redis. */
 const JOURNAL_MAX_LENGTH = 100_000;
 const CAP_EVERY = 100;
 const FIELD = "message";
