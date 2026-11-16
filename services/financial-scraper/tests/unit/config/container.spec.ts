@@ -191,6 +191,9 @@ describe("config/container — createSignalScheduler", () => {
 				"nws-kansas-wheat-belt",
 				"wikipedia-pageviews",
 				"federal-register-documents",
+				"eurostat-house-price-index",
+				"eurostat-hicp-inflation",
+				"eurostat-unemployment",
 			],
 		});
 	});
