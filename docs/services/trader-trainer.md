@@ -176,12 +176,6 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 | `TRAINER_MODEL_RETENTION` | Versions kept per symbol (default 20)        |
 | `MODEL_DOWNLOAD_CALLERS` | Services allowed to download weights (comma-separated, empty: nobody; `model-evaluator` in compose and K8s) |
 
-## Rate Limiting
-
-- **Window**: 1 minute
-- **Limit**: 1 000 requests per IP and per window
-- Default of the shared server (`packages/http/src/configure-app.ts`); the trainer passes no `rateLimit` option
-
 ## TLS
 
 All connections require TLS mutual authentication:

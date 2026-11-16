@@ -57,7 +57,6 @@
     "@opentelemetry/resources": "^3.0.0",
     "@opentelemetry/sdk-node": "^0.301.1",
     "@opentelemetry/semantic-conventions": "^1.44.0",
-    "express-rate-limit": "^8.7.4",
     "helmet": "^8.3.0"
   },
   "devDependencies": {
