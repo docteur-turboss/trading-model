@@ -1,10 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/logger";
-import {
-	JOURNAL_RETENTION_MS,
-	type JournalGroup,
-} from "../../../src/bus/journal.port";
+import { JOURNAL_RETENTION_MS } from "../../../src/bus/journal.port";
+import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../../src/bus/metrics";
 import { RedisMessageJournal } from "../../../src/bus/redis-journal";
 import { createMockMessage } from "../../fixtures/broker.fixture";
 
@@ -14,8 +12,7 @@ const NOW = 1_700_000_000_000;
 function setup(
 	call: (...args: string[]) => Promise<unknown> = async (name) =>
 		name === "EXISTS" ? 1 : "OK",
-	minReplicas?: number,
-	onTrimmed?: (group: JournalGroup) => void
+	minReplicas?: number
 ) {
 	const redis = {
 		call: jest.fn(call),
@@ -29,7 +26,6 @@ function setup(
 			keyPrefix: "p",
 			minReplicas,
 			now: () => NOW,
-			onTrimmed,
 		}),
 	};
 }
@@ -432,18 +428,19 @@ describe("RedisMessageJournal", () => {
 	});
 
 	it("should count and log as error an entry trimmed while still pending", async () => {
-		const onTrimmed = jest.fn();
-		const { journal } = setup(
-			async (command) =>
-				command === "XPENDING" ? [["1-0", "c", 20_000, 1]] : [["1-0", null]],
-			undefined,
-			onTrimmed
+		JOURNAL_TRIMMED_PENDING_TOTAL.reset();
+		const { journal } = setup(async (command) =>
+			command === "XPENDING" ? [["1-0", "c", 20_000, 1]] : [["1-0", null]]
 		);
 		const error = jest.spyOn(logger, "error").mockImplementation(() => logger);
 
 		await journal.claimDue(GROUP, "c", { floorMs: 0, dueAfterMs: () => 0 }, 10);
 
-		expect(onTrimmed).toHaveBeenCalledWith(GROUP);
+		expect(
+			(await JOURNAL_TRIMMED_PENDING_TOTAL.get()).values.find(
+				(v) => v.labels.topic === "test.topic"
+			)?.value
+		).toBe(1);
 		expect(error).toHaveBeenCalledWith(
 			expect.stringContaining("trimmed"),
 			expect.objectContaining({ entryId: "1-0", topic: "test.topic" })

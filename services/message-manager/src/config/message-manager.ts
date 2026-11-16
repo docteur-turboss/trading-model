@@ -13,7 +13,6 @@ import { RedisSubscriptionStore } from "../adapters/outbound/redis-subscription-
 import { ENV } from "../infrastructure/config/env";
 import createBrokerModule from "./container";
 import { auditDeadLetter, publishDeadLetterCounts } from "./dead-letters";
-import { JOURNAL_TRIMMED_PENDING_TOTAL } from "./metrics";
 
 const SUBSCRIPTION_KEY_PREFIX = "trading-model:message-manager";
 
@@ -41,8 +40,6 @@ const JOURNAL = SUBSCRIPTION_REDIS
 			openWriteRedis: () => SUBSCRIPTION_REDIS.duplicate(),
 			keyPrefix: SUBSCRIPTION_KEY_PREFIX,
 			minReplicas: ENV.JOURNAL_MIN_REPLICAS,
-			onTrimmed: ({ topic, service }) =>
-				JOURNAL_TRIMMED_PENDING_TOTAL.inc({ topic, service }),
 		})
 	: undefined;
 

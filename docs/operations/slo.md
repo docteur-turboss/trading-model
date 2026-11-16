@@ -38,10 +38,9 @@ rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[
 - **Source:** All HTTP-serving services.
 
 ### 4. Message Delivery Success Rate
-
-- **Definition:** Proportion of messages successfully delivered by message-manager.
-- **Measurement:** Prometheus `rate(mm_messages_published_total[5m]) /
-(rate(mm_messages_published_total[5m]) + rate(mm_messages_dlq_total[5m]))`.
+- **Definition:** Proportion of delivery outcomes that succeed: a message accepted but not delivered (subscriber down, retries pending) no longer counts as success once it is dead-lettered.
+- **Measurement:** Prometheus `rate(mm_messages_delivered_total{status="success"}[5m]) /
+(rate(mm_messages_delivered_total{status="success"}[5m]) + rate(mm_messages_dlq_total[5m]))`.
 - **Source:** message-manager.
 
 ### 5. DLQ Drain Rate
