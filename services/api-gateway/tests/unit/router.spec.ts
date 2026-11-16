@@ -221,7 +221,8 @@ describe("router", () => {
 
 			expect(await getUrl("/v1/audit-logger/events?page=2")).toEqual({
 				status: 200,
-				data: { page: 2 },
+				data: JSON.stringify({ page: 2 }),
+				contentType: "application/json",
 			});
 		});
 
@@ -241,7 +242,8 @@ describe("router", () => {
 
 			expect(await get(url)).toEqual({
 				status: 200,
-				data: { error: "unsigned" },
+				data: JSON.stringify({ error: "unsigned" }),
+				contentType: "application/json",
 			});
 		});
 
@@ -250,12 +252,19 @@ describe("router", () => {
 			const path = "/v1/audit-logger/events/cached-test";
 
 			const first = await get(path);
-			expect(first).toEqual({ status: 200, data: { data: "ok" } });
+			expect(first).toEqual({
+				status: 200,
+				data: JSON.stringify({ data: "ok" }),
+				contentType: "application/json",
+			});
 
 			mockForwardSuccess({ data: "should-not-reach" });
 
 			const second = await get(path);
-			expect(second).toEqual({ status: 200, data: { data: "ok" } });
+			expect(second).toEqual({
+				status: 200,
+				data: JSON.stringify({ data: "ok" }),
+			});
 		});
 
 		it("serves a cached answer without a DNS lookup", async () => {
@@ -294,7 +303,11 @@ describe("router", () => {
 					body: { name: "test" },
 				})
 			);
-			expect(result).toEqual({ status: 200, data: { saved: true } });
+			expect(result).toEqual({
+				status: 200,
+				data: JSON.stringify({ saved: true }),
+				contentType: "application/json",
+			});
 		});
 
 		it.each([
@@ -365,6 +378,7 @@ describe("router", () => {
 			expect(await get("/v1/audit-logger/events/plain-text")).toEqual({
 				status: 200,
 				data: "plain text response",
+				contentType: "text/plain",
 			});
 		});
 
