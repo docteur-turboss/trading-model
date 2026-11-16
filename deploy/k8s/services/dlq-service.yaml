@@ -148,8 +148,6 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: DLQ_AUTH_HMAC_SECRET
-            - name: ERROR_URL_WEBHOOK
-              value: ""
           resources:
             requests:
               cpu: 100m

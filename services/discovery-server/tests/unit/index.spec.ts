@@ -15,7 +15,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		TLS_CERT_PATH: "/cert",
 		TLS_CA_PATH: "/ca",
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
-		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
 		REDIS_URL: "redis://localhost:6379",
 		SIGNING_SECRET: "signing-secret",
 	},
