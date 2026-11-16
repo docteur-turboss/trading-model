@@ -166,3 +166,21 @@ export const QLEARNING_TRAIN_ERRORS = new promClient.Counter({
 });
 
 export { metricsHandler };
+
+const INPUT_GROUP_ACTIVE = new promClient.Gauge({
+	name: "tt_input_group_active",
+	help: "Share of genomes with the input group active: scope population (last generation) or published (ADR-0082)",
+	labelNames: ["group", "scope"] as const,
+});
+
+/** Sets `tt_input_group_active` for `scope` from the genomes' masks. */
+export function reportInputGroups(
+	scope: "population" | "published",
+	groups: readonly string[],
+	masks: readonly (readonly boolean[])[]
+): void {
+	groups.forEach((group, index) => {
+		const active = masks.filter((mask) => mask[index]).length;
+		INPUT_GROUP_ACTIVE.set({ group, scope }, active / (masks.length || 1));
+	});
+}

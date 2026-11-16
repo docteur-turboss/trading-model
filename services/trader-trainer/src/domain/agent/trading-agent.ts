@@ -8,6 +8,7 @@ import type {
 	QLearningExperience,
 } from "@trading-model/model-runtime/neural-network/type";
 import { type Price, Volume } from "@trading-model/primitives/primitives";
+import { applyInputMask } from "../genetic-algorithm/genome-network/input-mask";
 import { Agent } from "../neural-network/agent";
 import { ActionMapper } from "./action-mapper";
 import { TradeAction } from "./action-types";
@@ -21,6 +22,8 @@ export interface TradingAgentConfig {
 	stateManagerCfg?: StateManagerConfig;
 	/** Show the position to the network (default); false feeds a constant. */
 	observePosition?: boolean;
+	/** Input groups of the genome (ADR-0082): a false group is zeroed before the network. */
+	inputMask?: readonly boolean[];
 	/**
 	 * Size every trade as this share of the initial cash at the current price,
 	 * instead of `tradeAmount` units: a fixed unit count cannot be bought once
@@ -63,6 +66,7 @@ interface StepResult {
 export class TradingAgent {
 	private readonly _agent: Agent;
 	private readonly _observePosition: boolean;
+	private readonly _inputMask: readonly boolean[] | undefined;
 	private readonly _tradeCash: number | undefined;
 	/** PnL just before the previous decision's trade; null before the first. */
 	private _pnlBeforeLastTrade: number | null = null;
@@ -72,6 +76,7 @@ export class TradingAgent {
 
 	constructor(cfg: TradingAgentConfig) {
 		this._observePosition = cfg.observePosition ?? true;
+		this._inputMask = cfg.inputMask;
 		this._tradeCash =
 			cfg.tradeFraction === undefined
 				? undefined
@@ -104,7 +109,12 @@ export class TradingAgent {
 				? 0
 				: markedPnl - this._pnlBeforeLastTrade;
 
-		const state = observe(input, this.wallet, this._observePosition, barsSince);
+		const state = observe(
+			applyInputMask(input, this._inputMask),
+			this.wallet,
+			this._observePosition,
+			barsSince
+		);
 		const { output } = this._agent.nn.forward(state);
 		const { action, amount, outputIndex } = this._actionMapper.map(
 			output,
@@ -150,7 +160,11 @@ export class TradingAgent {
 	/** Q-values for these market features and the agent's current holding. */
 	public forwardPass(input: Float32Array): { output: Float32Array } {
 		return this._agent.nn.forward(
-			observe(input, this.wallet, this._observePosition)
+			observe(
+				applyInputMask(input, this._inputMask),
+				this.wallet,
+				this._observePosition
+			)
 		);
 	}
 

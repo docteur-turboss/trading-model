@@ -31,6 +31,8 @@ export interface GARunnerConfig {
 	signal?: AbortSignal;
 	/** FEATURE_EVENT_DRIVEN_DECISIONS: the population decides on market events. */
 	eventDriven?: boolean;
+	/** FEATURE_INPUT_MASK_GENE: names of the input groups the genome masks; absent: no mask gene. */
+	inputGroups?: string[];
 }
 
 export interface GenerationContext {

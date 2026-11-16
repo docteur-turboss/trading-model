@@ -28,6 +28,7 @@ const telemetry: GaTelemetry = {
 	evaluationFailed: forward("evaluationFailed"),
 	genomeEvaluated: forward("genomeEvaluated"),
 	crossoverFallbacks: forward("crossoverFallbacks"),
+	inputMasks: forward("inputMasks"),
 };
 
 const { windowSets, settings } = workerData as {

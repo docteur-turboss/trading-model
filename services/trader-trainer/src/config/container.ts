@@ -19,6 +19,7 @@ import { Trainer } from "../application/trainer";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
+import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
@@ -38,6 +39,7 @@ import {
 	MARKET_DATA_SYMBOLS,
 	POPULATION_SIZE,
 	QLEARNING_TRAIN_ERRORS,
+	reportInputGroups,
 	STAGNATION_GENERATIONS,
 	TRAINING_LEADER,
 } from "./metrics";
@@ -60,6 +62,9 @@ const PROMETHEUS_GA_TELEMETRY: GaTelemetry = {
 	crossoverFallbacks(count) {
 		CROSSOVER_FALLBACK_TOTAL.inc(count);
 	},
+	inputMasks(groups, masks) {
+		reportInputGroups("population", groups, masks);
+	},
 };
 
 /** How far back from the session instant the signal window reaches. */
@@ -79,6 +84,7 @@ interface AppContainerConfig {
 	observePosition: boolean;
 	signalKeys: string[];
 	eventDriven: boolean;
+	inputGroups?: string[];
 	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
@@ -129,6 +135,7 @@ class ApplicationContainer {
 				fitnessType: config.fitnessType,
 				observePosition: config.observePosition,
 				eventDriven: config.eventDriven,
+				inputGroups: config.inputGroups,
 			},
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
@@ -168,6 +175,7 @@ interface TraderTrainerSettings {
 	/** Feature flag (ADR-0039); false: `total_pnl` only. Default true. */
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
+	FEATURE_INPUT_MASK_GENE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
 	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
 	TRAINER_SIGNAL_FEATURES?: string;
@@ -183,6 +191,9 @@ export function createTraderTrainerContainer(
 	history: CandleHistoryPort,
 	signalHistory: SignalHistoryPort
 ): ApplicationContainer {
+	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
+		? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
+		: [];
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
 		symbols: parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
@@ -197,10 +208,11 @@ export function createTraderTrainerContainer(
 		episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
 		fitnessType: effectiveFitnessType(settings),
 		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
-		signalKeys: settings.FEATURE_SIGNAL_INPUTS
-			? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
-			: [],
+		signalKeys,
 		eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
+		inputGroups: settings.FEATURE_INPUT_MASK_GENE
+			? inputGroupNames(signalKeys)
+			: undefined,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,

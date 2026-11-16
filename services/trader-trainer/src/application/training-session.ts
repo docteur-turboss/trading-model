@@ -159,6 +159,7 @@ class TrainingSession {
 			telemetry: this._telemetry,
 			signal: this._signal,
 			eventDriven: this._settings.eventDriven,
+			inputGroups: this._settings.inputGroups,
 		});
 	}
 }

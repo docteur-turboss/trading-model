@@ -1,4 +1,5 @@
 import type { PositiveInt } from "@trading-model/primitives/primitives";
+import { crossoverInputMask } from "./input-mask";
 import type { LayerGenome, NetworkGenome } from "./types";
 
 function _crossoverLayerPair(
@@ -90,5 +91,9 @@ export function crossoverNetwork(ctx: {
 			rng,
 		}),
 		normalization: rng() < 0.5 ? left.normalization : right.normalization,
+		...(left.inputMask &&
+			right.inputMask && {
+				inputMask: crossoverInputMask(left.inputMask, right.inputMask, rng),
+			}),
 	};
 }

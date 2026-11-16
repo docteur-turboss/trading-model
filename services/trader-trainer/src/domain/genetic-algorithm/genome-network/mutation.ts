@@ -2,6 +2,7 @@ import { sampleGaussian } from "@trading-model/model-runtime/noise";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import type { LamarckGenome } from "../genome-fitness";
 import type { MutationGenome } from "../genome-mutation";
+import { mutateInputMask } from "./input-mask";
 import {
 	ActivationType,
 	ConnectionType,
@@ -204,5 +205,8 @@ export function mutateNetworkStructure(
 		...genome.network,
 		hiddenLayers: layers,
 		normalization: _maybeMutateNormalization(genome, mutationConfig, rng),
+		...(genome.network.inputMask && {
+			inputMask: mutateInputMask(genome.network.inputMask, rng),
+		}),
 	};
 }

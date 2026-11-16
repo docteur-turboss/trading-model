@@ -61,7 +61,8 @@ export class GenerationProcessor {
 		this._population = createInitialPopulation(
 			ctrl,
 			this._cfg.eventDriven,
-			step && step.features.toFloat32Array().length + AGENT_STATE_DIM
+			step && step.features.toFloat32Array().length + AGENT_STATE_DIM,
+			this._cfg.inputGroups?.length
 		);
 		this._generation = 0;
 		this._archive = new ParetoArchive();
@@ -106,6 +107,14 @@ export class GenerationProcessor {
 		});
 		this._cfg.onGeneration?.(ctx);
 		this._telemetry.stagnationUpdated(ctx.stagnation);
+		if (this._cfg.inputGroups) {
+			this._telemetry.inputMasks?.(
+				this._cfg.inputGroups,
+				ctx.population.flatMap((genome) =>
+					genome.network.inputMask ? [genome.network.inputMask] : []
+				)
+			);
+		}
 		return ctx;
 	}
 

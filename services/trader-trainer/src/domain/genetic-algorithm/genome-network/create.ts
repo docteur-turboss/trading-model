@@ -28,12 +28,14 @@ function _createDefaultHiddenLayers(): NetworkGenome["hiddenLayers"] {
 /** `inputDim`: the size of the encoded steps plus the agent state, when the steps carry signal inputs. */
 export function createNetworkGenome(
 	eventDriven = false,
-	inputDim: number = NETWORK_INPUT_LAYOUT.dim
+	inputDim: number = NETWORK_INPUT_LAYOUT.dim,
+	maskGroups = 0
 ): NetworkGenome {
 	return {
 		inputDim: PositiveInt.of(inputDim + (eventDriven ? 1 : 0)),
 		outputDim: PositiveInt.of(3),
 		hiddenLayers: _createDefaultHiddenLayers(),
 		normalization: NormalisationType.None,
+		...(maskGroups > 0 && { inputMask: new Array(maskGroups).fill(true) }),
 	};
 }
