@@ -26,7 +26,7 @@
 			"identifier": { "scheme": "isin", "isin": "US0378331005" },
 			"applicableDimensions": ["market", "fundamental", "social", "contextual", "legal", "macro"],
 			"sector": "technology",
-			"aliases": { "cik": "0000320193" }
+			"aliases": { "cik": "0000320193", "tiingo": "AAPL" }
 		},
 		{
 			"id": "WHEAT",
@@ -35,7 +35,8 @@
 			"identifier": { "scheme": "ticker", "ticker": "WEAT", "exchange": "ARCX" },
 			"applicableDimensions": ["market", "contextual", "macro"],
 			"sector": "agriculture",
-			"exposure": { "assetClass": "commodity", "replication": "futures", "region": "US" }
+			"exposure": { "assetClass": "commodity", "replication": "futures", "region": "US" },
+			"aliases": { "tiingo": "WEAT" }
 		},
 		{
 			"id": "GLD",
@@ -44,7 +45,8 @@
 			"identifier": { "scheme": "isin", "isin": "US78463V1070" },
 			"applicableDimensions": ["market", "macro"],
 			"sector": "precious_metals",
-			"exposure": { "assetClass": "commodity", "replication": "physical" }
+			"exposure": { "assetClass": "commodity", "replication": "physical" },
+			"aliases": { "tiingo": "GLD" }
 		},
 		{
 			"id": "EA_AAA_10Y",
@@ -237,6 +239,33 @@
 						"variables": "temperature,relativeHumidity,precipitationLastHour,precipitationLast3Hours,precipitationLast6Hours"
 					}
 				}
+			]
+		},
+		{
+			"id": "tiingo-daily-prices",
+			"protocol": "rest_api",
+			"adapter": "tiingo-daily-prices",
+			"schedule": "30 1 * * 2-6",
+			"reliabilityScore": 0.9,
+			"covers": [
+				{ "assetType": "equity", "dimension": "market" },
+				{ "assetType": "etf", "dimension": "market" },
+				{ "assetType": "commodity_proxy", "dimension": "market" }
+			],
+			"accessPolicy": {
+				"terms": "non-commercial",
+				"termsUrl": "https://www.tiingo.com/about/pricing",
+				"restrictions": "Free tier licence \"Internal Use Only\": \"you may only use the data for your own personal use\" (read 2026-11-16)",
+				"commercialLicence": "available",
+				"commercialLicenceUrl": "https://www.tiingo.com/about/pricing",
+				"auth": { "type": "api_key", "env": "SIGNAL_KEY_TIINGO", "in": "query", "name": "token" },
+				"maxRequestsPerMinute": 10,
+				"maxRequestsPerDay": 1000
+			},
+			"templates": [
+				{ "select": { "assetType": "equity" }, "dimension": "market", "url": "https://api.tiingo.com/tiingo/daily/{asset.alias.tiingo}/prices" },
+				{ "select": { "assetType": "etf" }, "dimension": "market", "url": "https://api.tiingo.com/tiingo/daily/{asset.alias.tiingo}/prices" },
+				{ "select": { "assetType": "commodity_proxy" }, "dimension": "market", "url": "https://api.tiingo.com/tiingo/daily/{asset.alias.tiingo}/prices" }
 			]
 		},
 		{

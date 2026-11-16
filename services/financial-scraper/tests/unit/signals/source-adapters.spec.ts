@@ -6,6 +6,7 @@ import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/e
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
+import { TIINGO_DAILY_PRICES } from "../../../src/adapters/outbound/signal-sources/tiingo-daily-prices";
 import { WIKIMEDIA_PAGEVIEWS } from "../../../src/adapters/outbound/signal-sources/wikimedia-pageviews";
 import { PAYLOADS } from "../../../src/domain/signals";
 
@@ -32,6 +33,7 @@ describe("SOURCE_ADAPTERS", () => {
 			"ecb-sdmx-series",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
+			"tiingo-daily-prices",
 			"wikimedia-pageviews",
 		]);
 	});
@@ -46,6 +48,7 @@ describe("SOURCE_ADAPTERS", () => {
 			"nws-latest-observation",
 			{ variables: "temperature,relativeHumidity" },
 		],
+		[TIINGO_DAILY_PRICES, "tiingo-daily-prices", {}],
 		[WIKIMEDIA_PAGEVIEWS, "wikimedia-pageviews", {}],
 	] as const)(
 		"%#: writes the canonical payload of its dimension",
@@ -470,6 +473,61 @@ describe("cftc-cot-legacy", () => {
 				[{ ...rows[0], open_interest_all: "" }],
 				NO_PARAMS
 			)
+		).toThrow();
+	});
+});
+
+describe("tiingo-daily-prices", () => {
+	it("gives six metrics per session, observed from 17:30 New York that day", () => {
+		const observations = TIINGO_DAILY_PRICES.normalize(
+			fixture("tiingo-daily-prices"),
+			NO_PARAMS
+		);
+
+		expect(
+			observations.map((o) => [o.payload.metric, o.payload.value])
+		).toEqual([
+			["open", 272],
+			["high", 275.1],
+			["low", 271.2],
+			["close", 273.5],
+			["adjusted_close", 273.5],
+			["volume", 48210000],
+		]);
+		expect(new Set(observations.map((o) => o.key))).toEqual(
+			new Set(["2026-11-13"])
+		);
+		// 17:30 EST = 22:30Z, never before the close (16:00 EST = 21:00Z).
+		expect(observations[0].observedAt).toBe(Date.parse("2026-11-13T22:30:00Z"));
+		expect(observations[0].payload.period).toEqual({
+			start: "2026-11-13",
+			end: "2026-11-13",
+		});
+	});
+
+	it("takes daylight saving time into account", () => {
+		const [row] = fixture("tiingo-daily-prices");
+		const [first] = TIINGO_DAILY_PRICES.normalize(
+			[{ ...row, date: "2026-07-10T00:00:00.000Z" }],
+			NO_PARAMS
+		);
+
+		expect(first.observedAt).toBe(Date.parse("2026-07-10T21:30:00Z"));
+	});
+
+	it("gives nothing for a day without quotation (empty answer)", () => {
+		expect(TIINGO_DAILY_PRICES.normalize([], NO_PARAMS)).toEqual([]);
+	});
+
+	it.each([
+		["a missing value", (r: any) => ({ ...r, adjClose: undefined })],
+		["a null value", (r: any) => ({ ...r, close: null })],
+		["a changed format", () => ({ detail: "Invalid token" })],
+	])("throws on %s", (_name, change) => {
+		const [row] = fixture("tiingo-daily-prices");
+
+		expect(() =>
+			TIINGO_DAILY_PRICES.normalize([change(row)], NO_PARAMS)
 		).toThrow();
 	});
 });

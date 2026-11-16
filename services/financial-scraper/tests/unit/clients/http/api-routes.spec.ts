@@ -355,6 +355,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 						replication: "futures",
 						region: "US",
 					},
+					aliases: { tiingo: "WEAT" },
 				},
 				signals: [SIGNAL],
 				truncated: false,
