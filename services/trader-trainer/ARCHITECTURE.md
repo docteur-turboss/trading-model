@@ -37,16 +37,7 @@ The GA loop stops when **any** of these conditions is met (checked in order):
 
 ### Service Dependencies
 
-**Message Manager** (`@trading-model/broker-message`): Primary data source. Subscribes to market data events via callback.
-
-| Event | Data | Frequency |
-| ----- | ---- | --------- |
-| `fetchCandlestickSeries` | OHLCV arrays | Periodic |
-| `fetchRecentTrades` | Trade arrays | Real-time |
-| `fetchOrderBookSnapshot` | Order book depth | Snapshot |
-| `fetchOrderBookTickerSnapshot` | Best bid/ask | Real-time |
-| `fetch24hrTickerStats` | 24h statistics | Periodic |
-| `fetchPriceTickerSnapshot` | Current prices | Real-time |
+**Financial Scraper**: candle window read over HTTP at each session (ADR-0044); the trainer subscribes to no bus topic (ADR-0074). **Message Manager** (`@trading-model/broker-message`): only used to publish models.
 
 **Address Manager** (`@trading-model/address-manager`): Service discovery and health monitoring. Every instance registers with the address manager for dynamic endpoint resolution, health check pings, and TTL management.
 

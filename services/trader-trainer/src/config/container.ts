@@ -10,7 +10,6 @@ import {
 	Leadership,
 	SOLE_INSTANCE_LEASE,
 } from "@trading-model/reliability/leadership";
-import { DataEventHandler } from "../adapters/inbound/events/event-handlers";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
@@ -83,7 +82,6 @@ interface AppContainerConfig {
 class ApplicationContainer {
 	public readonly symbols: TradingSymbol[];
 	public readonly dataBuffer: MarketDataBuffer;
-	public readonly eventHandler: DataEventHandler;
 	public readonly trainer: Trainer;
 	public readonly models: ModelArtifactStorePort;
 	public readonly trainingLoop: TrainingLoop;
@@ -101,7 +99,6 @@ class ApplicationContainer {
 			},
 		};
 		this.dataBuffer = new MarketDataBuffer(bufferConfig);
-		this.eventHandler = new DataEventHandler(this.dataBuffer);
 
 		const { instanceId } = config;
 		const publisher = new ModelPublisher(MessageManager, {

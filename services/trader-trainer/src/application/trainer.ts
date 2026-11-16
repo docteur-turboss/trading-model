@@ -124,6 +124,17 @@ export class Trainer {
 				const latest = await models.latest(String(symbol));
 				const manifest =
 					latest && (await models.manifest(String(symbol), latest.version));
+				if (
+					manifest &&
+					JSON.stringify(manifest.features) !==
+						JSON.stringify(NETWORK_INPUT_LAYOUT)
+				) {
+					// Published before the 18-input layout (ADR-0074): retrained, not served.
+					getLogger().warn("Stored model has another feature layout, skipped", {
+						context: { symbol, version: manifest.version },
+					});
+					continue;
+				}
 				if (manifest && !this._lastModels.has(symbol)) {
 					this._lastModels.set(symbol, {
 						createdAt: Date.parse(manifest.createdAt),

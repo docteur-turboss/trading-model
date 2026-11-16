@@ -1,4 +1,4 @@
-﻿import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
+﻿import { beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
@@ -11,10 +11,7 @@ import {
 	relayThroughMessageManager,
 } from "./support/broker-pipeline";
 import { deadLetterAndReplay } from "./support/dead-letter-replay";
-import {
-	createAuditSubscriber,
-	createTrainerSubscriber,
-} from "./support/subscribers";
+import { createAuditSubscriber } from "./support/subscribers";
 
 /**
  * Cross-service message contracts, checked on the real code of both ends.
@@ -231,12 +228,8 @@ async function publishTrainedModel(): Promise<Publication[]> {
 
 describe("service message contracts", () => {
 	let publications: Publication[] = [];
-	const trainer = createTrainerSubscriber();
 	const audit = createAuditSubscriber();
-	const subscribers = [
-		{ name: "trader-trainer", topics: trainer.topics as string[] },
-		{ name: "audit-logger", topics: audit.topics },
-	];
+	const subscribers = [{ name: "audit-logger", topics: audit.topics }];
 
 	beforeAll(async () => {
 		publications = [
@@ -245,8 +238,6 @@ describe("service message contracts", () => {
 			...(await publishDlqEvents()),
 		];
 	});
-
-	afterAll(() => trainer.dispose());
 
 	describe("topic catalogue", () => {
 		it("every declared topic is published, or listed as unpublished", () => {
@@ -277,6 +268,8 @@ describe("service message contracts", () => {
 		it("every published topic has at least one subscriber", () => {
 			const unconsumed = publications
 				.map((p) => p.topic)
+				// Market data: no subscriber since ADR-0074 (the trainer reads stored candles).
+				.filter((topic) => !Object.values<string>(MarketEvent).includes(topic))
 				.filter((topic) => !subscribers.some((s) => s.topics.includes(topic)));
 
 			expect(unconsumed).toEqual([]);
@@ -290,14 +283,6 @@ describe("service message contracts", () => {
 			);
 
 			expect(undeclared).toEqual([]);
-		});
-
-		it("every topic trader-trainer depends on is published by someone", () => {
-			const published = new Set(publications.map((p) => p.topic));
-
-			expect(trainer.topics.filter((topic) => !published.has(topic))).toEqual(
-				[]
-			);
 		});
 	});
 
@@ -327,30 +312,6 @@ describe("service message contracts", () => {
 			}
 			return bodies;
 		}
-
-		function bufferState(): string {
-			const { buffer } = trainer;
-			return JSON.stringify({
-				states: buffer.getSymbols().map((s) => buffer.getSymbolState(s)),
-			});
-		}
-
-		it.each(trainer.topics as string[])(
-			"trader-trainer: %s is validated and reaches the market data buffer",
-			async (topic) => {
-				const before = bufferState();
-
-				for (const body of await deliveredBodies(topic)) {
-					const reception = await trainer.receive(body);
-					expect(reception).toEqual({ status: 200 });
-				}
-
-				// Candles only notify: the trainer reads them from the scraper (ADR-0044).
-				if (topic !== MarketEvent.FetchCandlestickSeries) {
-					expect(bufferState()).not.toEqual(before);
-				}
-			}
-		);
 
 		it.each(audit.topics.filter((t) => !(t in UNPUBLISHED_TOPICS)))(
 			"audit-logger: %s is recorded with its payload",
@@ -384,10 +345,7 @@ describe("service message contracts", () => {
 	});
 
 	describe("dead letters replayed by dlq-service reach the subscribers again", () => {
-		const receivers = [
-			{ topics: trainer.topics as string[], receive: trainer.receive },
-			{ topics: audit.topics, receive: audit.receive },
-		];
+		const receivers = [{ topics: audit.topics, receive: audit.receive }];
 
 		it.each(ALL_TOPICS.filter((t) => !(t in UNPUBLISHED_TOPICS)))(
 			"%s",

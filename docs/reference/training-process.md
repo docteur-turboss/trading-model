@@ -9,14 +9,7 @@
 On startup:
 
 1. `createBootstrap` initializes Express with TLS, rate limiting, and routes
-2. `MessageManager` subscribes to market data events:
-   - `fetchCandlestickSeries` — OHLCV candles
-   - `fetchRecentTrades` — recent trade data
-   - `fetchOrderBookSnapshot` — order book depth
-   - `fetchOrderBookTickerSnapshot` — best bid/ask
-   - `fetch24hrTickerStats` — 24h statistics
-   - `fetchPriceTickerSnapshot` — current price snapshot
-3. Data flows into `MarketDataBuffer` which maintains per-symbol state with running normalizers
+2. Each session reads the candle window from the scraper (no bus subscription, ADR-0074) into `MarketDataBuffer` which maintains per-symbol state with running normalizers
 
 ## 2. Training Trigger
 
@@ -38,11 +31,11 @@ The scan is round-robin: every eligible symbol gets its turn, and a symbol whose
 For each symbol, `getAllWindows()`:
 
 1. Calls `buildMarketSteps()` to convert raw market data into `MarketStep[]`
-   - Each step contains: `price`, `features` (32-dim Float32Array), `timestamp`
-   - **Point in time** (ADR-0030): a candle's features read only what was known at its close: the latest order book, book ticker and price ticker received by then (stamped at reception), the latest 24h ticker closed by then, the trades of the minute ending at the close, and normalisation statistics of that data only. Later data never changes an earlier step. Trades received twice (same `tradeId`) count once
+   - Each step contains: `price`, `features` (18-dim Float32Array), `timestamp`
+   - **Point in time** (ADR-0030): a candle's features read only what was known at its close: the candles closed by then, and normalisation statistics of those candles only. Later data never changes an earlier step. Only the candles feed the features (ADR-0074): a new pod and an old one build the same steps
 2. Splits into train/validation sets using `TRAINER_VALIDATION_SPLIT`
 
-**Feature vector** (32 dimensions):
+**Feature vector** (18 dimensions):
 
 | Index | Feature                                          |
 | ----- | ------------------------------------------------ |
@@ -53,13 +46,8 @@ For each symbol, `getAllWindows()`:
 | 4     | High-low range / close                           |
 | 5-7   | Normalized open, high, low                       |
 | 8     | Volume ratio                                     |
-| 9-12  | Order book (bid/ask averages, spread, imbalance) |
-| 13-15 | Book ticker (bid, ask, spread)                   |
-| 16-18 | Recent trades (avg price, volume, buy ratio)     |
-| 19-21 | 24h ticker (change, volume, range)               |
-| 22    | Price snapshot                                   |
-| 23-30 | Last 8 closes sliding window                     |
-| 31    | Bias (constant 1.0)                              |
+| 9-16  | Last 8 closes sliding window                     |
+| 17    | Bias (constant 1.0)                              |
 
 ## 4. Training Session (`Trainer.train()`)
 
@@ -176,4 +164,4 @@ bun scripts/mt4-walk-forward.ts --data /tmp/btc-1h.json,/tmp/eth-1h.json --out /
 bun scripts/mt4-walk-forward.ts --merge /tmp/a.json,/tmp/b.json   # summary of parallel runs (--seed-base)
 ```
 
-For each segment the real GA trains on `--window` candles (500), then the genome it would publish is evaluated on the next `--test` candles (100), which training never saw. The test segments of a symbol, chained, are its out-of-sample track record: the summary gives per symbol and seed the annualised Sharpe, Sortino, return, maximum drawdown and Calmar (return / drawdown), next to buy and hold, then PASS / FAIL against each success criterion of ADR-0030. `--features klines` (default) also feeds the 24h ticker and the trades rebuilt from the candle files; the order book inputs stay 0 (no public history). `--seed-base` lets several processes share the seeds. Results: ADR-0025 (first run), ADR-0030.
+For each segment the real GA trains on `--window` candles (500), then the genome it would publish is evaluated on the next `--test` candles (100), which training never saw. The test segments of a symbol, chained, are its out-of-sample track record: the summary gives per symbol and seed the annualised Sharpe, Sortino, return, maximum drawdown and Calmar (return / drawdown), next to buy and hold, then PASS / FAIL against each success criterion of ADR-0030. `--seed-base` lets several processes share the seeds. Results: ADR-0025 (first run), ADR-0030.
