@@ -70,12 +70,14 @@ describe("signal registry — the shipped file", () => {
 		]);
 	});
 
-	it("only holds sources free for any use", () => {
+	it("only holds free sources, Twelve Data alone is non-commercial", () => {
 		const policies = SIGNAL_REGISTRY.sources.map((s) => s.accessPolicy);
 
-		expect(new Set(policies.map((p) => p.terms))).toEqual(
-			new Set(["attribution", "public-domain"])
-		);
+		expect(
+			SIGNAL_REGISTRY.sources
+				.filter((s) => s.accessPolicy.terms === "non-commercial")
+				.map((s) => s.id)
+		).toEqual(["twelvedata-daily-prices"]);
 		// A free key is allowed: a source without it is disabled alone.
 		expect(
 			policies.every(

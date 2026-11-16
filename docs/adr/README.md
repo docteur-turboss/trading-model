@@ -87,6 +87,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0077](./0077-rank-the-market-data-source-terms.md) | Rank the Market Data Source Terms Against the Licence Order, Add Bitstamp as Second Source | Proposed | 2026-11 |
 | [ADR-0078](./0078-trainer-features-from-candles-only.md) | The Trainer's Features Come From the Candle Window Alone | Accepted | 2026-11 |
 | [ADR-0079](./0079-replay-window-in-the-model-manifest.md) | The Model Manifest Carries the Window and the Simulator to Replay It | Accepted | 2026-11 |
+| [ADR-0080](./0080-daily-prices-from-twelve-data-free-tier.md) | Daily Equity and ETF Prices from the Twelve Data Free Tier, as `market` Signals | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 
