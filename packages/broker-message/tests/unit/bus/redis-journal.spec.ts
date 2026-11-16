@@ -67,32 +67,15 @@ describe("RedisMessageJournal", () => {
 		);
 	});
 
-	it("should register a group once a second, and again once it is retired", async () => {
-		let now = NOW;
-		const redis = {
-			call: jest.fn<(...args: any[]) => any>(async () => "OK"),
-			sadd: jest.fn(async (..._args: any[]) => 1),
-			srem: jest.fn(async (..._args: any[]) => 1),
-		};
-		const journal = new RedisMessageJournal({
-			redis: redis as never,
-			keyPrefix: "p",
-			now: () => now,
-		});
-		const groups = () =>
-			redis.call.mock.calls.filter(([name]) => name === "XGROUP").length;
+	it("should register the group on every append, never trusting a cache a retire elsewhere may have emptied", async () => {
+		const { redis, journal } = setup();
 
 		await journal.append(createMockMessage("a"), ["trader-trainer"]);
 		await journal.append(createMockMessage("b"), ["trader-trainer"]);
-		expect(groups()).toBe(1);
 
-		now += 1001;
-		await journal.append(createMockMessage("c"), ["trader-trainer"]);
-		expect(groups()).toBe(2);
-
-		await journal.retire(GROUP);
-		await journal.append(createMockMessage("d"), ["trader-trainer"]);
-		expect(groups()).toBe(4); // retire's DESTROY + the new CREATE
+		const names = redis.call.mock.calls.map(([name]) => name);
+		expect(names).toEqual(["XGROUP", "XADD", "XGROUP", "XADD"]);
+		expect(redis.sadd).toHaveBeenCalledTimes(2);
 	});
 
 	it("should cap the stream length every 100th append instead of the 24 h trim", async () => {
@@ -136,6 +119,7 @@ describe("RedisMessageJournal", () => {
 			"WAIT",
 		]);
 		expect(redis.call.mock.calls.map(([name]) => name)).toEqual([
+			"XGROUP",
 			"XGROUP",
 			"XACK",
 		]);

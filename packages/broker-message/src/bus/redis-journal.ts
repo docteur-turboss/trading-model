@@ -56,7 +56,6 @@ const WAIT_REPLICAS_TIMEOUT_MS = 2000;
 /** Approximate cap of a journal stream, applied every `CAP_EVERY` appends: bounds a burst the 24 h `MINID` would keep. */
 const JOURNAL_MAX_LENGTH = 100_000;
 const CAP_EVERY = 100;
-const REGISTERED_TTL_MS = 1000;
 const FIELD = "message";
 const ONLY_FIELD = "only";
 
@@ -84,7 +83,6 @@ export class RedisMessageJournal implements MessageJournalPort {
 		{ value: boolean; until: number }
 	>();
 	private readonly _readers = new Map<string, BlockingBusRedis>();
-	private readonly _registeredUntil = new Map<string, number>();
 	private _writer: BlockingBusRedis | undefined;
 	private _appends = 0;
 
@@ -92,16 +90,17 @@ export class RedisMessageJournal implements MessageJournalPort {
 		this._now = _deps.now ?? Date.now;
 	}
 
-	/** Idempotent, never cached (`append` caches for 1 s): another replica may have retired the group since. */
+	/** Idempotent, never cached (a replica's earlier `register` proves nothing): another replica may have retired the group since. */
 	async register(group: JournalGroup): Promise<void> {
 		const key = `${group.topic}|${group.service}`;
-		await this._ensureGroup(group);
-		await this._deps.redis.sadd(this._groupsKey(), key);
+		await Promise.all([
+			this._ensureGroup(group),
+			this._deps.redis.sadd(this._groupsKey(), key),
+		]);
 	}
 
 	async retire(group: JournalGroup): Promise<void> {
 		const key = `${group.topic}|${group.service}`;
-		this._registeredUntil.delete(key);
 		await this._deps.redis.srem(this._groupsKey(), key);
 		await this._deps.redis.call(
 			"XGROUP",
@@ -127,22 +126,11 @@ export class RedisMessageJournal implements MessageJournalPort {
 		onlyFor?: string
 	): Promise<void> {
 		const { topic } = message.metadata;
-		// Re-register at most once a second: a replica may have retired a group since, and a stream Redis lost
+		// Re-register on every append: a replica may have retired a group since, and a stream Redis lost
 		// (restart without AOF) has no groups left; a group created after XADD would miss this message (ADR-0048 §1).
 		const now = this._now();
 		await Promise.all(
-			services
-				.filter(
-					(service) =>
-						(this._registeredUntil.get(`${topic}|${service}`) ?? 0) <= now
-				)
-				.map(async (service) => {
-					await this.register({ topic, service });
-					this._registeredUntil.set(
-						`${topic}|${service}`,
-						now + REGISTERED_TTL_MS
-					);
-				})
+			services.map((service) => this.register({ topic, service }))
 		);
 		const writer = this._writeRedis();
 		// XADD takes MINID or MAXLEN, not both: the 24 h rule by default, the length cap every CAP_EVERY appends.
