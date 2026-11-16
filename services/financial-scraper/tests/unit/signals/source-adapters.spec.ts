@@ -105,6 +105,15 @@ describe("fred-series-observations", () => {
 		expect(end("quarter", "2026-07-01")).toBe("2026-09-30");
 	});
 
+	it("skips an empty value instead of reading it as 0", () => {
+		const body = {
+			observations: [
+				{ realtime_start: "2026-11-01", date: "2026-10-01", value: " " },
+			],
+		};
+		expect(FRED_SERIES_OBSERVATIONS.normalize(body, { params })).toEqual([]);
+	});
+
 	it("throws on a body that is not FRED observations", () => {
 		expect(() =>
 			FRED_SERIES_OBSERVATIONS.normalize({ error_code: 400 }, { params })

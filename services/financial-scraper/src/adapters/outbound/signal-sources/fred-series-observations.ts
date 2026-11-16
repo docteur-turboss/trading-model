@@ -45,7 +45,11 @@ export const FRED_SERIES_OBSERVATIONS: SourceAdapter = {
 		const span = params.period as keyof typeof MONTHS | "day";
 		return Observations.parse(payload).observations.flatMap((row) => {
 			const value = Number(row.value);
-			if (row.value === "." || !Number.isFinite(value)) {
+			if (
+				row.value === "." ||
+				row.value.trim() === "" ||
+				!Number.isFinite(value)
+			) {
 				return [];
 			}
 			return [
