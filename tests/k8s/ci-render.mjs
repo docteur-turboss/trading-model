@@ -47,6 +47,12 @@ stringData:
   MYSQL_EXPORTER_PASSWORD: dev-mysql-exporter
   # Read only by release N-1 (development carries #822) until ADR-0065 ships; drop with the N-1 that lacks it.
   MYSQL_SPIRE_PASSWORD: dev-mysql-spire
+  # Read only by release N-1 (message-manager, dlq-service, mongo-dlq); drop once N-1 is the release after #1241.
+  DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
+  REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
+  REDIS_DLQ_PASSWORD: dev-redis-dlq-password
+  MONGO_DLQ_PASSWORD: dev-mongo-dlq-password
+  MONGO_DLQ_KEYFILE: devMongoDlqKeyfile0123456789abcdefghijkl
   GRAFANA_PASSWORD: dev-grafana
   REDIS_INTERNAL_PASSWORD: dev-redis-internal-password
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
