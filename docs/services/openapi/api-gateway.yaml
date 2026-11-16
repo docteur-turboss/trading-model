@@ -2229,6 +2229,32 @@ paths:
                           items:
                             type: "string"
                             pattern: "^[A-Z][A-Z0-9]{1,7}$"
+                        exposure:
+                          type: "object"
+                          properties:
+                            assetClass:
+                              type: "string"
+                              enum:
+                                - "equity"
+                                - "bond"
+                                - "real_estate"
+                                - "commodity"
+                                - "money_market"
+                                - "crypto"
+                                - "mixed"
+                            replication:
+                              type: "string"
+                              enum:
+                                - "physical"
+                                - "synthetic"
+                                - "futures"
+                            region:
+                              type: "string"
+                              minLength: 1
+                          required:
+                            - "assetClass"
+                            - "replication"
+                          additionalProperties: false
                         aliases:
                           type: "object"
                           additionalProperties:

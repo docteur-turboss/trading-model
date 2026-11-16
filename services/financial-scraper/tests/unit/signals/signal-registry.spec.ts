@@ -45,6 +45,10 @@ describe("signal registry — the shipped file", () => {
 			"AAPL",
 			"WHEAT",
 			"GLD",
+			"BORDEAUX_RE",
+			"NANTES_RE",
+			"LILLE_RE",
+			"MONTPELLIER_RE",
 			"EA_AAA_10Y",
 		]);
 	});

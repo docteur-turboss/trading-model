@@ -187,6 +187,7 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | `cftc-cot-legacy` | market | `WHEAT` (contract 001602) | Fridays and Mondays after a holiday, hourly 15:45-23:45 UTC | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = release 15:30 ET, 3 business days after the Tuesday | public domain, CFTC acknowledged (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
 | `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
+| `dvf-commune-sales` | market | `BORDEAUX_RE`, `NANTES_RE`, `LILLE_RE`, `MONTPELLIER_RE` (INSEE communes) | Mondays 06:17 UTC (DVF is published twice a year, URL year `2025` to bump by hand) | `sales_count`, `median_price_per_m2_apartment`, `median_price_per_m2_house`; per commune and year, one sale counted once; sales without price or surface, or with several dwellings of different surfaces, only in `details.excluded`; a corrected value is a second signal; no sale-level field is stored | attribution: DGFiP / Etalab, Licence Ouverte 2.0 (1) |
 
 **Adding a source**: read its terms, then an entry in the registry. A new
 payload format also needs an adapter in `src/adapters/outbound/signal-sources/`
