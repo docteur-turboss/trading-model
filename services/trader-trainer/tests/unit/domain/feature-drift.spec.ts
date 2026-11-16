@@ -21,11 +21,6 @@ function stateWithCloses(closes: number[], timestamp = 1000): BaseSymbolState {
 				timestamp: UnixTimestamp.of(timestamp),
 			})
 		),
-		trades: [],
-		orderBooks: [],
-		bookTickers: [],
-		tickers24h: [],
-		prices: [],
 	};
 }
 

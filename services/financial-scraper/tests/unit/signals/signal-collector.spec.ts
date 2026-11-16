@@ -488,6 +488,31 @@ describe("quarantine of a failing source", () => {
 		expect(worker).toHaveBeenCalledTimes(3);
 	});
 
+	it("counts a 404 as no fact, never a failure, when the source opts in, and stores the 200s", async () => {
+		const c = collector();
+		const optIn: Source = {
+			...SOURCE,
+			accessPolicy: { ...SOURCE.accessPolicy, notFoundIsEmpty: true },
+		};
+		normalize.mockReturnValue([OBSERVATION]);
+		save.mockResolvedValue(undefined);
+		for (let i = 0; i < 3; i++) {
+			worker
+				.mockRejectedValueOnce(new HttpStatusError("HTTP", 404))
+				.mockResolvedValueOnce({ payload: true });
+			await c.collect(optIn);
+		}
+
+		expect(save).toHaveBeenCalledTimes(3);
+		expect(await quarantined()).toBe(0);
+		expect((await counted())["test-source:not_found"]).toBe(3);
+		fail(404);
+		for (let i = 0; i < 3; i++) {
+			await c.collect(ONE_REQUEST);
+		}
+		expect(await quarantined()).toBe(1);
+	});
+
 	it("quarantines a refused key (403) at the first failure for 24 h", async () => {
 		fail(403);
 		const c = collector();

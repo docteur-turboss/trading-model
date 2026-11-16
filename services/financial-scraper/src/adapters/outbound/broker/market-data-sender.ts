@@ -84,15 +84,6 @@ export function buildMarketDataEntries(
 	}));
 }
 
-/**
- * Candles follow the publish cursor, which only moves once message-manager
- * accepted them: they must be refused, not dropped, while nobody subscribes
- * (subscriptions expire during a message-manager outage longer than 60 s).
- */
-const REQUIRE_SUBSCRIBER_EVENTS: ReadonlySet<string> = new Set([
-	MarketEvent.FetchCandlestickSeries,
-]);
-
 async function sendMarketData({
 	data,
 	topic,
@@ -100,14 +91,7 @@ async function sendMarketData({
 	builder,
 }: MarketDataContext): Promise<void> {
 	// The builder is shared: snapshot the metadata before the next entry mutates it.
-	const shared = builder.setTopic(topic).setEventType(eventType).toJSON();
-	const metadata =
-		REQUIRE_SUBSCRIBER_EVENTS.has(String(eventType)) && shared.delivery
-			? {
-					...shared,
-					delivery: { ...shared.delivery, requireSubscriber: true },
-				}
-			: shared;
+	const metadata = builder.setTopic(topic).setEventType(eventType).toJSON();
 	await MessageManager.post.indirect(data, metadata);
 	EVENTS_PUBLISHED_TOTAL.inc({ event_type: String(eventType) });
 }

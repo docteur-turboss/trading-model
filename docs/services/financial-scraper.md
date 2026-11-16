@@ -184,11 +184,20 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | `ecb-deposit-facility-rate` | macro | area `EA` | weekdays 15:35 UTC (changes are irregular) | `deposit_facility_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-euro-reference-rates` | macro | area `EA` | weekdays 16:07 UTC (after the ECB release) | `eur_{usd,gbp,chf,jpy}_reference_rate` | attribution: "Source: ECB statistics" (1) |
 | `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
+| `sec-edgar-revenue` | fundamental | equities with a `cik` alias | daily | `us-gaap:Revenues` (tags `Revenues`, `RevenueFromContractWithCustomerExcludingAssessedTax`, `SalesRevenueNet`) | attribution: SEC (1) |
+| `sec-edgar-core-facts` | fundamental | equities with a `cik` alias | daily | `us-gaap:{OperatingIncomeLoss,NetIncomeLoss,Assets,Liabilities,StockholdersEquity,CashAndCashEquivalentsAtCarryingValue}`, `dei:EntityCommonStockSharesOutstanding` | attribution: SEC (1) |
 | `cftc-cot-legacy` | market | `WHEAT` (contract 001602) | Fridays and Mondays after a holiday, hourly 15:45-23:45 UTC | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = release 15:30 ET, 3 business days after the Tuesday | public domain, CFTC acknowledged (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
 | `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
 | `dvf-commune-sales` | market | `BORDEAUX_RE`, `NANTES_RE`, `LILLE_RE`, `MONTPELLIER_RE` (INSEE communes) | Mondays 06:17 UTC (DVF is published twice a year, URL year `2025` to bump by hand) | `sales_count`, `median_price_per_m2_apartment`, `median_price_per_m2_house`; per commune and year, one sale counted once; sales without price or surface, or with several dwellings of different surfaces, only in `details.excluded`; several dwelling rows of the same type and surface count as one dwelling (the file cannot tell two identical flats from one on two lots: about 1 % of kept sales on the 2025 files, price/m2 overstated for a real twin sale); a corrected value is a second signal; no sale-level field is stored | attribution: DGFiP / Etalab, Licence Ouverte 2.0 (1) |
 | `federal-register-documents` | legal | sectors `crypto` (SEC, CFTC), `technology` (FTC) | daily | `documents_final_rules`, `documents_proposed_rules`, `documents_notices` | public domain (US government work, govinfo policy, read 2026-11-16) |
+
+EDGAR facts use `companyconcept`, one request per concept and company (10 per
+company a day, under the 10 requests/s fair-access limit and `maxRequestsPerMinute`):
+`companyfacts` answers several MB per company, past the 5 MB body cap. A concept a
+company never reported answers 404: the EDGAR sources set `notFoundIsEmpty`, so a 404 is
+`not_found` (no fact), not a fetch failure, and quarantines nothing. Units
+stay as filed (`USD`, `USD/shares`, `shares`), never converted.
 
 **Adding a source**: read its terms, then an entry in the registry. A new
 payload format also needs an adapter in `src/adapters/outbound/signal-sources/`
@@ -202,7 +211,7 @@ Each request is fetched (GET, JSON, 10 s timeout, no retry: the next tick is the
 retry, unless the source is quarantined, see runbook-market-data-stale),
 normalized by its adapter, checked against the schema and stored.
 `fs_signal_collections_total{source,result}` counts the requests by result:
-`success`, `not_modified` (304: nothing to store, counts as fresh), `fetch_error`, `invalid_payload` (the source changed its format: logged,
+`success`, `not_modified` (304: nothing to store, counts as fresh), `not_found` (404 on a source with `notFoundIsEmpty`: no fact, not a failure), `fetch_error`, `invalid_payload` (the source changed its format: logged,
 nothing stored), `store_error`. Every request sends the User-Agent
 `automated news analysis <SIGNAL_CONTACT_EMAIL>`: SEC EDGAR answers 403
 without the e-mail; NWS and Wikimedia accept the repository URL sent when it
