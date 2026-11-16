@@ -12,6 +12,13 @@ import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;
 
+const PROBE_PATHS = new Set(["/ping", "/health/ready", "/metrics"]);
+
+/** True for probe and scrape requests, which must not create a trace (they would evict real ones). */
+export function isProbeRequest(req: { url?: string }): boolean {
+	return PROBE_PATHS.has((req.url ?? "").split("?")[0]);
+}
+
 /**
  * Starts tracing for a service from its environment (`OTEL_EXPORTER_OTLP_ENDPOINT`,
  * `APP_VERSION`, `INSTANCE_ID`); without an endpoint it does nothing.
@@ -40,7 +47,10 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 			),
 		}),
 		traceExporter: new OTLPTraceExporter({ url: `${otlpEndpoint}/v1/traces` }),
-		instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()],
+		instrumentations: [
+			new HttpInstrumentation({ ignoreIncomingRequestHook: isProbeRequest }),
+			new ExpressInstrumentation(),
+		],
 		// Traces only: metrics go through Prometheus, and the collector has no
 		// metrics or logs pipeline (the SDK would export both to it by default).
 		metricReaders: [],
