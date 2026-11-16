@@ -27,11 +27,6 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "docker"
-    directory: "/services/message-manager"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
     directory: "/services/trader-trainer"
     schedule:
       interval: "weekly"
@@ -43,11 +38,6 @@ updates:
 
   - package-ecosystem: "docker"
     directory: "/services/audit-logger"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/dlq-service"
     schedule:
       interval: "weekly"
 

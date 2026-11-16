@@ -67,7 +67,7 @@ patches:
   # Planned restart for a new template: docs/deployment/STAGING_LOCAL.md.
   - target:
       kind: StatefulSet
-      name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit|alertmanager|grafana|loki|prometheus)$
+      name: ^(mysql|redis|redis-sentinel|mongo-audit|alertmanager|grafana|loki|prometheus)$
     patch: |-
       - op: add
         path: /spec/updateStrategy
@@ -118,7 +118,3 @@ configMapGenerator:
     behavior: merge
     literals:
       - MONGODB_URI=mongodb://mongo-audit-0.mongo-audit-headless:27017,mongo-audit-1.mongo-audit-headless:27017,mongo-audit-2.mongo-audit-headless:27017/audit?replicaSet=rs0-audit&authSource=admin
-  - name: dlq-service-config
-    behavior: merge
-    literals:
-      - MONGO_URI=mongodb://mongo-dlq-0.mongo-dlq-headless:27017,mongo-dlq-1.mongo-dlq-headless:27017,mongo-dlq-2.mongo-dlq-headless:27017/dlq?replicaSet=rs0&authSource=admin

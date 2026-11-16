@@ -1,6 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreDependencies": ["@types/express-serve-static-core", "ts-node"],
+  "workspaces": { "services/model-evaluator": { "ignoreDependencies": ["express", "@types/express"] } },
   "ignore": ["**/dist/**"],
   "ignoreIssues": {
     "**/*": ["files", "duplicates"],

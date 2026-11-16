@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Rotates application secrets of trading-model-secrets, by hand (no CronJob does it).
-# Usage: bash scripts/rotate-secrets.sh [--component signing|tokens|dlq|all]
+# Usage: bash scripts/rotate-secrets.sh [--component signing|tokens|all]
 #   signing  SIGNING_SECRET        -> discovery-server (instance tokens: services re-register)
 #   tokens   AUTH_TOKENS           -> api-gateway (only the key API_KEY_NAME is replaced, the others kept;
 #            ADR-0059 `name:scopes:secret`). The new key is written to a 0600 file, path logged.
-#   dlq      DLQ_AUTH_HMAC_SECRET  -> message-manager + dlq-service (restarted together)
-#   all      the three above
+#   all      both above
 # Database passwords (MYSQL_*, MONGO_ROOT_PASSWORD, REDIS_*_PASSWORD) are refused: the change must also be made
 # in the database, see docs/deployment/sealed-secrets.md "Rotate a database password".
 # Env: DRY_RUN=true (no kubeseal merge, apply or restart), NAMESPACE, SEALED_SECRETS_FILE.
@@ -22,7 +21,7 @@ SEALED_SECRETS_FILE=${SEALED_SECRETS_FILE:-deploy/k8s/secrets/trading-model-seal
 WAIT_TRIES=${WAIT_TRIES:-30}
 # Gateway API key `name:scopes:secret` (ADR-0059); only the entry named API_KEY_NAME is replaced.
 API_KEY_NAME=${API_KEY_NAME:-ops}
-API_KEY_SCOPES=${API_KEY_SCOPES:-read+dlq:write}
+API_KEY_SCOPES=${API_KEY_SCOPES:-read}
 
 log() { echo "[rotate-secrets] $(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
 die() { echo "[rotate-secrets] ERROR: $*" >&2; exit 1; }
@@ -112,22 +111,21 @@ rotate_component() {
   case "$1" in
     signing) rotate_secret SIGNING_SECRET 32 "" discovery-server ;;
     tokens) rotate_secret AUTH_TOKENS 24 "${API_KEY_NAME}:${API_KEY_SCOPES}:" api-gateway ;;
-    dlq) rotate_secret DLQ_AUTH_HMAC_SECRET 32 "" message-manager dlq-service ;;
     *) die "unknown component '$1'" ;;
   esac
 }
 
 COMPONENT=all
 if [ $# -gt 0 ]; then
-  [ "$1" = --component ] && [ $# -eq 2 ] || { echo "Usage: $0 [--component signing|tokens|dlq|all]" >&2; exit 1; }
+  [ "$1" = --component ] && [ $# -eq 2 ] || { echo "Usage: $0 [--component signing|tokens|all]" >&2; exit 1; }
   COMPONENT="$2"
 fi
 
 case "$COMPONENT" in
-  signing | tokens | dlq) rotate_component "$COMPONENT" ;;
-  all) for c in signing tokens dlq; do rotate_component "$c"; done ;;
+  signing | tokens) rotate_component "$COMPONENT" ;;
+  all) for c in signing tokens; do rotate_component "$c"; done ;;
   MYSQL_* | MONGO_ROOT_PASSWORD | REDIS_* | mysql | redis | mongo)
     die "database passwords are not rotated by this script: follow 'Rotate a database password' in docs/deployment/sealed-secrets.md" ;;
-  *) echo "Usage: $0 [--component signing|tokens|dlq|all]" >&2; exit 1 ;;
+  *) echo "Usage: $0 [--component signing|tokens|all]" >&2; exit 1 ;;
 esac
 log "Secret rotation complete"

@@ -27,7 +27,7 @@ This register documents the processing activities of the trading-model platform,
 | **Purpose**              | Ingest financial market data (OHLCV candles, trades, order books, tickers) for algorithmic trading agent training and backtesting |
 | **Data categories**      | Trading symbols (e.g., BTCUSDT), numeric price/volume data, timestamps, market identifiers                                        |
 | **Personal data**        | None                                                                                                                              |
-| **Recipients**           | Internal: trader-trainer, audit-logger, message-manager                                                                           |
+| **Recipients**           | Internal: trader-trainer, audit-logger                                                                           |
 | **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. Signal sources (ADR-0036): each request sends the User-Agent `automated news analysis <SIGNAL_CONTACT_EMAIL>` to ECB, SEC EDGAR (United States), NWS (United States) and Wikimedia (United States, Art. 44 transfer). `SIGNAL_CONTACT_EMAIL` must be a functional, non-nominative address (project alias, never a person's e-mail): then no personal data is sent and no Art. 44 transfer of personal data occurs. The real address stays out of the repository. See third-party assessment |
 | **Retention period**     | 1827 days (5 years, record-keeping, see [Data Retention Policy](data-retention-policy.md)): daily CronJob `db-retention` (`scripts/retention-mysql.sh`, `RETENTION_DAYS`; `signals` on `RETENTION_SIGNALS_DAYS`), ADR-0051 |
 | **Technical measures**   | mTLS (SPIFFE SVIDs), LUKS2 data disks, age-encrypted backups, RBAC service accounts                                               |
@@ -42,9 +42,9 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None                                                                                                      |
 | **Recipients**           | Internal platform services only                                                                           |
 | **Transfers outside EU** | None — all services are self-hosted                                                                       |
-| **Retention period**     | message-manager: payloads journaled 24 h in Redis Streams (`JOURNAL_RETENTION_MS` = 24 h, `XADD … MINID` trim; AOF + replication; ACL user `message-manager`, ADR-0048), no personal data by design. DLQ: 30 days (TTL index on `createdAt`), capped at `MAX_ENTRIES` (100 000) |
+| **Retention period**     | payloads journaled 24 h in Redis Streams (`JOURNAL_RETENTION_MS` = 24 h, `XADD … MINID` trim; AOF + replication; one ACL user per service, ADR-0048, ADR-0073), no personal data by design. Dead letters stay in the dead streams until an operator replays or deletes them (never trimmed) |
 | **Technical measures**   | mTLS between services (not toward databases, ADR-0060), payload sanitization, deduplication                                                      |
-| **System**               | message-manager (HTTP push) → dlq-service → MongoDB (`dlq_entries`)                                       |
+| **System**               | bus library in each service (Redis Streams journal, consumed in process) → dead streams (Redis)                                       |
 
 ## Processing Activity 3: Audit Logging
 
@@ -120,7 +120,7 @@ This register documents the processing activities of the trading-model platform,
 | Activity                 | Personal Data?      | Legal Basis         | Retention                    | Transfers                    |
 | ------------------------ | ------------------- | ------------------- | ---------------------------- | ---------------------------- |
 | Market Data Ingestion    | ❌ None             | —                   | 1827 days (`db-retention`) | Received from Binance; functional contact address sent to signal sources (US included) |
-| Message Routing          | ❌ None             | —                   | Redis journal 24 h; DLQ 30 days       | None                         |
+| Message Routing          | ❌ None             | —                   | Redis journal 24 h; dead streams until replayed       | None                         |
 | Audit Logging            | ❌ None             | —                   | 5 years (1827 days)          | None                         |
 | Workload Identity        | ❌ None             | —                   | 4h–168h                      | None                         |
 | ML Training              | ❌ None             | —                   | Per-agent                    | None                         |

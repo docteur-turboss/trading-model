@@ -189,7 +189,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			port: 8444,
 		});
 		await postJson("/register", {
-			serviceName: "message-manager",
+			serviceName: "audit-logger",
 			instanceId: "msg-1",
 			ip: "10.0.0.2",
 			port: 8445,
@@ -197,7 +197,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 		const result = await getJson("/services");
 		expect(result.status).toBe(200);
 		expect(result.body).toContain("financial-scraper");
-		expect(result.body).toContain("message-manager");
+		expect(result.body).toContain("audit-logger");
 	});
 
 	it("should handle full lifecycle: register → heartbeat → token rotate → get instance", async () => {

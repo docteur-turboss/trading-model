@@ -3,7 +3,7 @@ import { eventually, metric, persistedCandles } from "./helpers";
 
 /**
  * Market data flow: Binance (stub) → financial-scraper cron → MySQL, and
- * financial-scraper → message-manager → trader-trainer buffer.
+ * financial-scraper → bus (Redis Streams) → trader-trainer buffer.
  *
  * Health checks stay green while this path is broken (2026-10: the scrape
  * cron never started and nothing was published), so this spec asserts the

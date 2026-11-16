@@ -1,9 +1,8 @@
 /**
  * Scopes of an API key (ADR-0059): `read` for the GET routes of
- * `PUBLIC_ROUTES`, `dlq:write` for the others (delete, replay DLQ
- * entries).
+ * `PUBLIC_ROUTES`, which are all of them.
  */
-export const API_SCOPES = ["read", "dlq:write"] as const;
+export const API_SCOPES = ["read"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 /** A key of `AUTH_TOKENS`. Only `name` leaves the gateway, never `secret`. */
@@ -20,7 +19,7 @@ const isScope = (scope: string): scope is ApiScope =>
 
 /**
  * Parses one entry of `AUTH_TOKENS`: `name:scope1+scope2:secret`, the secret
- * after the last `:` (a scope such as `dlq:write` holds one too). * Returns the reason when the entry is invalid; the reason never quotes the
+ * after the last `:` (a scope may hold one too). Returns the reason when the entry is invalid; the reason never quotes the
  * secret.
  */
 export function parseApiKey(entry: string): ApiKey | { error: string } {
@@ -46,8 +45,7 @@ export function parseApiKey(entry: string): ApiKey | { error: string } {
 	return { name, scopes, secret };
 }
 
-/** Scope a public route needs: `read` for GET, `dlq:write` otherwise. */
-export function requiredScope(method: string): ApiScope {
-	// Every non-GET public route is a DLQ write (public-routes.spec checks it).
-	return method === "GET" ? "read" : "dlq:write";
+/** Scope every public route needs. */
+export function requiredScope(): ApiScope {
+	return "read";
 }

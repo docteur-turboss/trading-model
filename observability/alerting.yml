@@ -81,7 +81,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
 
       - alert: ServiceTargetsMissing
-        expr: absent(up{job="message-manager"}) or absent(up{job="discovery-server"}) or absent(up{job="dlq-service"}) or absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"})
+        expr: absent(up{job="discovery-server"}) or absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"})
         for: 5m
         labels:
           severity: critical
@@ -119,16 +119,6 @@ groups:
           summary: '{{ $labels.job }} refuses calls to {{ $labels.target }}'
           description: '{{ $labels.job }} has had its outbound calls to {{ $labels.kind }} {{ $labels.target }} refused by the open HTTP circuit breaker for 10 minutes.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
-
-      - alert: DLQSizeGrowing
-        expr: sum by (job) (rate(dlq_entries_added_total[15m])) > sum by (job) (rate(dlq_entries_replayed_total[15m]))
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'DLQ is growing faster than it is drained'
-          description: 'Messages are being added to the DLQ faster than they are replayed.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
 
       - alert: InstanceCountLow
         expr: max by (service) (discovery_registered_instances_per_service) < 2 and max_over_time(min_over_time(max by (service) (discovery_registered_instances_per_service)[15m:1m])[1d:5m]) >= 2
@@ -249,7 +239,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
       - alert: BackupComponentMissing
-        expr: 'absent(backup_last_success_timestamp{component="mongodb"}) or absent(backup_last_success_timestamp{component="mongodb-audit"}) or absent(backup_last_success_timestamp{component="mysql"}) or absent(backup_last_success_timestamp{component="spire"}) or absent(backup_last_success_timestamp{component="checkpoints"})'
+        expr: 'absent(backup_last_success_timestamp{component="mongodb-audit"}) or absent(backup_last_success_timestamp{component="mysql"}) or absent(backup_last_success_timestamp{component="spire"}) or absent(backup_last_success_timestamp{component="checkpoints"})'
         for: 26h
         labels:
           severity: critical
@@ -372,27 +362,6 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchainnotanchored'
       # ── Application SLI Alerts ────────────────────────────────────
 
-      - alert: MessageDeliveryLowSuccessRate
-        expr: (sum by (job) (rate(mm_messages_published_total[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) / ((sum by (job) (rate(mm_messages_published_total[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) + (sum by (job) (rate(mm_messages_dlq_total[5m])) or sum by (job) (rate(mm_messages_published_total[5m])) * 0)) < 0.995
-        for: 5m
-        labels:
-          severity: critical
-          slo: message_delivery
-        annotations:
-          summary: 'Message delivery success rate below 99.5%'
-          description: 'Message-manager delivery rate is {{ $value | humanizePercentage }} over 5m.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md'
-
-      - alert: MessagesDeadLettered
-        expr: sum by (topic) (increase(mm_messages_dlq_total[1h])) > 0
-        for: 0m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'Messages dead-lettered on {{ $labels.topic }}'
-          description: 'message-manager gave up delivering {{ $value | humanize }} message(s) on {{ $labels.topic }} in the last hour. They are in the dead stream of the topic (audit-dlq CLI) to inspect and replay.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
-
       - alert: BusDeadLetters
         expr: max by (topic) (bus_dead_letters) > 0
         for: 5m
@@ -402,62 +371,6 @@ groups:
           summary: 'Dead letters wait on {{ $labels.topic }}'
           description: '{{ $value | humanize }} dead letter(s) wait in the dead stream of {{ $labels.topic }} (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
-
-      # A DLQ delete or replay was done but message-manager refused its audit
-      # event: the audit trail misses who did it (ADR-0059). The API answered 502.
-      - alert: DlqAuditEventLost
-        expr: sum by (event) (increase(dlq_audit_publish_failures_total{event=~"dlq.entries.deleted|dlq.replay.completed"}[1h])) > 0
-        for: 0m
-        labels:
-          severity: critical
-        annotations:
-          summary: 'DLQ action missing from the audit trail: {{ $labels.event }}'
-          description: 'message-manager refused {{ $value | humanize }} {{ $labels.event }} event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'
-
-      # A topic nobody subscribes to drops its messages. Expected for a few
-      # seconds at a cold start (publishers up before subscribers), so only a
-      # drop lasting 10 minutes alerts.
-      - alert: MessagesUnrouted
-        expr: sum by (topic) (rate(mm_messages_unrouted_total[5m])) > 0
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'Messages dropped on {{ $labels.topic }}: no subscriber'
-          description: 'message-manager drops the messages published on {{ $labels.topic }}: no instance subscribes to it. audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
-
-      - alert: JournalEntriesTrimmed
-        expr: sum by (topic, service) (increase(mm_journal_trimmed_pending_total[15m])) > 0 or sum by (topic, service) (mm_journal_trimmed_pending_total unless mm_journal_trimmed_pending_total offset 15m) > 0
-        for: 0m
-        labels:
-          severity: critical
-        annotations:
-          summary: 'Messages lost on {{ $labels.topic }} for {{ $labels.service }}: journal trimmed before delivery'
-          description: '{{ $labels.service }} stayed unreachable for more than 24 h: message-manager trimmed undelivered {{ $labels.topic }} entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
-
-      - alert: JournalBacklogOld
-        expr: max by (topic, service) (mm_journal_oldest_pending_age_seconds) > 900
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'Journal backlog on {{ $labels.topic }} for {{ $labels.service }}: oldest entry waiting for more than 15 min'
-          description: '{{ $labels.service }} has not acknowledged a {{ $labels.topic }} entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber'
-
-      - alert: DLQDrainRateLow
-        expr: sum by (job) (rate(dlq_entries_replayed_total[15m])) / sum by (job) (rate(dlq_entries_added_total[15m])) < 0.8
-        for: 15m
-        labels:
-          severity: warning
-          slo: dlq_drain
-        annotations:
-          summary: 'DLQ drain rate is critically low'
-          description: 'DLQ replay/add ratio is {{ $value | humanizePercentage }} — queue is growing.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
 
       - alert: TrainingCompletionRateLow
         expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[3h])) or sum by (job) (rate(tt_training_sessions_total[3h])) * 0) / sum by (job) (rate(tt_training_sessions_total[3h])) < 0.95
@@ -618,7 +531,7 @@ groups:
           severity: warning
         annotations:
           summary: 'Persisted candles not reaching the bus'
-          description: '{{ $value | humanize }} persisted {{ $labels.symbol }} candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
+          description: '{{ $value | humanize }} persisted {{ $labels.symbol }} candles have waited for the bus for 15 minutes: Redis refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
 
       - alert: TrainerMarketDataStale
@@ -866,7 +779,7 @@ groups:
           severity: critical
         annotations:
           summary: 'Redis Sentinel cannot fail over {{ $labels.master_name }}'
-          description: 'No sentinel can reach a quorum for {{ $labels.master_name }} (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and discovery, message-manager and dlq-service lose Redis.'
+          description: 'No sentinel can reach a quorum for {{ $labels.master_name }} (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and discovery and the bus lose Redis.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redissentinelquorumlost'
 
       - alert: MongoDBDown
@@ -912,5 +825,5 @@ groups:
           severity: critical
         annotations:
           summary: 'MongoDB {{ $labels.job }} has no primary'
-          description: 'No member of the {{ $labels.job }} replica set is primary for 2 minutes: writes fail (audit events for mongo-audit, dead letters for mongo-dlq).'
+          description: 'No member of the {{ $labels.job }} replica set is primary for 2 minutes: writes fail (audit events).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetnoprimary'

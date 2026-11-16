@@ -1,6 +1,6 @@
 import type { MarketDataSnapshot, SnapshotPart } from "../market-data-snapshot";
 
-/** Publishes a snapshot to the subscribers (the message-manager bus). */
+/** Publishes a snapshot to the subscribers (the bus). */
 export interface MarketDataPublisherPort {
 	/**
 	 * Never rejects (a failed publish is logged): resolves with the parts that

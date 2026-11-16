@@ -36,19 +36,9 @@ rate(http_request_duration_seconds_bucket[5m]))`.
 / rate(http_requests_total[5m])`, same technical-route exclusion.
 - **Source:** All HTTP-serving services.
 
-### 4. Message Delivery Success Rate
+### 4–5. Message delivery and DLQ drain (retired)
 
-- **Definition:** Proportion of messages successfully delivered by message-manager.
-- **Measurement:** Prometheus `rate(mm_messages_published_total[5m]) /
-(rate(mm_messages_published_total[5m]) + rate(mm_messages_dlq_total[5m]))`.
-- **Source:** message-manager.
-
-### 5. DLQ Drain Rate
-
-- **Definition:** Rate at which DLQ entries are replayed relative to entries added.
-- **Measurement:** Prometheus `rate(dlq_entries_replayed_total[5m]) /
-rate(dlq_entries_added_total[5m])`. A ratio below 1.0 means the queue is growing.
-- **Source:** dlq-service.
+Both read metrics of message-manager and dlq-service, retired by ADR-0073: the bus has no delivery SLI yet. Dead letters are listed with the audit-logger `dlq-cli`.
 
 ### 6. Training Completion Rate
 
@@ -70,12 +60,10 @@ rate(tt_training_sessions_total[3h])`.
 | Availability        | ≥ 99.9%  | 30d    | fast: 5xx > 1.44% over 1h and 5m (14.4x); slow: > 0.6% over 6h and 30m (6x) |
 | Error Rate          | < 1%     | 30d    | fast: 5xx > 14.4% over 1h and 5m (14.4x); slow: > 6% over 6h and 30m (6x) |
 | Latency P95         | ≤ 2s     | 30d    | fast: P95 > 5s over 5m; slow: P95 > 3s over 1h (single window) |
-| Message Delivery    | ≥ 99.95% | 30d    | `MessageDeliveryLowSuccessRate`: < 99.5% over 5m (no slow burn) |
-| DLQ Drain Ratio     | ≥ 1.0    | 30d    | `DLQSizeGrowing`, `DLQDrainRateLow` (no slow burn) |
 | Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 3h; `TrainingCompletionRateCritical` (critical, pages): < 50% over 3h (no slow burn) |
 | Data Freshness      | ≤ 15 min | 30d    | `MarketDataStale` / `TrainerMarketDataStale` |
 
-The Message Delivery, DLQ and Training SLOs have no slow-burn alert: their
+The Training SLO has no slow-burn alert: its
 traffic is low and bursty, so a 1h ratio flaps on a handful of events. A
 dead-lettered message already raises `MessagesDeadLettered`, and the existing
 alert on each SLI catches sustained loss. Adding them needs a minimum-volume
@@ -113,7 +101,7 @@ into `deploy/k8s/infra/prometheus.yaml`):
 - `SLOErrorRateFastBurn`, `SLOErrorRateSlowBurn`: < 1% error rate SLO, same windows.
 - `SLOErrorBudgetLow`: less than 20% of the 30d budget left (recording rule `slo:sli_error:ratio_rate30d`).
 - `SLOLatencyFastBurn`, `SLOLatencySlowBurn`: P95 ≤ 2s SLO, 5m and 1h windows.
-- `MessageDeliveryLowSuccessRate`, `DLQDrainRateLow`, `TrainingCompletionRateLow`: one alert per SLI.
+- `TrainingCompletionRateLow`: one alert per SLI.
 
 The burn-rate rules and the budget read the recording rules `slo:sli_error:ratio_rate{5m,30m,1h,6h,30d}`, which exclude `/ping`, `/health/ready` and `/metrics`.
 

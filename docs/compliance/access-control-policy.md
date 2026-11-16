@@ -28,7 +28,7 @@ All access to trading-model platform resources shall be authenticated, authorise
 | **Transport** | mTLS TLS 1.3 | `@trading-model/http/create-secure-server.ts` |
 | **Identity** | SPIFFE ID (SAN `spiffe://...`) | `@trading-model/http/mtls-auth.ts` |
 | **Bearer token** | HMAC-SHA256 (service registration) | `discovery-server` → `address-manager` |
-| **API key** | External access, one named key per client with its scopes (`read`, `dlq:write`; ADR-0059) | `api-gateway` — `AUTH_TOKENS` env var (`name:scopes:secret`) |
+| **API key** | External access, one named key per client with its scopes (`read`; ADR-0059, `dlq:write` retired with dlq-service) | `api-gateway` — `AUTH_TOKENS` env var (`name:scopes:secret`) |
 
 ### 2.2 Authorisation Layers
 
@@ -47,11 +47,9 @@ Every service instance is provisioned with an X.509 SVID issued by the SPIRE Ser
 | Identity | SPIFFE ID (SAN) | Issued By | Validity |
 |---|---|---|---|
 | `discovery-server` | `spiffe://trading-model.local/ns/trading-model/sa/discovery-server` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `message-manager` | `spiffe://trading-model.local/ns/trading-model/sa/message-manager` | SPIRE Server | 4 h TTL (auto-rotated) |
 | `financial-scraper` | `spiffe://trading-model.local/ns/trading-model/sa/financial-scraper` | SPIRE Server | 4 h TTL (auto-rotated) |
 | `trader-trainer` | `spiffe://trading-model.local/ns/trading-model/sa/trader-trainer` | SPIRE Server | 4 h TTL (auto-rotated) |
 | `audit-logger` | `spiffe://trading-model.local/ns/trading-model/sa/audit-logger` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `dlq-service` | `spiffe://trading-model.local/ns/trading-model/sa/dlq-service` | SPIRE Server | 4 h TTL (auto-rotated) |
 | `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 4 h TTL (auto-rotated) |
 | `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 4 h TTL (auto-rotated) |
 
@@ -79,11 +77,9 @@ The default ACL is defined in `@trading-model/http/mtls-authorization.ts`. It ma
 const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
   'discovery-server':   [ '*' ],
   'audit-logger':       [ '*' ],
-  'message-manager':    [ 'discovery-server', 'financial-scraper', 'trader-trainer', 'audit-logger', 'dlq-service' ],
-  'financial-scraper':  [ 'api-gateway', 'message-manager', 'trader-trainer' ],   // trader-trainer: reads the data supply (ADR-0036)
-  'trader-trainer':     [ 'api-gateway', 'financial-scraper', 'discovery-server', 'message-manager' ],
+  'financial-scraper':  [ 'api-gateway', 'trader-trainer' ],   // trader-trainer: reads the data supply (ADR-0036)
+  'trader-trainer':     [ 'api-gateway', 'financial-scraper', 'discovery-server', 'model-evaluator' ],
   'api-gateway':        [ 'edge-proxy' ],   // external entry point (ADR-0018)
-  'dlq-service':        [ '*' ],
 };
 ```
 
@@ -102,9 +98,8 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 
 | Resource | Access Method | Authentication | Authorisation |
 |---|---|---|---|
-| API gateway admin endpoints (DLQ delete, replay, store) | HTTPS + API key | `x-api-key` header | scope `dlq:write` of the key in `AUTH_TOKENS` (403 without it); the key name is recorded as `actor` of the DLQ audit events (ADR-0059) |
 | Database (MySQL) | TLS 1.2+ (cert-manager server certificate, host name verified; plain TCP refused: `require_secure_transport=ON`, issue #767) | Username/password + SealedSecret **and** a cert-manager client certificate per user (`REQUIRE ISSUER / SUBJECT`) | NetworkPolicy: ports 3306 / 33061 only from the listed client components ([databases.md](../architecture/databases.md)); SQL grants |
-| Database (MongoDB) | Plain TCP in the cluster (no TLS, ADR-0060); operators through `kubectl exec` | None until issue #669 ships MongoDB authentication | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--audit-and-dlq)); `kubectl exec` through Kubernetes RBAC |
+| Database (MongoDB) | Plain TCP in the cluster (no TLS, ADR-0060); operators through `kubectl exec` | None until issue #669 ships MongoDB authentication | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--audit)); `kubectl exec` through Kubernetes RBAC |
 | Grafana (metrics, Loki logs) | HTTPS through the ingress | OIDC, one account per person (ADR-0063); local `admin` kept for break-glass only | Role `Viewer` by default, no sign-up, no anonymous access; Admin granted by hand |
 | Kubernetes API | kubectl + client cert | mTLS certificate | RBAC roles + SealedSecrets |
 
@@ -130,7 +125,7 @@ The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity p
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
 | Grafana account review | Quarterly | List Grafana users (Administration > Users): remove leavers, keep Admin to named operators, check `GRAFANA_PASSWORD` was rotated after any break-glass use. Logins are in Loki (logger `context`) |
-| API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, keep `dlq:write` to operators who purge or replay the DLQ, rewrite old-format keys (bare secret, ADR-0059) |
+| API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, rewrite old-format keys (bare secret, ADR-0059) |
 
 ## 7. Enforcement & Violations
 

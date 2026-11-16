@@ -4,12 +4,10 @@ kind: Kustomization
 # HPA, PDB, NetworkPolicy and ServiceAccount of each service (autoscaling.yaml).
 resources:
   - discovery-server-autoscaling.yaml
-  - message-manager-autoscaling.yaml
   - financial-scraper-autoscaling.yaml
   - trader-trainer-autoscaling.yaml
   - api-gateway-autoscaling.yaml
   - audit-logger-autoscaling.yaml
-  - dlq-service-autoscaling.yaml
   - edge-proxy-autoscaling.yaml
   - ../../edge-proxy
   - spiffe-helper-configmap.yaml
@@ -24,10 +22,6 @@ configMapGenerator:
     envs: [discovery-server.properties]
     options:
       labels: {app.kubernetes.io/component: discovery-server, app.kubernetes.io/part-of: trading-model}
-  - name: message-manager-config
-    envs: [message-manager.properties]
-    options:
-      labels: {app.kubernetes.io/component: message-manager, app.kubernetes.io/part-of: trading-model}
   - name: financial-scraper-config
     envs: [financial-scraper.properties]
     options:
@@ -48,7 +42,3 @@ configMapGenerator:
     envs: [audit-logger.properties]
     options:
       labels: {app.kubernetes.io/component: audit-logger, app.kubernetes.io/part-of: trading-model}
-  - name: dlq-service-config
-    envs: [dlq-service.properties]
-    options:
-      labels: {app.kubernetes.io/component: dlq-service, app.kubernetes.io/part-of: trading-model}

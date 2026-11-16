@@ -49,14 +49,12 @@ trading-model/
 │   ├── jobs/                 # Worker protocol, orphan recovery
 │   ├── address-manager/      # Service discovery client
 │   └── broker-message/       # Message bus protocol types
-├── services/     # 7 microservices (kebab-case directory names)
+├── services/     # 5 microservices (kebab-case directory names)
 │   ├── discovery-server/
-│   ├── message-manager/
 │   ├── financial-scraper/
 │   ├── trader-trainer/      # bun name: trader-service
 │   ├── api-gateway/
-│   ├── audit-logger/
-│   └── dlq-service/
+│   └── audit-logger/
 ├── deploy/       # K8s manifests + nginx configs
 ├── docs/         # Centralized documentation
 └── scripts/      # Automation scripts
@@ -93,7 +91,7 @@ File naming: `kebab-case` descriptive names; `.controller.ts`/`.service.ts`/`.re
 
 - **Framework**: Jest with `ts-jest` (every workspace)
 - **Convention**: Single `.spec.ts` suffix
-- **Coverage thresholds**: 80% across all workspaces (branch-only exceptions: `broker-message` 75%, `message-manager` and `dlq-service` 79%)
+- **Coverage thresholds**: 80% across all workspaces (branch-only exceptions: `broker-message` 75%)
 - **Structure**: Tests mirror source under `tests/unit/`, `tests/integration/`, `tests/e2e/`
 
 ---

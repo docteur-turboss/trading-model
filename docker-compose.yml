@@ -43,7 +43,7 @@ x-message-env: &message-env
 
 services:
   # ---------------------------------------------------------------------------
-  #  MongoDB — audit-logger (audit trail) and dlq-service (dead letters)
+  #  MongoDB — audit-logger (audit trail)
   # ---------------------------------------------------------------------------
   mongo:
     logging: *default-logging
@@ -85,8 +85,6 @@ services:
       MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0067)}
       MONGO_AUDIT_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0067)}
       MONGO_AUDIT_DB: audit-logger
-      MONGO_DLQ_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
-      MONGO_DLQ_DB: dlq
     volumes:
       - ./deploy/mongo/users.js:/scripts/users.js:ro
     networks:
@@ -96,8 +94,8 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  #  Redis — discovery registry, message-manager subscriptions, dlq-service
-  #  queues (single node for dev/E2E)
+  #  Redis — discovery registry, the message bus (journal and dead streams,
+  #  ADR-0073) (single node for dev/E2E)
   # ---------------------------------------------------------------------------
   redis:
     logging: *default-logging
@@ -299,49 +297,6 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
-  #  Message Manager — Event bus / message broker
-  # ---------------------------------------------------------------------------
-  message-manager:
-    logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/message-manager/Dockerfile
-    container_name: trading-message
-    restart: unless-stopped
-    mem_limit: 512m
-    ports:
-      - '127.0.0.1:${MESSAGE_PORT:-8444}:3000'
-    environment:
-      <<: *message-env
-      APP_NAME: message-manager
-      APP_VERSION: ${APP_VERSION:-1.3.0}
-      SERVICE_NAME: message-manager
-      INSTANCE_ID: message-manager-1
-      # Signs the dead letters sent to dlq-service: same key as dlq-service.
-      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
-    # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
-    # publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries finish: see
-    # application/index.ts. Undelivered messages stay in the Redis journal.
-    stop_grace_period: 2m
-    volumes:
-      - svid-message:/run/spire/svid
-    networks:
-      - backend-net
-      - data-net
-    healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
-      interval: 15s
-      timeout: 5s
-      retries: 3
-    depends_on:
-      spiffe-helper-message:
-        condition: service_started
-      redis:
-        condition: service_healthy
-      discovery-server:
-        condition: service_healthy
-
-  # ---------------------------------------------------------------------------
   #  Financial Scraper — Real-time market data ingestion
   # ---------------------------------------------------------------------------
   financial-scraper:
@@ -391,7 +346,7 @@ services:
         condition: service_completed_successfully
       discovery-server:
         condition: service_healthy
-      message-manager:
+      redis:
         condition: service_healthy
     healthcheck:
       test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
@@ -450,7 +405,7 @@ services:
         condition: service_started
       discovery-server:
         condition: service_healthy
-      message-manager:
+      redis:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
@@ -526,6 +481,8 @@ services:
     depends_on:
       spiffe-helper-audit:
         condition: service_started
+      redis:
+        condition: service_healthy
       mongo-users:
         condition: service_completed_successfully
       discovery-server:
@@ -564,51 +521,8 @@ services:
     depends_on:
       spiffe-helper-evaluator:
         condition: service_started
-      discovery-server:
+      redis:
         condition: service_healthy
-
-  # ---------------------------------------------------------------------------
-  #  DLQ Service - Dead Letter Queue management
-  # ---------------------------------------------------------------------------
-  dlq-service:
-    logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/dlq-service/Dockerfile
-    container_name: trading-dlq
-    restart: unless-stopped
-    mem_limit: 256m
-    ports:
-      - '127.0.0.1:${DLQ_PORT:-8452}:3000'
-    environment:
-      <<: *message-env
-      APP_NAME: dlq-service
-      APP_VERSION: ${APP_VERSION:-1.0.0}
-      SERVICE_NAME: dlq-service
-      INSTANCE_ID: dlq-service-1
-      MONGO_URI: mongodb://mongo:27017/?authSource=admin
-      MONGO_USERNAME: dlq-service
-      MONGO_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
-      MONGO_DB: dlq
-      MONGO_COLLECTION: dlq_entries
-      MAX_ENTRIES: '100000'
-      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
-      DLQ_ALLOWED_SERVICES: ${DLQ_ALLOWED_SERVICES:-message-manager,admin}
-    volumes:
-      - svid-dlq:/run/spire/svid
-    networks:
-      - backend-net
-      - data-net
-    healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
-      interval: 15s
-      timeout: 5s
-      retries: 3
-    depends_on:
-      spiffe-helper-dlq:
-        condition: service_started
-      mongo-users:
-        condition: service_completed_successfully
       discovery-server:
         condition: service_healthy
 
@@ -631,21 +545,6 @@ services:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-discovery:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
-
-  spiffe-helper-message:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
-    container_name: trading-helper-message
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
-    volumes:
-      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
-      - spire-agent-sockets:/run/spire/agent-sockets:ro
-      - svid-message:/run/spire/svid
     depends_on:
       spire-agent:
         condition: service_healthy
@@ -721,21 +620,6 @@ services:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-evaluator:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
-
-  spiffe-helper-dlq:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
-    container_name: trading-helper-dlq
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
-    volumes:
-      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
-      - spire-agent-sockets:/run/spire/agent-sockets:ro
-      - svid-dlq:/run/spire/svid
     depends_on:
       spire-agent:
         condition: service_healthy
@@ -925,8 +809,7 @@ services:
       mysql-exporter-user:
         condition: service_completed_successfully
 
-  # One mongod serves audit-logger and dlq-service in compose; standalone, so
-  # no replica set collector.
+  # One standalone mongod serves audit-logger in compose: no replica set collector.
   mongodb-exporter:
     logging: *default-logging
     image: percona/mongodb_exporter:0.47.1@sha256:8ba5d6e25fe7e30912f10b01a9e16e14c6c3af05f36dcaed0659690d70dc1670
@@ -1159,12 +1042,10 @@ volumes:
   spire-server-sockets:
   spire-agent-sockets:
   svid-discovery:
-  svid-message:
   svid-scraper:
   svid-trainer:
   svid-gateway:
   svid-audit:
-  svid-dlq:
   svid-evaluator:
   svid-edge:
   svid-prometheus:

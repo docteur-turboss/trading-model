@@ -95,8 +95,8 @@ permissions:
 # tests/k8s/check-overlays.mjs fails when an overlay uses an image missing here.
 env:
   IMAGES: >-
-    discovery-server message-manager financial-scraper trader-trainer
-    api-gateway audit-logger dlq-service model-evaluator spire-tools backup-tools db-migrate
+    discovery-server financial-scraper trader-trainer
+    api-gateway audit-logger model-evaluator spire-tools backup-tools db-migrate
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -436,7 +436,7 @@ jobs:
           # Exporter users (ADR-0056): optional keys for the pods, but without
           # them MySQLDown / RedisDown fire and verify-release rolls back.
           missing=""
-          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD MONGO_AUDIT_KEYFILE MONGO_DLQ_KEYFILE; do
+          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_AUDIT_KEYFILE; do
             grep -qE "^ +$key: " <<<"$rendered" || missing="$missing $key"
           done
           if [ -n "$missing" ]; then
@@ -861,9 +861,8 @@ jobs:
           CANARY_GATE_SECONDS: ${{ vars.CANARY_GATE_SECONDS || '120' }}
           CANARY_MIN_REQUESTS: ${{ vars.CANARY_MIN_REQUESTS || '20' }}
           CANARY_ERROR_THRESHOLD_PCT: ${{ vars.CANARY_ERROR_THRESHOLD_PCT || '5' }}
-          # Services whose gate is readiness only (no steady traffic): dlq-service
-          # only gets requests on a dead letter or an admin call.
-          CANARY_READINESS_ONLY: ${{ vars.CANARY_READINESS_ONLY || 'dlq-service' }}
+          # Services whose gate is readiness only (no steady traffic); none by default.
+          CANARY_READINESS_ONLY: ${{ vars.CANARY_READINESS_ONLY || '' }}
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
@@ -873,8 +872,8 @@ jobs:
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
           # No singleton here (trader-trainer ADR-0058, collector ADR-0057): a canary is a second pod.
           ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
-            discovery-server message-manager financial-scraper \
-            api-gateway audit-logger dlq-service
+            discovery-server financial-scraper \
+            api-gateway audit-logger
 
       # Revision each Deployment runs before the overlay: "Rollback on failure"
       # returns to exactly it (deploy-release.sh, shared with the k8s CI job).
@@ -1053,8 +1052,8 @@ jobs:
         run: |
           NS="${{ steps.ns.outputs.namespace }}"
           export K8S_NAMESPACE="$NS"
-          for dep in discovery-server message-manager financial-scraper \
-                     api-gateway audit-logger dlq-service; do
+          for dep in discovery-server financial-scraper \
+                     api-gateway audit-logger; do
             ./deploy/k8s/scripts/deploy-k8s.sh canary-cleanup "$dep"
           done
 

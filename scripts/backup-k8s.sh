@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Backup Script (Kubernetes)
-#  Usage:  bash scripts/backup-k8s.sh [--dry-run] [--components mongodb,mysql,checkpoints,spire]
+#  Usage:  bash scripts/backup-k8s.sh [--dry-run] [--components mongodb-audit,mysql,checkpoints,spire]
 #          BACKUP_DIR=/backups BACKUP_S3_BUCKET=s3://my-bucket/backups
 #          BACKUP_AGE_RECIPIENTS=age1... (encryption, see backup-lib.sh)
 #          RETENTION_DAYS, RETENTION_WEEKLY_WEEKS, RETENTION_MONTHLY_MONTHS,
@@ -14,7 +14,7 @@ BACKUP_DIR="${BACKUP_DIR:-/backups}"
 # UTC: restore-k8s.sh --until compares these stamps with the requested instant.
 TIMESTAMP="$(date -u +%Y-%m-%d_%H%M%S)"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,checkpoints,spire"
+COMPONENTS="mongodb-audit,mysql,checkpoints,spire"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 METRICS_FILE="${METRICS_FILE:-}"
@@ -35,9 +35,9 @@ backup_mongodb() {
   local dest="${BACKUP_DIR}/mongodb/${TIMESTAMP}"
   mkdir -p "$dest"
 
-  # One dump per replica set, from its primary: every member holds the same data.
+  # One dump of the audit replica set, from its primary: every member holds the same data.
   local label primary
-  for label in mongodb mongodb-audit; do
+  for label in mongodb-audit; do
     if ! primary=$(mongo_primary "$label"); then
       fail "No writable MongoDB primary for ${label}"
       write_metric "$label" 0
@@ -207,10 +207,10 @@ fi
 IFS=',' read -ra PARTS <<< "$COMPONENTS"
 for part in "${PARTS[@]}"; do
   case "$part" in
-    mongodb)      backup_mongodb ;;
+    mongodb|mongodb-audit) backup_mongodb ;;
     mysql)        backup_mysql ;;
-    # Derived state only (discovery registrations and tokens, DLQ retry queue
-    # rebuilt from MongoDB): rebuilt by the services, never restored.
+    # Derived state only (discovery registrations and tokens): rebuilt by the
+    # services, never restored.
     redis)        warn "Redis is not backed up: its content is rebuilt by the services" ;;
     checkpoints)  backup_checkpoints ;;
     spire)        backup_spire ;;

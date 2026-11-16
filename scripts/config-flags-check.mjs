@@ -42,7 +42,9 @@ const LIST = process.argv.includes('--list');
  * code behind it is still meant to exist; "nobody needs it yet" is not a reason.
  */
 const ALLOWED_UNSET = {
-  DLQ_AUTO_RETRY_ENABLED: "off since ADR-0073 (dead letters wait for the operator CLI); the auto-retry code goes with dlq-service in the next release",
+  MONGO_DLQ_URI: "one-off import of the retired mongo-dlq (dlq-cli import-mongo, release runbook): set by the operator at the command",
+  MONGO_DLQ_USERNAME: "same one-off import",
+  MONGO_DLQ_PASSWORD: "same one-off import",
 };
 
 /** Profiles: what a real deployment can set. Tests and docs are not profiles. */

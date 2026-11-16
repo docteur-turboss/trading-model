@@ -10,7 +10,7 @@ import type { AuditEventDocument } from "./audit-repository";
 
 const MS_PER_DAY = 86_400_000;
 
-/** A message as message-manager delivers it: only the topic is guaranteed. */
+/** A message as the bus delivers it: only the topic is guaranteed. */
 export interface DeliveredEnvelope {
 	metadata: {
 		topic: string;

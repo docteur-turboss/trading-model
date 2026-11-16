@@ -49,7 +49,7 @@ export interface RedisMessageJournalDeps {
 	 */
 	minReplicas?: number;
 	now?: () => number;
-	/** Called for each entry trimmed before delivery (a metric in message-manager). */
+	/** Called for each entry trimmed before delivery (counted by the subscriber). */
 	onTrimmed?: (group: JournalGroup) => void;
 }
 

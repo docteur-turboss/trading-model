@@ -23,7 +23,7 @@ export interface PublishCursor {
 /**
  * The persisted candles not yet published (implemented on MySQL). The
  * candles of a series from its cursor on wait for the bus: kept across
- * message-manager outages and scraper restarts.
+ * bus outages and scraper restarts.
  */
 export interface CandlePublishBacklogPort {
 	/** Undefined when nothing of the series was ever queued for the bus. */

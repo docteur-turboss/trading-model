@@ -8,7 +8,7 @@ The Audit Logger provides immutable traceability for all platform events. It sub
 
 ```mermaid
 graph LR
-    MM["Message Manager"] -->|POST /message<br/>audit, training, dlq topics| AL["Audit Logger"]
+    BUS[("Redis bus")] -->|XREADGROUP<br/>audit, training, dlq topics| AL["Audit Logger"]
     AL -->|Write| MDB[("MongoDB<br/>audit_events")]
     AL -->|Anchors| S3[("S3 Object Lock")]
     API["Client"] -->|GET /events| AL

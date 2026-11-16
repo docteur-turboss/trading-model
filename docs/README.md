@@ -35,12 +35,10 @@ Per-service and per-package documentation ([full index](services/README.md)):
 | Service | Port | Purpose |
 | ------- | ---- | ------- |
 | `discovery-server` | 8443 | Service registry with TTL leases + HMAC tokens |
-| `message-manager` | 8444 | Topic-based pub/sub broker with DLQ routing |
 | `financial-scraper` | 8445 | Binance market data ingestion |
 | `trader-trainer` | 8446 | GA + DQN agent evolution engine |
 | `api-gateway` | 8448 | External entry point: auth, rate-limit, cache, proxy |
 | `audit-logger` | 8450 | Immutable event traceability |
-| `dlq-service` | 8452 | Dead letter queue with auto-retry + replay |
 | `edge-proxy` | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS |
 
 There is no frontend for now: the admin SPA was removed until a new one is specified ([ADR-0018](adr/0018-temporary-frontend-removal.md)). The platform is operated through the api-gateway API (via `edge-proxy`), Grafana and `kubectl` / `docker compose`.

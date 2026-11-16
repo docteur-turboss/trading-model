@@ -19,7 +19,6 @@ const PASSWORDS = {
 	exporter: "exporter-pw",
 	backup: "backup-pw",
 	"audit-logger": "audit-pw",
-	"dlq-service": "dlq-pw",
 };
 const SCRIPT_ENV = [
 	"MONGO_ROOT_PASSWORD=root-pw",
@@ -27,8 +26,6 @@ const SCRIPT_ENV = [
 	"MONGO_BACKUP_PASSWORD=backup-pw",
 	"MONGO_AUDIT_PASSWORD=audit-pw",
 	"MONGO_AUDIT_DB=audit",
-	"MONGO_DLQ_PASSWORD=dlq-pw",
-	"MONGO_DLQ_DB=dlq",
 ];
 
 let container: StartedTestContainer;
@@ -114,20 +111,7 @@ describe("MongoDB users (deploy/mongo/users.js)", () => {
 		).toBe(0);
 		expect(
 			await codeOf("audit-logger", (c) =>
-				c.db("dlq").collection("dlq_entries").findOne({})
-			)
-		).toBe(UNAUTHORIZED);
-	});
-
-	it("gives dlq-service its database and nothing else", async () => {
-		expect(
-			await codeOf("dlq-service", (c) =>
-				c.db("dlq").collection("dlq_entries").insertOne({ a: 1 })
-			)
-		).toBe(0);
-		expect(
-			await codeOf("dlq-service", (c) =>
-				c.db("audit").collection("audit_events").insertOne({ a: 2 })
+				c.db("other").collection("other_entries").findOne({})
 			)
 		).toBe(UNAUTHORIZED);
 	});
@@ -161,7 +145,7 @@ describe("MongoDB users (deploy/mongo/users.js)", () => {
 	it("applies a rotated password when it runs again", async () => {
 		await runUsersScript();
 		expect(
-			await codeOf("dlq-service", (c) => c.db("dlq").command({ ping: 1 }))
+			await codeOf("audit-logger", (c) => c.db("audit").command({ ping: 1 }))
 		).toBe(0);
 	});
 });

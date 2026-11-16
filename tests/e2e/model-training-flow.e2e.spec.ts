@@ -122,7 +122,7 @@ describe("Model training flow E2E", () => {
 		// Test 1 sets `version`: fail here with the real cause if it did not.
 		expect(version).not.toBe("");
 		const { status } = meshRequest(
-			CALLER.message,
+			CALLER.discovery,
 			`${TRAINER}/models/${SYMBOL}/${version}/weights`
 		);
 		expect(status).toBe(403);

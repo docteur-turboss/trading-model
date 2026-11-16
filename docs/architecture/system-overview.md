@@ -29,31 +29,27 @@ flowchart TB
   subgraph services["Services (HTTPS :3000, SPIFFE mTLS)"]
     gw
     disc["discovery-server"]
-    mm["message-manager"]
     fs["financial-scraper"]
     tt["trader-trainer<br/>(npm name trader-service)"]
     al["audit-logger"]
-    dlq["dlq-service"]
   end
 
   gw -->|"PUBLIC_ROUTES only"| al
-  gw --> dlq
   gw --> fs
   gw --> disc
   gw --> tt
-  fs -->|"publish candles"| mm
-  mm -->|"callback /message"| tt
-  mm -->|"callback /message (audit, training, dlq topics)"| al
-  mm -->|"signed POST /dlq"| dlq
+  fs -->|"XADD candles"| redis
+  tt -->|"XADD model events"| redis
+  redis -->|"XREADGROUP (audit, training, dlq topics)"| al
   services -.->|"register + heartbeat (address-manager)"| disc
 
   binance["Binance"] --> fs
   fs --> mysql[("MySQL<br/>market data")]
   al --> mongoA[("MongoDB audit<br/>mongo-audit in K8s")]
-  dlq --> mongoD[("MongoDB dlq<br/>mongo-dlq in K8s")]
-  dlq --> redis[("Redis HA<br/>sentinels in K8s")]
+  fs --> redis[("Redis HA<br/>sentinels in K8s")]
+  tt --> redis
+  al --> redis
   disc --> redis
-  mm -->|"subscriptions"| redis
   tt --> ckpt[("checkpoints volume")]
 
   subgraph spire["SPIRE (ADR-0011)"]
@@ -71,7 +67,7 @@ flowchart TB
   prom -.->|"scrape /metrics"| services
 ```
 
-message-manager keeps its subscriptions and a durable message journal (Redis Streams) in Redis (ADR-0048): it has no database of its own. MongoDB belongs to audit-logger and dlq-service. Compose runs one `mongo` container (databases `audit-logger` and `dlq`); K8s runs two StatefulSets, `mongo-audit` and `mongo-dlq`.
+The bus is a library linked in each service (ADR-0073): the durable message journal and the dead streams are Redis Streams (ADR-0048), consumed in process, with no broker service in between. MongoDB belongs to audit-logger: compose runs one `mongo` container (database `audit-logger`); K8s runs one StatefulSet, `mongo-audit`.
 
 ## 3. Kubernetes deployment
 
@@ -79,10 +75,9 @@ message-manager keeps its subscriptions and a durable message journal (Redis Str
 flowchart TB
   subgraph tm["namespace trading-model (Pod Security: restricted)"]
     ing["Ingress gateway / grafana"] --> edge["Deployment edge-proxy"]
-    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints);<br/>trader-trainer: 1 replica, training on the Lease holder only (ADR-0058);<br/>financial-scraper-collector: 1 replica, crons on the Lease holder only (ADR-0057)"]
+    edge --> svc["Deployments: api-gateway, discovery-server,<br/>financial-scraper, audit-logger<br/>(HPA, PDB, topologySpreadConstraints);<br/>trader-trainer: 1 replica, training on the Lease holder only (ADR-0058);<br/>financial-scraper-collector: 1 replica, crons on the Lease holder only (ADR-0057)"]
     svc --> mysql["StatefulSet mysql"]
     svc --> mA["StatefulSet mongo-audit"]
-    svc --> mD["StatefulSet mongo-dlq"]
     svc --> rd["StatefulSet redis (master + 2 replicas)"]
     svc --> rs["StatefulSet redis-sentinel (3)"]
     ss["Deployment spire-server"] --> sspvc["PVC spire-server-data (SQLite)"]
@@ -109,21 +104,19 @@ sequenceDiagram
   participant B as Binance
   participant FS as financial-scraper
   participant DB as MySQL
-  participant MM as message-manager
+  participant R as Redis journal
   participant TT as trader-trainer
-  participant DLQ as dlq-service
   Note over FS: only the collector pod holding the Lease financial-scraper-collector runs the cycles (ADR-0057)
   loop each scrape cycle, per symbol
     FS->>B: fetch candles
     FS->>DB: persist candles
     FS->>DB: read market_publish_cursors, next persisted candles
-    FS->>MM: POST /message
-    alt a subscriber is reachable
-      MM->>TT: callback /message
-      MM-->>FS: all deliveries settled
+    FS->>R: XADD to the journal
+    alt Redis accepted the entry
+      R-->>FS: entry id
       FS->>DB: advance cursor
-    else no subscriber (503) or message-manager down
-      MM-->>FS: refused
+    else Redis down or refuses the write
+      R-->>FS: error
       Note over FS,DB: cursor stays: next cycle resends from MySQL<br/>alert MarketDataUnpublished after 15 min
     end
   end
@@ -133,13 +126,13 @@ sequenceDiagram
     Note over TT: the candle window comes from MySQL, not from the bus (ADR-0044)
   end
   opt a subscriber keeps failing (at-least-once, 10 attempts)
-    MM->>DLQ: signed POST /dlq
-    Note over MM,DLQ: dlq-service down: entry stays in the journal, retried
+    R->>R: entry moved to the dead stream of its topic
+    Note over R: listed and replayed with the audit-logger dlq-cli
   end
 ```
 
 The trainer subscribes to no topic: its candle window is read from financial-scraper at each session ([ADR-0078](../adr/0078-trainer-features-from-candles-only.md)).
 
-Each subscribed service gets one delivery per message, whatever its number of instances: message-manager groups the subscribed instances by service and posts to the service name, the Kubernetes Service picks the pod (consumer group, [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
+Each subscribed service gets one delivery per message, whatever its number of instances: its replicas share one consumer group, so one of them reads each entry ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md), after [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
 
-Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed through `POST /dlq/replay`; an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).
+Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed with the audit-logger `dlq-cli`; an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).

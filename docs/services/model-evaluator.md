@@ -9,10 +9,10 @@ Offline consumer of trained models (ADR-0049, option B). No order flow, no marke
 
 ## Flow
 
-1. message-manager delivers `training.model.published` at `POST /message` (at-least-once).
+1. The bus delivers `training.model.published` to the in-process consumer of the service (at-least-once).
 2. A record already stored for `(symbol, version)`: answer `duplicate`, nothing is read.
 3. Reads the manifest, then the weights, from the versioned model routes of trader-trainer, over mTLS (its own SPIFFE identity, listed in `MODEL_DOWNLOAD_CALLERS` and in the trainer ACL).
-4. The sha256 of the weights must equal the manifest, the event and `x-model-sha256`, and the length must match the manifest. Otherwise the delivery fails (retries, then the dead letter queue) and nothing is recorded.
+4. The sha256 of the weights must equal the manifest, the event and `x-model-sha256`, and the length must match the manifest. Otherwise the delivery fails (retries, then the dead stream) and nothing is recorded.
 5. The record is created exclusively (`wx`) in `EVALUATIONS_DIR/<symbol>/<version>.json`: a redelivery never overwrites it.
 
 ## Not done yet
@@ -24,7 +24,7 @@ The replay of the model on stored candles and signals, and the ADR-0030 metrics 
 | Dependency | Type |
 | --- | --- |
 | discovery-server | Registration only, kept for N-1 gateways (resolution is by Service DNS name, ADR-0072) |
-| message-manager | Subscription to `training.model.published`, delivery |
+| Redis (bus journal) | Consumption of `training.model.published` |
 | trader-trainer | Manifest and weights (service-to-service) |
 | PVC `model-evaluations-pvc` | Evaluation records (one replica, `Recreate`) |
 

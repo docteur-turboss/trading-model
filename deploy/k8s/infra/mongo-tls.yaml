@@ -45,38 +45,6 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: mongo-dlq-tls
-  labels:
-    app.kubernetes.io/part-of: trading-model
-spec:
-  secretName: mongo-dlq-tls
-  duration: 2160h
-  renewBefore: 720h
-  privateKey:
-    algorithm: ECDSA
-    size: 256
-    rotationPolicy: Always
-  usages:
-    - server auth
-    - client auth
-    - digital signature
-    - key encipherment
-  # One name per member: OpenSSL rejects "*.mongo-dlq-headless".
-  dnsNames:
-    - mongo-dlq
-    - mongo-dlq-0.mongo-dlq-headless
-    - mongo-dlq-1.mongo-dlq-headless
-    - mongo-dlq-2.mongo-dlq-headless
-    - localhost
-  ipAddresses:
-    - 127.0.0.1
-  issuerRef:
-    name: mongo-ca
-    kind: Issuer
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
   name: mongo-audit-tls
   labels:
     app.kubernetes.io/part-of: trading-model

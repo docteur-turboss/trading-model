@@ -10,7 +10,7 @@ import {
 } from "./market-data-sender";
 import { createMarketDataMetadata } from "./metadata-builder";
 
-/** Publishes each part of a snapshot as a market event through message-manager. */
+/** Publishes each part of a snapshot as a market event through the bus. */
 export class BrokerMarketDataPublisher implements MarketDataPublisherPort {
 	constructor(private readonly _deliveryMode?: DeliveryMode) {}
 

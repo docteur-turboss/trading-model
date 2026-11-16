@@ -3,11 +3,9 @@ kind: Kustomization
 
 resources:
   - discovery-server.yaml
-  - message-manager.yaml
   - financial-scraper.yaml
   - trader-trainer.yaml
   - api-gateway.yaml
   - audit-logger.yaml
-  - dlq-service.yaml
   - model-evaluator.yaml
   - edge-proxy.yaml

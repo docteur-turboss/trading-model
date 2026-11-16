@@ -96,15 +96,15 @@ Run on a production-sized host. Nothing here is run by CI; no figure is committe
 ```bash
 P=soak
 docker compose -p $P -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f tests/load/docker-compose.isolate.yml up -d --build --wait
-MM_CONTAINER=$P-message-manager-1 bash tests/load/soak-monitor.sh out/soak.csv 1 $P- &
+bash tests/load/soak-monitor.sh out/soak.csv 1 $P- &
 docker run --rm -v "$PWD/tests/load:/load" grafana/k6:1.4.0 run -e BASE_URL=http://host.docker.internal:18449 -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef -e SOAK_DURATION=5m /load/k6/soak-test.js   # from the host: BASE_URL=http://localhost:18449
 kill %1
 docker compose -p $P -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml -f tests/load/docker-compose.isolate.yml down -v --rmi local
 ```
 
-Set the env vars `ci.yml` sets for the stack (`MYSQL_ROOT_PASSWORD`, `MYSQL_EXPORTER_PASSWORD`, `GRAFANA_PASSWORD`, `DLQ_AUTH_HMAC_SECRET`, `DLQ_ALLOWED_SERVICES`). MySQL can exceed its 180 s `start_period` on first start and `up --wait` then fails: run the same `up` again once MySQL is healthy.
+Set the env vars `ci.yml` sets for the stack (`MYSQL_ROOT_PASSWORD`, `MYSQL_EXPORTER_PASSWORD`, `GRAFANA_PASSWORD`). MySQL can exceed its 180 s `start_period` on first start and `up --wait` then fails: run the same `up` again once MySQL is healthy.
 
-`soak-monitor.sh <out.csv> [minutes] [prefix]`: CSV `timestamp,kind,name,value` with the RSS of every `trading-*` container (`rss_bytes`), the message-manager journal per topic/service (`journal_pending`, `journal_oldest_age_s`, from the `mm_journal_*` gauges, read from inside the container with its SVID), free disk of C: (`disk_free_gb`) and `journal_error` when the metrics could not be read. A leak is an RSS column that keeps growing between samples; a backlog is a `journal_pending` that does not return to 0.
+`soak-monitor.sh <out.csv> [minutes] [prefix]`: CSV `timestamp,kind,name,value` with the RSS of every `trading-*` container (`rss_bytes`), and the free disk of C: (`disk_free_gb`). A leak is an RSS column that keeps growing between samples.
 
 ### GA benchmark
 
@@ -126,7 +126,7 @@ Fill it from real runs only, never from estimates.
 |      |        |      | scenarios (3) | | |
 |      |        |      | stress: max VUs under the stress thresholds | | |
 | 2026-11-08 | `6b4a625e` | dev host (Docker Desktop, Windows), isolated stack | soak 5 min, 2 VUs (short, not a capacity figure) | 3.82 req/s, 0 % failures, no 429 (`RATE_LIMIT_MAX=2000`); p95 12.1 ms start / 12.37 ms end; journal pending 0 | not committed |
-|      |        |      | soak: p95 start / end, error rate, RSS growth per container, journal max pending | | |
+|      |        |      | soak: p95 start / end, error rate, RSS growth per container | | |
 |      |        |      | GA bench: median ms/generation, heap peak, generations | | |
 
 ## CI

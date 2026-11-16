@@ -94,7 +94,7 @@ cmd_apply() {
     kustomize_build "${K8S_DIR}/node-agents" | kubectl apply -f -
     log "Applying all Trading Model manifests..."
     # Immutable pod template: recreated (idempotent) by the apply (issue #727).
-    kubectl delete job -n "$NAMESPACE" mongo-audit-users mongo-dlq-users --ignore-not-found
+    kubectl delete job -n "$NAMESPACE" mongo-audit-users --ignore-not-found
     kustomize_build "${K8S_DIR}/" | kubectl apply -f -
   fi
 
@@ -212,9 +212,8 @@ cmd_migrate_down() {
 
 # Services without request metrics: their canary gate can only check readiness.
 # Declared here (comma-separated) so the exemption is explicit and logged.
-# Set for services that get no steady traffic (dlq-service: only dead letters and
-# admin calls): "no signal" there is not a failure. Services with traffic keep the
-# rule "no signal is a failure".
+# Set for services that get no steady traffic: "no signal" there is not a failure.
+# Services with traffic keep the rule "no signal is a failure".
 CANARY_READINESS_ONLY="${CANARY_READINESS_ONLY:-}"
 
 # Sums http_requests_total from a /metrics payload on stdin and prints
@@ -449,10 +448,8 @@ cmd_smoke_test() {
 
   local services=(
     "discovery-server:https://discovery-server:3000/health/ready"
-    "message-manager:https://message-manager:3000/health/ready"
     "api-gateway:https://api-gateway:3000/health/ready"
     "audit-logger:https://audit-logger:3000/health/ready"
-    "dlq-service:https://dlq-service:3000/health/ready"
     "model-evaluator:https://model-evaluator:3000/health/ready"
     "financial-scraper:https://financial-scraper:3000/health/ready"
     "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"

@@ -572,7 +572,7 @@ const SECURITY_SCHEMES = {
 			in: "header",
 			name: "x-signature",
 			description:
-				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<service path>'), see examples/manage-dlq.sh",
+				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<service path>')",
 		},
 	},
 	InstanceToken: {
@@ -634,8 +634,8 @@ function schemaOperation(lines, method, path, { tag, entry, operation: key }, ga
 	}
 	if (gateway) {
 		responses["401"] ??= { $ref: "#/components/responses/Unauthorized" };
-		// The API key lacks the scope of the route: read for GET, dlq:write otherwise (ADR-0059).
-		responses["403"] ??= { description: "API key without the scope of the route (read for GET, dlq:write otherwise)" };
+		// The API key lacks the scope of the route: read (ADR-0059).
+		responses["403"] ??= { description: "API key without the scope of the route (read)" };
 		responses["404"] ??= { $ref: "#/components/responses/NotFound" };
 	}
 	op.responses = responses;

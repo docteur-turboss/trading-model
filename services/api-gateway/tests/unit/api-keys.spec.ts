@@ -4,9 +4,9 @@ import { PUBLIC_ROUTES } from "../../src/shared/public-routes";
 
 describe("parseApiKey", () => {
 	it("reads name, scopes and secret, the secret after the last colon", () => {
-		expect(parseApiKey("ops-alice:read+dlq:write:s3cr3t")).toEqual({
+		expect(parseApiKey("ops-alice:read:s3cr3t")).toEqual({
 			name: "ops-alice",
-			scopes: ["read", "dlq:write"],
+			scopes: ["read"],
 			secret: "s3cr3t",
 		});
 		expect(parseApiKey("grafana:read:abc")).toMatchObject({
@@ -36,17 +36,8 @@ describe("parseApiKey", () => {
 });
 
 describe("requiredScope", () => {
-	it("needs read for GET and dlq:write otherwise", () => {
-		expect(requiredScope("GET")).toBe("read");
-		expect(requiredScope("POST")).toBe("dlq:write");
-		expect(requiredScope("DELETE")).toBe("dlq:write");
-	});
-
-	it("only DLQ routes are public writes: dlq:write covers no other route", () => {
-		const writes = PUBLIC_ROUTES.filter((route) => !route.startsWith("GET "));
-
-		expect(writes.every((route) => route.includes("/dlq-service/dlq"))).toBe(
-			true
-		);
+	it("needs read: every public route is a GET", () => {
+		expect(requiredScope()).toBe("read");
+		expect(PUBLIC_ROUTES.every((route) => route.startsWith("GET "))).toBe(true);
 	});
 });

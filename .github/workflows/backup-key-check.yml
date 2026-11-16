@@ -26,7 +26,7 @@ on:
         description: 'Components (weekly/monthly tiers: mongodb-audit,mysql)'
         required: false
         type: string
-        default: 'mongodb,mongodb-audit,mysql,checkpoints,spire'
+        default: 'mongodb-audit,mysql,checkpoints,spire'
 
 permissions:
   contents: read
@@ -100,7 +100,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_READ_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_READ_SECRET_ACCESS_KEY }}
           TIER: ${{ inputs.tier }}
-          COMPONENTS: ${{ inputs.components || 'mongodb,mongodb-audit,mysql,checkpoints,spire' }}
+          COMPONENTS: ${{ inputs.components || 'mongodb-audit,mysql,checkpoints,spire' }}
         run: |
           missing=()
           [ -n "$BACKUP_ESCROW_AGE_IDENTITY" ] || missing+=(secret BACKUP_ESCROW_AGE_IDENTITY)

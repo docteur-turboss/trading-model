@@ -171,16 +171,26 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_DISCOVERY_PASSWORD
-            - name: REDIS_MESSAGE_MANAGER_PASSWORD
+            - name: REDIS_AUDIT_LOGGER_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: trading-model-secrets
-                  key: REDIS_MESSAGE_MANAGER_PASSWORD
-            - name: REDIS_DLQ_PASSWORD
+                  key: REDIS_AUDIT_LOGGER_PASSWORD
+            - name: REDIS_FINANCIAL_SCRAPER_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: trading-model-secrets
-                  key: REDIS_DLQ_PASSWORD
+                  key: REDIS_FINANCIAL_SCRAPER_PASSWORD
+            - name: REDIS_TRADER_TRAINER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_TRADER_TRAINER_PASSWORD
+            - name: REDIS_MODEL_EVALUATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_MODEL_EVALUATOR_PASSWORD
             # ACL user of the exporter sidecar (redis-ha.sh exporter_user).
             - name: REDIS_EXPORTER_PASSWORD
               valueFrom:
@@ -581,8 +591,6 @@ spec:
                 operator: In
                 values:
                   - discovery-server
-                  - message-manager
-                  - dlq-service
                   - audit-logger
                   - financial-scraper
                   - trader-trainer

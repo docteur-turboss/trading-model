@@ -7,7 +7,7 @@
 // Every user lives in `admin` (clients connect with `authSource=admin`).
 // Environment: MONGO_ROOT_PASSWORD (required), and one password per client of
 // this replica set: MONGO_EXPORTER_PASSWORD, MONGO_BACKUP_PASSWORD,
-// MONGO_AUDIT_PASSWORD (+ MONGO_AUDIT_DB), MONGO_DLQ_PASSWORD (+ MONGO_DLQ_DB).
+// MONGO_AUDIT_PASSWORD (+ MONGO_AUDIT_DB).
 const env = process.env;
 const admin = db.getSiblingDB("admin");
 
@@ -24,7 +24,6 @@ const USERS = [
 	// mongodump and the oplog reads of the hourly PITR archives (scripts/backup-*).
 	["backup", "MONGO_BACKUP_PASSWORD", [{ role: "backup", db: "admin" }]],
 	["audit-logger", "MONGO_AUDIT_PASSWORD", [{ role: "readWrite", db: env.MONGO_AUDIT_DB }]],
-	["dlq-service", "MONGO_DLQ_PASSWORD", [{ role: "readWrite", db: env.MONGO_DLQ_DB }]],
 ];
 
 // Before the first user exists (localhost exception) the root user is created

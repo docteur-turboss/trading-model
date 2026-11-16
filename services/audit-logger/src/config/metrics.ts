@@ -20,6 +20,12 @@ export const CHAIN_COLLISIONS_TOTAL = new promClient.Counter({
 	labelNames: ["outcome"] as const,
 });
 
+export const BUS_DEAD_LETTERS = new promClient.Gauge({
+	name: "bus_dead_letters",
+	help: "Entries in the dead stream of a topic: dead letters an operator has not replayed or deleted yet (ADR-0073)",
+	labelNames: ["topic"] as const,
+});
+
 export const CHAIN_BROKEN = new promClient.Gauge({
 	name: "audit_chain_broken",
 	help: "1 when the last verification found the audit chain broken (ADR-0027)",

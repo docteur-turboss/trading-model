@@ -79,12 +79,10 @@ jobs:
       matrix:
         service:
           - discovery-server
-          - message-manager
           - financial-scraper
           - trader-trainer
           - api-gateway
           - audit-logger
-          - dlq-service
           - model-evaluator
 
     steps:
@@ -248,12 +246,10 @@ jobs:
       matrix:
         image:
           - discovery-server
-          - message-manager
           - financial-scraper
           - trader-trainer
           - api-gateway
           - audit-logger
-          - dlq-service
           - model-evaluator
           - spire-tools
           - backup-tools

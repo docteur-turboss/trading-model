@@ -15,7 +15,7 @@ spec:
 ---
 # One replica, no HPA: the evaluation records live on a ReadWriteOnce volume
 # (ADR-0049), so a rollout stops the old pod first (Recreate). A bus delivery
-# missed meanwhile is retried by message-manager.
+# missed meanwhile stays in the bus journal.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -100,6 +100,16 @@ spec:
             - configMapRef:
                 name: model-evaluator-config
           env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_MODEL_EVALUATOR_PASSWORD
+            - name: REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             - name: NODE_OPTIONS
               value: --max-old-space-size=192
             - name: INSTANCE_ID
@@ -114,6 +124,9 @@ spec:
               cpu: 500m
               memory: 256Mi
           volumeMounts:
+            - name: redis-tls
+              mountPath: /etc/redis-tls
+              readOnly: true
             - name: svid
               mountPath: /run/spire/svid
             - name: tmp
@@ -169,6 +182,12 @@ spec:
                   - -c
                   - sleep 10
       volumes:
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         - name: spiffe-helper-config
           configMap:
             name: spiffe-helper-config
@@ -222,11 +241,20 @@ spec:
         - port: 3000
           protocol: TCP
   egress:
-    # discovery-server, message-manager and trader-trainer (HTTPS on 3000).
+    # discovery-server and trader-trainer (HTTPS on 3000), Redis and its sentinels.
     - to:
         - podSelector: {}
       ports:
         - port: 3000
+          protocol: TCP
+        - port: 6379
+          protocol: TCP
+        - port: 26379
+          protocol: TCP
+        # TLS listeners (REDIS_TLS_MODE, ADR-0047).
+        - port: 6380
+          protocol: TCP
+        - port: 26380
           protocol: TCP
 ---
 apiVersion: v1

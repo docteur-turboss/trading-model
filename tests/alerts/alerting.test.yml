@@ -308,34 +308,6 @@ tests:
               description: 'Trainer completion rate is 0% over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
-  # Every message goes to the DLQ: no published series at all.
-  - name: message-manager publishes nothing, everything goes to the DLQ
-    interval: 1m
-    input_series:
-      - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market-data",reason="timeout"}'
-        values: '0+5x30'
-    alert_rule_test:
-      - eval_time: 15m
-        alertname: MessageDeliveryLowSuccessRate
-        exp_alerts:
-          - exp_labels: {severity: critical, slo: message_delivery, job: message-manager}
-            exp_annotations:
-              summary: 'Message delivery success rate below 99.5%'
-              description: 'Message-manager delivery rate is 0% over 5m.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md'
-
-  - name: message-manager delivers 99.9%
-    interval: 1m
-    input_series:
-      - series: 'mm_messages_published_total{job="message-manager",instance="m",topic="market-data"}'
-        values: '0+999x30'
-      - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market-data",reason="timeout"}'
-        values: '0+1x30'
-    alert_rule_test:
-      - eval_time: 15m
-        alertname: MessageDeliveryLowSuccessRate
-        exp_alerts: []
-
   # The October 2026 incident: the scraper is up and healthy, nothing is
   # persisted (SYMBOLS_TO_TRACK unset), and so the trainer gets nothing.
   - name: market data stops flowing while every service is up
@@ -437,13 +409,10 @@ tests:
               description: 'No pod has collected market data for 2 minutes: no collector pod holds the Lease financial-scraper-collector (API server unreachable, RBAC, collector down or collection disabled). Trades, tickers and order books of the window are lost.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#collectornoleader'
 
-  # absent(): no series at all, which `up == 0` never sees. dlq-service has
-  # a target at 0 (ServiceDown's job), so only the series-less job fires.
+  # absent(): no series at all, which `up == 0` never sees.
   - name: a job with no up series fires ServiceTargetsMissing, a present one does not
     interval: 1m
     input_series:
-      - series: 'up{job="message-manager",instance="i"}'
-        values: '1x10'
       - series: 'up{job="discovery-server",instance="i"}'
         values: '1x10'
       - series: 'up{job="api-gateway",instance="i"}'
@@ -454,8 +423,6 @@ tests:
         values: '1x10'
       - series: 'up{job="trader-trainer",instance="i"}'
         values: '1x10'
-      - series: 'up{job="dlq-service",instance="i"}'
-        values: '0x10'
     alert_rule_test:
       - eval_time: 10m
         alertname: ServiceTargetsMissing
@@ -464,8 +431,6 @@ tests:
   - name: a job whose up series vanished fires ServiceTargetsMissing
     interval: 1m
     input_series:
-      - series: 'up{job="message-manager",instance="i"}'
-        values: '1x10'
       - series: 'up{job="discovery-server",instance="i"}'
         values: '1x10'
       - series: 'up{job="api-gateway",instance="i"}'
@@ -474,16 +439,14 @@ tests:
         values: '1x10'
       - series: 'up{job="financial-scraper",instance="i"}'
         values: '1x10'
-      - series: 'up{job="trader-trainer",instance="i"}'
-        values: '1x10'
     alert_rule_test:
       - eval_time: 10m
         alertname: ServiceTargetsMissing
         exp_alerts:
-          - exp_labels: {severity: critical, job: dlq-service}
+          - exp_labels: {severity: critical, job: trader-trainer}
             exp_annotations:
-              summary: 'dlq-service has no scrape target'
-              description: 'Prometheus has had no up series for dlq-service for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+              summary: 'trader-trainer has no scrape target'
+              description: 'Prometheus has had no up series for trader-trainer for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
 
   - name: sustained HTTP breaker rejections fire HttpCircuitBreakerRejecting
@@ -739,7 +702,7 @@ tests:
           - exp_labels: {severity: warning, symbol: BTCUSDT}
             exp_annotations:
               summary: 'Persisted candles not reaching the bus'
-              description: '20 persisted BTCUSDT candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
+              description: '20 persisted BTCUSDT candles have waited for the bus for 15 minutes: Redis refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
       - eval_time: 55m
         alertname: MarketDataUnpublished
@@ -943,23 +906,6 @@ tests:
               description: 'Service api-gateway had 2+ instances for 15 min in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire, nor does the surge pod of a rolling update).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#instancecountlow'
 
-  - name: the DLQ drains half of what comes in
-    interval: 1m
-    input_series:
-      - series: 'dlq_entries_added_total{job="dlq-service",instance="d"}'
-        values: '0+10x60'
-      - series: 'dlq_entries_replayed_total{job="dlq-service",instance="d"}'
-        values: '0+5x60'
-    alert_rule_test:
-      - eval_time: 40m
-        alertname: DLQDrainRateLow
-        exp_alerts:
-          - exp_labels: {severity: warning, slo: dlq_drain, job: dlq-service}
-            exp_annotations:
-              summary: 'DLQ drain rate is critically low'
-              description: 'DLQ replay/add ratio is 50% — queue is growing.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
-
   - name: the alerting pipeline watches itself
     interval: 1m
     input_series:
@@ -993,21 +939,6 @@ tests:
               description: 'Notifications through slack fail: check the alertmanager-credentials Secret (webhook URL, routing key). This alert may not reach you: the dead man''s switch (Watchdog) is the safety net.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'
 
-  - name: dead-lettered messages are parked
-    interval: 1m
-    input_series:
-      - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market.candlestick.series.fetch",reason="MAX_RETRIES_EXCEEDED"}'
-        values: '0 0 0 3x20'
-    alert_rule_test:
-      - eval_time: 10m
-        alertname: MessagesDeadLettered
-        exp_alerts:
-          - exp_labels: {severity: warning, topic: market.candlestick.series.fetch}
-            exp_annotations:
-              summary: 'Messages dead-lettered on market.candlestick.series.fetch'
-              description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in the dead stream of the topic (audit-dlq CLI) to inspect and replay.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
-
   # A dead stream with entries: the alert waits 5 minutes, stays while one is left.
   - name: dead letters wait in a dead stream
     interval: 1m
@@ -1026,87 +957,6 @@ tests:
               summary: 'Dead letters wait on market.candlestick.series.fetch'
               description: '2 dead letter(s) wait in the dead stream of market.candlestick.series.fetch (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
-
-  # market.ticker: dropped for 30 minutes, fires. market.trade: a burst at
-  # a cold start (publisher up before its subscribers), no alert.
-  - name: messages without subscriber are dropped
-    interval: 1m
-    input_series:
-      - series: 'mm_messages_unrouted_total{job="message-manager",instance="m",topic="market.ticker"}'
-        values: '0+5x30'
-      - series: 'mm_messages_unrouted_total{job="message-manager",instance="m",topic="market.trade"}'
-        values: '0 4 8 8x27'
-    alert_rule_test:
-      - eval_time: 25m
-        alertname: MessagesUnrouted
-        exp_alerts:
-          - exp_labels: {severity: warning, topic: market.ticker}
-            exp_annotations:
-              summary: 'Messages dropped on market.ticker: no subscriber'
-              description: 'message-manager drops the messages published on market.ticker: no instance subscribes to it. audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
-
-  - name: journal entries trimmed before delivery
-    interval: 1m
-    input_series:
-      - series: 'mm_journal_trimmed_pending_total{job="message-manager",instance="m",topic="market.candle",service="trader-trainer"}'
-        values: '0 0 3 3 3 3'
-    alert_rule_test:
-      - eval_time: 3m
-        alertname: JournalEntriesTrimmed
-        exp_alerts:
-          - exp_labels: {severity: critical, topic: market.candle, service: trader-trainer}
-            exp_annotations:
-              summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
-              description: 'trader-trainer stayed unreachable for more than 24 h: message-manager trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
-      - eval_time: 30m
-        alertname: JournalEntriesTrimmed
-        exp_alerts: []
-
-  # The series is created by the first trim: it is born at 1, never at 0.
-  - name: first journal trim of a topic and service fires
-    interval: 1m
-    input_series:
-      - series: 'mm_journal_trimmed_pending_total{job="message-manager",instance="m",topic="market.candle",service="trader-trainer"}'
-        values: '_ _ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1'
-    alert_rule_test:
-      - eval_time: 3m
-        alertname: JournalEntriesTrimmed
-        exp_alerts:
-          - exp_labels: {severity: critical, topic: market.candle, service: trader-trainer}
-            exp_annotations:
-              summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
-              description: 'trader-trainer stayed unreachable for more than 24 h: message-manager trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
-      - eval_time: 19m
-        alertname: JournalEntriesTrimmed
-        exp_alerts: []
-
-  # A subscriber that stops acknowledging: the oldest entry passes 15 min and
-  # stays there for 10 min. Two replicas expose the same value (max by). A
-  # short-lived peak (b) and a drained backlog (c) do not fire.
-  - name: journal backlog of a subscriber
-    interval: 1m
-    input_series:
-      - series: 'mm_journal_oldest_pending_age_seconds{job="message-manager",instance="m1",topic="market.candle",service="trader-trainer"}'
-        values: '0+60x40'
-      - series: 'mm_journal_oldest_pending_age_seconds{job="message-manager",instance="m2",topic="market.candle",service="trader-trainer"}'
-        values: '0+60x40'
-      - series: 'mm_journal_oldest_pending_age_seconds{job="message-manager",instance="m1",topic="market.candle",service="audit-logger"}'
-        values: '0 0 1000 1000 0x37'
-    alert_rule_test:
-      - eval_time: 20m
-        alertname: JournalBacklogOld
-        exp_alerts: []
-      - eval_time: 30m
-        alertname: JournalBacklogOld
-        exp_alerts:
-          - exp_labels: {severity: warning, topic: market.candle, service: trader-trainer}
-            exp_annotations:
-              summary: 'Journal backlog on market.candle for trader-trainer: oldest entry waiting for more than 15 min'
-              description: 'trader-trainer has not acknowledged a market.candle entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber'
 
   # V8 keeps the allocated heap close to the used one (95% here): no alert.
   # 92% of the heap limit: out of memory is close.
@@ -1767,7 +1617,7 @@ tests:
           - exp_labels: {severity: critical, master_name: mymaster}
             exp_annotations:
               summary: 'Redis Sentinel cannot fail over mymaster'
-              description: 'No sentinel can reach a quorum for mymaster (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and discovery, message-manager and dlq-service lose Redis.'
+              description: 'No sentinel can reach a quorum for mymaster (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and discovery and the bus lose Redis.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redissentinelquorumlost'
 
   # Two exporters report the same members (deduplicated): member 1 is down,
@@ -1826,7 +1676,7 @@ tests:
           - exp_labels: {severity: critical, job: mongo-dlq}
             exp_annotations:
               summary: 'MongoDB mongo-dlq has no primary'
-              description: 'No member of the mongo-dlq replica set is primary for 2 minutes: writes fail (audit events for mongo-audit, dead letters for mongo-dlq).'
+              description: 'No member of the mongo-dlq replica set is primary for 2 minutes: writes fail (audit events).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetnoprimary'
 
   # The collector cannot export spans to Jaeger.
@@ -1844,27 +1694,6 @@ tests:
               summary: 'The OTel collector fails to export spans'
               description: 'The collector dropped 10 span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'
-
-  # A delete whose audit event message-manager refused fires (ADR-0059); a
-  # refused dlq.entry.added (bus down while dead letters arrive) does not.
-  # The series start at 0: dlq-service exposes every event at 0 from startup
-  # (metrics.ts), so increase() sees the first loss.
-  - name: DLQ action missing from the audit trail
-    interval: 1m
-    input_series:
-      - series: 'dlq_audit_publish_failures_total{job="dlq-service",instance="d1",event="dlq.entries.deleted"}'
-        values: '0 0 1x20'
-      - series: 'dlq_audit_publish_failures_total{job="dlq-service",instance="d1",event="dlq.entry.added"}'
-        values: '0 0 5x20'
-    alert_rule_test:
-      - eval_time: 20m
-        alertname: DlqAuditEventLost
-        exp_alerts:
-          - exp_labels: {severity: critical, event: dlq.entries.deleted}
-            exp_annotations:
-              summary: 'DLQ action missing from the audit trail: dlq.entries.deleted'
-              description: 'message-manager refused 1 dlq.entries.deleted event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'
 
   # 1 failure per second from minute 0: past 0.1/s, fires after the 5 min `for`.
   - name: api key authentication failures alert

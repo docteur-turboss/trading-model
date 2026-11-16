@@ -33,10 +33,8 @@ from inside its own container, with its SVID.
 | Service           | Route           | Compose container   |
 |-------------------|-----------------|---------------------|
 | discovery-server  | `/ping`         | `trading-discovery` |
-| message-manager   | `/health/ready` | `trading-message`   |
 | api-gateway       | `/ping`         | `trading-gateway`   |
 | audit-logger      | `/ping`         | `trading-audit`     |
-| dlq-service       | `/health`       | `trading-dlq`       |
 | financial-scraper | `/health`       | `trading-scraper`   |
 | trader-trainer    | `/ping`         | `trading-trainer`   |
 

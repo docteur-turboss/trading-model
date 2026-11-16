@@ -27,16 +27,14 @@ const FAILOVER_DEADLINE_MS = 20_000;
 const PASSWORDS = {
 	internal: "internal-pw",
 	discovery: "discovery-pw",
-	"message-manager": "message-manager-pw",
-	"dlq-service": "dlq-pw",
+	"audit-logger": "audit-logger-pw",
 	exporter: "exporter-pw",
 };
 const DISCOVERY_KEY = "trading-model:discovery:spec";
 const HA_ENV = {
 	REDIS_INTERNAL_PASSWORD: PASSWORDS.internal,
 	REDIS_DISCOVERY_PASSWORD: PASSWORDS.discovery,
-	REDIS_MESSAGE_MANAGER_PASSWORD: PASSWORDS["message-manager"],
-	REDIS_DLQ_PASSWORD: PASSWORDS["dlq-service"],
+	REDIS_AUDIT_LOGGER_PASSWORD: PASSWORDS["audit-logger"],
 	REDIS_EXPORTER_PASSWORD: PASSWORDS.exporter,
 	REDIS_HOSTS: ORDINALS.map((n) => `redis-${n}`).join(" "),
 	SENTINEL_HOSTS: ORDINALS.map((n) => `redis-sentinel-${n}`).join(" "),
@@ -108,7 +106,7 @@ const cli = (node: StartedTestContainer, ...args: string[]) =>
 
 const asService = (
 	node: StartedTestContainer,
-	service: "discovery" | "message-manager" | "dlq-service",
+	service: "discovery" | "audit-logger",
 	...args: string[]
 ) => cliAs(node, service, PASSWORDS[service], ...args);
 
@@ -232,7 +230,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 	it("should keep each service on its own key prefix and commands", async () => {
 		const master = await masterNode();
 		const first = async (
-			service: "discovery" | "message-manager" | "dlq-service",
+			service: "discovery" | "audit-logger",
 			...args: string[]
 		) => (await asService(master, service, ...args))[0];
 		const foreign = `${DISCOVERY_KEY}:before-failover`;
@@ -244,22 +242,13 @@ describe("K8s Redis HA start script — real failovers", () => {
 			/^NOPERM/
 		);
 		await expect(first("discovery", "FLUSHALL")).resolves.toMatch(/^NOPERM/);
-		await expect(first("message-manager", "GET", foreign)).resolves.toMatch(
+		await expect(first("audit-logger", "GET", foreign)).resolves.toMatch(
 			/^NOPERM/
 		);
+		// The bus (ADR-0073): Redis Streams under the bus prefix.
 		await expect(
 			first(
-				"message-manager",
-				"HSET",
-				"trading-model:message-manager:subscriptions:t",
-				"a",
-				"b"
-			)
-		).resolves.toBe("1");
-		// The durable message journal (ADR-0048): Redis Streams under its own prefix.
-		await expect(
-			first(
-				"message-manager",
+				"audit-logger",
 				"XADD",
 				"trading-model:message-manager:journal:t",
 				"*",
@@ -269,28 +258,18 @@ describe("K8s Redis HA start script — real failovers", () => {
 		).resolves.toMatch(/^\d+-\d+$/);
 		// The journal backlog gauges (issue #606): XINFO / XPENDING / XRANGE on its own prefix only.
 		const journalKey = "trading-model:message-manager:journal:t";
-		await first("message-manager", "XGROUP", "CREATE", journalKey, "g", "0");
+		await first("audit-logger", "XGROUP", "CREATE", journalKey, "g", "0");
 		await expect(
-			first("message-manager", "XINFO", "GROUPS", journalKey)
+			first("audit-logger", "XINFO", "GROUPS", journalKey)
 		).resolves.not.toMatch(/^NOPERM/);
 		await expect(
-			first("message-manager", "XPENDING", journalKey, "g")
+			first("audit-logger", "XPENDING", journalKey, "g")
 		).resolves.not.toMatch(/^NOPERM/);
 		await expect(
-			first("message-manager", "XRANGE", journalKey, "-", "+", "COUNT", "1")
+			first("audit-logger", "XRANGE", journalKey, "-", "+", "COUNT", "1")
 		).resolves.not.toMatch(/^NOPERM/);
 		await expect(
-			first("message-manager", "XINFO", "GROUPS", "other:stream")
-		).resolves.toMatch(/^NOPERM/);
-		await expect(first("dlq-service", "LLEN", "dlq:queue")).resolves.toBe("0");
-		await expect(
-			first(
-				"dlq-service",
-				"EVAL",
-				"return redis.call('GET', KEYS[1])",
-				"1",
-				foreign
-			)
+			first("audit-logger", "XINFO", "GROUPS", "other:stream")
 		).resolves.toMatch(/^NOPERM/);
 		// The default user is off; the internal user reaches no key.
 		expect((await cliAs(master, undefined, "", "PING"))[0]).toMatch(

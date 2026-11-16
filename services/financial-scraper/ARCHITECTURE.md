@@ -82,7 +82,7 @@ const response = await binance.get(url, { weight: 5 });
 | `MarketDataSourcePort`      | `domain/ports/market-data-source.port.ts`                 | A market data provider: `fetchSnapshot(request)` returns a normalized `MarketDataSnapshot`            |
 | `MarketDataPublisherPort`   | `domain/ports/market-data-publisher.port.ts`              | Publishes a snapshot to the subscribers; never rejects, returns the parts that failed               |
 | `BinanceMarketDataSource`   | `adapters/outbound/binance/binance-market-data-source.ts` | The only source today (ADR-0026): 6 parallel public API calls, a failed one leaves its part out     |
-| `BrokerMarketDataPublisher` | `adapters/outbound/broker/broker-market-data.publisher.ts` | One event per part present through message-manager, fresh metadata per snapshot                     |
+| `BrokerMarketDataPublisher` | `adapters/outbound/broker/broker-market-data.publisher.ts` | One event per part present through the bus, fresh metadata per snapshot                     |
 | `WorkerOrchestrator`        | `application/worker-orchestrator.ts`                      | Per symbol: fetch → persist → publish (not awaited) of the next persisted candles from the MySQL publish cursor |
 | `ScrapeCronOrchestrator`    | `adapters/inbound/cron/scrape.cron.ts`                    | Runs the cycle on a cron expression with `p-limit`, prevents overlapping runs                        |
 

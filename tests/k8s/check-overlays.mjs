@@ -47,7 +47,7 @@ const SINGLETONS = {
 	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector", env: "COLLECTOR_LEASE_NAME" },
 };
 // Data and observability StatefulSets of staging-local held by a partition (issue #700).
-const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit", "alertmanager", "grafana", "loki", "prometheus"];
+const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-audit", "alertmanager", "grafana", "loki", "prometheus"];
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 
 function render(dir) {

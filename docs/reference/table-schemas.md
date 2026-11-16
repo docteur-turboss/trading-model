@@ -160,7 +160,7 @@ interface TickerData extends BaseMarketData {
 
 ### `market_publish_cursors` — how far each candle series is published
 
-Migration 005. The scraper persists candles before publishing them; the candles of a series opened at or after `published_until` are persisted but not yet on the bus. Each cycle publishes the next 100 of them from `market_candles` and moves the cursor once message-manager took them, so a bus outage or a scraper restart loses none.
+Migration 005. The scraper persists candles before publishing them; the candles of a series opened at or after `published_until` are persisted but not yet on the bus. Each cycle publishes the next 100 of them from `market_candles` and moves the cursor once the bus journal took them, so a bus outage or a scraper restart loses none.
 
 | Column | Type | Constraints | Description |
 | ------ | ---- | ----------- | ----------- |

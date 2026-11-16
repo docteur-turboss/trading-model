@@ -27,7 +27,7 @@ function isRetryableStatusPermissive(code: number): boolean {
 	return isRetryableStatus(code) || code === HTTP_STATUS.REQUEST_TIMEOUT;
 }
 
-/** Checks if a delivery status should NOT be retried (used by message-manager delivery-decision). */
+/** Checks if a delivery status should NOT be retried. */
 function isNonRetryableClientError(code: number): boolean {
 	return (
 		code >= HTTP_STATUS.BAD_REQUEST &&
