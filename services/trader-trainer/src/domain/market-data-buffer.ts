@@ -93,13 +93,6 @@ export class MarketDataBuffer {
 		return this._windowSplitter.buildMarketSteps(ctx);
 	}
 
-	splitTrainValidation(
-		steps: MarketStep[],
-		validationSplit: number
-	): WindowSet {
-		return this._windowSplitter.splitTrainValidation(steps, validationSplit);
-	}
-
 	getAllWindows(
 		symbol: TradingSymbol,
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
