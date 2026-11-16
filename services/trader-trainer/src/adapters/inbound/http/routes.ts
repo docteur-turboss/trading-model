@@ -62,7 +62,7 @@ export const TRAINER_ROUTES = (
 			const agent = snapshot.buildBestAgentSummary();
 			if (agent) {
 				agents.push({
-					symbol: String(symbol),
+					symbol,
 					agent,
 					training:
 						trainer.isTraining() && trainer.getCurrentSymbol() === symbol,
