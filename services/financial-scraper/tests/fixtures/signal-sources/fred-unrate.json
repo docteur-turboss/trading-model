@@ -1,0 +1,9 @@
+{
+	"realtime_start": "1776-07-04",
+	"realtime_end": "9999-12-31",
+	"observations": [
+		{ "realtime_start": "2026-11-07", "realtime_end": "9999-12-31", "date": "2026-10-01", "value": "." },
+		{ "realtime_start": "2026-10-03", "realtime_end": "2026-11-06", "date": "2026-09-01", "value": "4.3" },
+		{ "realtime_start": "2026-11-07", "realtime_end": "9999-12-31", "date": "2026-09-01", "value": "4.4" }
+	]
+}

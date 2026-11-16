@@ -5,6 +5,7 @@ import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/c
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
 import { EUROSTAT_JSONSTAT } from "../../../src/adapters/outbound/signal-sources/eurostat-jsonstat";
 import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-sources/federal-register-daily";
+import { FRED_SERIES_OBSERVATIONS } from "../../../src/adapters/outbound/signal-sources/fred-series-observations";
 import { NASA_POWER_DAILY } from "../../../src/adapters/outbound/signal-sources/nasa-power-daily";
 import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-sources/nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
@@ -36,6 +37,7 @@ describe("SOURCE_ADAPTERS", () => {
 			"ecb-sdmx-series",
 			"eurostat-jsonstat",
 			"federal-register-daily",
+			"fred-series-observations",
 			"nasa-power-daily",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
@@ -82,6 +84,63 @@ describe("SOURCE_ADAPTERS", () => {
 			}
 		}
 	);
+});
+
+describe("fred-series-observations", () => {
+	const params = {
+		metric: "unemployment_rate",
+		area: "US",
+		unit: "percent",
+		period: "month",
+		series: "UNRATE",
+	};
+
+	it('keeps one signal per vintage, stamped at its publication, and skips "."', () => {
+		const observations = FRED_SERIES_OBSERVATIONS.normalize(
+			fixture("fred-unrate"),
+			{ params }
+		);
+		expect(observations.map((o) => [o.key, o.payload.value])).toEqual([
+			["2026-09-01@2026-10-03", 4.3],
+			["2026-09-01@2026-11-07", 4.4],
+		]);
+		expect(observations[1]).toMatchObject({
+			observedAt: Date.parse("2026-11-07"),
+			payload: { period: { start: "2026-09-01", end: "2026-09-30" } },
+		});
+		for (const { payload } of observations) {
+			expect(PAYLOADS.macro.safeParse(payload).success).toBe(true);
+		}
+	});
+
+	it("gives a day and a quarter their own period", () => {
+		const row = (date: string) => ({
+			observations: [{ realtime_start: "2026-11-01", date, value: "1" }],
+		});
+		const end = (period: string, date: string) =>
+			(
+				FRED_SERIES_OBSERVATIONS.normalize(row(date), {
+					params: { ...params, period },
+				})[0].payload.period as { end: string }
+			).end;
+		expect(end("day", "2026-11-03")).toBe("2026-11-03");
+		expect(end("quarter", "2026-07-01")).toBe("2026-09-30");
+	});
+
+	it("skips an empty value instead of reading it as 0", () => {
+		const body = {
+			observations: [
+				{ realtime_start: "2026-11-01", date: "2026-10-01", value: " " },
+			],
+		};
+		expect(FRED_SERIES_OBSERVATIONS.normalize(body, { params })).toEqual([]);
+	});
+
+	it("throws on a body that is not FRED observations", () => {
+		expect(() =>
+			FRED_SERIES_OBSERVATIONS.normalize({ error_code: 400 }, { params })
+		).toThrow();
+	});
 });
 
 describe("ecb-sdmx-series", () => {
