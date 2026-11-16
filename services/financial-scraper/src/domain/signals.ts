@@ -163,8 +163,8 @@ export const Subject = z.union([
 ]);
 export type Subject = z.infer<typeof Subject>;
 
-/** `{date-N}` in a request URL: the UTC date N days before the collection, YYYYMMDD. */
-export const DATE_PLACEHOLDER = /\{date-(\d{1,3})\}/g;
+/** `{date-N}` in a request URL: the UTC date N days before the collection, YYYYMMDD; `{year}`: its UTC year. */
+export const DATE_PLACEHOLDER = /\{(?:date-(\d{1,3})|year)\}/g;
 
 export const SourceRequest = z.strictObject({
 	subject: Subject,

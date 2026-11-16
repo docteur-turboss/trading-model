@@ -47,6 +47,11 @@ describe("signal registry — the shipped file", () => {
 			"WHEAT",
 			"GLD",
 			"EA_AAA_10Y",
+			"EA_AAA_2Y",
+			"EA_AAA_30Y",
+			"US_TREASURY_2Y",
+			"US_TREASURY_10Y",
+			"US_TREASURY_30Y",
 			"PARIS_RE",
 		]);
 	});
@@ -231,12 +236,12 @@ describe("parseSignalRegistry", () => {
 			"source nws-kansas-wheat-belt, request 0: params",
 		],
 		[
-			"a URL placeholder other than {date-N}",
+			"a URL placeholder other than {date-N} or {year}",
 			(file: any) => {
 				sourceOf(file, "ecb-aaa-yield-10y").requests[0].url =
 					"https://data-api.ecb.europa.eu/service/data/YC/{today}";
 			},
-			"source ecb-aaa-yield-10y, request 0: URL placeholder other than {date-N}",
+			"source ecb-aaa-yield-10y, request 0: URL placeholder other than {date-N} or {year}",
 		],
 		[
 			"a maxAgeSeconds shorter than the period of the cron",

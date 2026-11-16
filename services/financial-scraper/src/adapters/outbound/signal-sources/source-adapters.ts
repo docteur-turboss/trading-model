@@ -6,6 +6,7 @@ import { FEDERAL_REGISTER_DAILY } from "./federal-register-daily";
 import { FRED_SERIES_OBSERVATIONS } from "./fred-series-observations";
 import { NWS_LATEST_OBSERVATION } from "./nws-latest-observation";
 import { SEC_EDGAR_COMPANY_CONCEPT } from "./sec-edgar-company-concept";
+import { TREASURY_PAR_YIELD_CURVE } from "./treasury-par-yield-curve";
 import { WIKIMEDIA_PAGEVIEWS } from "./wikimedia-pageviews";
 
 /** Source adapters by the name a registry source gives in `adapter`. */
@@ -17,5 +18,6 @@ export const SOURCE_ADAPTERS: ReadonlyMap<string, SourceAdapter> = new Map([
 	["fred-series-observations", FRED_SERIES_OBSERVATIONS],
 	["federal-register-daily", FEDERAL_REGISTER_DAILY],
 	["nws-latest-observation", NWS_LATEST_OBSERVATION],
+	["treasury-par-yield-curve", TREASURY_PAR_YIELD_CURVE],
 	["wikimedia-pageviews", WIKIMEDIA_PAGEVIEWS],
 ]);

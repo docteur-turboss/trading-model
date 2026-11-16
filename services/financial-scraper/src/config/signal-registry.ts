@@ -182,7 +182,7 @@ function _requestProblems(
 			);
 		}
 		if (/[{}]/.test(request.url.replace(DATE_PLACEHOLDER, ""))) {
-			problems.push(`${where}: URL placeholder other than {date-N}`);
+			problems.push(`${where}: URL placeholder other than {date-N} or {year}`);
 		}
 		const params = adapter?.params?.safeParse(request.params);
 		if (params?.success === false) {

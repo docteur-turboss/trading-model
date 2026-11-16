@@ -151,7 +151,7 @@ Schema v1, the model of the design note's §1: `src/domain/signals.ts`
   (asset type, dimension) pairs it can feed), `accessPolicy`,
   `reliabilityScore`, an adapter, a cron `schedule` and its requests (subject
   `assetId` or `sector`, `dimension`, HTTPS URL, adapter `params`). A URL may
-  hold `{date-N}`: the UTC date N days before the collection, as YYYYMMDD.
+  hold `{date-N}`: the UTC date N days before the collection, as YYYYMMDD; `{year}`: its UTC year.
 - **Signal**: an envelope (`sourceId`, `dimension`, `assetId` or `sector`,
   `observedAt`, `ingestedAt`, `confidenceScore`) and the canonical `payload` of
   its dimension: a measure (`metric`, `value`, `unit`, optional `details`) plus
@@ -179,7 +179,8 @@ for the use made, or with no terms found, cannot be declared. The gauge
 
 | Source id | Dimension | Subject | Schedule | Metrics | Terms (rank; commercial licence) |
 | --- | --- | --- | --- | --- | --- |
-| `ecb-aaa-yield-10y` | market | `EA_AAA_10Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_10y` | attribution: "Source: ECB statistics" (1) |
+| `ecb-aaa-yield-10y` | market | `EA_AAA_{2,10,30}Y` (bond) | daily 15:07 UTC, weekdays (after the ECB release) | `spot_rate_{2,10,30}y` | attribution: "Source: ECB statistics" (1) |
+| `treasury-par-yield-curve` | market | `US_TREASURY_{2,10,30}Y` (bond) | weekdays 21:17-23:17 UTC (CSV of the year, one row per business day) | `par_yield_{2,10,30}y` (percent) | public domain, work of the US government (17 U.S.C. 105) (1) |
 | `ecb-hicp-annual-rate` | macro | area `EA` | daily 11:17 UTC (HICP is monthly) | `hicp_annual_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-deposit-facility-rate` | macro | area `EA` | weekdays 15:35 UTC (changes are irregular) | `deposit_facility_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-euro-reference-rates` | macro | area `EA` | weekdays 16:07 UTC (after the ECB release) | `eur_{usd,gbp,chf,jpy}_reference_rate` | attribution: "Source: ECB statistics" (1) |
