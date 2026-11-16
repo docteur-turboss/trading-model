@@ -24,6 +24,7 @@ export interface BusRedis {
 
 export interface BlockingBusRedis {
 	call(command: string, ...args: string[]): Promise<unknown>;
+	sadd(key: string, ...members: string[]): Promise<unknown>;
 	disconnect(): void;
 }
 
@@ -84,18 +85,24 @@ export class RedisMessageJournal implements MessageJournalPort {
 	>();
 	private readonly _readers = new Map<string, BlockingBusRedis>();
 	private _writer: BlockingBusRedis | undefined;
-	private _appends = 0;
+	private readonly _appends = new Map<string, number>();
 
 	constructor(private readonly _deps: RedisMessageJournalDeps) {
 		this._now = _deps.now ?? Date.now;
 	}
 
-	/** Idempotent, never cached (a replica's earlier `register` proves nothing): another replica may have retired the group since. */
-	async register(group: JournalGroup): Promise<void> {
-		const key = `${group.topic}|${group.service}`;
+	/** Idempotent, never cached: another replica may have retired the group since. */
+	register(group: JournalGroup): Promise<void> {
+		return this._register(this._deps.redis, group);
+	}
+
+	private async _register(
+		redis: Pick<BusRedis, "call" | "sadd">,
+		group: JournalGroup
+	): Promise<void> {
 		await Promise.all([
-			this._ensureGroup(group),
-			this._deps.redis.sadd(this._groupsKey(), key),
+			this._ensureGroup(redis, group),
+			redis.sadd(this._groupsKey(), `${group.topic}|${group.service}`),
 		]);
 	}
 
@@ -129,12 +136,15 @@ export class RedisMessageJournal implements MessageJournalPort {
 		// Re-register on every append: a replica may have retired a group since, and a stream Redis lost
 		// (restart without AOF) has no groups left; a group created after XADD would miss this message (ADR-0048 §1).
 		const now = this._now();
-		await Promise.all(
-			services.map((service) => this.register({ topic, service }))
-		);
+		// On the connection of the WAIT, so the replicas confirm the groups with the entry.
 		const writer = this._writeRedis();
-		// XADD takes MINID or MAXLEN, not both: the 24 h rule by default, the length cap every CAP_EVERY appends.
-		const capped = ++this._appends % CAP_EVERY === 0;
+		await Promise.all(
+			services.map((service) => this._register(writer, { topic, service }))
+		);
+		// XADD takes MINID or MAXLEN, not both: the 24 h rule by default, the length cap every CAP_EVERY appends of the topic.
+		const count = (this._appends.get(topic) ?? 0) + 1;
+		this._appends.set(topic, count);
+		const capped = count % CAP_EVERY === 0;
 		const entryId = (await writer.call(
 			"XADD",
 			this.stream(topic),
@@ -406,7 +416,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		await this.register(group);
 	}
 
-	private _writeRedis(): Pick<BlockingBusRedis, "call"> {
+	private _writeRedis(): Pick<BlockingBusRedis, "call" | "sadd"> {
 		if (!this._deps.openWriteRedis) {
 			return this._deps.redis;
 		}
@@ -427,10 +437,13 @@ export class RedisMessageJournal implements MessageJournalPort {
 		return reader;
 	}
 
-	private async _ensureGroup(group: JournalGroup): Promise<void> {
+	private async _ensureGroup(
+		redis: Pick<BusRedis, "call" | "sadd">,
+		group: JournalGroup
+	): Promise<void> {
 		try {
 			// "$": a group sees what is written after it exists, so it must exist before the XADD.
-			await this._deps.redis.call(
+			await redis.call(
 				"XGROUP",
 				"CREATE",
 				this.stream(group.topic),

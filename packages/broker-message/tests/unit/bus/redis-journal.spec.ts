@@ -78,6 +78,32 @@ describe("RedisMessageJournal", () => {
 		expect(redis.sadd).toHaveBeenCalledTimes(2);
 	});
 
+	it("should cap each topic on its own count, interleaved topics included", async () => {
+		const { redis, journal } = setup();
+
+		for (let i = 0; i < 100; i++) {
+			await journal.append(createMockMessage("a"), ["s"]);
+			await journal.append(
+				{
+					...createMockMessage("b"),
+					metadata: {
+						...createMockMessage("b").metadata,
+						topic: "other.topic",
+					},
+				} as never,
+				["s"]
+			);
+		}
+
+		const capped = redis.call.mock.calls.filter(
+			([name, , mode]) => name === "XADD" && mode === "MAXLEN"
+		);
+		expect(capped.map(([, stream]) => stream).sort()).toEqual([
+			"p:journal:other.topic",
+			"p:journal:test.topic",
+		]);
+	});
+
 	it("should cap the stream length every 100th append instead of the 24 h trim", async () => {
 		const { redis, journal } = setup();
 
@@ -95,6 +121,7 @@ describe("RedisMessageJournal", () => {
 			call: jest.fn(async (command: string, ..._args: any[]) =>
 				command === "WAIT" ? 1 : "9-0"
 			),
+			sadd: jest.fn(async (..._args: any[]) => 1),
 			disconnect: jest.fn<(...args: any[]) => any>(),
 		};
 		const { redis } = setup();
@@ -113,16 +140,16 @@ describe("RedisMessageJournal", () => {
 
 		expect(opened).toHaveBeenCalledTimes(1);
 		expect(writer.call.mock.calls.map(([name]) => name)).toEqual([
+			"XGROUP",
 			"XADD",
 			"WAIT",
+			"XGROUP",
 			"XADD",
 			"WAIT",
 		]);
-		expect(redis.call.mock.calls.map(([name]) => name)).toEqual([
-			"XGROUP",
-			"XGROUP",
-			"XACK",
-		]);
+		expect(writer.sadd).toHaveBeenCalledTimes(2);
+		expect(redis.call.mock.calls.map(([name]) => name)).toEqual(["XACK"]);
+		expect(redis.sadd).not.toHaveBeenCalled();
 		expect(writer.disconnect).toHaveBeenCalledTimes(1);
 	});
 
