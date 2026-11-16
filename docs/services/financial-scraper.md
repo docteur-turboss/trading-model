@@ -187,6 +187,7 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | `cftc-cot-legacy` | market | `WHEAT` (contract 001602) | Fridays and Mondays after a holiday, hourly 15:45-23:45 UTC | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = release 15:30 ET, 3 business days after the Tuesday | public domain, CFTC acknowledged (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
 | `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
+| `federal-register-documents` | legal | sectors `crypto` (SEC, CFTC), `technology` (FTC) | daily | `documents_final_rules`, `documents_proposed_rules`, `documents_notices` | public domain (US government work, govinfo policy, read 2026-11-16) |
 
 **Adding a source**: read its terms, then an entry in the registry. A new
 payload format also needs an adapter in `src/adapters/outbound/signal-sources/`
