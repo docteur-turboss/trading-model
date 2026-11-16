@@ -193,8 +193,8 @@ for the use made, or with no terms found, cannot be declared. The gauge
 EDGAR facts use `companyconcept`, one request per concept and company (10 per
 company a day, under the 10 requests/s fair-access limit and `maxRequestsPerMinute`):
 `companyfacts` answers several MB per company, past the 5 MB body cap. A concept a
-company never reported answers 404, a fetch failure that quarantines its source: the
-revenue tags have their own source so they do not take the others with them. Units
+company never reported answers 404: the EDGAR sources set `notFoundIsEmpty`, so a 404 is
+`not_found` (no fact), not a fetch failure, and quarantines nothing. Units
 stay as filed (`USD`, `USD/shares`, `shares`), never converted.
 
 **Adding a source**: read its terms, then an entry in the registry. A new
@@ -209,7 +209,7 @@ Each request is fetched (GET, JSON, 10 s timeout, no retry: the next tick is the
 retry, unless the source is quarantined, see runbook-market-data-stale),
 normalized by its adapter, checked against the schema and stored.
 `fs_signal_collections_total{source,result}` counts the requests by result:
-`success`, `not_modified` (304: nothing to store, counts as fresh), `fetch_error`, `invalid_payload` (the source changed its format: logged,
+`success`, `not_modified` (304: nothing to store, counts as fresh), `not_found` (404 on a source with `notFoundIsEmpty`: no fact, not a failure), `fetch_error`, `invalid_payload` (the source changed its format: logged,
 nothing stored), `store_error`. Every request sends the User-Agent
 `automated news analysis <SIGNAL_CONTACT_EMAIL>`: SEC EDGAR answers 403
 without the e-mail; NWS and Wikimedia accept the repository URL sent when it

@@ -183,7 +183,8 @@
 				"termsUrl": "https://www.sec.gov/privacy",
 				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
 				"auth": "none",
-				"maxRequestsPerMinute": 60
+				"maxRequestsPerMinute": 60,
+				"notFoundIsEmpty": true
 			},
 			"templates": [
 				{
@@ -205,7 +206,8 @@
 				"termsUrl": "https://www.sec.gov/privacy",
 				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
 				"auth": "none",
-				"maxRequestsPerMinute": 60
+				"maxRequestsPerMinute": 60,
+				"notFoundIsEmpty": true
 			},
 			"templates": [
 				{
@@ -240,7 +242,8 @@
 				"termsUrl": "https://www.sec.gov/privacy",
 				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
 				"auth": "none",
-				"maxRequestsPerMinute": 60
+				"maxRequestsPerMinute": 60,
+				"notFoundIsEmpty": true
 			},
 			"templates": [
 				{

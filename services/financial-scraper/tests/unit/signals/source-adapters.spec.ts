@@ -320,7 +320,7 @@ describe("sec-edgar-company-concept", () => {
 		]);
 		expect(b.payload).toMatchObject({ unit: "EUR", value: 7 });
 		// The 10-K/A is a second signal; the 10-K one stays.
-		expect(c.key).not.toBe(b.key);
+		expect(new Set([a.key, b.key, c.key]).size).toBe(3);
 	});
 
 	it("throws on a fact without filing date", () => {
