@@ -1,0 +1,21 @@
+{
+	"meta": {
+		"symbol": "AAPL",
+		"interval": "1day",
+		"currency": "USD",
+		"exchange_timezone": "America/New_York",
+		"exchange": "NASDAQ",
+		"type": "Common Stock"
+	},
+	"values": [
+		{
+			"datetime": "2026-11-13",
+			"open": "272.00000",
+			"high": "275.10000",
+			"low": "271.20000",
+			"close": "273.50000",
+			"volume": "48210000"
+		}
+	],
+	"status": "ok"
+}

@@ -14,6 +14,7 @@ import { NWS_LATEST_OBSERVATION } from "../../../src/adapters/outbound/signal-so
 import { SEC_EDGAR_COMPANY_CONCEPT } from "../../../src/adapters/outbound/signal-sources/sec-edgar-company-concept";
 import { SOURCE_ADAPTERS } from "../../../src/adapters/outbound/signal-sources/source-adapters";
 import { TREASURY_PAR_YIELD_CURVE } from "../../../src/adapters/outbound/signal-sources/treasury-par-yield-curve";
+import { TWELVEDATA_DAILY_PRICES } from "../../../src/adapters/outbound/signal-sources/twelvedata-daily-prices";
 import { WIKIMEDIA_PAGEVIEWS } from "../../../src/adapters/outbound/signal-sources/wikimedia-pageviews";
 import { signalId } from "../../../src/application/signal-collector";
 
@@ -47,6 +48,7 @@ describe("SOURCE_ADAPTERS", () => {
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
 			"treasury-par-yield-curve",
+			"twelvedata-daily-prices",
 			"wikimedia-pageviews",
 		]);
 	});
@@ -60,6 +62,7 @@ describe("SOURCE_ADAPTERS", () => {
 			{ metric: "house_price_index", area: "FR" },
 		],
 		[CFTC_COT_LEGACY, "cftc-cot-legacy", {}],
+		[TWELVEDATA_DAILY_PRICES, "twelvedata-daily-prices", {}],
 		[DVF_COMMUNE_SALES, "dvf-commune-sales", {}],
 		[SEC_EDGAR_COMPANY_CONCEPT, "sec-edgar-company-concept", {}],
 		[
@@ -962,6 +965,56 @@ describe("treasury-par-yield-curve", () => {
 				[{ Date: "2026-11-13" }],
 				context("2 Yr")
 			)
+		).toThrow();
+	});
+});
+
+describe("twelvedata-daily-prices", () => {
+	it("gives five metrics per session, keyed and dated by the session day", () => {
+		const observations = TWELVEDATA_DAILY_PRICES.normalize(
+			fixture("twelvedata-daily-prices"),
+			NO_PARAMS
+		);
+
+		expect(
+			observations.map((o) => [o.payload.metric, o.payload.value])
+		).toEqual([
+			["open", 272],
+			["high", 275.1],
+			["low", 271.2],
+			["close", 273.5],
+			["volume", 48210000],
+		]);
+		expect(new Set(observations.map((o) => o.key))).toEqual(
+			new Set(["2026-11-13"])
+		);
+		expect(observations[0].payload.period).toEqual({
+			start: "2026-11-13",
+			end: "2026-11-13",
+		});
+		// No release time: the collection time stands, never before the close.
+		expect(observations.every((o) => o.observedAt === undefined)).toBe(true);
+	});
+
+	it("gives nothing for a day without quotation (no value)", () => {
+		expect(
+			TWELVEDATA_DAILY_PRICES.normalize({ values: [] }, NO_PARAMS)
+		).toEqual([]);
+	});
+
+	it.each([
+		["a missing value", (r: any) => ({ values: [{ ...r, close: undefined }] })],
+		["a null value", (r: any) => ({ values: [{ ...r, close: null }] })],
+		["an empty value", (r: any) => ({ values: [{ ...r, close: "" }] })],
+		[
+			"a changed format",
+			() => ({ code: 401, message: "Invalid API key", status: "error" }),
+		],
+	])("throws on %s", (_name, change) => {
+		const [row] = fixture("twelvedata-daily-prices").values;
+
+		expect(() =>
+			TWELVEDATA_DAILY_PRICES.normalize(change(row), NO_PARAMS)
 		).toThrow();
 	});
 });
