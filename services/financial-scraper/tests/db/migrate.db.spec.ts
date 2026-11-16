@@ -205,4 +205,36 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 			rows<{ id: string }>("SELECT LEFT(id, 1) AS id FROM signals ORDER BY id")
 		).resolves.toEqual([{ id: "a" }, { id: "b" }]);
 	});
+
+	it("should add the paged read indexes on up, use them without filesort, and drop them on down (migration 010)", async () => {
+		const real = join(__dirname, "../../../../scripts/migrations");
+		for (const file of readdirSync(real)) {
+			copyFileSync(join(real, file), join(runner.migrationsDir, file));
+		}
+		runner.run("up");
+		const indexes = async () =>
+			(
+				await rows<{ name: string }>(
+					"SELECT DISTINCT index_name AS name FROM information_schema.statistics WHERE table_schema = DATABASE() AND index_name REGEXP '_(symbol_ts|source_ts|ts_id|observed_at)$'"
+				)
+			).length;
+		await expect(indexes()).resolves.toBe(10);
+
+		const queries = [
+			"SELECT id FROM market_candles WHERE symbol = 'X' ORDER BY timestamp, id LIMIT 10",
+			"SELECT id FROM market_trades WHERE source = 'binance' ORDER BY timestamp, id LIMIT 10",
+			"SELECT id FROM market_tickers WHERE timestamp > NOW() ORDER BY timestamp, id LIMIT 10",
+			"DELETE FROM signals WHERE observed_at < NOW() LIMIT 10000",
+		];
+		for (const sql of queries) {
+			const [plan] = await rows<{ type: string; Extra: string | null }>(
+				`EXPLAIN ${sql}`
+			);
+			expect(plan?.Extra ?? "").not.toContain("filesort");
+			expect(plan?.type).not.toBe("ALL");
+		}
+
+		runner.run("down", "1");
+		await expect(indexes()).resolves.toBe(0);
+	});
 });
