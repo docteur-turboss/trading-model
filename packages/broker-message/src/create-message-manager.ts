@@ -60,6 +60,7 @@ export function busJournalFromEnv(
 	return new RedisMessageJournal({
 		redis: redis as never,
 		openBlockingRedis: () => redis.duplicate() as never,
+		openWriteRedis: () => redis.duplicate() as never,
 		keyPrefix: BUS_KEY_PREFIX,
 		minReplicas: env.JOURNAL_MIN_REPLICAS,
 	});
