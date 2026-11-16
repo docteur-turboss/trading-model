@@ -122,8 +122,9 @@ function _buildAgentConfig(
 	rng: () => number,
 	options: BackendOptions
 ): TradingAgentConfig {
-	// Q-learning picks among a finite set of actions: sell / hold / buy.
+	// Q-learning picks among the finite actions of the genome's action set.
 	return {
+		actionSet: genome.network.actionSet,
 		nnConfig: _buildNNConfig(genome, rng),
 		// Each trade moves 10 % of the initial cash, whatever the asset's price,
 		// and pays the Binance spot taker fee plus half-spread and slippage.

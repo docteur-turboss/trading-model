@@ -1,5 +1,6 @@
 import { sampleGaussian } from "@trading-model/model-runtime/noise";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
+import { ACTION_SET_IDS, ACTION_SETS } from "../../agent/action-mapper";
 import type { LamarckGenome } from "../genome-fitness";
 import type { MutationGenome } from "../genome-mutation";
 import {
@@ -200,8 +201,17 @@ export function mutateNetworkStructure(
 	_maybeAddLayer(layers, mutationConfig, rng);
 	_maybeRemoveLayer(layers, mutationConfig, rng);
 
+	const actionSet =
+		genome.gaControl.actionSetGene && rng() < mutationConfig.rates.rate * 0.2
+			? pick(ACTION_SET_IDS, rng)
+			: genome.network.actionSet;
+
 	return {
 		...genome.network,
+		...(actionSet && {
+			actionSet,
+			outputDim: ACTION_SETS[actionSet].length as PositiveInt,
+		}),
 		hiddenLayers: layers,
 		normalization: _maybeMutateNormalization(genome, mutationConfig, rng),
 	};

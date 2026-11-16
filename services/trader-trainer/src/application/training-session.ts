@@ -143,6 +143,7 @@ class TrainingSession {
 					.episodesPerIndividual as PositiveInt,
 			},
 			fitnessType: this._settings.fitnessType,
+			...(this._settings.actionSpaceGene && { actionSetGene: true }),
 		};
 	}
 

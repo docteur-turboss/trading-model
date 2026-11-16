@@ -71,6 +71,7 @@ interface AppContainerConfig {
 	episodesPerIndividual: number;
 	fitnessType: FitnessType;
 	observePosition: boolean;
+	actionSpaceGene: boolean;
 	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
@@ -118,6 +119,7 @@ class ApplicationContainer {
 				episodesPerIndividual: config.episodesPerIndividual,
 				fitnessType: config.fitnessType,
 				observePosition: config.observePosition,
+				actionSpaceGene: config.actionSpaceGene,
 			},
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
@@ -154,6 +156,7 @@ interface TraderTrainerSettings {
 	/** Feature flag (ADR-0039); false: `total_pnl` only. Default true. */
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
+	FEATURE_ACTION_SPACE_GENE?: boolean;
 	TRAINER_MODEL_DIR: string;
 	TRAINER_MODEL_RETENTION: number;
 	INSTANCE_ID: string;
@@ -178,6 +181,7 @@ export function createTraderTrainerContainer(
 		episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
 		fitnessType: effectiveFitnessType(settings),
 		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
+		actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,
