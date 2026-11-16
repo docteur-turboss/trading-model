@@ -39,7 +39,7 @@ function _nthWeekday(year: number, month: number, dow: number, nth: number) {
 }
 
 /** Federal holidays of a year as UTC midnights; a weekend one is observed on Friday or Monday. */
-function _federalHolidays(year: number) {
+export function federalHolidays(year: number) {
 	const fixed = [
 		[0, 1],
 		[5, 19],
@@ -70,8 +70,8 @@ function _federalHolidays(year: number) {
 function _publishedAt(tuesday: string) {
 	let day = Date.parse(`${tuesday}T00:00:00Z`);
 	const holidays = new Set([
-		..._federalHolidays(new Date(day).getUTCFullYear()),
-		..._federalHolidays(new Date(day).getUTCFullYear() + 1),
+		...federalHolidays(new Date(day).getUTCFullYear()),
+		...federalHolidays(new Date(day).getUTCFullYear() + 1),
 	]);
 	for (let left = 3; left > 0; ) {
 		day += DAY_MS;
