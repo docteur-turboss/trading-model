@@ -6,16 +6,13 @@
  */
 
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { barsPerYear } from "@trading-model/model-runtime/replay-metrics";
 import type {
 	EvaluationResult,
 	GenomeEvaluationContext,
 } from "./evaluation-phase";
 import { evalPhase } from "./evaluation-phase";
-import {
-	barsPerYear,
-	computeAllResults,
-	lamarckianUpdate,
-} from "./evaluation-utils";
+import { computeAllResults, lamarckianUpdate } from "./evaluation-utils";
 import {
 	validateEvalResult,
 	validateGenomeInputs,

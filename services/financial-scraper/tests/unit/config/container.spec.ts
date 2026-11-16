@@ -214,6 +214,7 @@ describe("config/container — createSignalScheduler", () => {
 				"eurostat-house-price-index",
 				"eurostat-hicp-inflation",
 				"eurostat-unemployment",
+				"dvf-commune-sales",
 			],
 		});
 	});

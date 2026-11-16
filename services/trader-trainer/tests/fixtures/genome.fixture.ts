@@ -1,6 +1,6 @@
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import type { PositiveInt, Ratio } from "@trading-model/primitives/primitives";
 import { DurationMs } from "@trading-model/primitives/primitives";
-import { EpisodeScores } from "../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../src/domain/genetic-algorithm/factory";
 import type {
 	GenomeFitnessMeta,

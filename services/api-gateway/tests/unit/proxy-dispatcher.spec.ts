@@ -21,7 +21,11 @@ const TARGET = { host: "h", port: 1 } as unknown as ResolvedEndpoint;
 
 function deps(body = '{"a":1}', status = 200) {
 	return {
-		forward: jest.fn().mockResolvedValue({ status, body }),
+		forward: jest.fn().mockResolvedValue({
+			status,
+			body,
+			headers: { "content-type": "application/json; charset=utf-8" },
+		}),
 		cache: { get: jest.fn(), set: jest.fn() },
 	} satisfies ProxyDeps;
 }
@@ -57,8 +61,10 @@ describe("proxyAndCache", () => {
 		const req = { method: "GET", headers: {} } as Request;
 		const res = await proxyAndCache(req, TARGET, CTX, d);
 		expect(res.status).toBe(HTTP_STATUS.OK);
+		expect(res.data).toBe('{"a":1}');
+		expect(res.contentType).toBe("application/json; charset=utf-8");
 		expect(d.cache.set).toHaveBeenCalledWith("GET:/x", {
-			data: { a: 1 },
+			data: '{"a":1}',
 			status: 200,
 			bytes: 7,
 		});

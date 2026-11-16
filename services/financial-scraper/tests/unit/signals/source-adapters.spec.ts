@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import { PAYLOADS } from "@trading-model/validation/wire/signals";
 import { CFTC_COT_LEGACY } from "../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
+import { DVF_COMMUNE_SALES } from "../../../src/adapters/outbound/signal-sources/dvf-commune-sales";
 import { ECB_SDMX_SERIES } from "../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
 import { EUROSTAT_JSONSTAT } from "../../../src/adapters/outbound/signal-sources/eurostat-jsonstat";
 import { FEDERAL_REGISTER_DAILY } from "../../../src/adapters/outbound/signal-sources/federal-register-daily";
@@ -35,6 +36,7 @@ describe("SOURCE_ADAPTERS", () => {
 	it("names every adapter a registry source can use", () => {
 		expect([...SOURCE_ADAPTERS.keys()].sort()).toEqual([
 			"cftc-cot-legacy",
+			"dvf-commune-sales",
 			"ecb-sdmx-series",
 			"eurostat-jsonstat",
 			"federal-register-daily",
@@ -56,6 +58,7 @@ describe("SOURCE_ADAPTERS", () => {
 			{ metric: "house_price_index", area: "FR" },
 		],
 		[CFTC_COT_LEGACY, "cftc-cot-legacy", {}],
+		[DVF_COMMUNE_SALES, "dvf-commune-sales", {}],
 		[SEC_EDGAR_COMPANY_CONCEPT, "sec-edgar-company-concept", {}],
 		[
 			NWS_LATEST_OBSERVATION,
@@ -695,6 +698,76 @@ describe("cftc-cot-legacy", () => {
 				[{ ...rows[0], open_interest_all: "" }],
 				NO_PARAMS
 			)
+		).toThrow();
+	});
+});
+
+describe("dvf-commune-sales", () => {
+	// Bordeaux 2025 (geo-dvf, 2026-11-16): 3 sales kept, 2 with several dwellings of different surfaces.
+	const rows: Record<string, string>[] = fixture("dvf-commune-sales");
+	const metrics = (payload: unknown) =>
+		Object.fromEntries(
+			DVF_COMMUNE_SALES.normalize(payload, NO_PARAMS).map(({ payload: p }) => [
+				p.metric,
+				p,
+			])
+		);
+
+	it("counts a multi-lot sale once and takes the median per type", () => {
+		const out = metrics(rows);
+
+		expect(out.sales_count?.value).toBe(3);
+		expect(out.median_price_per_m2_apartment?.value).toBe(7352.94);
+		expect(out.median_price_per_m2_house?.value).toBe(4907.61);
+		expect(out.sales_count?.details).toEqual({ excluded: 2 });
+		expect(out.sales_count?.period).toEqual({
+			start: "2025-01-01",
+			end: "2025-12-31",
+		});
+	});
+
+	it("excludes sales without price or surface and counts them", () => {
+		const bad = rows.map((row) =>
+			row.id_mutation === "2025-384863"
+				? { ...row, valeur_fonciere: "" }
+				: row.id_mutation === "2025-384864"
+					? { ...row, surface_reelle_bati: "" }
+					: row
+		);
+
+		expect(metrics(bad).sales_count?.details).toEqual({ excluded: 4 });
+		expect(metrics(bad).median_price_per_m2_house).toBeUndefined();
+	});
+
+	it("reads two identical dwelling rows as one dwelling (known limit)", () => {
+		const twin = [
+			...rows,
+			...["a", "b"].map((id) => ({
+				...rows[0],
+				id_mutation: "2025-twin",
+				id_parcelle: id,
+				type_local: "Appartement",
+				surface_reelle_bati: "50",
+				valeur_fonciere: "200000",
+			})),
+		];
+
+		expect(metrics(twin).sales_count?.value).toBe(4);
+		expect(metrics(twin).sales_count?.details).toEqual({ excluded: 2 });
+	});
+
+	it("leaks no field of an individual sale", () => {
+		const text = JSON.stringify(DVF_COMMUNE_SALES.normalize(rows, NO_PARAMS));
+
+		expect(text).not.toMatch(
+			/2025-38|500000|370000|296850|valeur|adresse|parcelle/
+		);
+	});
+
+	it("gives no signal and no error for a commune without sale, and throws on a changed format", () => {
+		expect(DVF_COMMUNE_SALES.normalize([], NO_PARAMS)).toEqual([]);
+		expect(() =>
+			DVF_COMMUNE_SALES.normalize([{ id_mutation: "x" }], NO_PARAMS)
 		).toThrow();
 	});
 });
