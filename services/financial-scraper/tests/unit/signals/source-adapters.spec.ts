@@ -32,8 +32,8 @@ describe("SOURCE_ADAPTERS", () => {
 		expect([...SOURCE_ADAPTERS.keys()].sort()).toEqual([
 			"cftc-cot-legacy",
 			"ecb-sdmx-series",
-			"fred-series-observations",
 			"federal-register-daily",
+			"fred-series-observations",
 			"nws-latest-observation",
 			"sec-edgar-company-concept",
 			"wikimedia-pageviews",
