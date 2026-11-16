@@ -24,6 +24,7 @@ export interface BusRedis {
 
 export interface BlockingBusRedis {
 	call(command: string, ...args: string[]): Promise<unknown>;
+	sadd(key: string, ...members: string[]): Promise<unknown>;
 	disconnect(): void;
 }
 
@@ -34,6 +35,12 @@ export interface RedisMessageJournalDeps {
 	 * holds its connection, so one per group); absent: reads never block.
 	 */
 	openBlockingRedis?: () => BlockingBusRedis;
+	/**
+	 * Opens the connection of `XADD` + `WAIT` (opened once): `WAIT` holds its
+	 * connection up to 2 s and would delay `XACK`/`XCLAIM` queued behind it;
+	 * absent: writes share `redis`.
+	 */
+	openWriteRedis?: () => BlockingBusRedis;
 	keyPrefix: string;
 	/**
 	 * Replicas that must hold a write before it is accepted (`WAIT`): Sentinel
@@ -47,6 +54,9 @@ export interface RedisMessageJournalDeps {
 }
 
 const WAIT_REPLICAS_TIMEOUT_MS = 2000;
+/** Approximate cap of a journal stream, applied every `CAP_EVERY` appends: bounds a burst the 24 h `MINID` would keep. Unmeasured: 100 000 × ~1 KB ≈ 100 MB per stream, against 512 Mi of Redis. */
+const JOURNAL_MAX_LENGTH = 100_000;
+const CAP_EVERY = 100;
 const FIELD = "message";
 const ONLY_FIELD = "only";
 
@@ -74,16 +84,26 @@ export class RedisMessageJournal implements MessageJournalPort {
 		{ value: boolean; until: number }
 	>();
 	private readonly _readers = new Map<string, BlockingBusRedis>();
+	private _writer: BlockingBusRedis | undefined;
+	private readonly _appends = new Map<string, number>();
 
 	constructor(private readonly _deps: RedisMessageJournalDeps) {
 		this._now = _deps.now ?? Date.now;
 	}
 
 	/** Idempotent, never cached: another replica may have retired the group since. */
-	async register(group: JournalGroup): Promise<void> {
-		const key = `${group.topic}|${group.service}`;
-		await this._ensureGroup(group);
-		await this._deps.redis.sadd(this._groupsKey(), key);
+	register(group: JournalGroup): Promise<void> {
+		return this._register(this._deps.redis, group);
+	}
+
+	private async _register(
+		redis: Pick<BusRedis, "call" | "sadd">,
+		group: JournalGroup
+	): Promise<void> {
+		await Promise.all([
+			this._ensureGroup(redis, group),
+			redis.sadd(this._groupsKey(), `${group.topic}|${group.service}`),
+		]);
 	}
 
 	async retire(group: JournalGroup): Promise<void> {
@@ -103,6 +123,8 @@ export class RedisMessageJournal implements MessageJournalPort {
 			reader.disconnect();
 		}
 		this._readers.clear();
+		this._writer?.disconnect();
+		this._writer = undefined;
 	}
 
 	async append(
@@ -113,15 +135,22 @@ export class RedisMessageJournal implements MessageJournalPort {
 		const { topic } = message.metadata;
 		// Re-register on every append: a replica may have retired a group since, and a stream Redis lost
 		// (restart without AOF) has no groups left; a group created after XADD would miss this message (ADR-0048 §1).
+		const now = this._now();
+		// On the connection of the WAIT, so the replicas confirm the groups with the entry.
+		const writer = this._writeRedis();
 		await Promise.all(
-			services.map((service) => this.register({ topic, service }))
+			services.map((service) => this._register(writer, { topic, service }))
 		);
-		const entryId = (await this._deps.redis.call(
+		// XADD takes MINID or MAXLEN, not both: the 24 h rule by default, the length cap every CAP_EVERY appends of the topic.
+		const count = (this._appends.get(topic) ?? 0) + 1;
+		this._appends.set(topic, count);
+		const capped = count % CAP_EVERY === 0;
+		const entryId = (await writer.call(
 			"XADD",
 			this.stream(topic),
-			"MINID",
-			"~",
-			String(this._now() - JOURNAL_RETENTION_MS),
+			...(capped
+				? ["MAXLEN", "~", String(JOURNAL_MAX_LENGTH)]
+				: ["MINID", "~", String(now - JOURNAL_RETENTION_MS)]),
 			"*",
 			FIELD,
 			JSON.stringify(message),
@@ -129,14 +158,14 @@ export class RedisMessageJournal implements MessageJournalPort {
 		)) as string;
 		const required = this._deps.minReplicas ?? 0;
 		if (required > 0) {
-			const replicated = await this._deps.redis.call(
+			const replicated = await writer.call(
 				"WAIT",
 				String(required),
 				String(WAIT_REPLICAS_TIMEOUT_MS)
 			);
 			if (Number(replicated) < required) {
 				// The publisher will send again under a new messageId: drop this entry so it is not delivered twice.
-				await this._deps.redis.call("XDEL", this.stream(topic), entryId);
+				await writer.call("XDEL", this.stream(topic), entryId);
 				throw messageManagerError(
 					`Message not accepted: journal write held by ${replicated} of ${required} replicas`
 				);
@@ -387,6 +416,14 @@ export class RedisMessageJournal implements MessageJournalPort {
 		await this.register(group);
 	}
 
+	private _writeRedis(): Pick<BlockingBusRedis, "call" | "sadd"> {
+		if (!this._deps.openWriteRedis) {
+			return this._deps.redis;
+		}
+		this._writer ??= this._deps.openWriteRedis();
+		return this._writer;
+	}
+
 	private _reader(group: JournalGroup, blockMs?: number) {
 		if (!(blockMs && this._deps.openBlockingRedis)) {
 			return this._deps.redis;
@@ -400,10 +437,13 @@ export class RedisMessageJournal implements MessageJournalPort {
 		return reader;
 	}
 
-	private async _ensureGroup(group: JournalGroup): Promise<void> {
+	private async _ensureGroup(
+		redis: Pick<BusRedis, "call" | "sadd">,
+		group: JournalGroup
+	): Promise<void> {
 		try {
 			// "$": a group sees what is written after it exists, so it must exist before the XADD.
-			await this._deps.redis.call(
+			await redis.call(
 				"XGROUP",
 				"CREATE",
 				this.stream(group.topic),
