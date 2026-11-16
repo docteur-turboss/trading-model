@@ -13,6 +13,9 @@ import {
 } from "../../../src/domain/agent/agent-state";
 import { DataType } from "../../../src/domain/data-handlers/data-types";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
+import { GenerationProcessor } from "../../../src/domain/genetic-algorithm/generation-processor";
+import { createGAControlGenome } from "../../../src/domain/genetic-algorithm/genome-control";
+import { createInitialPopulation } from "../../../src/domain/genetic-algorithm/population-builder";
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 import { makeCandle } from "../../fixtures/market-data.fixture";
 
@@ -128,5 +131,24 @@ describe("signal inputs (ADR-0079)", () => {
 		expect(
 			createDefaultGenome("g", 0 as never, layout.dim).network.inputDim
 		).toBe(layout.dim);
+	});
+
+	it("publishes the same initial genomes with the flag off, and 19 + 3n inputs with n metrics", () => {
+		const population = (buffer: MarketDataBuffer) => {
+			const processor = new GenerationProcessor({
+				windowSets: [
+					{ id: "w", train: buffer.buildMarketSteps(SYMBOL), validation: [] },
+				],
+				backendFactory: () => undefined as never,
+			});
+			processor.initialise(createGAControlGenome());
+			return processor.population;
+		};
+		const before = createInitialPopulation(createGAControlGenome());
+
+		expect(population(bufferWith([], []))).toEqual(before);
+		expect(population(bufferWith([KEY], []))[0].network.inputDim).toBe(
+			FEATURE_DIM + AGENT_STATE_DIM + 3
+		);
 	});
 });

@@ -8,7 +8,9 @@ const MAX_AGE_MS = 365 * 24 * 3_600_000;
 const HOUR_MS = 3_600_000;
 const MAX_ABS_VALUE = 5;
 
-/** `<subject>:<dimension>:<metric>`, subject = asset id, sector or area (`BTC:social:pageviews`). */
+/** One `<subject>:<dimension>:<metric>` key (`BTC:social:pageviews`), subject = asset id, sector or area. */
+export const SIGNAL_KEY_PATTERN = /^[^:,\s]+:[^:,\s]+:[^:,\s]+$/;
+
 export function parseSignalKeys(csv: string): string[] {
 	return csv
 		.split(",")
@@ -16,12 +18,10 @@ export function parseSignalKeys(csv: string): string[] {
 		.filter(Boolean);
 }
 
-function subjectOf(signal: Signal): string {
-	return (signal.assetId ?? signal.sector ?? signal.area) as string;
-}
-
+// The wire schema sets exactly one subject; "" only keeps a malformed signal off every key.
 export function signalKey(signal: Signal): string {
-	return `${subjectOf(signal)}:${signal.dimension}:${signal.payload.metric}`;
+	const subject = signal.assetId ?? signal.sector ?? signal.area ?? "";
+	return `${subject}:${signal.dimension}:${signal.payload.metric}`;
 }
 
 export function signalFieldNames(keys: readonly string[]): string[] {

@@ -15,6 +15,7 @@ import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
 import type { TradingSymbol } from "../../../domain/market-data-types";
 import type { CandleHistoryPort } from "../../../domain/ports/candle-history.port";
 import type { SignalHistoryPort } from "../../../domain/ports/signal-history.port";
+import { signalKey } from "../../../domain/signal-features";
 
 interface TrainingLoopConfig {
 	symbols: TradingSymbol[];
@@ -108,6 +109,15 @@ export class TrainingLoop {
 				now
 			);
 			this._dataBuffer.setSignals(symbol, signals);
+			const found = new Set(signals.map(signalKey));
+			const missing = this._dataBuffer.signalKeys.filter(
+				(key) => !found.has(key)
+			);
+			if (missing.length > 0) {
+				getLogger().warn("Configured signal keys found no signal: zeros", {
+					context: { symbol, assetId, keys: missing },
+				});
+			}
 			for (const dimension of Dimension.options) {
 				const labels = { symbol, dimension };
 				const observed = signals
