@@ -38,7 +38,8 @@ export interface ModelAdmission {
  * genome. Undefined unless they were measured on the test segment: metrics of
  * the validation the selection read are biased upward (ADR-0068), and
  * undefined under `MIN_ADMISSION_TEST_BARS` test bars. Without bar
- * timestamps (`barsPerYear` unknown) the ratios stay per bar.
+ * timestamps (`barsPerYear` unknown) the ratios stay per bar. A model that
+ * never decided (`decisions` 0) is never admissible.
  */
 export function assessAdmission(
 	meta: GenomeFitnessMeta | undefined,
@@ -61,6 +62,7 @@ export function assessAdmission(
 	};
 	return {
 		admissible:
+			meta.decisions !== 0 &&
 			criteria.sharpe >= ADMISSION_THRESHOLDS.minSharpe &&
 			criteria.sortino >= ADMISSION_THRESHOLDS.minSortino &&
 			criteria.calmar >= ADMISSION_THRESHOLDS.minCalmar &&

@@ -92,7 +92,8 @@ export class TradingAgent {
 	public step(
 		input: Float32Array,
 		price?: Price,
-		fillPrice?: Price
+		fillPrice?: Price,
+		barsSince?: number
 	): StepResult {
 		if (price !== undefined) {
 			this.wallet.setPrice(price);
@@ -103,7 +104,7 @@ export class TradingAgent {
 				? 0
 				: markedPnl - this._pnlBeforeLastTrade;
 
-		const state = observe(input, this.wallet, this._observePosition);
+		const state = observe(input, this.wallet, this._observePosition, barsSince);
 		const { output } = this._agent.nn.forward(state);
 		const { action, amount, outputIndex } = this._actionMapper.map(
 			output,

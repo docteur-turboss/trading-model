@@ -4,6 +4,7 @@ import {
 	PositiveInt,
 	Probability,
 } from "@trading-model/primitives/primitives";
+import { createDecisionGenome } from "./decision";
 import type {
 	DiscretePolicyGenome,
 	HorizonGenome,
@@ -23,11 +24,12 @@ function createRewardShapingGenome(): RewardShapingGenome {
 	};
 }
 
-function createHorizonGenome(): HorizonGenome {
+function createHorizonGenome(eventDriven: boolean): HorizonGenome {
 	return {
 		maxEpisodeLength: PositiveInt.of(500),
 		nStepReturn: PositiveInt.of(1),
 		frameSkip: PositiveInt.of(1),
+		...(eventDriven && { decision: createDecisionGenome() }),
 	};
 }
 
@@ -50,14 +52,14 @@ function createReplayBufferGenome(): ReplayBufferGenome {
 	};
 }
 
-export function createRLGenome(): RLGenome {
+export function createRLGenome(eventDriven = false): RLGenome {
 	return {
 		// 0.9: over 24 seeded markets, 0.99 learned in 14 of them, 0.9 in 19
 		// (ADR-0025); the GA still evolves it within [0.8, 0.9999].
 		gamma: Probability.of(0.9),
 		learningRate: Percentage.of(1e-3),
 		rewardShaping: createRewardShapingGenome(),
-		horizon: createHorizonGenome(),
+		horizon: createHorizonGenome(eventDriven),
 		discretePolicy: createDiscretePolicyGenome(),
 		replayBuffer: createReplayBufferGenome(),
 	};

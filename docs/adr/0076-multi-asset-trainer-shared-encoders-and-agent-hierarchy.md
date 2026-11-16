@@ -82,6 +82,8 @@ Genes (all behind the flags of section 9): input mask over feature groups (#1299
 
 Decide on an event instead of every bar: price move above a threshold, volume spike, order book imbalance. A priority filter keeps the strongest events when several assets fire, a per-asset delay prevents repeats. The elapsed time since the previous decision becomes an input. Thresholds and delay are GA genes. Already open: #1301. Effect on the budget: decisions per episode fall, so the DQN steps per generation fall in proportion; the measurement criterion is in section 9.
 
+Implementation of #1301 (owner decision, option 1): with `FEATURE_EVENT_DRIVEN_DECISIONS` (ADR-0039, default false) every genome carries `rl.horizon.decision` (`mode: "on_event"` set at creation and never mutated, `priceMove`, `volumeMultiple`, `minGap`, fixed bounds) and a 33rd network input `BarsSinceDecision`, declared in the manifest `features.fields`; flag false: no `decision` gene, 32 inputs, same genome as before. Detectors read the bars closed up to the decision bar (close move over 5 bars, `volumeRatio`); no order-book detector (candles only, ADR-0078). `frameSkip` is ignored in `on_event`. The n-step return and the bootstrap discount use the bars elapsed (`γ^Δbars`, per-transition `discount`), not the decision count. Bars between two decisions count 0 in the evaluation PnL curve, as with `frameSkip`; `decisions` is kept in the evaluation meta (0 = never trades, not admissible).
+
 ### 6. Feasibility in this repository
 
 The network is hand-written TypeScript (`packages/model-runtime/src/neural-network`, backpropagation in `services/trader-trainer/src/domain/neural-network`, 1 499 lines in total): dense layers, no attention, no convolution, CPU, `Float32Array`.

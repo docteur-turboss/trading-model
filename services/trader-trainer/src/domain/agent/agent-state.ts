@@ -17,6 +17,15 @@ export const NETWORK_INPUT_LAYOUT: { dim: number; fields: string[] } = {
 	fields: [...FEATURE_LAYOUT.fields, ...AGENT_STATE_FIELDS],
 };
 
+/** Extra input of an event-driven genome: bars since its last decision. */
+const BARS_SINCE_FIELD = "BarsSinceDecision";
+
+/** Input layout of an event-driven network: the base one plus the elapsed bars. */
+export const EVENT_INPUT_LAYOUT: { dim: number; fields: string[] } = {
+	dim: NETWORK_INPUT_LAYOUT.dim + 1,
+	fields: [...NETWORK_INPUT_LAYOUT.fields, BARS_SINCE_FIELD],
+};
+
 /** Exposure shown when the position is hidden: always "flat". */
 const HIDDEN_EXPOSURE = -1;
 
@@ -31,17 +40,24 @@ function agentState(wallet: WalletAPI): Float32Array {
  * The network input: market features followed by the agent state. With
  * `showPosition` false the state is a constant (same input size, no
  * information), to measure what seeing the position is worth (ADR-0025).
+ * `barsSince` (already in [-1, 1]) adds the event-driven input.
  */
 export function observe(
 	market: Float32Array,
 	wallet: WalletAPI,
-	showPosition = true
+	showPosition = true,
+	barsSince?: number
 ): Float32Array {
-	const input = new Float32Array(market.length + AGENT_STATE_DIM);
+	const input = new Float32Array(
+		market.length + AGENT_STATE_DIM + (barsSince === undefined ? 0 : 1)
+	);
 	input.set(market);
 	input.set(
 		showPosition ? agentState(wallet) : Float32Array.of(HIDDEN_EXPOSURE),
 		market.length
 	);
+	if (barsSince !== undefined) {
+		input[input.length - 1] = barsSince;
+	}
 	return input;
 }
