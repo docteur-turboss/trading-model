@@ -11,6 +11,7 @@
     "./config/redis-env": "./dist/config/redis-env.js",
     "./config/secret-strength": "./dist/config/secret-strength.js",
     "./config/validate-env": "./dist/config/validate-env.js",
+    "./wire/signals": "./dist/wire/signals.js",
     "./wire/primitives": "./dist/wire/primitives.js",
     "./wire/service-instance": "./dist/wire/service-instance.js",
     "./wire/service-resolver.types": "./dist/wire/service-resolver.types.js"

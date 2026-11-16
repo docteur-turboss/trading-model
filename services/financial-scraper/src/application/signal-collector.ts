@@ -1,6 +1,10 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
+	SIGNAL_SCHEMA_VERSION,
+	Signal,
+} from "@trading-model/validation/wire/signals";
+import {
 	SIGNAL_COLLECTIONS_TOTAL,
 	SIGNAL_LAST_SUCCESS,
 	SIGNAL_NEWEST_OBSERVED,
@@ -22,8 +26,6 @@ import {
 	DATE_PLACEHOLDER,
 	dailyRequests,
 	type Protocol,
-	SIGNAL_SCHEMA_VERSION,
-	Signal,
 	type Source,
 	type SourceRequest,
 	type Subject,
