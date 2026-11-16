@@ -15,7 +15,7 @@ service's SVID and write it to `/run/spire/svid` (`svid.pem`, `svid_key.pem`,
 `bundle.pem`), consumed via `TLS_*_PATH`. No manual certificate generation is
 required.
 
-Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>/sa/<service>`) — one identity per workload (the 7 services and the `edge-proxy`, plus `prometheus` and `blackbox-exporter`, for monitoring):
+Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>/sa/<service>`) — one identity per workload (every service and the `edge-proxy`, plus `prometheus` and `blackbox-exporter`, for monitoring):
 
 - `api-gateway`
 - `audit-logger`
@@ -24,6 +24,7 @@ Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>
 - `edge-proxy`
 - `financial-scraper`
 - `message-manager`
+- `model-evaluator`
 - `trader-trainer`
 
 ### mTLS Configuration in the Service
