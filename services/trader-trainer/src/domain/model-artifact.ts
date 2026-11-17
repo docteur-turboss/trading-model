@@ -54,6 +54,9 @@ export interface ModelReplayWindow {
 	testFrom: number;
 	/** Close time of the last candle: nothing later was used. */
 	to: number;
+	/** Bar length when it is not one minute, and the costs of a daily asset (ADR-0083). */
+	intervalMs?: number;
+	simulator?: SimulatorParams;
 }
 
 /**
@@ -64,8 +67,12 @@ interface ModelReplay extends ModelReplayWindow {
 	intervalMs: number;
 	/** Exploration of the trainer's evaluation episodes; a replay plays greedy (0). */
 	evalEpsilon: number;
-	simulator: typeof SIMULATOR_PARAMS;
+	simulator: SimulatorParams;
 }
+
+type SimulatorParams = {
+	[Key in keyof typeof SIMULATOR_PARAMS]: number | boolean;
+};
 
 export interface ModelManifest {
 	formatVersion: typeof MODEL_FORMAT_VERSION;
@@ -164,10 +171,10 @@ export function buildModelManifest(
 		...(artifact.admission && { admission: artifact.admission }),
 		...(artifact.window && {
 			replay: {
-				...artifact.window,
 				intervalMs: CANDLE_INTERVAL_MS,
-				evalEpsilon: EVAL_EPSILON,
 				simulator: SIMULATOR_PARAMS,
+				...artifact.window,
+				evalEpsilon: EVAL_EPSILON,
 			},
 		}),
 	};
