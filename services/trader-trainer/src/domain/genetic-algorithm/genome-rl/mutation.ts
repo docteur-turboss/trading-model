@@ -1,11 +1,12 @@
+import { sampleGaussian } from "@trading-model/model-runtime/noise";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
 import type {
 	Percentage,
 	PositiveInt,
 	Probability,
 } from "@trading-model/primitives/primitives";
-import { sampleGaussian } from "../noise";
 import { clamp } from "../utils";
+import { mutateDecision } from "./decision";
 import { MaxBatchSize, type RLGenome, type RLScalars } from "./types";
 
 /**
@@ -110,6 +111,9 @@ function _mutateHorizon(
 				rl.horizon.frameSkip,
 				rng
 			) as PositiveInt,
+			...(rl.horizon.decision && {
+				decision: mutateDecision(rl.horizon.decision, rng),
+			}),
 		},
 	};
 }

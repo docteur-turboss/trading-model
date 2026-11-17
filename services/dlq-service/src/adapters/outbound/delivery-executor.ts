@@ -1,6 +1,6 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { HttpClient } from "@trading-model/http/http-client";
 import {
 	DurationMs,
 	toServiceId,

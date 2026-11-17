@@ -4,7 +4,7 @@ const MOCK_HTTP_CLIENT_INSTANCE = {};
 
 let mockBuildTlsFromEnv: jest.Mock<(...args: any[]) => any>;
 
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
+jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: jest.fn((..._args: any[]) => MOCK_HTTP_CLIENT_INSTANCE),
 }));
 
@@ -52,12 +52,5 @@ describe("http-client-manager", () => {
 		const first = await mod.getHttpClient();
 		const second = await mod.getHttpClient();
 		expect(first).toBe(second);
-	});
-
-	it("should close HTTP client", async () => {
-		const { closeHttpClient } = jest.requireActual(
-			"../../src/adapters/outbound/http-client-manager"
-		) as { closeHttpClient: () => void };
-		closeHttpClient();
 	});
 });

@@ -1,4 +1,12 @@
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
+import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
+import type { FeatureVector } from "@trading-model/model-runtime/feature-vector";
+import {
+	ActivationType,
+	ConnectionType,
+	ExperienceKind,
+	InitialisationType,
+} from "@trading-model/model-runtime/neural-network/type";
 import {
 	Cash,
 	Percentage,
@@ -6,14 +14,7 @@ import {
 	Reward,
 } from "@trading-model/primitives/primitives";
 import { TradingAgent, type TradingAgentConfig } from "../agent/trading-agent";
-import { DEFAULT_MAX_EXPOSURE_FRACTION } from "../env/wallet-config";
-import type { FeatureVector } from "../feature-vector";
-import {
-	ActivationType,
-	ConnectionType,
-	ExperienceKind,
-	InitialisationType,
-} from "../neural-network/type";
+import { MAX_BARS_SINCE_DECISION } from "./decision-events";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 interface StepInput {
@@ -25,11 +26,19 @@ interface StepInput {
 }
 
 /**
- * Half-spread + slippage paid on every fill, on top of the fee (ADR-0066):
- * 5 bps, well above the half-spread of the liquid Binance spot pairs, the
- * margin covering a market order's slippage and less liquid symbols.
+ * Simulator parameters of every training and evaluation episode, written in the
+ * manifest `replay` block (ADR-0079). Each trade moves `tradeFraction` of the
+ * initial cash, whatever the asset's price, and pays the Binance spot taker fee
+ * plus `executionCostRate` (ADR-0066): 5 bps of half-spread and slippage, well
+ * above the half-spread of the liquid spot pairs.
  */
-const EXECUTION_COST_RATE = 0.0005;
+export const SIMULATOR_PARAMS = {
+	initialCash: 1000,
+	feeRate: 0.001,
+	executionCostRate: 0.0005,
+	tradeFraction: 0.1,
+	observePosition: true,
+} as const;
 
 /**
  * A decision and what it earned. States are network inputs: market features
@@ -41,6 +50,8 @@ export interface Transition {
 	/** Shaped (n-step) reward. */
 	reward: number;
 	nextState: Float32Array;
+	/** γ^bars elapsed to `nextState` (event-driven genomes); absent: the replay's. */
+	discount?: number;
 	/** The episode ended: no value to bootstrap from `nextState`. */
 	done: boolean;
 }
@@ -51,7 +62,11 @@ export interface RLBackend {
 	 * Decides and trades at this bar. `reward` is the wallet PnL earned by the
 	 * previous decision (see TradingAgent.step), `action` the output unit played.
 	 */
-	step(input: StepInput): {
+	step(
+		input: StepInput,
+		/** Bars since the previous decision, event-driven genomes only. */
+		barsSince?: number
+	): {
 		reward: number;
 		action: number;
 		/** The network input the decision was taken on. */
@@ -111,8 +126,16 @@ function _buildStateManagerCfg(
 	};
 }
 
+/** The costs of a fill that depend on the asset class (ADR-0083). */
+export interface SimulatorCosts {
+	feeRate: number;
+	executionCostRate: number;
+}
+
 /** Run-level options of the backends, outside the genome. */
 interface BackendOptions {
+	/** Costs of the asset class; absent: `SIMULATOR_PARAMS`. */
+	costs?: SimulatorCosts;
 	/** Show the agent its position (default true, ADR-0025). */
 	observePosition?: boolean;
 }
@@ -122,21 +145,26 @@ function _buildAgentConfig(
 	rng: () => number,
 	options: BackendOptions
 ): TradingAgentConfig {
-	// Q-learning picks among a finite set of actions: sell / hold / buy.
+	// Q-learning picks among the finite actions of the genome's action set.
 	return {
+		actionSet: genome.network.actionSet,
 		nnConfig: _buildNNConfig(genome, rng),
-		// Each trade moves 10 % of the initial cash, whatever the asset's price,
-		// and pays the Binance spot taker fee plus half-spread and slippage.
 		wallet: {
-			initialCash: Cash.of(1000),
+			initialCash: Cash.of(SIMULATOR_PARAMS.initialCash),
 			initialPrice: Price.of(1),
-			feeRate: Percentage.of(0.001),
-			executionCostRate: Percentage.of(EXECUTION_COST_RATE),
+			feeRate: Percentage.of(
+				options.costs?.feeRate ?? SIMULATOR_PARAMS.feeRate
+			),
+			executionCostRate: Percentage.of(
+				options.costs?.executionCostRate ?? SIMULATOR_PARAMS.executionCostRate
+			),
 			maxExposureFraction: DEFAULT_MAX_EXPOSURE_FRACTION,
 		},
-		tradeFraction: 0.1,
+		tradeFraction: SIMULATOR_PARAMS.tradeFraction,
 		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy),
-		observePosition: options.observePosition ?? true,
+		inputMask: genome.network.inputMask,
+		observePosition:
+			options.observePosition ?? SIMULATOR_PARAMS.observePosition,
 	};
 }
 
@@ -183,11 +211,14 @@ export function makeTradingAgentBackend(
 
 	return {
 		forwardPass: (features) => agent.forwardPass(encoded(features)).output,
-		step: (input) => {
+		step: (input, barsSince) => {
 			const result = agent.step(
 				encoded(input.features),
 				input.price,
-				input.fillPrice
+				input.fillPrice,
+				barsSince === undefined
+					? undefined
+					: (2 * barsSince) / MAX_BARS_SINCE_DECISION - 1
 			);
 			return {
 				reward: result.reward,
@@ -204,6 +235,9 @@ export function makeTradingAgentBackend(
 				nextState: transition.nextState,
 				done: transition.done,
 				action: transition.action,
+				...(transition.discount !== undefined && {
+					discount: transition.discount,
+				}),
 			}),
 		replay: (batchSize, discount) => {
 			agent.replay(batchSize, discount);

@@ -1,8 +1,9 @@
+import { candleHandler } from "./data-handlers/candle-handler";
 import {
 	createDefaultHandlers,
 	type DataHandler,
 } from "./data-handlers/data-handler";
-import type { DataType } from "./data-handlers/data-types";
+import { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
 import { MemoryManager } from "./market-data/memory-manager";
 import type { SymbolState, TradingSymbol } from "./market-data-types";
@@ -128,6 +129,16 @@ export class SymbolStateManager {
 
 	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
 		this.states.set(symbol, state);
+	}
+
+	/** Replaces the candles and their statistics: the result depends on `candles` only. */
+	replaceCandles(symbol: TradingSymbol, candles: unknown[]): void {
+		const state = this._getOrCreate(symbol);
+		state.candles = [];
+		Object.assign(state.norm, candleHandler.createNorms());
+		for (const candle of candles) {
+			this.addData(DataType.Candle, symbol, candle);
+		}
 	}
 
 	getCandleCount(symbol: TradingSymbol): number {

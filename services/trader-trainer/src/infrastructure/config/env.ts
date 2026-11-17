@@ -1,21 +1,69 @@
-import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { featureFlag } from "@trading-model/validation/config/feature-flags";
+import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
+import { validateEnv } from "@trading-model/validation/config/validate-env";
+import { AssetType } from "@trading-model/validation/wire/signals";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
+import {
+	parseSignalKeys,
+	SIGNAL_KEY_PATTERN,
+} from "../../domain/signal-features";
+
+const COST_RATE = z.number().min(0).max(0.1);
+/** Overrides of `DEFAULT_ASSET_COSTS`, by asset type. */
+const AssetCosts = z.partialRecord(
+	AssetType,
+	z.strictObject({ feeRate: COST_RATE, executionCostRate: COST_RATE }).partial()
+);
 
 const TRAINER_ENV_SHAPE = {
 	TRAINER_SYMBOLS: z.string().default("BTCUSDT,ETHUSDT"),
+	/** `ASSET:type` pairs (`AAPL:equity,AGG:bond`): registry assets trained on daily bars rebuilt from their market signals (ADR-0083). Empty: none. */
+	TRAINER_ASSETS: z.string().default(""),
+	/** JSON `{"equity":{"feeRate":0.0005,"executionCostRate":0.0005}}`: costs of the daily assets by type, over the defaults of ADR-0083. */
+	TRAINER_ASSET_COSTS: z
+		.string()
+		.default("{}")
+		.transform((json, ctx) => {
+			try {
+				return JSON.parse(json);
+			} catch {
+				ctx.addIssue({
+					code: "custom",
+					message: "TRAINER_ASSET_COSTS: not JSON",
+				});
+				return z.NEVER;
+			}
+		})
+		.pipe(AssetCosts),
+	/** `SYMBOL:ASSET` pairs (`BTCUSDT:BTC,ETHUSDT:ETH`): the registry asset whose signals a session reads. Empty: none (ADR-0036). */
+	TRAINER_SYMBOL_ASSETS: z.string().default(""),
+	/** `SUBJECT:dimension:metric` list (`BTC:social:pageviews`): the signals fed to the network as value, age and confidence inputs (ADR-0081). Used only with FEATURE_SIGNAL_INPUTS. */
+	TRAINER_SIGNAL_FEATURES: z
+		.string()
+		.default("")
+		.refine(
+			(csv) =>
+				parseSignalKeys(csv).every((key) => SIGNAL_KEY_PATTERN.test(key)),
+			"TRAINER_SIGNAL_FEATURES: each key must be SUBJECT:dimension:metric"
+		),
+	/** Feature flag (ADR-0039): false keeps the network input at the market values. */
+	FEATURE_SIGNAL_INPUTS: featureFlag(false),
+	/** Feature flag (ADR-0039, ADR-0082): true lets the GA evolve a mask over the input groups; false: no mask, training unchanged. */
+	FEATURE_INPUT_MASK_GENE: featureFlag(false),
+	/** ADR-0082: true keeps the candle group active in every evolved mask; read only with FEATURE_INPUT_MASK_GENE. */
+	TRAINER_INPUT_MASK_PROTECT_CANDLE: featureFlag(false),
 	/** Model artifacts (ADR-0022): on the checkpoint volume shared by the replicas. */
 	TRAINER_MODEL_DIR: z.string().min(1).default("/data/checkpoints/models"),
 	TRAINER_MODEL_RETENTION: z.coerce.number().int().min(1).default(20),
 	/** Services allowed to download model weights; empty: nobody. */
 	MODEL_DOWNLOAD_CALLERS: z.string().default(""),
 	TRAINER_DATA_WINDOW: z.coerce.number().int().positive().default(500),
-	TRAINER_VALIDATION_SPLIT: z.coerce.number().min(0).max(1).default(0.15),
+	TRAINER_VALIDATION_SPLIT: z.coerce.number().gt(0).lt(1).default(0.15),
 	/** Newest fraction never used by training nor selection; published metrics come from it (ADR-0068). */
-	TRAINER_TEST_SPLIT: z.coerce.number().min(0).max(1).default(0.15),
+	TRAINER_TEST_SPLIT: z.coerce.number().gt(0).lt(1).default(0.15),
 	TRAINER_WALK_FORWARD_FOLDS: z.coerce.number().int().min(1).max(20).default(1),
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
 	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
@@ -34,6 +82,10 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_FITNESS_TYPE: z.enum(FitnessType).default(FitnessType.TotalPnl),
 	/** Feature flag (ADR-0039, fitness override): false forces `total_pnl` whatever TRAINER_FITNESS_TYPE says. */
 	FEATURE_RISK_ADJUSTED_FITNESS: featureFlag(true),
+	/** Feature flag (ADR-0039): true lets the GA choose the action space (partial order sizes). */
+	FEATURE_ACTION_SPACE_GENE: featureFlag(false),
+	/** Feature flag (ADR-0039): true makes the agent decide on market events, not every bar (ADR-0076 §5). */
+	FEATURE_EVENT_DRIVEN_DECISIONS: featureFlag(false),
 	/** Show the agent its position; false to measure what it is worth (ADR-0025). */
 	TRAINER_OBSERVE_POSITION: z.stringbool().default(true),
 	/**
@@ -43,8 +95,10 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_LEASE_NAME: z.string().trim().default(""),
 } satisfies Record<string, z.ZodTypeAny>;
 
-const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
+export const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
 	AddressManagerEnvSchema
-).extend(TRAINER_ENV_SHAPE);
+)
+	.extend(RedisEnvSchema.shape)
+	.extend(TRAINER_ENV_SHAPE);
 
 export const ENV = validateEnv(TRADER_TRAINER_ENV_SCHEMA);

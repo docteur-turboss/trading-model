@@ -17,6 +17,8 @@ export interface DeliverySendInput {
 export interface DeadLetterInput {
 	/** Subscriber service whose delivery failed. */
 	service: string;
+	/** Journal entry of the failed delivery. */
+	entryId: string;
 	message: Message;
 	reason: string;
 	deliveryAttempt: SequenceNumber;

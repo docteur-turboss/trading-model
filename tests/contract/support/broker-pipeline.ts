@@ -1,17 +1,17 @@
 import { context, propagation } from "@opentelemetry/api";
 import type { Message } from "@trading-model/contracts/message-types";
-import { toJsonWire } from "@trading-model/http/infrastructure/json-wire";
-import { MessageManagerClient } from "../../../packages/broker-message/src/adapters/outbound/message-manager-client";
+import { toJsonWire } from "@trading-model/http/json-wire";
+import { createMessage } from "../../../packages/broker-message/src/bus/message-factory";
+import { MessageManagerClient } from "../../../packages/broker-message/src/message-manager-client";
 import {
 	PUBLISH_SCHEMA,
 	REPUBLISH_SCHEMA,
 } from "../../../services/message-manager/src/adapters/inbound/validation/broker.schema";
 import { HttpMessageDelivery } from "../../../services/message-manager/src/adapters/outbound/http-message-delivery";
 import { Dispatcher } from "../../../services/message-manager/src/application/services/dispatcher";
-import { createMessage } from "../../../services/message-manager/src/domain/message-factory";
 
 /** JSON round trip with the HttpClient body replacer: what actually travels. */
-export function overTheWire<TValue>(value: unknown): TValue {
+function overTheWire<TValue>(value: unknown): TValue {
 	return JSON.parse(JSON.stringify(value, toJsonWire)) as TValue;
 }
 

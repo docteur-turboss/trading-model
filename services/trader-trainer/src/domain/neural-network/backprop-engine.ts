@@ -1,8 +1,11 @@
+import type {
+	ActivationType,
+	ForwardContext,
+} from "@trading-model/model-runtime/neural-network/type";
 import { GradientApplier } from "./gradient-applier";
 import { HiddenDeltaComputer } from "./hidden-delta-computer";
 import type { NnTrainingDeps } from "./nn-training-deps";
 import { OutputDeltaComputer } from "./output-delta-computer";
-import type { ActivationType, ForwardContext } from "./type";
 
 export interface OutputDeltasContext {
 	outputZ: Float32Array;

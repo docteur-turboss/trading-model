@@ -1,39 +1,15 @@
-import { describe, expect, it } from "@jest/globals";
-import { z } from "zod";
+import { describe, expect, it, jest } from "@jest/globals";
+import { TRADER_TRAINER_ENV_SCHEMA } from "../../../src/infrastructure/config/env";
 
-const TRADER_TRAINER_ENV_SCHEMA = z.object({
-	NODE_ENV: z
-		.enum(["development", "test", "staging", "production"])
-		.default("development"),
-	PORT: z.coerce.number().int().positive().default(3000),
-	TLS_KEY_PATH: z.string().min(1),
-	TLS_CERT_PATH: z.string().min(1),
-	TLS_CA_PATH: z.string().min(1),
-	ADDRESS_MANAGER_URL: z.string(),
-	CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),
-	INSTANCE_ID: z.string().min(1),
-	SERVICE_NAME: z.string().min(1),
-	SERVICE_PING_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
-	TOKEN_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
-	TTL_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
-	MESSAGE_CALLBACK_PATH: z.string().min(1).default("message"),
-	TRAINER_SYMBOLS: z.string().default("BTCUSDT,ETHUSDT"),
-	TRAINER_DATA_WINDOW: z.coerce.number().int().positive().default(500),
-	TRAINER_VALIDATION_SPLIT: z.coerce.number().min(0).max(1).default(0.2),
-	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
-	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
-	TRAINER_TIME_BUDGET_MS: z.coerce.number().int().positive().default(300000),
-	TRAINER_INTERVAL_MS: z.coerce.number().int().positive().default(3600000),
-	TRAINER_EPISODES_PER_INDIVIDUAL: z.coerce
-		.number()
-		.int()
-		.positive()
-		.default(3),
-});
+// Importing env.ts parses process.env into ENV; only the schema is under test here.
+jest.mock("@trading-model/validation/config/validate-env", () => ({
+	validateEnv: () => ({}),
+}));
 
 function makeValidEnv(): Record<string, string> {
 	return {
 		NODE_ENV: "test",
+		APP_NAME: "trader-trainer",
 		PORT: "3001",
 		TLS_KEY_PATH: "/certs/key.pem",
 		TLS_CERT_PATH: "/certs/cert.pem",
@@ -56,6 +32,18 @@ function makeValidEnv(): Record<string, string> {
 }
 
 describe("Env Schema", () => {
+	it("rejects a signal key that is not SUBJECT:dimension:metric", () => {
+		const parse = (keys: string) =>
+			TRADER_TRAINER_ENV_SCHEMA.safeParse({
+				...makeValidEnv(),
+				TRAINER_SIGNAL_FEATURES: keys,
+			}).success;
+
+		expect(parse("BTC:social:pageviews, EA:macro:cpi")).toBe(true);
+		expect(parse("BTC:social")).toBe(false);
+		expect(parse("BTC:social:pageviews:x")).toBe(false);
+	});
+
 	it("should parse a valid environment configuration", () => {
 		const result = TRADER_TRAINER_ENV_SCHEMA.safeParse(makeValidEnv());
 
@@ -83,6 +71,7 @@ describe("Env Schema", () => {
 
 	it("should apply default values for optional trainer fields", () => {
 		const env: Record<string, string> = {
+			APP_NAME: "trader-trainer",
 			TLS_KEY_PATH: "/key.pem",
 			TLS_CERT_PATH: "/cert.pem",
 			TLS_CA_PATH: "/ca.pem",
@@ -97,7 +86,7 @@ describe("Env Schema", () => {
 		if (result.success) {
 			expect(result.data.NODE_ENV).toBe("development");
 			expect(result.data.PORT).toBe(3000);
-			expect(result.data.TRAINER_VALIDATION_SPLIT).toBe(0.2);
+			expect(result.data.TRAINER_VALIDATION_SPLIT).toBe(0.15);
 			expect(result.data.TRAINER_GENERATIONS).toBe(50);
 			expect(result.data.TRAINER_POPULATION_SIZE).toBe(20);
 			expect(result.data.TRAINER_INTERVAL_MS).toBe(3_600_000);
@@ -132,6 +121,26 @@ describe("Env Schema", () => {
 		expect(result.success).toBe(false);
 	});
 
+	it.each(["TRAINER_TEST_SPLIT", "TRAINER_VALIDATION_SPLIT"])(
+		"should refuse %s of 0 or 1 and accept 0.15",
+		(name) => {
+			for (const bad of ["0", "1"]) {
+				expect(
+					TRADER_TRAINER_ENV_SCHEMA.safeParse({
+						...makeValidEnv(),
+						[name]: bad,
+					}).success
+				).toBe(false);
+			}
+			expect(
+				TRADER_TRAINER_ENV_SCHEMA.safeParse({
+					...makeValidEnv(),
+					[name]: "0.15",
+				}).success
+			).toBe(true);
+		}
+	);
+
 	it("should reject non-positive TRAINER_GENERATIONS", () => {
 		const env = makeValidEnv();
 		env.TRAINER_GENERATIONS = "0";
@@ -157,23 +166,5 @@ describe("Env Schema", () => {
 		const result = TRADER_TRAINER_ENV_SCHEMA.safeParse(env);
 
 		expect(result.success).toBe(false);
-	});
-
-	it("should accept boundary TRAINER_VALIDATION_SPLIT of 0", () => {
-		const env = makeValidEnv();
-		env.TRAINER_VALIDATION_SPLIT = "0";
-
-		const result = TRADER_TRAINER_ENV_SCHEMA.safeParse(env);
-
-		expect(result.success).toBe(true);
-	});
-
-	it("should accept boundary TRAINER_VALIDATION_SPLIT of 1", () => {
-		const env = makeValidEnv();
-		env.TRAINER_VALIDATION_SPLIT = "1";
-
-		const result = TRADER_TRAINER_ENV_SCHEMA.safeParse(env);
-
-		expect(result.success).toBe(true);
 	});
 });

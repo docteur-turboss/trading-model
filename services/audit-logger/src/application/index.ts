@@ -1,7 +1,7 @@
 import "./telemetry";
-import { logger } from "@trading-model/http/infrastructure/logger";
-import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
+import { createBootstrap } from "@trading-model/http/bootstrap";
+import { logger } from "@trading-model/http/logger";
+import { shutdownTelemetry } from "@trading-model/http/telemetry";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { type AuditLoggerApp, createAuditLoggerApp } from "../config/container";
 import { ENV } from "../infrastructure/config/env";

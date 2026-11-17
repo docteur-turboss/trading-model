@@ -29,6 +29,7 @@ trading-model/
 │   ├── trader-trainer/
 │   ├── api-gateway/
 │   ├── audit-logger/
+│   ├── model-evaluator/
 │   └── dlq-service/
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
@@ -77,6 +78,7 @@ Shared packages (base → derived):
 @trading-model/primitives       (branded types, pagination, identities — zero deps)
 @trading-model/contracts        (events, market-data, http constants, LoggerPort registry) → primitives
 @trading-model/reliability      (circuit breaker, latency tracker, heartbeats) → primitives, contracts
+@trading-model/model-runtime    (forward pass, feature codec, wallet simulator) → primitives, contracts, common
 @trading-model/common           (residual config, utils, shared schemas, AppError) → primitives, contracts
 @trading-model/persistence      (Redis/Mongo connection managers, store adapters) → common, primitives, contracts
 @trading-model/http             (HTTP middleware, http client, logging) → primitives, contracts, common, reliability
@@ -84,7 +86,7 @@ Shared packages (base → derived):
 @trading-model/server-utils     (secure HTTPS server factory, TLS watcher, bootstrap) → primitives, contracts, common, http
 @trading-model/crypto           (hashing, signatures, crypto primitives) → primitives, contracts, common, validation
 
-@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, server-utils, validation
+@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, validation
 @trading-model/broker-message   (inter-service messaging SDK) → primitives, contracts, address-manager, common, http, validation
 ```
 
@@ -94,13 +96,14 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 
 | Service | Dependencies |
 | --- | --- |
-| api-gateway | address-manager, common, contracts, http, primitives, server-utils, validation |
-| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, server-utils, validation |
-| discovery-server | common, contracts, crypto, http, persistence, primitives, server-utils, validation |
-| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
-| financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, server-utils, validation |
-| message-manager | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, server-utils, validation |
-| trader-service | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, server-utils, validation |
+| api-gateway | common, contracts, http, primitives, validation |
+| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, validation |
+| discovery-server | common, contracts, crypto, http, persistence, primitives, validation |
+| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, validation |
+| model-evaluator | address-manager, broker-message, common, contracts, http, primitives, validation |
+| financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, validation |
+| message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability, validation |
+| trader-service | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, validation |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
 
@@ -111,13 +114,14 @@ There is no frontend workspace: `admin-interface` was removed until a new one is
 | `@trading-model/primitives`      | Pure domain primitives: branded types, pagination, circuit-state, service-identity, retry-policy, topic-binding. Zero dependencies.                       | —                          |
 | `@trading-model/contracts`       | Shared contracts: event/market-data types, `http-status`, `http-headers`, `LoggerPort` registry (setLogger/getLogger)                                     | primitives                 |
 | `@trading-model/reliability`     | Circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces                                                                            | primitives, contracts      |
+| `@trading-model/model-runtime`    | Network forward pass, feature codec, portfolio simulator (ADR-0066) shared by trader-trainer and model-evaluator | primitives, contracts, common |
 | `@trading-model/common`          | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, log sanitization, shared Zod schemas  | primitives, contracts      |
 | `@trading-model/persistence`     | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`)                                                                   | common, primitives, contracts |
 | `@trading-model/http`            | HTTP middleware (MTLSAuthMiddleware, ResponseProtocol, error tracking), HTTP client, concrete logging pipeline                                              | primitives, contracts, common, reliability |
 | `@trading-model/validation`      | Zod schemas, DTOs, event types, shared type contracts, admin contracts                                                                                  | primitives, contracts, common, http |
 | `@trading-model/server-utils`    | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry                                                         | primitives, contracts, common, http |
 | `@trading-model/crypto`          | Hashing, request signing, token generation, secure randomness                                                                                           | primitives, contracts, common, validation |
-| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing                                              | primitives, contracts, common, persistence, http, reliability, server-utils, validation |
+| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing                                              | primitives, contracts, common, persistence, http, reliability, validation |
 | `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                        | primitives, contracts, address-manager, common, http, validation |
 
 ## Workload Identity & Security Model
@@ -145,6 +149,7 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 | trader-trainer    | 8446            | 3000           |               |
 | audit-logger      | 8450            | 3000           |               |
 | dlq-service       | 8452            | 3000           |               |
+| model-evaluator   | 8453            | 3000           |               |
 | api-gateway       | 8448            | 3000           |               |
 
 ### Service Structure
@@ -193,7 +198,7 @@ Rules:
 ### Entry Point (`src/application/index.ts`)
 
 ```typescript
-import { createBootstrap } from '@trading-model/server-utils/application/services/bootstrap';
+import { createBootstrap } from '@trading-model/server-utils/bootstrap';
 import { createDiscoveryApp } from '../config/container';
 import { ENV } from '../infrastructure/config/env';
 import { createServer } from './server';
@@ -218,7 +223,7 @@ createBootstrap({
 
 ```typescript
 import { ServiceId } from '@trading-model/primitives/primitives';
-import { createServiceServer } from '@trading-model/server-utils/adapters/inbound/service-server-factory';
+import { createServiceServer } from '@trading-model/server-utils/service-server-factory';
 import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
 import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';

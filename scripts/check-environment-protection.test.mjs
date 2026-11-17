@@ -19,10 +19,11 @@ test('no branch limit', () => assert.match(checkEnvironment(env([rule()], false)
 test('no v* tag rule', () => assert.deepEqual(checkEnvironment(env([rule()]), [{ type: 'branch', name: 'v*' }]), ['no deployment tag rule "v*"']));
 test('compliant', () => assert.deepEqual(checkEnvironment(env([rule()]), tag), []));
 const br = (...n) => n.map((name) => ({ type: 'branch', name }));
-test('staging: development + main, no reviewer needed', () => assert.deepEqual(checkEnvironment(env([]), br('development', 'main'), RULES.staging), []));
+test('staging: development + main + v* tags, no reviewer needed', () => assert.deepEqual(checkEnvironment(env([]), [...br('development', 'main'), ...tag], RULES.staging), []));
+test('staging: no v* tag rule', () => assert.deepEqual(checkEnvironment(env([]), br('development', 'main'), RULES.staging), ['no deployment tag rule "v*"']));
 test('staging: no branch limit', () => assert.match(checkEnvironment(env([], false), [], RULES.staging)[0], /not limited/));
-test('staging: missing main', () => assert.deepEqual(checkEnvironment(env([]), br('development'), RULES.staging), ['no deployment branch rule "main"']));
-test('staging: extra branch', () => assert.deepEqual(checkEnvironment(env([]), br('development', 'main', 'x*'), RULES.staging), ['unexpected deployment branch rule "x*"']));
+test('staging: missing main', () => assert.deepEqual(checkEnvironment(env([]), [...br('development'), ...tag], RULES.staging), ['no deployment branch rule "main"']));
+test('staging: extra branch', () => assert.deepEqual(checkEnvironment(env([]), [...br('development', 'main', 'x*'), ...tag], RULES.staging), ['unexpected deployment branch rule "x*"']));
 const key = RULES['backup-key-check'];
 test('backup-key-check: main + reviewer', () => assert.deepEqual(checkEnvironment(env([rule({ prevent_self_review: false })]), br('main'), key), []));
 test('backup-key-check: no reviewer', () => assert.deepEqual(checkEnvironment(env([]), br('main'), key), ['no required reviewer']));

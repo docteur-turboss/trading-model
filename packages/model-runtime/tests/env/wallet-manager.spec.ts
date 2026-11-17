@@ -1,0 +1,443 @@
+import { describe, expect, test } from "@jest/globals";
+import type { DecimalPrecision } from "@trading-model/primitives/primitives";
+import {
+	Cash,
+	Percentage,
+	Price,
+	Volume,
+} from "@trading-model/primitives/primitives";
+import { createWallet } from "../../src/env/wallet-manager";
+
+describe("Wallet module", () => {
+	describe("Initialization", () => {
+		test("should create wallet with valid initial values", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			expect(wallet.getCash()).toBe(1000);
+			expect(wallet.getPrice()).toBe(50);
+			expect(wallet.getPosition()).toBe(0);
+			expect(wallet.getValuation()).toBe(1000);
+		});
+
+		test("should throw error for invalid initial cash", () => {
+			expect(() => Cash.of(-10)).toThrow(
+				"Cash must be a non-negative finite number"
+			);
+			expect(() => Cash.of(Number.NaN)).toThrow(
+				"Cash must be a non-negative finite number"
+			);
+		});
+
+		test("should throw error for invalid initial price", () => {
+			expect(() =>
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(0),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.zero(),
+				})
+			).toThrow("Invalid initialPrice: 0");
+			expect(() =>
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(-5),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.zero(),
+				})
+			).toThrow("Price must be a non-negative finite number, got -5");
+		});
+
+		test("should throw error for invalid feeRate (>=1)", () => {
+			expect(() =>
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(50),
+					executionCostRate: Percentage.zero(),
+					feeRate: Percentage.of(1),
+				})
+			).toThrow("Invalid feeRate");
+			expect(() =>
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(50),
+					executionCostRate: Percentage.zero(),
+					feeRate: Percentage.of(-0.1),
+				})
+			).toThrow("Invalid feeRate");
+			expect(() =>
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(50),
+					executionCostRate: Percentage.zero(),
+					feeRate: Percentage.of(Number.NaN),
+				})
+			).toThrow("Percentage must be a finite number");
+		});
+
+		test("should throw error for invalid maxExposureFraction", () => {
+			for (const maxExposureFraction of [0, -1, Number.NaN]) {
+				expect(() =>
+					createWallet({
+						initialCash: Cash.of(1000),
+						initialPrice: Price.of(50),
+						feeRate: Percentage.zero(),
+						executionCostRate: Percentage.zero(),
+						maxExposureFraction,
+					})
+				).toThrow("Invalid maxExposureFraction");
+			}
+		});
+
+		test("should throw error for invalid decimals", () => {
+			expect(() =>
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(50),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.zero(),
+					decimals: 0 as DecimalPrecision,
+				})
+			).toThrow("Invalid decimals");
+			expect(() =>
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(50),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.zero(),
+					decimals: 16 as DecimalPrecision,
+				})
+			).toThrow("Invalid decimals");
+			expect(() =>
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(50),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.zero(),
+					decimals: 2.5 as DecimalPrecision,
+				})
+			).toThrow("Invalid decimals");
+		});
+
+		test("should create wallet with valid decimals", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+				decimals: 4 as DecimalPrecision,
+			});
+			expect(wallet.getCash()).toBe(1000);
+			expect(wallet.getPosition()).toBe(0);
+		});
+
+		test("should create wallet with valid feeRate and maxExposureFraction", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				executionCostRate: Percentage.zero(),
+				feeRate: Percentage.of(0.001),
+				maxExposureFraction: 0.5,
+			});
+			expect(wallet.getCash()).toBe(1000);
+			expect(wallet.getPosition()).toBe(0);
+		});
+	});
+
+	describe("Buying behavior", () => {
+		test("should buy successfully if enough cash", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			const result = wallet.buy(Volume.of(5));
+			expect(result).toBe(true);
+			expect(wallet.getPosition()).toBe(5);
+			expect(wallet.getCash()).toBe(750);
+			expect(wallet.getValuation()).toBe(1000);
+		});
+
+		test("should fail to buy if insufficient cash", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(100),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			const result = wallet.buy(Volume.of(3));
+			expect(result).toBe(false);
+			expect(wallet.getPosition()).toBe(0);
+			expect(wallet.getCash()).toBe(100);
+		});
+
+		test("should fail to buy with invalid amount (zero or negative)", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			expect(wallet.buy(Volume.of(0))).toBe(false);
+			expect(() => wallet.buy(Volume.of(-2))).toThrow();
+		});
+
+		test.each([
+			[50, 10],
+			[0.01, 50000],
+		])("refuses a buy past the exposure cap at price %p", (price, cap) => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(price),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.5,
+			});
+			// cap = 0.5 * 1000 / price units
+			expect(wallet.buy(Volume.of(cap + 1))).toBe(false);
+			expect(wallet.buy(Volume.of(cap / 2))).toBe(true);
+			expect(wallet.buy(Volume.of(cap / 2 + 1))).toBe(false);
+			expect(wallet.buy(Volume.of(cap / 2))).toBe(true);
+		});
+
+		test("checks the exposure cap at the fill price, not the marked price", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(100),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.5,
+			});
+			expect(wallet.buy(Volume.of(5), Price.of(120))).toBe(false);
+			expect(wallet.buy(Volume.of(5), Price.of(100))).toBe(true);
+		});
+	});
+
+	describe("Selling behavior", () => {
+		test("should sell successfully when enough position", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			wallet.buy(Volume.of(5));
+			const result = wallet.sell(Volume.of(2));
+			expect(result).toBe(true);
+			expect(wallet.getPosition()).toBe(3);
+			expect(wallet.getCash()).toBe(1000 - 5 * 50 + 2 * 50);
+			expect(wallet.getValuation()).toBe(850 + 3 * 50);
+		});
+
+		test("should fail to sell more than current position", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			wallet.buy(Volume.of(2));
+			const result = wallet.sell(Volume.of(5));
+			expect(result).toBe(false);
+			expect(wallet.getPosition()).toBe(2);
+		});
+
+		test("should fail to sell invalid amount (zero or negative)", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			wallet.buy(Volume.of(3));
+			expect(wallet.sell(Volume.of(0))).toBe(false);
+			expect(() => wallet.sell(Volume.of(-1))).toThrow();
+		});
+	});
+
+	describe("Price management", () => {
+		test("should update price correctly", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			wallet.setPrice(Price.of(75));
+			expect(wallet.getPrice()).toBe(75);
+		});
+
+		test("should throw for invalid price updates (negative or non-numeric)", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			expect(() => wallet.setPrice(Price.of(-10))).toThrow();
+			expect(wallet.getPrice()).toBe(50);
+			expect(() => wallet.setPrice(Price.of(Number.NaN))).toThrow();
+			expect(wallet.getPrice()).toBe(50);
+		});
+	});
+
+	describe("Valuation and state tracking", () => {
+		test("should calculate valuation correctly after buy/sell/price changes", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			wallet.buy(Volume.of(5));
+			wallet.sell(Volume.of(2));
+			wallet.setPrice(Price.of(60));
+			expect(wallet.getValuation()).toBeCloseTo(850 + 3 * 60);
+		});
+
+		test("should remain consistent across multiple operations", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(500),
+				initialPrice: Price.of(20),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			wallet.buy(Volume.of(10));
+			wallet.setPrice(Price.of(25));
+			wallet.sell(Volume.of(4));
+			expect(wallet.getPosition()).toBe(6);
+			expect(wallet.getCash()).toBe(400);
+			expect(wallet.getValuation()).toBe(400 + 6 * 25);
+		});
+	});
+
+	describe("Fee behavior", () => {
+		test("should apply feeRate on buy", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				executionCostRate: Percentage.zero(),
+				feeRate: Percentage.of(0.01),
+			});
+			wallet.buy(Volume.of(5));
+			const baseCost = 5 * 50;
+			const fee = Math.round(baseCost * 0.01 * 1e8) / 1e8;
+			expect(wallet.getCash()).toBeCloseTo(1000 - baseCost - fee, 6);
+		});
+
+		test("should apply feeRate on sell", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				executionCostRate: Percentage.zero(),
+				feeRate: Percentage.of(0.01),
+			});
+			wallet.buy(Volume.of(10));
+			const cashAfterBuy = wallet.getCash();
+			wallet.sell(Volume.of(5));
+			const baseProceeds = 5 * 50;
+			const fee = Math.round(baseProceeds * 0.01 * 1e8) / 1e8;
+			expect(wallet.getCash()).toBeCloseTo(
+				cashAfterBuy + baseProceeds - fee,
+				6
+			);
+		});
+	});
+
+	describe("PnL", () => {
+		test("should return 0 PnL when no trades", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			expect(wallet.getPnL()).toBe(0);
+		});
+
+		test("should return positive PnL after profitable price increase", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			wallet.buy(Volume.of(10));
+			wallet.setPrice(Price.of(60));
+			expect(wallet.getPnL()).toBeGreaterThan(0);
+		});
+	});
+
+	describe("Execution at a fill price with half-spread and slippage", () => {
+		const costly = () =>
+			createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(100),
+				feeRate: Percentage.of(0.001),
+				executionCostRate: Percentage.of(0.0005),
+			});
+
+		test("a buy pays fill × (1 + cost) plus the fee, marked at the close", () => {
+			const wallet = costly();
+			expect(wallet.buy(Volume.of(2), Price.of(110))).toBe(true);
+			// 2 × 110 × 1.0005 = 220.11, fee 0.22011
+			expect(wallet.getCash()).toBeCloseTo(1000 - 220.11 - 0.22011, 8);
+			expect(wallet.getPrice()).toBe(100);
+		});
+
+		test("a sale receives fill × (1 − cost) minus the fee", () => {
+			const wallet = costly();
+			wallet.buy(Volume.of(2), Price.of(100));
+			const cash = Number(wallet.getCash());
+			expect(wallet.sell(Volume.of(2), Price.of(110))).toBe(true);
+			// 2 × 110 × 0.9995 = 219.89, fee 0.21989
+			expect(wallet.getCash()).toBeCloseTo(cash + 219.89 - 0.21989, 8);
+		});
+
+		test("without a fill price, trades at the marked price", () => {
+			const wallet = costly();
+			wallet.buy(Volume.of(1));
+			expect(wallet.getCash()).toBeCloseTo(1000 - 100.05 - 0.10005, 8);
+		});
+
+		test("rejects an invalid execution cost or fill price", () => {
+			expect(() =>
+				createWallet({
+					initialCash: Cash.of(1000),
+					initialPrice: Price.of(100),
+					feeRate: Percentage.zero(),
+					executionCostRate: Percentage.of(1),
+				})
+			).toThrow("Invalid executionCostRate");
+			expect(() => costly().buy(Volume.of(1), Number.NaN as never)).toThrow(
+				"fill price received invalid value"
+			);
+		});
+	});
+
+	describe("Reset", () => {
+		test("should reset wallet to initial state", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(50),
+				feeRate: Percentage.zero(),
+				executionCostRate: Percentage.zero(),
+			});
+			wallet.buy(Volume.of(5));
+			wallet.setPrice(Price.of(60));
+			wallet.sell(Volume.of(2));
+
+			wallet.reset();
+
+			expect(wallet.getCash()).toBe(1000);
+			expect(wallet.getPosition()).toBe(0);
+			expect(wallet.getPrice()).toBe(50);
+			expect(wallet.getValuation()).toBe(1000);
+			expect(wallet.getPnL()).toBe(0);
+		});
+	});
+});

@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
-import type {
-	Percentage,
-	PositiveInt,
-} from "@trading-model/primitives/primitives";
-import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
-import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
+import { makePRNG } from "@trading-model/crypto/prng";
+import type { NeuralNetworkConfig } from "@trading-model/model-runtime/neural-network/type";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
-} from "../../../src/domain/neural-network/type";
+} from "@trading-model/model-runtime/neural-network/type";
+import type {
+	Percentage,
+	PositiveInt,
+} from "@trading-model/primitives/primitives";
+import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
 
 function makeConfig(
 	overrides?: Partial<NeuralNetworkConfig>
@@ -143,7 +143,7 @@ describe("NeuralNetwork", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 			const target = new Float32Array([1, 0, 0]);
 
-			const loss = nn.train(input, target);
+			const loss = nn.trainFrom(nn.forward(input), target);
 
 			expect(typeof loss).toBe("number");
 			expect(Number.isFinite(loss)).toBe(true);
@@ -153,7 +153,10 @@ describe("NeuralNetwork", () => {
 			const nn = new NeuralNetwork(makeConfig());
 
 			expect(() =>
-				nn.train(new Float32Array([1, 2]), new Float32Array([1, 0, 0]))
+				nn.trainFrom(
+					nn.forward(new Float32Array([1, 2])),
+					new Float32Array([1, 0, 0])
+				)
 			).toThrow();
 		});
 
@@ -161,8 +164,8 @@ describe("NeuralNetwork", () => {
 			const nn = new NeuralNetwork(makeConfig());
 
 			expect(() =>
-				nn.train(
-					new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				nn.trainFrom(
+					nn.forward(new Float32Array([0.5, -0.3, 0.1, 0.8])),
 					new Float32Array([1, 0])
 				)
 			).toThrow();
@@ -182,7 +185,7 @@ describe("NeuralNetwork", () => {
 			const input = new Float32Array([1000]);
 			const target = new Float32Array([0]);
 
-			const loss = nn.train(input, target);
+			const loss = nn.trainFrom(nn.forward(input), target);
 
 			expect(Number.isFinite(loss)).toBe(true);
 		});
@@ -300,8 +303,8 @@ describe("NeuralNetwork", () => {
 
 		it("should train without bias", () => {
 			const nn = new NeuralNetwork(makeConfig({ useBias: false }));
-			const loss = nn.train(
-				new Float32Array([0.5, -0.3, 0.1, 0.8]),
+			const loss = nn.trainFrom(
+				nn.forward(new Float32Array([0.5, -0.3, 0.1, 0.8])),
 				new Float32Array([1, 0, 0])
 			);
 			expect(Number.isFinite(loss)).toBe(true);

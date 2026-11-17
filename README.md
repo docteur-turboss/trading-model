@@ -47,6 +47,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `audit-logger`          | 8450 | Immutable event traceability (hash-chained audit trail)        |
 | `dlq-service`           | 8452 | Dead letter queue storage with auto-retry + replay             |
 | `edge-proxy`            | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS      |
+| `model-evaluator`       | 8453 | Offline check of trained models on each `training.model.published` (ADR-0049); records one evaluation per model, never promotes |
 
 ### Shared Packages
 
@@ -55,11 +56,12 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, retry-policy. Zero dependencies |
 | `@trading-model/contracts` | Shared runtime-free contracts: events, message envelope, service registry, `http-status`/`http-headers`, `LoggerPort` registry |
 | `@trading-model/reliability` | Circuit breaker, circuit-state machine, latency tracker |
+| `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator shared by trader-trainer and model-evaluator |
 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, shared Zod schemas |
 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders |
 | `@trading-model/http` | HTTP middleware (mTLS auth, response protocol), HTTP client, logging pipeline |
 | `@trading-model/validation` | Zod schemas, DTOs, event enums, admin contracts |
-| `@trading-model/server-utils` | Secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
+| `@trading-model/http` | Secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness |
 | `@trading-model/address-manager` | Service discovery client with health-checking and token rotation |
 | `@trading-model/broker-message` | Inter-service messaging SDK with typed event subscriptions |
@@ -73,7 +75,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 ```bash
 bun install --frozen-lockfile                       # Install all workspace dependencies
 bun run build                # Build the shared packages in dependency order
-bun run build:ts             # Full build (packages + 7 services)
+bun run build:ts             # Full build (packages + every service)
 bun run lint                 # Biome check across the monorepo
 bun run test        # All workspace tests
 bun run test:coverage        # All tests with coverage
@@ -99,7 +101,7 @@ bun run commit               # Interactive gitmoji commit CLI
 GitHub Actions workflows:
 
 - **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage → DB integration (Testcontainers) → observability gate → K8s overlays → contract tests → E2E (Docker stack) → K8s smoke test (kind)
-- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push of 10 images (7 services + `spire-tools` + `backup-tools` + `db-migrate`) as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
+- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push of the service and tool images listed in `release.yml` as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
 - **deploy.yml** — manual staging/production deploy with rollback
 - **backup-test.yml** — weekly restore drill of the Docker backup scripts
 
@@ -126,8 +128,8 @@ The pre-push git hook is `.husky/pre-push`.
 ## Monitoring
 
 - **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
-- **Alerts:** Prometheus rules in `observability/alerting.yml` (SLO burn rates + operational), mirrored in the K8s Prometheus ConfigMap and checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/Pushover, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
-- **Traces:** OpenTelemetry → OTLP Collector → Jaeger (all 7 services instrumented)
+- **Alerts:** Prometheus rules in `deploy/k8s/infra/config/alerting.yml` (SLO burn rates + operational, shared by compose and K8s), checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/Pushover, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
+- **Traces:** OpenTelemetry → OTLP Collector → Jaeger (every service instrumented)
 - **Logs:** structured JSON → Promtail → Loki
 
 ## Status

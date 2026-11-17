@@ -52,23 +52,22 @@ graph TD
 - **Core entities:** Candle, Trade, Ticker, OrderBook
 - **External dependency:** Binance API
 - **Publishes:** `market.trade.recent.fetch`, `market.candlestick.series.fetch`, `market.order-book.snapshot.fetch`, `market.ticker.24hr-stats.fetch`, `market.price-ticker.snapshot.fetch`, `market.order-book-ticker.snapshot.fetch`
-- **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; **no consumer yet** (trader-trainer does not read them).
-- **Debug events:** `example.debug.create`, `example.show.create`
+- **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; **no consumer yet** (trader-trainer and model-evaluator do not read them).
 
 ### 2. Training Context
 
 - **Owner:** `trader-trainer`
 - **Sub-contexts:** `genetic-algorithm` (population evolution), `neural-network` (agent learning)
 - **Core entities:** Genome, Agent, Wallet, Experience
-- **Consumes:** Market events from Market Data Context
+- **Consumes:** Market events from Market Data Context (not candles: it reads the stored candle window from `GET /candles/symbols/:symbol` at each session, ADR-0044)
 - **Publishes:** Agent payloads (best agent after each generation), `training.model.published` after each versioned artifact (ADR-0022)
-- **Consumers:** none yet. Only audit-logger receives `training.model.published`; `MODEL_DOWNLOAD_CALLERS` is empty, so no service may download weights. The trainer does not read signals either.
+- **Consumers:** audit-logger (chain) and `model-evaluator`, the offline evaluation consumer (ADR-0049 option B): it is the only entry of `MODEL_DOWNLOAD_CALLERS`, verifies the weights against the manifest and records one evaluation per `(symbol, version)`; the replay on stored candles is not done yet. No decision, paper-trading or order consumer exists. The trainer does not read signals.
 
 ### 3. Messaging Context
 
 - **Owner:** `message-manager` + `dlq-service` (dead letters and replay are part of delivery, not observability)
 - **Core entities:** Message, Subscription, DeliveryAttempt, DeadLetterEntry
-- **Responsibilities:** Topic routing, delivery guarantees, retry (message-manager); dead-letter storage and replay back to message-manager (dlq-service). The broker stores no message (ADR-0019)
+- **Responsibilities:** Topic routing, delivery guarantees, retry (message-manager); dead-letter storage and replay back to message-manager (dlq-service). The broker keeps accepted messages in its Redis Streams journal until delivery (ADR-0048)
 - **Internal interfaces:** `MessageDeliveryPort`, `SubscriptionStorePort`
 - **Publishes (dlq-service):** `dlq.entry.added`, `dlq.replay.completed`, `dlq.entries.deleted`
 
@@ -88,7 +87,7 @@ graph TD
 
 - **Owner:** `audit-logger`
 - **Core entities:** AuditEvent
-- **Consumes:** All published events for audit trail (including `dlq.*`)
+- **Consumes:** audit, training and dlq topics (market data is not chained)
 - **Internal events:** `audit.heartbeat`, `audit.gap.detected`
 
 ### 7. Gateway Context
@@ -99,7 +98,7 @@ graph TD
 
 ### Not yet defined: downstream context
 
-No Strategy, Execution or Evaluation context exists: trained models and collected signals have no consumer, so the trading decision is not part of the system yet. Options and the proposed contract are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Proposed). A future Execution context, a Risk/Execution service separate from the model and from the decision consumer, must exist before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Proposed). It has no code and no consumer.
+No Strategy or Execution context exists: the only consumer of trained models is the offline `model-evaluator` (no order flow), and collected signals have no consumer, so the trading decision is not part of the system yet. The contract and the decision (B now, paper trading C after ADR-0064, real capital out of scope) are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Accepted). A future Execution context, a Risk/Execution service separate from the model and from the decision consumer, must exist before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Proposed). It has no code and no consumer.
 
 ## Integration Patterns
 
@@ -121,4 +120,4 @@ The historical single `EnumEventMessage` enum (mixing market data, certificate, 
 4. `DlqEvent` — `@trading-model/contracts/dlq-events`: dlq-service publishes `dlq.entry.added`, `dlq.replay.completed` and `dlq.entries.deleted` so the audit trail records what happens to undelivered messages
 5. Certificate/security events were **removed** with the CA decommission (ADR-0011)
 
-Per-context Zod schemas live in `@trading-model/broker-message/domain/messages/schemas` (metadata, message payload, market events, audit events).
+Per-context Zod schemas live in `@trading-model/broker-message/messages/schemas` (metadata, message payload, market events, audit events).

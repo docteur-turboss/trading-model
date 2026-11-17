@@ -1,4 +1,4 @@
-﻿import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
+﻿import { beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
@@ -11,10 +11,7 @@ import {
 	relayThroughMessageManager,
 } from "./support/broker-pipeline";
 import { deadLetterAndReplay } from "./support/dead-letter-replay";
-import {
-	createAuditSubscriber,
-	createTrainerSubscriber,
-} from "./support/subscribers";
+import { createAuditSubscriber } from "./support/subscribers";
 
 /**
  * Cross-service message contracts, checked on the real code of both ends.
@@ -69,28 +66,31 @@ jest.mock("../../services/audit-logger/src/config/metrics", () => ({
 	EVENTS_INGESTED_TOTAL: { inc: () => undefined },
 }));
 // dlq-service publishes its events through the real broker client.
-jest.mock(
-	"@trading-model/broker-message/application/services/create-message-manager",
-	() => ({
-		createServiceMessageManager: () => ({
-			messageManager: {
-				post: {
-					indirect: (payload: unknown, metadata: never) =>
-						mockDlqBroker.client.publish(payload, metadata),
-				},
+jest.mock("@trading-model/broker-message/create-message-manager", () => ({
+	createMessageManager: () => ({
+		messageManager: {
+			post: {
+				indirect: (payload: unknown, metadata: never) =>
+					mockDlqBroker.client.publish(payload, metadata),
 			},
-		}),
-	})
-);
+		},
+	}),
+}));
 jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
-	ENV: { INSTANCE_ID: "dlq-service-1" },
+	ENV: {
+		INSTANCE_ID: "dlq-service-1",
+		SERVICE_NAME: "dlq-service",
+		MESSAGE_CALLBACK_PATH: "message",
+	},
+}));
+jest.mock("@trading-model/common/config/tls-paths", () => ({
+	buildTlsFromEnv: () => ({}),
 }));
 jest.mock("../../services/dlq-service/src/config/address-manager", () => ({
 	AddressManager: {},
 }));
 
 import {
-	notifyAddAudit,
 	notifyDeleteAudit,
 	notifyReplayAudit,
 } from "../../services/dlq-service/src/adapters/outbound/audit-notifier";
@@ -117,10 +117,10 @@ import { ModelPublisher } from "../../services/trader-trainer/src/adapters/outbo
  * starts being published.
  */
 const UNPUBLISHED_TOPICS: Record<string, string> = {
-	[MarketEvent.TestEvent]: "debug topic, no producer",
-	[MarketEvent.ExampleEvent]: "example topic, no producer",
 	[AuditEvent.AuditHeartbeat]: "reserved for audit heartbeats, no producer",
 	[AuditEvent.AuditGapDetected]: "reserved for audit gap reports, no producer",
+	[DlqEvent.EntryAdded]:
+		"written into the journal by message-manager's dead-letter store (bus-library.spec.ts, dead-letter.spec.ts)",
 };
 
 const ALL_TOPICS: string[] = [
@@ -171,7 +171,6 @@ async function publishScrapeCycle(): Promise<Publication[]> {
 }
 
 async function publishDlqEvents(): Promise<Publication[]> {
-	notifyAddAudit("entry-1", "market.trade.recent.fetch" as never, "OPEN", null);
 	// The human actions wait for message-manager to accept their event (ADR-0059).
 	await expect(
 		notifyReplayAudit({
@@ -184,8 +183,6 @@ async function publishDlqEvents(): Promise<Publication[]> {
 	await expect(notifyDeleteAudit(["entry-1"], 1, "ops-alice")).resolves.toBe(
 		true
 	);
-	// The add does not wait for its publish.
-	await new Promise((resolve) => setImmediate(resolve));
 	return publicationsOf("dlq-service", mockDlqBroker.requests);
 }
 
@@ -236,12 +233,8 @@ async function publishTrainedModel(): Promise<Publication[]> {
 
 describe("service message contracts", () => {
 	let publications: Publication[] = [];
-	const trainer = createTrainerSubscriber();
 	const audit = createAuditSubscriber();
-	const subscribers = [
-		{ name: "trader-trainer", topics: trainer.topics as string[] },
-		{ name: "audit-logger", topics: audit.topics },
-	];
+	const subscribers = [{ name: "audit-logger", topics: audit.topics }];
 
 	beforeAll(async () => {
 		publications = [
@@ -250,8 +243,6 @@ describe("service message contracts", () => {
 			...(await publishDlqEvents()),
 		];
 	});
-
-	afterAll(() => trainer.dispose());
 
 	describe("topic catalogue", () => {
 		it("every declared topic is published, or listed as unpublished", () => {
@@ -282,6 +273,8 @@ describe("service message contracts", () => {
 		it("every published topic has at least one subscriber", () => {
 			const unconsumed = publications
 				.map((p) => p.topic)
+				// Market data: no subscriber since ADR-0078 (the trainer reads stored candles).
+				.filter((topic) => !Object.values<string>(MarketEvent).includes(topic))
 				.filter((topic) => !subscribers.some((s) => s.topics.includes(topic)));
 
 			expect(unconsumed).toEqual([]);
@@ -295,14 +288,6 @@ describe("service message contracts", () => {
 			);
 
 			expect(undeclared).toEqual([]);
-		});
-
-		it("every topic trader-trainer depends on is published by someone", () => {
-			const published = new Set(publications.map((p) => p.topic));
-
-			expect(trainer.topics.filter((topic) => !published.has(topic))).toEqual(
-				[]
-			);
 		});
 	});
 
@@ -332,27 +317,6 @@ describe("service message contracts", () => {
 			}
 			return bodies;
 		}
-
-		function bufferState(): string {
-			const { buffer } = trainer;
-			return JSON.stringify({
-				states: buffer.getSymbols().map((s) => buffer.getSymbolState(s)),
-			});
-		}
-
-		it.each(trainer.topics as string[])(
-			"trader-trainer: %s is validated and reaches the market data buffer",
-			async (topic) => {
-				const before = bufferState();
-
-				for (const body of await deliveredBodies(topic)) {
-					const reception = await trainer.receive(body);
-					expect(reception).toEqual({ status: 200 });
-				}
-
-				expect(bufferState()).not.toEqual(before);
-			}
-		);
 
 		it.each(audit.topics.filter((t) => !(t in UNPUBLISHED_TOPICS)))(
 			"audit-logger: %s is recorded with its payload",
@@ -385,11 +349,8 @@ describe("service message contracts", () => {
 		);
 	});
 
-	describe("dead letters replayed by dlq-service reach the subscribers again", () => {
-		const receivers = [
-			{ topics: trainer.topics as string[], receive: trainer.receive },
-			{ topics: audit.topics, receive: audit.receive },
-		];
+	describe("dead letters replayed by the CLI reach the subscribers again", () => {
+		const receivers = [{ topics: audit.topics, receive: audit.receive }];
 
 		it.each(ALL_TOPICS.filter((t) => !(t in UNPUBLISHED_TOPICS)))(
 			"%s",
@@ -402,31 +363,24 @@ describe("service message contracts", () => {
 						throw new Error(first.error);
 					}
 
-					const { stored, replay } = await deadLetterAndReplay(first.message);
+					const { stored, replayed } = await deadLetterAndReplay(first.message);
 					expect(stored.topic).toBe(topic);
-
-					const replayed = await relayThroughMessageManager(replay);
-					expect(replayed).toMatchObject({ accepted: true });
-					if (!replayed.accepted) {
-						continue;
-					}
 					// ADR-0043: only the failed service, under the original messageId.
-					expect(replayed.journaledFor).toEqual({
-						services: ["audit-logger"],
-						onlyFor: "audit-logger",
-					});
-					expect(replayed.message.metadata.messageId).toBe(
-						first.message.metadata.messageId
-					);
-					expect((replayed.delivered as { payload: unknown }).payload).toEqual(
+					expect(stored.group).toBe("audit-logger");
+					expect(replayed.map((m) => m.metadata.messageId)).toEqual([
+						first.message.metadata.messageId,
+					]);
+					const delivered = {
+						metadata: replayed[0]?.metadata,
+						payload: replayed[0]?.payload,
+					};
+					expect(delivered.payload).toEqual(
 						(first.delivered as { payload: unknown }).payload
 					);
 					for (const receiver of receivers.filter((r) =>
 						r.topics.includes(topic)
 					)) {
-						expect((await receiver.receive(replayed.delivered)).status).toBe(
-							200
-						);
+						expect((await receiver.receive(delivered)).status).toBe(200);
 					}
 				}
 			}

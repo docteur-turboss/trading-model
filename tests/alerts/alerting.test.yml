@@ -1,12 +1,11 @@
-# promtool unit tests of observability/alerting.yml (the K8s copy is kept
-# identical by scripts/observability-gate.mjs). Run: bash tests/alerts/run.sh
+# promtool unit tests of deploy/k8s/infra/config/alerting.yml. Run: bash tests/alerts/run.sh
 #
 # Each case pins a behaviour that was wrong before 2026-10-28: ratios that
 # divided every 5xx series by itself (any single error = 100%), ratios whose
 # numerator series did not exist (never fired), a p95 capped by the largest
 # bucket, and no alert at all on market data that stopped flowing.
 rule_files:
-  - ../../observability/alerting.yml
+  - ../../deploy/k8s/infra/config/alerting.yml
 
 evaluation_interval: 30s
 
@@ -27,18 +26,6 @@ tests:
       - series: 'http_requests_total{job="dlq-service",instance="d",method="GET",path="/c",status="503"}'
         values: '0+10x40'
     alert_rule_test:
-      - eval_time: 20m
-        alertname: HighErrorRate
-        exp_alerts:
-          - exp_labels: {severity: warning, job: dlq-service}
-            exp_annotations:
-              summary: 'High error rate on dlq-service'
-              description: 'Error rate is 10% for the last 5 minutes.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
-      # 10% is under the 14.4% fast-burn threshold of the 1% error-rate SLO.
-      - eval_time: 20m
-        alertname: SLOErrorRateFastBurn
-        exp_alerts: []
       - eval_time: 20m
         alertname: SLOAvailabilityFastBurn
         exp_alerts:
@@ -86,42 +73,8 @@ tests:
               summary: 'Availability SLO slow burn rate exceeded'
               description: '5xx ratio > 0.6% over both 6h and 30m (6x the 0.1% budget of the 99.9% SLO). Probes are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
-      - eval_time: 419m
-        alertname: SLOErrorRateFastBurn
-        exp_alerts:
-          - exp_labels: {severity: critical, slo: error_rate, job: steady}
-            exp_annotations:
-              summary: 'Error rate SLO fast burn rate exceeded'
-              description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the error rate SLO). Probes are not counted.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
-      - eval_time: 419m
-        alertname: SLOErrorRateSlowBurn
-        exp_alerts:
-          - exp_labels: {severity: warning, slo: error_rate, job: steady}
-            exp_annotations:
-              summary: 'Error rate SLO slow burn rate exceeded'
-              description: '5xx ratio > 6% over both 6h and 30m (6x the 1% budget of the error rate SLO). Probes are not counted.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
       # Only "steady" is expected above: "spike" (9% over 5m, 0.8% over 1h) and
       # "probes" (all 5xx on /ping, /health/ready) must not fire.
-
-  # 1000 candles persisted per 30 min, 100 reach the trainer: freshness SLO.
-  - name: candles persisted but not delivered to the trainer
-    interval: 1m
-    input_series:
-      - series: 'fs_candles_persisted_total{job="financial-scraper",instance="s"}'
-        values: '0+33x60'
-      - series: 'tt_market_data_received_total{job="trader-trainer",instance="t"}'
-        values: '0+3x60'
-    alert_rule_test:
-      - eval_time: 50m
-        alertname: CandleDeliveryLagging
-        exp_alerts:
-          - exp_labels: {severity: warning, slo: data_freshness}
-            exp_annotations:
-              summary: 'Less than half of the persisted candles reach the trainer'
-              description: 'financial-scraper persisted candles over the last 30m but trader-trainer received under 50% of them: the scraper to trainer path is lagging or dropping data.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
   # 90% of the requests in < 0.1s, 10% between 5s and 10s: p95 = 7.5s, over
   # the job (all paths together).
@@ -144,6 +97,34 @@ tests:
         values: '0+10x40'
       - series: 'http_request_duration_seconds_bucket{job="api-gateway",method="GET",path="/slow",le="+Inf"}'
         values: '0+10x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: SLOLatencyFastBurn
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: latency, job: api-gateway}
+            exp_annotations:
+              summary: 'Latency SLO fast burn rate exceeded'
+              description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
+
+  # 20x more fast /metrics scrapes must not hide a slow business route.
+  - name: probes and scrapes do not dilute the p95
+    interval: 1m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",path="/orders",le="5"}'
+        values: '0x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",path="/orders",le="10"}'
+        values: '0+10x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",path="/orders",le="+Inf"}'
+        values: '0+10x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",path="/metrics",le="0.1"}'
+        values: '0+200x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",path="/metrics",le="5"}'
+        values: '0+200x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",path="/metrics",le="10"}'
+        values: '0+200x40'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",path="/metrics",le="+Inf"}'
+        values: '0+200x40'
     alert_rule_test:
       - eval_time: 20m
         alertname: SLOLatencyFastBurn
@@ -326,8 +307,8 @@ tests:
               description: 'Trainer completion rate is 0% over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
-  # Every message goes to the DLQ: no published series at all.
-  - name: message-manager publishes nothing, everything goes to the DLQ
+  # Every message goes to the DLQ: no successful delivery series at all.
+  - name: no delivery succeeds, everything goes to the DLQ
     interval: 1m
     input_series:
       - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market-data",reason="timeout"}'
@@ -345,7 +326,7 @@ tests:
   - name: message-manager delivers 99.9%
     interval: 1m
     input_series:
-      - series: 'mm_messages_published_total{job="message-manager",instance="m",topic="market-data"}'
+      - series: 'mm_messages_delivered_total{job="message-manager",instance="m",topic="market-data",status="success"}'
         values: '0+999x30'
       - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market-data",reason="timeout"}'
         values: '0+1x30'
@@ -363,8 +344,8 @@ tests:
         values: '1x40'
       - series: 'fs_candles_persisted_total{job="financial-scraper",instance="s"}'
         values: '0x40'
-      - series: 'tt_market_data_received_total{job="trader-trainer",instance="t"}'
-        values: '0x40'
+      - series: 'tt_last_candle_age_seconds{job="trader-trainer",instance="t",symbol="BTCUSDT"}'
+        values: '3600x40'
     alert_rule_test:
       - eval_time: 25m
         alertname: MarketDataStale
@@ -379,8 +360,8 @@ tests:
         exp_alerts:
           - exp_labels: {severity: critical}
             exp_annotations:
-              summary: 'trader-trainer receives no market data'
-              description: 'No candle reached the trainer buffer in 15 minutes: the scraper, message-manager or the trainer subscription is broken.'
+              summary: 'trader-trainer reads no fresh candle'
+              description: 'At its last session the newest stored candle of every symbol was over 15 minutes old: the scraper no longer feeds MySQL or the trainer cannot read it.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
       - eval_time: 25m
         alertname: ServiceDown
@@ -472,6 +453,8 @@ tests:
         values: '1x10'
       - series: 'up{job="trader-trainer",instance="i"}'
         values: '1x10'
+      - series: 'up{job="model-evaluator",instance="i"}'
+        values: '1x10'
       - series: 'up{job="dlq-service",instance="i"}'
         values: '0x10'
     alert_rule_test:
@@ -498,30 +481,16 @@ tests:
       - eval_time: 10m
         alertname: ServiceTargetsMissing
         exp_alerts:
+          - exp_labels: {severity: critical, job: model-evaluator}
+            exp_annotations:
+              summary: 'model-evaluator has no scrape target'
+              description: 'Prometheus has had no up series for model-evaluator for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
           - exp_labels: {severity: critical, job: dlq-service}
             exp_annotations:
               summary: 'dlq-service has no scrape target'
               description: 'Prometheus has had no up series for dlq-service for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
-
-  # Series shape of the real gauge: one series per target instanceId, exported
-  # by the caller (job). 1 = open, held for the 1m 'for'.
-  - name: an open address-manager breaker fires CircuitBreakerOpen
-    interval: 1m
-    input_series:
-      - series: 'address_manager_circuit_breaker_state{job="trader-trainer",instance="t",instanceId="mm-1"}'
-        values: '0 1x10'
-      - series: 'address_manager_circuit_breaker_state{job="trader-trainer",instance="t",instanceId="mm-2"}'
-        values: '0x11'
-    alert_rule_test:
-      - eval_time: 8m
-        alertname: CircuitBreakerOpen
-        exp_alerts:
-          - exp_labels: {severity: critical, job: trader-trainer, instance: t, instanceId: mm-1}
-            exp_annotations:
-              summary: 'Circuit breaker open on trader-trainer'
-              description: 'The circuit breaker of trader-trainer for instance mm-1 is in OPEN state: calls to that instance are refused.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md'
 
   - name: sustained HTTP breaker rejections fire HttpCircuitBreakerRejecting
     interval: 1m
@@ -546,8 +515,8 @@ tests:
         values: '0x40'
       - series: 'fs_candles_persisted_total{job="financial-scraper-collector",instance="c"}'
         values: '0+12x40'
-      - series: 'tt_market_data_received_total{job="trader-trainer",instance="t"}'
-        values: '0+12x40'
+      - series: 'tt_last_candle_age_seconds{job="trader-trainer",instance="t",symbol="BTCUSDT"}'
+        values: '60x40'
     alert_rule_test:
       - eval_time: 25m
         alertname: MarketDataStale
@@ -652,6 +621,8 @@ tests:
         values: '0+1x60'
       - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="ecb-aaa-yield-10y",result="fetch_error"}'
         values: '0x60'
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="ecb-hicp",result="not_modified"}'
+        values: '0+1x60'
     alert_rule_test:
       - eval_time: 30h
         alertname: SignalCollectionFailing
@@ -667,6 +638,60 @@ tests:
       - eval_time: 57h
         alertname: SignalCollectionFailing
         exp_alerts: []
+
+  # A silent source alerts past its own threshold: hourly (max age 3 h) stops
+  # at 1 h, quarterly (max age 120 days) last ran 90 days ago and stays quiet.
+  - name: a silent signal source alerts past its threshold, by source
+    interval: 1h
+    input_series:
+      - series: 'fs_signal_last_success_timestamp_seconds{job="financial-scraper-collector",instance="c",source="nws"}'
+        values: '0x10'
+      - series: 'fs_signal_source_max_age_seconds{job="financial-scraper-collector",instance="c",source="nws"}'
+        values: '10800x10'
+      - series: 'fs_signal_last_success_timestamp_seconds{job="financial-scraper-collector",instance="c",source="sec-quarterly"}'
+        values: '-7776000x10'
+      - series: 'fs_signal_source_max_age_seconds{job="financial-scraper-collector",instance="c",source="sec-quarterly"}'
+        values: '10368000x10'
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: SignalSourceStale
+        exp_alerts: []
+      - eval_time: 4h
+        alertname: SignalSourceStale
+        exp_alerts:
+          - exp_labels: {severity: warning, source: nws}
+            exp_annotations:
+              summary: 'A signal source stopped producing'
+              description: 'nws has had no successful collection for 4h 0m 0s, beyond its freshness threshold (no failure counted: cron stopped or lease lost).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalsourcestale'
+
+  # No collecting pod (HTTP replicas, SIGNAL_COLLECTION_ENABLED=false): no series, no alert.
+  - name: no signal freshness series, no stale alert
+    interval: 1h
+    input_series:
+      - series: 'up{job="financial-scraper-collector",instance="c"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 4h
+        alertname: SignalSourceStale
+        exp_alerts: []
+
+  # A quarantined source only counts skipped_quarantine (its ticks make no
+  # request): the alert must stay on.
+  - name: a quarantined signal source keeps alerting
+    interval: 1h
+    input_series:
+      - series: 'fs_signal_collections_total{job="financial-scraper-collector",instance="c",source="nws-latest-observation",result="skipped_quarantine"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 10h
+        alertname: SignalCollectionFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, source: nws-latest-observation}
+            exp_annotations:
+              summary: 'A signal source fails to be collected'
+              description: 'nws-latest-observation failed 10 collections in 24 hours: its signals are missing or stale (fetch_error: source down or refusing, 403 from SEC EDGAR without SIGNAL_CONTACT_EMAIL; invalid_payload: its format changed; store_error: MySQL).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalcollectionfailing'
 
   # ADR-0026: a geo-block (451) alerts at once; other errors (429, 5xx) and
   # 200s do not. The 451 series only exists once Binance starts refusing.
@@ -986,23 +1011,26 @@ tests:
           - exp_labels: {severity: warning, topic: market.candlestick.series.fetch}
             exp_annotations:
               summary: 'Messages dead-lettered on market.candlestick.series.fetch'
-              description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in dlq-service (GET /dlq) to inspect and replay.'
+              description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in the dead stream of the topic (audit-dlq CLI) to inspect and replay.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
-  # One dead letter dlq-service refused for good (400, 413).
-  - name: dead letters dlq-service refused
+  # A dead stream with entries: the alert waits 5 minutes, stays while one is left.
+  - name: dead letters wait in a dead stream
     interval: 1m
     input_series:
-      - series: 'mm_dlq_rejected_total{job="message-manager",instance="m1"}'
-        values: '0 0 1x20'
+      - series: 'bus_dead_letters{job="message-manager",instance="m1",topic="market.candlestick.series.fetch"}'
+        values: '0 0 2x20'
     alert_rule_test:
-      - eval_time: 20m
-        alertname: DeadLettersRejected
+      - eval_time: 3m
+        alertname: BusDeadLetters
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: BusDeadLetters
         exp_alerts:
-          - exp_labels: {severity: warning}
+          - exp_labels: {severity: warning, topic: market.candlestick.series.fetch}
             exp_annotations:
-              summary: 'dlq-service refused dead letters'
-              description: 'dlq-service refused 1 dead letter(s) in the last hour (invalid or too large): their journal entries stay pending until trimmed after 24 h (a lost message, JournalEntriesTrimmed): fix the cause within 24 h, see the runbook and the message-manager logs.'
+              summary: 'Dead letters wait on market.candlestick.series.fetch'
+              description: '2 dead letter(s) wait in the dead stream of market.candlestick.series.fetch (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
   # market.ticker: dropped for 30 minutes, fires. market.trade: a burst at
@@ -1480,6 +1508,41 @@ tests:
         values: '3600+0x20'
     alert_rule_test:
       - eval_time: 10m
+        alertname: CertificateExpiry
+        exp_alerts:
+          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+            exp_annotations:
+              summary: 'SVID close to expiry on dlq-service'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
+
+  # Issue #1249: 4 h SVIDs (ADR-0065, entries made with -x509SVIDTTL 14400)
+  # renewed at half-life never fall below 2 h left; a rotation stalled since
+  # the first renewal at 120m (expiry still 14400) fires at 186m: below 1 h
+  # left from 181m, held for 5 min.
+  - name: certificate expiry stays silent on normal 4 h rotation and fires on stalled rotation
+    interval: 1m
+    input_series:
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://api-gateway:3000/ping",service="api-gateway"}'
+        values: '14400x119 21600x119 28800x119'
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://dlq-service:3000/ping",service="dlq-service"}'
+        values: '14400x359'
+    alert_rule_test:
+      - eval_time: 180m
+        alertname: CertificateExpiry
+        exp_alerts: []
+      - eval_time: 185m
+        alertname: CertificateExpiry
+        exp_alerts: []
+      - eval_time: 186m
+        alertname: CertificateExpiry
+        exp_alerts:
+          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+            exp_annotations:
+              summary: 'SVID close to expiry on dlq-service'
+              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
+      - eval_time: 350m
         alertname: CertificateExpiry
         exp_alerts:
           - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}

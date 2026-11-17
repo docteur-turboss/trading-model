@@ -113,6 +113,9 @@ services:
       - redis-server
       - --appendonly
       - ${REDIS_APPENDONLY:-no}
+      # A full Redis refuses writes (a publish fails visibly) instead of evicting journal entries (ADR-0073).
+      - --maxmemory-policy
+      - noeviction
       - --save
       - 900 1 300 10
     volumes:
@@ -194,7 +197,6 @@ services:
     environment:
       <<: *core-env
       SERVICE_NAME: discovery-server
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       CLEANUP_SERVICE_INTERVAL_MS: '600000'
       # Signs the instance tokens kept in Redis: stable across restarts.
       # Required with NODE_ENV=production (discovery refuses to start).
@@ -316,7 +318,6 @@ services:
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: message-manager
       INSTANCE_ID: message-manager-1
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       # Signs the dead letters sent to dlq-service: same key as dlq-service.
       DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
     # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
@@ -359,8 +360,8 @@ services:
     environment:
       <<: *message-env
       APP_NAME: financial-scraper
-      # Major 2 = gateway prefix /v2/financial-scraper (v3.0.0 breaking API change):
-      # not the shared APP_VERSION, whose major stays 1.
+      # Registered for release N-1 gateways only (/v2/financial-scraper); the
+      # major now lives in the service routes and PUBLIC_ROUTES (ADR-0072).
       APP_VERSION: 2.0.0
       SERVICE_NAME: financial-scraper
       INSTANCE_ID: financial-scraper-1
@@ -371,7 +372,10 @@ services:
       # Contact e-mail in the User-Agent of the signal sources (ADR-0036): SEC
       # EDGAR answers 403 without one. From .env only: the repository is public.
       SIGNAL_CONTACT_EMAIL: ${SIGNAL_CONTACT_EMAIL:-}
+      SIGNAL_KEY_EIA: ${SIGNAL_KEY_EIA:-}
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
+      SIGNAL_KEY_FRED: ${SIGNAL_KEY_FRED:-}
+      SIGNAL_KEY_TWELVEDATA: ${SIGNAL_KEY_TWELVEDATA:-}
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
@@ -419,6 +423,13 @@ services:
       SERVICE_NAME: trader-trainer
       INSTANCE_ID: trader-trainer-1
       TRAINER_SYMBOLS: ${TRAINER_SYMBOLS:-BTCUSDT,ETHUSDT}
+      TRAINER_SYMBOL_ASSETS: ${TRAINER_SYMBOL_ASSETS:-}
+      TRAINER_ASSETS: ${TRAINER_ASSETS:-}
+      TRAINER_ASSET_COSTS: ${TRAINER_ASSET_COSTS:-{}}
+      TRAINER_SIGNAL_FEATURES: ${TRAINER_SIGNAL_FEATURES:-}
+      FEATURE_SIGNAL_INPUTS: ${FEATURE_SIGNAL_INPUTS:-false}
+      FEATURE_INPUT_MASK_GENE: ${FEATURE_INPUT_MASK_GENE:-false}
+      TRAINER_INPUT_MASK_PROTECT_CANDLE: ${TRAINER_INPUT_MASK_PROTECT_CANDLE:-false}
       TRAINER_DATA_WINDOW: ${TRAINER_DATA_WINDOW:-500}
       TRAINER_VALIDATION_SPLIT: ${TRAINER_VALIDATION_SPLIT:-0.15}
       TRAINER_TEST_SPLIT: ${TRAINER_TEST_SPLIT:-0.15}
@@ -430,10 +441,11 @@ services:
       TRAINER_EPISODES_PER_INDIVIDUAL: ${TRAINER_EPISODES_PER_INDIVIDUAL:-10}
       TRAINER_FITNESS_TYPE: ${TRAINER_FITNESS_TYPE:-total_pnl}
       FEATURE_RISK_ADJUSTED_FITNESS: ${FEATURE_RISK_ADJUSTED_FITNESS:-true}
+      FEATURE_ACTION_SPACE_GENE: ${FEATURE_ACTION_SPACE_GENE:-false}
       TRAINER_OBSERVE_POSITION: ${TRAINER_OBSERVE_POSITION:-true}
       # Model artifacts (ADR-0022), backed up by scripts/backup.sh (checkpoints)
       TRAINER_MODEL_DIR: /data/checkpoints/models
-      MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-}
+      MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-model-evaluator}
     volumes:
       - svid-trainer:/run/spire/svid
       - trainer-checkpoints:/data/checkpoints
@@ -468,7 +480,6 @@ services:
     environment:
       <<: *core-env
       SERVICE_NAME: api-gateway
-      DISCOVERY_SERVICE_URL: https://discovery-server:3000
       RATE_LIMIT_WINDOW_MS: '60000'
       RATE_LIMIT_MAX: '100'
       CACHE_TTL_MS: '30000'
@@ -490,8 +501,6 @@ services:
     depends_on:
       spiffe-helper-gateway:
         condition: service_started
-      discovery-server:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Audit Logger — Immutable event audit trail
@@ -512,7 +521,6 @@ services:
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: audit-logger
       INSTANCE_ID: audit-logger-1
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       MONGODB_URI: mongodb://mongo:27017/audit-logger?authSource=admin
       MONGO_USERNAME: audit-logger
       MONGO_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0067)}
@@ -535,6 +543,42 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
+  #  Model Evaluator — offline evaluation of published models (ADR-0049, no order flow)
+  # ---------------------------------------------------------------------------
+  model-evaluator:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: services/model-evaluator/Dockerfile
+    container_name: trading-model-evaluator
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - '127.0.0.1:${MODEL_EVALUATOR_PORT:-8453}:3000'
+    environment:
+      <<: *message-env
+      APP_NAME: model-evaluator
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      SERVICE_NAME: model-evaluator
+      INSTANCE_ID: model-evaluator-1
+      EVALUATIONS_DIR: /data/evaluations
+    volumes:
+      - svid-evaluator:/run/spire/svid
+      - model-evaluations:/data/evaluations
+    networks:
+      - backend-net
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      spiffe-helper-evaluator:
+        condition: service_started
+      discovery-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
   #  DLQ Service - Dead Letter Queue management
   # ---------------------------------------------------------------------------
   dlq-service:
@@ -553,7 +597,6 @@ services:
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: dlq-service
       INSTANCE_ID: dlq-service-1
-      ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       MONGO_URI: mongodb://mongo:27017/?authSource=admin
       MONGO_USERNAME: dlq-service
       MONGO_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
@@ -562,8 +605,6 @@ services:
       MAX_ENTRIES: '100000'
       DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
       DLQ_ALLOWED_SERVICES: ${DLQ_ALLOWED_SERVICES:-message-manager,admin}
-      # Replays eligible dead letters through message-manager (ADR-0029).
-      DLQ_AUTO_RETRY_ENABLED: ${DLQ_AUTO_RETRY_ENABLED:-true}
     volumes:
       - svid-dlq:/run/spire/svid
     networks:
@@ -680,6 +721,21 @@ services:
       spire-agent:
         condition: service_healthy
 
+  spiffe-helper-evaluator:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    container_name: trading-helper-evaluator
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-evaluator:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
   spiffe-helper-dlq:
     logging: *default-logging
     image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
@@ -791,7 +847,7 @@ services:
       - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090'
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./observability/alerting.yml:/etc/prometheus/alerting.yml:ro
+      - ./deploy/k8s/infra/config/alerting.yml:/etc/prometheus/alerting.yml:ro
       - prometheus-data:/prometheus
       - svid-prometheus:/run/spire/svid:ro
     networks:
@@ -937,9 +993,9 @@ services:
     ports:
       - '127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093'
     volumes:
-      - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./deploy/k8s/infra/config/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       # One file per key (SLACK_WEBHOOK_URL, PUSHOVER_USER_KEY, PUSHOVER_TOKEN, DEADMAN_URL),
-      # see observability/alertmanager.yml. Missing files: notifications fail.
+      # see deploy/k8s/infra/config/alertmanager.yml. Missing files: notifications fail.
       - ${ALERTMANAGER_CREDENTIALS_DIR:-./observability/alertmanager-credentials}:/etc/alertmanager-credentials:ro
     networks:
       - backend-net
@@ -961,7 +1017,7 @@ services:
     volumes:
       - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
       - ./observability/grafana-dashboards-provisioning.yml:/etc/grafana/provisioning/dashboards/provider.yml:ro
-      - ./observability/dashboards:/var/lib/grafana/dashboards:ro
+      - ./deploy/k8s/infra/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     networks:
       - backend-net
@@ -1087,7 +1143,9 @@ services:
         condition: service_started
       docker-socket-proxy:
         condition: service_healthy
-    command: -config.file=/etc/promtail/promtail.yml
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
+    command: -config.file=/etc/promtail/promtail.yml -config.expand-env=true
 
 networks:
   docker-api-net:
@@ -1106,6 +1164,7 @@ volumes:
   mongo-data:
   redis-data:
   trainer-checkpoints:
+  model-evaluations:
   mysql-data:
   spire-server-data:
   spire-agent-data:
@@ -1119,6 +1178,7 @@ volumes:
   svid-gateway:
   svid-audit:
   svid-dlq:
+  svid-evaluator:
   svid-edge:
   svid-prometheus:
   svid-blackbox:

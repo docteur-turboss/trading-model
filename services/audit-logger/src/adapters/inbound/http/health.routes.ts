@@ -1,9 +1,9 @@
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import { catchSync } from "@trading-model/http/catch-error";
 import {
 	HEALTH_STATUS_OK,
 	sendResponse,
-} from "@trading-model/http/adapters/inbound/response-exception";
+} from "@trading-model/http/response-exception";
 import { Router } from "express";
 
 export function healthRoutes(): Router {

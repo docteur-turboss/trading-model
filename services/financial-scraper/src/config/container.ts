@@ -1,5 +1,5 @@
 import { sleep } from "@trading-model/common/utils/sleep";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 import {
 	type LeaderJob,
@@ -8,21 +8,32 @@ import {
 } from "@trading-model/reliability/leadership";
 import { z } from "zod";
 import { SignalCronScheduler } from "../adapters/inbound/cron/signal.cron";
-import { MarketDataModel } from "../adapters/outbound/persistence/market-data.model";
+import { insertCandles } from "../adapters/outbound/persistence/schema/candles.schema";
+import { insertOrderBook } from "../adapters/outbound/persistence/schema/order-book.schema";
+import { insertTicker } from "../adapters/outbound/persistence/schema/ticker24h.schema";
+import { insertTrades } from "../adapters/outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store";
 import { createProtocolWorkers } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
 import { createMarketDataController } from "../application/market-data.controller";
 import {
+	recordSourceTerms,
+	restoreFreshness,
 	SignalCollector,
 	zeroCollectionFailures,
 } from "../application/signal-collector";
 import type { WorkerOrchestratorDeps } from "../application/worker-orchestrator";
-import { COLLECTOR_LEADER } from "./metrics";
+import type { Source } from "../domain/signals";
+import { COLLECTOR_LEADER, SIGNAL_SOURCE_DISABLED } from "./metrics";
 import { SIGNAL_REGISTRY } from "./signal-registry";
 
 /** Market data persistence use case backed by the MySQL repository. */
-export const MarketDataController = createMarketDataController(MarketDataModel);
+export const MarketDataController = createMarketDataController({
+	insertCandles,
+	insertTrades,
+	insertOrderBook: (data) => insertOrderBook([data]),
+	insertTicker,
+});
 
 /**
  * Wires the scrape cycle: market data source, broker publisher, persistence
@@ -114,6 +125,31 @@ export function signalUserAgent(contactEmail: string): string {
 }
 
 /**
+ * The sources whose key is set. One without its key is skipped with a warning
+ * and `fs_signal_source_disabled{reason="missing_key"}` at 1; the others run
+ * (CI and dev machines hold no key).
+ */
+export function scheduledSources(
+	sources: readonly Source[],
+	env: NodeJS.ProcessEnv
+): Source[] {
+	return sources.filter(({ id, accessPolicy: { auth } }) => {
+		const missing = auth !== "none" && !env[auth.env];
+		SIGNAL_SOURCE_DISABLED.set(
+			{ source: id, reason: "missing_key" },
+			Number(missing)
+		);
+		if (missing) {
+			logger.warn("Signal source not scheduled: its API key is unset", {
+				source: id,
+				env: auth.env,
+			});
+		}
+		return !missing;
+	});
+}
+
+/**
  * Builds the cron of the signal registry sources (ADR-0036), or null when
  * this instance does not collect them.
  */
@@ -134,8 +170,9 @@ export function createSignalScheduler(
 		);
 		return null;
 	}
+	const sources = scheduledSources(SIGNAL_REGISTRY.sources, process.env);
 	logger.info("Signal collection enabled", {
-		sources: SIGNAL_REGISTRY.sources.map((source) => source.id),
+		sources: sources.map((source) => source.id),
 	});
 	const collector = new SignalCollector({
 		workers: createProtocolWorkers(signalUserAgent(contact)),
@@ -144,8 +181,14 @@ export function createSignalScheduler(
 		now: Date.now,
 		sleep,
 	});
-	zeroCollectionFailures(SIGNAL_REGISTRY.sources);
-	return new SignalCronScheduler(SIGNAL_REGISTRY.sources, collector);
+	recordSourceTerms(SIGNAL_REGISTRY.sources);
+	zeroCollectionFailures(sources);
+	restoreFreshness(sources, MySqlSignalStore, Date.now()).catch((err) =>
+		logger.error("Signal freshness gauges not restored from MySQL", {
+			error: err,
+		})
+	);
+	return new SignalCronScheduler(sources, collector);
 }
 
 export interface CollectorSettings

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import {
-	HttpHeaderValue,
-	HttpMethod,
-} from "@trading-model/http/domain/http-types";
+import { HttpHeaderValue, HttpMethod } from "@trading-model/http/http-types";
 
 describe("HttpHeaderValue", () => {
 	it("should create from a valid string", () => {

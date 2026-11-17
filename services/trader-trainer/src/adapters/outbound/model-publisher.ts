@@ -3,6 +3,7 @@ import { HELPER } from "@trading-model/broker-message";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
+import { getBusCorrelationId } from "@trading-model/http/correlation-id";
 import {
 	toCorrelationId,
 	toInstanceId,
@@ -32,7 +33,7 @@ function buildMetadata(ctx: PublishContext): MessageMetadata {
 		.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 		.setIds({
 			causationId: toCorrelationId(randomUUID()),
-			correlationId: toCorrelationId(randomUUID()),
+			correlationId: getBusCorrelationId() ?? toCorrelationId(randomUUID()),
 		})
 		.toJSON();
 }

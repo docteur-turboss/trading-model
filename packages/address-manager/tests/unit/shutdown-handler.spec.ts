@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { ShutdownHandlerDeps } from "../../src/application/types";
-import { ShutdownHandler } from "../../src/infrastructure/shutdown-handler";
+import { ShutdownHandler } from "../../src/shutdown-handler";
+import type { ShutdownHandlerDeps } from "../../src/types";
 
-jest.mock("@trading-model/server-utils/infrastructure/signal-handler", () => ({
+jest.mock("@trading-model/http/signal-handler", () => ({
 	setupProcessHandlers:
 		jest.fn<
 			(shutdown: () => Promise<void>, hardShutdown: () => void) => void
@@ -19,12 +19,6 @@ function createMockDeps(): jest.Mocked<ShutdownHandlerDeps> {
 			unregisterService: jest
 				.fn<() => Promise<void>>()
 				.mockResolvedValue(undefined),
-		} as never,
-		serviceCache: {
-			close: jest.fn<() => void>(),
-		} as never,
-		circuitBreaker: {
-			clear: jest.fn<() => void>(),
 		} as never,
 	};
 }
@@ -44,23 +38,19 @@ describe("ShutdownHandler", () => {
 		expect(deps.registrationManager.stopRetrying).toHaveBeenCalled();
 	});
 
-	it("fullStop() should unregister, close cache and clear circuit breaker", async () => {
+	it("fullStop() should unregister", async () => {
 		await handler.fullStop();
 		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
-		expect(deps.serviceCache.close).toHaveBeenCalledTimes(1);
-		expect(deps.circuitBreaker.clear).toHaveBeenCalledTimes(1);
 	});
 
-	// The service still resolves its targets while it finishes in-flight work.
-	it("leaveRegistry() should unregister but keep the service cache", async () => {
+	it("leaveRegistry() should unregister", async () => {
 		await handler.leaveRegistry();
 		expect(deps.registrationManager.stopRetrying).toHaveBeenCalled();
 		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
-		expect(deps.serviceCache.close).not.toHaveBeenCalled();
 	});
 
 	it("fullStop() after leaveRegistry() should not unregister twice", async () => {
@@ -69,7 +59,6 @@ describe("ShutdownHandler", () => {
 		expect(deps.addressManagerClient.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
-		expect(deps.serviceCache.close).toHaveBeenCalledTimes(1);
 	});
 
 	it("fullStop() should handle unregisterService error gracefully", async () => {
@@ -84,7 +73,7 @@ describe("ShutdownHandler", () => {
 		handler.setupSignalHandlers(scheduler);
 		const {
 			setupProcessHandlers,
-		} = require("@trading-model/server-utils/infrastructure/signal-handler");
+		} = require("@trading-model/http/signal-handler");
 		expect(setupProcessHandlers).toHaveBeenCalledTimes(1);
 	});
 
@@ -94,7 +83,7 @@ describe("ShutdownHandler", () => {
 		handler.setupSignalHandlers(scheduler);
 		const {
 			setupProcessHandlers,
-		} = require("@trading-model/server-utils/infrastructure/signal-handler");
+		} = require("@trading-model/http/signal-handler");
 		expect(setupProcessHandlers).toHaveBeenCalledTimes(1);
 	});
 
@@ -103,7 +92,7 @@ describe("ShutdownHandler", () => {
 		handler.setupSignalHandlers(scheduler);
 		const {
 			setupProcessHandlers,
-		} = require("@trading-model/server-utils/infrastructure/signal-handler");
+		} = require("@trading-model/http/signal-handler");
 		const shutdownFn = (
 			setupProcessHandlers as jest.Mock<(...args: any[]) => any>
 		).mock.calls[0][0] as () => Promise<void>;
@@ -118,7 +107,7 @@ describe("ShutdownHandler", () => {
 		handler.removeSignalHandlers();
 		const {
 			removeProcessHandlers,
-		} = require("@trading-model/server-utils/infrastructure/signal-handler");
+		} = require("@trading-model/http/signal-handler");
 		expect(removeProcessHandlers).toHaveBeenCalledTimes(1);
 	});
 

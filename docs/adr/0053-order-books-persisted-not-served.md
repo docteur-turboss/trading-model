@@ -22,3 +22,8 @@ Each scrape put the order book snapshot (100 bids + 100 asks per symbol) in a pr
 - Removing the routes breaks any outside caller of the gateway order book routes; none is known.
 - Volume: about 5-6 KB per snapshot (JSON + InnoDB), roughly 15-20 MB a day for 2 symbols at one snapshot a minute, about 6 GB a year, 30 GB at the 5-year default retention; it grows with the symbols and goes into the dumps (ADR-0032). The K8s CronJob therefore sets `RETENTION_ORDER_BOOKS_DAYS` to 180 (default `RETENTION_DAYS`, as for signals): 180 × 18 MB ≈ 3.2 GB, about 16 % of the 20 Gi MySQL volume, with room left for candles, trades, tickers, signals and binlogs.
 - A replay reads the table directly (no route): a route, if one is needed later, must read MySQL, never a process-local store.
+- The reader is `selectOrderBooks` (`order-book.schema.ts`), reached by the operator command `order-book-replay` (`bin` of financial-scraper, JSON lines on stdout; issue #1423). model-evaluator replay and trainer order book features will call the same query when they are built.
+
+## Review 2026-11-16 (issue #1383)
+
+The owner kept the decision as is: collection, `market_order_books` and the 180-day K8s retention stay, because a reader is planned (replay in model-evaluator, order book features). Until it exists the table has no consumer; the reader is tracked in issue #1423, which must either wire it or bring the question back.

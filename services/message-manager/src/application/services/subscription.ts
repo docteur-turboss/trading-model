@@ -1,3 +1,9 @@
+import {
+	classifyDeliveryError,
+	ErrorActionType,
+	isDeliveryExhausted,
+} from "@trading-model/broker-message/bus/delivery-error-classifier";
+import { extractDeliveryParams } from "@trading-model/broker-message/bus/delivery-metadata-extractor";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { Message } from "@trading-model/contracts/message-types";
@@ -15,12 +21,6 @@ import {
 	MESSAGES_DELIVERED_TOTAL,
 	SUBSCRIBER_DELIVERY_CONCURRENCY,
 } from "../../config/metrics";
-import {
-	classifyDeliveryError,
-	ErrorActionType,
-	isDeliveryExhausted,
-} from "../../domain/delivery-error-classifier";
-import { extractDeliveryParams } from "../../domain/delivery-metadata-extractor";
 import type { MessageDeliveryPort } from "../../domain/ports/message-delivery.port";
 import { resolveTarget } from "./address-resolver";
 
@@ -60,18 +60,20 @@ export class Subscription {
 	/**
 	 * One delivery attempt, the `deliveries`-th of the message.
 	 *
+	 * @param entryId - Journal entry of this delivery (acknowledged with its dead letter).
 	 * @returns `true` when the entry is settled (delivered, dead-lettered or
 	 *   dropped) and must be acknowledged, `false` to try again later (also
 	 *   while the circuit is open: the entry waits in the journal).
 	 */
 	async deliver<TData>(
 		message: Message<TData>,
-		deliveries: number
+		deliveries: number,
+		entryId: string
 	): Promise<boolean> {
 		const subscriber = this.serviceIdentity.serviceName;
 		SUBSCRIBER_DELIVERY_CONCURRENCY.inc({ subscriber });
 		try {
-			return await this._deliver(message, deliveries);
+			return await this._deliver(message, deliveries, entryId);
 		} finally {
 			SUBSCRIBER_DELIVERY_CONCURRENCY.dec({ subscriber });
 		}
@@ -79,7 +81,8 @@ export class Subscription {
 
 	private async _deliver<TData>(
 		message: Message<TData>,
-		deliveries: number
+		deliveries: number,
+		entryId: string
 	): Promise<boolean> {
 		const circuitBreaker = this._circuitBreaker;
 		const subscriber = this.serviceIdentity.serviceName;
@@ -99,7 +102,7 @@ export class Subscription {
 			return false;
 		}
 
-		const outcome = await this._attempt(message, deliveries);
+		const outcome = await this._attempt(message, deliveries, entryId);
 		if (outcome === "delivered") {
 			count("success");
 			circuitBreaker.clear();
@@ -119,7 +122,8 @@ export class Subscription {
 	 */
 	private async _attempt<TData>(
 		message: Message<TData>,
-		deliveries: number
+		deliveries: number,
+		entryId: string
 	): Promise<"delivered" | "settled" | "retry"> {
 		const serviceName = this.serviceIdentity.serviceName as ServiceInstanceName;
 		try {
@@ -156,6 +160,7 @@ export class Subscription {
 			}
 			await this._deliveryPort.markDeadLetter({
 				service: serviceName,
+				entryId,
 				message,
 				reason: classification.reason,
 				deliveryAttempt,

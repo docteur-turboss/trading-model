@@ -10,7 +10,7 @@ import {
 import {
 	type ApiRoute,
 	responseIssues,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import express from "express";
 
 jest.mock<{

@@ -1,15 +1,15 @@
 import { describe, expect, it } from "@jest/globals";
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
-import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { BackpropEngine } from "../../../src/domain/neural-network/backprop-engine";
-import { FeedForwardEngine } from "../../../src/domain/neural-network/feed-forward-engine";
-import { NeuralNetworkBuilder } from "../../../src/domain/neural-network/neural-network-builder";
-import type { NnTrainingDeps } from "../../../src/domain/neural-network/nn-training-deps";
+import { makePRNG } from "@trading-model/crypto/prng";
+import { FeedForwardEngine } from "@trading-model/model-runtime/neural-network/feed-forward-engine";
 import {
 	ActivationType,
 	InitialisationType,
 	NormalisationType,
-} from "../../../src/domain/neural-network/type";
+} from "@trading-model/model-runtime/neural-network/type";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
+import { BackpropEngine } from "../../../src/domain/neural-network/backprop-engine";
+import { NeuralNetworkBuilder } from "../../../src/domain/neural-network/neural-network-builder";
+import type { NnTrainingDeps } from "../../../src/domain/neural-network/nn-training-deps";
 
 interface LayerParams {
 	weights: number[];

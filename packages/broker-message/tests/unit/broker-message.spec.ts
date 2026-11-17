@@ -6,7 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { EVENT_MANAGER } from "../../src/application/services/event-manager-client";
+import { EVENT_MANAGER } from "../../src/event-manager-client";
 
 const MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE = {
 	subscribe: jest.fn<(...args: any[]) => any>(),
@@ -14,13 +14,13 @@ const MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE = {
 	publish: jest.fn<(...args: any[]) => any>(),
 };
 
-jest.mock("../../src/adapters/outbound/message-manager-client", () => ({
+jest.mock("../../src/message-manager-client", () => ({
 	MessageManagerClient: jest
 		.fn<(...args: any[]) => any>()
 		.mockImplementation(() => MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE),
 }));
 
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
+jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: Object.assign(
 		jest.fn<(...args: any[]) => any>().mockImplementation(() => ({})),
 		{ createWithTls: jest.fn((..._args: any[]) => ({})) }
@@ -29,13 +29,13 @@ jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 
 const MOCK_CREATE_CALLBACK_ROUTE = jest.fn<(...args: any[]) => any>();
 
-jest.mock("../../src/adapters/inbound/messages.routes", () => ({
+jest.mock("../../src/messages.routes", () => ({
 	CREATE_CALLBACK_ROUTE: jest.fn(
 		(..._args: any[]) => MOCK_CREATE_CALLBACK_ROUTE
 	),
 }));
 
-import { SUBSCRIPTION_REFRESH_MS } from "../../src/application/services/broker-message";
+import { SUBSCRIPTION_REFRESH_MS } from "../../src/broker-message";
 import BrokerMessage from "../../src/index";
 
 describe("BrokerMessage", () => {
@@ -66,7 +66,7 @@ describe("BrokerMessage", () => {
 		it("should use default callbackPath when not provided", () => {
 			const {
 				MessageManagerClient,
-			} = require("../../src/adapters/outbound/message-manager-client");
+			} = require("../../src/message-manager-client");
 			expect(MessageManagerClient).toHaveBeenCalledWith(
 				expect.any(Object),
 				expect.objectContaining({ callbackPath: "message" }),
@@ -77,7 +77,7 @@ describe("BrokerMessage", () => {
 		it("should use provided callbackPath", () => {
 			const {
 				MessageManagerClient,
-			} = require("../../src/adapters/outbound/message-manager-client");
+			} = require("../../src/message-manager-client");
 			jest.clearAllMocks();
 			new BrokerMessage({ ...defaultParams, callbackPath: "/custom" } as any);
 			expect(MessageManagerClient).toHaveBeenCalledWith(
@@ -95,7 +95,7 @@ describe("BrokerMessage", () => {
 		});
 
 		it("should call subscribe with topics", async () => {
-			const topics = ["example.debug.create"];
+			const topics = ["market.candlestick.series.fetch"];
 			await broker.intents(topics);
 			expect(
 				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe
@@ -107,13 +107,13 @@ describe("BrokerMessage", () => {
 				new Error("message-manager unreachable") as never
 			);
 			await expect(
-				broker.intents(["example.debug.create"])
+				broker.intents(["market.candlestick.series.fetch"])
 			).resolves.toBeUndefined();
 		});
 
 		it("should renew the subscriptions periodically (message-manager keeps them in memory)", async () => {
 			jest.useFakeTimers();
-			await broker.intents(["example.debug.create"]);
+			await broker.intents(["market.candlestick.series.fetch"]);
 			MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe.mockClear();
 
 			await jest.advanceTimersByTimeAsync(SUBSCRIPTION_REFRESH_MS * 2);
@@ -126,7 +126,7 @@ describe("BrokerMessage", () => {
 
 	describe("stopMessageManager", () => {
 		it("should call unsubscribe with topics", async () => {
-			const topics = ["example.debug.create"];
+			const topics = ["market.candlestick.series.fetch"];
 			await broker.intents(topics);
 			await broker.stopMessageManager();
 			expect(
@@ -134,16 +134,8 @@ describe("BrokerMessage", () => {
 			).toHaveBeenCalledWith(topics);
 		});
 
-		it("should call kill functions from event array", async () => {
-			const killFn = jest.fn<(...args: any[]) => any>();
-			EVENT_MANAGER.on("example.debug.create" as never as any, killFn);
-			broker = new BrokerMessage(defaultParams);
-			broker.on("example.debug.create" as never, killFn);
-			await broker.stopMessageManager();
-		});
-
 		it("should reset topics after stop", async () => {
-			const topics = ["example.debug.create"];
+			const topics = ["market.candlestick.series.fetch"];
 			await broker.intents(topics);
 			await broker.stopMessageManager();
 			expect(
@@ -155,16 +147,20 @@ describe("BrokerMessage", () => {
 	describe("on", () => {
 		it("should register an event listener and trigger on emit", () => {
 			const listener = jest.fn<(...args: any[]) => any>();
-			broker.on("example.debug.create" as never, listener);
-			(EVENT_MANAGER as any).emit("example.debug.create", { debug: true });
-			expect(listener).toHaveBeenCalledWith({ debug: true });
+			broker.on("market.candlestick.series.fetch" as never, listener);
+			(EVENT_MANAGER as any).emit("market.candlestick.series.fetch", {
+				candle: [],
+			});
+			expect(listener).toHaveBeenCalledWith({ candle: [] });
 		});
 
 		it("should trigger listener when event is emitted", () => {
 			const listener = jest.fn<(...args: any[]) => any>();
-			broker.on("example.debug.create" as never, listener);
-			(EVENT_MANAGER as any).emit("example.debug.create", { debug: true });
-			expect(listener).toHaveBeenCalledWith({ debug: true });
+			broker.on("market.candlestick.series.fetch" as never, listener);
+			(EVENT_MANAGER as any).emit("market.candlestick.series.fetch", {
+				candle: [],
+			});
+			expect(listener).toHaveBeenCalledWith({ candle: [] });
 		});
 	});
 
@@ -192,13 +188,6 @@ describe("BrokerMessage", () => {
 					MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.publish
 				).toHaveBeenCalledWith({ data: "test" }, metadata);
 			});
-		});
-	});
-
-	describe("helper export", () => {
-		it("should export MetadataBuilder", () => {
-			const BrokerMessageModule = require("../../src/index");
-			expect(BrokerMessageModule.HELPER.metadataBuilder).toBeDefined();
 		});
 	});
 });

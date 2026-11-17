@@ -1,16 +1,17 @@
-import { type Price, Volume } from "@trading-model/primitives/primitives";
+import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
 import {
 	createWallet,
 	type WalletAPI,
 	type WalletConfig,
-} from "../env/wallet-manager";
-import { Agent } from "../neural-network/agent";
+} from "@trading-model/model-runtime/env/wallet-manager";
 import type {
-	Experience,
 	NeuralNetworkConfig,
 	QLearningExperience,
-} from "../neural-network/type";
-import { ActionMapper } from "./action-mapper";
+} from "@trading-model/model-runtime/neural-network/type";
+import { type Price, Volume } from "@trading-model/primitives/primitives";
+import { applyInputMask } from "../genetic-algorithm/genome-network/input-mask";
+import { Agent } from "../neural-network/agent";
+import { ActionMapper, type ActionSetId } from "./action-mapper";
 import { TradeAction } from "./action-types";
 import { observe } from "./agent-state";
 import StateManager, { type StateManagerConfig } from "./state-manager";
@@ -19,9 +20,12 @@ export interface TradingAgentConfig {
 	nnConfig: NeuralNetworkConfig;
 	wallet: WalletConfig;
 	tradeAmount?: Volume;
+	actionSet?: ActionSetId;
 	stateManagerCfg?: StateManagerConfig;
 	/** Show the position to the network (default); false feeds a constant. */
 	observePosition?: boolean;
+	/** Input groups of the genome (ADR-0082): a false group is zeroed before the network. */
+	inputMask?: readonly boolean[];
 	/**
 	 * Size every trade as this share of the initial cash at the current price,
 	 * instead of `tradeAmount` units: a fixed unit count cannot be bought once
@@ -64,6 +68,8 @@ interface StepResult {
 export class TradingAgent {
 	private readonly _agent: Agent;
 	private readonly _observePosition: boolean;
+	private readonly _inputMask: readonly boolean[] | undefined;
+	private readonly _exposureCash: number;
 	private readonly _tradeCash: number | undefined;
 	/** PnL just before the previous decision's trade; null before the first. */
 	private _pnlBeforeLastTrade: number | null = null;
@@ -73,25 +79,18 @@ export class TradingAgent {
 
 	constructor(cfg: TradingAgentConfig) {
 		this._observePosition = cfg.observePosition ?? true;
+		this._inputMask = cfg.inputMask;
 		this._tradeCash =
 			cfg.tradeFraction === undefined
 				? undefined
 				: Number(cfg.wallet.initialCash) * cfg.tradeFraction;
+		this._exposureCash =
+			Number(cfg.wallet.initialCash) *
+			(cfg.wallet.maxExposureFraction ?? DEFAULT_MAX_EXPOSURE_FRACTION);
 		this._agent = new Agent(cfg.nnConfig);
 		this.wallet = createWallet(cfg.wallet);
 		this.state = new StateManager(cfg.stateManagerCfg ?? {});
 		this._actionMapper = new ActionMapper({ ...cfg, rng: cfg.nnConfig.rng });
-	}
-
-	public mapOutputToAction(
-		output: Float32Array,
-		cfg?: TradingAgentConfig
-	): { action: TradeAction; amount: Volume } {
-		if (cfg) {
-			const mapper = new ActionMapper({ ...cfg, rng: cfg.nnConfig.rng });
-			return mapper.map(output);
-		}
-		return this._actionMapper.map(output);
 	}
 
 	/**
@@ -104,7 +103,8 @@ export class TradingAgent {
 	public step(
 		input: Float32Array,
 		price?: Price,
-		fillPrice?: Price
+		fillPrice?: Price,
+		barsSince?: number
 	): StepResult {
 		if (price !== undefined) {
 			this.wallet.setPrice(price);
@@ -115,15 +115,20 @@ export class TradingAgent {
 				? 0
 				: markedPnl - this._pnlBeforeLastTrade;
 
-		const state = observe(input, this.wallet, this._observePosition);
+		const state = observe(
+			applyInputMask(input, this._inputMask),
+			this.wallet,
+			this._observePosition,
+			barsSince
+		);
 		const { output } = this._agent.nn.forward(state);
-		const { action, amount, outputIndex } = this._actionMapper.map(
+		const { action, amount, share, outputIndex } = this._actionMapper.map(
 			output,
 			this.state.getEpsilon()
 		);
 		const executed = ACTION_EXECUTORS[action](
 			this.wallet,
-			this._tradeSize(action, amount),
+			this._tradeSize(action, amount, share, fillPrice),
 			fillPrice
 		);
 		this._pnlBeforeLastTrade = markedPnl;
@@ -137,7 +142,15 @@ export class TradingAgent {
 		};
 	}
 
-	private _tradeSize(action: TradeAction, mapped: Volume): Volume {
+	private _tradeSize(
+		action: TradeAction,
+		mapped: Volume,
+		share?: number,
+		fillPrice?: Price
+	): Volume {
+		if (share !== undefined) {
+			return this._partialSize(action, share, fillPrice);
+		}
 		if (this._tradeCash === undefined || action === TradeAction.Hold) {
 			return mapped;
 		}
@@ -146,6 +159,25 @@ export class TradingAgent {
 			units = Math.min(units, Number(this.wallet.getPosition()));
 		}
 		return Volume.of(Math.floor(units * VolumeDecimals) / VolumeDecimals);
+	}
+
+	private _partialSize(
+		action: TradeAction,
+		share: number,
+		fillPrice?: Price
+	): Volume {
+		const position = Number(this.wallet.getPosition());
+		const base =
+			action === TradeAction.Sell
+				? position
+				: Math.max(
+						0,
+						this._exposureCash / Number(fillPrice ?? this.wallet.getPrice()) -
+							position
+					);
+		return Volume.of(
+			Math.floor(base * share * VolumeDecimals) / VolumeDecimals
+		);
 	}
 
 	/** Stores a transition in the replay buffer. */
@@ -161,7 +193,11 @@ export class TradingAgent {
 	/** Q-values for these market features and the agent's current holding. */
 	public forwardPass(input: Float32Array): { output: Float32Array } {
 		return this._agent.nn.forward(
-			observe(input, this.wallet, this._observePosition)
+			observe(
+				applyInputMask(input, this._inputMask),
+				this.wallet,
+				this._observePosition
+			)
 		);
 	}
 
@@ -175,10 +211,6 @@ export class TradingAgent {
 
 	public parameterCount(): number {
 		return this._agent.nn.parameterCount();
-	}
-
-	public getExperiencePool(): Experience[] {
-		return this._agent.experience.getPool();
 	}
 
 	public resetEpisode(): void {

@@ -1,11 +1,4 @@
-import type {
-	BookTickerData,
-	CandleData,
-	OrderBookData,
-	TickerData,
-	TradeData,
-} from "@trading-model/contracts/market-data.types";
-import type { Price } from "@trading-model/primitives/primitives";
+import type { CandleData } from "@trading-model/contracts/market-data.types";
 
 import { NormalizationStats } from "./normalization-stats";
 
@@ -15,7 +8,10 @@ export {
 } from "@trading-model/primitives/primitives";
 export { NormalizationStats };
 
-import { FEATURE_DIM } from "./feature-vector-codec";
+/** One day in milliseconds: the length of a daily bar (ADR-0083). */
+export const DAY_MS = 86_400_000;
+
+import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 
 export { FEATURE_DIM };
 
@@ -27,47 +23,13 @@ interface CandleNormalizers {
 	low: NormalizationStats;
 }
 
-interface TradeNormalizers {
-	price: NormalizationStats;
-	qty: NormalizationStats;
-}
-
-interface BookNormalizers {
-	bid: NormalizationStats;
-	ask: NormalizationStats;
-	spread: NormalizationStats;
-}
-
-interface TickerNormalizers {
-	volume: NormalizationStats;
-}
-
 export interface SymbolNormalizers {
 	candle: CandleNormalizers;
-	trade: TradeNormalizers;
-	book: BookNormalizers;
-	ticker: TickerNormalizers;
 }
 
-/** A price ticker of one symbol, stamped when the trainer received it. */
-export interface PriceSnapshotData {
-	price: Price;
-	timestamp: number;
-}
-
-/**
- * Everything received for a symbol, oldest first. Snapshots are kept as a
- * history, not only the latest: a candle's features may only read what was
- * known at its close (ADR-0030).
- */
+/** The candle window of a symbol, oldest first (ADR-0044). */
 export interface BaseSymbolState {
 	candles: CandleData[];
-	trades: TradeData[];
-	/** Reduced to one level per side: the features only read the averages. */
-	orderBooks: OrderBookData[];
-	bookTickers: BookTickerData[];
-	tickers24h: TickerData[];
-	prices: PriceSnapshotData[];
 }
 
 export interface SymbolState extends BaseSymbolState {
@@ -80,11 +42,5 @@ export interface SymbolState extends BaseSymbolState {
  */
 export interface FeatureState {
 	candles: CandleData[];
-	/** Trades of the lookback window ending at the candle close. */
-	trades: TradeData[];
-	orderBook?: OrderBookData;
-	bookTicker?: BookTickerData;
-	ticker24h?: TickerData;
-	price?: Price;
 	norm: SymbolNormalizers;
 }

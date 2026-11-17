@@ -6,7 +6,7 @@ See [docs/security/practices.md](docs/security/practices.md) for security practi
 
 ## Reporting a Vulnerability
 
-Do not open a public issue. Report privately by email: `docteur.turboss@gmail.com`.
+Do not open a public issue. Report privately by email: `security-report@horus-turboss.fr`.
 
 - Acknowledgement within 72 hours
 - Responsible disclosure: please allow a fix before publishing details

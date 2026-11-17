@@ -1,4 +1,4 @@
-import { metricsHandler } from "@trading-model/server-utils/adapters/inbound/metrics-handler";
+import { metricsHandler } from "@trading-model/http/metrics-handler";
 import promClient from "prom-client";
 
 /** Model artifacts written after a training (ADR-0022): stored, skipped or error. */
@@ -118,22 +118,41 @@ export const STAGNATION_GENERATIONS = new promClient.Gauge({
 	help: "Consecutive generations without improvement",
 });
 
-export const POPULATION_SIZE = new promClient.Gauge({
-	name: "tt_population_size",
-	help: "Current GA population size",
-});
-
 export const MARKET_DATA_BUFFER_SIZE = new promClient.Gauge({
 	name: "tt_market_data_buffer_size",
 	help: "Current market data buffer entries",
 	labelNames: ["symbol"] as const,
 });
 
-// Grows with every candle the trainer receives: flat means the market data
-// stopped reaching it (alert TrainerMarketDataStale).
-export const MARKET_DATA_RECEIVED_TOTAL = new promClient.Counter({
-	name: "tt_market_data_received_total",
-	help: "Total market data candles added to the buffer",
+// High for every symbol: the scraper stopped feeding MySQL (alert TrainerMarketDataStale).
+export const LAST_CANDLE_AGE_SECONDS = new promClient.Gauge({
+	name: "tt_last_candle_age_seconds",
+	help: "Age of the newest candle of the stored window, read at the last training session",
+	labelNames: ["symbol"] as const,
+});
+
+export const SIGNAL_WINDOW_SIZE = new promClient.Gauge({
+	name: "tt_signal_window_size",
+	help: "Signals of the symbol's asset in the point-in-time window read at the last training session",
+	labelNames: ["symbol", "dimension"] as const,
+});
+
+export const SIGNAL_NEWEST_AGE_SECONDS = new promClient.Gauge({
+	name: "tt_signal_newest_age_seconds",
+	help: "Age of the newest signal of the window per dimension, at the last training session",
+	labelNames: ["symbol", "dimension"] as const,
+});
+
+export const SIGNAL_READ_ERRORS_TOTAL = new promClient.Counter({
+	name: "tt_signal_read_errors_total",
+	help: "Signal windows that could not be read (the session trains without them)",
+	labelNames: ["symbol"] as const,
+});
+
+export const DAILY_BAR_ISSUES_TOTAL = new promClient.Counter({
+	name: "tt_daily_bar_issues_total",
+	help: "Daily bars rebuilt from signals: dropped (incomplete_day) or a jump that looks like a split (split_suspect)",
+	labelNames: ["symbol", "issue"] as const,
 });
 
 export const MARKET_DATA_SYMBOLS = new promClient.Gauge({
@@ -148,3 +167,21 @@ export const QLEARNING_TRAIN_ERRORS = new promClient.Counter({
 });
 
 export { metricsHandler };
+
+const INPUT_GROUP_ACTIVE = new promClient.Gauge({
+	name: "tt_input_group_active",
+	help: "Share of genomes with the input group active: scope population (last generation) or published (ADR-0082)",
+	labelNames: ["group", "scope"] as const,
+});
+
+/** Sets `tt_input_group_active` for `scope` from the genomes' masks. */
+export function reportInputGroups(
+	scope: "population" | "published",
+	groups: readonly string[],
+	masks: readonly (readonly boolean[])[]
+): void {
+	groups.forEach((group, index) => {
+		const active = masks.filter((mask) => mask[index]).length;
+		INPUT_GROUP_ACTIVE.set({ group, scope }, active / (masks.length || 1));
+	});
+}

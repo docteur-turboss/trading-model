@@ -4,7 +4,6 @@
 #  Usage:
 #    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests (dev cluster only, ALLOW_DEV_APPLY=1)
 #    ./deploy-k8s.sh [-n <namespace>] apply <service> # Apply a single service
-#    ./deploy-k8s.sh [-n <namespace>] delete          # Delete all resources
 #    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
 #    ./deploy-k8s.sh [-n <namespace>] rollback <service> [revision]
 #    ./deploy-k8s.sh [-n <namespace>] migrate-down [count|all]
@@ -95,7 +94,7 @@ cmd_apply() {
     kustomize_build "${K8S_DIR}/node-agents" | kubectl apply -f -
     log "Applying all Trading Model manifests..."
     # Immutable pod template: recreated (idempotent) by the apply (issue #727).
-    kubectl delete job -n "$NAMESPACE" mongo-audit-users mongo-dlq-users mysql-cluster-init --ignore-not-found
+    kubectl delete job -n "$NAMESPACE" mongo-audit-users mongo-dlq-users --ignore-not-found
     kustomize_build "${K8S_DIR}/" | kubectl apply -f -
   fi
 
@@ -122,19 +121,6 @@ cmd_apply() {
   fi
 
   log "Deployment complete."
-}
-
-cmd_delete() {
-  local service="${1:-}"
-  if [[ -n "$service" ]]; then
-    log "Deleting service: $service"
-    kubectl delete -n "$NAMESPACE" "deployment/${service}" --ignore-not-found
-    kubectl delete -n "$NAMESPACE" "service/${service}" --ignore-not-found
-  else
-    log "Deleting all Trading Model resources..."
-    kustomize_build "${K8S_DIR}/" | kubectl delete -f - --ignore-not-found
-  fi
-  log "Deletion complete."
 }
 
 cmd_status() {
@@ -467,6 +453,7 @@ cmd_smoke_test() {
     "api-gateway:https://api-gateway:3000/health/ready"
     "audit-logger:https://audit-logger:3000/health/ready"
     "dlq-service:https://dlq-service:3000/health/ready"
+    "model-evaluator:https://model-evaluator:3000/health/ready"
     "financial-scraper:https://financial-scraper:3000/health/ready"
     "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"
     "trader-trainer:https://trader-trainer:3000/health/ready"
@@ -477,6 +464,8 @@ cmd_smoke_test() {
   for entry in "${services[@]}"; do
     local name="${entry%%:*}"
     local url="${entry#*:}"
+    # SMOKE_SKIP: services absent from the release being checked (rollback test of tests/k8s/run-kind.sh)
+    [[ " ${SMOKE_SKIP:-} " == *" $name "* ]] && continue
 
     # Up to 12 answers, 5 s apart: one slow Redis connect just after the rollout is not a
     # failed release (run 43367462523), and Redis now rolls last, right before this test:
@@ -576,7 +565,7 @@ release_checks_once() {
     return 1
   fi
   # The key goes through stdin (curl -H @-), never on a command line or in a log.
-  local path="/v1/discovery-server/services"
+  local path="/v1/trader-trainer/training-status"
   code="$(printf 'x-api-key: %s\n' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
     curl -s -o /dev/null -w '%{http_code}' -H @- "http://edge-proxy:8080${path}")" || code="000"
   if [[ "$code" != "200" ]]; then
@@ -682,9 +671,6 @@ case "${1:-help}" in
   apply)
     cmd_apply "${2:-}"
     ;;
-  delete)
-    cmd_delete "${2:-}"
-    ;;
   status)
     cmd_status
     ;;
@@ -721,7 +707,6 @@ case "${1:-help}" in
     echo ""
     echo "Usage:"
     echo "  $0 [-n namespace] apply [service]       Apply manifests"
-    echo "  $0 [-n namespace] delete [service]      Delete resources"
     echo "  $0 [-n namespace] status                Show cluster status"
     echo "  $0 [-n namespace] rollback <srv> [rev]  Rollback deployment"
     echo "  $0 [-n namespace] migrate-down [N|all]  Rollback N DB migrations (default: 1)"

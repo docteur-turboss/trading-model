@@ -14,7 +14,7 @@ import type { ServiceInstanceName } from "@trading-model/primitives/service-inst
 import { createServiceRegistry } from "../../src/config/container";
 import type { ServiceRegistry } from "../../src/domain/service-registry";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -25,7 +25,6 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 jest.mock("../../src/infrastructure/config/env", () => ({
 	env: {
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
-		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
 	},
 }));
 

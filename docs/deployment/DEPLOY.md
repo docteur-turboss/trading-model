@@ -129,7 +129,8 @@ branch rule anyone with write access can push a branch whose workflow names the
 environment and prints its secrets):
 
 - `staging` (`KUBECONFIG_STAGING_*`, `BACKUP_S3_*`, `AUDIT_ANCHOR_*`): "Selected
-  branches and tags" with exactly the branches `development` and `main`.
+  branches and tags" with exactly the branches `development` and `main` and the
+  tag rule `v*` (the release deploys its tag).
   A required reviewer is advised, not checked.
 - `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
   backup): "Selected branches and tags" with exactly the branch `main`, and at
@@ -238,7 +239,10 @@ both collect for up to about 30 s (ADR-0057, Consequences).
 Rollback on failure is automatic: the workflow returns every Deployment to the
 revision it ran before the overlay (`rollout undo --to-revision`, see
 [Rollback](#rollback)). The overlay is applied by digest, so this returns to the
-previous image even when both deploys used `latest`.
+previous image even when both deploys used `latest`. Those revisions stay in
+ConfigMap `deploy-revisions` until a deploy or a rollback succeeds, so a re-run
+after an unfinished rollback still returns to them; delete it after repairing the
+cluster by hand.
 
 Two cases:
 
@@ -315,14 +319,14 @@ canary or a real rollout (the preflight never starts a pod).
 
 1. Fill the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a); first production deploy only, see "Before the first production deploy" above)
 2. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
-3. `release.yml` runs the whole CI on the tag, then publishes the 10 images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them.
+3. `release.yml` runs the whole CI on the tag, then publishes the images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them.
 4. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 
 ---
 
 ## Replicas and the HPA
 
-A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singleton `trader-trainer` (ADR-0044: training state in memory) has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which serves the read routes at once and only trains once it holds the Lease `trader-trainer` (ADR-0058: the old pod ends its session after the current generation, stores and publishes its model, then releases it); `financial-scraper-collector` has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which only collects once it holds the Lease (ADR-0057); `check-overlays.mjs` enforces both. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` of older releases. A release pauses training for the end of one generation plus up to 2 s; the read routes keep answering. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
+A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singleton `trader-trainer` (ADR-0044: training state in memory) has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which serves the read routes at once and only trains once it holds the Lease `trader-trainer` (ADR-0058: the old pod ends its session after the current generation, stores and publishes its model, then releases it); `financial-scraper-collector` has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which only collects once it holds the Lease (ADR-0057); `check-overlays.mjs` enforces both. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` and `audit-logger-hpa` of older releases (audit-logger keeps 2 fixed pods: one lease holder writes the chain). A release pauses training for the end of one generation plus up to 2 s; the read routes keep answering. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
 
 Moving an existing cluster over: `deploy.yml` (step "Release replicas of autoscaled Deployments") removes `spec.replicas` from `kubectl.kubernetes.io/last-applied-configuration` before the apply, otherwise the apply would drop the Deployment to 1 pod. By hand: `kubectl apply edit-last-applied deployment/<name> -n <ns>` and delete the `replicas` line, before applying the new overlay.
 
@@ -366,8 +370,7 @@ What it does not restore (still at N+1 after a rollback):
   `spire-tools` image of the release, and the infrastructure ones);
 - the other StatefulSets (MySQL, MongoDB...), CronJobs, Jobs, HPAs, PDBs,
   NetworkPolicies, Services, the SPIFFE node agents (`trading-model-node`) and
-  the fixed-name ConfigMaps (`spiffe-helper-config`, infrastructure configs,
-  `backup-encryption`);
+  the fixed-name ConfigMaps (`backup-encryption`, `mysql-client-tls`);
 - the database schema: migrations already applied stay applied;
 - the `kubectl.kubernetes.io/last-applied-configuration` annotation:
   `rollout undo` changes the pod template only, so the annotation still holds
@@ -379,8 +382,8 @@ To bring everything back to N, run the `Deploy` workflow again from the git
 ref of release N with its image tag: it re-applies the overlay of N, pinned to
 the digests of N.
 
-A Deployment created by the failed deploy (first deploy) has no earlier
-revision: the step reports an error for it and leaves it in place.
+A Deployment created by the failed deploy has no earlier revision: the step
+deletes it (the next deploy recreates it).
 
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
 the new image with the configuration of the current release, not the new one.
@@ -421,7 +424,7 @@ admin call, so a healthy environment gives it no traffic. Add a service to
 ### Release verification
 
 After the smoke test, `deploy.yml` runs `deploy-k8s.sh verify-release`. Each pass checks
-an API call through `edge-proxy` (`GET /v1/discovery-server/services`, 200 expected, with
+an API call through `edge-proxy` (`GET /v1/trader-trainer/training-status`, 200 expected, with
 the first `AUTH_TOKENS` key of the Secret `trading-model-secrets`: it goes through stdin
 and is never printed), at least one candle persisted in the last 15 min
 (`fs_candles_persisted_total`), and no `severity="critical"` alert firing in Prometheus

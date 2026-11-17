@@ -7,7 +7,7 @@ const MOCK_LOGGER = {
 	debug: jest.fn<(...args: any[]) => any>(),
 };
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: MOCK_LOGGER,
 }));
 
@@ -18,14 +18,14 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 
 let capturedOptions: any;
 
-jest.mock("@trading-model/server-utils/application/services/bootstrap", () => ({
+jest.mock("@trading-model/http/bootstrap", () => ({
 	createBootstrap: jest.fn((options: any) => {
 		capturedOptions = options;
 		return { server: null, shutdown: jest.fn<(...args: any[]) => any>() };
 	}),
 }));
 
-jest.mock("@trading-model/server-utils/infrastructure/telemetry", () => ({
+jest.mock("@trading-model/http/telemetry", () => ({
 	startTelemetry: jest.fn<(...args: any[]) => any>(),
 	shutdownTelemetry: jest.fn<(...args: any[]) => any>(),
 }));
@@ -122,7 +122,7 @@ jest.mock("@trading-model/contracts/audit-events", () => ({
 	AuditEvent: {},
 }));
 
-import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
+import { createBootstrap } from "@trading-model/http/bootstrap";
 import { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";
 import { dropRetiredCollections } from "../../../src/adapters/outbound/persistence/retired-collections";
 import { createServer } from "../../../src/application/server";

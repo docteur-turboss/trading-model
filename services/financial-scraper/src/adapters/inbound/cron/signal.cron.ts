@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import type { Source } from "../../../domain/signals";
 import { type NoOverlapTask, scheduleNoOverlap } from "./no-overlap";
 

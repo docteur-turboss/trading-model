@@ -7,6 +7,10 @@ jest.mock("express-rate-limit", () => {
 	);
 });
 
+import type {
+	JournalGroupLag,
+	MessageJournalPort,
+} from "@trading-model/broker-message/bus/journal.port";
 import createBrokerModule, {
 	publishJournalLag,
 } from "../../../src/config/container";
@@ -14,17 +18,13 @@ import {
 	JOURNAL_OLDEST_PENDING_AGE_SECONDS,
 	JOURNAL_PENDING_ENTRIES,
 } from "../../../src/config/metrics";
-import type {
-	JournalGroupLag,
-	MessageJournalPort,
-} from "../../../src/domain/ports/message-journal.port";
 
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
 	BOOTSTRAP_ADDRESS_MANAGER: jest.fn<(...args: any[]) => any>(),
 }));
 
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => {
+jest.mock("@trading-model/http/http-client", () => {
 	const mockInstance = {
 		post: jest.fn<(...args: any[]) => any>(),
 		get: jest.fn<(...args: any[]) => any>(),
@@ -37,16 +37,6 @@ jest.mock("@trading-model/http/adapters/outbound/http-client", () => {
 });
 
 describe("createBrokerModule", () => {
-	it("should create without error", () => {
-		const module = createBrokerModule({
-			caPath: "/certs/ca.pem" as FilePath,
-			certPath: "/certs/cert.pem" as FilePath,
-			keyPath: "/certs/key.pem" as FilePath,
-		});
-
-		expect(module).toBeDefined();
-	});
-
 	it("should expose a listen method", () => {
 		const module = createBrokerModule({
 			caPath: "/certs/ca.pem" as FilePath,
@@ -56,19 +46,6 @@ describe("createBrokerModule", () => {
 
 		expect(module.listen).toBeDefined();
 		expect(typeof module.listen).toBe("function");
-	});
-
-	it("should refuse a dlq-service secret shorter than 16 characters", () => {
-		expect(() =>
-			createBrokerModule(
-				{
-					caPath: "/certs/ca.pem" as FilePath,
-					certPath: "/certs/cert.pem" as FilePath,
-					keyPath: "/certs/key.pem" as FilePath,
-				},
-				{ dlqSecret: "short" }
-			)
-		).toThrow("at least 16 characters");
 	});
 
 	it("should accept an Express app in listen method", () => {

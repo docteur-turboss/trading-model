@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
+import type { HttpClient } from "@trading-model/http/http-client";
 import type { URLString } from "@trading-model/primitives/primitives";
-import { TokenManager } from "../../src/application/client/token-manager";
-import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
+import { TokenManager } from "../../src/client/token-manager";
+import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 
 describe("TokenManager", () => {
 	let httpClient: jest.Mocked<HttpClient>;
@@ -19,15 +19,12 @@ describe("TokenManager", () => {
 			servicePort: 8080,
 			tokenRefreshIntervalMs: 300_000,
 			ttlRefreshIntervalMs: 300_000,
-			servicePingTimeoutMs: 2000,
-			cacheTtlMs: 60_000,
 			identity: { serviceName: "test-service", instanceId: "instance-1" },
 			tls: {
 				caPath: "/path/to/ca.pem",
 				certPath: "/path/to/cert.pem",
 				keyPath: "/path/to/key.pem",
 			},
-			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
 
 		manager = new TokenManager(httpClient, config);

@@ -16,7 +16,11 @@ jest.mock("../../src/config/logger", () => ({
 }));
 
 jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: { INSTANCE_ID: "dlq-service-1" },
+	ENV: {
+		INSTANCE_ID: "dlq-service-1",
+		SERVICE_NAME: "dlq-service",
+		MESSAGE_CALLBACK_PATH: "message",
+	},
 }));
 
 jest.mock("../../src/config/metrics", () => ({
@@ -27,10 +31,13 @@ jest.mock("../../src/config/address-manager", () => ({
 	AddressManager: {},
 }));
 
-jest.mock(
-	"@trading-model/broker-message/application/services/create-message-manager",
-	() => ({ createServiceMessageManager: MOCK_CREATE })
-);
+jest.mock("@trading-model/broker-message/create-message-manager", () => ({
+	createMessageManager: MOCK_CREATE,
+}));
+
+jest.mock("@trading-model/common/config/tls-paths", () => ({
+	buildTlsFromEnv: () => ({}),
+}));
 
 function load(): typeof import("../../src/config/audit") {
 	return jest.requireActual("../../src/config/audit");

@@ -1,4 +1,4 @@
-import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
+import { mountRoute } from "@trading-model/http/api-route/mount-route";
 import { Router } from "express";
 import type rateLimit from "express-rate-limit";
 import { metricsHandler } from "../../config/metrics";
@@ -21,14 +21,6 @@ function _registerDlqRoutes(
 	healthLimiter: ReturnType<typeof rateLimit>
 ): void {
 	// The signature covers the raw body: serviceAuth runs before validation.
-	mountRoute(
-		router,
-		DLQ_API.addEntry,
-		({ body }, req) => handlers.addEntry(body, actorOf(req)),
-		{
-			middlewares: [serviceAuth, writeLimiter],
-		}
-	);
 	mountRoute(
 		router,
 		DLQ_API.listEntries,

@@ -7,8 +7,8 @@ import type {
 	Message,
 	MessageMetadata,
 } from "@trading-model/contracts/message-types";
-import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
-import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
+import { sendResponse } from "@trading-model/http/response-exception";
 import type { Dispatcher } from "../../application/services/dispatcher";
 import type { BROKER_API } from "./api-routes";
 

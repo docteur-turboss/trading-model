@@ -6,10 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import {
-	Logger,
-	LogLevel,
-} from "@trading-model/http/application/services/logger";
+import { Logger, LogLevel } from "@trading-model/http/logger";
 
 describe("Logger", () => {
 	let logger: Logger;
@@ -104,64 +101,6 @@ describe("Logger", () => {
 			(logger as any)._logLevel = "none";
 			logger.error("should not appear");
 			expect(consoleErrorSpy).not.toHaveBeenCalled();
-		});
-	});
-
-	describe("error with production NODE_ENV", () => {
-		it("should attempt to send error to external service in production", () => {
-			process.env.NODE_ENV = "production";
-			process.env.ERROR_URL_WEBHOOK = "https://webhook.example.com";
-			const fetchSpy = jest
-				.spyOn(globalThis, "fetch" as any)
-				.mockResolvedValue({ ok: true } as any);
-			const prodLogger = new Logger(LogLevel.Error);
-			prodLogger.error("prod error");
-			expect(fetchSpy).toHaveBeenCalled();
-			fetchSpy.mockRestore();
-			delete process.env.ERROR_URL_WEBHOOK;
-		});
-
-		it("should handle fetch failure gracefully", () => {
-			process.env.NODE_ENV = "production";
-			process.env.ERROR_URL_WEBHOOK = "https://webhook.example.com";
-			const fetchSpy = jest
-				.spyOn(globalThis, "fetch" as any)
-				.mockRejectedValue(new Error("network error"));
-			const prodLogger = new Logger(LogLevel.Error);
-			expect(() => prodLogger.error("prod error")).not.toThrow();
-			fetchSpy.mockRestore();
-			delete process.env.ERROR_URL_WEBHOOK;
-		});
-	});
-
-	describe("sendToErrorService with ERROR_URL_WEBHOOK", () => {
-		it("should use ERROR_URL_WEBHOOK env var when set", () => {
-			process.env.NODE_ENV = "production";
-			process.env.ERROR_URL_WEBHOOK = "https://webhook.example.com";
-			const fetchSpy = jest
-				.spyOn(globalThis, "fetch" as any)
-				.mockResolvedValue({ ok: true } as any);
-			const prodLogger = new Logger(LogLevel.Error);
-			prodLogger.error("webhook test");
-			expect(fetchSpy).toHaveBeenCalledWith(
-				"https://webhook.example.com",
-				expect.anything()
-			);
-			fetchSpy.mockRestore();
-			delete process.env.ERROR_URL_WEBHOOK;
-		});
-
-		it("should send nothing when ERROR_URL_WEBHOOK is empty", () => {
-			process.env.NODE_ENV = "production";
-			process.env.ERROR_URL_WEBHOOK = "";
-			const fetchSpy = jest
-				.spyOn(globalThis, "fetch" as any)
-				.mockResolvedValue({ ok: true } as any);
-			const prodLogger = new Logger(LogLevel.Error);
-			prodLogger.error("no webhook");
-			expect(fetchSpy).not.toHaveBeenCalled();
-			fetchSpy.mockRestore();
-			delete process.env.ERROR_URL_WEBHOOK;
 		});
 	});
 

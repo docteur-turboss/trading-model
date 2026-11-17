@@ -5,8 +5,8 @@ import {
 	ErrorCode,
 	makeErrorCode,
 } from "@trading-model/common/utils/errors";
-import { ResponseProtocol } from "@trading-model/http/adapters/inbound/response-protocol";
-import { logger } from "@trading-model/http/application/services/logger";
+import { logger } from "@trading-model/http/logger";
+import { ResponseProtocol } from "@trading-model/http/response-protocol";
 
 const addressManagerError = makeErrorCode(ErrorCode.AddressManager, 503);
 const serviceNotFoundError = makeErrorCode(ErrorCode.ServiceNotFound, 404);

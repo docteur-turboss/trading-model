@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { Response } from "express";
-import { pingController } from "../../src/adapters/inbound/ping.controller";
+import { pingController } from "../../src/ping.controller";
 
 describe("pingController", () => {
 	let mockRes: Partial<Response>;

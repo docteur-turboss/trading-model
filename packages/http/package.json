@@ -1,14 +1,45 @@
 {
   "name": "@trading-model/http",
-  "version": "1.2.0",
-  "description": "HTTP platform — middleware, http client, logging extracted from @trading-model/common",
+  "version": "2.0.0",
+  "description": "HTTP platform: middleware, http client, logging, server bootstrap, secure server factory, telemetry",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "default": "./dist/*.js"
-    }
+    "./acl-config": "./dist/acl-config.js",
+    "./acl-service": "./dist/acl-service.js",
+    "./api-route/api-route": "./dist/api-route/api-route.js",
+    "./api-route/mount-route": "./dist/api-route/mount-route.js",
+    "./bootstrap": "./dist/bootstrap.js",
+    "./catch-error": "./dist/catch-error.js",
+    "./circuit-recorder": "./dist/circuit-recorder.js",
+    "./configure-app": "./dist/configure-app.js",
+    "./console-formatter": "./dist/console-formatter.js",
+    "./correlation-id": "./dist/correlation-id.js",
+    "./create-secure-server": "./dist/create-secure-server.js",
+    "./http-client": "./dist/http-client.js",
+    "./http-client-errors": "./dist/http-client-errors.js",
+    "./http-retry": "./dist/http-retry.js",
+    "./http-tls-loader": "./dist/http-tls-loader.js",
+    "./http-types": "./dist/http-types.js",
+    "./json-wire": "./dist/json-wire.js",
+    "./log-types": "./dist/log-types.js",
+    "./logger": "./dist/logger.js",
+    "./metrics-handler": "./dist/metrics-handler.js",
+    "./mtls-auth": "./dist/mtls-auth.js",
+    "./mtls-authorization": "./dist/mtls-authorization.js",
+    "./mtls-identity": "./dist/mtls-identity.js",
+    "./outbound-metrics": "./dist/outbound-metrics.js",
+    "./readiness": "./dist/readiness.js",
+    "./response-exception": "./dist/response-exception.js",
+    "./response-exception/send-response": "./dist/response-exception/send-response.js",
+    "./response-protocol": "./dist/response-protocol.js",
+    "./sensitive-data-sanitizer": "./dist/sensitive-data-sanitizer.js",
+    "./server-factory": "./dist/server-factory.js",
+    "./service-server-factory": "./dist/service-server-factory.js",
+    "./shared/constants": "./dist/shared/constants.js",
+    "./shared/node-env": "./dist/shared/node-env.js",
+    "./signal-handler": "./dist/signal-handler.js",
+    "./telemetry": "./dist/telemetry.js"
   },
   "dependencies": {
     "@trading-model/primitives": "*",
@@ -18,7 +49,17 @@
     "@trading-model/reliability": "*",
     "express": "^5.3.0",
     "prom-client": "^15.1.3",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.301.1",
+    "@opentelemetry/instrumentation-express": "^0.72.0",
+    "@opentelemetry/instrumentation-http": "^0.301.1",
+    "@opentelemetry/instrumentation-ioredis": "^0.73.0",
+    "@opentelemetry/instrumentation-mongodb": "^0.78.0",
+    "@opentelemetry/instrumentation-mysql2": "^0.71.0",
+    "@opentelemetry/resources": "^3.0.0",
+    "@opentelemetry/sdk-node": "^0.301.1",
+    "@opentelemetry/semantic-conventions": "^1.44.0",
+    "helmet": "^8.3.0"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",
@@ -28,7 +69,8 @@
     "@types/node": "^26.6.6",
     "jest": "^30.5.2",
     "ts-jest": "^29.4.15",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "ts-node": "^10.9.2"
   },
   "scripts": {
     "test": "jest",

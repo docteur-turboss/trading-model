@@ -1,161 +1,91 @@
-import { parseRequest } from "@trading-model/http/adapters/inbound/api-route/api-route";
-import { DLQ_API } from "../../services/dlq-service/src/adapters/inbound/api-routes";
-import { serviceAuth } from "../../services/dlq-service/src/adapters/inbound/auth";
-import { checkEntryAcceptable } from "../../services/dlq-service/src/application/use-cases/dlq-validator";
-import { EntrySerializer } from "../../services/dlq-service/src/shared/entry-serializer";
-import { HttpDeadLetterStore } from "../../services/message-manager/src/adapters/outbound/http-dead-letter-store";
+import { describe, expect, it, jest } from "@jest/globals";
+import { DeadStreams } from "../../packages/broker-message/src/bus/dead-streams";
+import { createMessage } from "../../packages/broker-message/src/bus/message-factory";
+import { RedisMessageJournal } from "../../packages/broker-message/src/bus/redis-journal";
+import { StreamRedis } from "../../packages/broker-message/tests/fixtures/stream-redis";
 import { HttpMessageDelivery } from "../../services/message-manager/src/adapters/outbound/http-message-delivery";
-import { createMessage } from "../../services/message-manager/src/domain/message-factory";
+import { RedisDeadLetterStore } from "../../services/message-manager/src/adapters/outbound/redis-dead-letter-store";
 
 /**
- * Dead-letter contract: message-manager → dlq-service (ADR-0048, ADR-0021).
- *
- * message-manager's real delivery adapter hands a dead letter to its store;
- * each entry must pass dlq-service's real `POST /dlq`
- * validation (its registry entry, then the size and storage checks), which is
- * how an operator replays it (message-bus runbook).
- * The two sides drifted once: message-manager wrote `timestamp` as epoch
- * milliseconds while dlq-service only took a string.
- *
- * message-manager sends each dead letter to dlq-service itself
- * (`HttpDeadLetterStore`): its signed request must pass dlq-service's real
- * `serviceAuth` (caller allowed, HMAC over the parsed body) and `POST /dlq`.
+ * Dead-letter contract: message-manager → dead streams (ADR-0073). The real
+ * delivery adapter and dead-letter store write what the library lists, replays
+ * and deletes (the operator CLI), for the group that failed only.
  */
 
 jest.mock("../../services/message-manager/src/config/metrics", () => ({
 	MESSAGES_DLQ_TOTAL: { inc: () => undefined },
 }));
-jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
-	ENV: { DLQ_ALLOWED_SERVICES: "message-manager,admin" },
-	resolveAuthHmacSecret: () => "contract-test-hmac-secret",
-}));
 
-function sampleMessage() {
-	return createMessage({ close: 101.5 }, {
-		topic: "market.candles.fetch",
-		publisher: "financial-scraper",
-	} as never);
-}
+const TOPIC = "market.candles.fetch";
 
-/** Delivery adapter whose store keeps the entries as dlq-service receives them (JSON). */
-function collectingDelivery() {
-	const entries: any[] = [];
-	const delivery = new HttpMessageDelivery({} as never, {
-		insert: async (entry) => {
-			entries.push(JSON.parse(JSON.stringify(entry)));
-		},
-	});
-	return { delivery, entries };
-}
-
-describe("dead-letter contract: message-manager → dlq-service", () => {
-	async function deadLettersWritten(
-		reasons: Array<{ reason: string; deliveryAttempt: number }>
-	): Promise<unknown[]> {
-		const { delivery, entries } = collectingDelivery();
-		const message = sampleMessage();
-		for (const { reason, deliveryAttempt } of reasons) {
-			await delivery.markDeadLetter({
-				message,
-				reason,
-				deliveryAttempt: deliveryAttempt as never,
-			});
+describe("dead-letter contract: message-manager → dead streams", () => {
+	async function setup() {
+		const redis = new StreamRedis();
+		const journal = new RedisMessageJournal({ redis, keyPrefix: "p" });
+		const streams = new DeadStreams(journal);
+		const message = createMessage({ close: 101.5 }, {
+			topic: TOPIC,
+			publisher: "financial-scraper",
+		} as never);
+		const group = (service: string) => ({ topic: TOPIC as never, service });
+		for (const service of ["audit-logger", "trader-trainer"]) {
+			await journal.register(group(service));
 		}
-		return entries;
+		await journal.append(message, []);
+		const delivery = new HttpMessageDelivery(
+			{} as never,
+			new RedisDeadLetterStore(streams, () => undefined)
+		);
+		return { journal, streams, message, delivery, group };
 	}
 
-	it.each([
-		[
-			"retries exhausted",
-			{ reason: "MAX_RETRIES_EXCEEDED", deliveryAttempt: 10 },
-		],
-		["circuit breaker open", { reason: "OPEN", deliveryAttempt: 5 }],
-	])(
-		"%s: the dead letter is accepted by dlq-service",
-		async (_label, input) => {
-			const [line] = await deadLettersWritten([input]);
+	it("keeps a failed delivery as a dead letter of its group and takes it off the pending list", async () => {
+		const { journal, streams, message, delivery, group } = await setup();
+		const [entry] = await journal.readNew(group("trader-trainer"), "mm", 1);
 
-			const parsed = parseRequest(DLQ_API.addEntry, { body: line });
-
-			expect(parsed).toMatchObject({
-				success: true,
-				input: {
-					body: {
-						reason: input.reason,
-						deliveryAttempt: input.deliveryAttempt,
-						timestamp: (line as { timestamp: number }).timestamp,
-						message: (line as { message: unknown }).message,
-					},
-				},
-			});
-			const entry = (parsed as { input: { body: never } }).input.body;
-			expect(checkEntryAcceptable(entry.message, true)).toBeNull();
-		}
-	);
-
-	it("message-manager's signed POST passes dlq-service's auth and validation", async () => {
-		const sent: Array<{ url: string; body: unknown; headers: never }> = [];
-		const store = new HttpDeadLetterStore({
-			httpClient: {
-				post: async (url: string, body: unknown, options: never) => {
-					sent.push({
-						url,
-						body,
-						headers: (options as { headers: never }).headers,
-					});
-				},
-			} as never,
-			resolveUrl: async () => "https://dlq-service:3000/dlq" as never,
-			secret: "contract-test-hmac-secret",
-		});
-		const message = sampleMessage();
-
-		await store.insert({
+		await delivery.markDeadLetter({
+			service: "trader-trainer",
+			entryId: entry?.id as string,
 			message,
 			reason: "MAX_RETRIES_EXCEEDED",
 			deliveryAttempt: 10 as never,
-			timestamp: Date.now() as never,
 		});
 
-		const [{ body, headers }] = sent;
-		// What Express hands dlq-service: the JSON body, re-parsed.
-		const req = {
-			method: "POST",
-			path: "/dlq",
-			originalUrl: "/dlq",
-			headers,
-			body: JSON.parse(JSON.stringify(body)),
-		};
-		const res = { status: jest.fn(() => res), json: jest.fn(() => res) };
-		const next = jest.fn();
-		serviceAuth(req as never, res as never, next);
-
-		expect(res.status).not.toHaveBeenCalled();
-		expect(next).toHaveBeenCalled();
-		expect(parseRequest(DLQ_API.addEntry, { body: req.body })).toMatchObject({
-			success: true,
+		const [dead] = await streams.list(TOPIC);
+		expect(dead).toMatchObject({
+			group: "trader-trainer",
+			reason: "MAX_RETRIES_EXCEEDED",
+			attempts: 10,
 		});
+		expect(dead?.message.metadata.messageId).toBe(message.metadata.messageId);
+		expect(
+			await journal.claimDue(
+				group("trader-trainer"),
+				"mm",
+				{ floorMs: 0, dueAfterMs: () => 0 },
+				10
+			)
+		).toEqual([]);
 	});
 
-	it("two subscribers failing on one message give two replayable entries under the original messageId", async () => {
-		const { delivery, entries: lines } = collectingDelivery();
-		const message = sampleMessage();
-		for (const service of ["audit-logger", "trainer-service"]) {
-			await delivery.markDeadLetter({
-				message,
-				service,
-				reason: "OPEN",
-				deliveryAttempt: 5 as never,
-			});
-		}
-		const serializer = new EntrySerializer();
+	it("replays under the original messageId to the failed group only", async () => {
+		const { journal, streams, message, delivery, group } = await setup();
+		const [entry] = await journal.readNew(group("audit-logger"), "mm", 1);
+		await delivery.markDeadLetter({
+			service: "audit-logger",
+			entryId: entry?.id as string,
+			message,
+			reason: "OPEN",
+			deliveryAttempt: 5 as never,
+		});
+		const [dead] = await streams.list(TOPIC);
 
-		const keys = lines.map((line) => serializer.computeHash(line).messageId);
+		await streams.replay(TOPIC, dead?.id as string);
 
-		expect(lines.map((line) => line.messageId)).toEqual([
-			message.metadata.messageId,
+		const replayed = await journal.readNew(group("audit-logger"), "mm", 10);
+		expect(replayed.map((item) => item.message.metadata.messageId)).toEqual([
 			message.metadata.messageId,
 		]);
-		expect(new Set(keys).size).toBe(2);
+		expect(await streams.length(TOPIC)).toBe(0);
 	});
 });

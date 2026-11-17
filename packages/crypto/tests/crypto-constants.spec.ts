@@ -1,4 +1,4 @@
-import { CryptoAlg } from "../src/domain/constants/crypto-constants";
+import { CryptoAlg } from "../src/constants/crypto-constants";
 
 describe("CryptoAlg", () => {
 	it("should have expected values", () => {

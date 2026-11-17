@@ -1,4 +1,4 @@
-import { buyAndHoldSharpe } from "./genetic-algorithm/evaluation-utils";
+import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import type { GenomeFitnessMeta, MarketStep } from "./genetic-algorithm/genome";
 import { annualisedSharpe } from "./genome-summary-builder";
 
@@ -12,6 +12,12 @@ export const ADMISSION_THRESHOLDS = {
 	/** Annualised return / max drawdown. */
 	minCalmar: 1.0,
 } as const;
+
+/**
+ * Fewest test bars a verdict needs: one day of one-minute bars. Below it the
+ * annualised ratios (x sqrt(barsPerYear), x barsPerYear) mean nothing (ADR-0069).
+ */
+export const MIN_ADMISSION_TEST_BARS = 1440;
 
 /** Verdict written in the manifest; `admissible` only makes a model eligible. */
 export interface ModelAdmission {
@@ -30,15 +36,21 @@ export interface ModelAdmission {
 /**
  * Checks the ADR-0030 criteria on the test segment metrics of the published
  * genome. Undefined unless they were measured on the test segment: metrics of
- * the validation the selection read are biased upward (ADR-0068). Without bar
- * timestamps (`barsPerYear` unknown) the ratios stay per bar.
+ * the validation the selection read are biased upward (ADR-0068), and
+ * undefined under `MIN_ADMISSION_TEST_BARS` test bars. Without bar
+ * timestamps (`barsPerYear` unknown) the ratios stay per bar. A model that
+ * never decided (`decisions` 0) is never admissible.
  */
 export function assessAdmission(
 	meta: GenomeFitnessMeta | undefined,
 	test: readonly MarketStep[]
 ): ModelAdmission | undefined {
 	const curve = meta?.pnlCurve;
-	if (meta?.evaluatedOn !== "test" || !curve) {
+	if (
+		meta?.evaluatedOn !== "test" ||
+		!curve ||
+		test.length < MIN_ADMISSION_TEST_BARS
+	) {
 		return undefined;
 	}
 	const perYear = meta.barsPerYear ?? 1;
@@ -50,6 +62,7 @@ export function assessAdmission(
 	};
 	return {
 		admissible:
+			meta.decisions !== 0 &&
 			criteria.sharpe >= ADMISSION_THRESHOLDS.minSharpe &&
 			criteria.sortino >= ADMISSION_THRESHOLDS.minSortino &&
 			criteria.calmar >= ADMISSION_THRESHOLDS.minCalmar &&

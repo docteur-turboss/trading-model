@@ -1,6 +1,6 @@
 import http from "node:http";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { configureApp } from "@trading-model/server-utils/adapters/inbound/configure-app";
+import { configureApp } from "@trading-model/http/configure-app";
 
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -20,14 +20,13 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		TOKEN_REFRESH_INTERVAL_MS: 60000,
 		TTL_REFRESH_INTERVAL_MS: 15000,
 		ADDRESS_MANAGER_URL: "http://localhost:3000",
-		ERROR_URL_WEBHOOK: "",
 		MESSAGE_BUS_INIT_TIMEOUT_MS: 5000,
 		MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: 5000,
 		MESSAGE_CALLBACK_PATH: "message",
 	},
 }));
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 
-jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
+jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: {
 		createWithTls: jest.fn<(...args: any[]) => any>().mockReturnValue({
 			get: jest.fn<(...args: any[]) => any>(),
@@ -11,7 +11,7 @@ jest.mock("@trading-model/http/adapters/outbound/http-client", () => ({
 	},
 }));
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -59,7 +59,7 @@ const MOCK_ADDRESS_MANAGER_CLIENT = (() => {
 	};
 	return impl;
 })();
-jest.mock("../../src/adapters/outbound/client/address-manager-client", () => ({
+jest.mock("../../src/client/address-manager-client", () => ({
 	AddressManagerClient: jest
 		.fn<(...args: any[]) => any>()
 		.mockReturnValue(MOCK_ADDRESS_MANAGER_CLIENT),
@@ -79,48 +79,11 @@ const MOCK_TOKEN_MANAGER = (() => {
 	};
 	return impl;
 })();
-jest.mock("../../src/application/client/token-manager", () => ({
+jest.mock("../../src/client/token-manager", () => ({
 	TokenManager: jest
 		.fn<(...args: any[]) => any>()
 		.mockReturnValue(MOCK_TOKEN_MANAGER),
 }));
-
-jest.mock("../../src/adapters/outbound/discovery/service-cache", () => ({
-	ServiceCache: jest.fn<(...args: any[]) => any>().mockReturnValue({
-		get: jest.fn<(...args: any[]) => any>(),
-		set: jest.fn<(...args: any[]) => any>(),
-		delete: jest.fn<(...args: any[]) => any>(),
-		clear: jest.fn<(...args: any[]) => any>(),
-		entries: jest.fn<(...args: any[]) => any>().mockResolvedValue([]),
-		close: jest.fn<(...args: any[]) => any>(),
-	}),
-}));
-
-jest.mock("../../src/application/discovery/discovery-retry-handler", () => {
-	const actual = jest.requireActual<
-		typeof import("../../src/application/discovery/discovery-retry-handler")
-	>("../../src/application/discovery/discovery-retry-handler");
-	actual.DiscoveryRetryHandler.prototype.findCachedService = jest
-		.fn<(...args: any[]) => any>()
-		.mockResolvedValue({
-			host: "127.0.0.1",
-			port: 8080,
-			instanceId: "i-1",
-			serviceName: "test-service",
-		});
-	return actual;
-});
-
-jest.mock(
-	"../../src/adapters/outbound/discovery/service-health-checker",
-	() => ({
-		ServiceHealthChecker: jest.fn<(...args: any[]) => any>().mockReturnValue({
-			isHealthy: jest.fn<(...args: any[]) => any>().mockResolvedValue(true),
-			locate: jest.fn((instance: { host: string }) => instance.host),
-			recordLatency: jest.fn<(...args: any[]) => any>(),
-		}),
-	})
-);
 
 import {
 	DurationMs,
@@ -130,8 +93,8 @@ import {
 	toInstanceId,
 	toServiceId,
 } from "@trading-model/primitives/primitives";
-import AddressManager from "../../src/application/address-manager";
-import type { AddressManagerConfig } from "../../src/domain/config/address-manager-config";
+import AddressManager from "../../src/address-manager";
+import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 
 function makeConfig(
 	overrides?: Partial<AddressManagerConfig>
@@ -139,9 +102,6 @@ function makeConfig(
 	return {
 		servicePort: Port.of(8080),
 		addressManagerUrl: "https://discovery:3000",
-		cacheTtlMs: DurationMs.of(30000),
-		servicePingTimeoutMs: DurationMs.of(2000),
-		discoveryTimeoutMs: DurationMs.of(5000),
 		tokenRefreshIntervalMs: DurationMs.of(60000),
 		ttlRefreshIntervalMs: DurationMs.of(15000),
 		identity: {
@@ -185,48 +145,24 @@ describe("AddressManager (main)", () => {
 		expect(am).toBeInstanceOf(AddressManager);
 	});
 
-	it("should find a service", async () => {
+	it("finds a service at its canonical DNS name on port 3000, no registry asked", async () => {
 		const am = new AddressManager(makeConfig());
-		const instance = await am.discovery.findService(
-			toServiceId("test-service") as unknown as ServiceInstanceName
+		await expect(
+			am.findService("financial-scraper-service" as ServiceInstanceName)
+		).resolves.toEqual({ host: "financial-scraper", port: 3000 });
+	});
+
+	it("finds a service through DNS_NAME_MAP when the name is mapped", async () => {
+		const am = new AddressManager(
+			makeConfig({
+				dnsNameMap: {
+					[toServiceId("test-service")]: IPAddress.of("127.0.0.1"),
+				},
+			})
 		);
-		expect(instance).toBeDefined();
-	});
-
-	it("should start and stop", async () => {
-		const am = new AddressManager(makeConfig());
-		const handle = am.lifecycleManager.start();
-		handle.stop();
-	});
-
-	it("should record call success without durationMs", () => {
-		const am = new AddressManager(makeConfig());
-		am.discovery.recordCallSuccess(toInstanceId("instance-1"));
-	});
-
-	it("should record call success with durationMs", () => {
-		const am = new AddressManager(makeConfig());
-		am.discovery.recordCallSuccess(toInstanceId("instance-1"), 42);
-	});
-
-	it("should record call failure without durationMs", () => {
-		const am = new AddressManager(makeConfig());
-		am.discovery.recordCallFailure(toInstanceId("instance-1"));
-	});
-
-	it("should record call failure with durationMs", () => {
-		const am = new AddressManager(makeConfig());
-		am.discovery.recordCallFailure(toInstanceId("instance-1"), 100);
-	});
-
-	it("recordCallSuccess / recordCallFailure delegate to the orchestrator", () => {
-		const am = new AddressManager(makeConfig());
-		const success = jest.spyOn(am.discovery, "recordCallSuccess");
-		const failure = jest.spyOn(am.discovery, "recordCallFailure");
-		am.recordCallSuccess(toInstanceId("i-1"), 5);
-		am.recordCallFailure(toInstanceId("i-1"), 7);
-		expect(success).toHaveBeenCalledWith(toInstanceId("i-1"), 5);
-		expect(failure).toHaveBeenCalledWith(toInstanceId("i-1"), 7);
+		await expect(
+			am.findService("test-service" as ServiceInstanceName)
+		).resolves.toEqual({ host: "127.0.0.1", port: 3000 });
 	});
 
 	it("should get metrics", () => {
@@ -248,14 +184,6 @@ describe("AddressManager (main)", () => {
 		expect(app.get).toHaveBeenCalledWith("/metrics", expect.any(Function));
 	});
 
-	it("should handle start already started", async () => {
-		const am = new AddressManager(makeConfig());
-		const handle1 = am.lifecycleManager.start();
-		const handle2 = am.lifecycleManager.start();
-		handle1.stop();
-		handle2.stop();
-	});
-
 	it("should leave the registry, then stop", async () => {
 		const am = new AddressManager(makeConfig());
 		const handle = am.lifecycleManager.start();
@@ -267,40 +195,9 @@ describe("AddressManager (main)", () => {
 		handle.stop();
 	});
 
-	it("should complete registration before stopping", async () => {
-		const am = new AddressManager(makeConfig());
-		const handle = am.lifecycleManager.start();
-		await handle.ready;
-		handle.stop();
-	});
-
-	it("should not crash on start with existing token (sticky registration)", async () => {
-		MOCK_TOKEN_MANAGER.getTokenOrUndefined.mockReturnValue("existing-token");
-		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
-		const am = new AddressManager(makeConfig());
-		const handle = am.lifecycleManager.start();
-		handle.stop();
-	});
-
 	it("should return token from getToken", () => {
 		const am = new AddressManager(makeConfig());
 		const token = am.tokenManager.getToken();
 		expect(token).toBe("tok");
-	});
-
-	it("should retry findService when circuit breaker is open", async () => {
-		MOCK_TOKEN_MANAGER.getTokenOrUndefined.mockReturnValue("existing-token");
-		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
-		const am = new AddressManager(makeConfig());
-
-		am.discovery.recordCallFailure(toInstanceId("i-1"));
-		am.discovery.recordCallFailure(toInstanceId("i-1"));
-		am.discovery.recordCallFailure(toInstanceId("i-1"));
-
-		await expect(
-			am.discovery.findService(
-				toServiceId("test-service") as unknown as ServiceInstanceName
-			)
-		).rejects.toThrow();
 	});
 });

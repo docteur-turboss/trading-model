@@ -61,9 +61,9 @@ describe("Security E2E", () => {
 
 	describe("Gateway", () => {
 		it.each([
-			"/v1/discovery-server/services?id=1' OR '1'='1",
-			"/v1/discovery-server/services?name=foo; DROP TABLE services",
-			"/v1/discovery-server/services?offset=0 UNION SELECT * FROM users",
+			"/v1/audit-logger/events?id=1' OR '1'='1",
+			"/v1/audit-logger/events?name=foo; DROP TABLE services",
+			"/v1/audit-logger/events?offset=0 UNION SELECT * FROM users",
 		])("handles the SQL injection attempt %s", async (path) => {
 			const { status } = await externalRequest(encodeURI(path), {
 				headers: { "x-api-key": GATEWAY_API_KEY },

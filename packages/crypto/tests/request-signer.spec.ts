@@ -10,7 +10,7 @@ import {
 	normalizeBody,
 	signRequest,
 	verifySignature,
-} from "../src/application/services/request-signer";
+} from "../src/request-signer";
 
 const longSecret = "this-is-a-long-secret-123456";
 const shortSecret = "short";

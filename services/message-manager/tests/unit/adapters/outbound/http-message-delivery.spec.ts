@@ -1,16 +1,16 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "@trading-model/broker-message/bus/backoff";
 import { isDeadLetterError } from "@trading-model/broker-message/shared/errors";
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import {
 	createHttpClientError,
 	createHttpClientTimeoutError,
-} from "@trading-model/http/adapters/outbound/http-client-errors";
+} from "@trading-model/http/http-client-errors";
 import type {
 	SequenceNumber,
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
-import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "../../../../src/domain/backoff-calculator";
 import { createMockMessage } from "../../../fixtures/broker.fixture";
 import { createMockHttpClient } from "../../../helpers/broker.helper";
 
@@ -101,18 +101,19 @@ describe("HttpMessageDelivery", () => {
 
 			await delivery.markDeadLetter({
 				service: "trader-trainer",
+				entryId: "1-0",
 				message,
 				reason: "REASON",
 				deliveryAttempt: 3 as SequenceNumber,
 			});
 
-			const written = deadLetters.insert.mock.calls[0][0];
-			expect(written.topic).toBe(message.metadata.topic);
-			expect(written.reason).toBe("REASON");
-			expect(written.deliveryAttempt).toBe(3);
-			expect(written.message).toEqual(JSON.parse(JSON.stringify(message)));
-			expect(written.timestamp).toBeDefined();
-			expect(written.messageId).toBe(message.metadata.messageId);
+			expect(deadLetters.insert).toHaveBeenCalledWith({
+				service: "trader-trainer",
+				entryId: "1-0",
+				message,
+				reason: "REASON",
+				deliveryAttempt: 3,
+			});
 		});
 	});
 });

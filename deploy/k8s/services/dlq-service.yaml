@@ -70,6 +70,37 @@ spec:
           labelSelector:
             matchLabels:
               app.kubernetes.io/component: dlq-service
+      initContainers:
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Always
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: 8081
+            periodSeconds: 1
+            failureThreshold: 120
+          args:
+            - -config
+            - /etc/spiffe-helper/helper.conf
+          volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       containers:
         - name: dlq-service
           image: ghcr.io/trading-model/dlq-service:latest
@@ -90,6 +121,8 @@ spec:
             - configMapRef:
                 name: dlq-service-config
           env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=192
             - name: MONGO_USERNAME
               value: dlq-service
             - name: MONGO_PASSWORD
@@ -117,8 +150,6 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: DLQ_AUTH_HMAC_SECRET
-            - name: ERROR_URL_WEBHOOK
-              value: ""
           resources:
             requests:
               cpu: 100m
@@ -185,29 +216,6 @@ spec:
                   - /bin/sh
                   - -c
                   - sleep 10
-        - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
-          imagePullPolicy: IfNotPresent
-          args:
-            - -config
-            - /etc/spiffe-helper/helper.conf
-          volumeMounts:
-            - name: spiffe-helper-config
-              mountPath: /etc/spiffe-helper
-              readOnly: true
-            - name: spire-agent-socket
-              mountPath: /run/spire/agent-sockets
-            - name: svid
-              mountPath: /run/spire/svid
-          securityContext:
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
-            seccompProfile:
-              type: RuntimeDefault
       volumes:
         - name: redis-tls
           secret:

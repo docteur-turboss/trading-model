@@ -5,8 +5,11 @@ import {
 } from "@trading-model/primitives/pagination";
 import type { Collection } from "mongodb";
 
-import type { AuditEventDocument, AuditEventQuery } from "./audit-repository";
-import { buildAuditEventFilter } from "./filter-builder";
+import {
+	type AuditEventDocument,
+	type AuditEventQuery,
+	buildAuditEventFilter,
+} from "./filter-builder";
 
 /** A page; `total` is absent when the caller asked for `withTotal=false`. */
 export type AuditPage = Omit<PaginationResult<AuditEventDocument>, "total"> & {

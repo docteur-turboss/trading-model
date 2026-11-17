@@ -1,9 +1,9 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
-import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { catchSync } from "@trading-model/http/catch-error";
+import { logger } from "@trading-model/http/logger";
+import { sendResponse } from "@trading-model/http/response-exception";
 import { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
 import type { Request, RequestHandler } from "express";
 

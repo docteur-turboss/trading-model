@@ -74,6 +74,37 @@ spec:
           labelSelector:
             matchLabels:
               app.kubernetes.io/component: discovery-server
+      initContainers:
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Always
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: 8081
+            periodSeconds: 1
+            failureThreshold: 120
+          args:
+            - -config
+            - /etc/spiffe-helper/helper.conf
+          volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       containers:
         - name: discovery-server
           image: ghcr.io/trading-model/discovery-server:latest
@@ -94,6 +125,8 @@ spec:
             - configMapRef:
                 name: discovery-server-config
           env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=192
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -109,8 +142,6 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: SIGNING_SECRET
-            - name: ERROR_URL_WEBHOOK
-              value: ""
           resources:
             requests:
               cpu: 100m
@@ -174,29 +205,6 @@ spec:
                   - /bin/sh
                   - -c
                   - sleep 10
-        - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
-          imagePullPolicy: IfNotPresent
-          args:
-            - -config
-            - /etc/spiffe-helper/helper.conf
-          volumeMounts:
-            - name: spiffe-helper-config
-              mountPath: /etc/spiffe-helper
-              readOnly: true
-            - name: spire-agent-socket
-              mountPath: /run/spire/agent-sockets
-            - name: svid
-              mountPath: /run/spire/svid
-          securityContext:
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
-            seccompProfile:
-              type: RuntimeDefault
       volumes:
         - name: redis-tls
           secret:

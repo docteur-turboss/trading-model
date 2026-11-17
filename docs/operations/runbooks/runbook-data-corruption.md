@@ -1,6 +1,6 @@
 # Runbook: Data Corruption
 
-**Severity:** SEV1 (if detected)  
+**Severity:** L1 (if detected)  
 **Alert:** Manual detection or anomaly in data
 
 ## Detection

@@ -1,8 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
+import { ExperienceKind } from "@trading-model/model-runtime/neural-network/type";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
 import type { Reward } from "@trading-model/primitives/primitives";
 import { Cash, Price } from "@trading-model/primitives/primitives";
-import { FeatureVector } from "../../../src/domain/feature-vector";
 import {
 	evaluateFitness,
 	evaluateGenomeAllWindows,
@@ -16,7 +17,6 @@ import {
 } from "../../../src/domain/genetic-algorithm/genome";
 import type { RLBackend } from "../../../src/domain/genetic-algorithm/rl-backend";
 import type { Experience } from "../../../src/domain/genetic-algorithm/shared-types";
-import { ExperienceKind } from "../../../src/domain/neural-network/type";
 
 const MINIMAL_GENOME = {
 	id: "test",
@@ -179,12 +179,17 @@ describe("evaluateGenomeAllWindows", () => {
 			},
 		];
 		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
-		const result = await evaluateGenomeAllWindows(
+		await evaluateGenomeAllWindows(
 			genome as any,
 			windowSets,
 			backendFactory as any
 		);
-		expect(result.updatedGenome).toBeDefined();
+		// one decision every 3 bars: train bars 0,3,6,9 (4), then validation
+		// bars 0,3 (2) for each of the 2 evaluation episodes
+		const stepCalls = backendFactory.mock.results.map(
+			(r) => ((r.value as RLBackend).step as jest.Mock).mock.calls.length
+		);
+		expect(stepCalls).toEqual([4, 2, 2]);
 	});
 
 	it("should apply reward shaping with clip and normalize", async () => {

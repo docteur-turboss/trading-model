@@ -1,7 +1,7 @@
+import type { Signal } from "@trading-model/validation/wire/signals";
 import type { RowDataPacket } from "mysql2";
 import { DATABASE } from "../../../config/db";
 import type { SignalStorePort } from "../../../domain/ports/signal-store.port";
-import type { Signal } from "../../../domain/signals";
 
 interface SignalRow extends RowDataPacket {
 	id: string;
@@ -10,6 +10,7 @@ interface SignalRow extends RowDataPacket {
 	dimension: Signal["dimension"];
 	asset_id: string | null;
 	sector: string | null;
+	area: string | null;
 	observed_at: Date;
 	ingested_at: Date;
 	confidence_score: number;
@@ -18,17 +19,28 @@ interface SignalRow extends RowDataPacket {
 }
 
 const COLUMNS =
-	"id, schema_version, source_id, dimension, asset_id, sector, observed_at, ingested_at, confidence_score, payload";
+	"id, schema_version, source_id, dimension, asset_id, sector, area, observed_at, ingested_at, confidence_score, payload";
 
 /** A signal already stored keeps its row: a replayed collection changes nothing. */
 const INSERT_SQL = `INSERT INTO signals (${COLUMNS}) VALUES ? ON DUPLICATE KEY UPDATE id = id`;
 
 const SELECT_FOR_ASSET_SQL = `SELECT ${COLUMNS} FROM signals
-	WHERE (asset_id = ? OR (asset_id IS NULL AND sector = ?))
+	WHERE (asset_id = ? OR (asset_id IS NULL AND sector = ?) OR area IN (?))
 		AND dimension IN (?)
+		AND (? IS NULL OR source_id = ?)
+		AND (? IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(payload, '$.metric')) = ?)
 		AND observed_at >= ? AND observed_at < ?
 	ORDER BY observed_at, id
 	LIMIT ?`;
+
+interface NewestRow extends RowDataPacket {
+	source_id: string;
+	ingested: Date;
+	observed: Date;
+}
+
+const NEWEST_SQL = `SELECT source_id, MAX(ingested_at) AS ingested, MAX(observed_at) AS observed
+	FROM signals GROUP BY source_id`;
 
 /** Rows were written from checked signals: the payload matches its dimension. */
 function _toSignal(row: SignalRow): Signal {
@@ -39,6 +51,7 @@ function _toSignal(row: SignalRow): Signal {
 		dimension: row.dimension,
 		assetId: row.asset_id,
 		sector: row.sector,
+		area: row.area,
 		observedAt: row.observed_at.toISOString(),
 		ingestedAt: row.ingested_at.toISOString(),
 		confidenceScore: row.confidence_score,
@@ -46,7 +59,7 @@ function _toSignal(row: SignalRow): Signal {
 	} as Signal;
 }
 
-/** Signals on the MySQL `signals` table (migration 006). */
+/** Signals on the MySQL `signals` table (migrations 006, 009). */
 export const MySqlSignalStore: SignalStorePort = {
 	async save(signals) {
 		if (signals.length === 0) {
@@ -59,6 +72,7 @@ export const MySqlSignalStore: SignalStorePort = {
 			signal.dimension,
 			signal.assetId,
 			signal.sector,
+			signal.area,
 			new Date(signal.observedAt),
 			new Date(signal.ingestedAt),
 			signal.confidenceScore,
@@ -67,10 +81,46 @@ export const MySqlSignalStore: SignalStorePort = {
 		await DATABASE.promise().query(INSERT_SQL, [rows]);
 	},
 
-	async findForAsset({ assetId, sector, dimensions, from, to, limit }) {
+	async newestBySource() {
+		const [rows] = await DATABASE.promise().query<NewestRow[]>(NEWEST_SQL);
+		return new Map(
+			rows.map((row) => [
+				row.source_id,
+				{
+					ingestedAt: row.ingested.getTime(),
+					observedAt: row.observed.getTime(),
+				},
+			])
+		);
+	},
+
+	async findForAsset({
+		assetId,
+		sector,
+		areas,
+		dimensions,
+		sourceId = null,
+		metric = null,
+		from,
+		to,
+		limit,
+	}) {
 		const [rows] = await DATABASE.promise().query<SignalRow[]>(
 			SELECT_FOR_ASSET_SQL,
-			[assetId, sector, dimensions, new Date(from), new Date(to), limit]
+			// `IN ()` is a syntax error: an asset without areas matches none.
+			[
+				assetId,
+				sector,
+				areas.length > 0 ? areas : [null],
+				dimensions,
+				sourceId,
+				sourceId,
+				metric,
+				metric,
+				new Date(from),
+				new Date(to),
+				limit,
+			]
 		);
 		return rows.map(_toSignal);
 	},

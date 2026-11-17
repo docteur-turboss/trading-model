@@ -1,8 +1,11 @@
+import { agentError } from "@trading-model/model-runtime/errors";
+import type {
+	LayerMemory,
+	NeuralNetworkConfig,
+} from "@trading-model/model-runtime/neural-network/type";
 import { PositiveInt } from "@trading-model/primitives/primitives";
-import { agentError } from "../../shared/errors";
 import { INITIALIZERS } from "./initializers";
 import type { LayerDims } from "./layer-dims";
-import type { LayerMemory, NeuralNetworkConfig } from "./type";
 
 function _initArray(
 	length: number,

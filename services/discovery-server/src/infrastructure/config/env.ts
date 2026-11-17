@@ -1,8 +1,8 @@
 import { DEFAULT_PRIVATE_CIDRS } from "@trading-model/primitives/primitives";
-import { validateEnv } from "@trading-model/validation/application/services/validate-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
 import { weakSecretReason } from "@trading-model/validation/config/secret-strength";
+import { validateEnv } from "@trading-model/validation/config/validate-env";
 import { z } from "zod";
 
 const DISCOVERY_EXTRA = {
@@ -11,7 +11,6 @@ const DISCOVERY_EXTRA = {
 		.int()
 		.positive()
 		.default(1_000 * 60 * 10),
-	ERROR_URL_WEBHOOK: z.union([z.string().url(), z.literal("")]).default(""),
 	// Empty means unset: compose passes `${SIGNING_SECRET:-}`.
 	SIGNING_SECRET: z.preprocess(
 		(value) => (value === "" ? undefined : value),
@@ -28,6 +27,19 @@ const DISCOVERY_ENV_SCHEMA = BaseEnvSchema.extend(RedisEnvSchema.shape)
 				code: z.ZodIssueCode.custom,
 				message: "ALLOWED_REGISTRATION_CIDRS cannot be empty in production",
 				path: ["ALLOWED_REGISTRATION_CIDRS"],
+			});
+		}
+		// In memory, each replica would keep its own registry and tokens.
+		if (
+			data.NODE_ENV === "production" &&
+			!data.REDIS_URL &&
+			!data.REDIS_SENTINELS
+		) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message:
+					"REDIS_URL or REDIS_SENTINELS is required in production: the registry is shared by the replicas in Redis",
+				path: ["REDIS_SENTINELS"],
 			});
 		}
 		// Without it each process signs instance tokens with its own random

@@ -1,7 +1,7 @@
 # Runbook: Market Data Stale
 
-**Severity:** SEV2 (the platform runs, but trades and training work on old data)
-**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `CandleDeliveryLagging`
+**Severity:** L2 (the platform runs, but trades and training work on old data)
+**Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `SignalSourceStale`
 **Affected:** financial-scraper (collector), message-manager, trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
@@ -16,8 +16,7 @@ dependencies (MySQL, Redis), not that candles arrive.
 | `ScrapeCyclesFailing` | cycles run but fail (Binance, MySQL) |
 | `SymbolMarketDataStale` | one symbol gets no candle, the others do: see [SymbolMarketDataStale](#symbolmarketdatastale) |
 | `BinanceRestrictedLocation` | Binance geo-blocks the collector (451): apply the ADR-0026 fallback |
-| `CandleDeliveryLagging` | delivery is partial: under half of the persisted candles reach the trainer (message-manager backlog, dead letters, subscription) |
-| `TrainerMarketDataStale` alone | delivery: the scraper persists, the trainer receives nothing (message-manager, subscription) |
+| `TrainerMarketDataStale` alone | read: the scraper persists, the trainer reads no fresh candle (scraper candle route, ACL, MySQL) |
 
 ## Triage (Kubernetes)
 
@@ -87,14 +86,15 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
      address on 443; check DNS and the node's outbound access.
 4. **MySQL writes failing**: cycles fail (`ScrapeCyclesFailing`), MySQL errors
    in the logs; see [runbook-database-failover](runbook-database-failover.md).
-5. **Trainer only** (`TrainerMarketDataStale` alone): message-manager or the
-   trainer subscription; see [runbook-message-bus-outage](runbook-message-bus-outage.md).
+5. **Trainer only** (`TrainerMarketDataStale` alone): the trainer logs "Stored candles unreadable"
+   or reads an old window; check the scraper candle read route
+   route and the trainer ACL.
 
 ## Resolution check
 
 `sum(increase(fs_candles_persisted_total[15m]))` and
-`sum(increase(tt_market_data_received_total[15m]))` grow again; the alerts
-resolve within 15 minutes.
+`min(tt_last_candle_age_seconds)` falls under 900 at the next training session
+(`TRAINER_INTERVAL_MS`); the alerts resolve then.
 
 ## CollectorNoLeader
 
@@ -131,7 +131,7 @@ a collector runs.
 
 ## SymbolMarketDataStale
 
-**Severity:** SEV2 (critical). No candle of one tracked symbol was persisted
+**Severity:** L2 (critical). No candle of one tracked symbol was persisted
 for 15 minutes while the others may still flow: the cycle counts as `success`
 and `MarketDataStale` (global sum) stays silent, but that symbol gets no new
 data and the trainer stops training it (`TRAINER_MAX_DATA_AGE_MS`). The
@@ -168,9 +168,26 @@ Read the `error` of the log line:
 The alert resolves within 15 minutes once a candle of the symbol is persisted
 again.
 
+## SignalSourceStale
+
+**Severity:** L4 (warning). A registry source (ADR-0036) has had no
+successful collection for longer than its threshold (`maxAgeSeconds` in
+`signal-registry.json`, else three periods of its `schedule`), with no failure
+counted. A source that answers 200 with an empty list still counts as a
+success: compare `fs_signal_newest_observed_timestamp_seconds` by hand for it.
+
+- **Lease lost**: `fs_collector_leader` is 0 on every pod (alert
+  `CollectorNoLeader`); see its section.
+- **Cron stopped**: a leader exists but the source logs neither
+  "Signal collection failed" nor "Previous signal collection still running:
+  tick skipped": its `schedule` is wrong or its API key is unset
+  (`fs_signal_source_disabled`). Fix the registry or secret, restart.
+- **Source stopped** (a tick that hangs, publisher down without error):
+  raise `maxAgeSeconds` or remove the source if the stop is final.
+
 ## SignalCollectionFailing
 
-**Severity:** SEV4 (warning). Binance market data is not affected: only the
+**Severity:** L4 (warning). Binance market data is not affected: only the
 signals of one registry source (ADR-0036) are missing or stale. The alert
 stays on for 24 hours after the last failure.
 
@@ -196,6 +213,28 @@ By `result`:
 - **`store_error`**: MySQL refuses the writes; see
   [runbook-database-failover](runbook-database-failover.md).
 
+**Quarantine.** After 3 consecutive ticks with a `fetch_error`, at once on
+a 401 or 403 or an answer with `Retry-After`, the collector skips the ticks
+of the source (counted `result="skipped_quarantine"`, so this alert stays on)
+until a deadline: 1 h doubling to 24 h, never before `Retry-After`. One trial
+request follows; a success closes it. Read it: gauge
+`fs_signal_source_quarantined{source}` = 1 and the "Signal source
+quarantined" log (`until`). Force a new trial: restart the collector
+(`kubectl -n $NS rollout restart deploy/financial-scraper-collector`); the
+state is in memory only. Fix the cause first (key, e-mail, rate), or the
+trial fails and the quarantine starts again.
+
 A collection that failed is not retried before the next schedule of its
 source; values the source still publishes then are collected again (ECB: last
 5, Wikimedia: 8 days, NWS: latest observation only).
+
+## Backfill a signal source's history
+
+After adding an asset, load its past in one command on the collector pod (never on an HTTP replica: it shares the source quota with the crons). The source needs a `history` entry in `signal-registry.json` and an adapter that sets `observedAt` itself; otherwise the command refuses (exit 2).
+
+```bash
+kubectl -n $NS exec deploy/financial-scraper-collector -c financial-scraper-collector -- \
+  node dist/application/signal-backfill.js --source <id> [--asset <id>] --from 2020-01-01 --to 2026-11-01
+```
+
+Pages are sent at `maxRequestsPerMinute`, within what `maxRequestsPerDay` leaves after the cron. Exit 1 (failure, or quota reached: log `Daily quota reached`) keeps the pages stored; run the same command again to resume after the last one (the count of the UTC day is kept, so reruns the same day share the quota). Progress is in the pod's temp dir: a restarted pod starts over, which is harmless (same ids) but resends the pages. Signal ids match the normal collection, so overlap or replay stores nothing twice.

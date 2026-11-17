@@ -1,15 +1,11 @@
+import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "@trading-model/broker-message/bus/backoff";
+import { DlqReason } from "@trading-model/broker-message/bus/delivery-error-classifier";
 import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { runInMessageTraceContext } from "@trading-model/broker-message/shared/trace-context";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import type { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { isHttpClientError } from "@trading-model/http/adapters/outbound/http-client-errors";
-import {
-	PositiveInt,
-	UnixTimestamp,
-} from "@trading-model/primitives/primitives";
+import type { HttpClient } from "@trading-model/http/http-client";
+import { isHttpClientError } from "@trading-model/http/http-client-errors";
 import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
-import { DELIVERY_ATTEMPT_TIMEOUT_MS } from "../../domain/backoff-calculator";
-import { DlqReason } from "../../domain/delivery-error-classifier";
 import type { DeadLetterStorePort } from "../../domain/ports/dead-letter-store.port";
 import type {
 	DeadLetterInput,
@@ -65,17 +61,14 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 	}
 
 	async markDeadLetter(input: DeadLetterInput): Promise<void> {
-		const { message, reason, deliveryAttempt, service } = input;
+		const { message, reason, deliveryAttempt, service, entryId } = input;
 		MESSAGES_DLQ_TOTAL.inc({ topic: message.metadata.topic, reason });
 		await this._deadLetters.insert({
-			// dlq-service lists and replays dead letters by topic.
-			topic: message.metadata.topic,
-			message,
-			messageId: message.metadata.messageId,
 			service,
+			entryId,
+			message,
 			reason,
-			deliveryAttempt: PositiveInt.of(deliveryAttempt),
-			timestamp: UnixTimestamp.now(),
+			deliveryAttempt,
 		});
 	}
 }

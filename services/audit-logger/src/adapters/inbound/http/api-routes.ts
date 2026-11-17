@@ -2,7 +2,7 @@ import {
 	brand,
 	defineRoute,
 	ErrorResponse,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import {
 	toCorrelationId,
 	toServiceId,
@@ -77,7 +77,7 @@ export const AUDIT_API = {
 	}),
 	listEvents: defineRoute({
 		method: "GET",
-		path: "/events",
+		path: "/v1/events",
 		summary: "List stored events, newest first",
 		query: z.object({
 			topic: optionalFilter(toTopic),
@@ -114,7 +114,7 @@ export const AUDIT_API = {
 	}),
 	getStats: defineRoute({
 		method: "GET",
-		path: "/events/stats",
+		path: "/v1/events/stats",
 		summary: "Event counts by topic and publisher",
 		responses: {
 			200: z.object({
@@ -131,7 +131,7 @@ export const AUDIT_API = {
 	}),
 	getEvent: defineRoute({
 		method: "GET",
-		path: "/events/:messageId",
+		path: "/v1/events/:messageId",
 		summary: "One event by message id",
 		params: z.object({ messageId: z.string().min(1) }),
 		responses: { 200: AuditEvent, 400: ErrorResponse, 404: ErrorResponse },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
 import {

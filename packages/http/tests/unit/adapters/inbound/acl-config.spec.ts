@@ -1,8 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import {
-	DEFAULT_ACL,
-	KnownService,
-} from "@trading-model/http/adapters/inbound/acl-config";
+import { DEFAULT_ACL, KnownService } from "@trading-model/http/acl-config";
 
 describe("DEFAULT_ACL", () => {
 	it("should contain entries for all known services", () => {
@@ -26,9 +23,18 @@ describe("DEFAULT_ACL", () => {
 
 	it("should let the message-manager clients reach it", () => {
 		// audit-logger subscribes to the audited topics; dlq-service republishes replays.
-		for (const client of ["audit-logger", "dlq-service"]) {
+		for (const client of ["audit-logger", "dlq-service", "model-evaluator"]) {
 			expect(DEFAULT_ACL[KnownService.MessageManager]).toContain(client);
 		}
+	});
+
+	it("should let the model evaluator read the trainer models, and only message-manager call it", () => {
+		expect(DEFAULT_ACL[KnownService.TraderTrainer]).toContain(
+			"model-evaluator"
+		);
+		expect(DEFAULT_ACL[KnownService.ModelEvaluator]).toEqual([
+			"message-manager",
+		]);
 	});
 
 	it("should let the trainer read the data supply", () => {

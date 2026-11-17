@@ -27,6 +27,7 @@ const ETH = TradingSymbol.of("ETHUSDT");
 const NOW = 1_800_000_000_000;
 const MINUTE = 60_000;
 const MAX_AGE = 15 * MINUTE;
+const DAY = 24 * 60 * MINUTE;
 const WINDOWING = {
 	validationSplit: 0.2,
 	testSplit: 0.15,
@@ -38,6 +39,8 @@ describe("TrainingLoop", () => {
 	let stopTraining: jest.Mock<() => Promise<void>>;
 	let lastClose: Map<TradingSymbol, number | undefined>;
 	let candleCount: number;
+	let history: { loadWindow: jest.Mock<(...args: any[]) => Promise<any[]>> };
+	let replaceCandles: jest.Mock<(...args: any[]) => void>;
 	let loop: TrainingLoop;
 
 	const runOnce = async (symbols: TradingSymbol[] = [BTC]) => {
@@ -55,6 +58,8 @@ describe("TrainingLoop", () => {
 		stopTraining = jest.fn(async () => {});
 		lastClose = new Map();
 		candleCount = 1000;
+		history = { loadWindow: jest.fn(async () => [{ timestamp: 1 }]) };
+		replaceCandles = jest.fn();
 		const trainer = {
 			train,
 			isTraining: () => false,
@@ -62,14 +67,87 @@ describe("TrainingLoop", () => {
 		} as unknown as Trainer;
 		const buffer = {
 			getMaxSize: () => 1000,
+			replaceCandles,
 			getCandleCount: () => candleCount,
 			getLastCandleCloseTime: (symbol: TradingSymbol) => lastClose.get(symbol),
 		} as unknown as MarketDataBuffer;
-		loop = new TrainingLoop(trainer, buffer, WINDOWING);
+		loop = new TrainingLoop(trainer, buffer, history, WINDOWING);
 	});
 
 	afterEach(() => {
 		jest.restoreAllMocks();
+	});
+
+	it("trains a daily symbol once per bar, and keeps a Friday bar fresh on Sunday", async () => {
+		lastClose.set(BTC, NOW - 2 * DAY);
+		train.mockResolvedValue({ success: true } as never);
+		loop = new TrainingLoop(
+			{ train, isTraining: () => false, stopTraining } as unknown as Trainer,
+			{
+				getMaxSize: () => 1000,
+				replaceCandles,
+				getCandleCount: () => candleCount,
+				getLastCandleCloseTime: (symbol: TradingSymbol) =>
+					lastClose.get(symbol),
+			} as unknown as MarketDataBuffer,
+			history,
+			WINDOWING,
+			undefined,
+			new Set([BTC])
+		);
+		await runOnce();
+		await runOnce();
+		expect(train).toHaveBeenCalledTimes(1);
+		lastClose.set(BTC, NOW - DAY);
+		await runOnce();
+		expect(train).toHaveBeenCalledTimes(2);
+	});
+
+	it("should read signals only for a mapped symbol and train without them when the read fails", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+		const signalHistory = {
+			loadWindow: jest.fn<(...args: any[]) => Promise<any[]>>(async () => {
+				throw new Error("404");
+			}),
+		};
+		const setSignals = jest.fn();
+		const buffer = {
+			getMaxSize: () => 1000,
+			replaceCandles,
+			setSignals,
+			getCandleCount: () => candleCount,
+			getLastCandleCloseTime: (symbol: TradingSymbol) => lastClose.get(symbol),
+		} as unknown as MarketDataBuffer;
+		const trainer = {
+			train,
+			isTraining: () => false,
+			stopTraining,
+		} as unknown as Trainer;
+		const signals = (assets: [TradingSymbol, string][]) => ({
+			history: signalHistory,
+			assets: new Map(assets),
+			windowMs: DAY,
+		});
+
+		loop = new TrainingLoop(trainer, buffer, history, WINDOWING, signals([]));
+		await runOnce();
+		expect(signalHistory.loadWindow).not.toHaveBeenCalled();
+
+		loop = new TrainingLoop(
+			trainer,
+			buffer,
+			history,
+			WINDOWING,
+			signals([[BTC, "BTC"]])
+		);
+		await runOnce();
+		expect(signalHistory.loadWindow).toHaveBeenCalledWith(
+			"BTC",
+			NOW - DAY,
+			NOW
+		);
+		expect(setSignals).toHaveBeenCalledWith(BTC, []); // unreadable: no signal input
+		expect(train).toHaveBeenCalledTimes(2);
 	});
 
 	it("should train a symbol whose newest candle is recent", async () => {
@@ -178,16 +256,38 @@ describe("TrainingLoop", () => {
 		}
 	});
 
+	it("should train on the stored window ending now, not on the bus", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+
+		await runOnce();
+
+		expect(history.loadWindow).toHaveBeenCalledWith(BTC, NOW, 1000);
+		expect(replaceCandles).toHaveBeenCalledWith(BTC, [{ timestamp: 1 }]);
+		expect(train).toHaveBeenCalledWith(BTC);
+	});
+
+	it("should skip a symbol whose stored candles cannot be read", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+		history.loadWindow.mockRejectedValue(new Error("scraper down"));
+
+		await runOnce();
+
+		expect(train).not.toHaveBeenCalled();
+		expect(MOCK_LOGGER.error).toHaveBeenCalled();
+	});
+
 	it("should not train while a session is already running", async () => {
 		lastClose.set(BTC, NOW - MINUTE);
 		const busy = new TrainingLoop(
 			{ train, isTraining: () => true, stopTraining } as unknown as Trainer,
 			{
 				getMaxSize: () => 1000,
+				replaceCandles,
 				getCandleCount: () => candleCount,
 				getLastCandleCloseTime: (symbol: TradingSymbol) =>
 					lastClose.get(symbol),
 			} as unknown as MarketDataBuffer,
+			history,
 			WINDOWING
 		);
 
@@ -223,10 +323,11 @@ describe("TrainingLoop", () => {
 		} as unknown as Trainer;
 		const buffer = {
 			getMaxSize: () => 1000,
+			replaceCandles,
 			getCandleCount: () => candleCount,
 			getLastCandleCloseTime: () => NOW - MINUTE,
 		} as unknown as MarketDataBuffer;
-		loop = new TrainingLoop(trainer, buffer, windowing);
+		loop = new TrainingLoop(trainer, buffer, history, windowing);
 		for (const count of [13, 14, 50, 100]) {
 			candleCount = count;
 			train.mockClear();

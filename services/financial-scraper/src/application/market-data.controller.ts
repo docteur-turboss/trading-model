@@ -84,7 +84,7 @@ export function createMarketDataController(
 			const results = await Promise.allSettled(
 				persisters
 					.filter(({ present }) => hasData(present(payload)))
-					.map(({ present, insert }) => insert(present(payload) as never))
+					.map(({ present, insert }) => insert(present(payload)!))
 			);
 
 			const failures = results.filter((item) => item.status === "rejected");

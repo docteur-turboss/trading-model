@@ -1,5 +1,5 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
-import type { FeatureVector } from "./feature-vector";
+import type { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import type { FeatureState } from "./market-data-types";
 
 /** Base context shared by all feature builder functions. */

@@ -7,7 +7,7 @@ This directory contains operational procedures, policies, and runbooks for the T
 | Document                               | Purpose                                                    |
 | -------------------------------------- | ---------------------------------------------------------- |
 | [SLO](slo.md)                          | Service Level Objectives and burn-rate alerting             |
-| [Incident Response](incident-response.md) | Severity levels, escalation, post-mortem                 |
+| [Incident Response](incident-response.md) | Checklist, escalation, channels                          |
 | [On-Call](on-call.md)                  | Rotation, responsibilities, quick commands                  |
 
 ## Runbooks
@@ -21,8 +21,8 @@ This directory contains operational procedures, policies, and runbooks for the T
 | [Data Corruption](runbooks/runbook-data-corruption.md) | Data corruption detection and recovery               |
 | [Audit Chain Broken](runbooks/runbook-audit-chain-broken.md) | Audit trail integrity: broken, unverified or unanchored chain (ADR-0027) |
 | [Deployment Failure](runbooks/runbook-deployment-failure.md) | Failed deployment rollback procedure            |
-| [Latency and Errors](runbooks/runbook-latency-and-errors.md) | `HighErrorRate` and the SLO burn-rate alerts |
-| [Circuit Breaker Open](runbooks/runbook-circuit-breaker-open.md) | `CircuitBreakerOpen`: a caller stopped calling a failing instance |
+| [Latency and Errors](runbooks/runbook-latency-and-errors.md) | SLO burn-rate alerts (availability, latency) |
+| [Circuit Breaker Open](runbooks/runbook-circuit-breaker-open.md) | `HttpCircuitBreakerRejecting`: a caller refuses its calls to a failing dependency |
 | [Service Discovery](runbooks/runbook-discovery.md) | `InstanceCountLow`, `HeartbeatStopped`: lost redundancy, lost leases |
 | [DLQ Backlog](runbooks/runbook-dlq-backlog.md) | `DLQSizeGrowing`, `DLQDrainRateLow`: dead letters not drained |
 | [Trainer Failures](runbooks/runbook-trainer.md) | `TrainingCompletionRateLow`, `ModelArtifactWriteFailing` (ADR-0022) |

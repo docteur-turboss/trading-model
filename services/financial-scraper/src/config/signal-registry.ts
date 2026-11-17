@@ -1,13 +1,18 @@
+import {
+	Asset,
+	SIGNAL_SCHEMA_VERSION,
+} from "@trading-model/validation/wire/signals";
 import cron from "node-cron";
 import { z } from "zod";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
+import { cronMaxGapMs } from "../domain/cron-period";
 import type { SourceAdapter } from "../domain/ports/signal-source.port";
 import {
-	Asset,
 	DATE_PLACEHOLDER,
-	SIGNAL_SCHEMA_VERSION,
+	dailyRequests,
 	Source,
-	type SourceRequest,
+	SourceRequest,
+	SourceTemplate,
 } from "../domain/signals";
 import REGISTRY_FILE from "./signal-registry.json";
 
@@ -17,25 +22,137 @@ export interface SignalRegistry {
 	sources: readonly Source[];
 }
 
+/** A source as written in the file: `requests` and/or `templates`. */
+const SourceDeclaration = Source.omit({ requests: true })
+	.extend({
+		requests: z.array(SourceRequest).default([]),
+		templates: z.array(SourceTemplate).default([]),
+	})
+	.refine((source) => source.requests.length + source.templates.length > 0, {
+		message: "no request nor template",
+	})
+	.refine(
+		(source) => {
+			if (!cron.validate(source.schedule)) {
+				return true; // reported with the other problems
+			}
+			const gap = cronMaxGapMs(source.schedule);
+			return source.maxAgeSeconds === undefined
+				? gap !== undefined
+				: gap === undefined || source.maxAgeSeconds * 1000 >= gap;
+		},
+		{
+			message:
+				"maxAgeSeconds is shorter than the period of schedule, or schedule is unreadable (names, 6 fields, rarer than yearly) without maxAgeSeconds",
+		}
+	);
+
 const RegistryFile = z.strictObject({
 	schemaVersion: z.literal(SIGNAL_SCHEMA_VERSION),
 	assets: z.array(Asset).min(1),
-	sources: z.array(Source),
+	sources: z.array(SourceDeclaration),
 });
+
+const HOLE = /\{asset\.(ticker|isin|alias\.[a-z][a-z0-9_]*)\}/g;
+
+function _holeValue(asset: Asset, hole: string): string | undefined {
+	const { identifier } = asset;
+	if (hole.startsWith("alias.")) {
+		return asset.aliases?.[hole.slice(6)];
+	}
+	if (hole === "ticker" && identifier.scheme === "ticker") {
+		return identifier.ticker;
+	}
+	return hole === "isin" && identifier.scheme === "isin"
+		? identifier.isin
+		: undefined;
+}
+
+/** Fills the asset holes of a URL (URL-encoded); undefined when the asset lacks one. */
+export function fillAssetHoles(url: string, asset: Asset): string | undefined {
+	const holes = [...url.matchAll(HOLE)].map((match) => match[1] as string);
+	return holes.some((hole) => _holeValue(asset, hole) === undefined)
+		? undefined
+		: url.replace(HOLE, (_, hole: string) =>
+				encodeURIComponent(_holeValue(asset, hole) as string)
+			);
+}
+
+/** Unfolds the templates of a source into requests; every problem goes to `problems`. */
+function _expandTemplates(
+	source: { id: string; templates: readonly SourceTemplate[] },
+	assets: readonly Asset[],
+	problems: string[]
+): SourceRequest[] {
+	return source.templates.flatMap((template, index) => {
+		const where = `source ${source.id}, template ${index}`;
+		const { assetIds, assetType, sector } = template.select;
+		for (const id of assetIds ?? []) {
+			if (!assets.some((asset) => asset.id === id)) {
+				problems.push(`${where}: unknown asset ${id}`);
+			}
+		}
+		const selected = assets.filter(
+			(asset) =>
+				(!assetIds || assetIds.includes(asset.id)) &&
+				(!assetType || asset.assetType === assetType) &&
+				(!sector || asset.sector === sector)
+		);
+		if (selected.length === 0) {
+			problems.push(`${where}: selector matches no asset`);
+		}
+		const holes = [...template.url.matchAll(HOLE)].map((match) => match[1]);
+		const stray = /\{(?!date-\d)/.test(template.url.replace(HOLE, ""));
+		// A hole in the host would let an asset value pick the host.
+		if (stray || /^https:\/\/[^/?#]*\{/.test(template.url)) {
+			problems.push(`${where}: unknown or misplaced hole in ${template.url}`);
+		}
+		return selected.flatMap((asset) => {
+			if (!asset.applicableDimensions.includes(template.dimension)) {
+				problems.push(
+					`${where}: ${template.dimension} not applicable to asset ${asset.id}`
+				);
+				return [];
+			}
+			const missing = holes.filter(
+				(hole) => _holeValue(asset, hole) === undefined
+			);
+			for (const hole of missing) {
+				problems.push(`${where}: asset ${asset.id} has no ${hole}`);
+			}
+			if (missing.length > 0) {
+				return [];
+			}
+			return [
+				{
+					subject: { assetId: asset.id },
+					dimension: template.dimension,
+					url: template.url.replace(HOLE, (_, hole: string) =>
+						encodeURIComponent(_holeValue(asset, hole) as string)
+					),
+					params: template.params,
+				},
+			];
+		});
+	});
+}
 
 function _duplicates(ids: readonly string[]): string[] {
 	return ids.filter((id, index) => ids.indexOf(id) !== index);
 }
 
-/** The assets a request is about: its asset, or every asset of its sector. */
+/** The assets a request is about: its asset, or every asset of its sector or area. */
 function _subjectAssets(
 	request: SourceRequest,
 	assets: readonly Asset[]
 ): Asset[] {
 	const { subject } = request;
-	return "assetId" in subject
-		? assets.filter((asset) => asset.id === subject.assetId)
-		: assets.filter((asset) => asset.sector === subject.sector);
+	if ("assetId" in subject) {
+		return assets.filter((asset) => asset.id === subject.assetId);
+	}
+	return "sector" in subject
+		? assets.filter((asset) => asset.sector === subject.sector)
+		: assets.filter((asset) => asset.areas?.includes(subject.area));
 }
 
 function _requestProblems(
@@ -52,7 +169,9 @@ function _requestProblems(
 			problems.push(
 				"assetId" in subject
 					? `${where}: unknown asset ${subject.assetId}`
-					: `${where}: no asset in sector ${subject.sector}`
+					: "sector" in subject
+						? `${where}: no asset in sector ${subject.sector}`
+						: `${where}: no asset in area ${subject.area}`
 			);
 		}
 		// Collected for at least one asset that the source covers and to which the dimension applies.
@@ -75,7 +194,7 @@ function _requestProblems(
 			);
 		}
 		if (/[{}]/.test(request.url.replace(DATE_PLACEHOLDER, ""))) {
-			problems.push(`${where}: URL placeholder other than {date-N}`);
+			problems.push(`${where}: URL placeholder other than {date-N} or {year}`);
 		}
 		const params = adapter?.params?.safeParse(request.params);
 		if (params?.success === false) {
@@ -101,8 +220,23 @@ export function parseSignalRegistry(raw: unknown): SignalRegistry {
 		..._duplicates(file.sources.map((source) => source.id)).map(
 			(id) => `source ${id} declared twice`
 		),
+		..._duplicates(
+			file.sources.flatMap(({ accessPolicy: { auth } }) =>
+				auth === "none" ? [] : [auth.env]
+			)
+		).map((env) => `key variable ${env} used by two sources`),
 	];
-	for (const source of file.sources) {
+	const sources: Source[] = [];
+	for (const declared of file.sources) {
+		const { templates: _templates, ...rest } = declared;
+		const source = {
+			...rest,
+			requests: [
+				...declared.requests,
+				..._expandTemplates(declared, file.assets, problems),
+			],
+		};
+		sources.push(source);
 		const adapter = SOURCE_ADAPTERS.get(source.adapter);
 		if (!adapter) {
 			problems.push(`source ${source.id}: unknown adapter ${source.adapter}`);
@@ -112,6 +246,13 @@ export function parseSignalRegistry(raw: unknown): SignalRegistry {
 				`source ${source.id}: invalid schedule "${source.schedule}"`
 			);
 		}
+		const quota = source.accessPolicy.maxRequestsPerDay;
+		const planned = dailyRequests(source);
+		if (quota !== undefined && planned > quota) {
+			problems.push(
+				`source ${source.id}: schedule "${source.schedule}" sends ${planned} requests a day (${source.requests.length} requests per tick), over maxRequestsPerDay ${quota}`
+			);
+		}
 		problems.push(..._requestProblems(source, adapter, file.assets));
 	}
 	if (problems.length > 0) {
@@ -119,7 +260,7 @@ export function parseSignalRegistry(raw: unknown): SignalRegistry {
 	}
 	return {
 		assets: new Map(file.assets.map((asset) => [asset.id, asset])),
-		sources: file.sources,
+		sources,
 	};
 }
 

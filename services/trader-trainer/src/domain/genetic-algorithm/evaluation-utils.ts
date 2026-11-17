@@ -1,11 +1,11 @@
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import {
 	DurationMs,
 	PositiveInt,
 	Ratio,
 } from "@trading-model/primitives/primitives";
-import { EpisodeScores } from "./episode-scores";
 import type { EvaluationPnl } from "./evaluation-phase";
-import type { GenomeFitnessMeta, LamarckGenome, MarketStep } from "./genome";
+import type { GenomeFitnessMeta, LamarckGenome } from "./genome";
 import { FitnessType } from "./genome-control";
 import { computeAdjustedFitness, estimateComplexity } from "./genome-fitness";
 import type { RLBackend } from "./rl-backend";
@@ -50,45 +50,6 @@ export function computeFitness(type: FitnessType, pnl: EvaluationPnl): number {
 	);
 }
 
-const MS_PER_YEAR = 365.25 * 24 * 3_600_000;
-
-/**
- * Bars per year of the evaluated market data, from the median spacing of the
- * validation timestamps; undefined without at least two timestamped bars.
- */
-export function barsPerYear(steps: readonly MarketStep[]): number | undefined {
-	const gaps: number[] = [];
-	for (let idx = 1; idx < steps.length; idx++) {
-		const prev = steps[idx - 1].timestamp;
-		const curr = steps[idx].timestamp;
-		if (prev !== undefined && curr !== undefined && curr > prev) {
-			gaps.push(curr - prev);
-		}
-	}
-	if (gaps.length === 0) {
-		return;
-	}
-	gaps.sort((left, right) => left - right);
-	return MS_PER_YEAR / gaps[Math.floor(gaps.length / 2)];
-}
-
-/**
- * Annualised Sharpe of holding one unit over the bars of every segment: the
- * baseline of the published agent Sharpe, on the same bars and annualised the
- * same way.
- */
-export function buyAndHoldSharpe(
-	segments: readonly (readonly MarketStep[])[]
-): number {
-	const curve = segments.flatMap((steps) =>
-		steps
-			.slice(1)
-			.map((step, idx) => Number(step.price) - Number(steps[idx].price))
-	);
-	const perYear = barsPerYear(segments.flat());
-	return new EpisodeScores(curve).sharpe() * Math.sqrt(perYear ?? 1);
-}
-
 interface ComputeAllResultsContext extends EvaluationPnl {
 	currentGenome: DeepReadonly<LamarckGenome>;
 	/** Annualises the published ratios; fitness itself stays per bar. */
@@ -124,6 +85,7 @@ export function computeAllResults(ctx: ComputeAllResultsContext): {
 			variance: scores.variance(),
 			rawScores: scores,
 			pnlCurve: curve,
+			...(ctx.decisions === undefined ? {} : { decisions: ctx.decisions }),
 			...(ctx.barsPerYear === undefined
 				? {}
 				: { barsPerYear: ctx.barsPerYear }),

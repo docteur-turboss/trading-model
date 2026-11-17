@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { makePRNG } from "@trading-model/crypto/domain/services/prng";
+import { makePRNG } from "@trading-model/crypto/prng";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import type {
 	Fitness,
 	PositiveInt,
 	Ratio,
 } from "@trading-model/primitives/primitives";
 import { DurationMs } from "@trading-model/primitives/primitives";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import {
 	crossoverWeights,
 	mutateWeights,
@@ -176,12 +176,6 @@ describe("EvolutionEngine", () => {
 				},
 			}));
 		}
-
-		it("should select a parent from population", () => {
-			const population = makePop([10, 20, 30]);
-			const parent = selectParent(population, rng);
-			expect(parent).toBeDefined();
-		});
 
 		it("should return a member of the population", () => {
 			const population = makePop([10]);

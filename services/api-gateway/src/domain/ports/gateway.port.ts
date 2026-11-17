@@ -1,5 +1,5 @@
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
-import type { ResolvedEndpoint } from "@trading-model/validation/adapters/outbound/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
 import type { Request } from "express";
 
 /** Forwards a request to a resolved service and returns its raw answer. */
@@ -7,7 +7,11 @@ type ForwardRequestPort = (opts: {
 	req: Request;
 	target: ResolvedEndpoint;
 	path: string;
-}) => Promise<{ status: HttpStatusCode; body: string }>;
+}) => Promise<{
+	status: HttpStatusCode;
+	body: string;
+	headers?: Record<string, string | string[] | undefined>;
+}>;
 
 /**
  * The upstream answer passed PROXY_MAX_RESPONSE_BYTES: the forward port cut

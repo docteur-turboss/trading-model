@@ -2,24 +2,20 @@
  * Initializes the broker system: HTTP client, dispatcher, and Express routes.
  */
 
+import type { MessageJournalPort } from "@trading-model/broker-message/bus/journal.port";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { HttpClient } from "@trading-model/http/adapters/outbound/http-client";
-import { ServiceId } from "@trading-model/primitives/primitives";
-import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
+import { HttpClient } from "@trading-model/http/http-client";
 import type { Application } from "express";
 import { BROKER_ROUTES } from "../adapters/inbound/http.routes";
-import { HttpDeadLetterStore } from "../adapters/outbound/http-dead-letter-store";
 import { HttpMessageDelivery } from "../adapters/outbound/http-message-delivery";
 import { InMemoryMessageJournal } from "../adapters/outbound/in-memory-message-journal";
 import { InMemorySubscriptionStore } from "../adapters/outbound/in-memory-subscription-store";
-import { resolveTarget } from "../application/services/address-resolver";
 import { DeliveryWorker } from "../application/services/delivery-worker";
 import { Dispatcher } from "../application/services/dispatcher";
 import { SubscriptionRegistry } from "../application/services/subscription-registry";
 import type { DeadLetterStorePort } from "../domain/ports/dead-letter-store.port";
-import type { MessageJournalPort } from "../domain/ports/message-journal.port";
 import type { SubscriptionStorePort } from "../domain/ports/subscription-store.port";
 import {
 	JOURNAL_OLDEST_PENDING_AGE_SECONDS,
@@ -64,14 +60,9 @@ export interface BrokerModule {
 	stopDelivery: () => Promise<void>;
 }
 
-export interface DeadLetterSettings {
-	/** `DLQ_AUTH_HMAC_SECRET`; without it dead-lettering fails (entries stay in the journal). */
-	dlqSecret?: string;
-}
-
 /**
  * @param config - Broker TLS and connection configuration.
- * @param deadLetters - Where dead-lettered messages go.
+ * @param deadLetterStore - Where dead-lettered messages go (the dead streams; absent: dead-lettering fails and the entries stay pending).
  * @param subscriptionStore - Shared by the replicas (Redis); the in-memory
  *   default only suits a single replica.
  * @param journal - Durable log of the accepted messages (Redis); the
@@ -79,21 +70,13 @@ export interface DeadLetterSettings {
  */
 export default function createBrokerModule(
 	config: TlsPaths,
-	deadLetters: DeadLetterSettings = {},
+	deadLetterStore: DeadLetterStorePort = {
+		insert: () => Promise.reject(new Error("Dead streams need Redis")),
+	},
 	subscriptionStore: SubscriptionStorePort = new InMemorySubscriptionStore(),
 	journal: MessageJournalPort = new InMemoryMessageJournal()
 ): BrokerModule {
 	const httpClient = HttpClient.createWithTls(config);
-	const deadLetterStore: DeadLetterStorePort = deadLetters.dlqSecret
-		? new HttpDeadLetterStore({
-				httpClient,
-				resolveUrl: () =>
-					resolveTarget(ServiceId.of(ServiceInstanceName.DlqService), "dlq"),
-				secret: deadLetters.dlqSecret,
-			})
-		: {
-				insert: () => Promise.reject(new Error("DLQ_AUTH_HMAC_SECRET not set")),
-			};
 	const deliveryPort = new HttpMessageDelivery(httpClient, deadLetterStore);
 	const registry = new SubscriptionRegistry(subscriptionStore, journal);
 	const dispatcher = new Dispatcher({ registry, journal });

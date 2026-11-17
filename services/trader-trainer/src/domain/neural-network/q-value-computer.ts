@@ -1,6 +1,9 @@
-import { agentError } from "../../shared/errors";
+import { agentError } from "@trading-model/model-runtime/errors";
+import type {
+	ForwardContext,
+	QLearningExperience,
+} from "@trading-model/model-runtime/neural-network/type";
 import type { NeuralNetwork } from "./neural-network";
-import type { ForwardContext, QLearningExperience } from "./type";
 
 function _assertActionInRange(action: number, actionCount: number): void {
 	if (!Number.isInteger(action) || action < 0 || action >= actionCount) {
@@ -27,7 +30,8 @@ export function computeReplayTarget(
 	const target = context.output.slice();
 	_assertActionInRange(exp.action, target.length);
 	const maxNextQ = exp.done ? 0 : Math.max(...nn.forward(exp.nextState).output);
-	const tdError = exp.reward + discount * maxNextQ - target[exp.action];
+	const tdError =
+		exp.reward + (exp.discount ?? discount) * maxNextQ - target[exp.action];
 	target[exp.action] += weight * tdError;
 	return { target, tdError, context };
 }

@@ -1,6 +1,6 @@
 import "./telemetry";
-import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
+import { createBootstrap } from "@trading-model/http/bootstrap";
+import { shutdownTelemetry } from "@trading-model/http/telemetry";
 
 import { createServer } from "./server";
 

@@ -5,10 +5,23 @@
   "license": "ISC",
   "type": "commonjs",
   "exports": {
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "default": "./dist/*.js"
-    }
+    "./circuit-state": "./dist/circuit-state.js",
+    "./date-range": "./dist/date-range.js",
+    "./db-connection-config": "./dist/db-connection-config.js",
+    "./numeric-range": "./dist/numeric-range.js",
+    "./pagination": "./dist/pagination.js",
+    "./primitives": "./dist/primitives.js",
+    "./primitives/auth-ids": "./dist/primitives/auth-ids.js",
+    "./primitives/branded-utils": "./dist/primitives/branded-utils.js",
+    "./primitives/file-path": "./dist/primitives/file-path.js",
+    "./primitives/general-ids": "./dist/primitives/general-ids.js",
+    "./primitives/hostname": "./dist/primitives/hostname.js",
+    "./primitives/page-number": "./dist/primitives/page-number.js",
+    "./primitives/time-ids": "./dist/primitives/time-ids.js",
+    "./service-identity": "./dist/service-identity.js",
+    "./service-instance-name": "./dist/service-instance-name.js",
+    "./token-validation": "./dist/token-validation.js",
+    "./topic-binding": "./dist/topic-binding.js"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",

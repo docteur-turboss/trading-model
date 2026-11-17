@@ -1,7 +1,7 @@
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import type { ApiRouteHandler } from "@trading-model/http/adapters/inbound/api-route/mount-route";
-import { sendResponse } from "@trading-model/http/adapters/inbound/response-exception";
+import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
+import { sendResponse } from "@trading-model/http/response-exception";
 import {
 	toInstanceId,
 	toServiceId,

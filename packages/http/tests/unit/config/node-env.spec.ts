@@ -10,7 +10,11 @@ describe("node-env", () => {
 
 	it("should get node env", () => {
 		process.env.NODE_ENV = "production";
-		const env = getNodeEnv();
-		expect(env).toBeDefined();
+		expect(getNodeEnv()).toBe("production");
+	});
+
+	it("should default to development", () => {
+		delete process.env.NODE_ENV;
+		expect(getNodeEnv()).toBe("development");
 	});
 });

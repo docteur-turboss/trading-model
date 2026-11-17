@@ -1,14 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
-	MarketType,
-	SourceType,
-	TradeSide,
-} from "@trading-model/contracts/market-data.types";
-import {
 	Price,
 	TradingSymbol,
 	UnixTimestamp,
-	Volume,
 } from "@trading-model/primitives/primitives";
 import { DataType } from "../../../src/domain/data-handlers/data-types";
 import { EvictionPolicy } from "../../../src/domain/eviction-policy";
@@ -19,13 +13,7 @@ import {
 } from "../../../src/domain/market-data-types";
 import {
 	feedCandles,
-	makeBookTicker,
-	makeBookTickerZeroBidAsk,
 	makeCandle,
-	makeOrderBook,
-	makeOrderBookEmpty,
-	makeTicker24h,
-	makeTrade,
 	resetFixtureSeq,
 } from "../../fixtures/market-data.fixture";
 
@@ -350,21 +338,21 @@ describe("MarketDataBuffer", () => {
 	});
 
 	describe("features", () => {
-		it("should have 32 feature dimensions", () => {
+		it("should have 18 feature dimensions", () => {
 			feedCandles(buffer, "BTCUSDT", 50);
 
 			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
 
-			expect(steps[0].features.toFloat32Array().length).toBe(32);
+			expect(steps[0].features.toFloat32Array().length).toBe(18);
 		});
 
-		it("should set bias feature at index 31 to 1.0", () => {
+		it("should set bias feature at index 17 to 1.0", () => {
 			feedCandles(buffer, "BTCUSDT", 50);
 
 			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
 
 			for (const step of steps) {
-				expect(step.features.toFloat32Array()[31]).toBe(1.0);
+				expect(step.features.toFloat32Array()[17]).toBe(1.0);
 			}
 		});
 
@@ -393,12 +381,12 @@ describe("MarketDataBuffer", () => {
 			expect(steps[0].features.toFloat32Array()[2]).toBeCloseTo(0.1, 5);
 		});
 
-		it("should populate all 32 indices with finite numbers", () => {
+		it("should populate all 18 indices with finite numbers", () => {
 			feedCandles(buffer, "BTCUSDT", 50);
 
 			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
 
-			for (let i = 0; i < 32; i++) {
+			for (let i = 0; i < 18; i++) {
 				expect(typeof steps[0].features.toFloat32Array()[i]).toBe("number");
 				expect(Number.isFinite(steps[0].features.toFloat32Array()[i])).toBe(
 					true
@@ -430,237 +418,12 @@ describe("MarketDataBuffer", () => {
 				})
 			);
 
-			buffer.addData(DataType.Trade, TradingSymbol.of("BTCUSDT"), {
-				symbol: TradingSymbol.of("BTCUSDT"),
-				source: SourceType.Binance,
-				timestamp: UnixTimestamp.of(0),
-				market: MarketType.Crypto,
-				price: Price.of(100),
-				tradeId: BigInt(999),
-				quantity: Volume.of(0),
-				side: TradeSide.Buy,
-			});
-
-			buffer.addData(DataType.Ticker, TradingSymbol.of("BTCUSDT"), {
-				...makeTicker24h("BTCUSDT"),
-				open: Price.of(0),
-				closeTimestamp: UnixTimestamp.of(30_000),
-			});
-
 			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
 			expect(steps.length).toBe(1);
 
 			expect(steps[0].features.toFloat32Array()[2]).toBe(0);
 			expect(steps[0].features.toFloat32Array()[3]).toBe(0);
 			expect(steps[0].features.toFloat32Array()[4]).toBe(0);
-			expect(steps[0].features.toFloat32Array()[18]).toBe(0.5);
-			expect(steps[0].features.toFloat32Array()[19]).toBe(0);
-			expect(steps[0].features.toFloat32Array()[21]).toBe(0);
-		});
-	});
-
-	describe("setOrderBook", () => {
-		it("should populate order book features when candles exist", () => {
-			buffer.addData(
-				DataType.OrderBook,
-				TradingSymbol.of("BTCUSDT"),
-				makeOrderBook("BTCUSDT")
-			);
-			feedCandles(buffer, "BTCUSDT", 30);
-
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-
-			for (const idx of [9, 10, 11, 12]) {
-				expect(typeof steps[0].features.toFloat32Array()[idx]).toBe("number");
-			}
-		});
-
-		it("should account for orderBook size in eviction memory estimate", () => {
-			const buf = new MarketDataBuffer({
-				maxMemoryBytes: 105,
-				evictionPolicy: EvictionPolicy.Lru,
-			});
-			buf.addData(
-				DataType.Candle,
-				TradingSymbol.of("BTCUSDT"),
-				makeCandle({
-					symbol: TradingSymbol.of("BTCUSDT"),
-					close: Price.of(50000),
-					timestamp: UnixTimestamp.of(1),
-				})
-			);
-			buf.addData(
-				DataType.OrderBook,
-				TradingSymbol.of("BTCUSDT"),
-				makeOrderBook("BTCUSDT")
-			);
-			buf.addData(
-				DataType.Candle,
-				TradingSymbol.of("ETHUSDT"),
-				makeCandle({
-					symbol: TradingSymbol.of("ETHUSDT"),
-					close: Price.of(3000),
-					timestamp: UnixTimestamp.of(1),
-				})
-			);
-			expect(buf.getCandleCount(TradingSymbol.of("BTCUSDT"))).toBe(0);
-		});
-
-		it("should handle empty bids and asks gracefully", () => {
-			buffer.addData(
-				DataType.OrderBook,
-				TradingSymbol.of("BTCUSDT"),
-				makeOrderBookEmpty("BTCUSDT")
-			);
-			feedCandles(buffer, "BTCUSDT", 30);
-
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-
-			expect(steps[0].features.toFloat32Array()[9]).toBe(0);
-			expect(steps[0].features.toFloat32Array()[10]).toBe(0);
-		});
-	});
-
-	describe("setBookTicker", () => {
-		it("should populate book ticker features", () => {
-			buffer.addData(
-				DataType.BookTicker,
-				TradingSymbol.of("BTCUSDT"),
-				makeBookTicker("BTCUSDT")
-			);
-			feedCandles(buffer, "BTCUSDT", 30);
-
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-
-			for (const idx of [13, 14, 15]) {
-				expect(typeof steps[0].features.toFloat32Array()[idx]).toBe("number");
-			}
-		});
-
-		it("should handle zero bid and ask values", () => {
-			buffer.addData(
-				DataType.BookTicker,
-				TradingSymbol.of("BTCUSDT"),
-				makeBookTickerZeroBidAsk("BTCUSDT")
-			);
-			feedCandles(buffer, "BTCUSDT", 30);
-
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-
-			expect(steps[0].features.toFloat32Array()[13]).toBe(0);
-			expect(steps[0].features.toFloat32Array()[14]).toBe(0);
-			expect(steps[0].features.toFloat32Array()[15]).toBe(0);
-		});
-	});
-
-	describe("setTicker24h", () => {
-		it("should populate 24h ticker features", () => {
-			buffer.addData(
-				DataType.Ticker,
-				TradingSymbol.of("BTCUSDT"),
-				makeTicker24h("BTCUSDT")
-			);
-			feedCandles(buffer, "BTCUSDT", 30);
-
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-
-			expect(steps[0].features.toFloat32Array()[19]).toBeCloseTo(0.05, 5);
-			expect(typeof steps[0].features.toFloat32Array()[20]).toBe("number");
-		});
-	});
-
-	describe("setPriceSnapshot", () => {
-		it("should use snapshot price when available", () => {
-			buffer.setPriceSnapshot({ [TradingSymbol.of("BTCUSDT")]: Price.of(200) });
-			feedCandles(buffer, "BTCUSDT", 30);
-
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-
-			expect(typeof steps[0].features.toFloat32Array()[22]).toBe("number");
-		});
-
-		it("should merge multiple snapshot calls", () => {
-			buffer.setPriceSnapshot({ [TradingSymbol.of("BTCUSDT")]: Price.of(150) });
-			buffer.setPriceSnapshot({ [TradingSymbol.of("ETHUSDT")]: Price.of(200) });
-			feedCandles(buffer, "BTCUSDT", 30);
-
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-
-			expect(typeof steps[0].features.toFloat32Array()[22]).toBe("number");
-		});
-	});
-
-	describe("addTrades", () => {
-		it("should populate trade features when candles exist", () => {
-			feedCandles(buffer, "BTCUSDT", 30);
-			buffer.addData(
-				DataType.Trade,
-				TradingSymbol.of("BTCUSDT"),
-				makeTrade("BTCUSDT")
-			);
-			buffer.addData(
-				DataType.Trade,
-				TradingSymbol.of("BTCUSDT"),
-				makeTrade("BTCUSDT", TradeSide.Sell)
-			);
-
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-
-			for (const idx of [16, 17, 18]) {
-				expect(typeof steps[0].features.toFloat32Array()[idx]).toBe("number");
-			}
-		});
-
-		it("should bound trade count by maxSize", () => {
-			const buf = new MarketDataBuffer({ maxSize: 5 });
-			for (let _i = 0; _i < 10; _i++) {
-				buf.addData(
-					DataType.Trade,
-					TradingSymbol.of("BTCUSDT"),
-					makeTrade("BTCUSDT", TradeSide.Buy)
-				);
-			}
-
-			expect(
-				(buf as any)._stateManager.states.get(TradingSymbol.of("BTCUSDT"))!
-					.trades.length
-			).toBe(5);
-		});
-	});
-
-	describe("splitTrainValidation", () => {
-		it("should split steps 80/20 by default", () => {
-			feedCandles(buffer, "BTCUSDT", 101);
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-			const splitIdx = Math.floor(steps.length * 0.8);
-
-			const result = buffer.splitTrainValidation(steps, 0.2);
-
-			expect(result.id).toBeTruthy();
-			expect(result.train.length).toBe(splitIdx);
-			expect(result.validation.length).toBe(steps.length - splitIdx);
-		});
-
-		it("should split steps with custom ratio", () => {
-			feedCandles(buffer, "BTCUSDT", 101);
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-			const splitIdx = Math.floor(steps.length * 0.7);
-
-			const result = buffer.splitTrainValidation(steps, 0.3);
-
-			expect(result.train.length).toBe(splitIdx);
-			expect(result.validation.length).toBe(steps.length - splitIdx);
-		});
-
-		it("should preserve step order in both splits", () => {
-			feedCandles(buffer, "BTCUSDT", 101);
-			const steps = buffer.buildMarketSteps(TradingSymbol.of("BTCUSDT"));
-			const splitIdx = Math.floor(steps.length * 0.8);
-
-			const result = buffer.splitTrainValidation(steps, 0.2);
-
-			expect(result.train[0].timestamp).toBe(steps[0].timestamp);
-			expect(result.validation[0].timestamp).toBe(steps[splitIdx].timestamp);
 		});
 	});
 
@@ -745,5 +508,23 @@ describe("MarketDataBuffer — observability hook", () => {
 		expect(onDataAdded).toHaveBeenCalledTimes(4);
 		expect(onDataAdded).toHaveBeenNthCalledWith(3, "BTCUSDT", 3, 1);
 		expect(onDataAdded).toHaveBeenLastCalledWith("ETHUSDT", 1, 2);
+	});
+});
+
+describe("MarketDataBuffer.replaceCandles", () => {
+	it("gives a buffer with a longer history the same window as a new one", () => {
+		const sym = TradingSymbol.of("BTCUSDT");
+		const window = Array.from({ length: 5 }, (_, i) =>
+			makeCandle({ symbol: sym, close: Price.of(100 + i) })
+		);
+		const fresh = new MarketDataBuffer();
+		const old = new MarketDataBuffer();
+		feedCandles(old, "BTCUSDT", 20, (i) => i * 7);
+
+		fresh.replaceCandles(sym, window);
+		old.replaceCandles(sym, window);
+
+		expect(old.getSymbolState(sym)).toEqual(fresh.getSymbolState(sym));
+		expect(old.getCandleCount(sym)).toBe(5);
 	});
 });

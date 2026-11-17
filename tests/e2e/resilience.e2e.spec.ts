@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it, jest } from "@jest/globals";
 import {
 	containerHealth,
+	externalRequest,
+	GATEWAY_API_KEY,
 	metric,
 	persistedCandles,
 	eventually as poll,
@@ -33,18 +35,22 @@ function restart(container: string): Promise<string> {
 }
 
 describe("Resilience E2E", () => {
-	it("restores the trainer's subscriptions after a message-manager restart", async () => {
-		await restart("trading-message");
-
-		// message-manager keeps subscriptions in memory: the trainer renews them.
-		const subscribers = await eventually("trainer resubscribed", () => {
-			const count = metric(
-				"https://message-manager:3000/metrics",
-				/^mm_subscription_count\{topic="market\.candlestick\.series\.fetch"\} (\S+)$/m
+	// The gateway resolves the Service DNS name, never the registry (ADR-0072).
+	it("routes to a healthy service while Redis, hence the registry, is down", async () => {
+		execFileSync("docker", ["stop", "trading-redis"], { stdio: "ignore" });
+		try {
+			// Query unseen by the other suites: not served from the gateway cache.
+			const { status } = await externalRequest(
+				"/v2/financial-scraper/candles/symbols/BTCUSDT?limit=7",
+				{ headers: { "x-api-key": GATEWAY_API_KEY } }
 			);
-			return count > 0 ? count : undefined;
-		});
-		expect(subscribers).toBeGreaterThan(0);
+			expect(status).toBe(200);
+		} finally {
+			execFileSync("docker", ["start", "trading-redis"], { stdio: "ignore" });
+			await eventually("trading-redis healthy", () =>
+				containerHealth("trading-redis") === "healthy" ? true : undefined
+			);
+		}
 	});
 
 	it("keeps accepting heartbeats across a discovery restart", async () => {
@@ -69,17 +75,12 @@ describe("Resilience E2E", () => {
 		expect(rejected).toBeLessThanOrEqual(5);
 	});
 
-	// The scraper persists before publishing and sends the waiting candles from
-	// MySQL (publish cursor): neither a bus outage nor a scraper restart during
-	// it may cost the trainer a candle. The stub closes one candle a minute.
+	// The scraper persists before publishing (publish cursor): neither a bus
+	// outage nor a scraper restart during it may stop the persistence. The stub
+	// closes one candle a minute.
 	it(
-		"sends the trainer every candle persisted during a message-manager outage, across a scraper restart",
+		"keeps persisting candles during a message-manager outage, across a scraper restart",
 		async () => {
-			const trainerCandles = () =>
-				metric(
-					"https://trader-trainer:3000/metrics",
-					/^tt_market_data_buffer_size\{symbol="BTCUSDT"\} (\S+)$/m
-				);
 			const before = persistedCandles("BTCUSDT");
 
 			execFileSync("docker", ["stop", "trading-message"], { stdio: "ignore" });
@@ -87,8 +88,11 @@ describe("Resilience E2E", () => {
 				await eventually("a candle persisted while the bus is down", () =>
 					persistedCandles("BTCUSDT") > before ? true : undefined
 				);
-				// The candles waiting for the bus are in MySQL, not in the process.
 				await restart("trading-scraper");
+				const afterRestart = persistedCandles("BTCUSDT");
+				await eventually("a candle persisted after the scraper restart", () =>
+					persistedCandles("BTCUSDT") > afterRestart ? true : undefined
+				);
 			} finally {
 				execFileSync("docker", ["start", "trading-message"], {
 					stdio: "ignore",
@@ -97,31 +101,6 @@ describe("Resilience E2E", () => {
 					containerHealth("trading-message") === "healthy" ? true : undefined
 				);
 			}
-
-			// The trainer must renew its subscriptions before message-manager
-			// accepts the waiting candles: until then they are refused and stay
-			// in MySQL.
-			await eventually("trainer resubscribed", () =>
-				metric(
-					"https://message-manager:3000/metrics",
-					/^mm_subscription_count\{topic="market\.candlestick\.series\.fetch"\} (\S+)$/m
-				) > 0
-					? true
-					: undefined
-			);
-
-			// Fixed target: the stub keeps closing a candle a minute, so comparing
-			// with the live MySQL count races the next candle.
-			const target = persistedCandles("BTCUSDT");
-			const caughtUp = await eventually(
-				"trainer caught up with MySQL",
-				() => {
-					const received = trainerCandles();
-					return received >= target ? received : undefined;
-				},
-				2 * RECOVERY_TIMEOUT_MS
-			);
-			expect(caughtUp).toBeGreaterThan(before);
 		},
 		6 * RECOVERY_TIMEOUT_MS
 	);

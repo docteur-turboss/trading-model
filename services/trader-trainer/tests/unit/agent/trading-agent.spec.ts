@@ -6,6 +6,13 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import {
+	ActivationType,
+	ConnectionType,
+	ExperienceKind,
+	InitialisationType,
+	NormalisationType,
+} from "@trading-model/model-runtime/neural-network/type";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import {
 	Cash,
@@ -13,15 +20,9 @@ import {
 	Price,
 	Volume,
 } from "@trading-model/primitives/primitives";
+import { ActionMapper } from "../../../src/domain/agent/action-mapper";
 import type { TradingAgentConfig } from "../../../src/domain/agent/trading-agent";
 import { TradingAgent } from "../../../src/domain/agent/trading-agent";
-import {
-	ActivationType,
-	ConnectionType,
-	ExperienceKind,
-	InitialisationType,
-	NormalisationType,
-} from "../../../src/domain/neural-network/type";
 
 function makeConfig(
 	overrides?: Partial<TradingAgentConfig>
@@ -74,11 +75,6 @@ describe("TradingAgent", () => {
 	});
 
 	describe("constructor", () => {
-		it("should create agent with wallet and state", () => {
-			expect(agent.wallet).toBeDefined();
-			expect(agent.state).toBeDefined();
-		});
-
 		it("should expose getWeights returning a Float32Array", () => {
 			const weights = agent.getWeights();
 			expect(weights).toBeInstanceOf(Float32Array);
@@ -116,15 +112,15 @@ describe("TradingAgent", () => {
 				nnConfig: makeConfig().nnConfig,
 				wallet: makeConfig().wallet,
 			} as TradingAgentConfig);
-			expect(a.wallet).toBeDefined();
+			expect(a.state.getEpsilon()).toBe(1.0);
 		});
 	});
 
-	describe("mapOutputToAction", () => {
+	describe("ActionMapper.map", () => {
 		it("should map index 0 to sell", () => {
 			const output = new Float32Array([0.8, 0.1, 0.1]);
 
-			const result = agent.mapOutputToAction(output);
+			const result = new ActionMapper().map(output);
 
 			expect(result.action).toBe("sell");
 			expect((result as { outputIndex?: number }).outputIndex).toBe(0);
@@ -133,7 +129,7 @@ describe("TradingAgent", () => {
 		it("should map index 1 to hold", () => {
 			const output = new Float32Array([0.1, 0.8, 0.1]);
 
-			const result = agent.mapOutputToAction(output);
+			const result = new ActionMapper().map(output);
 
 			expect(result.action).toBe("hold");
 		});
@@ -141,29 +137,18 @@ describe("TradingAgent", () => {
 		it("should map index 2 to buy", () => {
 			const output = new Float32Array([0.1, 0.1, 0.8]);
 
-			const result = agent.mapOutputToAction(output);
+			const result = new ActionMapper().map(output);
 
 			expect(result.action).toBe("buy");
 			expect((result as { outputIndex?: number }).outputIndex).toBe(2);
 		});
 
 		it("should use tradeAmount from config for discrete actions", () => {
-			const agentWithAmount = new TradingAgent(
-				makeConfig({ tradeAmount: Volume.of(5) })
-			);
 			const output = new Float32Array([0.0, 0.0, 1.0]);
 
-			const result = agentWithAmount.mapOutputToAction(output, {
-				nnConfig: {
-					neuronsByLayer: [
-						5 as PositiveInt,
-						6 as PositiveInt,
-						3 as PositiveInt,
-					],
-				},
-				wallet: makeConfig().wallet,
-				tradeAmount: Volume.of(5),
-			});
+			const result = new ActionMapper({ tradeAmount: Volume.of(5) }).map(
+				output
+			);
 
 			expect(result.amount).toBe(5);
 		});
@@ -321,7 +306,7 @@ describe("TradingAgent", () => {
 
 			agent.resetEpisode();
 
-			expect(agent.getExperiencePool().length).toBe(0);
+			expect(agent.replay(1, 0.9)).toBe(0);
 		});
 
 		it("should not carry the last decision's reward into the next episode", () => {

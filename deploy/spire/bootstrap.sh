@@ -11,6 +11,21 @@ SERVER=/opt/spire/bin/spire-server
 TD=${SPIFFE_TD:-trading-model.local}
 NS=${SPIFFE_NS:-trading-model}
 AGENT_ID="spiffe://${TD}/ns/${NS}/sa/spire-agent"
+# ADR-0065: 4 h, as default_x509_svid_ttl of server.conf (CertificateExpiry fires below 1 h left).
+SVID_TTL=14400
+
+# upsert_entry "<entry show output>" <entry flags...>: creates the entry, or moves an existing
+# one to SVID_TTL (entries made before ADR-0065 carry 1 h). `entry update` replaces every field.
+upsert_entry() {
+  shown=$1
+  shift
+  entry_id=$(printf '%s\n' "$shown" | sed -n 's/^Entry ID *: //p' | head -n 1)
+  if [ -z "$entry_id" ]; then
+    "$SERVER" entry create -socketPath "$SOCK" "$@" -x509SVIDTTL "$SVID_TTL"
+  elif ! printf '%s\n' "$shown" | grep -q "^X509-SVID TTL *: ${SVID_TTL}\$"; then
+    "$SERVER" entry update -socketPath "$SOCK" -entryID "$entry_id" "$@" -x509SVIDTTL "$SVID_TTL"
+  fi
+}
 
 for i in $(seq 1 30); do
   "$SERVER" healthcheck -socketPath "$SOCK" >/dev/null 2>&1 && break
@@ -22,21 +37,16 @@ done
 # <compose helper service suffix>:<service name in the SPIFFE ID and ACL>
 for pair in \
   discovery:discovery-server message:message-manager scraper:financial-scraper \
-  trainer:trader-trainer gateway:api-gateway audit:audit-logger dlq:dlq-service \
+  trainer:trader-trainer gateway:api-gateway audit:audit-logger dlq:dlq-service evaluator:model-evaluator \
   edge:edge-proxy prometheus:prometheus blackbox:blackbox-exporter; do
   helper=${pair%%:*}
   service=${pair#*:}
   id="spiffe://${TD}/ns/${NS}/sa/${service}"
-  if "$SERVER" entry show -socketPath "$SOCK" -spiffeID "$id" | grep -q "$id"; then
-    echo "entry exists: $id"
-  else
-    "$SERVER" entry create -socketPath "$SOCK" \
-      -spiffeID "$id" \
-      -parentID "$AGENT_ID" \
-      -selector "docker:label:com.docker.compose.service:spiffe-helper-${helper}" \
-      -dns "$service" \
-      -x509SVIDTTL 3600
-  fi
+  upsert_entry "$("$SERVER" entry show -socketPath "$SOCK" -spiffeID "$id")" \
+    -spiffeID "$id" \
+    -parentID "$AGENT_ID" \
+    -selector "docker:label:com.docker.compose.service:spiffe-helper-${helper}" \
+    -dns "$service"
 done
 
 "$SERVER" bundle show -socketPath "$SOCK" > "$OUT/bundle.pem"

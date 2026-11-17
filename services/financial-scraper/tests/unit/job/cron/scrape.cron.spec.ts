@@ -6,10 +6,6 @@ import {
 	TradingSymbol,
 } from "@trading-model/primitives/primitives";
 
-jest.mock("os", () => ({
-	cpus: jest.fn((..._args: any[]) => new Array(4).fill({})),
-}));
-
 const MOCK_CRON_SCHEDULE = jest.fn<(...args: any[]) => any>();
 jest.mock("node-cron", () => ({
 	schedule: MOCK_CRON_SCHEDULE,
@@ -21,7 +17,7 @@ jest.mock("p-limit", () => {
 	return pLimit;
 });
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -37,14 +33,14 @@ const MOCK_PERSIST = jest.fn<(...args: any[]) => any>();
 jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () =>
 		(
-			jest.requireMock("@trading-model/http/infrastructure/logger") as {
+			jest.requireMock("@trading-model/http/logger") as {
 				logger: unknown;
 			}
 		).logger,
 	setLogger: () => {},
 }));
 
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { ScrapeCronOrchestrator } from "../../../../src/adapters/inbound/cron/scrape.cron";
 
 const MOCK_LOGGER = jest.mocked(logger);
@@ -78,28 +74,31 @@ describe("ScrapeCronOrchestrator", () => {
 	});
 
 	describe("constructor", () => {
-		it("should create instance with default concurrency based on cpus * 2", () => {
-			const orchestrator = new ScrapeCronOrchestrator({ ...defaultConfig });
-			expect(orchestrator).toBeDefined();
-		});
+		// the default is min(8, symbols), whatever the host cores
+		it.each([
+			["default concurrency capped at 2 symbols", {}, 2],
+			["provided maxConcurrency", { maxConcurrency: PositiveInt.of(3) }, 3],
+			["default concurrency capped at 1 symbol", { symbols: [BTC] }, 1],
+			[
+				"default concurrency capped at 8",
+				{
+					symbols: Array.from({ length: 20 }, (_, i) =>
+						TradingSymbol.of(`S${i}USDT`)
+					),
+				},
+				8,
+			],
+		])(
+			"should limit a cycle with the %s",
+			async (_name, overrides, expected) => {
+				MOCK_PERSIST.mockResolvedValue(undefined);
+				new ScrapeCronOrchestrator({ ...defaultConfig, ...overrides }).start();
 
-		it("should use provided maxConcurrency when specified", () => {
-			const orchestrator = new ScrapeCronOrchestrator({
-				...defaultConfig,
-				maxConcurrency: PositiveInt.of(3),
-			});
-			expect(orchestrator).toBeDefined();
-		});
+				await GET_CRON_HANDLER()();
 
-		it("should cap concurrency at symbols length", () => {
-			const orchestrator = new ScrapeCronOrchestrator({
-				schedule: "*/1 * * * *",
-				symbols: [BTC],
-				maxConcurrency: PositiveInt.of(100),
-				deps: DEPS,
-			});
-			expect(orchestrator).toBeDefined();
-		});
+				expect(jest.requireMock("p-limit")).toHaveBeenCalledWith(expected);
+			}
+		);
 	});
 
 	describe("start", () => {

@@ -18,6 +18,10 @@
   "author": "Docteur Turboss <@docteur-turboss>",
   "type": "commonjs",
   "main": "./dist/application/index.js",
+  "bin": {
+    "signal-backfill": "./dist/application/signal-backfill.js",
+    "order-book-replay": "./dist/application/order-book-replay.js"
+  },
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
@@ -34,7 +38,6 @@
     "@trading-model/crypto": "*",
     "@trading-model/http": "*",
     "@trading-model/reliability": "*",
-    "@trading-model/server-utils": "*",
     "@trading-model/validation": "*",
     "axios": "^1.21.1",
     "express": "^5.3.0",

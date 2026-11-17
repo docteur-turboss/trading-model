@@ -1,11 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock(
-	"@trading-model/server-utils/adapters/inbound/service-server-factory",
-	() => ({
-		createServiceServer: jest.fn<(...args: any[]) => any>(),
-	})
-);
+jest.mock("@trading-model/http/service-server-factory", () => ({
+	createServiceServer: jest.fn<(...args: any[]) => any>(),
+}));
 
 jest.mock("../../src/adapters/inbound/http/heartbeat.routes", () => ({
 	HEARTBEAT_ROUTES: jest.fn<(...args: any[]) => any>(),
@@ -38,7 +35,7 @@ describe("createServer", () => {
 
 	it("should create a secure server with full config", () => {
 		const { createServiceServer } = jest.requireMock(
-			"@trading-model/server-utils/adapters/inbound/service-server-factory"
+			"@trading-model/http/service-server-factory"
 		) as { createServiceServer: jest.Mock<(...args: any[]) => any> };
 		const mockServer = { close: jest.fn<(...args: any[]) => any>() };
 		createServiceServer.mockReturnValue(mockServer);
@@ -60,7 +57,7 @@ describe("createServer", () => {
 
 	it("should register heartbeat and registry routes", () => {
 		const { createServiceServer } = jest.requireMock(
-			"@trading-model/server-utils/adapters/inbound/service-server-factory"
+			"@trading-model/http/service-server-factory"
 		) as { createServiceServer: jest.Mock<(...args: any[]) => any> };
 		const { HEARTBEAT_ROUTES } = jest.requireMock(
 			"../../src/adapters/inbound/http/heartbeat.routes"

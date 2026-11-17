@@ -28,6 +28,7 @@ export const PLATFORM_SERVICES = [
 	"edge-proxy",
 	"financial-scraper",
 	"message-manager",
+	"model-evaluator",
 	"trader-trainer",
 ] as const;
 

@@ -1,7 +1,7 @@
 # Runbook: SVID / TLS Certificate Expiry
 
 **Alert:** `CertificateExpiry`  
-**Severity:** SEV2 (warning), SEV1 (if expired)
+**Severity:** L2 (warning), L1 (if expired)
 
 ## Detection
 
@@ -22,7 +22,7 @@ SPIRE manages SVID lifecycle automatically (ADR-0011):
 - `spiffe-helper` sidecars re-fetch SVIDs and rewrite `svid.pem`,
   `svid_key.pem`, `bundle.pem` in the shared volume.
 - The service TLS watcher hot-reloads the files on change
-  (`packages/server-utils/src/infrastructure/tls-watcher.ts`); outbound
+  (`packages/http/src/tls-watcher.ts`); outbound
   `HttpClient` re-reads them per request.
 
 ## Manual Renewal

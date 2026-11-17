@@ -2,22 +2,43 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 
 jest.mock(
-	"../../../../src/adapters/outbound/persistence/market-data.model",
+	"../../../../src/adapters/outbound/persistence/schema/candles.schema",
 	() => ({
-		MarketDataModel: {
-			insertCandles: jest.fn<(...args: any[]) => any>(),
-			insertTrades: jest.fn<(...args: any[]) => any>(),
-			insertOrderBook: jest.fn<(...args: any[]) => any>(),
-			insertTicker: jest.fn<(...args: any[]) => any>(),
-		},
+		insertCandles: jest.fn<(...args: any[]) => any>(),
+	})
+);
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/trades.schema",
+	() => ({
+		insertTrades: jest.fn<(...args: any[]) => any>(),
+	})
+);
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/order-book.schema",
+	() => ({
+		insertOrderBook: jest.fn<(...args: any[]) => any>(),
+	})
+);
+jest.mock(
+	"../../../../src/adapters/outbound/persistence/schema/ticker24h.schema",
+	() => ({
+		insertTicker: jest.fn<(...args: any[]) => any>(),
 	})
 );
 
-import { MarketDataModel } from "../../../../src/adapters/outbound/persistence/market-data.model";
+import { insertCandles } from "../../../../src/adapters/outbound/persistence/schema/candles.schema";
+import { insertOrderBook } from "../../../../src/adapters/outbound/persistence/schema/order-book.schema";
+import { insertTicker } from "../../../../src/adapters/outbound/persistence/schema/ticker24h.schema";
+import { insertTrades } from "../../../../src/adapters/outbound/persistence/schema/trades.schema";
 import { MarketDataController } from "../../../../src/config/container";
 import { CANDLES_PERSISTED_TOTAL } from "../../../../src/config/metrics";
 
-const MOCK_MODEL = jest.mocked(MarketDataModel);
+const MOCK_MODEL = {
+	insertCandles: jest.mocked(insertCandles),
+	insertTrades: jest.mocked(insertTrades),
+	insertOrderBook: jest.mocked(insertOrderBook),
+	insertTicker: jest.mocked(insertTicker),
+};
 
 describe("MarketDataController", () => {
 	beforeEach(() => {

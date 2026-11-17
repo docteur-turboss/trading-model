@@ -30,7 +30,7 @@ The read routes need no training: models are read from the ReadWriteMany checkpo
 - A generation longer than the grace left after preStop (about 110 s) is killed with the pod: its session is lost, as before this ADR, and the Lease expires 15 s later.
 - If the end of the session outlasts the 15 s Lease, the new pod may start training before the old one has stored its model: both write versions to the shared volume (ADR-0022 supports concurrent writers) and the newest wins the read routes.
 - The new pod rehydrated its summaries before the old one stored the model of the cut session: until its own first training, `/best-agent` answers the previous version; `/models/:symbol` lists the new one at once (read from the volume).
-- During a rollout two pods consume the market data subscription (one consumer group per service, ADR-0048): each receives part of the candles for that window. The holder's buffer starts empty after a release as before.
+- During a rollout two pods consume the market data subscription (one consumer group per service, ADR-0048): each receives part of the trades, books and tickers for that window. Candles no longer depend on it: each session reads them from the stored candles (ADR-0044).
 - The first upgrade from a release without the Lease (3.0.x → 3.1.0, trainer on `Recreate`) runs the old trainer, which has no Lease, next to the new one until the old pod stops: both may train for that window, with the effect of the previous points.
 - The trainer now talks to the Kubernetes API: if it is unreachable for more than 10 s, training stops (`TrainerNoLeader` after 5 min) while the read routes keep answering.
 

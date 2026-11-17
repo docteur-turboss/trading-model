@@ -6,7 +6,7 @@ import {
 	isAppError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 
 export const STORAGE_UNAVAILABLE = {
 	error: "Storage unavailable — message not persisted. Retry later.",

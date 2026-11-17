@@ -1,5 +1,5 @@
 import { InstanceId } from "@trading-model/primitives/primitives";
-import { generateInstanceToken } from "../src/application/services/token-generator";
+import { generateInstanceToken } from "../src/token-generator";
 
 describe("generateInstanceToken", () => {
 	const instanceId = InstanceId.of("test-instance-abc");

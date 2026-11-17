@@ -1,4 +1,4 @@
-import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
+import { catchSync } from "@trading-model/http/catch-error";
 import type { HealthHandlers } from "./dlq-health-handler";
 
 // The API routes are mounted from their registry entries (api-routes.ts).

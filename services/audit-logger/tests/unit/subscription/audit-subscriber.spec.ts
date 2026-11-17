@@ -1,15 +1,15 @@
-jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
+jest.mock("@trading-model/http/catch-error", () => ({
 	catchSync: (fn: any) => fn,
 }));
 
-jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
+jest.mock("@trading-model/http/response-exception", () => {
 	const sendResponse = (data: any, status: number) => ({ status, data });
 	return { sendResponse };
 });
 
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-import { parseRequest } from "@trading-model/http/adapters/inbound/api-route/api-route";
+import { parseRequest } from "@trading-model/http/api-route/api-route";
 import { AUDIT_API } from "../../../src/adapters/inbound/http/api-routes";
 import { createMessageHandler } from "../../../src/adapters/inbound/subscription/audit-subscriber";
 import type { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";

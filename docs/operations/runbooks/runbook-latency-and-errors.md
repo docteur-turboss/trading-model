@@ -1,12 +1,11 @@
 # Runbook: High Latency or Error Rate
 
 **Alerts:** `SLOLatencyFastBurn` (critical),
-`SLOLatencySlowBurn` (warning), `HighErrorRate` (warning),
-`SLOAvailabilityFastBurn` / `SLOErrorRateFastBurn` (critical),
-`SLOAvailabilitySlowBurn` / `SLOErrorRateSlowBurn` (warning).
+`SLOLatencySlowBurn` (warning), `SLOAvailabilityFastBurn` (critical),
+`SLOAvailabilitySlowBurn` (warning).
 
 All of them read the shared HTTP middleware metrics of every service
-(`packages/server-utils`, `http_request_duration_seconds` and
+(`packages/http`, `http_request_duration_seconds` and
 `http_requests_total`, labels `method`, `path`, `status`), grouped by scrape
 `job`. Targets and error budgets: [slo.md](../slo.md).
 
@@ -16,11 +15,10 @@ All of them read the shared HTTP middleware metrics of every service
 | --- | --- |
 | `SLOLatencyFastBurn` | P95 of a job above 5 s over 5 min, for 2 min |
 | `SLOLatencySlowBurn` | P95 above 3 s over 1 h, for 10 min |
-| `HighErrorRate` | more than 5% of 5xx over 5 min, for 2 min |
-| `SLOAvailabilityFastBurn` / `SLOErrorRateFastBurn` | 5xx ratio above 1.44% / 14.4% over 1 h **and** 5 min, for 2 min |
-| `SLOAvailabilitySlowBurn` / `SLOErrorRateSlowBurn` | 5xx ratio above 0.6% / 6% over 6 h **and** 30 min, for 15 min |
+| `SLOAvailabilityFastBurn` | 5xx ratio above 1.44% over 1 h **and** 5 min, for 2 min |
+| `SLOAvailabilitySlowBurn` | 5xx ratio above 0.6% over 6 h **and** 30 min, for 15 min |
 
-`/ping`, `/health/ready` and `/metrics` are excluded from the SLO ratios.
+`/ping`, `/health/ready` and `/metrics` are excluded from the SLO ratios and from the latency P95.
 
 The histogram stops at 30 s (largest finite bucket): a P95 of 30 s means
 "30 s or more", usually timeouts.
@@ -30,7 +28,7 @@ The histogram stops at 30 s (largest finite bucket): a P95 of 30 s means
 ### Symptom
 
 A service answers, but slowly: callers time out, their circuit breakers or
-retries kick in, and 5xx often follow (`HighErrorRate`).
+retries kick in, and 5xx often follow (`SLOAvailabilityFastBurn`).
 
 ### Diagnosis
 

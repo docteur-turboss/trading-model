@@ -22,13 +22,17 @@ import {
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
+import type { Signal } from "@trading-model/validation/wire/signals";
 import { createConnection } from "mysql2/promise";
 import { MySqlCandlePublishBacklog } from "../../src/adapters/outbound/persistence/candle-publish-backlog";
 import {
 	insertCandles,
 	selectCandlesBy,
 } from "../../src/adapters/outbound/persistence/schema/candles.schema";
-import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
+import {
+	insertOrderBook,
+	selectOrderBooks,
+} from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 import {
 	insertTicker,
 	selectTickerBy,
@@ -45,7 +49,6 @@ import type {
 	TickerData,
 	TradeData,
 } from "../../src/domain/market-data.types";
-import type { Signal } from "../../src/domain/signals";
 import { createMigrateRunner } from "./migrate-runner";
 
 const MIGRATIONS_DIR = join(__dirname, "../../../../scripts/migrations");
@@ -282,6 +285,16 @@ describe("market_candles — real MySQL", () => {
 		expect(row.closeTimestamp.getTime()).toBe(T0 + 59_999);
 	});
 
+	it("should store the candle timestamp as UTC whatever the process TZ", async () => {
+		await insertCandles([candle()]);
+
+		// Raw value: a pool round trip alone cannot tell UTC from the process TZ.
+		const [rows] = await DATABASE.promise().query(
+			"SELECT CAST(timestamp AS CHAR) AS ts FROM market_candles"
+		);
+		expect((rows as { ts: string }[])[0].ts).toBe("2026-01-02 03:04:05.678");
+	});
+
 	it("should update a re-fetched candle in place instead of duplicating it", async () => {
 		await insertCandles([candle()]);
 
@@ -451,6 +464,37 @@ describe("market_order_books — real MySQL (ADR-0053)", () => {
 		await expect(count("market_order_books")).resolves.toBe(2);
 		expect((await rows())[0].asks).toEqual([]);
 	});
+
+	it("should replay the snapshots of a symbol of one source in a range, oldest first", async () => {
+		await insertOrderBook([
+			orderBook({ timestamp: UnixTimestamp.of(T0 + 60_000) }),
+			orderBook(),
+			orderBook({ source: SourceType.Nyse, asks: new Set() }),
+		]);
+
+		const books = await selectOrderBooks(
+			SYMBOL,
+			MarketType.Crypto,
+			SourceType.Binance,
+			T0,
+			T0 + 60_000,
+			10
+		);
+
+		expect(books).toEqual([
+			{
+				symbol: SYMBOL,
+				market: MarketType.Crypto,
+				source: SourceType.Binance,
+				timestamp: T0,
+				bids: [
+					[100.5, 2],
+					[100.25, 0.125],
+				],
+				asks: [[100.75, 1.5]],
+			},
+		]);
+	});
 });
 
 describe("market_publish_cursors — real MySQL", () => {
@@ -557,6 +601,7 @@ describe("signals — real MySQL", () => {
 			dimension: "social",
 			assetId: "BTC",
 			sector: null,
+			area: null,
 			observedAt: new Date(OBSERVED).toISOString(),
 			ingestedAt: new Date(OBSERVED + 3000).toISOString(),
 			confidenceScore: 0.3,
@@ -570,6 +615,7 @@ describe("signals — real MySQL", () => {
 		return MySqlSignalStore.findForAsset({
 			assetId: "BTC",
 			sector: "crypto",
+			areas: ["EA"],
 			dimensions: ["social"],
 			from: Date.UTC(2026, 10, 3),
 			to: Date.UTC(2026, 10, 4),
@@ -581,6 +627,25 @@ describe("signals — real MySQL", () => {
 		await MySqlSignalStore.save([signal()]);
 
 		await expect(findBtc()).resolves.toEqual([signal()]);
+	});
+
+	it("should give the newest ingested and observed instants of each source", async () => {
+		await MySqlSignalStore.save([
+			signal(),
+			signal({
+				id: "9".repeat(64),
+				observedAt: new Date(OBSERVED + 1000).toISOString(),
+			}),
+		]);
+
+		await expect(MySqlSignalStore.newestBySource()).resolves.toEqual(
+			new Map([
+				[
+					"wikipedia-pageviews",
+					{ ingestedAt: OBSERVED + 3000, observedAt: OBSERVED + 1000 },
+				],
+			])
+		);
 	});
 
 	it("should store a replayed signal once and keep its first value", async () => {
@@ -612,6 +677,8 @@ describe("signals — real MySQL", () => {
 			signal({ id: "3".repeat(64), assetId: null, sector: "crypto" }),
 			signal({ id: "4".repeat(64), assetId: "ETH" }),
 			signal({ id: "5".repeat(64), assetId: null, sector: "agriculture" }),
+			signal({ id: "9".repeat(64), assetId: null, area: "EA" }),
+			signal({ id: "a".repeat(64), assetId: null, area: "US" }),
 			// [from, to): the end of the window is out, its start in.
 			signal({ id: "6".repeat(64), observedAt: at(Date.UTC(2026, 10, 4)) }),
 			signal({ id: "7".repeat(64), observedAt: at(Date.UTC(2026, 10, 3)) }),
@@ -619,11 +686,17 @@ describe("signals — real MySQL", () => {
 
 		const ids = (await findBtc()).map((s) => s.id[0]);
 
-		expect(ids).toEqual(["7", "3", "2"]);
+		expect(ids).toEqual(["7", "3", "9", "2"]);
 		await expect(findBtc(2)).resolves.toHaveLength(2);
 	});
 
-	it("should refuse a row on both an asset and a sector", async () => {
+	it("should refuse a row on two subjects or none", async () => {
+		await expect(
+			MySqlSignalStore.save([signal({ assetId: null })])
+		).rejects.toThrow(/chk_signals_one_subject/);
+		await expect(
+			MySqlSignalStore.save([signal({ area: "EA" })])
+		).rejects.toThrow(/chk_signals_one_subject/);
 		await expect(
 			MySqlSignalStore.save([signal({ sector: "crypto" })])
 		).rejects.toThrow(/chk_signals_one_subject/);

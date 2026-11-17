@@ -1,16 +1,16 @@
 import { describe, expect, it } from "@jest/globals";
-import type {
-	Percentage,
-	PositiveInt,
-} from "@trading-model/primitives/primitives";
-import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
-import type { NeuralNetworkConfig } from "../../../src/domain/neural-network/type";
+import type { NeuralNetworkConfig } from "@trading-model/model-runtime/neural-network/type";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
-} from "../../../src/domain/neural-network/type";
+} from "@trading-model/model-runtime/neural-network/type";
+import type {
+	Percentage,
+	PositiveInt,
+} from "@trading-model/primitives/primitives";
+import { NeuralNetwork } from "../../../src/domain/neural-network/neural-network";
 
 function makeConfig(
 	overrides?: Partial<NeuralNetworkConfig>
@@ -35,7 +35,7 @@ describe("NeuralNetwork - Edge Cases", () => {
 			const input = new Float32Array([100, -200, 300, -400]);
 			const target = new Float32Array([1, 0, 0]);
 
-			const loss = nn.train(input, target);
+			const loss = nn.trainFrom(nn.forward(input), target);
 			expect(Number.isFinite(loss)).toBe(true);
 		});
 
@@ -46,7 +46,7 @@ describe("NeuralNetwork - Edge Cases", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 			const target = new Float32Array([1, 0, 0]);
 
-			const loss = nn.train(input, target);
+			const loss = nn.trainFrom(nn.forward(input), target);
 			expect(Number.isFinite(loss)).toBe(true);
 		});
 	});
@@ -56,7 +56,10 @@ describe("NeuralNetwork - Edge Cases", () => {
 			const nn = new NeuralNetwork(makeConfig({ enablePool: false }));
 
 			expect(() => {
-				nn.train(new Float32Array([1, 2]), new Float32Array([1, 0, 0]));
+				nn.trainFrom(
+					nn.forward(new Float32Array([1, 2])),
+					new Float32Array([1, 0, 0])
+				);
 			}).toThrow();
 		});
 
@@ -64,8 +67,8 @@ describe("NeuralNetwork - Edge Cases", () => {
 			const nn = new NeuralNetwork(makeConfig({ enablePool: false }));
 
 			expect(() => {
-				nn.train(
-					new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				nn.trainFrom(
+					nn.forward(new Float32Array([0.5, -0.3, 0.1, 0.8])),
 					new Float32Array([1, 0])
 				);
 			}).toThrow();

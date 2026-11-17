@@ -1,5 +1,6 @@
+import type { Dimension } from "@trading-model/validation/wire/signals";
 import type { z } from "zod";
-import type { Dimension, SourceRequest } from "../signals";
+import type { Source, SourceRequest } from "../signals";
 
 /** What an adapter reads in a payload; the collector completes it into a `Signal`. */
 export interface Observation {
@@ -38,5 +39,28 @@ export class InvalidPayloadError extends Error {
 	override readonly name = "InvalidPayloadError";
 }
 
+/** A non-2xx answer; `retryAfter` is the raw `Retry-After` header (seconds or HTTP date). */
+export class HttpStatusError extends Error {
+	override readonly name = "HttpStatusError";
+	constructor(
+		message: string,
+		readonly status: number,
+		readonly retryAfter?: string
+	) {
+		super(message);
+	}
+}
+
+/** Resolved by a worker when the source answered 304: nothing changed since the last 200. */
+export const NOT_MODIFIED = Symbol("not_modified");
+
 /** Fetches one request with its source's protocol; rejects on a transport or HTTP error, or with `InvalidPayloadError`. */
-export type ProtocolWorker = (request: SourceRequest) => Promise<unknown>;
+export interface ProtocolWorker {
+	(
+		request: SourceRequest,
+		auth: Source["accessPolicy"]["auth"],
+		body?: Pick<Source, "format" | "delimiter">
+	): Promise<unknown>;
+	/** Called with the request URL once its body is stored: only then may a 304 stand for it. */
+	confirm?: (url: string) => void;
+}

@@ -172,7 +172,7 @@ import express, { Request, Response } from 'express';
 import { z } from 'zod';
 
 // 3. Workspace packages (sub-path exports)
-import { logger } from '@trading-model/http/infrastructure/logger';
+import { logger } from '@trading-model/http/logger';
 import AddressManager from '@trading-model/address-manager';
 
 // 4. Internal relative imports

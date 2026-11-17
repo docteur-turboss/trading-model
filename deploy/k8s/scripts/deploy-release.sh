@@ -8,7 +8,8 @@
 #       Prints the Deployments a release rolls out.
 #   deploy-release.sh record <namespace> <revisions-file>
 #       Revision each Deployment runs before the overlay ("<deployment> <rev>",
-#       `none` when it does not exist yet).
+#       `none` when it does not exist yet), kept in configmap/deploy-revisions:
+#       while it exists, a new run reuses it instead.
 #   deploy-release.sh release-replicas <namespace>
 #       Deletes retired HPAs and the finished Mongo init Jobs (immutable pod
 #       template, recreated by the apply), then drops spec.replicas from
@@ -37,7 +38,10 @@
 #       the terminationGracePeriodSeconds of its pod template.
 #   deploy-release.sh rollback <namespace> <revisions-file>
 #       Returns every Deployment to the revision `record` wrote and waits for
-#       each rollout (180s); fails if any did not come back.
+#       each rollout (180s); fails if any did not come back. Waits first for the
+#       API server (300s); forgets the recorded revisions on success.
+#   deploy-release.sh forget <namespace>
+#       Deletes configmap/deploy-revisions: the release deployed.
 #
 # DEPLOY_TIMEOUT_FACTOR: integer the wait and rollback timeouts are multiplied
 # by (default 1; a slow cluster such as the local kind staging).
@@ -51,14 +55,16 @@ FACTOR="${DEPLOY_TIMEOUT_FACTOR:-1}"
 
 # Deployments a release rolls out and a failed release rolls back.
 DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
-  api-gateway audit-logger dlq-service edge-proxy"
+  api-gateway audit-logger dlq-service model-evaluator edge-proxy"
 
 # Redis and its sentinels: the services' credentials (ADR-0047) only work
 # against the nodes of their own release, so these roll out and back too.
 STATEFULSETS="redis redis-sentinel"
 
+REVISIONS_CM=deploy-revisions
+
 # Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
-INIT_JOBS="mysql-cluster-init mongo-audit-users mongo-dlq-users"
+INIT_JOBS="mongo-audit-users mongo-dlq-users"
 
 # Documents of the render on stdin that are (keep=1) or are not (keep=0) a Redis StatefulSet.
 redis_statefulsets() {
@@ -88,15 +94,24 @@ redis_last() {
 }
 
 usage() {
-	echo "usage: $0 without-redis <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file>" >&2
+	echo "usage: $0 without-redis <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file> | forget <ns>" >&2
 	exit 64
 }
 
 # Revision each Deployment runs before the overlay: the rollback returns to
 # exactly it (image and hashed ConfigMap), not to "the one before the
 # current", which is older than N for a Deployment the overlay left as is.
+# Kept in ConfigMap deploy-revisions until `forget` or a successful rollback: a re-run
+# after a rollback that could not finish (API server down) must return to N-1, not
+# to the half-applied N it now finds (issue #1192). Delete it after a manual fix.
 record() {
 	local ns="$1" file="$2" dep rev sts cr
+	kubectl get configmap "$REVISIONS_CM" -n "$ns" --ignore-not-found -o jsonpath='{.data.revisions}' >"$file" || return 1
+	if [ -s "$file" ]; then
+		echo "Revisions recorded by an unfinished deploy (configmap/$REVISIONS_CM):"
+		cat "$file"
+		return
+	fi
 	{
 		for sts in $STATEFULSETS; do
 			cr=$(kubectl get statefulset "$sts" -n "$ns" --ignore-not-found \
@@ -111,6 +126,11 @@ record() {
 			echo "$dep ${rev:-none}"
 		done
 	} | tee "$file"
+	kubectl create configmap "$REVISIONS_CM" -n "$ns" --from-file=revisions="$file"
+}
+
+forget() {
+	kubectl delete configmap "$REVISIONS_CM" -n "$1" --ignore-not-found
 }
 
 # Deployments driven by an HPA carry no spec.replicas in the overlay. A
@@ -122,8 +142,9 @@ record() {
 release_replicas() {
 	local ns="$1" ann='kubectl.kubernetes.io/last-applied-configuration' dep last
 	# Retired HPAs: apply never prunes, and a live one would keep scaling its
-	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501).
-	kubectl delete hpa/trader-trainer-hpa -n "$ns" --ignore-not-found
+	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501);
+	# audit-logger runs 2 fixed pods (one lease holder writes, issue #1395).
+	kubectl delete hpa/trader-trainer-hpa hpa/audit-logger-hpa -n "$ns" --ignore-not-found
 	# A Job's pod template is immutable: apply fails on a finished init Job
 	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.
@@ -280,10 +301,10 @@ wait_rollout() {
 # not rolled back, so pods of release N-1 (plain, no certificate) would never
 # turn ready (readiness runs SELECT 1): lift both through the local socket,
 # which TLS rules do not touch, before the undo. A mysqld restart re-applies
-# the ON of group-replication.cnf; the next deploy binds the users again.
+# the ON of mysql.cnf; the next deploy binds the users again.
 relax_mysql() {
 	local ns="$1" pod
-	# Not the label alone: the mysql-cluster-init Job pod carries it too (no mysql container).
+	# Not the label alone: Job pods carry it too (no mysql container).
 	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name | grep -E "/mysql-[0-9]+$"); do
 		kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
 			m() { MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "$1"; }
@@ -312,8 +333,30 @@ replace_stuck_pods() {
 	[ -z "$pods" ] || kubectl delete pod $pods -n "$ns"
 }
 
+# `rollout undo` restores the pod template but not last-applied-configuration: the next
+# client-side apply then deletes nothing that N-1 had and N moved (spiffe-helper from
+# containers to initContainers, issue #1337: "Duplicate value"). Align the containers.
+resync_last_applied() {
+	local ns="$1" dep="$2" ann='kubectl.kubernetes.io/last-applied-configuration' live new
+	live=$(kubectl get deployment "$dep" -n "$ns" -o json) || return 1
+	new=$(echo "$live" | jq -c --arg a "$ann" '. as $d | ($d.metadata.annotations[$a] // empty | fromjson)
+		| .spec.template.spec.containers = $d.spec.template.spec.containers
+		| if $d.spec.template.spec.initContainers then .spec.template.spec.initContainers = $d.spec.template.spec.initContainers
+		  else del(.spec.template.spec.initContainers) end') || return 1
+	[ -z "$new" ] || kubectl annotate deployment "$dep" -n "$ns" --overwrite "$ann=$new"
+}
+
 rollback() {
-	local ns="$1" file="$2" dep rev failed=0 target entry undone=()
+	local ns="$1" file="$2" dep rev failed=0 target entry undone=() waited=0
+	# The apply may have failed because the API server went down (run 43665338171): wait for it.
+	until kubectl get deployments -n "$ns" >/dev/null; do
+		[ "$waited" -lt $((300 * FACTOR)) ] || {
+			echo "::error::API server unreachable for $waited s: nothing rolled back (configmap/$REVISIONS_CM kept for a re-run)"
+			return 1
+		}
+		sleep 10
+		waited=$((waited + 10))
+	done
 	relax_mysql "$ns" || {
 		echo "::error::Could not lift the MySQL TLS requirement: pods of the previous release cannot connect"
 		failed=1
@@ -322,12 +365,19 @@ rollback() {
 		target="$dep"
 		[[ $dep == */* ]] || target="deployment/$dep"
 		if [ "$rev" = none ]; then
-			echo "::error::Could not roll back $dep: it did not exist before this deploy"
-			failed=1
+			# Created by this release: no N-1 revision to go back to, so remove it (the next apply recreates it).
+			kubectl delete "$target" -n "$ns" --ignore-not-found || {
+				echo "::error::Could not remove $dep: it did not exist before this deploy"
+				failed=1
+			}
 		elif ! kubectl rollout undo "$target" -n "$ns" --to-revision="$rev"; then
 			echo "::error::Could not roll back $dep to revision $rev"
 			failed=1
 		else
+			if [[ $target == deployment/* ]] && ! resync_last_applied "$ns" "$dep"; then
+				echo "::error::Could not resync last-applied-configuration of $dep"
+				failed=1
+			fi
 			undone+=("$target $dep $rev")
 		fi
 	done <"$file"
@@ -345,6 +395,7 @@ rollback() {
 			failed=1
 		fi
 	done
+	[ "$failed" = 1 ] || forget "$ns"
 	return "$failed"
 }
 
@@ -358,5 +409,6 @@ redis-last) [ $# -eq 2 ] || usage; redis_last "$2" ;;
 dry-run) [ $# -eq 3 ] || usage; dry_run "$2" "$3" ;;
 wait) [ $# -ge 2 ] || usage; wait_rollout "$2" "${3:-180s}" ;;
 rollback) [ $# -eq 3 ] || usage; rollback "$2" "$3" ;;
+forget) [ $# -eq 2 ] || usage; forget "$2" ;;
 *) usage ;;
 esac

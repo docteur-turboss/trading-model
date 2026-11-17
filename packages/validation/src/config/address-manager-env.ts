@@ -1,7 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/infrastructure/logger";
+import { logger } from "@trading-model/http/logger";
 import { z } from "zod";
-import { isObject } from "../domain/validation/primitives";
+import { isObject } from "../wire/primitives";
 
 export const AddressManagerEnvSchema = z.object({
 	APP_NAME: z.string().min(1),
@@ -15,7 +15,6 @@ export const AddressManagerEnvSchema = z.object({
 	TTL_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
 	ADDRESS_MANAGER_URL: z.url(),
 
-	ERROR_URL_WEBHOOK: z.union([z.url(), z.literal("")]).default(""),
 	MESSAGE_BUS_INIT_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
 	MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: z.coerce
 		.number()

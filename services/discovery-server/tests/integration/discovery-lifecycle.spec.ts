@@ -13,12 +13,12 @@ import { REGISTRY_ROUTES } from "../../src/adapters/inbound/http/register.routes
 import { createServiceRegistry } from "../../src/config/container";
 import type { ServiceRegistry } from "../../src/domain/service-registry";
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
 // The caller's SVID always names the service it registers (identity binding).
-jest.mock("@trading-model/http/adapters/inbound/mtls-identity", () => ({
+jest.mock("@trading-model/http/mtls-identity", () => ({
 	resolveMtlsIdentity: jest.fn((req: { body?: { serviceName?: string } }) => ({
 		identity: `client:${req.body?.serviceName}`,
 		serviceName: req.body?.serviceName ?? "test-caller",
@@ -28,12 +28,10 @@ jest.mock("@trading-model/http/adapters/inbound/mtls-identity", () => ({
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
-		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
 		ALLOWED_REGISTRATION_CIDRS: "",
 	},
 	env: {
 		CLEANUP_SERVICE_INTERVAL_MS: 5000,
-		ERROR_URL_WEBHOOK: "https://hooks.example.com/error",
 	},
 }));
 

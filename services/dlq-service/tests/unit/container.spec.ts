@@ -119,7 +119,6 @@ describe("createDlqApp", () => {
 	it("exposes the HTTP handlers", () => {
 		const app = build();
 		for (const name of [
-			"addEntry",
 			"deleteEntries",
 			"listEntries",
 			"replayEntries",

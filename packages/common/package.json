@@ -5,22 +5,22 @@
   "license": "ISC",
   "type": "commonjs",
   "exports": {
-    "./config/*": {
-      "types": "./dist/config/*.d.ts",
-      "default": "./dist/config/*.js"
-    },
-    "./utils/*": {
-      "types": "./dist/utils/*.d.ts",
-      "default": "./dist/utils/*.js"
-    },
-    "./shared/*": {
-      "types": "./dist/shared/*.d.ts",
-      "default": "./dist/shared/*.js"
-    },
-    "./tests/*": {
-      "types": "./tests/*.d.ts",
-      "default": "./tests/*.js"
-    }
+    "./config/db-connection-config": "./dist/config/db-connection-config.js",
+    "./config/services.types": "./dist/config/services.types.js",
+    "./config/tls-paths": "./dist/config/tls-paths.js",
+    "./shared/schemas/market-data-schema": "./dist/shared/schemas/market-data-schema.js",
+    "./shared/schemas/primitives.schema": "./dist/shared/schemas/primitives.schema.js",
+    "./utils/anonymize-ip": "./dist/utils/anonymize-ip.js",
+    "./utils/backoff-config": "./dist/utils/backoff-config.js",
+    "./utils/comma-separated": "./dist/utils/comma-separated.js",
+    "./utils/deterministic-stringify": "./dist/utils/deterministic-stringify.js",
+    "./utils/errors": "./dist/utils/errors.js",
+    "./utils/retry": "./dist/utils/retry.js",
+    "./utils/safe-stringify": "./dist/utils/safe-stringify.js",
+    "./utils/sanitize": "./dist/utils/sanitize.js",
+    "./utils/sleep": "./dist/utils/sleep.js",
+    "./utils/spiffe": "./dist/utils/spiffe.js",
+    "./utils/timer-handle": "./dist/utils/timer-handle.js"
   },
   "dependencies": {
     "@trading-model/contracts": "*",

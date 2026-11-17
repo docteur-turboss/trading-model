@@ -10,8 +10,8 @@ const WEIGHT = {
 	CHANGE_24HR_LOW: 2 as ApiWeight,
 	CHANGE_24HR_MED: 40 as ApiWeight,
 	CHANGE_24HR_HIGH: 80 as ApiWeight,
-	PRICE_TICKER: 4 as ApiWeight,
-	BOOK_TICKER: 4 as ApiWeight,
+	TICKER_ONE_SYMBOL: 2 as ApiWeight,
+	TICKER_MANY_SYMBOLS: 4 as ApiWeight,
 } as const satisfies Record<string, ApiWeight>;
 
 /** Binance API weight values per endpoint, used for rate-limit token accounting. */
@@ -31,7 +31,10 @@ export const BINANCE_WEIGHTS = {
 	trades: (): ApiWeight => WEIGHT.TRADES,
 	candlesticks: (): ApiWeight => WEIGHT.CANDLESTICKS,
 	change24hrStats: (symbolLength: number): ApiWeight => {
-		if (symbolLength <= 20 && symbolLength !== 0) {
+		if (symbolLength === 0) {
+			return WEIGHT.CHANGE_24HR_HIGH;
+		}
+		if (symbolLength <= 20) {
 			return WEIGHT.CHANGE_24HR_LOW;
 		}
 		if (symbolLength <= 100) {
@@ -39,6 +42,8 @@ export const BINANCE_WEIGHTS = {
 		}
 		return WEIGHT.CHANGE_24HR_HIGH;
 	},
-	symbolPriceTicker: (_symbolLength: number): ApiWeight => WEIGHT.PRICE_TICKER,
-	orderBookTicker: (_symbolLength: number): ApiWeight => WEIGHT.BOOK_TICKER,
+	symbolPriceTicker: (symbolLength: number): ApiWeight =>
+		symbolLength === 1 ? WEIGHT.TICKER_ONE_SYMBOL : WEIGHT.TICKER_MANY_SYMBOLS,
+	orderBookTicker: (symbolLength: number): ApiWeight =>
+		symbolLength === 1 ? WEIGHT.TICKER_ONE_SYMBOL : WEIGHT.TICKER_MANY_SYMBOLS,
 };

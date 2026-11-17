@@ -7,7 +7,7 @@ import type {
 	SignedRequest,
 	Timestamp,
 } from "@trading-model/contracts/signed-request";
-import { verifySignature as sharedVerifySignature } from "@trading-model/crypto/application/services/request-signer";
+import { verifySignature as sharedVerifySignature } from "@trading-model/crypto/request-signer";
 import { toServiceId } from "@trading-model/primitives/primitives";
 import type { NextFunction, Request, Response } from "express";
 import { ENV, resolveAuthHmacSecret } from "../../infrastructure/config/env";

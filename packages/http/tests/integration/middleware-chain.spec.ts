@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { catchSync } from "@trading-model/http/adapters/inbound/catch-error";
-import { ResponseException } from "@trading-model/http/adapters/inbound/response-exception";
+import { catchSync } from "@trading-model/http/catch-error";
+import { ResponseException } from "@trading-model/http/response-exception";
 
 describe("Middleware chain integration", () => {
 	let req: any;
@@ -43,7 +43,8 @@ describe("Middleware chain integration", () => {
 
 		await handler(req, res, next);
 
-		const error = next.mock.calls[0]?.[0];
-		expect(error).toBeDefined();
+		const error = next.mock.calls[0]?.[0] as { status: number; data: unknown };
+		expect(error.status).toBe(403);
+		expect(error.data).toBe("Bad input");
 	});
 });

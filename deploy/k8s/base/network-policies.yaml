@@ -23,6 +23,7 @@ spec:
           - financial-scraper
           - financial-scraper-collector
           - message-manager
+          - model-evaluator
           - mongodb-audit
           - mysql
           - spire-server

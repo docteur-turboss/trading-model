@@ -96,7 +96,7 @@ permissions:
 env:
   IMAGES: >-
     discovery-server message-manager financial-scraper trader-trainer
-    api-gateway audit-logger dlq-service spire-tools backup-tools db-migrate
+    api-gateway audit-logger dlq-service model-evaluator spire-tools backup-tools db-migrate
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -256,7 +256,7 @@ jobs:
           [ -n "$PUSHOVER_USER" ] || missing="$missing ALERTMANAGER_PUSHOVER_USER_KEY"
           [ -n "$PUSHOVER_TOKEN" ] || missing="$missing ALERTMANAGER_PUSHOVER_TOKEN"
           if [ -n "$missing" ]; then
-            echo "::error::Missing GitHub environment secrets:${missing}. A receiver reading an absent credential file fails every notification and fires AlertmanagerNotificationsFailing (observability/alertmanager.yml)."
+            echo "::error::Missing GitHub environment secrets:${missing}. A receiver reading an absent credential file fails every notification and fires AlertmanagerNotificationsFailing (deploy/k8s/infra/config/alertmanager.yml)."
             exit 1
           fi
 
@@ -989,6 +989,7 @@ jobs:
       # (staging-local) keeps its older pod and its users unbound. Idempotent
       # (docs/deployment/MYSQL_TLS.md, "Enforcement and upgrade").
       - name: Bind MySQL users to their client certificates
+        if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
           if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
@@ -1042,6 +1043,8 @@ jobs:
               trading-model.dev/git-sha="${{ steps.src.outputs.sha }}" \
               trading-model.dev/release-version="$VERSION"
           done
+          # Deployed: a later failed deploy records the revisions afresh (issue #1192).
+          bash deploy/k8s/scripts/deploy-release.sh forget "$NS"
 
       # always() ensures orphans are cleaned up even when canary or rollout fails.
       - name: Clean up canary deployments (if enabled)

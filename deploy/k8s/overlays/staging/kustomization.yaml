@@ -30,6 +30,8 @@ images:
     newTag: latest
   - name: ghcr.io/trading-model/dlq-service
     newTag: latest
+  - name: ghcr.io/trading-model/model-evaluator
+    newTag: latest
   - name: ghcr.io/trading-model/spire-tools
     newTag: latest
   - name: ghcr.io/trading-model/backup-tools
@@ -99,6 +101,14 @@ patches:
         value: 1
       - op: replace
         path: /spec/maxReplicas
+        value: 1
+
+  - target:
+      kind: Deployment
+      name: audit-logger
+    patch: |-
+      - op: replace
+        path: /spec/replicas
         value: 1
 
   # One replica per StatefulSet: a PDB minAvailable of 2 would block every

@@ -1,19 +1,28 @@
 import { describe, expect, it } from "@jest/globals";
+import { runWithCorrelationId } from "@trading-model/http/correlation-id";
+import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
+import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
 import type {
 	Fitness,
 	PositiveInt,
 	Ratio,
 } from "@trading-model/primitives/primitives";
-import { DurationMs, Price } from "@trading-model/primitives/primitives";
+import {
+	DurationMs,
+	Price,
+	toCorrelationId,
+} from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
-import { FEATURE_LAYOUT } from "../../../src/domain/feature-vector-codec";
-import { EpisodeScores } from "../../../src/domain/genetic-algorithm/episode-scores";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
+import { SIMULATOR_PARAMS } from "../../../src/domain/genetic-algorithm/rl-backend";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
 import { buildSummary } from "../../../src/domain/genome-summary-builder";
-import { assessAdmission } from "../../../src/domain/model-admission";
+import {
+	assessAdmission,
+	MIN_ADMISSION_TEST_BARS,
+} from "../../../src/domain/model-admission";
 import { buildModelManifest } from "../../../src/domain/model-artifact";
 
 /** cumulative PnL: 3, -2, 0, -4, 6 -> drawdown 7 (peak 3, trough -4). */
@@ -71,6 +80,8 @@ describe("input layout of a trained model", () => {
 	it("names every network input, market features then agent state", () => {
 		expect(FEATURE_LAYOUT.fields).toHaveLength(FEATURE_LAYOUT.dim);
 		expect(NETWORK_INPUT_LAYOUT.fields).toHaveLength(NETWORK_INPUT_LAYOUT.dim);
+		// The manifest lists the inputs: no order book, trade or ticker input exists (ADR-0083).
+		expect(FEATURE_LAYOUT.fields.join()).not.toMatch(/book|trade|ticker/i);
 		expect(NETWORK_INPUT_LAYOUT.fields.at(-1)).toBe("AgentExposure");
 		expect(createDefaultGenome("g", 0 as never).network.inputDim).toBe(
 			NETWORK_INPUT_LAYOUT.dim
@@ -159,13 +170,33 @@ describe("training.model.published identity of the artifact", () => {
 	it("carries the stored version, sha256 and admission verdict", async () => {
 		expect(await publishedPayload()).toMatchObject(STORED);
 	});
+
+	it("carries the caller's correlation id, or draws one outside a request", async () => {
+		const inRequest = await runWithCorrelationId(
+			toCorrelationId("550e8400-e29b-41d4-a716-446655440000"),
+			() => publishedMessage()
+		);
+
+		expect(inRequest.metadata.correlationId).toBe(
+			"550e8400-e29b-41d4-a716-446655440000"
+		);
+		expect((await publishedMessage()).metadata.correlationId).not.toBe(
+			"550e8400-e29b-41d4-a716-446655440000"
+		);
+	});
 });
 
 describe("admission of a model (ADR-0069)", () => {
 	// Per bar: Sharpe 0.335, Sortino 0.8, Calmar 0.4 (mean 0.4, drawdown 1).
 	const curve = new EpisodeScores([1, -0.5, 2, 0.5, -1]);
-	const bars = (prices: number[]) =>
-		prices.map((price) => ({ price: Price.of(price), features: [] as never }));
+	// Straight line from the first to the last price over `count` bars.
+	const bars = (prices: number[], count = MIN_ADMISSION_TEST_BARS) => {
+		const [first, last] = [prices[0], prices[prices.length - 1]];
+		return Array.from({ length: count }, (_, i) => ({
+			price: Price.of(first + ((last - first) * i) / (count - 1)),
+			features: [] as never,
+		}));
+	};
 	const testMeta = (barsPerYear: number) =>
 		({ evaluatedOn: "test", pnlCurve: curve, barsPerYear }) as never;
 
@@ -188,6 +219,11 @@ describe("admission of a model (ADR-0069)", () => {
 		});
 	});
 
+	it("is never admissible when the model made no decision", () => {
+		const meta = { ...(testMeta(100) as object), decisions: 0 } as never;
+		expect(assessAdmission(meta, bars([5, 4, 3, 2]))?.admissible).toBe(false);
+	});
+
 	it("gives no verdict on validation metrics, which the selection read", () => {
 		const meta = { pnlCurve: curve, barsPerYear: 100 } as never;
 		expect(assessAdmission(meta, bars([5, 4]))).toBeUndefined();
@@ -197,6 +233,15 @@ describe("admission of a model (ADR-0069)", () => {
 				bars([5, 4])
 			)
 		).toBeUndefined();
+	});
+
+	it("gives no verdict under the minimum of test bars", () => {
+		const prices = [5, 4, 3, 2];
+		expect(
+			assessAdmission(testMeta(100), bars(prices, MIN_ADMISSION_TEST_BARS - 1))
+		).toBeUndefined();
+		expect(assessAdmission(testMeta(100), bars(prices, 75))).toBeUndefined();
+		expect(assessAdmission(testMeta(100), bars(prices))).toBeDefined();
 	});
 
 	it("the manifest carries the verdict", () => {
@@ -215,5 +260,28 @@ describe("admission of a model (ADR-0069)", () => {
 			{ version: "v", createdAt: new Date(0), sha256: "0".repeat(64) }
 		);
 		expect(manifest.admission).toEqual(admission);
+	});
+
+	it("the manifest carries the replay window and the simulator", () => {
+		const window = { from: 0, testFrom: 600, to: 720 };
+		const manifest = buildModelManifest(
+			{
+				symbol: "BTCUSDT",
+				instanceId: "trader-trainer-1",
+				bestGenome: createDefaultGenome("g-1", 4 as PositiveInt) as never,
+				weights: new Float32Array([1]),
+				features: { dim: 1, fields: ["close"] },
+				normalization: {},
+				summary: summaryOf(EPISODES),
+				window,
+			},
+			{ version: "v", createdAt: new Date(0), sha256: "0".repeat(64) }
+		);
+		expect(manifest.replay).toEqual({
+			...window,
+			intervalMs: 60_000,
+			evalEpsilon: 0.05,
+			simulator: SIMULATOR_PARAMS,
+		});
 	});
 });

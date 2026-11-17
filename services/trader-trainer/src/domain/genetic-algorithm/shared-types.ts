@@ -1,6 +1,6 @@
 import type { Genome } from "./genome";
 
-export type { Experience } from "../neural-network/type";
+export type { Experience } from "@trading-model/model-runtime/neural-network/type";
 export type {
 	Genome,
 	LamarckGenome,

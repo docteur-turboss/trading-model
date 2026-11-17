@@ -1,5 +1,6 @@
-import type { Price } from "@trading-model/primitives/primitives";
-import { DataType } from "./data-handlers/data-types";
+import type { CandleData } from "@trading-model/contracts/market-data.types";
+import type { Signal } from "@trading-model/validation/wire/signals";
+import type { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
 import type { WindowSet } from "./genetic-algorithm/generation-types";
 import type { MarketStep } from "./genetic-algorithm/genome";
@@ -19,6 +20,8 @@ export interface MarketDataBufferConfig {
 	maxSize?: number;
 	maxMemoryBytes?: number;
 	evictionPolicy?: EvictionPolicy;
+	/** Signal metrics fed to the network after the market inputs (ADR-0081); empty: none. */
+	signalKeys?: readonly string[];
 	/** Observability hook, called with the per-symbol candle count and the symbol count. */
 	onDataAdded?: (
 		symbol: TradingSymbol,
@@ -38,7 +41,11 @@ export class MarketDataBuffer {
 			maxMemoryBytes: config.maxMemoryBytes ?? 512 * 1024 * 1024,
 			evictionPolicy: config.evictionPolicy ?? EvictionPolicy.None,
 		});
-		this._windowSplitter = new WindowSplitter(this._stateManager.states);
+		this._windowSplitter = new WindowSplitter(
+			this._stateManager.states,
+			undefined,
+			config.signalKeys
+		);
 		this._onDataAdded = config.onDataAdded;
 	}
 
@@ -55,25 +62,10 @@ export class MarketDataBuffer {
 		);
 	}
 
-	/**
-	 * Latest prices, stamped `at` reception: a candle's features read the
-	 * latest one known at its close (ADR-0030). Kept for tracked symbols only.
-	 */
-	setPriceSnapshot(
-		prices: Record<TradingSymbol, Price>,
-		at: number = Date.now()
-	): void {
-		for (const [symbol, price] of Object.entries(prices) as [
-			TradingSymbol,
-			Price,
-		][]) {
-			if (this._stateManager.states.has(symbol)) {
-				this._stateManager.addData(DataType.Price, symbol, {
-					price,
-					timestamp: at,
-				});
-			}
-		}
+	/** Sets the candles of a symbol to exactly this window (stored candles, ADR-0044). */
+	replaceCandles(symbol: TradingSymbol, candles: CandleData[]): void {
+		this._stateManager.replaceCandles(symbol, candles);
+		this._onDataAdded?.(symbol, candles.length, this.getSymbols().length);
 	}
 
 	getSymbols(): TradingSymbol[] {
@@ -86,7 +78,20 @@ export class MarketDataBuffer {
 
 	/** Normalization statistics of a symbol (stored with its model, ADR-0022). */
 	snapshotNormalization(symbol: TradingSymbol): Record<string, unknown> {
-		return this._stateManager.serializeNorms(symbol);
+		const signals = this._windowSplitter.signalNormalization(symbol);
+		return {
+			...this._stateManager.serializeNorms(symbol),
+			...(signals && { signals }),
+		};
+	}
+
+	get signalKeys(): readonly string[] {
+		return this._windowSplitter.signalKeys;
+	}
+
+	/** The signals the next windows of a symbol may read (point-in-time by observedAt). */
+	setSignals(symbol: TradingSymbol, signals: readonly Signal[]): void {
+		this._windowSplitter.setSignals(symbol, signals);
 	}
 
 	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
@@ -106,13 +111,6 @@ export class MarketDataBuffer {
 	buildMarketSteps(symbol: TradingSymbol): MarketStep[] {
 		const ctx: MarketDataContext = { symbol };
 		return this._windowSplitter.buildMarketSteps(ctx);
-	}
-
-	splitTrainValidation(
-		steps: MarketStep[],
-		validationSplit: number
-	): WindowSet {
-		return this._windowSplitter.splitTrainValidation(steps, validationSplit);
 	}
 
 	getAllWindows(

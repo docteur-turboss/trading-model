@@ -22,10 +22,9 @@ All endpoints are mTLS-secured and served on **container port 3000**:
 
 | Method   | Path            | Description                                                                                                                                                        |
 | -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `POST`   | `/dlq`          | Store a new dead letter entry; internal callers only, the gateway does not expose it (ADR-0059, #845) (`DlqEntryWire`, `@trading-model/validation/wire/dlq-entry`) |
-| `GET`    | `/dlq`          | List dead letter entries (query `topic`, `limit` 1–1000, `offset` or `cursor`)                                                                                     |
-| `DELETE` | `/dlq`          | Delete entries by id (body `{ "ids": [...] }`, 1 to 1000 ids)                                                                                                      |
-| `POST`   | `/dlq/replay`   | Replay entries to message-manager (query `topic`, `limit`, `batchId`)                                                                                              |
+| `GET`    | `/v1/dlq`       | List dead letter entries (query `topic`, `limit` 1–1000, `offset` or `cursor`)                                                                                     |
+| `DELETE` | `/v1/dlq`       | Delete entries by id (body `{ "ids": [...] }`, 1 to 1000 ids)                                                                                                      |
+| `POST`   | `/v1/dlq/replay` | Replay entries to message-manager (query `topic`, `limit`, `batchId`)                                                                                              |
 | `GET`    | `/health`       | Health check                                                                                                                                                       |
 | `GET`    | `/health/ready` | Readiness (registered with discovery once)                                                                                                                         |
 
@@ -33,7 +32,7 @@ The `/dlq` routes also require a signed request: `x-service-name` (one of
 `DLQ_ALLOWED_SERVICES`), `x-timestamp` (ms, at most 5 minutes old) and
 `x-signature` (HMAC with `DLQ_AUTH_HMAC_SECRET`, see
 `@trading-model/crypto` `request-signer`). The signed path is the request
-path with its query string, as sent (`/dlq/replay?topic=x&limit=50`): a
+path with its query string, as sent (`/v1/dlq/replay?topic=x&limit=50`): a
 signature is valid for that query only. The gateway API key alone is not
 enough.
 
@@ -77,4 +76,4 @@ Until 2026-10-30 these notifications were a `POST` to an `/audit` route audit-lo
 
 - Maximum stored entries is configurable via `MAX_ENTRIES` (default: 100,000)
 - Replay delivers back to message-manager with original payload headers intact. an entry that names its `service` (every entry since ADR-0043) is replayed through the `/message/replay` route of message-manager to that service only, under its original `messageId`; an older entry without `service` goes through the normal publication (`/message`) to every subscriber under a new `messageId`. Dead letters are deduplicated per message and per failed service (key `<messageId>:<service>`, `service` also in the content hash that counts ping-pong passes): two subscribers failing on one message keep two replayable entries. A replay is never re-sent once it left: it waits for the answer of message-manager, now a 202 once the message is journaled (`PUBLISH_ACCEPT_TIMEOUT_MS` + 5 s), and a claim is released as stale only after `STALE_CLAIM_MS` (about 3 min, see ADR-0048). At shutdown, claims of replays still in flight stay until then
-- A `POST /dlq/replay` lasts as long as message-manager takes to journal the batch: ten entries in parallel, each waiting up to `PUBLISH_ACCEPT_TIMEOUT_MS` + 5 s (`REPLAY_DELIVERY_TIMEOUT_MS`) for its 202. No new entry starts after `REPLAY_BATCH_TIMEOUT_MS` (120 s), in-flight ones finish, so the call ends within about 2 min 20 s. A caller with a shorter timeout gets an error while the replay goes on
+- A `POST /v1/dlq/replay` lasts as long as message-manager takes to journal the batch: ten entries in parallel, each waiting up to `PUBLISH_ACCEPT_TIMEOUT_MS` + 5 s (`REPLAY_DELIVERY_TIMEOUT_MS`) for its 202. No new entry starts after `REPLAY_BATCH_TIMEOUT_MS` (120 s), in-flight ones finish, so the call ends within about 2 min 20 s. A caller with a shorter timeout gets an error while the replay goes on

@@ -1,5 +1,8 @@
-import { DEFAULT_MAX_EXPOSURE_FRACTION } from "./env/wallet-config";
+import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
+import { actionLabels } from "./agent/action-mapper";
+import { EVAL_EPSILON } from "./genetic-algorithm/evaluation-phase";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
+import { SIMULATOR_PARAMS } from "./genetic-algorithm/rl-backend";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { ModelAdmission } from "./model-admission";
 import type { BestAgentSummary } from "./training-state";
@@ -10,6 +13,8 @@ import type { BestAgentSummary } from "./training-state";
  * file holds its trained weights.
  */
 export const MODEL_FORMAT_VERSION = 1;
+/** The trainer reads one-minute candles from the scraper. */
+const CANDLE_INTERVAL_MS = 60_000;
 export const WEIGHTS_FILE = "weights.f32";
 export const MANIFEST_FILE = "manifest.json";
 
@@ -41,6 +46,34 @@ interface ModelMetrics {
 	evaluatedOn?: "validation" | "test";
 }
 
+/** Candle window a model was trained on, epoch ms. */
+export interface ModelReplayWindow {
+	/** Open time of the first candle: features are normalised from it. */
+	from: number;
+	/** Timestamp of the first step of the test segment (the newest steps). */
+	testFrom: number;
+	/** Close time of the last candle: nothing later was used. */
+	to: number;
+	/** Bar length when it is not one minute, and the costs of a daily asset (ADR-0083). */
+	intervalMs?: number;
+	simulator?: SimulatorParams;
+}
+
+/**
+ * What a consumer needs to replay the model on stored candles (ADR-0079): the
+ * window and the simulator its metrics were measured with.
+ */
+interface ModelReplay extends ModelReplayWindow {
+	intervalMs: number;
+	/** Exploration of the trainer's evaluation episodes; a replay plays greedy (0). */
+	evalEpsilon: number;
+	simulator: SimulatorParams;
+}
+
+type SimulatorParams = {
+	[Key in keyof typeof SIMULATOR_PARAMS]: number | boolean;
+};
+
 export interface ModelManifest {
 	formatVersion: typeof MODEL_FORMAT_VERSION;
 	symbol: string;
@@ -63,8 +96,12 @@ export interface ModelManifest {
 	metrics: ModelMetrics;
 	/** Constraint the policy learned under (absent on older manifests: unbounded). */
 	riskLimits?: { maxExposureFraction: number };
+	/** Ordered actions: network output `i` is `actions[i]`; absent: sell, hold, buy (ADR-0076). */
+	actions?: string[];
 	/** ADR-0030 verdict on the test segment (ADR-0069); absent: not admissible. */
 	admission?: ModelAdmission;
+	/** Window and simulator to replay the model (ADR-0079); absent on older manifests. */
+	replay?: ModelReplay;
 }
 
 /** What lists and API responses tell about a version, without the manifest body. */
@@ -86,6 +123,7 @@ export interface NewModelArtifact {
 	normalization: Record<string, unknown>;
 	summary: BestAgentSummary;
 	admission?: ModelAdmission;
+	window?: ModelReplayWindow;
 }
 
 export function modelVersion(createdAt: Date, sha256: string): string {
@@ -127,7 +165,18 @@ export function buildModelManifest(
 			maxDrawdown: summary.maxDrawdown,
 			evaluatedOn: summary.evaluatedOn,
 		},
+		...(artifact.bestGenome.network.actionSet && {
+			actions: actionLabels(artifact.bestGenome.network.actionSet),
+		}),
 		...(artifact.admission && { admission: artifact.admission }),
+		...(artifact.window && {
+			replay: {
+				intervalMs: CANDLE_INTERVAL_MS,
+				simulator: SIMULATOR_PARAMS,
+				...artifact.window,
+				evalEpsilon: EVAL_EPSILON,
+			},
+		}),
 	};
 }
 

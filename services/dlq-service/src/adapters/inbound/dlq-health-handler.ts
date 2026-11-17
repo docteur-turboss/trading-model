@@ -3,7 +3,7 @@ import {
 	HEALTH_STATUS_OK,
 	type ResponseObject,
 	sendResponse,
-} from "@trading-model/http/adapters/inbound/response-exception";
+} from "@trading-model/http/response-exception";
 
 export interface HealthDeps {
 	entries: { count(): Promise<number> };

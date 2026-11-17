@@ -45,7 +45,6 @@ trading-model/
 │   ├── persistence/          # Redis/Mongo stores
 │   ├── http/                 # Middleware, HTTP client, logger
 │   ├── validation/           # Zod schemas, DTOs, env validation
-│   ├── server-utils/         # Bootstrap, secure HTTPS server factory, TLS watcher
 │   ├── crypto/               # Hashing, signature, crypto primitives
 │   ├── jobs/                 # Worker protocol, orphan recovery
 │   ├── address-manager/      # Service discovery client
@@ -202,7 +201,7 @@ dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta
 
 main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
               (if OK)     bun run   full CI           deploy.yml
-                          release   docker (10 images) production
+                          release   docker (service and tool images) production
 ```
 
 ---

@@ -33,6 +33,7 @@
 					"dlq-service",
 					"financial-scraper",
 					"message-manager",
+					"model-evaluator",
 					"trader-trainer"
 				]
 			},
@@ -143,21 +144,6 @@
 			"failed",
 			"actor"
 		]
-	},
-	"example.debug.create": {
-		"$schema": "https://json-schema.org/draft/2020-12/schema",
-		"type": "object",
-		"properties": {
-			"debug": {
-				"type": "boolean"
-			}
-		},
-		"required": [
-			"debug"
-		]
-	},
-	"example.show.create": {
-		"$schema": "https://json-schema.org/draft/2020-12/schema"
 	},
 	"market.candlestick.series.fetch": {
 		"$schema": "https://json-schema.org/draft/2020-12/schema",

@@ -13,3 +13,15 @@ if grep -q '^staging-local: placeholder AgCHANGE_ME for SIGNING_SECRET:' <<<"$ou
 else
   echo "  ✗ unexpected failure:"; echo "$out"; exit 1
 fi
+# Issue #1456: a bare-named configMap volume on a database StatefulSet, even one ending in 10 letters.
+cp -r "$ROOT/deploy" "$TMP/bare"
+sed -i 's/^            name: mysql-config$/            name: mysql-entrypoint/' "$TMP/bare/k8s/infra/mysql.yaml"
+rm -r "$TMP/deploy" && mv "$TMP/bare" "$TMP/deploy"
+if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
+  echo "  ✗ bare ConfigMap mysql-entrypoint accepted"; exit 1
+fi
+if grep -q '^staging: StatefulSet mysql mounts ConfigMap mysql-entrypoint by a bare name' <<<"$out"; then
+  echo "  ✓ bare ConfigMap refused"
+else
+  echo "  ✗ unexpected failure:"; echo "$out"; exit 1
+fi

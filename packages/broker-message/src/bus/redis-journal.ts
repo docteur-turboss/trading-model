@@ -1,0 +1,483 @@
+import type { Message } from "@trading-model/contracts/message-types";
+import { logger } from "@trading-model/http/logger";
+import { messageManagerError } from "../shared/errors";
+import {
+	JOURNAL_RETENTION_MS,
+	type JournalEntry,
+	type JournalGroup,
+	type JournalGroupLag,
+	type MessageJournalPort,
+} from "./journal.port";
+import { JOURNAL_TRIMMED_PENDING_TOTAL } from "./metrics";
+
+/** The ioredis commands the bus uses (a client of `@trading-model/persistence` fits). */
+export interface BusRedis {
+	call(command: string, ...args: string[]): Promise<unknown>;
+	sadd(key: string, ...members: string[]): Promise<unknown>;
+	srem(key: string, ...members: string[]): Promise<unknown>;
+	smembers(key: string): Promise<string[]>;
+	/** `MULTI`/`EXEC`: each result is `[error, reply]`, `null` when the transaction was discarded. */
+	multi(): {
+		call(command: string, ...args: string[]): unknown;
+		exec(): Promise<[Error | null, unknown][] | null>;
+	};
+}
+
+export interface BlockingBusRedis {
+	call(command: string, ...args: string[]): Promise<unknown>;
+	sadd(key: string, ...members: string[]): Promise<unknown>;
+	disconnect(): void;
+}
+
+export interface RedisMessageJournalDeps {
+	redis: BusRedis;
+	/**
+	 * Opens a connection of its own for a blocking read (`XREADGROUP BLOCK`
+	 * holds its connection, so one per group); absent: reads never block.
+	 */
+	openBlockingRedis?: () => BlockingBusRedis;
+	/**
+	 * Opens the connection of `XADD` + `WAIT` (opened once): `WAIT` holds its
+	 * connection up to 2 s and would delay `XACK`/`XCLAIM` queued behind it;
+	 * absent: writes share `redis`.
+	 */
+	openWriteRedis?: () => BlockingBusRedis;
+	keyPrefix: string;
+	/**
+	 * Replicas that must hold a write before it is accepted (`WAIT`): Sentinel
+	 * replication is asynchronous, a failover could otherwise drop accepted
+	 * messages. 0 for a single node.
+	 */
+	minReplicas?: number;
+	now?: () => number;
+}
+
+const WAIT_REPLICAS_TIMEOUT_MS = 2000;
+/** Approximate cap of a journal stream, applied every `CAP_EVERY` appends: bounds a burst the 24 h `MINID` would keep. Unmeasured: 100 000 × ~1 KB ≈ 100 MB per stream, against 512 Mi of Redis. */
+const JOURNAL_MAX_LENGTH = 100_000;
+const CAP_EVERY = 100;
+const FIELD = "message";
+const ONLY_FIELD = "only";
+
+/** `[k1, v1, k2, v2, ...]` of an XINFO reply as an object. */
+function toRecord(flat: unknown[]): Record<string, unknown> {
+	const record: Record<string, unknown> = {};
+	for (let i = 0; i < flat.length; i += 2) {
+		record[String(flat[i])] = flat[i + 1];
+	}
+	return record;
+}
+
+type StreamReply = [id: string, fields: string[] | null][] | null;
+
+/**
+ * Journal in Redis Streams (ADR-0048): one stream per topic, one consumer
+ * group per subscriber service. The pending list of each group carries the
+ * retry state (last attempt, number of deliveries) shared by all replicas.
+ * Never `KEYS` (ADR-0023): the groups are listed from a set.
+ */
+export class RedisMessageJournal implements MessageJournalPort {
+	private readonly _now: () => number;
+	private readonly _subscribed = new Map<
+		string,
+		{ value: boolean; until: number }
+	>();
+	private readonly _readers = new Map<string, BlockingBusRedis>();
+	private _writer: BlockingBusRedis | undefined;
+	private readonly _appends = new Map<string, number>();
+
+	constructor(private readonly _deps: RedisMessageJournalDeps) {
+		this._now = _deps.now ?? Date.now;
+	}
+
+	/** Idempotent, never cached: another replica may have retired the group since. */
+	register(group: JournalGroup): Promise<void> {
+		return this._register(this._deps.redis, group);
+	}
+
+	private async _register(
+		redis: Pick<BusRedis, "call" | "sadd">,
+		group: JournalGroup
+	): Promise<void> {
+		await Promise.all([
+			this._ensureGroup(redis, group),
+			redis.sadd(this._groupsKey(), `${group.topic}|${group.service}`),
+		]);
+	}
+
+	async retire(group: JournalGroup): Promise<void> {
+		const key = `${group.topic}|${group.service}`;
+		await this._deps.redis.srem(this._groupsKey(), key);
+		await this._deps.redis.call(
+			"XGROUP",
+			"DESTROY",
+			this.stream(group.topic),
+			group.service
+		);
+	}
+
+	/** Closes the blocking connections, which ends the reads waiting on them. */
+	close(): void {
+		for (const reader of this._readers.values()) {
+			reader.disconnect();
+		}
+		this._readers.clear();
+		this._writer?.disconnect();
+		this._writer = undefined;
+	}
+
+	async append(
+		message: Message,
+		services: readonly string[],
+		onlyFor?: string
+	): Promise<void> {
+		const { topic } = message.metadata;
+		// Re-register on every append: a replica may have retired a group since, and a stream Redis lost
+		// (restart without AOF) has no groups left; a group created after XADD would miss this message (ADR-0048 §1).
+		const now = this._now();
+		// On the connection of the WAIT, so the replicas confirm the groups with the entry.
+		const writer = this._writeRedis();
+		await Promise.all(
+			services.map((service) => this._register(writer, { topic, service }))
+		);
+		// XADD takes MINID or MAXLEN, not both: the 24 h rule by default, the length cap every CAP_EVERY appends of the topic.
+		const count = (this._appends.get(topic) ?? 0) + 1;
+		this._appends.set(topic, count);
+		const capped = count % CAP_EVERY === 0;
+		const entryId = (await writer.call(
+			"XADD",
+			this.stream(topic),
+			...(capped
+				? ["MAXLEN", "~", String(JOURNAL_MAX_LENGTH)]
+				: ["MINID", "~", String(now - JOURNAL_RETENTION_MS)]),
+			"*",
+			FIELD,
+			JSON.stringify(message),
+			...(onlyFor ? [ONLY_FIELD, onlyFor] : [])
+		)) as string;
+		const required = this._deps.minReplicas ?? 0;
+		if (required > 0) {
+			const replicated = await writer.call(
+				"WAIT",
+				String(required),
+				String(WAIT_REPLICAS_TIMEOUT_MS)
+			);
+			if (Number(replicated) < required) {
+				// The publisher will send again under a new messageId: drop this entry so it is not delivered twice.
+				await writer.call("XDEL", this.stream(topic), entryId);
+				throw messageManagerError(
+					`Message not accepted: journal write held by ${replicated} of ${required} replicas`
+				);
+			}
+		}
+	}
+
+	/** True when a consumer group reads the topic (cached 1 s): without one a message would reach nobody. */
+	async hasSubscribers(topic: string): Promise<boolean> {
+		const cached = this._subscribed.get(topic);
+		if (cached && cached.until > this._now()) {
+			return cached.value;
+		}
+		let value: boolean;
+		try {
+			value =
+				(
+					(await this._deps.redis.call(
+						"XINFO",
+						"GROUPS",
+						this.stream(topic)
+					)) as unknown[]
+				).length > 0;
+		} catch (err) {
+			if (!(err instanceof Error && err.message.includes("no such key"))) {
+				throw err;
+			}
+			value = false;
+		}
+		this._subscribed.set(topic, { value, until: this._now() + 1000 });
+		return value;
+	}
+
+	async groups(): Promise<JournalGroup[]> {
+		const members = await this._deps.redis.smembers(this._groupsKey());
+		return members.map((member) => {
+			const cut = member.lastIndexOf("|");
+			return {
+				topic: member.slice(0, cut) as JournalGroup["topic"],
+				service: member.slice(cut + 1),
+			};
+		});
+	}
+
+	async readNew(
+		group: JournalGroup,
+		consumer: string,
+		count: number,
+		blockMs?: number
+	): Promise<JournalEntry[]> {
+		let reply: [stream: string, entries: StreamReply] | null;
+		try {
+			reply = (await this._reader(group, blockMs).call(
+				"XREADGROUP",
+				"GROUP",
+				group.service,
+				consumer,
+				"COUNT",
+				String(count),
+				...(blockMs ? ["BLOCK", String(blockMs)] : []),
+				"STREAMS",
+				this.stream(group.topic),
+				">"
+			)) as typeof reply;
+		} catch (err) {
+			await this._recoverNoGroup(err, group);
+			return [];
+		}
+		// ioredis `call` hands one stream back as [name, entries], not [[name, entries]].
+		return this._parse(group, reply?.[1] ?? null, () => 1);
+	}
+
+	async claimDue(
+		group: JournalGroup,
+		consumer: string,
+		retry: { floorMs: number; dueAfterMs: (deliveries: number) => number },
+		count: number,
+		skip: ReadonlySet<string> = new Set()
+	): Promise<JournalEntry[]> {
+		const stream = this.stream(group.topic);
+		let pending: [
+			id: string,
+			consumer: string,
+			idleMs: number,
+			deliveries: number,
+		][];
+		try {
+			pending = (await this._deps.redis.call(
+				"XPENDING",
+				stream,
+				group.service,
+				"IDLE",
+				String(retry.floorMs),
+				"-",
+				"+",
+				String(count + skip.size)
+			)) as typeof pending;
+		} catch (err) {
+			await this._recoverNoGroup(err, group);
+			return [];
+		}
+		const due = pending
+			.filter(
+				([id, , idleMs, deliveries]) =>
+					!skip.has(id) && idleMs >= retry.dueAfterMs(deliveries)
+			)
+			.slice(0, count);
+		// MIN-IDLE makes each claim atomic: of two replicas, one wins. Promise.all keeps the XPENDING order.
+		const batches = await Promise.all(
+			due.map(async ([id, , , deliveries]) => {
+				const claimed = (await this._deps.redis.call(
+					"XCLAIM",
+					stream,
+					group.service,
+					consumer,
+					String(retry.dueAfterMs(deliveries)),
+					id
+				)) as StreamReply;
+				return this._parse(group, claimed, () => deliveries + 1);
+			})
+		);
+		const entries: JournalEntry[] = batches.flat();
+		return entries;
+	}
+
+	async lag(): Promise<JournalGroupLag[]> {
+		const groups = await this.groups();
+		const infos = new Map<string, Record<string, unknown>>();
+		for (const topic of new Set(groups.map((group) => group.topic))) {
+			try {
+				// One call per topic lists all its groups (Redis >= 7 for `lag`).
+				const reply = (await this._deps.redis.call(
+					"XINFO",
+					"GROUPS",
+					this.stream(topic)
+				)) as unknown[][];
+				for (const flat of reply) {
+					const info = toRecord(flat);
+					infos.set(`${topic}|${info.name}`, info);
+				}
+			} catch (err) {
+				// The stream is gone (Redis restart without AOF): nothing is pending on it.
+				if (!(err instanceof Error && err.message.includes("no such key"))) {
+					throw err;
+				}
+			}
+		}
+		const now = this._now();
+		// One group per task: its three reads stay ordered, groups overlap.
+		const results = await Promise.all(
+			groups.map(async (group): Promise<JournalGroupLag | undefined> => {
+				const info = infos.get(`${group.topic}|${group.service}`);
+				if (!info) {
+					return undefined;
+				}
+				const stream = this.stream(group.topic);
+				let count: number;
+				let oldestPending: string | null;
+				let unread: [string, unknown][];
+				try {
+					[count, oldestPending] = (await this._deps.redis.call(
+						"XPENDING",
+						stream,
+						group.service
+					)) as [number, string | null];
+					unread = (await this._deps.redis.call(
+						"XRANGE",
+						stream,
+						`(${info["last-delivered-id"]}`,
+						"+",
+						"COUNT",
+						"1"
+					)) as [string, unknown][];
+				} catch (err) {
+					// The group vanished since XINFO: skip it, keep the others.
+					if (err instanceof Error && err.message.includes("NOGROUP")) {
+						return undefined;
+					}
+					throw err;
+				}
+				// shortcut: a nil `lag` (Redis cannot tell after an XDEL) counts the one unread entry seen, upgrade with a XLEN walk if it ever matters.
+				const unreadCount = Number(info.lag ?? unread.length);
+				const oldest = [oldestPending, unread[0]?.[0]]
+					.filter((id): id is string => Boolean(id))
+					.map((id) => Number(id.split("-")[0]))
+					.sort((first, second) => first - second)[0];
+				return {
+					...group,
+					pending: count + unreadCount,
+					oldestPendingAgeMs:
+						oldest === undefined ? 0 : Math.max(0, now - oldest),
+				};
+			})
+		);
+		return results.filter(
+			(entry): entry is JournalGroupLag => entry !== undefined
+		);
+	}
+
+	async ack(group: JournalGroup, id: string): Promise<void> {
+		await this._deps.redis.call(
+			"XACK",
+			this.stream(group.topic),
+			group.service,
+			id
+		);
+	}
+
+	/** Parses entries; acks trimmed ones (no body) so they leave the pending list on any Redis version. */
+	private async _parse(
+		group: JournalGroup,
+		reply: StreamReply,
+		deliveries: () => number
+	): Promise<JournalEntry[]> {
+		const entries: JournalEntry[] = [];
+		for (const [id, fields] of reply ?? []) {
+			const at = fields?.indexOf(FIELD) ?? -1;
+			const only = fields?.indexOf(ONLY_FIELD) ?? -1;
+			// Targeted replay: the other groups see the entry too and settle it unread (not a loss).
+			const forOthers =
+				fields && only >= 0 && fields[only + 1] !== group.service;
+			if (fields && at >= 0 && forOthers) {
+				await this.ack(group, id);
+			} else if (fields && at >= 0) {
+				entries.push({
+					id,
+					message: JSON.parse(fields[at + 1] as string) as Message,
+					deliveries: deliveries(),
+				});
+			} else {
+				// Trimmed (24 h) before delivery: the message is gone for good, so it is counted, logged and alerted.
+				JOURNAL_TRIMMED_PENDING_TOTAL.inc({
+					topic: group.topic,
+					service: group.service,
+				});
+				logger.error("Journal entry trimmed before delivery: message lost", {
+					topic: group.topic,
+					service: group.service,
+					entryId: id,
+				});
+				await this.ack(group, id);
+			}
+		}
+		return entries;
+	}
+
+	/** NOGROUP: Redis lost the stream (restart without AOF), create the group again; any other error is rethrown. */
+	private async _recoverNoGroup(
+		err: unknown,
+		group: JournalGroup
+	): Promise<void> {
+		if (!(err instanceof Error && err.message.includes("NOGROUP"))) {
+			throw err;
+		}
+		await this.register(group);
+	}
+
+	private _writeRedis(): Pick<BlockingBusRedis, "call" | "sadd"> {
+		if (!this._deps.openWriteRedis) {
+			return this._deps.redis;
+		}
+		this._writer ??= this._deps.openWriteRedis();
+		return this._writer;
+	}
+
+	private _reader(group: JournalGroup, blockMs?: number) {
+		if (!(blockMs && this._deps.openBlockingRedis)) {
+			return this._deps.redis;
+		}
+		const key = `${group.topic}|${group.service}`;
+		let reader = this._readers.get(key);
+		if (!reader) {
+			reader = this._deps.openBlockingRedis();
+			this._readers.set(key, reader);
+		}
+		return reader;
+	}
+
+	private async _ensureGroup(
+		redis: Pick<BusRedis, "call" | "sadd">,
+		group: JournalGroup
+	): Promise<void> {
+		try {
+			// "$": a group sees what is written after it exists, so it must exist before the XADD.
+			await redis.call(
+				"XGROUP",
+				"CREATE",
+				this.stream(group.topic),
+				group.service,
+				"$",
+				"MKSTREAM"
+			);
+		} catch (err) {
+			if (!(err instanceof Error && err.message.includes("BUSYGROUP"))) {
+				throw err;
+			}
+		}
+	}
+
+	/** Key prefix of the bus streams (`<prefix>:journal:<topic>`, `<prefix>:dead:<topic>`). */
+	get keyPrefix(): string {
+		return this._deps.keyPrefix;
+	}
+
+	get redis(): BusRedis {
+		return this._deps.redis;
+	}
+
+	stream(topic: string): string {
+		return `${this._deps.keyPrefix}:journal:${topic}`;
+	}
+
+	private _groupsKey(): string {
+		return `${this._deps.keyPrefix}:journal-groups`;
+	}
+}

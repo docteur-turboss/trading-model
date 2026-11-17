@@ -2,7 +2,7 @@
 
 **Status:** Superseded by [ADR-0048](./0048-durable-message-journal-in-redis-streams.md)
 **Date:** 2026-10
-**Supersedes:** [ADR-0002](./0002-redis-pub-sub.md), [ADR-0008](./0008-message-broker-choice.md)
+**Supersedes:** ADR-0002 (deleted), ADR-0008 (deleted)
 **Related:** [ADR-0012](./0012-dead-code-removal-and-entrypoint-fix.md) (removed the Redis Streams, WAL and Mongo archive code), [ADR-0016](./0016-shared-contracts-ownership.md) (message contracts)
 **Verified by:** `services/message-manager/tests/unit/application/services/dispatcher.spec.ts`, `services/message-manager/tests/unit/domain/backoff-calculator.spec.ts`, `services/message-manager/tests/unit/adapters/outbound/subscription-stores.spec.ts`, `services/message-manager/tests/db/redis-subscription-store.db.spec.ts`, `services/message-manager/tests/unit/application/services/subscription.spec.ts`, `services/message-manager/tests/unit/application/services/delivery-worker.spec.ts`, `services/message-manager/tests/unit/adapters/outbound/http-dead-letter-store.spec.ts`, `tests/contract/dead-letter.spec.ts`, `services/message-manager/tests/unit/app/index.spec.ts`, `services/dlq-service/tests/unit/dlq-constants.spec.ts`, `bun run test:contract`, `tests/e2e/dead-letter-flow.e2e.spec.ts`
 

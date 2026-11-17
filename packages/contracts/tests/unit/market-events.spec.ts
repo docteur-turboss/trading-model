@@ -3,8 +3,6 @@ import { MarketEvent } from "../../src/market-events";
 
 describe("MarketEvent", () => {
 	it("should have correct values", () => {
-		expect(MarketEvent.TestEvent).toBe("example.debug.create");
-		expect(MarketEvent.ExampleEvent).toBe("example.show.create");
 		expect(MarketEvent.FetchRecentTrades).toBe("market.trade.recent.fetch");
 		expect(MarketEvent.Fetch24hrTickerStats).toBe(
 			"market.ticker.24hr-stats.fetch"

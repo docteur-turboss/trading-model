@@ -3,7 +3,7 @@ import {
 	brand,
 	defineRoute,
 	ErrorResponse,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 import {
@@ -43,6 +43,7 @@ const BestAgentSummary = z.object({
 	network: z.object({
 		inputDim: z.number().int(),
 		outputDim: z.number().int(),
+		actions: z.array(z.string()).optional(),
 		hiddenLayers: z.array(
 			z.object({ neurons: z.number().int(), activation: z.string() })
 		),
@@ -119,6 +120,23 @@ const ModelManifest = z.object({
 			}),
 		})
 		.optional(),
+	/** Window and simulator to replay the model (ADR-0079); absent on older manifests. */
+	replay: z
+		.object({
+			from: z.number().int(),
+			testFrom: z.number().int(),
+			to: z.number().int(),
+			intervalMs: z.number().int(),
+			evalEpsilon: z.number(),
+			simulator: z.object({
+				initialCash: z.number(),
+				feeRate: z.number(),
+				executionCostRate: z.number(),
+				tradeFraction: z.number(),
+				observePosition: z.boolean(),
+			}),
+		})
+		.optional(),
 });
 
 const MODEL_SYMBOL = z.string().regex(MODEL_SYMBOL_PATTERN);
@@ -145,7 +163,7 @@ const TrainerState = {
 export const TRAINER_API = {
 	bestAgent: defineRoute({
 		method: "GET",
-		path: "/best-agent",
+		path: "/v1/best-agent",
 		summary: "Best agent of the last trained symbol",
 		responses: {
 			200: z.object({
@@ -156,13 +174,13 @@ export const TRAINER_API = {
 	}),
 	trainingStatus: defineRoute({
 		method: "GET",
-		path: "/training-status",
+		path: "/v1/training-status",
 		summary: "Whether a training runs, on which symbol and generation",
 		responses: { 200: z.object({ data: z.object(TrainerState) }) },
 	}),
 	trainingAgents: defineRoute({
 		method: "GET",
-		path: "/training-agents",
+		path: "/v1/training-agents",
 		summary: "Best agent of every trained symbol",
 		responses: {
 			200: z.object({
@@ -176,7 +194,7 @@ export const TRAINER_API = {
 	}),
 	trainingAgent: defineRoute({
 		method: "GET",
-		path: "/training-agents/:symbol",
+		path: "/v1/training-agents/:symbol",
 		summary: "Best agent of a symbol, with its latest stored model",
 		params: z.object({ symbol: z.string().min(1).transform(brand(toSymbol)) }),
 		responses: {
@@ -192,7 +210,7 @@ export const TRAINER_API = {
 	}),
 	listModels: defineRoute({
 		method: "GET",
-		path: "/models/:symbol",
+		path: "/v1/models/:symbol",
 		summary: "Stored model versions of a symbol, newest first",
 		params: z.object({ symbol: MODEL_SYMBOL }),
 		responses: {
@@ -202,7 +220,7 @@ export const TRAINER_API = {
 	}),
 	getModel: defineRoute({
 		method: "GET",
-		path: "/models/:symbol/:version",
+		path: "/v1/models/:symbol/:version",
 		summary: "Manifest of a model version (everything but the weights)",
 		params: MODEL,
 		responses: {

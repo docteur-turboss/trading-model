@@ -2,6 +2,10 @@ import { z } from "zod";
 import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
 
 const Code = z.object({ id: z.string().min(1) });
+const TimePeriod = Code.extend({
+	start: z.string().optional(),
+	end: z.string().optional(),
+});
 
 /**
  * `GET https://data-api.ecb.europa.eu/service/data/<flow>/<series key>?lastNObservations=N&format=jsondata`:
@@ -27,7 +31,7 @@ const SdmxSeries = z.object({
 		dimensions: z.object({
 			series: z.array(z.object({ values: z.array(Code) })),
 			observation: z.tuple([
-				z.object({ id: z.literal("TIME_PERIOD"), values: z.array(Code) }),
+				z.object({ id: z.literal("TIME_PERIOD"), values: z.array(TimePeriod) }),
 			]),
 		}),
 		attributes: z.object({
@@ -56,13 +60,18 @@ function _unit(structure: Sdmx["structure"], attributes: (number | null)[]) {
 }
 
 /**
- * One daily ECB market series (ECB Data Portal: yields, exchange rates...),
- * free to reuse with "Source: ECB statistics". The payload gives no release
- * time: no `observedAt`, the collector stamps the collection time.
+ * One ECB series (ECB Data Portal: yields, exchange rates, HICP, key rates...),
+ * free to reuse with "Source: ECB statistics". `market` payload by default; the
+ * param `area` makes it a `macro` one whose `period` is the one the ECB gives
+ * (a whole month for HICP). The payload gives no release time: no
+ * `observedAt`, the collector stamps the collection time.
  */
 export const ECB_SDMX_SERIES: SourceAdapter = {
-	dimensions: ["market"],
-	params: z.object({ metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/) }),
+	dimensions: ["market", "macro"],
+	params: z.object({
+		metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+		area: z.string().min(1).optional(),
+	}),
 	normalize(payload, { params }) {
 		const {
 			dataSets: [dataSet],
@@ -85,8 +94,8 @@ export const ECB_SDMX_SERIES: SourceAdapter = {
 		const unit = _unit(structure, attributes);
 		const periods = structure.dimensions.observation[0].values;
 		return Object.entries(observations).flatMap(([index, [value]]) => {
-			const period = periods[Number(index)]?.id;
-			if (period === undefined) {
+			const time = periods[Number(index)];
+			if (time === undefined) {
 				throw new Error(`ECB observation ${index} outside TIME_PERIOD`);
 			}
 			if (value === null) {
@@ -94,12 +103,16 @@ export const ECB_SDMX_SERIES: SourceAdapter = {
 			}
 			return [
 				{
-					key: period,
+					key: time.id,
 					payload: {
 						metric: params.metric,
 						value,
 						unit,
-						period: { start: period, end: period },
+						...(params.area && { area: params.area }),
+						period: {
+							start: time.start?.slice(0, 10) ?? time.id,
+							end: time.end?.slice(0, 10) ?? time.id,
+						},
 						details: { series: code.join(".") },
 					},
 				},

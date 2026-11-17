@@ -3,15 +3,21 @@ import {
 	brand,
 	defineRoute,
 	ErrorResponse,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import {
 	type TradingSymbol,
 	toSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
+import {
+	Asset,
+	AssetId,
+	AssetSignalsResponse,
+	Dimension,
+} from "@trading-model/validation/wire/signals";
 import { z } from "zod";
 import type { MarketDataPage } from "../../../domain/market-data.types";
-import { Asset, AssetId, Signal } from "../../../domain/signals";
+import { Source } from "../../../domain/signals";
 
 /**
  * HTTP API of financial-scraper (ADR-0021): market data and signal queries. Each entry
@@ -164,82 +170,109 @@ function query<
 
 export const SCRAPER_API = {
 	tradesBySource: query(
-		"/trade/sources/:source",
+		"/v2/trade/sources/:source",
 		"Trades of a source",
 		BY_SOURCE,
 		Trade
 	),
 	tradesBySymbol: query(
-		"/trade/symbols/:symbol",
+		"/v2/trade/symbols/:symbol",
 		"Trades of a symbol",
 		BY_SYMBOL,
 		Trade
 	),
 	tradesAt: query(
-		"/trade/timestamp/:timestamp",
+		"/v2/trade/timestamp/:timestamp",
 		"Trades at exactly this instant",
 		AT_DATE,
 		Trade
 	),
 	tickersBySource: query(
-		"/ticker/sources/:source",
+		"/v2/ticker/sources/:source",
 		"24h tickers of a source",
 		BY_SOURCE,
 		Ticker
 	),
 	tickersBySymbol: query(
-		"/ticker/symbols/:symbol",
+		"/v2/ticker/symbols/:symbol",
 		"24h tickers of a symbol",
 		BY_SYMBOL,
 		Ticker
 	),
 	tickersAt: query(
-		"/ticker/timestamp/:timestamp",
+		"/v2/ticker/timestamp/:timestamp",
 		"24h tickers opened at exactly this instant",
 		AT_DATE,
 		Ticker
 	),
 	candlesBySource: query(
-		"/candles/sources/:source",
+		"/v2/candles/sources/:source",
 		"Candles of a source",
 		BY_SOURCE,
 		Candle
 	),
 	candlesBySymbol: query(
-		"/candles/symbols/:symbol",
+		"/v2/candles/symbols/:symbol",
 		"Candles of a symbol",
 		BY_SYMBOL,
 		Candle
 	),
 	candlesSince: query(
-		"/candles/timestamp/:timestamp",
+		"/v2/candles/timestamp/:timestamp",
 		"Candles opened after a date",
 		AT_DATE,
 		Candle
 	),
-	/** ADR-0036: every dimension, the sector signals of the asset included. */
+	/** ADR-0036: every dimension, the sector and area signals of the asset included. */
 	assetSignals: defineRoute({
 		method: "GET",
-		path: "/signals/assets/:assetId",
+		path: "/v2/signals/assets/:assetId",
 		summary:
-			"Signals of an asset and of its sector, every dimension, observed in [from, to)",
+			"Signals of an asset, of its sector and of its areas, every dimension, observed in [from, to)",
 		params: z.object({ assetId: AssetId }),
 		query: z
-			.object({ from: ISO_DATE_MS, to: ISO_DATE_MS })
+			.object({
+				from: ISO_DATE_MS,
+				to: ISO_DATE_MS,
+				/** Filters, applied in SQL; without them, everything. */
+				dimension: Dimension.optional(),
+				metric: z.string().min(1).optional(),
+				sourceId: z.string().min(1).optional(),
+			})
 			.refine((window) => window.from < window.to, {
 				message: "from must be before to",
 				path: ["to"],
 			}),
 		responses: {
-			200: z.object({
-				asset: Asset,
-				/** Oldest first. */
-				signals: z.array(Signal),
-				/** More than MAX_SIGNALS_PER_ANSWER (5000) signals: narrow the window. */
-				truncated: z.boolean(),
-			}),
+			200: AssetSignalsResponse,
 			400: ErrorResponse,
 			404: ErrorResponse,
+		},
+	}),
+	assets: defineRoute({
+		method: "GET",
+		path: "/v2/signals/assets",
+		summary: "Assets of the signal registry",
+		responses: { 200: z.object({ assets: z.array(Asset) }) },
+	}),
+	sources: defineRoute({
+		method: "GET",
+		path: "/v2/signals/sources",
+		summary: "Sources of the signal registry, with their terms of use",
+		responses: {
+			200: z.object({
+				sources: z.array(
+					z.object({
+						id: Source.shape.id,
+						covers: Source.shape.covers,
+						schedule: z.string(),
+						reliabilityScore: z.number(),
+						terms: z.string(),
+						termsUrl: z.string(),
+						attribution: z.string().optional(),
+					})
+				),
+			}),
 		},
 	}),
 } as const;

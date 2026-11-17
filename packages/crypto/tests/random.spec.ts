@@ -1,4 +1,4 @@
-import { generateRandomStr } from "../src/adapters/outbound/node-random";
+import { generateRandomStr } from "../src/node-crypto";
 
 describe("generateRandomStr", () => {
 	it("should return a non-empty string", () => {

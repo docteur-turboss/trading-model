@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import type { Probability } from "@trading-model/primitives/primitives";
 import { PositiveInt, Price } from "@trading-model/primitives/primitives";
-import { FeatureVector } from "../../../src/domain/feature-vector";
 
 jest.mock("../../../src/domain/agent/trading-agent", () => {
 	const makeMockAgent = () => ({
@@ -11,7 +11,6 @@ jest.mock("../../../src/domain/agent/trading-agent", () => {
 		getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
 		parameterCount: jest.fn((..._args: any[]) => 2),
 		setWeights: jest.fn<(...args: any[]) => any>(),
-		getExperiencePool: jest.fn((..._args: any[]) => []),
 		remember: jest.fn<(...args: any[]) => any>(),
 		replay: jest.fn((..._args: any[]) => 0),
 		step: jest.fn((..._args: any[]) => ({ reward: 1, actionIndex: 0 })),
@@ -31,7 +30,7 @@ jest.mock("../../../src/domain/agent/trading-agent", () => {
 	};
 });
 
-jest.mock("../../../src/domain/env/wallet-manager", () => ({
+jest.mock("@trading-model/model-runtime/env/wallet-manager", () => ({
 	createWallet: jest.fn((..._args: any[]) => ({
 		buy: jest.fn((..._args: any[]) => true),
 		sell: jest.fn((..._args: any[]) => true),
@@ -87,6 +86,13 @@ import {
 } from "../../../src/domain/genetic-algorithm/genome";
 import { createGAControlGenome } from "../../../src/domain/genetic-algorithm/genome-control";
 import { makeTradingAgentBackend } from "../../../src/domain/genetic-algorithm/rl-backend";
+
+function lastMockAgent(): Record<string, jest.Mock> {
+	const { TradingAgent } = jest.requireMock(
+		"../../../src/domain/agent/trading-agent"
+	) as { TradingAgent: jest.Mock };
+	return TradingAgent.mock.results.at(-1)?.value as Record<string, jest.Mock>;
+}
 
 describe("makeTradingAgentBackend", () => {
 	it("should create an RLBackend from a genome", () => {
@@ -190,7 +196,10 @@ describe("makeTradingAgentBackend", () => {
 			new Float32Array([0.5, 0.5, 0.5])
 		);
 		const output = backend.forwardPass(features);
-		expect(output).toBeDefined();
+		expect(output).toEqual(new Float32Array([0.5, 0.5, 0.5]));
+		const agent = lastMockAgent();
+		expect(agent.step).not.toHaveBeenCalled();
+		expect(agent.remember).not.toHaveBeenCalled();
 	});
 
 	it("should inject trainedWeights when present in genome", () => {
@@ -228,14 +237,23 @@ describe("makeTradingAgentBackend", () => {
 				mutationRate: 0.1,
 				crossoverRate: 0.5,
 			},
-			trainedWeights: [0.1, 0.2, 0.3, 0.4, 0.5],
+			// the mocked agent has 2 parameters
+			trainedWeights: [0.1, 0.2],
 			fitness: 0,
 		} as any;
 
-		const backend = makeTradingAgentBackend(genome as any);
-		expect(backend).toBeDefined();
-		const weights = backend.getWeights();
-		expect(weights).toBeDefined();
+		makeTradingAgentBackend(genome as any);
+		expect(lastMockAgent().setWeights).toHaveBeenCalledWith(
+			new Float32Array([0.1, 0.2])
+		);
+	});
+
+	it("should not inject trainedWeights of another size", () => {
+		makeTradingAgentBackend({
+			...getMinimalGenome(),
+			trainedWeights: [0.1, 0.2, 0.3],
+		} as any);
+		expect(lastMockAgent().setWeights).not.toHaveBeenCalled();
 	});
 
 	it("should call step and return reward", () => {
@@ -353,7 +371,6 @@ describe("GeneticAlgorithmRunner", () => {
 		setWeights: jest.fn<(...args: any[]) => any>(),
 		getPnL: jest.fn((..._args: any[]) => 50),
 		resetEpisode: jest.fn<(...args: any[]) => any>(),
-		getExperiencePool: jest.fn((..._args: any[]) => []),
 	});
 
 	it("should initialise a population with the correct size", () => {
@@ -599,22 +616,6 @@ describe("full GA loop", () => {
 			setWeights: jest.fn<(...args: any[]) => any>(),
 			getPnL: jest.fn((..._args: any[]) => 50),
 			resetEpisode: jest.fn<(...args: any[]) => any>(),
-			getExperiencePool: jest.fn((..._args: any[]) => [
-				{
-					input: new Float32Array([0.1, 0.2, 0.3]),
-					output: new Float32Array([0.1, 0.2, 0.3]),
-					reward: 1,
-					nextState: new Float32Array([0.1, 0.2, 0.3]),
-					action: 0,
-				},
-				{
-					input: new Float32Array([0.4, 0.5, 0.6]),
-					output: new Float32Array([0.4, 0.5, 0.6]),
-					reward: 1,
-					nextState: new Float32Array([0.4, 0.5, 0.6]),
-					action: 2,
-				},
-			]),
 			forwardPass: jest.fn(
 				(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 			),
@@ -680,14 +681,6 @@ describe("full GA loop", () => {
 				setWeights: jest.fn<(...args: any[]) => any>(),
 				getPnL: jest.fn((..._args: any[]) => 50 + id * 10),
 				resetEpisode: jest.fn<(...args: any[]) => any>(),
-				getExperiencePool: jest.fn((..._args: any[]) => [
-					{
-						input: new Float32Array([0.1, 0.2, 0.3]),
-						output: new Float32Array([0.1, 0.2, 0.3]),
-						reward: 1,
-						nextState: new Float32Array([0.1, 0.2, 0.3]),
-					},
-				]),
 				forwardPass: jest.fn(
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
@@ -770,7 +763,6 @@ describe("full GA loop", () => {
 				setWeights: jest.fn<(...args: any[]) => any>(),
 				getPnL: jest.fn((..._args: any[]) => 50),
 				resetEpisode: jest.fn<(...args: any[]) => any>(),
-				getExperiencePool: jest.fn((..._args: any[]) => []),
 				forwardPass: jest.fn(
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
@@ -814,7 +806,6 @@ describe("full GA loop", () => {
 				setWeights: jest.fn<(...args: any[]) => any>(),
 				getPnL: jest.fn((..._args: any[]) => 50),
 				resetEpisode: jest.fn<(...args: any[]) => any>(),
-				getExperiencePool: jest.fn((..._args: any[]) => []),
 				forwardPass: jest.fn(
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
@@ -858,7 +849,6 @@ describe("full GA loop", () => {
 				setWeights: jest.fn<(...args: any[]) => any>(),
 				getPnL: jest.fn((..._args: any[]) => 50),
 				resetEpisode: jest.fn<(...args: any[]) => any>(),
-				getExperiencePool: jest.fn((..._args: any[]) => []),
 				forwardPass: jest.fn(
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
@@ -896,7 +886,6 @@ describe("full GA loop", () => {
 				setWeights: jest.fn<(...args: any[]) => any>(),
 				getPnL: jest.fn((..._args: any[]) => 50),
 				resetEpisode: jest.fn<(...args: any[]) => any>(),
-				getExperiencePool: jest.fn((..._args: any[]) => []),
 				forwardPass: jest.fn(
 					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 				),
@@ -931,22 +920,6 @@ describe("full GA loop", () => {
 			setWeights: jest.fn<(...args: any[]) => any>(),
 			getPnL: jest.fn((..._args: any[]) => 50),
 			resetEpisode: jest.fn<(...args: any[]) => any>(),
-			getExperiencePool: jest.fn((..._args: any[]) => [
-				{
-					input: new Float32Array([0.1, 0.2, 0.3]),
-					output: new Float32Array([0.1, 0.2, 0.3]),
-					reward: 1,
-					nextState: new Float32Array([0.1, 0.2, 0.3]),
-					action: 0,
-				},
-				{
-					input: new Float32Array([0.4, 0.5, 0.6]),
-					output: new Float32Array([0.4, 0.5, 0.6]),
-					reward: 1,
-					nextState: new Float32Array([0.4, 0.5, 0.6]),
-					action: 2,
-				},
-			]),
 			forwardPass: jest.fn(
 				(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
 			),

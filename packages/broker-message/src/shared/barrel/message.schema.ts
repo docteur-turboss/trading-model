@@ -1,10 +1,10 @@
-export { AUDIT_EVENT_VALIDATORS } from "../../domain/messages/schemas/audit-event.schema";
-export { MARKET_EVENT_VALIDATORS } from "../../domain/messages/schemas/market-event.schema";
+export { AUDIT_EVENT_VALIDATORS } from "../../messages/schemas/audit-event.schema";
+export { MARKET_EVENT_VALIDATORS } from "../../messages/schemas/market-event.schema";
 export {
 	EVENT_VALIDATORS,
 	MESSAGE_PAYLOAD_SCHEMA,
 	type MessagePayload,
-} from "../../domain/messages/schemas/message-payload.schema";
+} from "../../messages/schemas/message-payload.schema";
 export {
 	DELIVERY_METADATA_MODE_PREDICATE,
 	EVENT_TYPE_METADATA_PREDICATE,
@@ -16,4 +16,4 @@ export {
 	SECURITY_METADATA_CONTEXT_PREDICATE,
 	TOPIC_METADATA_PREDICATE,
 	TRACEPARENT_METADATA_PREDICATE,
-} from "../../domain/messages/schemas/metadata.schema";
+} from "../../messages/schemas/metadata.schema";

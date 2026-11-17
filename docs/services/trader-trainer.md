@@ -19,16 +19,15 @@ Training service for trading agents using genetic algorithms and neural networks
 | -------------------------- | ------ | --------------------------------------------------- |
 | `/ping`                    | GET    | Health check (built-in via `createServiceServer`)   |
 | `/health/ready`            | GET    | Readiness (SVID readable, registered once)          |
-| `/training-status`         | GET    | Current training status                             |
-| `/best-agent`              | GET    | Best trained agent                                  |
-| `/training-agents`         | GET    | Trained agents of every symbol                      |
-| `/training-agents/:symbol` | GET    | Trained agent of one symbol, with its latest model  |
-| `/models/:symbol`          | GET    | Stored model versions of a symbol, newest first     |
-| `/models/:symbol/:version` | GET    | Manifest of a model version (no weights)            |
+| `/v1/training-status`         | GET    | Current training status                             |
+| `/v1/best-agent`              | GET    | Best trained agent                                  |
+| `/v1/training-agents`         | GET    | Trained agents of every symbol                      |
+| `/v1/training-agents/:symbol` | GET    | Trained agent of one symbol, with its latest model  |
+| `/v1/models/:symbol`          | GET    | Stored model versions of a symbol, newest first     |
+| `/v1/models/:symbol/:version` | GET    | Manifest of a model version (no weights)            |
 | `/models/:symbol/:version/weights` | GET | Weights: service-to-service only, `MODEL_DOWNLOAD_CALLERS` |
 | `/status`                  | GET    | Address-manager metrics snapshot                    |
 | `/metrics`                 | GET    | Prometheus metrics                                  |
-| `/message`                 | POST   | Message bus callback (market data ingestion)        |
 
 ### `GET /ping`
 
@@ -42,7 +41,7 @@ Training service for trading agents using genetic algorithms and neural networks
 }
 ```
 
-### `GET /training-status`
+### `GET /v1/training-status`
 
 **Response** `200 OK`:
 
@@ -56,9 +55,9 @@ Training service for trading agents using genetic algorithms and neural networks
 }
 ```
 
-### `GET /best-agent`
+### `GET /v1/best-agent`
 
-Returns the best trained agent summary from the most recent generation. After a restart, until the first new training, it is the summary of the newest stored model manifest (`/training-agents/:symbol` also returns it as `model`).
+Returns the best trained agent summary from the most recent generation. After a restart, until the first new training, it is the summary of the newest stored model manifest (`/v1/training-agents/:symbol` also returns it as `model`).
 
 **Response** `200 OK`:
 
@@ -110,7 +109,7 @@ Returns the best trained agent summary from the most recent generation. After a 
 { "error": "No trained agent available at the moment." }
 ```
 
-Successful responses are wrapped in `{ "data": ... }`; errors are not. Parameters and responses are declared in `src/adapters/inbound/http/api-routes.ts` (`TRAINER_API`, ADR-0021) and published in the [OpenAPI](openapi/api-gateway.yaml). Invalid input answers 400 `{ "error": "Validation failed", "details": [...] }`. `GET /training-agents/:symbol` sends the agent and `model`, the latest stored artifact of the symbol (version, sha256, metrics), never the population or weights.
+Successful responses are wrapped in `{ "data": ... }`; errors are not. Parameters and responses are declared in `src/adapters/inbound/http/api-routes.ts` (`TRAINER_API`, ADR-0021) and published in the [OpenAPI](openapi/api-gateway.yaml). Invalid input answers 400 `{ "error": "Validation failed", "details": [...] }`. `GET /v1/training-agents/:symbol` sends the agent and `model`, the latest stored artifact of the symbol (version, sha256, metrics), never the population or weights.
 
 ### Model artifacts (ADR-0022)
 
@@ -123,7 +122,7 @@ After each successful training, the best agent is stored as an immutable version
 
 The `TRAINER_MODEL_RETENTION` newest versions are kept per symbol (default 20). A failed write is logged and counted (`tt_model_artifacts_total{result}`: `stored`, `skipped` when the best genome has no trained weights, `error`); the training result is kept either way. Each stored manifest carries `admission`, the ADR-0030 verdict on the test segment, and `training.model.published` its `admissible` flag (ADR-0069; counted by `tt_model_admission_total{result}`: `admissible`, `rejected`). A model that fails is still stored and published.
 
-`GET /models/:symbol` and `GET /models/:symbol/:version` are public. The weights (`GET /models/:symbol/:version/weights`) are not proxied by the gateway: a service calls the trainer over mTLS, and its SPIFFE identity must be listed in `MODEL_DOWNLOAD_CALLERS` (empty by default: 403 for everybody). The response is `application/octet-stream` with the sha256 in `x-model-sha256`; check it against the manifest.
+`GET /v1/models/:symbol` and `GET /v1/models/:symbol/:version` are public. The weights (`GET /models/:symbol/:version/weights`) are not proxied by the gateway: a service calls the trainer over mTLS, and its SPIFFE identity must be listed in `MODEL_DOWNLOAD_CALLERS` (empty by default: 403 for everybody). The response is `application/octet-stream` with the sha256 in `x-model-sha256`; check it against the manifest.
 
 ### BestAgentSummary Type
 
@@ -140,20 +139,9 @@ The `TRAINER_MODEL_RETENTION` newest versions are kept per symbol (default 20). 
 | network           | object | Neural network architecture              |
 | rl                | object | Reinforcement learning hyperparameters   |
 
-## Market Data Subscription
+## Market Data
 
-The service subscribes to **6 topics** via the message-manager:
-
-| Topic                                     | Data                |
-| ----------------------------------------- | ------------------- |
-| `market.candlestick.series.fetch`         | OHLCV candles       |
-| `market.trade.recent.fetch`               | Recent trades       |
-| `market.order-book.snapshot.fetch`        | Order book snapshot |
-| `market.order-book-ticker.snapshot.fetch` | Best bid/ask        |
-| `market.ticker.24hr-stats.fetch`          | 24h statistics      |
-| `market.price-ticker.snapshot.fetch`      | Current price       |
-
-Data is stored in a `MarketDataBuffer` (configurable window via `TRAINER_DATA_WINDOW`).
+The service subscribes to no topic (ADR-0078): the features are built from the candles alone, read from the stored candles of financial-scraper, so every bar of a window has the same inputs whatever the age of the pod. Candles are stored in a `MarketDataBuffer` (configurable window via `TRAINER_DATA_WINDOW`).
 
 Candles are kept strictly increasing in time per symbol: a candle with the timestamp of the last one replaces it, an older one is dropped, and neither is counted again by the normalizers. A training refuses to start on a series with duplicated or out-of-order timestamps, since a repeated candle would sit in both a training and a validation window.
 
@@ -186,13 +174,7 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 | `TRAINER_*`           | Generations, population size, time budget, etc. |
 | `TRAINER_MODEL_DIR`   | Model artifacts directory (`/data/checkpoints/models`) |
 | `TRAINER_MODEL_RETENTION` | Versions kept per symbol (default 20)        |
-| `MODEL_DOWNLOAD_CALLERS` | Services allowed to download weights (comma-separated, empty: nobody) |
-
-## Rate Limiting
-
-- **Window**: 1 minute
-- **Limit**: 1 000 requests per IP and per window
-- Default of the shared server (`packages/server-utils/src/adapters/inbound/configure-app.ts`); the trainer passes no `rateLimit` option
+| `MODEL_DOWNLOAD_CALLERS` | Services allowed to download weights (comma-separated, empty: nobody; `model-evaluator` in compose and K8s) |
 
 ## TLS
 
@@ -203,12 +185,3 @@ All connections require TLS mutual authentication:
 | `TLS_KEY_PATH`  | Server private key    |
 | `TLS_CERT_PATH` | Server certificate    |
 | `TLS_CA_PATH`   | CA certificate bundle |
-
-## Related Documentation
-
-Detailed implementation reference:
-
-- [Genetic Algorithm](../reference/genetic-algorithm.md)
-- [Neural Network](../reference/neural-network.md)
-- [Training Process](../reference/training-process.md)
-- [Service Architecture](../../services/trader-trainer/ARCHITECTURE.md) — full module breakdown and design decisions

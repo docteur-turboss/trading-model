@@ -2,7 +2,7 @@
 
 Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md) (broker), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
 
-> **No downstream consumer yet.** Trained models (`training.model.published`, weights route closed by an empty `MODEL_DOWNLOAD_CALLERS`) and collected signals (`GET /financial-scraper/signals/assets/:assetId`) are read by no service; there is no inference, paper-trading or execution context. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Proposed).
+> **Offline consumer only.** Trained models (`training.model.published`, weights route open to `model-evaluator` alone through `MODEL_DOWNLOAD_CALLERS`) are verified and recorded by the offline `model-evaluator`; collected signals (`GET /financial-scraper/signals/assets/:assetId`) are only read and measured by trader-trainer for the symbols of `TRAINER_SYMBOL_ASSETS` (empty by default), not yet fed to the model. There is no paper-trading or execution context. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Accepted).
 
 ## 1. C4 level 1 — Context
 
@@ -12,7 +12,7 @@ flowchart LR
   binance["Binance<br/>(market data REST)"]
   s3["S3 buckets, Object Lock<br/>(backups, audit anchors)"]
   ops["Operator<br/>(Grafana, Alertmanager receivers)"]
-  system["trading-model<br/>7 services + data stores + SPIRE + observability"]
+  system["trading-model<br/>8 services + data stores + SPIRE + observability"]
   client -->|HTTPS /v1| system
   system -->|scrape candles| binance
   system -->|age-encrypted backups, audit anchors| s3
@@ -111,17 +111,15 @@ sequenceDiagram
   participant DB as MySQL
   participant MM as message-manager
   participant TT as trader-trainer
-  participant AL as audit-logger
   participant DLQ as dlq-service
   Note over FS: only the collector pod holding the Lease financial-scraper-collector runs the cycles (ADR-0057)
   loop each scrape cycle, per symbol
     FS->>B: fetch candles
     FS->>DB: persist candles
     FS->>DB: read market_publish_cursors, next persisted candles
-    FS->>MM: POST /message (requireSubscriber)
+    FS->>MM: POST /message
     alt a subscriber is reachable
       MM->>TT: callback /message
-      MM->>AL: callback /message
       MM-->>FS: all deliveries settled
       FS->>DB: advance cursor
     else no subscriber (503) or message-manager down
@@ -129,11 +127,18 @@ sequenceDiagram
       Note over FS,DB: cursor stays: next cycle resends from MySQL<br/>alert MarketDataUnpublished after 15 min
     end
   end
+  opt each training session of the trainer
+    TT->>FS: GET /candles/symbols/:symbol (from, to = session start, keyset pages)
+    FS->>DB: read the stored candles
+    Note over TT: the candle window comes from MySQL, not from the bus (ADR-0044)
+  end
   opt a subscriber keeps failing (at-least-once, 10 attempts)
     MM->>DLQ: signed POST /dlq
     Note over MM,DLQ: dlq-service down: entry stays in the journal, retried
   end
 ```
+
+The trainer subscribes to no topic: its candle window is read from financial-scraper at each session ([ADR-0078](../adr/0078-trainer-features-from-candles-only.md)).
 
 Each subscribed service gets one delivery per message, whatever its number of instances: message-manager groups the subscribed instances by service and posts to the service name, the Kubernetes Service picks the pod (consumer group, [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
 

@@ -1,10 +1,10 @@
-import { ACTIVATIONS } from "./activation";
+import { ACTIVATIONS } from "@trading-model/model-runtime/neural-network/activation";
 import type {
 	ActivationType,
 	ForwardContext,
 	LayerMemory,
 	NeuralNetworkConfig,
-} from "./type";
+} from "@trading-model/model-runtime/neural-network/type";
 import { clipGradients } from "./utils";
 
 interface NeuronDeltaContext {
@@ -12,7 +12,7 @@ interface NeuronDeltaContext {
 	nextDeltas: Float32Array;
 	currentOutput: Float32Array;
 	currentZ: Float32Array;
-	activation: ActivationType;
+	derivative: (typeof ACTIVATIONS)[ActivationType]["derivative"];
 }
 
 export class HiddenDeltaComputer {
@@ -38,7 +38,7 @@ export class HiddenDeltaComputer {
 		ctx: NeuronDeltaContext
 	): number {
 		const sum = this._backpropagateDelta(neuronIdx, ctx.next, ctx.nextDeltas);
-		const grad = ACTIVATIONS[ctx.activation].derivative(
+		const grad = ctx.derivative(
 			ctx.currentOutput[neuronIdx],
 			ctx.currentZ[neuronIdx]
 		);
@@ -52,7 +52,7 @@ export class HiddenDeltaComputer {
 	): Float32Array {
 		const current = this._layers[layerIdx];
 		const next = this._layers[layerIdx + 1];
-		const activation = this._config.activationType[layerIdx];
+		const { derivative } = ACTIVATIONS[this._config.activationType[layerIdx]];
 		const currentOutput = context.layerOutputs[layerIdx];
 		const currentZ = context.layerZValues[layerIdx];
 		const neuronCtx: NeuronDeltaContext = {
@@ -60,7 +60,7 @@ export class HiddenDeltaComputer {
 			nextDeltas,
 			currentOutput,
 			currentZ,
-			activation,
+			derivative,
 		};
 		const delta = new Float32Array(current.fanOut);
 		for (let i = 0; i < current.fanOut; i++) {

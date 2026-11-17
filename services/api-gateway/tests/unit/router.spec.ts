@@ -1,14 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
-// The mTLS discovery client loads the SVID files at construction.
-jest.mock("../../src/config/container", () => ({
-	discoveryClient: { get: jest.fn<(...args: any[]) => any>() },
-}));
-
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: {
-		DISCOVERY_SERVICE_URL: "https://discovery:3000",
 		AUTH_TOKEN_HEADER: "x-api-key",
 		AUTH_TOKENS: "",
 		RATE_LIMIT_WINDOW_MS: 60000,
@@ -19,11 +13,11 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-jest.mock("@trading-model/http/adapters/inbound/catch-error", () => ({
+jest.mock("@trading-model/http/catch-error", () => ({
 	catchSync: (fn: any) => fn,
 }));
 
-jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
+jest.mock("@trading-model/http/response-exception", () => {
 	const sendResponse = jest.fn((data: any, status: number) => ({
 		status,
 		data,
@@ -31,7 +25,7 @@ jest.mock("@trading-model/http/adapters/inbound/response-exception", () => {
 	return { sendResponse };
 });
 
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		info: jest.fn<(...args: any[]) => any>(),
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -39,28 +33,16 @@ jest.mock("@trading-model/http/infrastructure/logger", () => ({
 	},
 }));
 
-jest.mock(
-	"@trading-model/address-manager/application/discovery/endpoint-resolver",
-	() => ({
-		EndpointResolver: jest
-			.fn<(...args: any[]) => any>()
-			.mockImplementation(() => ({
-				resolve: jest
-					.fn<(...args: any[]) => any>()
-					.mockImplementation((name: string) => {
-						// No trader-trainer instance is registered.
-						if (name === "trader-trainer") {
-							return Promise.resolve(null);
-						}
-						return Promise.resolve({
-							host: "10.0.1.5",
-							port: 3000,
-							version: "1.2.0",
-						});
-					}),
-			})),
-	})
-);
+// The Service DNS name, no registry (ADR-0072); trader-trainer does not resolve.
+jest.mock("node:dns/promises", () => ({
+	lookup: jest
+		.fn<(...args: any[]) => any>()
+		.mockImplementation((name: string) =>
+			name === "trader-trainer"
+				? Promise.reject(new Error("getaddrinfo ENOTFOUND trader-trainer"))
+				: Promise.resolve({ address: "10.0.1.5", family: 4 })
+		),
+}));
 
 jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 	forwardRequest: jest.fn<(...args: any[]) => any>().mockResolvedValue({
@@ -102,20 +84,22 @@ describe("router", () => {
 
 		const authLayer = nonRouteLayers.find(
 			(layer: any) =>
-				layer.name === "AUTH_MIDDLEWARE" ||
 				layer.handle ===
-					require("../../src/adapters/inbound/auth").AUTH_MIDDLEWARE
+				require("../../src/adapters/inbound/auth").AUTH_MIDDLEWARE
 		);
 
 		expect(authLayer).toBeDefined();
 	});
 
 	describe("catch-all handler", () => {
+		let lastRes: { locals: { routeLabel?: string } };
+
 		function getHandler() {
+			lastRes = { locals: {} };
 			const nonRouteLayers = router.stack.filter((l: any) => !l.route);
-			return nonRouteLayers[nonRouteLayers.length - 1].handle as unknown as (
-				req: unknown
-			) => Promise<any>;
+			const handle = nonRouteLayers[nonRouteLayers.length - 1]
+				.handle as unknown as (req: unknown, res: unknown) => Promise<any>;
+			return (req: unknown) => handle(req, lastRes);
 		}
 
 		function mockForwardSuccess(body: unknown) {
@@ -162,6 +146,14 @@ describe("router", () => {
 			return getHandler()(createReq({ method, path, url: path }));
 		}
 
+		it("labels the request with its public route pattern, not the raw path", async () => {
+			mockForwardSuccess({ data: "ok" });
+			await get("/v1/audit-logger/events/abc-123");
+			expect(lastRes.locals.routeLabel).toBe(
+				"/v1/audit-logger/events/:messageId"
+			);
+		});
+
 		it("should return 404 for a route the gateway does not expose", async () => {
 			const {
 				forwardRequest,
@@ -182,15 +174,17 @@ describe("router", () => {
 			expect(forwardRequest).not.toHaveBeenCalled();
 		});
 
-		it("should return 404 when no instance of the service is registered", async () => {
+		it("should return 503 when the service name does not resolve", async () => {
 			expect(await get("/v1/trader-trainer/training-status")).toEqual({
-				status: 404,
-				data: {
-					error: "Service not found",
-					service: "trader-trainer",
-					version: 1,
-				},
+				status: 503,
+				data: { error: "Service unavailable" },
 			});
+		});
+
+		it("should return 404 for a major the service does not serve", async () => {
+			expect(
+				await get("/v1/financial-scraper/candles/symbols/BTCUSDT")
+			).toEqual({ status: 404, data: { error: "Route not found" } });
 		});
 
 		/** A GET with a query string: Express leaves it out of `req.path` only. */
@@ -207,11 +201,13 @@ describe("router", () => {
 			} = require("../../src/adapters/outbound/proxy-handler");
 
 			await getUrl(
-				"/v1/financial-scraper/signals/assets/BTC?from=2026-11-01&to=2026-11-02"
+				"/v2/financial-scraper/signals/assets/BTC?from=2026-11-01&to=2026-11-02"
 			);
 
+			// Release N strips /v<major> for N-1 services (ADR-0072).
 			expect(forwardRequest).toHaveBeenCalledWith(
 				expect.objectContaining({
+					target: { host: "10.0.1.5", port: 3000 },
 					path: "/signals/assets/BTC?from=2026-11-01&to=2026-11-02",
 				})
 			);
@@ -225,7 +221,8 @@ describe("router", () => {
 
 			expect(await getUrl("/v1/audit-logger/events?page=2")).toEqual({
 				status: 200,
-				data: { page: 2 },
+				data: JSON.stringify({ page: 2 }),
+				contentType: "application/json",
 			});
 		});
 
@@ -245,7 +242,8 @@ describe("router", () => {
 
 			expect(await get(url)).toEqual({
 				status: 200,
-				data: { error: "unsigned" },
+				data: JSON.stringify({ error: "unsigned" }),
+				contentType: "application/json",
 			});
 		});
 
@@ -254,12 +252,31 @@ describe("router", () => {
 			const path = "/v1/audit-logger/events/cached-test";
 
 			const first = await get(path);
-			expect(first).toEqual({ status: 200, data: { data: "ok" } });
+			expect(first).toEqual({
+				status: 200,
+				data: JSON.stringify({ data: "ok" }),
+				contentType: "application/json",
+			});
 
 			mockForwardSuccess({ data: "should-not-reach" });
 
 			const second = await get(path);
-			expect(second).toEqual({ status: 200, data: { data: "ok" } });
+			expect(second).toEqual({
+				status: 200,
+				data: JSON.stringify({ data: "ok" }),
+			});
+		});
+
+		it("serves a cached answer without a DNS lookup", async () => {
+			mockForwardSuccess({ data: "ok" });
+			const { lookup } = require("node:dns/promises");
+			const path = "/v1/audit-logger/events/cached-no-dns";
+
+			await get(path);
+			lookup.mockClear();
+			await get(path);
+
+			expect(lookup).not.toHaveBeenCalled();
 		});
 
 		it("should return 503 on proxy error without the cause", async () => {
@@ -286,7 +303,11 @@ describe("router", () => {
 					body: { name: "test" },
 				})
 			);
-			expect(result).toEqual({ status: 200, data: { saved: true } });
+			expect(result).toEqual({
+				status: 200,
+				data: JSON.stringify({ saved: true }),
+				contentType: "application/json",
+			});
 		});
 
 		it.each([
@@ -357,6 +378,7 @@ describe("router", () => {
 			expect(await get("/v1/audit-logger/events/plain-text")).toEqual({
 				status: 200,
 				data: "plain text response",
+				contentType: "text/plain",
 			});
 		});
 

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@jest/globals";
+import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import {
 	Price,
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import { featureDriftScore } from "../../../src/domain/feature-drift";
-import { buyAndHoldSharpe } from "../../../src/domain/genetic-algorithm/evaluation-utils";
 import type { BaseSymbolState } from "../../../src/domain/market-data-types";
 import { makeCandle } from "../../fixtures/market-data.fixture";
 
@@ -21,11 +21,6 @@ function stateWithCloses(closes: number[], timestamp = 1000): BaseSymbolState {
 				timestamp: UnixTimestamp.of(timestamp),
 			})
 		),
-		trades: [],
-		orderBooks: [],
-		bookTickers: [],
-		tickers24h: [],
-		prices: [],
 	};
 }
 

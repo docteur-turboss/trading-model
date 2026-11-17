@@ -1,7 +1,7 @@
-import { mountRoute } from "@trading-model/http/adapters/inbound/api-route/mount-route";
+import { mountRoute } from "@trading-model/http/api-route/mount-route";
+import { createServiceServer } from "@trading-model/http/service-server-factory";
 import type { MongoConnectionManager } from "@trading-model/persistence/mongo-connection-manager";
 import { ServiceId } from "@trading-model/primitives/primitives";
-import { createServiceServer } from "@trading-model/server-utils/adapters/inbound/service-server-factory";
 import type { Application } from "express";
 import { Router } from "express";
 import { AUDIT_API } from "../adapters/inbound/http/api-routes";

@@ -12,7 +12,7 @@ import {
 import {
 	type ApiRoute,
 	responseIssues,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import express from "express";
 
 const selectTradesBy = {
@@ -57,6 +57,7 @@ import {
 	SCRAPER_API,
 } from "../../../../src/adapters/inbound/http/api-routes";
 import { FINANCIAL_ROUTES } from "../../../../src/adapters/inbound/http/routes";
+import { SIGNAL_REGISTRY } from "../../../../src/config/signal-registry";
 
 const AT = new Date("2026-10-28T12:00:00.000Z");
 const MARKET = { symbol: "BTCUSDT", market: "crypto", source: "binance" };
@@ -318,6 +319,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			dimension: "contextual",
 			assetId: null,
 			sector: "agriculture",
+			area: null,
 			observedAt: "2026-11-04T12:40:00.000Z",
 			ingestedAt: "2026-11-04T13:00:00.000Z",
 			confidenceScore: 0.8,
@@ -348,6 +350,13 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 					identifier: { scheme: "ticker", ticker: "WEAT", exchange: "ARCX" },
 					applicableDimensions: ["market", "contextual", "macro"],
 					sector: "agriculture",
+					exposure: {
+						assetClass: "commodity",
+						replication: "futures",
+						region: "US",
+					},
+					areas: ["US"],
+					aliases: { twelvedata: "WEAT" },
 				},
 				signals: [SIGNAL],
 				truncated: false,
@@ -355,11 +364,40 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(findForAsset).toHaveBeenCalledWith({
 				assetId: "WHEAT",
 				sector: "agriculture",
+				areas: ["US"],
 				dimensions: ["market", "contextual", "macro"],
 				from: Date.parse("2026-11-04"),
 				to: Date.parse("2026-11-05T00:00:00Z"),
 				limit: MAX_SIGNALS_PER_ANSWER + 1,
 			});
+		});
+
+		it("answers 200 with an empty list for an asset without signal", async () => {
+			findForAsset.mockResolvedValue([]);
+
+			const { status, body } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/GLD?${WINDOW}`
+			);
+
+			expect(status).toBe(200);
+			expect(body).toMatchObject({ signals: [], truncated: false });
+		});
+
+		it("passes the areas of the asset to the store", async () => {
+			const wheat = SIGNAL_REGISTRY.assets.get("WHEAT") as any;
+			const lookup = jest
+				.spyOn(SIGNAL_REGISTRY.assets, "get")
+				.mockReturnValue({ ...wheat, areas: ["EA"] });
+			findForAsset.mockResolvedValue([]);
+
+			try {
+				await get(SCRAPER_API.assetSignals, `/signals/assets/WHEAT?${WINDOW}`);
+			} finally {
+				lookup.mockRestore();
+			}
+
+			expect(findForAsset.mock.calls[0][0].areas).toEqual(["EA"]);
 		});
 
 		it("says truncated when the window holds more than one answer", async () => {
@@ -374,6 +412,89 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			expect(body.signals).toHaveLength(MAX_SIGNALS_PER_ANSWER);
 			expect(body.truncated).toBe(true);
+		});
+
+		it("without filter, queries the asset's own dimensions and no metric or source", async () => {
+			findForAsset.mockResolvedValue([]);
+
+			await get(SCRAPER_API.assetSignals, `/signals/assets/WHEAT?${WINDOW}`);
+
+			const call = findForAsset.mock.calls[0][0];
+			expect(call.dimensions).toEqual(["market", "contextual", "macro"]);
+			expect(call.metric).toBeUndefined();
+			expect(call.sourceId).toBeUndefined();
+		});
+
+		it.each([
+			["dimension", "dimension=macro", { dimensions: ["macro"] }],
+			["metric", "metric=cpi", { metric: "cpi" }],
+			["sourceId", "sourceId=s1", { sourceId: "s1" }],
+			[
+				"all three",
+				"dimension=macro&metric=cpi&sourceId=s1",
+				{ dimensions: ["macro"], metric: "cpi", sourceId: "s1" },
+			],
+		])("filters by %s, in the store", async (_l, search, expected) => {
+			findForAsset.mockResolvedValue([]);
+
+			await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/WHEAT?${WINDOW}&${search}`
+			);
+
+			const call = findForAsset.mock.calls[0][0];
+			expect(call).toEqual(expect.objectContaining(expected));
+			for (const key of ["metric", "sourceId"] as const) {
+				if (!(key in expected)) {
+					expect(call[key]).toBeUndefined();
+				}
+			}
+		});
+
+		it("answers an empty list for a dimension the asset does not use", async () => {
+			findForAsset.mockResolvedValue([]);
+
+			const { status, body } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/WHEAT?${WINDOW}&dimension=fundamental`
+			);
+
+			expect(status).toBe(200);
+			expect(body.signals).toEqual([]);
+			expect(findForAsset.mock.calls[0][0].dimensions).toEqual([]);
+		});
+
+		it("answers 400 for an unknown dimension", async () => {
+			const { status } = await get(
+				SCRAPER_API.assetSignals,
+				`/signals/assets/WHEAT?${WINDOW}&dimension=astrology`
+			);
+
+			expect(status).toBe(400);
+		});
+
+		it("lists the assets and the sources without key variables", async () => {
+			const real = SIGNAL_REGISTRY.sources[0] as any;
+			const spy = jest.replaceProperty(SIGNAL_REGISTRY, "sources", [
+				{
+					...real,
+					accessPolicy: {
+						...real.accessPolicy,
+						auth: { env: "SECRET_KEY_VAR" },
+					},
+				},
+			] as any);
+			let sources: any;
+			try {
+				sources = await get(SCRAPER_API.sources, "/signals/sources");
+			} finally {
+				spy.restore();
+			}
+			const assets = await get(SCRAPER_API.assets, "/signals/assets");
+
+			expect(assets.body.assets.map((a: any) => a.id)).toContain("WHEAT");
+			expect(sources.body.sources[0]).toHaveProperty("termsUrl");
+			expect(JSON.stringify(sources.body)).not.toContain("SECRET_KEY_VAR");
 		});
 
 		it("answers 404 for an asset the registry does not know", async () => {

@@ -3,7 +3,7 @@ import { sleep } from "@trading-model/common/utils/sleep";
 import {
 	isRetryableStatusPermissive,
 	RETRY_JITTER_MS,
-} from "@trading-model/http/infrastructure/http-retry";
+} from "@trading-model/http/http-retry";
 import { DataSource, DurationMs } from "@trading-model/primitives/primitives";
 import axios, {
 	type AxiosError,
@@ -27,8 +27,11 @@ const RETRY_CONFIG = {
 	jitterMs: RETRY_JITTER_MS,
 };
 
-/** Longest Retry-After honoured: one scrape interval. Beyond it the error surfaces and the next cycle resumes. */
+/** Longest Retry-After honoured (also cut by the retry deadline). Beyond it the error surfaces and the next cycle resumes. */
 const RETRY_AFTER_MAX_MS = 60_000;
+
+/** Total time one request may spend retrying, below the 60 s scrape cycle so a slow cycle never makes the next tick skip. */
+const RETRY_DEADLINE_MS = 45_000;
 
 /** Retry-After of a 429, in ms. shortcut: seconds form only (the one Binance sends), HTTP dates are ignored. */
 function _retryAfterMs(error: AxiosError): number {
@@ -39,58 +42,46 @@ function _retryAfterMs(error: AxiosError): number {
 	return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
 }
 
-function _shouldRetry(error: AxiosError): boolean {
-	if (!error.response) {
-		return true;
-	}
-	return isRetryableStatusPermissive(error.response.status);
-}
+type RetryConfig = AxiosRequestConfig & {
+	retryCount?: number;
+	deadline?: number;
+};
 
-function _getBackoffDelay(attempt: number): number {
-	return computeExponentialBackoffWithJitter(attempt, RETRY_CONFIG);
-}
-
-function _retryLimitReached(
-	config: AxiosRequestConfig & { retryCount?: number }
-): boolean {
-	return config.retryCount! >= RETRY_CONFIG.retries;
-}
-
-function _executeRetry(
-	instance: AxiosInstance,
-	config: AxiosRequestConfig & { retryCount?: number },
-	retryAfterMs: number
-): Promise<unknown> {
-	config.retryCount!++;
-	const delay = Math.max(_getBackoffDelay(config.retryCount!), retryAfterMs);
-	return sleep(delay).then(() => instance(config));
-}
-
-function _createRetryInterceptor(
-	instance: AxiosInstance
-): Parameters<AxiosInstance["interceptors"]["response"]["use"]>[1] {
-	return (error: AxiosError) => {
-		const config = error.config as AxiosRequestConfig & { retryCount?: number };
+function _attachRetryInterceptor(instance: AxiosInstance): void {
+	instance.interceptors.request.use((config) => {
+		(config as RetryConfig).deadline ??= Date.now() + RETRY_DEADLINE_MS;
+		return config;
+	});
+	instance.interceptors.response.use(undefined, (error: AxiosError) => {
+		const config = error.config as RetryConfig | undefined;
 		if (!config) {
 			throw error;
 		}
 		config.retryCount = config.retryCount ?? 0;
-		if (_retryLimitReached(config) || !_shouldRetry(error)) {
-			throw error;
-		}
+		const retryable =
+			!error.response || isRetryableStatusPermissive(error.response.status);
 		const retryAfterMs = _retryAfterMs(error);
-		if (retryAfterMs > RETRY_AFTER_MAX_MS) {
+		if (
+			config.retryCount >= RETRY_CONFIG.retries ||
+			!retryable ||
+			retryAfterMs > RETRY_AFTER_MAX_MS
+		) {
 			throw error;
 		}
-		return _executeRetry(instance, config, retryAfterMs);
-	};
-}
-
-function _attachRetryInterceptor(instance: AxiosInstance): void {
-	instance.interceptors.response.use(
-		(response) => response,
-		_createRetryInterceptor(instance)
-	);
+		const delay = Math.max(
+			computeExponentialBackoffWithJitter(config.retryCount + 1, RETRY_CONFIG),
+			retryAfterMs
+		);
+		// the next attempt may run a full timeout: it must end before the deadline
+		if (
+			Date.now() + delay + DEFAULT_TIMEOUT >
+			(config.deadline ?? Number.POSITIVE_INFINITY)
+		) {
+			throw error;
+		}
+		config.retryCount++;
+		return sleep(delay).then(() => instance(config));
+	});
 }
 
 /** Create a configured Axios instance with rate-limiting and retry logic for the given API base URL. */
@@ -123,32 +114,28 @@ function _attachMetricsInterceptor(instance: AxiosInstance): void {
 		startTimes.set(config, performance.now());
 		return config;
 	});
+	const record = (
+		config: AxiosRequestConfig | undefined,
+		status: number | string
+	): void => {
+		const start = config ? startTimes.get(config) : undefined;
+		if (start === undefined) {
+			return;
+		}
+		const endpoint = _extractEndpoint(config?.url ?? "");
+		BINANCE_REQUESTS_TOTAL.inc({ endpoint, status: String(status) });
+		BINANCE_REQUEST_DURATION_SECONDS.observe(
+			{ endpoint },
+			(performance.now() - start) / 1000
+		);
+	};
 	instance.interceptors.response.use(
 		(response) => {
-			const start = startTimes.get(response.config);
-			if (start !== undefined) {
-				const endpoint = _extractEndpoint(response.config.url ?? "");
-				const duration = (performance.now() - start) / 1000;
-				BINANCE_REQUESTS_TOTAL.inc({
-					endpoint,
-					status: String(response.status),
-				});
-				BINANCE_REQUEST_DURATION_SECONDS.observe({ endpoint }, duration);
-			}
+			record(response.config, response.status);
 			return response;
 		},
 		(error: AxiosError) => {
-			const start = error.config ? startTimes.get(error.config) : undefined;
-			if (start !== undefined) {
-				const endpoint = _extractEndpoint(error.config?.url ?? "");
-				const duration = (performance.now() - start) / 1000;
-				const status = error.response?.status ?? "network_error";
-				BINANCE_REQUESTS_TOTAL.inc({
-					endpoint,
-					status: String(status),
-				});
-				BINANCE_REQUEST_DURATION_SECONDS.observe({ endpoint }, duration);
-			}
+			record(error.config, error.response?.status ?? "network_error");
 			throw error;
 		}
 	);

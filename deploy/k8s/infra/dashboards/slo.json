@@ -38,7 +38,7 @@
         "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{path!~\"/ping|/health/ready|/metrics\"}[5m])) by (le))",
             "legendFormat": "P95 Latency"
           }
         ],
@@ -161,7 +161,7 @@
         "gridPos": { "h": 6, "w": 10, "x": 6, "y": 18 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{path!~\"/ping|/health/ready|/metrics\"}[5m])) by (le, job))",
             "format": "table",
             "instant": true
           }
@@ -176,31 +176,6 @@
               "properties": [{ "id": "unit", "value": "s" }]
             }
           ]
-        }
-      },
-      {
-        "title": "Circuit Breaker Status",
-        "type": "stat",
-        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 18 },
-        "targets": [
-          {
-            "expr": "address_manager_circuit_breaker_state",
-            "legendFormat": "{{job}} {{instanceId}}"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "mappings": [
-              { "type": "value", "value": "0", "text": "CLOSED" },
-              { "type": "value", "value": "1", "text": "OPEN" },
-              { "type": "value", "value": "2", "text": "HALF-OPEN" }
-            ],
-            "color": { "mode": "thresholds" },
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
-            }
-          }
         }
       },
       {
@@ -240,7 +215,7 @@
         "gridPos": { "h": 6, "w": 8, "x": 0, "y": 30 },
         "targets": [
           {
-            "expr": "sum(rate(mm_messages_published_total[5m])) / (sum(rate(mm_messages_published_total[5m])) + sum(rate(mm_messages_dlq_total[5m]))) * 100",
+            "expr": "sum(rate(mm_messages_delivered_total{status=\"success\"}[5m])) / (sum(rate(mm_messages_delivered_total{status=\"success\"}[5m])) + sum(rate(mm_messages_dlq_total[5m]))) * 100",
             "legendFormat": "Delivery Rate"
           }
         ],

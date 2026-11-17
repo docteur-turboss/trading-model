@@ -1,9 +1,15 @@
 import "./telemetry";
+import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
+import { createBootstrap } from "@trading-model/http/bootstrap";
+import { shutdownTelemetry } from "@trading-model/http/telemetry";
 import type { Leadership } from "@trading-model/reliability/leadership";
-import { createBootstrap } from "@trading-model/server-utils/application/services/bootstrap";
-import { shutdownTelemetry } from "@trading-model/server-utils/infrastructure/telemetry";
-import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
+import { ScraperCandleHistory } from "../adapters/outbound/scraper-candle-history";
+import { ScraperSignalHistory } from "../adapters/outbound/scraper-signal-history";
+import {
+	BOOTSTRAP_ADDRESS_MANAGER,
+	FIND_A_SERVICE,
+} from "../config/address-manager";
 import {
 	createTraderTrainerContainer,
 	createTrainingLeadership,
@@ -15,9 +21,13 @@ import { createServer } from "./server";
 let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | undefined;
 let leadership: Leadership | null = null;
 
-const CONTAINER = createTraderTrainerContainer(ENV);
+const CONTAINER = createTraderTrainerContainer(
+	ENV,
+	new ScraperCandleHistory(buildTlsFromEnv(ENV), FIND_A_SERVICE),
+	new ScraperSignalHistory(buildTlsFromEnv(ENV), FIND_A_SERVICE)
+);
 
-const { trainer, eventHandler, trainingLoop, symbols, models } = CONTAINER;
+const { trainer, trainingLoop, symbols, models } = CONTAINER;
 
 /** MODEL_DOWNLOAD_CALLERS, comma-separated service names (ADR-0022). */
 const MODEL_DOWNLOAD_CALLERS = parseCommaSeparated(ENV.MODEL_DOWNLOAD_CALLERS);
@@ -28,14 +38,6 @@ createBootstrap({
 		createServer(trainer, { models, downloadCallers: MODEL_DOWNLOAD_CALLERS }),
 	onStart: async () => {
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
-
-		// Broker messages are emitted under their topic (the MarketEvent value).
-		const intents = eventHandler.getSubscribedIntents();
-		for (const event of intents) {
-			MessageManager.on(event, (data) => eventHandler.handleEvent(event, data));
-		}
-
-		await MessageManager.intents(intents);
 
 		await trainer.rehydrate(symbols);
 

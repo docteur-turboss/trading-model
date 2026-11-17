@@ -5,7 +5,8 @@
  *   - runtime import cycles: strongly connected components of the import
  *     graph; `import type` / `export type` and imports whose specifiers are
  *     all `type` are ignored (erased at build, no initialisation order);
- *   - layer violations: a file under `application/` importing `adapters/` or
+ *   - deep imports into another package's internal layer (`@trading-model/<pkg>/adapters|application|infrastructure|domain/...`, ADR-0016),
+ *   - layer violations (services only; libraries under `packages/` are flat, ADR-0015): a file under `application/` importing `adapters/` or
  *     `infrastructure/` (relative path or `@trading-model/<pkg>/adapters|infrastructure/...`),
  *     type imports included. Startup files `application/{index,server,telemetry}.ts` are exempt.
  *
@@ -26,6 +27,7 @@ import ts from 'typescript';
 
 const SCOPE = '@trading-model/';
 const STARTUP = new Set(['index.ts', 'server.ts', 'telemetry.ts']);
+const DEEP_IMPORT = /^@trading-model\/[a-z-]+\/(adapters|application|infrastructure|domain)\//;
 const FORBIDDEN_LAYER = /(^|\/)(adapters|infrastructure)(\/|$)/;
 
 const sourceFiles = (dir) => walk(dir, (file) => /\.tsx?$/.test(file) && !/\.(spec|test|d)\.tsx?$/.test(file));
@@ -105,7 +107,7 @@ export function analyze(root) {
   const layers = new Set();
   for (const file of files) {
     const from = rel(file);
-    const inApplication = /\/src\/(.*\/)?application\//.test(from);
+    const inApplication = from.startsWith('services/') && /\/src\/(.*\/)?application\//.test(from);
     const exempt = STARTUP.has(from.split('/').pop()) && /\/src\/application\/[^/]+$/.test(from);
     for (const { specifier, typeOnly } of importsOf(file)) {
       let target = null;
@@ -118,7 +120,9 @@ export function analyze(root) {
         target = resolveFile(join(root, 'packages', pkg, 'src', ...(sub.length ? sub : ['index'])));
         layerPath = sub.join('/');
       }
-      if (inApplication && !exempt && FORBIDDEN_LAYER.test(layerPath)) layers.add(`${from} -> ${specifier}`);
+      if (DEEP_IMPORT.test(specifier) || (inApplication && !exempt && FORBIDDEN_LAYER.test(layerPath))) {
+        layers.add(`${from} -> ${specifier}`);
+      }
       if (target && !typeOnly && graph.has(rel(target))) graph.get(from).add(rel(target));
     }
   }

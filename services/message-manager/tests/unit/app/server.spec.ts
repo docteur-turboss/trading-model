@@ -5,12 +5,9 @@ const MOCK_CREATE_SECURE_SERVER = jest
 	.fn<(...args: any[]) => any>()
 	.mockReturnValue({ close: jest.fn<(...args: any[]) => any>() });
 
-jest.mock(
-	"@trading-model/server-utils/adapters/inbound/service-server-factory",
-	() => ({
-		createServiceServer: MOCK_CREATE_SECURE_SERVER,
-	})
-);
+jest.mock("@trading-model/http/service-server-factory", () => ({
+	createServiceServer: MOCK_CREATE_SECURE_SERVER,
+}));
 
 jest.mock("config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
@@ -44,7 +41,7 @@ jest.mock("@trading-model/persistence/redis-connection-manager", () => ({
 }));
 
 const MOCK_LOGGER = { warn: jest.fn<(...args: any[]) => any>() };
-jest.mock("@trading-model/http/infrastructure/logger", () => ({
+jest.mock("@trading-model/http/logger", () => ({
 	logger: MOCK_LOGGER,
 }));
 

@@ -8,17 +8,17 @@ import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import {
 	type ApiRoute,
 	responseIssues,
-} from "@trading-model/http/adapters/inbound/api-route/api-route";
+} from "@trading-model/http/api-route/api-route";
 import express from "express";
 
 jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: { INSTANCE_ID: "trader-trainer-1" },
 }));
 
+import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
 import { TRAINER_API } from "../../../src/adapters/inbound/http/api-routes";
 import { TRAINER_ROUTES } from "../../../src/adapters/inbound/http/routes";
 import { FileModelArtifactStore } from "../../../src/adapters/outbound/file-model-artifact-store";
-import { FEATURE_LAYOUT } from "../../../src/domain/feature-vector-codec";
 
 const AGENT = {
 	id: "g-1",
@@ -154,7 +154,7 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 		expect(body.data).toMatchObject({
 			version,
 			weights: { length: 3, sha256 },
-			features: { dim: 32 },
+			features: { dim: 18 },
 		});
 		expect(JSON.stringify(body)).not.toContain("trainedWeights");
 	});
