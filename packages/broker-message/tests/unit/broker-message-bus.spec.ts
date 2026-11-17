@@ -63,4 +63,25 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 		expect([...REDIS.streams.keys()]).toContain(`p:journal:${TOPIC}`);
 		expect(CLIENT.subscribe).toHaveBeenCalledWith([TOPIC]);
 	});
+
+	it("should leave a topic with no listener to message-manager's workers, never ack it in process", async () => {
+		const topic = "training.model.published";
+		const bus = broker();
+		await bus.intents([topic] as never);
+		const metadata = new HELPER.metadataBuilder(
+			topic as never,
+			topic as never,
+			{ instanceId: "i-1", serviceName: "trader-trainer" } as never
+		).toJSON();
+		await bus.post.indirect({ symbol: "BTCUSDT" }, metadata);
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		await bus.stopMessageManager();
+
+		// No group of this service: the entry still waits for the callback delivery.
+		expect(
+			REDIS.streams.get(`p:journal:${topic}`)?.groups.has("trader-trainer") ??
+				false
+		).toBe(false);
+		expect(CLIENT.subscribe).toHaveBeenCalledWith([topic]);
+	});
 });

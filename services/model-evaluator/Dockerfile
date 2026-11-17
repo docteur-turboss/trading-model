@@ -43,6 +43,8 @@ COPY --chown=appuser:appgroup --from=build /app/packages ./packages
 COPY --chown=appuser:appgroup --from=build /app/services/model-evaluator/package.json ./services/model-evaluator/
 COPY --chown=appuser:appgroup --from=build /app/services/model-evaluator/dist ./services/model-evaluator/dist
 RUN chown appuser:appgroup /app
+# A named volume copies the owner of its mount point: without this, compose mounts /data/evaluations root-owned (EACCES on mkdir).
+RUN mkdir -p /data/evaluations && chown appuser:appgroup /data/evaluations
 ARG BUILD_VERSION=dev
 ARG GIT_SHA=unknown
 ENV BUILD_VERSION=$BUILD_VERSION GIT_SHA=$GIT_SHA
