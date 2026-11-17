@@ -144,7 +144,10 @@
 				"useSimplifiedLogicExpression": "error",
 				"useWhile": "error",
 				"noAdjacentSpacesInRegex": "error",
-				"noExcessiveCognitiveComplexity": "off",
+				"noExcessiveCognitiveComplexity": {
+					"level": "warn",
+					"options": { "maxAllowedComplexity": 25 }
+				},
 				"noExcessiveLinesPerFunction": "off",
 				"noForEach": "off",
 				"noImplicitCoercions": "error",
