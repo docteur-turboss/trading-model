@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
+// proxy-header-sanitizer (shared/) still reads the global ENV.
 jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		AUTH_TOKEN_HEADER: "x-api-key",
-		PROXY_TIMEOUT_MS: 10000,
-		PROXY_MAX_RESPONSE_BYTES: 16,
-	},
+	ENV: { AUTH_TOKEN_HEADER: "x-api-key" },
 }));
+
+const ENV: any = {
+	AUTH_TOKEN_HEADER: "x-api-key",
+	PROXY_TIMEOUT_MS: 10000,
+	PROXY_MAX_RESPONSE_BYTES: 16,
+};
 
 jest.mock("@trading-model/http/logger", () => ({
 	logger: {
@@ -104,9 +107,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({
 			method: "GET",
 			headers: { "x-request-id": "req-123" },
@@ -144,9 +149,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({
 			method: "GET",
 			headers: { "x-api-key": "secret", "x-request-id": "req-123" },
@@ -175,9 +182,11 @@ describe("proxy-handler", () => {
 				return errReq;
 			});
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({ method: "GET" });
 		await expect(
 			forward({ req, target: MOCK_TARGET, path: "/test" })
@@ -209,9 +218,11 @@ describe("proxy-handler", () => {
 				return timeoutReq;
 			});
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({ method: "GET" });
 		await expect(
 			forward({ req, target: MOCK_TARGET, path: "/test" })
@@ -239,9 +250,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({
 			method: "GET",
 			headers: {
@@ -274,9 +287,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({
 			method: "GET",
 			headers: { "x-request-id": "req-123", "content-length": 42 },
@@ -306,9 +321,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({
 			method: "GET",
 			ip: undefined,
@@ -339,9 +356,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({
 			method: "GET",
 			ip: undefined,
@@ -376,9 +395,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({ method: "GET" });
 		const result = await forward({ req, target: MOCK_TARGET, path: "/test" });
 		expect(result.status).toBe(503);
@@ -410,9 +431,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({
 			method: "POST",
 			body: { name: "test" },
@@ -448,9 +471,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		// Formatted JSON from the client: 28 bytes, re-serialized as 15.
 		const req = createReq({
 			method: "POST",
@@ -483,9 +508,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({
 			method: "POST",
 			body: {},
@@ -516,9 +543,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const {
 			UpstreamResponseTooLargeError,
 		} = require("../../src/domain/ports/gateway.port");
@@ -542,9 +571,11 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const { forwardRequest: forward } = await Promise.resolve(
-			require("../../src/adapters/outbound/proxy-handler")
-		);
+		const forward = (opts: any) =>
+			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
+				opts,
+				ENV
+			);
 		const req = createReq({ method: "GET" });
 		await expect(
 			forward({ req, target: MOCK_TARGET, path: "/test" })
