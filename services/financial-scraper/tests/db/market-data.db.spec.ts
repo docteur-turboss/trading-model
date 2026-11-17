@@ -29,7 +29,10 @@ import {
 	insertCandles,
 	selectCandlesBy,
 } from "../../src/adapters/outbound/persistence/schema/candles.schema";
-import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
+import {
+	insertOrderBook,
+	selectOrderBooks,
+} from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 import {
 	insertTicker,
 	selectTickerBy,
@@ -460,6 +463,37 @@ describe("market_order_books — real MySQL (ADR-0053)", () => {
 
 		await expect(count("market_order_books")).resolves.toBe(2);
 		expect((await rows())[0].asks).toEqual([]);
+	});
+
+	it("should replay the snapshots of a symbol of one source in a range, oldest first", async () => {
+		await insertOrderBook([
+			orderBook({ timestamp: UnixTimestamp.of(T0 + 60_000) }),
+			orderBook(),
+			orderBook({ source: SourceType.Nyse, asks: new Set() }),
+		]);
+
+		const books = await selectOrderBooks(
+			SYMBOL,
+			MarketType.Crypto,
+			SourceType.Binance,
+			T0,
+			T0 + 60_000,
+			10
+		);
+
+		expect(books).toEqual([
+			{
+				symbol: SYMBOL,
+				market: MarketType.Crypto,
+				source: SourceType.Binance,
+				timestamp: T0,
+				bids: [
+					[100.5, 2],
+					[100.25, 0.125],
+				],
+				asks: [[100.75, 1.5]],
+			},
+		]);
 	});
 });
 
