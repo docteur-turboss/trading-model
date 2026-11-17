@@ -67,7 +67,7 @@ spec:
               app.kubernetes.io/component: otel-collector
       containers:
         - name: otel-collector
-          image: otel/opentelemetry-collector-contrib@sha256:37fa87091cfaaec7234a27e4e395a40c31c2bfaea97a349a4afef6d9e9681197
+          image: otel/opentelemetry-collector-contrib@sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
