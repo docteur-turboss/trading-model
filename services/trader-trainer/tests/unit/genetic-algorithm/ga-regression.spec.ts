@@ -36,7 +36,6 @@ describe("GA Regression — Crossover", () => {
 				3 as PositiveInt
 			) as LamarckGenome;
 			const child = crossoverGenomes(parentA, parentB, rng);
-			expect(child).toBeDefined();
 			expect(child.id).toBe(parentA.id);
 			expect(child.network.hiddenLayers.length).toBe(
 				Math.min(
