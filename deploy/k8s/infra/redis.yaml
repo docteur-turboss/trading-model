@@ -42,7 +42,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: redis
-          image: redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+          image: redis@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53
           ports:
             - containerPort: 6379
               name: redis
@@ -138,7 +138,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: redis
-          image: redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+          image: redis@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53
           command:
             - sh
             - /scripts/redis-ha.sh
@@ -254,7 +254,7 @@ spec:
         # Exporter of this node (issue #601, ADR-0056), as ACL user `exporter`:
         # INFO and read-only commands, no key, no CONFIG GET (masterauth).
         - name: redis-exporter
-          image: oliver006/redis_exporter:v1.80.0@sha256:cd5fad1591e585db5b58beec7fca427027c61a4349f50109af67cf2f07964d02
+          image: oliver006/redis_exporter:v1.97.0@sha256:f5f903fbe77571d455ede0453b084d6840bc62fc105efac001034421cab83b99
           env:
             - name: REDIS_ADDR
               value: redis://127.0.0.1:6379
@@ -388,7 +388,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: sentinel
-          image: redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+          image: redis@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53
           command:
             - sh
             - /scripts/redis-ha.sh
@@ -482,7 +482,7 @@ spec:
         # Exporter of this sentinel (issue #601, ADR-0056), as ACL user `exporter`:
         # INFO and read-only commands, no key, no CONFIG GET (masterauth).
         - name: redis-exporter
-          image: oliver006/redis_exporter:v1.80.0@sha256:cd5fad1591e585db5b58beec7fca427027c61a4349f50109af67cf2f07964d02
+          image: oliver006/redis_exporter:v1.97.0@sha256:f5f903fbe77571d455ede0453b084d6840bc62fc105efac001034421cab83b99
           env:
             - name: REDIS_ADDR
               value: redis://127.0.0.1:26379

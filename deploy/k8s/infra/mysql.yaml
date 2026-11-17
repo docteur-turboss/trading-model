@@ -238,7 +238,7 @@ spec:
         # created by the db-migrate-user Job. Without its password key the
         # exporter reports mysql_up 0 (MySQLDown), the database is unaffected.
         - name: mysqld-exporter
-          image: quay.io/prometheus/mysqld-exporter:v0.18.0@sha256:2598c0571f383708e19016d119bb45c06128a9ebc962c9f49483278ac5a94c41
+          image: quay.io/prometheus/mysqld-exporter:v0.21.0@sha256:afad0c59a154fea24ca5ea0e6f95f2b0b168601b111266963dc8a347715b5318
           args:
             - --mysqld.address=127.0.0.1:3306
             - --mysqld.username=exporter
