@@ -1,4 +1,4 @@
-{
+export default {
   "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "mutate": ["src/domain/**/*.ts", "!src/**/*.spec.ts", "!src/**/*.d.ts"],
   "testRunner": "jest",
@@ -16,5 +16,5 @@
   "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
   "tempDirName": "../../.stryker-tmp",
   "cleanTempDir": true,
-  "thresholds": { "high": 80, "low": 60, "break": 50 }
-}
+  "thresholds": { "high": 80, "low": 60, "break": Number(process.env.MUTATION_BREAK ?? 50) }
+};
