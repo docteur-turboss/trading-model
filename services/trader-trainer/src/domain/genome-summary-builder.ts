@@ -4,6 +4,7 @@ import {
 	NonNegativeInt,
 	SharpeRatio,
 } from "@trading-model/primitives/primitives";
+import { actionLabels } from "./agent/action-mapper";
 import type {
 	GenomeFitnessMeta,
 	LamarckGenome,
@@ -31,6 +32,9 @@ function buildNetworkSummary(
 	return {
 		inputDim: genome.network.inputDim,
 		outputDim: genome.network.outputDim,
+		...(genome.network.actionSet && {
+			actions: actionLabels(genome.network.actionSet),
+		}),
 		hiddenLayers: genome.network.hiddenLayers.map((layer) => ({
 			neurons: layer.neurons,
 			activation: layer.activation,

@@ -75,6 +75,7 @@ interface AppContainerConfig {
 	episodesPerIndividual: number;
 	fitnessType: FitnessType;
 	observePosition: boolean;
+	actionSpaceGene: boolean;
 	signalKeys: string[];
 	eventDriven: boolean;
 	bufferMemoryLimitMb?: number;
@@ -126,6 +127,7 @@ class ApplicationContainer {
 				episodesPerIndividual: config.episodesPerIndividual,
 				fitnessType: config.fitnessType,
 				observePosition: config.observePosition,
+				actionSpaceGene: config.actionSpaceGene,
 				eventDriven: config.eventDriven,
 			},
 			publisher,
@@ -167,6 +169,7 @@ interface TraderTrainerSettings {
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
+	FEATURE_ACTION_SPACE_GENE?: boolean;
 	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
 	TRAINER_SIGNAL_FEATURES?: string;
 	FEATURE_SIGNAL_INPUTS?: boolean;
@@ -195,6 +198,7 @@ export function createTraderTrainerContainer(
 		episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
 		fitnessType: effectiveFitnessType(settings),
 		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
+		actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
 		signalKeys: settings.FEATURE_SIGNAL_INPUTS
 			? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
 			: [],
