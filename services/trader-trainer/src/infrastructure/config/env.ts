@@ -3,6 +3,7 @@ import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { featureFlag } from "@trading-model/validation/config/feature-flags";
 import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
 import { validateEnv } from "@trading-model/validation/config/validate-env";
+import { AssetType } from "@trading-model/validation/wire/signals";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
 import {
@@ -10,8 +11,33 @@ import {
 	SIGNAL_KEY_PATTERN,
 } from "../../domain/signal-features";
 
+const COST_RATE = z.number().min(0).max(0.1);
+/** Overrides of `DEFAULT_ASSET_COSTS`, by asset type. */
+const AssetCosts = z.partialRecord(
+	AssetType,
+	z.strictObject({ feeRate: COST_RATE, executionCostRate: COST_RATE }).partial()
+);
+
 const TRAINER_ENV_SHAPE = {
 	TRAINER_SYMBOLS: z.string().default("BTCUSDT,ETHUSDT"),
+	/** `ASSET:type` pairs (`AAPL:equity,AGG:bond`): registry assets trained on daily bars rebuilt from their market signals (ADR-0082). Empty: none. */
+	TRAINER_ASSETS: z.string().default(""),
+	/** JSON `{"equity":{"feeRate":0.0005,"executionCostRate":0.0005}}`: costs of the daily assets by type, over the defaults of ADR-0082. */
+	TRAINER_ASSET_COSTS: z
+		.string()
+		.default("{}")
+		.transform((json, ctx) => {
+			try {
+				return JSON.parse(json);
+			} catch {
+				ctx.addIssue({
+					code: "custom",
+					message: "TRAINER_ASSET_COSTS: not JSON",
+				});
+				return z.NEVER;
+			}
+		})
+		.pipe(AssetCosts),
 	/** `SYMBOL:ASSET` pairs (`BTCUSDT:BTC,ETHUSDT:ETH`): the registry asset whose signals a session reads. Empty: none (ADR-0036). */
 	TRAINER_SYMBOL_ASSETS: z.string().default(""),
 	/** `SUBJECT:dimension:metric` list (`BTC:social:pageviews`): the signals fed to the network as value, age and confidence inputs (ADR-0081). Used only with FEATURE_SIGNAL_INPUTS. */

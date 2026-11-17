@@ -149,6 +149,12 @@ export const SIGNAL_READ_ERRORS_TOTAL = new promClient.Counter({
 	labelNames: ["symbol"] as const,
 });
 
+export const DAILY_BAR_ISSUES_TOTAL = new promClient.Counter({
+	name: "tt_daily_bar_issues_total",
+	help: "Daily bars rebuilt from signals: dropped (incomplete_day) or a jump that looks like a split (split_suspect)",
+	labelNames: ["symbol", "issue"] as const,
+});
+
 export const MARKET_DATA_SYMBOLS = new promClient.Gauge({
 	name: "tt_market_data_symbols",
 	help: "Number of tracked symbols in buffer",

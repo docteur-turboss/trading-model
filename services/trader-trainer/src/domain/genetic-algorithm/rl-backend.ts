@@ -126,8 +126,16 @@ function _buildStateManagerCfg(
 	};
 }
 
+/** The costs of a fill that depend on the asset class (ADR-0082). */
+export interface SimulatorCosts {
+	feeRate: number;
+	executionCostRate: number;
+}
+
 /** Run-level options of the backends, outside the genome. */
 interface BackendOptions {
+	/** Costs of the asset class; absent: `SIMULATOR_PARAMS`. */
+	costs?: SimulatorCosts;
 	/** Show the agent its position (default true, ADR-0025). */
 	observePosition?: boolean;
 }
@@ -144,8 +152,12 @@ function _buildAgentConfig(
 		wallet: {
 			initialCash: Cash.of(SIMULATOR_PARAMS.initialCash),
 			initialPrice: Price.of(1),
-			feeRate: Percentage.of(SIMULATOR_PARAMS.feeRate),
-			executionCostRate: Percentage.of(SIMULATOR_PARAMS.executionCostRate),
+			feeRate: Percentage.of(
+				options.costs?.feeRate ?? SIMULATOR_PARAMS.feeRate
+			),
+			executionCostRate: Percentage.of(
+				options.costs?.executionCostRate ?? SIMULATOR_PARAMS.executionCostRate
+			),
 			maxExposureFraction: DEFAULT_MAX_EXPOSURE_FRACTION,
 		},
 		tradeFraction: SIMULATOR_PARAMS.tradeFraction,
