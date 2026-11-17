@@ -95,7 +95,7 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## TypeScript
 
-- **No root tsconfig.json** — each workspace has its own standalone config
+- **No root tsconfig.json** — the root `tsconfig.base.json` only holds the `compilerOptions` shared by all workspaces (no `include`, never passed to `tsc -p`); each workspace `tsconfig.json` extends it and keeps its own module, paths, outDir, rootDir and include
 - Some packages use `tsconfig.build.json` that extends the base but overrides `rootDir` to `"./src"`
 - Packages use `commonjs` module; most services use `Node16` module (`moduleResolution: node16`)
 - Several services use `experimentalDecorators` + `emitDecoratorMetadata`
