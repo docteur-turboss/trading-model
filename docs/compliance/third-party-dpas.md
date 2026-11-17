@@ -119,7 +119,7 @@ The repository neither signs a DPA nor picks a provider. The operating entity si
 
 | Field | Value |
 | ----- | ----- |
-| Role | Receives alert notifications (`slack_configs` of `observability/alertmanager.yml`; the webhook may be a Discord `/slack` endpoint). Channels `#alerts`, `#alerts-warning` |
+| Role | Receives alert notifications (`slack_configs` of `deploy/k8s/infra/config/alertmanager.yml`; the webhook may be a Discord `/slack` endpoint). Channels `#alerts`, `#alerts-warning` |
 | Data sent | Alert name, severity, job (service) name, summary, description, runbook URL. No personal data by design (labels carry pod and service names; application logs are not sent) |
 | Region | Slack: data region chosen by the workspace owner; Discord: to be confirmed by the operator |
 | Processor? | Only if a message ever contains personal data (an operator's name in a description); the operators' own accounts are the provider's own processing |

@@ -8,7 +8,7 @@
 Fires when `sum by (job) (rate(gw_auth_failures_total[5m]))` stays above
 0.1/s (6 per minute) for 5 minutes. Threshold: a legitimate client with a
 good key produces none; a client retrying every second or two is above it, a
-human typo is not. Tune it here and in `observability/alerting.yml` if a
+human typo is not. Tune it here and in `deploy/k8s/infra/config/alerting.yml` if a
 known client is noisy.
 
 1. Find the source: `kubectl logs deploy/api-gateway -n trading-model | grep -i auth`

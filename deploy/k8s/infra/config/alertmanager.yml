@@ -1,5 +1,4 @@
-# Same file in K8s (deploy/k8s/infra/config/alertmanager.yml, ConfigMap
-# alertmanager-config): checked by scripts/observability-gate.mjs.
+# One file for compose (mounted) and K8s (ConfigMap alertmanager-config).
 #
 # Alertmanager expands no environment variable: credentials are files under
 # /etc/alertmanager-credentials, read at send time (a missing file fails that
