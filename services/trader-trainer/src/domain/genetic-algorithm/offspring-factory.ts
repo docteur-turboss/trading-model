@@ -40,6 +40,7 @@ interface ProduceOneOffspringParams {
 	generation: number;
 	index: number;
 	onFallback: () => void;
+	protectCandleGroup?: boolean;
 }
 
 interface CrossoverAndMutateWeightsParams {
@@ -96,7 +97,17 @@ function produceOneOffspring(
 	const pA = selectParent(ranked, rng);
 	const pB = selectParent(ranked, rng);
 
-	const childStruct = mutateGenome(crossoverGenomes(pA, pB, coRng), mutRng);
+	const mutated = mutateGenome(crossoverGenomes(pA, pB, coRng), mutRng);
+	const childStruct =
+		params.protectCandleGroup && mutated.network.inputMask
+			? {
+					...mutated,
+					network: {
+						...mutated.network,
+						inputMask: [true, ...mutated.network.inputMask.slice(1)],
+					},
+				}
+			: mutated;
 	const childWeights = _crossoverAndMutateWeights({
 		pA,
 		pB,
@@ -123,6 +134,8 @@ export interface OffspringContext {
 	generation: number;
 	/** Receives the generation's count of weight-length fallbacks (once, when > 0). */
 	telemetry?: GaTelemetry;
+	/** ADR-0082: the candle group (mask index 0) stays active. */
+	protectCandleGroup?: boolean;
 }
 
 function _computeOffspringCount(
@@ -163,6 +176,7 @@ export function createOffspring(
 			generation,
 			index,
 			onFallback,
+			protectCandleGroup: ctx.protectCandleGroup,
 		})
 	);
 	if (fallbacks > 0) {

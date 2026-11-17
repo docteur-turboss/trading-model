@@ -53,7 +53,7 @@ export class TrainingLoop {
 			assets: ReadonlyMap<TradingSymbol, string>;
 			windowMs: number;
 		},
-		/** Symbols on daily bars: their freshness and cadence follow the series (ADR-0082). */
+		/** Symbols on daily bars: their freshness and cadence follow the series (ADR-0083). */
 		private readonly _daily: ReadonlySet<TradingSymbol> = new Set()
 	) {}
 

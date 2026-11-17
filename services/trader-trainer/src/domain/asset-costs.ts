@@ -7,7 +7,7 @@ import {
 import type { TradingSymbol } from "./market-data-types";
 
 /**
- * Execution costs of a daily asset by type (ADR-0082): a fee plus the
+ * Execution costs of a daily asset by type (ADR-0083): a fee plus the
  * half-spread and slippage of liquid listed products; real estate funds trade
  * wider. The crypto costs stay `SIMULATOR_PARAMS` (ADR-0066).
  */

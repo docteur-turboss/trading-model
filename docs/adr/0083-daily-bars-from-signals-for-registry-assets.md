@@ -1,4 +1,4 @@
-# ADR-0082: Registry Assets Train on Daily Bars Rebuilt from Market Signals
+# ADR-0083: Registry Assets Train on Daily Bars Rebuilt from Market Signals
 
 **Status:** Accepted
 **Date:** 2026-11

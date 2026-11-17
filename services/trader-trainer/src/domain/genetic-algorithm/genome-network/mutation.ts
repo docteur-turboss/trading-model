@@ -3,6 +3,7 @@ import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { ACTION_SET_IDS, ACTION_SETS } from "../../agent/action-mapper";
 import type { LamarckGenome } from "../genome-fitness";
 import type { MutationGenome } from "../genome-mutation";
+import { mutateInputMask } from "./input-mask";
 import {
 	ActivationType,
 	ConnectionType,
@@ -218,5 +219,8 @@ export function mutateNetworkStructure(
 		}),
 		hiddenLayers: layers,
 		normalization: _maybeMutateNormalization(genome, mutationConfig, rng),
+		...(genome.network.inputMask && {
+			inputMask: mutateInputMask(genome.network.inputMask, rng),
+		}),
 	};
 }

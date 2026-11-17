@@ -25,6 +25,7 @@ import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
 import type { SimulatorCosts } from "../domain/genetic-algorithm/rl-backend";
+import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
@@ -84,13 +85,15 @@ interface AppContainerConfig {
 	actionSpaceGene: boolean;
 	signalKeys: string[];
 	eventDriven: boolean;
+	inputGroups?: string[];
+	protectCandleGroup?: boolean;
 	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
 	instanceId: string;
 	history: CandleHistoryPort;
 	signals: ConstructorParameters<typeof TrainingLoop>[4];
-	/** Costs of each daily asset (ADR-0082); empty: crypto symbols only. */
+	/** Costs of each daily asset (ADR-0083); empty: crypto symbols only. */
 	dailyCosts: ReadonlyMap<TradingSymbol, SimulatorCosts>;
 }
 
@@ -137,6 +140,8 @@ class ApplicationContainer {
 				observePosition: config.observePosition,
 				actionSpaceGene: config.actionSpaceGene,
 				eventDriven: config.eventDriven,
+				inputGroups: config.inputGroups,
+				protectCandleGroup: config.protectCandleGroup,
 			},
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
@@ -167,7 +172,7 @@ interface TraderTrainerSettings {
 	TRAINER_SYMBOLS: string;
 	/** `SYMBOL:ASSET` pairs, comma-separated; empty: no signals read. */
 	TRAINER_SYMBOL_ASSETS: string;
-	/** `ASSET:type` pairs trained on daily bars; empty: none (ADR-0082). */
+	/** `ASSET:type` pairs trained on daily bars; empty: none (ADR-0083). */
 	TRAINER_ASSETS?: string;
 	TRAINER_ASSET_COSTS?: Partial<Record<AssetType, Partial<SimulatorCosts>>>;
 	TRAINER_VALIDATION_SPLIT: number;
@@ -181,6 +186,8 @@ interface TraderTrainerSettings {
 	/** Feature flag (ADR-0039); false: `total_pnl` only. Default true. */
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
+	FEATURE_INPUT_MASK_GENE?: boolean;
+	TRAINER_INPUT_MASK_PROTECT_CANDLE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
 	FEATURE_ACTION_SPACE_GENE?: boolean;
 	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
@@ -210,6 +217,9 @@ export function createTraderTrainerContainer(
 		])
 	);
 	const bars = new SignalBarHistory(signalHistory, assets);
+	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
+		? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
+		: [];
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
 		symbols: [
@@ -231,10 +241,12 @@ export function createTraderTrainerContainer(
 		fitnessType: effectiveFitnessType(settings),
 		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
 		actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
-		signalKeys: settings.FEATURE_SIGNAL_INPUTS
-			? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
-			: [],
+		signalKeys,
 		eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
+		inputGroups: settings.FEATURE_INPUT_MASK_GENE
+			? inputGroupNames(signalKeys)
+			: undefined,
+		protectCandleGroup: settings.TRAINER_INPUT_MASK_PROTECT_CANDLE,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,

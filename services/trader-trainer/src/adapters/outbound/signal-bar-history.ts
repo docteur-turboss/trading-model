@@ -35,7 +35,7 @@ const FIELDS = ["open", "high", "low", "close", "volume"] as const;
 
 /**
  * Daily bars of a registry asset rebuilt from its own `market` signals
- * (`open`, `high`, `low`, `close`, `volume` of one `period` day; ADR-0082),
+ * (`open`, `high`, `low`, `close`, `volume` of one `period` day; ADR-0083),
  * in the shape of candles. A day missing a metric is dropped and counted; when
  * a day has an `adjusted_close`, the day's prices are scaled to it; a jump
  * that looks like a split is counted and logged, never corrected.

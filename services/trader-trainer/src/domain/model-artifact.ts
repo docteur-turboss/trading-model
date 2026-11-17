@@ -54,7 +54,7 @@ export interface ModelReplayWindow {
 	testFrom: number;
 	/** Close time of the last candle: nothing later was used. */
 	to: number;
-	/** Bar length when it is not one minute, and the costs of a daily asset (ADR-0082). */
+	/** Bar length when it is not one minute, and the costs of a daily asset (ADR-0083). */
 	intervalMs?: number;
 	simulator?: SimulatorParams;
 }

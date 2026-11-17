@@ -126,7 +126,7 @@ function _buildStateManagerCfg(
 	};
 }
 
-/** The costs of a fill that depend on the asset class (ADR-0082). */
+/** The costs of a fill that depend on the asset class (ADR-0083). */
 export interface SimulatorCosts {
 	feeRate: number;
 	executionCostRate: number;
@@ -162,6 +162,7 @@ function _buildAgentConfig(
 		},
 		tradeFraction: SIMULATOR_PARAMS.tradeFraction,
 		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy),
+		inputMask: genome.network.inputMask,
 		observePosition:
 			options.observePosition ?? SIMULATOR_PARAMS.observePosition,
 	};

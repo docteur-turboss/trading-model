@@ -12,12 +12,13 @@ export function createDefaultGenome(
 	id: string,
 	generation = 0 as PositiveInt,
 	eventDriven = false,
-	inputDim?: number
+	inputDim?: number,
+	maskGroups?: number
 ): Genome {
 	return {
 		id: id as GenomeId,
 		generation: generation as PositiveInt,
-		network: createNetworkGenome(eventDriven, inputDim),
+		network: createNetworkGenome(eventDriven, inputDim, maskGroups),
 		rl: createRLGenome(eventDriven),
 		mutation: createMutationGenome(),
 		crossover: createCrossoverGenome(),

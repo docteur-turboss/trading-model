@@ -12,6 +12,7 @@ import {
 	MODEL_MAX_DRAWDOWN,
 	MODEL_RETURN,
 	MODEL_SHARPE,
+	reportInputGroups,
 	TRAINING_DURATION_SECONDS,
 	TRAINING_SESSIONS_TOTAL,
 	TRAINING_STATUS,
@@ -28,6 +29,7 @@ import {
 	SIMULATOR_PARAMS,
 	type SimulatorCosts,
 } from "../domain/genetic-algorithm/rl-backend";
+import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import { DAY_MS, type TradingSymbol } from "../domain/market-data-types";
@@ -70,7 +72,7 @@ interface TrainerDeps {
 	instanceId?: string;
 	/** Where the session runs; default: the calling thread. */
 	runner?: TrainingRunner;
-	/** Costs of a daily asset (ADR-0082); undefined: a crypto symbol on one-minute candles. */
+	/** Costs of a daily asset (ADR-0083); undefined: a crypto symbol on one-minute candles. */
 	dailyCosts?: (symbol: TradingSymbol) => SimulatorCosts | undefined;
 }
 
@@ -256,6 +258,12 @@ export class Trainer {
 			bestFitnessMeta: result.bestFitnessMeta,
 			generation: NonNegativeInt.of(result.generation),
 		};
+		const publishedMask = result.bestGenome.network.inputMask;
+		if (publishedMask) {
+			const groups = inputGroupNames(this._dataBuffer.signalKeys);
+			reportInputGroups("published", groups, [publishedMask]);
+			reportInputGroups("population", groups, result.inputMasks ?? []);
+		}
 		const snapshot = new LastTrainingInfo(outcome);
 		this._lastInfo = snapshot;
 		this._symbolSnapshots.set(symbol, snapshot);

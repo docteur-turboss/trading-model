@@ -20,9 +20,9 @@ const AssetCosts = z.partialRecord(
 
 const TRAINER_ENV_SHAPE = {
 	TRAINER_SYMBOLS: z.string().default("BTCUSDT,ETHUSDT"),
-	/** `ASSET:type` pairs (`AAPL:equity,AGG:bond`): registry assets trained on daily bars rebuilt from their market signals (ADR-0082). Empty: none. */
+	/** `ASSET:type` pairs (`AAPL:equity,AGG:bond`): registry assets trained on daily bars rebuilt from their market signals (ADR-0083). Empty: none. */
 	TRAINER_ASSETS: z.string().default(""),
-	/** JSON `{"equity":{"feeRate":0.0005,"executionCostRate":0.0005}}`: costs of the daily assets by type, over the defaults of ADR-0082. */
+	/** JSON `{"equity":{"feeRate":0.0005,"executionCostRate":0.0005}}`: costs of the daily assets by type, over the defaults of ADR-0083. */
 	TRAINER_ASSET_COSTS: z
 		.string()
 		.default("{}")
@@ -51,6 +51,10 @@ const TRAINER_ENV_SHAPE = {
 		),
 	/** Feature flag (ADR-0039): false keeps the network input at the market values. */
 	FEATURE_SIGNAL_INPUTS: featureFlag(false),
+	/** Feature flag (ADR-0039, ADR-0082): true lets the GA evolve a mask over the input groups; false: no mask, training unchanged. */
+	FEATURE_INPUT_MASK_GENE: featureFlag(false),
+	/** ADR-0082: true keeps the candle group active in every evolved mask; read only with FEATURE_INPUT_MASK_GENE. */
+	TRAINER_INPUT_MASK_PROTECT_CANDLE: featureFlag(false),
 	/** Model artifacts (ADR-0022): on the checkpoint volume shared by the replicas. */
 	TRAINER_MODEL_DIR: z.string().min(1).default("/data/checkpoints/models"),
 	TRAINER_MODEL_RETENTION: z.coerce.number().int().min(1).default(20),

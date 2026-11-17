@@ -2,6 +2,9 @@ import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
+import { MongoDBInstrumentation } from "@opentelemetry/instrumentation-mongodb";
+import { MySQL2Instrumentation } from "@opentelemetry/instrumentation-mysql2";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
@@ -50,6 +53,11 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 		instrumentations: [
 			new HttpInstrumentation({ ignoreIncomingRequestHook: isProbeRequest }),
 			new ExpressInstrumentation(),
+			// No query values in spans: mysql2 masks literals, mongodb replaces
+			// them by default, redis keeps the command name only (no key, no value).
+			new MySQL2Instrumentation({ maskStatement: true }),
+			new MongoDBInstrumentation(),
+			new IORedisInstrumentation({ dbStatementSerializer: (cmd) => cmd }),
 		],
 		// Traces only: metrics go through Prometheus, and the collector has no
 		// metrics or logs pipeline (the SDK would export both to it by default).

@@ -8,7 +8,7 @@ export {
 } from "@trading-model/primitives/primitives";
 export { NormalizationStats };
 
-/** One day in milliseconds: the length of a daily bar (ADR-0082). */
+/** One day in milliseconds: the length of a daily bar (ADR-0083). */
 export const DAY_MS = 86_400_000;
 
 import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
