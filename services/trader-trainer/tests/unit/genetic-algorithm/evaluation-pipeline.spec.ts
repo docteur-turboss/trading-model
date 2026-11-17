@@ -151,7 +151,7 @@ describe("evaluateGenomeAllWindows", () => {
 			[],
 			backendFactory as any
 		);
-		expect(result.updatedGenome).toBeDefined();
+		expect(result.updatedGenome).toEqual(MINIMAL_GENOME);
 		expect(result.meta.episodesRun).toBe(1);
 	});
 
@@ -220,7 +220,9 @@ describe("evaluateGenomeAllWindows", () => {
 			windowSets,
 			backendFactory as any
 		);
-		expect(result.updatedGenome).toBeDefined();
+		expect(result.updatedGenome.trainedWeights).toEqual(
+			new Float32Array([0.1, 0.2])
+		);
 	});
 
 	it("should handle genome with hidden layers for complexity estimation", async () => {
@@ -268,7 +270,9 @@ describe("evaluateGenomeAllWindows", () => {
 			windowSets,
 			backendFactory as any
 		);
-		expect(result.updatedGenome).toBeDefined();
+		expect(result.updatedGenome.trainedWeights).toEqual(
+			new Float32Array([0.1, 0.2])
+		);
 		expect(trainMock).not.toHaveBeenCalled();
 	});
 
@@ -322,7 +326,9 @@ describe("evaluateGenomeAllWindows", () => {
 			windowSets,
 			backendFactory as any
 		);
-		expect(result.updatedGenome).toBeDefined();
+		expect(result.updatedGenome.trainedWeights).toEqual(
+			new Float32Array([0.1, 0.2])
+		);
 		expect(result.meta.rawScores.length).toBeGreaterThan(0);
 	});
 });
