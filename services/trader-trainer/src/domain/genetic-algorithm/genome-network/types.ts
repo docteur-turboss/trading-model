@@ -32,4 +32,6 @@ export interface NetworkGenome {
 	actionSet?: ActionSetId;
 	hiddenLayers: LayerGenome[];
 	normalization: NormalisationType;
+	/** FEATURE_INPUT_MASK_GENE (ADR-0082): per input group, false zeroes it. Absent: all active. */
+	inputMask?: boolean[];
 }

@@ -19,6 +19,7 @@ import { Trainer } from "../application/trainer";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
+import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
@@ -78,6 +79,8 @@ interface AppContainerConfig {
 	actionSpaceGene: boolean;
 	signalKeys: string[];
 	eventDriven: boolean;
+	inputGroups?: string[];
+	protectCandleGroup?: boolean;
 	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
@@ -129,6 +132,8 @@ class ApplicationContainer {
 				observePosition: config.observePosition,
 				actionSpaceGene: config.actionSpaceGene,
 				eventDriven: config.eventDriven,
+				inputGroups: config.inputGroups,
+				protectCandleGroup: config.protectCandleGroup,
 			},
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
@@ -168,6 +173,8 @@ interface TraderTrainerSettings {
 	/** Feature flag (ADR-0039); false: `total_pnl` only. Default true. */
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
+	FEATURE_INPUT_MASK_GENE?: boolean;
+	TRAINER_INPUT_MASK_PROTECT_CANDLE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
 	FEATURE_ACTION_SPACE_GENE?: boolean;
 	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
@@ -184,6 +191,9 @@ export function createTraderTrainerContainer(
 	history: CandleHistoryPort,
 	signalHistory: SignalHistoryPort
 ): ApplicationContainer {
+	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
+		? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
+		: [];
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
 		symbols: parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
@@ -199,10 +209,12 @@ export function createTraderTrainerContainer(
 		fitnessType: effectiveFitnessType(settings),
 		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
 		actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
-		signalKeys: settings.FEATURE_SIGNAL_INPUTS
-			? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
-			: [],
+		signalKeys,
 		eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
+		inputGroups: settings.FEATURE_INPUT_MASK_GENE
+			? inputGroupNames(signalKeys)
+			: undefined,
+		protectCandleGroup: settings.TRAINER_INPUT_MASK_PROTECT_CANDLE,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,

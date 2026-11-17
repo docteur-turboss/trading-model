@@ -12,6 +12,7 @@ import {
 	MODEL_MAX_DRAWDOWN,
 	MODEL_RETURN,
 	MODEL_SHARPE,
+	reportInputGroups,
 	TRAINING_DURATION_SECONDS,
 	TRAINING_SESSIONS_TOTAL,
 	TRAINING_STATUS,
@@ -24,6 +25,7 @@ import { featureDriftScore } from "../domain/feature-drift";
 import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
+import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
@@ -250,6 +252,12 @@ export class Trainer {
 			bestFitnessMeta: result.bestFitnessMeta,
 			generation: NonNegativeInt.of(result.generation),
 		};
+		const publishedMask = result.bestGenome.network.inputMask;
+		if (publishedMask) {
+			const groups = inputGroupNames(this._dataBuffer.signalKeys);
+			reportInputGroups("published", groups, [publishedMask]);
+			reportInputGroups("population", groups, result.inputMasks ?? []);
+		}
 		const snapshot = new LastTrainingInfo(outcome);
 		this._lastInfo = snapshot;
 		this._symbolSnapshots.set(symbol, snapshot);

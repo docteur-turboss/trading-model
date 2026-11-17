@@ -25,6 +25,10 @@ const TRAINER_ENV_SHAPE = {
 		),
 	/** Feature flag (ADR-0039): false keeps the network input at the market values. */
 	FEATURE_SIGNAL_INPUTS: featureFlag(false),
+	/** Feature flag (ADR-0039, ADR-0082): true lets the GA evolve a mask over the input groups; false: no mask, training unchanged. */
+	FEATURE_INPUT_MASK_GENE: featureFlag(false),
+	/** ADR-0082: true keeps the candle group active in every evolved mask; read only with FEATURE_INPUT_MASK_GENE. */
+	TRAINER_INPUT_MASK_PROTECT_CANDLE: featureFlag(false),
 	/** Model artifacts (ADR-0022): on the checkpoint volume shared by the replicas. */
 	TRAINER_MODEL_DIR: z.string().min(1).default("/data/checkpoints/models"),
 	TRAINER_MODEL_RETENTION: z.coerce.number().int().min(1).default(20),

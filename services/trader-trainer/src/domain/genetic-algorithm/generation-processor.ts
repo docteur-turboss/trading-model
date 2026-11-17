@@ -61,7 +61,8 @@ export class GenerationProcessor {
 		this._population = createInitialPopulation(
 			ctrl,
 			this._cfg.eventDriven,
-			step && step.features.toFloat32Array().length + AGENT_STATE_DIM
+			step && step.features.toFloat32Array().length + AGENT_STATE_DIM,
+			this._cfg.inputGroups?.length
 		);
 		this._generation = 0;
 		this._archive = new ParetoArchive();
@@ -169,6 +170,7 @@ export class GenerationProcessor {
 			rng,
 			generation: this._generation,
 			telemetry: this._telemetry,
+			protectCandleGroup: this._cfg.protectCandleGroup,
 		});
 	}
 

@@ -150,6 +150,7 @@ function _buildAgentConfig(
 		},
 		tradeFraction: SIMULATOR_PARAMS.tradeFraction,
 		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy),
+		inputMask: genome.network.inputMask,
 		observePosition:
 			options.observePosition ?? SIMULATOR_PARAMS.observePosition,
 	};
