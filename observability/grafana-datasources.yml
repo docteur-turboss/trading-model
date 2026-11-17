@@ -15,7 +15,8 @@ datasources:
     jsonData:
       tracesToLogsV2:
         datasourceUid: loki
-        filterByTraceID: true
+        customQuery: true
+        query: '{job=~".+"} |= "${__trace.traceId}"'
 
   - name: Loki
     type: loki
