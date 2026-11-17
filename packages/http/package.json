@@ -1,6 +1,6 @@
 {
   "name": "@trading-model/http",
-  "version": "2.0.0",
+  "version": "1.2.0",
   "description": "HTTP platform: middleware, http client, logging, server bootstrap, secure server factory, telemetry",
   "license": "ISC",
   "type": "commonjs",
