@@ -44,6 +44,10 @@ describe("signal registry — the shipped file", () => {
 			"BTC",
 			"ETH",
 			"AAPL",
+			"MSFT",
+			"JPM",
+			"XOM",
+			"JNJ",
 			"WHEAT",
 			"GLD",
 			"BORDEAUX_RE",
@@ -184,10 +188,10 @@ describe("parseSignalRegistry", () => {
 			"a request on a sector without asset",
 			(file: any) => {
 				sourceOf(file, "nws-kansas-wheat-belt").requests[0].subject = {
-					sector: "healthcare",
+					sector: "utilities",
 				};
 			},
-			"source nws-kansas-wheat-belt, request 0: no asset in sector healthcare",
+			"source nws-kansas-wheat-belt, request 0: no asset in sector utilities",
 		],
 		[
 			"a request on an area no asset has",
@@ -338,7 +342,7 @@ describe("parseSignalRegistry", () => {
 		[
 			"a selector matching nothing",
 			(t: any) => {
-				t.select = { sector: "healthcare" };
+				t.select = { sector: "utilities" };
 			},
 			"template 0: selector matches no asset",
 		],
@@ -390,7 +394,7 @@ describe("parseSignalRegistry", () => {
 		const file = registry();
 		delete assetOf(file, "AAPL").aliases.wikipedia;
 		const { templates } = sourceOf(file, "wikipedia-pageviews");
-		templates.push({ ...templates[0], select: { sector: "healthcare" } });
+		templates.push({ ...templates[0], select: { sector: "utilities" } });
 		templates.push({ ...templates[0], select: { assetIds: ["AAPL"] } });
 
 		expect(() => parseSignalRegistry(file)).toThrow(
@@ -412,12 +416,40 @@ describe("parseSignalRegistry", () => {
 			wiki("Bitcoin", "BTC"),
 			wiki("Ethereum", "ETH"),
 			wiki("Apple%20Inc.", "AAPL"),
+			wiki("Microsoft", "MSFT"),
+			wiki("JPMorgan%20Chase", "JPM"),
+			wiki("ExxonMobil", "XOM"),
+			wiki("Johnson%20%26%20Johnson", "JNJ"),
 		]);
 		expect(request("sec-edgar-eps-diluted")).toEqual([
 			{
 				subject: { assetId: "AAPL" },
 				dimension: "fundamental",
 				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/EarningsPerShareDiluted.json",
+				params: {},
+			},
+			{
+				subject: { assetId: "MSFT" },
+				dimension: "fundamental",
+				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000789019/us-gaap/EarningsPerShareDiluted.json",
+				params: {},
+			},
+			{
+				subject: { assetId: "JPM" },
+				dimension: "fundamental",
+				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000019617/us-gaap/EarningsPerShareDiluted.json",
+				params: {},
+			},
+			{
+				subject: { assetId: "XOM" },
+				dimension: "fundamental",
+				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000034088/us-gaap/EarningsPerShareDiluted.json",
+				params: {},
+			},
+			{
+				subject: { assetId: "JNJ" },
+				dimension: "fundamental",
+				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000200406/us-gaap/EarningsPerShareDiluted.json",
 				params: {},
 			},
 		]);
