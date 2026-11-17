@@ -1045,7 +1045,7 @@ services:
 
   loki:
     logging: *default-logging
-    image: grafana/loki@sha256:d947e68a84d9e44915dfa08c3bec27e2124efd5ba6c83443eb53578101ec69e3
+    image: grafana/loki@sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7
     container_name: trading-loki
     restart: unless-stopped
     mem_limit: 1g
