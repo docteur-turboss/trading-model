@@ -366,7 +366,7 @@ for (const env of OVERLAYS) {
 			errors.push(`${env}: StatefulSet ${name} not found`);
 			continue;
 		}
-		for (const [, cm] of sts.text.matchAll(/configMap:\n(?: +.*\n)*? +name: (\S+)$/gm)) {
+		for (const [, cm] of sts.text.matchAll(/configMap:\n(?: +[^\n ][^\n]*\n)*? +name: (\S+)$/gm)) {
 			if (!/-[245-9bcdfghkmt]{10}$/.test(cm) && !BARE_CONFIGMAPS.has(cm)) {
 				errors.push(`${env}: StatefulSet ${name} mounts ConfigMap ${cm} by a bare name: generate it (configMapGenerator, hash suffix) so a restarted pod keeps its revision's config (issues #1456, #1460)`);
 			}
