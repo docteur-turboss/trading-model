@@ -18,6 +18,9 @@
   "author": "Docteur Turboss <@docteur-turboss>",
   "type": "commonjs",
   "main": "./dist/application/index.js",
+  "bin": {
+    "signal-backfill": "./dist/application/signal-backfill.js"
+  },
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
