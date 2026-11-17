@@ -1,10 +1,18 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
-import { CandleInterval } from "@trading-model/contracts/market-data.types";
-import type { Signal } from "@trading-model/validation/wire/signals";
+import {
+	CandleInterval,
+	MarketType,
+	type SourceType,
+} from "@trading-model/contracts/market-data.types";
+import {
+	Price,
+	UnixTimestamp,
+	Volume,
+} from "@trading-model/primitives/primitives";
+import type { AssetType, Signal } from "@trading-model/validation/wire/signals";
 import { DAILY_BAR_ISSUES_TOTAL } from "../../config/metrics";
-import { DAY_MS } from "../../domain/asset-costs";
-import type { TradingSymbol } from "../../domain/market-data-types";
+import { DAY_MS, type TradingSymbol } from "../../domain/market-data-types";
 import type { CandleHistoryPort } from "../../domain/ports/candle-history.port";
 import type { SignalHistoryPort } from "../../domain/ports/signal-history.port";
 
@@ -12,6 +20,17 @@ import type { SignalHistoryPort } from "../../domain/ports/signal-history.port";
 const CALENDAR_DAYS_PER_BAR = 1.5;
 /** A close-to-close move beyond this ratio (or its inverse) looks like a split, not a market move. */
 const SPLIT_JUMP_RATIO = 1.8;
+/** Market of a registry asset type; funds of real estate and commodities trade as ETFs. */
+const MARKETS: Record<AssetType, MarketType> = {
+	crypto: MarketType.Crypto,
+	equity: MarketType.Equity,
+	etf: MarketType.Etf,
+	bond: MarketType.Bond,
+	real_estate: MarketType.Etf,
+	commodity_proxy: MarketType.Etf,
+};
+/** `signals` is no exchange of the SourceType enum: the bars come from the signal store. */
+const SOURCE = "signals" as SourceType;
 const FIELDS = ["open", "high", "low", "close", "volume"] as const;
 
 /**
@@ -22,7 +41,13 @@ const FIELDS = ["open", "high", "low", "close", "volume"] as const;
  * that looks like a split is counted and logged, never corrected.
  */
 export class SignalBarHistory implements CandleHistoryPort {
-	constructor(private readonly _signals: SignalHistoryPort) {}
+	constructor(
+		private readonly _signals: SignalHistoryPort,
+		private readonly _assets: ReadonlyMap<TradingSymbol, AssetType>
+	) {}
+
+	/** Issues already counted: a day is counted once, not at every cycle that reads it. */
+	private readonly _counted = new Set<string>();
 
 	async loadWindow(
 		symbol: TradingSymbol,
@@ -53,18 +78,23 @@ export class SignalBarHistory implements CandleHistoryPort {
 		}
 		const bars: CandleData[] = [];
 		for (const day of [...days.keys()].sort()) {
-			const bar = _bar(symbol, day, days.get(day) as Map<string, number>);
+			const bar = _bar(
+				symbol,
+				MARKETS[this._assets.get(symbol) ?? "equity"],
+				day,
+				days.get(day) as Map<string, number>
+			);
 			if (!bar) {
-				DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue: "incomplete_day" });
+				this._count(symbol, day, "incomplete_day");
 				continue;
 			}
 			const prev = bars[bars.length - 1];
 			if (
 				prev &&
 				(bar.open / prev.close > SPLIT_JUMP_RATIO ||
-					prev.close / bar.open > SPLIT_JUMP_RATIO)
+					prev.close / bar.open > SPLIT_JUMP_RATIO) &&
+				this._count(symbol, day, "split_suspect")
 			) {
-				DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue: "split_suspect" });
 				getLogger().warn("Daily price jump looks like a split: not adjusted", {
 					context: { symbol, day, previousClose: prev.close, open: bar.open },
 				});
@@ -72,6 +102,17 @@ export class SignalBarHistory implements CandleHistoryPort {
 			bars.push(bar);
 		}
 		return bars.slice(-size);
+	}
+
+	/** Counts an issue of a day once; false when it was already counted. */
+	private _count(symbol: TradingSymbol, day: string, issue: string): boolean {
+		const key = `${symbol}:${day}:${issue}`;
+		if (this._counted.has(key)) {
+			return false;
+		}
+		this._counted.add(key);
+		DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue });
+		return true;
 	}
 }
 
@@ -84,6 +125,7 @@ function _ownMarketDay(signal: Signal, assetId: string): string | undefined {
 
 function _bar(
 	symbol: TradingSymbol,
+	market: MarketType,
 	day: string,
 	metrics: Map<string, number>
 ): CandleData | undefined {
@@ -93,20 +135,20 @@ function _bar(
 	const adjusted = metrics.get("adjusted_close");
 	const close = metrics.get("close") as number;
 	const factor = adjusted !== undefined && close > 0 ? adjusted / close : 1;
-	const price = (field: string): number =>
-		(metrics.get(field) as number) * factor;
-	const timestamp = Date.parse(day);
+	const price = (field: string): Price =>
+		Price.of((metrics.get(field) as number) * factor);
+	const timestamp = UnixTimestamp.of(Date.parse(day));
 	return {
-		source: "signals",
-		market: "equity",
+		source: SOURCE,
+		market,
 		symbol,
 		interval: CandleInterval.D1,
 		open: price("open"),
 		high: price("high"),
 		low: price("low"),
 		close: price("close"),
-		volume: metrics.get("volume"),
+		volume: Volume.of(metrics.get("volume") as number),
 		timestamp,
-		closeTimestamp: timestamp + DAY_MS - 1,
-	} as unknown as CandleData;
+		closeTimestamp: UnixTimestamp.of(timestamp + DAY_MS - 1),
+	};
 }

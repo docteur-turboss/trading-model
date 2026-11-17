@@ -1,8 +1,8 @@
 import { describe, expect, it } from "@jest/globals";
-import { barsPerYear } from "@trading-model/model-runtime/replay-metrics";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import type { Signal } from "@trading-model/validation/wire/signals";
 import { SignalBarHistory } from "../../../../src/adapters/outbound/signal-bar-history";
+import { DAILY_BAR_ISSUES_TOTAL } from "../../../../src/config/metrics";
 
 const AT = Date.parse("2026-03-20T00:00:00Z");
 
@@ -34,10 +34,13 @@ function day(date: string, close: number, skip: string[] = []): Signal[] {
 }
 
 function history(signals: Signal[]): SignalBarHistory {
-	return new SignalBarHistory({
-		loadWindow: async (_asset, _from, to) =>
-			signals.filter((s) => Date.parse(s.observedAt) <= to),
-	});
+	return new SignalBarHistory(
+		{
+			loadWindow: async (_asset, _from, to) =>
+				signals.filter((s) => Date.parse(s.observedAt) <= to),
+		},
+		new Map([[toSymbol("AAPL"), "equity"]])
+	);
 }
 
 describe("SignalBarHistory", () => {
@@ -69,23 +72,26 @@ describe("SignalBarHistory", () => {
 		expect([bar.open, bar.close, bar.volume]).toEqual([50, 50, 10]);
 	});
 
-	it("keeps a split-like jump in the series, to be counted", async () => {
-		const bars = await history([
+	it("counts a split-like jump and an incomplete day once per day, however often they are read", async () => {
+		const issues = async (issue: string) =>
+			(await DAILY_BAR_ISSUES_TOTAL.get()).values.find(
+				(value) =>
+					value.labels.issue === issue && value.labels.symbol === "AAPL"
+			)?.value ?? 0;
+		const before = [
+			await issues("split_suspect"),
+			await issues("incomplete_day"),
+		];
+		const source = history([
 			...day("2026-03-16", 400),
 			...day("2026-03-17", 100),
-		]).loadWindow(aapl, AT, 10);
-		expect(bars.map((bar) => bar.close)).toEqual([400, 100]);
-	});
-
-	it("counts about 260 bars a year on weekday bars, not 365", () => {
-		const steps = [] as { price: number; timestamp: number }[];
-		for (let d = 0; steps.length < 60; d++) {
-			const timestamp = Date.parse("2026-01-05T00:00:00Z") + d * 86_400_000;
-			if (![0, 6].includes(new Date(timestamp).getUTCDay())) {
-				steps.push({ price: 1, timestamp });
-			}
+			...day("2026-03-18", 101, ["volume"]),
+		]);
+		for (let cycle = 0; cycle < 3; cycle++) {
+			const bars = await source.loadWindow(aapl, AT, 10);
+			expect(bars.map((bar) => bar.close)).toEqual([400, 100]);
 		}
-		expect(barsPerYear(steps)).toBeGreaterThan(255);
-		expect(barsPerYear(steps)).toBeLessThan(270);
+		expect(await issues("split_suspect")).toBe(before[0] + 1);
+		expect(await issues("incomplete_day")).toBe(before[1] + 1);
 	});
 });

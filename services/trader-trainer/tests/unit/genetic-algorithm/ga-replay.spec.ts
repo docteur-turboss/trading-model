@@ -15,7 +15,10 @@ import {
 import type { GaTelemetry } from "../../../src/domain/genetic-algorithm/ga-telemetry";
 import type { MarketStep } from "../../../src/domain/genetic-algorithm/genome";
 import { createGAControlGenome } from "../../../src/domain/genetic-algorithm/genome-control";
-import { makeSeededBackendFactory } from "../../../src/domain/genetic-algorithm/rl-backend";
+import {
+	makeSeededBackendFactory,
+	SIMULATOR_PARAMS,
+} from "../../../src/domain/genetic-algorithm/rl-backend";
 
 const INPUT_DIM = 32;
 const GENERATIONS = 2;
@@ -48,7 +51,10 @@ interface RunSummary {
 }
 
 /** Runs the real GA (no mock) for a few generations from a single seed. */
-async function runGA(seed: number): Promise<RunSummary> {
+async function runGA(
+	seed: number,
+	costs?: { feeRate: number; executionCostRate: number }
+): Promise<RunSummary> {
 	const contexts: GenerationContext[] = [];
 	const failures: string[] = [];
 	const telemetry: GaTelemetry = {
@@ -63,7 +69,7 @@ async function runGA(seed: number): Promise<RunSummary> {
 	const defaults = createGAControlGenome();
 	const runner = new GeneticAlgorithmRunner({
 		windowSets: WINDOW_SETS,
-		backendFactory: makeSeededBackendFactory(seed),
+		backendFactory: makeSeededBackendFactory(seed, { costs }),
 		telemetry,
 		onGeneration: (ctx) => contexts.push(ctx),
 		initialControl: {
@@ -120,6 +126,23 @@ describe("GA end-to-end replay", () => {
 		expect(second.bestId).toBe(first.bestId);
 		expect(second.populationIds).toEqual(first.populationIds);
 		expect(second.bestWeights).toEqual(first.bestWeights);
+	}, 30_000);
+
+	it("should publish the same genome with the crypto costs spelled out as with none (default unchanged)", async () => {
+		const none = await runGA(42);
+		const explicit = await runGA(42, {
+			feeRate: SIMULATOR_PARAMS.feeRate,
+			executionCostRate: SIMULATOR_PARAMS.executionCostRate,
+		});
+		expect(explicit.bestId).toBe(none.bestId);
+		expect(explicit.bestFitness).toEqual(none.bestFitness);
+		expect(explicit.bestWeights).toEqual(none.bestWeights);
+	}, 30_000);
+
+	it("should score differently with the costs of another asset class", async () => {
+		const crypto = await runGA(42);
+		const costly = await runGA(42, { feeRate: 0.01, executionCostRate: 0.01 });
+		expect(costly.bestFitness).not.toEqual(crypto.bestFitness);
 	}, 30_000);
 
 	it("should explore differently from another seed", async () => {

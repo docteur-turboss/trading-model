@@ -67,6 +67,30 @@ describe("evaluate a published model", () => {
 		expect(ModelManifest.safeParse(withSignals).success).toBe(true);
 	});
 
+	it("records the model of a daily asset: replay with a one-day bar and its own costs", async () => {
+		const daily = {
+			...MANIFEST,
+			symbol: "AAPL",
+			replay: {
+				from: 1,
+				testFrom: 2,
+				to: 3,
+				intervalMs: 86_400_000,
+				evalEpsilon: 0,
+				simulator: { feeRate: 0.0005, executionCostRate: 0.0005 },
+			},
+		};
+		expect(ModelManifest.safeParse(daily).success).toBe(true);
+		const evaluate = createEvaluateModel({
+			store: new FileEvaluationStore(dir),
+			trainer: {
+				manifest: async () => daily as ModelManifest,
+				weights: async () => ({ bytes: BYTES, sha256: SHA }),
+			},
+		});
+		expect(await evaluate({ ...EVENT, symbol: "AAPL" })).toBe("recorded");
+	});
+
 	it("records one evaluation and nothing more for a redelivery", async () => {
 		const { evaluate, calls } = evaluator();
 		expect(await evaluate(EVENT)).toBe("recorded");

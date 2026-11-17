@@ -1,9 +1,10 @@
 import { toSymbol } from "@trading-model/primitives/primitives";
 import { AssetType } from "@trading-model/validation/wire/signals";
-import type { SimulatorCosts } from "./genetic-algorithm/rl-backend";
+import {
+	SIMULATOR_PARAMS,
+	type SimulatorCosts,
+} from "./genetic-algorithm/rl-backend";
 import type { TradingSymbol } from "./market-data-types";
-
-export const DAY_MS = 86_400_000;
 
 /**
  * Execution costs of a daily asset by type (ADR-0082): a fee plus the
@@ -11,7 +12,10 @@ export const DAY_MS = 86_400_000;
  * wider. The crypto costs stay `SIMULATOR_PARAMS` (ADR-0066).
  */
 export const DEFAULT_ASSET_COSTS: Record<AssetType, SimulatorCosts> = {
-	crypto: { feeRate: 0.001, executionCostRate: 0.0005 },
+	crypto: {
+		feeRate: SIMULATOR_PARAMS.feeRate,
+		executionCostRate: SIMULATOR_PARAMS.executionCostRate,
+	},
 	equity: { feeRate: 0.0005, executionCostRate: 0.0005 },
 	etf: { feeRate: 0.0005, executionCostRate: 0.0003 },
 	bond: { feeRate: 0.0005, executionCostRate: 0.0005 },
@@ -24,7 +28,13 @@ export function parseAssets(csv: string[]): Map<TradingSymbol, AssetType> {
 	return new Map(
 		csv.map((pair) => {
 			const [asset, type] = pair.split(":");
-			return [toSymbol(asset), AssetType.parse(type)];
+			const parsed = AssetType.safeParse(type);
+			if (!(asset && parsed.success)) {
+				throw new Error(
+					`TRAINER_ASSETS entry "${pair}" must be ASSET:type, type one of ${AssetType.options.join(", ")}`
+				);
+			}
+			return [toSymbol(asset), parsed.data];
 		})
 	);
 }

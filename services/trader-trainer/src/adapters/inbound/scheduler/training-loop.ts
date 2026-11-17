@@ -10,10 +10,9 @@ import {
 	SIGNAL_READ_ERRORS_TOTAL,
 	SIGNAL_WINDOW_SIZE,
 } from "../../../config/metrics";
-import { DAY_MS } from "../../../domain/asset-costs";
 import { hasEnoughTrainingData } from "../../../domain/market-data/window-splitter";
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
-import type { TradingSymbol } from "../../../domain/market-data-types";
+import { DAY_MS, type TradingSymbol } from "../../../domain/market-data-types";
 import type { CandleHistoryPort } from "../../../domain/ports/candle-history.port";
 import type { SignalHistoryPort } from "../../../domain/ports/signal-history.port";
 import { signalKey } from "../../../domain/signal-features";

@@ -20,7 +20,6 @@ import {
 	eventInputLayout,
 	networkInputLayout,
 } from "../domain/agent/agent-state";
-import { DAY_MS } from "../domain/asset-costs";
 import { featureDriftScore } from "../domain/feature-drift";
 import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
@@ -31,7 +30,7 @@ import {
 } from "../domain/genetic-algorithm/rl-backend";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
-import type { TradingSymbol } from "../domain/market-data-types";
+import { DAY_MS, type TradingSymbol } from "../domain/market-data-types";
 import { assessAdmission } from "../domain/model-admission";
 import type { ModelReplayWindow } from "../domain/model-artifact";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";

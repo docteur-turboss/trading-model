@@ -197,25 +197,28 @@ export function createTraderTrainerContainer(
 	history: CandleHistoryPort,
 	signalHistory: SignalHistoryPort
 ): ApplicationContainer {
-	const dailyCosts = new Map<TradingSymbol, SimulatorCosts>(
-		[...parseAssets(parseCommaSeparated(settings.TRAINER_ASSETS ?? ""))].map(
-			([asset, type]) => [
-				asset,
-				{
-					...DEFAULT_ASSET_COSTS[type],
-					...settings.TRAINER_ASSET_COSTS?.[type],
-				},
-			]
-		)
+	const assets = parseAssets(
+		parseCommaSeparated(settings.TRAINER_ASSETS ?? "")
 	);
-	const bars = new SignalBarHistory(signalHistory);
+	const dailyCosts = new Map<TradingSymbol, SimulatorCosts>(
+		[...assets].map(([asset, type]) => [
+			asset,
+			{
+				...DEFAULT_ASSET_COSTS[type],
+				...settings.TRAINER_ASSET_COSTS?.[type],
+			},
+		])
+	);
+	const bars = new SignalBarHistory(signalHistory, assets);
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
 		symbols: [
-			...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
-				toSymbol(symbol)
-			),
-			...dailyCosts.keys(),
+			...new Set([
+				...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
+					toSymbol(symbol)
+				),
+				...dailyCosts.keys(),
+			]),
 		],
 		dailyCosts,
 		validationSplit: settings.TRAINER_VALIDATION_SPLIT,
