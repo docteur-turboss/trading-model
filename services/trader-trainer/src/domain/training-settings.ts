@@ -15,6 +15,8 @@ export interface TrainingSettings {
 	fitnessType: FitnessType;
 	/** Show the agent its position (default true, ADR-0025). */
 	observePosition?: boolean;
+	/** FEATURE_ACTION_SPACE_GENE (ADR-0039): the GA may choose the action set. */
+	actionSpaceGene?: boolean;
 	/** FEATURE_EVENT_DRIVEN_DECISIONS (ADR-0039): the population decides on market events. */
 	eventDriven?: boolean;
 	/** FEATURE_INPUT_MASK_GENE (ADR-0082): names of the input groups the genome masks. */
