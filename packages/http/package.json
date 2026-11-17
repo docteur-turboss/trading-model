@@ -29,7 +29,6 @@
     "./mtls-authorization": "./dist/mtls-authorization.js",
     "./mtls-identity": "./dist/mtls-identity.js",
     "./outbound-metrics": "./dist/outbound-metrics.js",
-    "./process-id-generator": "./dist/process-id-generator.js",
     "./readiness": "./dist/readiness.js",
     "./response-exception": "./dist/response-exception.js",
     "./response-exception/send-response": "./dist/response-exception/send-response.js",

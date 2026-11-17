@@ -1,9 +1,7 @@
 import { setLogger } from "@trading-model/contracts/logger-registry";
 import {
 	type JsonObject,
-	type ProcessId,
 	UnixTimestamp,
-	UserId,
 } from "@trading-model/primitives/primitives";
 import { formatLogEntry } from "./console-formatter";
 import {
@@ -12,31 +10,32 @@ import {
 	LogLevel,
 	type LogOptions,
 } from "./log-types";
-import { generateProcessId } from "./process-id-generator";
 import { getNodeEnv, NODE_ENV } from "./shared/node-env";
 
 export type { LogEntry, LogOptions };
 export { LogLevel };
 
-const UNKNOWN_USER = UserId.of("unknown");
-
 /** Writes structured log entries at or above the configured level. */
 export class Logger {
 	private _logLevel: LogLevel;
-	private readonly _processId: ProcessId;
 
-	constructor(logLevel: LogLevel = LogLevel.Info, processId?: ProcessId) {
+	constructor(logLevel: LogLevel = LogLevel.Info) {
 		this._logLevel = logLevel;
-		this._processId = processId ?? generateProcessId(logLevel);
 	}
 
 	private _log(level: LogLevel, message: string, context?: JsonObject): void {
 		if (!isLogLevelAtLeast(level, this._logLevel)) {
 			return;
 		}
-		const logEntry = this._buildLogEntry(level, message, context);
 		const { label, consoleFn } = this._consoleTarget(level);
-		this._emitLog(logEntry, label, consoleFn, context);
+		consoleFn(
+			formatLogEntry({
+				label,
+				timestamp: UnixTimestamp.now(),
+				message,
+				context,
+			})
+		);
 	}
 
 	private _consoleTarget(level: LogLevel): {
@@ -53,37 +52,6 @@ export class Logger {
 			default:
 				return { label: "INFO", consoleFn: console.info };
 		}
-	}
-
-	private _buildLogEntry(
-		level: LogLevel,
-		message: string,
-		context?: JsonObject
-	): LogEntry {
-		return {
-			timestamp: UnixTimestamp.now(),
-			level,
-			message,
-			context,
-			processId: this._processId || undefined,
-			userId: UNKNOWN_USER,
-		};
-	}
-
-	private _emitLog(
-		logEntry: LogEntry,
-		label: string,
-		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void,
-		context?: JsonObject
-	): void {
-		consoleFn(
-			formatLogEntry({
-				label,
-				timestamp: logEntry.timestamp,
-				message: logEntry.message,
-				context,
-			})
-		);
 	}
 
 	debug(message: string, context?: JsonObject) {
