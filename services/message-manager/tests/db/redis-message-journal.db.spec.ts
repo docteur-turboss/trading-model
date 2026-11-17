@@ -19,7 +19,7 @@ import {
 	mockServiceIdentity,
 	mockSubscribeParams,
 } from "../fixtures/broker.fixture";
-import { createMockHttpClient, runWorker } from "../helpers/broker.helper";
+import { createMockHttpClient } from "../helpers/broker.helper";
 
 jest.mock("../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: jest
@@ -261,7 +261,12 @@ describe("accepted message interrupted by a process stop — real Redis", () => 
 		expect(before.http.post).not.toHaveBeenCalled();
 
 		const after = process_();
-		await runWorker(after.worker);
+		after.worker.start();
+		const deadline = Date.now() + 5000;
+		while (after.http.post.mock.calls.length === 0 && Date.now() < deadline) {
+			await new Promise((resolve) => setTimeout(resolve, 5));
+		}
+		await after.worker.stop();
 
 		expect(after.http.post).toHaveBeenCalledTimes(1);
 		const body = after.http.post.mock.calls[0]?.[1] as {
