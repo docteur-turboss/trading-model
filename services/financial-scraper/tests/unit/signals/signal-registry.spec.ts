@@ -54,6 +54,7 @@ describe("signal registry — the shipped file", () => {
 			"NANTES_RE",
 			"LILLE_RE",
 			"MONTPELLIER_RE",
+			"XLE",
 			"EA_AAA_10Y",
 			"EA_AAA_2Y",
 			"EA_AAA_30Y",
@@ -74,12 +75,30 @@ describe("signal registry — the shipped file", () => {
 		]);
 	});
 
-	it("only holds sources free for any use", () => {
+	it("gives the EIA series to the whole energy sector, its key only in the query", () => {
+		const eia = SIGNAL_REGISTRY.sources.find(
+			(source) => source.id === "eia-weekly-energy"
+		);
+
+		expect(eia?.requests.map((request) => request.subject)).toEqual(
+			new Array(4).fill({ sector: "energy" })
+		);
+		expect(eia?.accessPolicy.auth).toMatchObject({
+			env: "SIGNAL_KEY_EIA",
+			in: "query",
+		});
+		expect(eia?.accessPolicy.maxRequestsPerDay).toBeDefined();
+		expect(SIGNAL_REGISTRY.assets.get("XLE")?.sector).toBe("energy");
+	});
+
+	it("only holds free sources, Twelve Data alone is non-commercial", () => {
 		const policies = SIGNAL_REGISTRY.sources.map((s) => s.accessPolicy);
 
-		expect(new Set(policies.map((p) => p.terms))).toEqual(
-			new Set(["attribution", "public-domain"])
-		);
+		expect(
+			SIGNAL_REGISTRY.sources
+				.filter((s) => s.accessPolicy.terms === "non-commercial")
+				.map((s) => s.id)
+		).toEqual(["twelvedata-daily-prices"]);
 		// A free key is allowed: a source without it is disabled alone.
 		expect(
 			policies.every(

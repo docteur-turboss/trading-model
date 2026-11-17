@@ -159,14 +159,11 @@ function alertRules(yamlText) {
   return rules;
 }
 
+/** A config file of a hashed ConfigMap (configMapGenerator of deploy/k8s/infra/kustomization.yaml). */
+const k8sConfigFile = (name) => readFileSync(join(ROOT, "deploy", "k8s", "infra", "config", name), "utf-8");
+
 function k8sAlertingConfig() {
-  const manifest = readFileSync(join(ROOT, "deploy", "k8s", "infra", "prometheus.yaml"), "utf-8");
-  for (const doc of manifest.split(/^---$/m)) {
-    const parsed = Bun.YAML.parse(doc);
-    if (parsed?.data?.["alerting.yml"]) return parsed.data["alerting.yml"];
-  }
-  errors.push("deploy/k8s/infra/prometheus.yaml: no alerting.yml ConfigMap entry");
-  return "groups: []";
+  return k8sConfigFile("alerting.yml");
 }
 
 const PROMQL_WORDS = new Set([
@@ -240,10 +237,10 @@ const INFRA_EXPORTER_JOBS = {
   redis_: "redis",
   mongodb_: "mongo-dlq",
 };
-const k8sPrometheus = readFileSync(join(ROOT, "deploy", "k8s", "infra", "prometheus.yaml"), "utf-8");
+const k8sPrometheus = k8sConfigFile("prometheus.yml") + k8sConfigFile("kubelet-scrape.yml");
 for (const [prefix, job] of Object.entries(INFRA_EXPORTER_JOBS)) {
   if (k8sPrometheus.includes(`job_name: '${job}'`)) EXPORTER_PREFIXES.push(prefix);
-  else errors.push(`deploy/k8s/infra/prometheus.yaml: no scrape job '${job}' for the ${prefix}* metrics`);
+  else errors.push(`deploy/k8s/infra/config: no scrape job '${job}' for the ${prefix}* metrics`);
 }
 
 function isEmitted(metric, emitted) {
@@ -310,7 +307,7 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
     });
   for (const [name, rule] of composeRules) {
     const other = k8sRules.get(name);
-    if (!other) errors.push(`Alert ${name}: in observability/alerting.yml, missing from deploy/k8s/infra/prometheus.yaml`);
+    if (!other) errors.push(`Alert ${name}: in observability/alerting.yml, missing from deploy/k8s/infra/config/alerting.yml`);
     else if (ruleKey(rule) !== ruleKey(other)) {
       errors.push(`Alert ${name}: expr/for/labels/annotations differ between compose and K8s`);
     }
@@ -324,7 +321,7 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
   }
   for (const name of k8sRules.keys()) {
     if (!composeRules.has(name)) {
-      errors.push(`Alert ${name}: in deploy/k8s/infra/prometheus.yaml, missing from observability/alerting.yml`);
+      errors.push(`Alert ${name}: in deploy/k8s/infra/config/alerting.yml, missing from observability/alerting.yml`);
     }
   }
 
@@ -357,14 +354,8 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
 // ── 8: Alertmanager: one config, file-based credentials, dead man's switch ───
 {
   const compose = Bun.YAML.parse(readFileSync(join(ROOT, "observability", "alertmanager.yml"), "utf-8"));
-  let k8s;
-  const manifest = readFileSync(join(ROOT, "deploy", "k8s", "infra", "alertmanager.yaml"), "utf-8");
-  for (const doc of manifest.split(/^---$/m)) {
-    const parsed = Bun.YAML.parse(doc);
-    if (parsed?.data?.["alertmanager.yml"]) k8s = Bun.YAML.parse(parsed.data["alertmanager.yml"]);
-  }
-  if (!k8s) errors.push("deploy/k8s/infra/alertmanager.yaml: no alertmanager.yml ConfigMap entry");
-  else if (JSON.stringify(k8s) !== JSON.stringify(compose)) {
+  const k8s = Bun.YAML.parse(k8sConfigFile("alertmanager.yml"));
+  if (JSON.stringify(k8s) !== JSON.stringify(compose)) {
     errors.push("Alertmanager config differs between observability/alertmanager.yml and the K8s ConfigMap");
   }
   // An inline credential is a placeholder (CHANGE_ME sent every alert nowhere)
@@ -414,14 +405,6 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
 {
   const infra = (file) => readFileSync(join(ROOT, "deploy", "k8s", "infra", file), "utf-8");
   const normalize = (text) => text.replace(/\r\n/g, "\n");
-  /** Value of a ConfigMap `data` key in a multi-document manifest, or undefined. */
-  const configMapEntry = (manifest, key) => {
-    for (const doc of manifest.split(/^---$/m)) {
-      const value = Bun.YAML.parse(doc)?.data?.[key];
-      if (value) return value;
-    }
-    return undefined;
-  };
 
   // 10a. every metric a panel queries is emitted (dashboards drifted on each rename).
   const composeDir = join(ROOT, "observability", "dashboards");
@@ -480,11 +463,9 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
       if (parsed?.kind === "Service") k8sServices.add(parsed.metadata?.name);
     }
   }
-  const k8sDatasourceYaml = configMapEntry(infra("grafana.yaml"), "datasources.yml");
-  if (!k8sDatasourceYaml) errors.push("deploy/k8s/infra/grafana.yaml: no datasources.yml ConfigMap entry");
-  for (const ds of k8sDatasourceYaml ? Bun.YAML.parse(k8sDatasourceYaml).datasources ?? [] : []) {
+  for (const ds of Bun.YAML.parse(k8sConfigFile("datasources.yml")).datasources ?? []) {
     if (!k8sServices.has(hostOf(ds.url))) {
-      errors.push(`Datasource ${ds.name} (deploy/k8s/infra/grafana.yaml): ${ds.url} names no Service of deploy/k8s/infra`);
+      errors.push(`Datasource ${ds.name} (deploy/k8s/infra/config/datasources.yml): ${ds.url} names no Service of deploy/k8s/infra`);
     }
   }
 
@@ -493,12 +474,11 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
     .filter(([, rule]) => promqlMetricNames(rule.expr).some((m) => m.startsWith("probe_")))
     .map(([name]) => name);
   if (probeRules.length > 0) {
-    const k8sPrometheus = configMapEntry(infra("prometheus.yaml"), "prometheus.yml");
     for (const [env, text] of [
       ["observability/prometheus.yml", readFileSync(join(ROOT, "observability", "prometheus.yml"), "utf-8")],
-      ["deploy/k8s/infra/prometheus.yaml", k8sPrometheus],
+      ["deploy/k8s/infra/config/prometheus.yml", k8sConfigFile("prometheus.yml")],
     ]) {
-      const jobs = text ? Bun.YAML.parse(text).scrape_configs ?? [] : [];
+      const jobs = Bun.YAML.parse(text).scrape_configs ?? [];
       if (!jobs.some((job) => job.metrics_path === "/probe")) {
         errors.push(`${env}: no blackbox scrape job (metrics_path /probe) but ${probeRules.join(", ")} read probe_* metrics`);
       }

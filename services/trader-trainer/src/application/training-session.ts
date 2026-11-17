@@ -141,6 +141,7 @@ class TrainingSession {
 					.episodesPerIndividual as PositiveInt,
 			},
 			fitnessType: this._settings.fitnessType,
+			...(this._settings.actionSpaceGene && { actionSetGene: true }),
 		};
 	}
 
@@ -158,6 +159,7 @@ class TrainingSession {
 			onGeneration,
 			telemetry: this._telemetry,
 			signal: this._signal,
+			eventDriven: this._settings.eventDriven,
 		});
 	}
 }

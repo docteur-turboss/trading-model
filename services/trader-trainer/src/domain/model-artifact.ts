@@ -1,4 +1,5 @@
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
+import { actionLabels } from "./agent/action-mapper";
 import { EVAL_EPSILON } from "./genetic-algorithm/evaluation-phase";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
 import { SIMULATOR_PARAMS } from "./genetic-algorithm/rl-backend";
@@ -88,6 +89,8 @@ export interface ModelManifest {
 	metrics: ModelMetrics;
 	/** Constraint the policy learned under (absent on older manifests: unbounded). */
 	riskLimits?: { maxExposureFraction: number };
+	/** Ordered actions: network output `i` is `actions[i]`; absent: sell, hold, buy (ADR-0076). */
+	actions?: string[];
 	/** ADR-0030 verdict on the test segment (ADR-0069); absent: not admissible. */
 	admission?: ModelAdmission;
 	/** Window and simulator to replay the model (ADR-0079); absent on older manifests. */
@@ -155,6 +158,9 @@ export function buildModelManifest(
 			maxDrawdown: summary.maxDrawdown,
 			evaluatedOn: summary.evaluatedOn,
 		},
+		...(artifact.bestGenome.network.actionSet && {
+			actions: actionLabels(artifact.bestGenome.network.actionSet),
+		}),
 		...(artifact.admission && { admission: artifact.admission }),
 		...(artifact.window && {
 			replay: {

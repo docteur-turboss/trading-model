@@ -5,7 +5,7 @@
  * hooks to Prometheus (config/container.ts); the default is a no-op.
  */
 export interface GaTelemetry {
-	generationStarted(generation: number, populationSize: number): void;
+	generationStarted(generation: number): void;
 	stagnationUpdated(stagnation: number): void;
 	evaluationFailed(reason: string): void;
 	/** One genome evaluated on every window: it blocks the event loop that long. */

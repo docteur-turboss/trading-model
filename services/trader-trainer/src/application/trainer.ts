@@ -16,8 +16,12 @@ import {
 	TRAINING_SESSIONS_TOTAL,
 	TRAINING_STATUS,
 } from "../config/metrics";
-import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
+import {
+	eventInputLayout,
+	networkInputLayout,
+} from "../domain/agent/agent-state";
 import { featureDriftScore } from "../domain/feature-drift";
+import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
@@ -128,7 +132,9 @@ export class Trainer {
 				if (
 					manifest &&
 					JSON.stringify(manifest.features) !==
-						JSON.stringify(NETWORK_INPUT_LAYOUT)
+						JSON.stringify(networkInputLayout(this._dataBuffer.signalKeys)) &&
+					JSON.stringify(manifest.features) !==
+						JSON.stringify(eventInputLayout(this._dataBuffer.signalKeys))
 				) {
 					// Published before the 18-input layout (ADR-0078): retrained, not served.
 					getLogger().warn("Stored model has another feature layout, skipped", {
@@ -288,7 +294,9 @@ export class Trainer {
 				instanceId: this._deps.instanceId ?? "trader-trainer",
 				bestGenome: result.bestGenome,
 				weights: new Float32Array(weights),
-				features: NETWORK_INPUT_LAYOUT,
+				features: isEventDriven(result.bestGenome.rl.horizon)
+					? eventInputLayout(this._dataBuffer.signalKeys)
+					: networkInputLayout(this._dataBuffer.signalKeys),
 				normalization,
 				summary,
 				admission,

@@ -32,6 +32,18 @@ function makeValidEnv(): Record<string, string> {
 }
 
 describe("Env Schema", () => {
+	it("rejects a signal key that is not SUBJECT:dimension:metric", () => {
+		const parse = (keys: string) =>
+			TRADER_TRAINER_ENV_SCHEMA.safeParse({
+				...makeValidEnv(),
+				TRAINER_SIGNAL_FEATURES: keys,
+			}).success;
+
+		expect(parse("BTC:social:pageviews, EA:macro:cpi")).toBe(true);
+		expect(parse("BTC:social")).toBe(false);
+		expect(parse("BTC:social:pageviews:x")).toBe(false);
+	});
+
 	it("should parse a valid environment configuration", () => {
 		const result = TRADER_TRAINER_ENV_SCHEMA.safeParse(makeValidEnv());
 

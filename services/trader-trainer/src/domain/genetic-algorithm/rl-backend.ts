@@ -14,6 +14,7 @@ import {
 	Reward,
 } from "@trading-model/primitives/primitives";
 import { TradingAgent, type TradingAgentConfig } from "../agent/trading-agent";
+import { MAX_BARS_SINCE_DECISION } from "./decision-events";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 interface StepInput {
@@ -49,6 +50,8 @@ export interface Transition {
 	/** Shaped (n-step) reward. */
 	reward: number;
 	nextState: Float32Array;
+	/** γ^bars elapsed to `nextState` (event-driven genomes); absent: the replay's. */
+	discount?: number;
 	/** The episode ended: no value to bootstrap from `nextState`. */
 	done: boolean;
 }
@@ -59,7 +62,11 @@ export interface RLBackend {
 	 * Decides and trades at this bar. `reward` is the wallet PnL earned by the
 	 * previous decision (see TradingAgent.step), `action` the output unit played.
 	 */
-	step(input: StepInput): {
+	step(
+		input: StepInput,
+		/** Bars since the previous decision, event-driven genomes only. */
+		barsSince?: number
+	): {
 		reward: number;
 		action: number;
 		/** The network input the decision was taken on. */
@@ -130,8 +137,9 @@ function _buildAgentConfig(
 	rng: () => number,
 	options: BackendOptions
 ): TradingAgentConfig {
-	// Q-learning picks among a finite set of actions: sell / hold / buy.
+	// Q-learning picks among the finite actions of the genome's action set.
 	return {
+		actionSet: genome.network.actionSet,
 		nnConfig: _buildNNConfig(genome, rng),
 		wallet: {
 			initialCash: Cash.of(SIMULATOR_PARAMS.initialCash),
@@ -190,11 +198,14 @@ export function makeTradingAgentBackend(
 
 	return {
 		forwardPass: (features) => agent.forwardPass(encoded(features)).output,
-		step: (input) => {
+		step: (input, barsSince) => {
 			const result = agent.step(
 				encoded(input.features),
 				input.price,
-				input.fillPrice
+				input.fillPrice,
+				barsSince === undefined
+					? undefined
+					: (2 * barsSince) / MAX_BARS_SINCE_DECISION - 1
 			);
 			return {
 				reward: result.reward,
@@ -211,6 +222,9 @@ export function makeTradingAgentBackend(
 				nextState: transition.nextState,
 				done: transition.done,
 				action: transition.action,
+				...(transition.discount !== undefined && {
+					discount: transition.discount,
+				}),
 			}),
 		replay: (batchSize, discount) => {
 			agent.replay(batchSize, discount);

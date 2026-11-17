@@ -1,7 +1,18 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import {
+	type Context,
+	context,
+	propagation,
+	ROOT_CONTEXT,
+	trace,
+} from "@opentelemetry/api";
 import type { Message } from "@trading-model/contracts/message-types";
 import { BusConsumer } from "../../../src/bus/consumer";
 import { DeadStreams } from "../../../src/bus/dead-streams";
+import {
+	MESSAGES_DELIVERED_TOTAL,
+	MESSAGES_DLQ_TOTAL,
+} from "../../../src/bus/metrics";
 import { publishToBus } from "../../../src/bus/publisher";
 import { RedisMessageJournal } from "../../../src/bus/redis-journal";
 import { deadLetterError } from "../../../src/shared/errors";
@@ -104,6 +115,113 @@ describe("BusConsumer", () => {
 		expect(pendingOf(redis)).toBe(0);
 	});
 
+	it("should run the handler in the publisher trace and count the delivery", async () => {
+		// Minimal synchronous context manager: the API default is a no-op one.
+		let active: Context = ROOT_CONTEXT;
+		context.setGlobalContextManager({
+			active: () => active,
+			with: (ctx, fn, thisArg, ...args) => {
+				const previous = active;
+				active = ctx;
+				try {
+					return fn.call(thisArg, ...args);
+				} finally {
+					active = previous;
+				}
+			},
+			bind: (_ctx, target) => target,
+			enable() {
+				return this;
+			},
+			disable() {
+				return this;
+			},
+		});
+		MESSAGES_DELIVERED_TOTAL.reset();
+		const traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
+		// No W3C propagator is registered in tests: extract builds the span context itself.
+		jest.spyOn(propagation, "extract").mockImplementation((_ctx, carrier) =>
+			trace.setSpanContext(ROOT_CONTEXT, {
+				traceId: (carrier as { traceparent: string }).traceparent.split(
+					"-"
+				)[1] as string,
+				spanId: "00f067aa0ba902b7",
+				traceFlags: 1,
+			})
+		);
+		const seen: (string | undefined)[] = [];
+		const { consumer: c, journal } = consumer(async () => {
+			seen.push(trace.getSpanContext(context.active())?.traceId);
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "a", {
+			...METADATA,
+			traceparent: `00-${traceId}-00f067aa0ba902b7-01`,
+		});
+		await until(() => seen.length === 1);
+		await c.stop();
+		context.disable();
+		jest.restoreAllMocks();
+
+		expect(seen).toEqual([traceId]);
+		expect(
+			(await MESSAGES_DELIVERED_TOTAL.get()).values.find(
+				(v) => v.labels.topic === TOPIC && v.labels.status === "success"
+			)?.value
+		).toBe(1);
+	});
+
+	it("should handle a later entry while an earlier one is still slow, and let stop() wait for it", async () => {
+		const handled: unknown[] = [];
+		let release = () => {};
+		const slow = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const {
+			consumer: c,
+			journal,
+			redis,
+		} = consumer(async (m) => {
+			if (m.payload === "slow") {
+				await slow;
+			}
+			handled.push(m.payload);
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "slow", METADATA);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		await publishToBus(journal, "fast", METADATA);
+		await until(() => handled.includes("fast"));
+
+		expect(handled).toEqual(["fast"]);
+		const stopped = c.stop();
+		release();
+		await stopped;
+		expect(handled).toEqual(["fast", "slow"]);
+		expect(pendingOf(redis)).toBe(0);
+	});
+
+	it("should not claim again an entry whose handler is still running", async () => {
+		let calls = 0;
+		let release = () => {};
+		const slow = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const { consumer: c, journal } = consumer(async () => {
+			calls++;
+			await slow;
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "slow", METADATA);
+		// The fake Redis reports every pending entry as due; claims run every 2 s.
+		await new Promise((resolve) => setTimeout(resolve, 2500));
+		const stopped = c.stop();
+		release();
+		await stopped;
+
+		expect(calls).toBe(1);
+	});
+
 	it("should leave a failed message pending for its retry", async () => {
 		const {
 			consumer: c,
@@ -123,6 +241,7 @@ describe("BusConsumer", () => {
 	});
 
 	it("should dead-letter a rejected message and report it", async () => {
+		MESSAGES_DLQ_TOTAL.reset();
 		const {
 			consumer: c,
 			journal,
@@ -143,6 +262,11 @@ describe("BusConsumer", () => {
 			reason: "REJECTED_BY_SUBSCRIBER",
 			attempts: 1,
 		});
+		expect(
+			(await MESSAGES_DLQ_TOTAL.get()).values.find(
+				(v) => v.labels.topic === TOPIC
+			)?.value
+		).toBe(1);
 		expect(onDeadLetter).toHaveBeenCalledWith(
 			GROUP,
 			expect.anything(),

@@ -6,6 +6,7 @@ import type {
 	SequenceNumber,
 	Topic,
 } from "@trading-model/primitives/primitives";
+import { runInMessageTraceContext } from "../shared/trace-context";
 import { DELIVERY_ATTEMPT_TIMEOUT_MS, retryDueMs } from "./backoff";
 import type { DeadStreams } from "./dead-streams";
 import {
@@ -14,12 +15,21 @@ import {
 } from "./delivery-error-classifier";
 import { extractDeliveryParams } from "./delivery-metadata-extractor";
 import type { JournalEntry, JournalGroup } from "./journal.port";
+import {
+	BUS_DEAD_LETTERS,
+	JOURNAL_OLDEST_PENDING_AGE_SECONDS,
+	JOURNAL_PENDING_ENTRIES,
+	MESSAGES_DELIVERED_TOTAL,
+	MESSAGES_DLQ_TOTAL,
+} from "./metrics";
 import type { RedisMessageJournal } from "./redis-journal";
 
 const BATCH = 100;
 /** A blocking read ends after this long without entry, so the loop sees a stop. */
 const BLOCK_MS = 1000;
 const CLAIM_EVERY_MS = 2000;
+/** Between two reads of the backlog: a few Redis calls per topic, never per message. */
+const LAG_EVERY_MS = 15_000;
 
 export interface BusConsumerOptions {
 	journal: RedisMessageJournal;
@@ -49,6 +59,7 @@ export class BusConsumer {
 	private readonly _consumer: string;
 	private readonly _loops: Promise<void>[] = [];
 	private _stopped = true;
+	private _lagTimer?: NodeJS.Timeout;
 
 	constructor(private readonly _options: BusConsumerOptions) {
 		this._consumer = _options.consumer ?? `${_options.service}-${randomUUID()}`;
@@ -65,15 +76,48 @@ export class BusConsumer {
 			groups.map((group) => this._options.journal.register(group))
 		);
 		this._loops.push(...groups.map((group) => this._loop(group)));
+		this._lagTimer = setInterval(
+			() => void this._publishLag(topics),
+			LAG_EVERY_MS
+		);
+		this._lagTimer.unref();
 	}
 
 	async stop(): Promise<void> {
 		this._stopped = true;
+		clearInterval(this._lagTimer);
 		this._options.journal.close();
 		await Promise.all(this._loops);
 		// A loop between its stop test and a read may have reopened a reader.
 		this._options.journal.close();
 		this._loops.length = 0;
+	}
+
+	/** Sets the backlog and dead-letter gauges of this service's groups; a failed read drops the series (a stale value would fake or hide a backlog). */
+	private async _publishLag(topics: readonly string[]): Promise<void> {
+		const { journal, deadStreams, service } = this._options;
+		JOURNAL_PENDING_ENTRIES.reset();
+		JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
+		try {
+			for (const lag of await journal.lag()) {
+				if (lag.service === service) {
+					const labels = { topic: lag.topic, service };
+					JOURNAL_PENDING_ENTRIES.set(labels, lag.pending);
+					JOURNAL_OLDEST_PENDING_AGE_SECONDS.set(
+						labels,
+						lag.oldestPendingAgeMs / 1000
+					);
+				}
+			}
+			for (const topic of topics) {
+				BUS_DEAD_LETTERS.set({ topic }, await deadStreams.length(topic));
+			}
+		} catch (err) {
+			getLogger().error("Bus lag not published", {
+				context: { service },
+				error: normalizeError(err),
+			});
+		}
 	}
 
 	private async _loop(group: JournalGroup): Promise<void> {
@@ -83,29 +127,57 @@ export class BusConsumer {
 			dueAfterMs: retryDueMs,
 		};
 		let lastClaim = 0;
-		while (!this._stopped) {
-			try {
-				const claim = Date.now() - lastClaim >= CLAIM_EVERY_MS;
-				if (claim) {
-					lastClaim = Date.now();
+		// A slow entry holds only its own slot: reads refill the free ones.
+		const inFlight = new Set<Promise<void>>();
+		// Entries whose handler still runs: a claim must not start them twice.
+		const handling = new Set<string>();
+		try {
+			while (!this._stopped) {
+				try {
+					if (inFlight.size >= BATCH) {
+						await Promise.race(inFlight);
+						continue;
+					}
+					const claim = Date.now() - lastClaim >= CLAIM_EVERY_MS;
+					if (claim) {
+						lastClaim = Date.now();
+					}
+					const entries = claim
+						? await journal.claimDue(
+								group,
+								this._consumer,
+								retry,
+								BATCH - inFlight.size,
+								handling
+							)
+						: [];
+					const free = BATCH - inFlight.size - entries.length;
+					if (free > 0) {
+						entries.push(
+							...(await journal.readNew(group, this._consumer, free, BLOCK_MS))
+						);
+					}
+					for (const entry of entries) {
+						handling.add(entry.id);
+						const task = this._process(group, entry).finally(() => {
+							inFlight.delete(task);
+							handling.delete(entry.id);
+						});
+						inFlight.add(task);
+					}
+				} catch (err) {
+					if (this._stopped) {
+						return;
+					}
+					getLogger().error("Bus consumer loop failed", {
+						context: { topic: group.topic, service: group.service },
+						error: normalizeError(err),
+					});
+					await new Promise((resolve) => setTimeout(resolve, BLOCK_MS));
 				}
-				const entries = [
-					...(claim
-						? await journal.claimDue(group, this._consumer, retry, BATCH)
-						: []),
-					...(await journal.readNew(group, this._consumer, BATCH, BLOCK_MS)),
-				];
-				await Promise.all(entries.map((entry) => this._process(group, entry)));
-			} catch (err) {
-				if (this._stopped) {
-					return;
-				}
-				getLogger().error("Bus consumer loop failed", {
-					context: { topic: group.topic, service: group.service },
-					error: normalizeError(err),
-				});
-				await new Promise((resolve) => setTimeout(resolve, BLOCK_MS));
 			}
+		} finally {
+			await Promise.all(inFlight);
 		}
 	}
 
@@ -121,8 +193,12 @@ export class BusConsumer {
 		};
 		try {
 			try {
-				await handle(entry.message);
+				await runInMessageTraceContext(entry.message.metadata, () =>
+					handle(entry.message)
+				);
+				MESSAGES_DELIVERED_TOTAL.inc({ topic: group.topic, status: "success" });
 			} catch (err) {
+				MESSAGES_DELIVERED_TOTAL.inc({ topic: group.topic, status: "failed" });
 				const action = classifyDeliveryError(
 					err,
 					entry.deliveries as SequenceNumber,
@@ -136,6 +212,7 @@ export class BusConsumer {
 						action.reason,
 						entry.deliveries
 					);
+					MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason: action.reason });
 					onDeadLetter?.(group, entry.message, action.reason, id);
 				} else if (action.action === ErrorActionType.SWALLOW) {
 					await journal.ack(group, entry.id);

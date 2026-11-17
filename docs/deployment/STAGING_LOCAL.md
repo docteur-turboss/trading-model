@@ -157,8 +157,23 @@ enforced by `tests/k8s/check-overlays.mjs`):
   rollout complete, so `deploy-release.sh wait` and the first-deploy migration
   step go on;
 - a new cluster (or a deleted StatefulSet) gets the current template;
-- a pod deleted or evicted comes back with the template of its revision, not
-  the newest one;
+- a pod deleted, evicted or restarted comes back with the template of its
+  revision, not the newest one, but a ConfigMap it mounts by a bare name
+  (no hash suffix) is read as the last deploy left it (issues #1456, #1460; enforced
+  for every partitioned StatefulSet by `tests/k8s/check-overlays.mjs`). The 3.0.0 `mysql`
+  template mounts `mysql-group-replication-config`, which the overlay renders
+  with the 3.0.0 content (no TLS); if mysql-0 refuses every client
+  (`require_secure_transport=ON` without TLS), apply it again and restart the
+  pod:
+
+  ```bash
+  kubectl apply -f deploy/k8s/overlays/staging-local/mysql-group-replication-config.yaml
+  kubectl -n trading-model-staging delete pod mysql-0
+  ```
+
+- the Redis ACL written by `redis-ha.sh` reaches a partitioned `redis-0` only
+  with the planned `redis` / `redis-sentinel` restart: code must not need a
+  new Redis command in the release that grants it;
 - until restarted, the pods lack what the new template adds. 3.1.0: no
   exporter, so no Prometheus target and no `mysql_up` / `redis_up` /
   `mongodb_up` series. `MySQLDown`, `RedisDown` and `MongoDBDown` stay silent
@@ -198,8 +213,9 @@ the same two deploys: a deploy between them brings the outage back.
 
 1. Merge the removal of the three `configMapGenerator` entries and of the
    `mysql-client-tls` patch of issue #1066 from
-   `overlays/staging-local/kustomization.yaml`: the next deploy must not bring
-   them back.
+   `overlays/staging-local/kustomization.yaml`, and of
+   `mysql-group-replication-config.yaml` (issue #1456): the next deploy must
+   not bring them back.
 2. Restart `mongo-dlq`, then `mongo-audit`, then `mysql` with the loop above.
    MongoDB then takes `--keyFile` and still accepts clear text (`preferTLS`,
    `--transitionToAuth`); the users exist (the `mongo-*-users` Jobs created

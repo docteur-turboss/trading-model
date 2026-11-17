@@ -1,3 +1,8 @@
+import {
+	barsSinceDecision,
+	decisionBars,
+	isEventDriven,
+} from "./decision-events";
 import type { LamarckGenome, MarketStep } from "./genome";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
@@ -17,9 +22,11 @@ export interface EvaluationPnl {
 	episodePnl: number[];
 	/**
 	 * PnL change of every validation bar, episodes one after the other. A bar
-	 * skipped by frameSkip counts 0: its price move lands on the next decision.
+	 * skipped by frameSkip or between two events counts 0: its price move lands on the next decision.
 	 */
 	pnlCurve: number[];
+	/** Decisions taken over all the episodes: 0 is a model that never trades. */
+	decisions?: number;
 }
 
 export interface EvaluationResult extends EvaluationPnl {
@@ -59,26 +66,33 @@ function evaluationGenome(
 function _runEvalEpisode(
 	ctx: GenomeEvaluationContext,
 	pnlCurve: number[]
-): number {
+): { pnl: number; decisions: number } {
 	const { genome, validationData, backendFactory } = ctx;
 	const backend = backendFactory(evaluationGenome(genome));
-	const frameSkip = genome.rl.horizon.frameSkip;
+	const horizon = genome.rl.horizon;
+	const eventDriven = isEventDriven(horizon);
+	const bars = decisionBars(validationData, horizon);
+	let rank = 0;
 	const startPnl = Number(backend.getPnL());
 	let lastPnl = startPnl;
 
 	for (let index = 0; index < validationData.length; index++) {
-		if (index % frameSkip !== 0) {
+		if (bars[rank] !== index) {
 			pnlCurve.push(0);
 			continue;
 		}
-		backend.step(validationData[index]);
+		backend.step(
+			validationData[index],
+			eventDriven ? barsSinceDecision(bars, rank) : undefined
+		);
+		rank++;
 		const pnl = Number(backend.getPnL());
 		pnlCurve.push(pnl - lastPnl);
 		lastPnl = pnl;
 	}
 
 	backend.resetEpisode();
-	return lastPnl - startPnl;
+	return { pnl: lastPnl - startPnl, decisions: bars.length };
 }
 
 export function evalPhase(ctx: GenomeEvaluationContext): EvaluationPnl {
@@ -86,9 +100,13 @@ export function evalPhase(ctx: GenomeEvaluationContext): EvaluationPnl {
 	const episodePnl: number[] = [];
 	const pnlCurve: number[] = [];
 
+	let decisions = 0;
+
 	for (let ep = 0; ep < numEpisodes; ep++) {
-		episodePnl.push(_runEvalEpisode(ctx, pnlCurve));
+		const episode = _runEvalEpisode(ctx, pnlCurve);
+		episodePnl.push(episode.pnl);
+		decisions += episode.decisions;
 	}
 
-	return { episodePnl, pnlCurve };
+	return { episodePnl, pnlCurve, decisions };
 }

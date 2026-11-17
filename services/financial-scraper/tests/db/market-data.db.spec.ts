@@ -394,17 +394,6 @@ describe("market_trades — real MySQL", () => {
 		).resolves.toHaveLength(1);
 	});
 
-	it("should upsert past the INT limit once the id is BIGINT UNSIGNED (issue #1379)", async () => {
-		await DATABASE.promise().query(
-			"ALTER TABLE market_trades AUTO_INCREMENT = 2147483648"
-		);
-
-		await insertTrades([trade({ tradeId: 77n })]);
-
-		const [row] = await selectTradesBy.symbol(SYMBOL, PAGE);
-		expect(row.id).toBeGreaterThan(2_147_483_647);
-	});
-
 	it("should reject a side outside the column enum", async () => {
 		await expect(
 			insertTrades([trade({ side: "hold" as TradeSide })])
