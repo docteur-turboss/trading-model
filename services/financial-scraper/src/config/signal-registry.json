@@ -83,6 +83,7 @@
 			],
 			"sector": "technology",
 			"aliases": {
+				"twelvedata": "MSFT",
 				"cik": "0000789019",
 				"wikipedia": "Microsoft"
 			},
@@ -106,6 +107,7 @@
 			],
 			"sector": "financials",
 			"aliases": {
+				"twelvedata": "JPM",
 				"cik": "0000019617",
 				"wikipedia": "JPMorgan Chase"
 			},
@@ -129,6 +131,7 @@
 			],
 			"sector": "energy",
 			"aliases": {
+				"twelvedata": "XOM",
 				"cik": "0000034088",
 				"wikipedia": "ExxonMobil"
 			},
@@ -152,6 +155,7 @@
 			],
 			"sector": "healthcare",
 			"aliases": {
+				"twelvedata": "JNJ",
 				"cik": "0000200406",
 				"wikipedia": "Johnson & Johnson"
 			},
