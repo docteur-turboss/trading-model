@@ -24,6 +24,10 @@ class EventEmitter<TEvents extends keyof EventMap> {
 		return () => this._emitter.off(eventName, callback);
 	}
 
+	listenerCount(eventName: TEvents): number {
+		return this._emitter.listenerCount(eventName);
+	}
+
 	emit<TEvent extends TEvents>(
 		eventName: TEvent,
 		...args: [EventMessagesArgs<TEvent>] extends [undefined]
