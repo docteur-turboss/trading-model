@@ -26,9 +26,13 @@ import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
+import {
+	SIMULATOR_PARAMS,
+	type SimulatorCosts,
+} from "../domain/genetic-algorithm/rl-backend";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
-import type { TradingSymbol } from "../domain/market-data-types";
+import { DAY_MS, type TradingSymbol } from "../domain/market-data-types";
 import { assessAdmission } from "../domain/model-admission";
 import type { ModelReplayWindow } from "../domain/model-artifact";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
@@ -68,6 +72,8 @@ interface TrainerDeps {
 	instanceId?: string;
 	/** Where the session runs; default: the calling thread. */
 	runner?: TrainingRunner;
+	/** Costs of a daily asset (ADR-0083); undefined: a crypto symbol on one-minute candles. */
+	dailyCosts?: (symbol: TradingSymbol) => SimulatorCosts | undefined;
 }
 
 enum TrainerStatus {
@@ -241,7 +247,7 @@ export class Trainer {
 		const run: TrainingRunner = this._deps.runner ?? runInProcess;
 		const result: TrainingSessionResult = await run(
 			windowSets,
-			this._deps.settings,
+			{ ...this._deps.settings, costs: this._deps.dailyCosts?.(symbol) },
 			this._deps.telemetry,
 			signal
 		);
@@ -345,10 +351,15 @@ export class Trainer {
 		if (candles.length === 0 || testFrom === undefined) {
 			return;
 		}
+		const costs = this._deps.dailyCosts?.(symbol);
 		return {
 			from: candles[0].timestamp,
 			testFrom,
 			to: candles[candles.length - 1].closeTimestamp,
+			...(costs && {
+				intervalMs: DAY_MS,
+				simulator: { ...SIMULATOR_PARAMS, ...costs },
+			}),
 		};
 	}
 
