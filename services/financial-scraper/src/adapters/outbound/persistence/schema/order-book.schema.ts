@@ -32,17 +32,22 @@ export const insertOrderBook = defineUpsert<OrderBookData>({
 /** One stored snapshot: `[price, quantity]` pairs, best level first. */
 export interface StoredOrderBook {
 	symbol: string;
+	market: string;
+	source: string;
 	timestamp: number;
 	bids: number[][];
 	asks: number[][];
 }
 
 /**
- * Replay read (ADR-0053): the snapshots of a symbol in `[from, to)` (ms),
- * oldest first, straight from MySQL (the primary key serves the range).
+ * Replay read (ADR-0053): the snapshots of a series (symbol, market, source)
+ * in `[from, to)` (ms), oldest first, straight from MySQL (equality on the
+ * first three primary key columns, then a range on `timestamp`).
  */
 export async function selectOrderBooks(
 	symbol: string,
+	market: string,
+	source: string,
 	from: number,
 	to: number,
 	limit: number
@@ -51,12 +56,14 @@ export async function selectOrderBooks(
 		(RowDataPacket & { timestamp: Date; bids: number[][]; asks: number[][] })[]
 	>(
 		`SELECT symbol, timestamp, bids, asks FROM market_order_books
-		WHERE symbol = ? AND timestamp >= ? AND timestamp < ?
+		WHERE symbol = ? AND market = ? AND source = ? AND timestamp >= ? AND timestamp < ?
 		ORDER BY timestamp LIMIT ?`,
-		[symbol, new Date(from), new Date(to), limit]
+		[symbol, market, source, new Date(from), new Date(to), limit]
 	);
 	return rows.map((row) => ({
 		symbol,
+		market,
+		source,
 		timestamp: row.timestamp.getTime(),
 		bids: row.bids,
 		asks: row.asks,

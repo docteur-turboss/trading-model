@@ -1,14 +1,17 @@
 /**
  * Operator command (ADR-0053): prints the stored order book snapshots of a
- * symbol as JSON lines, oldest first.
- * Usage: order-book-replay <SYMBOL> <fromIso> <toIso> [limit]
+ * series as JSON lines, oldest first.
+ * Usage: order-book-replay <SYMBOL> <MARKET> <SOURCE> <fromIso> <toIso> [limit]
  */
 async function _main(): Promise<number> {
-	const [symbol, from, to, limit = "1000"] = process.argv.slice(2);
+	const [symbol, market, source, from, to, limit = "1000"] =
+		process.argv.slice(2);
 	const [start, end] = [Date.parse(from), Date.parse(to)];
-	if (!symbol || Number.isNaN(start) || Number.isNaN(end)) {
+	if (
+		!(symbol && market && source && start < end && /^[1-9]\d*$/.test(limit))
+	) {
 		console.error(
-			"Usage: order-book-replay <SYMBOL> <fromIso> <toIso> [limit]"
+			"Usage: order-book-replay <SYMBOL> <MARKET> <SOURCE> <fromIso> <toIso> [limit] (from < to, limit integer >= 1)"
 		);
 		return 1;
 	}
@@ -19,6 +22,8 @@ async function _main(): Promise<number> {
 	try {
 		for (const book of await selectOrderBooks(
 			symbol,
+			market,
+			source,
 			start,
 			end,
 			Number(limit)
