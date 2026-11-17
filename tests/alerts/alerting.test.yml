@@ -454,6 +454,8 @@ tests:
         values: '1x10'
       - series: 'up{job="trader-trainer",instance="i"}'
         values: '1x10'
+      - series: 'up{job="model-evaluator",instance="i"}'
+        values: '1x10'
       - series: 'up{job="dlq-service",instance="i"}'
         values: '0x10'
     alert_rule_test:
@@ -475,6 +477,8 @@ tests:
       - series: 'up{job="financial-scraper",instance="i"}'
         values: '1x10'
       - series: 'up{job="trader-trainer",instance="i"}'
+        values: '1x10'
+      - series: 'up{job="model-evaluator",instance="i"}'
         values: '1x10'
     alert_rule_test:
       - eval_time: 10m
