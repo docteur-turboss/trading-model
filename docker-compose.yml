@@ -845,7 +845,7 @@ services:
       - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090'
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./observability/alerting.yml:/etc/prometheus/alerting.yml:ro
+      - ./deploy/k8s/infra/config/alerting.yml:/etc/prometheus/alerting.yml:ro
       - prometheus-data:/prometheus
       - svid-prometheus:/run/spire/svid:ro
     networks:
@@ -991,9 +991,9 @@ services:
     ports:
       - '127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093'
     volumes:
-      - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./deploy/k8s/infra/config/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       # One file per key (SLACK_WEBHOOK_URL, PUSHOVER_USER_KEY, PUSHOVER_TOKEN, DEADMAN_URL),
-      # see observability/alertmanager.yml. Missing files: notifications fail.
+      # see deploy/k8s/infra/config/alertmanager.yml. Missing files: notifications fail.
       - ${ALERTMANAGER_CREDENTIALS_DIR:-./observability/alertmanager-credentials}:/etc/alertmanager-credentials:ro
     networks:
       - backend-net
@@ -1015,7 +1015,7 @@ services:
     volumes:
       - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
       - ./observability/grafana-dashboards-provisioning.yml:/etc/grafana/provisioning/dashboards/provider.yml:ro
-      - ./observability/dashboards:/var/lib/grafana/dashboards:ro
+      - ./deploy/k8s/infra/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     networks:
       - backend-net

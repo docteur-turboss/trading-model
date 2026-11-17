@@ -136,7 +136,7 @@ spec:
           configMap:
             name: alertmanager-config
         # Written by deploy.yml from the GitHub environment (see
-        # observability/alertmanager.yml for the keys). Optional: Alertmanager
+        # config/alertmanager.yml for the keys). Optional: Alertmanager
         # starts without it, notifications then fail (and deploy.yml refuses
         # a production deploy without it).
         - name: credentials

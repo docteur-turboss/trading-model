@@ -50,7 +50,7 @@ person, team or on-call tool exists: do not look for one.
 
 | Step | Channel                                                                 | Expected response                                            |
 | ---- | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
-| 1    | Pushover push for every `critical` alert (`observability/alertmanager.yml`) | Best effort; no automatic escalation if unacknowledged       |
+| 1    | Pushover push for every `critical` alert (`deploy/k8s/infra/config/alertmanager.yml`) | Best effort; no automatic escalation if unacknowledged       |
 | 2    | Dead man's switch (`Watchdog` alert, `DEADMAN_URL`): signals that alerting itself is down | Notification when the heartbeat stops               |
 | 3    | Security incident: follow the private reporting procedure in [SECURITY.md](../../SECURITY.md) | Acknowledgement within 72 hours (SECURITY.md)   |
 
@@ -61,7 +61,7 @@ details are never committed (public repository).
 
 ## Communication Channels
 
-Only channels defined in `observability/alertmanager.yml` (see [ALERTING.md](ALERTING.md)):
+Only channels defined in `deploy/k8s/infra/config/alertmanager.yml` (see [ALERTING.md](ALERTING.md)):
 
 | Channel          | Purpose                                                          |
 | ---------------- | ---------------------------------------------------------------- |

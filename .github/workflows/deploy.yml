@@ -256,7 +256,7 @@ jobs:
           [ -n "$PUSHOVER_USER" ] || missing="$missing ALERTMANAGER_PUSHOVER_USER_KEY"
           [ -n "$PUSHOVER_TOKEN" ] || missing="$missing ALERTMANAGER_PUSHOVER_TOKEN"
           if [ -n "$missing" ]; then
-            echo "::error::Missing GitHub environment secrets:${missing}. A receiver reading an absent credential file fails every notification and fires AlertmanagerNotificationsFailing (observability/alertmanager.yml)."
+            echo "::error::Missing GitHub environment secrets:${missing}. A receiver reading an absent credential file fails every notification and fires AlertmanagerNotificationsFailing (deploy/k8s/infra/config/alertmanager.yml)."
             exit 1
           fi
 

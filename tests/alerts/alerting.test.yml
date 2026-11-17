@@ -1,12 +1,11 @@
-# promtool unit tests of observability/alerting.yml (the K8s copy is kept
-# identical by scripts/observability-gate.mjs). Run: bash tests/alerts/run.sh
+# promtool unit tests of deploy/k8s/infra/config/alerting.yml. Run: bash tests/alerts/run.sh
 #
 # Each case pins a behaviour that was wrong before 2026-10-28: ratios that
 # divided every 5xx series by itself (any single error = 100%), ratios whose
 # numerator series did not exist (never fired), a p95 capped by the largest
 # bucket, and no alert at all on market data that stopped flowing.
 rule_files:
-  - ../../observability/alerting.yml
+  - ../../deploy/k8s/infra/config/alerting.yml
 
 evaluation_interval: 30s
 
