@@ -122,6 +122,8 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | Variable                          | Type         | Default           | Required | Description                          | Services |
 | --------------------------------- | ------------ | ----------------- | -------- | ------------------------------------ | -------- |
 | `TRAINER_SYMBOLS`                 | string       | `BTCUSDT,ETHUSDT` | no       | Comma-separated trading symbols      | TT       |
+| `TRAINER_ASSETS`                | string       | empty             | no       | `ASSET:type` pairs (`AAPL:equity,AGG:bond`): registry assets trained on daily bars rebuilt from their `market` signals, the asset id being the model symbol (ADR-0083); empty: crypto only | TT       |
+| `TRAINER_ASSET_COSTS`           | JSON         | `{}`              | no       | `{"equity":{"feeRate":0.0005,"executionCostRate":0.0005}}`: costs of the daily assets by type over the defaults of ADR-0083 | TT       |
 | `TRAINER_SYMBOL_ASSETS`           | string       | empty             | no       | `SYMBOL:ASSET` pairs (`BTCUSDT:BTC,ETHUSDT:ETH`): registry asset whose point-in-time signal window (30 days) a session reads and measures; empty: no call | TT       |
 | `TRAINER_SIGNAL_FEATURES`         | string       | empty             | no       | `SUBJECT:dimension:metric` list (`BTC:social:pageviews`, subject = asset, sector or area): signals fed to the network as value, age and confidence inputs, 3 per metric (ADR-0081); read only with `FEATURE_SIGNAL_INPUTS`; each key must match the format or the service refuses to start; a key that finds no signal in the window logs a warning and trains on zeros | TT       |
 | `FEATURE_SIGNAL_INPUTS`           | boolean      | `false`           | no       | Feature flag (ADR-0039): `true` appends the `TRAINER_SIGNAL_FEATURES` inputs to the 18 market inputs; `false`: input and published genome as before | TT       |
@@ -381,6 +383,8 @@ MYSQL_DATABASE=financial_scraper
 # Trader-Trainer
 TRAINER_SYMBOLS=BTCUSDT,ETHUSDT
 TRAINER_SYMBOL_ASSETS=
+TRAINER_ASSETS=
+TRAINER_ASSET_COSTS={}
 TRAINER_SIGNAL_FEATURES=
 FEATURE_SIGNAL_INPUTS=false
 FEATURE_INPUT_MASK_GENE=false

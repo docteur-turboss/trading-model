@@ -80,6 +80,8 @@ describe("input layout of a trained model", () => {
 	it("names every network input, market features then agent state", () => {
 		expect(FEATURE_LAYOUT.fields).toHaveLength(FEATURE_LAYOUT.dim);
 		expect(NETWORK_INPUT_LAYOUT.fields).toHaveLength(NETWORK_INPUT_LAYOUT.dim);
+		// The manifest lists the inputs: no order book, trade or ticker input exists (ADR-0083).
+		expect(FEATURE_LAYOUT.fields.join()).not.toMatch(/book|trade|ticker/i);
 		expect(NETWORK_INPUT_LAYOUT.fields.at(-1)).toBe("AgentExposure");
 		expect(createDefaultGenome("g", 0 as never).network.inputDim).toBe(
 			NETWORK_INPUT_LAYOUT.dim

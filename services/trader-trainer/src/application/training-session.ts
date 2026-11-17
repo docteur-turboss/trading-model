@@ -108,7 +108,10 @@ class TrainingSession {
 			validationData: test,
 			backendFactory: makeSeededBackendFactory(
 				genome.gaControl.seeding.networkSeed,
-				{ observePosition: this._settings.observePosition ?? true }
+				{
+					observePosition: this._settings.observePosition ?? true,
+					costs: this._settings.costs,
+				}
 			),
 		});
 		const { meta } = computeAllResults({
@@ -158,7 +161,10 @@ class TrainingSession {
 			windowSets: this._windowSets,
 			backendFactory: makeSeededBackendFactory(
 				initialControl.seeding.networkSeed,
-				{ observePosition: this._settings.observePosition ?? true }
+				{
+					observePosition: this._settings.observePosition ?? true,
+					costs: this._settings.costs,
+				}
 			),
 			initialControl,
 			onGeneration,

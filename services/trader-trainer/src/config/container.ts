@@ -10,16 +10,22 @@ import {
 	Leadership,
 	SOLE_INSTANCE_LEASE,
 } from "@trading-model/reliability/leadership";
-import { AssetId } from "@trading-model/validation/wire/signals";
+import {
+	AssetId,
+	type AssetType,
+} from "@trading-model/validation/wire/signals";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
+import { SignalBarHistory } from "../adapters/outbound/signal-bar-history";
 import { runInWorker } from "../adapters/outbound/training-worker/worker-training-runner";
 import { Trainer } from "../application/trainer";
+import { DEFAULT_ASSET_COSTS, parseAssets } from "../domain/asset-costs";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
 import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
+import type { SimulatorCosts } from "../domain/genetic-algorithm/rl-backend";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
@@ -87,6 +93,8 @@ interface AppContainerConfig {
 	instanceId: string;
 	history: CandleHistoryPort;
 	signals: ConstructorParameters<typeof TrainingLoop>[4];
+	/** Costs of each daily asset (ADR-0083); empty: crypto symbols only. */
+	dailyCosts: ReadonlyMap<TradingSymbol, SimulatorCosts>;
 }
 
 class ApplicationContainer {
@@ -137,6 +145,7 @@ class ApplicationContainer {
 			},
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
+			dailyCosts: (symbol) => config.dailyCosts.get(symbol),
 			models: this.models,
 			instanceId,
 			// Training is CPU-bound: off the thread that serves the API (issue #508).
@@ -151,7 +160,8 @@ class ApplicationContainer {
 				testSplit: config.testSplit,
 				walkForwardFolds: config.walkForwardFolds,
 			},
-			config.signals
+			config.signals,
+			new Set(config.dailyCosts.keys())
 		);
 	}
 }
@@ -162,6 +172,9 @@ interface TraderTrainerSettings {
 	TRAINER_SYMBOLS: string;
 	/** `SYMBOL:ASSET` pairs, comma-separated; empty: no signals read. */
 	TRAINER_SYMBOL_ASSETS: string;
+	/** `ASSET:type` pairs trained on daily bars; empty: none (ADR-0083). */
+	TRAINER_ASSETS?: string;
+	TRAINER_ASSET_COSTS?: Partial<Record<AssetType, Partial<SimulatorCosts>>>;
 	TRAINER_VALIDATION_SPLIT: number;
 	TRAINER_TEST_SPLIT: number;
 	TRAINER_WALK_FORWARD_FOLDS: number;
@@ -191,14 +204,33 @@ export function createTraderTrainerContainer(
 	history: CandleHistoryPort,
 	signalHistory: SignalHistoryPort
 ): ApplicationContainer {
+	const assets = parseAssets(
+		parseCommaSeparated(settings.TRAINER_ASSETS ?? "")
+	);
+	const dailyCosts = new Map<TradingSymbol, SimulatorCosts>(
+		[...assets].map(([asset, type]) => [
+			asset,
+			{
+				...DEFAULT_ASSET_COSTS[type],
+				...settings.TRAINER_ASSET_COSTS?.[type],
+			},
+		])
+	);
+	const bars = new SignalBarHistory(signalHistory, assets);
 	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
 		? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
 		: [];
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
-		symbols: parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
-			toSymbol(symbol)
-		),
+		symbols: [
+			...new Set([
+				...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
+					toSymbol(symbol)
+				),
+				...dailyCosts.keys(),
+			]),
+		],
+		dailyCosts,
 		validationSplit: settings.TRAINER_VALIDATION_SPLIT,
 		testSplit: settings.TRAINER_TEST_SPLIT,
 		walkForwardFolds: settings.TRAINER_WALK_FORWARD_FOLDS,
@@ -218,7 +250,10 @@ export function createTraderTrainerContainer(
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,
-		history,
+		history: {
+			loadWindow: (symbol, at, size) =>
+				(dailyCosts.has(symbol) ? bars : history).loadWindow(symbol, at, size),
+		},
 		signals: {
 			history: signalHistory,
 			assets: new Map(
