@@ -5,7 +5,6 @@ import {
 	type MutateWeightsContext,
 	mutateWeights,
 } from "./evolution-engine";
-import type { GaTelemetry } from "./ga-telemetry";
 import type { GAControlGenome, LamarckGenome, PopMember } from "./genome";
 import { mutateGenome } from "./mutation/mutate";
 import { selectParent } from "./selection";
@@ -39,7 +38,6 @@ interface ProduceOneOffspringParams {
 	rng: () => number;
 	generation: number;
 	index: number;
-	onFallback: () => void;
 	protectCandleGroup?: boolean;
 }
 
@@ -49,13 +47,12 @@ interface CrossoverAndMutateWeightsParams {
 	newCtrl: DeepReadonly<GAControlGenome>;
 	coRng: () => number;
 	mutRng: () => number;
-	onFallback: () => void;
 }
 
 function _crossoverAndMutateWeights(
 	params: CrossoverAndMutateWeightsParams
 ): Float32Array | undefined {
-	const { pA, pB, newCtrl, coRng, mutRng, onFallback } = params;
+	const { pA, pB, newCtrl, coRng, mutRng } = params;
 	if (!(pA.trainedWeights && pB.trainedWeights)) {
 		return;
 	}
@@ -63,8 +60,7 @@ function _crossoverAndMutateWeights(
 		weights: crossoverWeights(
 			pA.trainedWeights as Float32Array,
 			pB.trainedWeights as Float32Array,
-			coRng,
-			onFallback
+			coRng
 		),
 		rate: newCtrl.mutationRate ?? 0.1,
 		std: newCtrl.mutationStd ?? 0.05,
@@ -92,8 +88,7 @@ function _buildOffspringGenome(
 function produceOneOffspring(
 	params: ProduceOneOffspringParams
 ): DeepReadonly<LamarckGenome> {
-	const { ranked, newCtrl, coRng, mutRng, rng, generation, index, onFallback } =
-		params;
+	const { ranked, newCtrl, coRng, mutRng, rng, generation, index } = params;
 	const pA = selectParent(ranked, rng);
 	const pB = selectParent(ranked, rng);
 
@@ -114,7 +109,6 @@ function produceOneOffspring(
 		newCtrl,
 		coRng,
 		mutRng,
-		onFallback,
 	});
 
 	return _buildOffspringGenome(
@@ -132,8 +126,6 @@ export interface OffspringContext {
 	ctrl: DeepReadonly<GAControlGenome>;
 	rng: () => number;
 	generation: number;
-	/** Receives the generation's count of weight-length fallbacks (once, when > 0). */
-	telemetry?: GaTelemetry;
 	/** ADR-0082: the candle group (mask index 0) stays active. */
 	protectCandleGroup?: boolean;
 }
@@ -158,13 +150,9 @@ function _makeOffspringRngs(
 export function createOffspring(
 	ctx: OffspringContext
 ): DeepReadonly<LamarckGenome>[] {
-	const { ranked, newCtrl, ctrl, rng, generation, telemetry } = ctx;
+	const { ranked, newCtrl, ctrl, rng, generation } = ctx;
 	const nOffspring = _computeOffspringCount(newCtrl);
 	const { mutRng, coRng } = _makeOffspringRngs(ctrl, generation);
-	let fallbacks = 0;
-	const onFallback = (): void => {
-		fallbacks++;
-	};
 
 	const offspring = Array.from({ length: nOffspring }, (_unused, index) =>
 		produceOneOffspring({
@@ -175,12 +163,8 @@ export function createOffspring(
 			rng,
 			generation,
 			index,
-			onFallback,
 			protectCandleGroup: ctx.protectCandleGroup,
 		})
 	);
-	if (fallbacks > 0) {
-		telemetry?.crossoverFallbacks(fallbacks);
-	}
 	return offspring;
 }
