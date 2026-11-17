@@ -24,8 +24,8 @@ import { DEFAULT_ASSET_COSTS, parseAssets } from "../domain/asset-costs";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
-import type { SimulatorCosts } from "../domain/genetic-algorithm/rl-backend";
 import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
+import type { SimulatorCosts } from "../domain/genetic-algorithm/rl-backend";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,

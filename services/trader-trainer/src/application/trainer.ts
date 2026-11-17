@@ -25,11 +25,11 @@ import { featureDriftScore } from "../domain/feature-drift";
 import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
+import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import {
 	SIMULATOR_PARAMS,
 	type SimulatorCosts,
 } from "../domain/genetic-algorithm/rl-backend";
-import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import { DAY_MS, type TradingSymbol } from "../domain/market-data-types";
