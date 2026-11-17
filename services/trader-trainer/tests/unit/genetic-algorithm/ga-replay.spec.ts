@@ -64,7 +64,6 @@ async function runGA(
 		genomeEvaluated: () => {
 			// Not under test.
 		},
-		crossoverFallbacks: () => {},
 	};
 	const defaults = createGAControlGenome();
 	const runner = new GeneticAlgorithmRunner({
