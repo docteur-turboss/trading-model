@@ -1,5 +1,5 @@
 {
-  "name": "trader-service",
+  "name": "trader-trainer",
   "version": "3.1.0-rc.2",
   "description": "Autonomous agents that train to trade on a currency pair",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",

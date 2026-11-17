@@ -92,7 +92,7 @@ Shared packages (base → derived):
 
 > **Dependency direction:** `@trading-model/primitives` and `@trading-model/contracts` are the foundation layers and depend on nothing higher in the chain — they must never import `http` or any upper-layer package. `@trading-model/common` sits just above them and has **no** dependency on `@trading-model/http`. The concrete logger lives in `@trading-model/http`; `@trading-model/contracts` exposes a `LoggerPort` registry (`@trading-model/contracts/logger-registry`) that http populates at import time — breaking what was previously a real `common ↔ http` cycle.
 
-Services and their `@trading-model/*` dependencies (the `dependencies` of each `package.json`, checked by `bun run deps:check`; the trader-trainer directory is the package `trader-service`):
+Services and their `@trading-model/*` dependencies (the `dependencies` of each `package.json`, checked by `bun run deps:check`; the trader-trainer directory is the package `trader-trainer`):
 
 | Service | Dependencies |
 | --- | --- |
@@ -103,7 +103,7 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | model-evaluator | address-manager, broker-message, common, contracts, http, primitives, validation |
 | financial-scraper | address-manager, broker-message, common, contracts, crypto, http, primitives, reliability, validation |
 | message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability, validation |
-| trader-service | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, validation |
+| trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, validation |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
 

@@ -57,12 +57,6 @@ Packages must be built in this order before services:
 11. `@trading-model/broker-message`
 Services can then be built in any order. The root `bun run build` builds the packages above. Use `bun run build:ts` for a full build of everything.
 
-## Naming quirk: trader-trainer ≠ trader-service
-
-The directory `services/trader-trainer/` has `package.json` name `"trader-service"`.
-Workspace commands use the package name: `bun run --filter trader-service test`, `bun run --filter trader-service build`.
-The root script references the package name too: `bun run --filter trader-service build`.
-
 ## Testing conventions
 
 - All tests use `**/?(*.)+(spec).ts` pattern

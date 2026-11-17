@@ -31,7 +31,7 @@ flowchart TB
     disc["discovery-server"]
     mm["message-manager"]
     fs["financial-scraper"]
-    tt["trader-trainer<br/>(npm name trader-service)"]
+    tt["trader-trainer<br/>(npm name trader-trainer)"]
     al["audit-logger"]
     dlq["dlq-service"]
   end

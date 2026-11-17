@@ -29,23 +29,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: trader-service-domain
+          - name: trader-trainer-domain
             dir: services/trader-trainer
             break: 60
             mutate: 'src/domain/**/*.ts,!src/domain/genetic-algorithm/**,!src/domain/neural-network/**'
-          - name: trader-service-neural-network-a
+          - name: trader-trainer-neural-network-a
             dir: services/trader-trainer
             break: 60
             mutate: 'src/domain/neural-network/activation.ts,src/domain/neural-network/experience-pool.ts,src/domain/neural-network/normalizers.ts'
-          - name: trader-service-neural-network-b
+          - name: trader-trainer-neural-network-b
             dir: services/trader-trainer
             break: 60
             mutate: 'src/domain/neural-network/**/*.ts,!src/domain/neural-network/activation.ts,!src/domain/neural-network/experience-pool.ts,!src/domain/neural-network/normalizers.ts'
-          - name: trader-service-ga-core
+          - name: trader-trainer-ga-core
             dir: services/trader-trainer
             break: 50
             mutate: 'src/domain/genetic-algorithm/*.ts'
-          - name: trader-service-ga-operators
+          - name: trader-trainer-ga-operators
             dir: services/trader-trainer
             break: 50
             mutate: 'src/domain/genetic-algorithm/*/**/*.ts'

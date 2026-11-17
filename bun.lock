@@ -452,7 +452,7 @@
       },
     },
     "services/trader-trainer": {
-      "name": "trader-service",
+      "name": "trader-trainer",
       "version": "3.1.0-rc.2",
       "dependencies": {
         "@trading-model/address-manager": "*",
@@ -1995,7 +1995,7 @@
 
     "tr46": ["tr46@5.1.1", "", { "dependencies": { "punycode": "^2.3.1" } }, "sha512-hdF5ZgjTqgAntKkklYw0R03MG2x/bSzTtkxmIRw/sTNV8YXsCJ1tfLAX23lhxhHJlEf3CRCOCGGWw3vI3GaSPw=="],
 
-    "trader-service": ["trader-service@workspace:services/trader-trainer"],
+    "trader-trainer": ["trader-trainer@workspace:services/trader-trainer"],
 
     "trading-model-contract-tests": ["trading-model-contract-tests@workspace:tests/contract"],
 
