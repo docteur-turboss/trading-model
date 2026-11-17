@@ -33,10 +33,10 @@ const SourceDeclaration = Source.omit({ requests: true })
 	})
 	.refine(
 		(source) => {
-			const gap = cronMaxGapMs(source.schedule);
 			if (!cron.validate(source.schedule)) {
 				return true; // reported with the other problems
 			}
+			const gap = cronMaxGapMs(source.schedule);
 			return source.maxAgeSeconds === undefined
 				? gap !== undefined
 				: gap === undefined || source.maxAgeSeconds * 1000 >= gap;
