@@ -57,17 +57,20 @@ let version = "";
 
 describe("Model training flow E2E", () => {
 	beforeAll(async () => {
-		[latest] = await pollUntil(`a ${SYMBOL} model via the gateway`, async () => {
-			const { status, body } = await externalRequest(
-				`/v1/trader-trainer/models/${SYMBOL}`,
-				{ headers: AUTH }
-			);
-			const data =
-				status === 200
-					? (JSON.parse(body) as { data: ModelSummary[] }).data
-					: [];
-			return data.length > 0 ? data : undefined;
-		});
+		[latest] = await pollUntil(
+			`a ${SYMBOL} model via the gateway`,
+			async () => {
+				const { status, body } = await externalRequest(
+					`/v1/trader-trainer/models/${SYMBOL}`,
+					{ headers: AUTH }
+				);
+				const data =
+					status === 200
+						? (JSON.parse(body) as { data: ModelSummary[] }).data
+						: [];
+				return data.length > 0 ? data : undefined;
+			}
+		);
 		version = latest.version;
 	});
 
