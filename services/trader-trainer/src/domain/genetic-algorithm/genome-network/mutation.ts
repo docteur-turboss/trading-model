@@ -1,5 +1,6 @@
 import { sampleGaussian } from "@trading-model/model-runtime/noise";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
+import { ACTION_SET_IDS, ACTION_SETS } from "../../agent/action-mapper";
 import type { LamarckGenome } from "../genome-fitness";
 import type { MutationGenome } from "../genome-mutation";
 import {
@@ -169,12 +170,15 @@ function _maybeRemoveLayer(
 	}
 }
 
+/** Rare discrete genes (normalisation, action set) mutate at a fifth of the base rate. */
+const DISCRETE_GENE_RATE_FACTOR = 0.2;
+
 function _maybeMutateNormalization(
 	genome: LamarckGenome,
 	mutationConfig: MutationGenome,
 	rng: () => number
 ): NormalisationType {
-	return rng() < mutationConfig.rates.rate * 0.2
+	return rng() < mutationConfig.rates.rate * DISCRETE_GENE_RATE_FACTOR
 		? pick(NORM_TYPES, rng)
 		: genome.network.normalization;
 }
@@ -200,8 +204,18 @@ export function mutateNetworkStructure(
 	_maybeAddLayer(layers, mutationConfig, rng);
 	_maybeRemoveLayer(layers, mutationConfig, rng);
 
+	const actionSet =
+		genome.gaControl.actionSetGene &&
+		rng() < mutationConfig.rates.rate * DISCRETE_GENE_RATE_FACTOR
+			? pick(ACTION_SET_IDS, rng)
+			: genome.network.actionSet;
+
 	return {
 		...genome.network,
+		...(actionSet && {
+			actionSet,
+			outputDim: ACTION_SETS[actionSet].length as PositiveInt,
+		}),
 		hiddenLayers: layers,
 		normalization: _maybeMutateNormalization(genome, mutationConfig, rng),
 	};

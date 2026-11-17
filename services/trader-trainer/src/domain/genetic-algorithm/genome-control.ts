@@ -65,6 +65,8 @@ export interface GAControlGenome {
 	fitnessType: FitnessType;
 	mutationRate: Percentage;
 	mutationStd: Percentage;
+	/** FEATURE_ACTION_SPACE_GENE (ADR-0039): the action set may mutate. Absent: never. */
+	actionSetGene?: boolean;
 }
 
 export function createCrossoverGenome(): CrossoverGenome {

@@ -137,8 +137,9 @@ function _buildAgentConfig(
 	rng: () => number,
 	options: BackendOptions
 ): TradingAgentConfig {
-	// Q-learning picks among a finite set of actions: sell / hold / buy.
+	// Q-learning picks among the finite actions of the genome's action set.
 	return {
+		actionSet: genome.network.actionSet,
 		nnConfig: _buildNNConfig(genome, rng),
 		wallet: {
 			initialCash: Cash.of(SIMULATOR_PARAMS.initialCash),

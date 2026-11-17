@@ -39,6 +39,8 @@ export interface BestAgentSummary {
 	network: {
 		inputDim: PositiveInt;
 		outputDim: PositiveInt;
+		/** Ordered action names, output `i` = `actions[i]`; absent: sell, hold, buy. */
+		actions?: string[];
 		hiddenLayers: { neurons: PositiveInt; activation: ActivationType }[];
 	};
 	rl: {
