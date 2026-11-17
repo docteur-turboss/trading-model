@@ -14,15 +14,6 @@ function clientKey(req: Request): string {
 	return identity || ipKeyGenerator(req.ip ?? "");
 }
 
-/** Coarse per-address cap before authentication: bounds token guessing (all clients share the edge address, hence the 10x headroom). */
-export const PRE_AUTH_LIMITER = rateLimit({
-	windowMs: ENV.RATE_LIMIT_WINDOW_MS,
-	max: ENV.RATE_LIMIT_MAX * 10,
-	standardHeaders: true,
-	legacyHeaders: false,
-	message: { error: "Too many requests" },
-});
-
 // In-memory store: counts per pod, so the effective limit is max x replicas (ADR-0047).
 export const DEFAULT_LIMITER = rateLimit({
 	windowMs: ENV.RATE_LIMIT_WINDOW_MS,

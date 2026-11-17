@@ -54,7 +54,6 @@ jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 
 jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 	DEFAULT_LIMITER: jest.fn((_req: any, _res: any, next: () => void) => next()),
-	PRE_AUTH_LIMITER: jest.fn((_req: any, _res: any, next: () => void) => next()),
 }));
 
 jest.mock("../../src/adapters/inbound/auth", () => ({

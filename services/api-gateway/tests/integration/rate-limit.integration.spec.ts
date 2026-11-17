@@ -140,19 +140,4 @@ describe("API Gateway — Rate Limiting Integration", () => {
 
 		expect((await request(server, path, "other-token")).status).toBe(200);
 	});
-
-	it("should cap unauthenticated attempts per address with 429 before the auth runs", async () => {
-		const app = createApp();
-		await new Promise<void>((resolve) => {
-			server = app.listen(0, () => resolve());
-		});
-		const statuses: number[] = [];
-		for (let i = 0; i < 21; i++) {
-			statuses.push(
-				(await request(server, "/v1/audit-logger/events", "bad")).status
-			);
-		}
-		expect(statuses[statuses.length - 1]).toBe(429);
-		expect(statuses[0]).not.toBe(429);
-	});
 });

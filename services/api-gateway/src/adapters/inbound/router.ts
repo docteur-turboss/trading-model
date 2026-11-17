@@ -30,7 +30,7 @@ import { parseRequestPath } from "../../shared/path-parser";
 import { matchPublicRoute } from "../../shared/public-routes";
 import { forwardRequest } from "../outbound/proxy-handler";
 import { AUTH_MIDDLEWARE, authOf } from "./auth";
-import { DEFAULT_LIMITER, PRE_AUTH_LIMITER } from "./rate-limiter";
+import { DEFAULT_LIMITER } from "./rate-limiter";
 
 /** Every service listens on HTTPS port 3000 behind its DNS name. */
 const SERVICE_PORT = Port.of(3000);
@@ -157,7 +157,6 @@ const catchAllRoute = catchSync(async (req, res) => {
 export function createRouter(): Router {
 	const router = Router();
 	router.get("/metrics", metricsHandler);
-	router.use(PRE_AUTH_LIMITER);
 	router.use(AUTH_MIDDLEWARE);
 	router.use(DEFAULT_LIMITER);
 	router.use(catchAllRoute);
