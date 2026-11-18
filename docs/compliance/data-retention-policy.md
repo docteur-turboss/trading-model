@@ -47,7 +47,7 @@ Only the backups of the records kept 5 years go past 30 days (ADR-0032): the aud
 ### GDPR
 
 - **Art. 5(1)(e) — Storage limitation:** "kept in a form which permits identification of data subjects for no longer than is necessary"
-- **Application:** the only personal data is the truncated caller IP in API access logs, kept 31 days. The 5-year retentions above concern data without personal data, so they do not conflict with storage limitation
+- **Application:** personal data is the truncated caller IP in API access logs, kept 31 days, and operator data (register activity 8): Grafana accounts are deleted when the operator leaves, at the latest at the quarterly Grafana account review (`access-control-policy.md`). The 5-year retentions above concern data without personal data, so they do not conflict with storage limitation
 
 ## Implementation
 

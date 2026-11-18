@@ -129,8 +129,8 @@ The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity p
 | SVID audit | Continuous | All SVIDs auto-rotated (4h TTL, ADR-0065); expired SVIDs rejected |
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
-| Grafana account review | Quarterly | List Grafana users (Administration > Users): remove leavers, keep Admin to named operators, check `GRAFANA_PASSWORD` was rotated after any break-glass use. Logins are in Loki (logger `context`) |
-| API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, keep `dlq:write` to operators who purge or replay the DLQ, rewrite old-format keys (bare secret, ADR-0059) |
+| Grafana account review | Quarterly | List Grafana users (Administration > Users): remove leavers, keep Admin to named operators, check `GRAFANA_PASSWORD` was rotated after any break-glass use. Logins are in Loki (logger `context`). Delete the account of each leaver (register activity 8) |
+| API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, check every name is a pseudonym (ADR-0059), keep `dlq:write` to operators who purge or replay the DLQ, rewrite old-format keys (bare secret, ADR-0059) |
 
 ## 7. Enforcement & Violations
 

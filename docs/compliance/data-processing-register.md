@@ -16,7 +16,7 @@
 
 This register documents the processing activities of the trading-model platform, as required by Article 30 GDPR.
 
-**Personal data in scope:** the platform has no user accounts, profiles, cookies or tracking. Its only personal data is the **IP address of external callers** of the API (activity 6): truncated by the edge-proxy before it is logged or forwarded, and kept 31 days in Loki. A truncated address (IPv4 /24, IPv6 /48) is pseudonymized, not anonymous, so the activity is registered. Every other activity processes machine-generated data only (market data, service identities, service events). Inside the platform, the remaining IPs are pod and container addresses; application logs truncate any IP they record (`anonymizeIp`), and log context fields are redacted before persistence.
+**Personal data in scope:** the platform has no user accounts, profiles, cookies or tracking. Its personal data is the **IP address of external callers** of the API (activity 6): truncated by the edge-proxy before it is logged or forwarded, and kept 31 days in Loki; and the **operators' own data** (activity 8: Grafana accounts, login logs, API key names). A truncated address (IPv4 /24, IPv6 /48) is pseudonymized, not anonymous, so the activity is registered. Every other activity processes machine-generated data only (market data, service identities, service events). Inside the platform, the remaining IPs are pod and container addresses; application logs truncate any IP they record (`anonymizeIp`), and log context fields are redacted before persistence.
 
 ---
 
@@ -52,7 +52,7 @@ This register documents the processing activities of the trading-model platform,
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | **Purpose**              | Hash-chained audit trail of service events, decisions and errors, for traceability                               |
 | **Data categories**      | Service event metadata (publisher identity, message ID, topic, correlation ID, timestamp), payload snapshots     |
-| **Personal data**        | None                                                                                                             |
+| **Personal data**        | None, except the API key name in `actor` of `dlq.*` events (activity 8)                                          |
 | **Recipients**           | Internal: operators (read-only, via api-gateway), compliance (MongoDB queries)                                   |
 | **Transfers outside EU** | None                                                                                                             |
 | **Retention period**     | 1827 days (5 years): `AUDIT_RETENTION_DAYS`, TTL index on the `ttl` field set at insert                          |
@@ -113,6 +113,20 @@ This register documents the processing activities of the trading-model platform,
 | **Technical measures**   | LUKS2 data disks, age encryption of every dump before it is written, only `.age` files copied off-site             |
 | **System**               | Promtail → Loki, Prometheus, Jaeger, Alertmanager; `db-backup` CronJob / `scripts/backup*.sh`                      |
 
+## Processing Activity 8: Operator Access
+
+| Field                    | Value                                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| **Purpose**              | Authenticate operators to Grafana and attribute DLQ deletions and replays to a key (ADR-0063, ADR-0059)            |
+| **Data categories**      | Grafana account created at first OIDC login (scopes `openid email profile`: e-mail, name, login); Grafana login log lines (logger `context`: login, and possibly the remote address, not confirmed on a live instance, ADR-0063 §6); API key name as `actor` of `dlq.*` audit events |
+| **Data subjects**        | Operators                                                                                                          |
+| **Legal basis**          | Legitimate interest (Art. 6(1)(f)): security and traceability of operator actions                                  |
+| **Recipients**           | Internal: operators (Grafana/Loki, audit trail via api-gateway). No third party besides the OIDC identity provider |
+| **Transfers outside EU** | None from the platform; the identity provider is the operating entity's (`third-party-dpas.md`)                    |
+| **Retention period**     | Grafana accounts (PVC `grafana-data`): deleted when the operator leaves, at the latest at the quarterly Grafana account review. Login logs: 31 days (Loki). `actor`: 1827 days in the immutable audit chain (Art. 17(3)(b) when a record-keeping obligation applies, otherwise (e)) |
+| **Technical measures**   | Key names must be pseudonyms (`op-01`, ADR-0059); the mapping to a person is kept outside the system, so erasing an operator means destroying its mapping row, never touching the chain. Viewer role by default, `GRAFANA_OIDC_ALLOWED_DOMAINS` |
+| **System**               | Grafana (`grafana-data`), Promtail → Loki, dlq-service → audit-logger → MongoDB                                    |
+
 ---
 
 ## Summary
@@ -125,6 +139,7 @@ This register documents the processing activities of the trading-model platform,
 | Workload Identity        | ❌ None             | —                   | 4h–168h                      | None                         |
 | ML Training              | ❌ None             | —                   | Per-agent                    | None                         |
 | API Access Logs          | ✅ Truncated IP     | Legitimate interest | 31 days                      | None                         |
+| Operator Access          | ✅ E-mail, name, login, key name | Legitimate interest | Accounts until departure; logs 31 days; `actor` 5 years | None |
 | Telemetry and Backups    | ❌ None             | —                   | 30–31 days                   | Off-site store / Slack (TBD) |
 
-**Conclusion:** one activity processes personal data, limited to a truncated IP kept 31 days for security. Data subject rights apply to it in principle; since a truncated address cannot be linked to a requester, Art. 11 applies (no additional data collected to identify them).
+**Conclusion:** two activities process personal data: a truncated caller IP kept 31 days (activity 6) and operator data (activity 8). Data subject rights apply. For callers, since a truncated address cannot be linked to a requester, Art. 11 applies (no additional data collected to identify them).
