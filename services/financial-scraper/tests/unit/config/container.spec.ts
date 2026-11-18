@@ -159,6 +159,8 @@ describe("config/container — createSignalScheduler", () => {
 		SCRAPE_SCHEDULER_ENABLED: true,
 		SIGNAL_COLLECTION_ENABLED: true,
 		SIGNAL_CONTACT_EMAIL: "ops@example.org",
+		SIGNAL_NON_COMMERCIAL_ACCEPTED: "",
+		NODE_ENV: "test",
 	};
 
 	beforeEach(() => {
@@ -273,6 +275,8 @@ describe("config/container — createCollector", () => {
 		SCRAPE_SCHEDULER_ENABLED: true,
 		SIGNAL_COLLECTION_ENABLED: false,
 		SIGNAL_CONTACT_EMAIL: "",
+		SIGNAL_NON_COMMERCIAL_ACCEPTED: "",
+		NODE_ENV: "test",
 		COLLECTOR_LEASE_NAME: "",
 		INSTANCE_ID: "pod-a",
 	};
