@@ -308,7 +308,7 @@ the repository can check, and lists every gap in one run. What stays manual
    `ALERTMANAGER_PUSHOVER_TOKEN` (all four required in staging and production), `SIGNAL_CONTACT_EMAIL`,
    `BACKUP_AGE_RECIPIENTS` (two distinct keys), `BACKUP_S3_*` for an Object Lock
    bucket ([Prerequisites (off-site backup bucket)](#prerequisites-off-site-backup-bucket)), `AUDIT_ANCHOR_*` for the audit
-   chain anchor bucket (ADR-0027).
+   chain anchor bucket (ADR-0027; `AUDIT_ANCHOR_REGION` is required and must be an EU region).
 6. **Compliance**: the `Controller` and `Contact` fields of the
    [data processing register](../compliance/data-processing-register.md).
 

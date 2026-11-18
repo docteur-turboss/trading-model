@@ -515,6 +515,8 @@ jobs:
         shell: bash
         env:
           AUDIT_ANCHOR_BUCKET: ${{ vars.AUDIT_ANCHOR_BUCKET }}
+          AUDIT_ANCHOR_REGION: ${{ vars.AUDIT_ANCHOR_REGION }}
+          BACKUP_S3_ALLOWED_REGIONS: ${{ vars.BACKUP_S3_ALLOWED_REGIONS }}
           AUDIT_ANCHOR_ACCESS_KEY_ID: ${{ secrets.AUDIT_ANCHOR_ACCESS_KEY_ID }}
           AUDIT_ANCHOR_SECRET_ACCESS_KEY: ${{ secrets.AUDIT_ANCHOR_SECRET_ACCESS_KEY }}
         run: |
@@ -534,6 +536,17 @@ jobs:
             echo "::error::AUDIT_ANCHOR_BUCKET is set but AUDIT_ANCHOR_ACCESS_KEY_ID / AUDIT_ANCHOR_SECRET_ACCESS_KEY are not"
             exit 1
           fi
+          # Same EU list as the backup bucket: variable, else the default of backup-bucket-check.sh.
+          allowed="${BACKUP_S3_ALLOWED_REGIONS:-$(sed -n 's/^ALLOWED_REGIONS="${BACKUP_S3_ALLOWED_REGIONS:-\(.*\)}"$/\1/p' scripts/backup-bucket-check.sh)}"
+          case " $allowed " in
+            *" $AUDIT_ANCHOR_REGION "*) [ -n "$AUDIT_ANCHOR_REGION" ] && exit 0 ;;
+          esac
+          msg="AUDIT_ANCHOR_REGION '${AUDIT_ANCHOR_REGION}' is empty or not in the allowed EU regions (${allowed}): anchors must stay in the EU (docs/compliance/third-party-dpas.md)"
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            echo "::error::$msg"
+            exit 1
+          fi
+          echo "::warning::$msg"
 
       # Critical alerts firing before the release changes anything. Staging:
       # verify-release reports them but fails only on the alerts this release
@@ -593,7 +606,7 @@ jobs:
           [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
           kubectl -n "$NS" create secret generic audit-anchor-s3 \
             --from-literal=AUDIT_ANCHOR_BUCKET="$AUDIT_ANCHOR_BUCKET" \
-            --from-literal=AUDIT_ANCHOR_REGION="${AUDIT_ANCHOR_REGION:-us-east-1}" \
+            --from-literal=AUDIT_ANCHOR_REGION="$AUDIT_ANCHOR_REGION" \
             --from-literal=AWS_ACCESS_KEY_ID="$AUDIT_ANCHOR_ACCESS_KEY_ID" \
             --from-literal=AWS_SECRET_ACCESS_KEY="$AUDIT_ANCHOR_SECRET_ACCESS_KEY" \
             "${endpoint[@]}" \
