@@ -1,7 +1,7 @@
 # Data Protection Impact Assessment (DPIA)
 
 > **Performed:** 2026-06 (revised 2026-10 after audit 13.09)  
-> **Assessment scope:** trading-model platform (all services, 12 packages)  
+> **Assessment scope:** trading-model platform (all services and shared packages)  
 > **Methodology:** CNIL PIA framework (Art. 35 GDPR)
 
 ## 1. System Overview
@@ -10,7 +10,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 
 **Key characteristics:**
 
-- 7 backend microservices (Node.js/TypeScript/Express)
+- Backend microservices (Node.js/TypeScript/Express)
 - Event-driven architecture (message-manager: HTTP push broker, durable Redis Streams journal 24 h, ADR-0048)
 - mTLS via SPIFFE/SPIRE workload identity (ADR-0011)
 - Self-hosted databases (MongoDB, MySQL, Redis)
@@ -40,7 +40,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 
 | Dimension       | Assessment                                                                                                        |
 | --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Likelihood**  | Low — mTLS between services, SecureKeyStore, AES-256-GCM at rest, automountServiceAccountToken: false                   |
+| **Likelihood**  | Low — mTLS between services, LUKS2 data disks, automountServiceAccountToken: false                   |
 | **Impact**      | High — compromise of SPIRE CA keys / SVIDs or service tokens could disrupt platform security                                    |
 | **Severity**    | Tolerable (not PII-related)                                                                                       |
 | **Mitigations** | Automatic SVID rotation (4h TTL), backup CronJob daily, incident response procedure, SealedSecrets for K8s |
@@ -69,13 +69,11 @@ The trading-model platform is a microservices-based algorithmic trading research
 | -------------------------------- | -------------- | ------------------------------------------------------ |
 | Minimal PII architecture         | ✅ Implemented | No accounts or profiles. Caller IPs truncated by the edge-proxy before logging and forwarding; application logs truncate IPs; context fields sanitized before MongoDB persistence |
 | TLS 1.3 mTLS between services    | ⚠️ Partial     | Service-to-service HTTP only. Database client traffic to MongoDB and Redis is plain TCP in the cluster; NetworkPolicies and per-service credentials protect it, residual risk accepted in ADR-0060, TLS planned (#930, #769); MySQL is TLS with client certificates and `require` (#767) |
-| AES-256-GCM encryption at rest   | ✅ Implemented | SPIRE datastore, discovery cache, filesystem fallback          |
 | Storage & backup encryption      | ✅ Implemented | LUKS2 data disks unlocked by Clevis/Tang (`deploy/host/`); every backup age-encrypted before it is written or copied off-site |
 | Log redaction                    | ✅ Implemented | `sensitive-data-sanitizer.ts`: 11 sensitive-key patterns (credentials, IP keys) redacted to `[REDACTED]`, plus PEM blocks stripped by `sanitizeForLog`, before persistence |
 | Append-only audit trail          | ✅ Implemented | MongoDB with correlation IDs + gap detection           |
 | Automatic TTL-based retention    | ⚠️ Partial     | MongoDB TTL indexes (1827 days audit, 30 days DLQ), Loki 31 days, Prometheus 30 days, backups 30 days. MySQL market data 1827 days via `db-retention` (action #2, ADR-0051), message journal 24 h |
 | RBAC service isolation           | ✅ Implemented | K8s ServiceAccounts, Network Policies                  |
-| SecureKeyStore memory protection | ✅ Implemented | Zeroed buffers, heap dump protection                   |
 
 ## 5. DPIA Action Items
 

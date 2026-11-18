@@ -48,6 +48,19 @@ test('fails on stale wording', () => {
   assert.match(r.stderr, /stale wording/);
 });
 
+test('fails on a security measure that does not exist', () => {
+  for (const term of ['SecureKeyStore', 'AES-256-GCM']) {
+    const r = run((dir) => {
+      const f = join(dir, 'docs/compliance/dpia.md');
+      writeFileSync(f, `${readFileSync(f, 'utf8')}
+${term}
+`);
+    });
+    assert.equal(r.status, 1, term);
+    assert.match(r.stderr, new RegExp(term));
+  }
+});
+
 test('fails when the security policy cites a wrong Loki or Prometheus duration', () => {
   for (const [from, to] of [['31 days (`744h`)', '30 days (`744h`)'], ['Prometheus → Grafana | 30 days', 'Prometheus → Grafana | 15 days']]) {
     const r = run((dir) => {
