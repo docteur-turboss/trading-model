@@ -39,6 +39,15 @@ test('fails when the register cites a wrong journal duration', () => {
   assert.match(r.stderr, /journaled 24 h/);
 });
 
+test('fails when a registry source is not assessed', () => {
+  const r = run((dir) => {
+    const f = join(dir, 'docs/compliance/third-party-dpas.md');
+    writeFileSync(f, readFileSync(f, 'utf8').replaceAll('`eia-weekly-energy`', 'eia'));
+  });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /eia-weekly-energy/);
+});
+
 test('fails on stale wording', () => {
   const r = run((dir) => {
     const f = join(dir, 'docs/compliance/dpia.md');
