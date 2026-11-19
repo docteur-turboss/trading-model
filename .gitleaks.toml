@@ -3,10 +3,10 @@ useDefault = true
 
 [allowlist]
 description = "Test fixtures and SealedSecret ciphertext (no real credential)"
-paths = [
-  '''(^|/)tests?/''',
-  '''\.spec\.ts$''',
-  '''\.test\.(sh|ts)$''',
+stopwords = [ # obvious fixture values in tests, not credentials
+  "e2e-", "test-", "fake", "mock", "0123456789abcdef", "my-signing-secret", "long-secret", "dGVzdA", "STUB_", "BEGIN PRIVATE KEY-----/", "BEGIN PRIVATE KEY-----\n",
+  "YC.B.U2.EUR", # public ECB series key, older registry format
+  "CRL/revocation", # ADR-0011 prose matched as a key
 ]
 regexTarget = "line"
 regexes = [
