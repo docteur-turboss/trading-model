@@ -28,6 +28,7 @@ import type {
  * copy, so subscribers could not tell the duplicates apart.
  */
 const PUBLISH_OPTIONS = {
+	serviceName: ServiceId.of("message-manager"),
 	timeoutMs: DurationMs.of(PUBLISH_ACCEPT_TIMEOUT_MS + 5_000),
 };
 
@@ -53,7 +54,10 @@ export class MessageManagerClient implements MessageClientPort {
 					topic: toTopic(topic),
 				};
 				// A subscription is an upsert: sending it twice is harmless.
-				await this._httpClient.post(url, payload, { idempotent: true });
+				await this._httpClient.post(url, payload, {
+					idempotent: true,
+					serviceName: ServiceId.of("message-manager"),
+				});
 			}
 		} catch (error) {
 			this._wrapError(error, "Failed to subscribe topic to Message Manager");
@@ -72,7 +76,9 @@ export class MessageManagerClient implements MessageClientPort {
 					instanceId: this._config.instanceId,
 					topic: toTopic(topic),
 				};
-				await this._httpClient.delete(url, payload);
+				await this._httpClient.delete(url, payload, {
+					serviceName: ServiceId.of("message-manager"),
+				});
 			}
 		} catch (err) {
 			logger.warn("Failed to unsubscribe topics from Message Manager", {

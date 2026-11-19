@@ -14,10 +14,12 @@ export interface ProxyRequestOptions {
 	req: Request;
 	target: ResolvedEndpoint;
 	path: string;
+	/** Service whose SVID the target must present. */
+	serviceName: string;
 }
 
 export function buildProxyOptions(
-	{ target, req, path }: ProxyRequestOptions,
+	{ target, req, path, serviceName }: ProxyRequestOptions,
 	env: Env
 ): https.RequestOptions {
 	const url = new URL(path, `https://${HostPort.toAddress(target)}`);
@@ -29,7 +31,7 @@ export function buildProxyOptions(
 		headers: safeHeaders(req),
 		rejectUnauthorized: true,
 		timeout: env.PROXY_TIMEOUT_MS,
-		..._resolveSvidTls(env),
+		..._resolveSvidTls(env, serviceName),
 	};
 }
 
@@ -40,10 +42,13 @@ export function buildProxyOptions(
  * `spiffe://` URI SAN, so hostname verification is disabled in favour of
  * the SPIFFE trust bundle.
  */
-function _resolveSvidTls(settings: Env): https.AgentOptions {
+function _resolveSvidTls(
+	settings: Env,
+	serviceName: string
+): https.AgentOptions {
 	const env = settings as TlsEnvVars;
 	if (!(env.TLS_KEY_PATH && env.TLS_CERT_PATH && env.TLS_CA_PATH)) {
 		return {};
 	}
-	return buildHttpsAgentOptions(buildTlsFromEnv(env)) ?? {};
+	return buildHttpsAgentOptions(buildTlsFromEnv(env), serviceName) ?? {};
 }
