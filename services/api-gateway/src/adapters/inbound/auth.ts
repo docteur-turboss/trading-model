@@ -2,19 +2,13 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/catch-error";
-import { logger } from "@trading-model/http/logger";
 import { sendResponse } from "@trading-model/http/response-exception";
 import { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
 import type { Request, RequestHandler } from "express";
 
 import { ENV } from "../../infrastructure/config/env";
 import { AUTH_FAILURES_TOTAL } from "../../infrastructure/config/metrics";
-import {
-	API_SCOPES,
-	type ApiKey,
-	type ApiScope,
-	parseApiKey,
-} from "../../shared/api-keys";
+import { type ApiKey, type ApiScope, parseApiKey } from "../../shared/api-keys";
 
 /** What AUTH_MIDDLEWARE sets on an authenticated request. */
 export interface AuthenticatedRequest {
@@ -78,32 +72,27 @@ export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
 
 	const digest = sha256(token);
 	const validKeys = getValidKeys();
-	let key: ApiKey | undefined;
 	if (validKeys.length === 0) {
-		if (ENV.AUTH_STRICT) {
-			AUTH_FAILURES_TOTAL.inc();
-			return sendResponse(
-				{ error: "Server misconfiguration: no valid tokens configured" },
-				HTTP_STATUS.SERVICE_UNAVAILABLE
-			);
-		}
-		logger.warn("AUTH_TOKENS is empty — accepting any token (non-strict mode)");
-	} else {
-		key = findKey(digest, validKeys);
-		if (!key) {
-			AUTH_FAILURES_TOTAL.inc();
-			return sendResponse(
-				{ error: "Invalid authentication token" },
-				HTTP_STATUS.UNAUTHORIZED
-			);
-		}
+		AUTH_FAILURES_TOTAL.inc();
+		return sendResponse(
+			{ error: "Server misconfiguration: no valid tokens configured" },
+			HTTP_STATUS.SERVICE_UNAVAILABLE
+		);
+	}
+	const key = findKey(digest, validKeys);
+	if (!key) {
+		AUTH_FAILURES_TOTAL.inc();
+		return sendResponse(
+			{ error: "Invalid authentication token" },
+			HTTP_STATUS.UNAUTHORIZED
+		);
 	}
 
 	const auth = authOf(req);
 	auth.clientIdentity = ClientIdentity.of(
 		`client:${digest.toString("hex").slice(0, 32)}`
 	);
-	auth.apiKeyName = key?.name ?? null;
-	auth.apiKeyScopes = key?.scopes ?? API_SCOPES;
+	auth.apiKeyName = key.name;
+	auth.apiKeyScopes = key.scopes;
 	next();
 });
