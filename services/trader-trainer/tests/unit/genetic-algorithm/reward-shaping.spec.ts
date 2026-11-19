@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
+import { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
@@ -9,7 +10,6 @@ import {
 } from "../../../src/domain/genetic-algorithm/genome-control";
 import { RewardShaper } from "../../../src/domain/genetic-algorithm/reward-shaping";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
-import { NormalizationStats } from "../../../src/domain/normalization-stats";
 
 function genomeWith(
 	rewardShaping: Partial<LamarckGenome["rl"]["rewardShaping"]>

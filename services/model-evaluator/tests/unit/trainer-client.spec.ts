@@ -18,6 +18,7 @@ jest.mock("@trading-model/primitives/service-identity", () => ({
 	},
 }));
 
+import { ScraperClient } from "../../src/adapters/outbound/scraper-client";
 import { TrainerClient } from "../../src/adapters/outbound/trainer-client";
 
 const TLS = { keyPath: "k", certPath: "c", caPath: "ca" } as never;
@@ -77,5 +78,35 @@ describe("TrainerClient", () => {
 		await expect(
 			new TrainerClient(TLS).weights("BTCUSDT", "v1")
 		).rejects.toThrow(/HTTP 403/);
+	});
+});
+
+describe("ScraperClient", () => {
+	const row = (minute: number, interval = "1m") => ({
+		interval,
+		open: 1,
+		high: 2,
+		low: 0.5,
+		close: 1.5,
+		volume: 10,
+		timestamp: new Date(minute * 60_000).toISOString(),
+		closeTimestamp: new Date(minute * 60_000 + 59_999).toISOString(),
+	});
+
+	it("reads the window up to `to` exclusive, page after page, one-minute candles once", async () => {
+		manifestGet.mockReset();
+		manifestGet
+			.mockResolvedValueOnce({
+				rows: [row(0), row(0), row(1, "1h")],
+				nextCursor: "c1",
+			})
+			.mockResolvedValueOnce({ rows: [row(1)], nextCursor: null });
+		const candles = await new ScraperClient(TLS).candles("BTCUSDT", 0, 119_999);
+
+		expect(candles.map((c) => c.timestamp)).toEqual([0, 60_000]);
+		expect(String(manifestGet.mock.calls[0][0])).toBe(
+			"https://trainer:3000/v2/candles/symbols/BTCUSDT?from=1970-01-01T00:00:00.000Z&to=1970-01-01T00:01:59.999Z&limit=5000"
+		);
+		expect(String(manifestGet.mock.calls[1][0])).toMatch(/&after=c1$/);
 	});
 });
