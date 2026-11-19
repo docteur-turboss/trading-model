@@ -3,7 +3,7 @@ import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import { HttpClient } from "@trading-model/http/http-client";
-import { URLString } from "@trading-model/primitives/primitives";
+import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";
 import type { TradingSymbol } from "../../domain/market-data-types";
@@ -60,7 +60,7 @@ export class ScraperCandleHistory implements CandleHistoryPort {
 		do {
 			const page = await this._http.get(
 				URLString.of(`${base}?${window}${after}`),
-				undefined,
+				{ serviceName: ServiceId.of("financial-scraper") },
 				Page
 			);
 			if (!page) {

@@ -142,7 +142,7 @@ release; it goes away with the contract step of ADR-0065.
 
 ## SPIRE server
 
-**Alerts:** `CertificateExpiry` (an SVID with less than 1 hour left),
+**Alerts:** `CertificateExpiry` (an SVID with less than 90 minutes left), `KubeWorkloadUnavailable`,
 workloads failing mTLS, pods stuck without SVID  
 **Severity:** L1
 

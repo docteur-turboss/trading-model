@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import { logger } from "@trading-model/http/logger";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import { MessageManagerClient } from "../../src/message-manager-client";
 
 describe("MessageManagerClient", () => {
@@ -49,7 +50,7 @@ describe("MessageManagerClient", () => {
 					topic: "market.candlestick.series.fetch",
 					callbackPath: mockConfig.callbackPath,
 				}),
-				{ idempotent: true }
+				{ idempotent: true, serviceName: ServiceId.of("message-manager") }
 			);
 		});
 
@@ -152,7 +153,10 @@ describe("MessageManagerClient", () => {
 					metadata,
 				},
 				// Never re-sent once it left.
-				{ timeoutMs: PUBLISH_ACCEPT_TIMEOUT_MS + 5_000 }
+				{
+					timeoutMs: PUBLISH_ACCEPT_TIMEOUT_MS + 5_000,
+					serviceName: ServiceId.of("message-manager"),
+				}
 			);
 		});
 
