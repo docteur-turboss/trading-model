@@ -31,8 +31,7 @@ Is there a known cause? → Recent deploy / config change / upstream outage
 
 - Apply fix or mitigation
 - Verify service health via:
-  - `GET /ping` returns 200
-  - `GET /health` returns healthy
+  - Health check passes, run inside the container with its SVID (mTLS rejects a bare `curl`): see [Health check endpoints](on-call.md#health-check-endpoints)
   - Prometheus alert resolves
   - E2E smoke tests pass
 
