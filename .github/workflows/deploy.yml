@@ -467,7 +467,7 @@ jobs:
         env:
           GRAFANA_ALLOWED_CIDRS: ${{ vars.GRAFANA_ALLOWED_CIDRS }}
         run: |
-          ENV="${{ inputs.environment }}"
+          ENV="$DEPLOY_ENVIRONMENT"
           cidr='[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}|[0-9A-Fa-f:]+:[0-9A-Fa-f:]*/[0-9]{1,3}'
           if [ -z "$GRAFANA_ALLOWED_CIDRS" ]; then
             msg="GRAFANA_ALLOWED_CIDRS is not set: the Grafana Ingress is open to the Internet (docs/deployment/DEPLOY.md)"
