@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (manifest), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (point in time, criteria), [ADR-0049](./0049-downstream-context-for-models-and-signals.md) §1.4 (model-evaluator), [ADR-0066](./0066-simulated-fills-at-next-bar-open-with-execution-costs.md) (simulator), [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md) (admission), [ADR-0078](./0078-trainer-features-from-candles-only.md) (candle features)
-**Verified by:** `services/trader-trainer/tests/unit/model-artifacts/model-metrics.spec.ts`, `bun run api:check`
+**Verified by:** `services/trader-trainer/tests/unit/adapters/outbound/model-metrics.spec.ts`, `bun run api:check`
 
 ## Context
 

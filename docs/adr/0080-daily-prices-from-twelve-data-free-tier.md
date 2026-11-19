@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0036](./0036-multi-dimension-signals-mvp.md) (decisions 3, 9), [ADR-0075](./0075-non-commercial-signal-sources-admitted-and-tagged.md) (rank 2), issue #1272
-**Verified by:** `services/financial-scraper/tests/unit/signals/source-adapters.spec.ts`, `services/financial-scraper/tests/unit/signals/signal-registry.spec.ts`
+**Verified by:** `services/financial-scraper/tests/unit/adapters/outbound/signal-sources/source-adapters.spec.ts`, `services/financial-scraper/tests/unit/config/signal-registry.spec.ts`
 
 ## Context
 
