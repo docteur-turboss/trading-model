@@ -1,5 +1,5 @@
+import { actionLabels } from "@trading-model/model-runtime/agent/action-mapper";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
-import { actionLabels } from "./agent/action-mapper";
 import { EVAL_EPSILON } from "./genetic-algorithm/evaluation-phase";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
 import { SIMULATOR_PARAMS } from "./genetic-algorithm/rl-backend";

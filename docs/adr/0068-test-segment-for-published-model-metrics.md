@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (manifest metrics), [ADR-0025](./0025-ga-fitness-wired-to-fitness-type.md) (metrics definition), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (point-in-time, MT4 test candles)
-**Verified by:** `services/trader-trainer/tests/unit/market-data/test-segment.spec.ts`, `services/trader-trainer/tests/unit/genetic-algorithm/evaluation-pipeline.spec.ts`, `bun run contracts:check`
+**Verified by:** `services/trader-trainer/tests/unit/domain/market-data/test-segment.spec.ts`, `services/trader-trainer/tests/unit/domain/genetic-algorithm/evaluation-pipeline.spec.ts`, `bun run contracts:check`
 
 ## Context
 

@@ -1,5 +1,5 @@
+import type { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
 import type { NumericRange } from "@trading-model/primitives/numeric-range";
-import type { NormalizationStats } from "../normalization-stats";
 import type { LamarckGenome } from "./genome";
 import type { DeepReadonly } from "./shared-types";
 
