@@ -7,7 +7,7 @@ import { buildHttpsAgentOptions } from "@trading-model/http/http-tls-loader";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
 import type { Request } from "express";
-import { ENV } from "../../infrastructure/config/env";
+import type { Env } from "../../infrastructure/config/env";
 import { safeHeaders } from "../../shared/proxy-header-sanitizer";
 
 export interface ProxyRequestOptions {
@@ -18,22 +18,20 @@ export interface ProxyRequestOptions {
 	serviceName: string;
 }
 
-export function buildProxyOptions({
-	target,
-	req,
-	path,
-	serviceName,
-}: ProxyRequestOptions): https.RequestOptions {
+export function buildProxyOptions(
+	{ target, req, path, serviceName }: ProxyRequestOptions,
+	env: Env
+): https.RequestOptions {
 	const url = new URL(path, `https://${HostPort.toAddress(target)}`);
 	return {
 		hostname: target.host,
 		port: target.port,
 		path: url.pathname + url.search,
 		method: req.method,
-		headers: safeHeaders(req, ENV.AUTH_TOKEN_HEADER),
+		headers: safeHeaders(req, env.AUTH_TOKEN_HEADER),
 		rejectUnauthorized: true,
-		timeout: ENV.PROXY_TIMEOUT_MS,
-		..._resolveSvidTls(serviceName),
+		timeout: env.PROXY_TIMEOUT_MS,
+		..._resolveSvidTls(env, serviceName),
 	};
 }
 
@@ -44,8 +42,11 @@ export function buildProxyOptions({
  * `spiffe://` URI SAN, so hostname verification is disabled in favour of
  * the SPIFFE trust bundle.
  */
-function _resolveSvidTls(serviceName: string): https.AgentOptions {
-	const env = ENV as TlsEnvVars;
+function _resolveSvidTls(
+	settings: Env,
+	serviceName: string
+): https.AgentOptions {
+	const env = settings as TlsEnvVars;
 	if (!(env.TLS_KEY_PATH && env.TLS_CERT_PATH && env.TLS_CA_PATH)) {
 		return {};
 	}

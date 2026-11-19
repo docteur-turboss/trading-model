@@ -10,15 +10,13 @@ jest.mock("@trading-model/http/http-tls-loader", () => ({
 	})),
 }));
 
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		AUTH_TOKEN_HEADER: "x-api-key",
-		PROXY_TIMEOUT_MS: 10000,
-		TLS_KEY_PATH: "/run/spire/svid/svid_key.pem",
-		TLS_CERT_PATH: "/run/spire/svid/svid.pem",
-		TLS_CA_PATH: "/run/spire/svid/bundle.pem",
-	},
-}));
+const ENV: any = {
+	AUTH_TOKEN_HEADER: "x-api-key",
+	PROXY_TIMEOUT_MS: 10000,
+	TLS_KEY_PATH: "/run/spire/svid/svid_key.pem",
+	TLS_CERT_PATH: "/run/spire/svid/svid.pem",
+	TLS_CA_PATH: "/run/spire/svid/bundle.pem",
+};
 
 import { buildHttpsAgentOptions } from "@trading-model/http/http-tls-loader";
 import { buildProxyOptions } from "../../src/adapters/outbound/proxy-options-builder";
@@ -27,12 +25,15 @@ const TARGET = { host: "10.0.1.5", port: 3000, version: "1.0.0" } as never;
 
 describe("buildProxyOptions", () => {
 	it("attaches the gateway SVID to outbound proxy requests", () => {
-		const options = buildProxyOptions({
-			req: createReq(),
-			target: TARGET,
-			path: "/v1/api/data",
-			serviceName: "financial-scraper",
-		});
+		const options = buildProxyOptions(
+			{
+				req: createReq(),
+				target: TARGET,
+				path: "/v1/api/data",
+				serviceName: "financial-scraper",
+			},
+			ENV
+		);
 
 		expect(buildHttpsAgentOptions).toHaveBeenCalled();
 		expect(options.cert).toBe("cert-pem");

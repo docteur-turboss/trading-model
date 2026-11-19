@@ -6,11 +6,11 @@ import { sendResponse } from "@trading-model/http/response-exception";
 import { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
 import type { Request, RequestHandler } from "express";
 
-import { ENV } from "../../infrastructure/config/env";
+import type { Env } from "../../infrastructure/config/env";
 import { AUTH_FAILURES_TOTAL } from "../../infrastructure/config/metrics";
 import { type ApiKey, type ApiScope, parseApiKey } from "../../shared/api-keys";
 
-/** What AUTH_MIDDLEWARE sets on an authenticated request. */
+/** What the auth middleware sets on an authenticated request. */
 export interface AuthenticatedRequest {
 	clientIdentity: ClientIdentity;
 	/** Name of the API key (ADR-0059), null in non-strict mode without keys. */
@@ -27,10 +27,10 @@ type HashedKey = ApiKey & { digest: Buffer };
 let parsedKeys: HashedKey[] = [];
 
 /** The valid keys of AUTH_TOKENS, parsed again only when it changes. */
-function getValidKeys(): HashedKey[] {
-	if (parsedFrom !== ENV.AUTH_TOKENS) {
-		parsedFrom = ENV.AUTH_TOKENS;
-		parsedKeys = parseCommaSeparated(ENV.AUTH_TOKENS)
+function getValidKeys(authTokens: string): HashedKey[] {
+	if (parsedFrom !== authTokens) {
+		parsedFrom = authTokens;
+		parsedKeys = parseCommaSeparated(authTokens)
 			.map(parseApiKey)
 			// The env schema refuses a malformed entry at startup: none is left here.
 			.filter((key): key is ApiKey => "secret" in key)
@@ -50,49 +50,54 @@ function findKey(digest: Buffer, keys: HashedKey[]): ApiKey | undefined {
 	return found;
 }
 
-/** The scopes and key name AUTH_MIDDLEWARE set on the request. */
+/** The scopes and key name the auth middleware set on the request. */
 export function authOf(req: Request): AuthenticatedRequest {
 	// as unknown as: Express request widened after the auth middleware set its fields
 	return req as unknown as AuthenticatedRequest;
 }
 
-export const AUTH_MIDDLEWARE: RequestHandler = catchSync((req, _res, next) => {
-	const tokenHeader = ENV.AUTH_TOKEN_HEADER.toLowerCase();
-	const raw = req.headers[tokenHeader] ?? req.headers.authorization;
-	// Accept both `<token>` and `Bearer <token>` (scheme is case-insensitive).
-	const token = typeof raw === "string" ? raw.replace(/^Bearer\s+/i, "") : raw;
+/** Settings the auth middleware reads, passed by the composition root. */
+export type AuthSettings = Pick<Env, "AUTH_TOKENS" | "AUTH_TOKEN_HEADER">;
 
-	if (!token || typeof token !== "string") {
-		AUTH_FAILURES_TOTAL.inc();
-		return sendResponse(
-			{ error: "Missing authentication token" },
-			HTTP_STATUS.UNAUTHORIZED
-		);
-	}
+export const createAuthMiddleware = (env: AuthSettings): RequestHandler =>
+	catchSync((req, _res, next) => {
+		const tokenHeader = env.AUTH_TOKEN_HEADER.toLowerCase();
+		const raw = req.headers[tokenHeader] ?? req.headers.authorization;
+		// Accept both `<token>` and `Bearer <token>` (scheme is case-insensitive).
+		const token =
+			typeof raw === "string" ? raw.replace(/^Bearer\s+/i, "") : raw;
 
-	const digest = sha256(token);
-	const validKeys = getValidKeys();
-	if (validKeys.length === 0) {
-		AUTH_FAILURES_TOTAL.inc();
-		return sendResponse(
-			{ error: "Server misconfiguration: no valid tokens configured" },
-			HTTP_STATUS.SERVICE_UNAVAILABLE
-		);
-	}
-	const key = findKey(digest, validKeys);
-	if (!key) {
-		AUTH_FAILURES_TOTAL.inc();
-		return sendResponse(
-			{ error: "Invalid authentication token" },
-			HTTP_STATUS.UNAUTHORIZED
-		);
-	}
+		if (!token || typeof token !== "string") {
+			AUTH_FAILURES_TOTAL.inc();
+			return sendResponse(
+				{ error: "Missing authentication token" },
+				HTTP_STATUS.UNAUTHORIZED
+			);
+		}
 
-	const auth = authOf(req);
-	auth.clientIdentity = ClientIdentity.of(
-		`client:${digest.toString("hex").slice(0, 32)}`
-	);
-	auth.apiKeyName = key.name;
-	auth.apiKeyScopes = key.scopes;
-	next();
-});
+		const digest = sha256(token);
+		const validKeys = getValidKeys(env.AUTH_TOKENS);
+		if (validKeys.length === 0) {
+			AUTH_FAILURES_TOTAL.inc();
+			return sendResponse(
+				{ error: "Server misconfiguration: no valid tokens configured" },
+				HTTP_STATUS.SERVICE_UNAVAILABLE
+			);
+		}
+		const key = findKey(digest, validKeys);
+		if (!key) {
+			AUTH_FAILURES_TOTAL.inc();
+			return sendResponse(
+				{ error: "Invalid authentication token" },
+				HTTP_STATUS.UNAUTHORIZED
+			);
+		}
+
+		const auth = authOf(req);
+		auth.clientIdentity = ClientIdentity.of(
+			`client:${digest.toString("hex").slice(0, 32)}`
+		);
+		auth.apiKeyName = key.name;
+		auth.apiKeyScopes = key.scopes;
+		next();
+	});
