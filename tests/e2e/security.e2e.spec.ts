@@ -108,10 +108,13 @@ describe("Security E2E", () => {
 			expect(proxyStatus("/containers/json")).toBe("200");
 		});
 
+		it("lets promtail read logs (unknown id: daemon 404, not proxy 403)", () => {
+			expect(proxyStatus("/containers/abc123/logs?stdout=1")).toBe("404");
+		});
+
 		it.each([
 			["GET", "/containers/abc123/archive?path=/etc", "403"],
 			["GET", "/containers/abc123/export", "403"],
-			["GET", "/containers/abc123/logs", "403"],
 			// wollomatic answers 405 for a method outside -allowGET
 			["POST", "/containers/abc123/start", "405"],
 		])("refuses %s %s", (method, path, status) => {
