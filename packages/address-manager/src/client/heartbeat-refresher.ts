@@ -1,7 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/http-client";
-import { URLString } from "@trading-model/primitives/primitives";
+import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import { addressManagerError } from "../shared/errors";
 import type { TokenManager } from "./token-manager";
@@ -29,6 +29,7 @@ export class HeartbeatRefresher {
 						[HTTP_HEADERS.X_INSTANCE_TOKEN]: this._tokenManager.getToken(),
 					},
 					idempotent: true,
+					serviceName: ServiceId.of("discovery-server"),
 				}
 			);
 		} catch (error) {
