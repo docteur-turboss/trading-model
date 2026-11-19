@@ -106,6 +106,7 @@ describe("Security E2E", () => {
 
 		it("answers the allowed container list", () => {
 			expect(proxyStatus("/containers/json")).toBe("200");
+			expect(proxyStatus("/networks")).toBe("200");
 		});
 
 		it("lets promtail read logs (unknown id: daemon 404, not proxy 403)", () => {

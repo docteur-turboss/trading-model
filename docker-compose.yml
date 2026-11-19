@@ -1096,8 +1096,8 @@ services:
       - backend-net
 
   # Only holder of the Docker socket (ADR-0011 amendment), mounted read-only.
-  # GET allow-list (issue #1623): ping, version, container list, inspect (SPIRE Docker
-  # attestor, promtail discovery) and logs (promtail tailing); archive, export, any other
+  # GET allow-list (issue #1623): ping, version, container and network lists (promtail
+  # discovery), inspect (SPIRE Docker attestor, promtail discovery) and logs (promtail tailing); archive, export, any other
   # path and any non-GET answer 403. Remaining limits: inspect returns the Env of any
   # container of the daemon (unavoidable for the attestor) and the logs of another
   # project's container stay readable (promtail needs them).
@@ -1112,7 +1112,7 @@ services:
     command:
       - -listenip=0.0.0.0
       - -allowfrom=0.0.0.0/0
-      - -allowGET=^(/v[0-9.]+)?/(_ping|version|containers/json|containers/[a-f0-9]+/(json|logs))$$
+      - -allowGET=^(/v[0-9.]+)?/(_ping|version|containers/json|networks|containers/[a-f0-9]+/(json|logs))$$
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
