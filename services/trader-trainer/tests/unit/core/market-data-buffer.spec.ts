@@ -491,9 +491,10 @@ describe("MarketDataBuffer", () => {
 		});
 
 		it("should return windows once all three segments reach 10 steps", () => {
-			feedCandles(buffer, "BTCUSDT", 100);
+			const big = new MarketDataBuffer({ maxSize: 200 });
+			feedCandles(big, "BTCUSDT", 130);
 
-			const result = buffer.getAllWindows(TradingSymbol.of("BTCUSDT")) as {
+			const result = big.getAllWindows(TradingSymbol.of("BTCUSDT")) as {
 				train: unknown[];
 				validation: unknown[];
 			} | null;
