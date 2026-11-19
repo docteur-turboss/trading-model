@@ -166,6 +166,12 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: "Too many requests"
           content:
@@ -310,6 +316,12 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: "Too many requests"
           content:
@@ -350,6 +362,12 @@ paths:
           description: "No content"
         "400":
           description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Caller not allowed"
           content:
             "application/json":
               schema:
@@ -408,6 +426,12 @@ paths:
           description: "No content"
         "400":
           description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Caller not allowed"
           content:
             "application/json":
               schema:

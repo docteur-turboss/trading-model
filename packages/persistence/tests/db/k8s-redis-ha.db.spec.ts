@@ -29,6 +29,8 @@ const PASSWORDS = {
 	discovery: "discovery-pw",
 	"message-manager": "message-manager-pw",
 	"dlq-service": "dlq-pw",
+	"financial-scraper": "scraper-pw",
+	"audit-logger": "audit-pw",
 	exporter: "exporter-pw",
 };
 const DISCOVERY_KEY = "trading-model:discovery:spec";
@@ -37,6 +39,8 @@ const HA_ENV = {
 	REDIS_DISCOVERY_PASSWORD: PASSWORDS.discovery,
 	REDIS_MESSAGE_MANAGER_PASSWORD: PASSWORDS["message-manager"],
 	REDIS_DLQ_PASSWORD: PASSWORDS["dlq-service"],
+	REDIS_FINANCIAL_SCRAPER_PASSWORD: PASSWORDS["financial-scraper"],
+	REDIS_AUDIT_LOGGER_PASSWORD: PASSWORDS["audit-logger"],
 	REDIS_EXPORTER_PASSWORD: PASSWORDS.exporter,
 	REDIS_HOSTS: ORDINALS.map((n) => `redis-${n}`).join(" "),
 	SENTINEL_HOSTS: ORDINALS.map((n) => `redis-sentinel-${n}`).join(" "),
@@ -108,7 +112,7 @@ const cli = (node: StartedTestContainer, ...args: string[]) =>
 
 const asService = (
 	node: StartedTestContainer,
-	service: "discovery" | "message-manager" | "dlq-service",
+	service: keyof typeof PASSWORDS,
 	...args: string[]
 ) => cliAs(node, service, PASSWORDS[service], ...args);
 
@@ -309,6 +313,38 @@ describe("K8s Redis HA start script — real failovers", () => {
 				foreign
 			)
 		).resolves.toMatch(/^NOPERM/);
+		// Bus users (#1620): the scraper writes its own topics only and acknowledges no other group.
+		const bus = "trading-model:message-manager:journal:";
+		const scraper = async (...args: string[]) =>
+			(await asService(master, "financial-scraper", ...args))[0];
+		await expect(
+			scraper("XADD", `${bus}market.trade.recent.fetch`, "*", "m", "1")
+		).resolves.toMatch(/^\d+-\d+$/);
+		await expect(
+			scraper("XADD", `${bus}training.model.published`, "*", "m", "1")
+		).resolves.toMatch(/^NOPERM/);
+		await expect(
+			scraper(
+				"XACK",
+				`${bus}training.model.published`,
+				"model-evaluator",
+				"0-1"
+			)
+		).resolves.toMatch(/^NOPERM/);
+		await expect(
+			(
+				await asService(
+					master,
+					"audit-logger",
+					"XGROUP",
+					"CREATE",
+					`${bus}training.model.published`,
+					"audit-logger",
+					"0",
+					"MKSTREAM"
+				)
+			)[0]
+		).toBe("OK");
 		// The default user is off; the internal user reaches no key.
 		expect((await cliAs(master, undefined, "", "PING"))[0]).toMatch(
 			/NOAUTH|WRONGPASS/
