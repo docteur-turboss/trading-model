@@ -43,6 +43,7 @@
 #   deploy-release.sh forget <namespace>
 #       Deletes configmap/deploy-revisions: the release deployed.
 #
+# GRAFANA_ALLOWED_CIDRS: comma-separated CIDRs; `render` sets them as whitelist-source-range of grafana-ingress (issue #1630).
 # DEPLOY_TIMEOUT_FACTOR: integer the wait and rollback timeouts are multiplied
 # by (default 1; a slow cluster such as the local kind staging).
 set -euo pipefail
@@ -185,6 +186,12 @@ render() {
 			echo "    newName: $registry/$img"
 			echo "    digest: $digest"
 		done <"$digests"
+		if [ -n "${GRAFANA_ALLOWED_CIDRS:-}" ]; then
+			echo "patches:"
+			echo "  - target: {kind: Ingress, name: grafana-ingress}"
+			echo "    patch: |-"
+			echo "      - {op: add, path: /metadata/annotations/nginx.ingress.kubernetes.io~1whitelist-source-range, value: \"$GRAFANA_ALLOWED_CIDRS\"}"
+		fi
 	} >"$wrapper/kustomization.yaml"
 	# jobs/ packages scripts/backup-k8s.sh from outside its directory: the default
 	# load restrictor rejects it and kubectl apply -k cannot relax it.

@@ -9,6 +9,7 @@ import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import { HttpClient } from "@trading-model/http/http-client";
 import {
 	NonNegativeInt,
+	ServiceId,
 	UnixTimestamp,
 	URLString,
 } from "@trading-model/primitives/primitives";
@@ -66,7 +67,7 @@ export class ScraperCandleHistory implements CandleHistoryPort {
 		do {
 			const page = await this._http.get(
 				URLString.of(`${base}?${window}${after}`),
-				undefined,
+				{ serviceName: ServiceId.of("financial-scraper") },
 				Page
 			);
 			if (!page) {
