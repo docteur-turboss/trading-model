@@ -1,7 +1,7 @@
+import { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
 import { DataType } from "./data-handlers/data-types";
 import type { BaseSymbolState } from "./market-data-types";
 import { NormalizationManager } from "./normalization-manager";
-import { NormalizationStats } from "./normalization-stats";
 
 interface StoredStats {
 	count: number;

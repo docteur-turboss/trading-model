@@ -1,5 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { isEventDriven } from "@trading-model/model-runtime/agent/decision-events";
+import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
 import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import { Fitness, NonNegativeInt } from "@trading-model/primitives/primitives";
 import {
@@ -22,10 +24,8 @@ import {
 	networkInputLayout,
 } from "../domain/agent/agent-state";
 import { featureDriftScore } from "../domain/feature-drift";
-import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
-import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import {
 	SIMULATOR_PARAMS,
 	type SimulatorCosts,

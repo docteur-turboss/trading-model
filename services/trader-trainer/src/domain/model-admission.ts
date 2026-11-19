@@ -1,6 +1,8 @@
-import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
+import {
+	type SegmentRatios,
+	segmentRatios,
+} from "@trading-model/model-runtime/replay-metrics";
 import type { GenomeFitnessMeta, MarketStep } from "./genetic-algorithm/genome";
-import { annualisedSharpe } from "./genome-summary-builder";
 
 /**
  * ADR-0030 thresholds one test segment can be held to (ADR-0069); the
@@ -24,12 +26,7 @@ export interface ModelAdmission {
 	admissible: boolean;
 	evaluatedOn: "test";
 	/** Annualised ratios of the model and Sharpe of buy and hold on the same bars. */
-	criteria: {
-		sharpe: number;
-		sortino: number;
-		calmar: number;
-		buyAndHoldSharpe: number;
-	};
+	criteria: SegmentRatios;
 	thresholds: typeof ADMISSION_THRESHOLDS;
 }
 
@@ -53,13 +50,7 @@ export function assessAdmission(
 	) {
 		return undefined;
 	}
-	const perYear = meta.barsPerYear ?? 1;
-	const criteria = {
-		sharpe: annualisedSharpe(curve, meta),
-		sortino: curve.sortino() * Math.sqrt(perYear),
-		calmar: curve.calmar() * perYear,
-		buyAndHoldSharpe: buyAndHoldSharpe([test]),
-	};
+	const criteria = segmentRatios(curve, meta.barsPerYear ?? 1, test);
 	return {
 		admissible:
 			meta.decisions !== 0 &&

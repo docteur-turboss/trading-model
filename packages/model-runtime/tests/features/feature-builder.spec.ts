@@ -11,9 +11,9 @@ import {
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import { buildFeatures } from "../../../src/domain/feature-builder";
-import { FEATURE_DIM } from "../../../src/domain/market-data-types";
-import { NormalizationStats } from "../../../src/domain/normalization-stats";
+import { FEATURE_DIM } from "../../src/feature-vector-codec";
+import { buildFeatures } from "../../src/features/feature-builder";
+import { NormalizationStats } from "../../src/features/normalization-stats";
 
 function baseCandle(overrides?: Partial<CandleData>): CandleData {
 	return {

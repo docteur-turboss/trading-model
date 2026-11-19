@@ -1,5 +1,5 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
-import { NormalizationStats } from "../normalization-stats";
+import { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
 import type { DataHandler } from "./data-handler";
 import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
 import { DataType } from "./data-types";

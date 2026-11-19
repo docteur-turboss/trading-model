@@ -1,10 +1,9 @@
+import { candleSteps } from "@trading-model/model-runtime/features/feature-builder";
 import { Percentage, PositiveInt } from "@trading-model/primitives/primitives";
 import type { Signal } from "@trading-model/validation/wire/signals";
-import { buildFeatures as buildFeaturesFn } from "../feature-builder";
 import type { WindowSet } from "../genetic-algorithm/generation-types";
 import type { MarketStep } from "../genetic-algorithm/genome";
 import type { SymbolState, TradingSymbol } from "../market-data-types";
-import { NormalizationManager } from "../normalization-manager";
 import {
 	applySignalNorms,
 	asOfSignalInputs,
@@ -13,7 +12,6 @@ import {
 	signalNorms,
 } from "../signal-features";
 import type { MarketDataContext } from "./market-data-context";
-import { forEachPointInTime } from "./point-in-time";
 
 /** Minimum number of market steps required before training can start. */
 export const MIN_TRAINING_STEPS = PositiveInt.of(10);
@@ -61,7 +59,6 @@ export function hasEnoughTrainingData(
 export class WindowSplitter {
 	constructor(
 		private readonly _states: Map<TradingSymbol, SymbolState>,
-		private readonly _normManager = new NormalizationManager(),
 		/** Signal metrics fed to the network (FEATURE_SIGNAL_INPUTS); empty: market inputs only. */
 		readonly signalKeys: readonly string[] = []
 	) {}
@@ -101,26 +98,17 @@ export class WindowSplitter {
 		if (!state || state.candles.length < 2) {
 			return [];
 		}
-		const steps: MarketStep[] = [];
-		const signals = this._signals.get(ctx.symbol) ?? new Map();
-		forEachPointInTime(state, this._normManager, (view, idx) => {
-			if (idx > 0) {
-				const features = buildFeaturesFn({ state: view, idx });
-				if (this.signalKeys.length > 0) {
-					features.signals = asOfSignalInputs(
-						signals,
-						this.signalKeys,
-						view.candles[idx].closeTimestamp
-					);
-				}
-				steps.push({
-					price: view.candles[idx].close,
-					fillPrice: state.candles[idx + 1]?.open,
-					features,
-					timestamp: view.candles[idx].timestamp,
-				});
-			}
-		});
+		const steps: MarketStep[] = candleSteps(state.candles);
+		if (this.signalKeys.length > 0) {
+			const signals = this._signals.get(ctx.symbol) ?? new Map();
+			steps.forEach((step, idx) => {
+				step.features.signals = asOfSignalInputs(
+					signals,
+					this.signalKeys,
+					state.candles[idx + 1].closeTimestamp
+				);
+			});
+		}
 		return steps;
 	}
 
