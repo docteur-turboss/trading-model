@@ -1,8 +1,17 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
+import { DAILY_BAR_ISSUES_TOTAL } from "../../config/metrics";
 import { NormalizationStats } from "../normalization-stats";
 import type { DataHandler } from "./data-handler";
 import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
 import { DataType } from "./data-types";
+
+/** `low`/`high` must bound `open` and `close`: features divide by `high - low`. */
+function isConsistent(candle: CandleData): boolean {
+	return (
+		candle.low <= Math.min(candle.open, candle.close) &&
+		Math.max(candle.open, candle.close) <= candle.high
+	);
+}
 
 export const candleHandler: DataHandler<CandleData> = {
 	dataType: DataType.Candle,
@@ -28,9 +37,15 @@ export const candleHandler: DataHandler<CandleData> = {
 		state.norm.candle.low.update(candle.low);
 	},
 	isNew(state, candle) {
-		return isAfterLast(state.candles, candle, "timestamp");
+		return (
+			isConsistent(candle) && isAfterLast(state.candles, candle, "timestamp")
+		);
 	},
-	mutateState({ data, state, maxSize }) {
+	mutateState({ symbol, data, state, maxSize }) {
+		if (!isConsistent(data)) {
+			DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue: "ohlc_inconsistent" });
+			return;
+		}
 		// The scraper re-sends candles it already published (overlapping fetch
 		// windows, retries): keep the series strictly increasing in time, or the
 		// same candle lands in both the training and the validation windows.

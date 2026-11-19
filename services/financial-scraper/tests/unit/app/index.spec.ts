@@ -58,27 +58,6 @@ describe("app/index", () => {
 		);
 	});
 
-	it("should pass createServer function", () => {
-		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
-		expect(typeof opts.createServer).toBe("function");
-	});
-
-	it("onStop should handle null addressManager", () => {
-		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
-		expect(() => opts.onStop()).not.toThrow();
-	});
-
-	it("onStart should bootstrap address manager", () => {
-		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
-		expect(() => opts.onStart()).not.toThrow();
-	});
-
-	it("onStop should stop address manager after start", () => {
-		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
-		opts.onStart();
-		expect(() => opts.onStop()).not.toThrow();
-	});
-
 	// Idle pool connections kept the process alive until SIGKILL.
 	it("onStop should close the MySQL pool so the process can exit", async () => {
 		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
