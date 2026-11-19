@@ -805,17 +805,35 @@ describe("dvf-commune-sales", () => {
 			])
 		);
 
-	it("counts a multi-lot sale once and takes the median per type", () => {
+	const extra = (type: string, count: number) =>
+		Array.from({ length: count }, (_, i) => ({
+			...rows[0],
+			id_mutation: `2025-extra-${type}-${i}`,
+			nature_mutation: "Vente",
+			type_local: type,
+			surface_reelle_bati: "50",
+			valeur_fonciere: "200000",
+		}));
+
+	it("counts a multi-lot sale once and publishes no median under 11 sales", () => {
 		const out = metrics(rows);
 
 		expect(out.sales_count?.value).toBe(3);
-		expect(out.median_price_per_m2_apartment?.value).toBe(7352.94);
-		expect(out.median_price_per_m2_house?.value).toBe(4907.61);
+		expect(out.median_price_per_m2_apartment).toBeUndefined();
+		expect(out.median_price_per_m2_house).toBeUndefined();
 		expect(out.sales_count?.details).toEqual({ excluded: 2 });
 		expect(out.sales_count?.period).toEqual({
 			start: "2025-01-01",
 			end: "2025-12-31",
 		});
+	});
+
+	it("publishes a median from 11 sales of its type, not from 10", () => {
+		const out = metrics([...extra("Maison", 10), ...extra("Appartement", 11)]);
+
+		expect(out.sales_count?.value).toBe(21);
+		expect(out.median_price_per_m2_apartment?.value).toBe(4000);
+		expect(out.median_price_per_m2_house).toBeUndefined();
 	});
 
 	it("excludes sales without price or surface and counts them", () => {
@@ -828,7 +846,6 @@ describe("dvf-commune-sales", () => {
 		);
 
 		expect(metrics(bad).sales_count?.details).toEqual({ excluded: 4 });
-		expect(metrics(bad).median_price_per_m2_house).toBeUndefined();
 	});
 
 	it("reads two identical dwelling rows as one dwelling (known limit)", () => {
