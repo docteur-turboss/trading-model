@@ -35,7 +35,12 @@ export async function proxyAndCache(
 	const start = performance.now();
 	let status: number = HTTP_STATUS.SERVICE_UNAVAILABLE;
 	try {
-		const result = await forward({ req, target, path: ctx.path });
+		const result = await forward({
+			req,
+			target,
+			path: ctx.path,
+			serviceName: ctx.serviceName,
+		});
 		const contentType = result.headers?.["content-type"];
 		const type = typeof contentType === "string" ? contentType : undefined;
 		tryCacheResponse(req, ctx, result, /json/i.test(type ?? ""), cache);
