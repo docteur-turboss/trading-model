@@ -1,9 +1,15 @@
+import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { Percentage, PositiveInt } from "@trading-model/primitives/primitives";
 import type { Signal } from "@trading-model/validation/wire/signals";
 import { buildFeatures as buildFeaturesFn } from "../feature-builder";
 import type { WindowSet } from "../genetic-algorithm/generation-types";
 import type { MarketStep } from "../genetic-algorithm/genome";
-import type { SymbolState, TradingSymbol } from "../market-data-types";
+import {
+	DAILY_MAX_DATA_AGE_MS,
+	DAY_MS,
+	type SymbolState,
+	type TradingSymbol,
+} from "../market-data-types";
 import { NormalizationManager } from "../normalization-manager";
 import {
 	applySignalNorms,
@@ -29,6 +35,24 @@ export const DEFAULT_TEST_SPLIT = Percentage.of(0.15);
 
 /** Default number of walk-forward folds (1 = single split, no rolling). */
 const DEFAULT_WALK_FORWARD_FOLDS = 1;
+
+/**
+ * The candles after the last gap: the series never links two candles further
+ * apart than one bar (1 min), or than DAILY_MAX_DATA_AGE_MS for daily bars
+ * (weekends and holidays stay inside), so no step carries a gap's return.
+ */
+export function contiguousCandles(candles: CandleData[]): CandleData[] {
+	let start = 0;
+	for (let idx = 1; idx < candles.length; idx++) {
+		const { timestamp, closeTimestamp } = candles[idx - 1];
+		const barMs = closeTimestamp - timestamp + 1;
+		const maxGapMs = barMs >= DAY_MS ? DAILY_MAX_DATA_AGE_MS : barMs;
+		if (candles[idx].timestamp - timestamp > maxGapMs) {
+			start = idx;
+		}
+	}
+	return start === 0 ? candles : candles.slice(start);
+}
 
 /**
  * Whether `candleCount` candles give windows the training validator accepts.
@@ -92,12 +116,16 @@ export class WindowSplitter {
 	}
 
 	/**
-	 * One step per candle after the first, built from what its close knew. Its
+	 * One step per candle after the first of the last gap-free run, built from what its close knew. Its
 	 * decision fills at the next candle's open (none for the last candle: it
 	 * fills at its close).
 	 */
 	buildMarketSteps(ctx: MarketDataContext): MarketStep[] {
-		const state = this._states.get(ctx.symbol);
+		const full = this._states.get(ctx.symbol);
+		const state = full && {
+			...full,
+			candles: contiguousCandles(full.candles),
+		};
 		if (!state || state.candles.length < 2) {
 			return [];
 		}

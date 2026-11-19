@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
-// proxy-header-sanitizer (shared/) still reads the global ENV.
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: { AUTH_TOKEN_HEADER: "x-api-key" },
-}));
-
 const ENV: any = {
 	AUTH_TOKEN_HEADER: "x-api-key",
 	PROXY_TIMEOUT_MS: 10000,
@@ -75,6 +70,36 @@ function createMockHttps(
 	return jest.fn<(...args: any[]) => any>().mockImplementation(makeReq);
 }
 
+function stubUpstream(
+	res: ReturnType<typeof createMockResponse>,
+	chunks: string[],
+	onOpts?: (opts: any) => void
+) {
+	const { mockRes, mockReq, events } = res;
+	require("node:https").request = createMockHttps(
+		(opts: any, callback: (res: any) => void) => {
+			onOpts?.(opts);
+			callback(mockRes);
+			for (const h of events.data ?? []) {
+				for (const c of chunks) {
+					h(Buffer.from(c));
+				}
+			}
+			for (const h of events.end ?? []) {
+				h();
+			}
+			return mockReq;
+		}
+	);
+}
+
+const loadForward = async () => {
+	const { forwardRequest } = await Promise.resolve(
+		require("../../src/adapters/outbound/proxy-handler")
+	);
+	return (opts: any) => forwardRequest(opts, ENV);
+};
+
 describe("proxy-handler", () => {
 	beforeEach(() => {
 		jest.resetModules();
@@ -87,31 +112,11 @@ describe("proxy-handler", () => {
 			JSON.stringify({ data: "ok" })
 		);
 
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(_opts: any, callback: (res: any) => void) => {
-				callback(mockRes);
+		stubUpstream({ mockRes, mockReq, events }, [
+			JSON.stringify({ data: "ok" }),
+		]);
 
-				if (events.data) {
-					for (const h of events.data) {
-						h(Buffer.from(JSON.stringify({ data: "ok" })));
-					}
-				}
-				if (events.end) {
-					for (const h of events.end) {
-						h();
-					}
-				}
-
-				return mockReq;
-			}
-		);
-
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({
 			method: "GET",
 			headers: { "x-request-id": "req-123" },
@@ -129,31 +134,9 @@ describe("proxy-handler", () => {
 	it("should strip x-api-key header from forwarded request", async () => {
 		const { mockRes, mockReq, events } = createMockResponse(200, "{}");
 
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(_opts: any, callback: (res: any) => void) => {
-				callback(mockRes);
+		stubUpstream({ mockRes, mockReq, events }, ["{}"]);
 
-				if (events.data) {
-					for (const h of events.data) {
-						h(Buffer.from("{}"));
-					}
-				}
-				if (events.end) {
-					for (const h of events.end) {
-						h();
-					}
-				}
-
-				return mockReq;
-			}
-		);
-
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({
 			method: "GET",
 			headers: { "x-api-key": "secret", "x-request-id": "req-123" },
@@ -182,11 +165,7 @@ describe("proxy-handler", () => {
 				return errReq;
 			});
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({ method: "GET" });
 		await expect(
 			forward({ req, target: MOCK_TARGET, path: "/test" })
@@ -218,11 +197,7 @@ describe("proxy-handler", () => {
 				return timeoutReq;
 			});
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({ method: "GET" });
 		await expect(
 			forward({ req, target: MOCK_TARGET, path: "/test" })
@@ -232,29 +207,9 @@ describe("proxy-handler", () => {
 	it("should handle array headers by joining with comma", async () => {
 		const { mockRes, mockReq, events } = createMockResponse(200, "{}");
 
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(_opts: any, callback: (res: any) => void) => {
-				callback(mockRes);
-				if (events.data) {
-					for (const h of events.data) {
-						h(Buffer.from("{}"));
-					}
-				}
-				if (events.end) {
-					for (const h of events.end) {
-						h();
-					}
-				}
-				return mockReq;
-			}
-		);
+		stubUpstream({ mockRes, mockReq, events }, ["{}"]);
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({
 			method: "GET",
 			headers: {
@@ -269,29 +224,9 @@ describe("proxy-handler", () => {
 	it("should handle non-string non-array header value (implicit else branch)", async () => {
 		const { mockRes, mockReq, events } = createMockResponse(200, "{}");
 
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(_opts: any, callback: (res: any) => void) => {
-				callback(mockRes);
-				if (events.data) {
-					for (const h of events.data) {
-						h(Buffer.from("{}"));
-					}
-				}
-				if (events.end) {
-					for (const h of events.end) {
-						h();
-					}
-				}
-				return mockReq;
-			}
-		);
+		stubUpstream({ mockRes, mockReq, events }, ["{}"]);
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({
 			method: "GET",
 			headers: { "x-request-id": "req-123", "content-length": 42 },
@@ -303,29 +238,9 @@ describe("proxy-handler", () => {
 	it("should use socket.remoteAddress when req.ip is undefined", async () => {
 		const { mockRes, mockReq, events } = createMockResponse(200, "{}");
 
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(_opts: any, callback: (res: any) => void) => {
-				callback(mockRes);
-				if (events.data) {
-					for (const h of events.data) {
-						h(Buffer.from("{}"));
-					}
-				}
-				if (events.end) {
-					for (const h of events.end) {
-						h();
-					}
-				}
-				return mockReq;
-			}
-		);
+		stubUpstream({ mockRes, mockReq, events }, ["{}"]);
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({
 			method: "GET",
 			ip: undefined,
@@ -338,29 +253,9 @@ describe("proxy-handler", () => {
 	it("should fallback to unknown when both ip and socket.remoteAddress are undefined", async () => {
 		const { mockRes, mockReq, events } = createMockResponse(200, "{}");
 
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(_opts: any, callback: (res: any) => void) => {
-				callback(mockRes);
-				if (events.data) {
-					for (const h of events.data) {
-						h(Buffer.from("{}"));
-					}
-				}
-				if (events.end) {
-					for (const h of events.end) {
-						h();
-					}
-				}
-				return mockReq;
-			}
-		);
+		stubUpstream({ mockRes, mockReq, events }, ["{}"]);
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({
 			method: "GET",
 			ip: undefined,
@@ -377,29 +272,9 @@ describe("proxy-handler", () => {
 		);
 		mockRes.statusCode = null;
 
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(_opts: any, callback: (res: any) => void) => {
-				callback(mockRes);
-				if (events.data) {
-					for (const h of events.data) {
-						h(Buffer.from("error"));
-					}
-				}
-				if (events.end) {
-					for (const h of events.end) {
-						h();
-					}
-				}
-				return mockReq;
-			}
-		);
+		stubUpstream({ mockRes, mockReq, events }, ["error"]);
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({ method: "GET" });
 		const result = await forward({ req, target: MOCK_TARGET, path: "/test" });
 		expect(result.status).toBe(503);
@@ -411,31 +286,11 @@ describe("proxy-handler", () => {
 			JSON.stringify({ saved: true })
 		);
 
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(_opts: any, callback: (res: any) => void) => {
-				callback(mockRes);
+		stubUpstream({ mockRes, mockReq, events }, [
+			JSON.stringify({ saved: true }),
+		]);
 
-				if (events.data) {
-					for (const h of events.data) {
-						h(Buffer.from(JSON.stringify({ saved: true })));
-					}
-				}
-				if (events.end) {
-					for (const h of events.end) {
-						h();
-					}
-				}
-
-				return mockReq;
-			}
-		);
-
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({
 			method: "POST",
 			body: { name: "test" },
@@ -456,26 +311,11 @@ describe("proxy-handler", () => {
 	it("should declare the length of the re-serialized body, not the client's", async () => {
 		const { mockRes, mockReq, events } = createMockResponse(200, "{}");
 		let sentHeaders: Record<string, string> = {};
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(opts: any, callback: (res: any) => void) => {
-				sentHeaders = opts.headers;
-				callback(mockRes);
-				for (const h of events.data ?? []) {
-					h(Buffer.from("{}"));
-				}
-				for (const h of events.end ?? []) {
-					h();
-				}
-				return mockReq;
-			}
-		);
+		stubUpstream({ mockRes, mockReq, events }, ["{}"], (opts) => {
+			sentHeaders = opts.headers;
+		});
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		// Formatted JSON from the client: 28 bytes, re-serialized as 15.
 		const req = createReq({
 			method: "POST",
@@ -493,26 +333,11 @@ describe("proxy-handler", () => {
 	it("should not declare a body length when there is no body", async () => {
 		const { mockRes, mockReq, events } = createMockResponse(200, "{}");
 		let sentHeaders: Record<string, string> = {};
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(opts: any, callback: (res: any) => void) => {
-				sentHeaders = opts.headers;
-				callback(mockRes);
-				for (const h of events.data ?? []) {
-					h(Buffer.from("{}"));
-				}
-				for (const h of events.end ?? []) {
-					h();
-				}
-				return mockReq;
-			}
-		);
+		stubUpstream({ mockRes, mockReq, events }, ["{}"], (opts) => {
+			sentHeaders = opts.headers;
+		});
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({
 			method: "POST",
 			body: {},
@@ -527,27 +352,9 @@ describe("proxy-handler", () => {
 	it("should cut an upstream answer past PROXY_MAX_RESPONSE_BYTES", async () => {
 		const { mockRes, mockReq, events } = createMockResponse(200, "");
 		mockRes.destroy = jest.fn<(...args: any[]) => any>();
-		const https = require("node:https");
-		https.request = createMockHttps(
-			(_opts: any, callback: (res: any) => void) => {
-				callback(mockRes);
-				// 10 + 10 bytes: the second chunk passes the 16-byte cap.
-				for (const h of events.data ?? []) {
-					h(Buffer.from("[111111111"));
-					h(Buffer.from(",222222222"));
-				}
-				for (const h of events.end ?? []) {
-					h();
-				}
-				return mockReq;
-			}
-		);
+		stubUpstream({ mockRes, mockReq, events }, ["[111111111", ",222222222"]);
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const {
 			UpstreamResponseTooLargeError,
 		} = require("../../src/domain/ports/gateway.port");
@@ -571,11 +378,7 @@ describe("proxy-handler", () => {
 			}
 		);
 
-		const forward = (opts: any) =>
-			require("../../src/adapters/outbound/proxy-handler").forwardRequest(
-				opts,
-				ENV
-			);
+		const forward = await loadForward();
 		const req = createReq({ method: "GET" });
 		await expect(
 			forward({ req, target: MOCK_TARGET, path: "/test" })

@@ -60,13 +60,18 @@ const CHECKS = [
 
 // Last three: database TLS that does not exist (ADR-0060).
 const TLS_CLAIMS = 'mTLS everywhere|[|] TLS connection [|]|All inter-service communication';
-const FORBIDDEN = new RegExp(`message-manager memory|not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer|${TLS_CLAIMS}`, 'i');
+const FORBIDDEN = new RegExp(`message-manager memory|not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer|SecureKeyStore|AES-256-GCM|${TLS_CLAIMS}`, 'i');
 // The README is prose: only the database TLS claims apply to it.
 const README_FORBIDDEN = new RegExp('mTLS everywhere|[|] TLS connection [|]', 'i');
 
 const errors = [];
 for (const [file, text] of CHECKS) {
   if (!read(file).includes(text)) errors.push(`${file}: missing "${text}"`);
+}
+// Every signal source of the registry must be assessed in the third-party document.
+const dpas = read('docs/compliance/third-party-dpas.md');
+for (const { id } of JSON.parse(read('services/financial-scraper/src/config/signal-registry.json')).sources) {
+  if (!dpas.includes(`\`${id}\``)) errors.push(`docs/compliance/third-party-dpas.md: signal source "${id}" not assessed`);
 }
 const SCANNED = [['README.md', README_FORBIDDEN], ...['data-processing-register', 'dpia', 'compliance-framework', 'information-security-policy', 'access-control-policy', 'data-retention-policy', 'business-continuity-policy'].map((f) => [`docs/compliance/${f}.md`, FORBIDDEN])];
 for (const [file, re] of SCANNED) {

@@ -31,7 +31,7 @@ createBootstrap({
 	},
 	onStop: async () => {
 		await closeMessageManager();
-		addressManager?.stop();
+		await addressManager?.stop();
 		await shutdownTelemetry();
 	},
 });

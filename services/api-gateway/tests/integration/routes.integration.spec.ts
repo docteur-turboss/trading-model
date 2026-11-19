@@ -12,11 +12,6 @@ import express from "express";
 
 jest.setTimeout(15000);
 
-// proxy-header-sanitizer (shared/) still reads the global ENV.
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: { AUTH_TOKEN_HEADER: "x-api-key" },
-}));
-
 const ENV: any = {
 	NODE_ENV: "test",
 	PORT: 0,
@@ -352,7 +347,7 @@ describe("API Gateway — Routes Integration", () => {
 		const { req } = jest.mocked(forwardRequest).mock.calls[0][0] as {
 			req: express.Request;
 		};
-		const forwarded = safeHeaders(req);
+		const forwarded = safeHeaders(req, "x-api-key");
 		expect(forwarded["x-actor"]).toBe("ops-alice");
 		expect(JSON.stringify(forwarded)).not.toContain("alice-secret");
 	});

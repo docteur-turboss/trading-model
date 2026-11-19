@@ -10,11 +10,6 @@ jest.mock("@trading-model/http/http-tls-loader", () => ({
 	})),
 }));
 
-// proxy-header-sanitizer (shared/) still reads the global ENV.
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: { AUTH_TOKEN_HEADER: "x-api-key" },
-}));
-
 const ENV: any = {
 	AUTH_TOKEN_HEADER: "x-api-key",
 	PROXY_TIMEOUT_MS: 10000,
