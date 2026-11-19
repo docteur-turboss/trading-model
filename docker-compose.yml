@@ -221,7 +221,7 @@ services:
   # ---------------------------------------------------------------------------
   spire-server:
     logging: *default-logging
-    image: ghcr.io/spiffe/spire-server:1.15.5@sha256:584a9c5cc95b9457f5033e7e4488d603fffe5ec48a80c4dba14b05c5e1c2c384
+    image: ghcr.io/spiffe/spire-server:1.16.0@sha256:ff546f4c62dafc479a0cd79eae9a7b6df2975754d75efd31706098e0d7548837
     container_name: trading-spire-server
     restart: unless-stopped
     mem_limit: 512m
@@ -485,7 +485,6 @@ services:
       RATE_LIMIT_MAX: '100'
       CACHE_TTL_MS: '30000'
       AUTH_TOKEN_HEADER: x-api-key
-      AUTH_STRICT: 'true'
       # Required: in production the gateway refuses to start without API keys.
       AUTH_TOKENS: ${GATEWAY_AUTH_TOKENS:-}
       PROXY_TIMEOUT_MS: '10000'
@@ -634,7 +633,7 @@ services:
   # ---------------------------------------------------------------------------
   spiffe-helper-discovery:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-discovery
     restart: unless-stopped
     network_mode: none
@@ -649,7 +648,7 @@ services:
 
   spiffe-helper-message:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-message
     restart: unless-stopped
     network_mode: none
@@ -664,7 +663,7 @@ services:
 
   spiffe-helper-scraper:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-scraper
     restart: unless-stopped
     network_mode: none
@@ -679,7 +678,7 @@ services:
 
   spiffe-helper-trainer:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-trainer
     restart: unless-stopped
     network_mode: none
@@ -694,7 +693,7 @@ services:
 
   spiffe-helper-gateway:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-gateway
     restart: unless-stopped
     network_mode: none
@@ -709,7 +708,7 @@ services:
 
   spiffe-helper-audit:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-audit
     restart: unless-stopped
     network_mode: none
@@ -724,7 +723,7 @@ services:
 
   spiffe-helper-evaluator:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-evaluator
     restart: unless-stopped
     network_mode: none
@@ -739,7 +738,7 @@ services:
 
   spiffe-helper-dlq:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-dlq
     restart: unless-stopped
     network_mode: none
@@ -754,7 +753,7 @@ services:
 
   spiffe-helper-edge:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-edge
     restart: unless-stopped
     network_mode: none
@@ -769,7 +768,7 @@ services:
 
   spiffe-helper-prometheus:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-prometheus
     restart: unless-stopped
     network_mode: none
@@ -784,7 +783,7 @@ services:
 
   spiffe-helper-blackbox:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
     container_name: trading-helper-blackbox
     restart: unless-stopped
     network_mode: none
@@ -1009,7 +1008,7 @@ services:
 
   grafana:
     logging: *default-logging
-    image: grafana/grafana@sha256:a0f881232a6fb71a0554a47d0fe2203b6888fe77f4cefb7ea62bed7eb54e13c3
+    image: grafana/grafana@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
     container_name: trading-grafana
     restart: unless-stopped
     mem_limit: 1g
@@ -1046,7 +1045,7 @@ services:
 
   loki:
     logging: *default-logging
-    image: grafana/loki@sha256:d947e68a84d9e44915dfa08c3bec27e2124efd5ba6c83443eb53578101ec69e3
+    image: grafana/loki@sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7
     container_name: trading-loki
     restart: unless-stopped
     mem_limit: 1g
