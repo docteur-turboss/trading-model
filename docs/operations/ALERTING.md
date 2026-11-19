@@ -138,7 +138,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `SLOErrorBudgetLow` | warning | [runbook-latency-and-errors#slo-error-budget-low](runbooks/runbook-latency-and-errors.md#slo-error-budget-low) |
 | `ServiceDown` | critical | [runbook-service-down](runbooks/runbook-service-down.md) |
 | `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
-| `CertificateExpiry` | warning | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
+| `CertificateExpiry` | critical | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
 | `HttpCircuitBreakerRejecting` | warning | [runbook-circuit-breaker-open#symptom](runbooks/runbook-circuit-breaker-open.md#symptom) |
 | `DLQSizeGrowing` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
 | `InstanceCountLow` | critical | [runbook-discovery#instancecountlow](runbooks/runbook-discovery.md#instancecountlow) |
@@ -190,6 +190,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `TrainerFeatureDrift` | warning | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
 | `KubePodCrashLooping` | warning | [runbook-infrastructure#kubepodcrashlooping](runbooks/runbook-infrastructure.md#kubepodcrashlooping) |
 | `KubeContainerOOMKilled` | warning | [runbook-infrastructure#kubecontaineroomkilled](runbooks/runbook-infrastructure.md#kubecontaineroomkilled) |
+| `KubeWorkloadUnavailable` | critical | [runbook-infrastructure#kubeworkloadunavailable](runbooks/runbook-infrastructure.md#kubeworkloadunavailable) |
+| `KubePodPending` | warning | [runbook-infrastructure#kubepodpending](runbooks/runbook-infrastructure.md#kubepodpending) |
 | `KubePersistentVolumeFillingUp` | warning | [runbook-infrastructure#kubepersistentvolumefillingup](runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup) |
 | `NodeFilesystemAlmostFull` | warning | [runbook-infrastructure#nodefilesystemalmostfull](runbooks/runbook-infrastructure.md#nodefilesystemalmostfull) |
 | `MySQLDown` | critical | [runbook-infrastructure#mysqldown](runbooks/runbook-infrastructure.md#mysqldown) |
