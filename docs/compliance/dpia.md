@@ -6,7 +6,7 @@
 
 ## 1. System Overview
 
-The trading-model platform is a microservices-based algorithmic trading research infrastructure. It ingests market data from Binance, trains machine learning trading agents via genetic algorithms and deep Q-learning, and routes inter-service messages through an internal message bus. It has no user accounts and no authentication for individuals; its personal data is the truncated IP of external API callers in the edge-proxy access logs (31 days) and the operators' own data (register activity 8).
+The trading-model platform is a microservices-based algorithmic trading research infrastructure. It ingests market data from Binance, trains machine learning trading agents via genetic algorithms and deep Q-learning, and routes inter-service messages through an internal message bus. It has no end-user accounts; its personal data is the truncated IP of external API callers in the edge-proxy access logs (31 days) and the operators' own data (register activity 8).
 
 **Key characteristics:**
 
