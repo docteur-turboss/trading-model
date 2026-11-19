@@ -101,7 +101,7 @@ When transitioning from research/simulation to production algorithmic trading, t
 | 9 | Establish Binance terms of use for trading on `api.binance.com` | Not established, see [third-party-dpas.md](third-party-dpas.md) |
 | 10 | Annual review of this document | Last review 2026-11-19 |
 | 11 | **Blocking:** demonstrated edge: the MT4 walk-forward passes every criterion of [ADR-0030](../adr/0030-mt4-point-in-time-features-and-success-criteria.md), at least 30 days of paper trading against backtest included | Not met: the 2026-10-31 run fails every criterion for every fitness (ADR-0030, Results); no paper-trading runner exists |
-| 12 | **Blocking:** model admission gate: a model is used for a decision only if it meets the ADR-0030 criteria ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) §1.4) | Verdict only (ADR-0069): models are published with `admissible`; no consumer enforces it yet |
+| 12 | **Blocking:** model admission gate: a model is used for a decision only if it meets the ADR-0030 criteria ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) §1.4) | Verdict only (ADR-0069): models are published with `admissible`; no consumer enforces it yet; the barrier is the "Admitted model" pre-trade check of [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 |
 
 ## 7. Cross-References
 
