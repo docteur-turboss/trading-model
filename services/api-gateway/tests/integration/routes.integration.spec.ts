@@ -349,7 +349,7 @@ describe("API Gateway — Routes Integration", () => {
 		const { req } = jest.mocked(forwardRequest).mock.calls[0][0] as {
 			req: express.Request;
 		};
-		const forwarded = safeHeaders(req);
+		const forwarded = safeHeaders(req, "x-api-key");
 		expect(forwarded["x-actor"]).toBe("ops-alice");
 		expect(JSON.stringify(forwarded)).not.toContain("alice-secret");
 	});

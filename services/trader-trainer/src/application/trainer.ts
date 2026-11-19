@@ -2,6 +2,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { isEventDriven } from "@trading-model/model-runtime/agent/decision-events";
 import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
+import { contiguousCandles } from "@trading-model/model-runtime/features/feature-builder";
 import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import { Fitness, NonNegativeInt } from "@trading-model/primitives/primitives";
 import {
@@ -346,7 +347,10 @@ export class Trainer {
 		symbol: TradingSymbol,
 		last: WindowSet | undefined
 	): ModelReplayWindow | undefined {
-		const candles = this._dataBuffer.getSymbolState(symbol)?.candles ?? [];
+		// The steps start after the last gap (window-splitter): so does the window.
+		const candles = contiguousCandles(
+			this._dataBuffer.getSymbolState(symbol)?.candles ?? []
+		);
 		const testFrom = last?.test?.[0]?.timestamp;
 		if (candles.length === 0 || testFrom === undefined) {
 			return;

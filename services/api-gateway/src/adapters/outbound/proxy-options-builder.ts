@@ -30,7 +30,7 @@ export function buildProxyOptions({
 		port: target.port,
 		path: url.pathname + url.search,
 		method: req.method,
-		headers: safeHeaders(req),
+		headers: safeHeaders(req, ENV.AUTH_TOKEN_HEADER),
 		rejectUnauthorized: true,
 		timeout: ENV.PROXY_TIMEOUT_MS,
 		..._resolveSvidTls(serviceName),

@@ -127,11 +127,14 @@ describe("recordSourceTerms", () => {
 			commercialLicence: "unknown",
 		} as const;
 
-		recordSourceTerms([
-			SOURCE,
-			{ ...SOURCE, accessPolicy: restricted },
-			{ ...SOURCE, accessPolicy: restricted },
-		]);
+		recordSourceTerms(
+			[
+				SOURCE,
+				{ ...SOURCE, accessPolicy: restricted },
+				{ ...SOURCE, accessPolicy: restricted },
+			],
+			{ active: [], accepted: "", production: true }
+		);
 
 		expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
 			expect.any(String),
@@ -146,6 +149,49 @@ describe("recordSourceTerms", () => {
 				["non-commercial", "unknown", 2],
 			])
 		);
+	});
+
+	describe("non-commercial guard", () => {
+		const restricted: Source = {
+			...SOURCE,
+			id: "paid-feed",
+			accessPolicy: {
+				...SOURCE.accessPolicy,
+				terms: "non-commercial",
+				restrictions: "personal use",
+				commercialLicence: "available",
+			},
+		};
+
+		it("refuses an active unaccepted source in production", () => {
+			expect(() =>
+				recordSourceTerms([restricted], {
+					active: [restricted],
+					accepted: "other",
+					production: true,
+				})
+			).toThrow(/paid-feed.*SIGNAL_NON_COMMERCIAL_ACCEPTED/);
+		});
+
+		it("starts when the operator accepted it", () => {
+			expect(() =>
+				recordSourceTerms([restricted], {
+					active: [restricted],
+					accepted: "x, paid-feed",
+					production: true,
+				})
+			).not.toThrow();
+		});
+
+		it("only warns outside production", () => {
+			expect(() =>
+				recordSourceTerms([restricted], {
+					active: [restricted],
+					accepted: "",
+					production: false,
+				})
+			).not.toThrow();
+		});
 	});
 });
 

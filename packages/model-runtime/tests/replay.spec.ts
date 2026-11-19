@@ -87,4 +87,31 @@ describe("replayModel (ADR-0079 §3)", () => {
 			expect(replay()).toEqual(ratios);
 		}
 	);
+
+	it("drops inconsistent candles and those before the last gap, as the trainer does", () => {
+		const { genome: g, weights } = genome("every-bar");
+		const replay = (bars: CandleData[]) =>
+			replayModel({
+				genome: g,
+				weights,
+				testFrom: candles[80].timestamp,
+				simulator: SIMULATOR,
+				candles: bars,
+			});
+		const early = {
+			...candles[0],
+			timestamp: T0 - 600_000,
+			close: 1,
+			volume: 1e6,
+		} as unknown as CandleData;
+		const broken = {
+			...candles[50],
+			timestamp: candles[50].timestamp + 1,
+			close: 1e4,
+			volume: 1e6,
+		} as unknown as CandleData;
+		expect(
+			replay([early, ...candles.slice(0, 51), broken, ...candles.slice(51)])
+		).toEqual(replay(candles));
+	});
 });

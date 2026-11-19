@@ -15,7 +15,11 @@ export enum KnownService {
 /** Default caller allowlist per target service; `*` admits any platform service. */
 export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 	[KnownService.DiscoveryServer]: [ServiceId.of("*")],
-	[KnownService.AuditLogger]: [ServiceId.of("*")],
+	// message-manager delivers audited topics; api-gateway relays the public reads.
+	[KnownService.AuditLogger]: [
+		ServiceId.of("message-manager"),
+		ServiceId.of("api-gateway"),
+	],
 	// Publishers, plus the subscribers: audit-logger subscribes to its topics
 	// and dlq-service republishes replayed entries. Not api-gateway: it would
 	// lend its identity to API clients (it proxies with its own SVID).
@@ -47,7 +51,8 @@ export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 	],
 	// External traffic enters through the edge proxy (ADR-0018).
 	[KnownService.ApiGateway]: [ServiceId.of("edge-proxy")],
-	[KnownService.DlqService]: [ServiceId.of("*")],
+	// api-gateway relays the public DLQ routes; no other caller found.
+	[KnownService.DlqService]: [ServiceId.of("api-gateway")],
 	// message-manager delivers training.model.published (POST /message).
 	[KnownService.ModelEvaluator]: [ServiceId.of("message-manager")],
 };

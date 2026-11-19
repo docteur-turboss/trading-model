@@ -14,7 +14,11 @@ import {
 import { TradingAgent, type TradingAgentConfig } from "./agent/trading-agent";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "./env/wallet-config";
 import { EpisodeScores } from "./episode-scores";
-import { candleSteps } from "./features/feature-builder";
+import {
+	candleSteps,
+	contiguousCandles,
+	isConsistentCandle,
+} from "./features/feature-builder";
 import { FeedForwardEngine } from "./neural-network/feed-forward-engine";
 import { setWeights } from "./neural-network/network-serialization";
 import {
@@ -116,7 +120,8 @@ function emptyLayer(fanIn: number, fanOut: number): LayerMemory {
 
 /**
  * Replays a published model greedily (epsilon 0, ADR-0079 §3) on the candles
- * of its window: features are normalised from the first candle, the episode
+ * of its window, cleaned as the trainer does (consistent OHLC, last gap-free
+ * run): features are normalised from its first candle, the episode
  * runs over the test steps (`testFrom` onwards), and the ratios are those of
  * the ADR-0069 admission. Throws when the weights do not fit the network.
  */
@@ -128,9 +133,9 @@ export function replayModel(input: {
 	candles: CandleData[];
 }): SegmentRatios {
 	const { genome } = input;
-	const test = candleSteps(input.candles).filter(
-		(step) => step.timestamp >= input.testFrom
-	);
+	const test = candleSteps(
+		contiguousCandles(input.candles.filter(isConsistentCandle))
+	).filter((step) => step.timestamp >= input.testFrom);
 	const config = mergeConfig(policyNetworkConfig(genome.network));
 	const sizes = config.neuronsByLayer;
 	const layers = sizes

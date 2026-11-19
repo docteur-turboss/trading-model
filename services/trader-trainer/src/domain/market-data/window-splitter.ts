@@ -1,4 +1,7 @@
-import { candleSteps } from "@trading-model/model-runtime/features/feature-builder";
+import {
+	candleSteps,
+	contiguousCandles,
+} from "@trading-model/model-runtime/features/feature-builder";
 import { Percentage, PositiveInt } from "@trading-model/primitives/primitives";
 import type { Signal } from "@trading-model/validation/wire/signals";
 import type { WindowSet } from "../genetic-algorithm/generation-types";
@@ -12,6 +15,8 @@ import {
 	signalNorms,
 } from "../signal-features";
 import type { MarketDataContext } from "./market-data-context";
+
+export { contiguousCandles };
 
 /** Minimum number of market steps required before training can start. */
 export const MIN_TRAINING_STEPS = PositiveInt.of(10);
@@ -89,12 +94,16 @@ export class WindowSplitter {
 	}
 
 	/**
-	 * One step per candle after the first, built from what its close knew. Its
+	 * One step per candle after the first of the last gap-free run, built from what its close knew. Its
 	 * decision fills at the next candle's open (none for the last candle: it
 	 * fills at its close).
 	 */
 	buildMarketSteps(ctx: MarketDataContext): MarketStep[] {
-		const state = this._states.get(ctx.symbol);
+		const full = this._states.get(ctx.symbol);
+		const state = full && {
+			...full,
+			candles: contiguousCandles(full.candles),
+		};
 		if (!state || state.candles.length < 2) {
 			return [];
 		}

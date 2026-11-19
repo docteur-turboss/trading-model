@@ -7,6 +7,38 @@ import type {
 import { FeatureVector } from "../feature-vector";
 import { NormalizationStats } from "./normalization-stats";
 
+/** One day in milliseconds: the length of a daily bar (ADR-0083). */
+export const DAY_MS = 86_400_000;
+
+/** A daily bar is fresh over a weekend plus a Monday holiday: Friday's close is still current on Tuesday; also the widest gap inside a daily series. */
+export const DAILY_MAX_DATA_AGE_MS = 4 * DAY_MS;
+
+/** `low`/`high` must bound `open` and `close`: features divide by `high - low`. */
+export function isConsistentCandle(candle: CandleData): boolean {
+	return (
+		candle.low <= Math.min(candle.open, candle.close) &&
+		Math.max(candle.open, candle.close) <= candle.high
+	);
+}
+
+/**
+ * The candles after the last gap: the series never links two candles further
+ * apart than one bar (1 min), or than DAILY_MAX_DATA_AGE_MS for daily bars
+ * (weekends and holidays stay inside), so no step carries a gap's return.
+ */
+export function contiguousCandles(candles: CandleData[]): CandleData[] {
+	let start = 0;
+	for (let idx = 1; idx < candles.length; idx++) {
+		const { timestamp, closeTimestamp } = candles[idx - 1];
+		const barMs = closeTimestamp - timestamp + 1;
+		const maxGapMs = barMs >= DAY_MS ? DAILY_MAX_DATA_AGE_MS : barMs;
+		if (candles[idx].timestamp - timestamp > maxGapMs) {
+			start = idx;
+		}
+	}
+	return start === 0 ? candles : candles.slice(start);
+}
+
 export interface CandleNormalizers {
 	close: NormalizationStats;
 	volume: NormalizationStats;
