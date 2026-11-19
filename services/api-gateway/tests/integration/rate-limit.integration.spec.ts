@@ -5,22 +5,20 @@ import express from "express";
 
 jest.setTimeout(15000);
 
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		NODE_ENV: "test",
-		PORT: 0,
-		TLS_KEY_PATH: "",
-		TLS_CERT_PATH: "",
-		TLS_CA_PATH: "",
-		RATE_LIMIT_WINDOW_MS: 60000,
-		RATE_LIMIT_MAX: 2,
-		CACHE_TTL_MS: 30000,
-		AUTH_TOKEN_HEADER: "x-api-key",
-		AUTH_TOKENS: "a:read:test-token,b:read:other-token",
-		PROXY_TIMEOUT_MS: 5000,
-		ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
-	},
-}));
+const ENV: any = {
+	NODE_ENV: "test",
+	PORT: 0,
+	TLS_KEY_PATH: "",
+	TLS_CERT_PATH: "",
+	TLS_CA_PATH: "",
+	RATE_LIMIT_WINDOW_MS: 60000,
+	RATE_LIMIT_MAX: 2,
+	CACHE_TTL_MS: 30000,
+	AUTH_TOKEN_HEADER: "x-api-key",
+	AUTH_TOKENS: "a:read:test-token,b:read:other-token",
+	PROXY_TIMEOUT_MS: 5000,
+	ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
+};
 
 jest.mock("@trading-model/http/logger", () => ({
 	logger: {
@@ -50,7 +48,7 @@ import { createRouter } from "../../src/adapters/inbound/router";
 function createApp(): express.Application {
 	const app = express();
 	app.use(express.json());
-	app.use("/", createRouter());
+	app.use("/", createRouter(ENV));
 	return app;
 }
 

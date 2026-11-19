@@ -1,8 +1,6 @@
-import {
-	configurationError,
-	normalizeError,
-} from "@trading-model/common/utils/errors";
-import { z } from "zod";
+import { configurationError } from "@trading-model/common/utils/errors";
+import { logger } from "@trading-model/http/logger";
+import type { z } from "zod";
 
 /**
  * Validates environment variables against a Zod schema.
@@ -20,21 +18,13 @@ export function validateEnv<TSchema extends z.ZodType>(
 	return parsed.data;
 }
 
-function _treeifyErrors(error: z.ZodError): unknown {
-	try {
-		return z.treeifyError(error);
-	} catch (err) {
-		// console, not the logger registry: this runs before any logger is registered.
-		console.warn("Failed to treeify Zod error, using raw format", {
-			context: { err: normalizeError(err) },
-		});
-		return error;
-	}
-}
-
+// Flat path/message pairs: the log sanitizer redacts whole values under secret-looking keys (AUTH_TOKENS), which would hide the reason.
 function _handleValidationError(error: z.ZodError): never {
-	const errors = _treeifyErrors(error);
-	console.error("Invalid environment configuration", { errors });
+	const issues = error.issues.map(({ path, message }) => ({
+		path: path.join("."),
+		message,
+	}));
+	logger.error("Invalid environment configuration", { issues });
 	throw configurationError("Environment validation failed", {
 		cause: error,
 	});
