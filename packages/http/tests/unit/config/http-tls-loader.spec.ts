@@ -100,11 +100,20 @@ describe("buildHttpsAgentOptions", () => {
 		expect(opts!.key).toContain("-----BEGIN RSA PRIVATE KEY-----");
 	});
 
-	it("should disable hostname verification when a custom trust bundle is present", () => {
-		const opts = buildHttpsAgentOptions({ caPath, certPath, keyPath });
+	it.each([
+		["financial-scraper", "trader-trainer", "ERR_TLS_CERT_ALTNAME_INVALID"],
+		["trader-trainer", "trader-trainer", undefined],
+	])("server SVID %s, expected %s -> %s", (actual, expected, code) => {
+		const check = buildHttpsAgentOptions(
+			{ caPath, certPath, keyPath },
+			expected
+		)!.checkServerIdentity!;
+		const cert = {
+			subjectaltname: `URI:spiffe://trading-model.local/ns/trading-model/sa/${actual}`,
+		} as never;
 		expect(
-			opts!.checkServerIdentity?.("any-host", {} as never)
-		).toBeUndefined();
+			(check("10.0.0.7", cert) as { code?: string } | undefined)?.code
+		).toBe(code);
 	});
 });
 

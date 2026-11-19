@@ -1,7 +1,7 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { HttpClient } from "@trading-model/http/http-client";
-import { URLString } from "@trading-model/primitives/primitives";
+import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import {
 	AssetSignalsResponse,
@@ -40,7 +40,7 @@ export class ScraperSignalHistory implements SignalHistoryPort {
 			const query = `from=${new Date(cursor).toISOString()}&to=${new Date(end).toISOString()}`;
 			const answer = await this._http.get(
 				URLString.of(`${base}?${query}`),
-				undefined,
+				{ serviceName: ServiceId.of("financial-scraper") },
 				AssetSignalsResponse
 			);
 			if (!answer) {
