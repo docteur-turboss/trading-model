@@ -25,7 +25,7 @@ export interface LifecycleManagerOptions {
 /** Handle returned by start: wait for readiness, stop, or leave the discovery. */
 export interface LifecycleHandle {
 	ready: Promise<void>;
-	stop: () => void;
+	stop: () => Promise<void>;
 	/** Stops heartbeats and unregisters. `stop` remains needed afterwards. */
 	leave: () => Promise<void>;
 }
@@ -66,6 +66,7 @@ export class LifecycleManager {
 			ready: Promise.resolve(),
 			stop: () => {
 				this._options.shutdownHandler.shutdown();
+				return Promise.resolve();
 			},
 			leave: () => this._options.shutdownHandler.leaveRegistry(),
 		};

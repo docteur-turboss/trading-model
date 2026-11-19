@@ -2,11 +2,13 @@ import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import type https from "node:https";
 import path from "node:path";
+import tls from "node:tls";
 import type {
 	TlsPaths,
 	TlsPemBundle,
 } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { extractCanonicalServiceName } from "@trading-model/common/utils/spiffe";
 import { CaPem, CertPem, KeyPem } from "@trading-model/primitives/primitives";
 
 function readTlsFileSync(filePath: string, label: string): string {
@@ -120,9 +122,34 @@ export async function loadTlsPemBundle(tls: TlsPaths): Promise<TlsPemBundle> {
 	};
 }
 
-/** Builds the HTTPS agent options from the TLS paths; hostname verification is off. */
+/**
+ * Server identity check for mTLS clients. SVIDs carry only a `spiffe://` URI
+ * SAN, so with a known target the SAN's service must equal it (ADR-0011); with
+ * no known target Node's hostname verification applies.
+ */
+export function spiffeServerIdentityCheck(
+	expectedService?: string
+): NonNullable<https.AgentOptions["checkServerIdentity"]> {
+	return (host, cert) => {
+		if (!expectedService) {
+			return tls.checkServerIdentity(host, cert);
+		}
+		const actual = extractCanonicalServiceName(cert.subjectaltname ?? "");
+		if (actual !== extractCanonicalServiceName(expectedService)) {
+			return Object.assign(
+				new Error(
+					`Server SVID is ${actual ?? "unknown"}, expected ${expectedService}`
+				),
+				{ code: "ERR_TLS_CERT_ALTNAME_INVALID" }
+			);
+		}
+	};
+}
+
+/** Builds the HTTPS agent options from the TLS paths; the server must present `expectedService`'s SVID. */
 export function buildHttpsAgentOptions(
-	tlsConfig?: TlsPaths
+	tlsConfig?: TlsPaths,
+	expectedService?: string
 ): https.AgentOptions | undefined {
 	if (!tlsConfig) {
 		return;
@@ -138,11 +165,8 @@ export function buildHttpsAgentOptions(
 	if (bundle.keyPem) {
 		opts.key = bundle.keyPem;
 	}
-	// SPIFFE SVIDs carry only a `spiffe://` URI SAN, so hostname verification
-	// must be disabled when trusting a custom bundle (ADR-0011). Trust comes
-	// from the SPIFFE trust bundle + application-layer identity checks.
 	if (bundle.caPem || bundle.certPem) {
-		opts.checkServerIdentity = () => undefined;
+		opts.checkServerIdentity = spiffeServerIdentityCheck(expectedService);
 	}
 	return opts;
 }

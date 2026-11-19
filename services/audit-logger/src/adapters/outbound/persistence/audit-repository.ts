@@ -289,6 +289,7 @@ export class AuditRepository {
 	}
 
 	/** Chains `writes` after the tail and stores them with ordered insertMany calls. */
+	// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: real concurrency on the write chain (28), split would hide the ordering
 	private async _writeBatch(writes: PendingWrite[]): Promise<void> {
 		let remaining = writes;
 		while (remaining.length > 0) {

@@ -20,6 +20,7 @@ export const CALLER = {
 	scraper: "trading-scraper",
 	message: "trading-message",
 	trainer: "trading-trainer",
+	gateway: "trading-gateway",
 } as const;
 
 /** Every application container and its compose healthcheck. */
