@@ -33,6 +33,30 @@ describe("validateTrainingPrerequisites", () => {
 		expect(result.ok).toBe(true);
 	});
 
+	it("should refuse a series whose contiguous run is too short", () => {
+		const buffer = new MarketDataBuffer();
+		for (let i = 0; i < 100; i++) {
+			buffer.addData(
+				DataType.Candle,
+				BTC,
+				makeCandle({
+					symbol: BTC,
+					timestamp: UnixTimestamp.of(i * 120_000),
+					closeTimestamp: UnixTimestamp.of(i * 120_000 + 59_999),
+				})
+			);
+		}
+
+		const result = validateTrainingPrerequisites(
+			buffer,
+			notTraining,
+			BTC,
+			WINDOWING
+		);
+
+		expect(result.ok).toBe(false);
+	});
+
 	it("should refuse a series holding the same candle twice", () => {
 		const buffer = new MarketDataBuffer();
 		feedCandles(buffer, "BTCUSDT", 100);

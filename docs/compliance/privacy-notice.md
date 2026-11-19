@@ -20,6 +20,8 @@ The controller and its privacy contact are the ones named in the "Controller" se
 
 A truncated address is pseudonymized, not anonymous, so this notice applies.
 
+**Operators:** we also process your Grafana account (e-mail, name, login), its login log lines (31 days) and the pseudonymous name of your API key in the audit trail, on the same basis (security and traceability); see [activity 8](data-processing-register.md) for retention and erasure.
+
 ## Your rights
 
 You may ask for access, rectification, erasure, restriction, or object to the processing (Art. 15-21). A truncated address cannot be linked to you, so Art. 11 applies: we do not collect more data to identify you, unless you give us elements that let us find your entries. Write to the privacy contact named in the register.

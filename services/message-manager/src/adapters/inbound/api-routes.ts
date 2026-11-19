@@ -16,7 +16,11 @@ import {
  * its route (`http.routes.ts`), validates its body and documents it in the
  * internal OpenAPI.
  */
-const REJECTED = { 400: ErrorResponse, 429: ErrorResponse } as const;
+const REJECTED = {
+	400: ErrorResponse,
+	403: ErrorResponse,
+	429: ErrorResponse,
+} as const;
 
 export const BROKER_API = {
 	publish: defineRoute({

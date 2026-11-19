@@ -42,7 +42,11 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 				this._httpClient.post(
 					url,
 					{ metadata: message.metadata, payload: message.payload, context },
-					{ timeoutMs: DELIVERY_ATTEMPT_TIMEOUT_MS, retryCount: 0 }
+					{
+						timeoutMs: DELIVERY_ATTEMPT_TIMEOUT_MS,
+						retryCount: 0,
+						serviceName: input.service,
+					}
 				)
 			);
 		} catch (err) {

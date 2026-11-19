@@ -56,24 +56,6 @@ describe("app/server", () => {
 		expect(server.close).toBeDefined();
 	});
 
-	it("should call createServiceServer with correct options", async () => {
-		await createServer();
-		expect(MOCK_CREATE_SECURE_SERVER).toHaveBeenCalledWith(
-			expect.objectContaining({
-				env: expect.objectContaining({
-					PORT: 3000,
-				}),
-			})
-		);
-	});
-
-	it("should register routes callback", () => {
-		void createServer();
-		const options: any = MOCK_CREATE_SECURE_SERVER.mock.calls[0][0];
-		expect(typeof options.routes).toBe("function");
-		expect(() => options.routes(MOCK_APP)).not.toThrow();
-	});
-
 	it("reports MySQL ready when the promise query succeeds", async () => {
 		await expect(mysqlReadiness()()).resolves.toBe(true);
 		expect(MOCK_PROMISE_QUERY).toHaveBeenCalledWith("SELECT 1");

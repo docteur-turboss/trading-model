@@ -80,7 +80,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: alertmanager
-          image: prom/alertmanager@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
+          image: prom/alertmanager@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
