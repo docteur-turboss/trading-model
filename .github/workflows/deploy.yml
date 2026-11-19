@@ -179,6 +179,7 @@ jobs:
       # MySQL, migration and rollout timeouts are multiplied by, for a slow
       # cluster (local kind staging). Unset: 1.
       DEPLOY_TIMEOUT_FACTOR: ${{ vars.DEPLOY_TIMEOUT_FACTOR || '1' }}
+      GRAFANA_ALLOWED_CIDRS: ${{ vars.GRAFANA_ALLOWED_CIDRS }}
     steps:
       # Manifests, node agents and migrations come from the released tag, not
       # from the branch picked at dispatch: production only deploys a vX.Y.Z
@@ -445,6 +446,24 @@ jobs:
           fi
           # Grafana OIDC (ADR-0063): production refuses a shared admin as the only access.
           bash scripts/check-grafana-oidc.sh "$ENV" <<<"$rendered"
+
+      # Grafana is reachable only from the operator's CIDRs (issue #1630; docs/deployment/DEPLOY.md).
+      - name: Check Grafana allowed CIDRs
+        continue-on-error: ${{ inputs.preflight_only }}
+        shell: bash
+        env:
+          GRAFANA_ALLOWED_CIDRS: ${{ vars.GRAFANA_ALLOWED_CIDRS }}
+        run: |
+          ENV="${{ inputs.environment }}"
+          cidr='[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}|[0-9A-Fa-f:]+:[0-9A-Fa-f:]*/[0-9]{1,3}'
+          if [ -z "$GRAFANA_ALLOWED_CIDRS" ]; then
+            msg="GRAFANA_ALLOWED_CIDRS is not set: the Grafana Ingress is open to the Internet (docs/deployment/DEPLOY.md)"
+            [ "$ENV" = "production" ] && { echo "::error::$msg"; exit 1; }
+            echo "::warning::$msg"
+          elif ! grep -qE "^($cidr)(,($cidr))*$" <<<"$GRAFANA_ALLOWED_CIDRS"; then
+            echo "::error::GRAFANA_ALLOWED_CIDRS must be comma-separated CIDRs without spaces, got: $GRAFANA_ALLOWED_CIDRS"
+            exit 1
+          fi
 
       # The Ingress hosts ship as example.com placeholders (issue #415): in
       # production they would leave the API unreachable from outside while
