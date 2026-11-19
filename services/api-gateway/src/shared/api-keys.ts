@@ -3,7 +3,7 @@
  * `PUBLIC_ROUTES`, `dlq:write` for the others (delete, replay DLQ
  * entries).
  */
-export const API_SCOPES = ["read", "dlq:write"] as const;
+const API_SCOPES = ["read", "dlq:write"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 /** A key of `AUTH_TOKENS`. Only `name` leaves the gateway, never `secret`. */
