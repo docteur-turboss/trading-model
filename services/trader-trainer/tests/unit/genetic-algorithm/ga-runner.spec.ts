@@ -94,51 +94,54 @@ function lastMockAgent(): Record<string, jest.Mock> {
 	return TradingAgent.mock.results.at(-1)?.value as Record<string, jest.Mock>;
 }
 
+const makeSharedGenome = (id: string) =>
+	({
+		id,
+		generation: 0,
+		network: {
+			inputDim: 32,
+			outputDim: 3,
+			hiddenLayers: [
+				{
+					neurons: 64,
+					activation: ActivationType.Relu,
+					connectionType: ConnectionType.FullyConnected,
+					biasType: "standard",
+				},
+			],
+			normalization: NormalisationType.ZScore,
+		},
+		rl: {
+			gamma: 0.99,
+			discretePolicy: {
+				epsilonStart: 1.0,
+				epsilonMin: 0.01,
+				epsilonDecay: 0.995,
+				learningRate: 0.001,
+			},
+			replayBuffer: { bufferSize: 4096, batchSize: 64 },
+			horizon: { maxEpisodeLength: 500, frameSkip: 1, nStepReturn: 3 },
+			rewardShaping: { sparse: false, normalize: false },
+		},
+		gaControl: {
+			populationSize: 20,
+			maxGenerations: 10,
+			elitismFraction: 0.1,
+			survivorFraction: 0.5,
+			episodesPerIndividual: 2,
+			selectionType: SelectionType.Tournament,
+			fitnessType: FitnessType.Sharpe,
+			networkSeed: 42,
+			mutationSeed: 42,
+			mutationRate: 0.1,
+			crossoverRate: 0.5,
+		},
+		fitness: 0,
+	}) as any;
+
 describe("makeTradingAgentBackend", () => {
 	it("should create an RLBackend from a genome", () => {
-		const genome = {
-			id: "test-1",
-			generation: 0,
-			network: {
-				inputDim: 32,
-				outputDim: 3,
-				hiddenLayers: [
-					{
-						neurons: 64,
-						activation: ActivationType.Relu,
-						connectionType: ConnectionType.FullyConnected,
-						biasType: "standard",
-					},
-				],
-				normalization: NormalisationType.ZScore,
-			},
-			rl: {
-				gamma: 0.99,
-				discretePolicy: {
-					epsilonStart: 1.0,
-					epsilonMin: 0.01,
-					epsilonDecay: 0.995,
-					learningRate: 0.001,
-				},
-				replayBuffer: { bufferSize: 4096, batchSize: 64 },
-				horizon: { maxEpisodeLength: 500, frameSkip: 1, nStepReturn: 3 },
-				rewardShaping: { sparse: false, normalize: false },
-			},
-			gaControl: {
-				populationSize: 20,
-				maxGenerations: 10,
-				elitismFraction: 0.1,
-				survivorFraction: 0.5,
-				episodesPerIndividual: 2,
-				selectionType: SelectionType.Tournament,
-				fitnessType: FitnessType.Sharpe,
-				networkSeed: 42,
-				mutationSeed: 42,
-				mutationRate: 0.1,
-				crossoverRate: 0.5,
-			},
-			fitness: 0,
-		} as any;
+		const genome = makeSharedGenome("test-1");
 
 		const backend = makeTradingAgentBackend(genome as any);
 		expect(backend).toBeDefined();
@@ -147,49 +150,7 @@ describe("makeTradingAgentBackend", () => {
 	});
 
 	it("should allow forwardPass without side effects", () => {
-		const genome = {
-			id: "test-2",
-			generation: 0,
-			network: {
-				inputDim: 32,
-				outputDim: 3,
-				hiddenLayers: [
-					{
-						neurons: 64,
-						activation: ActivationType.Relu,
-						connectionType: ConnectionType.FullyConnected,
-						biasType: "standard",
-					},
-				],
-				normalization: NormalisationType.ZScore,
-			},
-			rl: {
-				gamma: 0.99,
-				discretePolicy: {
-					epsilonStart: 1.0,
-					epsilonMin: 0.01,
-					epsilonDecay: 0.995,
-					learningRate: 0.001,
-				},
-				replayBuffer: { bufferSize: 4096, batchSize: 64 },
-				horizon: { maxEpisodeLength: 500, frameSkip: 1, nStepReturn: 3 },
-				rewardShaping: { sparse: false, normalize: false },
-			},
-			gaControl: {
-				populationSize: 20,
-				maxGenerations: 10,
-				elitismFraction: 0.1,
-				survivorFraction: 0.5,
-				episodesPerIndividual: 2,
-				selectionType: SelectionType.Tournament,
-				fitnessType: FitnessType.Sharpe,
-				networkSeed: 42,
-				mutationSeed: 42,
-				mutationRate: 0.1,
-				crossoverRate: 0.5,
-			},
-			fitness: 0,
-		} as any;
+		const genome = makeSharedGenome("test-2");
 
 		const backend = makeTradingAgentBackend(genome as any);
 		const features = FeatureVector.fromFloat32Array(
@@ -359,19 +320,50 @@ function getMinimalGenome() {
 	};
 }
 
+const makeBackend = (overrides: Record<string, unknown> = {}) => ({
+	step: jest.fn((..._args: any[]) => ({ reward: 1, action: 0 })),
+	remember: jest.fn<(...args: any[]) => any>(),
+	replay: jest.fn<(...args: any[]) => any>(),
+	getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
+	setWeights: jest.fn<(...args: any[]) => any>(),
+	getPnL: jest.fn((..._args: any[]) => 50),
+	resetEpisode: jest.fn<(...args: any[]) => any>(),
+	forwardPass: jest.fn((_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
+	...overrides,
+});
+
 describe("GeneticAlgorithmRunner", () => {
-	const mockBackendFactory = () => ({
-		forwardPass: jest.fn(
-			(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
-		),
-		step: jest.fn((..._args: any[]) => ({ reward: 1, action: 0 })),
-		remember: jest.fn<(...args: any[]) => any>(),
-		replay: jest.fn<(...args: any[]) => any>(),
-		getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
-		setWeights: jest.fn<(...args: any[]) => any>(),
-		getPnL: jest.fn((..._args: any[]) => 50),
-		resetEpisode: jest.fn<(...args: any[]) => any>(),
-	});
+	const mockBackendFactory = makeBackend;
+
+	const initRunner = (
+		size: number,
+		elitismFraction: number,
+		extra: Record<string, unknown> = {}
+	) => {
+		const features = FeatureVector.fromFloat32Array(
+			new Float32Array([0.5, 0.5, 0.5])
+		);
+		const runner = new GeneticAlgorithmRunner({
+			windowSets: [
+				{
+					id: "w1",
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
+				},
+			],
+			backendFactory: mockBackendFactory as any,
+			...extra,
+		});
+		runner.processor.initialise({
+			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
+			population: {
+				size: size as PositiveInt,
+				elitismFraction: elitismFraction as Probability,
+				survivorFraction: 0.5 as Probability,
+			},
+		});
+		return runner;
+	};
 
 	it("should initialise a population with the correct size", () => {
 		const runner = new GeneticAlgorithmRunner({
@@ -427,27 +419,7 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should select elites based on elitismFraction", async () => {
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
-		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [{ features, price: Price.of(100) }],
-					validation: [{ features, price: Price.of(100) }],
-				},
-			],
-			backendFactory: mockBackendFactory as any,
-		});
-		runner.processor.initialise({
-			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
-			population: {
-				size: 10 as PositiveInt,
-				elitismFraction: 0.3 as Probability,
-				survivorFraction: 0.5 as Probability,
-			},
-		});
+		const runner = initRunner(10, 0.3);
 		await runner.processor.runGeneration();
 		const pop = runner.processor.population;
 		expect(pop.length).toBe(10);
@@ -455,27 +427,7 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should produce offspring with some new IDs after runGeneration (elites carry over)", async () => {
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
-		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [{ features, price: Price.of(100) }],
-					validation: [{ features, price: Price.of(100) }],
-				},
-			],
-			backendFactory: mockBackendFactory as any,
-		});
-		runner.processor.initialise({
-			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
-			population: {
-				size: 4 as PositiveInt,
-				elitismFraction: 0.2 as Probability,
-				survivorFraction: 0.5 as Probability,
-			},
-		});
+		const runner = initRunner(4, 0.2);
 		await runner.processor.runGeneration();
 		const childIds = new Set(runner.processor.population.map((g) => g.id));
 		expect(childIds.size).toBeGreaterThan(0);
@@ -483,29 +435,8 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should update Pareto archive after runGeneration", async () => {
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
 		const onArchiveUpdate = jest.fn<(...args: any[]) => any>();
-		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [{ features, price: Price.of(100) }],
-					validation: [{ features, price: Price.of(100) }],
-				},
-			],
-			backendFactory: mockBackendFactory as any,
-			onArchiveUpdate,
-		});
-		runner.processor.initialise({
-			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
-			population: {
-				size: 4 as PositiveInt,
-				elitismFraction: 0.2 as Probability,
-				survivorFraction: 0.5 as Probability,
-			},
-		});
+		const runner = initRunner(4, 0.2, { onArchiveUpdate });
 		expect(runner.processor.getArchiveMembers()).toEqual([]);
 		await runner.processor.runGeneration();
 		expect(onArchiveUpdate).toHaveBeenCalled();
@@ -515,54 +446,14 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should track stagnation when fitness does not improve", async () => {
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
-		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [{ features, price: Price.of(100) }],
-					validation: [{ features, price: Price.of(100) }],
-				},
-			],
-			backendFactory: mockBackendFactory as any,
-		});
-		runner.processor.initialise({
-			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
-			population: {
-				size: 2 as PositiveInt,
-				elitismFraction: 0.2 as Probability,
-				survivorFraction: 0.5 as Probability,
-			},
-		});
+		const runner = initRunner(2, 0.2);
 		const ctx1 = await runner.processor.runGeneration();
 		const ctx2 = await runner.processor.runGeneration();
 		expect(ctx2.stagnation).toBeGreaterThanOrEqual(ctx1.stagnation);
 	});
 
 	it("should sort population by Pareto rank and crowding distance", async () => {
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
-		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [{ features, price: Price.of(100) }],
-					validation: [{ features, price: Price.of(100) }],
-				},
-			],
-			backendFactory: mockBackendFactory as any,
-		});
-		runner.processor.initialise({
-			seeding: { envSeed: 42, mutationSeed: 42, networkSeed: 42 },
-			population: {
-				size: 5 as PositiveInt,
-				elitismFraction: 0.2 as Probability,
-				survivorFraction: 0.5 as Probability,
-			},
-		});
+		const runner = initRunner(5, 0.2);
 		await runner.processor.runGeneration();
 		const ctx = await runner.processor.runGeneration();
 		expect(ctx.population.length).toBe(5);
@@ -607,48 +498,35 @@ describe("full GA loop", () => {
 	// the whole file, not to this block only.
 	jest.setTimeout(20_000);
 
-	it("should run full GA loop successfully", async () => {
-		const mockBackendFactory = () => ({
-			step: jest.fn((..._args: any[]) => ({ reward: 1, action: 0 })),
-			remember: jest.fn<(...args: any[]) => any>(),
-			replay: jest.fn<(...args: any[]) => any>(),
-			getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
-			setWeights: jest.fn<(...args: any[]) => any>(),
-			getPnL: jest.fn((..._args: any[]) => 50),
-			resetEpisode: jest.fn<(...args: any[]) => any>(),
-			forwardPass: jest.fn(
-				(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
-			),
-		});
-
+	const makeWindowSets = (trainLength: 1 | 2) => {
 		const features = FeatureVector.fromFloat32Array(
 			new Float32Array([0.5, 0.5, 0.5])
 		);
+		const train = [
+			{
+				features: FeatureVector.fromFloat32Array(
+					new Float32Array([0.1, 0.2, 0.3])
+				),
+				price: Price.of(100),
+			},
+			{
+				features: FeatureVector.fromFloat32Array(
+					new Float32Array([0.4, 0.5, 0.6])
+				),
+				price: Price.of(101),
+			},
+		].slice(0, trainLength);
+		const validation = [
+			{ features, price: Price.of(100) },
+			{ features, price: Price.of(101) },
+		].slice(0, trainLength);
+		return [{ id: "w1", train, validation }];
+	};
+
+	it("should run full GA loop successfully", async () => {
 		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [
-						{
-							features: FeatureVector.fromFloat32Array(
-								new Float32Array([0.1, 0.2, 0.3])
-							),
-							price: Price.of(100),
-						},
-						{
-							features: FeatureVector.fromFloat32Array(
-								new Float32Array([0.4, 0.5, 0.6])
-							),
-							price: Price.of(101),
-						},
-					],
-					validation: [
-						{ features, price: Price.of(100) },
-						{ features, price: Price.of(101) },
-					],
-				},
-			],
-			backendFactory: mockBackendFactory as any,
+			windowSets: makeWindowSets(2),
+			backendFactory: makeBackend as any,
 			initialControl: {
 				population: {
 					...createGAControlGenome().population,
@@ -671,51 +549,17 @@ describe("full GA loop", () => {
 		let factoryCallCount = 0;
 		const mockBackendFactory = () => {
 			const id = factoryCallCount++;
-			return {
-				step: jest.fn((..._args: any[]) => ({ reward: 1, action: 0 })),
-				remember: jest.fn<(...args: any[]) => any>(),
-				replay: jest.fn<(...args: any[]) => any>(),
+			return makeBackend({
 				getWeights: jest.fn(
 					(..._args: any[]) => new Float32Array([0.1, 0.2, 0.3])
 				),
-				setWeights: jest.fn<(...args: any[]) => any>(),
 				getPnL: jest.fn((..._args: any[]) => 50 + id * 10),
-				resetEpisode: jest.fn<(...args: any[]) => any>(),
-				forwardPass: jest.fn(
-					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
-				),
-			};
+			});
 		};
 
 		const onArchiveUpdate = jest.fn<(...args: any[]) => any>();
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
-
 		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [
-						{
-							features: FeatureVector.fromFloat32Array(
-								new Float32Array([0.1, 0.2, 0.3])
-							),
-							price: Price.of(100),
-						},
-						{
-							features: FeatureVector.fromFloat32Array(
-								new Float32Array([0.4, 0.5, 0.6])
-							),
-							price: Price.of(101),
-						},
-					],
-					validation: [
-						{ features, price: Price.of(100) },
-						{ features, price: Price.of(101) },
-					],
-				},
-			],
+			windowSets: makeWindowSets(2),
 			backendFactory: mockBackendFactory as any,
 			onArchiveUpdate,
 		});
@@ -736,127 +580,18 @@ describe("full GA loop", () => {
 		expect(onArchiveUpdate).toHaveBeenCalled();
 	});
 
-	it("should exit run via rewardThreshold", async () => {
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
+	it.each([
+		["rewardThreshold", { rewardThreshold: 0 }],
+		["stagnationPatience", { stagnationPatience: 0 }],
+		["timeBudgetMs", { timeBudgetMs: 1 }],
+	])("should exit run via %s", async (_name, limit) => {
 		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [
-						{
-							features: FeatureVector.fromFloat32Array(
-								new Float32Array([0.1, 0.2, 0.3])
-							),
-							price: Price.of(100),
-						},
-					],
-					validation: [{ features, price: Price.of(100) }],
-				},
-			],
-			backendFactory: (() => ({
-				step: jest.fn((..._args: any[]) => ({ reward: 1, action: 0 })),
-				remember: jest.fn<(...args: any[]) => any>(),
-				replay: jest.fn<(...args: any[]) => any>(),
-				getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
-				setWeights: jest.fn<(...args: any[]) => any>(),
-				getPnL: jest.fn((..._args: any[]) => 50),
-				resetEpisode: jest.fn<(...args: any[]) => any>(),
-				forwardPass: jest.fn(
-					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
-				),
-			})) as any,
+			windowSets: makeWindowSets(1),
+			backendFactory: makeBackend as any,
 			initialControl: {
 				populationSize: 2,
 				maxGenerations: 100,
-				rewardThreshold: 0,
-			} as any,
-		});
-		const result = await runner.run();
-		expect(runner.processor.generation).toBeLessThan(100);
-		expect(result).toBe(runner.processor.lastBestGenome);
-		expect(typeof result.id).toBe("string");
-	});
-
-	it("should exit run via stagnationPatience", async () => {
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
-		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [
-						{
-							features: FeatureVector.fromFloat32Array(
-								new Float32Array([0.1, 0.2, 0.3])
-							),
-							price: Price.of(100),
-						},
-					],
-					validation: [{ features, price: Price.of(100) }],
-				},
-			],
-			backendFactory: (() => ({
-				step: jest.fn((..._args: any[]) => ({ reward: 1, action: 0 })),
-				remember: jest.fn<(...args: any[]) => any>(),
-				replay: jest.fn<(...args: any[]) => any>(),
-				getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
-				setWeights: jest.fn<(...args: any[]) => any>(),
-				getPnL: jest.fn((..._args: any[]) => 50),
-				resetEpisode: jest.fn<(...args: any[]) => any>(),
-				forwardPass: jest.fn(
-					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
-				),
-			})) as any,
-			initialControl: {
-				populationSize: 2,
-				maxGenerations: 100,
-				stagnationPatience: 0,
-			} as any,
-		});
-		const result = await runner.run();
-		expect(runner.processor.generation).toBeLessThan(100);
-		expect(result).toBe(runner.processor.lastBestGenome);
-		expect(typeof result.id).toBe("string");
-	});
-
-	it("should exit run via timeBudgetMs", async () => {
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
-		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [
-						{
-							features: FeatureVector.fromFloat32Array(
-								new Float32Array([0.1, 0.2, 0.3])
-							),
-							price: Price.of(100),
-						},
-					],
-					validation: [{ features, price: Price.of(100) }],
-				},
-			],
-			backendFactory: (() => ({
-				step: jest.fn((..._args: any[]) => ({ reward: 1, action: 0 })),
-				remember: jest.fn<(...args: any[]) => any>(),
-				replay: jest.fn<(...args: any[]) => any>(),
-				getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
-				setWeights: jest.fn<(...args: any[]) => any>(),
-				getPnL: jest.fn((..._args: any[]) => 50),
-				resetEpisode: jest.fn<(...args: any[]) => any>(),
-				forwardPass: jest.fn(
-					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
-				),
-			})) as any,
-			initialControl: {
-				populationSize: 2,
-				maxGenerations: 100,
-				timeBudgetMs: 1,
+				...limit,
 			} as any,
 		});
 		const result = await runner.run();
@@ -866,30 +601,10 @@ describe("full GA loop", () => {
 	});
 
 	it("should end after the current generation once its signal is aborted (ADR-0058)", async () => {
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
 		const stop = new AbortController();
 		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [{ features, price: Price.of(100) }],
-					validation: [{ features, price: Price.of(100) }],
-				},
-			],
-			backendFactory: (() => ({
-				step: jest.fn((..._args: any[]) => ({ reward: 1, action: 0 })),
-				remember: jest.fn<(...args: any[]) => any>(),
-				replay: jest.fn<(...args: any[]) => any>(),
-				getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
-				setWeights: jest.fn<(...args: any[]) => any>(),
-				getPnL: jest.fn((..._args: any[]) => 50),
-				resetEpisode: jest.fn<(...args: any[]) => any>(),
-				forwardPass: jest.fn(
-					(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
-				),
-			})) as any,
+			windowSets: makeWindowSets(1),
+			backendFactory: makeBackend as any,
 			initialControl: {
 				termination: {
 					rewardThreshold: Number.POSITIVE_INFINITY,
@@ -912,47 +627,9 @@ describe("full GA loop", () => {
 
 	it("should replay transitions while training", async () => {
 		const trainMock = jest.fn<(...args: any[]) => any>();
-		const mockBackendFactory = () => ({
-			step: jest.fn((..._args: any[]) => ({ reward: 1, action: 0 })),
-			remember: jest.fn<(...args: any[]) => any>(),
-			replay: trainMock,
-			getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
-			setWeights: jest.fn<(...args: any[]) => any>(),
-			getPnL: jest.fn((..._args: any[]) => 50),
-			resetEpisode: jest.fn<(...args: any[]) => any>(),
-			forwardPass: jest.fn(
-				(_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])
-			),
-		});
-
-		const features = FeatureVector.fromFloat32Array(
-			new Float32Array([0.5, 0.5, 0.5])
-		);
 		const runner = new GeneticAlgorithmRunner({
-			windowSets: [
-				{
-					id: "w1",
-					train: [
-						{
-							features: FeatureVector.fromFloat32Array(
-								new Float32Array([0.1, 0.2, 0.3])
-							),
-							price: Price.of(100),
-						},
-						{
-							features: FeatureVector.fromFloat32Array(
-								new Float32Array([0.4, 0.5, 0.6])
-							),
-							price: Price.of(101),
-						},
-					],
-					validation: [
-						{ features, price: Price.of(100) },
-						{ features, price: Price.of(101) },
-					],
-				},
-			],
-			backendFactory: mockBackendFactory as any,
+			windowSets: makeWindowSets(2),
+			backendFactory: (() => makeBackend({ replay: trainMock })) as any,
 			initialControl: { populationSize: 2, maxGenerations: 4 } as any,
 		});
 		await runner.run();
