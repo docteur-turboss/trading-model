@@ -133,6 +133,7 @@ export class Subscription {
 			);
 			await this._deliveryPort.send({
 				url: target,
+				service: toServiceId(serviceName),
 				message,
 				context: { deliveryAttempt: (deliveries - 1) as SequenceNumber },
 			});

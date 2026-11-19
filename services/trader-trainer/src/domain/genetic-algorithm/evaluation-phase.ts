@@ -1,8 +1,4 @@
-import {
-	barsSinceDecision,
-	decisionBars,
-	isEventDriven,
-} from "./decision-events";
+import { playEpisode } from "@trading-model/model-runtime/agent/decision-events";
 import type { LamarckGenome, MarketStep } from "./genome";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
@@ -69,30 +65,17 @@ function _runEvalEpisode(
 ): { pnl: number; decisions: number } {
 	const { genome, validationData, backendFactory } = ctx;
 	const backend = backendFactory(evaluationGenome(genome));
-	const horizon = genome.rl.horizon;
-	const eventDriven = isEventDriven(horizon);
-	const bars = decisionBars(validationData, horizon);
-	let rank = 0;
-	const startPnl = Number(backend.getPnL());
-	let lastPnl = startPnl;
-
-	for (let index = 0; index < validationData.length; index++) {
-		if (bars[rank] !== index) {
-			pnlCurve.push(0);
-			continue;
-		}
-		backend.step(
-			validationData[index],
-			eventDriven ? barsSinceDecision(bars, rank) : undefined
-		);
-		rank++;
-		const pnl = Number(backend.getPnL());
-		pnlCurve.push(pnl - lastPnl);
-		lastPnl = pnl;
-	}
-
+	const episode = playEpisode(
+		validationData,
+		genome.rl.horizon,
+		{
+			step: (step, barsSince) => backend.step(step, barsSince),
+			pnl: () => Number(backend.getPnL()),
+		},
+		pnlCurve
+	);
 	backend.resetEpisode();
-	return { pnl: lastPnl - startPnl, decisions: bars.length };
+	return episode;
 }
 
 export function evalPhase(ctx: GenomeEvaluationContext): EvaluationPnl {

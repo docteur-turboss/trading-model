@@ -290,8 +290,11 @@ export class RedisMessageJournal implements MessageJournalPort {
 		return entries;
 	}
 
-	async lag(): Promise<JournalGroupLag[]> {
-		const groups = await this.groups();
+	/** Lag of the groups of `service` only when given: a bus user has no right on other services' streams. */
+	async lag(service?: string): Promise<JournalGroupLag[]> {
+		const groups = (await this.groups()).filter(
+			(group) => !service || group.service === service
+		);
 		const infos = new Map<string, Record<string, unknown>>();
 		for (const topic of new Set(groups.map((group) => group.topic))) {
 			try {

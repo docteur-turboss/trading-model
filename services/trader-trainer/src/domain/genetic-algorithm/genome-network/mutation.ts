@@ -1,9 +1,12 @@
+import {
+	ACTION_SET_IDS,
+	ACTION_SETS,
+} from "@trading-model/model-runtime/agent/action-mapper";
+import { mutateInputMask } from "@trading-model/model-runtime/agent/input-mask";
 import { sampleGaussian } from "@trading-model/model-runtime/noise";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { ACTION_SET_IDS, ACTION_SETS } from "../../agent/action-mapper";
 import type { LamarckGenome } from "../genome-fitness";
 import type { MutationGenome } from "../genome-mutation";
-import { mutateInputMask } from "./input-mask";
 import {
 	ActivationType,
 	ConnectionType,

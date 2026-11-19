@@ -278,7 +278,9 @@ store (MinIO on another VPS, Backblaze B2, Scaleway, OVH...) `S3_ENDPOINT` and
 `S3_PROVIDER`. `deploy.yml` writes it from the GitHub environment: variables
 `BACKUP_S3_BUCKET`, `BACKUP_S3_REGION`, `BACKUP_S3_ENDPOINT`,
 `BACKUP_S3_PROVIDER`, secrets `BACKUP_S3_ACCESS_KEY_ID`,
-`BACKUP_S3_SECRET_ACCESS_KEY`. Without them, an existing Secret (e.g. a
+`BACKUP_S3_SECRET_ACCESS_KEY`. `BACKUP_S3_REGION` is required on AWS (no
+`BACKUP_S3_ENDPOINT`): `deploy.yml` and the two scheduled workflows refuse an
+empty one. Without them, an existing Secret (e.g. a
 SealedSecret) is kept. The bucket must have Object Lock in compliance mode
 and the credentials no delete right ([Off-site
 immutability](#off-site-immutability)): production deploys refuse a bucket
@@ -1121,5 +1123,5 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
   escrow key decrypted weekly by the `Backup Key Check` workflow (ADR-0034),
   operator key quarterly by hand with `scripts/verify-backup-key.sh`, output
   kept in the operations log ([Key custody](ENCRYPTION_AT_REST.md#key-custody))
-- Secrets rotation: Security team (quarterly)
+- Secrets rotation: project owner, by hand; quarterly reminder issue opened by the `Secret Rotation Reminder` workflow
 - DR drill coordination: Engineering manager (bi-annual)

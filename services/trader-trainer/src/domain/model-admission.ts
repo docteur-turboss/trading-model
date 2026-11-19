@@ -1,6 +1,8 @@
-import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
+import {
+	type SegmentRatios,
+	segmentRatios,
+} from "@trading-model/model-runtime/replay-metrics";
 import type { GenomeFitnessMeta, MarketStep } from "./genetic-algorithm/genome";
-import { annualisedSharpe } from "./genome-summary-builder";
 
 /**
  * ADR-0030 thresholds one test segment can be held to (ADR-0069); the
@@ -14,8 +16,9 @@ export const ADMISSION_THRESHOLDS = {
 } as const;
 
 /**
- * Fewest test bars a verdict needs: one day of one-minute bars. Below it the
- * annualised ratios (x sqrt(barsPerYear), x barsPerYear) mean nothing (ADR-0069).
+ * Fewest test bars a verdict needs: one day of one-minute bars, or a year of
+ * bars when that is fewer (daily bars: about 252). Below it the annualised
+ * ratios (x sqrt(barsPerYear), x barsPerYear) mean nothing (ADR-0069).
  */
 export const MIN_ADMISSION_TEST_BARS = 1440;
 
@@ -24,12 +27,7 @@ export interface ModelAdmission {
 	admissible: boolean;
 	evaluatedOn: "test";
 	/** Annualised ratios of the model and Sharpe of buy and hold on the same bars. */
-	criteria: {
-		sharpe: number;
-		sortino: number;
-		calmar: number;
-		buyAndHoldSharpe: number;
-	};
+	criteria: SegmentRatios;
 	thresholds: typeof ADMISSION_THRESHOLDS;
 }
 
@@ -37,7 +35,7 @@ export interface ModelAdmission {
  * Checks the ADR-0030 criteria on the test segment metrics of the published
  * genome. Undefined unless they were measured on the test segment: metrics of
  * the validation the selection read are biased upward (ADR-0068), and
- * undefined under `MIN_ADMISSION_TEST_BARS` test bars. Without bar
+ * undefined under `MIN_ADMISSION_TEST_BARS` test bars (or `barsPerYear` if fewer). Without bar
  * timestamps (`barsPerYear` unknown) the ratios stay per bar. A model that
  * never decided (`decisions` 0) is never admissible.
  */
@@ -49,17 +47,15 @@ export function assessAdmission(
 	if (
 		meta?.evaluatedOn !== "test" ||
 		!curve ||
-		test.length < MIN_ADMISSION_TEST_BARS
+		test.length <
+			Math.min(
+				MIN_ADMISSION_TEST_BARS,
+				meta.barsPerYear ?? MIN_ADMISSION_TEST_BARS
+			)
 	) {
 		return undefined;
 	}
-	const perYear = meta.barsPerYear ?? 1;
-	const criteria = {
-		sharpe: annualisedSharpe(curve, meta),
-		sortino: curve.sortino() * Math.sqrt(perYear),
-		calmar: curve.calmar() * perYear,
-		buyAndHoldSharpe: buyAndHoldSharpe([test]),
-	};
+	const criteria = segmentRatios(curve, meta.barsPerYear ?? 1, test);
 	return {
 		admissible:
 			meta.decisions !== 0 &&

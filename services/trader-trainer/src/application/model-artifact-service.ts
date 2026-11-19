@@ -1,5 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { isEventDriven } from "@trading-model/model-runtime/agent/decision-events";
+import { contiguousCandles } from "@trading-model/model-runtime/features/feature-builder";
 import {
 	MODEL_ADMISSION_TOTAL,
 	MODEL_ARTIFACTS_TOTAL,
@@ -8,7 +10,6 @@ import {
 	eventInputLayout,
 	networkInputLayout,
 } from "../domain/agent/agent-state";
-import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import { SIMULATOR_PARAMS } from "../domain/genetic-algorithm/rl-backend";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
@@ -172,7 +173,10 @@ export class ModelArtifactService {
 		symbol: TradingSymbol,
 		last: WindowSet | undefined
 	): ModelReplayWindow | undefined {
-		const candles = this._dataBuffer.getSymbolState(symbol)?.candles ?? [];
+		// The steps start after the last gap (window-splitter): so does the window.
+		const candles = contiguousCandles(
+			this._dataBuffer.getSymbolState(symbol)?.candles ?? []
+		);
 		const testFrom = last?.test?.[0]?.timestamp;
 		if (candles.length === 0 || testFrom === undefined) {
 			return;

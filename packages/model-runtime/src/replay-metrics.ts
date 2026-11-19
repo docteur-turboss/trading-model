@@ -53,3 +53,25 @@ export function buyAndHoldSharpe(
 	const perYear = barsPerYear(segments.flat());
 	return new EpisodeScores(curve).sharpe() * Math.sqrt(perYear ?? 1);
 }
+
+/** ADR-0030 ratios of one segment, annualised, next to buy and hold on its bars (ADR-0069). */
+export interface SegmentRatios {
+	sharpe: number;
+	sortino: number;
+	calmar: number;
+	buyAndHoldSharpe: number;
+}
+
+/** Ratios of the bar-by-bar PnL `curve` of `steps`, with `perYear` bars a year. */
+export function segmentRatios(
+	curve: EpisodeScores,
+	perYear: number,
+	steps: readonly TimedPriceStep[]
+): SegmentRatios {
+	return {
+		sharpe: curve.sharpe() * Math.sqrt(perYear),
+		sortino: curve.sortino() * Math.sqrt(perYear),
+		calmar: curve.calmar() * perYear,
+		buyAndHoldSharpe: buyAndHoldSharpe([steps]),
+	};
+}

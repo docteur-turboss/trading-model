@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-06
-**Verified by:** `services/trader-trainer/tests/unit/genetic-algorithm/evolution-engine.spec.ts`, `services/trader-trainer/tests/unit/genetic-algorithm/crossover.spec.ts`, `services/trader-trainer/tests/unit/agent/trading-agent.spec.ts`
+**Verified by:** `services/trader-trainer/tests/unit/domain/genetic-algorithm/evolution-engine.spec.ts`, `services/trader-trainer/tests/unit/domain/genetic-algorithm/crossover.spec.ts`, `services/trader-trainer/tests/unit/domain/agent/trading-agent.spec.ts`
 
 ## Context
 

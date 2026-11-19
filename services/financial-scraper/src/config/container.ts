@@ -108,6 +108,9 @@ export interface SignalSchedulerSettings {
 	SIGNAL_COLLECTION_ENABLED: boolean;
 	/** Empty: no contact in the User-Agent (SEC EDGAR then answers 403). */
 	SIGNAL_CONTACT_EMAIL: string;
+	/** Comma-separated ids of non-commercial sources the operator accepted (ADR-0075). */
+	SIGNAL_NON_COMMERCIAL_ACCEPTED: string;
+	NODE_ENV: string;
 }
 
 /** How the signal sources see the platform. */
@@ -181,7 +184,11 @@ export function createSignalScheduler(
 		now: Date.now,
 		sleep,
 	});
-	recordSourceTerms(SIGNAL_REGISTRY.sources);
+	recordSourceTerms(SIGNAL_REGISTRY.sources, {
+		active: sources,
+		accepted: settings.SIGNAL_NON_COMMERCIAL_ACCEPTED,
+		production: settings.NODE_ENV === "production",
+	});
 	zeroCollectionFailures(sources);
 	restoreFreshness(sources, MySqlSignalStore, Date.now()).catch((err) =>
 		logger.error("Signal freshness gauges not restored from MySQL", {

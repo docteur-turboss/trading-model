@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Amends:** [ADR-0001](./0001-ga-dqn-training.md) (its "Fitness function" bullet only; the GA + DQN architecture stands)
-**Verified by:** `services/trader-trainer/tests/unit/genetic-algorithm/fitness-type.spec.ts`, `services/trader-trainer/tests/unit/genetic-algorithm/reward-shaping.spec.ts`, `services/trader-trainer/tests/unit/genetic-algorithm/dqn-learning.spec.ts`, `services/trader-trainer/tests/unit/genetic-algorithm/training-phase.spec.ts`, `services/trader-trainer/tests/unit/agent/trading-agent.spec.ts`
+**Verified by:** `services/trader-trainer/tests/unit/domain/genetic-algorithm/fitness-type.spec.ts`, `services/trader-trainer/tests/unit/domain/genetic-algorithm/reward-shaping.spec.ts`, `services/trader-trainer/tests/unit/domain/genetic-algorithm/dqn-learning.spec.ts`, `services/trader-trainer/tests/unit/domain/genetic-algorithm/training-phase.spec.ts`, `services/trader-trainer/tests/unit/domain/agent/trading-agent.spec.ts`
 
 ## Context
 
