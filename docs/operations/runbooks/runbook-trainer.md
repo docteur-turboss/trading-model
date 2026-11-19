@@ -336,7 +336,8 @@ The alert resolves once a session measures a score at or below 3.
 ## model-evaluator
 
 [model-evaluator](../../services/model-evaluator.md) records one evaluation per
-published model. It has no alert of its own: `ServiceTargetsMissing` covers it.
+published model and replays it (ADR-0079). `ServiceTargetsMissing` covers the
+service; `ModelReplaySharpeGap` the replay.
 
 ### Symptom
 
@@ -362,6 +363,32 @@ on purpose.
 
 Restart: `kubectl -n $NS rollout restart deployment/model-evaluator`. Failed
 deliveries go back through the bus journal: nothing to replay by hand.
+
+## ModelReplaySharpeGap
+
+`model_replay_sharpe_gap` of a symbol beyond 1 either way: the greedy replay of
+its newest model by model-evaluator gives a test Sharpe more than 1 away from
+the one the trainer published (`admission.criteria.sharpe`). Some gap is
+expected: the trainer measures with 5 % exploration (`replay.evalEpsilon`), the
+replay plays greedy. A large one means the published metrics cannot be
+reproduced from the stored candles.
+
+### Diagnosis
+
+```bash
+kubectl -n $NS exec deploy/model-evaluator -c model-evaluator -- \
+  sh -c 'cat /data/evaluations/<SYMBOL>/$(ls /data/evaluations/<SYMBOL> | tail -1)'
+```
+
+Compare `metrics` with the manifest `admission.criteria`. Candles changed in
+MySQL after training (late corrections, a re-scrape) or a trainer release that
+changed the features or the simulator without a manifest change are the usual
+causes.
+
+### Remediation
+
+Do not use the model. Fix the data or the release; the alert resolves at the
+next replayed model of the symbol within 1 of its published Sharpe.
 
 ## Escalation
 

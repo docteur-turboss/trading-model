@@ -874,6 +874,26 @@ tests:
               description: 'The last 3 stored models of BTCUSDT have a lower out-of-sample Sharpe than buy and hold on the same bars (tt_model_sharpe vs tt_model_buy_and_hold_sharpe): the trainer adds nothing over holding. No capital is at stake.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelbelowbuyandhold'
 
+  # A replayed Sharpe more than 1 away from the published one warns, either
+  # way; a small gap (greedy vs 5 % exploration) stays quiet.
+  - name: replayed sharpe far from the published one warns
+    interval: 1m
+    input_series:
+      - series: 'model_replay_sharpe_gap{job="model-evaluator",instance="e1",symbol="BTCUSDT"}'
+        values: '0.4x10 -2.5x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ModelReplaySharpeGap
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: ModelReplaySharpeGap
+        exp_alerts:
+          - exp_labels: {severity: warning, job: model-evaluator, symbol: BTCUSDT}
+            exp_annotations:
+              summary: 'The replay of the newest model of BTCUSDT does not reproduce its Sharpe'
+              description: 'The greedy replay of the newest model of BTCUSDT on its stored candles gives a test Sharpe 2.5 away from the one the trainer published (model_replay_sharpe_gap, ADR-0079): its published metrics cannot be trusted.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelreplaysharpegap'
+
   # A drift above 3 standard deviations warns after 1 hour; a short spike
   # does not.
   - name: feature drift held for an hour on the leader warns

@@ -50,5 +50,5 @@ Whatever option is chosen, the downstream context depends on the existing, versi
 ## Consequences
 
 - `model-evaluator` is the consumer of option B: its identity, ACL entry and `MODEL_DOWNLOAD_CALLERS` value ship with it. Models have an offline consumer. Signals have a reader since issue #1297: trader-trainer reads and measures the point-in-time window of the assets named by `TRAINER_SYMBOL_ASSETS` at each session (`tt_signal_window_size`), without feeding the model; they reach the network as inputs only behind `FEATURE_SIGNAL_INPUTS` (ADR-0081).
-- The replay of models on stored data (ADR-0030 metrics) is not delivered yet: the records carry `replay: "not-run"`.
+- The replay of models on stored candles (ADR-0030 metrics) is delivered by ADR-0079: the records carry `replay: "done" | "failed"`.
 - The trainer is not changed to read signals: that is a separate decision once a consumer defines which signals matter.

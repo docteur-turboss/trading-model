@@ -34,6 +34,8 @@ export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 		ServiceId.of("message-manager"),
 		// The data supply: the trainer reads its signals and market data (ADR-0036).
 		ServiceId.of("trader-trainer"),
+		// The replay of a published model reads its candle window (ADR-0079).
+		ServiceId.of("model-evaluator"),
 	],
 	[KnownService.TraderTrainer]: [
 		ServiceId.of("api-gateway"),

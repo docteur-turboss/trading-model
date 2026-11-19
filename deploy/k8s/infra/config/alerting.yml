@@ -641,6 +641,16 @@ groups:
           description: 'The last {{ $value }} stored models of {{ $labels.symbol }} have a lower out-of-sample Sharpe than buy and hold on the same bars (tt_model_sharpe vs tt_model_buy_and_hold_sharpe): the trainer adds nothing over holding. No capital is at stake.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelbelowbuyandhold'
 
+      - alert: ModelReplaySharpeGap
+        expr: max by (job, symbol) (abs(model_replay_sharpe_gap)) > 1
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'The replay of the newest model of {{ $labels.symbol }} does not reproduce its Sharpe'
+          description: 'The greedy replay of the newest model of {{ $labels.symbol }} on its stored candles gives a test Sharpe {{ $value | humanize }} away from the one the trainer published (model_replay_sharpe_gap, ADR-0079): its published metrics cannot be trusted.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelreplaysharpegap'
+
       - alert: TrainerFeatureDrift
         expr: max by (job, symbol) (tt_feature_drift_score and on (job, instance) tt_training_leader == 1) > 3
         for: 1h
