@@ -68,6 +68,11 @@ const errors = [];
 for (const [file, text] of CHECKS) {
   if (!read(file).includes(text)) errors.push(`${file}: missing "${text}"`);
 }
+// Every signal source of the registry must be assessed in the third-party document.
+const dpas = read('docs/compliance/third-party-dpas.md');
+for (const { id } of JSON.parse(read('services/financial-scraper/src/config/signal-registry.json')).sources) {
+  if (!dpas.includes(`\`${id}\``)) errors.push(`docs/compliance/third-party-dpas.md: signal source "${id}" not assessed`);
+}
 const SCANNED = [['README.md', README_FORBIDDEN], ...['data-processing-register', 'dpia', 'compliance-framework', 'information-security-policy', 'access-control-policy', 'data-retention-policy', 'business-continuity-policy'].map((f) => [`docs/compliance/${f}.md`, FORBIDDEN])];
 for (const [file, re] of SCANNED) {
   read(file).split('\n').forEach((l, i) => {
