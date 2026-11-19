@@ -32,4 +32,4 @@ Offline consumer of trained models (ADR-0049, option B). No order flow, no marke
 
 ## Metrics
 
-`model_evaluations_total{outcome="recorded|duplicate"}`; `model_replay_sharpe_gap{symbol}`: replayed minus published (`admission.criteria.sharpe`) test Sharpe of the newest replayed model (alert `ModelReplaySharpeGap`).
+`model_evaluations_total{outcome="recorded|duplicate"}`; `model_replay_sharpe_gap{symbol}`: replayed minus published (`admission.criteria.sharpe`) test Sharpe of the newest replayed model; no alert: the trainer measures with 5 % exploration, the replay greedy, so a gap is expected.
