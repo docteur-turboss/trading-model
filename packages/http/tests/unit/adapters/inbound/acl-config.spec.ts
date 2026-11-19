@@ -50,6 +50,14 @@ describe("DEFAULT_ACL", () => {
 		);
 	});
 
+	it("should refuse other workloads on audit-logger and dlq-service", () => {
+		expect(DEFAULT_ACL[KnownService.AuditLogger]).toEqual([
+			"message-manager",
+			"api-gateway",
+		]);
+		expect(DEFAULT_ACL[KnownService.DlqService]).toEqual(["api-gateway"]);
+	});
+
 	it("should only let the edge proxy reach the gateway", () => {
 		expect(DEFAULT_ACL[KnownService.ApiGateway]).toEqual(["edge-proxy"]);
 	});
