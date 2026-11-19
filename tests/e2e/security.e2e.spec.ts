@@ -109,12 +109,13 @@ describe("Security E2E", () => {
 		});
 
 		it.each([
-			["GET", "/containers/abc123/archive?path=/etc"],
-			["GET", "/containers/abc123/export"],
-			["GET", "/containers/abc123/logs"],
-			["POST", "/containers/abc123/start"],
-		])("refuses %s %s", (method, path) => {
-			expect(proxyStatus(path, method)).toBe("403");
+			["GET", "/containers/abc123/archive?path=/etc", "403"],
+			["GET", "/containers/abc123/export", "403"],
+			["GET", "/containers/abc123/logs", "403"],
+			// wollomatic answers 405 for a method outside -allowGET
+			["POST", "/containers/abc123/start", "405"],
+		])("refuses %s %s", (method, path, status) => {
+			expect(proxyStatus(path, method)).toBe(status);
 		});
 	});
 });
