@@ -203,10 +203,10 @@ bus_user() {
 	prefix="trading-model:message-manager"
 	print_args --user "$1" on ">$2" -@all "~$prefix:journal-groups" +ping +info +role "+client|setname" "+client|setinfo" +multi +exec +wait +sadd +smembers
 	for topic in $3; do
-		print_args "(%RW~$prefix:journal:$topic +xadd +xdel +xgroup +xinfo)"
+		print_args "(%RW~$prefix:journal:$topic +xadd +xdel +xgroup|create +xinfo)"
 	done
 	for topic in $4; do
-		print_args "(%RW~$prefix:journal:$topic +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +xlen)"
+		print_args "(%RW~$prefix:journal:$topic +xreadgroup +xpending +xclaim +xack +xgroup|create +xinfo +xrange +xlen)"
 		print_args "(%RW~$prefix:dead:$topic +xadd +xdel +xinfo +xrange +xlen)"
 	done
 }

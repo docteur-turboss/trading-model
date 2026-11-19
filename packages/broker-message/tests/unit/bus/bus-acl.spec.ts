@@ -11,35 +11,28 @@ const SCRIPT = readFileSync(
 	"utf8"
 );
 
-/** Topics of the `bus_user <service> "<password>" "<published>" "<subscribed>"` line. */
-function aclTopics(service: string): [string[], string[]] {
-	const line = SCRIPT.split("\n").find((l) =>
-		l.includes(`bus_user ${service} `)
-	);
-	const quoted = [...(line ?? "").matchAll(/"([^"]*)"/g)].map((m) => m[1]);
-	const list = (value = "") => value.split(" ").filter(Boolean).sort();
-	return [list(quoted[1]), list(quoted[2])];
-}
-
 describe("redis-ha.sh bus users", () => {
-	it.each([
-		"audit-logger",
-		"trader-trainer",
-		"model-evaluator",
-		"financial-scraper",
-	])(
-		"should grant %s the topics of EVENT_PUBLISHERS and EVENT_SUBSCRIBERS",
-		(service) => {
-			const published = Object.entries(EVENT_PUBLISHERS)
-				.filter(([, names]) => names.some((name) => name === service))
-				.map(([topic]) => topic)
+	it("should grant every bus service the topics of EVENT_PUBLISHERS and EVENT_SUBSCRIBERS", () => {
+		const subs = EVENT_SUBSCRIBERS as Record<string, readonly string[]>;
+		for (const service of [
+			"audit-logger",
+			"trader-trainer",
+			"model-evaluator",
+			"financial-scraper",
+		]) {
+			const line = SCRIPT.split("\n").find((l) =>
+				l.includes(`bus_user ${service} `)
+			);
+			const [, published = "", subscribed = ""] = [
+				...(line ?? "").matchAll(/"([^"]*)"/g),
+			].map((m) => m[1] as string);
+			const topics = (v: string) => v.split(" ").filter(Boolean).sort();
+			const expected = Object.entries(EVENT_PUBLISHERS)
+				.filter(([, names]) => names.some((n) => n === service))
+				.map(([t]) => t)
 				.sort();
-			const subscribed = [
-				...((EVENT_SUBSCRIBERS as Record<string, readonly string[]>)[service] ??
-					[]),
-			].sort();
-
-			expect(aclTopics(service)).toEqual([published, subscribed]);
+			expect(topics(published)).toEqual(expected);
+			expect(topics(subscribed)).toEqual([...(subs[service] ?? [])].sort());
 		}
-	);
+	});
 });

@@ -337,6 +337,18 @@ describe("K8s Redis HA start script — real failovers", () => {
 					master,
 					"audit-logger",
 					"XGROUP",
+					"DESTROY",
+					`${bus}training.model.published`,
+					"model-evaluator"
+				)
+			)[0]
+		).toMatch(/^NOPERM/);
+		await expect(
+			(
+				await asService(
+					master,
+					"audit-logger",
+					"XGROUP",
 					"CREATE",
 					`${bus}training.model.published`,
 					"audit-logger",
