@@ -17,6 +17,7 @@ import type { HttpClient } from "@trading-model/http/http-client";
 import {
 	IPAddress,
 	Port,
+	ServiceId,
 	toDurationMs,
 	toInstanceId,
 	toServiceId,
@@ -97,7 +98,11 @@ describe("AddressManagerClient", () => {
 					serviceName: config.identity.serviceName,
 					instanceId: config.identity.instanceId,
 				},
-				{ headers: { "x-instance-token": "mock-token" }, idempotent: true }
+				{
+					headers: { "x-instance-token": "mock-token" },
+					idempotent: true,
+					serviceName: ServiceId.of("discovery-server"),
+				}
 			);
 		});
 
@@ -136,7 +141,7 @@ describe("AddressManagerClient", () => {
 				expect.objectContaining({
 					instanceId: config.identity.instanceId,
 				}),
-				{ idempotent: true },
+				{ idempotent: true, serviceName: ServiceId.of("discovery-server") },
 				expect.anything()
 			);
 		});
@@ -157,7 +162,7 @@ describe("AddressManagerClient", () => {
 				expect.objectContaining({
 					ip: "192.168.1.100",
 				}),
-				{ idempotent: true },
+				{ idempotent: true, serviceName: ServiceId.of("discovery-server") },
 				expect.anything()
 			);
 		});
@@ -195,7 +200,7 @@ describe("AddressManagerClient", () => {
 					version: "2.0.0",
 					ip: expect.any(String),
 				},
-				{ idempotent: true },
+				{ idempotent: true, serviceName: ServiceId.of("discovery-server") },
 				expect.anything()
 			);
 			expect(result).toEqual(response);
@@ -228,7 +233,7 @@ describe("AddressManagerClient", () => {
 					version: "2.0.0",
 					ip: "192.168.1.100",
 				},
-				{ idempotent: true },
+				{ idempotent: true, serviceName: ServiceId.of("discovery-server") },
 				expect.anything()
 			);
 		});
@@ -255,7 +260,11 @@ describe("AddressManagerClient", () => {
 					serviceName: config.identity.serviceName,
 					instanceId: config.identity.instanceId,
 				},
-				{ headers: { "x-instance-token": "mock-token" }, idempotent: true }
+				{
+					headers: { "x-instance-token": "mock-token" },
+					idempotent: true,
+					serviceName: ServiceId.of("discovery-server"),
+				}
 			);
 		});
 

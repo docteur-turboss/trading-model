@@ -4,7 +4,7 @@ import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/http-client";
 import { logger } from "@trading-model/http/logger";
 import type { IPAddress } from "@trading-model/primitives/primitives";
-import { URLString } from "@trading-model/primitives/primitives";
+import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import { ServiceRegistrationWire } from "@trading-model/validation/wire/service-instance";
 import type { AddressManagerConfig } from "../config/address-manager-config";
 import { LocalIPDetector } from "../shared/client/local-ip-detector";
@@ -58,7 +58,7 @@ export class AddressManagerClient {
 				this._url("/register"),
 				this._buildRegistrationPayload(),
 				// Discovery merges a second registration of the same instanceId.
-				{ idempotent: true },
+				{ idempotent: true, serviceName: ServiceId.of("discovery-server") },
 				ServiceRegistrationWire
 			);
 		} catch (error) {
@@ -84,6 +84,7 @@ export class AddressManagerClient {
 				{
 					headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token },
 					idempotent: true,
+					serviceName: ServiceId.of("discovery-server"),
 				}
 			);
 		} catch (err) {
