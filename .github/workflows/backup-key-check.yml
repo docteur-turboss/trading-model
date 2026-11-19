@@ -107,11 +107,12 @@ jobs:
           [ -n "$BACKUP_S3_BUCKET" ] || missing+=(variable BACKUP_S3_BUCKET)
           [ -n "$AWS_ACCESS_KEY_ID" ] || missing+=(secret BACKUP_S3_READ_ACCESS_KEY_ID)
           [ -n "$AWS_SECRET_ACCESS_KEY" ] || missing+=(secret BACKUP_S3_READ_SECRET_ACCESS_KEY)
+          [ -n "$AWS_REGION" ] || [ -n "$RCLONE_S3_ENDPOINT" ] || missing+=(variable BACKUP_S3_REGION)
           if [ "${#missing[@]}" -gt 0 ]; then
             echo "::error::Environment backup-key-check is incomplete (${missing[*]}): the escrow key is not verified (ADR-0034)"
             exit 1
           fi
-          export AWS_REGION="${AWS_REGION:-us-east-1}"
+          export AWS_REGION
           export RCLONE_S3_PROVIDER="${RCLONE_S3_PROVIDER:-AWS}"
           key_dir=/dev/shm/backup-key-check
           ( umask 077 && mkdir -p "$key_dir" && printf '%s\n' "$BACKUP_ESCROW_AGE_IDENTITY" > "$key_dir/escrow-key.txt" )
