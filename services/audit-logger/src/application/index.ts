@@ -42,7 +42,7 @@ createBootstrap({
 			_context;
 		chainAuditScheduler.stop();
 		await brokerMessage.stopMessageManager();
-		addressManager.stop();
+		await addressManager.stop();
 		await mongoManager.close();
 		_context = null;
 		await shutdownTelemetry();
