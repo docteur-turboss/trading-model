@@ -133,9 +133,9 @@ environment and prints its secrets):
   tag rule `v*` (the release deploys its tag).
   A required reviewer is advised, not checked.
 - `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
-  backup): "Selected branches and tags" with exactly the branch `main`, and at
-  least one required reviewer. Set both **before** storing the escrow key. The
-  weekly run then waits for the reviewer's approval.
+  backup): "Selected branches and tags" with exactly the branch `main`, **before**
+  storing the escrow key. No required reviewer: it would hold the weekly
+  scheduled run until someone approves it (ADR-0034).
 
 The expected rules are the `RULES` table of the script. `backup-key-check.yml`
 runs its own `check-environment` job first and `verify-escrow-key` (the only
