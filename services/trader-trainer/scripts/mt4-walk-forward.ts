@@ -39,6 +39,7 @@ import { evalPhase } from "../src/domain/genetic-algorithm/evaluation-phase";
 import type { MarketStep } from "../src/domain/genetic-algorithm/genome";
 import { FitnessType } from "../src/domain/genetic-algorithm/genome-control";
 import { makeSeededBackendFactory } from "../src/domain/genetic-algorithm/rl-backend";
+import { EMBARGO_STEPS } from "../src/domain/market-data/window-splitter";
 import { MarketDataBuffer } from "../src/domain/market-data-buffer";
 import { ADMISSION_THRESHOLDS } from "../src/domain/model-admission";
 
@@ -183,7 +184,7 @@ async function runSegment(
 			{
 				id: `${symbol}-${run.segment}`,
 				train: trainSteps.slice(0, split),
-				validation: trainSteps.slice(split),
+				validation: trainSteps.slice(split + EMBARGO_STEPS),
 			},
 		],
 		{

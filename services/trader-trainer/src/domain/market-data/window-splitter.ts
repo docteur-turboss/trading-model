@@ -2,6 +2,7 @@ import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { Percentage, PositiveInt } from "@trading-model/primitives/primitives";
 import type { Signal } from "@trading-model/validation/wire/signals";
 import { buildFeatures as buildFeaturesFn } from "../feature-builder";
+import { FEATURE_LOOKBACK } from "../feature-builders/sliding-window-features";
 import type { WindowSet } from "../genetic-algorithm/generation-types";
 import type { MarketStep } from "../genetic-algorithm/genome";
 import {
@@ -32,6 +33,13 @@ export const DEFAULT_VALIDATION_SPLIT = Percentage.of(0.15);
  * read by the training nor by the selection (issue #885, ADR-0068).
  */
 export const DEFAULT_TEST_SPLIT = Percentage.of(0.15);
+
+/**
+ * Steps dropped at the start of each downstream segment: a step reads the
+ * FEATURE_LOOKBACK candles before it, so none reads the segment before it (its
+ * last fill is the first dropped step's candle).
+ */
+export const EMBARGO_STEPS = FEATURE_LOOKBACK;
 
 /** Default number of walk-forward folds (1 = single split, no rolling). */
 const DEFAULT_WALK_FORWARD_FOLDS = 1;
@@ -68,17 +76,23 @@ export function hasEnoughTrainingData(
 ): boolean {
 	const steps = candleCount - 1;
 	const rest = Math.floor(steps * (1 - testSplit));
-	if (steps - rest < MIN_TRAINING_STEPS) {
+	if (steps - rest - EMBARGO_STEPS < MIN_TRAINING_STEPS) {
 		return false;
 	}
-	if (walkForwardFolds >= 2 && rest >= MIN_TRAINING_STEPS * walkForwardFolds) {
+	if (
+		walkForwardFolds >= 2 &&
+		rest >= (MIN_TRAINING_STEPS + EMBARGO_STEPS) * walkForwardFolds
+	) {
 		return true;
 	}
 	// Walk-forward fallback uses DEFAULT_VALIDATION_SPLIT, as splitWalkForward does.
 	const split =
 		walkForwardFolds >= 2 ? DEFAULT_VALIDATION_SPLIT : validationSplit;
 	const train = Math.floor(rest * (1 - split));
-	return train >= MIN_TRAINING_STEPS && rest - train >= MIN_TRAINING_STEPS;
+	return (
+		train >= MIN_TRAINING_STEPS &&
+		rest - train - EMBARGO_STEPS >= MIN_TRAINING_STEPS
+	);
 }
 
 /** Handles building market steps and train/validation window splitting. */
@@ -162,7 +176,7 @@ export class WindowSplitter {
 		return {
 			id: `window_${++WindowSplitter._nextId}`,
 			train: steps.slice(0, splitIdx),
-			validation: steps.slice(splitIdx),
+			validation: steps.slice(splitIdx + EMBARGO_STEPS),
 		};
 	}
 
@@ -182,7 +196,10 @@ export class WindowSplitter {
 		steps: MarketStep[],
 		folds: number
 	): { train: MarketStep[]; validation: MarketStep[]; id: string }[] {
-		if (folds < 2 || steps.length < MIN_TRAINING_STEPS * folds) {
+		if (
+			folds < 2 ||
+			steps.length < (MIN_TRAINING_STEPS + EMBARGO_STEPS) * folds
+		) {
 			return [this.splitTrainValidation(steps, DEFAULT_VALIDATION_SPLIT)];
 		}
 
@@ -199,7 +216,7 @@ export class WindowSplitter {
 			windows.push({
 				id: `wf_window_${++WindowSplitter._nextId}`,
 				train: steps.slice(0, trainEnd),
-				validation: steps.slice(trainEnd, valEnd),
+				validation: steps.slice(trainEnd + EMBARGO_STEPS, valEnd),
 			});
 		}
 
@@ -216,7 +233,7 @@ export class WindowSplitter {
 		// The newest steps are cut off first: train and validation never see them.
 		const testStart = Math.floor(all.length * (1 - testSplit));
 		const steps = all.slice(0, testStart);
-		const test = all.slice(testStart);
+		const test = all.slice(testStart + EMBARGO_STEPS);
 		if (steps.length < MIN_TRAINING_STEPS || test.length < MIN_TRAINING_STEPS) {
 			return null;
 		}

@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import type { MarketStep } from "../../../src/domain/genetic-algorithm/genome-fitness";
 import type { MarketDataContext } from "../../../src/domain/market-data/market-data-context";
 import {
+	EMBARGO_STEPS,
 	hasEnoughTrainingData,
 	MIN_TRAINING_STEPS,
 	WindowSplitter,
@@ -24,15 +25,16 @@ const withSteps = (n: number) => {
 };
 
 describe("train | validation | test split (issue #885)", () => {
-	it("cuts three disjoint segments in time order covering every step", () => {
+	it("cuts three disjoint segments in time order, an embargo between each", () => {
 		const ws = withSteps(200).getAllWindows(ctx, 0.15, 1, 0.15) as {
 			train: MarketStep[];
 			validation: MarketStep[];
 			test: MarketStep[];
 		};
-		expect(ws.test).toHaveLength(30);
+		expect(ws.test).toHaveLength(30 - EMBARGO_STEPS);
 		const all = [...ts(ws.train), ...ts(ws.validation), ...ts(ws.test)];
-		expect(all).toEqual(Array.from({ length: 200 }, (_, i) => i));
+		expect(all).toHaveLength(200 - 2 * EMBARGO_STEPS);
+		expect(all).toEqual([...all].sort((a, b) => a - b));
 		for (const seg of [ws.train, ws.validation, ws.test]) {
 			expect(seg.length).toBeGreaterThanOrEqual(MIN_TRAINING_STEPS);
 		}

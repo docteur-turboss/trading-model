@@ -263,7 +263,7 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			(trainer as any)._status = "training";
 
@@ -279,7 +279,7 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -295,7 +295,7 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -306,7 +306,7 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -317,7 +317,7 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -334,7 +334,7 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -353,7 +353,7 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -370,7 +370,7 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -490,7 +490,7 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -504,7 +504,7 @@ describe("Trainer", () => {
 			const trainer = new Trainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -522,7 +522,7 @@ describe("Trainer — model publication", () => {
 		capturedOnArchiveUpdate = null;
 		mockRunImpl = null;
 		mockArchiveData = [{ id: "best-archived" }];
-		feedCandles(dataBuffer, "BTCUSDT", 100);
+		feedCandles(dataBuffer, "BTCUSDT", 130);
 	});
 
 	it("should hand the GA telemetry and the settings to the training session", async () => {
@@ -558,7 +558,7 @@ describe("Trainer — model publication", () => {
 			const probe = new Trainer(new MarketDataBuffer({ maxSize: 500 }), {
 				settings: TEST_TRAINING_SETTINGS,
 			});
-			feedCandles((probe as any)._dataBuffer, "BTCUSDT", 100);
+			feedCandles((probe as any)._dataBuffer, "BTCUSDT", 130);
 			const result = await probe.train(TradingSymbol.of("BTCUSDT"));
 			if (!result.success) {
 				throw new Error("probe training failed");
@@ -606,7 +606,7 @@ describe("Trainer — model publication", () => {
 				models: fakeStore(),
 				publisher,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -634,7 +634,7 @@ describe("Trainer — model publication", () => {
 				models,
 				publisher: { publish },
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -648,7 +648,7 @@ describe("Trainer — model publication", () => {
 				models: fakeStore(),
 				publisher: { publish },
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -661,7 +661,7 @@ describe("Trainer — model publication", () => {
 			const trainer = publishingTrainer(fakeStore(), () =>
 				Promise.reject(new Error("bus down"))
 			);
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			await expect(
 				trainer.train(TradingSymbol.of("BTCUSDT"))
@@ -674,7 +674,7 @@ describe("Trainer — model publication", () => {
 			const trainer = publishingTrainer(fakeStore(), () =>
 				Promise.reject("nope")
 			);
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			await expect(
 				trainer.train(TradingSymbol.of("BTCUSDT"))
@@ -690,7 +690,7 @@ describe("Trainer — model publication", () => {
 				models,
 				instanceId: "trader-trainer-2",
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -770,7 +770,7 @@ describe("Trainer — model publication", () => {
 				publisher,
 				runner,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			const training = trainer.train(TradingSymbol.of("BTCUSDT"));
 			expect(trainer.isTraining()).toBe(true);
@@ -832,7 +832,7 @@ describe("Trainer — model publication", () => {
 				});
 				expect(trainer.getBestAgentSummary()?.fitness).toBe(1.5);
 
-				feedCandles(dataBuffer, "BTCUSDT", 100);
+				feedCandles(dataBuffer, "BTCUSDT", 130);
 				await trainer.train(sym);
 				expect(
 					trainer.getSnapshotForSymbol(sym)?.buildBestAgentSummary()?.id
@@ -903,7 +903,7 @@ describe("Trainer — model publication", () => {
 				},
 			});
 			// Swings growing with time: validation and test bars differ in Sharpe.
-			feedCandles(dataBuffer, "BTCUSDT", 100, (i) => i + ((i % 2) * i) / 10);
+			feedCandles(dataBuffer, "BTCUSDT", 130, (i) => i + ((i % 2) * i) / 10);
 
 			await trainer.train(sym);
 
@@ -940,7 +940,7 @@ describe("Trainer — model publication", () => {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 
@@ -957,7 +957,7 @@ describe("Trainer — model publication", () => {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 			});
-			feedCandles(dataBuffer, "BTCUSDT", 100);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
 
 			const result = await trainer.train(TradingSymbol.of("BTCUSDT"));
 

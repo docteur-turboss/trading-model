@@ -28,3 +28,5 @@ Every trained model was stored and announced by `training.model.published` whate
 ## Consequences
 
 Even 1440 test bars make one noisy estimate: an admissible model may be lucky (ADR-0030 results), hence the manual promotion. With the default window (`TRAINER_DATA_WINDOW` 500, `TRAINER_TEST_SPLIT` 0.15: 75 test bars) no verdict is given until the window is raised to about 9600 bars (1440 / 0.15); the default is unchanged (memory and session duration). Manifests written before this ADR have no `admission`.
+
+The trainer retrains in a loop and recomputes the verdict on a test segment that overlaps from one cycle to the next: the verdict of the latest model is a choice made on the test, repeated. The promoter counts the verdicts already given on overlapping bars from `replay.from`/`testFrom`/`to` of the manifests (ADR-0079): same symbol and interval, overlapping `testFrom`..`to`. Train, validation and test are separated by `EMBARGO_STEPS` steps (the features' maximum lookback, issue #1648).

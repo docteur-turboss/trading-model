@@ -3,6 +3,7 @@ import type { MarketStep } from "../../../src/domain/genetic-algorithm/genome-fi
 import type { MarketDataContext } from "../../../src/domain/market-data/market-data-context";
 import {
 	DEFAULT_VALIDATION_SPLIT,
+	EMBARGO_STEPS,
 	MIN_TRAINING_STEPS,
 	WindowSplitter,
 } from "../../../src/domain/market-data/window-splitter";
@@ -24,6 +25,9 @@ const lcg = (seed: number) => () => {
 	return seed / 2 ** 32;
 };
 
+/** Steps per fold below which walk-forward falls back to one split. */
+const PER_FOLD = MIN_TRAINING_STEPS + EMBARGO_STEPS;
+
 const splitter = () => new WindowSplitter(new Map());
 
 /** Asserts invariants 1-4 of the walk-forward split for one input. */
@@ -38,9 +42,9 @@ function expectWalkForwardInvariants(n: number, folds: number): void {
 		const valTs = ts(w.validation);
 		expect(trainTs[0]).toBe(0);
 		expect(Math.max(...trainTs)).toBeLessThan(Math.min(...valTs));
-		expect(valTs[0]).toBe(trainTs[trainTs.length - 1] + 1);
+		expect(valTs[0]).toBe(trainTs[trainTs.length - 1] + 1 + EMBARGO_STEPS);
 		if (prevValEnd >= 0) {
-			expect(valTs[0]).toBe(prevValEnd + 1);
+			expect(valTs[0]).toBe(prevValEnd + 1 + EMBARGO_STEPS);
 		}
 		expect(w.train.length).toBeGreaterThan(prevTrainLen);
 		prevTrainLen = w.train.length;
@@ -51,7 +55,7 @@ function expectWalkForwardInvariants(n: number, folds: number): void {
 describe("WindowSplitter.splitWalkForward", () => {
 	it("returns exactly folds-1 windows", () => {
 		for (const folds of [2, 3, 5, 20]) {
-			const w = splitter().splitWalkForward(makeSteps(10 * folds), folds);
+			const w = splitter().splitWalkForward(makeSteps(PER_FOLD * folds), folds);
 			expect(w).toHaveLength(folds - 1);
 		}
 	});
@@ -68,12 +72,14 @@ describe("WindowSplitter.splitWalkForward", () => {
 		const w = splitter().splitWalkForward(makeSteps(100), 5);
 		w.forEach((win, k) => {
 			expect(win.validation[0].timestamp).toBe(
-				(win.train[win.train.length - 1].timestamp as number) + 1
+				(win.train[win.train.length - 1].timestamp as number) +
+					1 +
+					EMBARGO_STEPS
 			);
 			if (k > 0) {
 				const prev = w[k - 1].validation;
 				expect(win.validation[0].timestamp).toBe(
-					(prev[prev.length - 1].timestamp as number) + 1
+					(prev[prev.length - 1].timestamp as number) + 1 + EMBARGO_STEPS
 				);
 			}
 		});
@@ -112,9 +118,9 @@ describe("WindowSplitter.splitWalkForward", () => {
 	);
 
 	it.each([[2], [4]])(
-		"falls back below MIN_TRAINING_STEPS*folds and walks forward at it (folds=%i)",
+		"falls back below (MIN_TRAINING_STEPS+EMBARGO_STEPS)*folds and walks forward at it (folds=%i)",
 		(folds) => {
-			const min = MIN_TRAINING_STEPS * folds;
+			const min = PER_FOLD * folds;
 			const below = splitter().splitWalkForward(makeSteps(min - 1), folds);
 			expect(below).toHaveLength(1);
 			expect(below[0].id).toMatch(/^window_/);
@@ -128,20 +134,23 @@ describe("WindowSplitter.splitWalkForward", () => {
 		const rnd = lcg(657);
 		for (let i = 0; i < 200; i++) {
 			const folds = 2 + Math.floor(rnd() * 19);
-			const n = MIN_TRAINING_STEPS * folds + Math.floor(rnd() * 300);
+			const n = PER_FOLD * folds + Math.floor(rnd() * 300);
 			expectWalkForwardInvariants(n, folds);
 		}
 	});
 
 	it("leaves the last steps.length % folds steps out of every validation (documented behavior)", () => {
-		const steps = makeSteps(25);
+		const steps = makeSteps(PER_FOLD * 2 + 1); // 37: chunk 18
 		const windows = splitter().splitWalkForward(steps, 2);
 		const validated = new Set(windows.flatMap((w) => ts(w.validation)));
 		expect(windows).toHaveLength(1);
 		expect(ts(windows[0].validation)).toEqual(
-			Array.from({ length: 12 }, (_, i) => 12 + i)
+			Array.from(
+				{ length: 18 - EMBARGO_STEPS },
+				(_, i) => 18 + EMBARGO_STEPS + i
+			)
 		);
-		expect(validated.has(24)).toBe(false);
+		expect(validated.has(36)).toBe(false);
 	});
 });
 
@@ -154,26 +163,43 @@ describe("WindowSplitter.getAllWindows", () => {
 	};
 
 	it("returns an array of windows when walkForwardFolds >= 2", () => {
-		const r = withSteps(100).getAllWindows(ctx, 0.2, 4);
+		const r = withSteps(120).getAllWindows(ctx, 0.2, 4);
 		expect(Array.isArray(r)).toBe(true);
 		expect(r).toHaveLength(3);
 	});
 
 	it("returns a single WindowSet when walkForwardFolds is 1", () => {
-		const r = withSteps(100).getAllWindows(ctx, 0.2, 1);
+		const r = withSteps(120).getAllWindows(ctx, 0.2, 1);
 		expect(Array.isArray(r)).toBe(false);
-		expect((r as { train: unknown[] }).train).toHaveLength(68);
+		expect((r as { train: unknown[] }).train).toHaveLength(81);
 	});
 
 	it("uses the default split and a single fold when called with the context only", () => {
-		const r = withSteps(100).getAllWindows(ctx);
+		const r = withSteps(120).getAllWindows(ctx);
 		expect(Array.isArray(r)).toBe(false);
-		expect((r as { train: unknown[] }).train).toHaveLength(72);
+		expect((r as { train: unknown[] }).train).toHaveLength(86);
 	});
 
 	it("returns null with fewer than MIN_TRAINING_STEPS steps", () => {
 		expect(
 			withSteps(MIN_TRAINING_STEPS - 1).getAllWindows(ctx, 0.2, 3)
 		).toBeNull();
+	});
+});
+
+describe("embargo between segments", () => {
+	const ctx = { symbol: "BTCUSDT" } as unknown as MarketDataContext;
+
+	it("leaves EMBARGO_STEPS steps between train, validation and test", () => {
+		const s = splitter();
+		jest.spyOn(s, "buildMarketSteps").mockReturnValue(makeSteps(120));
+		const set = s.getAllWindows(ctx, 0.2, 1) as {
+			train: MarketStep[];
+			validation: MarketStep[];
+			test: MarketStep[];
+		};
+		const last = (steps: MarketStep[]) => ts(steps)[steps.length - 1];
+		expect(ts(set.validation)[0] - last(set.train)).toBe(EMBARGO_STEPS + 1);
+		expect(ts(set.test)[0] - last(set.validation)).toBe(EMBARGO_STEPS + 1);
 	});
 });
