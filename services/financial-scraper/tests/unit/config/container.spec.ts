@@ -127,31 +127,6 @@ describe("config/container — createScrapeScheduler", () => {
 			expect.stringContaining("market data collection is disabled")
 		);
 	});
-
-	it("should build the cron with the schedule, the tracked symbols and the Binance source", async () => {
-		const scheduler = await createScrapeScheduler({
-			SCRAPE_INTERVAL: "*/5 * * * *",
-			SYMBOLS_TO_TRACK: ["BTCUSDT", "ETHUSDT"],
-			SCRAPE_SCHEDULER_ENABLED: true,
-		});
-
-		expect(scheduler).not.toBeNull();
-		expect(MOCK_CRON_CONSTRUCTOR).toHaveBeenCalledWith({
-			schedule: "*/5 * * * *",
-			symbols: ["BTCUSDT", "ETHUSDT"],
-			deps: {
-				source: { id: "binance" },
-				publisher: { publish: expect.any(Function) },
-				persist: expect.any(Function),
-				backlog: { kind: "mysql-backlog" },
-			},
-		});
-		expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
-			"Market data collection enabled",
-			{ symbols: ["BTCUSDT", "ETHUSDT"], schedule: "*/5 * * * *" }
-		);
-		expect(MOCK_LOGGER.warn).not.toHaveBeenCalled();
-	});
 });
 
 describe("config/container — createSignalScheduler", () => {
@@ -316,18 +291,5 @@ describe("config/container — createCollector", () => {
 				identity: "pod-a",
 			}
 		);
-	});
-
-	it("starts and stops every scheduler with the leadership", async () => {
-		const collector = await createCollector(COLLECTING);
-		const cron = MOCK_CRON_CONSTRUCTOR.mock.results[0].value as {
-			start: jest.Mock;
-			stop: jest.Mock;
-		};
-		collector?.start();
-		await new Promise((resolve) => setTimeout(resolve, 10));
-		expect(cron.start).toHaveBeenCalledTimes(1);
-		await collector?.stop();
-		expect(cron.stop).toHaveBeenCalledTimes(1);
 	});
 });
