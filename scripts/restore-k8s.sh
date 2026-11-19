@@ -197,10 +197,9 @@ save_mongo_users() {
 # save_mongo_users. The restored root has the password of the dump's day, so
 # the keyFile's internal user (`__system`) signs in instead.
 put_back_mongo_users() {
-  # shortcut: mongosh has no --config for credentials, so the keyfile secret stays in argv (pod-local, short-lived); replace when mongosh reads it from env or a file
-  printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- sh -c \
-    'exec mongosh --quiet --username __system --password "$(cat /keyfile/keyfile)" --authenticationDatabase local --eval "$1"' sh \
-    "const s = EJSON.parse(require('fs').readFileSync(0, 'utf8')); const a = db.getSiblingDB('admin');
+  printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- mongosh --quiet --eval \
+    "db.getSiblingDB('local').auth('__system', require('fs').readFileSync('/keyfile/keyfile', 'utf8').trim());
+const s = EJSON.parse(require('fs').readFileSync(0, 'utf8')); const a = db.getSiblingDB('admin');
 for (const [c, docs] of [['system.users', s.u], ['system.roles', s.r]]) { a.getCollection(c).deleteMany({}); if (docs.length) a.getCollection(c).insertMany(docs); }"
 }
 
