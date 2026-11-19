@@ -1,10 +1,10 @@
 // Deletes the throwaway dead letter `argv[2]` through the dlq-service API:
 // dlq-service records dlq.entries.deleted, which grows the audit chain (nothing
-// posts dead letters over HTTP any more, ADR-0073). Request signed by the
-// image's own request-signer with DLQ_AUTH_HMAC_SECRET, sent over mTLS with
-// the pod's SVID. Run inside the message-manager container by the restore
-// drill (tests/k8s/run-kind.sh):
-//   kubectl exec -i deployment/message-manager -c message-manager -- node - <id> < tests/k8s/dlq-seed.cjs
+// posts dead letters over HTTP any more, ADR-0073). Request signed as the
+// operator (`admin`) by the image's own request-signer with
+// DLQ_AUTH_HMAC_SECRET, sent over mTLS with the pod's SVID. Run inside the
+// api-gateway container, the only caller the dlq-service ACL admits, by the
+// restore drill (tests/k8s/run-kind.sh), which sets the secret on stdin.
 const fs = require("node:fs");
 const https = require("node:https");
 const {
@@ -14,7 +14,7 @@ const {
 const body = { ids: [process.argv[2]] };
 const payload = JSON.stringify(body);
 const headers = buildSignedHeaders(
-	{ serviceName: "message-manager", method: "DELETE", path: "/v1/dlq", body },
+	{ serviceName: "admin", method: "DELETE", path: "/v1/dlq", body },
 	process.env.DLQ_AUTH_HMAC_SECRET
 );
 const svid = "/run/spire/svid";
