@@ -238,10 +238,16 @@ describe("admission of a model (ADR-0069)", () => {
 	it("gives no verdict under the minimum of test bars", () => {
 		const prices = [5, 4, 3, 2];
 		expect(
-			assessAdmission(testMeta(100), bars(prices, MIN_ADMISSION_TEST_BARS - 1))
+			assessAdmission(testMeta(8766), bars(prices, MIN_ADMISSION_TEST_BARS - 1))
 		).toBeUndefined();
 		expect(assessAdmission(testMeta(100), bars(prices, 75))).toBeUndefined();
-		expect(assessAdmission(testMeta(100), bars(prices))).toBeDefined();
+		expect(assessAdmission(testMeta(8766), bars(prices))).toBeDefined();
+	});
+
+	it("asks daily bars for a year of them, not 1440", () => {
+		const prices = [5, 4, 3, 2];
+		expect(assessAdmission(testMeta(252), bars(prices, 251))).toBeUndefined();
+		expect(assessAdmission(testMeta(252), bars(prices, 252))).toBeDefined();
 	});
 
 	it("the manifest carries the verdict", () => {
