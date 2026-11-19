@@ -175,7 +175,10 @@ async function runSegment(
 	// Features are point in time (ADR-0030): later candles never change an earlier step.
 	const steps = marketSteps(symbol, klines.slice(start, end));
 	const trainSteps = steps.slice(0, -opts.test);
-	const test = steps.slice(-opts.test);
+	if (opts.test <= EMBARGO_STEPS) {
+		throw new Error(`test must exceed the ${EMBARGO_STEPS}-step embargo`);
+	}
+	const test = steps.slice(-opts.test + EMBARGO_STEPS);
 	const split = Math.floor(trainSteps.length * 0.8);
 
 	const t0 = Date.now();
