@@ -2,33 +2,48 @@
 # Trivy stops applying an entry after its expired_at date, so the release fails then.
 # statement = reason and owner (docteur-turboss): fixed upstream, not yet in the pinned base / binary.
 vulnerabilities:
-  - id: CVE-2026-116587
-    expired_at: 2026-12-11
-    statement: "spire-tools: spire-server 1.15.5 binary (go-jose, x/net); owner docteur-turboss"
   - id: CVE-2026-78661
     expired_at: 2026-12-11
-    statement: "spire-tools: spire-server 1.15.5 binary (go-jose, x/net); owner docteur-turboss"
+    statement: "spire-tools: spire-server 1.16.0 binary (x/net 0.61.0, Go stdlib 1.27.3); owner docteur-turboss"
+  - id: CVE-2026-97054
+    expired_at: 2026-12-11
+    statement: "spire-tools: spire-server 1.16.0 binary (x/net 0.61.0, Go stdlib 1.27.3); owner docteur-turboss"
   - id: CVE-2026-78669
     expired_at: 2026-12-11
-    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib); owner docteur-turboss"
+    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text); owner docteur-turboss"
   - id: CVE-2026-56851
     expired_at: 2026-12-11
-    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib); owner docteur-turboss"
-  - id: CVE-2026-111943
+    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text); owner docteur-turboss"
+  - id: CVE-2026-13595
     expired_at: 2026-12-11
-    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib); owner docteur-turboss"
-  - id: CVE-2026-78667
+    statement: "backup-tools: oraclelinux 10.2 base (util-linux libs, curl); owner docteur-turboss"
+  - id: CVE-2026-27456
     expired_at: 2026-12-11
-    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib); owner docteur-turboss"
-  - id: CVE-2026-97031
+    statement: "backup-tools: oraclelinux 10.2 base (util-linux libs, curl); owner docteur-turboss"
+  - id: CVE-2026-53612
     expired_at: 2026-12-11
-    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib); owner docteur-turboss"
-  - id: CVE-2026-109518
+    statement: "backup-tools: oraclelinux 10.2 base (util-linux libs, curl); owner docteur-turboss"
+  - id: CVE-2026-53613
     expired_at: 2026-12-11
-    statement: "db-migrate: debian 13.7 base of oven/bun (apt, zlib1g); owner docteur-turboss"
-  - id: CVE-2026-76844
+    statement: "backup-tools: oraclelinux 10.2 base (util-linux libs, curl); owner docteur-turboss"
+  - id: CVE-2026-53614
     expired_at: 2026-12-11
-    statement: "db-migrate: debian 13.7 base of oven/bun (apt, zlib1g); owner docteur-turboss"
+    statement: "backup-tools: oraclelinux 10.2 base (util-linux libs, curl); owner docteur-turboss"
+  - id: CVE-2026-53615
+    expired_at: 2026-12-11
+    statement: "backup-tools: oraclelinux 10.2 base (util-linux libs, curl); owner docteur-turboss"
+  - id: CVE-2026-76642
+    expired_at: 2026-12-11
+    statement: "backup-tools: oraclelinux 10.2 base (util-linux libs, curl); owner docteur-turboss"
+  - id: CVE-2026-78408
+    expired_at: 2026-12-11
+    statement: "backup-tools: oraclelinux 10.2 base (util-linux libs, curl); owner docteur-turboss"
+  - id: CVE-2026-78410
+    expired_at: 2026-12-11
+    statement: "backup-tools: oraclelinux 10.2 base (util-linux libs, curl); owner docteur-turboss"
+  - id: CVE-2026-92392
+    expired_at: 2026-12-11
+    statement: "backup-tools: oraclelinux 10.2 base (util-linux libs, curl); owner docteur-turboss"
   - id: CVE-2026-85091
     expired_at: 2026-12-11
-    statement: "db-migrate: debian 13.7 base of oven/bun (apt, zlib1g); owner docteur-turboss"
+    statement: "db-migrate: debian 13.7 base of oven/bun 1.4.5 (zlib1g); owner docteur-turboss"
