@@ -211,8 +211,8 @@ jobs:
           target: ${{ matrix.target }}
           load: true
           tags: ${{ needs.version.outputs.registry }}/${{ matrix.image }}:${{ needs.version.outputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # No GHA cache: a cached `microdnf upgrade` layer would hide distro fixes published since.
+          # The push step reuses this build's layers from the builder, so it ships what was scanned.
 
       - name: Scan image (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

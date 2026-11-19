@@ -2,7 +2,7 @@ import BrokerMessage from "@trading-model/broker-message";
 import { busJournalFromEnv } from "@trading-model/broker-message/create-message-manager";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
-import { TrainingEvent } from "@trading-model/contracts/training-events";
+import { EVENT_SUBSCRIBERS } from "@trading-model/contracts/event-routes";
 import { toInstanceId } from "@trading-model/primitives/primitives";
 import { createMessageHandler } from "../adapters/inbound/evaluation-subscriber";
 import { FileEvaluationStore } from "../adapters/outbound/file-evaluation-store";
@@ -31,6 +31,8 @@ export async function createModelEvaluatorApp() {
 		instanceId: toInstanceId(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.ModelEvaluatorService,
 	});
-	await brokerMessage.intents([TrainingEvent.ModelPublished]);
+	await brokerMessage.intents([
+		...(EVENT_SUBSCRIBERS[ServiceInstanceName.ModelEvaluatorService] ?? []),
+	]);
 	return { server, brokerMessage };
 }

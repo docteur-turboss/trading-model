@@ -19,6 +19,8 @@ import { BROKER_API } from "../../../../src/adapters/inbound/api-routes";
 import { BROKER_ROUTES } from "../../../../src/adapters/inbound/http.routes";
 import { createMockDispatcher } from "../../../helpers/broker.helper";
 
+const SCRAPER_SVID =
+	"spiffe://trading-model.local/ns/trading-model/sa/financial-scraper";
 const PUBLISHER = {
 	serviceName: ServiceInstanceName.FinancialScraperService,
 	instanceId: "scraper-1",
@@ -32,7 +34,23 @@ describe("message-manager API (BROKER_API)", () => {
 	beforeAll(async () => {
 		const app = express();
 		app.use(express.json());
+		// The SVID mTLS auth sets: the caller is financial-scraper.
+		app.use((req, _res, next) => {
+			(req as { clientIdentity?: string }).clientIdentity = SCRAPER_SVID;
+			next();
+		});
 		app.use(BROKER_ROUTES(dispatcher as never));
+		// Thrown ResponseException: the status and body of the error handler of the real server.
+		app.use(
+			(
+				err: { status: number; data: unknown },
+				_req: express.Request,
+				res: express.Response,
+				_next: express.NextFunction
+			) => {
+				res.status(err.status).json(err.data);
+			}
+		);
 		await new Promise<void>((resolve) => {
 			server = app.listen(0, () => resolve());
 		});
@@ -86,6 +104,24 @@ describe("message-manager API (BROKER_API)", () => {
 			);
 		});
 
+		it("rejects with 403 a publisher that is not the calling service", async () => {
+			const { status } = await call(BROKER_API.publish, {
+				payload: {},
+				metadata: {
+					schemaVersion: "1.0",
+					eventType: "training.model.published",
+					topic: "training.model.published",
+					publisher: {
+						...PUBLISHER,
+						serviceName: ServiceInstanceName.TraderTrainerService,
+					},
+				},
+			});
+
+			expect(status).toBe(403);
+			expect(dispatcher.publish).not.toHaveBeenCalled();
+		});
+
 		it("rejects metadata without topic or from an unknown service with 400", async () => {
 			const { status, body } = await call(BROKER_API.publish, {
 				payload: {},
@@ -119,6 +155,20 @@ describe("message-manager API (BROKER_API)", () => {
 
 			expect(status).toBe(204);
 			expect(dispatcher.subscribe).toHaveBeenCalledWith(subscription as never);
+		});
+
+		it("rejects with 403 a service identity that is not the calling service", async () => {
+			const { status } = await call(BROKER_API.subscribe, {
+				topic: "training.model.published",
+				callbackPath: "message",
+				serviceIdentity: {
+					...PUBLISHER,
+					serviceName: ServiceInstanceName.ModelEvaluatorService,
+				},
+			});
+
+			expect(status).toBe(403);
+			expect(dispatcher.subscribe).not.toHaveBeenCalled();
 		});
 
 		it("rejects a subscription without callback path with 400", async () => {
