@@ -66,7 +66,6 @@ describe("worker training runner", () => {
 			stagnationUpdated: jest.fn<(...args: any[]) => any>(),
 			evaluationFailed: jest.fn<(...args: any[]) => any>(),
 			genomeEvaluated: evaluated,
-			crossoverFallbacks: jest.fn<(...args: any[]) => any>(),
 		}).train(SYMBOL);
 
 		expect(inProcess.success).toBe(true);
@@ -139,7 +138,6 @@ describe("worker training runner", () => {
 				stagnationUpdated: noop,
 				evaluationFailed: noop,
 				genomeEvaluated: noop,
-				crossoverFallbacks: noop,
 			},
 			stop.signal
 		);

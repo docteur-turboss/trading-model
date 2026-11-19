@@ -531,7 +531,6 @@ describe("Trainer — model publication", () => {
 			stagnationUpdated: jest.fn<(...args: any[]) => any>(),
 			evaluationFailed: jest.fn<(...args: any[]) => any>(),
 			genomeEvaluated: jest.fn<(...args: any[]) => any>(),
-			crossoverFallbacks: jest.fn<(...args: any[]) => any>(),
 		};
 		const trainer = new Trainer(dataBuffer, {
 			settings: TEST_TRAINING_SETTINGS,

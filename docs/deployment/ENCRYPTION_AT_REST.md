@@ -206,12 +206,11 @@ image. Set up the GitHub environment `backup-key-check` once
 (Settings → Environments):
 
 - **Protect the environment before storing the escrow key** (issue #847):
-  deployment branches limited to `main` (selected branches, no other rule) and
-  at least one required reviewer. Without it, anyone with write access can
-  push a branch whose workflow prints the key. The job `check-environment` of
-  the workflow checks both with `ENVIRONMENT_READ_TOKEN` and refuses to run
-  `verify-escrow-key` otherwise. The weekly run waits for the reviewer's
-  approval (GitHub keeps it waiting up to 30 days).
+  deployment branches limited to `main` (selected branches, no other rule).
+  Without it, anyone with write access can push a branch whose workflow prints
+  the key. The job `check-environment` of the workflow checks it with
+  `ENVIRONMENT_READ_TOKEN` and refuses to run `verify-escrow-key` otherwise.
+  No required reviewer: it would hold the weekly scheduled run (ADR-0034).
 - Secret `BACKUP_ESCROW_AGE_IDENTITY`: the whole content of
   `escrow-key.txt` (the `AGE-SECRET-KEY-1…` line, comments allowed).
 - Secrets `BACKUP_S3_READ_ACCESS_KEY_ID` / `BACKUP_S3_READ_SECRET_ACCESS_KEY`:
