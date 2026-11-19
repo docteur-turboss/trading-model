@@ -44,7 +44,7 @@ jest.mock("@trading-model/model-runtime/env/wallet-manager", () => ({
 	})),
 }));
 
-jest.mock("../../../../src/domain/agent/state-manager", () => ({
+jest.mock("@trading-model/model-runtime/agent/state-manager", () => ({
 	StateManager: jest.fn<(...args: any[]) => any>().mockImplementation(() => ({
 		initialiseFromGenome: jest.fn<(...args: any[]) => any>(),
 		decayEpsilon: jest.fn<(...args: any[]) => any>(),

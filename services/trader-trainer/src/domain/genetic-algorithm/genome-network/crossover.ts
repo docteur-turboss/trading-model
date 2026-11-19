@@ -1,6 +1,6 @@
+import { DEFAULT_ACTION_SET } from "@trading-model/model-runtime/agent/action-mapper";
+import { crossoverInputMask } from "@trading-model/model-runtime/agent/input-mask";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { DEFAULT_ACTION_SET } from "../../agent/action-mapper";
-import { crossoverInputMask } from "./input-mask";
 import type { LayerGenome, NetworkGenome } from "./types";
 
 function _crossoverLayerPair(

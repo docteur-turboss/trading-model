@@ -3,6 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import { makePRNG } from "@trading-model/crypto/prng";
+import {
+	crossoverInputMask,
+	mutateInputMask,
+} from "@trading-model/model-runtime/agent/input-mask";
 import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { Cash, Percentage, Price } from "@trading-model/primitives/primitives";
@@ -14,10 +18,6 @@ import type {
 	LamarckGenome,
 	PopMember,
 } from "../../../../../src/domain/genetic-algorithm/genome";
-import {
-	crossoverInputMask,
-	mutateInputMask,
-} from "../../../../../src/domain/genetic-algorithm/genome-network/input-mask";
 import { ActivationType } from "../../../../../src/domain/genetic-algorithm/genome-network/types";
 import { mutateGenome } from "../../../../../src/domain/genetic-algorithm/mutation/mutate";
 import { createOffspring } from "../../../../../src/domain/genetic-algorithm/offspring-factory";

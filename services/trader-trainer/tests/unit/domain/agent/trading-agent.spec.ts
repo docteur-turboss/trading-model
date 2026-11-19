@@ -6,6 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import { ActionMapper } from "@trading-model/model-runtime/agent/action-mapper";
 import {
 	ActivationType,
 	ConnectionType,
@@ -20,7 +21,6 @@ import {
 	Price,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import { ActionMapper } from "../../../../src/domain/agent/action-mapper";
 import type { TradingAgentConfig } from "../../../../src/domain/agent/trading-agent";
 import { TradingAgent } from "../../../../src/domain/agent/trading-agent";
 

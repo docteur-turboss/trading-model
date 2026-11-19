@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@jest/globals";
-import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
-import { Cash, Price } from "@trading-model/primitives/primitives";
-import { NETWORK_INPUT_LAYOUT } from "../../../../src/domain/agent/agent-state";
 import {
 	barsSinceDecision,
 	decisionBars,
-} from "../../../../src/domain/genetic-algorithm/decision-events";
+} from "@trading-model/model-runtime/agent/decision-events";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
+import { Cash, Price } from "@trading-model/primitives/primitives";
+import { NETWORK_INPUT_LAYOUT } from "../../../../src/domain/agent/agent-state";
 import { evalPhase } from "../../../../src/domain/genetic-algorithm/evaluation-phase";
 import { createDefaultGenome } from "../../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../../src/domain/genetic-algorithm/genome";

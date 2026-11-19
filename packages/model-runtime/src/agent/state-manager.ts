@@ -1,8 +1,10 @@
 import { Probability } from "@trading-model/primitives/primitives";
-import type { NeuralNetwork } from "../neural-network/neural-network";
 
 interface GenomeTarget {
-	nn: Pick<NeuralNetwork, "setWeights" | "distributeAroundWeights">;
+	nn: {
+		setWeights(weights: Float32Array): void;
+		distributeAroundWeights(reference: number, sigma: number): void;
+	};
 }
 
 /** Configuration for epsilon-greedy exploration decay and discount factor. */

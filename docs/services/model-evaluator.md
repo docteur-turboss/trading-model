@@ -13,11 +13,8 @@ Offline consumer of trained models (ADR-0049, option B). No order flow, no marke
 2. A record already stored for `(symbol, version)`: answer `duplicate`, nothing is read.
 3. Reads the manifest, then the weights, from the versioned model routes of trader-trainer, over mTLS (its own SPIFFE identity, listed in `MODEL_DOWNLOAD_CALLERS` and in the trainer ACL).
 4. The sha256 of the weights must equal the manifest, the event and `x-model-sha256`, and the length must match the manifest. Otherwise the delivery fails (retries, then the dead letter queue) and nothing is recorded.
-5. The record is created exclusively (`wx`) in `EVALUATIONS_DIR/<symbol>/<version>.json`: a redelivery never overwrites it.
-
-## Not done yet
-
-The replay of the model on stored candles and signals, and the ADR-0030 metrics (`replay: "not-run"` in the record). It needs the network forward, the feature codec and the portfolio simulator shared with the trainer, and is a separate change (owner decision on issue #1141: option 3). The trainer manifest now carries the window and simulator to replay (ADR-0079); the consumer is issue #1256, second pull request.
+5. Replay (ADR-0079): reads the one-minute candles of the manifest window, `from` to `to` and never later, from financial-scraper, and plays the model greedily (epsilon 0) with `@trading-model/model-runtime/replay` over the test steps. The record gets `replay: "done"` with `metrics` (`policy: "greedy"`, Sharpe, Sortino, Calmar, buy and hold Sharpe of the test segment), or `replay: "failed"` with a `reason`: `no-window`, `missing-candles`, `read-error: ...`, `replay-error: ...` (for example a model with signal inputs, which the candles do not carry).
+6. The record is created exclusively (`wx`) in `EVALUATIONS_DIR/<symbol>/<version>.json`: a redelivery never overwrites it.
 
 ## Dependencies
 
@@ -26,6 +23,7 @@ The replay of the model on stored candles and signals, and the ADR-0030 metrics 
 | discovery-server | Registration only, kept for N-1 gateways (resolution is by Service DNS name, ADR-0072) |
 | message-manager | Subscription to `training.model.published`, delivery |
 | trader-trainer | Manifest and weights (service-to-service) |
+| financial-scraper | Candles of the replay window (candles of a symbol, `/v2/candles/symbols/<symbol>`) |
 | PVC `model-evaluations-pvc` | Evaluation records (one replica, `Recreate`) |
 
 ## Configuration
@@ -34,4 +32,4 @@ The replay of the model on stored candles and signals, and the ADR-0030 metrics 
 
 ## Metrics
 
-`model_evaluations_total{outcome="recorded|duplicate"}`.
+`model_evaluations_total{outcome="recorded|duplicate"}`; `model_replay_sharpe_gap{symbol}`: replayed minus published (`admission.criteria.sharpe`) test Sharpe of the newest replayed model; no alert: the trainer measures with 5 % exploration, the replay greedy, so a gap is expected.

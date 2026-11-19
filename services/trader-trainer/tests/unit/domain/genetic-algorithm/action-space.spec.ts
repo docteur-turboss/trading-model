@@ -1,5 +1,10 @@
 import { describe, expect, test } from "@jest/globals";
 import {
+	ACTION_SET_IDS,
+	ACTION_SETS,
+	actionLabels,
+} from "@trading-model/model-runtime/agent/action-mapper";
+import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
@@ -11,11 +16,6 @@ import {
 	type PositiveInt,
 	Price,
 } from "@trading-model/primitives/primitives";
-import {
-	ACTION_SET_IDS,
-	ACTION_SETS,
-	actionLabels,
-} from "../../../../src/domain/agent/action-mapper";
 import { TradingAgent } from "../../../../src/domain/agent/trading-agent";
 import { createDefaultGenome } from "../../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../../src/domain/genetic-algorithm/genome";

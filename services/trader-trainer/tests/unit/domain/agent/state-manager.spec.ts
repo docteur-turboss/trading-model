@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import StateManager from "@trading-model/model-runtime/agent/state-manager";
 import {
 	ActivationType,
 	ConnectionType,
 	NormalisationType,
 } from "@trading-model/model-runtime/neural-network/type";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
-import StateManager from "../../../../src/domain/agent/state-manager";
 import { Agent } from "../../../../src/domain/neural-network/agent";
 
 function makeAgent(): Agent {

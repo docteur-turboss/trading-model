@@ -1,3 +1,4 @@
+import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
 import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import {
 	Price,
@@ -7,7 +8,6 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { Signal } from "@trading-model/validation/wire/signals";
 import {
-	AGENT_STATE_DIM,
 	eventInputLayout,
 	NETWORK_INPUT_LAYOUT,
 	networkInputLayout,

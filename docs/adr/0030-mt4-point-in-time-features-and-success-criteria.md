@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0025](./0025-ga-fitness-wired-to-fitness-type.md) (fitness, DQN learning, first MT4 run), [ADR-0022](./0022-versioned-model-artifacts.md) (normalisation statistics stored with a model)
-**Verified by:** `services/trader-trainer/tests/unit/domain/point-in-time.spec.ts`, `services/trader-trainer/tests/unit/domain/market-data-buffer.spec.ts`, `services/trader-trainer/tests/unit/domain/feature-builder.spec.ts`
+**Verified by:** `services/trader-trainer/tests/unit/domain/point-in-time.spec.ts`, `services/trader-trainer/tests/unit/domain/market-data-buffer.spec.ts`, `packages/model-runtime/tests/features/feature-builder.spec.ts`
 
 ## Context
 
