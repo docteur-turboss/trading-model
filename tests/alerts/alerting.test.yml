@@ -1510,16 +1510,16 @@ tests:
       - eval_time: 10m
         alertname: CertificateExpiry
         exp_alerts:
-          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
             exp_annotations:
               summary: 'SVID close to expiry on dlq-service'
-              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              description: 'The served X.509-SVID expires in less than 90 minutes (TTL 4h, renewed at half-life, 2 h left): SPIRE rotation has been stalled for over 30 minutes; mTLS calls fail when it expires.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
   # Issue #1249: 4 h SVIDs (ADR-0065, entries made with -x509SVIDTTL 14400)
   # renewed at half-life never fall below 2 h left; a rotation stalled since
-  # the first renewal at 120m (expiry still 14400) fires at 186m: below 1 h
-  # left from 181m, held for 5 min.
+  # the first renewal at 120m (expiry still 14400) fires at 156m: below 90 min
+  # left from 151m, held for 5 min.
   - name: certificate expiry stays silent on normal 4 h rotation and fires on stalled rotation
     interval: 1m
     input_series:
@@ -1528,27 +1528,27 @@ tests:
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://dlq-service:3000/ping",service="dlq-service"}'
         values: '14400x359'
     alert_rule_test:
-      - eval_time: 180m
+      - eval_time: 150m
         alertname: CertificateExpiry
         exp_alerts: []
-      - eval_time: 185m
+      - eval_time: 155m
         alertname: CertificateExpiry
         exp_alerts: []
-      - eval_time: 186m
+      - eval_time: 156m
         alertname: CertificateExpiry
         exp_alerts:
-          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
             exp_annotations:
               summary: 'SVID close to expiry on dlq-service'
-              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              description: 'The served X.509-SVID expires in less than 90 minutes (TTL 4h, renewed at half-life, 2 h left): SPIRE rotation has been stalled for over 30 minutes; mTLS calls fail when it expires.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
       - eval_time: 350m
         alertname: CertificateExpiry
         exp_alerts:
-          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
             exp_annotations:
               summary: 'SVID close to expiry on dlq-service'
-              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              description: 'The served X.509-SVID expires in less than 90 minutes (TTL 4h, renewed at half-life, 2 h left): SPIRE rotation has been stalled for over 30 minutes; mTLS calls fail when it expires.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
   # ── Infrastructure (issue #601, ADR-0056) ────────────────────────────
@@ -1572,6 +1572,57 @@ tests:
               summary: 'api-gateway-1 (api-gateway) is crash looping'
               description: 'Container api-gateway of api-gateway-1 has been in CrashLoopBackOff for 5 minutes: it starts, exits and is restarted with a growing delay.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubepodcrashlooping'
+
+  # spire-server stopped fires; a Deployment scaled to 0 and a StatefulSet
+  # with one ready replica out of three stay silent.
+  - name: a workload with no ready replica pages, one scaled to 0 does not
+    interval: 1m
+    input_series:
+      - series: 'kube_deployment_spec_replicas{job="kube-state-metrics",namespace="trading-model",deployment="spire-server"}'
+        values: '1x10'
+      - series: 'kube_deployment_status_replicas_available{job="kube-state-metrics",namespace="trading-model",deployment="spire-server"}'
+        values: '1 0x9'
+      - series: 'kube_deployment_spec_replicas{job="kube-state-metrics",namespace="trading-model",deployment="model-evaluator"}'
+        values: '0x10'
+      - series: 'kube_deployment_status_replicas_available{job="kube-state-metrics",namespace="trading-model",deployment="model-evaluator"}'
+        values: '0x10'
+      - series: 'kube_statefulset_replicas{job="kube-state-metrics",namespace="trading-model",statefulset="redis"}'
+        values: '3x10'
+      - series: 'kube_statefulset_status_replicas_ready{job="kube-state-metrics",namespace="trading-model",statefulset="redis"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: KubeWorkloadUnavailable
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: KubeWorkloadUnavailable
+        exp_alerts:
+          - exp_labels: {severity: critical, namespace: trading-model, deployment: spire-server}
+            exp_annotations:
+              summary: 'spire-server has no ready replica'
+              description: 'spire-server wants 1 replica(s) and has had none available or ready for 5 minutes (pods Pending on a lost node, crash looping or not ready).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubeworkloadunavailable'
+
+  # A pod Pending 1 min at startup stays silent; one Pending 15 min fires.
+  - name: a pod Pending for 15 minutes is reported, a starting one is not
+    interval: 1m
+    input_series:
+      - series: 'kube_pod_status_phase{job="kube-state-metrics",namespace="trading-model",pod="mysql-0",phase="Pending"}'
+        values: '1x30'
+      - series: 'kube_pod_status_phase{job="kube-state-metrics",namespace="trading-model",pod="api-gateway-1",phase="Pending"}'
+        values: '1 0x29'
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: KubePodPending
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: KubePodPending
+        exp_alerts:
+          - exp_labels: {severity: warning, namespace: trading-model, pod: mysql-0}
+            exp_annotations:
+              summary: 'mysql-0 has been Pending for 15 minutes'
+              description: 'Pod mysql-0 cannot be scheduled or started: lost node, PVC bound to another node, not enough CPU or memory, image pull.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubepodpending'
 
   # The OOMKilled reason stays until the next termination: only a recent
   # restart fires (mysql-0 at 21m), never an old one (audit-logger).
