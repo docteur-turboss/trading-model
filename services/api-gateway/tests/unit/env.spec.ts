@@ -46,7 +46,6 @@ describe("env", () => {
 		expect(env.CACHE_TTL_MS).toBe(30000);
 		expect(env.AUTH_TOKEN_HEADER).toBe("x-api-key");
 		expect(env.AUTH_TOKENS).toBe("");
-		expect(env.AUTH_STRICT).toBe(true);
 		expect(env.PROXY_TIMEOUT_MS).toBe(10000);
 	});
 
@@ -78,17 +77,6 @@ describe("env", () => {
 		expect(env.AUTH_TOKENS).toBe("a:read:tok1,b:read:tok2");
 	});
 
-	it("should accept custom AUTH_STRICT", () => {
-		process.env.TLS_KEY_PATH = "/certs/key.pem";
-		process.env.TLS_CERT_PATH = "/certs/cert.pem";
-		process.env.TLS_CA_PATH = "/certs/ca.pem";
-		process.env.AUTH_STRICT = "false";
-
-		const env = loadEnv();
-
-		expect(env.AUTH_STRICT).toBe(false);
-	});
-
 	describe("in production", () => {
 		const STRONG_KEY = "ops:read:0123456789abcdef0123456789abcdef";
 
@@ -98,7 +86,6 @@ describe("env", () => {
 			process.env.TLS_CA_PATH = "/certs/ca.pem";
 			process.env.NODE_ENV = "production";
 			process.env.AUTH_TOKENS = STRONG_KEY;
-			delete process.env.AUTH_STRICT;
 		});
 
 		/** The validation issues logged by a refused start. */
@@ -143,10 +130,5 @@ describe("env", () => {
 				expect(issues).not.toContain(entry.slice(entry.lastIndexOf(":") + 1));
 			}
 		);
-
-		it("should refuse to start with AUTH_STRICT=false", () => {
-			process.env.AUTH_STRICT = "false";
-			expect(refusal()).toContain("AUTH_STRICT cannot be false in production");
-		});
 	});
 });
