@@ -21,7 +21,7 @@ const notTraining = () => false;
 describe("validateTrainingPrerequisites", () => {
 	it("should build the windows from a strictly increasing candle series", () => {
 		const buffer = new MarketDataBuffer();
-		feedCandles(buffer, "BTCUSDT", 100);
+		feedCandles(buffer, "BTCUSDT", 130);
 
 		const result = validateTrainingPrerequisites(
 			buffer,

@@ -25,7 +25,7 @@ const SYMBOL = TradingSymbol.of("BTCUSDT");
 const KEY = "BTC:social:pageviews";
 const MINUTE = 60_000;
 const T0 = 1_700_000_000_000;
-const CANDLES = 100;
+const CANDLES = 130;
 const closeOf = (idx: number) => T0 + (idx + 1) * MINUTE - 1;
 
 function signal(observedAtMs: number, value: number, confidence = 0.8): Signal {
