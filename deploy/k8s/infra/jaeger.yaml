@@ -59,7 +59,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: jaeger
-          image: jaegertracing/all-in-one@sha256:7e9591218e7ddd51e568ef892e3ea190ae420ecf97c4d718910a3f57e076c216
+          image: jaegertracing/all-in-one@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false

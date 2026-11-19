@@ -26,7 +26,7 @@ entry_exists() {
   "$SERVER" entry show -socketPath "$SOCK" -spiffeID "$1" | grep -q "$1"
 }
 
-# ADR-0065: 4 h, as default_x509_svid_ttl of server.conf (CertificateExpiry fires below 1 h left).
+# ADR-0065: 4 h, as default_x509_svid_ttl of server.conf (CertificateExpiry fires below 90 min left).
 SVID_TTL=14400
 
 # upsert_entry "<entry show output>" <entry flags...>: creates the entry, or moves an existing
