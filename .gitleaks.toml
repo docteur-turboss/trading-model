@@ -1,10 +1,15 @@
 [extend]
 useDefault = true
 
-[allowlist]
+[[allowlists]]
 description = "Test fixtures and SealedSecret ciphertext (no real credential)"
-stopwords = [ # obvious fixture values in tests, not credentials
-  "e2e-", "test-", "fake", "mock", "0123456789abcdef", "my-signing-secret", "long-secret", "dGVzdA", "STUB_", "BEGIN PRIVATE KEY-----/", "BEGIN PRIVATE KEY-----\n",
+stopwords = [
+  "e2e-", # e2e fixture credentials
+  "0123456789abcdef", # hex placeholder
+  "my-signing-secret", # fixture signing secret
+  "long-secret", # fixture secret
+  "dGVzdA", # base64 of "test"
+  "STUB_", # stub token prefix
   "YC.B.U2.EUR", # public ECB series key, older registry format
   "CRL/revocation", # ADR-0011 prose matched as a key
 ]
@@ -12,4 +17,22 @@ regexTarget = "line"
 regexes = [
   '''"scheme": "series", "provider": "[^"]+", "key": "[^"]+" \},?$''', # signal-registry.json: public ECB / Treasury series keys
   '''^\s+[A-Z0-9_]+: Ag[A-Za-z0-9+/]{300,}={0,2}$''', # SealedSecret ciphertext, decryptable only by the cluster controller
+]
+
+# Historical fake keys/tokens in four old commits, limited to the spec files that held them (commit AND path)
+[[allowlists]]
+description = "Fake PEM/token fixtures in past commits"
+condition = "AND"
+commits = [
+  "07e5730c63cb93b70c9232d084043d2961390f7b",
+  "87da2538b5b77fc50833a89e98e1a26e80a383e0",
+  "cbfee54afc8226169d203f99b9652e5f1fcd8cb4",
+  "1fa5e93090b2710be9b8437478a6c3d2453dd827",
+]
+paths = [
+  '''packages/crypto/tests/token-validator\.spec\.ts$''',
+  '''packages/http/tests/unit/config/http-tls-loader\.spec\.ts$''',
+  '''packages/certificate-utils/tests/generate-key-pair\.spec\.ts$''',
+  '''services/certificate-authority/tests/unit/ca\.spec\.ts$''',
+  '''services/message-manager/tests/unit/messaging/core/dlq-client\.spec\.ts$''',
 ]
