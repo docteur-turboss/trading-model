@@ -1,5 +1,24 @@
-import type { MarketStep } from "./genome-fitness";
-import type { DecisionGenome, HorizonGenome } from "./genome-rl/types";
+import type { FeatureVector } from "../feature-vector";
+
+/** What the event detectors read of a bar. */
+interface MarketStep {
+	price: number;
+	features: FeatureVector;
+}
+
+/** The decision gene of a genome (ADR-0076 §5). */
+interface DecisionGenome {
+	mode: "every_bar" | "on_event";
+	priceMove: number;
+	volumeMultiple: number;
+	minGap: number;
+}
+
+/** When the genome decides: every `frameSkip` bars, or on events. */
+export interface HorizonGenome {
+	frameSkip: number;
+	decision?: DecisionGenome;
+}
 
 /** Bars the price-move detector looks back over. */
 const EVENT_WINDOW = 5;
@@ -72,4 +91,45 @@ export function barsSinceDecision(
 	return rank === 0
 		? MAX_BARS_SINCE_DECISION
 		: Math.min(bars[rank] - bars[rank - 1], MAX_BARS_SINCE_DECISION);
+}
+
+/** `barsSince` as the network input, in [-1, 1]; undefined stays undefined (every-bar genomes). */
+export function barsSinceInput(barsSince?: number): number | undefined {
+	return barsSince === undefined
+		? undefined
+		: (2 * barsSince) / MAX_BARS_SINCE_DECISION - 1;
+}
+
+/**
+ * One episode over all the bars: the agent plays on its decision bars, and
+ * every bar adds its PnL change to `pnlCurve` (0 on a bar it skips: the move
+ * lands on the next decision). Shared by the trainer's evaluation and the
+ * replay of a published model (ADR-0079 §3).
+ */
+export function playEpisode<Step extends MarketStep>(
+	steps: readonly Step[],
+	horizon: HorizonGenome,
+	agent: { step(step: Step, barsSince?: number): void; pnl(): number },
+	pnlCurve: number[]
+): { pnl: number; decisions: number } {
+	const eventDriven = isEventDriven(horizon);
+	const bars = decisionBars(steps, horizon);
+	let rank = 0;
+	const startPnl = agent.pnl();
+	let lastPnl = startPnl;
+	for (let index = 0; index < steps.length; index++) {
+		if (bars[rank] !== index) {
+			pnlCurve.push(0);
+			continue;
+		}
+		agent.step(
+			steps[index],
+			eventDriven ? barsSinceDecision(bars, rank) : undefined
+		);
+		rank++;
+		const pnl = agent.pnl();
+		pnlCurve.push(pnl - lastPnl);
+		lastPnl = pnl;
+	}
+	return { pnl: lastPnl - startPnl, decisions: bars.length };
 }

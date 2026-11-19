@@ -1,16 +1,12 @@
-import type { CandleData } from "@trading-model/contracts/market-data.types";
+import {
+	candleSteps,
+	contiguousCandles,
+} from "@trading-model/model-runtime/features/feature-builder";
 import { Percentage, PositiveInt } from "@trading-model/primitives/primitives";
 import type { Signal } from "@trading-model/validation/wire/signals";
-import { buildFeatures as buildFeaturesFn } from "../feature-builder";
 import type { WindowSet } from "../genetic-algorithm/generation-types";
 import type { MarketStep } from "../genetic-algorithm/genome";
-import {
-	DAILY_MAX_DATA_AGE_MS,
-	DAY_MS,
-	type SymbolState,
-	type TradingSymbol,
-} from "../market-data-types";
-import { NormalizationManager } from "../normalization-manager";
+import type { SymbolState, TradingSymbol } from "../market-data-types";
 import {
 	applySignalNorms,
 	asOfSignalInputs,
@@ -19,7 +15,8 @@ import {
 	signalNorms,
 } from "../signal-features";
 import type { MarketDataContext } from "./market-data-context";
-import { forEachPointInTime } from "./point-in-time";
+
+export { contiguousCandles };
 
 /** Minimum number of market steps required before training can start. */
 export const MIN_TRAINING_STEPS = PositiveInt.of(10);
@@ -35,24 +32,6 @@ export const DEFAULT_TEST_SPLIT = Percentage.of(0.15);
 
 /** Default number of walk-forward folds (1 = single split, no rolling). */
 const DEFAULT_WALK_FORWARD_FOLDS = 1;
-
-/**
- * The candles after the last gap: the series never links two candles further
- * apart than one bar (1 min), or than DAILY_MAX_DATA_AGE_MS for daily bars
- * (weekends and holidays stay inside), so no step carries a gap's return.
- */
-export function contiguousCandles(candles: CandleData[]): CandleData[] {
-	let start = 0;
-	for (let idx = 1; idx < candles.length; idx++) {
-		const { timestamp, closeTimestamp } = candles[idx - 1];
-		const barMs = closeTimestamp - timestamp + 1;
-		const maxGapMs = barMs >= DAY_MS ? DAILY_MAX_DATA_AGE_MS : barMs;
-		if (candles[idx].timestamp - timestamp > maxGapMs) {
-			start = idx;
-		}
-	}
-	return start === 0 ? candles : candles.slice(start);
-}
 
 /**
  * Whether `candleCount` candles give windows the training validator accepts.
@@ -85,7 +64,6 @@ export function hasEnoughTrainingData(
 export class WindowSplitter {
 	constructor(
 		private readonly _states: Map<TradingSymbol, SymbolState>,
-		private readonly _normManager = new NormalizationManager(),
 		/** Signal metrics fed to the network (FEATURE_SIGNAL_INPUTS); empty: market inputs only. */
 		readonly signalKeys: readonly string[] = []
 	) {}
@@ -129,26 +107,17 @@ export class WindowSplitter {
 		if (!state || state.candles.length < 2) {
 			return [];
 		}
-		const steps: MarketStep[] = [];
-		const signals = this._signals.get(ctx.symbol) ?? new Map();
-		forEachPointInTime(state, this._normManager, (view, idx) => {
-			if (idx > 0) {
-				const features = buildFeaturesFn({ state: view, idx });
-				if (this.signalKeys.length > 0) {
-					features.signals = asOfSignalInputs(
-						signals,
-						this.signalKeys,
-						view.candles[idx].closeTimestamp
-					);
-				}
-				steps.push({
-					price: view.candles[idx].close,
-					fillPrice: state.candles[idx + 1]?.open,
-					features,
-					timestamp: view.candles[idx].timestamp,
-				});
-			}
-		});
+		const steps: MarketStep[] = candleSteps(state.candles);
+		if (this.signalKeys.length > 0) {
+			const signals = this._signals.get(ctx.symbol) ?? new Map();
+			steps.forEach((step, idx) => {
+				step.features.signals = asOfSignalInputs(
+					signals,
+					this.signalKeys,
+					state.candles[idx + 1].closeTimestamp
+				);
+			});
+		}
 		return steps;
 	}
 

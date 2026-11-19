@@ -1,4 +1,4 @@
-import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
+import { FEATURE_DIM } from "../feature-vector-codec";
 
 /** Inputs per signal metric: value, age, confidence (ADR-0081). */
 const SIGNAL_INPUTS = 3;

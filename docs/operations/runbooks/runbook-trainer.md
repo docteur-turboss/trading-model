@@ -336,7 +336,8 @@ The alert resolves once a session measures a score at or below 3.
 ## model-evaluator
 
 [model-evaluator](../../services/model-evaluator.md) records one evaluation per
-published model. It has no alert of its own: `ServiceTargetsMissing` covers it.
+published model and replays it (ADR-0079). It has no alert of its own:
+`ServiceTargetsMissing` covers it.
 
 ### Symptom
 

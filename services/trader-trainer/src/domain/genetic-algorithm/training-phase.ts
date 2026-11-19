@@ -1,9 +1,9 @@
-import { NormalizationStats } from "../normalization-stats";
 import {
 	barsSinceDecision,
 	decisionBars,
 	isEventDriven,
-} from "./decision-events";
+} from "@trading-model/model-runtime/agent/decision-events";
+import { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
 import type { LamarckGenome, MarketStep } from "./genome";
 import { RewardShaper } from "./reward-shaping";
 import type { RLBackend, Transition } from "./rl-backend";

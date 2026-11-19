@@ -2,6 +2,11 @@ import { describe, expect, it } from "@jest/globals";
 import { runWithCorrelationId } from "@trading-model/http/correlation-id";
 import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
+import { replayModel } from "@trading-model/model-runtime/replay";
+import {
+	barsPerYear,
+	segmentRatios,
+} from "@trading-model/model-runtime/replay-metrics";
 import type {
 	Fitness,
 	PositiveInt,
@@ -14,16 +19,23 @@ import {
 } from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
+import { DataType } from "../../../src/domain/data-handlers/data-types";
+import { evalPhase } from "../../../src/domain/genetic-algorithm/evaluation-phase";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../src/domain/genetic-algorithm/genome";
-import { SIMULATOR_PARAMS } from "../../../src/domain/genetic-algorithm/rl-backend";
+import {
+	makeTradingAgentBackend,
+	SIMULATOR_PARAMS,
+} from "../../../src/domain/genetic-algorithm/rl-backend";
 import type { DeepReadonly } from "../../../src/domain/genetic-algorithm/shared-types";
 import { buildSummary } from "../../../src/domain/genome-summary-builder";
+import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 import {
 	assessAdmission,
 	MIN_ADMISSION_TEST_BARS,
 } from "../../../src/domain/model-admission";
 import { buildModelManifest } from "../../../src/domain/model-artifact";
+import { makeCandle } from "../../fixtures/market-data.fixture";
 
 /** cumulative PnL: 3, -2, 0, -4, 6 -> drawdown 7 (peak 3, trough -4). */
 const EPISODES = [3, -5, 2, -4, 10];
@@ -290,4 +302,76 @@ describe("admission of a model (ADR-0069)", () => {
 			simulator: SIMULATOR_PARAMS,
 		});
 	});
+});
+
+describe("replay of a published model (ADR-0079 §3)", () => {
+	const candles = Array.from({ length: 300 }, (_, idx) => {
+		const price = 100 + 10 * Math.sin(idx / 7) + idx / 10;
+		return makeCandle({
+			symbol: "BTCUSDT" as never,
+			timestamp: (1_700_000_000_000 + idx * 60_000) as never,
+			closeTimestamp: (1_700_000_000_000 + idx * 60_000 + 59_999) as never,
+			open: Price.of(price - 0.5),
+			high: Price.of(price + 1),
+			low: Price.of(price - 1),
+			close: Price.of(price),
+			volume: (1000 + 50 * Math.cos(idx)) as never,
+		});
+	});
+
+	it.each([false, true])(
+		"gives the ratios of the trainer's code at epsilon 0 on the same bars (event-driven %s)",
+		(eventDriven) => {
+			const buffer = new MarketDataBuffer();
+			for (const candle of candles) {
+				buffer.addData(DataType.Candle, "BTCUSDT" as never, candle);
+			}
+			const test = (buffer.getAllWindows("BTCUSDT" as never) as any).test;
+			const genome = createDefaultGenome("g-1", 1 as PositiveInt, eventDriven);
+			// Weights the greedy policy trades with on these bars.
+			const weights = makeTradingAgentBackend(genome as never)
+				.getWeights()
+				.map((_, idx) => Math.sin(idx) * 2);
+			const greedy = (g: any) =>
+				makeTradingAgentBackend({
+					...g,
+					rl: {
+						...g.rl,
+						discretePolicy: { epsilonStart: 0, epsilonMin: 0, epsilonDecay: 1 },
+					},
+				});
+			const trainer = evalPhase({
+				genome: {
+					...genome,
+					trainedWeights: weights,
+					gaControl: {
+						...genome.gaControl,
+						evaluation: {
+							...genome.gaControl.evaluation,
+							episodesPerIndividual: 1,
+						},
+					},
+				} as never,
+				validationData: test,
+				backendFactory: greedy,
+			});
+
+			const replayed = replayModel({
+				genome: JSON.parse(JSON.stringify(genome)),
+				weights,
+				testFrom: test[0].timestamp,
+				simulator: SIMULATOR_PARAMS,
+				candles,
+			});
+
+			expect(replayed.sharpe).not.toBe(0);
+			expect(replayed).toEqual(
+				segmentRatios(
+					new EpisodeScores(trainer.pnlCurve),
+					barsPerYear(test) ?? 1,
+					test
+				)
+			);
+		}
+	);
 });

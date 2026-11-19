@@ -1,7 +1,7 @@
 {
   "name": "model-evaluator",
   "version": "3.1.0-rc.3",
-  "description": "Offline evaluation consumer of trained models: verifies each published model and records one evaluation per (symbol, version)",
+  "description": "Offline evaluation consumer of trained models: verifies and replays each published model and records one evaluation per (symbol, version)",
   "license": "ISC",
   "type": "commonjs",
   "main": "./dist/application/index.js",
@@ -17,6 +17,7 @@
     "@trading-model/common": "*",
     "@trading-model/contracts": "*",
     "@trading-model/http": "*",
+    "@trading-model/model-runtime": "*",
     "@trading-model/primitives": "*",
     "@trading-model/validation": "*",
     "express": "^5.3.0",

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "@jest/globals";
 import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
+import { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
 import {
 	clamp,
 	makeGenomeId,
 } from "../../../src/domain/genetic-algorithm/utils";
-import { NormalizationStats } from "../../../src/domain/normalization-stats";
 
 describe("Utils - clamp", () => {
 	test("should clamp value within range", () => {
