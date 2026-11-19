@@ -979,6 +979,15 @@ mongo_primary() {
 	return 1
 }
 
+# Shell snippet for `sh -c` in the DB container: writes the password of env var
+# $PWD_VAR to a mode-700 temp dir as `$d/c.yml` for `--config` (never argv),
+# removed on exit.
+MONGO_PWD_CFG=$(cat <<'EOF'
+d=$(mktemp -d); trap 'rm -rf "$d"' EXIT
+printf "password: '%s'\n" "$(printenv "$PWD_VAR" | sed "s/'/''/g")" > "$d/c.yml"
+EOF
+)
+
 # Runs MongoDB tool `$3...` (mongodump, mongorestore, mongosh) in pod `$2` as
 # MongoDB user `$1` (ADR-0067): `backup` (dumps, oplog reads) or `root`
 # (restores need every action). The password comes from the pod's own env
@@ -991,7 +1000,11 @@ mongo_tool() {
 	local flags=()
 	[ "${MONGO_TOOL_STDIN:-false}" = true ] && flags+=(-i)
 	kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- sh -c \
-		'u=$1; v=$2; shift 2; exec "$@" --username "$u" --password "$(printenv "$v")" --authenticationDatabase admin' sh "$user" "$var" "$@"
+		"PWD_VAR=\$2; $MONGO_PWD_CFG"'
+u=$1; shift 2
+# shortcut: mongosh has no --config for credentials, so its password stays in argv, replace when mongosh reads it from env or a file
+if [ "$1" = mongosh ]; then exec "$@" --username "$u" --password "$(printenv "$PWD_VAR")" --authenticationDatabase admin; fi
+"$@" --config "$d/c.yml" --username "$u" --authenticationDatabase admin' sh "$user" "$var" "$@"
 }
 
 # Oplog point (`seconds.increment`) of the newest (`-1`) or oldest (`1`)

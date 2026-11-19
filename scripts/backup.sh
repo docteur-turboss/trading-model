@@ -71,7 +71,7 @@ backup_mongodb() {
     fi
 
     # The `backup` user (ADR-0067); the password stays in the container's env.
-    if write_dump mongodb "$file" docker exec "${container}" sh -c "mongodump --quiet ${mongodump_args[*]} --username backup --password \"\$MONGO_BACKUP_PASSWORD\" --authenticationDatabase admin"; then
+    if write_dump mongodb "$file" docker exec "${container}" sh -c "PWD_VAR=MONGO_BACKUP_PASSWORD; ${MONGO_PWD_CFG}; mongodump --quiet ${mongodump_args[*]} --config \"\$d/c.yml\" --username backup --authenticationDatabase admin"; then
       ok "MongoDB backup complete: ${container}"
       write_metric "mongodb" 1
       # One mongod in compose: this dump holds the audit-logger database too.

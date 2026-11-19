@@ -181,7 +181,8 @@ replay_oplog() {
   for archive in "$@"; do
     open_backup "$archive" | gunzip || return 1
   done | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- sh -c \
-    'd=$(mktemp -d) && chmod 700 "$d" && cat > "$d/oplog.bson" && mongorestore --oplogReplay --oplogLimit "$1:0" --username root --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin "$d"; rc=$?; rm -rf "$d"; exit $rc' \
+    "PWD_VAR=MONGO_ROOT_PASSWORD; ${MONGO_PWD_CFG}"'
+o=$(mktemp -d) && chmod 700 "$o" && cat > "$o/oplog.bson" && mongorestore --oplogReplay --oplogLimit "$1:0" --config "$d/c.yml" --username root --authenticationDatabase admin "$o"; rc=$?; rm -rf "$o"; exit $rc' \
     sh "$UNTIL_EPOCH"
 }
 
@@ -196,6 +197,7 @@ save_mongo_users() {
 # save_mongo_users. The restored root has the password of the dump's day, so
 # the keyFile's internal user (`__system`) signs in instead.
 put_back_mongo_users() {
+  # shortcut: mongosh has no --config for credentials, so the keyfile secret stays in argv (pod-local, short-lived); replace when mongosh reads it from env or a file
   printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- sh -c \
     'exec mongosh --quiet --username __system --password "$(cat /keyfile/keyfile)" --authenticationDatabase local --eval "$1"' sh \
     "const s = EJSON.parse(require('fs').readFileSync(0, 'utf8')); const a = db.getSiblingDB('admin');
