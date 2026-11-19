@@ -999,11 +999,15 @@ mongo_tool() {
 	if [ "$user" = root ]; then var=MONGO_ROOT_PASSWORD; else var=MONGO_BACKUP_PASSWORD; fi
 	local flags=()
 	[ "${MONGO_TOOL_STDIN:-false}" = true ] && flags+=(-i)
+	# shortcut: mongosh has no --config for credentials, so its password stays in argv, replace when mongosh reads it from env or a file
+	if [ "$1" = mongosh ]; then
+		kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- sh -c \
+			'u=$1; v=$2; shift 2; exec "$@" --username "$u" --password "$(printenv "$v")" --authenticationDatabase admin' sh "$user" "$var" "$@"
+		return
+	fi
 	kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- sh -c \
 		"PWD_VAR=\$2; $MONGO_PWD_CFG"'
 u=$1; shift 2
-# shortcut: mongosh has no --config for credentials, so its password stays in argv, replace when mongosh reads it from env or a file
-if [ "$1" = mongosh ]; then exec "$@" --username "$u" --password "$(printenv "$PWD_VAR")" --authenticationDatabase admin; fi
 "$@" --config "$d/c.yml" --username "$u" --authenticationDatabase admin' sh "$user" "$var" "$@"
 }
 
