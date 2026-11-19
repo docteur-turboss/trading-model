@@ -1,4 +1,5 @@
-import { describe, expect, it, jest } from "@jest/globals";
+import { execFileSync } from "node:child_process";
+import { beforeAll, describe, expect, it, jest } from "@jest/globals";
 import {
 	CALLER,
 	e2eTestTimeout,
@@ -51,11 +52,12 @@ async function pollUntil<T>(
 	);
 }
 
+let latest: ModelSummary;
 let version = "";
 
 describe("Model training flow E2E", () => {
-	it("serves a published model manifest through the gateway", async () => {
-		const models = await pollUntil(
+	beforeAll(async () => {
+		[latest] = await pollUntil(
 			`a ${SYMBOL} model via the gateway`,
 			async () => {
 				const { status, body } = await externalRequest(
@@ -69,8 +71,10 @@ describe("Model training flow E2E", () => {
 				return data.length > 0 ? data : undefined;
 			}
 		);
-		const [latest] = models;
 		version = latest.version;
+	});
+
+	it("serves a published model manifest through the gateway", async () => {
 		expect(version).not.toBe("");
 		expect(latest.sha256).toMatch(/^[0-9a-f]{64}$/);
 		expect(Number.isNaN(Date.parse(latest.createdAt))).toBe(false);
@@ -108,8 +112,6 @@ describe("Model training flow E2E", () => {
 	});
 
 	it("lets a MODEL_DOWNLOAD_CALLERS service download the weights", () => {
-		// Test 1 sets `version`: fail here with the real cause if it did not.
-		expect(version).not.toBe("");
 		const { status, body } = meshRequest(
 			CALLER.scraper,
 			`${TRAINER}/models/${SYMBOL}/${version}/weights`
@@ -119,8 +121,6 @@ describe("Model training flow E2E", () => {
 	});
 
 	it("refuses the weights to a service that is not listed", () => {
-		// Test 1 sets `version`: fail here with the real cause if it did not.
-		expect(version).not.toBe("");
 		const { status } = meshRequest(
 			CALLER.message,
 			`${TRAINER}/models/${SYMBOL}/${version}/weights`
@@ -129,12 +129,26 @@ describe("Model training flow E2E", () => {
 	});
 
 	it("does not expose the weights through the gateway", async () => {
-		// Test 1 sets `version`: fail here with the real cause if it did not.
-		expect(version).not.toBe("");
 		const { status } = await externalRequest(
 			`/v1/trader-trainer/models/${SYMBOL}/${version}/weights`,
 			{ headers: AUTH }
 		);
 		expect(status).toBe(404);
+	});
+
+	it("has model-evaluator record the published model", async () => {
+		const record = await pollUntil("the evaluation record", async () =>
+			execFileSync(
+				"docker",
+				[
+					"exec",
+					"trading-model-evaluator",
+					"cat",
+					`/data/evaluations/${SYMBOL}/${version}.json`,
+				],
+				{ encoding: "utf8" }
+			)
+		);
+		expect(JSON.parse(record)).toMatchObject({ symbol: SYMBOL, version });
 	});
 });

@@ -30,7 +30,8 @@ export function computeReplayTarget(
 	const target = context.output.slice();
 	_assertActionInRange(exp.action, target.length);
 	const maxNextQ = exp.done ? 0 : Math.max(...nn.forward(exp.nextState).output);
-	const tdError = exp.reward + discount * maxNextQ - target[exp.action];
+	const tdError =
+		exp.reward + (exp.discount ?? discount) * maxNextQ - target[exp.action];
 	target[exp.action] += weight * tdError;
 	return { target, tdError, context };
 }

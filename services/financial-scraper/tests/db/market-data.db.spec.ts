@@ -29,7 +29,10 @@ import {
 	insertCandles,
 	selectCandlesBy,
 } from "../../src/adapters/outbound/persistence/schema/candles.schema";
-import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
+import {
+	insertOrderBook,
+	selectOrderBooks,
+} from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 import {
 	insertTicker,
 	selectTickerBy,
@@ -202,9 +205,9 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		migrate("down", "3");
+		migrate("down", "2");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -3)
+			MIGRATION_IDS.slice(0, -2)
 		);
 		await expect(tables()).resolves.toEqual(
 			ALL_TABLES.filter((table) => table !== "market_order_books")
@@ -394,17 +397,6 @@ describe("market_trades — real MySQL", () => {
 		).resolves.toHaveLength(1);
 	});
 
-	it("should upsert past the INT limit once the id is BIGINT UNSIGNED (issue #1379)", async () => {
-		await DATABASE.promise().query(
-			"ALTER TABLE market_trades AUTO_INCREMENT = 2147483648"
-		);
-
-		await insertTrades([trade({ tradeId: 77n })]);
-
-		const [row] = await selectTradesBy.symbol(SYMBOL, PAGE);
-		expect(row.id).toBeGreaterThan(2_147_483_647);
-	});
-
 	it("should reject a side outside the column enum", async () => {
 		await expect(
 			insertTrades([trade({ side: "hold" as TradeSide })])
@@ -471,6 +463,37 @@ describe("market_order_books — real MySQL (ADR-0053)", () => {
 
 		await expect(count("market_order_books")).resolves.toBe(2);
 		expect((await rows())[0].asks).toEqual([]);
+	});
+
+	it("should replay the snapshots of a symbol of one source in a range, oldest first", async () => {
+		await insertOrderBook([
+			orderBook({ timestamp: UnixTimestamp.of(T0 + 60_000) }),
+			orderBook(),
+			orderBook({ source: SourceType.Nyse, asks: new Set() }),
+		]);
+
+		const books = await selectOrderBooks(
+			SYMBOL,
+			MarketType.Crypto,
+			SourceType.Binance,
+			T0,
+			T0 + 60_000,
+			10
+		);
+
+		expect(books).toEqual([
+			{
+				symbol: SYMBOL,
+				market: MarketType.Crypto,
+				source: SourceType.Binance,
+				timestamp: T0,
+				bids: [
+					[100.5, 2],
+					[100.25, 0.125],
+				],
+				asks: [[100.75, 1.5]],
+			},
+		]);
 	});
 });
 

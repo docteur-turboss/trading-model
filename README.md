@@ -128,7 +128,7 @@ The pre-push git hook is `.husky/pre-push`.
 ## Monitoring
 
 - **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
-- **Alerts:** Prometheus rules in `observability/alerting.yml` (SLO burn rates + operational), mirrored in the K8s Prometheus ConfigMap and checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/Pushover, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
+- **Alerts:** Prometheus rules in `deploy/k8s/infra/config/alerting.yml` (SLO burn rates + operational, shared by compose and K8s), checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/Pushover, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
 - **Traces:** OpenTelemetry → OTLP Collector → Jaeger (every service instrumented)
 - **Logs:** structured JSON → Promtail → Loki
 

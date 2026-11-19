@@ -1,10 +1,8 @@
 import type {
 	JsonObject,
-	ProcessId,
 	ServiceId,
 	UnixTimestamp,
 	URLString,
-	UserId,
 } from "@trading-model/primitives/primitives";
 
 /** Log severity levels, from the most verbose to the most critical. */
@@ -43,8 +41,6 @@ export interface LogEntry {
 	level: LogLevel;
 	message: string;
 	context?: JsonObject;
-	userId?: UserId;
-	processId?: ProcessId;
 	url?: URLString;
 	serviceInCharge?: ServiceId;
 }

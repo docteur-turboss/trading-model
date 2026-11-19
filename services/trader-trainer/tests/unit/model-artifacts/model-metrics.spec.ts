@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { runWithCorrelationId } from "@trading-model/http/correlation-id";
 import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
 import type {
@@ -6,7 +7,11 @@ import type {
 	PositiveInt,
 	Ratio,
 } from "@trading-model/primitives/primitives";
-import { DurationMs, Price } from "@trading-model/primitives/primitives";
+import {
+	DurationMs,
+	Price,
+	toCorrelationId,
+} from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../src/domain/agent/agent-state";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
@@ -75,6 +80,8 @@ describe("input layout of a trained model", () => {
 	it("names every network input, market features then agent state", () => {
 		expect(FEATURE_LAYOUT.fields).toHaveLength(FEATURE_LAYOUT.dim);
 		expect(NETWORK_INPUT_LAYOUT.fields).toHaveLength(NETWORK_INPUT_LAYOUT.dim);
+		// The manifest lists the inputs: no order book, trade or ticker input exists (ADR-0083).
+		expect(FEATURE_LAYOUT.fields.join()).not.toMatch(/book|trade|ticker/i);
 		expect(NETWORK_INPUT_LAYOUT.fields.at(-1)).toBe("AgentExposure");
 		expect(createDefaultGenome("g", 0 as never).network.inputDim).toBe(
 			NETWORK_INPUT_LAYOUT.dim
@@ -163,6 +170,20 @@ describe("training.model.published identity of the artifact", () => {
 	it("carries the stored version, sha256 and admission verdict", async () => {
 		expect(await publishedPayload()).toMatchObject(STORED);
 	});
+
+	it("carries the caller's correlation id, or draws one outside a request", async () => {
+		const inRequest = await runWithCorrelationId(
+			toCorrelationId("550e8400-e29b-41d4-a716-446655440000"),
+			() => publishedMessage()
+		);
+
+		expect(inRequest.metadata.correlationId).toBe(
+			"550e8400-e29b-41d4-a716-446655440000"
+		);
+		expect((await publishedMessage()).metadata.correlationId).not.toBe(
+			"550e8400-e29b-41d4-a716-446655440000"
+		);
+	});
 });
 
 describe("admission of a model (ADR-0069)", () => {
@@ -196,6 +217,11 @@ describe("admission of a model (ADR-0069)", () => {
 			minSortino: 1.5,
 			minCalmar: 1,
 		});
+	});
+
+	it("is never admissible when the model made no decision", () => {
+		const meta = { ...(testMeta(100) as object), decisions: 0 } as never;
+		expect(assessAdmission(meta, bars([5, 4, 3, 2]))?.admissible).toBe(false);
 	});
 
 	it("gives no verdict on validation metrics, which the selection read", () => {

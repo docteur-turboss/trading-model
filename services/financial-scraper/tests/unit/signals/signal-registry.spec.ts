@@ -48,12 +48,17 @@ describe("signal registry — the shipped file", () => {
 			"BTC",
 			"ETH",
 			"AAPL",
+			"MSFT",
+			"JPM",
+			"XOM",
+			"JNJ",
 			"WHEAT",
 			"GLD",
 			"BORDEAUX_RE",
 			"NANTES_RE",
 			"LILLE_RE",
 			"MONTPELLIER_RE",
+			"XLE",
 			"EA_AAA_10Y",
 			"EA_AAA_2Y",
 			"EA_AAA_30Y",
@@ -74,12 +79,30 @@ describe("signal registry — the shipped file", () => {
 		]);
 	});
 
-	it("only holds sources free for any use", () => {
+	it("gives the EIA series to the whole energy sector, its key only in the query", () => {
+		const eia = SIGNAL_REGISTRY.sources.find(
+			(source) => source.id === "eia-weekly-energy"
+		);
+
+		expect(eia?.requests.map((request) => request.subject)).toEqual(
+			new Array(4).fill({ sector: "energy" })
+		);
+		expect(eia?.accessPolicy.auth).toMatchObject({
+			env: "SIGNAL_KEY_EIA",
+			in: "query",
+		});
+		expect(eia?.accessPolicy.maxRequestsPerDay).toBeDefined();
+		expect(SIGNAL_REGISTRY.assets.get("XLE")?.sector).toBe("energy");
+	});
+
+	it("only holds free sources, Twelve Data alone is non-commercial", () => {
 		const policies = SIGNAL_REGISTRY.sources.map((s) => s.accessPolicy);
 
-		expect(new Set(policies.map((p) => p.terms))).toEqual(
-			new Set(["attribution", "public-domain"])
-		);
+		expect(
+			SIGNAL_REGISTRY.sources
+				.filter((s) => s.accessPolicy.terms === "non-commercial")
+				.map((s) => s.id)
+		).toEqual(["twelvedata-daily-prices"]);
 		// A free key is allowed: a source without it is disabled alone.
 		expect(
 			policies.every(
@@ -169,10 +192,10 @@ describe("parseSignalRegistry", () => {
 			"a request on a sector without asset",
 			(file: any) => {
 				sourceOf(file, "nws-kansas-wheat-belt").requests[0].subject = {
-					sector: "energy",
+					sector: "utilities",
 				};
 			},
-			"source nws-kansas-wheat-belt, request 0: no asset in sector energy",
+			"source nws-kansas-wheat-belt, request 0: no asset in sector utilities",
 		],
 		[
 			"a request on an area no asset has",
@@ -323,7 +346,7 @@ describe("parseSignalRegistry", () => {
 		[
 			"a selector matching nothing",
 			(t: any) => {
-				t.select = { sector: "energy" };
+				t.select = { sector: "utilities" };
 			},
 			"template 0: selector matches no asset",
 		],
@@ -375,7 +398,7 @@ describe("parseSignalRegistry", () => {
 		const file = registry();
 		delete assetOf(file, "AAPL").aliases.wikipedia;
 		const { templates } = sourceOf(file, "wikipedia-pageviews");
-		templates.push({ ...templates[0], select: { sector: "energy" } });
+		templates.push({ ...templates[0], select: { sector: "utilities" } });
 		templates.push({ ...templates[0], select: { assetIds: ["AAPL"] } });
 
 		expect(() => parseSignalRegistry(file)).toThrow(
@@ -397,12 +420,40 @@ describe("parseSignalRegistry", () => {
 			wiki("Bitcoin", "BTC"),
 			wiki("Ethereum", "ETH"),
 			wiki("Apple%20Inc.", "AAPL"),
+			wiki("Microsoft", "MSFT"),
+			wiki("JPMorgan%20Chase", "JPM"),
+			wiki("ExxonMobil", "XOM"),
+			wiki("Johnson%20%26%20Johnson", "JNJ"),
 		]);
 		expect(request("sec-edgar-eps-diluted")).toEqual([
 			{
 				subject: { assetId: "AAPL" },
 				dimension: "fundamental",
 				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/us-gaap/EarningsPerShareDiluted.json",
+				params: {},
+			},
+			{
+				subject: { assetId: "MSFT" },
+				dimension: "fundamental",
+				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000789019/us-gaap/EarningsPerShareDiluted.json",
+				params: {},
+			},
+			{
+				subject: { assetId: "JPM" },
+				dimension: "fundamental",
+				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000019617/us-gaap/EarningsPerShareDiluted.json",
+				params: {},
+			},
+			{
+				subject: { assetId: "XOM" },
+				dimension: "fundamental",
+				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000034088/us-gaap/EarningsPerShareDiluted.json",
+				params: {},
+			},
+			{
+				subject: { assetId: "JNJ" },
+				dimension: "fundamental",
+				url: "https://data.sec.gov/api/xbrl/companyconcept/CIK0000200406/us-gaap/EarningsPerShareDiluted.json",
 				params: {},
 			},
 		]);

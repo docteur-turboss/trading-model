@@ -17,10 +17,7 @@ import {
 	type ResponseCachePort,
 	UpstreamResponseTooLargeError,
 } from "../domain/ports/gateway.port";
-import {
-	ACTIVE_REQUESTS,
-	PROXY_REQUEST_DURATION_SECONDS,
-} from "../infrastructure/config/metrics";
+import { PROXY_REQUEST_DURATION_SECONDS } from "../infrastructure/config/metrics";
 
 interface ProxyContext {
 	serviceName: ServiceId;
@@ -37,9 +34,13 @@ export async function proxyAndCache(
 ): Promise<ResponseObject> {
 	const start = performance.now();
 	let status: number = HTTP_STATUS.SERVICE_UNAVAILABLE;
-	ACTIVE_REQUESTS.inc();
 	try {
-		const result = await forward({ req, target, path: ctx.path });
+		const result = await forward({
+			req,
+			target,
+			path: ctx.path,
+			serviceName: ctx.serviceName,
+		});
 		const contentType = result.headers?.["content-type"];
 		const type = typeof contentType === "string" ? contentType : undefined;
 		tryCacheResponse(req, ctx, result, /json/i.test(type ?? ""), cache);
@@ -68,7 +69,6 @@ export async function proxyAndCache(
 			{ service: ctx.serviceName, status: String(status) },
 			(performance.now() - start) / 1000
 		);
-		ACTIVE_REQUESTS.dec();
 	}
 }
 

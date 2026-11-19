@@ -2,6 +2,7 @@ import type { AddressInfo } from "node:net";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { responseIssues } from "@trading-model/http/api-route/api-route";
+import { getCorrelationId } from "@trading-model/http/correlation-id";
 import express from "express";
 import { BROKER_CALLBACK_API } from "../../src/api-routes";
 import { EVENT_MANAGER } from "../../src/event-manager-client";
@@ -63,6 +64,23 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 		expect(status).toBe(200);
 		expect(body).toEqual({ status: "delivered" });
 		expect(listener).toHaveBeenCalledWith({ candle: [] });
+	});
+
+	it("runs the listeners in the correlation context of the message", async () => {
+		let seen: string | undefined;
+		EVENT_MANAGER.on("market.candlestick.series.fetch" as never, () => {
+			seen = getCorrelationId();
+		});
+		const body = {
+			metadata: {
+				...METADATA,
+				correlationId: "550e8400-e29b-41d4-a716-446655440000",
+			},
+			payload: { candle: [] },
+		};
+
+		expect((await deliver("message", "/message", body)).status).toBe(200);
+		expect(seen).toBe("550e8400-e29b-41d4-a716-446655440000");
 	});
 
 	it("emits a redelivered messageId once and acknowledges both deliveries", async () => {

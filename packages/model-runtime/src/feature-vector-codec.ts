@@ -42,7 +42,9 @@ export const FEATURE_LAYOUT: { dim: number; fields: string[] } = {
 const SlidingWindowOffset = FEATURE_FIELDS.length;
 
 export function encode(fv: FeatureVector): Float32Array {
-	const arr = new Float32Array(FEATURE_DIM);
+	// Signal inputs follow the market block; none: exactly FEATURE_DIM values.
+	const arr = new Float32Array(FEATURE_DIM + fv.signals.length);
+	arr.set(fv.signals, FEATURE_DIM);
 	const sw = fv.slidingWindow();
 
 	FEATURE_FIELDS.forEach(([, key], index) => {
@@ -69,4 +71,5 @@ export function decodeInto(fv: FeatureVector, data: Float32Array): void {
 		sw[i] = data[SlidingWindowOffset + i] ?? 0;
 	}
 	fv.bias = data[BiasIndex] ?? 0;
+	fv.signals = data.slice(FEATURE_DIM);
 }

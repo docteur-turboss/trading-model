@@ -57,3 +57,15 @@ export function correlationIdMiddleware(
 
 	correlationStore.run(correlationId, () => next());
 }
+
+const UUID =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Correlation id of the current request when it can ride a bus message, whose
+ * schema only accepts UUIDs (the middleware also keeps non-UUID client ids).
+ */
+export function getBusCorrelationId(): CorrelationId | undefined {
+	const id = correlationStore.getStore();
+	return id && UUID.test(id) ? id : undefined;
+}

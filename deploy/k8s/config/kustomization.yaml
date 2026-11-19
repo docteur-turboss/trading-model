@@ -12,7 +12,6 @@ resources:
   - dlq-service-autoscaling.yaml
   - edge-proxy-autoscaling.yaml
   - ../../edge-proxy
-  - spiffe-helper-configmap.yaml
 
 # Service configuration, versioned by a content hash in its name (issue #410):
 # a config change alone rolls the Deployments that read it, and
@@ -59,3 +58,11 @@ configMapGenerator:
     envs: [dlq-service.properties]
     options:
       labels: {app.kubernetes.io/component: dlq-service, app.kubernetes.io/part-of: trading-model}
+
+  # spiffe-helper only takes a config file (-config): writes the pod's SVID into
+  # the shared `svid` emptyDir. Hashed like the rest (partitioned StatefulSets
+  # read it too: issue #1460).
+  - name: spiffe-helper-config
+    files: [helper.conf]
+    options:
+      labels: {app.kubernetes.io/part-of: trading-model}

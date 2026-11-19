@@ -31,6 +31,7 @@ describe("buildProxyOptions", () => {
 			req: createReq(),
 			target: TARGET,
 			path: "/v1/api/data",
+			serviceName: "financial-scraper",
 		});
 
 		expect(buildHttpsAgentOptions).toHaveBeenCalled();

@@ -12,17 +12,27 @@ import {
 	MODEL_MAX_DRAWDOWN,
 	MODEL_RETURN,
 	MODEL_SHARPE,
+	reportInputGroups,
 	TRAINING_DURATION_SECONDS,
 	TRAINING_SESSIONS_TOTAL,
 	TRAINING_STATUS,
 } from "../config/metrics";
-import { NETWORK_INPUT_LAYOUT } from "../domain/agent/agent-state";
+import {
+	eventInputLayout,
+	networkInputLayout,
+} from "../domain/agent/agent-state";
 import { featureDriftScore } from "../domain/feature-drift";
+import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
+import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
+import {
+	SIMULATOR_PARAMS,
+	type SimulatorCosts,
+} from "../domain/genetic-algorithm/rl-backend";
 import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
-import type { TradingSymbol } from "../domain/market-data-types";
+import { DAY_MS, type TradingSymbol } from "../domain/market-data-types";
 import { assessAdmission } from "../domain/model-admission";
 import type { ModelReplayWindow } from "../domain/model-artifact";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
@@ -62,6 +72,8 @@ interface TrainerDeps {
 	instanceId?: string;
 	/** Where the session runs; default: the calling thread. */
 	runner?: TrainingRunner;
+	/** Costs of a daily asset (ADR-0083); undefined: a crypto symbol on one-minute candles. */
+	dailyCosts?: (symbol: TradingSymbol) => SimulatorCosts | undefined;
 }
 
 enum TrainerStatus {
@@ -128,7 +140,9 @@ export class Trainer {
 				if (
 					manifest &&
 					JSON.stringify(manifest.features) !==
-						JSON.stringify(NETWORK_INPUT_LAYOUT)
+						JSON.stringify(networkInputLayout(this._dataBuffer.signalKeys)) &&
+					JSON.stringify(manifest.features) !==
+						JSON.stringify(eventInputLayout(this._dataBuffer.signalKeys))
 				) {
 					// Published before the 18-input layout (ADR-0078): retrained, not served.
 					getLogger().warn("Stored model has another feature layout, skipped", {
@@ -233,7 +247,7 @@ export class Trainer {
 		const run: TrainingRunner = this._deps.runner ?? runInProcess;
 		const result: TrainingSessionResult = await run(
 			windowSets,
-			this._deps.settings,
+			{ ...this._deps.settings, costs: this._deps.dailyCosts?.(symbol) },
 			this._deps.telemetry,
 			signal
 		);
@@ -244,6 +258,12 @@ export class Trainer {
 			bestFitnessMeta: result.bestFitnessMeta,
 			generation: NonNegativeInt.of(result.generation),
 		};
+		const publishedMask = result.bestGenome.network.inputMask;
+		if (publishedMask) {
+			const groups = inputGroupNames(this._dataBuffer.signalKeys);
+			reportInputGroups("published", groups, [publishedMask]);
+			reportInputGroups("population", groups, result.inputMasks ?? []);
+		}
 		const snapshot = new LastTrainingInfo(outcome);
 		this._lastInfo = snapshot;
 		this._symbolSnapshots.set(symbol, snapshot);
@@ -288,7 +308,9 @@ export class Trainer {
 				instanceId: this._deps.instanceId ?? "trader-trainer",
 				bestGenome: result.bestGenome,
 				weights: new Float32Array(weights),
-				features: NETWORK_INPUT_LAYOUT,
+				features: isEventDriven(result.bestGenome.rl.horizon)
+					? eventInputLayout(this._dataBuffer.signalKeys)
+					: networkInputLayout(this._dataBuffer.signalKeys),
 				normalization,
 				summary,
 				admission,
@@ -329,10 +351,15 @@ export class Trainer {
 		if (candles.length === 0 || testFrom === undefined) {
 			return;
 		}
+		const costs = this._deps.dailyCosts?.(symbol);
 		return {
 			from: candles[0].timestamp,
 			testFrom,
 			to: candles[candles.length - 1].closeTimestamp,
+			...(costs && {
+				intervalMs: DAY_MS,
+				simulator: { ...SIMULATOR_PARAMS, ...costs },
+			}),
 		};
 	}
 

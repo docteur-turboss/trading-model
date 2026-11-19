@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import { FileEvaluationStore } from "../../src/adapters/outbound/file-evaluation-store";
 import { createEvaluateModel } from "../../src/application/evaluate-model";
 import {
-	type ModelManifest,
+	ModelManifest,
 	PublishedModel,
 } from "../../src/domain/model-evaluation";
 
@@ -49,6 +49,47 @@ describe("evaluate a published model", () => {
 		});
 		return { evaluate, calls };
 	};
+
+	it("reads a manifest from before and one from after the signal inputs (ADR-0081)", () => {
+		const base = { ...MANIFEST, features: { dim: 19, fields: ["Bias"] } };
+		const withSignals = {
+			...base,
+			features: {
+				dim: 22,
+				fields: ["Bias", "SignalValue:BTC:social:pageviews"],
+			},
+			normalization: {
+				signals: { "BTC:social:pageviews": { mean: 1, std: 2 } },
+			},
+		};
+
+		expect(ModelManifest.safeParse(base).success).toBe(true);
+		expect(ModelManifest.safeParse(withSignals).success).toBe(true);
+	});
+
+	it("records the model of a daily asset: replay with a one-day bar and its own costs", async () => {
+		const daily = {
+			...MANIFEST,
+			symbol: "AAPL",
+			replay: {
+				from: 1,
+				testFrom: 2,
+				to: 3,
+				intervalMs: 86_400_000,
+				evalEpsilon: 0,
+				simulator: { feeRate: 0.0005, executionCostRate: 0.0005 },
+			},
+		};
+		expect(ModelManifest.safeParse(daily).success).toBe(true);
+		const evaluate = createEvaluateModel({
+			store: new FileEvaluationStore(dir),
+			trainer: {
+				manifest: async () => daily as ModelManifest,
+				weights: async () => ({ bytes: BYTES, sha256: SHA }),
+			},
+		});
+		expect(await evaluate({ ...EVENT, symbol: "AAPL" })).toBe("recorded");
+	});
 
 	it("records one evaluation and nothing more for a redelivery", async () => {
 		const { evaluate, calls } = evaluator();

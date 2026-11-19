@@ -2,6 +2,9 @@ import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
+import { MongoDBInstrumentation } from "@opentelemetry/instrumentation-mongodb";
+import { MySQL2Instrumentation } from "@opentelemetry/instrumentation-mysql2";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
@@ -11,6 +14,13 @@ import { toInstanceId } from "@trading-model/primitives/primitives";
 import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;
+
+const PROBE_PATHS = new Set(["/ping", "/health/ready", "/metrics"]);
+
+/** True for probe and scrape requests, which must not create a trace (they would evict real ones). */
+export function isProbeRequest(req: { url?: string }): boolean {
+	return PROBE_PATHS.has((req.url ?? "").split("?")[0]);
+}
 
 /**
  * Starts tracing for a service from its environment (`OTEL_EXPORTER_OTLP_ENDPOINT`,
@@ -40,7 +50,15 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 			),
 		}),
 		traceExporter: new OTLPTraceExporter({ url: `${otlpEndpoint}/v1/traces` }),
-		instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()],
+		instrumentations: [
+			new HttpInstrumentation({ ignoreIncomingRequestHook: isProbeRequest }),
+			new ExpressInstrumentation(),
+			// No query values in spans: mysql2 masks literals, mongodb replaces
+			// them by default, redis keeps the command name only (no key, no value).
+			new MySQL2Instrumentation({ maskStatement: true }),
+			new MongoDBInstrumentation(),
+			new IORedisInstrumentation({ dbStatementSerializer: (cmd) => cmd }),
+		],
 		// Traces only: metrics go through Prometheus, and the collector has no
 		// metrics or logs pipeline (the SDK would export both to it by default).
 		metricReaders: [],

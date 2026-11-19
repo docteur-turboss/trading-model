@@ -75,3 +75,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/k8s/infra"
+    schedule:
+      interval: "weekly"

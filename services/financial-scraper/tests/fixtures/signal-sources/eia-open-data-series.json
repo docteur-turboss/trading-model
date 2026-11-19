@@ -1,0 +1,233 @@
+{
+	"WGTSTUS1": {
+		"warnings": [
+			{
+				"warning": "incomplete return",
+				"description": "The API can only return 5000 rows in JSON format.  Please consider constraining your request with facet, start, or end, or using offset to paginate results."
+			}
+		],
+		"response": {
+			"total": "1923",
+			"dateFormat": "YYYY-MM-DD",
+			"frequency": "weekly",
+			"data": [
+				{
+					"period": "2026-11-06",
+					"duoarea": "NUS",
+					"area-name": "U.S.",
+					"product": "EPM0",
+					"product-name": "Total Gasoline",
+					"process": "SAE",
+					"process-name": "Ending Stocks",
+					"series": "WGTSTUS1",
+					"series-description": "U.S. Ending Stocks of Total Gasoline (Thousand Barrels)",
+					"value": "210757",
+					"units": "MBBL"
+				},
+				{
+					"period": "2026-10-30",
+					"duoarea": "NUS",
+					"area-name": "U.S.",
+					"product": "EPM0",
+					"product-name": "Total Gasoline",
+					"process": "SAE",
+					"process-name": "Ending Stocks",
+					"series": "WGTSTUS1",
+					"series-description": "U.S. Ending Stocks of Total Gasoline (Thousand Barrels)",
+					"value": "208958",
+					"units": "MBBL"
+				},
+				{
+					"period": "2026-10-23",
+					"duoarea": "NUS",
+					"area-name": "U.S.",
+					"product": "EPM0",
+					"product-name": "Total Gasoline",
+					"process": "SAE",
+					"process-name": "Ending Stocks",
+					"series": "WGTSTUS1",
+					"series-description": "U.S. Ending Stocks of Total Gasoline (Thousand Barrels)",
+					"value": "209180",
+					"units": "MBBL"
+				}
+			]
+		},
+		"request": {
+			"command": "/v2/petroleum/stoc/wstk/data/",
+			"params": {
+				"frequency": "weekly",
+				"data": [
+					"value"
+				],
+				"facets": {
+					"series": [
+						"WGTSTUS1"
+					]
+				},
+				"sort": [
+					{
+						"column": "period",
+						"direction": "desc"
+					}
+				],
+				"length": "3"
+			}
+		},
+		"apiVersion": "2.1.14",
+		"ExcelAddInVersion": "2.1.0"
+	},
+	"NW2_EPG0_SWO_R48_BCF": {
+		"warnings": [
+			{
+				"warning": "incomplete return",
+				"description": "The API can only return 5000 rows in JSON format.  Please consider constraining your request with facet, start, or end, or using offset to paginate results."
+			}
+		],
+		"response": {
+			"total": "880",
+			"dateFormat": "YYYY-MM-DD",
+			"frequency": "weekly",
+			"data": [
+				{
+					"period": "2026-11-06",
+					"duoarea": "R48",
+					"area-name": "NA",
+					"product": "EPG0",
+					"product-name": "Natural Gas",
+					"process": "SWO",
+					"process-name": "Underground Storage - Working Gas",
+					"series": "NW2_EPG0_SWO_R48_BCF",
+					"series-description": "Weekly Lower 48 States Natural Gas Working Underground Storage (Billion Cubic Feet)",
+					"value": "3862",
+					"units": "BCF"
+				},
+				{
+					"period": "2026-10-30",
+					"duoarea": "R48",
+					"area-name": "NA",
+					"product": "EPG0",
+					"product-name": "Natural Gas",
+					"process": "SWO",
+					"process-name": "Underground Storage - Working Gas",
+					"series": "NW2_EPG0_SWO_R48_BCF",
+					"series-description": "Weekly Lower 48 States Natural Gas Working Underground Storage (Billion Cubic Feet)",
+					"value": "3801",
+					"units": "BCF"
+				},
+				{
+					"period": "2026-10-23",
+					"duoarea": "R48",
+					"area-name": "NA",
+					"product": "EPG0",
+					"product-name": "Natural Gas",
+					"process": "SWO",
+					"process-name": "Underground Storage - Working Gas",
+					"series": "NW2_EPG0_SWO_R48_BCF",
+					"series-description": "Weekly Lower 48 States Natural Gas Working Underground Storage (Billion Cubic Feet)",
+					"value": "3724",
+					"units": "BCF"
+				}
+			]
+		},
+		"request": {
+			"command": "/v2/natural-gas/stor/wkly/data/",
+			"params": {
+				"frequency": "weekly",
+				"data": [
+					"value"
+				],
+				"facets": {
+					"series": [
+						"NW2_EPG0_SWO_R48_BCF"
+					]
+				},
+				"sort": [
+					{
+						"column": "period",
+						"direction": "desc"
+					}
+				],
+				"length": "3"
+			}
+		},
+		"apiVersion": "2.1.14",
+		"ExcelAddInVersion": "2.1.0"
+	},
+	"WCRFPUS2": {
+		"warnings": [
+			{
+				"warning": "incomplete return",
+				"description": "The API can only return 5000 rows in JSON format.  Please consider constraining your request with facet, start, or end, or using offset to paginate results."
+			}
+		],
+		"response": {
+			"total": "2285",
+			"dateFormat": "YYYY-MM-DD",
+			"frequency": "weekly",
+			"data": [
+				{
+					"period": "2026-11-06",
+					"duoarea": "NUS",
+					"area-name": "U.S.",
+					"product": "EPC0",
+					"product-name": "Crude Oil",
+					"process": "FPF",
+					"process-name": "Field Production",
+					"series": "WCRFPUS2",
+					"series-description": "U.S. Field Production of Crude Oil (Thousand Barrels per Day)",
+					"value": "14013",
+					"units": "MBBL/D"
+				},
+				{
+					"period": "2026-10-30",
+					"duoarea": "NUS",
+					"area-name": "U.S.",
+					"product": "EPC0",
+					"product-name": "Crude Oil",
+					"process": "FPF",
+					"process-name": "Field Production",
+					"series": "WCRFPUS2",
+					"series-description": "U.S. Field Production of Crude Oil (Thousand Barrels per Day)",
+					"value": "14003",
+					"units": "MBBL/D"
+				},
+				{
+					"period": "2026-10-23",
+					"duoarea": "NUS",
+					"area-name": "U.S.",
+					"product": "EPC0",
+					"product-name": "Crude Oil",
+					"process": "FPF",
+					"process-name": "Field Production",
+					"series": "WCRFPUS2",
+					"series-description": "U.S. Field Production of Crude Oil (Thousand Barrels per Day)",
+					"value": "13992",
+					"units": "MBBL/D"
+				}
+			]
+		},
+		"request": {
+			"command": "/v2/petroleum/sum/sndw/data/",
+			"params": {
+				"frequency": "weekly",
+				"data": [
+					"value"
+				],
+				"facets": {
+					"series": [
+						"WCRFPUS2"
+					]
+				},
+				"sort": [
+					{
+						"column": "period",
+						"direction": "desc"
+					}
+				],
+				"length": "3"
+			}
+		},
+		"apiVersion": "2.1.14",
+		"ExcelAddInVersion": "2.1.0"
+	}
+}

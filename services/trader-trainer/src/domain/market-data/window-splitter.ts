@@ -1,9 +1,17 @@
 import { Percentage, PositiveInt } from "@trading-model/primitives/primitives";
+import type { Signal } from "@trading-model/validation/wire/signals";
 import { buildFeatures as buildFeaturesFn } from "../feature-builder";
 import type { WindowSet } from "../genetic-algorithm/generation-types";
 import type { MarketStep } from "../genetic-algorithm/genome";
 import type { SymbolState, TradingSymbol } from "../market-data-types";
 import { NormalizationManager } from "../normalization-manager";
+import {
+	applySignalNorms,
+	asOfSignalInputs,
+	type SignalNorm,
+	signalKey,
+	signalNorms,
+} from "../signal-features";
 import type { MarketDataContext } from "./market-data-context";
 import { forEachPointInTime } from "./point-in-time";
 
@@ -53,8 +61,35 @@ export function hasEnoughTrainingData(
 export class WindowSplitter {
 	constructor(
 		private readonly _states: Map<TradingSymbol, SymbolState>,
-		private readonly _normManager = new NormalizationManager()
+		private readonly _normManager = new NormalizationManager(),
+		/** Signal metrics fed to the network (FEATURE_SIGNAL_INPUTS); empty: market inputs only. */
+		readonly signalKeys: readonly string[] = []
 	) {}
+
+	private readonly _signals = new Map<TradingSymbol, Map<string, Signal[]>>();
+	private readonly _signalNorms = new Map<
+		TradingSymbol,
+		Record<string, SignalNorm>
+	>();
+
+	/** The signals a symbol's steps may read; each step only sees what was observed by its close. */
+	setSignals(symbol: TradingSymbol, signals: readonly Signal[]): void {
+		const byKey = new Map<string, Signal[]>();
+		for (const signal of signals) {
+			const key = signalKey(signal);
+			if (this.signalKeys.includes(key)) {
+				byKey.set(key, [...(byKey.get(key) ?? []), signal]);
+			}
+		}
+		this._signals.set(symbol, byKey);
+	}
+
+	/** Normalization statistics of the signal values, from the training segment of the last windows built. */
+	signalNormalization(
+		symbol: TradingSymbol
+	): Record<string, SignalNorm> | undefined {
+		return this._signalNorms.get(symbol);
+	}
 
 	/**
 	 * One step per candle after the first, built from what its close knew. Its
@@ -67,12 +102,21 @@ export class WindowSplitter {
 			return [];
 		}
 		const steps: MarketStep[] = [];
+		const signals = this._signals.get(ctx.symbol) ?? new Map();
 		forEachPointInTime(state, this._normManager, (view, idx) => {
 			if (idx > 0) {
+				const features = buildFeaturesFn({ state: view, idx });
+				if (this.signalKeys.length > 0) {
+					features.signals = asOfSignalInputs(
+						signals,
+						this.signalKeys,
+						view.candles[idx].closeTimestamp
+					);
+				}
 				steps.push({
 					price: view.candles[idx].close,
 					fillPrice: state.candles[idx + 1]?.open,
-					features: buildFeaturesFn({ state: view, idx }),
+					features,
 					timestamp: view.candles[idx].timestamp,
 				});
 			}
@@ -148,12 +192,30 @@ export class WindowSplitter {
 		if (steps.length < MIN_TRAINING_STEPS || test.length < MIN_TRAINING_STEPS) {
 			return null;
 		}
-		if (walkForwardFolds >= 2) {
-			return this.splitWalkForward(steps, walkForwardFolds).map((ws) => ({
-				...ws,
-				test,
-			}));
-		}
-		return { ...this.splitTrainValidation(steps, validationSplit), test };
+		const sets: WindowSet[] =
+			walkForwardFolds >= 2
+				? this.splitWalkForward(steps, walkForwardFolds).map((ws) => ({
+						...ws,
+						test,
+					}))
+				: [{ ...this.splitTrainValidation(steps, validationSplit), test }];
+		const windows = this.signalKeys.length
+			? sets.map((set) => this._normalizeSignals(ctx.symbol, set))
+			: sets;
+		return walkForwardFolds >= 2 ? windows : windows[0];
+	}
+
+	/** Statistics from the training steps alone: validation and test never shape them. */
+	private _normalizeSignals(symbol: TradingSymbol, set: WindowSet): WindowSet {
+		const norms = signalNorms(set.train, this.signalKeys);
+		this._signalNorms.set(symbol, norms);
+		const apply = (steps: MarketStep[]) =>
+			applySignalNorms(steps, this.signalKeys, norms);
+		return {
+			...set,
+			train: apply(set.train),
+			validation: apply(set.validation),
+			test: set.test && apply(set.test),
+		};
 	}
 }

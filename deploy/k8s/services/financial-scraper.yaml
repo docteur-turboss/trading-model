@@ -373,6 +373,12 @@ spec:
                   name: signal-contact
                   key: SIGNAL_CONTACT_EMAIL
                   optional: true
+            - name: SIGNAL_KEY_EIA
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: SIGNAL_KEY_EIA
+                  optional: true
             # FRED API key (#1265), sealed by the owner. Absent: that source
             # alone is disabled.
             - name: SIGNAL_KEY_FRED
@@ -380,6 +386,13 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: SIGNAL_KEY_FRED
+                  optional: true
+            # Free Twelve Data key (ADR-0080). Absent: that source alone is disabled.
+            - name: SIGNAL_KEY_TWELVEDATA
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: SIGNAL_KEY_TWELVEDATA
                   optional: true
           resources:
             requests:

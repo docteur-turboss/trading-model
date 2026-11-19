@@ -76,6 +76,13 @@ export class StreamRedis implements BusRedis {
 			case "WAIT":
 				return Number(key);
 			case "XINFO":
+				if (key === "STREAM") {
+					const stream = this.streams.get(rest[0] as string);
+					if (!stream) {
+						throw new Error("ERR no such key");
+					}
+					return ["length", stream.entries.length];
+				}
 				return this._info(rest[0] as string);
 			case "XGROUP":
 				return this._createGroup(rest[0] as string, rest[1] as string);
@@ -96,8 +103,6 @@ export class StreamRedis implements BusRedis {
 				return this._range(key, rest);
 			case "XDEL":
 				return this._del(key, rest[0] as string);
-			case "XLEN":
-				return this.streams.get(key)?.entries.length ?? 0;
 			default:
 				throw new Error(`unsupported ${command}`);
 		}

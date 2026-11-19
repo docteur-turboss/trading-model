@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { setLogger } from "@trading-model/contracts/logger-registry";
 import { createMessageHandler } from "../../src/adapters/inbound/evaluation-subscriber";
 
 const SHA = "a".repeat(64);
@@ -8,7 +9,10 @@ const call = (
 ) =>
 	handler(
 		{
-			body: { metadata: { topic: "training.model.published" }, payload },
+			body: {
+				metadata: { topic: "training.model.published", messageId: "m-1" },
+				payload,
+			},
 		} as never,
 		{} as never
 	);
@@ -31,11 +35,20 @@ describe("training.model.published handler", () => {
 	});
 
 	it("answers 400 to a malformed payload without evaluating", async () => {
+		const warn = jest.fn<(...args: any[]) => any>();
+		setLogger({ warn } as never);
 		const evaluate = jest.fn<(...args: any[]) => any>();
 		const res = await call(createMessageHandler(evaluate as never), {
 			symbol: "../x",
 		});
 		expect(evaluate).not.toHaveBeenCalled();
 		expect(res).toMatchObject({ status: 400 });
+		expect(warn).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({
+				topic: "training.model.published",
+				messageId: "m-1",
+			})
+		);
 	});
 });

@@ -78,6 +78,31 @@ describe("TrainingLoop", () => {
 		jest.restoreAllMocks();
 	});
 
+	it("trains a daily symbol once per bar, and keeps a Friday bar fresh on Sunday", async () => {
+		lastClose.set(BTC, NOW - 2 * DAY);
+		train.mockResolvedValue({ success: true } as never);
+		loop = new TrainingLoop(
+			{ train, isTraining: () => false, stopTraining } as unknown as Trainer,
+			{
+				getMaxSize: () => 1000,
+				replaceCandles,
+				getCandleCount: () => candleCount,
+				getLastCandleCloseTime: (symbol: TradingSymbol) =>
+					lastClose.get(symbol),
+			} as unknown as MarketDataBuffer,
+			history,
+			WINDOWING,
+			undefined,
+			new Set([BTC])
+		);
+		await runOnce();
+		await runOnce();
+		expect(train).toHaveBeenCalledTimes(1);
+		lastClose.set(BTC, NOW - DAY);
+		await runOnce();
+		expect(train).toHaveBeenCalledTimes(2);
+	});
+
 	it("should read signals only for a mapped symbol and train without them when the read fails", async () => {
 		lastClose.set(BTC, NOW - MINUTE);
 		const signalHistory = {
@@ -85,9 +110,11 @@ describe("TrainingLoop", () => {
 				throw new Error("404");
 			}),
 		};
+		const setSignals = jest.fn();
 		const buffer = {
 			getMaxSize: () => 1000,
 			replaceCandles,
+			setSignals,
 			getCandleCount: () => candleCount,
 			getLastCandleCloseTime: (symbol: TradingSymbol) => lastClose.get(symbol),
 		} as unknown as MarketDataBuffer;
@@ -119,6 +146,7 @@ describe("TrainingLoop", () => {
 			NOW - DAY,
 			NOW
 		);
+		expect(setSignals).toHaveBeenCalledWith(BTC, []); // unreadable: no signal input
 		expect(train).toHaveBeenCalledTimes(2);
 	});
 

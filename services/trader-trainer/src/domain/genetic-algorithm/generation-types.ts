@@ -29,6 +29,12 @@ export interface GARunnerConfig {
 	telemetry?: GaTelemetry;
 	/** Aborted: the run ends after the current generation with its best genome so far (ADR-0058). */
 	signal?: AbortSignal;
+	/** FEATURE_EVENT_DRIVEN_DECISIONS: the population decides on market events. */
+	eventDriven?: boolean;
+	/** FEATURE_INPUT_MASK_GENE: names of the input groups the genome masks; absent: no mask gene. */
+	inputGroups?: string[];
+	/** The candle group stays active in every mask. */
+	protectCandleGroup?: boolean;
 }
 
 export interface GenerationContext {

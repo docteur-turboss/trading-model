@@ -4,7 +4,7 @@ How an incident reaches a person, and how that path is kept honest.
 
 ```
 services /metrics ─┐
-backup exporter ───┼─► Prometheus ── rules (observability/alerting.yml) ──► Alertmanager ──► Slack #alerts / #alerts-warning
+backup exporter ───┼─► Prometheus ── rules (deploy/k8s/infra/config/alerting.yml) ──► Alertmanager ──► Slack #alerts / #alerts-warning
 Alertmanager ──────┤                                                                     ├─► Pushover (critical)
 Prometheus itself ─┘                                                                     └─► dead man's switch (Watchdog, every minute)
 ```
@@ -13,8 +13,8 @@ Prometheus itself ─┘                                                        
 
 | What | Where |
 | --- | --- |
-| Rules | `observability/alerting.yml`, copied into the K8s ConfigMap `prometheus-config` (`deploy/k8s/infra/prometheus.yaml`) |
-| Routing | `observability/alertmanager.yml`, copied into the K8s ConfigMap `alertmanager-config` (`deploy/k8s/infra/alertmanager.yaml`) |
+| Rules | `deploy/k8s/infra/config/alerting.yml`, mounted by compose and the source of the K8s ConfigMap `prometheus-config` |
+| Routing | `deploy/k8s/infra/config/alertmanager.yml`, mounted by compose and the source of the K8s ConfigMap `alertmanager-config` |
 | Credentials, K8s | Secret `alertmanager-credentials` (keys `SLACK_WEBHOOK_URL`, `PUSHOVER_USER_KEY`, `PUSHOVER_TOKEN`, `DEADMAN_URL`), written by `deploy.yml` from the GitHub environment secrets `ALERTMANAGER_SLACK_WEBHOOK_URL`, `ALERTMANAGER_PUSHOVER_USER_KEY`, `ALERTMANAGER_PUSHOVER_TOKEN`, `ALERTMANAGER_DEADMAN_URL` |
 | Credentials, compose | one file per key in `ALERTMANAGER_CREDENTIALS_DIR` (default `observability/alertmanager-credentials/`, git-ignored) |
 
@@ -135,13 +135,10 @@ file absent from the repository, or on an anchor that matches no heading.
 | `SLOAvailabilitySlowBurn` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOLatencyFastBurn` | critical | [runbook-latency-and-errors#slolatencyfastburn](runbooks/runbook-latency-and-errors.md#slolatencyfastburn) |
 | `SLOLatencySlowBurn` | warning | [runbook-latency-and-errors#slolatencyfastburn](runbooks/runbook-latency-and-errors.md#slolatencyfastburn) |
-| `SLOErrorRateFastBurn` | critical | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
-| `SLOErrorRateSlowBurn` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
 | `SLOErrorBudgetLow` | warning | [runbook-latency-and-errors#slo-error-budget-low](runbooks/runbook-latency-and-errors.md#slo-error-budget-low) |
 | `ServiceDown` | critical | [runbook-service-down](runbooks/runbook-service-down.md) |
 | `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
-| `HighErrorRate` | warning | [runbook-latency-and-errors#higherrorrate](runbooks/runbook-latency-and-errors.md#higherrorrate) |
-| `CertificateExpiry` | warning | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
+| `CertificateExpiry` | critical | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
 | `HttpCircuitBreakerRejecting` | warning | [runbook-circuit-breaker-open#symptom](runbooks/runbook-circuit-breaker-open.md#symptom) |
 | `DLQSizeGrowing` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
 | `InstanceCountLow` | critical | [runbook-discovery#instancecountlow](runbooks/runbook-discovery.md#instancecountlow) |
@@ -193,6 +190,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `TrainerFeatureDrift` | warning | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
 | `KubePodCrashLooping` | warning | [runbook-infrastructure#kubepodcrashlooping](runbooks/runbook-infrastructure.md#kubepodcrashlooping) |
 | `KubeContainerOOMKilled` | warning | [runbook-infrastructure#kubecontaineroomkilled](runbooks/runbook-infrastructure.md#kubecontaineroomkilled) |
+| `KubeWorkloadUnavailable` | critical | [runbook-infrastructure#kubeworkloadunavailable](runbooks/runbook-infrastructure.md#kubeworkloadunavailable) |
+| `KubePodPending` | warning | [runbook-infrastructure#kubepodpending](runbooks/runbook-infrastructure.md#kubepodpending) |
 | `KubePersistentVolumeFillingUp` | warning | [runbook-infrastructure#kubepersistentvolumefillingup](runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup) |
 | `NodeFilesystemAlmostFull` | warning | [runbook-infrastructure#nodefilesystemalmostfull](runbooks/runbook-infrastructure.md#nodefilesystemalmostfull) |
 | `MySQLDown` | critical | [runbook-infrastructure#mysqldown](runbooks/runbook-infrastructure.md#mysqldown) |
@@ -225,12 +224,10 @@ file absent from the repository, or on an anchor that matches no heading.
 - Every rule has a `runbook_url` to a procedure of the repository (add a
   section to a runbook, or a new runbook in `runbooks/`, in the same change),
   and a line in the table above.
-- `scripts/observability-gate.mjs` keeps compose and K8s identical (rules with
-  their annotations, and Alertmanager config), checks that every metric a rule
+- `scripts/observability-gate.mjs` checks that every metric a rule
   reads is emitted and that every `runbook_url` leads to an existing file and
   heading, and refuses inline receiver credentials. It also fails on a dashboard
-  query (named by file and panel) that reads a metric nobody emits, on
-  `observability/dashboards` and `deploy/k8s/infra/dashboards` that differ, on a
+  query (named by file and panel) that reads a metric nobody emits, on a
   Grafana datasource whose host is no compose service / K8s Service, and on a
   `probe_*` rule without a blackbox job (`metrics_path: /probe`) in compose or K8s.
 

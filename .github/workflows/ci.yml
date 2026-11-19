@@ -85,7 +85,8 @@ jobs:
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
-      - run: bun audit --audit-level=high
+      # GHSA-fc5q-39xc-vjpf (picomatch ReDoS): no patched version exists (4.0.7 is the latest); dev tooling only (jest, knip), absent from --prod. Remove --ignore once a fix ships.
+      - run: bun audit --audit-level=high --ignore=GHSA-fc5q-39xc-vjpf
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -334,13 +335,13 @@ jobs:
           path: k6-out/k6-summary.json
           if-no-files-found: warn
       # Passive ZAP baseline through the edge-proxy with the E2E API key (issue #648).
-      # Non-blocking (-I) for now; rules in tests/security/zap-baseline.conf.
+      # An alert not triaged in tests/security/zap-baseline.conf fails the step.
       - name: ZAP baseline (passive, edge-proxy)
         run: >-
           mkdir -p zap-out && chmod 777 zap-out && docker run --rm --network host
           -v "$PWD/tests/security:/zap/wrk-conf:ro" -v "$PWD/zap-out:/zap/wrk:rw"
           zaproxy/zap-stable:2.16.1@sha256:7840969c7c9fead565bf9734b12f49f6886db90b1d35b1f74d79710bbd081dab
-          zap-baseline.py -t http://localhost:8449/v1/audit-logger/events -I
+          zap-baseline.py -t http://localhost:8449/v1/audit-logger/events
           -c /zap/wrk-conf/zap-baseline.conf -r zap-report.html
           -z "-config replacer.full_list(0).description=key -config replacer.full_list(0).enabled=true -config replacer.full_list(0).matchtype=REQ_HEADER -config replacer.full_list(0).matchstr=x-api-key -config replacer.full_list(0).replacement=e2e-api-key-0123456789abcdef0123456789abcdef"
       - name: Archive the ZAP report

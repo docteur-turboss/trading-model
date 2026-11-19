@@ -27,7 +27,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: SLOLatencyFastBurn
-        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[5m]))) > 5
+        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[5m]))) > 5
         for: 2m
         labels:
           severity: critical
@@ -38,7 +38,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
       - alert: SLOLatencySlowBurn
-        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket[1h]))) > 3
+        expr: histogram_quantile(0.95, sum by (job, le) (rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[1h]))) > 3
         for: 10m
         labels:
           severity: warning
@@ -47,28 +47,6 @@ groups:
           summary: 'Latency SLO slow burn rate exceeded'
           description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
-
-      - alert: SLOErrorRateFastBurn
-        expr: slo:sli_error:ratio_rate1h > 0.144 and slo:sli_error:ratio_rate5m > 0.144
-        for: 2m
-        labels:
-          severity: critical
-          slo: error_rate
-        annotations:
-          summary: 'Error rate SLO fast burn rate exceeded'
-          description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the error rate SLO). Probes are not counted.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
-
-      - alert: SLOErrorRateSlowBurn
-        expr: slo:sli_error:ratio_rate6h > 0.06 and slo:sli_error:ratio_rate30m > 0.06
-        for: 15m
-        labels:
-          severity: warning
-          slo: error_rate
-        annotations:
-          summary: 'Error rate SLO slow burn rate exceeded'
-          description: '5xx ratio > 6% over both 6h and 30m (6x the 1% budget of the error rate SLO). Probes are not counted.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: ServiceDown
         expr: up == 0
@@ -81,7 +59,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
 
       - alert: ServiceTargetsMissing
-        expr: absent(up{job="message-manager"}) or absent(up{job="discovery-server"}) or absent(up{job="dlq-service"}) or absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"})
+        expr: absent(up{job="message-manager"}) or absent(up{job="discovery-server"}) or absent(up{job="dlq-service"}) or absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"})
         for: 5m
         labels:
           severity: critical
@@ -90,24 +68,14 @@ groups:
           description: 'Prometheus has had no up series for {{ $labels.job }} for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
 
-      - alert: HighErrorRate
-        expr: sum by (job) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (job) (rate(http_requests_total[5m])) > 0.05
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'High error rate on {{ $labels.job }}'
-          description: 'Error rate is {{ $value | humanizePercentage }} for the last 5 minutes.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
-
       - alert: CertificateExpiry
-        expr: probe_ssl_earliest_cert_expiry - time() < 3600
+        expr: probe_ssl_earliest_cert_expiry - time() < 5400
         for: 5m
         labels:
-          severity: warning
+          severity: critical
         annotations:
           summary: 'SVID close to expiry on {{ $labels.service }}'
-          description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+          description: 'The served X.509-SVID expires in less than 90 minutes (TTL 4h, renewed at half-life, 2 h left): SPIRE rotation has been stalled for over 30 minutes; mTLS calls fail when it expires.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
       - alert: HttpCircuitBreakerRejecting
@@ -373,7 +341,7 @@ groups:
       # ── Application SLI Alerts ────────────────────────────────────
 
       - alert: MessageDeliveryLowSuccessRate
-        expr: (sum by (job) (rate(mm_messages_published_total[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) / ((sum by (job) (rate(mm_messages_published_total[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) + (sum by (job) (rate(mm_messages_dlq_total[5m])) or sum by (job) (rate(mm_messages_published_total[5m])) * 0)) < 0.995
+        expr: (sum by (job) (rate(mm_messages_delivered_total{status="success"}[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) / ((sum by (job) (rate(mm_messages_delivered_total{status="success"}[5m])) or sum by (job) (rate(mm_messages_dlq_total[5m])) * 0) + (sum by (job) (rate(mm_messages_dlq_total[5m])) or sum by (job) (rate(mm_messages_delivered_total{status="success"}[5m])) * 0)) < 0.995
         for: 5m
         labels:
           severity: critical
@@ -803,6 +771,32 @@ groups:
           summary: '{{ $labels.pod }} ({{ $labels.container }}) was OOMKilled'
           description: 'Container {{ $labels.container }} of {{ $labels.pod }} was killed for exceeding its memory limit and restarted in the last 15 minutes. HighMemoryUsage only sees the V8 heap of the services; this is the container.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubecontaineroomkilled'
+
+      # Compared with the wanted replicas: a workload scaled to 0 stays silent.
+      # Covers spire-server (one replica, SVIDs expire about 2 h after it
+      # stops), the databases and a lost node (ADR-0056: no Node objects).
+      - alert: KubeWorkloadUnavailable
+        expr: |
+          (max by (namespace, deployment) (kube_deployment_spec_replicas) > 0 and max by (namespace, deployment) (kube_deployment_status_replicas_available) == 0)
+          or
+          (max by (namespace, statefulset) (kube_statefulset_replicas) > 0 and max by (namespace, statefulset) (kube_statefulset_status_replicas_ready) == 0)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ $labels.deployment }}{{ $labels.statefulset }} has no ready replica'
+          description: '{{ $labels.deployment }}{{ $labels.statefulset }} wants {{ $value }} replica(s) and has had none available or ready for 5 minutes (pods Pending on a lost node, crash looping or not ready).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubeworkloadunavailable'
+
+      - alert: KubePodPending
+        expr: max by (namespace, pod) (kube_pod_status_phase{phase="Pending"}) == 1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.pod }} has been Pending for 15 minutes'
+          description: 'Pod {{ $labels.pod }} cannot be scheduled or started: lost node, PVC bound to another node, not enough CPU or memory, image pull.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubepodpending'
 
       - alert: KubePersistentVolumeFillingUp
         expr: max by (namespace, persistentvolumeclaim) (kubelet_volume_stats_used_bytes) / max by (namespace, persistentvolumeclaim) (kubelet_volume_stats_capacity_bytes) > 0.8

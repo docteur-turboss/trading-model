@@ -34,10 +34,10 @@ const SourceDeclaration = Source.omit({ requests: true })
 	})
 	.refine(
 		(source) => {
-			const gap = cronMaxGapMs(source.schedule);
 			if (!cron.validate(source.schedule)) {
 				return true; // reported with the other problems
 			}
+			const gap = cronMaxGapMs(source.schedule);
 			return source.maxAgeSeconds === undefined
 				? gap !== undefined
 				: gap === undefined || source.maxAgeSeconds * 1000 >= gap;
@@ -67,6 +67,16 @@ function _holeValue(asset: Asset, hole: string): string | undefined {
 	return hole === "isin" && identifier.scheme === "isin"
 		? identifier.isin
 		: undefined;
+}
+
+/** Fills the asset holes of a URL (URL-encoded); undefined when the asset lacks one. */
+export function fillAssetHoles(url: string, asset: Asset): string | undefined {
+	const holes = [...url.matchAll(HOLE)].map((match) => match[1] as string);
+	return holes.some((hole) => _holeValue(asset, hole) === undefined)
+		? undefined
+		: url.replace(HOLE, (_, hole: string) =>
+				encodeURIComponent(_holeValue(asset, hole) as string)
+			);
 }
 
 /** Unfolds the templates of a source into requests; every problem goes to `problems`. */

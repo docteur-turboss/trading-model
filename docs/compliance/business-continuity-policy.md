@@ -129,7 +129,7 @@ Every dump is age-encrypted before it is written; the off-site copy only sends e
 - Both drills time every step and compare the recovery with a budget (`RESTORE_DRILL_BUDGET_SECONDS`): table in the job summary, `restore-drill-timings.json` as an artifact; see the [DR Exercise Log](dr-exercise-log.md)
 - Off-site fetch tests (`backup-test.yml`, `tests/backup/fetch-offsite.test.sh`): newest complete run chosen from an S3 store, files still encrypted, refusal on an incomplete or absent run and on an empty or unreachable bucket
 - Integrity: age authenticates every encrypted file (a corrupted or truncated file fails to decrypt); no separate checksum
-- Monitoring: alerts on a failed, stale, missing or unencrypted backup and on a failed off-site copy (`observability/alerting.yml`)
+- Monitoring: alerts on a failed, stale, missing or unencrypted backup and on a failed off-site copy (`deploy/k8s/infra/config/alerting.yml`)
 
 ## 5. Dependency Order for Recovery
 
