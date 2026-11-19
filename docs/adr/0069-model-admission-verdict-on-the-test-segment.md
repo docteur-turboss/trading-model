@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (criteria), [ADR-0068](./0068-test-segment-for-published-model-metrics.md) (test segment), [ADR-0049](./0049-downstream-context-for-models-and-signals.md) §1.4 (admission), [ADR-0022](./0022-versioned-model-artifacts.md) (manifest), [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) (compatible event change)
-**Verified by:** `services/trader-trainer/tests/unit/model-artifacts/model-metrics.spec.ts`, `services/trader-trainer/tests/unit/core/trainer.spec.ts`
+**Verified by:** `services/trader-trainer/tests/unit/adapters/outbound/model-metrics.spec.ts`, `services/trader-trainer/tests/unit/application/trainer.spec.ts`
 
 ## Context
 
