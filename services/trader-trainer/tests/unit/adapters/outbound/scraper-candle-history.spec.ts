@@ -57,6 +57,7 @@ describe("ScraperCandleHistory", () => {
 			Date.parse("2026-01-01T00:00:00.000Z"),
 			Date.parse("2026-01-01T00:59:00.000Z"),
 		]);
+		expect(get.mock.calls[0][0]).toContain("/v2/candles/symbols/");
 		expect(get.mock.calls[1][0]).toContain("&after=c1");
 		expect(get.mock.calls[0][0]).toContain(`to=${new Date(AT).toISOString()}`);
 	});

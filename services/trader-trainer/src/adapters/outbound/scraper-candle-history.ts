@@ -40,7 +40,7 @@ const Page = z.object({
 
 /**
  * Reads candles through the scraper's keyset-paged route
- * `GET /candles/symbols/:symbol`: MySQL, not the bus, is the dataset (ADR-0044).
+ * `GET /v2/candles/symbols/:symbol`: MySQL, not the bus, is the dataset (ADR-0044).
  */
 export class ScraperCandleHistory implements CandleHistoryPort {
 	private readonly _http: HttpClient;
@@ -60,7 +60,7 @@ export class ScraperCandleHistory implements CandleHistoryPort {
 		const target = await this._find(
 			ServiceInstanceName.FinancialScraperService
 		);
-		const base = `https://${HostPort.toAddress(target)}/candles/symbols/${symbol}`;
+		const base = `https://${HostPort.toAddress(target)}/v2/candles/symbols/${symbol}`;
 		const window = `from=${new Date(at - size * MINUTE_MS).toISOString()}&to=${new Date(at).toISOString()}&limit=${PAGE_LIMIT}`;
 		const candles: CandleData[] = [];
 		let after = "";
