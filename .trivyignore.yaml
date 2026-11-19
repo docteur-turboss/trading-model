@@ -1,0 +1,34 @@
+# Reviewed exceptions to the release image scan (ADR-0038), read by Trivy via TRIVY_IGNOREFILE.
+# Trivy stops applying an entry after its expired_at date, so the release fails then.
+# statement = reason and owner (docteur-turboss): fixed upstream, not yet in the pinned base / binary.
+vulnerabilities:
+  - id: CVE-2026-116587
+    expired_at: 2026-12-11
+    statement: "spire-tools: spire-server 1.15.5 binary (go-jose, x/net); owner docteur-turboss"
+  - id: CVE-2026-78661
+    expired_at: 2026-12-11
+    statement: "spire-tools: spire-server 1.15.5 binary (go-jose, x/net); owner docteur-turboss"
+  - id: CVE-2026-78669
+    expired_at: 2026-12-11
+    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib); owner docteur-turboss"
+  - id: CVE-2026-56851
+    expired_at: 2026-12-11
+    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib); owner docteur-turboss"
+  - id: CVE-2026-111943
+    expired_at: 2026-12-11
+    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib); owner docteur-turboss"
+  - id: CVE-2026-78667
+    expired_at: 2026-12-11
+    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib); owner docteur-turboss"
+  - id: CVE-2026-97031
+    expired_at: 2026-12-11
+    statement: "backup-tools: kubectl binary from bitnami/kubectl (x/net, x/text, Go stdlib); owner docteur-turboss"
+  - id: CVE-2026-109518
+    expired_at: 2026-12-11
+    statement: "db-migrate: debian 13.7 base of oven/bun (apt, zlib1g); owner docteur-turboss"
+  - id: CVE-2026-76844
+    expired_at: 2026-12-11
+    statement: "db-migrate: debian 13.7 base of oven/bun (apt, zlib1g); owner docteur-turboss"
+  - id: CVE-2026-85091
+    expired_at: 2026-12-11
+    statement: "db-migrate: debian 13.7 base of oven/bun (apt, zlib1g); owner docteur-turboss"

@@ -4,10 +4,8 @@
 #   bootstrap: compose bootstrap (spire-bootstrap) + K8s entry reconciler
 #              (spire-server sidecar); released as ghcr.io/trading-model/spire-tools
 #   agent:     compose agent started with a join token
-ARG SPIRE_VERSION=1.15.5
-
-FROM ghcr.io/spiffe/spire-server:${SPIRE_VERSION} AS spire-server
-FROM ghcr.io/spiffe/spire-agent:${SPIRE_VERSION} AS spire-agent
+FROM ghcr.io/spiffe/spire-server:1.15.5@sha256:584a9c5cc95b9457f5033e7e4488d603fffe5ec48a80c4dba14b05c5e1c2c384 AS spire-server
+FROM ghcr.io/spiffe/spire-agent:1.15.5@sha256:3652c732b0f0d36f4dd78394230a1b1cd0ddcc29548a46c67a996b1a78c14481 AS spire-agent
 
 FROM alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS bootstrap
 # sqlite: consistent snapshot of the K8s server datastore by the backup job
