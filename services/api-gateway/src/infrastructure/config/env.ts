@@ -12,10 +12,6 @@ const API_GATEWAY_ENV_SHAPE = {
 	RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
 	CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),
 	AUTH_TOKEN_HEADER: z.string().default("x-api-key"),
-	AUTH_STRICT: z
-		.string()
-		.default("true")
-		.transform((value) => value !== "false"),
 	AUTH_TOKENS: z.string().default(""),
 	PROXY_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
 	/** Larger upstream answers are cut and answered 502 (ADR-0054). 8 MiB. */
@@ -60,14 +56,6 @@ const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(
 	}
 	if (data.NODE_ENV !== "production") {
 		return;
-	}
-	// Non-strict mode with no token accepts any API key: never in production.
-	if (!data.AUTH_STRICT) {
-		ctx.addIssue({
-			code: z.ZodIssueCode.custom,
-			message: "AUTH_STRICT cannot be false in production",
-			path: ["AUTH_STRICT"],
-		});
 	}
 	if (parseCommaSeparated(data.AUTH_TOKENS).length === 0) {
 		ctx.addIssue({

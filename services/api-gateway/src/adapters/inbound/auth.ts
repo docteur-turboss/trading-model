@@ -2,19 +2,13 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { catchSync } from "@trading-model/http/catch-error";
-import { logger } from "@trading-model/http/logger";
 import { sendResponse } from "@trading-model/http/response-exception";
 import { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
 import type { Request, RequestHandler } from "express";
 
 import type { Env } from "../../infrastructure/config/env";
 import { AUTH_FAILURES_TOTAL } from "../../infrastructure/config/metrics";
-import {
-	API_SCOPES,
-	type ApiKey,
-	type ApiScope,
-	parseApiKey,
-} from "../../shared/api-keys";
+import { type ApiKey, type ApiScope, parseApiKey } from "../../shared/api-keys";
 
 /** What the auth middleware sets on an authenticated request. */
 export interface AuthenticatedRequest {
@@ -63,10 +57,7 @@ export function authOf(req: Request): AuthenticatedRequest {
 }
 
 /** Settings the auth middleware reads, passed by the composition root. */
-export type AuthSettings = Pick<
-	Env,
-	"AUTH_TOKENS" | "AUTH_TOKEN_HEADER" | "AUTH_STRICT"
->;
+export type AuthSettings = Pick<Env, "AUTH_TOKENS" | "AUTH_TOKEN_HEADER">;
 
 export const createAuthMiddleware = (env: AuthSettings): RequestHandler =>
 	catchSync((req, _res, next) => {
@@ -86,34 +77,27 @@ export const createAuthMiddleware = (env: AuthSettings): RequestHandler =>
 
 		const digest = sha256(token);
 		const validKeys = getValidKeys(env.AUTH_TOKENS);
-		let key: ApiKey | undefined;
 		if (validKeys.length === 0) {
-			if (env.AUTH_STRICT) {
-				AUTH_FAILURES_TOTAL.inc();
-				return sendResponse(
-					{ error: "Server misconfiguration: no valid tokens configured" },
-					HTTP_STATUS.SERVICE_UNAVAILABLE
-				);
-			}
-			logger.warn(
-				"AUTH_TOKENS is empty — accepting any token (non-strict mode)"
+			AUTH_FAILURES_TOTAL.inc();
+			return sendResponse(
+				{ error: "Server misconfiguration: no valid tokens configured" },
+				HTTP_STATUS.SERVICE_UNAVAILABLE
 			);
-		} else {
-			key = findKey(digest, validKeys);
-			if (!key) {
-				AUTH_FAILURES_TOTAL.inc();
-				return sendResponse(
-					{ error: "Invalid authentication token" },
-					HTTP_STATUS.UNAUTHORIZED
-				);
-			}
+		}
+		const key = findKey(digest, validKeys);
+		if (!key) {
+			AUTH_FAILURES_TOTAL.inc();
+			return sendResponse(
+				{ error: "Invalid authentication token" },
+				HTTP_STATUS.UNAUTHORIZED
+			);
 		}
 
 		const auth = authOf(req);
 		auth.clientIdentity = ClientIdentity.of(
 			`client:${digest.toString("hex").slice(0, 32)}`
 		);
-		auth.apiKeyName = key?.name ?? null;
-		auth.apiKeyScopes = key?.scopes ?? API_SCOPES;
+		auth.apiKeyName = key.name;
+		auth.apiKeyScopes = key.scopes;
 		next();
 	});
