@@ -7,6 +7,7 @@ type ForwardRequestPort = (opts: {
 	req: Request;
 	target: ResolvedEndpoint;
 	path: string;
+	serviceName: string;
 }) => Promise<{
 	status: HttpStatusCode;
 	body: string;
