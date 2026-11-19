@@ -6,7 +6,8 @@ name: Backup Key Check
 # private key lives in the secret BACKUP_ESCROW_AGE_IDENTITY of the GitHub
 # environment `backup-key-check`, next to read-only credentials of the
 # off-site bucket. Expected protection (scripts/check-environment-protection.mjs,
-# RULES): deployment branches limited to `main` and a required reviewer. Job
+# RULES): deployment branches limited to `main` only, no required reviewer
+# (it would hold the scheduled run every week, ADR-0034). Job
 # `check-environment` verifies it before `verify-escrow-key` can start: GitHub
 # does not enforce anything by itself while the settings are missing, so this
 # job refuses to release the key until they are made (DEPLOY.md). A failure
@@ -36,8 +37,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # No `environment:` here, on purpose: it would wait for the reviewer or create
-  # the environment unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
+  # No `environment:` here, on purpose: it would create the environment
+  # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
   # (fine-grained PAT, "Administration: read"); without it the check fails.
   check-environment:
     runs-on: ubuntu-latest
