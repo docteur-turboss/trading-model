@@ -484,7 +484,6 @@ services:
       RATE_LIMIT_MAX: '100'
       CACHE_TTL_MS: '30000'
       AUTH_TOKEN_HEADER: x-api-key
-      AUTH_STRICT: 'true'
       # Required: in production the gateway refuses to start without API keys.
       AUTH_TOKENS: ${GATEWAY_AUTH_TOKENS:-}
       PROXY_TIMEOUT_MS: '10000'
