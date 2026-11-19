@@ -93,6 +93,29 @@ export function buildFeatures(ctx: {
 	return features;
 }
 
+/** Fresh statistics of the five candle fields. */
+export function createCandleNorms(): CandleNormalizers {
+	return {
+		close: new NormalizationStats(),
+		volume: new NormalizationStats(),
+		open: new NormalizationStats(),
+		high: new NormalizationStats(),
+		low: new NormalizationStats(),
+	};
+}
+
+/** Adds one candle to the statistics of its fields. */
+export function updateCandleNorms(
+	norm: CandleNormalizers,
+	candle: CandleData
+): void {
+	norm.close.update(candle.close);
+	norm.volume.update(candle.volume);
+	norm.open.update(candle.open);
+	norm.high.update(candle.high);
+	norm.low.update(candle.low);
+}
+
 /**
  * One step per candle after the first, each normalised with the statistics of
  * the candles known at its close, oldest first (ADR-0030): statistics of the
@@ -100,23 +123,11 @@ export function buildFeatures(ctx: {
  * trainer and a replay build the same steps (ADR-0078, ADR-0079).
  */
 export function candleSteps(candles: CandleData[]): CandleStep[] {
-	const norm = {
-		candle: {
-			close: new NormalizationStats(),
-			volume: new NormalizationStats(),
-			open: new NormalizationStats(),
-			high: new NormalizationStats(),
-			low: new NormalizationStats(),
-		},
-	};
+	const norm = { candle: createCandleNorms() };
 	const state = { candles, norm };
 	const steps: CandleStep[] = [];
 	candles.forEach((candle, idx) => {
-		norm.candle.close.update(candle.close);
-		norm.candle.volume.update(candle.volume);
-		norm.candle.open.update(candle.open);
-		norm.candle.high.update(candle.high);
-		norm.candle.low.update(candle.low);
+		updateCandleNorms(norm.candle, candle);
 		if (idx > 0) {
 			steps.push({
 				price: candle.close,

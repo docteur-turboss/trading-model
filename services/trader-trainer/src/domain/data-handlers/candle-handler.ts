@@ -1,5 +1,8 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
-import { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
+import {
+	createCandleNorms,
+	updateCandleNorms,
+} from "@trading-model/model-runtime/features/feature-builder";
 import type { DataHandler } from "./data-handler";
 import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
 import { DataType } from "./data-types";
@@ -10,22 +13,10 @@ export const candleHandler: DataHandler<CandleData> = {
 		return { candles: [] };
 	},
 	createNorms() {
-		return {
-			candle: {
-				close: new NormalizationStats(),
-				volume: new NormalizationStats(),
-				open: new NormalizationStats(),
-				high: new NormalizationStats(),
-				low: new NormalizationStats(),
-			},
-		};
+		return { candle: createCandleNorms() };
 	},
 	updateNorms(state, candle) {
-		state.norm.candle.close.update(candle.close);
-		state.norm.candle.volume.update(candle.volume);
-		state.norm.candle.open.update(candle.open);
-		state.norm.candle.high.update(candle.high);
-		state.norm.candle.low.update(candle.low);
+		updateCandleNorms(state.norm.candle, candle);
 	},
 	isNew(state, candle) {
 		return isAfterLast(state.candles, candle, "timestamp");
