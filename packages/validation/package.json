@@ -1,6 +1,6 @@
 {
   "name": "@trading-model/validation",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Validation schemas and shared type contracts extracted from @trading-model/common",
   "license": "ISC",
   "type": "commonjs",
