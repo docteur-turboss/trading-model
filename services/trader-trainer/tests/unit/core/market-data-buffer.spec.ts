@@ -262,6 +262,59 @@ describe("MarketDataBuffer", () => {
 	});
 
 	describe("buildMarketSteps", () => {
+		describe("gaps and inconsistent candles", () => {
+			const BTC = TradingSymbol.of("BTCUSDT");
+			const bar = (at: number, barMs: number, overrides = {}) =>
+				makeCandle({
+					symbol: BTC,
+					timestamp: UnixTimestamp.of(at * barMs),
+					closeTimestamp: UnixTimestamp.of((at + 1) * barMs - 1),
+					...overrides,
+				});
+			const feed = (barMs: number, positions: number[]) => {
+				for (const at of positions) {
+					buffer.addData(DataType.Candle, BTC, bar(at, barMs));
+				}
+				return buffer.buildMarketSteps(BTC).map((step) => step.timestamp);
+			};
+			const range = (from: number, to: number) =>
+				Array.from({ length: to - from }, (_, i) => from + i);
+
+			it("should not link the two sides of a 1-minute gap", () => {
+				const timestamps = feed(60_000, [...range(0, 20), ...range(120, 140)]);
+
+				expect(timestamps).toEqual(range(121, 140).map((m) => m * 60_000));
+			});
+
+			it("should keep a weekend inside a daily series", () => {
+				const timestamps = feed(86_400_000, [0, 1, 2, 5, 6]);
+
+				expect(timestamps).toHaveLength(4);
+			});
+
+			it("should cut a daily series after a 5-day gap", () => {
+				const timestamps = feed(86_400_000, [0, 1, 2, 7, 8]);
+
+				expect(timestamps).toEqual([8 * 86_400_000]);
+			});
+
+			it("should refuse a candle whose low and high do not bound open and close", () => {
+				buffer.addData(DataType.Candle, BTC, bar(0, 60_000));
+				buffer.addData(
+					DataType.Candle,
+					BTC,
+					bar(1, 60_000, { low: Price.of(101) })
+				);
+				buffer.addData(
+					DataType.Candle,
+					BTC,
+					bar(2, 60_000, { high: Price.of(101) })
+				);
+
+				expect(buffer.getCandleCount(BTC)).toBe(1);
+			});
+		});
+
 		it("should return empty array with fewer than 2 candles", () => {
 			feedCandles(buffer, "BTCUSDT", 1);
 
@@ -410,9 +463,10 @@ describe("MarketDataBuffer", () => {
 				TradingSymbol.of("BTCUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("BTCUSDT"),
+					open: Price.of(60),
 					high: Price.of(60),
 					low: Price.of(60),
-					close: Price.of(0),
+					close: Price.of(60),
 					timestamp: UnixTimestamp.of(2),
 					closeTimestamp: UnixTimestamp.of(30_000),
 				})

@@ -12,13 +12,13 @@ import {
 } from "../../../config/metrics";
 import { hasEnoughTrainingData } from "../../../domain/market-data/window-splitter";
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
-import { DAY_MS, type TradingSymbol } from "../../../domain/market-data-types";
+import {
+	DAILY_MAX_DATA_AGE_MS,
+	type TradingSymbol,
+} from "../../../domain/market-data-types";
 import type { CandleHistoryPort } from "../../../domain/ports/candle-history.port";
 import type { SignalHistoryPort } from "../../../domain/ports/signal-history.port";
 import { signalKey } from "../../../domain/signal-features";
-
-/** A daily bar is fresh over a weekend plus a Monday holiday: Friday's close is still current on Tuesday. */
-const DAILY_MAX_DATA_AGE_MS = 4 * DAY_MS;
 
 interface TrainingLoopConfig {
 	symbols: TradingSymbol[];
