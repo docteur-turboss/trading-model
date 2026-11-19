@@ -40,29 +40,18 @@ describe("signal registry — the shipped file", () => {
 			"market",
 			"social",
 		]);
-		expect([...SIGNAL_REGISTRY.assets.keys()]).toEqual([
-			"BTC",
-			"ETH",
-			"AAPL",
-			"MSFT",
-			"JPM",
-			"XOM",
-			"JNJ",
-			"WHEAT",
-			"GLD",
-			"BORDEAUX_RE",
-			"NANTES_RE",
-			"LILLE_RE",
-			"MONTPELLIER_RE",
-			"XLE",
-			"EA_AAA_10Y",
-			"EA_AAA_2Y",
-			"EA_AAA_30Y",
-			"US_TREASURY_2Y",
-			"US_TREASURY_10Y",
-			"US_TREASURY_30Y",
-			"PARIS_RE",
-		]);
+	});
+
+	it("keeps its assets unique and every asset-bound request on a known asset", () => {
+		expect(REGISTRY_FILE.assets.length).toBeGreaterThan(0);
+		expect(SIGNAL_REGISTRY.assets.size).toBe(REGISTRY_FILE.assets.length);
+		for (const source of SIGNAL_REGISTRY.sources) {
+			for (const { subject } of source.requests) {
+				if ("assetId" in subject) {
+					expect(SIGNAL_REGISTRY.assets.has(subject.assetId)).toBe(true);
+				}
+			}
+		}
 	});
 
 	it("gives the weather to the whole agriculture sector, not to one asset", () => {
@@ -469,6 +458,7 @@ describe("parseSignalRegistry", () => {
 			(file: any) => {
 				file.schemaVersion = 2;
 			},
+			/"schemaVersion"/,
 		],
 		[
 			"a URL in clear",
@@ -476,6 +466,7 @@ describe("parseSignalRegistry", () => {
 				sourceOf(file, "nws-kansas-wheat-belt").requests[0].url =
 					"http://api.weather.gov/stations/KHUT/observations/latest";
 			},
+			/Invalid URL/,
 		],
 		[
 			"a dimension outside the schema (real estate is an asset type)",
@@ -483,12 +474,14 @@ describe("parseSignalRegistry", () => {
 				sourceOf(file, "ecb-aaa-yield-10y").requests[0].dimension =
 					"real_estate";
 			},
+			/"dimension"/,
 		],
 		[
 			"an asset type outside the schema (commodities go through a proxy)",
 			(file: any) => {
 				assetOf(file, "WHEAT").assetType = "commodity";
 			},
+			/"assetType"/,
 		],
 		[
 			"an identifier scheme the asset type does not use",
@@ -498,30 +491,35 @@ describe("parseSignalRegistry", () => {
 					code: "75056",
 				};
 			},
+			/identifier scheme unused/,
 		],
 		[
 			"a dimension listed twice for an asset",
 			(file: any) => {
 				assetOf(file, "BTC").applicableDimensions.push("market");
 			},
+			/dimension listed twice/,
 		],
 		[
 			"a request without dimension",
 			(file: any) => {
 				delete sourceOf(file, "ecb-aaa-yield-10y").requests[0].dimension;
 			},
+			/"dimension"/,
 		],
 		[
 			"a source that covers nothing",
 			(file: any) => {
 				sourceOf(file, "wikipedia-pageviews").covers = [];
 			},
+			/"covers"/,
 		],
 		[
 			"a reliability above 1",
 			(file: any) => {
 				sourceOf(file, "wikipedia-pageviews").reliabilityScore = 1.5;
 			},
+			/reliabilityScore/,
 		],
 		[
 			"a subject naming both an asset and a sector",
@@ -531,6 +529,7 @@ describe("parseSignalRegistry", () => {
 					sector: "crypto",
 				};
 			},
+			/invalid_union/,
 		],
 		[
 			"non-commercial terms without the clause read or the licence status",
@@ -538,6 +537,7 @@ describe("parseSignalRegistry", () => {
 				sourceOf(file, "nws-kansas-wheat-belt").accessPolicy.terms =
 					"non-commercial";
 			},
+			/need the clause read/,
 		],
 		[
 			"non-commercial terms with an available licence but no URL",
@@ -548,6 +548,7 @@ describe("parseSignalRegistry", () => {
 					commercialLicence: "available",
 				});
 			},
+			/needs its URL/,
 		],
 		[
 			"a commercial licence on free-for-any-use terms",
@@ -555,18 +556,21 @@ describe("parseSignalRegistry", () => {
 				sourceOf(file, "nws-kansas-wheat-belt").accessPolicy.commercialLicence =
 					"unknown";
 			},
+			/only applies to non-commercial/,
 		],
 		[
 			"terms outside the three classes",
 			(file: any) => {
 				sourceOf(file, "nws-kansas-wheat-belt").accessPolicy.terms = "paid";
 			},
+			/"terms"/,
 		],
 		[
 			"attribution terms without the credit to give",
 			(file: any) => {
 				delete sourceOf(file, "ecb-aaa-yield-10y").accessPolicy.attribution;
 			},
+			/need the credit to give/,
 		],
 		[
 			"a key variable outside SIGNAL_KEY_",
@@ -576,6 +580,7 @@ describe("parseSignalRegistry", () => {
 					env: "PATH",
 				};
 			},
+			/must match pattern/,
 		],
 		[
 			"a key variable shared by two sources",
@@ -583,12 +588,14 @@ describe("parseSignalRegistry", () => {
 				sourceOf(file, "ecb-aaa-yield-10y").accessPolicy.auth = KEY_AUTH;
 				sourceOf(file, "wikipedia-pageviews").accessPolicy.auth = KEY_AUTH;
 			},
+			/used by two sources/,
 		],
 		[
 			"a source that needs a key",
 			(file: any) => {
 				sourceOf(file, "ecb-aaa-yield-10y").accessPolicy.auth = "api_key";
 			},
+			/"auth"/,
 		],
 		[
 			"no request rate",
@@ -596,18 +603,20 @@ describe("parseSignalRegistry", () => {
 				sourceOf(file, "ecb-aaa-yield-10y").accessPolicy.maxRequestsPerMinute =
 					0;
 			},
+			/maxRequestsPerMinute/,
 		],
 		[
 			"a source without terms of use",
 			(file: any) => {
 				delete sourceOf(file, "wikipedia-pageviews").accessPolicy;
 			},
+			/"accessPolicy"/,
 		],
-	])("refuses %s (schema)", (_label, breakIt) => {
+	])("refuses %s (schema)", (_label, breakIt, expected) => {
 		const file = registry();
 		breakIt(file);
 
-		expect(() => parseSignalRegistry(file)).toThrow();
+		expect(() => parseSignalRegistry(file)).toThrow(expected);
 	});
 });
 

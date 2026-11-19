@@ -95,7 +95,7 @@ describe("Model training flow E2E", () => {
 			`${PUBLISHED} in audit-logger`,
 			() => {
 				const { status, body } = meshRequest(
-					CALLER.scraper,
+					CALLER.gateway,
 					`${AUDIT}/events?topic=${PUBLISHED}&limit=100`
 				);
 				if (status !== 200) {

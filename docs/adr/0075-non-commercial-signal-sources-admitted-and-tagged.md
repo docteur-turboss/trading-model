@@ -22,4 +22,4 @@ The gauge `fs_signal_sources{terms,commercial_licence}` counts the registry sour
 ## Consequences
 
 - Rank 2 sources can enter the registry (one PR each); nothing is added here.
-- No per-deployment filtering yet: running commercially with a `non-commercial` source is the operator's call, informed by the gauge and the log.
+- In production, financial-scraper refuses to start while an active `non-commercial` source (its key set) is missing from `SIGNAL_NON_COMMERCIAL_ACCEPTED`; elsewhere the gauge and the `warn` log remain the only signal.

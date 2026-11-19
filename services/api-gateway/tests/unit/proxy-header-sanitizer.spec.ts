@@ -1,11 +1,6 @@
-import { describe, expect, it, jest } from "@jest/globals";
-import { ENV } from "../../src/infrastructure/config/env";
+import { describe, expect, it } from "@jest/globals";
 import { safeHeaders } from "../../src/shared/proxy-header-sanitizer";
 import { createReq } from "../helpers/express";
-
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: { AUTH_TOKEN_HEADER: "x-api-key" },
-}));
 
 describe("safeHeaders", () => {
 	it("forwards only the anonymized caller address", () => {
@@ -16,7 +11,8 @@ describe("safeHeaders", () => {
 					"x-real-ip": "198.51.100.23",
 					"x-forwarded-for": "198.51.100.23, 203.0.113.57",
 				},
-			})
+			}),
+			"x-api-key"
 		);
 
 		expect(headers["x-real-ip"]).toBeUndefined();
@@ -33,7 +29,8 @@ describe("safeHeaders", () => {
 					connection: "keep-alive",
 					accept: "application/json",
 				},
-			})
+			}),
+			"x-api-key"
 		);
 
 		expect(Object.keys(headers)).toEqual(
@@ -47,7 +44,8 @@ describe("safeHeaders", () => {
 			createReq({
 				apiKeyName: "ops-alice",
 				headers: { "x-actor": "someone-else", "x-api-key": "the-secret" },
-			})
+			}),
+			"x-api-key"
 		);
 
 		expect(headers["x-actor"]).toBe("ops-alice");
@@ -56,24 +54,20 @@ describe("safeHeaders", () => {
 
 	it("drops a client x-actor when the request has no key name", () => {
 		const headers = safeHeaders(
-			createReq({ apiKeyName: null, headers: { "x-actor": "forged" } })
+			createReq({ apiKeyName: null, headers: { "x-actor": "forged" } }),
+			"x-api-key"
 		);
 
 		expect(headers["x-actor"]).toBeUndefined();
 	});
 
 	it("drops the configured AUTH_TOKEN_HEADER, whatever its name", () => {
-		const original = ENV.AUTH_TOKEN_HEADER;
-		ENV.AUTH_TOKEN_HEADER = "X-Gateway-Key";
-		try {
-			const headers = safeHeaders(
-				createReq({ headers: { "x-gateway-key": "secret", accept: "a" } })
-			);
+		const headers = safeHeaders(
+			createReq({ headers: { "x-gateway-key": "secret", accept: "a" } }),
+			"X-Gateway-Key"
+		);
 
-			expect(headers["x-gateway-key"]).toBeUndefined();
-			expect(headers.accept).toBe("a");
-		} finally {
-			ENV.AUTH_TOKEN_HEADER = original;
-		}
+		expect(headers["x-gateway-key"]).toBeUndefined();
+		expect(headers.accept).toBe("a");
 	});
 });
