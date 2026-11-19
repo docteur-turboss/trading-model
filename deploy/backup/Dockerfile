@@ -14,8 +14,10 @@
 # minimal) nor alpine (MariaDB's client cannot read MySQL 8.4 binlogs). It
 # comes from the official MySQL repository, at the version of the server
 # (deploy/k8s/infra/mysql.yaml), checked with the key the mysql image ships.
-# age and rclone come from Oracle's EPEL mirror. `microdnf upgrade` pulls the
-# distribution fixes the pinned base lacks (release scan, ADR-0038).
+# age and rclone come from Oracle's EPEL mirror.
+# `microdnf upgrade` pulls the OS security fixes published after the base
+# digest: the release Trivy gate refuses fixed HIGH CVEs (v3.1.0-rc.3 failed on
+# curl and util-linux).
 FROM bitnami/kubectl@sha256:8919c149c2e3d6860e0143c117900e64d71395172aaef0e01e604bb98c8e7ce0 AS kubectl
 
 FROM mysql@sha256:3819b2b23835c4a73c8b022fafc33c8095c0f81c929a8b7a84613d2fba6c52f5 AS mysql
