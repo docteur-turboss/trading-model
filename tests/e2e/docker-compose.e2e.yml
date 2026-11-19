@@ -50,12 +50,12 @@ services:
   # Same key on both sides of the dead-letter path (dead-letter-flow suite).
   message-manager:
     environment:
-      DLQ_AUTH_HMAC_SECRET: test-hmac-secret
+      DLQ_AUTH_HMAC_SECRET: test-hmac-secret-for-e2e-0123456789
 
   # The DLQ suites sign their requests as e2e-test-runner.
   dlq-service:
     environment:
-      DLQ_AUTH_HMAC_SECRET: test-hmac-secret
+      DLQ_AUTH_HMAC_SECRET: test-hmac-secret-for-e2e-0123456789
       DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
       # The suites replay dead letters by hand (dead-letter-flow, dlq): an
       # automatic replay could claim the entry first and race their assertions.

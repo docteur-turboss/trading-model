@@ -319,7 +319,7 @@ services:
       SERVICE_NAME: message-manager
       INSTANCE_ID: message-manager-1
       # Signs the dead letters sent to dlq-service: same key as dlq-service.
-      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
+      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:?DLQ_AUTH_HMAC_SECRET must be set (min 32 chars, shared by message-manager and dlq-service)}
     # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
     # publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries finish: see
     # application/index.ts. Undelivered messages stay in the Redis journal.
@@ -603,7 +603,7 @@ services:
       MONGO_DB: dlq
       MONGO_COLLECTION: dlq_entries
       MAX_ENTRIES: '100000'
-      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
+      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:?DLQ_AUTH_HMAC_SECRET must be set (min 32 chars, shared by message-manager and dlq-service)}
       DLQ_ALLOWED_SERVICES: ${DLQ_ALLOWED_SERVICES:-message-manager,admin}
     volumes:
       - svid-dlq:/run/spire/svid
