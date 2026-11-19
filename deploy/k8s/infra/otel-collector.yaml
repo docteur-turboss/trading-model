@@ -155,11 +155,17 @@ data:
       extensions: [health_check]
       # The collector's own metrics (otelcol_*) on :8888, scraped by the
       # `otel-collector` job. No metrics pipeline: the services only export
-      # traces (telemetry.ts has no metric reader).
+      # traces (telemetry.ts has no metric reader). A pull reader, not
+      # `address`: the collector no longer accepts that key.
       telemetry:
         metrics:
           level: basic
-          address: 0.0.0.0:8888
+          readers:
+            - pull:
+                exporter:
+                  prometheus:
+                    host: 0.0.0.0
+                    port: 8888
       pipelines:
         traces:
           receivers: [otlp]
