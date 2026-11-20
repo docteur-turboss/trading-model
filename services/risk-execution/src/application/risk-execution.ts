@@ -142,29 +142,35 @@ export class RiskExecution {
 			const now = this._now();
 			this._rollDay(now);
 			const clientOrderId = `rx-${intent.decisionId}`;
-			const admissible = await this._d.admission
-				.isAdmissible(intent.model.symbol, intent.model.version)
-				.catch((error) => {
-					this._emit("admission.error", { error: String(error) });
-					return false;
-				});
-			const halted = await this._d.broker.haltedSymbols().catch((error) => {
-				this._emit("broker.error", { error: String(error) });
-				return [intent.symbol]; // status unknown: fail closed
-			});
+			// First: an existing idempotency key is never rewritten (ADR-0064 §3).
+			if (this._state.orders[clientOrderId]) {
+				return {
+					status: "rejected",
+					reason: "duplicate_client_order_id",
+					clientOrderId,
+				};
+			}
+			const [admissible, halted] = await Promise.all([
+				this._d.admission
+					.isAdmissible(intent.model.symbol, intent.model.version)
+					.catch((error) => {
+						this._emit("admission.error", { error: String(error) });
+						return false;
+					}),
+				this._d.broker.haltedSymbols().catch((error) => {
+					this._emit("broker.error", { error: String(error) });
+					return [intent.symbol]; // status unknown: fail closed
+				}),
+			]);
 			const reason = preTradeReject({
 				intent,
-				clientOrderId,
 				limits: this._d.limits,
 				state: this._state,
 				now,
 				admissible,
 				reconciled: this._ready,
-				halted: new Set(halted),
+				halted,
 			});
-			if (reason === "duplicate_client_order_id") {
-				return { status: "rejected", reason, clientOrderId };
-			}
 			const order: Order = {
 				clientOrderId,
 				decisionId: intent.decisionId,
@@ -542,7 +548,6 @@ export class RiskExecution {
 
 	private async _reconcile(): Promise<void> {
 		const state = this._state;
-		this._lastReconcile = this._now();
 		let acct: BrokerAccount;
 		try {
 			acct = await this._d.broker.account();
@@ -553,6 +558,7 @@ export class RiskExecution {
 			this._emit("reconciliation.error", { error: String(error) });
 			return;
 		}
+		this._lastReconcile = this._now();
 		const diffs: string[] = [];
 		for (const sym of new Set([
 			...Object.keys(state.positions),

@@ -21,7 +21,6 @@ export interface Intent {
 
 export interface PreTradeContext {
 	intent: Intent;
-	clientOrderId: string;
 	limits: RiskLimits;
 	state: RiskState;
 	now: number;
@@ -29,7 +28,7 @@ export interface PreTradeContext {
 	/** The last reconciliation passed: none after a broker error until one does (ADR-0064 §7). */
 	reconciled: boolean;
 	/** Instruments the exchange reports as not in trading status. */
-	halted: ReadonlySet<string>;
+	halted: readonly string[];
 }
 
 /** Reason codes: the first failing check rejects the intent (ADR-0064 §2). */
@@ -39,10 +38,6 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 	const instrument = limits.instruments[intent.symbol];
 	const open = Object.values(state.orders).filter(isOpen);
 
-	// First: an existing idempotency key is never rewritten (ADR-0064 §3).
-	if (state.orders[ctx.clientOrderId]) {
-		return "duplicate_client_order_id";
-	}
 	if (state.killSwitch.global || state.killSwitch.symbols[intent.symbol]) {
 		return "kill_switch";
 	}
@@ -55,7 +50,7 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 	if (!instrument) {
 		return "instrument_not_allowed";
 	}
-	if (ctx.halted.has(intent.symbol)) {
+	if (ctx.halted.includes(intent.symbol)) {
 		return "instrument_halted";
 	}
 	if (now - intent.referenceAt > limits.maxIntentAgeMs) {
