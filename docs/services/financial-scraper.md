@@ -73,8 +73,7 @@ Tickers carry `open`, `high`, `low`, `last`, `volume`, `timestamp` and
 `volume`, `trades` (absent when unknown), `timestamp` and `closeTimestamp`.
 
 Order books have no route (ADR-0053): the collector writes each snapshot to
-`market_order_books` for historical replay and publishes it on the bus, where
-the trainer reads it. No process keeps them in memory.
+`market_order_books` for historical replay; nothing reads them yet. No process keeps them in memory.
 
 ### Breaking changes in 3.0.0 (gateway API v2)
 
@@ -106,14 +105,14 @@ Four tables store market data:
 | `market_tickers`   | 24-hour ticker statistics |
 | `market_order_books` | Order book depth snapshots (migration 008, ADR-0053): `bids` / `asks` as JSON `[price, quantity]` pairs, best first; no API route reads them |
 
-`market_publish_cursors` holds the candle publish backlog (see below) and
+`market_publish_cursors` is unused (dropped in release N+1, ADR-0040) and
 `signals` (migration 006) the signals of every dimension ([Signals](#signals-adr-0036)).
 
 See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript interfaces.
 
 ## Background Jobs (Scheduled Tasks)
 
-A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`MarketDataSourcePort`, Binance today: `BinanceMarketDataSource`, ADR-0026) for a snapshot of each symbol, persists it, then publishes it. A snapshot holds 6 data types:
+A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`MarketDataSourcePort`, Binance today: `BinanceMarketDataSource`, ADR-0026) for a snapshot of each symbol, persists it. Nothing is published on the bus (ADR-0078). A snapshot holds 6 data types:
 
 1. **Candlesticks** (OHLCV candles)
 2. **Recent Trades** (recent trades)
@@ -123,11 +122,9 @@ A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`Mar
 6. **Price Ticker** (current price)
 
 - `node-cron` runs the cycle with concurrency control via `p-limit`
-- The Binance source fetches all 6 data types in parallel and normalizes them; `BrokerMarketDataPublisher` publishes them to the message bus
+- The Binance source fetches all 6 data types in parallel and normalizes them
 - Failures stay where they happen: a symbol that fails does not stop the others (`fs_symbols_failed_total{symbol}` and `fs_symbols_scraped_total{symbol}`, born at 0 for every tracked symbol), and an endpoint that fails only leaves its data type out of the snapshot (`fs_snapshot_parts_failed_total{part}`): an order book error does not cost the candles. A payload that cannot be normalized (a value outside its domain type) only loses its data type too, counted on the same metric. The symbol fails only when all 6 endpoints fail. So a symbol can count as scraped with no candle: alert `SymbolMarketDataStale` reads `fs_candles_persisted_total{symbol}` (born at 0 for every tracked symbol) and names a symbol with no candle persisted for 15 min, whatever the cause, even when the cycle counts `success`
-- MySQL does not wait for the bus: the cycle persists, then starts the publish without awaiting it (a hung message-manager may hold a publish for `PUBLISH_ACCEPT_TIMEOUT_MS`, 15 s: it answers 202 once the message is journaled, whatever the subscribers do, ADR-0048). While a symbol's publish is in flight, the next cycles persist only (`fs_publishes_skipped_total`; their trades, tickers and order book are not published, they are snapshots)
-- The candles to publish are read back from MySQL: each series has a publish cursor (`market_publish_cursors`, migration 005, open time of the next candle to publish) that moves only once a publish of its candles succeeded. Each cycle sends the next 100 persisted candles from the cursor, so a bus outage or a collector restart loses none (`fs_unpublished_candles{symbol}` counts those waiting, alert `MarketDataUnpublished`). A series without a cursor starts at the first candle the process persists, not at the history. If the backlog cannot be read (MySQL down) the other data types still go out. On shutdown the scraper stops the cron and waits for the running cycle and the publishes in flight (collector grace period 360 s)
-- Candles are fetched from a per-symbol cursor (`startTime` = close of the last persisted candle + 1 ms), so each cycle publishes only the candles closed since the previous one and catches up after an outage. The still-open candle is never published. The cursor lives in memory: the first cycle of a process starts it at the open time of the newest candle of the series in MySQL (read once; MySQL down: latest window, read again next cycle), so a stop of any length is caught up 100 candles per cycle; the candle read again is absorbed by the upserts and the trainer
+- Candles are fetched from a per-symbol cursor (`startTime` = close of the last persisted candle + 1 ms), so each cycle persists only the candles closed since the previous one and catches up after an outage. The cursor lives in memory: the first cycle of a process starts it at the open time of the newest candle of the series in MySQL (read once; MySQL down: latest window, read again next cycle), so a stop of any length is caught up 100 candles per cycle; the candle read again is absorbed by the upserts and the trainer
 
 ### Rate Limiting
 
@@ -304,18 +301,15 @@ dimensions and metrics: nothing changes here (ADR-0036, decision 14).
 HTTP Server
   ├── Financial routes (/trade/*, /ticker/*, /candles/*, /signals/assets/*)
   ├── AddressManager routes (ping)
-  └── MessageManager routes (callback)
 
 Background
   ├── WorkerOrchestrator (per symbol)
   │     ├── MarketDataSourcePort → Binance public API (token bucket)
-  │     ├── MarketDataPublisherPort → message bus
   │     └── MySQL write
   └── SignalCronScheduler (per registry source)
         └── SignalCollector: rest_api worker → source adapter → schema check → MySQL signals
 
 Dependencies
   ├── MySQL (persistence)
-  ├── discovery-server (registration)
-  └── message-manager (event publication)
+  └── discovery-server (registration)
 ```

@@ -45,7 +45,7 @@ export function banOf(
 }
 
 /** Pod clock may run ahead of Binance's: a still-open candle must not pass for closed (the cursor never goes back). */
-export const CLOSE_MARGIN_MS = 2000;
+const CLOSE_MARGIN_MS = 2000;
 
 type RawKey = keyof RawBinanceData;
 
@@ -206,8 +206,8 @@ export function buildResponse(
 			normalizePart(query, "recentTrades", () =>
 				BinanceNormalizer.trades(query, tradesRaw)
 			),
-		// Binance returns the still-open candle last: publishing it would send a
-		// partial candle that the next cycle sends again with other values.
+		// Binance returns the still-open candle last: persisting it would store a
+		// partial candle that the next cycle overwrites with other values.
 		candles:
 			candlesRaw &&
 			normalizePart(query, "candles", () =>

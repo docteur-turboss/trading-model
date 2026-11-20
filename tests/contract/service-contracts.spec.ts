@@ -1,8 +1,6 @@
 ﻿import { beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
-import { CandleInterval } from "@trading-model/contracts/market-data.types";
-import { MarketEvent } from "@trading-model/contracts/market-events";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import {
@@ -16,7 +14,7 @@ import { createAuditSubscriber } from "./support/subscribers";
 /**
  * Cross-service message contracts, checked on the real code of both ends.
  *
- * Producers run their actual publishing code (financial-scraper scrape cycle,
+ * Producers run their actual publishing code (dlq-service audit notifier,
  * trader-trainer model publisher) through the real broker client; the request
  * goes through message-manager's real validation, message factory and
  * delivery; the delivered body reaches the subscribers' real inbound adapters
@@ -32,33 +30,9 @@ import { createAuditSubscriber } from "./support/subscribers";
  * what the code publishes and subscribes to.
  */
 
-const mockScraperBroker = createRecordingBrokerClient("financial-scraper");
 const mockTrainerBroker = createRecordingBrokerClient("trader-trainer");
 const mockDlqBroker = createRecordingBrokerClient("dlq-service");
 
-jest.mock(
-	"../../services/financial-scraper/src/infrastructure/config/env",
-	() => ({
-		ENV: {
-			SERVICE_NAME: "financial-scraper",
-			INSTANCE_ID: "financial-scraper-1",
-		},
-	})
-);
-jest.mock(
-	"../../services/financial-scraper/src/config/message-manager",
-	() => ({
-		MessageManager: {
-			post: {
-				indirect: (payload: unknown, metadata: never) =>
-					mockScraperBroker.client.publish(payload, metadata),
-			},
-		},
-	})
-);
-jest.mock("../../services/financial-scraper/src/config/metrics", () => ({
-	EVENTS_PUBLISHED_TOTAL: { inc: () => undefined },
-}));
 jest.mock("../../services/message-manager/src/config/metrics", () => ({
 	MESSAGES_DLQ_TOTAL: { inc: () => undefined },
 }));
@@ -94,20 +68,6 @@ import {
 	notifyDeleteAudit,
 	notifyReplayAudit,
 } from "../../services/dlq-service/src/adapters/outbound/audit-notifier";
-import { buildResponse } from "../../services/financial-scraper/src/adapters/outbound/binance/binance-data-fetcher";
-import {
-	buildMarketDataEntries,
-	sendAllMarketData,
-} from "../../services/financial-scraper/src/adapters/outbound/broker/market-data-sender";
-import { createMarketDataMetadata } from "../../services/financial-scraper/src/adapters/outbound/broker/metadata-builder";
-import {
-	mock24hrTickerResponse,
-	mockBookTickerResponse,
-	mockCandlestickResponse,
-	mockDepthResponse,
-	mockPriceTickerResponse,
-	mockTradeResponse,
-} from "../../services/financial-scraper/tests/fixtures/binance.fixture";
 import { ModelPublisher } from "../../services/trader-trainer/src/adapters/outbound/model-publisher";
 
 /**
@@ -124,7 +84,6 @@ const UNPUBLISHED_TOPICS: Record<string, string> = {
 };
 
 const ALL_TOPICS: string[] = [
-	...Object.values(MarketEvent),
 	...Object.values(AuditEvent),
 	...Object.values(TrainingEvent),
 	...Object.values(DlqEvent),
@@ -149,25 +108,6 @@ function publicationsOf(
 		topic: topicOf(request),
 		request,
 	}));
-}
-
-async function publishScrapeCycle(): Promise<Publication[]> {
-	const response = buildResponse(
-		{ symbol: toSymbol("BTCUSDT"), interval: CandleInterval.Min1 },
-		{
-			orderBookRaw: mockDepthResponse,
-			tradesRaw: mockTradeResponse,
-			candlesRaw: mockCandlestickResponse,
-			ticker24hRaw: mock24hrTickerResponse,
-			priceTickerRaw: mockPriceTickerResponse,
-			bookTickerRaw: mockBookTickerResponse,
-		}
-	);
-	await sendAllMarketData(
-		buildMarketDataEntries(response),
-		createMarketDataMetadata()
-	);
-	return publicationsOf("financial-scraper", mockScraperBroker.requests);
 }
 
 async function publishDlqEvents(): Promise<Publication[]> {
@@ -238,7 +178,6 @@ describe("service message contracts", () => {
 
 	beforeAll(async () => {
 		publications = [
-			...(await publishScrapeCycle()),
 			...(await publishTrainedModel()),
 			...(await publishDlqEvents()),
 		];
@@ -273,8 +212,6 @@ describe("service message contracts", () => {
 		it("every published topic has at least one subscriber", () => {
 			const unconsumed = publications
 				.map((p) => p.topic)
-				// Market data: no subscriber since ADR-0078 (the trainer reads stored candles).
-				.filter((topic) => !Object.values<string>(MarketEvent).includes(topic))
 				.filter((topic) => !subscribers.some((s) => s.topics.includes(topic)));
 
 			expect(unconsumed).toEqual([]);
