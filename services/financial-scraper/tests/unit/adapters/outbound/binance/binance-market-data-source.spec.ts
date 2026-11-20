@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import {
 	DataSource,
@@ -232,6 +239,68 @@ describe("BinanceMarketDataSource", () => {
 			expect(counted.values).toEqual([
 				expect.objectContaining({ labels: { part: "orderBook" }, value: 1 }),
 			]);
+		});
+
+		describe("418/451 quarantine", () => {
+			const ban = (status: number, retryAfter?: string) =>
+				Object.assign(new Error(String(status)), {
+					response: { status, headers: { "retry-after": retryAfter } },
+				});
+			const failAll = (error: Error) => {
+				for (const mock of [
+					MOCK_GET_ORDER_BOOK,
+					MOCK_RECENT_TRADES,
+					MOCK_CANDLESTICK_DATA,
+					MOCK24HR_TICKER_STATS,
+					MOCK_SYMBOL_PRICE_TICKER,
+					MOCK_ORDER_BOOK_TICKER,
+				]) {
+					mock.mockRejectedValueOnce(error);
+				}
+			};
+
+			beforeEach(() => {
+				jest.useFakeTimers({ now: 1_000_000 });
+			});
+			afterEach(() => {
+				jest.useRealTimers();
+			});
+
+			it.each([418, 451])(
+				"makes no call after a %i until the backoff ends, then probes",
+				async (status) => {
+					const banned = new BinanceMarketDataSource();
+					failAll(ban(status));
+					await expect(banned.fetchSnapshot(request)).rejects.toThrow();
+					MOCK_GET_ORDER_BOOK.mockClear();
+					MOCK24HR_TICKER_STATS.mockClear();
+
+					jest.advanceTimersByTime(60_000);
+					banned.beginCycle([BTC]);
+					await expect(banned.fetchSnapshot(request)).rejects.toThrow(
+						"quarantined"
+					);
+					expect(MOCK_GET_ORDER_BOOK).not.toHaveBeenCalled();
+					expect(MOCK24HR_TICKER_STATS).not.toHaveBeenCalled();
+
+					jest.advanceTimersByTime(5 * 60_000);
+					await banned.fetchSnapshot(request);
+					expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledTimes(1);
+				}
+			);
+
+			it("holds until a Retry-After given as an HTTP date", async () => {
+				const banned = new BinanceMarketDataSource();
+				failAll(ban(418, new Date(1_000_000 + 3_600_000).toUTCString()));
+				await expect(banned.fetchSnapshot(request)).rejects.toThrow();
+
+				jest.advanceTimersByTime(3_000_000);
+				await expect(banned.fetchSnapshot(request)).rejects.toThrow(
+					"quarantined"
+				);
+				jest.advanceTimersByTime(700_000);
+				await banned.fetchSnapshot(request);
+			});
 		});
 
 		it("should reject with the first error when every endpoint fails", async () => {
