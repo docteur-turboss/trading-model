@@ -183,6 +183,9 @@ jobs:
       DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
       ALLOW_FIRING_ALERTS: ${{ inputs.allow_firing_alerts }}
       GRAFANA_ALLOWED_CIDRS: ${{ vars.GRAFANA_ALLOWED_CIDRS }}
+      # Keys removed on purpose from the SealedSecret, for every run-migrations.sh
+      # call (migrations and user-only bind): docs/deployment/sealed-secrets.md.
+      RETIRED_SECRET_KEYS: ${{ vars.RETIRED_SECRET_KEYS }}
     steps:
       # Manifests, node agents and migrations come from the released tag, not
       # from the branch picked at dispatch: production only deploys a vX.Y.Z
@@ -905,8 +908,6 @@ jobs:
           # exporter passwords...), then waited for: issue #698.
           if [ "$DEPLOY_ENVIRONMENT" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
-          # Keys removed on purpose from the SealedSecret (docs/deployment/sealed-secrets.md).
-          export RETIRED_SECRET_KEYS="${{ vars.RETIRED_SECRET_KEYS }}"
           MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
             bash deploy/k8s/scripts/run-migrations.sh "$NS"
 
