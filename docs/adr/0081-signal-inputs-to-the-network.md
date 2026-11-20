@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (model artifacts), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (point in time), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (signals: confidence and age are inputs, never filters), [ADR-0039](./0039-configuration-feature-flags.md) (feature flags), [ADR-0078](./0078-trainer-features-from-candles-only.md) (18 market inputs)
-**Verified by:** `services/trader-trainer/tests/unit/core/signal-inputs.spec.ts`, `services/model-evaluator/tests/unit/evaluate-model.spec.ts`, `bun run config:check`
+**Verified by:** `services/trader-trainer/tests/unit/domain/signal-inputs.spec.ts`, `services/model-evaluator/tests/unit/evaluate-model.spec.ts`, `bun run config:check`
 
 ## Context
 

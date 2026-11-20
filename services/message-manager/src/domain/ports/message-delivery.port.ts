@@ -1,6 +1,7 @@
 import type { Message } from "@trading-model/contracts/message-types";
 import type {
 	SequenceNumber,
+	ServiceId,
 	URLString,
 } from "@trading-model/primitives/primitives";
 
@@ -10,6 +11,8 @@ interface MessageDeliveryContext {
 
 export interface DeliverySendInput {
 	url: URLString;
+	/** Subscriber whose SVID the callback server must present. */
+	service: ServiceId;
 	message: Message;
 	context: MessageDeliveryContext;
 }

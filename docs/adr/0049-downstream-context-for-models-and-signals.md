@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Verified by:** `services/model-evaluator/tests/unit/evaluate-model.spec.ts` (one record per symbol and version, no duplicate on redelivery, sha256 refusal), `services/trader-trainer/tests/unit/model-artifacts/model-routes.spec.ts` (weights 200 to a listed caller, 403 to any other), `packages/http/tests/unit/adapters/inbound/acl-config.spec.ts`, `scripts/api-contract.mjs` (`bun run api:check`)
+**Verified by:** `services/model-evaluator/tests/unit/evaluate-model.spec.ts` (one record per symbol and version, no duplicate on redelivery, sha256 refusal), `services/trader-trainer/tests/unit/adapters/inbound/http/model-routes.spec.ts` (weights 200 to a listed caller, 403 to any other), `packages/http/tests/unit/adapters/inbound/acl-config.spec.ts`, `scripts/api-contract.mjs` (`bun run api:check`)
 **Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (versioned artifacts, closed weights route), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (walk-forward criteria), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (signals), [ADR-0019](./0019-message-broker-as-built.md) (bus), [ADR-0039](./0039-configuration-feature-flags.md) (feature flags), [ADR-0011](./0011-spiffe-spire-workload-identity.md) (identities), [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md) (risk and execution layer required before any order)
 
 **Decision (owner, issue #1133, 2026-11-14):** option **B** (offline inference) now; paper trading (option C) in a later issue, once the Risk/Execution context of ADR-0064 exists; real capital is out of scope for now; signal collection is kept (section 3, reason recorded there). Issue #1141 delivers B in two steps (owner choice, 2026-11-14): the plumbing of the contract first (service `model-evaluator`, SPIFFE identity, ACL, `MODEL_DOWNLOAD_CALLERS`, subscription, manifest then weights read, sha256 and manifest verification, one record per `(symbol, version)` on a PVC, the manifest `admission` verdict copied, never a promotion), then the replay on stored candles and signals with the ADR-0030 metrics in a separate issue, on a package shared with the trainer.
@@ -50,5 +50,5 @@ Whatever option is chosen, the downstream context depends on the existing, versi
 ## Consequences
 
 - `model-evaluator` is the consumer of option B: its identity, ACL entry and `MODEL_DOWNLOAD_CALLERS` value ship with it. Models have an offline consumer. Signals have a reader since issue #1297: trader-trainer reads and measures the point-in-time window of the assets named by `TRAINER_SYMBOL_ASSETS` at each session (`tt_signal_window_size`), without feeding the model; they reach the network as inputs only behind `FEATURE_SIGNAL_INPUTS` (ADR-0081).
-- The replay of models on stored data (ADR-0030 metrics) is not delivered yet: the records carry `replay: "not-run"`.
+- The replay of models on stored candles (ADR-0030 metrics) is delivered by ADR-0079: the records carry `replay: "done" | "failed"`.
 - The trainer is not changed to read signals: that is a separate decision once a consumer defines which signals matter.

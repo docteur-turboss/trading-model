@@ -43,7 +43,6 @@ export class MarketDataBuffer {
 		});
 		this._windowSplitter = new WindowSplitter(
 			this._stateManager.states,
-			undefined,
 			config.signalKeys
 		);
 		this._onDataAdded = config.onDataAdded;

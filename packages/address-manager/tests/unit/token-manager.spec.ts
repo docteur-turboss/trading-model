@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/http/http-client";
-import type { URLString } from "@trading-model/primitives/primitives";
+import {
+	ServiceId,
+	type URLString,
+} from "@trading-model/primitives/primitives";
 import { TokenManager } from "../../src/client/token-manager";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 
@@ -107,6 +110,7 @@ describe("TokenManager", () => {
 				},
 				{
 					headers: { "x-instance-token": "initial-token" },
+					serviceName: ServiceId.of("discovery-server"),
 				},
 				expect.anything()
 			);
@@ -126,7 +130,7 @@ describe("TokenManager", () => {
 					instanceId: config.identity.instanceId,
 					serviceName: config.identity.serviceName,
 				},
-				{ headers: {} },
+				{ headers: {}, serviceName: ServiceId.of("discovery-server") },
 				expect.anything()
 			);
 			expect(manager.getToken()).toBe(mockToken);

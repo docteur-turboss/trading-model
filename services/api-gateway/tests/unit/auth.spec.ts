@@ -18,14 +18,14 @@ jest.mock("@trading-model/http/logger", () => ({
 	},
 }));
 
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		AUTH_TOKEN_HEADER: "x-api-key",
-		AUTH_TOKENS: "a:read:valid-token-1,b:read:valid-token-2",
-	},
-}));
+const ENV: any = {
+	AUTH_TOKEN_HEADER: "x-api-key",
+	AUTH_TOKENS: "a:read:valid-token-1,b:read:valid-token-2",
+};
 
-import { AUTH_MIDDLEWARE } from "../../src/adapters/inbound/auth";
+import { createAuthMiddleware } from "../../src/adapters/inbound/auth";
+
+const AUTH_MIDDLEWARE = createAuthMiddleware(ENV);
 
 describe("AUTH_MIDDLEWARE", () => {
 	beforeEach(() => {
@@ -129,13 +129,11 @@ describe("AUTH_MIDDLEWARE", () => {
 });
 
 function mockEnvTokens(tokens: string): void {
-	require("../../src/infrastructure/config/env").ENV.AUTH_TOKENS = tokens;
+	ENV.AUTH_TOKENS = tokens;
 }
 
 describe("AUTH_MIDDLEWARE — strict mode", () => {
-	const mockEnv = jest.mocked(
-		require("../../src/infrastructure/config/env").ENV
-	);
+	const mockEnv = ENV;
 
 	beforeEach(() => {
 		jest.clearAllMocks();

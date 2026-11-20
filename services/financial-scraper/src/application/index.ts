@@ -24,7 +24,7 @@ createBootstrap({
 		// Before leaving discovery: the publishes in flight still need the bus.
 		// Then the lease goes to the successor (ADR-0057).
 		await collector?.stop();
-		addressManager?.stop();
+		await addressManager?.stop();
 		await shutdownTelemetry();
 		// Last: the cycle and the publishes in flight used it.
 		await closeDatabase();

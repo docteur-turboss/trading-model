@@ -36,3 +36,10 @@ export const BUS_DEAD_LETTERS = new promClient.Gauge({
 	help: "Entries in the dead stream of a topic: dead letters an operator has not replayed or deleted yet (ADR-0073)",
 	labelNames: ["topic"] as const,
 });
+
+/** Entries dropped because their `publisher` is not allowed on the topic (EVENT_PUBLISHERS, issue #1620). */
+export const PUBLISHER_REJECTED_TOTAL = new promClient.Counter({
+	name: "bus_publisher_rejected_total",
+	help: "Bus entries rejected: publisher not allowed on the topic",
+	labelNames: ["topic", "publisher"] as const,
+});
