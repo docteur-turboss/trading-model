@@ -66,6 +66,8 @@ interface CandleData extends BaseMarketData {
 
 ### `market_trades` — Individual trade data
 
+Sample of the last 100 trades per symbol per minute. Purged by `db-retention` on `timestamp` after `RETENTION_TRADES_DAYS` (180 in K8s).
+
 | Column | Type | Constraints | Description |
 | ------ | ---- | ----------- | ----------- |
 | `id` | `INT` | `AUTO_INCREMENT` | Surrogate key |
