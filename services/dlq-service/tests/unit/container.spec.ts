@@ -11,6 +11,7 @@ const MOCK_DRAIN = jest.fn<(...args: any[]) => any>();
 const MOCK_RELEASE_AND_REQUEUE = jest.fn<(...args: any[]) => any>();
 const MOCK_RELEASE_STALE = jest.fn<(...args: any[]) => any>();
 const MOCK_MONGO_CTOR = jest.fn<(...args: any[]) => any>();
+const MOCK_STATE = { connected: true, missing: [] as string[] };
 const MOCK_GET_DB = jest.fn<(...args: any[]) => any>();
 
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -45,8 +46,8 @@ jest.mock("../../src/config/mongo-connection-manager", () => ({
 		MOCK_MONGO_CTOR(...args);
 		return {
 			getDb: MOCK_GET_DB,
-			isConnected: () => true,
-			getMissingCriticalIndexes: () => [],
+			isConnected: () => MOCK_STATE.connected,
+			getMissingCriticalIndexes: () => MOCK_STATE.missing,
 		};
 	}),
 }));
@@ -123,11 +124,23 @@ describe("createDlqApp", () => {
 			"listEntries",
 			"replayEntries",
 			"healthCheck",
-			"readyCheck",
 		] as const) {
 			expect(typeof app.handlers[name]).toBe("function");
 		}
 	});
+
+	it.each([
+		[true, [], true],
+		[false, [], false],
+		[true, ["a"], false],
+	])(
+		"mongo readiness (connected %s, missing %j) is %s",
+		(connected, missing, ready) => {
+			Object.assign(MOCK_STATE, { connected, missing });
+			expect(build().mongoReadiness.check()).toBe(ready);
+			Object.assign(MOCK_STATE, { connected: true, missing: [] });
+		}
+	);
 
 	it("connects the database", async () => {
 		await build().connectDb();

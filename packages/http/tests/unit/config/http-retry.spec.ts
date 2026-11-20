@@ -2,7 +2,6 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
 	computeRetryDelay,
 	DEFAULT_RETRY_COUNT,
-	isNonRetryableClientError,
 	isRetryableStatus,
 	isRetryableStatusPermissive,
 	RETRY_JITTER_MS,
@@ -56,27 +55,6 @@ describe("isRetryableStatusPermissive", () => {
 	it("should return false for other 4xx", () => {
 		expect(isRetryableStatusPermissive(400)).toBe(false);
 		expect(isRetryableStatusPermissive(404)).toBe(false);
-	});
-});
-
-describe("isNonRetryableClientError", () => {
-	it("should return true for 4xx except 429", () => {
-		expect(isNonRetryableClientError(400)).toBe(true);
-		expect(isNonRetryableClientError(404)).toBe(true);
-		expect(isNonRetryableClientError(403)).toBe(true);
-	});
-
-	it("should return false for 429", () => {
-		expect(isNonRetryableClientError(429)).toBe(false);
-	});
-
-	it("should return false for 5xx", () => {
-		expect(isNonRetryableClientError(500)).toBe(false);
-		expect(isNonRetryableClientError(503)).toBe(false);
-	});
-
-	it("should return false for 2xx", () => {
-		expect(isNonRetryableClientError(200)).toBe(false);
 	});
 });
 

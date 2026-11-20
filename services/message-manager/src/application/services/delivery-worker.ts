@@ -3,11 +3,10 @@ import {
 	DELIVERY_ATTEMPT_TIMEOUT_MS,
 	retryDueMs,
 } from "@trading-model/broker-message/bus/backoff";
-import {
-	JOURNAL_GROUP_GRACE_MS,
-	type JournalEntry,
-	type JournalGroup,
-	type MessageJournalPort,
+import type {
+	JournalEntry,
+	JournalGroup,
+	MessageJournalPort,
 } from "@trading-model/broker-message/bus/journal.port";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
@@ -32,8 +31,6 @@ export interface DeliveryWorkerDeps {
 	pollMs?: number;
 	/** Name of this replica in the consumer groups. */
 	consumer?: string;
-	/** Without live subscriber for this long, a group is retired (default JOURNAL_GROUP_GRACE_MS). */
-	graceMs?: number;
 }
 
 /**
@@ -50,8 +47,6 @@ export class DeliveryWorker {
 	/** Circuit breaker per group, local to the replica. */
 	private readonly _subscriptions = new Map<string, Subscription>();
 	private readonly _loops = new Map<string, Promise<void>>();
-	/** When each group was first seen without live subscriber (local: a restart restarts the grace). */
-	private readonly _unsubscribedSince = new Map<string, number>();
 	private _timer: NodeJS.Timeout | undefined;
 	private _stopped = true;
 
@@ -100,16 +95,13 @@ export class DeliveryWorker {
 	private async _loop(group: JournalGroup): Promise<void> {
 		let lastClaim = 0;
 		while (!this._stopped) {
-			let served: boolean | "retired" = false;
+			let served = false;
 			try {
 				const claim = Date.now() - lastClaim >= this._pollMs;
 				if (claim) {
 					lastClaim = Date.now();
 				}
 				served = await this._deliverGroup(group, claim, BLOCK_MS);
-				if (served === "retired") {
-					return;
-				}
 			} catch (err) {
 				if (this._stopped) {
 					return;
@@ -126,34 +118,16 @@ export class DeliveryWorker {
 		}
 	}
 
-	/** @returns false when the group has no live subscriber, "retired" once it was past the grace (the loop ends). */
+	/** @returns false when the group has no live subscriber: it waits, the journal keeps its entries (ADR-0073 §2). */
 	private async _deliverGroup(
 		group: JournalGroup,
 		claim: boolean,
 		blockMs: number
-	): Promise<boolean | "retired"> {
+	): Promise<boolean> {
 		const subscription = await this._subscription(group);
-		const key = `${group.topic}|${group.service}`;
 		if (!subscription) {
-			// No live subscriber: what was accepted waits in the journal, until the grace is over.
-			const since = this._unsubscribedSince.get(key) ?? Date.now();
-			this._unsubscribedSince.set(key, since);
-			if (Date.now() - since < (this._deps.graceMs ?? JOURNAL_GROUP_GRACE_MS)) {
-				return false;
-			}
-			await this._deps.journal.retire(group);
-			getLogger().warn(
-				"Journal group retired: no subscriber for the grace period",
-				{
-					context: { topic: group.topic, targetService: group.service },
-				}
-			);
-			this._unsubscribedSince.delete(key);
-			this._subscriptions.delete(key);
-			this._loops.delete(key);
-			return "retired";
+			return false;
 		}
-		this._unsubscribedSince.delete(key);
 		const { journal } = this._deps;
 		const retry = {
 			floorMs: DELIVERY_ATTEMPT_TIMEOUT_MS,

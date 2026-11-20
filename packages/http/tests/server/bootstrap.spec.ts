@@ -2,7 +2,17 @@ jest.mock("../../src/signal-handler", () => ({
 	setupProcessHandlers: jest.fn(),
 }));
 
+jest.mock("../../src/bootstrap-shutdown", () => ({
+	...jest.requireActual("../../src/bootstrap-shutdown"),
+	hardShutdown: jest.fn(),
+}));
+
+import {
+	NoopLogger,
+	setLogger,
+} from "@trading-model/contracts/logger-registry";
 import { createBootstrap } from "../../src/bootstrap";
+import { hardShutdown } from "../../src/bootstrap-shutdown";
 import { setupProcessHandlers } from "../../src/signal-handler";
 
 function createMockServer() {
@@ -14,6 +24,7 @@ function createMockServer() {
 describe("createBootstrap", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
+		setLogger(NoopLogger);
 	});
 
 	it("should call setupProcessHandlers", () => {
@@ -54,6 +65,63 @@ describe("createBootstrap", () => {
 		createBootstrap(options);
 
 		expect(onStart).toHaveBeenCalledTimes(1);
+	});
+
+	it("awaits an async onStart before logging success", async () => {
+		const logger = {
+			info: jest.fn(),
+			error: jest.fn(),
+			warn: jest.fn(),
+			debug: jest.fn(),
+		};
+		setLogger(logger as never);
+		let release!: () => void;
+		const onStart = () =>
+			new Promise<void>((r) => {
+				release = r;
+			});
+		createBootstrap({
+			name: "svc",
+			createServer: () => createMockServer(),
+			onStart,
+		});
+		expect(logger.info).not.toHaveBeenCalledWith(
+			"Service started successfully",
+			expect.anything()
+		);
+		release();
+		await new Promise((r) => setImmediate(r));
+		expect(logger.info).toHaveBeenCalledWith(
+			"Service started successfully",
+			expect.anything()
+		);
+	});
+
+	it("routes a rejected onStart to the bootstrap error path", async () => {
+		const logger = {
+			info: jest.fn(),
+			error: jest.fn(),
+			warn: jest.fn(),
+			debug: jest.fn(),
+		};
+		setLogger(logger as never);
+		createBootstrap({
+			name: "svc",
+			createServer: () => createMockServer(),
+			onStart: async () => {
+				throw new Error("boom");
+			},
+		});
+		await new Promise((r) => setImmediate(r));
+		expect(logger.error).toHaveBeenCalledWith(
+			"Fatal error during service bootstrap",
+			expect.anything()
+		);
+		expect(hardShutdown).toHaveBeenCalledWith(
+			1,
+			expect.anything(),
+			expect.anything()
+		);
 	});
 
 	it("should call onStop via shutdown function", async () => {
