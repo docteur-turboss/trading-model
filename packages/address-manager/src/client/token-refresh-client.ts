@@ -1,7 +1,7 @@
 import { authenticationError } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/http-client";
-import { URLString } from "@trading-model/primitives/primitives";
+import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import { RotatedTokenWire } from "@trading-model/validation/wire/service-instance";
 import type { AddressManagerConfig } from "../config/address-manager-config";
@@ -32,7 +32,10 @@ export class TokenRefreshClient {
 		const response = await this._httpClient.post(
 			URLString.of(`${this._config.addressManagerUrl}/token/rotate`),
 			this._buildTokenPayload(),
-			{ headers: this._buildAuthHeaders(currentToken) },
+			{
+				headers: this._buildAuthHeaders(currentToken),
+				serviceName: ServiceId.of("discovery-server"),
+			},
 			RotatedTokenWire
 		);
 		if (!response?.token) {

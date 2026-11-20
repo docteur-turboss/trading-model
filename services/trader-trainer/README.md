@@ -9,5 +9,5 @@ Evolves trading agents with a genetic algorithm and deep Q-learning on market da
 - References: [genetic algorithm](../../docs/reference/genetic-algorithm.md), [neural network](../../docs/reference/neural-network.md), [training process](../../docs/reference/training-process.md)
 
 ```bash
-bun run --filter trader-service test
+bun run --filter trader-trainer test
 ```

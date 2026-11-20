@@ -1,5 +1,5 @@
 import { makePRNG } from "@trading-model/crypto/prng";
-import { AGENT_STATE_DIM } from "../agent/agent-state";
+import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
 import { evaluateFitness } from "./evaluation-pipeline";
 import { createDefaultGenome } from "./factory";
 import { type GaTelemetry, NoopGaTelemetry } from "./ga-telemetry";
@@ -169,7 +169,6 @@ export class GenerationProcessor {
 			ctrl,
 			rng,
 			generation: this._generation,
-			telemetry: this._telemetry,
 			protectCandleGroup: this._cfg.protectCandleGroup,
 		});
 	}

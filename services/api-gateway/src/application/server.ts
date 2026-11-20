@@ -6,7 +6,7 @@ import { createRouter } from "../adapters/inbound/router";
 import { ENV } from "../infrastructure/config/env";
 
 function _mountGatewayRoutes(app: Application): void {
-	app.use("/", createRouter());
+	app.use("/", createRouter(ENV));
 }
 
 export function createServer() {

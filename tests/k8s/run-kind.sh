@@ -22,6 +22,9 @@
 # staging stack (databases, Prometheus, Loki) writing into the Docker Desktop
 # disk image, which froze every container on the host once it filled C:.
 set -euo pipefail
+# A failure inside $(...) stops the substitution too (bash ignores -e there
+# by default): a 403 of seed_dead_letter went unnoticed (PR #1662).
+shopt -s inherit_errexit
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 # Git Bash: a C:/... path works for bash and for native kubectl/docker, also
@@ -47,12 +50,25 @@ export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
+export DLQ_AUTH_HMAC_SECRET="${DLQ_AUTH_HMAC_SECRET:-kind-ci-dlq-hmac-0123456789abcdefghij}"
 # compose interpolates these (ADR-0067) even for `build`
 for v in MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD; do
 	export "$v=${!v:-kind-ci}"
 done
 
-log() { echo "[kind] $*"; }
+log() {
+	echo "[kind] $*"
+	echo "$*" 2>/dev/null >"$WORK/last-log" || true
+}
+
+# On failure, the last [kind] line (the cause, logged just before `return 1`)
+# becomes the job annotation, not lost under the cluster dump.
+fail_summary() {
+	local rc="$1"
+	shift
+	[ "$rc" -eq 0 ] || [ ! -s "$WORK/last-log" ] || echo "::error title=run-kind.sh $*::$(cat "$WORK/last-log")"
+	return "$rc"
+}
 
 # Step timings of the restore drill (JSON, job summary, budget).
 # shellcheck source=../backup/drill-timings.sh
@@ -500,7 +516,8 @@ upgrade() {
 	sed 's/^api-gateway .*/api-gateway sha256:0000000000000000000000000000000000000000000000000000000000000000/' \
 		"$WORK/digests-current" >"$WORK/digests-broken"
 	# Short base timeout: this rollout can never complete (issue #486, was 210 s).
-	if release "$WORK/digests-broken" 30s; then
+	# Its ::error:: is expected: printed as plain text, or the job's first annotation misleads.
+	if release "$WORK/digests-broken" 30s 2>&1 | sed -u 's/^::error::/expected failure: /'; then
 		log "an upgrade whose api-gateway image does not exist passed"
 		return 1
 	fi
@@ -1160,7 +1177,13 @@ seed_dead_letter() {
 	local doc="topic: 'restore-drill', message: {drill: 'restore'}, service: 'message-manager', reason: 'restore drill', deliveryAttempt: 3, retryCount: 0, dlqPassCount: 1, createdAt: new Date()"
 	keep="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.insertOne({messageId: 'restore-drill-$ts', contentHash: 'k$ts', $doc}).insertedId.toHexString())" | tail -1)"
 	drop="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.insertOne({messageId: 'restore-drill-d$ts', contentHash: 'd$ts', $doc}).insertedId.toHexString())" | tail -1)"
-	$K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - "$drop" <"$ROOT/tests/k8s/dlq-seed.cjs" >&2
+	# From api-gateway, the only caller the dlq-service ACL admits (#1591); the
+	# HMAC secret goes in on stdin, never on the command line.
+	{
+		printf 'process.env.DLQ_AUTH_HMAC_SECRET = Buffer.from("%s", "base64").toString();\n' \
+			"$($K -n "$NS" get secret trading-model-secrets -o jsonpath='{.data.DLQ_AUTH_HMAC_SECRET}')"
+		cat "$ROOT/tests/k8s/dlq-seed.cjs"
+	} | $K -n "$NS" exec -i deployment/api-gateway -c api-gateway -- node - "$drop" >&2 || return 1
 	echo "$keep"
 }
 
@@ -1250,7 +1273,7 @@ verify_backup() {
 	# rarely produces one by itself.
 	local dlq_seeded
 	dlq_seeded="$(seed_dead_letter)" || {
-		log "message-manager could not store a dead letter in dlq-service"
+		log "could not seed a dead letter (or delete the throwaway one through dlq-service)"
 		return 1
 	}
 	wait_for 60 'dlq_ids | grep -qx "'"$dlq_seeded"'"' || {
@@ -1317,7 +1340,7 @@ verify_backup() {
 	mysql_root "INSERT INTO restore_drill.markers VALUES (4);"
 	local dlq_late
 	dlq_late="$(seed_dead_letter)" || {
-		log "message-manager could not store a dead letter in dlq-service"
+		log "could not seed a dead letter (or delete the throwaway one through dlq-service)"
 		return 1
 	}
 	wait_for 60 'dlq_ids | grep -qx "'"$dlq_late"'"' || {
@@ -1712,10 +1735,12 @@ mysql_diagnostics() {
 	$K -n "$NS" exec mysql-0 -c mysql -- cat /proc/1/attr/current 2>&1 || true
 }
 
+rm -f "$WORK/last-log" # a line of an earlier CI step is not this failure
+trap 'fail_summary $? "$*"' EXIT
 case "${1:-all}" in
 all)
 	if [ "${KEEP_CLUSTER:-0}" != "1" ]; then
-		trap 'rc=$?; [ "$rc" -eq 0 ] || dump; delete; exit $rc' EXIT
+		trap 'rc=$?; fail_summary "$rc" all || dump; delete; exit $rc' EXIT
 	fi
 	cluster
 	images
