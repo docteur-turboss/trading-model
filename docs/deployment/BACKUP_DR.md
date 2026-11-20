@@ -67,7 +67,7 @@ The observability stores are not backed up either, and this is a deliberate
 choice, not an oversight. Logs and metrics are operational data kept for a
 short window: Loki keeps access and operational logs for 31 days
 (`retention_period: 744h`, [data retention policy](../compliance/data-retention-policy.md)),
-Prometheus keeps metrics for 30 days (`--storage.tsdb.retention.time=30d`).
+Prometheus keeps metrics for 30 days or 40 GB, whichever comes first (`--storage.tsdb.retention.time=30d`, `--storage.tsdb.retention.size=40GB`).
 A backup would hold no more than the window itself, and the monitoring
 platform is not on the path to restoring the trading data. The loss in a
 disaster is therefore the log and metric history of the last 30 days, and
