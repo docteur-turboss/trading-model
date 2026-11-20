@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Financial Scraper is a microservice within the AI Trading Platform responsible for ingesting real-time market data from external APIs (starting with Binance). It normalizes heterogeneous API responses into unified domain entities, persists them to storage, and publishes normalized events to the message bus for downstream consumers (analysis, backtesting, signal generation, training).
+The Financial Scraper is a microservice within the AI Trading Platform responsible for ingesting real-time market data from external APIs (starting with Binance). It normalizes heterogeneous API responses into unified domain entities, and persists them to storage, served to the trainer by the API.
 
 ## Data Flow
 
@@ -19,10 +19,7 @@ BinanceNormalizer  ─── Raw → Normalized entity conversion
 BinanceMarketDataSource ─── MarketDataSourcePort (domain): snapshot per symbol
      │
      ▼
-WorkerOrchestrator ─── fetch → publish → persist, per symbol
-     │
-     ├── BrokerMarketDataPublisher ─── MarketDataPublisherPort (domain)
-     │        MessageManager.post.indirect() (6 events on the message bus)
+WorkerOrchestrator ─── fetch → persist, per symbol
      │
      ▼
 MarketDataController.persist()
@@ -46,7 +43,6 @@ ScrapeCronOrchestrator (deps built by config/container.ts)
     └── WorkerOrchestrator, for each symbol:
          ├── source.fetchSnapshot()   BinanceMarketDataSource:
          │                            6 parallel API calls + normalization
-         ├── publisher.publish()      6 event publications (never throws)
          └── persist()                MarketDataController.persist()
 ```
 
@@ -80,22 +76,11 @@ const response = await binance.get(url, { weight: 5 });
 | Component                   | File                                                      | Role                                                                                                 |
 | --------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `MarketDataSourcePort`      | `domain/ports/market-data-source.port.ts`                 | A market data provider: `fetchSnapshot(request)` returns a normalized `MarketDataSnapshot`            |
-| `MarketDataPublisherPort`   | `domain/ports/market-data-publisher.port.ts`              | Publishes a snapshot to the subscribers; never rejects, returns the parts that failed               |
 | `BinanceMarketDataSource`   | `adapters/outbound/binance/binance-market-data-source.ts` | The only source today (ADR-0026): 6 parallel public API calls, a failed one leaves its part out     |
-| `BrokerMarketDataPublisher` | `adapters/outbound/broker/broker-market-data.publisher.ts` | One event per part present through message-manager, fresh metadata per snapshot                     |
-| `WorkerOrchestrator`        | `application/worker-orchestrator.ts`                      | Per symbol: fetch → persist → publish (not awaited) of the next persisted candles from the MySQL publish cursor |
+| `WorkerOrchestrator`        | `application/worker-orchestrator.ts`                      | Per symbol: fetch → persist; resumes the fetch at the newest stored candle |
 | `ScrapeCronOrchestrator`    | `adapters/inbound/cron/scrape.cron.ts`                    | Runs the cycle on a cron expression with `p-limit`, prevents overlapping runs                        |
 
 Adding a source means an adapter implementing `MarketDataSourcePort` and a value of `DataSource`; the cycle does not change.
-
-The publisher sends 6 events to the message bus for each symbol:
-
-- `FetchCandlestick` → `fetchCandlestickSeries`
-- `FetchOrderbook` → `fetchOrderBookSnapshot`
-- `FetchTicker24hr` → `fetch24hrTickerStats`
-- `FetchBookTicker` → `fetchOrderBookTickerSnapshot`
-- `FetchPriceTicker` → `fetchPriceTickerSnapshot`
-- `FetchRecentTrades` → `fetchRecentTrades`
 
 ### 4. Persistence Layer (`src/adapters/outbound/persistence/`)
 
@@ -149,7 +134,6 @@ Collection of the sources of every dimension declared in the source registry; se
 | **Order books persisted, not served** | ADR-0053: kept in MySQL for historical replay; no route (no caller, the trainer reads them on the bus), no in-memory store to grow       |
 | **MySQL for trades/candles/tickers** | These are append-only time-series with stable schemas; SQL allows efficient range queries and joins                                                  |
 | **Separate worker per symbol**       | Avoids one slow symbol blocking others; `p-limit` caps total concurrency                                                                             |
-| **Message bus publishing**           | Decouples ingestion from consumption; other services (trainer, signal generator) consume normalized data without depending on the scraper's database |
 | **Zod-validated env vars**           | Fail-fast on misconfiguration; clear error messages at startup                                                                                       |
 | **Path aliases**                     | `config/*` maps to `src/config/` (the other legacy aliases were removed with the hexagonal layout)                                     |
 
@@ -162,7 +146,6 @@ Collection of the sources of every dimension declared in the source registry; se
 | `@trading-model/common`          | Bootstrap, shared types, error classes, event types |
 | `@trading-model/http`    | Server factory (`createSecureServer`) |
 | `@trading-model/address-manager` | Service discovery client (register, heartbeat, token rotation)                             |
-| `@trading-model/broker-message`  | Message bus SDK (publish events with topics and metadata)                                  |
 
 ### External
 

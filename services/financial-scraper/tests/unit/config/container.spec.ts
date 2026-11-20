@@ -20,19 +20,11 @@ jest.mock("../../../src/adapters/inbound/cron/scrape.cron", () => ({
 	ScrapeCronOrchestrator: MOCK_CRON_CONSTRUCTOR,
 }));
 
-// The real adapters would load the HTTP client and the broker client.
+// The real adapter would load the HTTP client.
 jest.mock(
 	"../../../src/adapters/outbound/binance/binance-market-data-source",
 	() => ({
 		BinanceMarketDataSource: jest.fn((..._args: any[]) => ({ id: "binance" })),
-	})
-);
-jest.mock(
-	"../../../src/adapters/outbound/broker/broker-market-data.publisher",
-	() => ({
-		BrokerMarketDataPublisher: jest.fn((..._args: any[]) => ({
-			publish: jest.fn<(...args: any[]) => any>(),
-		})),
 	})
 );
 
@@ -40,6 +32,7 @@ jest.mock(
 	"../../../src/adapters/outbound/persistence/schema/candles.schema",
 	() => ({
 		insertCandles: jest.fn<(...args: any[]) => any>(),
+		lastCandleOpenTime: jest.fn<(...args: any[]) => any>(),
 	})
 );
 jest.mock(
@@ -58,13 +51,6 @@ jest.mock(
 	"../../../src/adapters/outbound/persistence/schema/ticker24h.schema",
 	() => ({
 		insertTicker: jest.fn<(...args: any[]) => any>(),
-	})
-);
-
-jest.mock(
-	"../../../src/adapters/outbound/persistence/candle-publish-backlog",
-	() => ({
-		MySqlCandlePublishBacklog: { kind: "mysql-backlog" },
 	})
 );
 

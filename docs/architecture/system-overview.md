@@ -116,16 +116,6 @@ sequenceDiagram
   loop each scrape cycle, per symbol
     FS->>B: fetch candles
     FS->>DB: persist candles
-    FS->>DB: read market_publish_cursors, next persisted candles
-    FS->>MM: POST /message
-    alt a subscriber is reachable
-      MM->>TT: callback /message
-      MM-->>FS: all deliveries settled
-      FS->>DB: advance cursor
-    else no subscriber (503) or message-manager down
-      MM-->>FS: refused
-      Note over FS,DB: cursor stays: next cycle resends from MySQL<br/>alert MarketDataUnpublished after 15 min
-    end
   end
   opt each training session of the trainer
     TT->>FS: GET /candles/symbols/:symbol (from, to = session start, keyset pages)

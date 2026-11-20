@@ -27,7 +27,6 @@ jest.mock("@trading-model/http/logger", () => ({
 }));
 
 const MOCK_FETCH_SNAPSHOT = jest.fn<(...args: any[]) => any>();
-const MOCK_PUBLISH = jest.fn<(...args: any[]) => any>();
 const MOCK_PERSIST = jest.fn<(...args: any[]) => any>();
 
 jest.mock("@trading-model/contracts/logger-registry", () => ({
@@ -46,10 +45,8 @@ import { ScrapeCronOrchestrator } from "../../../../../src/adapters/inbound/cron
 const MOCK_LOGGER = jest.mocked(logger);
 const DEPS = {
 	source: { id: DataSource.Binance, fetchSnapshot: MOCK_FETCH_SNAPSHOT },
-	publisher: { publish: MOCK_PUBLISH },
 	persist: MOCK_PERSIST,
-	// These tests never reach the publish backlog.
-	backlog: {} as never,
+	lastCandleOpenTime: async () => undefined,
 };
 
 const GET_CRON_HANDLER = (): ((...args: unknown[]) => Promise<unknown>) =>
@@ -70,7 +67,6 @@ describe("ScrapeCronOrchestrator", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		MOCK_FETCH_SNAPSHOT.mockResolvedValue({ fetchedAt: Date.now() });
-		MOCK_PUBLISH.mockResolvedValue([]);
 	});
 
 	describe("constructor", () => {
@@ -123,7 +119,6 @@ describe("ScrapeCronOrchestrator", () => {
 			await cronHandler();
 
 			expect(MOCK_FETCH_SNAPSHOT).toHaveBeenCalledTimes(2);
-			expect(MOCK_PUBLISH).toHaveBeenCalledTimes(2);
 			expect(MOCK_PERSIST).toHaveBeenCalledTimes(2);
 		});
 
@@ -236,34 +231,18 @@ describe("ScrapeCronOrchestrator", () => {
 	});
 
 	describe("stop", () => {
-		it("should stop the cron, then wait for the running cycle and its publishes", async () => {
+		it("should stop the cron", async () => {
 			const task = { stop: jest.fn<(...args: any[]) => any>() };
 			MOCK_CRON_SCHEDULE.mockReturnValue(task);
-			let release: (failed: unknown[]) => void = () => undefined;
-			MOCK_PUBLISH.mockImplementation(
-				() =>
-					new Promise((resolve) => {
-						release = resolve;
-					})
-			);
 			const orchestrator = new ScrapeCronOrchestrator({
 				...defaultConfig,
 				symbols: [BTC],
 			});
 			orchestrator.start();
-			await GET_CRON_HANDLER()();
 
-			let stopped = false;
-			const stopping = orchestrator.stop().then(() => {
-				stopped = true;
-			});
-			await new Promise((resolve) => setImmediate(resolve));
+			await orchestrator.stop();
 
 			expect(task.stop).toHaveBeenCalled();
-			expect(stopped).toBe(false);
-			release([]);
-			await stopping;
-			expect(stopped).toBe(true);
 		});
 
 		it("should resolve when the cron was never started", async () => {

@@ -51,10 +51,9 @@ export class ScrapeCronOrchestrator {
 		);
 	}
 
-	/** Stops scheduling, then waits for the running cycle and its publishes. */
+	/** Stops scheduling, then waits for the running cycle. */
 	public async stop(): Promise<void> {
 		await this._task?.stop();
-		await this._workerOrchestrator.drain();
 	}
 
 	private _createWorker(): WorkerOrchestrator {

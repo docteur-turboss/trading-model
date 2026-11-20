@@ -726,31 +726,6 @@ tests:
               description: 'Binance answered 451 (restricted location) 90 times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
-  # 0 while the bus takes the candles; a backlog that stays 15 minutes alerts,
-  # per symbol, and ends once it drained.
-  - name: persisted candles waiting for the bus alert after 15 minutes
-    interval: 1m
-    input_series:
-      - series: 'fs_unpublished_candles{job="financial-scraper-collector",instance="c",symbol="BTCUSDT"}'
-        values: '0x10 1+1x30 0x20'
-      - series: 'fs_unpublished_candles{job="financial-scraper-collector",instance="c",symbol="ETHUSDT"}'
-        values: '0x60'
-    alert_rule_test:
-      - eval_time: 20m
-        alertname: MarketDataUnpublished
-        exp_alerts: []
-      - eval_time: 30m
-        alertname: MarketDataUnpublished
-        exp_alerts:
-          - exp_labels: {severity: warning, symbol: BTCUSDT}
-            exp_annotations:
-              summary: 'Persisted candles not reaching the bus'
-              description: '20 persisted BTCUSDT candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
-      - eval_time: 55m
-        alertname: MarketDataUnpublished
-        exp_alerts: []
-
   # Model artifacts (ADR-0022): the error series exists at 0 from startup, so
   # the first failed write alerts; all trainer pods count as one job, and
   # the alert ends 30 minutes after the last failure.
@@ -1065,7 +1040,7 @@ tests:
             exp_annotations:
               summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
               description: 'trader-trainer stayed unreachable for more than 24 h: message-manager trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
       - eval_time: 30m
         alertname: JournalEntriesTrimmed
         exp_alerts: []
@@ -1084,7 +1059,7 @@ tests:
             exp_annotations:
               summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
               description: 'trader-trainer stayed unreachable for more than 24 h: message-manager trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
       - eval_time: 19m
         alertname: JournalEntriesTrimmed
         exp_alerts: []
@@ -1112,7 +1087,7 @@ tests:
             exp_annotations:
               summary: 'Journal backlog on market.candle for trader-trainer: oldest entry waiting for more than 15 min'
               description: 'trader-trainer has not acknowledged a market.candle entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber'
 
   # V8 keeps the allocated heap close to the used one (95% here): no alert.
   # 92% of the heap limit: out of memory is close.

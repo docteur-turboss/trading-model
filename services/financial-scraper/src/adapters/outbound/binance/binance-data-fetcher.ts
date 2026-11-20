@@ -34,7 +34,7 @@ export interface RawBinanceData {
 }
 
 /** Pod clock may run ahead of Binance's: a still-open candle must not pass for closed (the cursor never goes back). */
-export const CLOSE_MARGIN_MS = 2000;
+const CLOSE_MARGIN_MS = 2000;
 
 type RawKey = keyof RawBinanceData;
 
