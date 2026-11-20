@@ -1,5 +1,4 @@
 export { AUDIT_EVENT_VALIDATORS } from "../../messages/schemas/audit-event.schema";
-export { MARKET_EVENT_VALIDATORS } from "../../messages/schemas/market-event.schema";
 export {
 	EVENT_VALIDATORS,
 	MESSAGE_PAYLOAD_SCHEMA,

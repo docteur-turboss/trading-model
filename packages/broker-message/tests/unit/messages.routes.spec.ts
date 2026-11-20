@@ -8,9 +8,36 @@ import { BROKER_CALLBACK_API } from "../../src/api-routes";
 import { EVENT_MANAGER } from "../../src/event-manager-client";
 import { CREATE_CALLBACK_ROUTE } from "../../src/messages.routes";
 
+const PAYLOAD = {
+	symbol: "BTCUSDT",
+	generation: 1,
+	fitness: 1,
+	sharpe: 1,
+	avgPnl: 1,
+	maxDrawdown: 0,
+	evaluatedOn: "test",
+	agentId: "a",
+	gaControl: {
+		populationSize: 1,
+		elitismFraction: 0.1,
+		survivorFraction: 0.5,
+		episodesPerIndividual: 1,
+		selectionType: "t",
+		fitnessType: "f",
+	},
+	network: { inputDim: 1, outputDim: 1, hiddenLayers: [] },
+	rl: {
+		gamma: 0.9,
+		learningRate: 0.1,
+		epsilonStart: 1,
+		epsilonMin: 0.1,
+		epsilonDecay: 0.9,
+	},
+};
+
 const METADATA = {
-	topic: "market.candlestick.series.fetch",
-	eventType: "market.candlestick.series.fetch",
+	topic: "training.model.published",
+	eventType: "training.model.published",
 	publisher: {
 		serviceName: ServiceInstanceName.DiscoveryService,
 		instanceId: "550e8400-e29b-41d4-a716-446655440000",
@@ -22,7 +49,7 @@ const METADATA = {
 async function deliver(
 	callbackPath: string,
 	path: string,
-	body: unknown = { metadata: METADATA, payload: { candle: [] } }
+	body: unknown = { metadata: METADATA, payload: PAYLOAD }
 ): Promise<{ status: number; body: unknown }> {
 	const app = express();
 	app.use(express.json());
@@ -57,18 +84,18 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 	// The sender waits for this answer: no response = timeout, retries, DLQ.
 	it("acknowledges the delivery and emits the payload to the topic's listeners", async () => {
 		const listener = jest.fn<(...args: any[]) => any>();
-		EVENT_MANAGER.on("market.candlestick.series.fetch" as never, listener);
+		EVENT_MANAGER.on("training.model.published" as never, listener);
 
 		const { status, body } = await deliver("message", "/message");
 
 		expect(status).toBe(200);
 		expect(body).toEqual({ status: "delivered" });
-		expect(listener).toHaveBeenCalledWith({ candle: [] });
+		expect(listener).toHaveBeenCalledWith(PAYLOAD);
 	});
 
 	it("runs the listeners in the correlation context of the message", async () => {
 		let seen: string | undefined;
-		EVENT_MANAGER.on("market.candlestick.series.fetch" as never, () => {
+		EVENT_MANAGER.on("training.model.published" as never, () => {
 			seen = getCorrelationId();
 		});
 		const body = {
@@ -76,7 +103,7 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 				...METADATA,
 				correlationId: "550e8400-e29b-41d4-a716-446655440000",
 			},
-			payload: { candle: [] },
+			payload: PAYLOAD,
 		};
 
 		expect((await deliver("message", "/message", body)).status).toBe(200);
@@ -85,13 +112,13 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 
 	it("emits a redelivered messageId once and acknowledges both deliveries", async () => {
 		const listener = jest.fn<(...args: any[]) => any>();
-		EVENT_MANAGER.on("market.candlestick.series.fetch" as never, listener);
+		EVENT_MANAGER.on("training.model.published" as never, listener);
 		const body = {
 			metadata: {
 				...METADATA,
 				messageId: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
 			},
-			payload: { candle: [] },
+			payload: PAYLOAD,
 		};
 
 		expect((await deliver("message", "/message", body)).status).toBe(200);
@@ -105,13 +132,13 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 			.mockImplementationOnce(() => {
 				throw new Error("listener failed");
 			});
-		EVENT_MANAGER.on("market.candlestick.series.fetch" as never, listener);
+		EVENT_MANAGER.on("training.model.published" as never, listener);
 		const body = {
 			metadata: {
 				...METADATA,
 				messageId: "c2f1a8d4-6b3e-4f95-9a07-1d8e5b4c3a26",
 			},
-			payload: { candle: [] },
+			payload: PAYLOAD,
 		};
 
 		expect((await deliver("message", "/message", body)).status).toBe(500);
@@ -121,7 +148,7 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 
 	it("does not remember the messageId of an invalid payload", async () => {
 		const listener = jest.fn<(...args: any[]) => any>();
-		EVENT_MANAGER.on("market.candlestick.series.fetch" as never, listener);
+		EVENT_MANAGER.on("training.model.published" as never, listener);
 		const metadata = {
 			...METADATA,
 			messageId: "0b9c1f3e-5d2a-4c7e-8a41-2f6d9e3b7a10",
@@ -139,7 +166,7 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 			(
 				await deliver("message", "/message", {
 					metadata,
-					payload: { candle: [] },
+					payload: PAYLOAD,
 				})
 			).status
 		).toBe(200);

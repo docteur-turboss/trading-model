@@ -40,8 +40,8 @@ Body (validated by `PublishSchema`):
     "volume": 12.5
   },
   "metadata": {
-    "topic": "market.trade.recent.fetch",
-    "eventType": "market.trade.recent.fetch",
+    "topic": "training.model.published",
+    "eventType": "training.model.published",
     "schemaVersion": "1.0.0",
     "publisher": {
       "serviceName": "financial-scraper",
@@ -71,7 +71,7 @@ Body (validated by `SubscribeSchema`):
 
 ```json
 {
-  "topic": "market.trade.recent.fetch",
+  "topic": "training.model.published",
   "callbackPath": "message",
   "consumerIdentity": {
     "serviceName": "trader-trainer",
@@ -92,7 +92,7 @@ Body (validated by `UnsubscribeSchema`):
 
 ```json
 {
-  "topic": "market.trade.recent.fetch",
+  "topic": "training.model.published",
   "instanceId": "uuid"
 }
 ```
