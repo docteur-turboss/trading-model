@@ -91,6 +91,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0081](./0081-signal-inputs-to-the-network.md) | Signals Enter the Network as Value, Age and Confidence Inputs | Accepted | 2026-11 |
 | [ADR-0082](./0082-input-mask-gene.md) | The GA Evolves a Mask over the Input Groups | Accepted | 2026-11 |
 | [ADR-0083](./0083-daily-bars-from-signals-for-registry-assets.md) | Registry Assets Train on Daily Bars Rebuilt from Market Signals | Accepted | 2026-11 |
+| [ADR-0084](./0084-text-signals-stored-as-documents-enriched-to-numbers.md) | Text Signals Are Stored as Documents and Enriched Into v1 Numeric Signals | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 
