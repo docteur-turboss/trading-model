@@ -5,6 +5,7 @@ export interface MongoPoolOptions {
 	minPoolSize: number;
 	serverSelectionTimeoutMS: number;
 	connectTimeoutMS: number;
+	socketTimeoutMS: number;
 	retryWrites: boolean;
 	retryReads: boolean;
 }
@@ -14,6 +15,7 @@ export const DEFAULT_MONGO_POOL_OPTIONS: MongoPoolOptions = {
 	minPoolSize: 2,
 	serverSelectionTimeoutMS: 5000,
 	connectTimeoutMS: 5000,
+	socketTimeoutMS: 30_000,
 	retryWrites: true,
 	retryReads: true,
 };

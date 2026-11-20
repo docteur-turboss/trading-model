@@ -19,8 +19,6 @@ export interface MongoConnectionConfig {
 	collectionName?: string;
 	poolSize?: number;
 	minPoolSize?: number;
-	serverSelectionTimeoutMS?: number;
-	connectTimeoutMS?: number;
 }
 
 export class MongoConnectionManager extends ConnectionManager<MongoClient> {

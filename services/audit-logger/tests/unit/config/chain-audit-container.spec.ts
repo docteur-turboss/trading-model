@@ -20,6 +20,19 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		AUDIT_ANCHOR_REQUIRED: true,
 	},
 }));
+const S3_CONFIGS: any[] = [];
+jest.mock("@aws-sdk/client-s3", () => {
+	const actual = jest.requireActual<any>("@aws-sdk/client-s3");
+	return {
+		...actual,
+		S3Client: class extends actual.S3Client {
+			constructor(config: any) {
+				super(config);
+				S3_CONFIGS.push(config);
+			}
+		},
+	};
+});
 jest.mock("../../../src/config/broker-setup", () => ({}));
 jest.mock("../../../src/application/server", () => ({}));
 
@@ -82,6 +95,10 @@ describe("createChainAudit", () => {
 
 		expect(audit.anchoringEnabled).toBe(true);
 		expect(await gauge("audit_chain_anchoring_enabled")).toBe(1);
+		expect(S3_CONFIGS[S3_CONFIGS.length - 1].requestHandler).toEqual({
+			connectionTimeout: 3000,
+			requestTimeout: 10_000,
+		});
 	});
 
 	it("publishes the verification and anchoring metrics", async () => {

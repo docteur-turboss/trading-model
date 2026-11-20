@@ -73,6 +73,32 @@ describe("TrainerClient", () => {
 		expect(sha256).toBe("abc");
 	});
 
+	it("destroys the request when the weights pass the size cap", async () => {
+		const req = new EventEmitter() as EventEmitter & { destroy: jest.Mock };
+		req.destroy = jest.fn<(...args: any[]) => any>((err: any) => {
+			req.emit("error", err);
+		});
+		jest.spyOn(https, "get").mockImplementation(((
+			_url: unknown,
+			_opts: unknown,
+			cb: (res: unknown) => void
+		) => {
+			const res = Object.assign(new EventEmitter(), {
+				statusCode: 200,
+				headers: {},
+			});
+			setImmediate(() => {
+				cb(res);
+				res.emit("data", { length: 256 * 1024 * 1024 + 1 });
+			});
+			return req;
+		}) as never);
+		await expect(
+			new TrainerClient(TLS).weights("BTCUSDT", "v1")
+		).rejects.toThrow(/larger than/);
+		expect(req.destroy).toHaveBeenCalled();
+	});
+
 	it("fails on a 403 from the trainer", async () => {
 		answer(403, Buffer.from("{}"));
 		await expect(
