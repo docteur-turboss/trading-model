@@ -457,6 +457,17 @@ jobs:
             echo "::error::trading-model-secrets of $ENV lacks:$missing (run bash scripts/init-sealed-secrets.sh and commit deploy/k8s/secrets)"
             exit 1
           fi
+          # A SealedSecret the controller cannot sync (e.g. the Secret exists but is
+          # not managed by it) leaves the Secret frozen: new keys never arrive and
+          # removed ones are never deleted. Absent on a first deploy: nothing to check.
+          if kubectl -n "$NAMESPACE" get sealedsecret trading-model-secrets >/dev/null 2>&1; then
+            synced=$(kubectl -n "$NAMESPACE" get sealedsecret trading-model-secrets -o 'jsonpath={.status.conditions[?(@.type=="Synced")].status}')
+            if [ "$synced" = "False" ]; then
+              msg=$(kubectl -n "$NAMESPACE" get sealedsecret trading-model-secrets -o 'jsonpath={.status.conditions[?(@.type=="Synced")].message}')
+              echo "::error::SealedSecret trading-model-secrets of $ENV is not synced: $msg. If the Secret exists unmanaged, check its values then run: kubectl -n $NAMESPACE annotate secret trading-model-secrets sealedsecrets.bitnami.com/managed=true"
+              exit 1
+            fi
+          fi
           # Grafana OIDC (ADR-0063): production refuses a shared admin as the only access.
           bash scripts/check-grafana-oidc.sh "$ENV" <<<"$rendered"
 
