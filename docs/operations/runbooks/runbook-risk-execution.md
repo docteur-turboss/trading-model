@@ -29,7 +29,7 @@ Service unreachable, last resort: revoke the broker API key at the exchange, or 
    - `daily_loss`, `daily_loss_symbol`: the limit restarts at 00:00 UTC but the switch does not; re-arm after review.
    - `drawdown`: only the owner (`RISK_OWNER_ACTOR`) re-arms, after reviewing the strategy.
    - `stale_data`, `reconciliation`, `rejects`: see the sections below.
-   - `state_unreadable`: the state file cannot be read and **cannot be re-armed**. Keep a copy of `state.json`, restore it from the PVC backup or remove it knowingly (a new state starts flat), then restart the pod.
+   - `state_unreadable`: the state file cannot be read and **cannot be re-armed**. No backup covers the `risk-execution-pvc`: first copy `state.json` and `paper-ledger.json` out of the pod (`kubectl cp`), then either repair `state.json` from that copy, or remove both files together (state and paper ledger start flat), then restart the pod.
 3. Re-arm with a reason that says what you checked; it goes to the log with the actor.
 
 ## ReconciliationMismatch
@@ -38,11 +38,12 @@ The service state and the broker differ (a position, an open order, or a balance
 
 1. Read the `reconciliation.mismatch` log line (`diffs`: `position:<symbol>`, `open_orders`, `balance`).
 2. Paper mode: compare `state.json` and `paper-ledger.json`. Someone or something changed one of them (restore of one file only, manual edit, crash between the two writes of a fill).
-3. Decide which side is right and restore both files consistently from the same backup, restart the pod, check `ready: true`, then re-arm.
+3. Copy both files out of the pod (no backup covers the PVC), decide which side is right, make the other file match it (or remove both together to start flat), restart the pod, check `ready: true`, then re-arm.
+4. Broker unreachable instead (`reconciliation.error` log line, pod not ready, intents rejected `not_reconciled`): no switch is engaged; the service retries at every tick and is ready again once a reconciliation passes.
 
 ## RiskMarketDataStale
 
-A price older than 15 min on an allowed instrument: that symbol is switched off, the global switch when every symbol is stale. Intents decided on a price older than 1 min are rejected without engaging anything.
+A price older than 15 min on an allowed instrument that already had one: that symbol is switched off, the global switch when every priced symbol is stale. An instrument never priced (no decision consumer yet) is not stale. Intents decided on a price older than 1 min are rejected without engaging anything.
 
 1. The decision consumer pushes prices (`POST /prices`) and sends reference prices with each intent: check it is running, then [runbook-market-data-stale](runbook-market-data-stale.md) for the feed.
 2. When fresh prices flow, re-arm the symbol (and the global switch if engaged).
