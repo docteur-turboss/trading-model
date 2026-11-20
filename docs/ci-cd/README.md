@@ -42,7 +42,6 @@ jobs:
       - name: Type-check services
         run: |
           bun run --filter message-manager build
-          bun run --filter discovery-server build
           bun run --filter financial-scraper build
           bun run --filter trader-trainer build
           bun run --filter api-gateway build
@@ -114,8 +113,8 @@ only GHCR namespace `GITHUB_TOKEN` can push to). Manifests keep the logical name
 `ghcr.io/trading-model/<image>`; `deploy.yml` rewrites it to the registry.
 
 Example for `v2.0.3` (highest release), owner `docteur-turboss`:
-- `ghcr.io/docteur-turboss/discovery-server:2.0.3`
-- `ghcr.io/docteur-turboss/discovery-server:latest`
+- `ghcr.io/docteur-turboss/message-manager:2.0.3`
+- `ghcr.io/docteur-turboss/message-manager:latest`
 
 The cluster pulls the images itself: make the GHCR packages public, or give the
 nodes pull credentials for the registry.

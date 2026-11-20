@@ -33,7 +33,7 @@ export class TrainerClient {
 
 	async manifest(symbol: string, version: string): Promise<ModelManifest> {
 		const url = URLString.of(
-			`${await this._base()}/models/${symbol}/${version}`
+			`${await this._base()}/v1/models/${symbol}/${version}`
 		);
 		const body = await this._http.get(
 			url,

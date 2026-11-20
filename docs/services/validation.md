@@ -13,7 +13,7 @@ Depends on `primitives`, `contracts`, `common`, `http` (+ `zod`). `crypto` depen
 | `@trading-model/validation/config/validate-env` | `validateEnv` | Parses and validates `process.env` against a schema |
 | `@trading-model/validation/config/env` | `BaseEnvSchema`, `BaseEnv` | Variables common to every service |
 | `@trading-model/validation/config/redis-env` | `RedisEnvSchema` | Redis variables |
-| `@trading-model/validation/config/address-manager-env` | address-manager env schema | Discovery variables |
+| `@trading-model/validation/config/address-manager-env` | address-manager env schema | `DNS_NAME_MAP` |
 | `@trading-model/validation/wire/service-resolver.types` | resolver types | Service resolution contracts |
 
 ## Example

@@ -2,7 +2,6 @@ import { ServiceId } from "@trading-model/primitives/primitives";
 
 /** Services that can call each other, named by their mTLS identity. */
 export enum KnownService {
-	DiscoveryServer = "discovery-server",
 	AuditLogger = "audit-logger",
 	MessageManager = "message-manager",
 	FinancialScraper = "financial-scraper",
@@ -15,7 +14,6 @@ export enum KnownService {
 
 /** Default caller allowlist per target service; `*` admits any platform service. */
 export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
-	[KnownService.DiscoveryServer]: [ServiceId.of("*")],
 	// message-manager delivers audited topics; api-gateway relays the public reads.
 	[KnownService.AuditLogger]: [
 		ServiceId.of("message-manager"),
@@ -25,7 +23,6 @@ export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 	// and dlq-service republishes replayed entries. Not api-gateway: it would
 	// lend its identity to API clients (it proxies with its own SVID).
 	[KnownService.MessageManager]: [
-		ServiceId.of("discovery-server"),
 		ServiceId.of("financial-scraper"),
 		ServiceId.of("trader-trainer"),
 		ServiceId.of("audit-logger"),
@@ -45,7 +42,6 @@ export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 	[KnownService.TraderTrainer]: [
 		ServiceId.of("api-gateway"),
 		ServiceId.of("financial-scraper"),
-		ServiceId.of("discovery-server"),
 		ServiceId.of("message-manager"),
 		// Offline evaluation of published models (ADR-0049): manifest and weights.
 		ServiceId.of("model-evaluator"),

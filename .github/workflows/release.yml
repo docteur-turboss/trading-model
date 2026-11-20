@@ -78,7 +78,6 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - discovery-server
           - message-manager
           - financial-scraper
           - trader-trainer
@@ -250,7 +249,6 @@ jobs:
     strategy:
       matrix:
         image:
-          - discovery-server
           - message-manager
           - financial-scraper
           - trader-trainer

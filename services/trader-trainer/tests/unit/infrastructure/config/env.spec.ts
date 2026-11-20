@@ -14,7 +14,6 @@ function makeValidEnv(): Record<string, string> {
 		TLS_KEY_PATH: "/certs/key.pem",
 		TLS_CERT_PATH: "/certs/cert.pem",
 		TLS_CA_PATH: "/certs/ca.pem",
-		ADDRESS_MANAGER_URL: "http://localhost:3000",
 		INSTANCE_ID: "test-1",
 		SERVICE_NAME: "trader-trainer",
 		TRAINER_SYMBOLS: "BTCUSDT",
@@ -23,10 +22,6 @@ function makeValidEnv(): Record<string, string> {
 		TRAINER_POPULATION_SIZE: "5",
 		TRAINER_TIME_BUDGET_MS: "60000",
 		TRAINER_EPISODES_PER_INDIVIDUAL: "2",
-		CACHE_TTL_MS: "5000",
-		SERVICE_PING_TIMEOUT_MS: "5000",
-		TOKEN_REFRESH_INTERVAL_MS: "30000",
-		TTL_REFRESH_INTERVAL_MS: "30000",
 		MESSAGE_CALLBACK_PATH: "/callback",
 	};
 }
@@ -75,7 +70,6 @@ describe("Env Schema", () => {
 			TLS_KEY_PATH: "/key.pem",
 			TLS_CERT_PATH: "/cert.pem",
 			TLS_CA_PATH: "/ca.pem",
-			ADDRESS_MANAGER_URL: "http://localhost:3000",
 			INSTANCE_ID: "test-1",
 			SERVICE_NAME: "trader-trainer",
 		};

@@ -20,7 +20,6 @@ Offline consumer of trained models (ADR-0049, option B). No order flow, no marke
 
 | Dependency | Type |
 | --- | --- |
-| discovery-server | Registration only, kept for N-1 gateways (resolution is by Service DNS name, ADR-0072) |
 | message-manager | Subscription to `training.model.published`, delivery |
 | trader-trainer | Manifest and weights (service-to-service) |
 | financial-scraper | Candles of the replay window (candles of a symbol, `/v2/candles/symbols/<symbol>`) |

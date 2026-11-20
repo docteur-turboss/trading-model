@@ -3,7 +3,6 @@ import { ServiceId } from "@trading-model/primitives/primitives";
 import {
 	buildSpiffeId,
 	extractCanonicalServiceName,
-	registryNamesFor,
 } from "../../../src/utils/spiffe";
 
 describe("extractCanonicalServiceName", () => {
@@ -40,8 +39,8 @@ describe("extractCanonicalServiceName", () => {
 	});
 
 	it("should normalize legacy names onto canonical names", () => {
-		expect(extractCanonicalServiceName("discovery-service")).toBe(
-			ServiceId.of("discovery-server")
+		expect(extractCanonicalServiceName("audit-logger-service")).toBe(
+			ServiceId.of("audit-logger")
 		);
 	});
 
@@ -53,21 +52,5 @@ describe("extractCanonicalServiceName", () => {
 
 	it("should return null for empty string", () => {
 		expect(extractCanonicalServiceName("")).toBeNull();
-	});
-});
-
-describe("registryNamesFor", () => {
-	it("lists the canonical name and its legacy registration aliases", () => {
-		expect(registryNamesFor("financial-scraper")).toEqual([
-			"financial-scraper",
-			"financial-scraper-service",
-		]);
-	});
-
-	it("maps a legacy name back to the same set", () => {
-		expect(registryNamesFor("message-delivery-service")).toEqual([
-			"message-delivery-service",
-			"message-manager",
-		]);
 	});
 });

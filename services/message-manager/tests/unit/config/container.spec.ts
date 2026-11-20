@@ -21,7 +21,6 @@ import {
 
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
-	BOOTSTRAP_ADDRESS_MANAGER: jest.fn<(...args: any[]) => any>(),
 }));
 
 jest.mock("@trading-model/http/http-client", () => {

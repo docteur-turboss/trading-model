@@ -12,7 +12,6 @@ The platform runs **7 microservices** (no frontend, see [ADR-0018](../adr/0018-t
 | --------------------- | ----------------------- | ------------------- | -------------------------------- | ----------------------- |
 | `mongo`               | `mongo:7`               | `trading-mongo`     | —                                | `data-net` (internal)   |
 | `mysql`               | `mysql:8`               | `trading-mysql`     | —                                | `data-net` (internal)   |
-| `discovery-server`    | Build local             | `trading-discovery` | `${DISCOVERY_PORT:-8443}` → 3000 | `backend-net`            |
 | `message-manager`     | Build local             | `trading-message`   | `${MESSAGE_PORT:-8444}` → 3000   | `backend-net`, `data-net` |
 | `financial-scraper`   | Build local             | `trading-scraper`   | `${SCRAPER_PORT:-8445}` → 3000   | `backend-net`, `data-net` |
 | `trader-trainer`      | Build local             | `trading-trainer`   | `${TRAINER_PORT:-8446}` → 3000   | `backend-net`            |
@@ -34,13 +33,13 @@ networks:
     driver: bridge
 ```
 
-Services on `backend-net` can reach each other by Docker service name (e.g. `discovery-server`, `mysql`).
+Services on `backend-net` can reach each other by Docker service name (e.g. `message-manager`, `mysql`).
 
 ---
 
 ## Multi-stage Dockerfile
 
-All 7 TypeScript services use the same 3-stage pattern, for example [`services/discovery-server/Dockerfile`](../../services/discovery-server/Dockerfile). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
+All 7 TypeScript services use the same 3-stage pattern, for example [`services/message-manager/Dockerfile`](../../services/message-manager/Dockerfile). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
 
 | Stage     | Base image | Operations |
 | --------- | ---------- | ---------- |
@@ -79,7 +78,6 @@ All **7 microservices** are built and published by the release workflow:
 
 | Service               | Image                                                        |
 | --------------------- | ------------------------------------------------------------ |
-| discovery-server      | `ghcr.io/trading-model/discovery-server`                     |
 | message-manager       | `ghcr.io/trading-model/message-manager`                      |
 | financial-scraper     | `ghcr.io/trading-model/financial-scraper`                    |
 | trader-trainer        | `ghcr.io/trading-model/trader-trainer`                       |
@@ -108,7 +106,6 @@ Variables expected inside the container:
 
 | Variable         | Default | Service               |
 | ---------------- | ------- | --------------------- |
-| `DISCOVERY_PORT` | `8443`  | discovery-server      |
 | `MESSAGE_PORT`   | `8444`  | message-manager       |
 | `SCRAPER_PORT`   | `8445`  | financial-scraper     |
 | `TRAINER_PORT`   | `8446`  | trader-trainer        |
@@ -129,7 +126,7 @@ Containers wait for their dependencies to be **healthy** before starting:
 depends_on:
   mysql:
     condition: service_healthy
-  discovery-server:
+  message-manager:
     condition: service_healthy
   mongo:
     condition: service_healthy
@@ -138,13 +135,11 @@ depends_on:
 ### Service dependency graph
 
 ```
-mongo ─────┬── message-manager ───────┤
-           ├── audit-logger ──────────┤
-           │                          ├── discovery-server ──┬── financial-scraper
-mysql ─────┘                          │                     ├── trader-trainer
-                                      │                     ├── api-gateway
-                                      │                     ├── dlq-service
-                                      │                     └── edge-proxy (after api-gateway)
+mongo ─────┬── message-manager ───────┬── financial-scraper
+           ├── audit-logger           ├── trader-trainer
+mysql ─────┘                          ├── api-gateway
+                                      ├── dlq-service
+                                      └── edge-proxy (after api-gateway)
 ```
 
 ### Health checks
@@ -160,7 +155,7 @@ mysql ─────┘                          │                     ├─
 
 ## Load balancing
 
-Inbound load balancing is handled by the platform's own entry points (api-gateway, discovery-server, message-manager) rather than external nginx LBs. Each workload serves TLS directly with its SPIRE SVID (ADR-0011); no `proxy_ssl_verify off` passthrough is needed.
+Inbound load balancing is handled by the platform's own entry points (api-gateway, message-manager) rather than external nginx LBs. Each workload serves TLS directly with its SPIRE SVID (ADR-0011); no `proxy_ssl_verify off` passthrough is needed.
 
 ---
 

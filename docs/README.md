@@ -34,7 +34,6 @@ Per-service and per-package documentation ([full index](services/README.md)):
 
 | Service | Port | Purpose |
 | ------- | ---- | ------- |
-| `discovery-server` | 8443 | Service registry with TTL leases + HMAC tokens |
 | `message-manager` | 8444 | Topic-based pub/sub broker with DLQ routing |
 | `financial-scraper` | 8445 | Binance market data ingestion |
 | `trader-trainer` | 8446 | GA + DQN agent evolution engine |

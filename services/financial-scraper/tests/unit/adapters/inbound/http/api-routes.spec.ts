@@ -135,7 +135,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			const { status, body } = await get(
 				SCRAPER_API.tradesBySymbol,
-				"/trade/symbols/BTCUSDT"
+				"/v2/trade/symbols/BTCUSDT"
 			);
 
 			expect(status).toBe(200);
@@ -161,7 +161,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			const { status } = await get(
 				SCRAPER_API.tradesBySource,
-				"/trade/sources/binance"
+				"/v2/trade/sources/binance"
 			);
 
 			expect(status).toBe(200);
@@ -173,7 +173,10 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		it("queries an exact instant given as an ISO date-time", async () => {
 			selectTradesBy.timestamp.mockResolvedValue([]);
 
-			await get(SCRAPER_API.tradesAt, `/trade/timestamp/${AT.toISOString()}`);
+			await get(
+				SCRAPER_API.tradesAt,
+				`/v2/trade/timestamp/${AT.toISOString()}`
+			);
 
 			expect(selectTradesBy.timestamp).toHaveBeenCalledWith(AT.getTime(), {
 				limit: DEFAULT_PAGE_LIMIT + 1,
@@ -183,9 +186,9 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 	describe("tickers", () => {
 		it.each([
-			[SCRAPER_API.tickersBySource, "/ticker/sources/binance", "source"],
-			[SCRAPER_API.tickersBySymbol, "/ticker/symbols/BTCUSDT", "symbol"],
-			[SCRAPER_API.tickersAt, "/ticker/timestamp/2026-10-28", "timestamp"],
+			[SCRAPER_API.tickersBySource, "/v2/ticker/sources/binance", "source"],
+			[SCRAPER_API.tickersBySymbol, "/v2/ticker/symbols/BTCUSDT", "symbol"],
+			[SCRAPER_API.tickersAt, "/v2/ticker/timestamp/2026-10-28", "timestamp"],
 		] as const)("%#: %s answers documented rows", async (route, path, by) => {
 			selectTickerBy[by].mockResolvedValue([TICKER]);
 
@@ -197,8 +200,8 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 	describe("candles", () => {
 		it.each([
-			[SCRAPER_API.candlesBySource, "/candles/sources/binance"],
-			[SCRAPER_API.candlesBySymbol, "/candles/symbols/BTCUSDT"],
+			[SCRAPER_API.candlesBySource, "/v2/candles/sources/binance"],
+			[SCRAPER_API.candlesBySymbol, "/v2/candles/symbols/BTCUSDT"],
 		] as const)("%#: %s answers documented rows", async (route, path) => {
 			selectCandlesBy.source.mockResolvedValue([CANDLE]);
 			selectCandlesBy.symbol.mockResolvedValue([
@@ -213,7 +216,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		it("queries the candles after a date", async () => {
 			selectCandlesBy.timestamp.after.mockResolvedValue([CANDLE]);
 
-			await get(SCRAPER_API.candlesSince, "/candles/timestamp/2026-10-28");
+			await get(SCRAPER_API.candlesSince, "/v2/candles/timestamp/2026-10-28");
 
 			expect(selectCandlesBy.timestamp.after).toHaveBeenCalledWith(
 				Date.parse("2026-10-28"),
@@ -235,21 +238,21 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			[
 				"trades",
 				SCRAPER_API.tradesBySymbol,
-				"/trade/symbols/BTCUSDT",
+				"/v2/trade/symbols/BTCUSDT",
 				() => selectTradesBy.symbol,
 				TRADE,
 			],
 			[
 				"tickers",
 				SCRAPER_API.tickersBySymbol,
-				"/ticker/symbols/BTCUSDT",
+				"/v2/ticker/symbols/BTCUSDT",
 				() => selectTickerBy.symbol,
 				TICKER,
 			],
 			[
 				"candles",
 				SCRAPER_API.candlesBySymbol,
-				"/candles/symbols/BTCUSDT",
+				"/v2/candles/symbols/BTCUSDT",
 				() => selectCandlesBy.symbol,
 				CANDLE,
 			],
@@ -279,7 +282,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			const { body } = await get(
 				SCRAPER_API.tradesBySymbol,
-				`/trade/symbols/BTCUSDT?limit=2&after=${cursor}&from=2026-10-28&to=2026-10-29`
+				`/v2/trade/symbols/BTCUSDT?limit=2&after=${cursor}&from=2026-10-28&to=2026-10-29`
 			);
 
 			expect(selectTradesBy.symbol).toHaveBeenCalledWith("BTCUSDT", {
@@ -303,7 +306,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		])("answers 400 for %s", async (_label, search, field) => {
 			const { status, body } = await get(
 				SCRAPER_API.candlesBySource,
-				`/candles/sources/binance?${search}`
+				`/v2/candles/sources/binance?${search}`
 			);
 
 			expect(status).toBe(400);
@@ -341,7 +344,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			const { status, body } = await get(
 				SCRAPER_API.assetSignals,
-				`/signals/assets/WHEAT?${WINDOW}`
+				`/v2/signals/assets/WHEAT?${WINDOW}`
 			);
 
 			expect(status).toBe(200);
@@ -380,7 +383,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			const { status, body } = await get(
 				SCRAPER_API.assetSignals,
-				`/signals/assets/GLD?${WINDOW}`
+				`/v2/signals/assets/GLD?${WINDOW}`
 			);
 
 			expect(status).toBe(200);
@@ -395,7 +398,10 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			findForAsset.mockResolvedValue([]);
 
 			try {
-				await get(SCRAPER_API.assetSignals, `/signals/assets/WHEAT?${WINDOW}`);
+				await get(
+					SCRAPER_API.assetSignals,
+					`/v2/signals/assets/WHEAT?${WINDOW}`
+				);
 			} finally {
 				lookup.mockRestore();
 			}
@@ -410,7 +416,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			const { body } = await get(
 				SCRAPER_API.assetSignals,
-				`/signals/assets/WHEAT?${WINDOW}`
+				`/v2/signals/assets/WHEAT?${WINDOW}`
 			);
 
 			expect(body.signals).toHaveLength(MAX_SIGNALS_PER_ANSWER);
@@ -420,7 +426,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		it("without filter, queries the asset's own dimensions and no metric or source", async () => {
 			findForAsset.mockResolvedValue([]);
 
-			await get(SCRAPER_API.assetSignals, `/signals/assets/WHEAT?${WINDOW}`);
+			await get(SCRAPER_API.assetSignals, `/v2/signals/assets/WHEAT?${WINDOW}`);
 
 			const call = findForAsset.mock.calls[0][0];
 			expect(call.dimensions).toEqual(["market", "contextual", "macro"]);
@@ -442,7 +448,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			await get(
 				SCRAPER_API.assetSignals,
-				`/signals/assets/WHEAT?${WINDOW}&${search}`
+				`/v2/signals/assets/WHEAT?${WINDOW}&${search}`
 			);
 
 			const call = findForAsset.mock.calls[0][0];
@@ -459,7 +465,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			const { status, body } = await get(
 				SCRAPER_API.assetSignals,
-				`/signals/assets/WHEAT?${WINDOW}&dimension=fundamental`
+				`/v2/signals/assets/WHEAT?${WINDOW}&dimension=fundamental`
 			);
 
 			expect(status).toBe(200);
@@ -470,7 +476,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		it("answers 400 for an unknown dimension", async () => {
 			const { status } = await get(
 				SCRAPER_API.assetSignals,
-				`/signals/assets/WHEAT?${WINDOW}&dimension=astrology`
+				`/v2/signals/assets/WHEAT?${WINDOW}&dimension=astrology`
 			);
 
 			expect(status).toBe(400);
@@ -489,11 +495,11 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			] as any);
 			let sources: any;
 			try {
-				sources = await get(SCRAPER_API.sources, "/signals/sources");
+				sources = await get(SCRAPER_API.sources, "/v2/signals/sources");
 			} finally {
 				spy.restore();
 			}
-			const assets = await get(SCRAPER_API.assets, "/signals/assets");
+			const assets = await get(SCRAPER_API.assets, "/v2/signals/assets");
 
 			expect(assets.body.assets.map((a: any) => a.id)).toContain("WHEAT");
 			expect(sources.body.sources[0]).toHaveProperty("termsUrl");
@@ -503,7 +509,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		it("answers 404 for an asset the registry does not know", async () => {
 			const { status } = await get(
 				SCRAPER_API.assetSignals,
-				`/signals/assets/DOGE?${WINDOW}`
+				`/v2/signals/assets/DOGE?${WINDOW}`
 			);
 
 			expect(status).toBe(404);
@@ -517,7 +523,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		])("answers 400 for %s", async (_label, search, field) => {
 			const { status, body } = await get(
 				SCRAPER_API.assetSignals,
-				`/signals/assets/BTC?${search}`
+				`/v2/signals/assets/BTC?${search}`
 			);
 
 			expect(status).toBe(400);
@@ -530,7 +536,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		it("answers 400 for an asset id the schema refuses", async () => {
 			const { status } = await get(
 				SCRAPER_API.assetSignals,
-				`/signals/assets/btc?${WINDOW}`
+				`/v2/signals/assets/btc?${WINDOW}`
 			);
 
 			expect(status).toBe(400);
@@ -539,10 +545,10 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 	describe("invalid parameters: 400 before any query", () => {
 		it.each([
-			[SCRAPER_API.tradesBySource, "/trade/sources/unknown-exchange"],
-			[SCRAPER_API.tradesAt, "/trade/timestamp/yesterday"],
-			[SCRAPER_API.tradesAt, "/trade/timestamp/1761652800000"],
-			[SCRAPER_API.candlesSince, "/candles/timestamp/1960-01-01"],
+			[SCRAPER_API.tradesBySource, "/v2/trade/sources/unknown-exchange"],
+			[SCRAPER_API.tradesAt, "/v2/trade/timestamp/yesterday"],
+			[SCRAPER_API.tradesAt, "/v2/trade/timestamp/1761652800000"],
+			[SCRAPER_API.candlesSince, "/v2/candles/timestamp/1960-01-01"],
 		] as const)("%#: %s", async (route, path) => {
 			const { status, body } = await get(route, path);
 

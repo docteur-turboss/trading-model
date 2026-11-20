@@ -2,7 +2,7 @@
 
 ## Local deployment (development)
 
-Create `.env` first, then replace the example values of `MYSQL_ROOT_PASSWORD`, `GATEWAY_AUTH_TOKENS` and `SIGNING_SECRET` (see [SETUP.md](SETUP.md#5-configure-environment)): without them the gateway and discovery-server refuse to start.
+Create `.env` first, then replace the example values of `MYSQL_ROOT_PASSWORD`, and `GATEWAY_AUTH_TOKENS` (see [SETUP.md](SETUP.md#5-configure-environment)): without them the gateway refuses to start.
 
 Start all services:
 
@@ -275,7 +275,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u <USERNAME> --password-stdin
 IMAGE_TAG=2.0.3 docker compose pull
 
 # Or pull a specific service
-docker pull ghcr.io/<owner>/discovery-server:2.0.3
+docker pull ghcr.io/<owner>/message-manager:2.0.3
 ```
 
 ## Production deployment

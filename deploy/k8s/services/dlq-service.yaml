@@ -140,7 +140,7 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_INTERNAL_PASSWORD
-            # Discovery keys tokens and addresses by instance: one per pod.
+            # One instance id per pod.
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:

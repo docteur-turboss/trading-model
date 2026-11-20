@@ -3,7 +3,6 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { createBootstrap } from "@trading-model/http/bootstrap";
 import { logger } from "@trading-model/http/logger";
 import { shutdownTelemetry } from "@trading-model/http/telemetry";
-import { AddressManager } from "../config/address-manager";
 import { createDlqApp } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
@@ -33,26 +32,13 @@ function _onBeforeServer(): void {
 		});
 }
 
-let _discovery: ReturnType<
-	typeof AddressManager.lifecycleManager.start
-> | null = null;
-
 function _onStart(): void {
-	_discovery = AddressManager.lifecycleManager.start();
 	app.start();
 	logger.info("DLQ Service started", { port: ENV.PORT });
 }
 
 async function _onStop(): Promise<void> {
 	await shutdownTelemetry();
-	try {
-		await _discovery?.stop();
-	} catch (err) {
-		logger.warn("Error stopping address manager", {
-			error: normalizeError(err),
-		});
-	}
-	_discovery = null;
 	await app.shutdownSchedulers();
 	try {
 		await app.closeDb();

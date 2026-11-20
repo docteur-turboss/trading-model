@@ -1,15 +1,15 @@
 # Local service development
 
-How to change one service and see it run. Supported method: **rebuild that service's container in the Compose stack**. Running a service outside a container (`bun run dev`) is **not supported**, for any service (`discovery-server`, `message-manager`, `financial-scraper`, `trader-trainer`, `api-gateway`, `audit-logger`, `dlq-service`, `model-evaluator`): they all share the same `dev` script and the same TLS requirement.
+How to change one service and see it run. Supported method: **rebuild that service's container in the Compose stack**. Running a service outside a container (`bun run dev`) is **not supported**, for any service (`message-manager`, `financial-scraper`, `trader-trainer`, `api-gateway`, `audit-logger`, `dlq-service`, `model-evaluator`): they all share the same `dev` script and the same TLS requirement.
 
 ## Why `bun run dev` does not work alone
 
 Checked by running `bun run dev` in `services/message-manager` without Compose:
 
-1. Env validation fails first: `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID` and `ADDRESS_MANAGER_URL` are `Invalid input: expected string, received undefined`. These variables are set by `docker-compose.yml`, not by any file read by `bun run dev`.
+1. Env validation fails first: `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID` are `Invalid input: expected string, received undefined`. These variables are set by `docker-compose.yml`, not by any file read by `bun run dev`.
 2. With them set to the Compose values (`/run/spire/svid/svid_key.pem`, `svid.pem`, `bundle.pem`), startup stops with `Failed to read TLS CA certificate from "/run/spire/svid/bundle.pem": ENOENT` (`packages/http/src/http-tls-loader.ts`).
 
-The `/run/spire/svid/*` paths are the values `docker-compose.yml` sets (and [ENV.md](../deployment/ENV.md) documents); only the `spiffe-helper-<x>` sidecar writes files there, with a SPIRE SVID (ADR-0011). Services also only accept mTLS peers with a SPIRE identity and find each other through discovery-server (itself behind mTLS). Nothing in the repository issues local SVIDs.
+The `/run/spire/svid/*` paths are the values `docker-compose.yml` sets (and [ENV.md](../deployment/ENV.md) documents); only the `spiffe-helper-<x>` sidecar writes files there, with a SPIRE SVID (ADR-0011). Services also only accept mTLS peers with a SPIRE identity and find each other through DNS. Nothing in the repository issues local SVIDs.
 
 ## The loop: edit, rebuild, read logs
 
@@ -17,7 +17,7 @@ Prerequisites: Docker, `.env` from `.env.example` (see [Quick Start](quickstart.
 
 ```bash
 # 1. First time: start the service. Compose starts its depends_on chain
-#    (SPIRE, spiffe-helper-<x>, redis, discovery-server, ...) by itself.
+#    (SPIRE, spiffe-helper-<x>, redis, ...) by itself.
 docker compose -p tm up -d --build <service>
 
 # 2. Edit code, then rebuild and restart only that service
@@ -36,13 +36,12 @@ Dependencies started by step 1 besides SPIRE (`spire-server`, `spire-bootstrap`,
 
 | Service | Also started |
 | --- | --- |
-| `discovery-server` | `redis` |
-| `api-gateway` | `redis`, `discovery-server` |
-| `message-manager` | `redis`, `discovery-server` |
-| `trader-trainer` | `redis`, `discovery-server`, `message-manager` |
-| `financial-scraper` | `redis`, `mysql`, `migrate` (one-shot), `discovery-server`, `message-manager` |
-| `audit-logger` | `redis`, `mongo`, `discovery-server` |
-| `dlq-service` | `redis`, `mongo`, `discovery-server` |
+| `api-gateway` | none |
+| `message-manager` | `redis` |
+| `trader-trainer` | `redis`, `message-manager` |
+| `financial-scraper` | `redis`, `mysql`, `migrate` (one-shot), `message-manager` |
+| `audit-logger` | `redis`, `mongo` |
+| `dlq-service` | `redis`, `mongo` |
 
 Use `--no-deps` only after step 1 has run once; with it Compose does not start missing dependencies.
 
@@ -58,7 +57,7 @@ Use `--no-deps` only after step 1 has run once; with it Compose does not start m
     https://localhost:3000/health/ready
   ```
 
-  Verified on `api-gateway`: `{"status":"ok","checks":{"discovery":"ok"}}`. Gateway routes from outside go through `edge-proxy` on port 8449 (see [Quick Start](quickstart.md)).
+  Verified on `api-gateway`: `{"status":"ok"}`. Gateway routes from outside go through `edge-proxy` on port 8449 (see [Quick Start](quickstart.md)).
 - Unit tests need no stack: `bun run --filter <package-name> test` (`trader-trainer` is its package name).
 
 ## One Compose stack at a time

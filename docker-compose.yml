@@ -31,11 +31,6 @@ x-logging: &default-logging
 
 x-message-env: &message-env
   <<: *core-env
-  CACHE_TTL_MS: '30000'
-  SERVICE_PING_TIMEOUT_MS: '2000'
-  TOKEN_REFRESH_INTERVAL_MS: '60000'
-  TTL_REFRESH_INTERVAL_MS: '15000'
-  ADDRESS_MANAGER_URL: https://discovery-server:3000
   MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
   MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
   MESSAGE_CALLBACK_PATH: message
@@ -96,7 +91,7 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  #  Redis — discovery registry, message-manager subscriptions, dlq-service
+  #  Redis — message-manager journal, dlq-service
   #  queues (single node for dev/E2E)
   # ---------------------------------------------------------------------------
   redis:
@@ -180,41 +175,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-
-  # ---------------------------------------------------------------------------
-  #  Discovery Server — Service registry & lease management
-  # ---------------------------------------------------------------------------
-  discovery-server:
-    logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/discovery-server/Dockerfile
-    container_name: trading-discovery
-    restart: unless-stopped
-    mem_limit: 256m
-    ports:
-      - '127.0.0.1:${DISCOVERY_PORT:-8443}:3000'
-    environment:
-      <<: *core-env
-      SERVICE_NAME: discovery-server
-      CLEANUP_SERVICE_INTERVAL_MS: '600000'
-      # Signs the instance tokens kept in Redis: stable across restarts.
-      # Required with NODE_ENV=production (discovery refuses to start).
-      SIGNING_SECRET: ${SIGNING_SECRET:-}
-    volumes:
-      - svid-discovery:/run/spire/svid
-    networks:
-      - backend-net
-    depends_on:
-      spiffe-helper-discovery:
-        condition: service_started
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
-      interval: 15s
-      timeout: 5s
-      retries: 3
 
   # ---------------------------------------------------------------------------
   #  SPIRE Server — workload identity issuance (ADR-0011)
@@ -320,9 +280,8 @@ services:
       INSTANCE_ID: message-manager-1
       # Signs the dead letters sent to dlq-service: same key as dlq-service.
       DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:?DLQ_AUTH_HMAC_SECRET must be set (min 32 chars, shared by message-manager and dlq-service)}
-    # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
-    # publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries finish: see
-    # application/index.ts. Undelivered messages stay in the Redis journal.
+    # Lets in-flight publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries
+    # finish: see application/index.ts. Undelivered messages stay in the Redis journal.
     stop_grace_period: 2m
     volumes:
       - svid-message:/run/spire/svid
@@ -338,8 +297,6 @@ services:
       spiffe-helper-message:
         condition: service_started
       redis:
-        condition: service_healthy
-      discovery-server:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
@@ -397,8 +354,6 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      discovery-server:
-        condition: service_healthy
       message-manager:
         condition: service_healthy
     healthcheck:
@@ -464,8 +419,6 @@ services:
     depends_on:
       spiffe-helper-trainer:
         condition: service_started
-      discovery-server:
-        condition: service_healthy
       message-manager:
         condition: service_healthy
 
@@ -543,8 +496,6 @@ services:
         condition: service_started
       mongo-users:
         condition: service_completed_successfully
-      discovery-server:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Model Evaluator — offline evaluation of published models (ADR-0049, no order flow)
@@ -579,8 +530,6 @@ services:
     depends_on:
       spiffe-helper-evaluator:
         condition: service_started
-      discovery-server:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Risk/Execution — order flow owner of ADR-0064 (simulated broker, paper only)
@@ -617,8 +566,6 @@ services:
     depends_on:
       spiffe-helper-risk:
         condition: service_started
-      discovery-server:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  DLQ Service - Dead Letter Queue management
@@ -662,8 +609,6 @@ services:
         condition: service_started
       mongo-users:
         condition: service_completed_successfully
-      discovery-server:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  SPIFFE Helpers — spiffe-helper sidecars (ADR-0011)
@@ -673,21 +618,6 @@ services:
   #  (spiffe-helper-<suffix>, registered by spire-bootstrap). Helpers only talk
   #  to the agent socket: no network, so a service restart cannot strand them.
   # ---------------------------------------------------------------------------
-  spiffe-helper-discovery:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
-    container_name: trading-helper-discovery
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
-    volumes:
-      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
-      - spire-agent-sockets:/run/spire/agent-sockets:ro
-      - svid-discovery:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
-
   spiffe-helper-message:
     logging: *default-logging
     image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
@@ -1230,7 +1160,6 @@ volumes:
   spire-bootstrap:
   spire-server-sockets:
   spire-agent-sockets:
-  svid-discovery:
   svid-message:
   svid-scraper:
   svid-trainer:

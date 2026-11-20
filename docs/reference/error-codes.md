@@ -6,10 +6,10 @@ The HTTP status is the `httpStatus` set by the factory in `errors/*.ts`. `500` i
 
 | Code | HTTP | Cause | Expected action (caller) |
 | ---- | ---- | ----- | ------------------------ |
-| `ServiceNotFoundError` | 404 | Discovery has no instance registered under the requested service name. | Check the service name and that the service is running and registered; retry after it registers. |
-| `ServiceUnreachableError` | 410 | Service is known to discovery but no instance answered (circuit open, DNS or TLS failure). | Retry with backoff; check the target's health and `docker compose logs <service>`. |
+| `ServiceNotFoundError` | 404 | The requested service name does not resolve (DNS). | Check the service name and that the service is running; retry after it starts. |
+| `ServiceUnreachableError` | 410 | Service name resolves but no instance answered (circuit open, DNS or TLS failure). | Retry with backoff; check the target's health and `docker compose logs <service>`. |
 | `AuthenticationError` | 498 | Signed request or token rejected (bad signature, expired timestamp, unknown caller). | Do not retry as is; fix the credentials, SVID or clock, then resend. |
-| `AddressManagerError` | 503 | Address manager failed to register, heartbeat or resolve an address. | Retry; check discovery-server and Redis availability. |
+| `AddressManagerError` | 503 | Address manager failed to resolve an address. | Retry; check DNS and the target service. |
 | `MessageManagerError` | 503 | Message-manager call failed (publish, subscribe, unavailable). | Retry with backoff; check message-manager health. |
 | `MetadataBuilderError` | 500 | Reserved for message metadata construction failures; no factory throws it today. | Treat as a bug; report with the log context. |
 | `TimeoutError` | 503 | An operation exceeded its time limit. | Retry with backoff; raise the timeout only if the target is known slow. |

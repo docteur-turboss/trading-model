@@ -35,7 +35,6 @@ docs/
 │   ├── common.md                        # @trading-model/common
 │   ├── address-manager.md               # @trading-model/address-manager
 │   ├── broker-message.md                # @trading-model/broker-message
-│   ├── discovery-server.md              # Service registry
 │   ├── message-manager.md               # Message broker
 │   ├── financial-scraper.md             # Market data ingestion
 │   ├── trader-trainer.md                # GA/DQN training engine
@@ -132,7 +131,7 @@ Platform-level implementation reference docs (GA, NN, training) are in `docs/ref
 import { createBootstrap } from '@trading-model/http/bootstrap';
 
 createBootstrap({
-  name: 'Discovery',
+  name: 'MessageManager',
   createServer: createServer,
 });
 ```

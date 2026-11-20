@@ -3,7 +3,7 @@ import { DEFAULT_ACL, KnownService } from "@trading-model/http/acl-config";
 
 describe("DEFAULT_ACL", () => {
 	it("should contain entries for all known services", () => {
-		expect(DEFAULT_ACL[KnownService.DiscoveryServer]).toBeDefined();
+		expect(DEFAULT_ACL[KnownService.AuditLogger]).toBeDefined();
 		expect(DEFAULT_ACL[KnownService.AuditLogger]).toBeDefined();
 		expect(DEFAULT_ACL[KnownService.MessageManager]).toBeDefined();
 		expect(DEFAULT_ACL[KnownService.FinancialScraper]).toBeDefined();

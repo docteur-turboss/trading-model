@@ -448,7 +448,6 @@ cmd_smoke_test() {
   log "Running smoke tests..."
 
   local services=(
-    "discovery-server:https://discovery-server:3000/health/ready"
     "message-manager:https://message-manager:3000/health/ready"
     "api-gateway:https://api-gateway:3000/health/ready"
     "audit-logger:https://audit-logger:3000/health/ready"
@@ -473,7 +472,7 @@ cmd_smoke_test() {
     # its Sentinel clients need time to resolve the master again (run 43634583251).
     local code="" try
     for try in $(seq 1 12); do
-      code=$(kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+      code=$(kubectl exec -n "$NAMESPACE" deployment/message-manager -c message-manager -- \
         curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null || true)
       [[ "$code" == "200" || "$try" -eq 12 ]] && break
       sleep 5
@@ -567,7 +566,7 @@ release_checks_once() {
   fi
   # The key goes through stdin (curl -H @-), never on a command line or in a log.
   local path="/v1/trader-trainer/training-status"
-  code="$(printf 'x-api-key: %s\n' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+  code="$(printf 'x-api-key: %s\n' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/message-manager -c message-manager -- \
     curl -s -o /dev/null -w '%{http_code}' -H @- "http://edge-proxy:8080${path}")" || code="000"
   if [[ "$code" != "200" ]]; then
     err "  ✗ GET ${path} through edge-proxy answered ${code}, expected 200"

@@ -117,7 +117,7 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 	it("GET /training-agents/:symbol answers the latest model, not the population", async () => {
 		const { status, body } = await get(
 			TRAINER_API.trainingAgent,
-			"/training-agents/BTCUSDT"
+			"/v1/training-agents/BTCUSDT"
 		);
 
 		expect(status).toBe(200);
@@ -128,7 +128,7 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 	it("GET /models/:symbol lists the stored versions", async () => {
 		const { status, body } = await get(
 			TRAINER_API.listModels,
-			"/models/BTCUSDT"
+			"/v1/models/BTCUSDT"
 		);
 
 		expect(status).toBe(200);
@@ -139,15 +139,15 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 				metrics: expect.objectContaining({ fitness: 1.2 }),
 			}),
 		]);
-		expect((await get(TRAINER_API.listModels, "/models/ETHUSDT")).body).toEqual(
-			{ data: [] }
-		);
+		expect(
+			(await get(TRAINER_API.listModels, "/v1/models/ETHUSDT")).body
+		).toEqual({ data: [] });
 	});
 
 	it("GET /models/:symbol/:version answers the manifest, without weights", async () => {
 		const { status, body } = await get(
 			TRAINER_API.getModel,
-			`/models/BTCUSDT/${version}`
+			`/v1/models/BTCUSDT/${version}`
 		);
 
 		expect(status).toBe(200);
@@ -162,11 +162,11 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 	it.each([
 		[
 			"an unknown version",
-			"/models/BTCUSDT/20201010T101010Z-0123456789ab",
+			"/v1/models/BTCUSDT/20201010T101010Z-0123456789ab",
 			404,
 		],
-		["a malformed version", "/models/BTCUSDT/latest", 400],
-		["a path traversal", "/models/..%2F..%2Fetc/x", 400],
+		["a malformed version", "/v1/models/BTCUSDT/latest", 400],
+		["a path traversal", "/v1/models/..%2F..%2Fetc/x", 400],
 	])(
 		"GET /models/:symbol/:version rejects %s",
 		async (_label, path, expected) => {

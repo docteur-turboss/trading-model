@@ -17,7 +17,6 @@ spec:
         values:
           - api-gateway
           - audit-logger
-          - discovery-server
           - dlq-service
           - edge-proxy
           - financial-scraper

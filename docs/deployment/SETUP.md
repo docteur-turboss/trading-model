@@ -84,9 +84,8 @@ Before the first `docker compose up`, set these variables in `.env` and replace 
 - `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
 - `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
-- `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
-The Compose stack runs with `NODE_ENV=production` by default and `docker-compose.yml` provides no usable value for these variables: without them the gateway and discovery-server refuse to start, and MySQL has no root password.
+The Compose stack runs with `NODE_ENV=production` by default and `docker-compose.yml` provides no usable value for these variables: without them the gateway refuses to start, and MySQL has no root password.
 
 Do not run this stack with real data. For a real deployment, use the [Kubernetes deployment guide](KUBERNETES.md) and set every secret before startup.
 
@@ -99,7 +98,7 @@ docker compose build
 Or a single service:
 
 ```bash
-docker compose build discovery-server
+docker compose build message-manager
 ```
 
 ### 7. Start services
@@ -121,7 +120,6 @@ All containers should show `Up` or `healthy`:
 ```
 trading-mongo      Up (healthy)
 trading-mysql      Up (healthy)
-trading-discovery  Up (healthy)
 trading-message    Up (healthy)
 trading-scraper    Up (healthy)
 trading-trainer    Up (healthy)
@@ -133,7 +131,7 @@ trading-edge       Up (healthy)
 ```bash
 # Services only accept SPIFFE mTLS clients (ADR-0011): probe them from inside
 # their container, with its SVID (what the compose healthcheck does)
-for c in trading-discovery trading-message trading-scraper trading-trainer \
+for c in trading-message trading-scraper trading-trainer \
          trading-gateway trading-audit trading-dlq; do
   printf '%s: ' "$c"
   docker exec "$c" curl -sk --cert /run/spire/svid/svid.pem \
@@ -202,7 +200,7 @@ Complete procedure to add a bare Linux server running the development Compose st
 ```bash
 sudo hostnamectl set-hostname trading-<role>-<number>
 # Examples:
-#   trading-discovery-1
+#   trading-message-1
 #   trading-scraper-2
 #   trading-trainer-3
 ```
@@ -264,7 +262,6 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
 ```bash
 sudo ufw allow OpenSSH
-sudo ufw allow 8443/tcp  # Discovery Server
 sudo ufw allow 8444/tcp  # Message Manager
 sudo ufw allow 8445/tcp  # Financial Scraper
 sudo ufw allow 8446/tcp  # Trader Trainer
@@ -359,7 +356,6 @@ Customize per server role:
 | Variable              | Description                                   |
 | --------------------- | --------------------------------------------- |
 | `NODE_ENV`            | `production` (or `development` for debugging) |
-| `DISCOVERY_PORT`      | 8443 — Discovery Server                       |
 | `MESSAGE_PORT`        | 8444 — Message Manager                        |
 | `SCRAPER_PORT`        | 8445 — Financial Scraper                      |
 | `TRAINER_PORT`        | 8446 — Trader Trainer                         |
@@ -402,7 +398,6 @@ Expected:
 NAME               IMAGE                                                   STATUS
 trading-mongo      mongo:7                                                 Up (healthy)
 trading-mysql      mysql:8                                                 Up (healthy)
-trading-discovery  ghcr.io/trading-model/discovery-server:latest           Up (healthy)
 trading-message    ghcr.io/trading-model/message-manager:latest            Up (healthy)
 trading-scraper    ghcr.io/trading-model/financial-scraper:latest          Up (healthy)
 trading-trainer    ghcr.io/trading-model/trader-trainer:latest             Up (healthy)
@@ -416,7 +411,7 @@ Individual health checks:
 ```bash
 # Services only accept SPIFFE mTLS clients (ADR-0011): probe them from inside
 # their container, with its SVID (what the compose healthcheck does)
-for c in trading-discovery trading-message trading-scraper trading-trainer \
+for c in trading-message trading-scraper trading-trainer \
          trading-gateway trading-audit trading-dlq; do
   printf '%s: ' "$c"
   docker exec "$c" curl -sk --cert /run/spire/svid/svid.pem \

@@ -25,8 +25,8 @@ describe("workload-identity", () => {
 		});
 
 		it("should normalize legacy aliases onto canonical names", () => {
-			expect(buildSpiffeId("discovery-service")).toBe(
-				`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/discovery-server`
+			expect(buildSpiffeId("audit-logger-service")).toBe(
+				`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/audit-logger`
 			);
 		});
 	});
@@ -81,7 +81,7 @@ describe("workload-identity", () => {
 	});
 
 	describe("normalizeServiceName", () => {
-		it("should map legacy discovery-registry names onto canonical names", () => {
+		it("should map legacy registration names onto canonical names", () => {
 			expect(normalizeServiceName("message-delivery-service")).toBe(
 				ServiceId.of("message-manager")
 			);

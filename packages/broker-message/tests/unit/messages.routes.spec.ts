@@ -12,7 +12,7 @@ const METADATA = {
 	topic: "market.candlestick.series.fetch",
 	eventType: "market.candlestick.series.fetch",
 	publisher: {
-		serviceName: ServiceInstanceName.DiscoveryService,
+		serviceName: ServiceInstanceName.AuditLoggerService,
 		instanceId: "550e8400-e29b-41d4-a716-446655440000",
 	},
 	schemaVersion: "1.0.0",

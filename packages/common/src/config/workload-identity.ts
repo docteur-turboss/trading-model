@@ -23,7 +23,6 @@ export const SPIFFE_PATH_SEGMENT_SERVICE_ACCOUNT = "sa" as const;
 export const PLATFORM_SERVICES = [
 	"api-gateway",
 	"audit-logger",
-	"discovery-server",
 	"dlq-service",
 	"edge-proxy",
 	"financial-scraper",
@@ -34,13 +33,12 @@ export const PLATFORM_SERVICES = [
 ] as const;
 
 /**
- * Aliases still emitted by legacy discovery/compose registration names so the
+ * Aliases still emitted by legacy compose registration names so the
  * identity layer can map them onto their canonical SPIFFE service name during
  * the ADR-0011 migration.
  */
 export const LEGACY_SERVICE_NAME_ALIASES: Readonly<Record<string, string>> = {
 	"audit-logger-service": "audit-logger",
-	"discovery-service": "discovery-server",
 	"financial-scraper-service": "financial-scraper",
 	"message-delivery-service": "message-manager",
 	"trader-training-service": "trader-trainer",
@@ -53,19 +51,6 @@ export const LEGACY_SERVICE_NAME_ALIASES: Readonly<Record<string, string>> = {
 export function normalizeServiceName(service: string | ServiceId): ServiceId {
 	const raw = String(service);
 	return ServiceId.of(LEGACY_SERVICE_NAME_ALIASES[raw] ?? raw);
-}
-
-/**
- * Every name a service may be registered under in discovery: the requested
- * name, its canonical name and the legacy aliases of that canonical name
- * (e.g. `financial-scraper` → also `financial-scraper-service`).
- */
-export function registryNamesFor(service: string | ServiceId): string[] {
-	const canonical = String(normalizeServiceName(service));
-	const aliases = Object.entries(LEGACY_SERVICE_NAME_ALIASES)
-		.filter(([, target]) => target === canonical)
-		.map(([alias]) => alias);
-	return [...new Set([String(service), canonical, ...aliases])];
 }
 
 /** True when the identity string is a syntactically valid SPIFFE ID. */

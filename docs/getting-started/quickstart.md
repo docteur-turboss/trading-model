@@ -47,9 +47,8 @@ Edit `.env` and replace the example values of these variables with your own secr
 - `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
 - `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` — MongoDB users, one per client (required, no default; ADR-0067). A Mongo volume created before authentication needs `docker compose down -v` (or the localhost exception, see the `mongo` service)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated; you use one in Step 3
-- `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
-The Compose stack runs with `NODE_ENV=production` by default: without these values the gateway and discovery-server refuse to start.
+The Compose stack runs with `NODE_ENV=production` by default: without these values the gateway refuses to start.
 
 > **Development only.** The Docker Compose stack has no scheduled backup: do not store real data in it. See [SETUP.md](../deployment/SETUP.md#local-development-setup) for the full local setup.
 
@@ -60,14 +59,14 @@ The Compose stack runs with `NODE_ENV=production` by default: without these valu
 > generation or `./certs` bundle is required.
 
 ```bash
-# Start discovery-server + message-manager + databases
+# Start message-manager + databases
 docker compose up -d redis mysql mongo
-docker compose up -d discovery-server message-manager
+docker compose up -d message-manager
 
 # Verify they're healthy
 # Services only accept mTLS clients with a SPIRE identity: check the
 # container health (its healthcheck pings with the container's SVID)
-docker inspect --format '{{.State.Health.Status}}' trading-discovery
+docker inspect --format '{{.State.Health.Status}}' trading-message
 # → healthy
 ```
 
@@ -97,7 +96,7 @@ curl -s http://localhost:8449/v1/trader-trainer/training-status \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
-You should see `discovery-server` and `message-manager` listed.
+You should see `message-manager` listed.
 
 ## Step 4: Let the Scraper Publish Market Data
 

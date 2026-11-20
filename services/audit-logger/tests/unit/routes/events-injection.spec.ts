@@ -106,7 +106,7 @@ describe("audit-logger public routes: operator injection", () => {
 	});
 
 	it("GET /events/stats ignores a hostile query", async () => {
-		const res = await fetch(`${baseUrl}/events/stats?topic[$ne]=x&$where=1`);
+		const res = await fetch(`${baseUrl}/v1/events/stats?topic[$ne]=x&$where=1`);
 		expect(res.status).toBe(200);
 		expect(auditRepo.getStats).toHaveBeenCalledWith();
 	});

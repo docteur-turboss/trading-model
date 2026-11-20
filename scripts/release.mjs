@@ -75,8 +75,6 @@ const SCOPE_TO_PACKAGE = {
   'model-evaluator': 'services/model-evaluator',
   'dlq-service': 'services/dlq-service',
   'message-manager': 'services/message-manager',
-  discovery: 'services/discovery-server',
-  'discovery-server': 'services/discovery-server',
   'financial-scraper': 'services/financial-scraper',
   scraper: 'services/financial-scraper',
   'trader-trainer': 'services/trader-trainer',
