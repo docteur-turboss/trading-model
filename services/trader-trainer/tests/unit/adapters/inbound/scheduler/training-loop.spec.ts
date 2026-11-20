@@ -285,11 +285,12 @@ describe("TrainingLoop", () => {
 
 	it("should not train while a session is already running", async () => {
 		lastClose.set(BTC, NOW - MINUTE);
+		const republishPending = jest.fn(async () => undefined);
 		const busy = new TrainingLoop(
 			{
 				train,
 				isTraining: () => true,
-				republishPending: async () => undefined,
+				republishPending,
 				stopTraining,
 			} as unknown as Trainer,
 			{
@@ -308,6 +309,7 @@ describe("TrainingLoop", () => {
 		await Promise.resolve();
 
 		expect(train).not.toHaveBeenCalled();
+		expect(republishPending).toHaveBeenCalledTimes(1);
 	});
 
 	it("should call train() only when the validator would accept the series", async () => {

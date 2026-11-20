@@ -641,6 +641,40 @@ describe("Trainer — model publication", () => {
 			expect(publish.mock.calls[1]).toEqual(publish.mock.calls[0]);
 		});
 
+		it("keeps the newest model pending when a slower publication of an older one fails (issue #1739)", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const models = fakeStore();
+			models.save
+				.mockResolvedValueOnce({ version: "v1", sha256: "a" })
+				.mockResolvedValue({ version: "v2", sha256: "b" });
+			let failV1!: (err: Error) => void;
+			const publish = jest
+				.fn<(...args: any[]) => any>()
+				.mockRejectedValueOnce(new Error("503")) // v1 at train
+				.mockImplementationOnce(
+					() =>
+						new Promise((_, reject) => {
+							failV1 = reject;
+						})
+				) // v1 retry, slow
+				.mockRejectedValueOnce(new Error("503")) // v2 at train
+				.mockResolvedValue(undefined);
+			const trainer = publishingTrainer(models, publish);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
+			const symbol = TradingSymbol.of("BTCUSDT");
+
+			await trainer.train(symbol);
+			const slowRetry = trainer.republishPending();
+			await trainer.train(symbol);
+			failV1(new Error("timeout"));
+			await slowRetry;
+			await trainer.republishPending();
+
+			expect(publish.mock.calls[3][2]).toMatchObject({ version: "v2" });
+			expect(publish).toHaveBeenCalledTimes(4);
+		});
+
 		it("publishes nothing when the artifact write fails", async () => {
 			const genome = await trainedGenome();
 			mockRunImpl = () => Promise.resolve(genome);

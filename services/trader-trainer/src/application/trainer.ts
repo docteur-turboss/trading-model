@@ -195,6 +195,8 @@ export class Trainer {
 			if (stored && summary) {
 				this._lastModels.set(symbol, stored.lastModel);
 				this._reportModelPerformance(symbol, summary, windowSets);
+				// The newest model supersedes any older pending one.
+				this._unpublished.set(symbol, { summary, ref: stored.ref });
 				await this._publishModel(symbol, summary, stored.ref);
 			}
 			return result;
@@ -303,12 +305,14 @@ export class Trainer {
 		}
 		try {
 			await publisher.publish(symbol, summary, stored);
-			this._unpublished.delete(symbol);
+			// A slower call for an older version must not touch a newer entry.
+			if (this._unpublished.get(symbol)?.ref.version === stored.version) {
+				this._unpublished.delete(symbol);
+			}
 			getLogger().info("Model published", {
 				context: { symbol, agentId: summary.id },
 			});
 		} catch (err) {
-			this._unpublished.set(symbol, { summary, ref: stored });
 			MODEL_PUBLISH_FAILURES_TOTAL.inc({ symbol });
 			getLogger().error("Failed to publish model", {
 				context: {
