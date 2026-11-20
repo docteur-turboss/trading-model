@@ -68,6 +68,10 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    ignore:
+      # Stay on MySQL 8.4 LTS like K8s: later majors are innovation releases, volumes cannot downgrade (#1767).
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/deploy/spire"
@@ -92,9 +96,17 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    ignore:
+      # Stay on MySQL 8.4 LTS like K8s: later majors are innovation releases, volumes cannot downgrade (#1767).
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/deploy/k8s/infra"
     target-branch: "development"
     schedule:
       interval: "weekly"
+    ignore:
+      # Stay on MySQL 8.4 LTS like K8s: later majors are innovation releases, volumes cannot downgrade (#1767).
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]
