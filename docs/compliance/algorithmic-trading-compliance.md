@@ -60,7 +60,7 @@ The platform should undergo an annual review covering:
 | **Max order volume/ value** | Partial: exposure cap `maxExposureFraction` only (`packages/model-runtime/src/env/trade-executor.ts`): position value ≤ 1.0 × initial cash in training, no leverage. No per-order value limit |
 | **Max order frequency** | Not implemented. No limit on orders per episode or per time unit; simulation only |
 | **Dual-channel price validation** | Not implemented — simulation only. For production: requires independent price feed comparison |
-| **Pre-trade risk checks** | Not implemented — simulation only. Required before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Proposed) |
+| **Pre-trade risk checks** | Not implemented — simulation only. Required before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Accepted, option A) |
 
 ### 4.2 Market Making Obligations (RTS 6 Art. 17-18)
 
@@ -91,9 +91,9 @@ When transitioning from research/simulation to production algorithmic trading, t
 | # | Requirement | Implementation Guide |
 |---|---|---|
 | 1 | Register with competent authority as algorithmic trading firm | N/A — infrastructure provider responsibility |
-| 2 | Implement pre-trade risk controls (Art. 12-15) | In a Risk/Execution service separate from the model and the decision consumer, never in the api-gateway (the order path does not cross it): [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 (Proposed) |
+| 2 | Implement pre-trade risk controls (Art. 12-15) | In a Risk/Execution service separate from the model and the decision consumer, never in the api-gateway (the order path does not cross it): [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 (Accepted, option A) |
 | 3 | Deploy market-making obligations if applicable (Art. 17-18) | Not planned |
-| 4 | Implement kill switch functionality | Not implemented, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status); architecture in [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Proposed) |
+| 4 | Implement kill switch functionality | Not implemented, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status); architecture in [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Accepted, option A) |
 | 5 | Annual RTS 6 conformance testing | Schedule via CI/CD pipeline |
 | 6 | MAR suspicious transaction reporting | Integrate audit-logger with regulatory reporting |
 | 7 | Maintain algorithmic trading register | See [data-processing-register.md](data-processing-register.md) |
