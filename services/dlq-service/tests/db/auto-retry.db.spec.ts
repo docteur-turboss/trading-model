@@ -97,6 +97,7 @@ beforeAll(async () => {
 		dlqRedisQueue: require("../../src/config/redis-queue").dlqRedisQueue,
 		app: createDlqApp(ENV),
 	};
+	await m.app.connectDb();
 	await expect(m.dlqRedisQueue.connect()).resolves.toBe(true);
 });
 

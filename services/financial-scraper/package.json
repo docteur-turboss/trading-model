@@ -33,7 +33,6 @@
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
     "@trading-model/address-manager": "*",
-    "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
     "@trading-model/crypto": "*",
     "@trading-model/http": "*",

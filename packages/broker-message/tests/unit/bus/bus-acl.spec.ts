@@ -18,7 +18,6 @@ describe("redis-ha.sh bus users", () => {
 			"audit-logger",
 			"trader-trainer",
 			"model-evaluator",
-			"financial-scraper",
 		]) {
 			const line = SCRIPT.split("\n").find((l) =>
 				l.includes(`bus_user ${service} `)
