@@ -19,7 +19,7 @@ export interface CronConfig {
 	symbols: TradingSymbol[];
 	maxConcurrency?: PositiveInt;
 	candleInterval?: CandleInterval;
-	/** Source, publisher and persistence of each symbol scrape. */
+	/** Source and persistence of each symbol scrape. */
 	deps: WorkerOrchestratorDeps;
 }
 
@@ -29,7 +29,7 @@ const DEFAULT_MAX_CONCURRENCY = 8;
 export class ScrapeCronOrchestrator {
 	private readonly _maxConcurrency: PositiveInt;
 	private _workerOrchestrator: WorkerOrchestrator;
-	/** Its run is a cycle: fetch and persist of every symbol (not the publishes). */
+	/** Its run is a cycle: fetch and persist of every symbol. */
 	private _task?: NoOverlapTask;
 
 	constructor(private readonly _config: CronConfig) {

@@ -188,8 +188,8 @@ export function buildResponse(
 			normalizePart(query, "recentTrades", () =>
 				BinanceNormalizer.trades(query, tradesRaw)
 			),
-		// Binance returns the still-open candle last: publishing it would send a
-		// partial candle that the next cycle sends again with other values.
+		// Binance returns the still-open candle last: persisting it would store a
+		// partial candle that the next cycle overwrites with other values.
 		candles:
 			candlesRaw &&
 			normalizePart(query, "candles", () =>
