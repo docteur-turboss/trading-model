@@ -20,7 +20,7 @@
 # curl and util-linux).
 FROM bitnami/kubectl@sha256:8919c149c2e3d6860e0143c117900e64d71395172aaef0e01e604bb98c8e7ce0 AS kubectl
 
-FROM mysql:8.4.11@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a AS mysql
+FROM mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902 AS mysql
 
 FROM oraclelinux:10-slim@sha256:5edf16c62270a7fa3012481efbef1921ba7159dc2441b99ed19eb6c0a88171cf
 COPY --from=mysql /etc/pki/rpm-gpg/RPM-GPG-KEY-mysql /etc/pki/rpm-gpg/RPM-GPG-KEY-mysql
@@ -31,7 +31,7 @@ RUN printf '%s\n' '[mysql-8.4-community]' 'name=MySQL 8.4 Community' \
 	&& microdnf -y upgrade \
 	&& microdnf -y install oracle-epel-release-el10 \
 	&& microdnf --setopt=install_weak_deps=0 -y install \
-		mysql-community-client-8.4.11 age rclone \
+		mysql-community-client-8.4.13 age rclone \
 		bash coreutils-single findutils gawk grep gzip sed tar diffutils \
 	&& microdnf clean all \
 	&& mysqlbinlog --version && age --version && rclone version >/dev/null
