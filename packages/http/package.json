@@ -58,7 +58,7 @@
     "@opentelemetry/instrumentation-mysql2": "^0.71.0",
     "@opentelemetry/resources": "^3.0.0",
     "@opentelemetry/sdk-node": "^0.301.2",
-    "@opentelemetry/semantic-conventions": "^1.44.0",
+    "@opentelemetry/semantic-conventions": "^1.45.0",
     "helmet": "^8.3.0"
   },
   "devDependencies": {
