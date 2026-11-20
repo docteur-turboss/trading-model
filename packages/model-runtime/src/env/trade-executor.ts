@@ -37,10 +37,10 @@ export class TradeExecutor {
 			executionCostPaid: this._executionCostPaid,
 		};
 	}
-	private _addCosts(fee: Cash, amt: number, price: Price): void {
+	private _addCosts(fee: Cash, executionCost: Cash): void {
 		this._feesPaid = this._config.roundValue(this._feesPaid + fee);
 		this._executionCostPaid = this._config.roundValue(
-			this._executionCostPaid + amt * price * this._config.executionCostRate
+			this._executionCostPaid + executionCost
 		);
 	}
 	/** Buys `amount` at `fillPrice` (default: the marked price), costs included. */
@@ -59,14 +59,17 @@ export class TradeExecutor {
 		if (newPosition * price > maxValue) {
 			return false;
 		}
-		const { totalCost, fee } = this._config.computeBuyCosts(amount, price);
+		const { totalCost, fee, executionCost } = this._config.computeBuyCosts(
+			amount,
+			price
+		);
 		if (Cash.gt(totalCost, this._state.cash)) {
 			return false;
 		}
 		const cashAfterBuy = Cash.of(
 			this._config.roundValue(Cash.sub(this._state.cash, totalCost))
 		);
-		this._addCosts(fee, amt, price);
+		this._addCosts(fee, executionCost);
 		this._commitTrade(newPosition, cashAfterBuy);
 		return true;
 	}
@@ -77,17 +80,15 @@ export class TradeExecutor {
 			return false;
 		}
 		const price = validFillPrice(fillPrice);
-		const { netProceeds, fee } = this._config.computeSellProceeds(
-			amount,
-			price
-		);
+		const { netProceeds, fee, executionCost } =
+			this._config.computeSellProceeds(amount, price);
 		const positionAfterSell = Volume.of(
 			this._config.roundValue(this._state.position - amt)
 		);
 		const cashAfterSell = Cash.of(
 			this._config.roundValue(Cash.add(this._state.cash, netProceeds))
 		);
-		this._addCosts(fee, amt, price);
+		this._addCosts(fee, executionCost);
 		this._commitTrade(positionAfterSell, cashAfterSell);
 		return true;
 	}
