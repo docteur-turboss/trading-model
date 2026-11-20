@@ -1,3 +1,5 @@
+import { ErrorCode, makeErrorCode } from "@trading-model/common/utils/errors";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { Limit, toInstanceId } from "@trading-model/primitives/primitives";
 import {
 	createDlqHandlers,
@@ -50,12 +52,10 @@ import { dlqRedisQueue } from "./redis-queue";
 /** The wired service: HTTP handlers plus the lifecycle the entry point drives. */
 export interface DlqApp {
 	handlers: DlqHandlers;
-	/** Connects MongoDB (builds the indexes). */
+	/** Resolves once MongoDB is connected; retries without limit. */
 	connectDb(): Promise<void>;
 	/** Frees the claims left by a previous instance. */
 	releaseStaleClaims(staleThresholdMs?: number): Promise<void>;
-	/** Forgets the Mongo connection after a failed start, so the next call retries. */
-	resetDb(): Promise<void>;
 	closeDb(): Promise<void>;
 	/** The scheduled jobs, callable on their own (the schedulers drive them). */
 	jobs: {
@@ -68,6 +68,11 @@ export interface DlqApp {
 	/** Stops the timers, drains the replays in flight, releases the claims. */
 	shutdownSchedulers(): Promise<void>;
 }
+
+const unavailable = makeErrorCode(
+	ErrorCode.Agent,
+	HTTP_STATUS.SERVICE_UNAVAILABLE
+);
 
 const metricsPort: DlqMetricsPort = {
 	entriesDeleted: (count) => metrics.entriesDeleted.inc(count),
@@ -100,7 +105,11 @@ function _httpEntryDelivery(
  */
 export function createDlqApp(env: Env): DlqApp {
 	const mongo = new MongoConnectionManager(env);
-	const getCollection = () => mongo.getCollection();
+	// 503 while MongoDB is down: it connects in the background, a request never waits for it.
+	const getCollection = () =>
+		mongo.isConnected()
+			? mongo.getCollection()
+			: Promise.reject(unavailable("MongoDB is not connected"));
 
 	const repository = new DlqRepository(getCollection);
 	const claims = new DlqClaimManager(getCollection);
@@ -213,7 +222,6 @@ export function createDlqApp(env: Env): DlqApp {
 			rebuildQueueFromMongo,
 			processRedisQueue,
 		},
-		resetDb: () => mongo.resetState(),
 		closeDb: () => mongo.close(),
 		start() {
 			void ensureRedisQueue(dlqRedisQueue, rebuildQueueFromMongo);

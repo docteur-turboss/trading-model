@@ -18,18 +18,19 @@ createBootstrap({
 	onStop: () => _onStop(),
 });
 
-async function _onBeforeServer(): Promise<void> {
-	try {
-		await app.connectDb();
-		logger.info("DLQ Service database connected", { mongoDb: ENV.MONGO_DB });
-		await app.releaseStaleClaims();
-	} catch (err) {
-		logger.error(
-			"MongoDB unavailable: DLQ entries cannot be read or replayed",
-			{ error: normalizeError(err) }
-		);
-		await app.resetDb();
-	}
+/** Listens first: MongoDB connects in the background, requests get 503 until it is up. */
+function _onBeforeServer(): void {
+	app
+		.connectDb()
+		.then(() => {
+			logger.info("DLQ Service database connected", { mongoDb: ENV.MONGO_DB });
+			return app.releaseStaleClaims();
+		})
+		.catch((err: unknown) => {
+			logger.error("DLQ Service database start-up failed", {
+				error: normalizeError(err),
+			});
+		});
 }
 
 let _discovery: ReturnType<
