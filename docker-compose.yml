@@ -840,7 +840,7 @@ services:
   # ---------------------------------------------------------------------------
   prometheus:
     logging: *default-logging
-    image: prom/prometheus@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
+    image: prom/prometheus@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
     container_name: trading-prometheus
     restart: unless-stopped
     mem_limit: 2g
@@ -987,7 +987,7 @@ services:
 
   alertmanager:
     logging: *default-logging
-    image: prom/alertmanager@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
+    image: prom/alertmanager@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
     container_name: trading-alertmanager
     restart: unless-stopped
     mem_limit: 256m
