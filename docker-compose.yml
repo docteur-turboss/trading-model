@@ -448,6 +448,7 @@ services:
       FEATURE_RISK_ADJUSTED_FITNESS: ${FEATURE_RISK_ADJUSTED_FITNESS:-true}
       FEATURE_ACTION_SPACE_GENE: ${FEATURE_ACTION_SPACE_GENE:-false}
       TRAINER_OBSERVE_POSITION: ${TRAINER_OBSERVE_POSITION:-true}
+      TRAINER_SEED_OFFSET: ${TRAINER_SEED_OFFSET:-0}
       # Model artifacts (ADR-0022), backed up by scripts/backup.sh (checkpoints)
       TRAINER_MODEL_DIR: /data/checkpoints/models
       MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-model-evaluator}
