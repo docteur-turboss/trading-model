@@ -47,6 +47,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `audit-logger`          | 8450 | Immutable event traceability (hash-chained audit trail)        |
 | `dlq-service`           | 8452 | Dead letter queue storage with auto-retry + replay             |
 | `edge-proxy`            | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS      |
+| `risk-execution`        | 8454 | Order flow owner of ADR-0064: pre-trade checks, kill switch, lifecycle, simulated broker (paper only, no live adapter) |
 | `model-evaluator`       | 8453 | Offline check of trained models on each `training.model.published` (ADR-0049); records one evaluation per model, never promotes |
 
 ### Shared Packages
