@@ -138,4 +138,18 @@ describe("API Gateway — Rate Limiting Integration", () => {
 
 		expect((await request(server, path, "other-token")).status).toBe(200);
 	});
+
+	it("should limit invalid tokens too (limiter runs before auth)", async () => {
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const path = "/v1/audit-logger/events";
+
+		expect((await request(server, path, "guess")).status).toBe(401);
+		await request(server, path, "guess");
+		expect((await request(server, path, "guess")).status).toBe(429);
+
+		expect((await request(server, path)).status).toBe(200);
+	});
 });

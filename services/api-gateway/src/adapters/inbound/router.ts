@@ -166,8 +166,8 @@ const createCatchAllRoute = (env: Env) => {
 export function createRouter(env: Env): Router {
 	const router = Router();
 	router.get("/metrics", metricsHandler);
-	router.use(createAuthMiddleware(env));
 	router.use(createRateLimiter(env));
+	router.use(createAuthMiddleware(env));
 	router.use(createCatchAllRoute(env));
 	return router;
 }

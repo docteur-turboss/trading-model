@@ -59,15 +59,27 @@ export function authOf(req: Request): AuthenticatedRequest {
 /** Settings the auth middleware reads, passed by the composition root. */
 export type AuthSettings = Pick<Env, "AUTH_TOKENS" | "AUTH_TOKEN_HEADER">;
 
+/** The token the caller presented, `<token>` or `Bearer <token>`, if any. */
+export function presentedToken(
+	req: Request,
+	env: Pick<Env, "AUTH_TOKEN_HEADER">
+): string | undefined {
+	const raw =
+		req.headers[env.AUTH_TOKEN_HEADER.toLowerCase()] ??
+		req.headers.authorization;
+	// The scheme is case-insensitive.
+	return typeof raw === "string" ? raw.replace(/^Bearer\s+/i, "") : undefined;
+}
+
+/** One identity per token, no token material: `client:` + 32 hex of its sha256. */
+export const clientIdentityOf = (token: string): string =>
+	`client:${sha256(token).toString("hex").slice(0, 32)}`;
+
 export const createAuthMiddleware = (env: AuthSettings): RequestHandler =>
 	catchSync((req, _res, next) => {
-		const tokenHeader = env.AUTH_TOKEN_HEADER.toLowerCase();
-		const raw = req.headers[tokenHeader] ?? req.headers.authorization;
-		// Accept both `<token>` and `Bearer <token>` (scheme is case-insensitive).
-		const token =
-			typeof raw === "string" ? raw.replace(/^Bearer\s+/i, "") : raw;
+		const token = presentedToken(req, env);
 
-		if (!token || typeof token !== "string") {
+		if (!token) {
 			AUTH_FAILURES_TOTAL.inc();
 			return sendResponse(
 				{ error: "Missing authentication token" },
@@ -94,9 +106,7 @@ export const createAuthMiddleware = (env: AuthSettings): RequestHandler =>
 		}
 
 		const auth = authOf(req);
-		auth.clientIdentity = ClientIdentity.of(
-			`client:${digest.toString("hex").slice(0, 32)}`
-		);
+		auth.clientIdentity = ClientIdentity.of(clientIdentityOf(token));
 		auth.apiKeyName = key.name;
 		auth.apiKeyScopes = key.scopes;
 		next();
