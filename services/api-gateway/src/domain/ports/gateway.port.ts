@@ -25,6 +25,14 @@ export class UpstreamResponseTooLargeError extends Error {
 	}
 }
 
+/** The upstream did not finish answering within PROXY_TIMEOUT_MS: the dispatcher answers 504. */
+export class UpstreamTimeoutError extends Error {
+	constructor(readonly timeoutMs: number) {
+		super(`Upstream did not answer within ${timeoutMs}ms`);
+		this.name = "UpstreamTimeoutError";
+	}
+}
+
 /** Short-lived cache of successful GET answers, keyed by method + path + query. */
 export interface ResponseCachePort {
 	get(key: string): { data: unknown; status: HttpStatusCode } | undefined;

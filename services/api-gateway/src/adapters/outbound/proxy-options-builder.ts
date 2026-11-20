@@ -30,7 +30,6 @@ export function buildProxyOptions(
 		method: req.method,
 		headers: safeHeaders(req, env.AUTH_TOKEN_HEADER),
 		rejectUnauthorized: true,
-		timeout: env.PROXY_TIMEOUT_MS,
 		..._resolveSvidTls(env, serviceName),
 	};
 }

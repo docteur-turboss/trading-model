@@ -3,7 +3,10 @@ import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { logger } from "@trading-model/http/logger";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import { UpstreamResponseTooLargeError } from "../../domain/ports/gateway.port";
+import {
+	UpstreamResponseTooLargeError,
+	UpstreamTimeoutError,
+} from "../../domain/ports/gateway.port";
 import type { Env } from "../../infrastructure/config/env";
 import type { ProxyRequestOptions } from "./proxy-options-builder";
 import { buildProxyOptions } from "./proxy-options-builder";
@@ -19,7 +22,17 @@ export function forwardRequest(
 	env: Env
 ): Promise<ProxyResult> {
 	const { req, target, path } = opts;
-	return new Promise((resolve, reject) => {
+	return new Promise((resolve, rejectRaw) => {
+		// Total deadline (send + whole answer): a socket idle timeout never fires
+		// on an upstream that trickles a byte every few seconds.
+		const deadline = setTimeout(() => {
+			proxyReq.destroy();
+			rejectRaw(new UpstreamTimeoutError(env.PROXY_TIMEOUT_MS));
+		}, env.PROXY_TIMEOUT_MS);
+		const reject = (err: Error) => {
+			clearTimeout(deadline);
+			rejectRaw(err);
+		};
 		const payload = _serializeBody(req.body);
 		const proxyReq = https.request(
 			_withBodyLength(buildProxyOptions(opts, env), payload),
@@ -42,14 +55,15 @@ export function forwardRequest(
 					}
 					chunks.push(chunk);
 				});
-				proxyRes.on("end", () =>
+				proxyRes.on("end", () => {
+					clearTimeout(deadline);
 					resolve({
 						status: (proxyRes.statusCode ??
 							HTTP_STATUS.SERVICE_UNAVAILABLE) as HttpStatusCode,
 						body: Buffer.concat(chunks).toString(),
 						headers: proxyRes.headers as Record<string, string | string[]>,
-					})
-				);
+					});
+				});
 			}
 		);
 		proxyReq.on("error", (err: Error) => {
@@ -61,10 +75,6 @@ export function forwardRequest(
 				},
 			});
 			reject(err);
-		});
-		proxyReq.on("timeout", () => {
-			proxyReq.destroy();
-			reject(new Error(`Proxy timeout after ${env.PROXY_TIMEOUT_MS}ms`));
 		});
 		if (payload) {
 			proxyReq.write(payload);
