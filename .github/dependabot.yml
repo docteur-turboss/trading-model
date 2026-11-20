@@ -68,6 +68,10 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    ignore:
+      # mysqldump / mysqlbinlog follow the server: no hidden major (issue #1751).
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/deploy/spire"
