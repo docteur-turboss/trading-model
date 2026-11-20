@@ -903,16 +903,18 @@ describe("HttpClient", () => {
 		});
 
 		it("should retry a refused connection: the request never left", async () => {
+			jest.useFakeTimers();
 			const promise = client.post(
 				URLString.of("https://example.com/api"),
 				{},
 				{ retryCount: 1, timeoutMs: 100 as DurationMs }
 			);
 			errorHandler!(new Error("connect ECONNREFUSED 10.0.0.1:3000"));
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			await jest.advanceTimersByTimeAsync(240);
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			await expect(promise).resolves.toEqual({ ok: true });
 			expect(https.request).toHaveBeenCalledTimes(2);
+			jest.useRealTimers();
 		});
 
 		it("should re-send a timed-out request marked idempotent", async () => {
