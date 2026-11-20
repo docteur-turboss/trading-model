@@ -199,6 +199,7 @@ describe("kill switch drill (policy §7)", () => {
 				positions: {},
 				openOrders: [],
 			}),
+			haltedSymbols: async () => [],
 		};
 		await rm(join(dir, "state.json"), { force: true });
 		const { svc } = boot(rejecting);

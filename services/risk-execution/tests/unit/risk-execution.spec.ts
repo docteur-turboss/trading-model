@@ -209,6 +209,20 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		expect((await ctx.broker.account()).positions.BTCUSDT).toBeCloseTo(0.05);
 	});
 
+	it("a replay under the kill switch never rewrites the existing order", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		const first = intent();
+		const r = await ctx.svc.submitIntent(first);
+		await ctx.svc.engage("global", "operator", "ops");
+		expect(await ctx.svc.submitIntent(first)).toMatchObject({
+			reason: "duplicate_client_order_id",
+		});
+		expect(
+			(ctx.store.value as RiskState).orders[r.clientOrderId]
+		).toMatchObject({ status: "filled", filledQty: 0.05 });
+	});
+
 	it("limits the order rate with a fake clock", async () => {
 		const ctx = build();
 		await ctx.svc.start();
@@ -230,12 +244,14 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		).not.toBe("rejected");
 	});
 
-	it("rejects a halted instrument", async () => {
-		const ctx = build();
+	it("rejects an instrument the broker reports halted", async () => {
+		const broker = new PaperBroker(new MemoryStore<never>(), CAPITAL);
+		broker.haltedSymbols = async () => ["BTCUSDT"];
+		const ctx = build({ broker });
 		await ctx.svc.start();
-		expect(
-			await ctx.svc.submitIntent(intent(), new Set(["BTCUSDT"]))
-		).toMatchObject({ reason: "instrument_halted" });
+		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
+			reason: "instrument_halted",
+		});
 	});
 
 	it("refuses a configuration above a hard ceiling", () => {
@@ -323,6 +339,68 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		);
 	});
 
+	it("restart: an accepted order too old or under a switch expires unsent", async () => {
+		const a = build();
+		await a.svc.start();
+		await a.svc.engage("symbol", "operator", "ops", "ETHUSDT");
+		const accepted = (id: string, symbol: string, createdAt: number) => ({
+			clientOrderId: id,
+			decisionId: id,
+			symbol,
+			side: "buy" as const,
+			quantity: 0.05,
+			referencePrice: 60_000,
+			status: "accepted" as const,
+			filledQty: 0,
+			quoteQty: 0,
+			fee: 0,
+			createdAt,
+			mode: "paper" as const,
+		});
+		const state = a.store.value as RiskState;
+		state.orders = {
+			old: accepted("old", "BTCUSDT", clock),
+			off: accepted("off", "ETHUSDT", clock + 7_200_000),
+		};
+		clock += 7_200_000; // 2 h later
+		await build({ store: a.store, broker: a.broker }).svc.start();
+		const orders = (a.store.value as RiskState).orders;
+		expect([orders.old.status, orders.off.status]).toEqual([
+			"expired",
+			"expired",
+		]);
+		expect(await a.broker.query("old")).toBeNull();
+	});
+
+	it("broker unreachable: the intent ends unknown, none passes until a reconciliation does", async () => {
+		const inner = new PaperBroker(new MemoryStore<never>(), CAPITAL);
+		let down = false;
+		const up = <T>(fn: () => Promise<T>) =>
+			down ? Promise.reject(new Error("ECONNREFUSED")) : fn();
+		const broker: BrokerPort = {
+			submit: async (o) => {
+				const view = await inner.submit(o); // reaches the ledger, the answer is lost
+				return up(async () => view);
+			},
+			query: (id) => up(() => inner.query(id)),
+			cancel: (id) => inner.cancel(id),
+			account: () => up(() => inner.account()),
+			haltedSymbols: async () => [],
+		};
+		const ctx = build({ broker });
+		await ctx.svc.start();
+		down = true;
+		expect((await ctx.svc.submitIntent(intent())).status).toBe("unknown");
+		expect(ctx.svc.isReady()).toBe(false);
+		down = false;
+		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
+			reason: "not_reconciled",
+		});
+		await ctx.svc.tick();
+		expect(ctx.svc.isReady()).toBe(true);
+		expect((await ctx.svc.submitIntent(intent())).status).toBe("filled");
+	});
+
 	it("a timeout goes to unknown, is never resent, and resumes from the broker's answer", async () => {
 		const inner = new PaperBroker(new MemoryStore<never>(), CAPITAL);
 		let submits = 0;
@@ -336,6 +414,7 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 			query: (id) => inner.query(id),
 			cancel: (id) => inner.cancel(id),
 			account: () => inner.account(),
+			haltedSymbols: async () => [],
 		};
 		const ctx = build({ broker: flaky });
 		await ctx.svc.start();
@@ -367,6 +446,7 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 			query: async () => view,
 			cancel: async () => ({ ...view, status: "cancelled" }),
 			account: async () => ({ cash: CAPITAL, positions: {}, openOrders: [] }),
+			haltedSymbols: async () => [],
 		};
 		const ctx = build({ broker });
 		await ctx.svc.start();
@@ -493,6 +573,7 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 			query: async () => null,
 			cancel: async () => null,
 			account: async () => ({ cash: CAPITAL, positions: {}, openOrders: [] }),
+			haltedSymbols: async () => [],
 		};
 		const ctx = build({ broker });
 		await ctx.svc.start();
@@ -544,6 +625,12 @@ describe("stale data (ADR-0064 §7)", () => {
 	it("halts a symbol after 15 min, and every symbol stale engages the global switch", async () => {
 		const ctx = build();
 		await ctx.svc.start();
+		clock += 16 * 60_000; // no price ever received: nothing is stale
+		await ctx.svc.tick();
+		expect(ctx.svc.status()).toMatchObject({
+			killSwitch: { global: null, symbols: {} },
+			oldestPriceAgeSeconds: 0,
+		});
 		await ctx.svc.observePrice("BTCUSDT", 60_000, clock);
 		await ctx.svc.observePrice("ETHUSDT", 3_000, clock);
 		clock += 14 * 60_000;

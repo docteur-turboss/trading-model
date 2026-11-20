@@ -103,4 +103,9 @@ export class PaperBroker implements BrokerPort {
 				.map((order) => order.clientOrderId),
 		};
 	}
+
+	/** The simulator has no exchange: every instrument is in trading status. */
+	haltedSymbols(): Promise<string[]> {
+		return Promise.resolve([]);
+	}
 }

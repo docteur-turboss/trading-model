@@ -29,6 +29,8 @@ export interface BrokerPort {
 	query(clientOrderId: string): Promise<BrokerOrderView | null>;
 	cancel(clientOrderId: string): Promise<BrokerOrderView | null>;
 	account(): Promise<BrokerAccount>;
+	/** Instruments the exchange reports as not in trading status (ADR-0064 §7). */
+	haltedSymbols(): Promise<string[]>;
 }
 
 /** Durable store of the service state; `load` throws when the stored state is unreadable. */

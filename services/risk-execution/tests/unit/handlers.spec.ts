@@ -30,7 +30,9 @@ function build() {
 	return {
 		risk,
 		metrics,
-		h: createHandlers(risk as unknown as RiskExecution, metrics),
+		h: createHandlers(risk as unknown as RiskExecution, metrics, [
+			"decision-consumer",
+		]),
 	};
 }
 
@@ -51,7 +53,7 @@ describe("risk-execution routes: each caller only reaches its own routes (ADR-00
 			).status
 		).toBe(403);
 		expect(risk.submitIntent).not.toHaveBeenCalled();
-		expect((await h.intent(input(body), as("trader-trainer"))).status).toBe(
+		expect((await h.intent(input(body), as("decision-consumer"))).status).toBe(
 			200
 		);
 		expect(metrics).toHaveBeenCalledWith("rejected:kill_switch");
@@ -59,7 +61,7 @@ describe("risk-execution routes: each caller only reaches its own routes (ADR-00
 			(
 				await h.price(
 					input({ symbol: "BTCUSDT", price: 1, at: 1 }),
-					as("trader-trainer")
+					as("decision-consumer")
 				)
 			).status
 		).toBe(200);
@@ -71,17 +73,25 @@ describe("risk-execution routes: each caller only reaches its own routes (ADR-00
 		expect((await h.intent(input({}), {} as never)).status).toBe(403);
 	});
 
+	it("no decision consumer exists yet: by default nobody sends intents or prices", async () => {
+		const { risk } = build();
+		const h = createHandlers(risk as unknown as RiskExecution, () => undefined);
+		expect((await h.intent(input({}), as("trader-trainer"))).status).toBe(403);
+		expect((await h.price(input({}), as("trader-trainer"))).status).toBe(403);
+		expect(risk.submitIntent).not.toHaveBeenCalled();
+	});
+
 	it("admin routes: the service's own identity only, the consumer cannot read, engage or re-arm", async () => {
 		const { h, risk } = build();
 		const engage = { scope: "global" as const, reason: "x", actor: "op" };
-		expect((await h.adminStatus(input(), as("trader-trainer"))).status).toBe(
+		expect((await h.adminStatus(input(), as("decision-consumer"))).status).toBe(
 			403
 		);
 		expect(
-			(await h.adminEngage(input(engage), as("trader-trainer"))).status
+			(await h.adminEngage(input(engage), as("decision-consumer"))).status
 		).toBe(403);
 		expect(
-			(await h.adminRearm(input(engage), as("trader-trainer"))).status
+			(await h.adminRearm(input(engage), as("decision-consumer"))).status
 		).toBe(403);
 		expect(risk.engage).not.toHaveBeenCalled();
 		expect((await h.adminStatus(input(), as("risk-execution"))).status).toBe(
@@ -134,7 +144,7 @@ describe("risk-execution routes: each caller only reaches its own routes (ADR-00
 			(
 				await h.cancel(
 					input(undefined, { clientOrderId: "rx-1" }),
-					as("trader-trainer")
+					as("decision-consumer")
 				)
 			).status
 		).toBe(200);

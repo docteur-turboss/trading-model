@@ -2,6 +2,7 @@ import type { RiskLimits } from "../domain/limits";
 import { FINAL, type Order, transition } from "../domain/order";
 import type {
 	AdmissionPort,
+	BrokerAccount,
 	BrokerOrderView,
 	BrokerPort,
 	StatePort,
@@ -55,7 +56,6 @@ export class RiskExecution {
 	private _ready = false;
 	private _broken = false;
 	private _lastReconcile = 0;
-	private _startedAt = 0;
 	private _tail: Promise<unknown> = Promise.resolve();
 	private _failures: { at: number; symbol: string }[] = [];
 	private readonly _now: () => number;
@@ -76,7 +76,6 @@ export class RiskExecution {
 	start(): Promise<void> {
 		return this._run(async () => {
 			const now = this._now();
-			this._startedAt = now;
 			try {
 				this._state =
 					(await this._d.store.load()) ??
@@ -92,9 +91,19 @@ export class RiskExecution {
 				});
 				return;
 			}
+			const ks = this._state.killSwitch;
 			for (const order of Object.values(this._state.orders)) {
 				if (order.status === "accepted") {
-					await this._submit(order);
+					// Its pre-trade checks are stale or a switch is on: never sent late (ADR-0064 §7).
+					if (
+						now - order.createdAt > this._d.limits.maxIntentAgeMs ||
+						ks.global ||
+						ks.symbols[order.symbol]
+					) {
+						this._move(order, "expired");
+					} else {
+						await this._submit(order);
+					}
 				} else if (order.status === "submitted" || order.status === "unknown") {
 					await this._resolve(order);
 				}
@@ -121,18 +130,14 @@ export class RiskExecution {
 			positions: state.positions,
 			oldestPriceAgeSeconds: Math.max(
 				0,
-				...Object.keys(this._d.limits.instruments).map(
-					(sym) =>
-						(this._now() - (state.marks[sym]?.at ?? this._startedAt)) / 1000
+				...this._pricedSymbols().map(
+					(sym) => (this._now() - state.marks[sym].at) / 1000
 				)
 			),
 		};
 	}
 
-	submitIntent(
-		intent: Intent,
-		halted: ReadonlySet<string> = new Set()
-	): Promise<IntentResult> {
+	submitIntent(intent: Intent): Promise<IntentResult> {
 		return this._run(async () => {
 			const now = this._now();
 			this._rollDay(now);
@@ -143,6 +148,10 @@ export class RiskExecution {
 					this._emit("admission.error", { error: String(error) });
 					return false;
 				});
+			const halted = await this._d.broker.haltedSymbols().catch((error) => {
+				this._emit("broker.error", { error: String(error) });
+				return [intent.symbol]; // status unknown: fail closed
+			});
 			const reason = preTradeReject({
 				intent,
 				clientOrderId,
@@ -150,7 +159,8 @@ export class RiskExecution {
 				state: this._state,
 				now,
 				admissible,
-				halted,
+				reconciled: this._ready,
+				halted: new Set(halted),
 			});
 			if (reason === "duplicate_client_order_id") {
 				return { status: "rejected", reason, clientOrderId };
@@ -493,17 +503,22 @@ export class RiskExecution {
 		}
 	}
 
+	/** Allowed instruments that ever had a price: no feed yet (no decision consumer) is not stale data. */
+	private _pricedSymbols(): string[] {
+		return Object.keys(this._d.limits.instruments).filter(
+			(sym) => this._state.marks[sym]
+		);
+	}
+
 	private async _checkStale(now: number): Promise<void> {
-		const symbols = Object.keys(this._d.limits.instruments);
-		const stale = symbols.filter(
-			(sym) =>
-				now - (this._state.marks[sym]?.at ?? this._startedAt) >
-				this._d.limits.haltAgeMs
+		const priced = this._pricedSymbols();
+		const stale = priced.filter(
+			(sym) => now - this._state.marks[sym].at > this._d.limits.haltAgeMs
 		);
 		for (const sym of stale) {
 			await this._engage(sym, "stale_data");
 		}
-		if (stale.length === symbols.length) {
+		if (stale.length && stale.length === priced.length) {
 			await this._engage(null, "stale_data");
 		}
 	}
@@ -528,7 +543,16 @@ export class RiskExecution {
 	private async _reconcile(): Promise<void> {
 		const state = this._state;
 		this._lastReconcile = this._now();
-		const acct = await this._d.broker.account();
+		let acct: BrokerAccount;
+		try {
+			acct = await this._d.broker.account();
+		} catch (error) {
+			// Not ready, no new intent, retried at the next tick (ADR-0064 §7, broker unreachable).
+			this._ready = false;
+			this._lastReconcile = 0;
+			this._emit("reconciliation.error", { error: String(error) });
+			return;
+		}
 		const diffs: string[] = [];
 		for (const sym of new Set([
 			...Object.keys(state.positions),

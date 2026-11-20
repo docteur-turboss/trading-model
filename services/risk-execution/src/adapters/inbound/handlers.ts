@@ -6,8 +6,7 @@ import type { Request } from "express";
 import type { RiskExecution } from "../../application/risk-execution";
 import type { RISK_API } from "./api-routes";
 
-/** Callers by route (ADR-0064 §1): the ACL lets both in, each route keeps its own. */
-const DECISION_CONSUMER = "trader-trainer";
+/** Callers by route (ADR-0064 §1): the ACL lets them in, each route keeps its own. */
 const OPERATOR = "risk-execution";
 
 const callerOf = (req: Request): string | null => {
@@ -23,7 +22,9 @@ const forbidden = (req: Request, ...allowed: string[]) =>
 		: sendResponse(
 				{
 					error: "Forbidden",
-					reason: `only ${allowed.join(", ")} may call this route`,
+					reason: allowed.length
+						? `only ${allowed.join(", ")} may call this route`
+						: "no caller is allowed on this route yet",
 				},
 				HTTP_STATUS.FORBIDDEN
 			);
@@ -32,12 +33,17 @@ type Handler<Key extends keyof typeof RISK_API> = ApiRouteHandler<
 	(typeof RISK_API)[Key]
 >;
 
+/**
+ * @param decisionConsumers identities allowed to send intents and prices: none until the
+ * decision consumer exists, with its own identity and ACL entry (ADR-0049 §1.3).
+ */
 export function createHandlers(
 	risk: RiskExecution,
-	emitMetrics: (outcome: string) => void
+	emitMetrics: (outcome: string) => void,
+	decisionConsumers: readonly string[] = []
 ) {
 	const intent: Handler<"intent"> = async ({ body }, req) => {
-		const denied = forbidden(req, DECISION_CONSUMER);
+		const denied = forbidden(req, ...decisionConsumers);
 		if (denied) {
 			return denied;
 		}
@@ -48,7 +54,7 @@ export function createHandlers(
 		return sendResponse(result, HTTP_STATUS.OK);
 	};
 	const price: Handler<"price"> = async ({ body }, req) => {
-		const denied = forbidden(req, DECISION_CONSUMER);
+		const denied = forbidden(req, ...decisionConsumers);
 		if (denied) {
 			return denied;
 		}
@@ -56,7 +62,7 @@ export function createHandlers(
 		return sendResponse({ status: "recorded" as const }, HTTP_STATUS.OK);
 	};
 	const cancel: Handler<"cancel"> = async ({ params }, req) => {
-		const denied = forbidden(req, DECISION_CONSUMER, OPERATOR);
+		const denied = forbidden(req, ...decisionConsumers, OPERATOR);
 		if (denied) {
 			return denied;
 		}
