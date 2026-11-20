@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import {
 	Asset,
 	SIGNAL_SCHEMA_VERSION,
@@ -264,4 +265,15 @@ export function parseSignalRegistry(raw: unknown): SignalRegistry {
 	};
 }
 
-export const SIGNAL_REGISTRY = parseSignalRegistry(REGISTRY_FILE);
+/**
+ * `SIGNAL_REGISTRY_FILE` (K8s ConfigMap, compose bind mount) replaces the copy
+ * bundled in the image, so a new asset needs no image release (issue #1308).
+ * Read once at startup: a broken file stops this pod, the previous ones keep serving.
+ */
+export function loadSignalRegistry(path = process.env.SIGNAL_REGISTRY_FILE) {
+	return parseSignalRegistry(
+		path ? JSON.parse(readFileSync(path, "utf8")) : REGISTRY_FILE
+	);
+}
+
+export const SIGNAL_REGISTRY = loadSignalRegistry();

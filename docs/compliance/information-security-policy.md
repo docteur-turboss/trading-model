@@ -131,7 +131,7 @@ Implementation: `@trading-model/http/sensitive-data-sanitizer.ts`
 | Requirement | Implementation |
 |---|---|
 | **Network segmentation** | Docker Compose networks (`backend-net`, internal `data-net`). K8s Network Policies |
-| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory between services (not toward databases, ADR-0060). `ENFORCE_MTLS_STRICT` enables ACL enforcement on attested SVID identities |
+| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory between services (not toward databases, ADR-0060). ACL enforced on attested SVID identities |
 | **Service mesh** | Not deployed; mTLS handled at application layer via Express middleware |
 | **API gateway isolation** | External traffic enters only through api-gateway (port 8448). All other ports are internal |
 

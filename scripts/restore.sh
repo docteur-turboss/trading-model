@@ -42,7 +42,7 @@ source "$(dirname "$0")/backup-lib.sh"
 # Restore needs every action: the `root` user (ADR-0067); the password stays in
 # the container env. admin.* is excluded: restoring admin.system.users drops the
 # session of root mid-restore (createIndexes: Unauthorized); `mongo-users` recreates them.
-MONGO_ROOT_RESTORE='mongorestore --gzip --drop --username root --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --nsExclude "admin.*"'
+MONGO_ROOT_RESTORE="PWD_VAR=MONGO_INITDB_ROOT_PASSWORD; ${MONGO_PWD_CFG}; mongorestore --gzip --drop --config \"\$d/c.yml\" --username root --authenticationDatabase admin --nsExclude \"admin.*\""
 
 restore_mongodb() {
   log "Starting MongoDB restore..."

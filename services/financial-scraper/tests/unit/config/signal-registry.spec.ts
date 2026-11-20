@@ -1,6 +1,10 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import { Signal } from "@trading-model/validation/wire/signals";
 import {
+	loadSignalRegistry,
 	parseSignalRegistry,
 	SIGNAL_REGISTRY,
 } from "../../../src/config/signal-registry";
@@ -656,5 +660,34 @@ describe("signal registry — economic areas", () => {
 		};
 		expect(Signal.safeParse({ ...signal, area: "EA" }).success).toBe(true);
 		expect(Signal.safeParse(signal).success).toBe(false);
+	});
+});
+
+describe("signal registry — file outside the image (SIGNAL_REGISTRY_FILE)", () => {
+	const write = (content: string) => {
+		const path = join(mkdtempSync(join(tmpdir(), "registry-")), "r.json");
+		writeFileSync(path, content);
+		return path;
+	};
+
+	it("reads the mounted file instead of the bundled one", () => {
+		const file = registry();
+		file.assets.push({ ...assetOf(file, "WHEAT"), id: "MOUNTED" });
+		expect(
+			loadSignalRegistry(write(JSON.stringify(file))).assets.has("MOUNTED")
+		).toBe(true);
+	});
+
+	it("keeps the bundled registry when the variable is unset", () => {
+		expect(loadSignalRegistry(undefined).assets.has("MOUNTED")).toBe(false);
+	});
+
+	it("refuses a mounted file that does not pass the checks", () => {
+		const file = registry();
+		sourceOf(file, file.sources[0].id).schedule = "not a cron";
+		expect(() => loadSignalRegistry(write(JSON.stringify(file)))).toThrow(
+			"Invalid signal registry"
+		);
+		expect(() => loadSignalRegistry(write("{"))).toThrow();
 	});
 });

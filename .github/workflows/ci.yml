@@ -112,7 +112,7 @@ jobs:
           bun run --filter message-manager build
           bun run --filter discovery-server build
           bun run --filter financial-scraper build
-          bun run --filter trader-service build
+          bun run --filter trader-trainer build
           bun run --filter api-gateway build
           bun run --filter audit-logger build
           bun run --filter dlq-service build
@@ -486,3 +486,17 @@ jobs:
       - name: Dump cluster state
         if: failure()
         run: bash tests/k8s/run-kind.sh dump
+
+  # One check for the development ruleset: a skipped matrix reports
+  # "k8s (${{ matrix.group }})", never "k8s (network)", so a required matrix
+  # name would wait forever on a PR the gate spares from kind.
+  k8s-result:
+    needs: [gate, k8s-images, k8s]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "gate, k8s-images, k8s: $RESULTS"
+          case " $RESULTS " in *" failure "* | *" cancelled "*) exit 1 ;; esac

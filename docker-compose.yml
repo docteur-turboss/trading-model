@@ -18,8 +18,6 @@ x-core-env: &core-env
   TLS_KEY_PATH: /run/spire/svid/svid_key.pem
   TLS_CERT_PATH: /run/spire/svid/svid.pem
   TLS_CA_PATH: /run/spire/svid/bundle.pem
-  # Enforce the service-to-service ACL using attested SVID identities (ADR-0011).
-  ENFORCE_MTLS_STRICT: ${ENFORCE_MTLS_STRICT:-true}
   LOG_LEVEL: ${LOG_LEVEL:-info}
   OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
 
@@ -376,6 +374,8 @@ services:
       ERROR_URL_WEBHOOK: ${ERROR_URL_WEBHOOK:-}
       SIGNAL_KEY_FRED: ${SIGNAL_KEY_FRED:-}
       SIGNAL_KEY_TWELVEDATA: ${SIGNAL_KEY_TWELVEDATA:-}
+      # Same file as the K8s ConfigMap financial-scraper-signal-registry (issue #1308).
+      SIGNAL_REGISTRY_FILE: /etc/signal-registry/signal-registry.json
       SIGNAL_NON_COMMERCIAL_ACCEPTED: ${SIGNAL_NON_COMMERCIAL_ACCEPTED:-}
       DB_USER: ${MYSQL_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -384,6 +384,7 @@ services:
       DB_PORT: '3306'
     volumes:
       - svid-scraper:/run/spire/svid
+      - ./services/financial-scraper/src/config/signal-registry.json:/etc/signal-registry/signal-registry.json:ro
     networks:
       - backend-net
       - data-net

@@ -57,12 +57,6 @@ Packages must be built in this order before services:
 11. `@trading-model/broker-message`
 Services can then be built in any order. The root `bun run build` builds the packages above. Use `bun run build:ts` for a full build of everything.
 
-## Naming quirk: trader-trainer ≠ trader-service
-
-The directory `services/trader-trainer/` has `package.json` name `"trader-service"`.
-Workspace commands use the package name: `bun run --filter trader-service test`, `bun run --filter trader-service build`.
-The root script references the package name too: `bun run --filter trader-service build`.
-
 ## Testing conventions
 
 - All tests use `**/?(*.)+(spec).ts` pattern
@@ -95,7 +89,7 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## TypeScript
 
-- **No root tsconfig.json** — each workspace has its own standalone config
+- **No root tsconfig.json** — the root `tsconfig.base.json` only holds the `compilerOptions` shared by all workspaces (no `include`, never passed to `tsc -p`); each workspace `tsconfig.json` extends it and keeps its own module, paths, outDir, rootDir and include
 - Some packages use `tsconfig.build.json` that extends the base but overrides `rootDir` to `"./src"`
 - Packages use `commonjs` module; most services use `Node16` module (`moduleResolution: node16`)
 - Several services use `experimentalDecorators` + `emitDecoratorMetadata`
