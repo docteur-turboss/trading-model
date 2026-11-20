@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 cp -r "$ROOT/deploy" "$ROOT/scripts" "$ROOT/.github" "$TMP"
+mkdir -p "$TMP/services/api-gateway/src/shared" && cp "$ROOT/services/api-gateway/src/shared/public-routes.ts" "$TMP/services/api-gateway/src/shared/"
 sed -i 's/^\(    SIGNING_SECRET: \).*/\1AgCHANGE_ME_RUN_KUBESEAL_Ag==/' "$TMP/deploy/k8s/overlays/staging-local/sealed-secrets.yaml"
 if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
   echo "  ✗ staging-local placeholder accepted"; exit 1
