@@ -53,8 +53,17 @@ export interface RedisMessageJournalDeps {
 }
 
 const WAIT_REPLICAS_TIMEOUT_MS = 2000;
-/** `commandTimeout` of the `XADD` + `WAIT` connection: above the 2 s of `WAIT`, which the client default would cut. */
-export const JOURNAL_WRITE_COMMAND_TIMEOUT_MS = WAIT_REPLICAS_TIMEOUT_MS + 2000;
+/**
+ * Options of the `XADD` + `WAIT` connection. `commandTimeout` is above the 2 s of `WAIT`.
+ * No offline queue: ioredis does not drop a command rejected by `commandTimeout` from that queue
+ * and writes it on reconnection, so a queued `XADD` would land after the 503 and the publisher's retry would duplicate it.
+ * Offline, a write fails at once. `lazyConnect` off: a lazy client has no stream yet and would reject the first write.
+ */
+export const JOURNAL_WRITE_OPTIONS = {
+	commandTimeout: WAIT_REPLICAS_TIMEOUT_MS + 2000,
+	enableOfflineQueue: false,
+	lazyConnect: false,
+};
 /** Approximate cap of a journal stream, applied every `CAP_EVERY` appends: bounds a burst the 24 h `MINID` would keep. Unmeasured: 100 000 × ~1 KB ≈ 100 MB per stream, against 512 Mi of Redis. */
 const JOURNAL_MAX_LENGTH = 100_000;
 const CAP_EVERY = 100;

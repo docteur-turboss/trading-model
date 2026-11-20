@@ -3,7 +3,10 @@ import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/logger";
 import { JOURNAL_RETENTION_MS } from "../../../src/bus/journal.port";
 import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../../src/bus/metrics";
-import { RedisMessageJournal } from "../../../src/bus/redis-journal";
+import {
+	JOURNAL_WRITE_OPTIONS,
+	RedisMessageJournal,
+} from "../../../src/bus/redis-journal";
 import { createMockMessage } from "../../fixtures/broker.fixture";
 
 const GROUP = { topic: "test.topic", service: "trader-trainer" } as never;
@@ -533,5 +536,14 @@ describe("RedisMessageJournal", () => {
 
 			await expect(journal.lag()).rejects.toThrow("NOPERM");
 		});
+	});
+});
+
+describe("JOURNAL_WRITE_OPTIONS", () => {
+	it("should fail a write at once when offline and keep WAIT under the command timeout", () => {
+		// ioredis writes a queued command on reconnection even after its timeout rejected it: no queue, no late XADD.
+		expect(JOURNAL_WRITE_OPTIONS.enableOfflineQueue).toBe(false);
+		expect(JOURNAL_WRITE_OPTIONS.lazyConnect).toBe(false);
+		expect(JOURNAL_WRITE_OPTIONS.commandTimeout).toBeGreaterThan(2000);
 	});
 });

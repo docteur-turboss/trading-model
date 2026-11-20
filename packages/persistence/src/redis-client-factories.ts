@@ -12,7 +12,7 @@ import type {
 export const BASE_RETRY_STRATEGY = (times: number): number =>
 	Math.min(times * 200, 5000);
 
-/** A command fails after this long when Redis is unreachable; ioredis removes a timed-out command from its queue, so it is never applied late. */
+/** A command fails after this long when Redis is unreachable. It bounds the caller's wait only: ioredis keeps a timed-out command in its offline queue and writes it on reconnection (see `JOURNAL_WRITE_OPTIONS` for writes that must not be late). */
 export const REDIS_COMMAND_TIMEOUT_MS = 2000;
 
 export const BASE_REDIS_OPTIONS: Partial<RedisOptions> = {

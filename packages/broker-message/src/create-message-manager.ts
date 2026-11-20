@@ -13,7 +13,7 @@ import {
 import { toInstanceId } from "@trading-model/primitives/primitives";
 import MessageManagerClass from "./broker-message";
 import {
-	JOURNAL_WRITE_COMMAND_TIMEOUT_MS,
+	JOURNAL_WRITE_OPTIONS,
 	RedisMessageJournal,
 } from "./bus/redis-journal";
 import type { MessageManagerConfig } from "./types/config";
@@ -63,10 +63,7 @@ export function busJournalFromEnv(
 	return new RedisMessageJournal({
 		redis: redis as never,
 		openBlockingRedis: () => redis.duplicate() as never,
-		openWriteRedis: () =>
-			redis.duplicate({
-				commandTimeout: JOURNAL_WRITE_COMMAND_TIMEOUT_MS,
-			}) as never,
+		openWriteRedis: () => redis.duplicate(JOURNAL_WRITE_OPTIONS) as never,
 		keyPrefix: BUS_KEY_PREFIX,
 		minReplicas: env.JOURNAL_MIN_REPLICAS,
 	});

@@ -4,7 +4,7 @@
 
 import { DeadStreams } from "@trading-model/broker-message/bus/dead-streams";
 import {
-	JOURNAL_WRITE_COMMAND_TIMEOUT_MS,
+	JOURNAL_WRITE_OPTIONS,
 	RedisMessageJournal,
 } from "@trading-model/broker-message/bus/redis-journal";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
@@ -40,10 +40,7 @@ const JOURNAL = SUBSCRIPTION_REDIS
 	? new RedisMessageJournal({
 			redis: SUBSCRIPTION_REDIS,
 			openBlockingRedis: () => SUBSCRIPTION_REDIS.duplicate(),
-			openWriteRedis: () =>
-				SUBSCRIPTION_REDIS.duplicate({
-					commandTimeout: JOURNAL_WRITE_COMMAND_TIMEOUT_MS,
-				}),
+			openWriteRedis: () => SUBSCRIPTION_REDIS.duplicate(JOURNAL_WRITE_OPTIONS),
 			keyPrefix: SUBSCRIPTION_KEY_PREFIX,
 			minReplicas: ENV.JOURNAL_MIN_REPLICAS,
 		})
