@@ -876,7 +876,7 @@ verify_egress() {
 # empty). Restricted Pod Security: the security context is spelled out.
 mongo_ping() {
 	local img uri
-	img="$(grep -m1 -o 'mongo@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
+	img="$(grep -m1 -o 'mongo:[0-9.]*@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
 	uri="mongodb://$3:27017/?directConnection=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
@@ -915,7 +915,7 @@ verify_mongo_ingress() {
 # (none when empty), with bash of the MySQL image (issue #747).
 tcp_probe() {
 	local img
-	img="$(grep -m1 -o 'mysql@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mysql.yaml")"
+	img="$(grep -m1 -o 'mysql:[0-9.]*@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mysql.yaml")"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
 		\"spec\": {

@@ -74,7 +74,7 @@ spec:
       # file of the mongod user instead.
       initContainers:
         - name: keyfile
-          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
           command:
             - sh
             - -c
@@ -109,7 +109,7 @@ spec:
             secretName: mongo-audit-tls
       containers:
         - name: mongodb
-          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
           # Encryption at rest (--enableEncryption) is MongoDB Enterprise only:
           # this Community image refuses the flag and never starts with it.
           command:
@@ -201,7 +201,7 @@ spec:
         # exception (only a loopback connection of this pod gets it; a Job over the
         # network is refused: "no replset config", run 43340429996). Idempotent.
         - name: mongodb-bootstrap
-          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
           env:
             - name: MONGO_ROOT_PASSWORD
               valueFrom:
@@ -327,7 +327,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: mongodb-users
-          image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
