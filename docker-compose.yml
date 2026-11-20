@@ -840,7 +840,7 @@ services:
   # ---------------------------------------------------------------------------
   prometheus:
     logging: *default-logging
-    image: prom/prometheus@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
+    image: prom/prometheus@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
     container_name: trading-prometheus
     restart: unless-stopped
     mem_limit: 2g
@@ -971,7 +971,7 @@ services:
 
   node-exporter:
     logging: *default-logging
-    image: quay.io/prometheus/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    image: quay.io/prometheus/node-exporter:v1.13.1@sha256:011e2d12c5bff759b90804bda642664775d7b4b127bf5148539bb82d3f590bb7
     container_name: trading-node-exporter
     restart: unless-stopped
     mem_limit: 128m
