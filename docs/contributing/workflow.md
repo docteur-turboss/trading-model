@@ -53,7 +53,7 @@ trading-model/
 │   ├── discovery-server/
 │   ├── message-manager/
 │   ├── financial-scraper/
-│   ├── trader-trainer/      # bun name: trader-service
+│   ├── trader-trainer/      # bun name: trader-trainer
 │   ├── api-gateway/
 │   ├── audit-logger/
 │   └── dlq-service/
