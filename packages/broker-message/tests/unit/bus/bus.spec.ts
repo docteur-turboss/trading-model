@@ -149,6 +149,25 @@ describe("BusConsumer", () => {
 		rejected.mockRestore();
 	});
 
+	it("should deliver a dlq.entry.added entry published by message-manager", async () => {
+		const handled: unknown[] = [];
+		const topic = "dlq.entry.added";
+		const parts = bus();
+		const { consumer: c, journal } = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+		await c.start([topic]);
+		await publishToBus(journal, "dead", {
+			...METADATA,
+			topic,
+			publisher: { ...METADATA.publisher, serviceName: "message-manager" },
+		} as never);
+		await until(() => handled.length === 1);
+		await c.stop();
+
+		expect(handled).toEqual(["dead"]);
+	});
+
 	it("should run the handler in the publisher trace and count the delivery", async () => {
 		// Minimal synchronous context manager: the API default is a no-op one.
 		let active: Context = ROOT_CONTEXT;

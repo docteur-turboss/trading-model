@@ -26,7 +26,11 @@ export const EVENT_PUBLISHERS: Record<
 	[TrainingEvent.ModelPublished]: [TRAINER],
 	[AuditEvent.AuditHeartbeat]: [AUDIT],
 	[AuditEvent.AuditGapDetected]: [AUDIT],
-	[DlqEvent.EntryAdded]: [AUDIT, ServiceInstanceName.ModelEvaluatorService],
+	[DlqEvent.EntryAdded]: [
+		AUDIT,
+		ServiceInstanceName.ModelEvaluatorService,
+		ServiceInstanceName.MessageManagerService,
+	],
 	[DlqEvent.ReplayCompleted]: [DLQ, AUDIT],
 	[DlqEvent.EntriesDeleted]: [DLQ, AUDIT],
 };
