@@ -277,6 +277,38 @@ groups:
           description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
 
+      # -- Risk/Execution (ADR-0064, docs/compliance/risk-limits-policy.md) -------
+
+      - alert: KillSwitchEngaged
+        expr: 'max by (job, mode, scope) (risk_kill_switch) > 0'
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Kill switch engaged ({{ $labels.scope }}, {{ $labels.mode }})'
+          description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
+
+      - alert: ReconciliationMismatch
+        expr: 'max by (job, mode) (risk_reconciliation_mismatch) > 0'
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'risk-execution state differs from the broker ({{ $labels.mode }})'
+          description: 'The last reconciliation found a position, open order or balance difference with the broker. The global kill switch is on and the service is not ready; the store is never fixed to match the broker.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#reconciliationmismatch'
+
+      - alert: RiskMarketDataStale
+        expr: 'max by (job, mode) (risk_market_data_age_seconds) > 900'
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Reference price older than 15 minutes ({{ $labels.mode }})'
+          description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
+
       # -- Authentication failures and ACL denials -------------------
 
       - alert: ApiAuthFailuresHigh
