@@ -343,6 +343,8 @@ Deployment is back on its N-1 pod template (image digests, ConfigMaps) with the
 N-1 migrations still applied, runs `migrate-down 1` and the migrations again,
 then upgrades to N (`tests/k8s/run-kind.sh upgrade`).
 
+**SPIRE order.** A SPIRE agent must not be newer than the server it talks to. The node agents are applied before the server, so a release bumps the server only; the agents (`deploy/k8s/node-agents/spire-agent.yaml`) take that version in the next release. The rollback above does not touch the agents: to downgrade, move the agents back first, then the server. `tests/k8s/check-overlays.mjs` fails when the agent minor is higher than the server's.
+
 "Wait for rollout" gives each Deployment 180 s plus the
 `terminationGracePeriodSeconds` of its pod template: a `Recreate` Deployment
 starts its new pod only once the old one has drained, and a draining pod may
