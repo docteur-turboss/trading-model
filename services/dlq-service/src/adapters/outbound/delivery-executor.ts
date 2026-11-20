@@ -36,7 +36,7 @@ async function _deliverMessage(
 		throw new Error("Server shutting down");
 	}
 	await client.post(
-		URLString.of(`${messageManagerUrl}/message/replay`),
+		URLString.of(`${messageManagerUrl}${"/message/replay"}`),
 		{ service: entry.service, message: entry.message },
 		{
 			timeoutMs: DurationMs.of(REPLAY_DELIVERY_TIMEOUT_MS),
