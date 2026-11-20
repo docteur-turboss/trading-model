@@ -6,5 +6,29 @@
 	{
 		"break": "example.show.create $: event removed",
 		"reason": "topic de debug sans producteur, retiré du contrat (issue #1206)"
+	},
+	{
+		"break": "market.candlestick.series.fetch $: event removed",
+		"reason": "topic sans éditeur ni abonné depuis #1737 / ADR-0078, retiré du contrat (issue #1765)"
+	},
+	{
+		"break": "market.order-book-ticker.snapshot.fetch $: event removed",
+		"reason": "topic sans éditeur ni abonné depuis #1737 / ADR-0078, retiré du contrat (issue #1765)"
+	},
+	{
+		"break": "market.order-book.snapshot.fetch $: event removed",
+		"reason": "topic sans éditeur ni abonné depuis #1737 / ADR-0078, retiré du contrat (issue #1765)"
+	},
+	{
+		"break": "market.price-ticker.snapshot.fetch $: event removed",
+		"reason": "topic sans éditeur ni abonné depuis #1737 / ADR-0078, retiré du contrat (issue #1765)"
+	},
+	{
+		"break": "market.ticker.24hr-stats.fetch $: event removed",
+		"reason": "topic sans éditeur ni abonné depuis #1737 / ADR-0078, retiré du contrat (issue #1765)"
+	},
+	{
+		"break": "market.trade.recent.fetch $: event removed",
+		"reason": "topic sans éditeur ni abonné depuis #1737 / ADR-0078, retiré du contrat (issue #1765)"
 	}
 ]

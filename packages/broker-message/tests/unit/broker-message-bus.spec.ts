@@ -18,7 +18,7 @@ import BrokerMessage, { HELPER } from "../../src/broker-message";
 import { RedisMessageJournal } from "../../src/bus/redis-journal";
 import { StreamRedis } from "../fixtures/stream-redis";
 
-const TOPIC = "market.candlestick.series.fetch";
+const TOPIC = "training.model.published";
 const REDIS = new StreamRedis();
 
 function broker() {
@@ -65,7 +65,7 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 	});
 
 	it("should leave a topic with no listener to message-manager's workers, never ack it in process", async () => {
-		const topic = "training.model.published";
+		const topic = "dlq.entry.added";
 		const bus = broker();
 		await bus.intents([topic] as never);
 		const metadata = new HELPER.metadataBuilder(
@@ -73,7 +73,10 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 			topic as never,
 			{ instanceId: "i-1", serviceName: "trader-trainer" } as never
 		).toJSON();
-		await bus.post.indirect({ symbol: "BTCUSDT" }, metadata);
+		await bus.post.indirect(
+			{ entryId: "e1", topic: null, reason: null, actor: null },
+			metadata
+		);
 		await new Promise((resolve) => setTimeout(resolve, 100));
 		await bus.stopMessageManager();
 

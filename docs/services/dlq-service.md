@@ -56,7 +56,7 @@ curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   ht
 curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS https://localhost:3000/dlq
 
 # Replay up to 50 entries of one topic
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS -X POST   'https://localhost:3000/dlq/replay?topic=market.trade.recent.fetch&limit=50'
+curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS -X POST   'https://localhost:3000/dlq/replay?topic=dlq.entry.added&limit=50'
 
 # Delete entries by id
 curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS -X DELETE https://localhost:3000/dlq   -H 'Content-Type: application/json'   -d '{"ids":["entry-uuid-123"]}'

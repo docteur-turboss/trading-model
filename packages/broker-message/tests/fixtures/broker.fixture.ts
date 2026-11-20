@@ -20,7 +20,7 @@ export const createMockMessage = <T = unknown>(
 		messageId: "msg-123" as MessageId,
 		emittedAt: UnixTimestamp.add(UnixTimestamp.now(), 86400000),
 		schemaVersion: "1.0.0",
-		eventType: "market.candlestick.series.fetch",
+		eventType: "training.model.published",
 		topic: "test.topic" as Topic,
 		publisher: {
 			serviceName: ServiceId.of("financial-scraper"),
