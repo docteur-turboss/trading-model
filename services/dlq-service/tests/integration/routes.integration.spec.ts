@@ -130,8 +130,6 @@ const auditPort = {
 };
 const handlers = createDlqHandlers({
 	entries: dlqRepository,
-	db: { isConnected: () => true, getMissingCriticalIndexes: () => [] },
-	queue: { isAvailable: () => true },
 	useCases: {
 		deleteEntries: createDeleteEntries({
 			entries: dlqRepository,
@@ -299,16 +297,6 @@ describe("DLQ Service — Routes Integration", () => {
 		const result = await request(server, "/health");
 		expect(result.status).toBe(200);
 		expect(result.body).toEqual({ status: "ok", entries: 5 });
-	});
-
-	it("GET /health/ready should report readiness", async () => {
-		await start();
-		const result = await request(server, "/health/ready");
-		expect(result.status).toBe(200);
-		expect(result.body).toMatchObject({
-			status: "ready",
-			redis: "connected",
-		});
 	});
 
 	it("POST /dlq is gone: dead letters live in the dead streams (ADR-0073)", async () => {

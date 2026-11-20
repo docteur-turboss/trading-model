@@ -58,16 +58,12 @@ import {
 	registerServiceName,
 	type ServiceInstanceName,
 } from "@trading-model/common/config/services.types";
-import { getDefaultCircuitRecorder } from "@trading-model/http/circuit-recorder";
 import { runWithCorrelationId } from "@trading-model/http/correlation-id";
 import { HttpClient } from "@trading-model/http/http-client";
 import type {
 	PositiveInt,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
-
-const isServiceCircuitOpen = (name: ServiceInstanceName) =>
-	getDefaultCircuitRecorder().isServiceCircuitOpen(name);
 
 const TEST_SERVICE_NAMES = [
 	"my-service",
@@ -668,7 +664,7 @@ describe("HttpClient", () => {
 			jest.useRealTimers();
 		});
 
-		it("should open after threshold failures and reject via isServiceCircuitOpen", async () => {
+		it("should open after threshold failures and reject the next call", async () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get(
 					URLString.of("https://cb-svc-1.example.com/api"),
@@ -681,9 +677,12 @@ describe("HttpClient", () => {
 				await expect(promise).rejects.toThrow();
 			}
 
-			expect(isServiceCircuitOpen("my-service" as ServiceInstanceName)).toBe(
-				true
-			);
+			await expect(
+				client.get(URLString.of("https://cb-svc-1.example.com/api"), {
+					retryCount: 0 as PositiveInt,
+					serviceName: "my-service" as unknown as ServiceId,
+				})
+			).rejects.toThrow("Circuit breaker open");
 		});
 
 		it("should reset service circuit on success after cooldown", async () => {
@@ -710,10 +709,6 @@ describe("HttpClient", () => {
 			);
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			await expect(promise).resolves.toEqual({ ok: true });
-
-			expect(isServiceCircuitOpen("reset-service" as ServiceInstanceName)).toBe(
-				false
-			);
 		});
 	});
 
@@ -837,58 +832,6 @@ describe("HttpClient", () => {
 			await expect(promise).rejects.toThrow(
 				"Circuit breaker open for service open-test-service"
 			);
-		});
-	});
-
-	describe("isServiceCircuitOpen half-open transitions", () => {
-		beforeEach(() => {
-			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
-			jest.useFakeTimers();
-		});
-
-		afterEach(() => {
-			jest.useRealTimers();
-		});
-
-		it("should transition to half-open after cooldown and return true from isServiceCircuitOpen", async () => {
-			for (let i = 0; i < 5; i++) {
-				const promise = client.get(
-					URLString.of("https://cb-halfopen.example.com/api"),
-					{
-						retryCount: 0 as PositiveInt,
-						serviceName: "halfopen-service" as unknown as ServiceId,
-					}
-				);
-				errorHandler!(new Error("ECONNRESET"));
-				await expect(promise).rejects.toThrow();
-			}
-
-			jest.advanceTimersByTime(30_001);
-
-			expect(
-				isServiceCircuitOpen("halfopen-service" as ServiceInstanceName)
-			).toBe(true);
-		});
-
-		it("should return true for half-open state when no request resets it", async () => {
-			for (let i = 0; i < 5; i++) {
-				const promise = client.get(
-					URLString.of("https://cb-halfopen2.example.com/api"),
-					{
-						retryCount: 0 as PositiveInt,
-						serviceName: "halfopen-service-2" as unknown as ServiceId,
-					}
-				);
-				errorHandler!(new Error("ECONNRESET"));
-				await expect(promise).rejects.toThrow();
-			}
-
-			jest.advanceTimersByTime(30_001);
-
-			isServiceCircuitOpen("halfopen-service-2" as ServiceInstanceName);
-			expect(
-				isServiceCircuitOpen("halfopen-service-2" as ServiceInstanceName)
-			).toBe(true);
 		});
 	});
 
@@ -1115,19 +1058,5 @@ describe("HttpClient", () => {
 			const result = await client.get(URLString.of("https://example.com/data"));
 			expect(result).toEqual({ s: "é€" });
 		});
-	});
-});
-
-describe("isServiceCircuitOpen", () => {
-	it("should return false for unknown service", () => {
-		expect(isServiceCircuitOpen("nonexistent" as ServiceInstanceName)).toBe(
-			false
-		);
-	});
-
-	it("should return false for a service with no recorded failures", () => {
-		expect(isServiceCircuitOpen("fresh-service" as ServiceInstanceName)).toBe(
-			false
-		);
 	});
 });

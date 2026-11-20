@@ -9,7 +9,10 @@ import { z } from "zod";
 import { FIND_A_SERVICE } from "../../config/address-manager";
 import { ModelManifest } from "../../domain/model-evaluation";
 
+/** Total deadline of a weights download (an upstream that trickles bytes must not hold it open). */
 const WEIGHTS_TIMEOUT_MS = 60_000;
+/** Above the largest expected weights file: the body is buffered in memory. */
+const WEIGHTS_MAX_BYTES = 256 * 1024 * 1024;
 
 /** Reads the trainer's versioned model API (ADR-0022): manifest, then weights. */
 const TRAINER = ServiceId.of("trader-trainer");
@@ -56,11 +59,21 @@ export class TrainerClient {
 				url,
 				{
 					...buildHttpsAgentOptions(this._tls, TRAINER),
-					timeout: WEIGHTS_TIMEOUT_MS,
+					signal: AbortSignal.timeout(WEIGHTS_TIMEOUT_MS),
 				},
 				(res) => {
 					const chunks: Buffer[] = [];
-					res.on("data", (chunk: Buffer) => chunks.push(chunk));
+					let bytes = 0;
+					res.on("data", (chunk: Buffer) => {
+						bytes += chunk.length;
+						if (bytes > WEIGHTS_MAX_BYTES) {
+							req.destroy(
+								new Error(`Weights larger than ${WEIGHTS_MAX_BYTES} bytes`)
+							);
+							return;
+						}
+						chunks.push(chunk);
+					});
 					res.on("error", reject);
 					res.on("end", () => {
 						if (res.statusCode !== 200) {
@@ -78,9 +91,6 @@ export class TrainerClient {
 						});
 					});
 				}
-			);
-			req.on("timeout", () =>
-				req.destroy(new Error("Weights download timed out"))
 			);
 			req.on("error", reject);
 		});

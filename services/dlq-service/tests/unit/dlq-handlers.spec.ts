@@ -10,9 +10,6 @@ type Body = Record<string, unknown>;
 function setup(
 	overrides: {
 		useCases?: Partial<DlqUseCases>;
-		connected?: boolean;
-		missingIndexes?: string[];
-		redisUp?: boolean;
 		query?: DlqHandlerDeps["entries"]["query"];
 	} = {}
 ) {
@@ -29,11 +26,6 @@ function setup(
 			count: async () => 5,
 			query: overrides.query ?? (async () => []),
 		},
-		db: {
-			isConnected: () => overrides.connected ?? true,
-			getMissingCriticalIndexes: () => overrides.missingIndexes ?? [],
-		},
-		queue: { isAvailable: () => overrides.redisUp ?? true },
 	};
 	return createDlqHandlers(deps);
 }
@@ -144,39 +136,6 @@ describe("DLQ HTTP handlers", () => {
 		it("reports the entry count", async () => {
 			const r = await call<Body>(setup().healthCheck() as never);
 			expect(r).toEqual({ status: 200, body: { status: "ok", entries: 5 } });
-		});
-
-		it("is ready with db and redis up", async () => {
-			const r = await call<Body>(setup().readyCheck() as never);
-			expect(r.status).toBe(200);
-			expect(r.body).toMatchObject({ status: "ready", redis: "connected" });
-		});
-
-		it("is degraded without redis", async () => {
-			const r = await call<Body>(
-				setup({ redisUp: false }).readyCheck() as never
-			);
-			expect(r.body).toMatchObject({
-				status: "degraded",
-				redis: "unavailable",
-			});
-		});
-
-		it("is not ready without database", async () => {
-			const r = await call<Body>(
-				setup({ connected: false }).readyCheck() as never
-			);
-			expect(r.status).toBe(503);
-		});
-
-		it("is degraded with missing indexes", async () => {
-			const r = await call<Body>(
-				setup({ missingIndexes: ["a", "b"] }).readyCheck() as never
-			);
-			expect(r.status).toBe(503);
-			expect(r.body).toMatchObject({
-				reason: "Missing critical indexes: a, b",
-			});
 		});
 	});
 });
