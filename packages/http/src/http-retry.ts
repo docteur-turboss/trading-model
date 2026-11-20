@@ -27,15 +27,6 @@ function isRetryableStatusPermissive(code: number): boolean {
 	return isRetryableStatus(code) || code === HTTP_STATUS.REQUEST_TIMEOUT;
 }
 
-/** Checks if a delivery status should NOT be retried (used by message-manager delivery-decision). */
-function isNonRetryableClientError(code: number): boolean {
-	return (
-		code >= HTTP_STATUS.BAD_REQUEST &&
-		code < HTTP_STATUS.INTERNAL_SERVER_ERROR &&
-		code !== HTTP_STATUS.TOO_MANY_REQUESTS
-	);
-}
-
 function computeRetryDelay(
 	attempt: number,
 	options?: BackoffConfig
@@ -53,7 +44,6 @@ function computeRetryDelay(
 export {
 	computeRetryDelay,
 	DEFAULT_RETRY_COUNT,
-	isNonRetryableClientError,
 	isRetryableStatus,
 	isRetryableStatusPermissive,
 	RETRY_JITTER_MS,

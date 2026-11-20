@@ -57,7 +57,7 @@ ScrapeCronOrchestrator (deps built by config/container.ts)
 A configurable Axios instance factory (`createHttpClient`) that provides:
 
 - **Token-bucket rate limiter** — per-baseURL bucket with configurable capacity (default: 1200 tokens) and refill rate (20 tokens/sec). The `weight` property on each request config determines how many tokens are consumed, mirroring Binance's documented API weight system.
-- **Exponential backoff retry** — up to 5 retries with 300ms base delay, max 10s. Triggers on network errors, 5xx, 408 and 429. Never on 403 (Binance WAF), 418 (IP ban) or 451 (restricted location): see ADR-0026.
+- **Exponential backoff retry** — up to 5 retries with 300ms base delay, max 10s. Triggers on network errors, 5xx, 408 and 429. Never on 403 (Binance WAF), 418 (IP ban) or 451 (restricted location): see ADR-0026. A 418 or 451 quarantines Binance (no call until `Retry-After` or a doubling backoff from 5 min, gauge `fs_signal_source_quarantined{source="binance"}`).
 - **Type augmentation** — `AxiosRequestConfig` is augmented to accept a `weight?: number` field via declaration merging (`src/infrastructure/http/axios.d.ts`).
 
 ```typescript
