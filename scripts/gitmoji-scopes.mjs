@@ -28,6 +28,7 @@ export const SCOPES = [
   'message-manager',
   'model-evaluator',
   'model-runtime',
+  'risk-execution',
   'middleware',
   'multiple',
   'observability',

@@ -452,6 +452,31 @@
         "typescript": "^6.0.3",
       },
     },
+    "services/risk-execution": {
+      "name": "risk-execution",
+      "version": "3.1.0-rc.3",
+      "dependencies": {
+        "@trading-model/address-manager": "*",
+        "@trading-model/common": "*",
+        "@trading-model/contracts": "*",
+        "@trading-model/http": "*",
+        "@trading-model/primitives": "*",
+        "@trading-model/validation": "*",
+        "express": "^5.3.0",
+        "prom-client": "^15.1.3",
+        "zod": "^4.6.7",
+      },
+      "devDependencies": {
+        "@jest/globals": "^30.5.2",
+        "@types/express": "^5.0.6",
+        "@types/jest": "^30.0.0",
+        "@types/node": "^26.6.6",
+        "jest": "^30.5.2",
+        "ts-jest": "^29.4.15",
+        "ts-node": "^10.9.2",
+        "typescript": "^6.0.3",
+      },
+    },
     "services/trader-trainer": {
       "name": "trader-trainer",
       "version": "3.1.0-rc.3",
@@ -1925,6 +1950,8 @@
     "resolve-pkg-maps": ["resolve-pkg-maps@1.0.0", "", {}, "sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw=="],
 
     "retry": ["retry@0.12.0", "", {}, "sha512-9LkiTwjUh6rT555DtE9rTX+BKByPfrMzEAtnlEtdEwr3Nkffwiihqe2bWADg+OQRjt9gl6ICdmB/ZFDCGAtSow=="],
+
+    "risk-execution": ["risk-execution@workspace:services/risk-execution"],
 
     "router": ["router@2.2.0", "", { "dependencies": { "debug": "^4.4.0", "depd": "^2.0.0", "is-promise": "^4.0.0", "parseurl": "^1.3.3", "path-to-regexp": "^8.0.0" } }, "sha512-nLTrUKm2UyiL7rlhapu/Zl45FwNgkZGaCpZbIHajDYgwlJCOzLSk+cIPAnsEqV955GjILJnKbdQC1nVPz+gAYQ=="],
 
