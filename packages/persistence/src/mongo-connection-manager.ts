@@ -19,8 +19,6 @@ export interface MongoConnectionConfig {
 	collectionName?: string;
 	poolSize?: number;
 	minPoolSize?: number;
-	serverSelectionTimeoutMS?: number;
-	connectTimeoutMS?: number;
 	/** Attempts before `getConnection` rejects; `Infinity` for a background connect that outlives an outage. */
 	maxRetries?: number;
 }

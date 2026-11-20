@@ -59,6 +59,10 @@ export interface ChainAuditSettings {
 	anchorRequired: boolean;
 }
 
+/** Deadlines of the S3 anchor client: a hung call must not freeze the chain verification. */
+const S3_CONNECTION_TIMEOUT_MS = 3000;
+const S3_REQUEST_TIMEOUT_MS = 10_000;
+
 /** Verification and anchoring of the audit chain (ADR-0027). */
 export function createChainAudit(
 	db: Db,
@@ -76,6 +80,10 @@ export function createChainAudit(
 					region: settings.anchorRegion,
 					endpoint: anchorEndpoint,
 					forcePathStyle: anchorEndpoint !== undefined,
+					requestHandler: {
+						connectionTimeout: S3_CONNECTION_TIMEOUT_MS,
+						requestTimeout: S3_REQUEST_TIMEOUT_MS,
+					},
 				}),
 				bucket: anchorBucket,
 				prefix: settings.anchorPrefix,

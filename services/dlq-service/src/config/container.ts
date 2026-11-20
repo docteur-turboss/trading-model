@@ -1,5 +1,6 @@
 import { ErrorCode, makeErrorCode } from "@trading-model/common/utils/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import type { ReadinessCheck } from "@trading-model/http/readiness";
 import { Limit, toInstanceId } from "@trading-model/primitives/primitives";
 import {
 	createDlqHandlers,
@@ -52,7 +53,9 @@ import { dlqRedisQueue } from "./redis-queue";
 /** The wired service: HTTP handlers plus the lifecycle the entry point drives. */
 export interface DlqApp {
 	handlers: DlqHandlers;
-	/** Resolves once MongoDB is connected; retries without limit. */
+	/** Readiness: MongoDB connected and every critical index built. */
+	mongoReadiness: ReadinessCheck;
+	/** Connects MongoDB (builds the indexes); retries without limit. */
 	connectDb(): Promise<void>;
 	/** Frees the claims left by a previous instance. */
 	releaseStaleClaims(staleThresholdMs?: number): Promise<void>;
@@ -186,11 +189,6 @@ export function createDlqApp(env: Env): DlqApp {
 
 	const handlers = createDlqHandlers({
 		entries: repository,
-		db: {
-			isConnected: () => mongo.isConnected(),
-			getMissingCriticalIndexes: () => mongo.getMissingCriticalIndexes(),
-		},
-		queue: dlqRedisQueue,
 		useCases: {
 			deleteEntries: createDeleteEntries({
 				entries: repository,
@@ -212,6 +210,12 @@ export function createDlqApp(env: Env): DlqApp {
 
 	return {
 		handlers,
+		// Redis stays out: the entries are read from MongoDB (ADR-0073).
+		mongoReadiness: {
+			name: "mongo",
+			check: () =>
+				mongo.isConnected() && mongo.getMissingCriticalIndexes().length === 0,
+		},
 		async connectDb() {
 			await mongo.getDb();
 		},

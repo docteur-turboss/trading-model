@@ -43,9 +43,8 @@ function _registerDlqRoutes(
 		({ query }, req) => handlers.replayEntries(query, actorOf(req)),
 		{ middlewares: [serviceAuth, replayLimiter] }
 	);
-	const { HealthCheck, ReadyCheck } = createHealthControllers(handlers);
+	const { HealthCheck } = createHealthControllers(handlers);
 	router.get("/health", healthLimiter, HealthCheck);
-	router.get("/health/ready", healthLimiter, ReadyCheck);
 	router.get("/metrics", metricsHandler);
 }
 

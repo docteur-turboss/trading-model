@@ -9,6 +9,7 @@ import {
 	MODEL_BELOW_BUY_AND_HOLD_STREAK,
 	MODEL_BUY_AND_HOLD_SHARPE,
 	MODEL_MAX_DRAWDOWN,
+	MODEL_PUBLISH_FAILURES_TOTAL,
 	MODEL_RETURN,
 	MODEL_SHARPE,
 	reportInputGroups,
@@ -81,6 +82,11 @@ export class Trainer {
 		TradingSymbol,
 		{ createdAt: number; normalization: Record<string, unknown> }
 	>();
+	/** Stored models whose publication failed or is unknown (rehydrated): the leader retries them (issue #1739). */
+	private readonly _unpublished = new Map<
+		TradingSymbol,
+		{ summary: BestAgentSummary; ref: StoredModelRef }
+	>();
 	private readonly _belowBuyAndHold = new Map<TradingSymbol, number>();
 	/** The session in flight, and how to end it early (ADR-0058). */
 	private _session?: { abort: AbortController; done: Promise<TrainingResult> };
@@ -120,9 +126,15 @@ export class Trainer {
 			symbol,
 			snapshot,
 			lastModel,
+			ref,
 		} of await this._artifacts.rehydrate(symbols)) {
 			if (!this._lastModels.has(symbol)) {
 				this._lastModels.set(symbol, lastModel);
+			}
+			const summary = snapshot.buildBestAgentSummary();
+			// Reached the bus before the restart? Unknown: the leader publishes it once, model-evaluator deduplicates.
+			if (summary && this._deps.publisher && !this._unpublished.has(symbol)) {
+				this._unpublished.set(symbol, { summary, ref });
 			}
 			if (!this._symbolSnapshots.has(symbol)) {
 				this._symbolSnapshots.set(symbol, snapshot);
@@ -183,7 +195,9 @@ export class Trainer {
 			if (stored && summary) {
 				this._lastModels.set(symbol, stored.lastModel);
 				this._reportModelPerformance(symbol, summary, windowSets);
-				await this._publishModel(symbol, stored.ref);
+				// The newest model supersedes any older pending one.
+				this._unpublished.set(symbol, { summary, ref: stored.ref });
+				await this._publishModel(symbol, summary, stored.ref);
 			}
 			return result;
 		} catch (err) {
@@ -273,24 +287,33 @@ export class Trainer {
 		}
 	}
 
+	/** Leader only: publishes again each model whose publication has not succeeded (same version and hash). */
+	async republishPending(): Promise<void> {
+		for (const [symbol, { summary, ref }] of [...this._unpublished]) {
+			await this._publishModel(symbol, summary, ref);
+		}
+	}
+
 	private async _publishModel(
 		symbol: TradingSymbol,
+		summary: BestAgentSummary,
 		stored: StoredModelRef
 	): Promise<void> {
 		const publisher = this._deps.publisher;
 		if (!publisher) {
 			return;
 		}
-		const summary = this._lastInfo.buildBestAgentSummary();
-		if (!summary) {
-			return;
-		}
 		try {
 			await publisher.publish(symbol, summary, stored);
+			// A slower call for an older version must not touch a newer entry.
+			if (this._unpublished.get(symbol)?.ref.version === stored.version) {
+				this._unpublished.delete(symbol);
+			}
 			getLogger().info("Model published", {
 				context: { symbol, agentId: summary.id },
 			});
 		} catch (err) {
+			MODEL_PUBLISH_FAILURES_TOTAL.inc({ symbol });
 			getLogger().error("Failed to publish model", {
 				context: {
 					symbol,

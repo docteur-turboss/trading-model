@@ -12,7 +12,7 @@ const app = createDlqApp(ENV);
 
 createBootstrap({
 	name: "DLQ Service",
-	createServer: () => createServer(app.handlers),
+	createServer: () => createServer(app.handlers, app.mongoReadiness),
 	onBeforeServer: () => _onBeforeServer(),
 	onStart: () => _onStart(),
 	onStop: () => _onStop(),
