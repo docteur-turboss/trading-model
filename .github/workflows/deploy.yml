@@ -1043,6 +1043,8 @@ jobs:
         run: |
           if [ "$DEPLOY_ENVIRONMENT" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
+          # Same key guard as the migrations step: it must accept the same retired keys.
+          export RETIRED_SECRET_KEYS="${{ vars.RETIRED_SECRET_KEYS }}"
           bash deploy/k8s/scripts/run-migrations.sh "$NAMESPACE" user-only
 
       # Runs on the new version, after the rollout; a failure triggers the rollback below.
