@@ -98,6 +98,8 @@ The final file must list ALL keys. `run-migrations.sh` refuses to apply a file t
 
 ### Rotating secrets
 
+A quarterly reminder issue (workflow `Secret Rotation Reminder`) points here.
+
 ```bash
 bash scripts/rotate-secrets.sh --component signing|tokens|dlq|all
 DRY_RUN=true bash scripts/rotate-secrets.sh --component dlq   # no merge, apply or restart

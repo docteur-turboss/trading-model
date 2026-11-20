@@ -47,6 +47,7 @@ export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
+export DLQ_AUTH_HMAC_SECRET="${DLQ_AUTH_HMAC_SECRET:-kind-ci-dlq-hmac-0123456789abcdefghij}"
 # compose interpolates these (ADR-0067) even for `build`
 for v in MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD; do
 	export "$v=${!v:-kind-ci}"
@@ -1160,7 +1161,13 @@ seed_dead_letter() {
 	local doc="topic: 'restore-drill', message: {drill: 'restore'}, service: 'message-manager', reason: 'restore drill', deliveryAttempt: 3, retryCount: 0, dlqPassCount: 1, createdAt: new Date()"
 	keep="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.insertOne({messageId: 'restore-drill-$ts', contentHash: 'k$ts', $doc}).insertedId.toHexString())" | tail -1)"
 	drop="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.insertOne({messageId: 'restore-drill-d$ts', contentHash: 'd$ts', $doc}).insertedId.toHexString())" | tail -1)"
-	$K -n "$NS" exec -i deployment/message-manager -c message-manager -- node - "$drop" <"$ROOT/tests/k8s/dlq-seed.cjs" >&2
+	# From api-gateway, the only caller the dlq-service ACL admits (#1591); the
+	# HMAC secret goes in on stdin, never on the command line.
+	{
+		printf 'process.env.DLQ_AUTH_HMAC_SECRET = Buffer.from("%s", "base64").toString();\n' \
+			"$($K -n "$NS" get secret trading-model-secrets -o jsonpath='{.data.DLQ_AUTH_HMAC_SECRET}')"
+		cat "$ROOT/tests/k8s/dlq-seed.cjs"
+	} | $K -n "$NS" exec -i deployment/api-gateway -c api-gateway -- node - "$drop" >&2 || return 1
 	echo "$keep"
 }
 
@@ -1250,7 +1257,7 @@ verify_backup() {
 	# rarely produces one by itself.
 	local dlq_seeded
 	dlq_seeded="$(seed_dead_letter)" || {
-		log "message-manager could not store a dead letter in dlq-service"
+		log "could not seed a dead letter (or delete the throwaway one through dlq-service)"
 		return 1
 	}
 	wait_for 60 'dlq_ids | grep -qx "'"$dlq_seeded"'"' || {
@@ -1317,7 +1324,7 @@ verify_backup() {
 	mysql_root "INSERT INTO restore_drill.markers VALUES (4);"
 	local dlq_late
 	dlq_late="$(seed_dead_letter)" || {
-		log "message-manager could not store a dead letter in dlq-service"
+		log "could not seed a dead letter (or delete the throwaway one through dlq-service)"
 		return 1
 	}
 	wait_for 60 'dlq_ids | grep -qx "'"$dlq_late"'"' || {

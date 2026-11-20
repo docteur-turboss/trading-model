@@ -1,17 +1,13 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
+import {
+	createCandleNorms,
+	isConsistentCandle,
+	updateCandleNorms,
+} from "@trading-model/model-runtime/features/feature-builder";
 import { DAILY_BAR_ISSUES_TOTAL } from "../../config/metrics";
-import { NormalizationStats } from "../normalization-stats";
 import type { DataHandler } from "./data-handler";
 import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
 import { DataType } from "./data-types";
-
-/** `low`/`high` must bound `open` and `close`: features divide by `high - low`. */
-function isConsistent(candle: CandleData): boolean {
-	return (
-		candle.low <= Math.min(candle.open, candle.close) &&
-		Math.max(candle.open, candle.close) <= candle.high
-	);
-}
 
 export const candleHandler: DataHandler<CandleData> = {
 	dataType: DataType.Candle,
@@ -19,30 +15,19 @@ export const candleHandler: DataHandler<CandleData> = {
 		return { candles: [] };
 	},
 	createNorms() {
-		return {
-			candle: {
-				close: new NormalizationStats(),
-				volume: new NormalizationStats(),
-				open: new NormalizationStats(),
-				high: new NormalizationStats(),
-				low: new NormalizationStats(),
-			},
-		};
+		return { candle: createCandleNorms() };
 	},
 	updateNorms(state, candle) {
-		state.norm.candle.close.update(candle.close);
-		state.norm.candle.volume.update(candle.volume);
-		state.norm.candle.open.update(candle.open);
-		state.norm.candle.high.update(candle.high);
-		state.norm.candle.low.update(candle.low);
+		updateCandleNorms(state.norm.candle, candle);
 	},
 	isNew(state, candle) {
 		return (
-			isConsistent(candle) && isAfterLast(state.candles, candle, "timestamp")
+			isConsistentCandle(candle) &&
+			isAfterLast(state.candles, candle, "timestamp")
 		);
 	},
 	mutateState({ symbol, data, state, maxSize }) {
-		if (!isConsistent(data)) {
+		if (!isConsistentCandle(data)) {
 			DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue: "ohlc_inconsistent" });
 			return;
 		}

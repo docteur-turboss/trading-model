@@ -2,9 +2,9 @@
 
 > **Applies to:** trader-trainer service (GA + DQN agents), financial-scraper (market data inputs)  
 > **Regulatory framework:** MiFID II (Art. 17, RTS 6), MAR (Art. 12, 16), ESMA guidelines  
-> **Last review:** 2026-11-09
+> **Last review:** 2026-11-19
 
-> **⚠️ No live execution.** The platform places no real order and must not do so until every prerequisite of §6 is met: kill switch, pre-trade limits (position, value, frequency), Binance terms of use for trading on `api.binance.com` (not established, see [third-party-dpas.md](third-party-dpas.md)), an annual review, a demonstrated edge (the MT4 walk-forward passes every criterion of [ADR-0030](../adr/0030-mt4-point-in-time-features-and-success-criteria.md), at least 30 days of paper trading included) and a model admission gate (§6 items 11-12). As of 2026-11-11, MT4 fails every criterion and no admission gate exists, so no real capital may be committed. The controls marked "Not implemented" below do not exist in the code.
+> **⚠️ No live execution.** The platform places no real order and must not do so until every prerequisite of §6 is met: kill switch, pre-trade limits (position, value, frequency), Binance terms of use for trading on `api.binance.com` (not established, see [third-party-dpas.md](third-party-dpas.md)), an annual review, a demonstrated edge (the MT4 walk-forward passes every criterion of [ADR-0030](../adr/0030-mt4-point-in-time-features-and-success-criteria.md), at least 30 days of paper trading included) and a model admission gate (§6 items 11-12). As of 2026-11-11, MT4 fails every criterion. An admission verdict is computed on the test segment and written to the manifest (ADR-0069), but it blocks nothing, so no real capital may be committed. The controls marked "Not implemented" below do not exist in the code.
 
 ## 1. Scope
 
@@ -32,7 +32,7 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 | **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/adapters/outbound/binance/`) | Integration tests |
 | **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (1.0, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) rejects a buy that would take the position value above that fraction of the initial cash (`packages/model-runtime/src/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
-| **Kill functionality** — ability to halt trading | Not implemented. Prerequisite to any live execution (§6). Scope, triggers, re-arming and drill: [Loss Limits and Kill Switch Policy](risk-limits-policy.md) | ❌ Not implemented |
+| **Kill functionality** — ability to halt trading | Not implemented, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status) | ❌ Not implemented |
 
 ### 3.2 Stress Testing (Art. 5)
 
@@ -93,15 +93,15 @@ When transitioning from research/simulation to production algorithmic trading, t
 | 1 | Register with competent authority as algorithmic trading firm | N/A — infrastructure provider responsibility |
 | 2 | Implement pre-trade risk controls (Art. 12-15) | In a Risk/Execution service separate from the model and the decision consumer, never in the api-gateway (the order path does not cross it): [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 (Proposed) |
 | 3 | Deploy market-making obligations if applicable (Art. 17-18) | Not planned |
-| 4 | Implement kill switch functionality | Not implemented. Owned by the Risk/Execution service, outside the decision component, state kept across restarts: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Proposed); loss limits, triggers, re-arming and drill: [Loss Limits and Kill Switch Policy](risk-limits-policy.md) |
+| 4 | Implement kill switch functionality | Not implemented, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status); architecture in [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Proposed) |
 | 5 | Annual RTS 6 conformance testing | Schedule via CI/CD pipeline |
 | 6 | MAR suspicious transaction reporting | Integrate audit-logger with regulatory reporting |
 | 7 | Maintain algorithmic trading register | See [data-processing-register.md](data-processing-register.md) |
 | 8 | Ensure latency monitoring | Implement Prometheus metrics for agent inference time |
 | 9 | Establish Binance terms of use for trading on `api.binance.com` | Not established, see [third-party-dpas.md](third-party-dpas.md) |
-| 10 | Annual review of this document | Last review 2026-11-09 |
+| 10 | Annual review of this document | Last review 2026-11-19 |
 | 11 | **Blocking:** demonstrated edge: the MT4 walk-forward passes every criterion of [ADR-0030](../adr/0030-mt4-point-in-time-features-and-success-criteria.md), at least 30 days of paper trading against backtest included | Not met: the 2026-10-31 run fails every criterion for every fitness (ADR-0030, Results); no paper-trading runner exists |
-| 12 | **Blocking:** model admission gate: a model is used for a decision only if it meets the ADR-0030 criteria ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) §1.4) | Not implemented (#880): models are published without any admission check |
+| 12 | **Blocking:** model admission gate: a model is used for a decision only if it meets the ADR-0030 criteria ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) §1.4) | Verdict only (ADR-0069): models are published with `admissible`; no consumer enforces it yet; the barrier is the "Admitted model" pre-trade check of [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 |
 
 ## 7. Cross-References
 

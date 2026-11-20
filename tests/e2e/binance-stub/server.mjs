@@ -40,10 +40,11 @@ function trades(symbol, limit) {
 }
 
 // Like Binance: ascending, the still-open candle last; from `startTime` when
-// given, else the latest `limit` candles.
+// given, else the latest 200 candles whatever `limit` says: the trainer needs
+// ~120 for its split plus embargo (issue #1648) within the E2E delay.
 function klines(symbol, limit, startTime) {
   const lastOpen = Math.floor(Date.now() / MINUTE) * MINUTE;
-  const count = Math.min(limit, 200);
+  const count = startTime ? Math.min(limit, 200) : 200;
   const firstOpen = startTime
     ? Math.ceil(startTime / MINUTE) * MINUTE
     : lastOpen - (count - 1) * MINUTE;

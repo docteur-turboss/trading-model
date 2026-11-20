@@ -67,3 +67,6 @@ const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(
 });
 
 export const ENV = validateEnv(API_GATEWAY_ENV_SCHEMA);
+
+/** The validated environment of the gateway. */
+export type Env = typeof ENV;

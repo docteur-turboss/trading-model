@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0016](./0016-shared-contracts-ownership.md), [ADR-0025](./0025-ga-fitness-wired-to-fitness-type.md)
-**Verified by:** `packages/validation/tests/feature-flags.spec.ts`, `services/trader-trainer/tests/unit/config/fitness-flag.spec.ts`, `bun run config:check`
+**Verified by:** `packages/validation/tests/feature-flags.spec.ts`, `services/trader-trainer/tests/unit/domain/genetic-algorithm/fitness-flag.spec.ts`, `bun run config:check`
 
 ## Context
 

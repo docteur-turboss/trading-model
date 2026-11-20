@@ -197,6 +197,16 @@ interface RequestOptions {
 function createApp(): express.Application {
 	const app = express();
 	app.use(express.json());
+	// Stands in for the mTLS middleware: the peer SVID matches the claimed caller.
+	app.use((req, _res, next) => {
+		const name =
+			req.headers["x-service-name"] === "admin"
+				? "api-gateway"
+				: req.headers["x-service-name"];
+		(req as never as { clientIdentity: string }).clientIdentity =
+			`spiffe://trading-model.local/ns/trading-model/sa/${name}`;
+		next();
+	});
 	app.use("/", DlqRoutes(handlers));
 	return app;
 }

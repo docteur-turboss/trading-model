@@ -47,7 +47,7 @@ stringData:
   MYSQL_EXPORTER_PASSWORD: dev-mysql-exporter
   # Read only by release N-1 (development carries #822) until ADR-0065 ships; drop with the N-1 that lacks it.
   MYSQL_SPIRE_PASSWORD: dev-mysql-spire
-  DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-change-me
+  DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-0123456789abcdef0123456789abcdef
   GRAFANA_PASSWORD: dev-grafana
   REDIS_INTERNAL_PASSWORD: dev-redis-internal-password
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
