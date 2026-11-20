@@ -12,7 +12,7 @@ import {
 } from "@trading-model/persistence/redis-env";
 import { toInstanceId } from "@trading-model/primitives/primitives";
 import MessageManagerClass from "./broker-message";
-import { RedisMessageJournal } from "./bus/redis-journal";
+import { openJournalWriter, RedisMessageJournal } from "./bus/redis-journal";
 import type { MessageManagerConfig } from "./types/config";
 
 /** Configuration options for creating a MessageManager instance. */
@@ -60,7 +60,7 @@ export function busJournalFromEnv(
 	return new RedisMessageJournal({
 		redis: redis as never,
 		openBlockingRedis: () => redis.duplicate() as never,
-		openWriteRedis: () => redis.duplicate() as never,
+		openWriteRedis: () => openJournalWriter(redis as never),
 		keyPrefix: BUS_KEY_PREFIX,
 		minReplicas: env.JOURNAL_MIN_REPLICAS,
 	});

@@ -29,8 +29,8 @@ const PASSWORDS = {
 	discovery: "discovery-pw",
 	"message-manager": "message-manager-pw",
 	"dlq-service": "dlq-pw",
-	"financial-scraper": "scraper-pw",
 	"audit-logger": "audit-pw",
+	"trader-trainer": "trainer-pw",
 	exporter: "exporter-pw",
 };
 const DISCOVERY_KEY = "trading-model:discovery:spec";
@@ -39,8 +39,8 @@ const HA_ENV = {
 	REDIS_DISCOVERY_PASSWORD: PASSWORDS.discovery,
 	REDIS_MESSAGE_MANAGER_PASSWORD: PASSWORDS["message-manager"],
 	REDIS_DLQ_PASSWORD: PASSWORDS["dlq-service"],
-	REDIS_FINANCIAL_SCRAPER_PASSWORD: PASSWORDS["financial-scraper"],
 	REDIS_AUDIT_LOGGER_PASSWORD: PASSWORDS["audit-logger"],
+	REDIS_TRADER_TRAINER_PASSWORD: PASSWORDS["trader-trainer"],
 	REDIS_EXPORTER_PASSWORD: PASSWORDS.exporter,
 	REDIS_HOSTS: ORDINALS.map((n) => `redis-${n}`).join(" "),
 	SENTINEL_HOSTS: ORDINALS.map((n) => `redis-sentinel-${n}`).join(" "),
@@ -144,6 +144,20 @@ async function eventually(
 		}
 		await new Promise((resolve) => setTimeout(resolve, 250));
 	}
+}
+
+/** Commands fail fast while Redis is unreachable (issue #1740): a write during a failover is retried. */
+async function setDuringFailover(client: Redis, key: string): Promise<string> {
+	let result = "";
+	await eventually(async () => {
+		try {
+			result = (await client.set(key, "1")) as string;
+			return true;
+		} catch {
+			return false;
+		}
+	}, FAILOVER_DEADLINE_MS);
+	return result;
 }
 
 // The scenario runs in order: each step starts from the previous one's topology.
@@ -313,18 +327,18 @@ describe("K8s Redis HA start script — real failovers", () => {
 				foreign
 			)
 		).resolves.toMatch(/^NOPERM/);
-		// Bus users (#1620): the scraper writes its own topics only and acknowledges no other group.
+		// Bus users (#1620): the trainer writes its own topics only and acknowledges no other group.
 		const bus = "trading-model:message-manager:journal:";
-		const scraper = async (...args: string[]) =>
-			(await asService(master, "financial-scraper", ...args))[0];
+		const trainer = async (...args: string[]) =>
+			(await asService(master, "trader-trainer", ...args))[0];
 		await expect(
-			scraper("XADD", `${bus}market.trade.recent.fetch`, "*", "m", "1")
+			trainer("XADD", `${bus}training.model.published`, "*", "m", "1")
 		).resolves.toMatch(/^\d+-\d+$/);
 		await expect(
-			scraper("XADD", `${bus}training.model.published`, "*", "m", "1")
+			trainer("XADD", `${bus}market.trade.recent.fetch`, "*", "m", "1")
 		).resolves.toMatch(/^NOPERM/);
 		await expect(
-			scraper(
+			trainer(
 				"XACK",
 				`${bus}training.model.published`,
 				"model-evaluator",
@@ -428,7 +442,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 
 		const started = Date.now();
 		await expect(
-			client.set(`${DISCOVERY_KEY}:after-failover`, "1")
+			setDuringFailover(client, `${DISCOVERY_KEY}:after-failover`)
 		).resolves.toBe("OK");
 		expect(Date.now() - started).toBeLessThan(FAILOVER_DEADLINE_MS);
 		await expect(client.get(`${DISCOVERY_KEY}:before-failover`)).resolves.toBe(
@@ -487,7 +501,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 		// No deadline here: under load a first attempt can still abort for
 		// lack of fresh replica INFO, and Sentinel retries after 2x the timeout.
 		await expect(
-			client.set(`${DISCOVERY_KEY}:second-failover`, "1")
+			setDuringFailover(client, `${DISCOVERY_KEY}:second-failover`)
 		).resolves.toBe("OK");
 		// The other sentinels learn of the switch from the one that failed over.
 		await eventually(async () => (await masterIp()) !== ipOf(master));

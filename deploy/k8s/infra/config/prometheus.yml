@@ -219,7 +219,7 @@ scrape_configs:
       - source_labels: [__meta_kubernetes_pod_name]
         target_label: pod
 
-  # The scrape cron (fs_events_published_total, fs_scrape_*) runs only here.
+  # The scrape cron (fs_scrape_*) runs only here.
   - job_name: 'financial-scraper-collector'
     scheme: https
     tls_config:

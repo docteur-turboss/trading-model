@@ -41,7 +41,6 @@ export async function retryWithBackoff<_TResult>(
 		maxRetries,
 		baseDelayMs = DurationMs.of(100),
 		maxDelayMs = DurationMs.of(5000),
-		jitterMs = DurationMs.of(0),
 	} = options;
 	let lastError: Error | null = null;
 
@@ -59,7 +58,6 @@ export async function retryWithBackoff<_TResult>(
 			await _sleepBackoff(attempt + 1, {
 				baseDelayMs,
 				maxDelayMs,
-				jitterMs,
 			});
 		}
 	}

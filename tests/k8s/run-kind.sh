@@ -841,7 +841,12 @@ verify_traces() {
 	local jaeger=$!
 	local result=0
 	wait_for 30 'curl -s -o /dev/null http://localhost:18451/ && curl -s -o /dev/null http://localhost:18686/' || result=1
-	[ "$result" = 0 ] && curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
+	# 30 requests: the collector keeps 20 % of traces, 1 - 0.8^30 ~ 99.9 % that one survives.
+	if [ "$result" = 0 ]; then
+		for _ in $(seq 30); do
+			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
+		done
+	fi
 	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
 	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
 		log "  $(traces_span_services 2>&1)"
@@ -876,7 +881,7 @@ verify_egress() {
 # empty). Restricted Pod Security: the security context is spelled out.
 mongo_ping() {
 	local img uri
-	img="$(grep -m1 -o 'mongo@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
+	img="$(grep -m1 -oE 'mongo(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
 	uri="mongodb://$3:27017/?directConnection=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
@@ -915,7 +920,7 @@ verify_mongo_ingress() {
 # (none when empty), with bash of the MySQL image (issue #747).
 tcp_probe() {
 	local img
-	img="$(grep -m1 -o 'mysql@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mysql.yaml")"
+	img="$(grep -m1 -oE 'mysql(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/deploy/k8s/infra/mysql.yaml")"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
 		\"spec\": {

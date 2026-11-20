@@ -36,8 +36,6 @@ x-message-env: &message-env
   TOKEN_REFRESH_INTERVAL_MS: '60000'
   TTL_REFRESH_INTERVAL_MS: '15000'
   ADDRESS_MANAGER_URL: https://discovery-server:3000
-  MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
-  MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
   MESSAGE_CALLBACK_PATH: message
 
 services:
@@ -46,7 +44,7 @@ services:
   # ---------------------------------------------------------------------------
   mongo:
     logging: *default-logging
-    image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+    image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo
     stop_grace_period: 2m
     restart: unless-stopped
@@ -75,7 +73,7 @@ services:
   # Jobs mongo-*-users). Idempotent: runs at every `up`.
   mongo-users:
     logging: *default-logging
-    image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+    image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo-users
     restart: "no"
     command: mongosh --quiet mongo:27017/admin --file /scripts/users.js
@@ -101,7 +99,7 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     logging: *default-logging
-    image: redis@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53
+    image: redis:8.10.3@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53
     container_name: trading-redis
     restart: unless-stopped
     mem_limit: 512m
@@ -448,6 +446,7 @@ services:
       FEATURE_RISK_ADJUSTED_FITNESS: ${FEATURE_RISK_ADJUSTED_FITNESS:-true}
       FEATURE_ACTION_SPACE_GENE: ${FEATURE_ACTION_SPACE_GENE:-false}
       TRAINER_OBSERVE_POSITION: ${TRAINER_OBSERVE_POSITION:-true}
+      TRAINER_SEED_OFFSET: ${TRAINER_SEED_OFFSET:-0}
       # Model artifacts (ADR-0022), backed up by scripts/backup.sh (checkpoints)
       TRAINER_MODEL_DIR: /data/checkpoints/models
       MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-model-evaluator}
@@ -860,7 +859,7 @@ services:
   # ---------------------------------------------------------------------------
   edge-proxy:
     logging: *default-logging
-    image: nginx@sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4  # nginx 1.27.3-alpine
+    image: nginx:1.27.3-alpine@sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4  # nginx 1.27.3-alpine
     container_name: trading-edge
     restart: unless-stopped
     mem_limit: 128m
@@ -896,7 +895,7 @@ services:
   # ---------------------------------------------------------------------------
   prometheus:
     logging: *default-logging
-    image: prom/prometheus@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
     container_name: trading-prometheus
     restart: unless-stopped
     mem_limit: 2g
@@ -923,7 +922,7 @@ services:
   # backup-metrics-exporter does. Docker has no scheduler: the host runs backup.sh.
   backup-metrics-exporter:
     logging: *default-logging
-    image: busybox@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4
+    image: busybox:1.38.0@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4
     container_name: trading-backup-metrics
     restart: unless-stopped
     user: '65534:65534'
@@ -1043,7 +1042,7 @@ services:
 
   alertmanager:
     logging: *default-logging
-    image: prom/alertmanager@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
+    image: prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
     container_name: trading-alertmanager
     restart: unless-stopped
     mem_limit: 256m
@@ -1065,7 +1064,7 @@ services:
 
   grafana:
     logging: *default-logging
-    image: grafana/grafana@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
+    image: grafana/grafana:13.3.1@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
     container_name: trading-grafana
     restart: unless-stopped
     mem_limit: 1g
@@ -1102,7 +1101,7 @@ services:
 
   loki:
     logging: *default-logging
-    image: grafana/loki@sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7
+    image: grafana/loki:3.7.10@sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7
     container_name: trading-loki
     restart: unless-stopped
     mem_limit: 1g
@@ -1118,7 +1117,7 @@ services:
   # Probes /ping of every service with its own SVID (CertificateExpiry).
   blackbox-exporter:
     logging: *default-logging
-    image: prom/blackbox-exporter@sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13
+    image: prom/blackbox-exporter:v0.29.1@sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13
     container_name: trading-blackbox
     restart: unless-stopped
     mem_limit: 64m
@@ -1135,7 +1134,7 @@ services:
   # Traces: services export OTLP/HTTP straight to Jaeger (no collector in compose).
   jaeger:
     logging: *default-logging
-    image: jaegertracing/all-in-one@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
+    image: jaegertracing/all-in-one:1.76.0@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
     container_name: trading-jaeger
     restart: unless-stopped
     ports:
@@ -1162,7 +1161,7 @@ services:
   # No shell in the image, so no healthcheck: dependants start with it and retry.
   docker-socket-proxy:
     logging: *default-logging
-    image: wollomatic/socket-proxy@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
+    image: wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
     container_name: trading-docker-socket-proxy
     restart: unless-stopped
     # Root to read the socket, no capability.
@@ -1182,7 +1181,7 @@ services:
   # Logs: reads the container logs through the Docker API of docker-socket-proxy.
   promtail:
     logging: *default-logging
-    image: grafana/promtail@sha256:6cfa64ec432b24a912d640e2edb940eeae2666f61861a66c121d763dd7241381
+    image: grafana/promtail:3.6.8@sha256:6cfa64ec432b24a912d640e2edb940eeae2666f61861a66c121d763dd7241381
     container_name: trading-promtail
     restart: unless-stopped
     mem_limit: 256m

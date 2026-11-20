@@ -54,6 +54,7 @@ jest.mock("@opentelemetry/api", () => {
 import fs from "node:fs";
 import https from "node:https";
 import { PassThrough } from "node:stream";
+import { deflateSync, gzipSync } from "node:zlib";
 import {
 	registerServiceName,
 	type ServiceInstanceName,
@@ -870,15 +871,18 @@ describe("HttpClient", () => {
 
 	describe("shouldRetry for network errors", () => {
 		it("should retry on ECONNRESET error", async () => {
+			jest.spyOn(Math, "random").mockReturnValue(0.5);
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				retryCount: 1 as PositiveInt as PositiveInt,
 				timeoutMs: 100 as DurationMs,
 			});
 			errorHandler!(new Error("read ECONNRESET"));
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			// Retry sent at 200 ms (random 0.5), times out at 300 ms: answer in between.
+			await new Promise((resolve) => setTimeout(resolve, 250));
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			const result = await promise;
 			expect(result).toEqual({ ok: true });
+			jest.restoreAllMocks();
 		});
 	});
 
@@ -900,16 +904,20 @@ describe("HttpClient", () => {
 		});
 
 		it("should retry a refused connection: the request never left", async () => {
+			jest.useFakeTimers();
+			jest.spyOn(Math, "random").mockReturnValue(0.5);
 			const promise = client.post(
 				URLString.of("https://example.com/api"),
 				{},
 				{ retryCount: 1, timeoutMs: 100 as DurationMs }
 			);
 			errorHandler!(new Error("connect ECONNREFUSED 10.0.0.1:3000"));
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			await jest.advanceTimersByTimeAsync(240);
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			await expect(promise).resolves.toEqual({ ok: true });
 			expect(https.request).toHaveBeenCalledTimes(2);
+			jest.restoreAllMocks();
+			jest.useRealTimers();
 		});
 
 		it("should re-send a timed-out request marked idempotent", async () => {
@@ -945,77 +953,28 @@ describe("HttpClient", () => {
 	});
 
 	describe("gzip and deflate content encoding", () => {
-		it("should handle gzip-encoded response", async () => {
-			const gzipData = "gzip-compressed-data";
-			const mockGunzip = {
-				on: jest.fn<(...args: any[]) => any>(),
-				setEncoding: jest.fn<(...args: any[]) => any>(),
-			};
-
-			(
-				mockGunzip.on as unknown as jest.Mock<(...args: any[]) => any>
-			).mockImplementation((e: unknown, cb2: unknown) => {
-				if (e === "data") {
-					(cb2 as (d: string) => void)(gzipData);
-				}
-				if (e === "end") {
-					(cb2 as () => void)();
-				}
-			});
-
-			const mockRes = {
-				pipe: jest.fn((..._args: any[]) => mockGunzip),
-				statusCode: 200,
-				headers: { "content-type": "text/plain", "content-encoding": "gzip" },
-			};
-
-			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
-				(_opts: any, cb: any) => {
-					cb(mockRes);
-					return {
-						write: jest.fn<(...args: any[]) => any>(),
-						end: jest.fn<(...args: any[]) => any>(),
-						on: jest.fn<(...args: any[]) => any>(),
-						setTimeout: jest.fn<(...args: any[]) => any>(),
-						destroy: jest.fn<(...args: any[]) => any>(),
-					};
-				}
-			);
-
-			const result = await client.get(URLString.of("https://example.com/data"));
-			expect(result).toBe("gzip-compressed-data");
-		});
-
-		it("should handle deflate-encoded response", async () => {
-			const deflateData = "deflate-compressed-data";
-			const mockInflate = {
-				on: jest.fn<(...args: any[]) => any>(),
-				setEncoding: jest.fn<(...args: any[]) => any>(),
-			};
-
-			(
-				mockInflate.on as unknown as jest.Mock<(...args: any[]) => any>
-			).mockImplementation((e: unknown, cb2: unknown) => {
-				if (e === "data") {
-					(cb2 as (d: string) => void)(deflateData);
-				}
-				if (e === "end") {
-					(cb2 as () => void)();
-				}
-			});
-
-			const mockRes = {
-				pipe: jest.fn((..._args: any[]) => mockInflate),
-				statusCode: 200,
-				headers: {
+		it.each([
+			["gzip", "gzip-compressed-data", gzipSync, true],
+			["deflate", "deflate-compressed-data", deflateSync, true],
+			["gzip", "not gzip at all", (b: string) => Buffer.from(b), false],
+			["gzip", "x".repeat(17 * 1024 * 1024), gzipSync, false],
+		])(
+			"%s body: ok, corrupt or oversized (case %#)",
+			async (encoding, text, compress, ok) => {
+				const mockRes = new PassThrough() as PassThrough & {
+					statusCode: number;
+					headers: Record<string, string>;
+				};
+				mockRes.statusCode = 200;
+				mockRes.headers = {
 					"content-type": "text/plain",
-					"content-encoding": "deflate",
-				},
-			};
-
-			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
-				(_opts: any, cb: any) => {
+					"content-encoding": encoding,
+				};
+				(
+					https.request as jest.Mock<(...args: any[]) => any>
+				).mockImplementation((_opts: any, cb: any) => {
 					cb(mockRes);
+					mockRes.end(compress(text));
 					return {
 						write: jest.fn<(...args: any[]) => any>(),
 						end: jest.fn<(...args: any[]) => any>(),
@@ -1023,12 +982,16 @@ describe("HttpClient", () => {
 						setTimeout: jest.fn<(...args: any[]) => any>(),
 						destroy: jest.fn<(...args: any[]) => any>(),
 					};
-				}
-			);
+				});
 
-			const result = await client.get(URLString.of("https://example.com/data"));
-			expect(result).toBe("deflate-compressed-data");
-		});
+				const result = client.get(URLString.of("https://example.com/data"));
+				if (ok) {
+					await expect(result).resolves.toBe(text);
+				} else {
+					await expect(result).rejects.toThrow();
+				}
+			}
+		);
 
 		it("should decode a multi-byte character split across chunks", async () => {
 			const bytes = Buffer.from('{"s":"é€"}');

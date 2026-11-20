@@ -55,8 +55,6 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, AL, DLQ |
 | `DISCOVERY_TIMEOUT_MS`            | number | `5000`                          | no       | Timeout of the calls to the discovery server     | MM, FS, TT, AL, DLQ |
 | `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object); not read by the gateway | MM, FS, TT, AL, DLQ |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, AL, DLQ |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, AL, DLQ |
 | `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
 
 ---
@@ -141,6 +139,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `FEATURE_RISK_ADJUSTED_FITNESS`   | boolean      | `true`            | no       | Feature flag (ADR-0039): `false` forces fitness `total_pnl` whatever `TRAINER_FITNESS_TYPE` says. Invalid value: refused at startup | TT       |
 | `FEATURE_ACTION_SPACE_GENE`        | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076): `true` lets the GA mutate the action set (partial order sizes, recorded as `actions` in the manifest); `false`: `sell_hold_buy`, never mutated | TT       |
 | `FEATURE_EVENT_DRIVEN_DECISIONS`   | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 §5): `true` makes the agent decide on market events (price move, volume) instead of every bar; network gets a 33rd input `BarsSinceDecision`. `false`: genome and manifest unchanged. Invalid value: refused at startup | TT       |
+| `TRAINER_SEED_OFFSET`             | int          | `0`               | no       | Added to the default PRNG seeds: same value and same data give the same run (A/B measures, ADR-0030) | TT       |
 | `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
 | `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |
 | `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas | TT       |

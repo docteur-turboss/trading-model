@@ -6,7 +6,6 @@ import {
 export interface BackoffConfig {
 	baseDelayMs?: DurationMs;
 	maxDelayMs?: DurationMs;
-	jitterMs?: DurationMs;
 }
 
 export function computeExponentialBackoff(
@@ -26,13 +25,12 @@ export function computeExponentialBackoff(
 	return toDurationMs(Math.min(base * 2 ** attempt, max));
 }
 
+/** Proportional jitter: delay = min(maxDelayMs, backoff * (1 + u)), u uniform in [-0.2, 0.2). Replicas retrying after a shared outage spread out. */
 export function computeExponentialBackoffWithJitter(
 	attempt: number,
 	options: BackoffConfig
 ): DurationMs {
-	const jitter = options.jitterMs ?? 0;
-	return toDurationMs(
-		computeExponentialBackoff(attempt, options) +
-			(jitter > 0 ? Math.random() * jitter : 0)
-	);
+	const max = options.maxDelayMs ?? DurationMs.of(5000);
+	const delay = computeExponentialBackoff(attempt, options);
+	return toDurationMs(Math.min(delay * (1 + (Math.random() * 0.4 - 0.2)), max));
 }
