@@ -9,7 +9,6 @@
     "./circuit-state-machine": "./dist/circuit-state-machine.js",
     "./heartbeat-sender.port": "./dist/heartbeat-sender.port.js",
     "./kubernetes-lease": "./dist/kubernetes-lease.js",
-    "./latency-tracker": "./dist/latency-tracker.js",
     "./leadership": "./dist/leadership.js"
   },
   "dependencies": {
