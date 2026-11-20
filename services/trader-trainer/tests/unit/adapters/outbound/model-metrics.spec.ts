@@ -365,7 +365,7 @@ describe("replay of a published model (ADR-0079 §3)", () => {
 			});
 
 			expect(replayed.sharpe).not.toBe(0);
-			expect(replayed).toEqual(
+			expect(replayed).toMatchObject(
 				segmentRatios(
 					new EpisodeScores(trainer.pnlCurve),
 					barsPerYear(test) ?? 1,

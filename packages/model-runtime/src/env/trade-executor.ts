@@ -11,6 +11,8 @@ function validFillPrice(price: Price): Price {
 
 export class TradeExecutor {
 	private _state: PortfolioState;
+	private _feesPaid = 0;
+	private _executionCostPaid = 0;
 
 	constructor(
 		private readonly _config: WalletConfig,
@@ -28,6 +30,19 @@ export class TradeExecutor {
 	get position(): Volume {
 		return this._state.position;
 	}
+	/** Fees and execution cost paid since the last reset, in quote currency. */
+	get costsPaid(): { feesPaid: number; executionCostPaid: number } {
+		return {
+			feesPaid: this._feesPaid,
+			executionCostPaid: this._executionCostPaid,
+		};
+	}
+	private _addCosts(fee: Cash, executionCost: Cash): void {
+		this._feesPaid = this._config.roundValue(this._feesPaid + fee);
+		this._executionCostPaid = this._config.roundValue(
+			this._executionCostPaid + executionCost
+		);
+	}
 	/** Buys `amount` at `fillPrice` (default: the marked price), costs included. */
 	buy(amount: Volume, fillPrice: Price = this._state.price): boolean {
 		const amt = Volume.toNumber(amount);
@@ -44,13 +59,17 @@ export class TradeExecutor {
 		if (newPosition * price > maxValue) {
 			return false;
 		}
-		const { totalCost } = this._config.computeBuyCosts(amount, price);
+		const { totalCost, fee, executionCost } = this._config.computeBuyCosts(
+			amount,
+			price
+		);
 		if (Cash.gt(totalCost, this._state.cash)) {
 			return false;
 		}
 		const cashAfterBuy = Cash.of(
 			this._config.roundValue(Cash.sub(this._state.cash, totalCost))
 		);
+		this._addCosts(fee, executionCost);
 		this._commitTrade(newPosition, cashAfterBuy);
 		return true;
 	}
@@ -60,16 +79,16 @@ export class TradeExecutor {
 		if (!Number.isFinite(amt) || amt <= 0 || amt > this._state.position) {
 			return false;
 		}
-		const { netProceeds } = this._config.computeSellProceeds(
-			amount,
-			validFillPrice(fillPrice)
-		);
+		const price = validFillPrice(fillPrice);
+		const { netProceeds, fee, executionCost } =
+			this._config.computeSellProceeds(amount, price);
 		const positionAfterSell = Volume.of(
 			this._config.roundValue(this._state.position - amt)
 		);
 		const cashAfterSell = Cash.of(
 			this._config.roundValue(Cash.add(this._state.cash, netProceeds))
 		);
+		this._addCosts(fee, executionCost);
 		this._commitTrade(positionAfterSell, cashAfterSell);
 		return true;
 	}
@@ -84,6 +103,8 @@ export class TradeExecutor {
 		this._state = { ...this._state, price: newPrice };
 	}
 	reset(): void {
+		this._feesPaid = 0;
+		this._executionCostPaid = 0;
 		this._state = {
 			price: this._config.initialPrice,
 			cash: this._config.initialCash,

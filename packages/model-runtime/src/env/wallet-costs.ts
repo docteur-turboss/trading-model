@@ -28,6 +28,13 @@ export class TradeCostParams {
 		);
 	}
 
+	/** Gap between the filled amount and the amount at the quoted price. */
+	private _executionCost(base: number): Cash {
+		return Cash.of(
+			roundValue(Math.abs(base - this.amount * this.price), this.decimals)
+		);
+	}
+
 	private _computeFee(base: number): Cash {
 		return Cash.of(roundValue(base * this.feeRate, this.decimals));
 	}
@@ -36,23 +43,29 @@ export class TradeCostParams {
 		const baseCost = this._computeBaseCost(1);
 		const fee = this._computeFee(baseCost);
 		const totalCost = Cash.of(roundValue(baseCost + fee, this.decimals));
-		return { totalCost, fee };
+		return { totalCost, fee, executionCost: this._executionCost(baseCost) };
 	}
 
 	computeSellProceeds(): SellProceedsResult {
 		const baseProceeds = this._computeBaseCost(-1);
 		const fee = this._computeFee(baseProceeds);
 		const netProceeds = Cash.of(roundValue(baseProceeds - fee, this.decimals));
-		return { netProceeds, fee };
+		return {
+			netProceeds,
+			fee,
+			executionCost: this._executionCost(baseProceeds),
+		};
 	}
 }
 
 export interface BuyCostResult {
 	totalCost: Cash;
 	fee: Cash;
+	executionCost: Cash;
 }
 
 export interface SellProceedsResult {
 	netProceeds: Cash;
 	fee: Cash;
+	executionCost: Cash;
 }
