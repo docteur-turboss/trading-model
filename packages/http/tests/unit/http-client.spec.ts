@@ -877,7 +877,8 @@ describe("HttpClient", () => {
 				timeoutMs: 100 as DurationMs,
 			});
 			errorHandler!(new Error("read ECONNRESET"));
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			// Retry sent at 200 ms (random 0.5), times out at 300 ms: answer in between.
+			await new Promise((resolve) => setTimeout(resolve, 250));
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			const result = await promise;
 			expect(result).toEqual({ ok: true });
@@ -904,6 +905,7 @@ describe("HttpClient", () => {
 
 		it("should retry a refused connection: the request never left", async () => {
 			jest.useFakeTimers();
+			jest.spyOn(Math, "random").mockReturnValue(0.5);
 			const promise = client.post(
 				URLString.of("https://example.com/api"),
 				{},
@@ -914,6 +916,7 @@ describe("HttpClient", () => {
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			await expect(promise).resolves.toEqual({ ok: true });
 			expect(https.request).toHaveBeenCalledTimes(2);
+			jest.restoreAllMocks();
 			jest.useRealTimers();
 		});
 
