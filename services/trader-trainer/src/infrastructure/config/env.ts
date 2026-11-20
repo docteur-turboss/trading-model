@@ -88,6 +88,8 @@ const TRAINER_ENV_SHAPE = {
 	FEATURE_EVENT_DRIVEN_DECISIONS: featureFlag(false),
 	/** Show the agent its position; false to measure what it is worth (ADR-0025). */
 	TRAINER_OBSERVE_POSITION: z.stringbool().default(true),
+	/** Added to the default PRNG seeds: same value + same data = same run (A/B measures, ADR-0030). */
+	TRAINER_SEED_OFFSET: z.coerce.number().int().default(0),
 	/**
 	 * Kubernetes Lease the trainer pods compete for (ADR-0058): only its holder
 	 * trains. Empty: no election, this instance trains (compose, dev).
