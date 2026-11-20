@@ -1,7 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
-import { MarketEvent } from "@trading-model/contracts/market-events";
 import type { Signature } from "@trading-model/contracts/signed-request";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import type {
@@ -18,7 +17,7 @@ import type {
 import { MessageMetadataBuilder } from "../../src/messages/message-metadata-builder";
 
 const TEST_TOPIC = "test.event.created";
-const TEST_EVENT = "market.candlestick.series.fetch";
+const TEST_EVENT = "training.model.published";
 const TEST_PUBLISHER = {
 	serviceName: ServiceInstanceName.DiscoveryService as unknown as ServiceId,
 	instanceId: "550e8400-e29b-41d4-a716-446655440000" as InstanceId,
@@ -98,8 +97,8 @@ describe("MessageMetadataBuilder", () => {
 			expect(() => m.setTopic("market.-trade.fetch" as Topic)).toThrow();
 		});
 
-		it.each(Object.values(MarketEvent))(
-			"should accept the %s market event as a topic",
+		it.each(Object.values(TrainingEvent))(
+			"should accept the %s training event as a topic",
 			(event) => {
 				const m = buildMinimalMetadata();
 				m.setTopic(event as unknown as Topic);
@@ -111,8 +110,8 @@ describe("MessageMetadataBuilder", () => {
 	describe("setEventType", () => {
 		it("should set event type", () => {
 			const m = buildMinimalMetadata();
-			m.setEventType("market.trade.recent.fetch");
-			expect(m.toJSON().eventType).toBe("market.trade.recent.fetch");
+			m.setEventType("training.model.published");
+			expect(m.toJSON().eventType).toBe("training.model.published");
 		});
 	});
 
