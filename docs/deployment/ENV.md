@@ -13,6 +13,7 @@ Service abbreviation legend:
 | AL    | audit-logger                                                                                        |
 | DLQ   | dlq-service                                                                                         |
 | ME    | model-evaluator                                                                                     |
+| RX    | risk-execution                                                                                      |
 | DC    | docker-compose.yml (host-side `.env` file)                                                          |
 
 ---
@@ -154,6 +155,25 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | Variable | Type | Default | Required | Description | Services |
 | --- | --- | --- | --- | --- | --- |
 | `EVALUATIONS_DIR` | string | `/data/evaluations` | no | Directory of the evaluation records, one file per `(symbol, version)` created exclusively; a ReadWriteOnce PVC in K8s, a volume in compose (ADR-0049) | ME |
+
+---
+
+## Risk/Execution
+
+ADR-0064. Limits are validated at startup and refuse to start above their hard ceiling in code (`services/risk-execution/src/domain/limits.ts`); percentages are shares of `RISK_ALLOCATED_CAPITAL`.
+
+| Variable | Type | Default | Required | Description | Services |
+| --- | --- | --- | --- | --- | --- |
+| `EXECUTION_MODE` | `paper | live` | `paper` | no | Only the production overlay may say `live` (`tests/k8s/check-overlays.mjs`); the service refuses `live` outside production, without live keys, and `paper` with live keys. No live adapter exists yet: `live` stops the start | RX |
+| `DEPLOYMENT_ENV` | `development | ci | staging | production` | `development` | no | The deployment (NODE_ENV is `production` everywhere in K8s); `production` only in the production overlay | RX |
+| `BROKER_API_KEY` | string | _(unset)_ | no | Live broker key, in the production Secret only; its presence in paper mode refuses the start | RX |
+| `BROKER_API_SECRET` | string | _(unset)_ | no | Live broker secret, same rule as `BROKER_API_KEY` | RX |
+| `RISK_STATE_DIR` | string | `/data/risk-execution` | no | Durable state (kill switch, orders, paper ledger); a ReadWriteOnce PVC in K8s. An unreadable state engages the global kill switch | RX |
+| `RISK_ALLOCATED_CAPITAL` | number | `10000` | no | Allocated capital of the mode (policy §2) | RX |
+| `RISK_INSTRUMENTS` | JSON | `{"BTCUSDT":{"maxQuantity":0.01}}` | no | Allow-list of spot instruments with their quantity cap per order | RX |
+| `RISK_LIMITS_JSON` | JSON | `{}` | no | Overrides of the other caps of ADR-0064 §2 (at or below their ceiling) | RX |
+| `RISK_OWNER_ACTOR` | string | `owner` | no | Only this actor re-arms after the drawdown stop (policy §4.4) | RX |
+| `RISK_TICK_MS` | number | `10000` | no | Period of expiry, stale-data, limit and reconciliation checks | RX |
 
 ## Financial Scraper — Market data
 

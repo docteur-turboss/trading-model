@@ -292,30 +292,22 @@ describe("accepted message interrupted by a process stop — real Redis", () => 
 	});
 });
 
-describe("RedisMessageJournal.retire", () => {
-	it("destroys the consumer group and forgets it, so lag() no longer counts it", async () => {
-		const redis = replica();
-		const journal = journalOn(redis);
-		await journal.append(createMockMessage("m1"), [GROUP.service]);
-		expect(await journal.lag()).toHaveLength(1);
-		await journal.retire(GROUP);
-		await journal.retire(GROUP);
-		expect(await journal.groups()).toEqual([]);
-		expect(await journal.lag()).toEqual([]);
-		expect(await redis.call("XINFO", "GROUPS", stream())).toEqual([]);
+describe("subscription expired while the group exists — real Redis", () => {
+	it("delivers the message published meanwhile once, after the service subscribes again", async () => {
+		const journal = journalOn(replica());
 		await journal.register(GROUP);
-		expect(await journal.groups()).toEqual([GROUP]);
-	});
+		const registry = new SubscriptionRegistry(
+			new InMemorySubscriptionStore(),
+			journal
+		);
+		const dispatcher = new Dispatcher({ registry, journal });
 
-	it("should keep a message appended by a replica whose group another replica retired", async () => {
-		const a = journalOn(replica());
-		const b = journalOn(replica());
-		const other = { ...GROUP, service: "other-service" };
-		await a.append(createMockMessage("m1"), [GROUP.service, other.service]);
-		await b.retire(GROUP);
+		await dispatcher.publish({ price: 1 }, metadata);
+		await dispatcher.subscribe(mockSubscribeParams);
 
-		await a.append(createMockMessage("m2"), [GROUP.service, other.service]);
-
-		expect(await a.readNew(GROUP, "c1", 10)).toHaveLength(1);
+		const entries = await journal.readNew(GROUP, "c1", 10);
+		expect(entries).toHaveLength(1);
+		await journal.ack(GROUP, entries[0]?.id as string);
+		expect(await journal.readNew(GROUP, "c1", 10)).toHaveLength(0);
 	});
 });

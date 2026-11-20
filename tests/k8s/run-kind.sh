@@ -36,7 +36,7 @@ NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
-SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator"
+SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
@@ -588,7 +588,7 @@ upgrade() {
 		log "migrations of release N-1 no longer applied after the rollback: $missing"
 		return 1
 	}
-	SMOKE_SKIP=model-evaluator deploy_script smoke-test # new in N: deleted by the rollback
+	SMOKE_SKIP="model-evaluator risk-execution" deploy_script smoke-test # new in N: deleted by the rollback
 	log "  rollback: every Deployment back on its N-1 pod template (image digests, $marked N-1 ConfigMaps), N-1 migrations applied"
 
 	log "migrate-down 1, then the migrations again"

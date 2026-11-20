@@ -55,7 +55,7 @@ Body (validated by `PublishSchema`):
 }
 ```
 
-**Response:** `202 Accepted` with `{ "messageId": "..." }`, once the message is written to the durable journal (Redis Streams, ADR-0048). Delivery and retries run afterwards, outside the request; `503` when the topic has no subscriber and `delivery.requireSubscriber` is set, or the journal could not hold the message.
+**Response:** `202 Accepted` with `{ "messageId": "..." }`, once the message is written to the durable journal (Redis Streams, ADR-0048). Delivery and retries run afterwards, outside the request; `503` when the topic has no subscriber nor journal group and `delivery.requireSubscriber` is set, or the journal could not hold the message.
 
 ### Subscribe to a Topic
 
