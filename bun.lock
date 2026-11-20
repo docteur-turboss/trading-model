@@ -434,6 +434,7 @@
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
         "@trading-model/http": "*",
+        "@trading-model/model-runtime": "*",
         "@trading-model/primitives": "*",
         "@trading-model/validation": "*",
         "express": "^5.3.0",

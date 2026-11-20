@@ -1,3 +1,4 @@
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
@@ -93,8 +94,19 @@ export async function restoreFreshness(
 	}
 }
 
-/** Sets `fs_signal_sources` and names the non-commercial sources (ADR-0075). */
-export function recordSourceTerms(sources: readonly Source[]): void {
+/**
+ * Sets `fs_signal_sources` and names the non-commercial sources (ADR-0075).
+ * In production an active non-commercial source missing from `accepted`
+ * (`SIGNAL_NON_COMMERCIAL_ACCEPTED`) stops the start.
+ */
+export function recordSourceTerms(
+	sources: readonly Source[],
+	guard: {
+		active: readonly Source[];
+		accepted: string;
+		production: boolean;
+	}
+): void {
 	SIGNAL_SOURCES.reset();
 	for (const { accessPolicy } of sources) {
 		SIGNAL_SOURCES.inc({
@@ -112,6 +124,17 @@ export function recordSourceTerms(sources: readonly Source[]): void {
 					`${source.id} (licence ${source.accessPolicy.commercialLicence})`
 			),
 		});
+	}
+	const accepted = parseCommaSeparated(guard.accepted);
+	const refused = guard.active.filter(
+		(source) =>
+			source.accessPolicy.terms === "non-commercial" &&
+			!accepted.includes(source.id)
+	);
+	if (guard.production && refused.length > 0) {
+		throw new Error(
+			`Non-commercial signal source(s) ${refused.map((source) => source.id).join(", ")} active in production: add the id to SIGNAL_NON_COMMERCIAL_ACCEPTED once its terms fit your use, or unset its SIGNAL_KEY_* variable`
+		);
 	}
 }
 

@@ -57,7 +57,24 @@ describe("ScraperCandleHistory", () => {
 			Date.parse("2026-01-01T00:00:00.000Z"),
 			Date.parse("2026-01-01T00:59:00.000Z"),
 		]);
+		expect(get.mock.calls[0][0]).toContain("/v2/candles/symbols/");
 		expect(get.mock.calls[1][0]).toContain("&after=c1");
 		expect(get.mock.calls[0][0]).toContain(`to=${new Date(AT).toISOString()}`);
+	});
+
+	it("rejects a page holding a negative price", async () => {
+		get.mockImplementationOnce(async (_u, _h, schema) =>
+			schema.parse({
+				rows: [
+					{
+						...row("2026-01-01T00:00:00.000Z", "2026-01-01T00:00:59.999Z"),
+						open: -1,
+					},
+				],
+				nextCursor: null,
+			})
+		);
+
+		await expect(history.loadWindow(BTC, AT, 100)).rejects.toThrow();
 	});
 });

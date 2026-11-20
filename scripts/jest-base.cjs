@@ -19,6 +19,8 @@ function jestConfig(dir, { moduleNameMapper, coverageThreshold, tsJest, ...overr
     transform: { '^.+\\.tsx?$': ['ts-jest', { diagnostics: false, ...tsJest }] },
     moduleNameMapper: { ...workspaceModuleNameMapper(dir), ...moduleNameMapper },
     coverageThreshold: { global: { ...THRESHOLDS, ...coverageThreshold } },
+    // `bun run --filter '*' test` runs up to 8 workspaces at once: more workers starve the 4-vCPU CI runner (issue #1653).
+    maxWorkers: '50%',
     ...overrides,
   };
 }
