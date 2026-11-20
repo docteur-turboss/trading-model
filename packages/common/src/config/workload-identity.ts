@@ -29,6 +29,7 @@ export const PLATFORM_SERVICES = [
 	"financial-scraper",
 	"message-manager",
 	"model-evaluator",
+	"risk-execution",
 	"trader-trainer",
 ] as const;
 

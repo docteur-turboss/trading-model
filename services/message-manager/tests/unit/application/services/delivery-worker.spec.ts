@@ -74,46 +74,21 @@ describe("DeliveryWorker with an open circuit", () => {
 	});
 });
 
-describe("DeliveryWorker group retirement", () => {
-	const build = (subscribed: boolean, graceMs: number) => {
+describe("DeliveryWorker group without subscriber", () => {
+	it("waits without delivering or destroying anything", async () => {
 		const journal = {
 			groups: jest.fn().mockResolvedValue([{ topic: "t", service: "svc" }]),
-			retire: jest.fn().mockResolvedValue(undefined),
 			claimDue: jest.fn().mockResolvedValue([]),
-			readNew: jest.fn(
-				() => new Promise((resolve) => setTimeout(resolve, 10, []))
-			),
+			readNew: jest.fn().mockResolvedValue([]),
 		};
-		const registry = {
-			getSubscriptions: jest
-				.fn()
-				.mockResolvedValue(
-					subscribed
-						? [{ serviceIdentity: { serviceName: "svc" }, callbackPath: "/cb" }]
-						: []
-				),
-		};
+		const registry = { getSubscriptions: jest.fn().mockResolvedValue([]) };
 		const worker = new DeliveryWorker({
 			journal,
 			registry,
 			deliveryPort: {},
-			graceMs,
 		} as never);
-		return { journal, worker };
-	};
-
-	it("retires a group without subscriber once the grace is over", async () => {
-		const { journal, worker } = build(false, 0);
 		await runWorker(worker);
-		expect(journal.retire).toHaveBeenCalledWith({ topic: "t", service: "svc" });
-	});
-
-	it("keeps the group of a subscriber that is back, or still within the grace", async () => {
-		const back = build(true, 0);
-		await runWorker(back.worker);
-		const waiting = build(false, 60_000);
-		await runWorker(waiting.worker);
-		expect(back.journal.retire).not.toHaveBeenCalled();
-		expect(waiting.journal.retire).not.toHaveBeenCalled();
+		expect(registry.getSubscriptions).toHaveBeenCalled();
+		expect(journal.readNew).not.toHaveBeenCalled();
 	});
 });

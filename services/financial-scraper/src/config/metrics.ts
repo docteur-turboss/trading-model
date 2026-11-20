@@ -73,7 +73,7 @@ export const SIGNAL_COLLECTIONS_TOTAL = new promClient.Counter({
 
 export const SIGNAL_SOURCE_QUARANTINED = new promClient.Gauge({
 	name: "fs_signal_source_quarantined",
-	help: "1 while a signal source is in quarantine after repeated fetch failures, else 0",
+	help: "1 while a signal source is in quarantine after repeated fetch failures, or Binance after a 418/451 (source binance), else 0",
 	labelNames: ["source"] as const,
 });
 

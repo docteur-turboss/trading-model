@@ -9,7 +9,7 @@ message-manager is an HTTP pub/sub broker with a durable Redis Streams journal (
 
 - **A publish is answered (202) once the message is in the journal** (one Redis stream per topic, one consumer group per subscriber service, key `trading-model:message-manager:journal:<topic>`); the workers of every replica deliver and retry afterwards. A stop or a crash of a replica loses nothing: another replica claims its pending entries within about 30 s. Messages accepted for a service that does not subscribe wait for it up to 24 h. The journal is Redis state with no backup: AOF and replication protect it, so a Redis outage stops publishing (503) and losing Redis with its replicas loses what was not delivered yet. Inspect a backlog with `XPENDING <journal key> <service>`; never `KEYS`.
 - **Subscriptions live in Redis** (one hash per topic, `REDIS_SENTINELS`), expire 60 s after their last renewal, and subscribers renew every 15 s. Without Redis, message-manager cannot route anything.
-- **A message published with no subscriber is dropped** and counted (`mm_messages_unrouted_total`) (`delivery.requireSubscriber` refuses it with 503 instead; no publisher sets it since the trainer stopped subscribing, #1252).
+- **A message published on a topic with no journal group is dropped** and counted (`mm_messages_unrouted_total`) (`delivery.requireSubscriber` refuses it with 503 instead; no publisher sets it since the trainer stopped subscribing, #1252).
 - **Dead letters go to dlq-service** (signed `POST /dlq`). While it cannot take one, or while a subscriber's circuit breaker is open, the message stays pending in the journal and is retried (no local file): it is only lost if it stays pending past the 24 h trim (`JournalEntriesTrimmed`).
 
 An outage affects:
@@ -22,7 +22,7 @@ An outage affects:
 - `MessageDeliveryLowSuccessRate`: more than 0.5 % of messages dead-lettered over 5 min.
 - `MessagesDeadLettered`: messages given up, now in the dead streams.
 - `BusDeadLetters`: a dead stream holds entries waiting for an operator.
-- `MessagesUnrouted`: a topic has had no subscriber for 10 min.
+- `MessagesUnrouted`: a topic has had no journal group for 10 min.
 - `JournalBacklogOld`: a subscriber has not acknowledged an entry for 15 min (see 6).
 - `JournalEntriesTrimmed`: undelivered journal entries were trimmed after 24 h: messages lost (see 5).
 - Publishers log timeouts or connection errors to message-manager.
@@ -79,12 +79,12 @@ kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
 
 ### 3. No subscriber on a topic
 
-**Symptoms:** `MessagesUnrouted` on a topic.  
+**Symptoms:** `MessagesUnrouted` on a topic: it has no group, so no service ever subscribed (a service that is only absent keeps its group, its messages wait up to 24 h).  
 **Fix:** check that the subscribing service is up and that its logs show no subscription error (403 from the message-manager ACL, Redis errors). audit-logger subscribes to the audit, training and dlq topics: if all of them are unrouted, look at audit-logger and at Redis first.
 
 ### 4. Dead letters stuck, refused or lost
 
-**Symptoms:** `MessagesDeadLettered` or `BusDeadLetters` (warning). A dead letter is an entry of the stream `trading-model:message-manager:dead:<topic>` with its group, attempts and reason (ADR-0073). While Redis refuses the write, the journal entry stays pending (`JournalBacklogOld` after 15 min, see 7); message-manager logs the cause.
+**Symptoms:** `MessagesDeadLettered` or `BusDeadLetters` (warning). A dead letter is an entry of the stream `trading-model:message-manager:dead:<topic>` with its group, attempts and reason (ADR-0073). While Redis refuses the write, the journal entry stays pending (`JournalBacklogOld` after 15 min, see 6); message-manager logs the cause.
 
 **Inspect, replay, delete** (inside an audit-logger pod; `<operator>` is recorded as the actor of the `dlq.*` audit event):
 

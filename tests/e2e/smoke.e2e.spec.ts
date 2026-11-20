@@ -18,6 +18,7 @@ const MESH_SERVICES = [
 	"audit-logger",
 	"dlq-service",
 	"model-evaluator",
+	"risk-execution",
 ];
 
 describe("Smoke", () => {

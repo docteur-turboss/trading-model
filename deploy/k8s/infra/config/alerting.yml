@@ -277,6 +277,38 @@ groups:
           description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
 
+      # -- Risk/Execution (ADR-0064, docs/compliance/risk-limits-policy.md) -------
+
+      - alert: KillSwitchEngaged
+        expr: 'max by (job, mode, scope) (risk_kill_switch) > 0'
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Kill switch engaged ({{ $labels.scope }}, {{ $labels.mode }})'
+          description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
+
+      - alert: ReconciliationMismatch
+        expr: 'max by (job, mode) (risk_reconciliation_mismatch) > 0'
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'risk-execution state differs from the broker ({{ $labels.mode }})'
+          description: 'The last reconciliation found a position, open order or balance difference with the broker. The global kill switch is on and the service is not ready; the store is never fixed to match the broker.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#reconciliationmismatch'
+
+      - alert: RiskMarketDataStale
+        expr: 'max by (job, mode) (risk_market_data_age_seconds) > 900'
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Reference price older than 15 minutes ({{ $labels.mode }})'
+          description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
+
       # -- Authentication failures and ACL denials -------------------
 
       - alert: ApiAuthFailuresHigh
@@ -383,7 +415,7 @@ groups:
           description: 'message-manager refused {{ $value | humanize }} {{ $labels.event }} event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'
 
-      # A topic nobody subscribes to drops its messages. Expected for a few
+      # A topic with no journal group (no service ever subscribed) drops its messages. Expected for a few
       # seconds at a cold start (publishers up before subscribers), so only a
       # drop lasting 10 minutes alerts.
       - alert: MessagesUnrouted
@@ -393,7 +425,7 @@ groups:
           severity: warning
         annotations:
           summary: 'Messages dropped on {{ $labels.topic }}: no subscriber'
-          description: 'message-manager drops the messages published on {{ $labels.topic }}: no instance subscribes to it. audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
+          description: 'message-manager drops the messages published on {{ $labels.topic }}: the topic has no journal group (no service ever subscribed to it). audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
 
       - alert: JournalEntriesTrimmed
@@ -550,6 +582,19 @@ groups:
         annotations:
           summary: 'Binance refuses the scraper location (HTTP 451)'
           description: 'Binance answered 451 (restricted location) {{ $value | humanize }} times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
+
+      # The 451 counter stops growing while the source is quarantined (no call
+      # between probes, up to 24 h), so this rule keeps the block visible; it
+      # also covers the 418 ban, which has no other alert.
+      - alert: BinanceQuarantined
+        expr: max(fs_signal_source_quarantined{source="binance"}) == 1
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Binance quarantined after a 418 or 451'
+          description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"418|451"} and runbook-market-data-stale.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
       # ADR-0036: the signal sources publish daily (SEC, Wikimedia), on working

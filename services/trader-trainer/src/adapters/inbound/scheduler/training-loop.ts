@@ -212,6 +212,8 @@ export class TrainingLoop {
 		symbols: TradingSymbol[],
 		maxDataAgeMs: number
 	): Promise<void> {
+		// Not awaited: a slow bus must not delay the cycle; republishPending never rejects.
+		void this._trainer.republishPending();
 		if (this._trainer.isTraining()) {
 			return;
 		}

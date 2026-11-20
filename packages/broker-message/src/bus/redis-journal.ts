@@ -14,7 +14,6 @@ import { JOURNAL_TRIMMED_PENDING_TOTAL } from "./metrics";
 export interface BusRedis {
 	call(command: string, ...args: string[]): Promise<unknown>;
 	sadd(key: string, ...members: string[]): Promise<unknown>;
-	srem(key: string, ...members: string[]): Promise<unknown>;
 	smembers(key: string): Promise<string[]>;
 	/** `MULTI`/`EXEC`: each result is `[error, reply]`, `null` when the transaction was discarded. */
 	multi(): {
@@ -90,7 +89,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		this._now = _deps.now ?? Date.now;
 	}
 
-	/** Idempotent, never cached: another replica may have retired the group since. */
+	/** Idempotent, never cached: a stream Redis lost loses its groups too. */
 	register(group: JournalGroup): Promise<void> {
 		return this._register(this._deps.redis, group);
 	}
@@ -103,17 +102,6 @@ export class RedisMessageJournal implements MessageJournalPort {
 			this._ensureGroup(redis, group),
 			redis.sadd(this._groupsKey(), `${group.topic}|${group.service}`),
 		]);
-	}
-
-	async retire(group: JournalGroup): Promise<void> {
-		const key = `${group.topic}|${group.service}`;
-		await this._deps.redis.srem(this._groupsKey(), key);
-		await this._deps.redis.call(
-			"XGROUP",
-			"DESTROY",
-			this.stream(group.topic),
-			group.service
-		);
 	}
 
 	/** Closes the blocking connections, which ends the reads waiting on them. */
