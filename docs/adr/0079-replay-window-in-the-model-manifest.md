@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (manifest), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (point in time, criteria), [ADR-0049](./0049-downstream-context-for-models-and-signals.md) §1.4 (model-evaluator), [ADR-0066](./0066-simulated-fills-at-next-bar-open-with-execution-costs.md) (simulator), [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md) (admission), [ADR-0078](./0078-trainer-features-from-candles-only.md) (candle features)
-**Verified by:** `services/trader-trainer/tests/unit/model-artifacts/model-metrics.spec.ts`, `bun run api:check`
+**Verified by:** `services/trader-trainer/tests/unit/adapters/outbound/model-metrics.spec.ts` (replay of a published model), `services/model-evaluator/tests/unit/evaluate-model.spec.ts`, `bun run api:check`
 
 ## Context
 
@@ -31,4 +31,3 @@ Owner's choice, option 2 on issue #1256: two pull requests, the contract first.
 
 - Manifests gain about 150 bytes; the trainer writes the block only when the session has a test segment.
 - Window times come from the trainer's candle buffer at storage time; a buffer replaced while a session trains would shift them (the trainer replaces candles only before a session).
-- Until the second pull request, model-evaluator still writes `replay: "not-run"`.
