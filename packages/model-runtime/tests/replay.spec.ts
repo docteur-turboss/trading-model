@@ -3,7 +3,11 @@ import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { AGENT_STATE_DIM } from "../src/agent/agent-state";
 import { FEATURE_DIM } from "../src/feature-vector-codec";
 import { ActivationType, NormalisationType } from "../src/neural-network/type";
-import { type PolicyGenome, replayModel } from "../src/replay";
+import {
+	type PolicyGenome,
+	policyAgentConfig,
+	replayModel,
+} from "../src/replay";
 
 const T0 = 1_700_000_000_000;
 const candles = Array.from({ length: 120 }, (_, idx) => {
@@ -87,6 +91,15 @@ describe("replayModel (ADR-0079 §3)", () => {
 			expect(replay()).toEqual(ratios);
 		}
 	);
+
+	it("replays at the manifest exposure cap, default 0.3 when absent", () => {
+		const { network } = genome("every-bar").genome;
+		const cap = (maxExposureFraction?: number) =>
+			policyAgentConfig(network, { ...SIMULATOR, maxExposureFraction }).wallet
+				.maxExposureFraction;
+		expect(cap(1)).toBe(1);
+		expect(cap()).toBe(0.3);
+	});
 
 	it("drops inconsistent candles and those before the last gap, as the trainer does", () => {
 		const { genome: g, weights } = genome("every-bar");
