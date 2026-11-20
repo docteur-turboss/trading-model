@@ -4,7 +4,7 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { logger } from "@trading-model/http/logger";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { UpstreamResponseTooLargeError } from "../../domain/ports/gateway.port";
-import { ENV } from "../../infrastructure/config/env";
+import type { Env } from "../../infrastructure/config/env";
 import type { ProxyRequestOptions } from "./proxy-options-builder";
 import { buildProxyOptions } from "./proxy-options-builder";
 
@@ -15,13 +15,14 @@ export interface ProxyResult {
 }
 
 export function forwardRequest(
-	opts: ProxyRequestOptions
+	opts: ProxyRequestOptions,
+	env: Env
 ): Promise<ProxyResult> {
 	const { req, target, path } = opts;
 	return new Promise((resolve, reject) => {
 		const payload = _serializeBody(req.body);
 		const proxyReq = https.request(
-			_withBodyLength(buildProxyOptions(opts), payload),
+			_withBodyLength(buildProxyOptions(opts, env), payload),
 			(proxyRes) => {
 				const chunks: Buffer[] = [];
 				let bytes = 0;
@@ -30,12 +31,12 @@ export function forwardRequest(
 				proxyRes.on("error", reject);
 				proxyRes.on("data", (chunk: Buffer) => {
 					bytes += chunk.length;
-					if (bytes > ENV.PROXY_MAX_RESPONSE_BYTES) {
+					if (bytes > env.PROXY_MAX_RESPONSE_BYTES) {
 						// Cut the upstream answer: buffered, then parsed, it would take
 						// several times its size in memory (ADR-0054).
 						proxyRes.destroy();
 						reject(
-							new UpstreamResponseTooLargeError(ENV.PROXY_MAX_RESPONSE_BYTES)
+							new UpstreamResponseTooLargeError(env.PROXY_MAX_RESPONSE_BYTES)
 						);
 						return;
 					}
@@ -63,7 +64,7 @@ export function forwardRequest(
 		});
 		proxyReq.on("timeout", () => {
 			proxyReq.destroy();
-			reject(new Error(`Proxy timeout after ${ENV.PROXY_TIMEOUT_MS}ms`));
+			reject(new Error(`Proxy timeout after ${env.PROXY_TIMEOUT_MS}ms`));
 		});
 		if (payload) {
 			proxyReq.write(payload);

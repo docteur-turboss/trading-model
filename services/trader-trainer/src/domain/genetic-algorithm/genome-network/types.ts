@@ -1,3 +1,4 @@
+import type { ActionSetId } from "@trading-model/model-runtime/agent/action-mapper";
 import {
 	ActivationType,
 	ConnectionType,
@@ -6,7 +7,6 @@ import {
 } from "@trading-model/model-runtime/neural-network/type";
 import type { NumericRange } from "@trading-model/primitives/numeric-range";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
-import type { ActionSetId } from "../../agent/action-mapper";
 
 export {
 	ActivationType,

@@ -8,7 +8,7 @@
 
 ## 1. Policy Statement
 
-The trading-model platform processes machine-generated financial market data and operates a zero-personal-data architecture. IP addresses are transiently read for access control and anonymized before logging; log context fields are sanitized of sensitive keys before persistence. This Information Security Policy defines the principles, controls, and responsibilities for protecting the confidentiality, integrity, and availability of all platform assets.
+The trading-model platform processes machine-generated financial market data and holds personal data only for external callers (truncated IP) and operators (register activities 6 and 8). IP addresses are transiently read for access control and anonymized before logging; log context fields are sanitized of sensitive keys before persistence. This Information Security Policy defines the principles, controls, and responsibilities for protecting the confidentiality, integrity, and availability of all platform assets.
 
 **Scope:** All services and shared packages, infrastructure (Docker, Kubernetes, databases), CI/CD pipelines, and supporting observability stack.
 

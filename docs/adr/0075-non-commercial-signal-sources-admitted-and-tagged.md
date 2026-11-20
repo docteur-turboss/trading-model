@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0036](./0036-multi-dimension-signals-mvp.md) (decision 2 amended here)
-**Verified by:** `services/financial-scraper/tests/unit/signals/signal-registry.spec.ts`, `services/financial-scraper/tests/unit/signals/signal-collector.spec.ts`
+**Verified by:** `services/financial-scraper/tests/unit/config/signal-registry.spec.ts`, `services/financial-scraper/tests/unit/application/signal-collector.spec.ts`
 
 ## Context
 
