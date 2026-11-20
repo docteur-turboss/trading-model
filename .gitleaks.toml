@@ -1,7 +1,9 @@
 [extend]
 useDefault = true
 
-[[allowlists]]
+# [allowlist], not [[allowlists]]: gitleaks 8.24.3 (CI) did not apply this block as [[allowlists]]
+# (rc.3 back-merge #1674: 10 findings on these series keys and SealedSecret lines).
+[allowlist]
 description = "Test fixtures and SealedSecret ciphertext (no real credential)"
 stopwords = [
   "e2e-", # e2e fixture credentials
