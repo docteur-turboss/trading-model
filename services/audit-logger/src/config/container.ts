@@ -110,13 +110,14 @@ export function chainAuditSettingsFromEnv(): ChainAuditSettings {
 
 export function createAuditServer(
 	auditRepo: AuditRepository,
-	mongoManager: MongoConnectionManager
+	mongoManager: MongoConnectionManager,
+	isReady: () => boolean
 ): ReturnType<typeof createServer> {
 	const messageHandler = createMessageHandler(
 		auditRepo,
 		ENV.AUDIT_RETENTION_DAYS
 	);
-	return createServer(auditRepo, mongoManager, messageHandler);
+	return createServer(auditRepo, mongoManager, messageHandler, isReady);
 }
 
 export async function createRepositories(
@@ -184,10 +185,12 @@ export async function createAuditLoggerApp() {
 	};
 	// A stand-in for the repository: every call is the real one once the database is up.
 	const lazyRepo = new Proxy({} as AuditRepository, {
-		get:
-			(_, method: keyof AuditRepository) =>
-			(...args: unknown[]) =>
-				(repo ?? notReady())[method](...(args as [never])),
+		// `then` stays undefined so the proxy is never mistaken for a thenable.
+		get: (_, method: keyof AuditRepository | "then") =>
+			method === "then"
+				? undefined
+				: (...args: unknown[]) =>
+						(repo ?? notReady())[method](...(args as [never])),
 	});
 	const chainAuditScheduler = new ChainAuditScheduler(
 		{
@@ -195,7 +198,11 @@ export async function createAuditLoggerApp() {
 		},
 		DurationMs.of(ENV.AUDIT_CHAIN_INTERVAL_MS)
 	);
-	const server = await createAuditServer(lazyRepo, mongoManager);
+	const server = await createAuditServer(
+		lazyRepo,
+		mongoManager,
+		() => repo !== null
+	);
 	const { brokerMessage } = await createBrokerMessage();
 	return {
 		server,

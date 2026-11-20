@@ -160,14 +160,18 @@ describe("Audit Logger entry point (index.ts)", () => {
 		) as { createServer: jest.Mock<(...args: any[]) => any> };
 		MOCK_MONGO_CLIENT.connect.mockRejectedValueOnce(new Error("ECONNREFUSED"));
 		createServer.mockClear();
+		jest.useFakeTimers();
 
 		await capturedOptions.createServer();
-		const [repo, mongoManager] = createServer.mock.calls[0];
+		const [repo, mongoManager, , isReady] = createServer.mock.calls[0];
 		expect(mongoManager.isConnected()).toBe(false);
+		expect(isReady()).toBe(false);
 		expect(() => repo.findById("m1")).toThrow(/not ready/);
 
-		await new Promise((r) => setTimeout(r, 3000));
+		await jest.advanceTimersByTimeAsync(3000);
+		jest.useRealTimers();
 		expect(mongoManager.isConnected()).toBe(true);
+		expect(isReady()).toBe(true);
 		repo.findById("m1");
 		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.findById).toHaveBeenCalledWith("m1");
 		capturedOptions.onStart();
