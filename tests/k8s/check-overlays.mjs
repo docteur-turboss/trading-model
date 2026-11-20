@@ -392,6 +392,12 @@ for (const env of OVERLAYS) {
 		}
 	}
 
+	// Issue #1634: every major of PUBLIC_ROUTES needs an Ingress path to the edge-proxy.
+	const majors = new Set(readFileSync("services/api-gateway/src/shared/public-routes.ts", "utf8").match(/"[A-Z]+ \/v\d+(?=\/)/g)?.map((route) => route.split("/")[1]));
+	for (const major of majors) {
+		if (!new RegExp(`^ +(?:- )?path: /${major}$`, "m").test(rendered)) errors.push(`${env}: PUBLIC_ROUTES serves /${major} but the api-gateway Ingress has no /${major} path`);
+	}
+
 	if (env.startsWith("staging")) {
 		for (const pdb of docs.filter((doc) => doc.kind === "PodDisruptionBudget")) {
 			if (/^ {2}minAvailable: [1-9]/m.test(pdb.text)) {
