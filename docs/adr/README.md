@@ -83,7 +83,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md) | The Message Bus as a Redis Streams Library, Dead Letters in Dead Streams | Accepted | 2026-11 |
 | [ADR-0074](./0074-merge-shared-packages-into-six.md) | Merge the Twelve Shared Packages into Six, One Merge per PR | Accepted | 2026-11 |
 | [ADR-0075](./0075-non-commercial-signal-sources-admitted-and-tagged.md) | Free Personal-Use Signal Sources Are Admitted, Tagged by Their Terms | Accepted | 2026-11 |
-| [ADR-0076](./0076-multi-asset-trainer-shared-encoders-and-agent-hierarchy.md) | Multi-Asset Trainer: Shared Encoders, a Three-Level Agent Hierarchy and a Migration Path in Flagged Steps | Proposed | 2026-11 |
+| [ADR-0076](./0076-multi-asset-trainer-shared-encoders-and-agent-hierarchy.md) | Multi-Asset Trainer: Shared Encoders, a Three-Level Agent Hierarchy and a Migration Path in Flagged Steps | Accepted | 2026-11 |
 | [ADR-0077](./0077-rank-the-market-data-source-terms.md) | Rank the Market Data Source Terms Against the Licence Order, Add Bitstamp as Second Source | Proposed | 2026-11 |
 | [ADR-0078](./0078-trainer-features-from-candles-only.md) | The Trainer's Features Come From the Candle Window Alone | Accepted | 2026-11 |
 | [ADR-0079](./0079-replay-window-in-the-model-manifest.md) | The Model Manifest Carries the Window and the Simulator to Replay It | Accepted | 2026-11 |
