@@ -149,7 +149,7 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 50% over 3h.'
+              description: 'Trainer completion rate is 50% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -169,7 +169,7 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 40% over 3h.'
+              description: 'Trainer completion rate is 40% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -177,7 +177,7 @@ tests:
           - exp_labels: {severity: critical, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 50%'
-              description: 'Trainer completion rate is 40% over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+              description: 'Trainer completion rate is 40% over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
   - name: 80 percent of the training sessions succeed
@@ -194,7 +194,7 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 80% over 3h.'
+              description: 'Trainer completion rate is 80% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -296,7 +296,7 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 0% over 3h.'
+              description: 'Trainer completion rate is 0% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -304,7 +304,7 @@ tests:
           - exp_labels: {severity: critical, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 50%'
-              description: 'Trainer completion rate is 0% over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+              description: 'Trainer completion rate is 0% over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
   # Every message goes to the DLQ: no successful delivery series at all.

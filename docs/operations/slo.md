@@ -71,7 +71,7 @@ rate(tt_training_sessions_total[3h])`.
 | Latency P95         | ≤ 2s     | 30d    | fast: P95 > 5s over 5m; slow: P95 > 3s over 1h (single window) |
 | Message Delivery    | ≥ 99.95% | 30d    | `MessageDeliveryLowSuccessRate`: < 99.5% over 5m (no slow burn) |
 | DLQ Drain Ratio     | ≥ 1.0    | 30d    | `DLQSizeGrowing`, `DLQDrainRateLow` (no slow burn) |
-| Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 3h; `TrainingCompletionRateCritical` (critical, pages): < 50% over 3h (no slow burn) |
+| Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 12h; `TrainingCompletionRateCritical` (critical, pages): < 50% over 12h (no slow burn) |
 | Data Freshness      | ≤ 15 min | 30d    | `MarketDataStale` / `TrainerMarketDataStale` |
 
 The Message Delivery, DLQ and Training SLOs have no slow-burn alert: their

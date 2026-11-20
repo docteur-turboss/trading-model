@@ -20,7 +20,7 @@ stale: training paused`) and no session is counted at all.
 `TrainingCompletionRateCritical` (critical, pages) is the same ratio under 50%; it inhibits the warning of the same job.
 
 `tt_training_sessions_total{result="success"}` over all sessions of a job is
-under 95% over 3 h, for 1 h (the trainer runs one session per hour by default). A session is counted only once it starts:
+under 95% over 12 h (about 3 sessions at the default 4 h interval), for 1 h. A session is counted only once it starts:
 a symbol skipped for lack of data or stale data counts neither as success nor
 as failure. A failure is an exception during the GA / DQN session
 (`result="fail"`, log `Training failed` with the symbol and the error).
