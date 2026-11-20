@@ -10,10 +10,14 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { withTimeout } from "@trading-model/common/utils/retry";
+import { DurationMs, toInstanceId } from "@trading-model/primitives/primitives";
 import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;
+
+/** The span flush may not outlast the container stop grace (10 s by default): a collector that never answers must not hold the process. */
+const SHUTDOWN_FLUSH_TIMEOUT_MS = DurationMs.of(2000);
 
 const PROBE_PATHS = new Set(["/ping", "/health/ready", "/metrics"]);
 
@@ -75,7 +79,11 @@ export async function shutdownTelemetry(): Promise<void> {
 		return;
 	}
 	try {
-		await sdk.shutdown();
+		await withTimeout(
+			sdk.shutdown(),
+			SHUTDOWN_FLUSH_TIMEOUT_MS,
+			"OpenTelemetry flush timed out"
+		);
 		logger.info("OpenTelemetry shut down");
 	} catch (err) {
 		logger.warn("OpenTelemetry shutdown error", {
