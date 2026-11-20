@@ -12,6 +12,7 @@ describe("DEFAULT_MONGO_POOL_OPTIONS", () => {
 		expect(DEFAULT_MONGO_POOL_OPTIONS.maxPoolSize).toBe(50);
 		expect(DEFAULT_MONGO_POOL_OPTIONS.minPoolSize).toBe(2);
 		expect(DEFAULT_MONGO_POOL_OPTIONS.retryWrites).toBe(true);
+		expect(DEFAULT_MONGO_POOL_OPTIONS.socketTimeoutMS).toBe(30_000);
 	});
 });
 

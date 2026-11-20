@@ -58,12 +58,6 @@ export class InMemoryMessageJournal implements MessageJournalPort {
 		}
 	}
 
-	retire(group: JournalGroup): Promise<void> {
-		this._groups.delete(keyOf(group));
-		this._known.delete(keyOf(group));
-		return Promise.resolve();
-	}
-
 	groups(): Promise<JournalGroup[]> {
 		return Promise.resolve([...this._known.values()]);
 	}
