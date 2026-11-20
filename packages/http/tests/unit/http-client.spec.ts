@@ -927,15 +927,17 @@ describe("HttpClient", () => {
 
 	describe("shouldRetry for network errors", () => {
 		it("should retry on ECONNRESET error", async () => {
+			jest.spyOn(Math, "random").mockReturnValue(0.5);
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				retryCount: 1 as PositiveInt as PositiveInt,
 				timeoutMs: 100 as DurationMs,
 			});
 			errorHandler!(new Error("read ECONNRESET"));
-			await new Promise((resolve) => setTimeout(resolve, 500));
+			await new Promise((resolve) => setTimeout(resolve, 300));
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			const result = await promise;
 			expect(result).toEqual({ ok: true });
+			jest.restoreAllMocks();
 		});
 	});
 
