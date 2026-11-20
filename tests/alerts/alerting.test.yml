@@ -1960,3 +1960,63 @@ tests:
               summary: 'A service denied an mTLS or ACL request'
               description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#mtlsacldenials'
+
+  # Risk/Execution (ADR-0064): each gauge above its threshold for the `for` of the rule.
+  - name: risk-execution alerts
+    interval: 1m
+    input_series:
+      - series: 'risk_kill_switch{job="risk-execution",mode="paper",scope="global"}'
+        values: '0 0 1x10'
+      - series: 'risk_kill_switch{job="risk-execution",mode="paper",scope="symbol"}'
+        values: '0x12'
+      - series: 'risk_reconciliation_mismatch{job="risk-execution",mode="paper"}'
+        values: '0 0 1x10'
+      - series: 'risk_market_data_age_seconds{job="risk-execution",mode="paper"}'
+        values: '30 30 901x10'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: KillSwitchEngaged
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: KillSwitchEngaged
+        exp_alerts:
+          - exp_labels: {severity: critical, job: risk-execution, mode: paper, scope: global}
+            exp_annotations:
+              summary: 'Kill switch engaged (global, paper)'
+              description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
+      - eval_time: 5m
+        alertname: ReconciliationMismatch
+        exp_alerts:
+          - exp_labels: {severity: critical, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'risk-execution state differs from the broker (paper)'
+              description: 'The last reconciliation found a position, open order or balance difference with the broker. The global kill switch is on and the service is not ready; the store is never fixed to match the broker.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#reconciliationmismatch'
+      - eval_time: 1m
+        alertname: RiskMarketDataStale
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: RiskMarketDataStale
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'Reference price older than 15 minutes (paper)'
+              description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
+
+  # Deployed with no decision consumer: no price ever received, the service publishes age 0 and no switch, so nothing pages.
+  - name: risk-execution without a price flow
+    interval: 1m
+    input_series:
+      - series: 'risk_kill_switch{job="risk-execution",mode="paper",scope="global"}'
+        values: '0x30'
+      - series: 'risk_market_data_age_seconds{job="risk-execution",mode="paper"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: KillSwitchEngaged
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: RiskMarketDataStale
+        exp_alerts: []

@@ -86,6 +86,7 @@ jobs:
           - audit-logger
           - dlq-service
           - model-evaluator
+          - risk-execution
 
     steps:
       - name: Checkout repository
@@ -257,6 +258,7 @@ jobs:
           - audit-logger
           - dlq-service
           - model-evaluator
+          - risk-execution
           - spire-tools
           - backup-tools
           - db-migrate

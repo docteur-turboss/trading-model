@@ -454,6 +454,7 @@ cmd_smoke_test() {
     "audit-logger:https://audit-logger:3000/health/ready"
     "dlq-service:https://dlq-service:3000/health/ready"
     "model-evaluator:https://model-evaluator:3000/health/ready"
+    "risk-execution:https://risk-execution:3000/health/ready"
     "financial-scraper:https://financial-scraper:3000/health/ready"
     "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"
     "trader-trainer:https://trader-trainer:3000/health/ready"
