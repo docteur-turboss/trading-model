@@ -53,6 +53,8 @@ export const ModelManifest = z.looseObject({
 		})
 		.optional(),
 	replay: ReplayWindow.optional(),
+	/** Absent before metricsVersion 5: those models trained with a cap of 1. */
+	riskLimits: z.looseObject({ maxExposureFraction: z.number() }).optional(),
 });
 export type ModelManifest = z.infer<typeof ModelManifest>;
 
@@ -114,7 +116,8 @@ export function replayOutcome(
 	window: ReplayWindow,
 	genome: ModelManifest["genome"],
 	weights: Uint8Array,
-	candles: readonly CandleData[]
+	candles: readonly CandleData[],
+	maxExposureFraction = 1
 ): ReplayOutcome {
 	const bars = candles.filter((candle) => candle.closeTimestamp <= window.to);
 	if (
@@ -129,7 +132,7 @@ export function replayOutcome(
 			// A copy: float32 needs 4-byte alignment, a Buffer slice may not have it.
 			weights: new Float32Array(new Uint8Array(weights).buffer),
 			testFrom: window.testFrom,
-			simulator: window.simulator,
+			simulator: { ...window.simulator, maxExposureFraction },
 			candles: bars,
 		});
 		return { replay: "done", metrics: { policy: "greedy", ...ratios } };

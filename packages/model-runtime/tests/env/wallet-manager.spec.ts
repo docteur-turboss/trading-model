@@ -305,6 +305,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(20),
 				feeRate: Percentage.zero(),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 1,
 			});
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(25));
@@ -335,6 +336,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(50),
 				executionCostRate: Percentage.zero(),
 				feeRate: Percentage.of(0.01),
+				maxExposureFraction: 1,
 			});
 			wallet.buy(Volume.of(10));
 			const cashAfterBuy = wallet.getCash();
@@ -365,6 +367,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(50),
 				feeRate: Percentage.zero(),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 1,
 			});
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(60));
