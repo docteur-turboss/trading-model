@@ -44,6 +44,7 @@ describe("telemetry", () => {
 			);
 			expect(mockOtlpExporter).toHaveBeenCalledWith({
 				url: "http://collector:4318/v1/traces",
+				timeoutMillis: 2000,
 			});
 			expect(mockNodeSDK.mock.results[0].value.start).toHaveBeenCalledTimes(1);
 		});
