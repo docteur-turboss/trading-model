@@ -137,6 +137,9 @@ data:
         check_interval: 1s
         limit_mib: 400
         spike_limit_mib: 100
+      # Jaeger's Badger store grows with the span count (#1773): keep 20 %.
+      probabilistic_sampler:
+        sampling_percentage: 20
       batch:
         timeout: 1s
         send_batch_size: 1024
@@ -169,7 +172,7 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [memory_limiter, batch]
+          processors: [memory_limiter, probabilistic_sampler, batch]
           exporters: [otlp]
 ---
 apiVersion: policy/v1

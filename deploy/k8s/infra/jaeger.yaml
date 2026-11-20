@@ -115,6 +115,8 @@ spec:
               port: 16686
             initialDelaySeconds: 10
             periodSeconds: 15
+            # 1 s default is too short on a saturated disk (#1773).
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /
