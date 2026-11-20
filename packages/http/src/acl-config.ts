@@ -31,6 +31,8 @@ export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 		ServiceId.of("audit-logger"),
 		ServiceId.of("dlq-service"),
 		ServiceId.of("model-evaluator"),
+		// Order and kill switch events for the audit chain (ADR-0064 §3).
+		ServiceId.of("risk-execution"),
 	],
 	// message-manager delivers subscribed topics to services that mount
 	// MessageManagerListenExpress (POST /<MESSAGE_CALLBACK_PATH>).

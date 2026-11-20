@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AUDIT_EVENT_VALIDATORS } from "./audit-event.schema";
 import { DLQ_EVENT_VALIDATORS } from "./dlq-event.schema";
 import { MARKET_EVENT_VALIDATORS } from "./market-event.schema";
+import { RISK_EVENT_VALIDATORS } from "./risk-event.schema";
 import { TRAINING_EVENT_VALIDATORS } from "./training-event.schema";
 
 /** Validators of every event payload, by event type. */
@@ -12,6 +13,7 @@ export const EVENT_VALIDATORS = {
 	...AUDIT_EVENT_VALIDATORS,
 	...TRAINING_EVENT_VALIDATORS,
 	...DLQ_EVENT_VALIDATORS,
+	...RISK_EVENT_VALIDATORS,
 	// satisfies: tsc fails when a topic of EventEnumMap has no validator.
 } satisfies Record<EventEnumMap, z.ZodType>;
 

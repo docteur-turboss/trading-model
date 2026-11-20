@@ -3,6 +3,7 @@ import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
 import { MarketEvent } from "@trading-model/contracts/market-events";
+import { RiskEvent } from "@trading-model/contracts/risk-events";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import {
 	toRole,
@@ -128,6 +129,7 @@ const ALL_EVENT_TYPES = [
 	...Object.values(AuditEvent),
 	...Object.values(TrainingEvent),
 	...Object.values(DlqEvent),
+	...Object.values(RiskEvent),
 ] as const;
 
 /** Predicate checking the event type of a message metadata. */
