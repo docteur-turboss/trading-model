@@ -2004,3 +2004,19 @@ tests:
               summary: 'Reference price older than 15 minutes (paper)'
               description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
+
+  # Deployed with no decision consumer: no price ever received, the service publishes age 0 and no switch, so nothing pages.
+  - name: risk-execution without a price flow
+    interval: 1m
+    input_series:
+      - series: 'risk_kill_switch{job="risk-execution",mode="paper",scope="global"}'
+        values: '0x30'
+      - series: 'risk_market_data_age_seconds{job="risk-execution",mode="paper"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: KillSwitchEngaged
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: RiskMarketDataStale
+        exp_alerts: []
