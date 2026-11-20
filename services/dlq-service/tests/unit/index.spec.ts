@@ -4,6 +4,7 @@ const MOCK_CREATE_BOOTSTRAP = jest.fn<(...args: any[]) => any>();
 const MOCK_DISCOVERY_STOP = jest.fn<(...args: any[]) => any>();
 
 const MOCK_WARN = jest.fn<(...args: any[]) => any>();
+const MOCK_CONNECT_DB = jest.fn<() => Promise<void>>();
 const MOCK_CLOSE_DB = jest.fn(async () => undefined);
 
 jest.mock("@trading-model/http/logger", () => ({
@@ -28,6 +29,8 @@ jest.mock("../../src/config/address-manager", () => ({
 jest.mock("../../src/config/container", () => ({
 	createDlqApp: () => ({
 		handlers: {},
+		connectDb: MOCK_CONNECT_DB,
+		releaseStaleClaims: jest.fn(async () => undefined),
 		start: jest.fn(),
 		shutdownSchedulers: jest.fn(async () => undefined),
 		closeDb: MOCK_CLOSE_DB,
@@ -37,6 +40,13 @@ jest.mock("../../src/config/container", () => ({
 import "../../src/application/index";
 
 describe("application/index", () => {
+	it("onBeforeServer returns without waiting for MongoDB", () => {
+		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
+		MOCK_CONNECT_DB.mockReturnValueOnce(new Promise(() => undefined));
+		expect(opts.onBeforeServer()).toBeUndefined();
+		expect(MOCK_CONNECT_DB).toHaveBeenCalledTimes(1);
+	});
+
 	it("onStop awaits the discovery stop started by onStart", async () => {
 		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
 		let done = false;

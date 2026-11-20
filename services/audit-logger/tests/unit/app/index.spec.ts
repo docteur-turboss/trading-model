@@ -153,4 +153,28 @@ describe("Audit Logger entry point (index.ts)", () => {
 		expect(MOCK_ADDRESS_MANAGER.stop).toHaveBeenCalledTimes(1);
 		expect(MOCK_MONGO_CLIENT.close).toHaveBeenCalledTimes(1);
 	});
+
+	it("listens while MongoDB is down, answers 503, then serves once it is up", async () => {
+		const { createServer } = jest.requireMock(
+			"../../../src/application/server"
+		) as { createServer: jest.Mock<(...args: any[]) => any> };
+		MOCK_MONGO_CLIENT.connect.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+		createServer.mockClear();
+		jest.useFakeTimers();
+
+		await capturedOptions.createServer();
+		const [repo, mongoManager, , isReady] = createServer.mock.calls[0];
+		expect(mongoManager.isConnected()).toBe(false);
+		expect(isReady()).toBe(false);
+		expect(() => repo.findById("m1")).toThrow(/not ready/);
+
+		await jest.advanceTimersByTimeAsync(3000);
+		jest.useRealTimers();
+		expect(mongoManager.isConnected()).toBe(true);
+		expect(isReady()).toBe(true);
+		repo.findById("m1");
+		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.findById).toHaveBeenCalledWith("m1");
+		capturedOptions.onStart();
+		await capturedOptions.onStop();
+	});
 });
