@@ -108,6 +108,18 @@ describe("Dispatcher", () => {
 		});
 	});
 
+	it("should journal for a service whose group exists although its subscription expired", async () => {
+		await journal.register({
+			topic: "test.topic" as Topic,
+			service: mockSubscriberIdentity.serviceName,
+		});
+
+		await dispatcher.publish({ price: 2 }, METADATA);
+
+		expect(await journaled()).toHaveLength(1);
+		expect(MESSAGES_UNROUTED_TOTAL.inc).not.toHaveBeenCalled();
+	});
+
 	it("should count and log a message no subscription routes", async () => {
 		await expect(dispatcher.publish({ price: 1 }, METADATA)).resolves.toEqual(
 			expect.any(String)
@@ -146,7 +158,7 @@ describe("Dispatcher", () => {
 		expect(await journaled()).toHaveLength(1);
 	});
 
-	it("should stop routing to an unsubscribed instance", async () => {
+	it("should keep journaling for the group of an unsubscribed instance", async () => {
 		await dispatcher.subscribe(mockSubscribeParams);
 		await dispatcher.unsubscribe({
 			topic: "test.topic" as Topic,
@@ -155,7 +167,7 @@ describe("Dispatcher", () => {
 
 		await dispatcher.publish({ price: 1 }, METADATA);
 
-		expect(await journaled()).toHaveLength(0);
+		expect(await journaled()).toHaveLength(1);
 	});
 
 	it("should count published messages and subscriptions per topic", async () => {
