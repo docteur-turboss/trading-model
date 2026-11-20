@@ -25,7 +25,8 @@ describe("publishRiskEvent", () => {
 	])("publishes %s as %s with its payload", (event, topic) => {
 		POST.mockResolvedValue();
 		publishRiskEvent(event, { mode: "paper" });
-		const [payload, metadata] = POST.mock.calls.at(-1) ?? [];
+		const [payload, metadata] =
+			POST.mock.calls[POST.mock.calls.length - 1] ?? [];
 		expect(payload).toEqual({ mode: "paper" });
 		expect(metadata.topic).toBe(topic);
 	});
