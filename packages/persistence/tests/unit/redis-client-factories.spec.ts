@@ -18,8 +18,12 @@ jest.mock("ioredis", () => {
 
 		readonly listeners: Record<string, () => void> = {};
 
-		constructor(options?: Record<string, unknown>) {
-			MockRedis.lastOptions = options;
+		constructor(
+			options?: Record<string, unknown> | string,
+			urlOptions?: Record<string, unknown>
+		) {
+			MockRedis.lastOptions =
+				urlOptions ?? (options as Record<string, unknown>);
 		}
 
 		on(event: string, listener: () => void): this {
@@ -42,9 +46,9 @@ describe("BASE_RETRY_STRATEGY", () => {
 		expect(BASE_RETRY_STRATEGY(20)).toBe(4000);
 	});
 
-	it("should return null after 20 attempts", () => {
-		expect(BASE_RETRY_STRATEGY(21)).toBeNull();
-		expect(BASE_RETRY_STRATEGY(25)).toBeNull();
+	it("should never give up and cap the delay at 5 s", () => {
+		expect(BASE_RETRY_STRATEGY(21)).toBe(4200);
+		expect(BASE_RETRY_STRATEGY(1000)).toBe(5000);
 	});
 });
 
@@ -73,6 +77,26 @@ describe("createFromUrl", () => {
 			maxRetriesPerRequest: 3,
 		});
 		expect(client).toBeInstanceOf(Redis);
+	});
+});
+
+describe("command deadline", () => {
+	it.each([
+		["url", () => createFromUrl("redis://localhost:6379" as never)],
+		[
+			"sentinel",
+			() =>
+				createSentinel({
+					sentinels: [{ host: "127.0.0.1" as never, port: 26379 as never }],
+					name: "mymaster",
+				}),
+		],
+	])("should bound commands and retries in %s mode", (_mode, build) => {
+		build();
+		const options = (Redis as unknown as { lastOptions: Record<string, any> })
+			.lastOptions;
+		expect(options.commandTimeout).toBe(2000);
+		expect(options.maxRetriesPerRequest).toBe(5);
 	});
 });
 
