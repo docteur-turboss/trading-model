@@ -31,7 +31,6 @@ Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), valid
 | `LOG_LEVEL`     | `error \| warn \| info \| debug` (case-insensitive) | unset: from `NODE_ENV` (`development` → `debug`, `staging` → `info`, otherwise `warn`) | no       | Level of the global logger (`@trading-model/http`), takes priority over `NODE_ENV`. Compose and every K8s ConfigMap set `info`. Invalid value: the `NODE_ENV` default plus one WARN line at startup | All*     |
 | `BUILD_VERSION` | string | `dev` | no | Release version, set at image build; label of `build_info` (its `service` label is `SERVICE_NAME`, equal to the `job` label since #495; old pods still report `audit-logger-service`, `financial-scraper-service`, `message-delivery-service` until they roll) | All |
 | `GIT_SHA` | string | `unknown` | no | Commit of the image, set at image build; label of `build_info` | All |
-| `ENFORCE_MTLS_STRICT` | boolean (`true`/`1`)                     | `false`                 | no (set `true` in production) | Enforces the per-service caller ACL on every inbound request (ADR-0011): a caller with a valid SVID but not allowed for the target gets 403. Off: any caller with a valid SVID passes. No startup check refuses `false` in production: compose (`${ENFORCE_MTLS_STRICT:-true}`) and every K8s ConfigMap set `true` | All*     |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | URL                              | —                       | no       | OTLP/HTTP collector base URL; traces go to `<url>/v1/traces`. Unset: tracing off | All      |
 
 ---

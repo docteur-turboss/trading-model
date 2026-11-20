@@ -38,7 +38,6 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		TLS_CERT_PATH: "/some/cert.pem",
 		TLS_CA_PATH: "/some/ca.pem",
 		INSTANCE_ID: "instance-1",
-		ENFORCE_MTLS_STRICT: true,
 		AUDIT_RETENTION_DAYS: 1827,
 		AUDIT_CHAIN_INTERVAL_MS: 900000,
 		AUDIT_ANCHOR_PREFIX: "audit-chain/",
