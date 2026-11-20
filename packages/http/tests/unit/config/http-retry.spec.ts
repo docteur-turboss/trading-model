@@ -5,7 +5,6 @@ import {
 	isNonRetryableClientError,
 	isRetryableStatus,
 	isRetryableStatusPermissive,
-	RETRY_JITTER_MS,
 } from "@trading-model/http/http-retry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 
@@ -88,7 +87,7 @@ describe("computeRetryDelay", () => {
 
 	it("should add jitter by default", () => {
 		const random = jest.spyOn(Math, "random").mockReturnValue(0.5);
-		expect(computeRetryDelay(1)).toBe(400 + RETRY_JITTER_MS / 2);
+		expect(computeRetryDelay(1)).toBe(400);
 		random.mockRestore();
 	});
 

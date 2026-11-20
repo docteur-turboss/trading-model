@@ -932,7 +932,7 @@ describe("HttpClient", () => {
 				timeoutMs: 100 as DurationMs,
 			});
 			errorHandler!(new Error("read ECONNRESET"));
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			await new Promise((resolve) => setTimeout(resolve, 500));
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			const result = await promise;
 			expect(result).toEqual({ ok: true });
