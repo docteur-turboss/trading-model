@@ -64,7 +64,7 @@ function _finishCreateServer(
 		() => options.createServer(),
 		(httpServer) => {
 			setServer(httpServer);
-			finishBootstrap(options);
+			finishBootstrap(options, onError);
 		},
 		onError
 	);
@@ -87,9 +87,16 @@ function runSyncOrAsync<TValue>(
 	}
 }
 
-function finishBootstrap(options: BootstrapOptions): void {
-	options.onStart?.();
-	getLogger().info("Service started successfully", {
-		context: { name: options.name },
-	});
+function finishBootstrap(
+	options: BootstrapOptions,
+	onError: (err: unknown) => void
+): void {
+	runSyncOrAsync(
+		() => options.onStart?.(),
+		() =>
+			getLogger().info("Service started successfully", {
+				context: { name: options.name },
+			}),
+		onError
+	);
 }
