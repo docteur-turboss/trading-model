@@ -63,6 +63,7 @@ describe("TrainingLoop", () => {
 		const trainer = {
 			train,
 			isTraining: () => false,
+			republishPending: async () => undefined,
 			stopTraining,
 		} as unknown as Trainer;
 		const buffer = {
@@ -82,7 +83,12 @@ describe("TrainingLoop", () => {
 		lastClose.set(BTC, NOW - 2 * DAY);
 		train.mockResolvedValue({ success: true } as never);
 		loop = new TrainingLoop(
-			{ train, isTraining: () => false, stopTraining } as unknown as Trainer,
+			{
+				train,
+				isTraining: () => false,
+				republishPending: async () => undefined,
+				stopTraining,
+			} as unknown as Trainer,
 			{
 				getMaxSize: () => 1000,
 				replaceCandles,
@@ -121,6 +127,7 @@ describe("TrainingLoop", () => {
 		const trainer = {
 			train,
 			isTraining: () => false,
+			republishPending: async () => undefined,
 			stopTraining,
 		} as unknown as Trainer;
 		const signals = (assets: [TradingSymbol, string][]) => ({
@@ -279,7 +286,12 @@ describe("TrainingLoop", () => {
 	it("should not train while a session is already running", async () => {
 		lastClose.set(BTC, NOW - MINUTE);
 		const busy = new TrainingLoop(
-			{ train, isTraining: () => true, stopTraining } as unknown as Trainer,
+			{
+				train,
+				isTraining: () => true,
+				republishPending: async () => undefined,
+				stopTraining,
+			} as unknown as Trainer,
 			{
 				getMaxSize: () => 1000,
 				replaceCandles,
@@ -319,6 +331,7 @@ describe("TrainingLoop", () => {
 		const trainer = {
 			train,
 			isTraining: () => false,
+			republishPending: async () => undefined,
 			stopTraining,
 		} as unknown as Trainer;
 		const buffer = {

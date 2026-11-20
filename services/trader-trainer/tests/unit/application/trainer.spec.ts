@@ -623,6 +623,24 @@ describe("Trainer — model publication", () => {
 			);
 		});
 
+		it("republishes a model whose publication failed, with the same version and hash (issue #1739)", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const publish = jest
+				.fn<(...args: any[]) => any>()
+				.mockRejectedValueOnce(new Error("503"))
+				.mockResolvedValue(undefined);
+			const trainer = publishingTrainer(fakeStore(), publish);
+			feedCandles(dataBuffer, "BTCUSDT", 130);
+
+			await trainer.train(TradingSymbol.of("BTCUSDT"));
+			await trainer.republishPending();
+			await trainer.republishPending();
+
+			expect(publish).toHaveBeenCalledTimes(2);
+			expect(publish.mock.calls[1]).toEqual(publish.mock.calls[0]);
+		});
+
 		it("publishes nothing when the artifact write fails", async () => {
 			const genome = await trainedGenome();
 			mockRunImpl = () => Promise.resolve(genome);
@@ -798,6 +816,7 @@ describe("Trainer — model publication", () => {
 				const { trainedWeights: _w, ...g } = genome;
 				return {
 					version: "v1",
+					weights: { sha256: "abcd" },
 					features: NETWORK_INPUT_LAYOUT,
 					genome: JSON.parse(JSON.stringify(g)),
 					metrics: {
@@ -810,6 +829,32 @@ describe("Trainer — model publication", () => {
 					},
 				};
 			}
+
+			it("publishes the rehydrated model once, only when the leader asks (issue #1739)", async () => {
+				const models = fakeStore();
+				models.latest.mockResolvedValue({ version: "v1" } as never);
+				models.manifest.mockResolvedValue((await storedManifest()) as never);
+				const publish = jest
+					.fn<(...args: any[]) => any>()
+					.mockResolvedValue(undefined);
+				const trainer = new Trainer(dataBuffer, {
+					settings: TEST_TRAINING_SETTINGS,
+					models,
+					publisher: { publish },
+				});
+
+				await trainer.rehydrate([sym]);
+				expect(publish).not.toHaveBeenCalled();
+				await trainer.republishPending();
+				await trainer.republishPending();
+
+				expect(publish).toHaveBeenCalledTimes(1);
+				expect(publish).toHaveBeenCalledWith("BTCUSDT", expect.anything(), {
+					version: "v1",
+					sha256: "abcd",
+					admissible: false,
+				});
+			});
 
 			it("serves the newest manifest summary, then a training replaces it", async () => {
 				const genome = await trainedGenome();
