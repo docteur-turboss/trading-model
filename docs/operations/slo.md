@@ -98,7 +98,7 @@ A quantile has no error budget to burn, so the alerts stay single-window:
 
 ## Outside working hours
 
-Decision of the owner (issue #1613, option B): no backup person and no paging
+Service outside working hours is an owner decision (issue #1613, option B): no backup person and no paging
 escalation. Losses during the hours nobody watches are accepted, as listed
 below.
 
