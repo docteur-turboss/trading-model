@@ -133,7 +133,7 @@ services:
   # ---------------------------------------------------------------------------
   mysql:
     logging: *default-logging
-    image: mysql:8.4.11@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     container_name: trading-mysql
     stop_grace_period: 2m
     restart: unless-stopped
@@ -956,7 +956,7 @@ services:
   # creates it. Idempotent: runs at every `up`.
   mysql-exporter-user:
     logging: *default-logging
-    image: mysql:8.4.11@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     container_name: trading-mysql-exporter-user
     restart: "no"
     environment:
