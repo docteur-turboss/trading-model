@@ -92,9 +92,22 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    ignore:
+      # A datastore major upgrade rewrites its data files, so the N-1 rollback
+      # cannot pass (mongo 7.0 to 9.0: exit 62, issue #1751): done by hand.
+      - dependency-name: "mongo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/deploy/k8s/infra"
     target-branch: "development"
     schedule:
       interval: "weekly"
+    ignore:
+      # Same reason as docker-compose above.
+      - dependency-name: "mongo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]
