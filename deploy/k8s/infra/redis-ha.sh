@@ -160,7 +160,6 @@ acl_args() {
 	bus_user audit-logger "${REDIS_AUDIT_LOGGER_PASSWORD:-}" "audit.heartbeat audit.gap.detected dlq.entry.added dlq.replay.completed dlq.entries.deleted" "audit.heartbeat audit.gap.detected training.model.published dlq.entry.added dlq.replay.completed dlq.entries.deleted"
 	bus_user trader-trainer "${REDIS_TRADER_TRAINER_PASSWORD:-}" "training.model.published" ""
 	bus_user model-evaluator "${REDIS_MODEL_EVALUATOR_PASSWORD:-}" "dlq.entry.added" "training.model.published"
-	bus_user financial-scraper "${REDIS_FINANCIAL_SCRAPER_PASSWORD:-}" "market.trade.recent.fetch market.ticker.24hr-stats.fetch market.candlestick.series.fetch market.order-book.snapshot.fetch market.price-ticker.snapshot.fetch market.order-book-ticker.snapshot.fetch" ""
 	service_user dlq-service "${REDIS_DLQ_PASSWORD:-}" "dlq:queue" +llen +lpush +lrange +ltrim +eval +evalsha "+script|load"
 	exporter_user
 }

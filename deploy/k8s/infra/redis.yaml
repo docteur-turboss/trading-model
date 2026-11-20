@@ -584,7 +584,6 @@ spec:
                   - message-manager
                   - dlq-service
                   - audit-logger
-                  - financial-scraper
                   - trader-trainer
                   - model-evaluator
                   - redis
