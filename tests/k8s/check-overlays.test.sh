@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 cp -r "$ROOT/deploy" "$ROOT/scripts" "$ROOT/.github" "$TMP"
+mkdir -p "$TMP/services/api-gateway/src/shared" && cp "$ROOT/services/api-gateway/src/shared/public-routes.ts" "$TMP/services/api-gateway/src/shared/"
 # The base kustomization builds the ConfigMap financial-scraper-signal-registry from this file (issue #1308).
 mkdir -p "$TMP/services/financial-scraper/src/config"
 cp "$ROOT/services/financial-scraper/src/config/signal-registry.json" "$TMP/services/financial-scraper/src/config/"
