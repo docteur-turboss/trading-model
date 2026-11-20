@@ -552,6 +552,19 @@ groups:
           description: 'Binance answered 451 (restricted location) {{ $value | humanize }} times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
+      # The 451 counter stops growing while the source is quarantined (no call
+      # between probes, up to 24 h), so this rule keeps the block visible; it
+      # also covers the 418 ban, which has no other alert.
+      - alert: BinanceQuarantined
+        expr: max(fs_signal_source_quarantined{source="binance"}) == 1
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Binance quarantined after a 418 or 451'
+          description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"418|451"} and runbook-market-data-stale.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
+
       # ADR-0036: the signal sources publish daily (SEC, Wikimedia), on working
       # days (ECB) or hourly (NWS): one day covers every schedule. The failure
       # series are born at 0 when the collector starts (zeroCollectionFailures).

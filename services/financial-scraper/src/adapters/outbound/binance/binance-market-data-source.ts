@@ -11,7 +11,6 @@ import type {
 import type { MarketDataSourcePort } from "../../../domain/ports/market-data-source.port";
 import { retryAfterMs } from "../../../domain/retry-after";
 import {
-	banOf,
 	buildResponse,
 	fetchAllRawData,
 	fetchTickerBatch,
@@ -45,20 +44,14 @@ export class BinanceMarketDataSource implements MarketDataSourcePort {
 				"Binance quarantined after a 418/451: no call until the deadline"
 			);
 		}
-		let rawData: Awaited<ReturnType<typeof fetchAllRawData>>;
-		try {
-			rawData = await fetchAllRawData(request, this._tickers);
-		} catch (error) {
-			const ban = banOf(error);
-			if (ban) {
-				this._quarantine.fail(
-					this.id,
-					retryAfterMs(ban.retryAfter, Date.now())
-				);
-			}
-			throw error;
+		let banned = false;
+		const rawData = await fetchAllRawData(request, this._tickers, (ban) => {
+			banned = true;
+			this._quarantine.fail(this.id, retryAfterMs(ban.retryAfter, Date.now()));
+		});
+		if (!banned) {
+			this._quarantine.clear(this.id);
 		}
-		this._quarantine.clear(this.id);
 		return buildResponse(
 			{
 				symbol: request.symbol,

@@ -94,11 +94,13 @@ const PART_OF: Record<RawKey, SnapshotPart> = {
  * Fetches the six endpoints of one symbol. A failed endpoint only leaves its
  * part out of the snapshot (logged, counted): an order book error must not
  * cost the candles. Rejects when every endpoint failed, with the first error
- * (a 418 or 451 wins over the others, so the caller can quarantine).
+ * (a 418 or 451 wins over the others). `onBan` is called on a 418 or 451
+ * from any endpoint, so a partial snapshot still opens the quarantine.
  */
 export async function fetchAllRawData(
 	opts: SnapshotRequest,
-	tickers?: TickerBatch
+	tickers?: TickerBatch,
+	onBan?: (ban: NonNullable<ReturnType<typeof banOf>>) => void
 ): Promise<RawBinanceData> {
 	const { symbol, candleLimit, candleStartTime, tradeLimit, orderBookLimit } =
 		opts;
@@ -154,6 +156,11 @@ export async function fetchAllRawData(
 		});
 	});
 
+	// A 418/451 on any endpoint, even with the others answered, must stop the next cycle.
+	const ban = errors.map(banOf).find(Boolean);
+	if (ban) {
+		onBan?.(ban);
+	}
 	if (errors.length === keys.length) {
 		throw normalizeError(errors.find(banOf) ?? errors[0]);
 	}

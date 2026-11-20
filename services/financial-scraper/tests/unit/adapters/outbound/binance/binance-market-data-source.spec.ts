@@ -289,6 +289,19 @@ describe("BinanceMarketDataSource", () => {
 				}
 			);
 
+			it("quarantines on a 418 of one endpoint while the others answer", async () => {
+				const banned = new BinanceMarketDataSource();
+				MOCK_GET_ORDER_BOOK.mockRejectedValueOnce(ban(418));
+				await banned.fetchSnapshot(request);
+				MOCK_GET_ORDER_BOOK.mockClear();
+
+				banned.beginCycle([BTC]);
+				await expect(banned.fetchSnapshot(request)).rejects.toThrow(
+					"quarantined"
+				);
+				expect(MOCK_GET_ORDER_BOOK).not.toHaveBeenCalled();
+			});
+
 			it("holds until a Retry-After given as an HTTP date", async () => {
 				const banned = new BinanceMarketDataSource();
 				failAll(ban(418, new Date(1_000_000 + 3_600_000).toUTCString()));
