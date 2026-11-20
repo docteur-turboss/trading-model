@@ -1,12 +1,11 @@
-# promtool unit tests of observability/alerting.yml (the K8s copy is kept
-# identical by scripts/observability-gate.mjs). Run: bash tests/alerts/run.sh
+# promtool unit tests of deploy/k8s/infra/config/alerting.yml. Run: bash tests/alerts/run.sh
 #
 # Each case pins a behaviour that was wrong before 2026-10-28: ratios that
 # divided every 5xx series by itself (any single error = 100%), ratios whose
 # numerator series did not exist (never fired), a p95 capped by the largest
 # bucket, and no alert at all on market data that stopped flowing.
 rule_files:
-  - ../../observability/alerting.yml
+  - ../../deploy/k8s/infra/config/alerting.yml
 
 evaluation_interval: 30s
 
@@ -308,6 +307,34 @@ tests:
               description: 'Trainer completion rate is 0% over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
+  # Every message goes to the DLQ: no successful delivery series at all.
+  - name: no delivery succeeds, everything goes to the DLQ
+    interval: 1m
+    input_series:
+      - series: 'mm_messages_dlq_total{job="audit-logger",instance="m",topic="market-data",reason="timeout"}'
+        values: '0+5x30'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: MessageDeliveryLowSuccessRate
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: message_delivery, job: audit-logger}
+            exp_annotations:
+              summary: 'Message delivery success rate below 99.5%'
+              description: 'Bus delivery rate is 0% over 5m.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md'
+
+  - name: the bus delivers 99.9%
+    interval: 1m
+    input_series:
+      - series: 'mm_messages_delivered_total{job="audit-logger",instance="m",topic="market-data",status="success"}'
+        values: '0+999x30'
+      - series: 'mm_messages_dlq_total{job="audit-logger",instance="m",topic="market-data",reason="timeout"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: MessageDeliveryLowSuccessRate
+        exp_alerts: []
+
   # The October 2026 incident: the scraper is up and healthy, nothing is
   # persisted (SYMBOLS_TO_TRACK unset), and so the trainer gets nothing.
   - name: market data stops flowing while every service is up
@@ -423,6 +450,8 @@ tests:
         values: '1x10'
       - series: 'up{job="trader-trainer",instance="i"}'
         values: '1x10'
+      - series: 'up{job="model-evaluator",instance="i"}'
+        values: '1x10'
     alert_rule_test:
       - eval_time: 10m
         alertname: ServiceTargetsMissing
@@ -443,6 +472,11 @@ tests:
       - eval_time: 10m
         alertname: ServiceTargetsMissing
         exp_alerts:
+          - exp_labels: {severity: critical, job: model-evaluator}
+            exp_annotations:
+              summary: 'model-evaluator has no scrape target'
+              description: 'Prometheus has had no up series for model-evaluator for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
           - exp_labels: {severity: critical, job: trader-trainer}
             exp_annotations:
               summary: 'trader-trainer has no scrape target'
@@ -683,29 +717,25 @@ tests:
               description: 'Binance answered 451 (restricted location) 90 times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
-  # 0 while the bus takes the candles; a backlog that stays 15 minutes alerts,
-  # per symbol, and ends once it drained.
-  - name: persisted candles waiting for the bus alert after 15 minutes
+  - name: binance quarantine stays visible without requests
     interval: 1m
     input_series:
-      - series: 'fs_unpublished_candles{job="financial-scraper-collector",instance="c",symbol="BTCUSDT"}'
-        values: '0x10 1+1x30 0x20'
-      - series: 'fs_unpublished_candles{job="financial-scraper-collector",instance="c",symbol="ETHUSDT"}'
-        values: '0x60'
+      - series: 'fs_signal_source_quarantined{job="financial-scraper-collector",instance="c",source="binance"}'
+        values: '0x5 1x40 0x10'
     alert_rule_test:
-      - eval_time: 20m
-        alertname: MarketDataUnpublished
+      - eval_time: 3m
+        alertname: BinanceQuarantined
         exp_alerts: []
-      - eval_time: 30m
-        alertname: MarketDataUnpublished
+      - eval_time: 40m
+        alertname: BinanceQuarantined
         exp_alerts:
-          - exp_labels: {severity: warning, symbol: BTCUSDT}
+          - exp_labels: {severity: critical}
             exp_annotations:
-              summary: 'Persisted candles not reaching the bus'
-              description: '20 persisted BTCUSDT candles have waited for the bus for 15 minutes: Redis refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
-      - eval_time: 55m
-        alertname: MarketDataUnpublished
+              summary: 'Binance quarantined after a 418 or 451'
+              description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"418|451"} and runbook-market-data-stale.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
+      - eval_time: 50m
+        alertname: BinanceQuarantined
         exp_alerts: []
 
   # Model artifacts (ADR-0022): the error series exists at 0 from startup, so
@@ -957,6 +987,68 @@ tests:
               summary: 'Dead letters wait on market.candlestick.series.fetch'
               description: '2 dead letter(s) wait in the dead stream of market.candlestick.series.fetch (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
+
+  - name: journal entries trimmed before delivery
+    interval: 1m
+    input_series:
+      - series: 'mm_journal_trimmed_pending_total{job="audit-logger",instance="m",topic="market.candle",service="trader-trainer"}'
+        values: '0 0 3 3 3 3'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: JournalEntriesTrimmed
+        exp_alerts:
+          - exp_labels: {severity: critical, topic: market.candle, service: trader-trainer}
+            exp_annotations:
+              summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
+              description: 'trader-trainer stayed unreachable for more than 24 h: the bus trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
+      - eval_time: 30m
+        alertname: JournalEntriesTrimmed
+        exp_alerts: []
+
+  # The series is created by the first trim: it is born at 1, never at 0.
+  - name: first journal trim of a topic and service fires
+    interval: 1m
+    input_series:
+      - series: 'mm_journal_trimmed_pending_total{job="audit-logger",instance="m",topic="market.candle",service="trader-trainer"}'
+        values: '_ _ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: JournalEntriesTrimmed
+        exp_alerts:
+          - exp_labels: {severity: critical, topic: market.candle, service: trader-trainer}
+            exp_annotations:
+              summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
+              description: 'trader-trainer stayed unreachable for more than 24 h: the bus trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
+      - eval_time: 19m
+        alertname: JournalEntriesTrimmed
+        exp_alerts: []
+
+  # A subscriber that stops acknowledging: the oldest entry passes 15 min and
+  # stays there for 10 min. Two replicas expose the same value (max by). A
+  # short-lived peak (b) and a drained backlog (c) do not fire.
+  - name: journal backlog of a subscriber
+    interval: 1m
+    input_series:
+      - series: 'mm_journal_oldest_pending_age_seconds{job="audit-logger",instance="m1",topic="market.candle",service="trader-trainer"}'
+        values: '0+60x40'
+      - series: 'mm_journal_oldest_pending_age_seconds{job="audit-logger",instance="m2",topic="market.candle",service="trader-trainer"}'
+        values: '0+60x40'
+      - series: 'mm_journal_oldest_pending_age_seconds{job="audit-logger",instance="m1",topic="market.candle",service="audit-logger"}'
+        values: '0 0 1000 1000 0x37'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: JournalBacklogOld
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: JournalBacklogOld
+        exp_alerts:
+          - exp_labels: {severity: warning, topic: market.candle, service: trader-trainer}
+            exp_annotations:
+              summary: 'Journal backlog on market.candle for trader-trainer: oldest entry waiting for more than 15 min'
+              description: 'trader-trainer has not acknowledged a market.candle entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and consuming, and its bus logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-backlog-of-a-subscriber'
 
   # V8 keeps the allocated heap close to the used one (95% here): no alert.
   # 92% of the heap limit: out of memory is close.
@@ -1354,16 +1446,16 @@ tests:
       - eval_time: 10m
         alertname: CertificateExpiry
         exp_alerts:
-          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://model-evaluator:3000/ping', service: model-evaluator}
+          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://model-evaluator:3000/ping', service: model-evaluator}
             exp_annotations:
               summary: 'SVID close to expiry on model-evaluator'
-              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              description: 'The served X.509-SVID expires in less than 90 minutes (TTL 4h, renewed at half-life, 2 h left): SPIRE rotation has been stalled for over 30 minutes; mTLS calls fail when it expires.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
   # Issue #1249: 4 h SVIDs (ADR-0065, entries made with -x509SVIDTTL 14400)
   # renewed at half-life never fall below 2 h left; a rotation stalled since
-  # the first renewal at 120m (expiry still 14400) fires at 186m: below 1 h
-  # left from 181m, held for 5 min.
+  # the first renewal at 120m (expiry still 14400) fires at 156m: below 90 min
+  # left from 151m, held for 5 min.
   - name: certificate expiry stays silent on normal 4 h rotation and fires on stalled rotation
     interval: 1m
     input_series:
@@ -1372,27 +1464,27 @@ tests:
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://model-evaluator:3000/ping",service="model-evaluator"}'
         values: '14400x359'
     alert_rule_test:
-      - eval_time: 180m
+      - eval_time: 150m
         alertname: CertificateExpiry
         exp_alerts: []
-      - eval_time: 185m
+      - eval_time: 155m
         alertname: CertificateExpiry
         exp_alerts: []
-      - eval_time: 186m
+      - eval_time: 156m
         alertname: CertificateExpiry
         exp_alerts:
-          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://model-evaluator:3000/ping', service: model-evaluator}
+          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://model-evaluator:3000/ping', service: model-evaluator}
             exp_annotations:
               summary: 'SVID close to expiry on model-evaluator'
-              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              description: 'The served X.509-SVID expires in less than 90 minutes (TTL 4h, renewed at half-life, 2 h left): SPIRE rotation has been stalled for over 30 minutes; mTLS calls fail when it expires.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
       - eval_time: 350m
         alertname: CertificateExpiry
         exp_alerts:
-          - exp_labels: {severity: warning, job: blackbox-exporter, instance: 'https://model-evaluator:3000/ping', service: model-evaluator}
+          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://model-evaluator:3000/ping', service: model-evaluator}
             exp_annotations:
               summary: 'SVID close to expiry on model-evaluator'
-              description: 'The served X.509-SVID expires in less than 1 hour (TTL 4h, renewed at half-life): SPIRE rotation has been stalled for over 1 hour.'
+              description: 'The served X.509-SVID expires in less than 90 minutes (TTL 4h, renewed at half-life, 2 h left): SPIRE rotation has been stalled for over 30 minutes; mTLS calls fail when it expires.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
   # ── Infrastructure (issue #601, ADR-0056) ────────────────────────────
@@ -1416,6 +1508,57 @@ tests:
               summary: 'api-gateway-1 (api-gateway) is crash looping'
               description: 'Container api-gateway of api-gateway-1 has been in CrashLoopBackOff for 5 minutes: it starts, exits and is restarted with a growing delay.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubepodcrashlooping'
+
+  # spire-server stopped fires; a Deployment scaled to 0 and a StatefulSet
+  # with one ready replica out of three stay silent.
+  - name: a workload with no ready replica pages, one scaled to 0 does not
+    interval: 1m
+    input_series:
+      - series: 'kube_deployment_spec_replicas{job="kube-state-metrics",namespace="trading-model",deployment="spire-server"}'
+        values: '1x10'
+      - series: 'kube_deployment_status_replicas_available{job="kube-state-metrics",namespace="trading-model",deployment="spire-server"}'
+        values: '1 0x9'
+      - series: 'kube_deployment_spec_replicas{job="kube-state-metrics",namespace="trading-model",deployment="model-evaluator"}'
+        values: '0x10'
+      - series: 'kube_deployment_status_replicas_available{job="kube-state-metrics",namespace="trading-model",deployment="model-evaluator"}'
+        values: '0x10'
+      - series: 'kube_statefulset_replicas{job="kube-state-metrics",namespace="trading-model",statefulset="redis"}'
+        values: '3x10'
+      - series: 'kube_statefulset_status_replicas_ready{job="kube-state-metrics",namespace="trading-model",statefulset="redis"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: KubeWorkloadUnavailable
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: KubeWorkloadUnavailable
+        exp_alerts:
+          - exp_labels: {severity: critical, namespace: trading-model, deployment: spire-server}
+            exp_annotations:
+              summary: 'spire-server has no ready replica'
+              description: 'spire-server wants 1 replica(s) and has had none available or ready for 5 minutes (pods Pending on a lost node, crash looping or not ready).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubeworkloadunavailable'
+
+  # A pod Pending 1 min at startup stays silent; one Pending 15 min fires.
+  - name: a pod Pending for 15 minutes is reported, a starting one is not
+    interval: 1m
+    input_series:
+      - series: 'kube_pod_status_phase{job="kube-state-metrics",namespace="trading-model",pod="mysql-0",phase="Pending"}'
+        values: '1x30'
+      - series: 'kube_pod_status_phase{job="kube-state-metrics",namespace="trading-model",pod="api-gateway-1",phase="Pending"}'
+        values: '1 0x29'
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: KubePodPending
+        exp_alerts: []
+      - eval_time: 16m
+        alertname: KubePodPending
+        exp_alerts:
+          - exp_labels: {severity: warning, namespace: trading-model, pod: mysql-0}
+            exp_annotations:
+              summary: 'mysql-0 has been Pending for 15 minutes'
+              description: 'Pod mysql-0 cannot be scheduled or started: lost node, PVC bound to another node, not enough CPU or memory, image pull.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubepodpending'
 
   # The OOMKilled reason stays until the next termination: only a recent
   # restart fires (mysql-0 at 21m), never an old one (audit-logger).
@@ -1732,3 +1875,63 @@ tests:
               summary: 'A service denied an mTLS or ACL request'
               description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#mtlsacldenials'
+
+  # Risk/Execution (ADR-0064): each gauge above its threshold for the `for` of the rule.
+  - name: risk-execution alerts
+    interval: 1m
+    input_series:
+      - series: 'risk_kill_switch{job="risk-execution",mode="paper",scope="global"}'
+        values: '0 0 1x10'
+      - series: 'risk_kill_switch{job="risk-execution",mode="paper",scope="symbol"}'
+        values: '0x12'
+      - series: 'risk_reconciliation_mismatch{job="risk-execution",mode="paper"}'
+        values: '0 0 1x10'
+      - series: 'risk_market_data_age_seconds{job="risk-execution",mode="paper"}'
+        values: '30 30 901x10'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: KillSwitchEngaged
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: KillSwitchEngaged
+        exp_alerts:
+          - exp_labels: {severity: critical, job: risk-execution, mode: paper, scope: global}
+            exp_annotations:
+              summary: 'Kill switch engaged (global, paper)'
+              description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
+      - eval_time: 5m
+        alertname: ReconciliationMismatch
+        exp_alerts:
+          - exp_labels: {severity: critical, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'risk-execution state differs from the broker (paper)'
+              description: 'The last reconciliation found a position, open order or balance difference with the broker. The global kill switch is on and the service is not ready; the store is never fixed to match the broker.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#reconciliationmismatch'
+      - eval_time: 1m
+        alertname: RiskMarketDataStale
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: RiskMarketDataStale
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'Reference price older than 15 minutes (paper)'
+              description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
+
+  # Deployed with no decision consumer: no price ever received, the service publishes age 0 and no switch, so nothing pages.
+  - name: risk-execution without a price flow
+    interval: 1m
+    input_series:
+      - series: 'risk_kill_switch{job="risk-execution",mode="paper",scope="global"}'
+        values: '0x30'
+      - series: 'risk_market_data_age_seconds{job="risk-execution",mode="paper"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: KillSwitchEngaged
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: RiskMarketDataStale
+        exp_alerts: []

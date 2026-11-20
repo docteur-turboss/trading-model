@@ -6,7 +6,8 @@ name: Backup Key Check
 # private key lives in the secret BACKUP_ESCROW_AGE_IDENTITY of the GitHub
 # environment `backup-key-check`, next to read-only credentials of the
 # off-site bucket. Expected protection (scripts/check-environment-protection.mjs,
-# RULES): deployment branches limited to `main` and a required reviewer. Job
+# RULES): deployment branches limited to `main` only, no required reviewer
+# (it would hold the scheduled run every week, ADR-0034). Job
 # `check-environment` verifies it before `verify-escrow-key` can start: GitHub
 # does not enforce anything by itself while the settings are missing, so this
 # job refuses to release the key until they are made (DEPLOY.md). A failure
@@ -36,8 +37,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # No `environment:` here, on purpose: it would wait for the reviewer or create
-  # the environment unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
+  # No `environment:` here, on purpose: it would create the environment
+  # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
   # (fine-grained PAT, "Administration: read"); without it the check fails.
   check-environment:
     runs-on: ubuntu-latest
@@ -107,11 +108,12 @@ jobs:
           [ -n "$BACKUP_S3_BUCKET" ] || missing+=(variable BACKUP_S3_BUCKET)
           [ -n "$AWS_ACCESS_KEY_ID" ] || missing+=(secret BACKUP_S3_READ_ACCESS_KEY_ID)
           [ -n "$AWS_SECRET_ACCESS_KEY" ] || missing+=(secret BACKUP_S3_READ_SECRET_ACCESS_KEY)
+          [ -n "$AWS_REGION" ] || [ -n "$RCLONE_S3_ENDPOINT" ] || missing+=(variable BACKUP_S3_REGION)
           if [ "${#missing[@]}" -gt 0 ]; then
             echo "::error::Environment backup-key-check is incomplete (${missing[*]}): the escrow key is not verified (ADR-0034)"
             exit 1
           fi
-          export AWS_REGION="${AWS_REGION:-us-east-1}"
+          export AWS_REGION
           export RCLONE_S3_PROVIDER="${RCLONE_S3_PROVIDER:-AWS}"
           key_dir=/dev/shm/backup-key-check
           ( umask 077 && mkdir -p "$key_dir" && printf '%s\n' "$BACKUP_ESCROW_AGE_IDENTITY" > "$key_dir/escrow-key.txt" )

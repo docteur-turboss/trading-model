@@ -8,9 +8,9 @@
 
 ## 1. Policy Statement
 
-The trading-model platform processes machine-generated financial market data and operates a zero-personal-data architecture. IP addresses are transiently read for access control and anonymized before logging; log context fields are sanitized of sensitive keys before persistence. This Information Security Policy defines the principles, controls, and responsibilities for protecting the confidentiality, integrity, and availability of all platform assets.
+The trading-model platform processes machine-generated financial market data and holds personal data only for external callers (truncated IP) and operators (register activities 6 and 8). IP addresses are transiently read for access control and anonymized before logging; log context fields are sanitized of sensitive keys before persistence. This Information Security Policy defines the principles, controls, and responsibilities for protecting the confidentiality, integrity, and availability of all platform assets.
 
-**Scope:** All 7 microservices, 12 shared packages, infrastructure (Docker, Kubernetes, databases), CI/CD pipelines, and supporting observability stack.
+**Scope:** All services and shared packages, infrastructure (Docker, Kubernetes, databases), CI/CD pipelines, and supporting observability stack.
 
 ## 2. Information Security Objectives
 
@@ -83,7 +83,7 @@ All platform assets are documented in:
 | Use Case | Algorithm | Key Length | Standard |
 |---|---|---|---|
 | Transport security (service-to-service HTTP; not database clients) | TLS 1.3 (mTLS) | EC P-256 / RSA 2048+ (SVIDs) | NIST SP 800-52 Rev. 2 |
-| Data at rest (SPIRE datastore) | AES-256-GCM | 256-bit | NIST SP 800-38D |
+| Data at rest (SPIRE datastore) | LUKS2 (disk) | — | — |
 | SVID signing | EC P-256 (SPIRE CA) | 256-bit (EC) | NIST SP 800-186 |
 | Message integrity | HMAC-SHA256 | 256-bit | FIPS 180-4 |
 | Secure random generation | CSPRNG | — | NIST SP 800-90A |
@@ -131,7 +131,7 @@ Implementation: `@trading-model/http/sensitive-data-sanitizer.ts`
 | Requirement | Implementation |
 |---|---|
 | **Network segmentation** | Docker Compose networks (`backend-net`, internal `data-net`). K8s Network Policies |
-| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory between services (not toward databases, ADR-0060). `ENFORCE_MTLS_STRICT` enables ACL enforcement on attested SVID identities |
+| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory between services (not toward databases, ADR-0060). ACL enforced on attested SVID identities |
 | **Service mesh** | Not deployed; mTLS handled at application layer via Express middleware |
 | **API gateway isolation** | External traffic enters only through api-gateway (port 8448). All other ports are internal |
 

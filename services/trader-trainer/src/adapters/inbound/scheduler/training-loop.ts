@@ -12,9 +12,13 @@ import {
 } from "../../../config/metrics";
 import { hasEnoughTrainingData } from "../../../domain/market-data/window-splitter";
 import type { MarketDataBuffer } from "../../../domain/market-data-buffer";
-import type { TradingSymbol } from "../../../domain/market-data-types";
+import {
+	DAILY_MAX_DATA_AGE_MS,
+	type TradingSymbol,
+} from "../../../domain/market-data-types";
 import type { CandleHistoryPort } from "../../../domain/ports/candle-history.port";
 import type { SignalHistoryPort } from "../../../domain/ports/signal-history.port";
+import { signalKey } from "../../../domain/signal-features";
 
 interface TrainingLoopConfig {
 	symbols: TradingSymbol[];
@@ -31,6 +35,8 @@ export class TrainingLoop {
 	private readonly _staleSymbols = new Set<TradingSymbol>();
 	/** Position in the symbol list where the next cycle starts its scan. */
 	private _nextIndex = 0;
+	/** Close of the newest bar each daily symbol was trained on: a series that changes once a day is not retrained before its next bar. */
+	private readonly _trainedBar = new Map<TradingSymbol, number>();
 
 	constructor(
 		private readonly _trainer: Trainer,
@@ -46,7 +52,9 @@ export class TrainingLoop {
 			history: SignalHistoryPort;
 			assets: ReadonlyMap<TradingSymbol, string>;
 			windowMs: number;
-		}
+		},
+		/** Symbols on daily bars: their freshness and cadence follow the series (ADR-0083). */
+		private readonly _daily: ReadonlySet<TradingSymbol> = new Set()
 	) {}
 
 	start(config: TrainingLoopConfig): void {
@@ -91,8 +99,9 @@ export class TrainingLoop {
 	}
 
 	/**
-	 * Measures the signals a session could use; they do not reach the model
-	 * yet. A failed read is counted and the session goes on without them.
+	 * Measures the signals a session could use and hands them to the buffer,
+	 * which builds the network's signal inputs from them (FEATURE_SIGNAL_INPUTS).
+	 * A failed read is counted and the session goes on without them.
 	 */
 	private async _observeSignals(symbol: TradingSymbol): Promise<void> {
 		const assetId = this._signals?.assets.get(symbol);
@@ -106,6 +115,16 @@ export class TrainingLoop {
 				now - this._signals.windowMs,
 				now
 			);
+			this._dataBuffer.setSignals(symbol, signals);
+			const found = new Set(signals.map(signalKey));
+			const missing = this._dataBuffer.signalKeys.filter(
+				(key) => !found.has(key)
+			);
+			if (missing.length > 0) {
+				getLogger().warn("Configured signal keys found no signal: zeros", {
+					context: { symbol, assetId, keys: missing },
+				});
+			}
 			for (const dimension of Dimension.options) {
 				const labels = { symbol, dimension };
 				const observed = signals
@@ -126,6 +145,7 @@ export class TrainingLoop {
 			});
 		} catch (err) {
 			SIGNAL_READ_ERRORS_TOTAL.inc({ symbol });
+			this._dataBuffer.setSignals(symbol, []);
 			getLogger().error("Signals unreadable: session trains without them", {
 				context: { symbol, assetId },
 				error: normalizeError(err).message,
@@ -142,6 +162,14 @@ export class TrainingLoop {
 		);
 	}
 
+	private _isTrainedOnNewestBar(symbol: TradingSymbol): boolean {
+		return (
+			this._daily.has(symbol) &&
+			this._trainedBar.get(symbol) ===
+				this._dataBuffer.getLastCandleCloseTime(symbol)
+		);
+	}
+
 	private _hasFreshData(symbol: TradingSymbol, maxDataAgeMs: number): boolean {
 		const lastClose = this._dataBuffer.getLastCandleCloseTime(symbol);
 		const ageMs =
@@ -149,7 +177,8 @@ export class TrainingLoop {
 				? Number.POSITIVE_INFINITY
 				: Date.now() - lastClose;
 		LAST_CANDLE_AGE_SECONDS.set({ symbol }, ageMs / 1000);
-		const fresh = ageMs <= maxDataAgeMs;
+		const fresh =
+			ageMs <= (this._daily.has(symbol) ? DAILY_MAX_DATA_AGE_MS : maxDataAgeMs);
 		this._reportFreshnessChange(symbol, fresh, lastClose);
 		return fresh;
 	}
@@ -183,6 +212,8 @@ export class TrainingLoop {
 		symbols: TradingSymbol[],
 		maxDataAgeMs: number
 	): Promise<void> {
+		// Not awaited: a slow bus must not delay the cycle; republishPending never rejects.
+		void this._trainer.republishPending();
 		if (this._trainer.isTraining()) {
 			return;
 		}
@@ -192,14 +223,19 @@ export class TrainingLoop {
 			if (
 				(await this._loadStoredCandles(symbol)) &&
 				this._hasEnoughData(symbol) &&
-				this._hasFreshData(symbol, maxDataAgeMs)
+				this._hasFreshData(symbol, maxDataAgeMs) &&
+				!this._isTrainedOnNewestBar(symbol)
 			) {
 				// Advance before training: a rejected train() still passes the turn.
 				this._nextIndex = (index + 1) % symbols.length;
 				if (this._signals?.assets.has(symbol)) {
 					await this._observeSignals(symbol);
 				}
-				await this._trainer.train(symbol);
+				const bar = this._dataBuffer.getLastCandleCloseTime(symbol);
+				const result = await this._trainer.train(symbol);
+				if (this._daily.has(symbol) && result.success && bar !== undefined) {
+					this._trainedBar.set(symbol, bar);
+				}
 				return;
 			}
 		}

@@ -42,7 +42,6 @@ services:
   api-gateway:
     environment:
       AUTH_TOKENS: e2e:read:e2e-api-key-0123456789abcdef0123456789abcdef
-      AUTH_STRICT: 'true'
       # The k6 smoke sends ~240 req/min from one IP; the default 100/min would answer 429.
       # Scenarios and stress need more: tests/load/README.md, "Rate limit".
       RATE_LIMIT_MAX: '2000'

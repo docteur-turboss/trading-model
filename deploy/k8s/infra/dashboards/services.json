@@ -10,11 +10,11 @@
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|financial-scraper.*|trader-trainer\"} == 1)",
+          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|financial-scraper.*|model-evaluator|trader-trainer\"} == 1)",
           "legendFormat": "Healthy"
         },
         {
-          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|financial-scraper.*|trader-trainer\"} == 0)",
+          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|financial-scraper.*|model-evaluator|trader-trainer\"} == 0)",
           "legendFormat": "Unhealthy"
         }
       ]
@@ -147,6 +147,65 @@
         {
           "expr": "max(audit_chain_anchored_sequence)",
           "legendFormat": "anchored"
+        }
+      ]
+    },
+    {
+      "title": "Gateway P95 Latency by Target Service",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 30 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(gw_proxy_request_duration_seconds_bucket[5m])) by (le, service))",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "title": "Gateway Upstream Errors by Target Service (per second)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 30 },
+      "targets": [
+        {
+          "expr": "sum(rate(gw_service_errors_total[5m])) by (service)",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "title": "Signal Sources in Quarantine / Disabled",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 30 },
+      "targets": [
+        {
+          "expr": "fs_signal_source_quarantined == 1",
+          "legendFormat": "quarantined {{source}}"
+        },
+        {
+          "expr": "fs_signal_source_disabled == 1",
+          "legendFormat": "disabled {{source}} ({{reason}})"
+        }
+      ]
+    },
+    {
+      "title": "Signal Source Requests per Day (planned)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 36 },
+      "targets": [
+        {
+          "expr": "fs_signal_source_daily_requests",
+          "legendFormat": "{{source}}"
+        }
+      ]
+    },
+    {
+      "title": "Signal Source Newest Data Age (seconds)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 36 },
+      "targets": [
+        {
+          "expr": "time() - fs_signal_newest_observed_timestamp_seconds",
+          "legendFormat": "{{source}}"
         }
       ]
     }

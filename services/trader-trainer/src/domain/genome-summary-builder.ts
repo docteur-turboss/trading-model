@@ -1,3 +1,4 @@
+import { actionLabels } from "@trading-model/model-runtime/agent/action-mapper";
 import type { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import {
 	type Fitness,
@@ -31,6 +32,9 @@ function buildNetworkSummary(
 	return {
 		inputDim: genome.network.inputDim,
 		outputDim: genome.network.outputDim,
+		...(genome.network.actionSet && {
+			actions: actionLabels(genome.network.actionSet),
+		}),
 		hiddenLayers: genome.network.hiddenLayers.map((layer) => ({
 			neurons: layer.neurons,
 			activation: layer.activation,
@@ -54,7 +58,7 @@ function buildRLSummary(
  * Sharpe of the bar curve times sqrt(bars per year), comparable across
  * timeframes; per bar when the data carried no timestamps.
  */
-export function annualisedSharpe(
+function annualisedSharpe(
 	curve: EpisodeScores,
 	fitnessMeta: GenomeFitnessMeta | undefined
 ): number {

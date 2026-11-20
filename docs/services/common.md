@@ -9,7 +9,7 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 > **Package split (ADR-0007, extended 2026-10):** `common` went from 135 → **30 source files**. Hard migration — **no re-export shims**. Moved out to dedicated packages:
 > - Domain primitives (branded types, pagination, circuit-state, service-identity, retry-policy, topic-binding…) → `@trading-model/primitives`
 > - Contracts (event types, market-data, http-status, http-headers, LoggerPort registry) → `@trading-model/contracts`
-> - Reliability (circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces) → `@trading-model/reliability`
+> - Reliability (circuit-breaker, circuit-state-machine, heartbeat interfaces) → `@trading-model/reliability`
 > - Persistence (Redis/Mongo connection managers, store adapters, key builders) → `@trading-model/persistence`
 > - Server bootstrap / secure HTTPS factory → `@trading-model/http`
 > - Environment validation & Zod schemas → `@trading-model/validation`
@@ -27,7 +27,7 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 |---|---------|------|--------------|
 | 1 | `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, service-identity, topic-binding. **Zero deps.** | — |
 | 2 | `@trading-model/contracts` | Shared contracts: event/market-data types, http-status, http-headers, `LoggerPort` registry (setLogger/getLogger) | primitives |
-| 3 | `@trading-model/reliability` | Circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces | primitives, contracts |
+| 3 | `@trading-model/reliability` | Circuit-breaker, circuit-state-machine, heartbeat interfaces | primitives, contracts |
 | 4 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE, TLS config, cache, sanitize, shared schemas | primitives, contracts |
 | 5 | `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator (ADR-0066); moved out of the trainer | primitives, contracts, common |
 | 6 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`) | common, primitives, contracts (+ ioredis, mongodb) |
@@ -64,7 +64,6 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | `cache.ts` | `SyncCachePort<T>` — cache abstraction (get/set/delete/clear/has/invalidate with TTL) |
 | `sanitize.ts` | `sanitizeForLog()` — strips PEM blocks and secrets before logging |
 | `safe-stringify.ts` | Cycle-safe JSON stringification |
-| `deterministic-stringify.ts` | Deterministic JSON serialization for cryptographic signing (recursively sorts object keys) |
 | `anonymize-ip.ts` | IP anonymization for privacy-safe logging |
 | `comma-separated.ts` | Parse comma-separated env strings into arrays |
 | `timer-handle.ts` | Timer handle abstraction (clear-safe timers) |
@@ -139,11 +138,10 @@ Provides the platform's SPIFFE trust domain, ID scheme, canonical service identi
 
 ```ts
 import { sleep } from '@trading-model/common/utils/sleep';
-import { deterministicStringify } from '@trading-model/common/utils/deterministic-stringify';
 import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 ```
 
-`deterministicStringify` produces deterministic JSON for cryptographic signing (recursively sorts object keys; preserves array order; handles primitives, nulls, nested objects). `sanitizeForLog` strips PEM blocks and secrets before logging.
+`sanitizeForLog` strips PEM blocks and secrets before logging.
 
 ## Moved-Out Modules (Where They Are Now)
 

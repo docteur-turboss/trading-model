@@ -13,14 +13,13 @@ The bus is a library in each service over the shared Redis ([ADR-0073](../../adr
 
 An outage affects:
 
-- financial-scraper (cannot publish market data)
-- trader-trainer (receives no market data)
 - audit-logger (receives no events: gap in the audit trail)
 
 ## Detection
 
 - `BusDeadLetters`: a dead stream holds entries waiting for an operator.
-- `MarketDataUnpublished`: candles persisted by the scraper have waited 15 min for the bus (see 5).
+- `JournalBacklogOld`: a subscriber has not acknowledged an entry for 15 min (see 3).
+- `JournalEntriesTrimmed`: undelivered journal entries were trimmed after 24 h: messages lost (see 5).
 - Publishers log connection errors to Redis.
 
 ## Initial Triage
@@ -76,11 +75,11 @@ node services/audit-logger/dist/application/dlq-cli.js <operator> delete <topic>
 
 A replay gives the entry back to the one group that failed, under its own `messageId`, then removes it from the dead stream. Fix the cause first (a payload the subscriber refuses, a schema drift), or it is dead-lettered again. Dead streams are never trimmed: the alert stays until they are empty.
 
-### 5. Scraper publish backlog
+### 5. Journal entries trimmed before delivery
 
-**Symptoms:** `fs_unpublished_candles` grows on the collector, `fs_publishes_skipped_total` grows (a publish held up to `PUBLISH_ACCEPT_TIMEOUT_MS`, 15 s), the scraper logs `Previous publish still in flight: skipped` or `Market data publish failed`. MySQL is still fed: the scraper persists before publishing and does not wait for the bus.
-
-Nothing is lost: the candles persisted while the bus is down stay in MySQL past the series publish cursor (`market_publish_cursors`, migration 005) and go out oldest first, 100 per cycle, once Redis answers again, even after a collector restart. Fix the bus and `fs_unpublished_candles` falls back to 0; until then the scraper publishes lag (the trainer reads MySQL, not the bus). To skip a backlog on purpose (e.g. after a very long outage, if old candles are not wanted), move the cursor: `UPDATE market_publish_cursors SET published_until = NOW(3) WHERE symbol = '<SYMBOL>'` (UTC session); the skipped candles stay in MySQL only.
+**Symptoms:** `JournalEntriesTrimmed` (critical) with `topic` and `service`; the subscriber logs `Journal entry trimmed before delivery: message lost` with the entry id.
+**Cause:** `service` did not receive its messages for more than 24 h (ADR-0048). They are gone from the journal and not dead-lettered. Only the named `service` is affected: the other groups of the topic keep their own entries.
+**Fix:** bring `service` back up. Then recover what it missed from the source: re-scrape the candles for `market.*` topics; for `audit-logger`, accept the gap and run `chain-cli.js acknowledge-loss` if its chain reports a loss (runbook-audit-chain-broken).
 
 ## Recovery Verification
 
@@ -88,7 +87,7 @@ Nothing is lost: the candles persisted while the bus is down stay in MySQL past 
 # 1. Readiness of the affected service
 kubectl exec -n trading-model deployment/<service> --   curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   https://localhost:3000/health/ready
 
-# 2. Unpublished candles drain: MarketDataUnpublished resolves
+# 2. Pending entries drain: `XPENDING <journal key> <service>` falls to 0, JournalBacklogOld resolves
 ```
 
 ## Prevention

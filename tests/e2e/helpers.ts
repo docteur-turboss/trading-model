@@ -19,6 +19,7 @@ export const CALLER = {
 	scraper: "trading-scraper",
 	discovery: "trading-discovery",
 	trainer: "trading-trainer",
+	gateway: "trading-gateway",
 } as const;
 
 /** Every application container and its compose healthcheck. */
@@ -173,7 +174,7 @@ export function persistedCandles(symbol: string): number {
 			"trading-mysql",
 			"sh",
 			"-c",
-			`mysql -N -B -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM market_candles WHERE symbol='${symbol}'"`,
+			`MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -N -B -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM market_candles WHERE symbol='${symbol}'"`,
 		],
 		{ encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
 	);

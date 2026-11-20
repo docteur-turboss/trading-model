@@ -25,6 +25,8 @@ export interface TrainingSessionResult {
 	bestFitness: number;
 	bestFitnessMeta?: GenomeFitnessMeta;
 	generation: number;
+	/** Input masks of the final population (FEATURE_INPUT_MASK_GENE). */
+	inputMasks?: boolean[][];
 }
 
 /**
@@ -83,6 +85,9 @@ class TrainingSession {
 			bestFitness: published?.fitness ?? ctx?.bestFitness ?? 0,
 			bestFitnessMeta: this._testMeta(bestGenome) ?? selectionMeta,
 			generation: runner.processor.generation,
+			inputMasks: (ctx?.population ?? []).flatMap((genome) =>
+				genome.network.inputMask ? [[...genome.network.inputMask]] : []
+			),
 		};
 	}
 
@@ -103,7 +108,10 @@ class TrainingSession {
 			validationData: test,
 			backendFactory: makeSeededBackendFactory(
 				genome.gaControl.seeding.networkSeed,
-				{ observePosition: this._settings.observePosition ?? true }
+				{
+					observePosition: this._settings.observePosition ?? true,
+					costs: this._settings.costs,
+				}
 			),
 		});
 		const { meta } = computeAllResults({
@@ -141,6 +149,7 @@ class TrainingSession {
 					.episodesPerIndividual as PositiveInt,
 			},
 			fitnessType: this._settings.fitnessType,
+			...(this._settings.actionSpaceGene && { actionSetGene: true }),
 		};
 	}
 
@@ -152,13 +161,18 @@ class TrainingSession {
 			windowSets: this._windowSets,
 			backendFactory: makeSeededBackendFactory(
 				initialControl.seeding.networkSeed,
-				{ observePosition: this._settings.observePosition ?? true }
+				{
+					observePosition: this._settings.observePosition ?? true,
+					costs: this._settings.costs,
+				}
 			),
 			initialControl,
 			onGeneration,
 			telemetry: this._telemetry,
 			signal: this._signal,
 			eventDriven: this._settings.eventDriven,
+			inputGroups: this._settings.inputGroups,
+			protectCandleGroup: this._settings.protectCandleGroup,
 		});
 	}
 }

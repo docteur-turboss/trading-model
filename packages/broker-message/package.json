@@ -13,6 +13,7 @@
     "./bus/delivery-metadata-extractor": "./dist/bus/delivery-metadata-extractor.js",
     "./bus/journal.port": "./dist/bus/journal.port.js",
     "./bus/message-factory": "./dist/bus/message-factory.js",
+    "./bus/metrics": "./dist/bus/metrics.js",
     "./bus/publisher": "./dist/bus/publisher.js",
     "./bus/redis-journal": "./dist/bus/redis-journal.js",
     "./create-message-manager": "./dist/create-message-manager.js",
@@ -28,6 +29,7 @@
     "@trading-model/common": "*",
     "@trading-model/http": "*",
     "@trading-model/persistence": "*",
+    "prom-client": "^15.1.3",
     "zod": "^4.6.7"
   },
   "devDependencies": {

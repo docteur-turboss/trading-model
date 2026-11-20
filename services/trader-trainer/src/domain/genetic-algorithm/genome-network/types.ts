@@ -1,3 +1,4 @@
+import type { ActionSetId } from "@trading-model/model-runtime/agent/action-mapper";
 import {
 	ActivationType,
 	ConnectionType,
@@ -25,7 +26,12 @@ export interface LayerGenome {
 
 export interface NetworkGenome {
 	inputDim: PositiveInt;
+	/** One output per action of `actionSet`. */
 	outputDim: PositiveInt;
+	/** Action space (ADR-0076); absent: `sell_hold_buy`. */
+	actionSet?: ActionSetId;
 	hiddenLayers: LayerGenome[];
 	normalization: NormalisationType;
+	/** FEATURE_INPUT_MASK_GENE (ADR-0082): per input group, false zeroes it. Absent: all active. */
+	inputMask?: boolean[];
 }

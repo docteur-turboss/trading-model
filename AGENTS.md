@@ -5,7 +5,7 @@
 ```bash
 bun install --frozen-lockfile   # Install all workspace deps from bun.lock
 bun run build                   # Build all 11 shared packages in topological order
-bun run build:ts                # Build everything (packages + all 6 services)
+bun run build:ts                # Build everything (packages + all 7 services)
 bun run test                    # Run all workspace tests
 bun run --filter <name> test    # Run a single workspace's tests
 bun run lint                    # Biome check across the whole monorepo
@@ -36,7 +36,7 @@ bun run release:test            # Version/base cases of release.mjs (--prereleas
 ## Monorepo layout
 
 - `packages/` — 11 shared libraries under `@trading-model/*` scope: `common`, `primitives`, `contracts`, `reliability`, `model-runtime`, `persistence`, `http`, `validation`, `crypto`, `address-manager`, `broker-message`
-- `services/` — 6 microservices (flat npm names, no scope). Every `src` file must be reachable from a service `main` or `bin` (operator CLIs such as audit-logger `chain-cli` go in `bin`): `reach:check`, threshold 0 (ADR-0029). No frontend: `admin-interface` was removed (ADR-0018)
+- `services/` — 7 microservices (flat npm names, no scope). Every `src` file must be reachable from a service `main` or `bin` (operator CLIs such as audit-logger `chain-cli` go in `bin`): `reach:check`, threshold 0 (ADR-0029). No frontend: `admin-interface` was removed (ADR-0018)
 - All linked via bun workspaces (`packages/*` and `services/*`)
 - **No cyclic dependencies**: `primitives` (zero deps) and `contracts` are the foundations — never import `@trading-model/http` or any higher package from them
 
@@ -57,12 +57,6 @@ Packages must be built in this order before services:
 11. `@trading-model/broker-message`
 Services can then be built in any order. The root `bun run build` builds the packages above. Use `bun run build:ts` for a full build of everything.
 
-## Naming quirk: trader-trainer ≠ trader-service
-
-The directory `services/trader-trainer/` has `package.json` name `"trader-service"`.
-Workspace commands use the package name: `bun run --filter trader-service test`, `bun run --filter trader-service build`.
-The root script references the package name too: `bun run --filter trader-service build`.
-
 ## Testing conventions
 
 - All tests use `**/?(*.)+(spec).ts` pattern
@@ -74,7 +68,7 @@ The root script references the package name too: `bun run --filter trader-servic
 - DB tests: `tests/db/**/*.db.spec.ts` run against real databases started by Testcontainers (images read from `docker-compose.yml`). Opt a workspace in with a `jest.db.config.js` built by `scripts/jest-db-config.cjs` (`dbJestConfig(base, { databases })`), add `DB_SPEC_IGNORE` to its default `testPathIgnorePatterns`, and a `test:db` script with `NODE_OPTIONS=--experimental-vm-modules` (the mongodb driver needs it under Jest). Connection strings: `TEST_MONGO_URI` (replica set), `TEST_REDIS_URL`, `TEST_MYSQL_URI`. Not part of `bun run test` / pre-push. `bun run test:db:coverage` collects their coverage
 ## Alerting
 
-- Rules: `observability/alerting.yml`, copied by hand into the K8s ConfigMap in `deploy/k8s/infra/prometheus.yaml`; Alertmanager: `observability/alertmanager.yml`, copied into `deploy/k8s/infra/alertmanager.yaml`. `scripts/observability-gate.mjs` fails when the copies differ (annotations included), when a rule reads a metric nobody emits, when a rule has no `annotations.runbook_url` (`https://github.com/docteur-turboss/trading-model/blob/main/<file>[#heading]`, file and heading checked in the repo; new alert = runbook section + row in the `docs/operations/ALERTING.md` table), when a receiver has an inline credential, when a dashboard query reads a metric nobody emits, when the compose and K8s dashboards differ, when a Grafana datasource points to no compose service / K8s Service, or when a `probe_*` rule has no blackbox job in an environment
+- Rules: `deploy/k8s/infra/config/alerting.yml` (one file: mounted by compose, hashed K8s ConfigMap `prometheus-config`, issue #1460); Alertmanager: `deploy/k8s/infra/config/alertmanager.yml` (same, ConfigMap `alertmanager-config`); dashboards: `deploy/k8s/infra/dashboards/*.json`. `scripts/observability-gate.mjs` fails when a rule reads a metric nobody emits, when a rule has no `annotations.runbook_url` (`https://github.com/docteur-turboss/trading-model/blob/main/<file>[#heading]`, file and heading checked in the repo; new alert = runbook section + row in the `docs/operations/ALERTING.md` table), when a receiver has an inline credential, when a dashboard query reads a metric nobody emits, when a Grafana datasource points to no compose service / K8s Service, or when a `probe_*` rule has no blackbox job in an environment
 - Every rule change needs a case in `tests/alerts/alerting.test.yml` (`bash tests/alerts/run.sh`: promtool, local or from the compose Prometheus image). Aggregate before dividing (`sum by (job)`), guard numerators that may not exist (`or denominator * 0`), `sum by (job, le)` for quantiles
 - Receivers read files only (Secret `alertmanager-credentials` from `deploy.yml`; compose `ALERTMANAGER_CREDENTIALS_DIR`). `Watchdog` always fires and goes to the dead man's switch (`DEADMAN_URL`). See `docs/operations/ALERTING.md`
 - Infrastructure metrics (ADR-0056): kube-state-metrics (own namespace, Role only), node-exporter (DaemonSet in `trading-model-node`), kubelet/cAdvisor (ClusterRole `prometheus-nodes`: `nodes/metrics`, never `nodes/proxy`; applied by `deploy-identity.sh cluster`), and one exporter sidecar per database pod (port `metrics`, Prometheus only), read-only users `exporter` (MySQL, `db-migrate-user`; Redis ACL, `redis-ha.sh`; Mongo has no auth, so none). Keys `MYSQL_EXPORTER_PASSWORD` / `REDIS_EXPORTER_PASSWORD` required by `deploy.yml`; compose needs `MYSQL_EXPORTER_PASSWORD`. Runbook `runbook-infrastructure.md`
@@ -95,7 +89,7 @@ The root script references the package name too: `bun run --filter trader-servic
 
 ## TypeScript
 
-- **No root tsconfig.json** — each workspace has its own standalone config
+- **No root tsconfig.json** — the root `tsconfig.base.json` only holds the `compilerOptions` shared by all workspaces (no `include`, never passed to `tsc -p`); each workspace `tsconfig.json` extends it and keeps its own module, paths, outDir, rootDir and include
 - Some packages use `tsconfig.build.json` that extends the base but overrides `rootDir` to `"./src"`
 - Packages use `commonjs` module; most services use `Node16` module (`moduleResolution: node16`)
 - Several services use `experimentalDecorators` + `emitDecoratorMetadata`

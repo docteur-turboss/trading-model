@@ -1,11 +1,13 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/logger";
+import { JOURNAL_RETENTION_MS } from "../../../src/bus/journal.port";
+import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../../src/bus/metrics";
 import {
-	JOURNAL_RETENTION_MS,
-	type JournalGroup,
-} from "../../../src/bus/journal.port";
-import { RedisMessageJournal } from "../../../src/bus/redis-journal";
+	JOURNAL_WRITE_OPTIONS,
+	openJournalWriter,
+	RedisMessageJournal,
+} from "../../../src/bus/redis-journal";
 import { createMockMessage } from "../../fixtures/broker.fixture";
 
 const GROUP = { topic: "test.topic", service: "trader-trainer" } as never;
@@ -14,8 +16,7 @@ const NOW = 1_700_000_000_000;
 function setup(
 	call: (...args: string[]) => Promise<unknown> = async (name) =>
 		name === "EXISTS" ? 1 : "OK",
-	minReplicas?: number,
-	onTrimmed?: (group: JournalGroup) => void
+	minReplicas?: number
 ) {
 	const redis = {
 		call: jest.fn(call),
@@ -29,7 +30,6 @@ function setup(
 			keyPrefix: "p",
 			minReplicas,
 			now: () => NOW,
-			onTrimmed,
 		}),
 	};
 }
@@ -150,6 +150,7 @@ describe("RedisMessageJournal", () => {
 		expect(writer.sadd).toHaveBeenCalledTimes(2);
 		expect(redis.call.mock.calls.map(([name]) => name)).toEqual(["XACK"]);
 		expect(redis.sadd).not.toHaveBeenCalled();
+		await Promise.resolve();
 		expect(writer.disconnect).toHaveBeenCalledTimes(1);
 	});
 
@@ -432,18 +433,19 @@ describe("RedisMessageJournal", () => {
 	});
 
 	it("should count and log as error an entry trimmed while still pending", async () => {
-		const onTrimmed = jest.fn();
-		const { journal } = setup(
-			async (command) =>
-				command === "XPENDING" ? [["1-0", "c", 20_000, 1]] : [["1-0", null]],
-			undefined,
-			onTrimmed
+		JOURNAL_TRIMMED_PENDING_TOTAL.reset();
+		const { journal } = setup(async (command) =>
+			command === "XPENDING" ? [["1-0", "c", 20_000, 1]] : [["1-0", null]]
 		);
 		const error = jest.spyOn(logger, "error").mockImplementation(() => logger);
 
 		await journal.claimDue(GROUP, "c", { floorMs: 0, dueAfterMs: () => 0 }, 10);
 
-		expect(onTrimmed).toHaveBeenCalledWith(GROUP);
+		expect(
+			(await JOURNAL_TRIMMED_PENDING_TOTAL.get()).values.find(
+				(v) => v.labels.topic === "test.topic"
+			)?.value
+		).toBe(1);
 		expect(error).toHaveBeenCalledWith(
 			expect.stringContaining("trimmed"),
 			expect.objectContaining({ entryId: "1-0", topic: "test.topic" })
@@ -536,5 +538,54 @@ describe("RedisMessageJournal", () => {
 
 			await expect(journal.lag()).rejects.toThrow("NOPERM");
 		});
+	});
+});
+
+describe("openJournalWriter", () => {
+	function fakeClient() {
+		let onReady: () => void = () => undefined;
+		const writer = {
+			call: jest.fn<(...args: any[]) => any>(),
+			sadd: jest.fn<(...args: any[]) => any>(),
+			disconnect: jest.fn(),
+			once: (_event: "ready", cb: () => void) => {
+				onReady = cb;
+			},
+		};
+		const duplicate = jest.fn<(options: object) => typeof writer>(() => writer);
+		return { writer, duplicate, ready: () => onReady() };
+	}
+
+	it("should open a writer without offline queue and resolve only once it is ready", async () => {
+		const { writer, duplicate, ready } = fakeClient();
+		let resolved = false;
+		const opening = openJournalWriter({ duplicate }).then((w) => {
+			resolved = true;
+			return w;
+		});
+
+		await Promise.resolve();
+		expect(resolved).toBe(false);
+		ready();
+
+		expect(await opening).toBe(writer);
+		expect(duplicate).toHaveBeenCalledWith(
+			expect.objectContaining({ enableOfflineQueue: false })
+		);
+		expect(JOURNAL_WRITE_OPTIONS.commandTimeout).toBeGreaterThan(2000);
+	});
+
+	it("should reject and disconnect when the writer never becomes ready", async () => {
+		jest.useFakeTimers();
+		try {
+			const { writer, duplicate } = fakeClient();
+			const opening = openJournalWriter({ duplicate });
+			const assertion = expect(opening).rejects.toThrow("not ready");
+			jest.advanceTimersByTime(JOURNAL_WRITE_OPTIONS.commandTimeout);
+			await assertion;
+			expect(writer.disconnect).toHaveBeenCalled();
+		} finally {
+			jest.useRealTimers();
+		}
 	});
 });

@@ -333,6 +333,37 @@ treat their metrics with care until the score falls back. A data problem: fix
 the source (scraper, [runbook-market-data-stale](runbook-market-data-stale.md)).
 The alert resolves once a session measures a score at or below 3.
 
+## model-evaluator
+
+[model-evaluator](../../services/model-evaluator.md) records one evaluation per
+published model and replays it (ADR-0079). It has no alert of its own:
+`ServiceTargetsMissing` covers it.
+
+### Symptom
+
+`ServiceTargetsMissing` on `job="model-evaluator"`, or no
+`model_evaluations_total{outcome="recorded"}` increase after a
+`training.model.published`.
+
+### Diagnosis
+
+```bash
+NS=trading-model
+kubectl -n $NS logs deployment/model-evaluator -c model-evaluator --tail=200
+kubectl -n $NS get pods -l app.kubernetes.io/component=model-evaluator
+# Volume bound (PVC model-evaluations-pvc, one replica, Recreate)
+kubectl -n $NS get pvc model-evaluations-pvc
+```
+
+A refused download (403) in the logs: `model-evaluator` is missing from
+`MODEL_DOWNLOAD_CALLERS` of the trainer. A checksum mismatch fails the delivery
+on purpose.
+
+### Remediation
+
+Restart: `kubectl -n $NS rollout restart deployment/model-evaluator`. Failed
+deliveries go back through the bus journal: nothing to replay by hand.
+
 ## Escalation
 
 Warnings: handle within business hours. `TrainerNoModelStored` pages: handle it

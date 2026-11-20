@@ -31,8 +31,7 @@ Is there a known cause? → Recent deploy / config change / upstream outage
 
 - Apply fix or mitigation
 - Verify service health via:
-  - `GET /ping` returns 200
-  - `GET /health` returns healthy
+  - Health check passes, run inside the container with its SVID (mTLS rejects a bare `curl`): see [Health check endpoints](on-call.md#health-check-endpoints)
   - Prometheus alert resolves
   - E2E smoke tests pass
 
@@ -50,18 +49,19 @@ person, team or on-call tool exists: do not look for one.
 
 | Step | Channel                                                                 | Expected response                                            |
 | ---- | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
-| 1    | Pushover push for every `critical` alert (`observability/alertmanager.yml`) | Best effort; no automatic escalation if unacknowledged       |
+| 1    | Pushover push for every `critical` alert (`deploy/k8s/infra/config/alertmanager.yml`) | Best effort; no automatic escalation if unacknowledged       |
 | 2    | Dead man's switch (`Watchdog` alert, `DEADMAN_URL`): signals that alerting itself is down | Notification when the heartbeat stops               |
 | 3    | Security incident: follow the private reporting procedure in [SECURITY.md](../../SECURITY.md) | Acknowledgement within 72 hours (SECURITY.md)   |
 
 Realistic delay: minutes to a few hours during the day, possibly none at night
-(no 24/7 cover). Choosing a paging tool with automatic escalation and naming a
-backup person is an owner decision, tracked outside this document. Contact
-details are never committed (public repository).
+(no 24/7 cover). The owner chose not to name a backup person or use a paging
+tool with automatic escalation: covered hours, the off-hours reaction target and
+the data losses accepted are in [slo.md](slo.md#outside-working-hours).
+Contact details are never committed (public repository).
 
 ## Communication Channels
 
-Only channels defined in `observability/alertmanager.yml` (see [ALERTING.md](ALERTING.md)):
+Only channels defined in `deploy/k8s/infra/config/alertmanager.yml` (see [ALERTING.md](ALERTING.md)):
 
 | Channel          | Purpose                                                          |
 | ---------------- | ---------------------------------------------------------------- |

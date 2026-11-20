@@ -94,7 +94,6 @@ Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-lim
 | `RATE_LIMIT_MAX`        | `100`                           | Max requests per window      |
 | `CACHE_TTL_MS`          | `30000`                         | In-memory cache TTL (ms)     |
 | `AUTH_TOKEN_HEADER`     | `x-api-key`                     | Header name for auth token   |
-| `AUTH_STRICT`           | `true`                          | `false` accepts any key when `AUTH_TOKENS` is empty; refused in production |
 | `AUTH_TOKENS`           | `''`                            | Comma-separated API keys `name:scope1+scope2:secret` (ADR-0059); required in production (the gateway refuses to start, as with a malformed key) |
-| `PROXY_TIMEOUT_MS`      | `10000`                         | Proxy request timeout (ms)   |
+| `PROXY_TIMEOUT_MS`      | `10000`                         | Proxy total deadline (ms)  |
 | `PROXY_MAX_RESPONSE_BYTES` | `8388608` (8 MiB)          | Largest upstream answer; past it 502 `Upstream response too large` (ADR-0054) |

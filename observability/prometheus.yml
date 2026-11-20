@@ -42,6 +42,12 @@ scrape_configs:
     static_configs:
       - targets: ['model-evaluator:3000']
 
+  - job_name: 'risk-execution'
+    scheme: https
+    tls_config: *svid
+    static_configs:
+      - targets: ['risk-execution:3000']
+
   - job_name: 'financial-scraper'
     scheme: https
     tls_config: *svid
@@ -82,6 +88,9 @@ scrape_configs:
       - targets: ['https://model-evaluator:3000/ping']
         labels:
           service: model-evaluator
+      - targets: ['https://risk-execution:3000/ping']
+        labels:
+          service: risk-execution
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

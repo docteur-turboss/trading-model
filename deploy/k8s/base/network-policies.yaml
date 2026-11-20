@@ -23,6 +23,7 @@ spec:
           - financial-scraper-collector
           - model-evaluator
           - mongodb-audit
+          - risk-execution
           - mysql
           - spire-server
           - trader-trainer

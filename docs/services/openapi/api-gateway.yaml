@@ -618,6 +618,10 @@ paths:
                                 type: "integer"
                               outputDim:
                                 type: "integer"
+                              actions:
+                                type: "array"
+                                items:
+                                  type: "string"
                               hiddenLayers:
                                 type: "array"
                                 items:
@@ -1101,6 +1105,10 @@ paths:
                                       type: "integer"
                                     outputDim:
                                       type: "integer"
+                                    actions:
+                                      type: "array"
+                                      items:
+                                        type: "string"
                                     hiddenLayers:
                                       type: "array"
                                       items:
@@ -1257,6 +1265,10 @@ paths:
                                 type: "integer"
                               outputDim:
                                 type: "integer"
+                              actions:
+                                type: "array"
+                                items:
+                                  type: "string"
                               hiddenLayers:
                                 type: "array"
                                 items:

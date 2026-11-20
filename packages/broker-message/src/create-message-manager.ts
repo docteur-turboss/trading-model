@@ -6,7 +6,7 @@ import {
 } from "@trading-model/persistence/redis-env";
 import { toInstanceId } from "@trading-model/primitives/primitives";
 import BrokerMessage from "./broker-message";
-import { RedisMessageJournal } from "./bus/redis-journal";
+import { openJournalWriter, RedisMessageJournal } from "./bus/redis-journal";
 
 /** Key prefix of the bus streams, kept from message-manager (ADR-0073: a rename would lose entries). */
 export const BUS_KEY_PREFIX = "trading-model:message-manager";
@@ -33,7 +33,7 @@ export function busJournalFromEnv(
 	return new RedisMessageJournal({
 		redis: redis as never,
 		openBlockingRedis: () => redis.duplicate() as never,
-		openWriteRedis: () => redis.duplicate() as never,
+		openWriteRedis: () => openJournalWriter(redis as never),
 		keyPrefix: BUS_KEY_PREFIX,
 		minReplicas: env.JOURNAL_MIN_REPLICAS,
 	});

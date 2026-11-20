@@ -85,7 +85,8 @@ jobs:
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
-      - run: bun audit --audit-level=high
+      # GHSA-fc5q-39xc-vjpf (picomatch ReDoS): no patched version exists (4.0.7 is the latest); dev tooling only (jest, knip), absent from --prod. Remove --ignore once picomatch-fix-check.yml fails (fix published).
+      - run: bun audit --audit-level=high --ignore=GHSA-fc5q-39xc-vjpf
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -110,10 +111,11 @@ jobs:
         run: |
           bun run --filter discovery-server build
           bun run --filter financial-scraper build
-          bun run --filter trader-service build
+          bun run --filter trader-trainer build
           bun run --filter api-gateway build
           bun run --filter audit-logger build
           bun run --filter model-evaluator build
+          bun run --filter risk-execution build
       - name: Type-check the test files of every workspace
         run: bun run typecheck:tests
 
@@ -301,7 +303,7 @@ jobs:
           docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml
           up -d --wait --wait-timeout 600
           discovery-server financial-scraper trader-trainer
-          api-gateway audit-logger model-evaluator edge-proxy
+          api-gateway audit-logger model-evaluator risk-execution edge-proxy
       # Issue #844: no container of the started stack may publish on every interface.
       - name: "No port published on 0.0.0.0 or ::"
         run: |
@@ -329,13 +331,13 @@ jobs:
           path: k6-out/k6-summary.json
           if-no-files-found: warn
       # Passive ZAP baseline through the edge-proxy with the E2E API key (issue #648).
-      # Non-blocking (-I) for now; rules in tests/security/zap-baseline.conf.
+      # An alert not triaged in tests/security/zap-baseline.conf fails the step.
       - name: ZAP baseline (passive, edge-proxy)
         run: >-
           mkdir -p zap-out && chmod 777 zap-out && docker run --rm --network host
           -v "$PWD/tests/security:/zap/wrk-conf:ro" -v "$PWD/zap-out:/zap/wrk:rw"
           zaproxy/zap-stable:2.16.1@sha256:7840969c7c9fead565bf9734b12f49f6886db90b1d35b1f74d79710bbd081dab
-          zap-baseline.py -t http://localhost:8449/v1/audit-logger/events -I
+          zap-baseline.py -t http://localhost:8449/v1/audit-logger/events
           -c /zap/wrk-conf/zap-baseline.conf -r zap-report.html
           -z "-config replacer.full_list(0).description=key -config replacer.full_list(0).enabled=true -config replacer.full_list(0).matchtype=REQ_HEADER -config replacer.full_list(0).matchstr=x-api-key -config replacer.full_list(0).replacement=e2e-api-key-0123456789abcdef0123456789abcdef"
       - name: Archive the ZAP report
@@ -438,10 +440,20 @@ jobs:
       - name: Create the cluster
         run: bash tests/k8s/run-kind.sh cluster
       - name: Download the images (release N-1 and N)
+        id: download-images
+        continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: kind-images
           path: ${{ runner.temp }}
+      # A re-run of this job alone after the 1-day retention finds no artifact (issue #1675): build the images here.
+      - name: Build the images (artifact expired)
+        if: ${{ steps.download-images.outcome == 'failure' }}
+        env:
+          KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
+        run: |
+          echo "::warning::kind-images artifact not found (expired after a re-run?): building the images in this job"
+          bash tests/k8s/run-kind.sh images
       - name: Load the images into kind
         env:
           KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
@@ -480,3 +492,17 @@ jobs:
       - name: Dump cluster state
         if: failure()
         run: bash tests/k8s/run-kind.sh dump
+
+  # One check for the development ruleset: a skipped matrix reports
+  # "k8s (${{ matrix.group }})", never "k8s (network)", so a required matrix
+  # name would wait forever on a PR the gate spares from kind.
+  k8s-result:
+    needs: [gate, k8s-images, k8s]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "gate, k8s-images, k8s: $RESULTS"
+          case " $RESULTS " in *" failure "* | *" cancelled "*) exit 1 ;; esac

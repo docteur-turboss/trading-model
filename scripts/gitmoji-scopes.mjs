@@ -26,6 +26,7 @@ export const SCOPES = [
   'k8s',
   'model-evaluator',
   'model-runtime',
+  'risk-execution',
   'middleware',
   'multiple',
   'observability',

@@ -27,7 +27,8 @@ const FAILOVER_DEADLINE_MS = 20_000;
 const PASSWORDS = {
 	internal: "internal-pw",
 	discovery: "discovery-pw",
-	"audit-logger": "audit-logger-pw",
+	"audit-logger": "audit-pw",
+	"trader-trainer": "trainer-pw",
 	exporter: "exporter-pw",
 };
 const DISCOVERY_KEY = "trading-model:discovery:spec";
@@ -35,6 +36,7 @@ const HA_ENV = {
 	REDIS_INTERNAL_PASSWORD: PASSWORDS.internal,
 	REDIS_DISCOVERY_PASSWORD: PASSWORDS.discovery,
 	REDIS_AUDIT_LOGGER_PASSWORD: PASSWORDS["audit-logger"],
+	REDIS_TRADER_TRAINER_PASSWORD: PASSWORDS["trader-trainer"],
 	REDIS_EXPORTER_PASSWORD: PASSWORDS.exporter,
 	REDIS_HOSTS: ORDINALS.map((n) => `redis-${n}`).join(" "),
 	SENTINEL_HOSTS: ORDINALS.map((n) => `redis-sentinel-${n}`).join(" "),
@@ -106,7 +108,7 @@ const cli = (node: StartedTestContainer, ...args: string[]) =>
 
 const asService = (
 	node: StartedTestContainer,
-	service: "discovery" | "audit-logger",
+	service: keyof typeof PASSWORDS,
 	...args: string[]
 ) => cliAs(node, service, PASSWORDS[service], ...args);
 
@@ -138,6 +140,20 @@ async function eventually(
 		}
 		await new Promise((resolve) => setTimeout(resolve, 250));
 	}
+}
+
+/** Commands fail fast while Redis is unreachable (issue #1740): a write during a failover is retried. */
+async function setDuringFailover(client: Redis, key: string): Promise<string> {
+	let result = "";
+	await eventually(async () => {
+		try {
+			result = (await client.set(key, "1")) as string;
+			return true;
+		} catch {
+			return false;
+		}
+	}, FAILOVER_DEADLINE_MS);
+	return result;
 }
 
 // The scenario runs in order: each step starts from the previous one's topology.
@@ -250,14 +266,14 @@ describe("K8s Redis HA start script — real failovers", () => {
 			first(
 				"audit-logger",
 				"XADD",
-				"trading-model:message-manager:journal:t",
+				"trading-model:message-manager:journal:audit.heartbeat",
 				"*",
 				"m",
 				"1"
 			)
 		).resolves.toMatch(/^\d+-\d+$/);
 		// The journal backlog gauges (issue #606): XINFO / XPENDING / XRANGE on its own prefix only.
-		const journalKey = "trading-model:message-manager:journal:t";
+		const journalKey = "trading-model:message-manager:journal:audit.heartbeat";
 		await first("audit-logger", "XGROUP", "CREATE", journalKey, "g", "0");
 		await expect(
 			first("audit-logger", "XINFO", "GROUPS", journalKey)
@@ -268,26 +284,62 @@ describe("K8s Redis HA start script — real failovers", () => {
 		await expect(
 			first("audit-logger", "XRANGE", journalKey, "-", "+", "COUNT", "1")
 		).resolves.not.toMatch(/^NOPERM/);
-		// Dead stream length (XINFO STREAM) and journal retire (SREM): granted to every bus user.
+		// Dead stream length (XINFO STREAM) of a subscribed topic.
 		await expect(
 			first(
 				"audit-logger",
 				"XINFO",
 				"STREAM",
-				"trading-model:message-manager:dead:t"
-			)
-		).resolves.not.toMatch(/^NOPERM/);
-		await expect(
-			first(
-				"audit-logger",
-				"SREM",
-				"trading-model:message-manager:subscriptions:t",
-				"g"
+				"trading-model:message-manager:dead:audit.heartbeat"
 			)
 		).resolves.not.toMatch(/^NOPERM/);
 		await expect(
 			first("audit-logger", "XINFO", "GROUPS", "other:stream")
 		).resolves.toMatch(/^NOPERM/);
+		// Bus users (#1620): the trainer writes its own topics only and acknowledges no other group.
+		const bus = "trading-model:message-manager:journal:";
+		const trainer = async (...args: string[]) =>
+			(await asService(master, "trader-trainer", ...args))[0];
+		await expect(
+			trainer("XADD", `${bus}training.model.published`, "*", "m", "1")
+		).resolves.toMatch(/^\d+-\d+$/);
+		await expect(
+			trainer("XADD", `${bus}market.trade.recent.fetch`, "*", "m", "1")
+		).resolves.toMatch(/^NOPERM/);
+		await expect(
+			trainer(
+				"XACK",
+				`${bus}training.model.published`,
+				"model-evaluator",
+				"0-1"
+			)
+		).resolves.toMatch(/^NOPERM/);
+		await expect(
+			(
+				await asService(
+					master,
+					"audit-logger",
+					"XGROUP",
+					"DESTROY",
+					`${bus}training.model.published`,
+					"model-evaluator"
+				)
+			)[0]
+		).toMatch(/^NOPERM/);
+		await expect(
+			(
+				await asService(
+					master,
+					"audit-logger",
+					"XGROUP",
+					"CREATE",
+					`${bus}training.model.published`,
+					"audit-logger",
+					"0",
+					"MKSTREAM"
+				)
+			)[0]
+		).toBe("OK");
 		// The default user is off; the internal user reaches no key.
 		expect((await cliAs(master, undefined, "", "PING"))[0]).toMatch(
 			/NOAUTH|WRONGPASS/
@@ -359,7 +411,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 
 		const started = Date.now();
 		await expect(
-			client.set(`${DISCOVERY_KEY}:after-failover`, "1")
+			setDuringFailover(client, `${DISCOVERY_KEY}:after-failover`)
 		).resolves.toBe("OK");
 		expect(Date.now() - started).toBeLessThan(FAILOVER_DEADLINE_MS);
 		await expect(client.get(`${DISCOVERY_KEY}:before-failover`)).resolves.toBe(
@@ -418,7 +470,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 		// No deadline here: under load a first attempt can still abort for
 		// lack of fresh replica INFO, and Sentinel retries after 2x the timeout.
 		await expect(
-			client.set(`${DISCOVERY_KEY}:second-failover`, "1")
+			setDuringFailover(client, `${DISCOVERY_KEY}:second-failover`)
 		).resolves.toBe("OK");
 		// The other sentinels learn of the switch from the one that failed over.
 		await eventually(async () => (await masterIp()) !== ipOf(master));

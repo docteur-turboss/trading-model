@@ -23,6 +23,16 @@ patches:
       - op: add
         path: /data/JOURNAL_MIN_REPLICAS
         value: "1"
+  # Only this overlay names the deployment "production", the one environment
+  # where EXECUTION_MODE=live may ever be set (ADR-0064 §6, checked by
+  # tests/k8s/check-overlays.mjs). The mode stays paper: no live adapter exists.
+  - target:
+      kind: ConfigMap
+      name: risk-execution-config
+    patch: |-
+      - op: replace
+        path: /data/DEPLOYMENT_ENV
+        value: production
   # The audit chain must be anchored in production (ADR-0027): audit-logger
   # refuses to start without AUDIT_ANCHOR_BUCKET (Secret audit-anchor-s3).
   - target:

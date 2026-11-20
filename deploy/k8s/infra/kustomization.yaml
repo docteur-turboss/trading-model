@@ -28,6 +28,47 @@ configMapGenerator:
   - name: mongo-users-script
     files:
       - users.js=../../mongo/users.js
+  # mysqld config of mysql.yaml, hashed: a partitioned or restarted pod keeps the
+  # config of its own revision, never a newer release's (issue #1456).
+  - name: mysql-config
+    files:
+      - mysql.cnf
+    options:
+      labels:
+        app.kubernetes.io/component: mysql
+        app.kubernetes.io/part-of: trading-model
+  # Configs of the partitioned observability StatefulSets, hashed for the same
+  # reason (issue #1460).
+  - name: prometheus-config
+    files:
+      - config/prometheus.yml
+      - config/kubelet-scrape.yml
+      - config/alerting.yml
+    options:
+      labels:
+        app.kubernetes.io/component: prometheus
+        app.kubernetes.io/part-of: trading-model
+  - name: alertmanager-config
+    files:
+      - config/alertmanager.yml
+    options:
+      labels:
+        app.kubernetes.io/component: alertmanager
+        app.kubernetes.io/part-of: trading-model
+  - name: loki-config
+    files:
+      - config/local-config.yaml
+    options:
+      labels:
+        app.kubernetes.io/component: loki
+        app.kubernetes.io/part-of: trading-model
+  - name: grafana-datasources
+    files:
+      - config/datasources.yml
+    options:
+      labels:
+        app.kubernetes.io/component: grafana
+        app.kubernetes.io/part-of: trading-model
 
 # Alertmanager notification credentials: Secret alertmanager-credentials,
 # written by deploy.yml from the GitHub environment, not generated here (a

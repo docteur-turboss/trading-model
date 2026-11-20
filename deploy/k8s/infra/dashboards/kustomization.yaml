@@ -8,5 +8,3 @@ configMapGenerator:
       - services.json
       - slo.json
       - trader-trainer.json
-    options:
-      disableNameSuffixHash: true

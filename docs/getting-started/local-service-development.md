@@ -11,8 +11,6 @@ Checked by running `bun run dev` in `services/audit-logger` without Compose:
 
 The `/run/spire/svid/*` paths are the values `docker-compose.yml` sets (and [ENV.md](../deployment/ENV.md) documents); only the `spiffe-helper-<x>` sidecar writes files there, with a SPIRE SVID (ADR-0011). Services also only accept mTLS peers with a SPIRE identity and find each other through discovery-server (itself behind mTLS). Nothing in the repository issues local SVIDs.
 
-`ENFORCE_MTLS_STRICT=false` is not a workaround: it only relaxes the caller ACL, the SVID is still required.
-
 ## The loop: edit, rebuild, read logs
 
 Prerequisites: Docker, `.env` from `.env.example` (see [Quick Start](quickstart.md#step-0-create-env)). On Git Bash for Windows, prefix with `MSYS_NO_PATHCONV=1` if a path argument is rewritten.
@@ -59,7 +57,7 @@ Use `--no-deps` only after step 1 has run once; with it Compose does not start m
   ```
 
   Verified on `api-gateway`: `{"status":"ok","checks":{"discovery":"ok"}}`. Gateway routes from outside go through `edge-proxy` on port 8449 (see [Quick Start](quickstart.md)).
-- Unit tests need no stack: `bun run --filter <package-name> test` (`trader-trainer` has package name `trader-service`).
+- Unit tests need no stack: `bun run --filter <package-name> test` (`trader-trainer` is its package name).
 
 ## One Compose stack at a time
 

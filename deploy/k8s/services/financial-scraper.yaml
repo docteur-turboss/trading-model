@@ -121,16 +121,6 @@ spec:
             - configMapRef:
                 name: financial-scraper-config
           env:
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: REDIS_FINANCIAL_SCRAPER_PASSWORD
-            - name: REDIS_SENTINEL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: REDIS_INTERNAL_PASSWORD
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
@@ -153,15 +143,15 @@ spec:
               cpu: 500m
               memory: 512Mi
           volumeMounts:
-            - name: redis-tls
-              mountPath: /etc/redis-tls
-              readOnly: true
             - name: svid
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
             - name: mysql-tls
               mountPath: /etc/mysql-tls
+              readOnly: true
+            - name: signal-registry
+              mountPath: /etc/signal-registry
               readOnly: true
           livenessProbe:
             exec:
@@ -212,12 +202,9 @@ spec:
                   - -c
                   - sleep 10
       volumes:
-        - name: redis-tls
-          secret:
-            secretName: redis-tls
-            items:
-              - key: ca.crt
-                path: ca.crt
+        - name: signal-registry
+          configMap:
+            name: financial-scraper-signal-registry
         - name: spiffe-helper-config
           configMap:
             name: spiffe-helper-config
@@ -358,16 +345,6 @@ spec:
             - configMapRef:
                 name: financial-scraper-config
           env:
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: REDIS_FINANCIAL_SCRAPER_PASSWORD
-            - name: REDIS_SENTINEL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: REDIS_INTERNAL_PASSWORD
             - name: SCRAPE_SCHEDULER_ENABLED
               value: "true"
             # Only its holder collects (ADR-0057).
@@ -425,15 +402,15 @@ spec:
               cpu: 500m
               memory: 512Mi
           volumeMounts:
-            - name: redis-tls
-              mountPath: /etc/redis-tls
-              readOnly: true
             - name: svid
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
             - name: mysql-tls
               mountPath: /etc/mysql-tls
+              readOnly: true
+            - name: signal-registry
+              mountPath: /etc/signal-registry
               readOnly: true
           livenessProbe:
             exec:
@@ -484,12 +461,9 @@ spec:
                   - -c
                   - sleep 10
       volumes:
-        - name: redis-tls
-          secret:
-            secretName: redis-tls
-            items:
-              - key: ca.crt
-                path: ca.crt
+        - name: signal-registry
+          configMap:
+            name: financial-scraper-signal-registry
         - name: spiffe-helper-config
           configMap:
             name: spiffe-helper-config

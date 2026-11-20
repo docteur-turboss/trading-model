@@ -22,7 +22,7 @@ createBootstrap({
 	},
 	onStop: async () => {
 		await _brokerMessage?.stopMessageManager();
-		_addressManager?.stop();
+		await _addressManager?.stop();
 		await shutdownTelemetry();
 	},
 });

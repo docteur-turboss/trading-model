@@ -8,4 +8,5 @@ resources:
   - api-gateway.yaml
   - audit-logger.yaml
   - model-evaluator.yaml
+  - risk-execution.yaml
   - edge-proxy.yaml

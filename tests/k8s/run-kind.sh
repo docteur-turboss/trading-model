@@ -22,6 +22,9 @@
 # staging stack (databases, Prometheus, Loki) writing into the Docker Desktop
 # disk image, which froze every container on the host once it filled C:.
 set -euo pipefail
+# A failure inside $(...) stops the substitution too (bash ignores -e there
+# by default): a 403 of seed_dead_letter went unnoticed (PR #1662).
+shopt -s inherit_errexit
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 # Git Bash: a C:/... path works for bash and for native kubectl/docker, also
@@ -33,7 +36,7 @@ NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read:<secret> injected by ci-render.mjs
-SERVICES="discovery-server financial-scraper trader-trainer api-gateway audit-logger model-evaluator"
+SERVICES="discovery-server financial-scraper trader-trainer api-gateway audit-logger model-evaluator risk-execution"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 # Services only release N-1 runs (retired by #1241): built for N-1 only; drop once N-1 is the release after.
@@ -49,12 +52,25 @@ export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
+export DLQ_AUTH_HMAC_SECRET="${DLQ_AUTH_HMAC_SECRET:-kind-ci-dlq-hmac-0123456789abcdefghij}"
 # compose interpolates these (ADR-0067) even for `build` (N-1 still has MONGO_DLQ_PASSWORD)
 for v in MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD; do
 	export "$v=${!v:-kind-ci}"
 done
 
-log() { echo "[kind] $*"; }
+log() {
+	echo "[kind] $*"
+	echo "$*" 2>/dev/null >"$WORK/last-log" || true
+}
+
+# On failure, the last [kind] line (the cause, logged just before `return 1`)
+# becomes the job annotation, not lost under the cluster dump.
+fail_summary() {
+	local rc="$1"
+	shift
+	[ "$rc" -eq 0 ] || [ ! -s "$WORK/last-log" ] || echo "::error title=run-kind.sh $*::$(cat "$WORK/last-log")"
+	return "$rc"
+}
 
 # Step timings of the restore drill (JSON, job summary, budget).
 # shellcheck source=../backup/drill-timings.sh
@@ -505,7 +521,8 @@ upgrade() {
 	sed 's/^api-gateway .*/api-gateway sha256:0000000000000000000000000000000000000000000000000000000000000000/' \
 		"$WORK/digests-current" >"$WORK/digests-broken"
 	# Short base timeout: this rollout can never complete (issue #486, was 210 s).
-	if release "$WORK/digests-broken" 30s; then
+	# Its ::error:: is expected: printed as plain text, or the job's first annotation misleads.
+	if release "$WORK/digests-broken" 30s 2>&1 | sed -u 's/^::error::/expected failure: /'; then
 		log "an upgrade whose api-gateway image does not exist passed"
 		return 1
 	fi
@@ -576,7 +593,7 @@ upgrade() {
 		log "migrations of release N-1 no longer applied after the rollback: $missing"
 		return 1
 	}
-	SMOKE_SKIP=model-evaluator deploy_script smoke-test # new in N: deleted by the rollback
+	SMOKE_SKIP="model-evaluator risk-execution" deploy_script smoke-test # new in N: deleted by the rollback
 	log "  rollback: every Deployment back on its N-1 pod template (image digests, $marked N-1 ConfigMaps), N-1 migrations applied"
 
 	log "migrate-down 1, then the migrations again"
@@ -829,7 +846,12 @@ verify_traces() {
 	local jaeger=$!
 	local result=0
 	wait_for 30 'curl -s -o /dev/null http://localhost:18451/ && curl -s -o /dev/null http://localhost:18686/' || result=1
-	[ "$result" = 0 ] && curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
+	# 30 requests: the collector keeps 20 % of traces, 1 - 0.8^30 ~ 99.9 % that one survives.
+	if [ "$result" = 0 ]; then
+		for _ in $(seq 30); do
+			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
+		done
+	fi
 	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
 	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
 		log "  $(traces_span_services 2>&1)"
@@ -864,7 +886,7 @@ verify_egress() {
 # empty). Restricted Pod Security: the security context is spelled out.
 mongo_ping() {
 	local img uri
-	img="$(grep -m1 -o 'mongo@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
+	img="$(grep -m1 -oE 'mongo(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
 	uri="mongodb://$3:27017/?directConnection=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
@@ -903,7 +925,7 @@ verify_mongo_ingress() {
 # (none when empty), with bash of the MySQL image (issue #747).
 tcp_probe() {
 	local img
-	img="$(grep -m1 -o 'mysql@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mysql.yaml")"
+	img="$(grep -m1 -oE 'mysql(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/deploy/k8s/infra/mysql.yaml")"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
 		\"spec\": {
@@ -1660,10 +1682,12 @@ mysql_diagnostics() {
 	$K -n "$NS" exec mysql-0 -c mysql -- cat /proc/1/attr/current 2>&1 || true
 }
 
+rm -f "$WORK/last-log" # a line of an earlier CI step is not this failure
+trap 'fail_summary $? "$*"' EXIT
 case "${1:-all}" in
 all)
 	if [ "${KEEP_CLUSTER:-0}" != "1" ]; then
-		trap 'rc=$?; [ "$rc" -eq 0 ] || dump; delete; exit $rc' EXIT
+		trap 'rc=$?; fail_summary "$rc" all || dump; delete; exit $rc' EXIT
 	fi
 	cluster
 	images

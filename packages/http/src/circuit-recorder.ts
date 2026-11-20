@@ -73,11 +73,6 @@ export class CircuitRecorder {
 			this._serviceCircuit.recordFailure(route.serviceName);
 		}
 	}
-
-	isServiceCircuitOpen(serviceName: ServiceInstanceName): boolean {
-		const state = this._serviceCircuit.check(serviceName);
-		return state === CircuitState.OPEN || state === CircuitState.HALF_OPEN;
-	}
 }
 
 const DefaultRecorder = new CircuitRecorder();

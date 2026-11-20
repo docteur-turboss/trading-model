@@ -154,11 +154,11 @@ acl_args() {
 	print_args +role +info +multi +exec +slaveof +replicaof +subscribe +publish
 	print_args "+config|rewrite" "+client|setname" "+client|kill" "+script|kill"
 	service_user discovery "${REDIS_DISCOVERY_PASSWORD:-}" "trading-model:discovery:*" +get +set +del +mget +sadd +srem +smembers +sismember +scard +eval +evalsha "+script|load"
-	# Bus users (ADR-0073): publish and consume the journal in process, bus prefix and stream commands only.
-	service_user audit-logger "${REDIS_AUDIT_LOGGER_PASSWORD:-}" "trading-model:message-manager:*" +sadd +srem +sismember +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
-	service_user trader-trainer "${REDIS_TRADER_TRAINER_PASSWORD:-}" "trading-model:message-manager:*" +sadd +srem +sismember +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
-	service_user model-evaluator "${REDIS_MODEL_EVALUATOR_PASSWORD:-}" "trading-model:message-manager:*" +sadd +srem +sismember +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
-	service_user financial-scraper "${REDIS_FINANCIAL_SCRAPER_PASSWORD:-}" "trading-model:message-manager:*" +sadd +srem +sismember +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
+	# Bus users (ADR-0073, #1620): write only the journal of the topics published, consume only the topics subscribed.
+	# Topic lists = EVENT_PUBLISHERS / EVENT_SUBSCRIBERS of @trading-model/contracts/event-routes (checked by bus-acl.spec.ts).
+	bus_user audit-logger "${REDIS_AUDIT_LOGGER_PASSWORD:-}" "audit.heartbeat audit.gap.detected dlq.entry.added dlq.replay.completed dlq.entries.deleted" "audit.heartbeat audit.gap.detected training.model.published dlq.entry.added dlq.replay.completed dlq.entries.deleted"
+	bus_user trader-trainer "${REDIS_TRADER_TRAINER_PASSWORD:-}" "training.model.published" ""
+	bus_user model-evaluator "${REDIS_MODEL_EVALUATOR_PASSWORD:-}" "dlq.entry.added" "training.model.published"
 	exporter_user
 }
 
@@ -190,6 +190,22 @@ service_user() {
 	keys="$3"
 	shift 3
 	print_args --user "$user" on ">$password" -@all "~$keys" +ping +info +role "+client|setname" "+client|setinfo" +multi +exec "$@"
+}
+
+# $1 user, $2 password, $3 topics published, $4 topics subscribed. A selector per
+# stream (Redis 7): the journal of a published topic is written, that of a
+# subscribed topic is read and acknowledged, its dead stream is written.
+bus_user() {
+	[ -n "$2" ] || return 0
+	prefix="trading-model:message-manager"
+	print_args --user "$1" on ">$2" -@all "~$prefix:journal-groups" +ping +info +role "+client|setname" "+client|setinfo" +multi +exec +wait +sadd +smembers
+	for topic in $3; do
+		print_args "(%RW~$prefix:journal:$topic +xadd +xdel +xgroup|create +xinfo)"
+	done
+	for topic in $4; do
+		print_args "(%RW~$prefix:journal:$topic +xreadgroup +xpending +xclaim +xack +xgroup|create +xinfo +xrange +xlen)"
+		print_args "(%RW~$prefix:dead:$topic +xadd +xdel +xinfo +xrange +xlen)"
+	done
 }
 
 start_server() {

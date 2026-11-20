@@ -1,0 +1,20 @@
+export default {
+  "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "mutate": ["src/domain/**/*.ts", "!src/**/*.spec.ts", "!src/**/*.d.ts"],
+  "testRunner": "jest",
+  "plugins": ["@stryker-mutator/jest-runner", "@stryker-mutator/typescript-checker"],
+  "jest": { "configFile": "jest.config.js", "config": { "testTimeout": 120000, "testPathIgnorePatterns": ["/node_modules/", "/dist/", "worker-training-runner.spec.ts"] } },
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "concurrency": 2,
+  "coverageAnalysis": "perTest",
+  "ignoreStatic": true,
+  "dryRunTimeoutMinutes": 30,
+  "timeoutMS": 10000,
+  "reporters": ["clear-text", "progress", "html", "json"],
+  "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "tempDirName": "../../.stryker-tmp",
+  "cleanTempDir": true,
+  "thresholds": { "high": 80, "low": 60, "break": Number(process.env.MUTATION_BREAK ?? 50) }
+};

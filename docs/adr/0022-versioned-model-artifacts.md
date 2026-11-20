@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0001](./0001-ga-dqn-training.md) (GA + DQN training), [ADR-0021](./0021-http-api-schemas-and-generated-openapi.md) (route registries), [ADR-0011](./0011-spiffe-spire-workload-identity.md) (mTLS identities)
-**Verified by:** `services/trader-trainer/tests/unit/model-artifacts/file-model-artifact-store.spec.ts`, `services/trader-trainer/tests/unit/model-artifacts/model-routes.spec.ts`, `services/trader-trainer/tests/unit/model-artifacts/model-download-guard.spec.ts`, `services/trader-trainer/tests/unit/model-artifacts/model-metrics.spec.ts`, `services/trader-trainer/tests/unit/core/trainer.spec.ts`, `services/trader-trainer/tests/integration/server.integration.spec.ts`, `bun run api:check`
+**Verified by:** `services/trader-trainer/tests/unit/adapters/outbound/file-model-artifact-store.spec.ts`, `services/trader-trainer/tests/unit/adapters/inbound/http/model-routes.spec.ts`, `services/trader-trainer/tests/unit/adapters/inbound/http/model-download-guard.spec.ts`, `services/trader-trainer/tests/unit/adapters/outbound/model-metrics.spec.ts`, `services/trader-trainer/tests/unit/application/trainer.spec.ts`, `services/trader-trainer/tests/integration/server.integration.spec.ts`, `bun run api:check`
 
 ## Context
 

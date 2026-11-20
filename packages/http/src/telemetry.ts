@@ -2,6 +2,9 @@ import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
+import { MongoDBInstrumentation } from "@opentelemetry/instrumentation-mongodb";
+import { MySQL2Instrumentation } from "@opentelemetry/instrumentation-mysql2";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
@@ -11,6 +14,9 @@ import { toInstanceId } from "@trading-model/primitives/primitives";
 import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;
+
+/** Aborts an OTLP request to a silent collector: its open socket would hold the process past the 10 s stop grace. */
+const EXPORT_TIMEOUT_MS = 2000;
 
 const PROBE_PATHS = new Set(["/ping", "/health/ready", "/metrics"]);
 
@@ -46,10 +52,18 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 				process.env.INSTANCE_ID ?? serviceName
 			),
 		}),
-		traceExporter: new OTLPTraceExporter({ url: `${otlpEndpoint}/v1/traces` }),
+		traceExporter: new OTLPTraceExporter({
+			url: `${otlpEndpoint}/v1/traces`,
+			timeoutMillis: EXPORT_TIMEOUT_MS,
+		}),
 		instrumentations: [
 			new HttpInstrumentation({ ignoreIncomingRequestHook: isProbeRequest }),
 			new ExpressInstrumentation(),
+			// No query values in spans: mysql2 masks literals, mongodb replaces
+			// them by default, redis keeps the command name only (no key, no value).
+			new MySQL2Instrumentation({ maskStatement: true }),
+			new MongoDBInstrumentation(),
+			new IORedisInstrumentation({ dbStatementSerializer: (cmd) => cmd }),
 		],
 		// Traces only: metrics go through Prometheus, and the collector has no
 		// metrics or logs pipeline (the SDK would export both to it by default).

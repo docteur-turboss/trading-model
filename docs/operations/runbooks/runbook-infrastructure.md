@@ -1,8 +1,8 @@
 # Runbook: Infrastructure (pods, nodes, volumes, databases)
 
 **Alerts:** `KubePodCrashLooping`, `KubeContainerOOMKilled`,
-`KubePersistentVolumeFillingUp`, `NodeFilesystemAlmostFull` (warning);
-`MySQLDown`, `RedisDown`, `RedisSentinelQuorumLost`, `MongoDBDown`,
+`KubePodPending`, `KubePersistentVolumeFillingUp`, `NodeFilesystemAlmostFull`
+(warning); `KubeWorkloadUnavailable`, `MySQLDown`, `RedisDown`, `RedisSentinelQuorumLost`, `MongoDBDown`,
 `MongoDBReplicaSetNoPrimary` (critical); `RedisReplicasMissing`,
 `MongoDBReplicaSetMemberUnhealthy` (warning).
 
@@ -68,6 +68,39 @@ kubectl -n $NS logs <pod> -c <container> --previous --tail=100
 - Bad release: roll back
   ([runbook-deployment-failure](runbook-deployment-failure.md)).
 - Service pods: also [runbook-service-down](runbook-service-down.md).
+
+## KubeWorkloadUnavailable
+
+A Deployment or StatefulSet that wants at least one replica has had none
+available or ready for 5 minutes. For `spire-server`, every SVID expires about
+2 hours after it stopped
+([runbook-database-failover, SPIRE server](runbook-database-failover.md#spire-server)).
+kube-state-metrics does not read the nodes (ADR-0056): a lost node shows up
+here and as `KubePodPending`.
+
+```bash
+kubectl -n $NS get deploy,sts
+kubectl -n $NS get pods -o wide | grep -v Running   # NODE column: pods of a lost node
+kubectl get nodes                                   # needs a cluster-scope kubeconfig
+```
+
+Pods `Pending`: see `KubePodPending`. Pods crash looping: see
+`KubePodCrashLooping`. Pods running but not ready: `kubectl -n $NS describe
+pod <pod>` (readiness probe events).
+
+## KubePodPending
+
+A pod has been `Pending` for 15 minutes.
+
+```bash
+kubectl -n $NS describe pod <pod> | sed -n '/Events/,$p'
+```
+
+- `didn't match Pod's node affinity` / `volume node affinity conflict`: its
+  RWO volume is bound to a lost node. Bring the node back, or restore the data
+  on a new volume ([runbook-database-failover](runbook-database-failover.md)).
+- `Insufficient cpu` / `Insufficient memory`: add a node or lower requests.
+- `ImagePullBackOff` (phase stays `Pending`): wrong tag or registry access.
 
 ## KubeContainerOOMKilled
 

@@ -1,3 +1,5 @@
+import { DEFAULT_ACTION_SET } from "@trading-model/model-runtime/agent/action-mapper";
+import { crossoverInputMask } from "@trading-model/model-runtime/agent/input-mask";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import type { LayerGenome, NetworkGenome } from "./types";
 
@@ -78,8 +80,18 @@ export function crossoverNetwork(ctx: {
 	const crossoverFn = (valueA: number, valueB: number) =>
 		rng() < 0.5 ? valueA : valueB;
 
+	// The child takes the action set and output layer size of one parent.
+	const outputParent =
+		(left.actionSet ?? DEFAULT_ACTION_SET) ===
+			(right.actionSet ?? DEFAULT_ACTION_SET) || rng() < 0.5
+			? left
+			: right;
+
+	const { actionSet: _leftSet, ...leftBase } = left;
 	return {
-		...left,
+		...leftBase,
+		outputDim: outputParent.outputDim,
+		...(outputParent.actionSet && { actionSet: outputParent.actionSet }),
 		hiddenLayers: _crossoverHiddenLayers({
 			minLen,
 			maxLen,
@@ -90,5 +102,9 @@ export function crossoverNetwork(ctx: {
 			rng,
 		}),
 		normalization: rng() < 0.5 ? left.normalization : right.normalization,
+		...(left.inputMask &&
+			right.inputMask && {
+				inputMask: crossoverInputMask(left.inputMask, right.inputMask, rng),
+			}),
 	};
 }

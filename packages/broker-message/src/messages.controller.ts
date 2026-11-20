@@ -1,4 +1,6 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { runWithCorrelationId } from "@trading-model/http/correlation-id";
+import { toCorrelationId } from "@trading-model/primitives/primitives";
 import { MESSAGE_PAYLOAD_SCHEMA } from "./shared/barrel/message.schema";
 
 /** Delivered `messageId`s remembered per process: bounds the memory of the dedup. */
@@ -10,7 +12,7 @@ const deliveredIds = new Set<string>();
 
 /** A message as the subscriber's handler receives it. */
 export interface DeliveredMessage {
-	metadata: { topic: string; messageId?: string };
+	metadata: { topic: string; messageId?: string; correlationId?: string };
 	payload?: unknown;
 }
 
@@ -42,7 +44,11 @@ export async function deliverToHandler(
 		return true;
 	}
 
-	await handle({ metadata, payload });
+	// The handler runs in the message's correlation context: its logs and outgoing calls carry it.
+	const run = () => handle({ metadata, payload });
+	await (metadata.correlationId
+		? runWithCorrelationId(toCorrelationId(metadata.correlationId), run)
+		: run());
 	// Remembered only after a successful handle: a handler that throws must leave the redelivery possible.
 	if (messageId) {
 		deliveredIds.add(messageId);

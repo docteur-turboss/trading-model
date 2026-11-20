@@ -30,7 +30,7 @@ flowchart TB
     gw
     disc["discovery-server"]
     fs["financial-scraper"]
-    tt["trader-trainer<br/>(npm name trader-service)"]
+    tt["trader-trainer<br/>(npm name trader-trainer)"]
     al["audit-logger"]
   end
 
@@ -110,15 +110,6 @@ sequenceDiagram
   loop each scrape cycle, per symbol
     FS->>B: fetch candles
     FS->>DB: persist candles
-    FS->>DB: read market_publish_cursors, next persisted candles
-    FS->>R: XADD to the journal
-    alt Redis accepted the entry
-      R-->>FS: entry id
-      FS->>DB: advance cursor
-    else Redis down or refuses the write
-      R-->>FS: error
-      Note over FS,DB: cursor stays: next cycle resends from MySQL<br/>alert MarketDataUnpublished after 15 min
-    end
   end
   opt each training session of the trainer
     TT->>FS: GET /candles/symbols/:symbol (from, to = session start, keyset pages)

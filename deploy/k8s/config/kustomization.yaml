@@ -10,7 +10,6 @@ resources:
   - audit-logger-autoscaling.yaml
   - edge-proxy-autoscaling.yaml
   - ../../edge-proxy
-  - spiffe-helper-configmap.yaml
 
 # Service configuration, versioned by a content hash in its name (issue #410):
 # a config change alone rolls the Deployments that read it, and
@@ -26,6 +25,13 @@ configMapGenerator:
     envs: [financial-scraper.properties]
     options:
       labels: {app.kubernetes.io/component: financial-scraper, app.kubernetes.io/part-of: trading-model}
+  # Signal registry (ADR-0036, issue #1308): the repository file, mounted by
+  # both financial-scraper Deployments, so a new asset needs no image release.
+  - name: financial-scraper-signal-registry
+    files:
+      - signal-registry.json=../../../services/financial-scraper/src/config/signal-registry.json
+    options:
+      labels: {app.kubernetes.io/component: financial-scraper, app.kubernetes.io/part-of: trading-model}
   - name: trader-trainer-config
     envs: [trader-trainer.properties]
     options:
@@ -38,7 +44,19 @@ configMapGenerator:
     envs: [model-evaluator.properties]
     options:
       labels: {app.kubernetes.io/component: model-evaluator, app.kubernetes.io/part-of: trading-model}
+  - name: risk-execution-config
+    envs: [risk-execution.properties]
+    options:
+      labels: {app.kubernetes.io/component: risk-execution, app.kubernetes.io/part-of: trading-model}
   - name: audit-logger-config
     envs: [audit-logger.properties]
     options:
       labels: {app.kubernetes.io/component: audit-logger, app.kubernetes.io/part-of: trading-model}
+
+  # spiffe-helper only takes a config file (-config): writes the pod's SVID into
+  # the shared `svid` emptyDir. Hashed like the rest (partitioned StatefulSets
+  # read it too: issue #1460).
+  - name: spiffe-helper-config
+    files: [helper.conf]
+    options:
+      labels: {app.kubernetes.io/part-of: trading-model}

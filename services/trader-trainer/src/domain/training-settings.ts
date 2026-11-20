@@ -1,4 +1,5 @@
 import { FitnessType } from "./genetic-algorithm/genome-control";
+import type { SimulatorCosts } from "./genetic-algorithm/rl-backend";
 
 /** Training hyper-parameters, resolved from the environment by the composition root. */
 export interface TrainingSettings {
@@ -15,8 +16,16 @@ export interface TrainingSettings {
 	fitnessType: FitnessType;
 	/** Show the agent its position (default true, ADR-0025). */
 	observePosition?: boolean;
+	/** Costs of the symbol's asset class (ADR-0083); absent: `SIMULATOR_PARAMS`. */
+	costs?: SimulatorCosts;
+	/** FEATURE_ACTION_SPACE_GENE (ADR-0039): the GA may choose the action set. */
+	actionSpaceGene?: boolean;
 	/** FEATURE_EVENT_DRIVEN_DECISIONS (ADR-0039): the population decides on market events. */
 	eventDriven?: boolean;
+	/** FEATURE_INPUT_MASK_GENE (ADR-0082): names of the input groups the genome masks. */
+	inputGroups?: string[];
+	/** ADR-0082: the candle group stays active in every mask. */
+	protectCandleGroup?: boolean;
 	/**
 	 * Added to the default PRNG seeds (0 = defaults): independent, still
 	 * reproducible runs on the same data (MT4 walk-forward, ADR-0030).

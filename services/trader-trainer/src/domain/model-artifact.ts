@@ -1,3 +1,4 @@
+import { actionLabels } from "@trading-model/model-runtime/agent/action-mapper";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
 import { EVAL_EPSILON } from "./genetic-algorithm/evaluation-phase";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
@@ -53,6 +54,9 @@ export interface ModelReplayWindow {
 	testFrom: number;
 	/** Close time of the last candle: nothing later was used. */
 	to: number;
+	/** Bar length when it is not one minute, and the costs of a daily asset (ADR-0083). */
+	intervalMs?: number;
+	simulator?: SimulatorParams;
 }
 
 /**
@@ -63,8 +67,12 @@ interface ModelReplay extends ModelReplayWindow {
 	intervalMs: number;
 	/** Exploration of the trainer's evaluation episodes; a replay plays greedy (0). */
 	evalEpsilon: number;
-	simulator: typeof SIMULATOR_PARAMS;
+	simulator: SimulatorParams;
 }
+
+type SimulatorParams = {
+	[Key in keyof typeof SIMULATOR_PARAMS]: number | boolean;
+};
 
 export interface ModelManifest {
 	formatVersion: typeof MODEL_FORMAT_VERSION;
@@ -88,6 +96,8 @@ export interface ModelManifest {
 	metrics: ModelMetrics;
 	/** Constraint the policy learned under (absent on older manifests: unbounded). */
 	riskLimits?: { maxExposureFraction: number };
+	/** Ordered actions: network output `i` is `actions[i]`; absent: sell, hold, buy (ADR-0076). */
+	actions?: string[];
 	/** ADR-0030 verdict on the test segment (ADR-0069); absent: not admissible. */
 	admission?: ModelAdmission;
 	/** Window and simulator to replay the model (ADR-0079); absent on older manifests. */
@@ -155,13 +165,16 @@ export function buildModelManifest(
 			maxDrawdown: summary.maxDrawdown,
 			evaluatedOn: summary.evaluatedOn,
 		},
+		...(artifact.bestGenome.network.actionSet && {
+			actions: actionLabels(artifact.bestGenome.network.actionSet),
+		}),
 		...(artifact.admission && { admission: artifact.admission }),
 		...(artifact.window && {
 			replay: {
-				...artifact.window,
 				intervalMs: CANDLE_INTERVAL_MS,
-				evalEpsilon: EVAL_EPSILON,
 				simulator: SIMULATOR_PARAMS,
+				...artifact.window,
+				evalEpsilon: EVAL_EPSILON,
 			},
 		}),
 	};

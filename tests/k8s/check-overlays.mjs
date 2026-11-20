@@ -28,7 +28,9 @@
 //   - the data StatefulSets of staging-local (DATA_STATEFULSETS) set a
 //     partition >= replicas, so a release never restarts their single pods;
 //     staging (CI keeps testing their restarts) and production set none
-//     (issue #700)
+//     (issue #700); they mount no ConfigMap by a bare name: a
+//     restarted partitioned pod would read the newest release's content, not
+//     its revision's (issues #1456, #1460)
 //   - the deploy identities (ADR-0041) cover what the overlays apply: every
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
@@ -47,7 +49,10 @@ const SINGLETONS = {
 	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector", env: "COLLECTOR_LEASE_NAME" },
 };
 // Data and observability StatefulSets of staging-local held by a partition (issue #700).
-const DATA_STATEFULSETS = ["mysql", "redis", "redis-sentinel", "mongo-audit", "alertmanager", "grafana", "loki", "prometheus"];
+const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-audit"];
+const DATA_STATEFULSETS = [...DATABASES, "alertmanager", "grafana", "loki", "prometheus"];
+// Bare names a database may mount: also applied by name outside kustomize (run-migrations.sh), read by the exporter sidecar only.
+const BARE_CONFIGMAPS = new Set(["mysql-client-tls"]);
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
 
 function render(dir) {
@@ -309,6 +314,13 @@ for (const env of OVERLAYS) {
 		if (!image.includes("@sha256:")) errors.push(`${env}: image ${image} is not pinned by digest`);
 	}
 
+	// SPIRE agents must not be newer than the server they talk to (upgrade guide): the node agents are applied before the server.
+	const spireMinor = (name) => rendered.match(new RegExp(`image: \\S*${name}:(\\d+)\\.(\\d+)`))?.slice(1).map(Number);
+	const [server, agent] = [spireMinor("spire-server"), spireMinor("spire-agent")];
+	if (server && agent && (agent[0] > server[0] || (agent[0] === server[0] && agent[1] > server[1]))) {
+		errors.push(`${env}: spire-agent ${agent.join(".")} is newer than spire-server ${server.join(".")} (agents move one release after the server)`);
+	}
+
 	for (const [dir, file, text] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml", app], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml", nodeAgents]]) {
 		for (const kind of uncoveredKinds(documents(text), file)) {
 			errors.push(env + ": " + kind + " of " + dir + " is not covered by deploy/k8s/deploy-identity/" + file + " (or cluster-role.yaml): the deploy identity could not apply it");
@@ -329,6 +341,13 @@ for (const env of OVERLAYS) {
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
 
+	// ADR-0064 §6: only the production overlay is the "production" deployment and may set live.
+	const risk = docs.find((d) => d.kind === "ConfigMap" && d.name?.startsWith("risk-execution-config"))?.text ?? "";
+	const riskValue = (key) => risk.match(new RegExp(`^ +${key}: "?([^"\n]+)"?$`, "m"))?.[1];
+	if (riskValue("EXECUTION_MODE") === "live" && env !== "production") errors.push(`${env}: risk-execution-config sets EXECUTION_MODE=live outside production (ADR-0064 §6)`);
+	if ((riskValue("DEPLOYMENT_ENV") === "production") !== (env === "production")) errors.push(`${env}: risk-execution-config DEPLOYMENT_ENV=${riskValue("DEPLOYMENT_ENV")}, only the production overlay may be production`);
+	if (env !== "production" && /BROKER_API_(KEY|SECRET)/.test(rendered)) errors.push(`${env}: live broker keys outside the production overlay (ADR-0064 §6)`);
+
 	// Issue #809 (ADR-0062): production runs the alerting path twice, Alertmanager as one cluster.
 	for (const name of ["alertmanager", "prometheus"]) {
 		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
@@ -346,7 +365,7 @@ for (const env of OVERLAYS) {
 			errors.push("production: alertmanager has no --cluster.peer (ADR-0062)");
 		}
 		if (name === "prometheus" && sts && env === "production") {
-			const config = docs.find((doc) => doc.kind === "ConfigMap" && doc.name === "prometheus-config")?.text ?? "";
+			const config = docs.find((doc) => doc.kind === "ConfigMap" && doc.name?.startsWith("prometheus-config-"))?.text ?? "";
 			if (!sts.text.includes("--enable-feature=expand-external-labels")) errors.push("production: prometheus lacks --enable-feature=expand-external-labels, so the replica label stays a literal ${HOSTNAME} (ADR-0062)");
 			if (/\\n\s+--/.test(sts.text)) errors.push("prometheus: literal backslash-n inside the launch command (merges two flags on one line)");
 			if (!/external_labels:\s+replica: '\$\{HOSTNAME\}'/.test(config)) errors.push("production: prometheus external label replica: '${HOSTNAME}' missing (ADR-0062)");
@@ -360,6 +379,11 @@ for (const env of OVERLAYS) {
 		if (!sts) {
 			errors.push(`${env}: StatefulSet ${name} not found`);
 			continue;
+		}
+		for (const [, cm] of sts.text.matchAll(/configMap:\n(?: +[^\n ][^\n]*\n)*? +name: (\S+)$/gm)) {
+			if (!/-[245-9bcdfghkmt]{10}$/.test(cm) && !BARE_CONFIGMAPS.has(cm)) {
+				errors.push(`${env}: StatefulSet ${name} mounts ConfigMap ${cm} by a bare name: generate it (configMapGenerator, hash suffix) so a restarted pod keeps its revision's config (issues #1456, #1460)`);
+			}
 		}
 		const replicas = Number(sts.text.match(/^ {2}replicas: (\d+)$/m)?.[1] ?? 1);
 		const partition = Number(sts.text.match(/^ {6}partition: (\d+)$/m)?.[1] ?? 0);
@@ -380,6 +404,12 @@ for (const env of OVERLAYS) {
 			const replicas = Number(workload?.text.match(/^ {2}replicas: (\d+)$/m)?.[1]);
 			if (min >= replicas) errors.push(`production: PodDisruptionBudget ${pdb.name} requires ${min} of ${replicas} pod(s) of ${workload.name}: node drains would block`);
 		}
+	}
+
+	// Issue #1634: every major of PUBLIC_ROUTES needs an Ingress path to the edge-proxy.
+	const majors = new Set(readFileSync("services/api-gateway/src/shared/public-routes.ts", "utf8").match(/"[A-Z]+ \/v\d+(?=\/)/g)?.map((route) => route.split("/")[1]));
+	for (const major of majors) {
+		if (!new RegExp(`^ +(?:- )?path: /${major}$`, "m").test(rendered)) errors.push(`${env}: PUBLIC_ROUTES serves /${major} but the api-gateway Ingress has no /${major} path`);
 	}
 
 	if (env.startsWith("staging")) {

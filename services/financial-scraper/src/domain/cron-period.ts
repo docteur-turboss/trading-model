@@ -1,5 +1,6 @@
 const MINUTE_MS = 60_000;
-const WINDOW_MINUTES = 400 * 1440;
+const DAY_MS = 86_400_000;
+const WINDOW_DAYS = 400;
 const PART = /^(\*|\d+(-\d+)?)(\/[1-9]\d*)?$/;
 
 function _field(text: string, min: number, max: number): Set<number> | null {
@@ -44,20 +45,24 @@ export function cronMaxGapMs(expression: string): number | undefined {
 		weekdays.add(0);
 	}
 	const either = day !== "*" && weekday !== "*";
+	const times = [...hour]
+		.flatMap((hh) => [...minute].map((mm) => hh * 60 + mm))
+		.sort((first, second) => first - second);
 	let previous: number | null = null;
 	let longest = 0;
-	for (let i = 0; i < WINDOW_MINUTES; i++) {
-		const at = new Date(Date.UTC(2024, 0, 1) + i * MINUTE_MS);
+	for (let offset = 0; offset < WINDOW_DAYS; offset++) {
+		const at = new Date(Date.UTC(2024, 0, 1) + offset * DAY_MS);
 		const dayOk = days.has(at.getUTCDate());
 		const weekdayOk = weekdays.has(at.getUTCDay());
 		if (
-			minute.has(at.getUTCMinutes()) &&
-			hour.has(at.getUTCHours()) &&
 			month.has(at.getUTCMonth() + 1) &&
 			(either ? dayOk || weekdayOk : dayOk && weekdayOk)
 		) {
-			longest = previous === null ? longest : Math.max(longest, i - previous);
-			previous = i;
+			for (const time of times) {
+				const i = offset * 1440 + time;
+				longest = previous === null ? longest : Math.max(longest, i - previous);
+				previous = i;
+			}
 		}
 	}
 	return longest ? longest * MINUTE_MS : undefined;

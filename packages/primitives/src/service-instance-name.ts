@@ -5,6 +5,7 @@ export enum ServiceInstanceName {
 	DiscoveryService = "discovery-server",
 	FinancialScraperService = "financial-scraper",
 	ModelEvaluatorService = "model-evaluator",
+	RiskExecutionService = "risk-execution",
 	TraderTrainerService = "trader-trainer",
 }
 

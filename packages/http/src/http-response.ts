@@ -1,4 +1,5 @@
 import type { IncomingMessage } from "node:http";
+import { pipeline } from "node:stream";
 import { createGunzip, createInflate } from "node:zlib";
 import {
 	HTTP_STATUS,
@@ -16,15 +17,25 @@ interface ResponseCollectionContext<TResponse> {
 	schema?: z.ZodType<TResponse>;
 }
 
-function decompressResponse(res: IncomingMessage): NodeJS.ReadableStream {
+/** Largest decompressed body accepted: 16 MiB, far above any known answer (Binance, signal sources: well under 1 MiB). */
+const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+
+function decompressResponse(
+	res: IncomingMessage,
+	onError: (err: Error) => void
+): NodeJS.ReadableStream {
 	const contentEncoding = (res.headers["content-encoding"] as string) || "";
-	if (contentEncoding.includes("gzip")) {
-		return res.pipe(createGunzip());
+	const zlib = contentEncoding.includes("gzip")
+		? createGunzip()
+		: contentEncoding.includes("deflate")
+			? createInflate()
+			: undefined;
+	if (!zlib) {
+		res.on("error", onError);
+		return res;
 	}
-	if (contentEncoding.includes("deflate")) {
-		return res.pipe(createInflate());
-	}
-	return res;
+	// pipeline forwards errors of both streams, `pipe` does not
+	return pipeline(res, zlib, (err) => err && onError(err));
 }
 
 function parseResponseBody<TResponse>(
@@ -44,10 +55,20 @@ function collectResponseBody<TResponse>(
 	const { res, method, urlStr, schema } = context;
 	return new Promise<TResponse | undefined>((resolve, reject) => {
 		let data = "";
-		const stream = decompressResponse(res);
+		let bytes = 0;
+		const stream = decompressResponse(res, reject);
 		stream.setEncoding("utf8");
 
 		stream.on("data", (chunk: string) => {
+			bytes += Buffer.byteLength(chunk);
+			if (bytes > MAX_RESPONSE_BYTES) {
+				res.destroy();
+				return reject(
+					new Error(
+						`Response body over ${MAX_RESPONSE_BYTES} bytes on ${method} ${urlStr}`
+					)
+				);
+			}
 			data += chunk;
 		});
 		stream.on("end", () => {

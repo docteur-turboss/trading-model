@@ -1,4 +1,5 @@
 import { makePRNG } from "@trading-model/crypto/prng";
+import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
 import { evaluateFitness } from "./evaluation-pipeline";
 import { createDefaultGenome } from "./factory";
 import { type GaTelemetry, NoopGaTelemetry } from "./ga-telemetry";
@@ -56,7 +57,13 @@ export class GenerationProcessor {
 			...createDefaultGenome("base").gaControl,
 			...baseControl,
 		} as GAControlGenome);
-		this._population = createInitialPopulation(ctrl, this._cfg.eventDriven);
+		const step = this._cfg.windowSets[0]?.train[0];
+		this._population = createInitialPopulation(
+			ctrl,
+			this._cfg.eventDriven,
+			step && step.features.toFloat32Array().length + AGENT_STATE_DIM,
+			this._cfg.inputGroups?.length
+		);
 		this._generation = 0;
 		this._archive = new ParetoArchive();
 		this._stagnationTracker = new StagnationTracker();
@@ -64,10 +71,7 @@ export class GenerationProcessor {
 
 	async runGeneration(startTime?: number): Promise<GenerationContext> {
 		this._generation++;
-		this._telemetry.generationStarted(
-			this._generation,
-			this._population.length
-		);
+		this._telemetry.generationStarted(this._generation);
 		const { ctrl, rng } = this._initRunParams();
 		const evalResult = await evaluateFitness({
 			population: this._population,
@@ -165,7 +169,7 @@ export class GenerationProcessor {
 			ctrl,
 			rng,
 			generation: this._generation,
-			telemetry: this._telemetry,
+			protectCandleGroup: this._cfg.protectCandleGroup,
 		});
 	}
 

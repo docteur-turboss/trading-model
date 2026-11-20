@@ -30,13 +30,10 @@ graph TD
         GW["api-gateway"]
     end
 
-    FS -->|"MarketEvent (published)"| BUS
-    BUS -->|"MarketEvent (consumed)"| TT
     TT -->|"AgentPayload (published)"| BUS
     BUS -->|"events"| AL
     AL -.->|"subscribe (audit, training, dlq topics)"| BUS
-    BUS -->|"dead letters"| DS2
-    DS2 -->|"replay, dlq.* events"| BUS
+    BUS -->|"dead letters"| AL
     DS --> GW
     GW --> DS
 ```
@@ -48,7 +45,7 @@ graph TD
 - **Owner:** `financial-scraper`
 - **Core entities:** Candle, Trade, Ticker, OrderBook
 - **External dependency:** Binance API
-- **Publishes:** `market.trade.recent.fetch`, `market.candlestick.series.fetch`, `market.order-book.snapshot.fetch`, `market.ticker.24hr-stats.fetch`, `market.price-ticker.snapshot.fetch`, `market.order-book-ticker.snapshot.fetch`
+- **Publishes:** nothing since ADR-0078: the trainer reads candles through the scraper API. `MarketEvent` has no publisher and no subscriber
 - **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; **no consumer yet** (trader-trainer and model-evaluator do not read them).
 
 ### 2. Training Context
@@ -95,7 +92,7 @@ graph TD
 
 ### Not yet defined: downstream context
 
-No Strategy or Execution context exists: the only consumer of trained models is the offline `model-evaluator` (no order flow), and collected signals have no consumer, so the trading decision is not part of the system yet. The contract and the decision (B now, paper trading C after ADR-0064, real capital out of scope) are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Accepted). A future Execution context, a Risk/Execution service separate from the model and from the decision consumer, must exist before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Proposed). It has no code and no consumer.
+No Strategy or Execution context exists: the only consumer of trained models is the offline `model-evaluator` (no order flow), and collected signals have no consumer, so the trading decision is not part of the system yet. The contract and the decision (B now, paper trading C after ADR-0064, real capital out of scope) are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Accepted). A future Execution context, a Risk/Execution service separate from the model and from the decision consumer, must exist before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Accepted, option A, 2026-11-20). It has no code yet and no consumer.
 
 ## Integration Patterns
 

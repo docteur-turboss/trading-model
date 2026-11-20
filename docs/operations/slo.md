@@ -37,9 +37,11 @@ rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[
 / rate(http_requests_total[5m])`, same technical-route exclusion.
 - **Source:** All HTTP-serving services.
 
-### 4–5. Message delivery and DLQ drain (retired)
-
-Both read metrics of message-manager and dlq-service, retired by ADR-0073: the bus has no delivery SLI yet. Dead letters are listed with the audit-logger `dlq-cli`.
+### 4. Message Delivery Success Rate
+- **Definition:** Proportion of delivery outcomes that succeed: a message accepted but not delivered (subscriber down, retries pending) no longer counts as success once it is dead-lettered.
+- **Measurement:** Prometheus `rate(mm_messages_delivered_total{status="success"}[5m]) /
+(rate(mm_messages_delivered_total{status="success"}[5m]) + rate(mm_messages_dlq_total[5m]))`.
+- **Source:** the bus library of each subscriber service.
 
 ### 6. Training Completion Rate
 
@@ -85,6 +87,49 @@ A quantile has no error budget to burn, so the alerts stay single-window:
 - Fast burn: P95 > 5s for 5m.
 - Slow burn: P95 > 3s for 1h.
 
+## Outside working hours
+
+Service outside working hours is an owner decision (issue #1613, option B): no backup person and no paging
+escalation. Losses during the hours nobody watches are accepted, as listed
+below.
+
+- **Covered hours:** Monday to Friday, 09:00-19:00 Europe/Paris, public
+  holidays excluded. Inside them, the targets of
+  [on-call.md](on-call.md#responsibilities) apply (15 min L1, 1 hour L2).
+- **Outside them:** best effort. Pushover still repeats a `critical` alert
+  until it is acknowledged, but nobody is expected to answer. Target: reaction
+  at the start of the next covered period (Monday 09:00 for a Friday-night
+  incident), so an incident can last up to about 62 hours (Friday 19:00 to
+  Monday 09:00).
+- **Error budget:** time lost outside covered hours counts against the SLOs
+  above like any other time. A night incident that burns more than the budget
+  policy allows triggers the same freeze and postmortem.
+
+### Losses accepted while nobody reacts
+
+A collection that does not run is not caught up later, except where the
+source itself returns a window wider than the outage. Lost data is lost for
+good (point-in-time sources, ADR-0036).
+
+| Data | Lost when the outage lasts longer than | Why |
+| ---- | -------------------------------------- | --- |
+| `nws-kansas-wheat-belt` | 1 hour (each missed hourly run) | latest observation only |
+| `twelvedata-daily-prices` | 1 missed run (01:30 UTC, Tuesday to Saturday) | `outputsize=1`: the previous close only |
+| Binance trades, order books, tickers | any outage | snapshots of the moment, no history fetched |
+| `ecb-*` | 5 observations (about a week for daily series) | `lastNObservations=5` |
+| `nasa-power-crop-regions`, `wikipedia-pageviews`, `federal-register-documents` | 7 days | window `{date-8}` to `{date-1}` |
+| `cftc-cot-legacy`, `eia-weekly-energy` | 5 weeks | last 5 reports |
+| `treasury-par-yield-curve`, `sec-edgar-*`, `fred-us-macro`, `eurostat-*`, `dvf-commune-sales` | not lost within a weekend | the source returns the whole year, series or file |
+| Binance candles | not lost | each series restarts from its newest stored candle (`market_candles`) |
+
+The table follows `services/financial-scraper/src/config/signal-registry.json`:
+a new source gets a row here. No source has a `history` block yet, so
+`signal-backfill` cannot recover a gap.
+
+A value collected late (after a weekend, for instance) gets a later
+`observedAt` than if it had been collected on time: features stay
+point-in-time correct, but they see the value later.
+
 ## Error Budget Policy
 
 1. **Budget remaining > 50%:** Proceed with normal deployments.
@@ -94,8 +139,7 @@ A quantile has no error budget to burn, so the alerts stay single-window:
 
 ## Burn Rate Alerts
 
-The following alerts are configured in `observability/alerting.yml` (copied
-into `deploy/k8s/infra/prometheus.yaml`):
+The following alerts are configured in `deploy/k8s/infra/config/alerting.yml`:
 
 - `SLOAvailabilityFastBurn`, `SLOAvailabilitySlowBurn`: 99.9% SLO, multi-window multi-burn-rate (1h/5m at 14.4x, 6h/30m at 6x).
 - `SLOErrorBudgetLow`: less than 20% of the 30d budget left (recording rule `slo:sli_error:ratio_rate30d`).
@@ -107,4 +151,4 @@ The burn-rate rules and the budget read the recording rules `slo:sli_error:ratio
 ## Dashboard Alignment
 
 All SLOs are visualised on the Grafana "SLO" dashboard (see
-`observability/dashboards/`).
+`deploy/k8s/infra/dashboards/`).

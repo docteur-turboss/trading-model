@@ -2,10 +2,10 @@
 
 > **Applies to:** any order flow, paper or live (none exists today)  
 > **Regulatory framework:** MiFID II Art. 17, RTS 6 Art. 12 (kill functionality) and Art. 15-17 (limits, monitoring)  
-> **Architecture:** [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Proposed)  
-> **Last review:** 2026-11-12
+> **Architecture:** [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Accepted, option A, owner, 2026-11-20)  
+> **Last review:** 2026-11-20
 
-> **Status: Not implemented, prerequisite to any live execution.** The platform places no order, paper or live. No loss limit and no kill switch exist in the code: `maxDrawdown` is a metric of the model manifest and of the training events (`packages/contracts/src/training-events.ts`), never a limit, and the only flag named "kill switch" in the code (`FEATURE_RISK_ADJUSTED_FITNESS`, [ADR-0039](../adr/0039-configuration-feature-flags.md)) changes how the GA scores agents and stops nothing. Every number below is a **proposed default**, not a value read from the code: the project owner validates or changes each one before paper trading starts (ADR-0064 §9).
+> **Status: Implemented in the `risk-execution` service (paper only, simulated broker), issue #1695.** The values below are the hard ceilings of `services/risk-execution/src/domain/limits.ts` and its defaults; a configuration above them refuses to start. No live adapter exists: live execution stays forbidden until every prerequisite of ADR-0064 §9 is met. The only flag named "kill switch" elsewhere (`FEATURE_RISK_ADJUSTED_FITNESS`, [ADR-0039](../adr/0039-configuration-feature-flags.md)) changes how the GA scores agents and stops nothing. Every number below was validated by the project owner on 2026-11-20 (issue #1652).
 
 ## 1. Purpose
 
@@ -24,7 +24,7 @@ Bound the loss of any order flow, including the worst case where the operator is
 
 ## 3. Loss limits
 
-| Limit | Proposed default | Measured on | Effect when reached |
+| Limit | Value | Measured on | Effect when reached |
 |---|---|---|---|
 | Daily loss | 2 % of allocated capital | Equity at 00:00 UTC minus current equity | Global kill switch |
 | Drawdown stop | 10 % of allocated capital | High-water mark minus current equity | Global kill switch; re-arming also requires the owner's review of the strategy (§4.4) |
@@ -34,7 +34,7 @@ The limits are checked on every fill and on every reference price update, and be
 
 ### 3.1 Global exposure cap
 
-| Cap | Proposed default | Measured on | Effect |
+| Cap | Value | Measured on | Effect |
 |---|---|---|---|
 | Global exposure (ADR-0064 §2) | 30 % of allocated capital | Sum of the notionals of all positions, open orders counted as filled | An intent that would cross it is rejected |
 
@@ -62,7 +62,7 @@ Closing positions is a separate, explicit operator action, never automatic: a fo
 
 ### 4.3 Automatic triggers
 
-| Trigger | Proposed default | Scope |
+| Trigger | Value | Scope |
 |---|---|---|
 | Daily loss, drawdown stop | §3 | Global |
 | Daily loss per symbol | §3 | Symbol |
@@ -71,7 +71,7 @@ Closing positions is a separate, explicit operator action, never automatic: a fo
 | Reject rate | 5 broker rejections or errors within 10 min on one symbol engage that symbol; 10 within 10 min across symbols engage the global switch | Symbol, or global |
 | Unreadable switch state | The service cannot read its stored state: it counts as on (fail closed, ADR-0064 §5) | Global |
 
-Below the stale data threshold, an intent decided on a price older than 1 min (proposed default of this policy for the maximum age of ADR-0064 §7) is rejected without engaging the switch.
+Below the stale data threshold, an intent decided on a price older than 1 min (value of this policy for the maximum age of ADR-0064 §7) is rejected without engaging the switch.
 
 ### 4.4 Re-arming
 
@@ -85,7 +85,7 @@ The kill switch and the limits live in the Risk/Execution service, outside the m
 
 The automatic triggers stop new orders and cancel open orders; they do not close positions (§4.1). The loss of an unattended period is therefore the limit reached (2 % daily, 10 % drawdown, plus slippage between the trigger and the cancellation of open orders) **plus the loss of the positions still held**, which stay exposed to the market until an operator acts. Spot only, no leverage (ADR-0064 §2): those positions can lose at most their value at the trigger. The global exposure cap is checked on intents only (§3.1), so a price rise after the last intent can carry that value above 30 %. The bound depends on its reference:
 
-- **Against the allocated capital: up to 40 %** with the proposed defaults (drawdown stop plus global exposure cap), plus slippage and fees. At the last intent, equity was at least the allocated capital minus 10 % (the high-water mark is never below the allocated capital) and positions at most 30 %, so cash was at least 60 % of the allocated capital; with no new intent, cash does not fall, and positions cannot go below zero.
+- **Against the allocated capital: up to 40 %** with these values (drawdown stop plus global exposure cap), plus slippage and fees. At the last intent, equity was at least the allocated capital minus 10 % (the high-water mark is never below the allocated capital) and positions at most 30 %, so cash was at least 60 % of the allocated capital; with no new intent, cash does not fall, and positions cannot go below zero.
 - **Against the high-water mark: no fixed percentage.** The loss is the drawdown stop plus the whole value held at the trigger, which gains since the last intent can push above the cap. Example with 100 allocated: 30 bought, the price doubles (equity 130), falls by a sixth (equity 120, drawdown stop), then to zero: equity 70, 60 below the high-water mark, 30 below the allocated capital.
 
 The stale data, reconciliation and reject triggers cover the cases where the loss cannot be measured. If the Risk/Execution service itself is down, no new order is sent (it is the only holder of the broker keys), but open positions stay exposed the same way: the service must therefore hold no resting order without an expiry, and its down alert pages an operator (§2).
@@ -101,13 +101,13 @@ A tighter bound needs positions reduced without an operator, for example stop or
 | Scenario | 1. Run an order flow on at least two symbols. 2. Engage the per-symbol switch manually: that symbol stops, the other trades. 3. Engage the global switch manually: no new order, open orders cancelled. 4. Restart the service: the switch stays on. 5. Try to re-arm with an identity other than an operator: refused. 6. Re-arm manually. 7. Force each automatic trigger in turn: a loss past the daily limit (fake prices), stale data (stop the feed), a reconciliation mismatch (change the paper ledger), a reject storm (fake broker rejecting). |
 | Evidence | A dated entry with: the time from trigger to the last order sent and to the last open order cancelled, the audit trail records of each engagement and re-arming, the alert raised for each automatic trigger, the restart result, and the operator. Kept in a drill log under `docs/compliance/`, in the format of [dr-exercise-log.md](dr-exercise-log.md), created with the Risk/Execution service. A failed step blocks paper or live trading until a passing re-run. |
 
-No runbook exists yet: it comes with the Risk/Execution service, as do the alerts and specs of ADR-0064.
+Runbook: [runbook-risk-execution](../operations/runbooks/runbook-risk-execution.md); alerts `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskMarketDataStale`; log: [risk-drill-log](risk-drill-log.md).
 
 ## 8. Status
 
 | Control | Status |
 |---|---|
-| Loss limits and global exposure cap (§3) | ❌ Not implemented, prerequisite to any live execution |
-| Kill switch, manual and automatic (§4) | ❌ Not implemented, prerequisite to any live execution |
-| Drill (§7) | ❌ Never run: nothing to exercise |
-| Proposed values | ⏳ To be validated by the project owner before paper trading |
+| Loss limits and global exposure cap (§3) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden |
+| Kill switch, manual and automatic (§4) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden. Engagements and re-arming are logged, not yet in the audit trail (#1732); the owner-only re-arming after the drawdown stop trusts the declared `actor` of the admin request (anyone with `kubectl exec` on the pod) |
+| Drill (§7) | ✅ Passed 2026-11-20 in-process ([risk-drill-log](risk-drill-log.md)); to repeat on the deployed paper environment before the 30 days start (#1733) |
+| Values | ✅ Validated by the project owner, 2026-11-20 (issue #1652) |

@@ -2,7 +2,7 @@
  * Scopes of an API key (ADR-0059): `read` for the GET routes of
  * `PUBLIC_ROUTES`, which are all of them.
  */
-export const API_SCOPES = ["read"] as const;
+const API_SCOPES = ["read"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 /** A key of `AUTH_TOKENS`. Only `name` leaves the gateway, never `secret`. */

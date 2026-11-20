@@ -66,6 +66,102 @@
 			"areas": ["US"]
 		},
 		{
+			"id": "MSFT",
+			"name": "Microsoft Corporation",
+			"assetType": "equity",
+			"identifier": {
+				"scheme": "isin",
+				"isin": "US5949181045"
+			},
+			"applicableDimensions": [
+				"market",
+				"fundamental",
+				"social",
+				"contextual",
+				"legal",
+				"macro"
+			],
+			"sector": "technology",
+			"aliases": {
+				"twelvedata": "MSFT",
+				"cik": "0000789019",
+				"wikipedia": "Microsoft"
+			},
+			"areas": ["US"]
+		},
+		{
+			"id": "JPM",
+			"name": "JPMorgan Chase & Co.",
+			"assetType": "equity",
+			"identifier": {
+				"scheme": "isin",
+				"isin": "US46625H1005"
+			},
+			"applicableDimensions": [
+				"market",
+				"fundamental",
+				"social",
+				"contextual",
+				"legal",
+				"macro"
+			],
+			"sector": "financials",
+			"aliases": {
+				"twelvedata": "JPM",
+				"cik": "0000019617",
+				"wikipedia": "JPMorgan Chase"
+			},
+			"areas": ["US"]
+		},
+		{
+			"id": "XOM",
+			"name": "Exxon Mobil Corporation",
+			"assetType": "equity",
+			"identifier": {
+				"scheme": "isin",
+				"isin": "US30231G1022"
+			},
+			"applicableDimensions": [
+				"market",
+				"fundamental",
+				"social",
+				"contextual",
+				"legal",
+				"macro"
+			],
+			"sector": "energy",
+			"aliases": {
+				"twelvedata": "XOM",
+				"cik": "0000034088",
+				"wikipedia": "ExxonMobil"
+			},
+			"areas": ["US"]
+		},
+		{
+			"id": "JNJ",
+			"name": "Johnson & Johnson",
+			"assetType": "equity",
+			"identifier": {
+				"scheme": "isin",
+				"isin": "US4781601046"
+			},
+			"applicableDimensions": [
+				"market",
+				"fundamental",
+				"social",
+				"contextual",
+				"legal",
+				"macro"
+			],
+			"sector": "healthcare",
+			"aliases": {
+				"twelvedata": "JNJ",
+				"cik": "0000200406",
+				"wikipedia": "Johnson & Johnson"
+			},
+			"areas": ["US"]
+		},
+		{
 			"id": "WHEAT",
 			"name": "Wheat, through the Teucrium Wheat Fund",
 			"assetType": "commodity_proxy",

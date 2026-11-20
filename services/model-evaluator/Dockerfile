@@ -17,7 +17,7 @@ RUN bun install --frozen-lockfile --production --ignore-scripts --linker hoisted
 # ── Stage 2: Build shared packages + service ────────────────────────────────
 FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS build
 WORKDIR /app
-COPY package.json bun.lock ./
+COPY package.json bun.lock tsconfig.base.json ./
 COPY packages/ packages/
 COPY services/ services/
 RUN bun install --frozen-lockfile --linker hoisted
@@ -43,6 +43,8 @@ COPY --chown=appuser:appgroup --from=build /app/packages ./packages
 COPY --chown=appuser:appgroup --from=build /app/services/model-evaluator/package.json ./services/model-evaluator/
 COPY --chown=appuser:appgroup --from=build /app/services/model-evaluator/dist ./services/model-evaluator/dist
 RUN chown appuser:appgroup /app
+# A named volume copies the owner of its mount point: without this, compose mounts /data/evaluations root-owned (EACCES on mkdir).
+RUN mkdir -p /data/evaluations && chown appuser:appgroup /data/evaluations
 ARG BUILD_VERSION=dev
 ARG GIT_SHA=unknown
 ENV BUILD_VERSION=$BUILD_VERSION GIT_SHA=$GIT_SHA

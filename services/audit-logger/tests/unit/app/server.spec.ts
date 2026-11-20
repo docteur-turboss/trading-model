@@ -63,11 +63,15 @@ describe("createServer", () => {
 
 	it("should create a secure server and register all routes", async () => {
 		const auditRepo = { insert: jest.fn<(...args: any[]) => any>() } as any;
+		let ready = false;
 		const mongoManager = {
 			isConnected: jest.fn((..._args: any[]) => true),
+			getDb: jest.fn(async (..._args: any[]) => ({
+				command: jest.fn(async (..._a: any[]) => ({ ok: 1 })),
+			})),
 		} as any;
 
-		const server = await createServer(auditRepo, mongoManager);
+		const server = await createServer(auditRepo, mongoManager, () => ready);
 
 		expect(server).toBe(MOCK_SERVER);
 		expect(createSecureServer).toHaveBeenCalledWith(
@@ -82,6 +86,13 @@ describe("createServer", () => {
 		).mock.calls[0][0] as any;
 
 		secureServerOptions.routes(MOCK_APP);
+
+		const mongoCheck = secureServerOptions.readiness.find(
+			(c: { name: string } | undefined) => c?.name === "mongo"
+		);
+		expect(await mongoCheck.check()).toBe(false);
+		ready = true;
+		expect(await mongoCheck.check()).toBe(true);
 
 		expect(healthRoutes).toHaveBeenCalledWith();
 		expect(eventsRoutes).toHaveBeenCalledWith(auditRepo);

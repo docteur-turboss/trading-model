@@ -14,7 +14,8 @@ import { ENV } from "../infrastructure/config/env";
 
 export function createServer(
 	auditRepo: AuditRepository,
-	mongoManager: MongoConnectionManager
+	mongoManager: MongoConnectionManager,
+	isReady: () => boolean
 ) {
 	return createServiceServer({
 		env: ENV,
@@ -27,7 +28,7 @@ export function createServer(
 			{
 				name: "mongo",
 				check: async () => {
-					if (!mongoManager.isConnected()) {
+					if (!(isReady() && mongoManager.isConnected())) {
 						return false;
 					}
 					const db = await mongoManager.getDb();

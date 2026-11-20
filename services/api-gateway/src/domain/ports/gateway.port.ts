@@ -7,6 +7,7 @@ type ForwardRequestPort = (opts: {
 	req: Request;
 	target: ResolvedEndpoint;
 	path: string;
+	serviceName: string;
 }) => Promise<{
 	status: HttpStatusCode;
 	body: string;
@@ -21,6 +22,14 @@ export class UpstreamResponseTooLargeError extends Error {
 	constructor(readonly maxBytes: number) {
 		super(`Upstream response larger than ${maxBytes} bytes`);
 		this.name = "UpstreamResponseTooLargeError";
+	}
+}
+
+/** The upstream did not finish answering within PROXY_TIMEOUT_MS: the dispatcher answers 504. */
+export class UpstreamTimeoutError extends Error {
+	constructor(readonly timeoutMs: number) {
+		super(`Upstream did not answer within ${timeoutMs}ms`);
+		this.name = "UpstreamTimeoutError";
 	}
 }
 

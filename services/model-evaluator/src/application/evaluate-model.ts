@@ -1,7 +1,12 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
+import type { CandleData } from "@trading-model/contracts/market-data.types";
+import { MODEL_REPLAY_SHARPE_GAP } from "../config/metrics";
 import {
 	type EvaluationRecord,
 	type ModelManifest,
 	type PublishedModel,
+	type ReplayOutcome,
+	replayOutcome,
 	toRecord,
 	verifyModel,
 } from "../domain/model-evaluation";
@@ -19,6 +24,39 @@ interface Trainer {
 	): Promise<{ bytes: Uint8Array; sha256: string | undefined }>;
 }
 
+interface Scraper {
+	/** Candles of `symbol` opened in [from, to), oldest first. */
+	candles(symbol: string, from: number, to: number): Promise<CandleData[]>;
+}
+
+/** Reads the window of the manifest, never later than `to`, and replays the model on it. */
+async function replay(
+	scraper: Scraper,
+	manifest: ModelManifest,
+	weights: Uint8Array
+): Promise<ReplayOutcome> {
+	const window = manifest.replay;
+	if (!window) {
+		return { replay: "failed", reason: "no-window" };
+	}
+	let candles: CandleData[];
+	try {
+		candles = await scraper.candles(manifest.symbol, window.from, window.to);
+	} catch (err) {
+		return {
+			replay: "failed",
+			reason: `read-error: ${normalizeError(err).message}`,
+		};
+	}
+	return replayOutcome(
+		window,
+		manifest.genome,
+		weights,
+		candles,
+		manifest.riskLimits?.maxExposureFraction
+	);
+}
+
 /**
  * Handles one `training.model.published` delivery (at-least-once): idempotent
  * on `(symbol, version)`, nothing is recorded for weights that fail the
@@ -27,6 +65,7 @@ interface Trainer {
 export function createEvaluateModel(deps: {
 	store: Store;
 	trainer: Trainer;
+	scraper: Scraper;
 	now?: () => Date;
 }) {
 	const now = deps.now ?? (() => new Date());
@@ -42,7 +81,15 @@ export function createEvaluateModel(deps: {
 			weights: weights.bytes,
 			headerSha256: weights.sha256,
 		});
-		return (await deps.store.create(toRecord(manifest, now())))
+		const outcome = await replay(deps.scraper, manifest, weights.bytes);
+		const published = manifest.admission?.criteria?.sharpe;
+		if (outcome.replay === "done" && published !== undefined) {
+			MODEL_REPLAY_SHARPE_GAP.set(
+				{ symbol: manifest.symbol },
+				outcome.metrics.sharpe - published
+			);
+		}
+		return (await deps.store.create(toRecord(manifest, now(), outcome)))
 			? "recorded"
 			: "duplicate";
 	};

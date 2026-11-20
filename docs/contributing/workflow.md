@@ -52,7 +52,7 @@ trading-model/
 ├── services/     # 5 microservices (kebab-case directory names)
 │   ├── discovery-server/
 │   ├── financial-scraper/
-│   ├── trader-trainer/      # bun name: trader-service
+│   ├── trader-trainer/      # bun name: trader-trainer
 │   ├── api-gateway/
 │   └── audit-logger/
 ├── deploy/       # K8s manifests + nginx configs

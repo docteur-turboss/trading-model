@@ -54,20 +54,17 @@ jest.mock("@opentelemetry/api", () => {
 import fs from "node:fs";
 import https from "node:https";
 import { PassThrough } from "node:stream";
+import { deflateSync, gzipSync } from "node:zlib";
 import {
 	registerServiceName,
 	type ServiceInstanceName,
 } from "@trading-model/common/config/services.types";
-import { getDefaultCircuitRecorder } from "@trading-model/http/circuit-recorder";
 import { runWithCorrelationId } from "@trading-model/http/correlation-id";
 import { HttpClient } from "@trading-model/http/http-client";
 import type {
 	PositiveInt,
 	ServiceId,
 } from "@trading-model/primitives/primitives";
-
-const isServiceCircuitOpen = (name: ServiceInstanceName) =>
-	getDefaultCircuitRecorder().isServiceCircuitOpen(name);
 
 const TEST_SERVICE_NAMES = [
 	"my-service",
@@ -668,7 +665,7 @@ describe("HttpClient", () => {
 			jest.useRealTimers();
 		});
 
-		it("should open after threshold failures and reject via isServiceCircuitOpen", async () => {
+		it("should open after threshold failures and reject the next call", async () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get(
 					URLString.of("https://cb-svc-1.example.com/api"),
@@ -681,9 +678,12 @@ describe("HttpClient", () => {
 				await expect(promise).rejects.toThrow();
 			}
 
-			expect(isServiceCircuitOpen("my-service" as ServiceInstanceName)).toBe(
-				true
-			);
+			await expect(
+				client.get(URLString.of("https://cb-svc-1.example.com/api"), {
+					retryCount: 0 as PositiveInt,
+					serviceName: "my-service" as unknown as ServiceId,
+				})
+			).rejects.toThrow("Circuit breaker open");
 		});
 
 		it("should reset service circuit on success after cooldown", async () => {
@@ -710,10 +710,6 @@ describe("HttpClient", () => {
 			);
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			await expect(promise).resolves.toEqual({ ok: true });
-
-			expect(isServiceCircuitOpen("reset-service" as ServiceInstanceName)).toBe(
-				false
-			);
 		});
 	});
 
@@ -840,58 +836,6 @@ describe("HttpClient", () => {
 		});
 	});
 
-	describe("isServiceCircuitOpen half-open transitions", () => {
-		beforeEach(() => {
-			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
-			jest.useFakeTimers();
-		});
-
-		afterEach(() => {
-			jest.useRealTimers();
-		});
-
-		it("should transition to half-open after cooldown and return true from isServiceCircuitOpen", async () => {
-			for (let i = 0; i < 5; i++) {
-				const promise = client.get(
-					URLString.of("https://cb-halfopen.example.com/api"),
-					{
-						retryCount: 0 as PositiveInt,
-						serviceName: "halfopen-service" as unknown as ServiceId,
-					}
-				);
-				errorHandler!(new Error("ECONNRESET"));
-				await expect(promise).rejects.toThrow();
-			}
-
-			jest.advanceTimersByTime(30_001);
-
-			expect(
-				isServiceCircuitOpen("halfopen-service" as ServiceInstanceName)
-			).toBe(true);
-		});
-
-		it("should return true for half-open state when no request resets it", async () => {
-			for (let i = 0; i < 5; i++) {
-				const promise = client.get(
-					URLString.of("https://cb-halfopen2.example.com/api"),
-					{
-						retryCount: 0 as PositiveInt,
-						serviceName: "halfopen-service-2" as unknown as ServiceId,
-					}
-				);
-				errorHandler!(new Error("ECONNRESET"));
-				await expect(promise).rejects.toThrow();
-			}
-
-			jest.advanceTimersByTime(30_001);
-
-			isServiceCircuitOpen("halfopen-service-2" as ServiceInstanceName);
-			expect(
-				isServiceCircuitOpen("halfopen-service-2" as ServiceInstanceName)
-			).toBe(true);
-		});
-	});
-
 	describe("fallback throw edge cases", () => {
 		it("should throw generic error when retryCount < 0 (loop never runs)", async () => {
 			const promise = client.get(URLString.of("https://example.com/api"), {
@@ -927,6 +871,7 @@ describe("HttpClient", () => {
 
 	describe("shouldRetry for network errors", () => {
 		it("should retry on ECONNRESET error", async () => {
+			jest.spyOn(Math, "random").mockReturnValue(0.5);
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				retryCount: 1 as PositiveInt as PositiveInt,
 				timeoutMs: 100 as DurationMs,
@@ -936,6 +881,7 @@ describe("HttpClient", () => {
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			const result = await promise;
 			expect(result).toEqual({ ok: true });
+			jest.restoreAllMocks();
 		});
 	});
 
@@ -1002,77 +948,28 @@ describe("HttpClient", () => {
 	});
 
 	describe("gzip and deflate content encoding", () => {
-		it("should handle gzip-encoded response", async () => {
-			const gzipData = "gzip-compressed-data";
-			const mockGunzip = {
-				on: jest.fn<(...args: any[]) => any>(),
-				setEncoding: jest.fn<(...args: any[]) => any>(),
-			};
-
-			(
-				mockGunzip.on as unknown as jest.Mock<(...args: any[]) => any>
-			).mockImplementation((e: unknown, cb2: unknown) => {
-				if (e === "data") {
-					(cb2 as (d: string) => void)(gzipData);
-				}
-				if (e === "end") {
-					(cb2 as () => void)();
-				}
-			});
-
-			const mockRes = {
-				pipe: jest.fn((..._args: any[]) => mockGunzip),
-				statusCode: 200,
-				headers: { "content-type": "text/plain", "content-encoding": "gzip" },
-			};
-
-			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
-				(_opts: any, cb: any) => {
-					cb(mockRes);
-					return {
-						write: jest.fn<(...args: any[]) => any>(),
-						end: jest.fn<(...args: any[]) => any>(),
-						on: jest.fn<(...args: any[]) => any>(),
-						setTimeout: jest.fn<(...args: any[]) => any>(),
-						destroy: jest.fn<(...args: any[]) => any>(),
-					};
-				}
-			);
-
-			const result = await client.get(URLString.of("https://example.com/data"));
-			expect(result).toBe("gzip-compressed-data");
-		});
-
-		it("should handle deflate-encoded response", async () => {
-			const deflateData = "deflate-compressed-data";
-			const mockInflate = {
-				on: jest.fn<(...args: any[]) => any>(),
-				setEncoding: jest.fn<(...args: any[]) => any>(),
-			};
-
-			(
-				mockInflate.on as unknown as jest.Mock<(...args: any[]) => any>
-			).mockImplementation((e: unknown, cb2: unknown) => {
-				if (e === "data") {
-					(cb2 as (d: string) => void)(deflateData);
-				}
-				if (e === "end") {
-					(cb2 as () => void)();
-				}
-			});
-
-			const mockRes = {
-				pipe: jest.fn((..._args: any[]) => mockInflate),
-				statusCode: 200,
-				headers: {
+		it.each([
+			["gzip", "gzip-compressed-data", gzipSync, true],
+			["deflate", "deflate-compressed-data", deflateSync, true],
+			["gzip", "not gzip at all", (b: string) => Buffer.from(b), false],
+			["gzip", "x".repeat(17 * 1024 * 1024), gzipSync, false],
+		])(
+			"%s body: ok, corrupt or oversized (case %#)",
+			async (encoding, text, compress, ok) => {
+				const mockRes = new PassThrough() as PassThrough & {
+					statusCode: number;
+					headers: Record<string, string>;
+				};
+				mockRes.statusCode = 200;
+				mockRes.headers = {
 					"content-type": "text/plain",
-					"content-encoding": "deflate",
-				},
-			};
-
-			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
-				(_opts: any, cb: any) => {
+					"content-encoding": encoding,
+				};
+				(
+					https.request as jest.Mock<(...args: any[]) => any>
+				).mockImplementation((_opts: any, cb: any) => {
 					cb(mockRes);
+					mockRes.end(compress(text));
 					return {
 						write: jest.fn<(...args: any[]) => any>(),
 						end: jest.fn<(...args: any[]) => any>(),
@@ -1080,12 +977,16 @@ describe("HttpClient", () => {
 						setTimeout: jest.fn<(...args: any[]) => any>(),
 						destroy: jest.fn<(...args: any[]) => any>(),
 					};
-				}
-			);
+				});
 
-			const result = await client.get(URLString.of("https://example.com/data"));
-			expect(result).toBe("deflate-compressed-data");
-		});
+				const result = client.get(URLString.of("https://example.com/data"));
+				if (ok) {
+					await expect(result).resolves.toBe(text);
+				} else {
+					await expect(result).rejects.toThrow();
+				}
+			}
+		);
 
 		it("should decode a multi-byte character split across chunks", async () => {
 			const bytes = Buffer.from('{"s":"é€"}');
@@ -1115,19 +1016,5 @@ describe("HttpClient", () => {
 			const result = await client.get(URLString.of("https://example.com/data"));
 			expect(result).toEqual({ s: "é€" });
 		});
-	});
-});
-
-describe("isServiceCircuitOpen", () => {
-	it("should return false for unknown service", () => {
-		expect(isServiceCircuitOpen("nonexistent" as ServiceInstanceName)).toBe(
-			false
-		);
-	});
-
-	it("should return false for a service with no recorded failures", () => {
-		expect(isServiceCircuitOpen("fresh-service" as ServiceInstanceName)).toBe(
-			false
-		);
 	});
 });

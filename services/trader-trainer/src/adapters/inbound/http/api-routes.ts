@@ -43,6 +43,7 @@ const BestAgentSummary = z.object({
 	network: z.object({
 		inputDim: z.number().int(),
 		outputDim: z.number().int(),
+		actions: z.array(z.string()).optional(),
 		hiddenLayers: z.array(
 			z.object({ neurons: z.number().int(), activation: z.string() })
 		),

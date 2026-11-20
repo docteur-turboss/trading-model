@@ -43,7 +43,7 @@ jobs:
         run: |
           bun run --filter discovery-server build
           bun run --filter financial-scraper build
-          bun run --filter trader-service build
+          bun run --filter trader-trainer build
           bun run --filter api-gateway build
           bun run --filter audit-logger build
 

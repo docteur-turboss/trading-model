@@ -11,6 +11,7 @@ Service abbreviation legend:
 | GW    | api-gateway                                                                                         |
 | AL    | audit-logger                                                                                        |
 | ME    | model-evaluator                                                                                     |
+| RX    | risk-execution                                                                                      |
 | DC    | docker-compose.yml (host-side `.env` file)                                                          |
 
 ---
@@ -29,7 +30,6 @@ Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), valid
 | `LOG_LEVEL`     | `error \| warn \| info \| debug` (case-insensitive) | unset: from `NODE_ENV` (`development` → `debug`, `staging` → `info`, otherwise `warn`) | no       | Level of the global logger (`@trading-model/http`), takes priority over `NODE_ENV`. Compose and every K8s ConfigMap set `info`. Invalid value: the `NODE_ENV` default plus one WARN line at startup | All*     |
 | `BUILD_VERSION` | string | `dev` | no | Release version, set at image build; label of `build_info` (its `service` label is `SERVICE_NAME`, equal to the `job` label since #495; old pods still report `audit-logger-service`, `financial-scraper-service`, `message-delivery-service` until they roll) | All |
 | `GIT_SHA` | string | `unknown` | no | Commit of the image, set at image build; label of `build_info` | All |
-| `ENFORCE_MTLS_STRICT` | boolean (`true`/`1`)                     | `false`                 | no (set `true` in production) | Enforces the per-service caller ACL on every inbound request (ADR-0011): a caller with a valid SVID but not allowed for the target gets 403. Off: any caller with a valid SVID passes. No startup check refuses `false` in production: compose (`${ENFORCE_MTLS_STRICT:-true}`) and every K8s ConfigMap set `true` | All*     |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | URL                              | —                       | no       | OTLP/HTTP collector base URL; traces go to `<url>/v1/traces`. Unset: tracing off | All      |
 
 ---
@@ -107,9 +107,8 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
 | `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scope `read`; secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
-| `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy request timeout           | GW       |
+| `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy total deadline (ms)       | GW       |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
-| `AUTH_STRICT`         | boolean (only `false` turns it off) | `true`              | no (`false` refused in production) | Strict API key check. `false` with no `AUTH_TOKENS` accepts any API key: in production the gateway refuses to start with `false` | GW |
 | `ALLOWED_PROXY_CIDRS` | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs the resolved proxy target IP must be in. Empty: target IP check off; in production the gateway refuses to start | GW |
 
 ---
@@ -119,7 +118,13 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | Variable                          | Type         | Default           | Required | Description                          | Services |
 | --------------------------------- | ------------ | ----------------- | -------- | ------------------------------------ | -------- |
 | `TRAINER_SYMBOLS`                 | string       | `BTCUSDT,ETHUSDT` | no       | Comma-separated trading symbols      | TT       |
+| `TRAINER_ASSETS`                | string       | empty             | no       | `ASSET:type` pairs (`AAPL:equity,AGG:bond`): registry assets trained on daily bars rebuilt from their `market` signals, the asset id being the model symbol (ADR-0083); empty: crypto only | TT       |
+| `TRAINER_ASSET_COSTS`           | JSON         | `{}`              | no       | `{"equity":{"feeRate":0.0005,"executionCostRate":0.0005}}`: costs of the daily assets by type over the defaults of ADR-0083 | TT       |
 | `TRAINER_SYMBOL_ASSETS`           | string       | empty             | no       | `SYMBOL:ASSET` pairs (`BTCUSDT:BTC,ETHUSDT:ETH`): registry asset whose point-in-time signal window (30 days) a session reads and measures; empty: no call | TT       |
+| `TRAINER_SIGNAL_FEATURES`         | string       | empty             | no       | `SUBJECT:dimension:metric` list (`BTC:social:pageviews`, subject = asset, sector or area): signals fed to the network as value, age and confidence inputs, 3 per metric (ADR-0081); read only with `FEATURE_SIGNAL_INPUTS`; each key must match the format or the service refuses to start; a key that finds no signal in the window logs a warning and trains on zeros | TT       |
+| `FEATURE_SIGNAL_INPUTS`           | boolean      | `false`           | no       | Feature flag (ADR-0039): `true` appends the `TRAINER_SIGNAL_FEATURES` inputs to the 18 market inputs; `false`: input and published genome as before | TT       |
+| `FEATURE_INPUT_MASK_GENE`         | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0082): `true` lets the GA evolve a mask over the input groups (candle, window, one per signal metric); `false`: no mask, genome and manifest as before | TT       |
+| `TRAINER_INPUT_MASK_PROTECT_CANDLE` | boolean    | `false`           | no       | `true` keeps the candle group active in every mask the GA evolves (ADR-0082); read only with `FEATURE_INPUT_MASK_GENE` | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
 | `TRAINER_VALIDATION_SPLIT`        | number (]0, 1[) | `0.15`            | no       | Fraction of the steps left after the test cut, used for validation (selection) | TT       |
 | `TRAINER_TEST_SPLIT`              | number (]0, 1[) | `0.15`            | no       | Newest fraction of the steps never used by training nor selection; published metrics come from it (ADR-0068) | TT       |
@@ -131,6 +136,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_EPISODES_PER_INDIVIDUAL` | number       | `10`              | no       | DRL episodes per genome evaluation (adaptive control keeps 10–30) | TT       |
 | `TRAINER_FITNESS_TYPE`            | enum         | `total_pnl`       | no       | GA scalar fitness: `total_pnl`, `sharpe`, `sortino`, `calmar`, `composite` (ADR-0025) | TT       |
 | `FEATURE_RISK_ADJUSTED_FITNESS`   | boolean      | `true`            | no       | Feature flag (ADR-0039): `false` forces fitness `total_pnl` whatever `TRAINER_FITNESS_TYPE` says. Invalid value: refused at startup | TT       |
+| `FEATURE_ACTION_SPACE_GENE`        | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076): `true` lets the GA mutate the action set (partial order sizes, recorded as `actions` in the manifest); `false`: `sell_hold_buy`, never mutated | TT       |
 | `FEATURE_EVENT_DRIVEN_DECISIONS`   | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 §5): `true` makes the agent decide on market events (price move, volume) instead of every bar; network gets a 33rd input `BarsSinceDecision`. `false`: genome and manifest unchanged. Invalid value: refused at startup | TT       |
 | `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
 | `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |
@@ -147,6 +153,25 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | --- | --- | --- | --- | --- | --- |
 | `EVALUATIONS_DIR` | string | `/data/evaluations` | no | Directory of the evaluation records, one file per `(symbol, version)` created exclusively; a ReadWriteOnce PVC in K8s, a volume in compose (ADR-0049) | ME |
 
+---
+
+## Risk/Execution
+
+ADR-0064. Limits are validated at startup and refuse to start above their hard ceiling in code (`services/risk-execution/src/domain/limits.ts`); percentages are shares of `RISK_ALLOCATED_CAPITAL`.
+
+| Variable | Type | Default | Required | Description | Services |
+| --- | --- | --- | --- | --- | --- |
+| `EXECUTION_MODE` | `paper | live` | `paper` | no | Only the production overlay may say `live` (`tests/k8s/check-overlays.mjs`); the service refuses `live` outside production, without live keys, and `paper` with live keys. No live adapter exists yet: `live` stops the start | RX |
+| `DEPLOYMENT_ENV` | `development | ci | staging | production` | `development` | no | The deployment (NODE_ENV is `production` everywhere in K8s); `production` only in the production overlay | RX |
+| `BROKER_API_KEY` | string | _(unset)_ | no | Live broker key, in the production Secret only; its presence in paper mode refuses the start | RX |
+| `BROKER_API_SECRET` | string | _(unset)_ | no | Live broker secret, same rule as `BROKER_API_KEY` | RX |
+| `RISK_STATE_DIR` | string | `/data/risk-execution` | no | Durable state (kill switch, orders, paper ledger); a ReadWriteOnce PVC in K8s. An unreadable state engages the global kill switch | RX |
+| `RISK_ALLOCATED_CAPITAL` | number | `10000` | no | Allocated capital of the mode (policy §2) | RX |
+| `RISK_INSTRUMENTS` | JSON | `{"BTCUSDT":{"maxQuantity":0.01}}` | no | Allow-list of spot instruments with their quantity cap per order | RX |
+| `RISK_LIMITS_JSON` | JSON | `{}` | no | Overrides of the other caps of ADR-0064 §2 (at or below their ceiling) | RX |
+| `RISK_OWNER_ACTOR` | string | `owner` | no | Only this actor re-arms after the drawdown stop (policy §4.4) | RX |
+| `RISK_TICK_MS` | number | `10000` | no | Period of expiry, stale-data, limit and reconciliation checks | RX |
+
 ## Financial Scraper — Market data
 
 | Variable                   | Type    | Default                   | Required | Description                                                                 | Services |
@@ -157,7 +182,9 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `SCRAPE_SCHEDULER_ENABLED` | boolean (`true`/`1`) | `true`       | no       | Runs the scrape cron in this instance; `false` on HTTP-only replicas (K8s runs a single cron instance) | FS       |
 | `COLLECTOR_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the collector pods compete for; only its holder runs the crons (ADR-0057). Set on `financial-scraper-collector` in K8s; empty (compose, dev): this instance collects | FS |
 | `SIGNAL_COLLECTION_ENABLED` | boolean (`true`/`1`) | `true` | no | Collects the signal registry sources (ADR-0036) where the scrape cron runs; `false` in CI, which must not call the real sources | FS |
+| `SIGNAL_REGISTRY_FILE` | string (path) | unset | no | Signal registry read at startup instead of the copy bundled in the image (issue #1308), checked by the same `parseSignalRegistry`: a broken file stops the pod. K8s: ConfigMap `financial-scraper-signal-registry` generated from `services/financial-scraper/src/config/signal-registry.json`, mounted at `/etc/signal-registry` by both Deployments; compose: bind mount of the same file. Read once: a change rolls the pods (ConfigMap hash), never a hot reload | FS |
 | `SIGNAL_CONTACT_EMAIL` | string (e-mail) | empty | no | Contact e-mail in the User-Agent of the signal sources (SEC EDGAR answers 403 without one); must be a functional, non-nominative address (project alias, no personal data sent to the US sources, see data-processing-register.md); never committed: `.env` for compose, GitHub environment secret for K8s. A value that is no e-mail disables the signal collection only | FS |
+| `SIGNAL_NON_COMMERCIAL_ACCEPTED` | string (comma-separated ids) | empty | no | Ids of `non-commercial` signal sources (ADR-0075) the operator accepts to collect. In production, financial-scraper refuses to start while such a source is active (its `SIGNAL_KEY_*` set) and not listed; elsewhere only a `warn` | FS |
 | `SIGNAL_KEY_<SOURCE>` | string (API key) | unset | no | Free API key of one signal source (`accessPolicy.auth.env` of its registry entry, prefix `SIGNAL_KEY_` required, one variable per source), sent in the header or query parameter the entry declares; never in the registry, a log or an error. Unset: the source alone is not scheduled, a warning is logged and `fs_signal_source_disabled{source,reason="missing_key"}` is 1. Add it as an optional `secretKeyRef` of the collector (K8s) and in `.env.example` / `docker-compose.yml` with the source that needs it; used by `fred-us-macro` (`SIGNAL_KEY_FRED`) `eia-weekly-energy` (`SIGNAL_KEY_EIA`, free registration at eia.gov/opendata/register.php) and `twelvedata-daily-prices` (`SIGNAL_KEY_TWELVEDATA`, ADR-0080) | FS |
 
 ---
@@ -183,10 +210,7 @@ No broker service: every service that publishes or consumes links the library an
 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
-| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publish resolves (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | AL, FS, TT, ME |
-
-------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
-| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publish resolves (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM       |
+| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publish resolves (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | AL, TT, ME |
 
 ---
 
@@ -289,6 +313,7 @@ Read only by `dlq-cli import-mongo` of audit-logger, run once against the old `m
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
 | `GRAFANA_OIDC_ENABLED` | string | `false` (compose), unset (K8s) | `true` turns on Grafana OIDC login and hides the local login form (`GF_AUTH_DISABLE_LOGIN_FORM`, K8s); off otherwise (ADR-0063) | DC, K8s |
+| `GRAFANA_ALLOWED_CIDRS` | string | unset | GitHub environment variable (K8s): comma-separated CIDRs, set by `deploy-release.sh render` as `whitelist-source-range` of `grafana-ingress`; `deploy.yml` refuses production without it (issue #1630) | K8s |
 | `GRAFANA_BASIC_AUTH_ENABLED` | string | unset (K8s) | Set `false` together with `GRAFANA_OIDC_ENABLED=true`: refuses `Authorization: Basic` on the public Ingress (`GF_AUTH_BASIC_ENABLED`); unset keeps Grafana's default (on). Break-glass: `runbook-grafana-break-glass.md` | K8s |
 | `GRAFANA_OIDC_CLIENT_ID` | string | (unset) | OIDC client id (ADR-0063) | DC, K8s |
 | `GRAFANA_OIDC_CLIENT_SECRET` | string | (unset) | OIDC client secret (K8s: key of `trading-model-secrets`) (ADR-0063) | DC, K8s |
@@ -363,6 +388,12 @@ MYSQL_DATABASE=financial_scraper
 # Trader-Trainer
 TRAINER_SYMBOLS=BTCUSDT,ETHUSDT
 TRAINER_SYMBOL_ASSETS=
+TRAINER_ASSETS=
+TRAINER_ASSET_COSTS={}
+TRAINER_SIGNAL_FEATURES=
+FEATURE_SIGNAL_INPUTS=false
+FEATURE_INPUT_MASK_GENE=false
+TRAINER_INPUT_MASK_PROTECT_CANDLE=false
 TRAINER_DATA_WINDOW=500
 TRAINER_VALIDATION_SPLIT=0.15
 TRAINER_TEST_SPLIT=0.15

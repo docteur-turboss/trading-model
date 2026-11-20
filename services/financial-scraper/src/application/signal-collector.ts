@@ -1,3 +1,4 @@
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
@@ -22,6 +23,7 @@ import {
 	type SourceAdapter,
 } from "../domain/ports/signal-source.port";
 import type { SignalStorePort } from "../domain/ports/signal-store.port";
+import { retryAfterMs } from "../domain/retry-after";
 import {
 	DATE_PLACEHOLDER,
 	dailyRequests,
@@ -30,6 +32,7 @@ import {
 	type SourceRequest,
 	type Subject,
 } from "../domain/signals";
+import { SourceQuarantine } from "./source-quarantine";
 
 const FAILURES = [
 	"fetch_error",
@@ -93,8 +96,19 @@ export async function restoreFreshness(
 	}
 }
 
-/** Sets `fs_signal_sources` and names the non-commercial sources (ADR-0075). */
-export function recordSourceTerms(sources: readonly Source[]): void {
+/**
+ * Sets `fs_signal_sources` and names the non-commercial sources (ADR-0075).
+ * In production an active non-commercial source missing from `accepted`
+ * (`SIGNAL_NON_COMMERCIAL_ACCEPTED`) stops the start.
+ */
+export function recordSourceTerms(
+	sources: readonly Source[],
+	guard: {
+		active: readonly Source[];
+		accepted: string;
+		production: boolean;
+	}
+): void {
 	SIGNAL_SOURCES.reset();
 	for (const { accessPolicy } of sources) {
 		SIGNAL_SOURCES.inc({
@@ -113,6 +127,17 @@ export function recordSourceTerms(sources: readonly Source[]): void {
 			),
 		});
 	}
+	const accepted = parseCommaSeparated(guard.accepted);
+	const refused = guard.active.filter(
+		(source) =>
+			source.accessPolicy.terms === "non-commercial" &&
+			!accepted.includes(source.id)
+	);
+	if (guard.production && refused.length > 0) {
+		throw new Error(
+			`Non-commercial signal source(s) ${refused.map((source) => source.id).join(", ")} active in production: add the id to SIGNAL_NON_COMMERCIAL_ACCEPTED once its terms fit your use, or unset its SIGNAL_KEY_* variable`
+		);
+	}
 }
 
 export interface SignalCollectorDeps {
@@ -128,24 +153,6 @@ const MINUTE_MS = 60_000;
 const HOUR_MS = 3_600_000;
 /** Consecutive failed ticks that quarantine a source. */
 const QUARANTINE_AFTER = 3;
-
-interface Quarantine {
-	failures: number;
-	/** Quarantines opened so far: the back-off doubles with each. */
-	opened: number;
-	until: number;
-}
-
-/** `Retry-After` as a delay in ms: delta-seconds or HTTP date; 0 when absent or unreadable. */
-function _retryAfterMs(header: string | undefined, now: number): number {
-	if (header === undefined) {
-		return 0;
-	}
-	const delay = /^[0-9]+$/.test(header.trim())
-		? Number(header) * 1000
-		: Date.parse(header) - now;
-	return Number.isFinite(delay) && delay > 0 ? delay : 0;
-}
 
 function _expandUrl(url: string, ingestedAt: number): string {
 	return url.replace(DATE_PLACEHOLDER, (_placeholder, days?: string) => {
@@ -185,11 +192,14 @@ export function signalId(
 export class SignalCollector {
 	constructor(private readonly _deps: SignalCollectorDeps) {}
 
-	private readonly _quarantines = new Map<string, Quarantine>();
+	private readonly _quarantine = new SourceQuarantine(
+		HOUR_MS,
+		QUARANTINE_AFTER,
+		() => this._deps.now()
+	);
 
 	async collect(source: Source): Promise<void> {
-		const quarantine = this._quarantines.get(source.id);
-		if (quarantine && this._deps.now() < quarantine.until) {
+		if (this._quarantine.isOpen(source.id)) {
 			SIGNAL_COLLECTIONS_TOTAL.inc({
 				source: source.id,
 				result: "skipped_quarantine",
@@ -206,43 +216,37 @@ export class SignalCollector {
 			const failure = await this._collectRequest(source, request);
 			fetchFailure ??= failure;
 		}
-		this._track(source.id, fetchFailure, quarantine);
+		this._track(source.id, fetchFailure);
 	}
 
 	/** Opens, extends or closes the quarantine of a source after a tick. */
-	private _track(
-		sourceId: string,
-		fetchFailure: Error | undefined,
-		previous: Quarantine | undefined
-	): void {
+	private _track(sourceId: string, fetchFailure: Error | undefined): void {
 		if (!fetchFailure) {
-			this._quarantines.delete(sourceId);
-			SIGNAL_SOURCE_QUARANTINED.set({ source: sourceId }, 0);
+			this._quarantine.clear(sourceId);
 			return;
 		}
-		const now = this._deps.now();
 		const http = fetchFailure instanceof HttpStatusError ? fetchFailure : null;
-		const retryAfter = _retryAfterMs(http?.retryAfter, now);
 		const refused = http?.status === 401 || http?.status === 403;
-		const failures = (previous?.failures ?? 0) + 1;
-		if (!refused && retryAfter === 0 && failures < QUARANTINE_AFTER) {
-			this._quarantines.set(sourceId, { failures, opened: 0, until: 0 });
+		this._quarantine.fail(
+			sourceId,
+			refused ? 24 * HOUR_MS : retryAfterMs(http?.retryAfter, this._deps.now())
+		);
+	}
+
+	/**
+	 * Fetches and stores one history page (`signal-backfill`). Throws on any
+	 * failure, and on an observation the adapter leaves undated: dated at the
+	 * first collection, a backfilled value would claim today (ADR-0030).
+	 */
+	async backfillPage(source: Source, request: SourceRequest): Promise<void> {
+		const worker = this._deps.workers[source.protocol];
+		const payload = await worker(request, source.accessPolicy.auth, source);
+		if (payload === NOT_MODIFIED) {
 			return;
 		}
-		const opened = (previous?.opened ?? 0) + 1;
-		const backoff = refused
-			? 24 * HOUR_MS
-			: Math.min(24 * HOUR_MS, HOUR_MS * 2 ** (opened - 1));
-		const until = now + Math.max(backoff, retryAfter);
-		this._quarantines.set(sourceId, { failures, opened, until });
-		SIGNAL_SOURCE_QUARANTINED.set({ source: sourceId }, 1);
-		getLogger().warn("Signal source quarantined", {
-			context: {
-				source: sourceId,
-				failures,
-				until: new Date(until).toISOString(),
-			},
-		});
+		await this._deps.store.save(
+			this._toSignals(source, request, payload, this._deps.now(), true)
+		);
 	}
 
 	private async _collectRequest(
@@ -316,7 +320,8 @@ export class SignalCollector {
 		source: Source,
 		request: SourceRequest,
 		payload: unknown,
-		ingestedAt: number
+		ingestedAt: number,
+		requireObservedAt = false
 	): Signal[] {
 		const adapter = this._deps.adapters.get(source.adapter);
 		if (!adapter) {
@@ -326,8 +331,13 @@ export class SignalCollector {
 		const observations = adapter.normalize(payload, { params: request.params });
 		const ingestedIso = new Date(ingestedAt).toISOString();
 		// One parse: Signal checks the payload against its dimension, and metric has no transform.
-		return observations.map((observation) =>
-			Signal.parse({
+		return observations.map((observation) => {
+			if (requireObservedAt && observation.observedAt === undefined) {
+				throw new InvalidPayloadError(
+					`Adapter ${source.adapter} leaves observedAt to the collection time: no point-in-time history`
+				);
+			}
+			return Signal.parse({
 				id: signalId(
 					source.id,
 					subject,
@@ -347,7 +357,7 @@ export class SignalCollector {
 				ingestedAt: ingestedIso,
 				confidenceScore: source.reliabilityScore,
 				payload: observation.payload,
-			})
-		);
+			});
+		});
 	}
 }
