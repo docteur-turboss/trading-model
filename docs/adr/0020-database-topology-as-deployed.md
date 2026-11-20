@@ -71,5 +71,5 @@ Real HA is a separate decision, not taken here. The options are known: either fi
 
 ### Follow-up
 
-- Decide MySQL HA (one of the two options above) in a new ADR, with a kind failover test.
+- Decide MySQL HA (one of the two options above) in a new ADR, with a kind failover test. *Done by [ADR-0085](./0085-single-mysql-and-spire-server-pods-accepted.md): one MySQL pod accepted with the RTO of `BACKUP_DR.md`, to revisit when production has at least 2 nodes.*
 - An automated check of this topology (e.g. a render test over the production overlay) would let this ADR point to a test instead of a manual review.
