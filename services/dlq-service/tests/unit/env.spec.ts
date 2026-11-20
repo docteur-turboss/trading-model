@@ -76,4 +76,19 @@ describe("env", () => {
 			expect(first).toBe(second);
 		});
 	});
+
+	it("should refuse a weak DLQ_AUTH_HMAC_SECRET in production", () => {
+		jest.resetModules();
+		setBaseEnv();
+		process.env.NODE_ENV = "production";
+		const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+		expect(() => require("../../src/infrastructure/config/env")).toThrow(
+			"Environment validation failed"
+		);
+		expect(JSON.stringify(logged.mock.calls)).toContain(
+			"DLQ_AUTH_HMAC_SECRET must be at least 32 characters"
+		);
+		logged.mockRestore();
+		process.env.NODE_ENV = "test";
+	});
 });

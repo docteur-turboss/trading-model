@@ -33,6 +33,5 @@ scrape_configs:
           expressions:
             level: level
             msg: msg
-            ts: ts
       - labels:
           level:

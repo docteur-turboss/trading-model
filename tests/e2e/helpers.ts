@@ -163,7 +163,8 @@ function deterministicStringify(value: unknown): string {
 
 /** Listed in DLQ_ALLOWED_SERVICES by the E2E overlay. */
 const DLQ_SERVICE_NAME = "e2e-test-runner";
-const DLQ_HMAC_SECRET = process.env.DLQ_AUTH_HMAC_SECRET ?? "test-hmac-secret";
+const DLQ_HMAC_SECRET =
+	process.env.DLQ_AUTH_HMAC_SECRET ?? "test-hmac-secret-for-e2e-0123456789";
 
 /** HMAC headers dlq-service requires; `path` includes the query string. */
 export function signedDlqHeaders(

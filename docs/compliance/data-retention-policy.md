@@ -30,7 +30,7 @@ Only the backups of the records kept 5 years go past 30 days (ADR-0032): the aud
 
 - The MySQL dumps taken before ADR-0065 also hold the `spire` database (registration entries and trust bundle, no private key): their monthly copies keep those for 5 years. Low stakes, accepted by ADR-0032. Since ADR-0065 the SPIRE datastore is in the `spire` tar, never promoted (until the contract step drops the `spire` database, the MySQL dump still carries its frozen copy).
 - The point-in-time archives (MySQL binlogs, MongoDB oplog slices, ADR-0031) hold every write, DLQ included: they are kept 72 h locally and 3 days off-site, never promoted, and the `.pitr` starting points never go to the weekly or monthly tiers.
-- A monthly backup keeps what it contains for up to 60 months after it was taken: an audit event or a candle may thus outlive its 5-year retention in the live database by up to 5 years, in an encrypted backup. The 5 years of MiFID II are a minimum, and the backups hold no personal data (data processing register, activity 7), so this is accepted; a restore of such a backup must not bring back data past its retention: `restore-k8s.sh` runs the `db-retention` purge right after the MySQL restore (`--no-retention` to skip, [BACKUP_DR.md](../deployment/BACKUP_DR.md#rows-past-their-retention-after-a-restore)).
+- A monthly backup keeps what it contains for up to 60 months after it was taken: an audit event or a candle may thus outlive its 5-year retention in the live database by up to 5 years, in an encrypted backup. The 5 years of MiFID II are a minimum, and the backups hold no personal data beyond the pseudonymous API key name in the audit trail (data processing register, activity 8), so this is accepted; a restore of such a backup must not bring back data past its retention: `restore-k8s.sh` runs the `db-retention` purge right after the MySQL restore (`--no-retention` to skip, [BACKUP_DR.md](../deployment/BACKUP_DR.md#rows-past-their-retention-after-a-restore)).
 
 ## Financial Regulatory Justification
 
@@ -47,7 +47,7 @@ Only the backups of the records kept 5 years go past 30 days (ADR-0032): the aud
 ### GDPR
 
 - **Art. 5(1)(e) — Storage limitation:** "kept in a form which permits identification of data subjects for no longer than is necessary"
-- **Application:** the only personal data is the truncated caller IP in API access logs, kept 31 days. The 5-year retentions above concern data without personal data, so they do not conflict with storage limitation
+- **Application:** personal data is the truncated caller IP in API access logs, kept 31 days, and operator data (register activity 8): Grafana accounts are deleted when the operator leaves, at the latest at the quarterly Grafana account review (`access-control-policy.md`). The 5-year retentions above concern data without personal data, so they do not conflict with storage limitation
 
 ## Implementation
 

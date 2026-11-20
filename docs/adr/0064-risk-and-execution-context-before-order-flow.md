@@ -26,7 +26,7 @@ Each control below states what it does, where it lives, what triggers it, and th
 | Aspect | Rule |
 | --- | --- |
 | Control | One component owns every order: it receives order intents, applies sections 2 to 7, talks to the broker, and keeps the order and position state. Nothing else holds broker credentials or sends an order. |
-| Location | Its own process (a service, `risk-execution`), its own SPIFFE identity and ACL (ADR-0011), its own durable store. The decision consumer (ADR-0049 option B or C) and the model never call the broker: they send an intent (instrument, side, quantity, limit price, reference price and its timestamp, decision id) to this service. The intent and order event types go in `@trading-model/contracts` (ADR-0016) and follow the N-1 rule (ADR-0061). |
+| Location | Its own process (a service, `risk-execution`), its own SPIFFE identity and ACL (ADR-0011), its own durable store. The decision consumer (ADR-0049 option B or C) and the model never call the broker: they send an intent (instrument, side, quantity, limit price, reference price and its timestamp, decision id, source model symbol and version) to this service. The intent and order event types go in `@trading-model/contracts` (ADR-0016) and follow the N-1 rule (ADR-0061). |
 | Trigger | Every order, without exception. The service ACL accepts intents only from the decision consumer identity; the gateway never exposes its routes (`PUBLIC_ROUTES` excluded). |
 | Proof | Spec: an intent from any other SPIFFE ID gets 403. `api:check` keeps its routes out of `PUBLIC_ROUTES`. Review: no broker client or credential outside the service (`deps:check` and a grep gate on the broker host and key names). |
 
@@ -38,6 +38,7 @@ Every limit has a hard ceiling in code that configuration cannot raise, and a co
 
 | Check | Rule | Trigger | Proof |
 | --- | --- | --- | --- |
+| Admitted model | The intent names its source model (symbol and version); rejected unless that model's manifest has `admission.admissible: true` (ADR-0069). Applies even when the decision consumer already filters (ADR-0049 §1.4) | Every intent | Spec: intent from a non-admissible model rejected |
 | Allowed instruments | Allow-list of symbols; anything else rejected. Spot only: margin, futures and short selling need their own ADR | Every intent | Spec: unlisted symbol rejected |
 | Max size per order | Quantity and notional (quantity × reference price) caps per instrument | Every intent | Spec: cap + 1 rejected, cap accepted; config above the hard ceiling refuses to start |
 | Price band | Limit price within a band around the reference price; no order without a reference price; a market order is checked on the reference price and the notional cap | Every intent | Spec: price outside the band rejected; missing reference rejected |

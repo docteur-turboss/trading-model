@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (model artifacts), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (point in time), [ADR-0044](./0044-singleton-trainer.md) (candle window read from MySQL), [ADR-0066](./0066-simulated-fills-at-next-bar-open-with-execution-costs.md) (fills and costs)
-**Verified by:** `services/trader-trainer/tests/unit/core/point-in-time.spec.ts`, `packages/model-runtime/tests/forward-and-codec.spec.ts`, `bun run api:check`
+**Verified by:** `services/trader-trainer/tests/unit/domain/point-in-time.spec.ts`, `packages/model-runtime/tests/forward-and-codec.spec.ts`, `bun run api:check`
 
 ## Context
 

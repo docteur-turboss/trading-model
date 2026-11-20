@@ -14,6 +14,9 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 	resolveAuthHmacSecret: () => "test-secret-16-chars",
 }));
 
+const SVID = (name: string) =>
+	`spiffe://trading-model.local/ns/trading-model/sa/${name}`;
+
 function makeRequest(overrides: Record<string, unknown> = {}) {
 	return {
 		headers: {
@@ -22,6 +25,7 @@ function makeRequest(overrides: Record<string, unknown> = {}) {
 			"x-timestamp": String(Date.now()),
 			...(overrides.headers || {}),
 		},
+		clientIdentity: SVID("message-manager"),
 		method: "POST",
 		path: "/dlq",
 		originalUrl: "/dlq",
@@ -147,5 +151,40 @@ describe("serviceAuth", () => {
 
 		expect(next).not.toHaveBeenCalled();
 		expect(res.status).toHaveBeenCalledWith(401);
+	});
+
+	it.each([
+		["message-manager", "financial-scraper"],
+		["admin", "message-manager"],
+	])("should respond 403 when %s is claimed by SVID %s", (claimed, svid) => {
+		mockVerifySignature.mockReturnValue(true);
+
+		const req = makeRequest({
+			headers: { "x-service-name": claimed },
+			clientIdentity: SVID(svid),
+		});
+		const res = makeResponse();
+		const next = jest.fn<(...args: any[]) => any>();
+
+		serviceAuth(req as never, res as never, next);
+
+		expect(next).not.toHaveBeenCalled();
+		expect(res.status).toHaveBeenCalledWith(403);
+	});
+
+	it("should accept admin when the SVID is api-gateway", () => {
+		mockVerifySignature.mockReturnValue(true);
+
+		const next = jest.fn<(...args: any[]) => any>();
+		serviceAuth(
+			makeRequest({
+				headers: { "x-service-name": "admin" },
+				clientIdentity: SVID("api-gateway"),
+			}) as never,
+			makeResponse() as never,
+			next
+		);
+
+		expect(next).toHaveBeenCalled();
 	});
 });

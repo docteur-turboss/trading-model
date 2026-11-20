@@ -292,7 +292,7 @@ services:
       spire-bootstrap:
         condition: service_completed_successfully
       docker-socket-proxy:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/run/spire/agent-sockets/public/api.sock"]
       interval: 10s
@@ -319,7 +319,7 @@ services:
       SERVICE_NAME: message-manager
       INSTANCE_ID: message-manager-1
       # Signs the dead letters sent to dlq-service: same key as dlq-service.
-      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
+      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:?DLQ_AUTH_HMAC_SECRET must be set (min 32 chars, shared by message-manager and dlq-service)}
     # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
     # publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries finish: see
     # application/index.ts. Undelivered messages stay in the Redis journal.
@@ -603,7 +603,7 @@ services:
       MONGO_DB: dlq
       MONGO_COLLECTION: dlq_entries
       MAX_ENTRIES: '100000'
-      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:-test-hmac-secret}
+      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:?DLQ_AUTH_HMAC_SECRET must be set (min 32 chars, shared by message-manager and dlq-service)}
       DLQ_ALLOWED_SERVICES: ${DLQ_ALLOWED_SERVICES:-message-manager,admin}
     volumes:
       - svid-dlq:/run/spire/svid
@@ -1097,26 +1097,27 @@ services:
       - backend-net
 
   # Only holder of the Docker socket (ADR-0011 amendment), mounted read-only.
-  # The proxy lets GET on /containers and /networks through; any POST answers 403.
+  # GET allow-list (issue #1623): ping, version, container and network lists (promtail
+  # discovery), inspect (SPIRE Docker attestor, promtail discovery) and logs (promtail tailing); archive, export, any other
+  # path and any non-GET answer 403. Remaining limits: inspect returns the Env of any
+  # container of the daemon (unavoidable for the attestor) and the logs of another
+  # project's container stay readable (promtail needs them).
+  # No shell in the image, so no healthcheck: dependants start with it and retry.
   docker-socket-proxy:
     logging: *default-logging
-    image: tecnativa/docker-socket-proxy@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
+    image: wollomatic/socket-proxy@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
     container_name: trading-docker-socket-proxy
     restart: unless-stopped
-    environment:
-      CONTAINERS: '1'
-      NETWORKS: '1'
-      POST: '0'
+    # Root to read the socket, no capability.
+    user: "0"
+    command:
+      - -listenip=0.0.0.0
+      - -allowfrom=0.0.0.0/0
+      - -allowGET=^(/v[0-9.]+)?/(_ping|version|containers/json|networks|containers/[a-f0-9]+/(json|logs))$$
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - docker-api-net
-    # /_ping is allowed by default (PING=1) and reaches the Docker daemon.
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2375/_ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
@@ -1142,7 +1143,7 @@ services:
       loki:
         condition: service_started
       docker-socket-proxy:
-        condition: service_healthy
+        condition: service_started
     environment:
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
     command: -config.file=/etc/promtail/promtail.yml -config.expand-env=true

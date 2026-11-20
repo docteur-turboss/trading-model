@@ -1,5 +1,6 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import {
 	KubernetesLease,
@@ -24,7 +25,6 @@ import { DEFAULT_ASSET_COSTS, parseAssets } from "../domain/asset-costs";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
-import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import type { SimulatorCosts } from "../domain/genetic-algorithm/rl-backend";
 import {
 	MarketDataBuffer,

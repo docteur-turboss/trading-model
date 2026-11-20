@@ -1,17 +1,15 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		AUTH_TOKEN_HEADER: "x-api-key",
-		AUTH_TOKENS: "",
-		RATE_LIMIT_WINDOW_MS: 60000,
-		RATE_LIMIT_MAX: 1000,
-		CACHE_TTL_MS: 5000,
-		PROXY_TIMEOUT_MS: 5000,
-		ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
-	},
-}));
+const ENV: any = {
+	AUTH_TOKEN_HEADER: "x-api-key",
+	AUTH_TOKENS: "",
+	RATE_LIMIT_WINDOW_MS: 60000,
+	RATE_LIMIT_MAX: 1000,
+	CACHE_TTL_MS: 5000,
+	PROXY_TIMEOUT_MS: 5000,
+	ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
+};
 
 jest.mock("@trading-model/http/catch-error", () => ({
 	catchSync: (fn: any) => fn,
@@ -53,11 +51,14 @@ jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 }));
 
 jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
-	DEFAULT_LIMITER: jest.fn((_req: any, _res: any, next: () => void) => next()),
+	createRateLimiter: () => (_req: any, _res: any, next: () => void) => next(),
 }));
 
 jest.mock("../../src/adapters/inbound/auth", () => ({
+	// One handler: the router test finds it in the stack.
 	AUTH_MIDDLEWARE: jest.fn((_req: any, _res: any, next: () => void) => next()),
+	createAuthMiddleware: () =>
+		require("../../src/adapters/inbound/auth").AUTH_MIDDLEWARE,
 	// Every scope unless the request sets its own.
 	authOf: (req: any) => ({
 		apiKeyScopes: req.apiKeyScopes ?? ["read", "dlq:write"],
@@ -71,7 +72,7 @@ describe("router", () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		router = createRouter();
+		router = createRouter(ENV);
 	});
 
 	it("should have the catch-all middleware", () => {
@@ -209,7 +210,8 @@ describe("router", () => {
 				expect.objectContaining({
 					target: { host: "10.0.1.5", port: 3000 },
 					path: "/signals/assets/BTC?from=2026-11-01&to=2026-11-02",
-				})
+				}),
+				ENV
 			);
 		});
 
