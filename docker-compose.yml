@@ -971,7 +971,7 @@ services:
 
   node-exporter:
     logging: *default-logging
-    image: quay.io/prometheus/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    image: quay.io/prometheus/node-exporter:v1.13.1@sha256:011e2d12c5bff759b90804bda642664775d7b4b127bf5148539bb82d3f590bb7
     container_name: trading-node-exporter
     restart: unless-stopped
     mem_limit: 128m
