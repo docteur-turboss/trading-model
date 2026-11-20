@@ -58,9 +58,6 @@ export const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 	[KnownService.DlqService]: [ServiceId.of("api-gateway")],
 	// message-manager delivers training.model.published (POST /message).
 	[KnownService.ModelEvaluator]: [ServiceId.of("message-manager")],
-	// Intents come from the decision consumer only (ADR-0064 §1); the operator reaches the admin routes from the pod, with the service's own SVID. Each route checks its caller.
-	[KnownService.RiskExecution]: [
-		ServiceId.of("trader-trainer"),
-		ServiceId.of("risk-execution"),
-	],
+	// The operator reaches the admin routes from the pod, with the service's own SVID. Intents come from the decision consumer only (ADR-0064 §1): no entry until it exists (ADR-0049 §1.3).
+	[KnownService.RiskExecution]: [ServiceId.of("risk-execution")],
 };
