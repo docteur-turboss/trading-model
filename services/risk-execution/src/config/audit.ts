@@ -52,19 +52,25 @@ export function publishRiskEvent(
 	if (!topic) {
 		return;
 	}
-	const metadata = new HELPER.metadataBuilder(toTopic(topic), topic, {
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
-		serviceName: toServiceId(ServiceInstanceName.RiskExecutionService),
-	})
-		.setDelivery({ mode: DeliveryMode.AtLeastOnce })
-		.toJSON();
-	_messageManager()
-		.post.indirect(fields, metadata)
-		.catch((error: unknown) =>
-			getLogger().error("risk event not published: the audit trail misses it", {
-				topic,
-				fields,
-				error: normalizeError(error),
-			})
-		);
+	try {
+		const metadata = new HELPER.metadataBuilder(toTopic(topic), topic, {
+			instanceId: toInstanceId(ENV.INSTANCE_ID),
+			serviceName: toServiceId(ServiceInstanceName.RiskExecutionService),
+		})
+			.setDelivery({ mode: DeliveryMode.AtLeastOnce })
+			.toJSON();
+		_messageManager()
+			.post.indirect(fields, metadata)
+			.catch((error: unknown) => _logRefused(topic, fields, error));
+	} catch (error) {
+		_logRefused(topic, fields, error);
+	}
+}
+
+function _logRefused(topic: string, fields: unknown, error: unknown): void {
+	getLogger().error("risk event not published: the audit trail misses it", {
+		topic,
+		fields,
+		error: normalizeError(error),
+	});
 }
