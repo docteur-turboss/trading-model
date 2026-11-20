@@ -6,6 +6,5 @@ import type { HealthHandlers } from "./dlq-health-handler";
 export function createHealthControllers(handlers: HealthHandlers) {
 	return {
 		HealthCheck: catchSync((_req) => handlers.healthCheck()),
-		ReadyCheck: catchSync((_req) => handlers.readyCheck()),
 	};
 }

@@ -58,10 +58,6 @@ describe("DLQ Routes", () => {
 					methods: expect.arrayContaining(["get"]),
 				}),
 				expect.objectContaining({
-					path: "/health/ready",
-					methods: expect.arrayContaining(["get"]),
-				}),
-				expect.objectContaining({
 					path: "/metrics",
 					methods: expect.arrayContaining(["get"]),
 				}),
