@@ -1672,6 +1672,11 @@ dump() {
 		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
 		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
 	done
+	echo "===== loki-0 (loki), promtail warnings, loki labels"
+	$K -n "$NS" logs loki-0 -c loki --tail=200 2>&1 | cut -c1-300 || true
+	$K -n "$NS" logs loki-0 -c loki --previous --tail=100 2>&1 | cut -c1-300 || true
+	$K -n trading-model-node logs ds/promtail --tail=200 2>&1 | grep -E "level=(warn|error)" | cut -c1-300 | tail -40 || true
+	$K -n "$NS" exec loki-0 -- wget -qO- http://localhost:3100/loki/api/v1/labels 2>&1 || true
 	echo "===== spire-server (spire-entries)"
 	$K -n "$NS" logs deploy/spire-server -c spire-entries --tail=40 2>&1 || true
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
