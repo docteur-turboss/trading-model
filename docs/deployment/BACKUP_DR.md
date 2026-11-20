@@ -521,7 +521,7 @@ them back with `aws s3api get-bucket-lifecycle-configuration`. `deploy.yml` chec
 
 ## Retention job
 
-ADR-0051. Market data (`market_candles`, `market_trades`, `market_tickers`, `market_order_books`) and `signals` older than `RETENTION_DAYS` (default 1827, 5 years; `RETENTION_SIGNALS_DAYS` for `signals`, `RETENTION_ORDER_BOOKS_DAYS` for `market_order_books`: 180 in the CronJob) are deleted by `scripts/retention-mysql.sh`, in `DELETE ... LIMIT RETENTION_BATCH_SIZE` batches with a pause between them. A rerun deletes only what is still too old. Variables: [ENV.md](ENV.md#mysql-retention-job-adr-0051).
+ADR-0051. Market data (`market_candles`, `market_trades`, `market_tickers`, `market_order_books`) and `signals` older than `RETENTION_DAYS` (default 1827, 5 years; `RETENTION_SIGNALS_DAYS` for `signals`, `RETENTION_ORDER_BOOKS_DAYS` for `market_order_books`, `RETENTION_TRADES_DAYS` for `market_trades`: 180 in the CronJob) are deleted by `scripts/retention-mysql.sh`, in `DELETE ... LIMIT RETENTION_BATCH_SIZE` batches with a pause between them. A rerun deletes only what is still too old. Variables: [ENV.md](ENV.md#mysql-retention-job-adr-0051).
 
 **Kubernetes.** CronJob `db-retention` (`deploy/k8s/jobs/retention-cronjob.yaml`), daily 03:30 UTC, image `backup-tools`, script from the `backup-scripts` ConfigMap. It connects as MySQL user `retention` (SELECT, DELETE on the five tables only), created and granted per table by `db-migrate-user` from `MYSQL_RETENTION_PASSWORD` in `trading-model-secrets`. `run-migrations.sh` runs that Job again after the migrations, so the grants exist on a new database.
 
