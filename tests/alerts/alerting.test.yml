@@ -200,6 +200,27 @@ tests:
         alertname: TrainingCompletionRateCritical
         exp_alerts: []
 
+  # 4 h interval: one failure among three sessions of the 12 h window warns, never pages.
+  - name: one failed training session out of three does not page
+    interval: 1m
+    input_series:
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="success"}'
+        values: '0+2x120'
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="fail"}'
+        values: '0+1x120'
+    alert_rule_test:
+      - eval_time: 100m
+        alertname: TrainingCompletionRateLow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
+            exp_annotations:
+              summary: 'Training completion rate below 95%'
+              description: 'Trainer completion rate is 66.67% over 12h.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+      - eval_time: 100m
+        alertname: TrainingCompletionRateCritical
+        exp_alerts: []
+
   - name: every training session succeeds
     interval: 1m
     input_series:

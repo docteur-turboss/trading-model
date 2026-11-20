@@ -53,8 +53,8 @@ rate(dlq_entries_added_total[5m])`. A ratio below 1.0 means the queue is growing
 ### 6. Training Completion Rate
 
 - **Definition:** Proportion of training sessions that complete successfully.
-- **Measurement:** Prometheus `rate(tt_training_sessions_total{result="success"}[3h]) /
-rate(tt_training_sessions_total[3h])`.
+- **Measurement:** Prometheus `rate(tt_training_sessions_total{result="success"}[12h]) /
+rate(tt_training_sessions_total[12h])`.
 - **Source:** trader-trainer.
 
 ### 7. Data Freshness
