@@ -5,7 +5,7 @@ export interface BootstrapOptions {
 	name: string;
 	createServer: () => HttpServer | Promise<HttpServer>;
 	onBeforeServer?: () => void | Promise<void>;
-	onStart?: () => void;
+	onStart?: () => void | Promise<void>;
 	onStop?: () => void | Promise<void>;
 	shutdown?: GracefulShutdownOptions;
 }
