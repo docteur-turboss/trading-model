@@ -134,7 +134,7 @@ kubectl -n $NS exec <pod> -- df -h <mount path>
   ([BACKUP_DR](../../deployment/BACKUP_DR.md#retention-job)), then grow the
   volume.
 - `mongo-*-data-*`, `redis-data-*`: grow the volume; for Redis also check the
-  journal backlog ([runbook-message-bus-outage](runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber)).
+  journal backlog ([runbook-message-bus-outage](runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber)).
 - `prometheus-data-*`, `loki-*`: retention (Prometheus 30 days) or volume size.
 - `backup-data`: `BackupVolumeFilling` covers it ([BACKUP_DR](../../deployment/BACKUP_DR.md#monitoring)).
 

@@ -40,7 +40,7 @@ export interface RedisMessageJournalDeps {
 	 * connection up to 2 s and would delay `XACK`/`XCLAIM` queued behind it;
 	 * absent: writes share `redis`.
 	 */
-	openWriteRedis?: () => BlockingBusRedis;
+	openWriteRedis?: () => BlockingBusRedis | Promise<BlockingBusRedis>;
 	keyPrefix: string;
 	/**
 	 * Replicas that must hold a write before it is accepted (`WAIT`): Sentinel
@@ -52,6 +52,43 @@ export interface RedisMessageJournalDeps {
 }
 
 const WAIT_REPLICAS_TIMEOUT_MS = 2000;
+/**
+ * Options of the `XADD` + `WAIT` connection. `commandTimeout` is above the 2 s of `WAIT`.
+ * No offline queue: ioredis does not drop a command rejected by `commandTimeout` from that queue
+ * and writes it on reconnection, so a queued `XADD` would land after the 503 and the publisher's retry would duplicate it.
+ * Offline, a write fails at once. `lazyConnect` off: a lazy client has no stream yet and would reject the first write.
+ */
+export const JOURNAL_WRITE_OPTIONS = {
+	commandTimeout: WAIT_REPLICAS_TIMEOUT_MS + 2000,
+	enableOfflineQueue: false,
+	lazyConnect: false,
+};
+/** The ioredis client `openJournalWriter` duplicates, reduced to what it uses. */
+interface DuplicableRedis {
+	duplicate(options: typeof JOURNAL_WRITE_OPTIONS): BlockingBusRedis & {
+		once(event: "ready", listener: () => void): unknown;
+	};
+}
+
+/**
+ * Opens the `XADD` + `WAIT` connection and waits for `ready`: with no offline queue, a write sent
+ * while the client is still `connecting` would be rejected. Rejects after `commandTimeout`.
+ */
+export function openJournalWriter(
+	redis: DuplicableRedis
+): Promise<BlockingBusRedis> {
+	const writer = redis.duplicate(JOURNAL_WRITE_OPTIONS);
+	return new Promise((resolve, reject) => {
+		const timer = setTimeout(() => {
+			writer.disconnect();
+			reject(messageManagerError("Journal write connection not ready"));
+		}, JOURNAL_WRITE_OPTIONS.commandTimeout);
+		writer.once("ready", () => {
+			clearTimeout(timer);
+			resolve(writer);
+		});
+	});
+}
 /** Approximate cap of a journal stream, applied every `CAP_EVERY` appends: bounds a burst the 24 h `MINID` would keep. Unmeasured: 100 000 × ~1 KB ≈ 100 MB per stream, against 512 Mi of Redis. */
 const JOURNAL_MAX_LENGTH = 100_000;
 const CAP_EVERY = 100;
@@ -82,7 +119,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		{ value: boolean; until: number }
 	>();
 	private readonly _readers = new Map<string, BlockingBusRedis>();
-	private _writer: BlockingBusRedis | undefined;
+	private _writer: Promise<BlockingBusRedis> | undefined;
 	private readonly _appends = new Map<string, number>();
 
 	constructor(private readonly _deps: RedisMessageJournalDeps) {
@@ -110,7 +147,10 @@ export class RedisMessageJournal implements MessageJournalPort {
 			reader.disconnect();
 		}
 		this._readers.clear();
-		this._writer?.disconnect();
+		void this._writer?.then(
+			(writer) => writer.disconnect(),
+			() => undefined
+		);
 		this._writer = undefined;
 	}
 
@@ -124,7 +164,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		// (restart without AOF) has no groups left; a group created after XADD would miss this message (ADR-0048 §1).
 		const now = this._now();
 		// On the connection of the WAIT, so the replicas confirm the groups with the entry.
-		const writer = this._writeRedis();
+		const writer = await this._writeRedis();
 		await Promise.all(
 			services.map((service) => this._register(writer, { topic, service }))
 		);
@@ -413,11 +453,21 @@ export class RedisMessageJournal implements MessageJournalPort {
 		await this.register(group);
 	}
 
-	private _writeRedis(): Pick<BlockingBusRedis, "call" | "sadd"> {
+	private _writeRedis(): Promise<Pick<BlockingBusRedis, "call" | "sadd">> {
 		if (!this._deps.openWriteRedis) {
-			return this._deps.redis;
+			return Promise.resolve(this._deps.redis);
 		}
-		this._writer ??= this._deps.openWriteRedis();
+		if (!this._writer) {
+			const opening = Promise.resolve(this._deps.openWriteRedis());
+			// A writer that never became ready is not kept: the next append opens another.
+			// biome-ignore lint/plugin: the rejection still reaches the caller through `this._writer`; this only drops the cache
+			opening.catch(() => {
+				if (this._writer === opening) {
+					this._writer = undefined;
+				}
+			});
+			this._writer = opening;
+		}
 		return this._writer;
 	}
 

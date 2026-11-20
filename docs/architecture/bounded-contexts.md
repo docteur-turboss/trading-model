@@ -32,8 +32,6 @@ graph TD
         GW["api-gateway"]
     end
 
-    FS -->|"MarketEvent (published)"| MM
-    MM -->|"MarketEvent (consumed)"| TT
     TT -->|"AgentPayload (published)"| MM
     MM -->|"events"| AL
     AL -.->|"subscribe (audit, training, dlq topics)"| MM
@@ -51,7 +49,7 @@ graph TD
 - **Owner:** `financial-scraper`
 - **Core entities:** Candle, Trade, Ticker, OrderBook
 - **External dependency:** Binance API
-- **Publishes:** `market.trade.recent.fetch`, `market.candlestick.series.fetch`, `market.order-book.snapshot.fetch`, `market.ticker.24hr-stats.fetch`, `market.price-ticker.snapshot.fetch`, `market.order-book-ticker.snapshot.fetch`
+- **Publishes:** nothing since ADR-0078: the trainer reads candles through the scraper API. `MarketEvent` has no publisher and no subscriber
 - **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; **no consumer yet** (trader-trainer and model-evaluator do not read them).
 
 ### 2. Training Context

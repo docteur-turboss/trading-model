@@ -436,7 +436,7 @@ groups:
         annotations:
           summary: 'Messages lost on {{ $labels.topic }} for {{ $labels.service }}: journal trimmed before delivery'
           description: '{{ $labels.service }} stayed unreachable for more than 24 h: message-manager trimmed undelivered {{ $labels.topic }} entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
 
       - alert: JournalBacklogOld
         expr: max by (topic, service) (mm_journal_oldest_pending_age_seconds) > 900
@@ -446,7 +446,7 @@ groups:
         annotations:
           summary: 'Journal backlog on {{ $labels.topic }} for {{ $labels.service }}: oldest entry waiting for more than 15 min'
           description: '{{ $labels.service }} has not acknowledged a {{ $labels.topic }} entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber'
 
       - alert: DLQDrainRateLow
         expr: sum by (job) (rate(dlq_entries_replayed_total[15m])) / sum by (job) (rate(dlq_entries_added_total[15m])) < 0.8
@@ -620,19 +620,6 @@ groups:
           summary: 'A signal source stopped producing'
           description: '{{ $labels.source }} has had no successful collection for {{ $value | humanizeDuration }}, beyond its freshness threshold (no failure counted: cron stopped or lease lost).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalsourcestale'
-
-      # The scraper persists before publishing and sends the waiting candles
-      # from MySQL (publish cursor, migration 005): a backlog means the bus
-      # refuses them; 0 in normal operation.
-      - alert: MarketDataUnpublished
-        expr: max by (symbol) (fs_unpublished_candles) > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'Persisted candles not reaching the bus'
-          description: '{{ $value | humanize }} persisted {{ $labels.symbol }} candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
 
       - alert: TrainerMarketDataStale
         expr: min(tt_last_candle_age_seconds) > 900

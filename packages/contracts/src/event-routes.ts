@@ -2,27 +2,16 @@ import { ServiceInstanceName } from "@trading-model/primitives/service-instance-
 import { AuditEvent } from "./audit-events";
 import { DlqEvent } from "./dlq-events";
 import type { EventEnumMap } from "./event-map";
-import { MarketEvent } from "./market-events";
 import { TrainingEvent } from "./training-events";
 
 const TRAINER = ServiceInstanceName.TraderTrainerService;
 const AUDIT = ServiceInstanceName.AuditLoggerService;
 const DLQ = ServiceInstanceName.DlqService;
 
-/** Services allowed to publish each topic (ADR-0073 §5). `dlq.entry.added` comes from any subscriber that dead-letters. */
-export const EVENT_PUBLISHERS: Record<
-	EventEnumMap,
-	readonly ServiceInstanceName[]
+/** Services allowed to publish each topic (ADR-0073 §5). `market.*` topics have no publisher since ADR-0078. `dlq.entry.added` comes from any subscriber that dead-letters. */
+export const EVENT_PUBLISHERS: Partial<
+	Record<EventEnumMap, readonly ServiceInstanceName[]>
 > = {
-	...(Object.fromEntries(
-		Object.values(MarketEvent).map((topic) => [
-			topic,
-			[ServiceInstanceName.FinancialScraperService],
-		])
-	) as Record<string, readonly ServiceInstanceName[]> as Record<
-		MarketEvent,
-		readonly ServiceInstanceName[]
-	>),
 	[TrainingEvent.ModelPublished]: [TRAINER],
 	[AuditEvent.AuditHeartbeat]: [AUDIT],
 	[AuditEvent.AuditGapDetected]: [AUDIT],

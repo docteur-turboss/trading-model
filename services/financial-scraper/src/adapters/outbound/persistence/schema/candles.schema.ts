@@ -1,11 +1,12 @@
 import type { SourceType } from "@trading-model/contracts/market-data.types";
-import type {
-	TradingSymbol,
+import {
+	type TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
+import type { RowDataPacket } from "mysql2";
 import { Table } from "ts-sql-query/Table";
-
-import type { DBConnection } from "../../../../config/db";
+import type { CandleSeries } from "../../../../application/worker-orchestrator";
+import { DATABASE, type DBConnection } from "../../../../config/db";
 import type {
 	CandleData,
 	MarketDataPage,
@@ -128,3 +129,19 @@ export const selectCandlesBy = {
 	source: (source: SourceType, page: MarketDataPage) =>
 		_selectPage(T_MARKET_CANDLES.source.equals(source), page),
 };
+
+interface LastRow extends RowDataPacket {
+	last: Date | null;
+}
+
+/** Open time of the newest persisted candle of the series (undefined: none). */
+export async function lastCandleOpenTime(
+	series: CandleSeries
+): Promise<UnixTimestamp | undefined> {
+	const [rows] = await DATABASE.promise().query<LastRow[]>(
+		"SELECT MAX(timestamp) AS last FROM market_candles WHERE source = ? AND symbol = ? AND interval_value = ?",
+		[series.source, series.symbol, series.interval]
+	);
+	const last = rows[0]?.last;
+	return last ? UnixTimestamp.of(last.getTime()) : undefined;
+}

@@ -129,7 +129,7 @@ good (point-in-time sources, ADR-0036).
 | `nasa-power-crop-regions`, `wikipedia-pageviews`, `federal-register-documents` | 7 days | window `{date-8}` to `{date-1}` |
 | `cftc-cot-legacy`, `eia-weekly-energy` | 5 weeks | last 5 reports |
 | `treasury-par-yield-curve`, `sec-edgar-*`, `fred-us-macro`, `eurostat-*`, `dvf-commune-sales` | not lost within a weekend | the source returns the whole year, series or file |
-| Binance candles | not lost | each series restarts from its publish cursor (`market_publish_cursors`) |
+| Binance candles | not lost | each series restarts from its newest stored candle (`market_candles`) |
 
 The table follows `services/financial-scraper/src/config/signal-registry.json`:
 a new source gets a row here. No source has a `history` block yet, so

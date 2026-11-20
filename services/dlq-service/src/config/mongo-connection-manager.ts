@@ -29,6 +29,7 @@ export class MongoConnectionManager extends CommonMongoConnectionManager {
 			collectionName: env.MONGO_COLLECTION,
 			minPoolSize: 2,
 			poolSize: 10,
+			maxRetries: Number.POSITIVE_INFINITY,
 		});
 		this._dlqCollectionName = env.MONGO_COLLECTION;
 	}

@@ -15,7 +15,7 @@ FAILURES=0
 cleanup() { docker rm -f "$NAME" >/dev/null 2>&1; rm -rf "$WORK"; }
 trap cleanup EXIT
 
-IMAGE="$(grep -m1 -oE 'image: mongo:[0-9.]+@sha256:[0-9a-f]+' "$ROOT/docker-compose.yml" | cut -d' ' -f2)"
+IMAGE="$(grep -m1 -oE 'image: mongo(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/docker-compose.yml" | cut -d' ' -f2)"
 [ -n "$IMAGE" ] || { echo "no mongo image in docker-compose.yml"; exit 1; }
 # Authentication on (ADR-0067): restore-k8s.sh restores as `root`, whose
 # password is in the pod's env (MONGO_ROOT_PASSWORD).
