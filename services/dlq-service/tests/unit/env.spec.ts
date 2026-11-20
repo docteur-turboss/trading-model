@@ -21,8 +21,6 @@ function setBaseEnv(): void {
 	process.env.SERVICE_PING_TIMEOUT_MS = "84000000";
 	process.env.TOKEN_REFRESH_INTERVAL_MS = "84000000";
 	process.env.TTL_REFRESH_INTERVAL_MS = "84000000";
-	process.env.MESSAGE_BUS_INIT_TIMEOUT_MS = "5000";
-	process.env.MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS = "5000";
 	process.env.MESSAGE_CALLBACK_PATH = "message";
 	process.env.MONGO_URI = "mongodb://localhost:27017/test";
 	process.env.MONGO_DB = "test";

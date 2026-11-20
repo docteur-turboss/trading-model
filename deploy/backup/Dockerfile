@@ -18,7 +18,7 @@
 # `microdnf upgrade` pulls the OS security fixes published after the base
 # digest: the release Trivy gate refuses fixed HIGH CVEs (v3.1.0-rc.3 failed on
 # curl and util-linux).
-FROM bitnami/kubectl@sha256:8919c149c2e3d6860e0143c117900e64d71395172aaef0e01e604bb98c8e7ce0 AS kubectl
+FROM bitnami/kubectl:latest@sha256:8919c149c2e3d6860e0143c117900e64d71395172aaef0e01e604bb98c8e7ce0 AS kubectl
 
 FROM mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902 AS mysql
 
