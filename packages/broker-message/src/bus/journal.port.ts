@@ -42,11 +42,6 @@ export interface MessageJournalPort {
 		/** Replay of a dead letter: only this service's group delivers the entry (ADR-0043). */
 		onlyFor?: string
 	): Promise<void>;
-	/**
-	 * Destroys the group with its undelivered entries and forgets it (idempotent,
-	 * any replica): only for a service that no longer subscribes to the topic.
-	 */
-	retire(group: JournalGroup): Promise<void>;
 	/** Every group any replica registered. */
 	groups(): Promise<JournalGroup[]>;
 	/**
@@ -82,9 +77,6 @@ export interface MessageJournalPort {
 	/** The entry is settled (delivered, dead-lettered or dropped for good). */
 	ack(group: JournalGroup, id: string): Promise<void>;
 }
-
-/** A group without live subscriber for this long is retired: the service no longer subscribes (a restart takes far less). */
-export const JOURNAL_GROUP_GRACE_MS = 60 * 60 * 1000;
 
 /** Entries older than this are trimmed, delivered or not: a subscriber gone longer misses them. */
 export const JOURNAL_RETENTION_MS = 24 * 60 * 60 * 1000;
