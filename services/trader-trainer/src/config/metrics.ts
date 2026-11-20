@@ -13,6 +13,13 @@ for (const result of ["stored", "skipped", "error"] as const) {
 	MODEL_ARTIFACTS_TOTAL.inc({ result }, 0);
 }
 
+/** Stored models whose publication failed (issue #1739): the leader retries every cycle. */
+export const MODEL_PUBLISH_FAILURES_TOTAL = new promClient.Counter({
+	name: "tt_model_publish_failures_total",
+	help: "Failed publications of a stored model on the bus",
+	labelNames: ["symbol"] as const,
+});
+
 /** ADR-0030 verdict of each stored model on its test segment (ADR-0069). */
 export const MODEL_ADMISSION_TOTAL = new promClient.Counter({
 	name: "tt_model_admission_total",
@@ -41,13 +48,6 @@ export const GENOME_EVALUATION_SECONDS = new promClient.Histogram({
 	name: "tt_genome_evaluation_seconds",
 	help: "Duration of the evaluation of one genome on every window (event loop blocked)",
 	buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
-});
-
-// Parents with different weight lengths (diverging architectures) are crossed by
-// copying one parent: expected, so counted here instead of logged per crossover.
-export const CROSSOVER_FALLBACK_TOTAL = new promClient.Counter({
-	name: "tt_crossover_fallback_total",
-	help: "Crossovers that copied a parent's weights because the parents' weight lengths differ",
 });
 
 export const TRAINING_LEADER = new promClient.Gauge({
@@ -149,6 +149,12 @@ export const SIGNAL_READ_ERRORS_TOTAL = new promClient.Counter({
 	labelNames: ["symbol"] as const,
 });
 
+export const DAILY_BAR_ISSUES_TOTAL = new promClient.Counter({
+	name: "tt_daily_bar_issues_total",
+	help: "Candles dropped or suspect: daily bar incomplete_day, split_suspect, or a candle whose low/high do not bound open/close (ohlc_inconsistent)",
+	labelNames: ["symbol", "issue"] as const,
+});
+
 export const MARKET_DATA_SYMBOLS = new promClient.Gauge({
 	name: "tt_market_data_symbols",
 	help: "Number of tracked symbols in buffer",
@@ -161,3 +167,21 @@ export const QLEARNING_TRAIN_ERRORS = new promClient.Counter({
 });
 
 export { metricsHandler };
+
+const INPUT_GROUP_ACTIVE = new promClient.Gauge({
+	name: "tt_input_group_active",
+	help: "Share of genomes with the input group active: scope population (last generation) or published (ADR-0082)",
+	labelNames: ["group", "scope"] as const,
+});
+
+/** Sets `tt_input_group_active` for `scope` from the genomes' masks. */
+export function reportInputGroups(
+	scope: "population" | "published",
+	groups: readonly string[],
+	masks: readonly (readonly boolean[])[]
+): void {
+	groups.forEach((group, index) => {
+		const active = masks.filter((mask) => mask[index]).length;
+		INPUT_GROUP_ACTIVE.set({ group, scope }, active / (masks.length || 1));
+	});
+}

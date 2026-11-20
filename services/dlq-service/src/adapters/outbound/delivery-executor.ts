@@ -35,16 +35,9 @@ async function _deliverMessage(
 	if (isShuttingDown()) {
 		throw new Error("Server shutting down");
 	}
-	// Entries from before ADR-0043 name no service: they go through the normal publication, to every subscriber.
-	const targeted = entry.service
-		? {
-				path: "/message/replay",
-				body: { service: entry.service, message: entry.message },
-			}
-		: { path: "/message", body: entry.message };
 	await client.post(
-		URLString.of(`${messageManagerUrl}${targeted.path}`),
-		targeted.body,
+		URLString.of(`${messageManagerUrl}${"/message/replay"}`),
+		{ service: entry.service, message: entry.message },
 		{
 			timeoutMs: DurationMs.of(REPLAY_DELIVERY_TIMEOUT_MS),
 			serviceName: toServiceId(ServiceInstanceName.MessageManagerService),
@@ -126,6 +119,14 @@ export async function deliverEntry(
 	entry: DlqEntryRef,
 	ctx: DeliveryContext
 ): Promise<void> {
+	// Entries from before ADR-0043 name no service: POST /message answers 403 (publisher is not dlq-service), so no call, no retry count, entry kept.
+	if (!entry.service) {
+		logger.warn("DLQ entry has no target service, not replayed", {
+			entryId: entry.id,
+		});
+		await _forceReleaseClaimWithoutCount(entry.id, ctx.claimRelease);
+		throw new Error("DLQ entry has no target service: replay refused");
+	}
 	try {
 		await _deliverMessage(entry, ctx.client, ctx.messageManagerUrl);
 		await _markEntrySuccess(entry, ctx);

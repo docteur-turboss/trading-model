@@ -314,6 +314,13 @@ for (const env of OVERLAYS) {
 		if (!image.includes("@sha256:")) errors.push(`${env}: image ${image} is not pinned by digest`);
 	}
 
+	// SPIRE agents must not be newer than the server they talk to (upgrade guide): the node agents are applied before the server.
+	const spireMinor = (name) => rendered.match(new RegExp(`image: \\S*${name}:(\\d+)\\.(\\d+)`))?.slice(1).map(Number);
+	const [server, agent] = [spireMinor("spire-server"), spireMinor("spire-agent")];
+	if (server && agent && (agent[0] > server[0] || (agent[0] === server[0] && agent[1] > server[1]))) {
+		errors.push(`${env}: spire-agent ${agent.join(".")} is newer than spire-server ${server.join(".")} (agents move one release after the server)`);
+	}
+
 	for (const [dir, file, text] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml", app], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml", nodeAgents]]) {
 		for (const kind of uncoveredKinds(documents(text), file)) {
 			errors.push(env + ": " + kind + " of " + dir + " is not covered by deploy/k8s/deploy-identity/" + file + " (or cluster-role.yaml): the deploy identity could not apply it");
@@ -333,6 +340,13 @@ for (const env of OVERLAYS) {
 	}
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
+
+	// ADR-0064 §6: only the production overlay is the "production" deployment and may set live.
+	const risk = docs.find((d) => d.kind === "ConfigMap" && d.name?.startsWith("risk-execution-config"))?.text ?? "";
+	const riskValue = (key) => risk.match(new RegExp(`^ +${key}: "?([^"\n]+)"?$`, "m"))?.[1];
+	if (riskValue("EXECUTION_MODE") === "live" && env !== "production") errors.push(`${env}: risk-execution-config sets EXECUTION_MODE=live outside production (ADR-0064 §6)`);
+	if ((riskValue("DEPLOYMENT_ENV") === "production") !== (env === "production")) errors.push(`${env}: risk-execution-config DEPLOYMENT_ENV=${riskValue("DEPLOYMENT_ENV")}, only the production overlay may be production`);
+	if (env !== "production" && /BROKER_API_(KEY|SECRET)/.test(rendered)) errors.push(`${env}: live broker keys outside the production overlay (ADR-0064 §6)`);
 
 	// Issue #809 (ADR-0062): production runs the alerting path twice, Alertmanager as one cluster.
 	for (const name of ["alertmanager", "prometheus"]) {
@@ -366,7 +380,7 @@ for (const env of OVERLAYS) {
 			errors.push(`${env}: StatefulSet ${name} not found`);
 			continue;
 		}
-		for (const [, cm] of sts.text.matchAll(/configMap:\n(?: +.*\n)*? +name: (\S+)$/gm)) {
+		for (const [, cm] of sts.text.matchAll(/configMap:\n(?: +[^\n ][^\n]*\n)*? +name: (\S+)$/gm)) {
 			if (!/-[245-9bcdfghkmt]{10}$/.test(cm) && !BARE_CONFIGMAPS.has(cm)) {
 				errors.push(`${env}: StatefulSet ${name} mounts ConfigMap ${cm} by a bare name: generate it (configMapGenerator, hash suffix) so a restarted pod keeps its revision's config (issues #1456, #1460)`);
 			}
@@ -390,6 +404,12 @@ for (const env of OVERLAYS) {
 			const replicas = Number(workload?.text.match(/^ {2}replicas: (\d+)$/m)?.[1]);
 			if (min >= replicas) errors.push(`production: PodDisruptionBudget ${pdb.name} requires ${min} of ${replicas} pod(s) of ${workload.name}: node drains would block`);
 		}
+	}
+
+	// Issue #1634: every major of PUBLIC_ROUTES needs an Ingress path to the edge-proxy.
+	const majors = new Set(readFileSync("services/api-gateway/src/shared/public-routes.ts", "utf8").match(/"[A-Z]+ \/v\d+(?=\/)/g)?.map((route) => route.split("/")[1]));
+	for (const major of majors) {
+		if (!new RegExp(`^ +(?:- )?path: /${major}$`, "m").test(rendered)) errors.push(`${env}: PUBLIC_ROUTES serves /${major} but the api-gateway Ingress has no /${major} path`);
 	}
 
 	if (env.startsWith("staging")) {

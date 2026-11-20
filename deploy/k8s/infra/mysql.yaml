@@ -84,7 +84,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: mysql
-          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+          image: mysql:8.4.11@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
           # Unique per pod.
           args:
             - "--server-id=10$(POD_INDEX)"
@@ -145,39 +145,27 @@ spec:
           startupProbe:
             exec:
               command:
-                - mysqladmin
-                - ping
-                - -h
-                - localhost
-                - -u
-                - root
-                - -p$(MYSQL_ROOT_PASSWORD)
+                - sh
+                - -c
+                - MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqladmin ping -h localhost -u root
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 60
           livenessProbe:
             exec:
               command:
-                - mysqladmin
-                - ping
-                - -h
-                - localhost
-                - -u
-                - root
-                - -p$(MYSQL_ROOT_PASSWORD)
+                - sh
+                - -c
+                - MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqladmin ping -h localhost -u root
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
           readinessProbe:
             exec:
               command:
-                - mysqladmin
-                - ping
-                - -h
-                - localhost
-                - -u
-                - root
-                - -p$(MYSQL_ROOT_PASSWORD)
+                - sh
+                - -c
+                - MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqladmin ping -h localhost -u root
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 3
@@ -188,7 +176,7 @@ spec:
         # tests/k8s/run-kind.sh verify_mysql_tls); a failed
         # reload is logged and retried on the next tick.
         - name: tls-reload
-          image: mysql@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+          image: mysql:8.4.11@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
           command:
             - sh
             - -c
@@ -238,7 +226,7 @@ spec:
         # created by the db-migrate-user Job. Without its password key the
         # exporter reports mysql_up 0 (MySQLDown), the database is unaffected.
         - name: mysqld-exporter
-          image: quay.io/prometheus/mysqld-exporter:v0.18.0@sha256:2598c0571f383708e19016d119bb45c06128a9ebc962c9f49483278ac5a94c41
+          image: quay.io/prometheus/mysqld-exporter:v0.21.0@sha256:afad0c59a154fea24ca5ea0e6f95f2b0b168601b111266963dc8a347715b5318
           args:
             - --mysqld.address=127.0.0.1:3306
             - --mysqld.username=exporter

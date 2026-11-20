@@ -1,5 +1,5 @@
 import { makePRNG } from "@trading-model/crypto/prng";
-import { AGENT_STATE_DIM } from "../agent/agent-state";
+import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
 import { evaluateFitness } from "./evaluation-pipeline";
 import { createDefaultGenome } from "./factory";
 import { type GaTelemetry, NoopGaTelemetry } from "./ga-telemetry";
@@ -61,7 +61,8 @@ export class GenerationProcessor {
 		this._population = createInitialPopulation(
 			ctrl,
 			this._cfg.eventDriven,
-			step && step.features.toFloat32Array().length + AGENT_STATE_DIM
+			step && step.features.toFloat32Array().length + AGENT_STATE_DIM,
+			this._cfg.inputGroups?.length
 		);
 		this._generation = 0;
 		this._archive = new ParetoArchive();
@@ -168,7 +169,7 @@ export class GenerationProcessor {
 			ctrl,
 			rng,
 			generation: this._generation,
-			telemetry: this._telemetry,
+			protectCandleGroup: this._cfg.protectCandleGroup,
 		});
 	}
 

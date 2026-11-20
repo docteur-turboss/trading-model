@@ -1,20 +1,14 @@
 import { makePRNG } from "@trading-model/crypto/prng";
-import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
+import { barsSinceInput } from "@trading-model/model-runtime/agent/decision-events";
 import type { FeatureVector } from "@trading-model/model-runtime/feature-vector";
+import { ExperienceKind } from "@trading-model/model-runtime/neural-network/type";
 import {
-	ActivationType,
-	ConnectionType,
-	ExperienceKind,
-	InitialisationType,
-} from "@trading-model/model-runtime/neural-network/type";
-import {
-	Cash,
-	Percentage,
-	Price,
-	Reward,
-} from "@trading-model/primitives/primitives";
+	policyAgentConfig,
+	policyNetworkConfig,
+} from "@trading-model/model-runtime/replay";
+import type { Cash, Price } from "@trading-model/primitives/primitives";
+import { Reward } from "@trading-model/primitives/primitives";
 import { TradingAgent, type TradingAgentConfig } from "../agent/trading-agent";
-import { MAX_BARS_SINCE_DECISION } from "./decision-events";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 interface StepInput {
@@ -89,22 +83,7 @@ function _buildNNConfig(
 	rng: () => number
 ): TradingAgentConfig["nnConfig"] {
 	return {
-		neuronsByLayer: [
-			genome.network.inputDim,
-			...genome.network.hiddenLayers.map((layer) => layer.neurons),
-			genome.network.outputDim,
-		],
-		// Q-values are unbounded, so the output layer stays linear.
-		activationType: [
-			...genome.network.hiddenLayers.map((layer) => layer.activation),
-			ActivationType.Linear,
-		],
-		connectionType:
-			genome.network.hiddenLayers[0]?.connectionType ??
-			ConnectionType.FullyConnected,
-		biasInitialisationType:
-			genome.network.hiddenLayers[0]?.biasType ?? InitialisationType.Random,
-		normalisationType: genome.network.normalization,
+		...policyNetworkConfig(genome.network),
 		learningRate: genome.rl.learningRate,
 		enablePool: true,
 		poolMaxSize: genome.rl.replayBuffer.bufferSize,
@@ -126,8 +105,16 @@ function _buildStateManagerCfg(
 	};
 }
 
+/** The costs of a fill that depend on the asset class (ADR-0083). */
+export interface SimulatorCosts {
+	feeRate: number;
+	executionCostRate: number;
+}
+
 /** Run-level options of the backends, outside the genome. */
 interface BackendOptions {
+	/** Costs of the asset class; absent: `SIMULATOR_PARAMS`. */
+	costs?: SimulatorCosts;
 	/** Show the agent its position (default true, ADR-0025). */
 	observePosition?: boolean;
 }
@@ -137,21 +124,15 @@ function _buildAgentConfig(
 	rng: () => number,
 	options: BackendOptions
 ): TradingAgentConfig {
-	// Q-learning picks among the finite actions of the genome's action set.
 	return {
-		actionSet: genome.network.actionSet,
+		...policyAgentConfig(genome.network, {
+			...SIMULATOR_PARAMS,
+			...options.costs,
+			observePosition:
+				options.observePosition ?? SIMULATOR_PARAMS.observePosition,
+		}),
 		nnConfig: _buildNNConfig(genome, rng),
-		wallet: {
-			initialCash: Cash.of(SIMULATOR_PARAMS.initialCash),
-			initialPrice: Price.of(1),
-			feeRate: Percentage.of(SIMULATOR_PARAMS.feeRate),
-			executionCostRate: Percentage.of(SIMULATOR_PARAMS.executionCostRate),
-			maxExposureFraction: DEFAULT_MAX_EXPOSURE_FRACTION,
-		},
-		tradeFraction: SIMULATOR_PARAMS.tradeFraction,
 		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy),
-		observePosition:
-			options.observePosition ?? SIMULATOR_PARAMS.observePosition,
 	};
 }
 
@@ -203,9 +184,7 @@ export function makeTradingAgentBackend(
 				encoded(input.features),
 				input.price,
 				input.fillPrice,
-				barsSince === undefined
-					? undefined
-					: (2 * barsSince) / MAX_BARS_SINCE_DECISION - 1
+				barsSinceInput(barsSince)
 			);
 			return {
 				reward: result.reward,

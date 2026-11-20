@@ -73,8 +73,7 @@ Tickers carry `open`, `high`, `low`, `last`, `volume`, `timestamp` and
 `volume`, `trades` (absent when unknown), `timestamp` and `closeTimestamp`.
 
 Order books have no route (ADR-0053): the collector writes each snapshot to
-`market_order_books` for historical replay and publishes it on the bus, where
-the trainer reads it. No process keeps them in memory.
+`market_order_books` for historical replay; nothing reads them yet. No process keeps them in memory.
 
 ### Breaking changes in 3.0.0 (gateway API v2)
 
@@ -106,14 +105,14 @@ Four tables store market data:
 | `market_tickers`   | 24-hour ticker statistics |
 | `market_order_books` | Order book depth snapshots (migration 008, ADR-0053): `bids` / `asks` as JSON `[price, quantity]` pairs, best first; no API route reads them |
 
-`market_publish_cursors` holds the candle publish backlog (see below) and
+`market_publish_cursors` is unused (dropped in release N+1, ADR-0040) and
 `signals` (migration 006) the signals of every dimension ([Signals](#signals-adr-0036)).
 
 See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript interfaces.
 
 ## Background Jobs (Scheduled Tasks)
 
-A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`MarketDataSourcePort`, Binance today: `BinanceMarketDataSource`, ADR-0026) for a snapshot of each symbol, persists it, then publishes it. A snapshot holds 6 data types:
+A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`MarketDataSourcePort`, Binance today: `BinanceMarketDataSource`, ADR-0026) for a snapshot of each symbol, persists it. Nothing is published on the bus (ADR-0078). A snapshot holds 6 data types:
 
 1. **Candlesticks** (OHLCV candles)
 2. **Recent Trades** (recent trades)
@@ -123,11 +122,9 @@ A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`Mar
 6. **Price Ticker** (current price)
 
 - `node-cron` runs the cycle with concurrency control via `p-limit`
-- The Binance source fetches all 6 data types in parallel and normalizes them; `BrokerMarketDataPublisher` publishes them to the message bus
+- The Binance source fetches all 6 data types in parallel and normalizes them
 - Failures stay where they happen: a symbol that fails does not stop the others (`fs_symbols_failed_total{symbol}` and `fs_symbols_scraped_total{symbol}`, born at 0 for every tracked symbol), and an endpoint that fails only leaves its data type out of the snapshot (`fs_snapshot_parts_failed_total{part}`): an order book error does not cost the candles. A payload that cannot be normalized (a value outside its domain type) only loses its data type too, counted on the same metric. The symbol fails only when all 6 endpoints fail. So a symbol can count as scraped with no candle: alert `SymbolMarketDataStale` reads `fs_candles_persisted_total{symbol}` (born at 0 for every tracked symbol) and names a symbol with no candle persisted for 15 min, whatever the cause, even when the cycle counts `success`
-- MySQL does not wait for the bus: the cycle persists, then starts the publish without awaiting it (a hung message-manager may hold a publish for `PUBLISH_ACCEPT_TIMEOUT_MS`, 15 s: it answers 202 once the message is journaled, whatever the subscribers do, ADR-0048). While a symbol's publish is in flight, the next cycles persist only (`fs_publishes_skipped_total`; their trades, tickers and order book are not published, they are snapshots)
-- The candles to publish are read back from MySQL: each series has a publish cursor (`market_publish_cursors`, migration 005, open time of the next candle to publish) that moves only once a publish of its candles succeeded. Each cycle sends the next 100 persisted candles from the cursor, so a bus outage or a collector restart loses none (`fs_unpublished_candles{symbol}` counts those waiting, alert `MarketDataUnpublished`). A series without a cursor starts at the first candle the process persists, not at the history. If the backlog cannot be read (MySQL down) the other data types still go out. On shutdown the scraper stops the cron and waits for the running cycle and the publishes in flight (collector grace period 360 s)
-- Candles are fetched from a per-symbol cursor (`startTime` = close of the last persisted candle + 1 ms), so each cycle publishes only the candles closed since the previous one and catches up after an outage. The still-open candle is never published. The cursor lives in memory: the first cycle of a process starts it at the open time of the newest candle of the series in MySQL (read once; MySQL down: latest window, read again next cycle), so a stop of any length is caught up 100 candles per cycle; the candle read again is absorbed by the upserts and the trainer
+- Candles are fetched from a per-symbol cursor (`startTime` = close of the last persisted candle + 1 ms), so each cycle persists only the candles closed since the previous one and catches up after an outage. The cursor lives in memory: the first cycle of a process starts it at the open time of the newest candle of the series in MySQL (read once; MySQL down: latest window, read again next cycle), so a stop of any length is caught up 100 candles per cycle; the candle read again is absorbed by the upserts and the trainer
 
 ### Rate Limiting
 
@@ -161,7 +158,10 @@ Schema v1, the model of the design note's §1: `src/domain/signals.ts`
   (legal), `area` and `period` (macro).
 
 **Sources** are declared in `src/config/signal-registry.json` (assets and
-sources), checked at startup: a broken registry stops the service. A
+sources), checked at startup: a broken registry stops the service. Deployed
+pods read the same repository file from `SIGNAL_REGISTRY_FILE` (K8s ConfigMap
+`financial-scraper-signal-registry`, compose bind mount), so an asset or source
+of a known format ships with a deploy, without a new image (issue #1308). A
 request's dimension must be covered by its source for the asset type of its
 subject, apply to that asset, and be written by the adapter.
 
@@ -185,14 +185,14 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | `ecb-hicp-annual-rate` | macro | area `EA` | daily 11:17 UTC (HICP is monthly) | `hicp_annual_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-deposit-facility-rate` | macro | area `EA` | weekdays 15:35 UTC (changes are irregular) | `deposit_facility_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-euro-reference-rates` | macro | area `EA` | weekdays 16:07 UTC (after the ECB release) | `eur_{usd,gbp,chf,jpy}_reference_rate` | attribution: "Source: ECB statistics" (1) |
-| `fred-us-macro` | macro | area `US` (AAPL, WHEAT, GLD) | daily 13:47 UTC; key `SIGNAL_KEY_FRED`, 1000 requests a day declared (FRED sets none) | `DFF` fed funds rate (Board of Governors, daily), `CPIAUCSL` CPI (BLS, monthly), `UNRATE` unemployment (BLS, monthly), `GDPC1` real GDP (BEA, quarterly); `observedAt` = vintage `realtime_start`, a revision is a second signal. Left out: ICE BofA credit spreads (third-party copyright) | attribution: FRED notice (read 2026-11-16, terms_of_use.html: third-party series need the owner's permission, agency series are public domain by origin) (1) |
-| `sec-edgar-eps-diluted` | fundamental | `AAPL` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
+| `fred-us-macro` | macro | area `US` (AAPL, MSFT, JPM, XOM, JNJ, WHEAT, GLD) | daily 13:47 UTC; key `SIGNAL_KEY_FRED`, 1000 requests a day declared (FRED sets none) | `DFF` fed funds rate (Board of Governors, daily), `CPIAUCSL` CPI (BLS, monthly), `UNRATE` unemployment (BLS, monthly), `GDPC1` real GDP (BEA, quarterly); `observedAt` = vintage `realtime_start`, a revision is a second signal. Left out: ICE BofA credit spreads (third-party copyright) | attribution: FRED notice (read 2026-11-16, terms_of_use.html: third-party series need the owner's permission, agency series are public domain by origin) (1) |
+| `sec-edgar-eps-diluted` | fundamental | `AAPL`, `MSFT`, `JPM`, `XOM`, `JNJ` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
 | `sec-edgar-revenue` | fundamental | equities with a `cik` alias | daily | `us-gaap:Revenues` (tags `Revenues`, `RevenueFromContractWithCustomerExcludingAssessedTax`, `SalesRevenueNet`) | attribution: SEC (1) |
 | `sec-edgar-core-facts` | fundamental | equities with a `cik` alias | daily | `us-gaap:{OperatingIncomeLoss,NetIncomeLoss,Assets,Liabilities,StockholdersEquity,CashAndCashEquivalentsAtCarryingValue}`, `dei:EntityCommonStockSharesOutstanding` | attribution: SEC (1) |
 | `cftc-cot-legacy` | market | `WHEAT` (contract 001602) | Fridays and Mondays after a holiday, hourly 15:45-23:45 UTC | `net_position_funds`, `net_position_producers`, `open_interest`; `observedAt` = release 15:30 ET, 3 business days after the Tuesday | public domain, CFTC acknowledged (1) |
 | `nws-kansas-wheat-belt` | contextual | sector `agriculture` | hourly (stations report once an hour) | `temperature`, `relativeHumidity`, `precipitationLast*` | public domain (1) |
 | `nasa-power-crop-regions` | contextual | sector `agriculture` | daily (5 points: Beauce, Poltava, Mato Grosso, Rio Grande do Sul, Riverina) | `T2M`, `PRECTOTCORR`, `GWETROOT` (latest day with a value, observations only) | attribution (NASA POWER) |
-| `wikipedia-pageviews` | social | `BTC`, `ETH` | daily | `pageviews` | public domain (CC0) (1) |
+| `wikipedia-pageviews` | social | `BTC`, `ETH`, `AAPL`, `MSFT`, `JPM`, `XOM`, `JNJ` | daily | `pageviews` | public domain (CC0) (1) |
 | `eia-weekly-energy` | contextual | sector `energy` (`XLE`) | Wednesdays and Thursdays, hourly 14:35-22:35 UTC (report Wednesday 10:30 ET, Thursday after a holiday) | `crude_oil_stocks`, `gasoline_stocks`, `natural_gas_storage`, `crude_oil_production` (series `WCESTUS1`, `WGTSTUS1`, `NW2_EPG0_SWO_R48_BCF`, `WCRFPUS2`); key `SIGNAL_KEY_EIA` (query `api_key`), 500 requests a day (EIA documents no figure); `observedAt` = report time for the newest petroleum week only (gas: collection time, its report is Thursday); value in the key: a revision is a second signal | public domain, EIA acknowledged (read 2026-11-16) (1) |
 | `dvf-commune-sales` | market | `BORDEAUX_RE`, `NANTES_RE`, `LILLE_RE`, `MONTPELLIER_RE` (INSEE communes) | Mondays 06:17 UTC (DVF is published twice a year, URL year `2025` to bump by hand) | `sales_count`, `median_price_per_m2_apartment`, `median_price_per_m2_house`; per commune and year, one sale counted once; sales without price or surface, or with several dwellings of different surfaces, only in `details.excluded`; several dwelling rows of the same type and surface count as one dwelling (the file cannot tell two identical flats from one on two lots: about 1 % of kept sales on the 2025 files, price/m2 overstated for a real twin sale); a corrected value is a second signal; no sale-level field is stored | attribution: DGFiP / Etalab, Licence Ouverte 2.0 (1) |
 | `eurostat-house-price-index`, `eurostat-hicp-inflation`, `eurostat-unemployment` | macro | areas `EA`, `FR`, `DE` (served to `PARIS_RE` through its `areas`) | daily 08:23-08:37 UTC | `house_price_index` (quarterly, `prc_hpi_q`), `hicp_annual_rate` (`prc_hicp_minr`), `unemployment_rate` (`une_rt_m`) | attribution: "Source: Eurostat" (1) (2026-11-16, [copyright notice](https://ec.europa.eu/eurostat/help/copyright-notice): commercial reuse allowed with the source credited); `observedAt` = the dataset `updated` time, a revised value is a new signal, the Eurostat flag is in `details.flag` |
@@ -301,18 +301,15 @@ dimensions and metrics: nothing changes here (ADR-0036, decision 14).
 HTTP Server
   ├── Financial routes (/trade/*, /ticker/*, /candles/*, /signals/assets/*)
   ├── AddressManager routes (ping)
-  └── MessageManager routes (callback)
 
 Background
   ├── WorkerOrchestrator (per symbol)
   │     ├── MarketDataSourcePort → Binance public API (token bucket)
-  │     ├── MarketDataPublisherPort → message bus
   │     └── MySQL write
   └── SignalCronScheduler (per registry source)
         └── SignalCollector: rest_api worker → source adapter → schema check → MySQL signals
 
 Dependencies
   ├── MySQL (persistence)
-  ├── discovery-server (registration)
-  └── message-manager (event publication)
+  └── discovery-server (registration)
 ```

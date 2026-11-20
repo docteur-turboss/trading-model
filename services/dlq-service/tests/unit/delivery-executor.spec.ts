@@ -76,21 +76,18 @@ describe("delivery-executor", () => {
 		);
 	});
 
-	it("should deliver message and mark success", async () => {
+	it("should refuse an entry without service: no POST /message (403), claim released, no retry count", async () => {
 		MOCK_IS_SHUTTING_DOWN.mockReturnValue(false);
-		mockClient.post.mockResolvedValue(undefined);
-		MOCK_MARK_RETRIED.mockResolvedValue(undefined);
+		MOCK_RELEASE_CLAIM.mockResolvedValue(undefined);
 
-		await deliverEntry({ id: "entry-1", message: { text: "hello" } }, baseCtx);
+		await expect(
+			deliverEntry({ id: "entry-1", message: { text: "hello" } }, baseCtx)
+		).rejects.toThrow("no target service");
 
-		expect(mockClient.post).toHaveBeenCalledWith(
-			"https://mm:3000/message",
-			{ text: "hello" },
-			expect.objectContaining({ timeoutMs: 20_000 })
-		);
-		expect(MOCK_MARK_RETRIED).toHaveBeenCalledWith(
-			expect.objectContaining({ id: "entry-1", success: true })
-		);
+		expect(mockClient.post).not.toHaveBeenCalled();
+		expect(MOCK_RELEASE_CLAIM).toHaveBeenCalledWith("entry-1");
+		expect(MOCK_INCREMENT_RETRY).not.toHaveBeenCalled();
+		expect(MOCK_MARK_RETRIED).not.toHaveBeenCalled();
 	});
 
 	it("should throw on delivery failure and mark retried as failed", async () => {
@@ -99,7 +96,10 @@ describe("delivery-executor", () => {
 		MOCK_MARK_RETRIED.mockResolvedValue(undefined);
 
 		await expect(
-			deliverEntry({ id: "entry-1", message: {} }, baseCtx)
+			deliverEntry(
+				{ id: "entry-1", message: {}, service: "audit-logger" },
+				baseCtx
+			)
 		).rejects.toThrow("delivery failed");
 
 		expect(MOCK_MARK_RETRIED).toHaveBeenCalledWith(
@@ -115,7 +115,10 @@ describe("delivery-executor", () => {
 		MOCK_RELEASE_CLAIM.mockResolvedValue(undefined);
 
 		await expect(
-			deliverEntry({ id: "entry-1", message: {} }, baseCtx)
+			deliverEntry(
+				{ id: "entry-1", message: {}, service: "audit-logger" },
+				baseCtx
+			)
 		).rejects.toThrow("delivery failed");
 
 		expect(MOCK_INCREMENT_RETRY).toHaveBeenCalledWith("entry-1");
@@ -130,7 +133,10 @@ describe("delivery-executor", () => {
 		MOCK_RELEASE_CLAIM.mockRejectedValue(new Error("release failed"));
 
 		await expect(
-			deliverEntry({ id: "entry-1", message: {} }, baseCtx)
+			deliverEntry(
+				{ id: "entry-1", message: {}, service: "audit-logger" },
+				baseCtx
+			)
 		).rejects.toThrow("delivery failed");
 	});
 
@@ -138,7 +144,10 @@ describe("delivery-executor", () => {
 		MOCK_IS_SHUTTING_DOWN.mockReturnValue(true);
 
 		await expect(
-			deliverEntry({ id: "entry-1", message: {} }, baseCtx)
+			deliverEntry(
+				{ id: "entry-1", message: {}, service: "audit-logger" },
+				baseCtx
+			)
 		).rejects.toThrow("Server shutting down");
 
 		expect(mockClient.post).not.toHaveBeenCalled();

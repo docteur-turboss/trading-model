@@ -1,0 +1,74 @@
+import type { Order } from "./order";
+
+export interface RiskState {
+	killSwitch: {
+		global: string | null;
+		/** Symbol -> reason. */
+		symbols: Record<string, string>;
+	};
+	orders: Record<string, Order>;
+	cash: number;
+	positions: Record<string, number>;
+	marks: Record<string, { price: number; at: number }>;
+	hwm: number;
+	day: {
+		date: string;
+		startEquity: number;
+		/** Per symbol since 00:00 UTC: position value at the start, net cash flow incl. fees. */
+		symbols: Record<string, { startValue: number; flow: number }>;
+	};
+}
+
+export function newState(capital: number, now: number): RiskState {
+	return {
+		killSwitch: { global: null, symbols: {} },
+		orders: {},
+		cash: capital,
+		positions: {},
+		marks: {},
+		hwm: capital,
+		day: { date: utcDate(now), startEquity: capital, symbols: {} },
+	};
+}
+
+export const utcDate = (ms: number): string =>
+	new Date(ms).toISOString().slice(0, 10);
+
+const OPEN_STATUSES = new Set([
+	"accepted",
+	"submitted",
+	"acknowledged",
+	"unknown",
+	"partially_filled",
+	"cancel_requested",
+]);
+export const isOpen = (order: Order): boolean =>
+	OPEN_STATUSES.has(order.status);
+
+export function equity(state: RiskState): number {
+	let total = state.cash;
+	for (const [symbol, qty] of Object.entries(state.positions)) {
+		total += qty * (state.marks[symbol]?.price ?? 0);
+	}
+	return total;
+}
+
+/** Position per symbol with open orders counted as filled (ADR-0064 §2). */
+export function projectedPositions(state: RiskState): Record<string, number> {
+	const out = { ...state.positions };
+	for (const order of Object.values(state.orders)) {
+		if (isOpen(order)) {
+			out[order.symbol] =
+				(out[order.symbol] ?? 0) +
+				(order.side === "buy" ? 1 : -1) * (order.quantity - order.filledQty);
+		}
+	}
+	return out;
+}
+
+export function symbolPnl(state: RiskState, symbol: string): number {
+	const entry = state.day.symbols[symbol];
+	const value =
+		(state.positions[symbol] ?? 0) * (state.marks[symbol]?.price ?? 0);
+	return entry ? value + entry.flow - entry.startValue : 0;
+}

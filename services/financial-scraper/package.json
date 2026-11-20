@@ -1,6 +1,6 @@
 {
   "name": "financial-scraper",
-  "version": "3.1.0-rc.2",
+  "version": "3.1.0-rc.4",
   "description": "Fetches real-time prices of various financial assets",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {
@@ -19,7 +19,8 @@
   "type": "commonjs",
   "main": "./dist/application/index.js",
   "bin": {
-    "signal-backfill": "./dist/application/signal-backfill.js"
+    "signal-backfill": "./dist/application/signal-backfill.js",
+    "order-book-replay": "./dist/application/order-book-replay.js"
   },
   "scripts": {
     "test": "jest",
@@ -32,7 +33,6 @@
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
     "@trading-model/address-manager": "*",
-    "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
     "@trading-model/crypto": "*",
     "@trading-model/http": "*",

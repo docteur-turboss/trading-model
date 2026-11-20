@@ -1,5 +1,6 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import {
 	KubernetesLease,
@@ -10,15 +11,21 @@ import {
 	Leadership,
 	SOLE_INSTANCE_LEASE,
 } from "@trading-model/reliability/leadership";
-import { AssetId } from "@trading-model/validation/wire/signals";
+import {
+	AssetId,
+	type AssetType,
+} from "@trading-model/validation/wire/signals";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
+import { SignalBarHistory } from "../adapters/outbound/signal-bar-history";
 import { runInWorker } from "../adapters/outbound/training-worker/worker-training-runner";
 import { Trainer } from "../application/trainer";
+import { DEFAULT_ASSET_COSTS, parseAssets } from "../domain/asset-costs";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
+import type { SimulatorCosts } from "../domain/genetic-algorithm/rl-backend";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
@@ -31,7 +38,6 @@ import { parseSignalKeys } from "../domain/signal-features";
 import { effectiveFitnessType } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
-	CROSSOVER_FALLBACK_TOTAL,
 	CURRENT_GENERATION,
 	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
@@ -55,9 +61,6 @@ const PROMETHEUS_GA_TELEMETRY: GaTelemetry = {
 	genomeEvaluated(durationMs) {
 		GENOME_EVALUATION_SECONDS.observe(durationMs / 1000);
 	},
-	crossoverFallbacks(count) {
-		CROSSOVER_FALLBACK_TOTAL.inc(count);
-	},
 };
 
 /** How far back from the session instant the signal window reaches. */
@@ -79,12 +82,16 @@ interface AppContainerConfig {
 	signalKeys: string[];
 	eventDriven: boolean;
 	seedOffset: number;
+	inputGroups?: string[];
+	protectCandleGroup?: boolean;
 	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
 	instanceId: string;
 	history: CandleHistoryPort;
 	signals: ConstructorParameters<typeof TrainingLoop>[4];
+	/** Costs of each daily asset (ADR-0083); empty: crypto symbols only. */
+	dailyCosts: ReadonlyMap<TradingSymbol, SimulatorCosts>;
 }
 
 class ApplicationContainer {
@@ -131,9 +138,12 @@ class ApplicationContainer {
 				actionSpaceGene: config.actionSpaceGene,
 				eventDriven: config.eventDriven,
 				seedOffset: config.seedOffset,
+				inputGroups: config.inputGroups,
+				protectCandleGroup: config.protectCandleGroup,
 			},
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
+			dailyCosts: (symbol) => config.dailyCosts.get(symbol),
 			models: this.models,
 			instanceId,
 			// Training is CPU-bound: off the thread that serves the API (issue #508).
@@ -148,7 +158,8 @@ class ApplicationContainer {
 				testSplit: config.testSplit,
 				walkForwardFolds: config.walkForwardFolds,
 			},
-			config.signals
+			config.signals,
+			new Set(config.dailyCosts.keys())
 		);
 	}
 }
@@ -159,6 +170,9 @@ interface TraderTrainerSettings {
 	TRAINER_SYMBOLS: string;
 	/** `SYMBOL:ASSET` pairs, comma-separated; empty: no signals read. */
 	TRAINER_SYMBOL_ASSETS: string;
+	/** `ASSET:type` pairs trained on daily bars; empty: none (ADR-0083). */
+	TRAINER_ASSETS?: string;
+	TRAINER_ASSET_COSTS?: Partial<Record<AssetType, Partial<SimulatorCosts>>>;
 	TRAINER_VALIDATION_SPLIT: number;
 	TRAINER_TEST_SPLIT: number;
 	TRAINER_WALK_FORWARD_FOLDS: number;
@@ -170,6 +184,8 @@ interface TraderTrainerSettings {
 	/** Feature flag (ADR-0039); false: `total_pnl` only. Default true. */
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
+	FEATURE_INPUT_MASK_GENE?: boolean;
+	TRAINER_INPUT_MASK_PROTECT_CANDLE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
 	TRAINER_SEED_OFFSET?: number;
 	FEATURE_ACTION_SPACE_GENE?: boolean;
@@ -187,11 +203,33 @@ export function createTraderTrainerContainer(
 	history: CandleHistoryPort,
 	signalHistory: SignalHistoryPort
 ): ApplicationContainer {
+	const assets = parseAssets(
+		parseCommaSeparated(settings.TRAINER_ASSETS ?? "")
+	);
+	const dailyCosts = new Map<TradingSymbol, SimulatorCosts>(
+		[...assets].map(([asset, type]) => [
+			asset,
+			{
+				...DEFAULT_ASSET_COSTS[type],
+				...settings.TRAINER_ASSET_COSTS?.[type],
+			},
+		])
+	);
+	const bars = new SignalBarHistory(signalHistory, assets);
+	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
+		? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
+		: [];
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
-		symbols: parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
-			toSymbol(symbol)
-		),
+		symbols: [
+			...new Set([
+				...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
+					toSymbol(symbol)
+				),
+				...dailyCosts.keys(),
+			]),
+		],
+		dailyCosts,
 		validationSplit: settings.TRAINER_VALIDATION_SPLIT,
 		testSplit: settings.TRAINER_TEST_SPLIT,
 		walkForwardFolds: settings.TRAINER_WALK_FORWARD_FOLDS,
@@ -202,15 +240,20 @@ export function createTraderTrainerContainer(
 		fitnessType: effectiveFitnessType(settings),
 		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
 		actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
-		signalKeys: settings.FEATURE_SIGNAL_INPUTS
-			? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
-			: [],
+		signalKeys,
 		eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
 		seedOffset: settings.TRAINER_SEED_OFFSET ?? 0,
+		inputGroups: settings.FEATURE_INPUT_MASK_GENE
+			? inputGroupNames(signalKeys)
+			: undefined,
+		protectCandleGroup: settings.TRAINER_INPUT_MASK_PROTECT_CANDLE,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,
-		history,
+		history: {
+			loadWindow: (symbol, at, size) =>
+				(dailyCosts.has(symbol) ? bars : history).loadWindow(symbol, at, size),
+		},
 		signals: {
 			history: signalHistory,
 			assets: new Map(

@@ -31,9 +31,9 @@ export interface SecureServerOptions extends HttpsServerOptions {
 }
 
 /**
- * Creates and starts an HTTPS server with mTLS, rate-limiting, and Helmet security.
+ * Creates and starts an HTTPS server with mTLS and Helmet security (no rate limiter: callers are mTLS-authenticated services, the gateway limits external clients).
  * Composes the Express app from focused sub-modules:
- *   - configureApp     — Helmet, trust proxy, body parsers, rate limiter, ping route
+ *   - configureApp     — Helmet, trust proxy, body parsers, ping route
  *   - MTLSAuthMiddleware — mTLS client certificate validation
  *   - ResponseProtocol  — Global error normalisation middleware
  *   - createAndStartHttpsServer — HTTPS listener with mTLS (TLSv1.3)

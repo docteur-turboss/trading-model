@@ -7,6 +7,7 @@ import {
 	PositiveInt,
 	type TradingSymbol,
 } from "@trading-model/primitives/primitives";
+import type { AxiosError } from "axios";
 import { SNAPSHOT_PARTS_FAILED_TOTAL } from "../../../config/metrics";
 import type {
 	MarketDataSnapshot,
@@ -33,8 +34,18 @@ export interface RawBinanceData {
 	bookTickerRaw?: Awaited<ReturnType<typeof getOrderBookTicker>>;
 }
 
+/** HTTP status and `Retry-After` of a 418 (IP ban) or 451 (restricted location) error, else undefined: each further call extends a ban. */
+export function banOf(
+	error: unknown
+): { status: number; retryAfter?: string } | undefined {
+	const response = (error as AxiosError | undefined)?.response;
+	return response?.status === 418 || response?.status === 451
+		? { status: response.status, retryAfter: response.headers?.["retry-after"] }
+		: undefined;
+}
+
 /** Pod clock may run ahead of Binance's: a still-open candle must not pass for closed (the cursor never goes back). */
-export const CLOSE_MARGIN_MS = 2000;
+const CLOSE_MARGIN_MS = 2000;
 
 type RawKey = keyof RawBinanceData;
 
@@ -83,11 +94,13 @@ const PART_OF: Record<RawKey, SnapshotPart> = {
  * Fetches the six endpoints of one symbol. A failed endpoint only leaves its
  * part out of the snapshot (logged, counted): an order book error must not
  * cost the candles. Rejects when every endpoint failed, with the first error
- * (a 451 stays a 451 for the caller).
+ * (a 418 or 451 wins over the others). `onBan` is called on a 418 or 451
+ * from any endpoint, so a partial snapshot still opens the quarantine.
  */
 export async function fetchAllRawData(
 	opts: SnapshotRequest,
-	tickers?: TickerBatch
+	tickers?: TickerBatch,
+	onBan?: (ban: NonNullable<ReturnType<typeof banOf>>) => void
 ): Promise<RawBinanceData> {
 	const { symbol, candleLimit, candleStartTime, tradeLimit, orderBookLimit } =
 		opts;
@@ -143,8 +156,13 @@ export async function fetchAllRawData(
 		});
 	});
 
+	// A 418/451 on any endpoint, even with the others answered, must stop the next cycle.
+	const ban = errors.map(banOf).find(Boolean);
+	if (ban) {
+		onBan?.(ban);
+	}
 	if (errors.length === keys.length) {
-		throw normalizeError(errors[0]);
+		throw normalizeError(errors.find(banOf) ?? errors[0]);
 	}
 	return raw as RawBinanceData;
 }
@@ -188,8 +206,8 @@ export function buildResponse(
 			normalizePart(query, "recentTrades", () =>
 				BinanceNormalizer.trades(query, tradesRaw)
 			),
-		// Binance returns the still-open candle last: publishing it would send a
-		// partial candle that the next cycle sends again with other values.
+		// Binance returns the still-open candle last: persisting it would store a
+		// partial candle that the next cycle overwrites with other values.
 		candles:
 			candlesRaw &&
 			normalizePart(query, "candles", () =>

@@ -1,3 +1,4 @@
+import type { ActionSetId } from "@trading-model/model-runtime/agent/action-mapper";
 import {
 	ActivationType,
 	ConnectionType,
@@ -6,7 +7,6 @@ import {
 } from "@trading-model/model-runtime/neural-network/type";
 import type { NumericRange } from "@trading-model/primitives/numeric-range";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
-import type { ActionSetId } from "../../agent/action-mapper";
 
 export {
 	ActivationType,
@@ -32,4 +32,6 @@ export interface NetworkGenome {
 	actionSet?: ActionSetId;
 	hiddenLayers: LayerGenome[];
 	normalization: NormalisationType;
+	/** FEATURE_INPUT_MASK_GENE (ADR-0082): per input group, false zeroes it. Absent: all active. */
+	inputMask?: boolean[];
 }

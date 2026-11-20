@@ -66,6 +66,7 @@ function seed(orderId: string): Promise<string> {
 	return m.dlqRepository.insert({
 		topic: Topic.of("orders"),
 		message: { orderId },
+		service: "audit-logger",
 		reason: "delivery failed",
 		deliveryAttempt: PositiveInt.of(1),
 		timestamp: UnixTimestamp.now(),
@@ -96,6 +97,7 @@ beforeAll(async () => {
 		dlqRedisQueue: require("../../src/config/redis-queue").dlqRedisQueue,
 		app: createDlqApp(ENV),
 	};
+	await m.app.connectDb();
 	await expect(m.dlqRedisQueue.connect()).resolves.toBe(true);
 });
 
@@ -122,7 +124,10 @@ describe("DLQ auto-retry — real MongoDB and Redis", () => {
 		await m.app.jobs.autoRetryTick();
 
 		expect(delivered).toEqual([
-			{ url: `${MESSAGE_MANAGER}/message`, body: { orderId: "o-1" } },
+			{
+				url: `${MESSAGE_MANAGER}/message/replay`,
+				body: { service: "audit-logger", message: { orderId: "o-1" } },
+			},
 		]);
 		const doc = await entry(id);
 		expect(doc?.status).toBe(m.DlqStatus.Completed);
@@ -153,7 +158,9 @@ describe("DLQ auto-retry — real MongoDB and Redis", () => {
 		await m.app.jobs.rebuildQueueFromMongo();
 		await m.app.jobs.processRedisQueue();
 
-		expect(delivered.map((d) => d.body)).toEqual([{ orderId: "o-3" }]);
+		expect(delivered.map((d) => d.body)).toEqual([
+			{ service: "audit-logger", message: { orderId: "o-3" } },
+		]);
 		expect((await entry(id))?.status).toBe(m.DlqStatus.Completed);
 	});
 });

@@ -20,6 +20,7 @@ export const CALLER = {
 	scraper: "trading-scraper",
 	message: "trading-message",
 	trainer: "trading-trainer",
+	gateway: "trading-gateway",
 } as const;
 
 /** Every application container and its compose healthcheck. */
@@ -162,7 +163,8 @@ function deterministicStringify(value: unknown): string {
 
 /** Listed in DLQ_ALLOWED_SERVICES by the E2E overlay. */
 const DLQ_SERVICE_NAME = "e2e-test-runner";
-const DLQ_HMAC_SECRET = process.env.DLQ_AUTH_HMAC_SECRET ?? "test-hmac-secret";
+const DLQ_HMAC_SECRET =
+	process.env.DLQ_AUTH_HMAC_SECRET ?? "test-hmac-secret-for-e2e-0123456789";
 
 /** HMAC headers dlq-service requires; `path` includes the query string. */
 export function signedDlqHeaders(
@@ -217,7 +219,7 @@ export function persistedCandles(symbol: string): number {
 			"trading-mysql",
 			"sh",
 			"-c",
-			`mysql -N -B -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM market_candles WHERE symbol='${symbol}'"`,
+			`MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -N -B -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM market_candles WHERE symbol='${symbol}'"`,
 		],
 		{ encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
 	);

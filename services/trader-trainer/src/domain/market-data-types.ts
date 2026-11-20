@@ -1,24 +1,18 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 
-import { NormalizationStats } from "./normalization-stats";
+import { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
 
+export {
+	DAILY_MAX_DATA_AGE_MS,
+	DAY_MS,
+} from "@trading-model/model-runtime/features/feature-builder";
 export {
 	fromSymbol,
 	type TradingSymbol,
 } from "@trading-model/primitives/primitives";
 export { NormalizationStats };
 
-import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
-
-export { FEATURE_DIM };
-
-interface CandleNormalizers {
-	close: NormalizationStats;
-	volume: NormalizationStats;
-	open: NormalizationStats;
-	high: NormalizationStats;
-	low: NormalizationStats;
-}
+import type { CandleNormalizers } from "@trading-model/model-runtime/features/feature-builder";
 
 export interface SymbolNormalizers {
 	candle: CandleNormalizers;
@@ -30,14 +24,5 @@ export interface BaseSymbolState {
 }
 
 export interface SymbolState extends BaseSymbolState {
-	norm: SymbolNormalizers;
-}
-
-/**
- * What a candle's features read: the data known at its close, normalised with
- * statistics of that data only (ADR-0030).
- */
-export interface FeatureState {
-	candles: CandleData[];
 	norm: SymbolNormalizers;
 }

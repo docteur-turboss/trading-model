@@ -24,12 +24,15 @@ import {
 } from "@trading-model/primitives/primitives";
 import type { Signal } from "@trading-model/validation/wire/signals";
 import { createConnection } from "mysql2/promise";
-import { MySqlCandlePublishBacklog } from "../../src/adapters/outbound/persistence/candle-publish-backlog";
 import {
 	insertCandles,
+	lastCandleOpenTime,
 	selectCandlesBy,
 } from "../../src/adapters/outbound/persistence/schema/candles.schema";
-import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
+import {
+	insertOrderBook,
+	selectOrderBooks,
+} from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 import {
 	insertTicker,
 	selectTickerBy,
@@ -461,9 +464,40 @@ describe("market_order_books — real MySQL (ADR-0053)", () => {
 		await expect(count("market_order_books")).resolves.toBe(2);
 		expect((await rows())[0].asks).toEqual([]);
 	});
+
+	it("should replay the snapshots of a symbol of one source in a range, oldest first", async () => {
+		await insertOrderBook([
+			orderBook({ timestamp: UnixTimestamp.of(T0 + 60_000) }),
+			orderBook(),
+			orderBook({ source: SourceType.Nyse, asks: new Set() }),
+		]);
+
+		const books = await selectOrderBooks(
+			SYMBOL,
+			MarketType.Crypto,
+			SourceType.Binance,
+			T0,
+			T0 + 60_000,
+			10
+		);
+
+		expect(books).toEqual([
+			{
+				symbol: SYMBOL,
+				market: MarketType.Crypto,
+				source: SourceType.Binance,
+				timestamp: T0,
+				bids: [
+					[100.5, 2],
+					[100.25, 0.125],
+				],
+				asks: [[100.75, 1.5]],
+			},
+		]);
+	});
 });
 
-describe("market_publish_cursors — real MySQL", () => {
+describe("lastCandleOpenTime — real MySQL", () => {
 	const SERIES = {
 		source: DataSource.Binance,
 		symbol: SYMBOL,
@@ -476,73 +510,14 @@ describe("market_publish_cursors — real MySQL", () => {
 			closeTimestamp: UnixTimestamp.of(minute(index) + 59_999),
 		});
 
-	it("should have no cursor for a series never queued", async () => {
-		await expect(
-			MySqlCandlePublishBacklog.cursor(SERIES)
-		).resolves.toBeUndefined();
-	});
-
-	it("should save a cursor and move it in place", async () => {
-		await MySqlCandlePublishBacklog.saveCursor(SERIES, {
-			market: MarketType.Crypto,
-			publishedUntil: minute(0),
-		});
-		await MySqlCandlePublishBacklog.saveCursor(SERIES, {
-			market: MarketType.Crypto,
-			publishedUntil: UnixTimestamp.of(minute(1) + 1),
-		});
-
-		await expect(count("market_publish_cursors")).resolves.toBe(1);
-		await expect(MySqlCandlePublishBacklog.cursor(SERIES)).resolves.toEqual({
-			market: MarketType.Crypto,
-			publishedUntil: minute(1) + 1,
-		});
-	});
-
-	it("should read back the persisted candles from the cursor, oldest first, as published", async () => {
-		await insertCandles([candleOf(2), candleOf(0), candleOf(1), candleOf(3)]);
-		await insertCandles([candle({ symbol: TradingSymbol.of("ETHUSDT") })]);
-		const cursor = {
-			market: MarketType.Crypto,
-			publishedUntil: UnixTimestamp.of(minute(0) + 1),
-		};
-
-		const batch = await MySqlCandlePublishBacklog.candlesFrom(
-			SERIES,
-			cursor,
-			2
-		);
-
-		expect(batch).toEqual([candleOf(1), candleOf(2)]);
-		await expect(
-			MySqlCandlePublishBacklog.countFrom(SERIES, cursor)
-		).resolves.toBe(3);
-	});
-
 	it("should read the open time of the newest candle of the series", async () => {
-		await expect(
-			MySqlCandlePublishBacklog.lastCandleOpenTime(SERIES)
-		).resolves.toBeUndefined();
+		await expect(lastCandleOpenTime(SERIES)).resolves.toBeUndefined();
 		await insertCandles([candleOf(2), candleOf(0)]);
 		await insertCandles([
 			candle({ symbol: TradingSymbol.of("ETHUSDT"), timestamp: minute(9) }),
 		]);
 
-		await expect(
-			MySqlCandlePublishBacklog.lastCandleOpenTime(SERIES)
-		).resolves.toBe(minute(2));
-	});
-
-	it("should leave the trade count out when the column is null", async () => {
-		await insertCandles([candle({ trades: undefined })]);
-
-		const [row] = await MySqlCandlePublishBacklog.candlesFrom(
-			SERIES,
-			{ market: MarketType.Crypto, publishedUntil: T0 },
-			10
-		);
-
-		expect(row).not.toHaveProperty("trades");
+		await expect(lastCandleOpenTime(SERIES)).resolves.toBe(minute(2));
 	});
 });
 
@@ -685,7 +660,7 @@ describe("timestamp queries — real MySQL (issue #555)", () => {
 		"should read %s through %s for timestamp %s ?, not a full scan",
 		async (table, index, op) => {
 			const [plan] = await DATABASE.promise().query(
-				`EXPLAIN SELECT * FROM \`${table}\` WHERE \`timestamp\` ${op} ?`,
+				`EXPLAIN FORMAT=TRADITIONAL SELECT * FROM \`${table}\` WHERE \`timestamp\` ${op} ?`,
 				[new Date(T0)]
 			);
 			const [row] = plan as { type: string; key: string | null }[];

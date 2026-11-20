@@ -57,7 +57,7 @@ createBootstrap({
 		// Before leaving discovery: the model of the session ended early is
 		// published on the bus. Then the Lease goes to the successor.
 		await leadership?.stop();
-		addressManager?.stop();
+		await addressManager?.stop();
 		await MessageManager.stopMessageManager();
 		await shutdownTelemetry();
 	},

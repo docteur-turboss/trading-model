@@ -5,6 +5,7 @@ import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import { Port } from "@trading-model/primitives/primitives";
 import { Hostname } from "@trading-model/primitives/primitives/hostname";
 import { getCorrelationId } from "./correlation-id";
+import { spiffeServerIdentityCheck } from "./http-tls-loader";
 import type { HttpHeaders, HttpMethod, TlsHttpOptions } from "./http-types";
 
 let sharedAgent: https.Agent | null = null;
@@ -65,7 +66,9 @@ function _buildTlsOptions(
 		agent: getKeepAliveAgent(),
 	};
 	if (hasCustomTrust) {
-		tlsOptions.checkServerIdentity = () => undefined;
+		tlsOptions.checkServerIdentity = spiffeServerIdentityCheck(
+			options.serviceName
+		);
 	}
 	return tlsOptions;
 }

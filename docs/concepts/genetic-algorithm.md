@@ -125,3 +125,7 @@ Evolution stops on a fitness threshold, stagnation, a generation limit or a time
 ---
 
 For implementation details — module structure, TypeScript API, code snippets — see [Genetic Algorithm Reference](../reference/genetic-algorithm.md).
+
+## Input mask gene
+
+With `FEATURE_INPUT_MASK_GENE`, each genome carries one flag per input group (candle, sliding window, one per signal metric). A group switched off is zeroed at the network input; the input size does not change (ADR-0082). The metric `tt_input_group_active` shows which groups survive.

@@ -74,9 +74,9 @@ disaster is therefore the log and metric history of the last 30 days, and
 the dashboards are rebuilt from git: the Grafana provisioning
 (`observability/grafana-dashboards-provisioning.yml`, Kubernetes
 `deploy/k8s/infra/dashboards/`) loads the JSON dashboards in
-`observability/dashboards/`. What is lost is state created in the Grafana UI
+`deploy/k8s/infra/dashboards/`. What is lost is state created in the Grafana UI
 (its local database on `grafana-data`: user accounts, UI-only edits, annotations).
-Alerts are not affected: the rules live in `observability/alerting.yml`,
+Alerts are not affected: the rules live in `deploy/k8s/infra/config/alerting.yml`,
 and Alertmanager receives them again once Prometheus restarts.
 Known gap: the Kubernetes Loki ConfigMap (`deploy/k8s/infra/config/local-config.yaml`) sets no
 `retention_period`, so the 31-day window above is enforced only by the Compose
@@ -278,7 +278,9 @@ store (MinIO on another VPS, Backblaze B2, Scaleway, OVH...) `S3_ENDPOINT` and
 `S3_PROVIDER`. `deploy.yml` writes it from the GitHub environment: variables
 `BACKUP_S3_BUCKET`, `BACKUP_S3_REGION`, `BACKUP_S3_ENDPOINT`,
 `BACKUP_S3_PROVIDER`, secrets `BACKUP_S3_ACCESS_KEY_ID`,
-`BACKUP_S3_SECRET_ACCESS_KEY`. Without them, an existing Secret (e.g. a
+`BACKUP_S3_SECRET_ACCESS_KEY`. `BACKUP_S3_REGION` is required on AWS (no
+`BACKUP_S3_ENDPOINT`): `deploy.yml` and the two scheduled workflows refuse an
+empty one. Without them, an existing Secret (e.g. a
 SealedSecret) is kept. The bucket must have Object Lock in compliance mode
 and the credentials no delete right ([Off-site
 immutability](#off-site-immutability)): production deploys refuse a bucket
@@ -1121,5 +1123,5 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
   escrow key decrypted weekly by the `Backup Key Check` workflow (ADR-0034),
   operator key quarterly by hand with `scripts/verify-backup-key.sh`, output
   kept in the operations log ([Key custody](ENCRYPTION_AT_REST.md#key-custody))
-- Secrets rotation: Security team (quarterly)
+- Secrets rotation: project owner, by hand; quarterly reminder issue opened by the `Secret Rotation Reminder` workflow
 - DR drill coordination: Engineering manager (bi-annual)

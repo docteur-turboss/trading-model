@@ -1,34 +1,28 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
 import { buyAndHoldSharpe } from "@trading-model/model-runtime/replay-metrics";
 import { Fitness, NonNegativeInt } from "@trading-model/primitives/primitives";
 import {
 	BEST_FITNESS,
 	FEATURE_DRIFT_SCORE,
-	MODEL_ADMISSION_TOTAL,
-	MODEL_ARTIFACTS_TOTAL,
 	MODEL_BELOW_BUY_AND_HOLD_STREAK,
 	MODEL_BUY_AND_HOLD_SHARPE,
 	MODEL_MAX_DRAWDOWN,
+	MODEL_PUBLISH_FAILURES_TOTAL,
 	MODEL_RETURN,
 	MODEL_SHARPE,
+	reportInputGroups,
 	TRAINING_DURATION_SECONDS,
 	TRAINING_SESSIONS_TOTAL,
 	TRAINING_STATUS,
 } from "../config/metrics";
-import {
-	eventInputLayout,
-	networkInputLayout,
-} from "../domain/agent/agent-state";
 import { featureDriftScore } from "../domain/feature-drift";
-import { isEventDriven } from "../domain/genetic-algorithm/decision-events";
 import type { WindowSet } from "../domain/genetic-algorithm/ga-runner";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
-import { summaryFromManifest } from "../domain/genome-summary-builder";
+import type { SimulatorCosts } from "../domain/genetic-algorithm/rl-backend";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import type { TradingSymbol } from "../domain/market-data-types";
-import { assessAdmission } from "../domain/model-admission";
-import type { ModelReplayWindow } from "../domain/model-artifact";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type {
 	ModelPublisherPort,
@@ -37,7 +31,6 @@ import type {
 import { validateTrainingPrerequisites } from "../domain/training-prerequisite-validator";
 import type { TrainingSettings } from "../domain/training-settings";
 import {
-	ArtifactTrainingInfo,
 	type BestAgentSummary,
 	LastTrainingInfo,
 	NullLastTrainingInfo,
@@ -48,6 +41,7 @@ import type {
 	TrainingResult,
 	TrainingSuccess,
 } from "../domain/training-types";
+import { ModelArtifactService } from "./model-artifact-service";
 import {
 	runInProcess,
 	type TrainingRunner,
@@ -56,7 +50,7 @@ import {
 
 export type { BestAgentSummary };
 
-interface TrainerDeps {
+export interface TrainerDeps {
 	settings: TrainingSettings;
 	publisher?: ModelPublisherPort;
 	telemetry?: GaTelemetry;
@@ -66,6 +60,8 @@ interface TrainerDeps {
 	instanceId?: string;
 	/** Where the session runs; default: the calling thread. */
 	runner?: TrainingRunner;
+	/** Costs of a daily asset (ADR-0083); undefined: a crypto symbol on one-minute candles. */
+	dailyCosts?: (symbol: TradingSymbol) => SimulatorCosts | undefined;
 }
 
 enum TrainerStatus {
@@ -86,14 +82,23 @@ export class Trainer {
 		TradingSymbol,
 		{ createdAt: number; normalization: Record<string, unknown> }
 	>();
+	/** Stored models whose publication failed or is unknown (rehydrated): the leader retries them (issue #1739). */
+	private readonly _unpublished = new Map<
+		TradingSymbol,
+		{ summary: BestAgentSummary; ref: StoredModelRef }
+	>();
 	private readonly _belowBuyAndHold = new Map<TradingSymbol, number>();
 	/** The session in flight, and how to end it early (ADR-0058). */
 	private _session?: { abort: AbortController; done: Promise<TrainingResult> };
 
+	private readonly _artifacts: ModelArtifactService;
+
 	constructor(
 		private readonly _dataBuffer: MarketDataBuffer,
 		private readonly _deps: TrainerDeps
-	) {}
+	) {
+		this._artifacts = new ModelArtifactService(_dataBuffer, _deps);
+	}
 
 	isTraining(): boolean {
 		return this._status === TrainerStatus.Training;
@@ -115,57 +120,28 @@ export class Trainer {
 		return this._symbolSnapshots.get(symbol);
 	}
 
-	/**
-	 * Serves the newest stored agent of each symbol until a training replaces
-	 * it. An unreadable manifest is logged and skipped (startup goes on).
-	 */
+	/** Serves the newest stored agent of each symbol until a training replaces it. */
 	async rehydrate(symbols: readonly TradingSymbol[]): Promise<void> {
-		const models = this._deps.models;
-		if (!models) {
-			return;
-		}
-		for (const symbol of symbols) {
-			try {
-				const latest = await models.latest(String(symbol));
-				const manifest =
-					latest && (await models.manifest(String(symbol), latest.version));
-				if (
-					manifest &&
-					JSON.stringify(manifest.features) !==
-						JSON.stringify(networkInputLayout(this._dataBuffer.signalKeys)) &&
-					JSON.stringify(manifest.features) !==
-						JSON.stringify(eventInputLayout(this._dataBuffer.signalKeys))
-				) {
-					// Published before the 18-input layout (ADR-0078): retrained, not served.
-					getLogger().warn("Stored model has another feature layout, skipped", {
-						context: { symbol, version: manifest.version },
-					});
-					continue;
+		for (const {
+			symbol,
+			snapshot,
+			lastModel,
+			ref,
+		} of await this._artifacts.rehydrate(symbols)) {
+			if (!this._lastModels.has(symbol)) {
+				this._lastModels.set(symbol, lastModel);
+			}
+			const summary = snapshot.buildBestAgentSummary();
+			// Reached the bus before the restart? Unknown: the leader publishes it once, model-evaluator deduplicates.
+			if (summary && this._deps.publisher && !this._unpublished.has(symbol)) {
+				this._unpublished.set(symbol, { summary, ref });
+			}
+			if (!this._symbolSnapshots.has(symbol)) {
+				this._symbolSnapshots.set(symbol, snapshot);
+				// /best-agent reads the last snapshot: serve the first one until a training.
+				if (this._lastInfo instanceof NullLastTrainingInfo) {
+					this._lastInfo = snapshot;
 				}
-				if (manifest && !this._lastModels.has(symbol)) {
-					this._lastModels.set(symbol, {
-						createdAt: Date.parse(manifest.createdAt),
-						normalization: manifest.normalization,
-					});
-				}
-				if (manifest && !this._symbolSnapshots.has(symbol)) {
-					const snapshot = new ArtifactTrainingInfo(
-						String(symbol),
-						summaryFromManifest(manifest)
-					);
-					this._symbolSnapshots.set(symbol, snapshot);
-					// /best-agent reads the last snapshot: serve the first one until a training.
-					if (this._lastInfo instanceof NullLastTrainingInfo) {
-						this._lastInfo = snapshot;
-					}
-					getLogger().info("Best agent rehydrated", {
-						context: { symbol, version: manifest.version },
-					});
-				}
-			} catch (err) {
-				getLogger().error("Cannot rehydrate the best agent from its manifest", {
-					context: { symbol, err: normalizeError(err).message },
-				});
 			}
 		}
 	}
@@ -214,9 +190,14 @@ export class Trainer {
 			const result = await this._runSession(symbol, windowSets, signal);
 			TRAINING_SESSIONS_TOTAL.inc({ result: "success" });
 			BEST_FITNESS.set({ symbol }, result.bestFitness);
-			const stored = await this._storeModel(result, windowSets);
-			if (stored) {
-				await this._publishModel(symbol, stored);
+			const summary = this._lastInfo.buildBestAgentSummary();
+			const stored = await this._artifacts.store(result, windowSets, summary);
+			if (stored && summary) {
+				this._lastModels.set(symbol, stored.lastModel);
+				this._reportModelPerformance(symbol, summary, windowSets);
+				// The newest model supersedes any older pending one.
+				this._unpublished.set(symbol, { summary, ref: stored.ref });
+				await this._publishModel(symbol, summary, stored.ref);
 			}
 			return result;
 		} catch (err) {
@@ -239,7 +220,7 @@ export class Trainer {
 		const run: TrainingRunner = this._deps.runner ?? runInProcess;
 		const result: TrainingSessionResult = await run(
 			windowSets,
-			this._deps.settings,
+			{ ...this._deps.settings, costs: this._deps.dailyCosts?.(symbol) },
 			this._deps.telemetry,
 			signal
 		);
@@ -250,6 +231,12 @@ export class Trainer {
 			bestFitnessMeta: result.bestFitnessMeta,
 			generation: NonNegativeInt.of(result.generation),
 		};
+		const publishedMask = result.bestGenome.network.inputMask;
+		if (publishedMask) {
+			const groups = inputGroupNames(this._dataBuffer.signalKeys);
+			reportInputGroups("published", groups, [publishedMask]);
+			reportInputGroups("population", groups, result.inputMasks ?? []);
+		}
 		const snapshot = new LastTrainingInfo(outcome);
 		this._lastInfo = snapshot;
 		this._symbolSnapshots.set(symbol, snapshot);
@@ -257,91 +244,6 @@ export class Trainer {
 			context: { symbol, bestFitness: result.bestFitness },
 		});
 		return { success: true, ...outcome };
-	}
-
-	/**
-	 * Writes the best agent as a versioned artifact. A failed write is logged
-	 * and counted: the training itself succeeded, its result stays usable.
-	 * Returns the stored artifact's identity, `undefined` when nothing was
-	 * stored (nothing may then be published).
-	 */
-	private async _storeModel(
-		result: TrainingSuccess,
-		windowSets: WindowSet[]
-	): Promise<StoredModelRef | undefined> {
-		const models = this._deps.models;
-		if (!models) {
-			return;
-		}
-		const summary = this._lastInfo.buildBestAgentSummary();
-		const weights = result.bestGenome.trainedWeights;
-		if (!(summary && weights)) {
-			MODEL_ARTIFACTS_TOTAL.inc({ result: "skipped" });
-			getLogger().warn(
-				"Model not stored: the best genome has no trained weights",
-				{
-					context: { symbol: result.symbol },
-				}
-			);
-			return;
-		}
-		const normalization = this._dataBuffer.snapshotNormalization(result.symbol);
-		const last = windowSets[windowSets.length - 1];
-		const admission = assessAdmission(result.bestFitnessMeta, last?.test ?? []);
-		try {
-			const stored = await models.save({
-				symbol: result.symbol,
-				instanceId: this._deps.instanceId ?? "trader-trainer",
-				bestGenome: result.bestGenome,
-				weights: new Float32Array(weights),
-				features: isEventDriven(result.bestGenome.rl.horizon)
-					? eventInputLayout(this._dataBuffer.signalKeys)
-					: networkInputLayout(this._dataBuffer.signalKeys),
-				normalization,
-				summary,
-				admission,
-				window: this._replayWindow(result.symbol, last),
-			});
-			MODEL_ARTIFACTS_TOTAL.inc({ result: "stored" });
-			const admissible = admission?.admissible ?? false;
-			MODEL_ADMISSION_TOTAL.inc({
-				result: admissible ? "admissible" : "rejected",
-			});
-			this._lastModels.set(result.symbol, {
-				createdAt: Date.parse(stored.createdAt),
-				normalization,
-			});
-			this._reportModelPerformance(result.symbol, summary, windowSets);
-			getLogger().info("Model stored", {
-				context: { symbol: result.symbol, version: stored.version, admissible },
-			});
-			return { version: stored.version, sha256: stored.sha256, admissible };
-		} catch (err) {
-			MODEL_ARTIFACTS_TOTAL.inc({ result: "error" });
-			getLogger().error("Failed to store model artifact", {
-				context: {
-					symbol: result.symbol,
-					err: normalizeError(err).message,
-				},
-			});
-		}
-	}
-
-	/** Candle window of the session, for the manifest `replay` block (ADR-0079). */
-	private _replayWindow(
-		symbol: TradingSymbol,
-		last: WindowSet | undefined
-	): ModelReplayWindow | undefined {
-		const candles = this._dataBuffer.getSymbolState(symbol)?.candles ?? [];
-		const testFrom = last?.test?.[0]?.timestamp;
-		if (candles.length === 0 || testFrom === undefined) {
-			return;
-		}
-		return {
-			from: candles[0].timestamp,
-			testFrom,
-			to: candles[candles.length - 1].closeTimestamp,
-		};
 	}
 
 	/** Out-of-sample metrics of a stored model next to buy and hold on its bars. */
@@ -385,24 +287,33 @@ export class Trainer {
 		}
 	}
 
+	/** Leader only: publishes again each model whose publication has not succeeded (same version and hash). */
+	async republishPending(): Promise<void> {
+		for (const [symbol, { summary, ref }] of [...this._unpublished]) {
+			await this._publishModel(symbol, summary, ref);
+		}
+	}
+
 	private async _publishModel(
 		symbol: TradingSymbol,
+		summary: BestAgentSummary,
 		stored: StoredModelRef
 	): Promise<void> {
 		const publisher = this._deps.publisher;
 		if (!publisher) {
 			return;
 		}
-		const summary = this._lastInfo.buildBestAgentSummary();
-		if (!summary) {
-			return;
-		}
 		try {
 			await publisher.publish(symbol, summary, stored);
+			// A slower call for an older version must not touch a newer entry.
+			if (this._unpublished.get(symbol)?.ref.version === stored.version) {
+				this._unpublished.delete(symbol);
+			}
 			getLogger().info("Model published", {
 				context: { symbol, agentId: summary.id },
 			});
 		} catch (err) {
+			MODEL_PUBLISH_FAILURES_TOTAL.inc({ symbol });
 			getLogger().error("Failed to publish model", {
 				context: {
 					symbol,

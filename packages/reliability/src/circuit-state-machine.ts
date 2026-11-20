@@ -23,17 +23,13 @@ export const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
 	halfOpenMaxAttempts: 1,
 };
 
-interface PersistentState {
-	failures: number;
-	openUntil: number;
-	halfOpenAttempts: number;
-}
-
 /** Closed / open / half-open state of one target; holds no timers, state is derived from the clock on each call. */
 export class CircuitStateMachine {
 	protected _failures = 0;
 	protected _openUntil: UnixTimestamp = 0 as UnixTimestamp;
 	protected _halfOpenAttempts = 0;
+	/** While in the future, the half-open probe is in flight: other callers see OPEN. */
+	protected _probeUntil: UnixTimestamp = 0 as UnixTimestamp;
 
 	constructor(protected readonly _config: CircuitBreakerConfig) {}
 
@@ -45,8 +41,18 @@ export class CircuitStateMachine {
 		return this._failures;
 	}
 
+	/** Half-open lets one caller through (the probe); the others see OPEN until its result or the cooldown. */
 	check(): CircuitState {
-		return this.getState(UnixTimestamp.now());
+		const now = UnixTimestamp.now();
+		const state = this.getState(now);
+		if (state !== CircuitState.HALF_OPEN) {
+			return state;
+		}
+		if (this._probeUntil > now) {
+			return CircuitState.OPEN;
+		}
+		this._probeUntil = UnixTimestamp.add(now, this._config.cooldownMs);
+		return state;
 	}
 
 	getFailureCount(): number {
@@ -79,6 +85,7 @@ export class CircuitStateMachine {
 	recordFailure(count = 1, threshold?: number): boolean {
 		const effectiveNow = UnixTimestamp.now();
 		const prevState = this.getState(effectiveNow);
+		this._probeUntil = 0 as UnixTimestamp;
 		this._failures += count;
 		if (this._openUntil > 0) {
 			return this._recordHalfOpenFailure(effectiveNow, prevState);
@@ -126,6 +133,7 @@ export class CircuitStateMachine {
 	}
 
 	recordSuccess(): void {
+		this._probeUntil = 0 as UnixTimestamp;
 		this._failures = 0;
 		this._openUntil = 0 as UnixTimestamp;
 		this._halfOpenAttempts = 0;
@@ -133,20 +141,5 @@ export class CircuitStateMachine {
 
 	clear(): void {
 		this.recordSuccess();
-	}
-
-	/** Snapshot for persistence / inspection. */
-	snapshot(): PersistentState {
-		return {
-			failures: this._failures,
-			openUntil: this._openUntil,
-			halfOpenAttempts: this._halfOpenAttempts,
-		};
-	}
-
-	restore(state: PersistentState): void {
-		this._failures = state.failures;
-		this._openUntil = state.openUntil as UnixTimestamp;
-		this._halfOpenAttempts = state.halfOpenAttempts;
 	}
 }

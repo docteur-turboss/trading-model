@@ -71,7 +71,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) | N-1 Compatibility of the Public API and the Bus Messages | Accepted | 2026-11 |
 | [ADR-0062](./0062-alerting-path-in-two-replicas-in-production.md) | Alerting Path in Two Replicas in Production | Accepted | 2026-11 |
 | [ADR-0063](./0063-grafana-per-person-access-through-oidc.md) | Grafana Per-Person Access Through OIDC | Accepted | 2026-11 |
-| [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md) | Risk and Execution Context, Independent of the Model, Required Before Any Order Flow | Proposed | 2026-11 |
+| [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md) | Risk and Execution Context, Independent of the Model, Required Before Any Order Flow | Accepted | 2026-11 |
 | [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md) | SPIRE Server Datastore in SQLite on Its Own Volume, SVID TTL 4 Hours | Accepted | 2026-11 |
 | [ADR-0066](./0066-simulated-fills-at-next-bar-open-with-execution-costs.md) | Simulated Fills at the Next Bar Open With Half-Spread and Slippage Costs | Accepted | 2026-11 |
 | [ADR-0067](./0067-mongodb-authentication.md) | MongoDB Authentication: keyFile, One User per Client, Switch in Two Releases | Accepted | 2026-11 |
@@ -89,6 +89,9 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0079](./0079-replay-window-in-the-model-manifest.md) | The Model Manifest Carries the Window and the Simulator to Replay It | Accepted | 2026-11 |
 | [ADR-0080](./0080-daily-prices-from-twelve-data-free-tier.md) | Daily Equity and ETF Prices from the Twelve Data Free Tier, as `market` Signals | Accepted | 2026-11 |
 | [ADR-0081](./0081-signal-inputs-to-the-network.md) | Signals Enter the Network as Value, Age and Confidence Inputs | Accepted | 2026-11 |
+| [ADR-0082](./0082-input-mask-gene.md) | The GA Evolves a Mask over the Input Groups | Accepted | 2026-11 |
+| [ADR-0083](./0083-daily-bars-from-signals-for-registry-assets.md) | Registry Assets Train on Daily Bars Rebuilt from Market Signals | Accepted | 2026-11 |
+| [ADR-0084](./0084-text-signals-stored-as-documents-enriched-to-numbers.md) | Text Signals Are Stored as Documents and Enriched Into v1 Numeric Signals | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

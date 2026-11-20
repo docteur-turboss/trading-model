@@ -31,4 +31,25 @@ describe("env", () => {
 			expect(ENV.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("http://otel:4318");
 		});
 	});
+
+	it("should refuse a weak DLQ_AUTH_HMAC_SECRET in production", () => {
+		jest.isolateModules(() => {
+			process.env = {
+				...process.env,
+				APP_NAME: "test-app",
+				NODE_ENV: "production",
+				INSTANCE_ID: "test-instance",
+				REDIS_URL: "redis://localhost:6379",
+				DLQ_AUTH_HMAC_SECRET: "short-secret-16-chars",
+			};
+			const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+			expect(() => require("../../../src/infrastructure/config/env")).toThrow(
+				"Environment validation failed"
+			);
+			expect(JSON.stringify(logged.mock.calls)).toContain(
+				"DLQ_AUTH_HMAC_SECRET must be at least 32 characters"
+			);
+			logged.mockRestore();
+		});
+	});
 });

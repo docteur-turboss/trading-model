@@ -1,7 +1,24 @@
 import type { JsonObject } from "@trading-model/primitives/primitives";
 import { errorProp } from "./errors/base";
 
-const PEM_LINE_PATTERN = /-----BEGIN[^-]+-----[\s\S]*?-----END[^-]+-----/g;
+/** Linear scan: a lazy regex is O(n²) on many BEGIN markers without END. */
+function redactPem(text: string): string {
+	let out = "";
+	let pos = 0;
+	let begin = text.indexOf("-----BEGIN");
+	while (begin >= 0) {
+		const end = text.indexOf("-----END", begin);
+		const close = end < 0 ? -1 : text.indexOf("-----", end + 8);
+		if (close < 0) {
+			break;
+		}
+		out += `${text.slice(pos, begin)}[REDACTED PEM]`;
+		pos = close + 5;
+		begin = text.indexOf("-----BEGIN", pos);
+	}
+	return out + text.slice(pos);
+}
+
 const Visited = new WeakSet<object>();
 
 function _sanitizeError(err: Error): JsonObject {
@@ -46,7 +63,7 @@ export function sanitizeForLog(value: unknown): unknown {
 		}
 	}
 	if (typeof value === "string") {
-		return value.replace(PEM_LINE_PATTERN, "[REDACTED PEM]");
+		return redactPem(value);
 	}
 	return value;
 }

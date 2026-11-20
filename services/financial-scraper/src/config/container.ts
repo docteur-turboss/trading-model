@@ -8,7 +8,10 @@ import {
 } from "@trading-model/reliability/leadership";
 import { z } from "zod";
 import { SignalCronScheduler } from "../adapters/inbound/cron/signal.cron";
-import { insertCandles } from "../adapters/outbound/persistence/schema/candles.schema";
+import {
+	insertCandles,
+	lastCandleOpenTime,
+} from "../adapters/outbound/persistence/schema/candles.schema";
 import { insertOrderBook } from "../adapters/outbound/persistence/schema/order-book.schema";
 import { insertTicker } from "../adapters/outbound/persistence/schema/ticker24h.schema";
 import { insertTrades } from "../adapters/outbound/persistence/schema/trades.schema";
@@ -36,25 +39,17 @@ export const MarketDataController = createMarketDataController({
 });
 
 /**
- * Wires the scrape cycle: market data source, broker publisher, persistence
- * and the publish backlog (both MySQL).
- * Lazy: the source and the broker client are only needed on the collector.
+ * Wires the scrape cycle: market data source and MySQL persistence.
+ * Lazy: the source is only needed on the collector.
  */
 async function createWorkerOrchestratorDeps(): Promise<WorkerOrchestratorDeps> {
-	const [
-		{ BinanceMarketDataSource },
-		{ BrokerMarketDataPublisher },
-		{ MySqlCandlePublishBacklog },
-	] = await Promise.all([
-		import("../adapters/outbound/binance/binance-market-data-source.js"),
-		import("../adapters/outbound/broker/broker-market-data.publisher.js"),
-		import("../adapters/outbound/persistence/candle-publish-backlog.js"),
-	]);
+	const { BinanceMarketDataSource } = await import(
+		"../adapters/outbound/binance/binance-market-data-source.js"
+	);
 	return {
 		source: new BinanceMarketDataSource(),
-		publisher: new BrokerMarketDataPublisher(),
 		persist: (snapshot) => MarketDataController.persist(snapshot),
-		backlog: MySqlCandlePublishBacklog,
+		lastCandleOpenTime,
 	};
 }
 
@@ -108,6 +103,9 @@ export interface SignalSchedulerSettings {
 	SIGNAL_COLLECTION_ENABLED: boolean;
 	/** Empty: no contact in the User-Agent (SEC EDGAR then answers 403). */
 	SIGNAL_CONTACT_EMAIL: string;
+	/** Comma-separated ids of non-commercial sources the operator accepted (ADR-0075). */
+	SIGNAL_NON_COMMERCIAL_ACCEPTED: string;
+	NODE_ENV: string;
 }
 
 /** How the signal sources see the platform. */
@@ -181,7 +179,11 @@ export function createSignalScheduler(
 		now: Date.now,
 		sleep,
 	});
-	recordSourceTerms(SIGNAL_REGISTRY.sources);
+	recordSourceTerms(SIGNAL_REGISTRY.sources, {
+		active: sources,
+		accepted: settings.SIGNAL_NON_COMMERCIAL_ACCEPTED,
+		production: settings.NODE_ENV === "production",
+	});
 	zeroCollectionFailures(sources);
 	restoreFreshness(sources, MySqlSignalStore, Date.now()).catch((err) =>
 		logger.error("Signal freshness gauges not restored from MySQL", {

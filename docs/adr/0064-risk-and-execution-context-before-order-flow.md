@@ -1,10 +1,11 @@
 # ADR-0064: Risk and Execution Context, Independent of the Model, Required Before Any Order Flow
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-11
+**Verified by:** `services/risk-execution/tests/unit/risk-execution.spec.ts` (pre-trade checks, lifecycle, kill switch, reconciliation, stale data, paper/live lock), `services/risk-execution/tests/drill/kill-switch-drill.spec.ts` (policy §7 drill, logged in docs/compliance/risk-drill-log.md), `tests/k8s/check-overlays.mjs` (only the production overlay may say live), `tests/alerts/alerting.test.yml`, `bun run api:check` (routes stay out of PUBLIC_ROUTES), `bun run deps:check`
 **Related:** [ADR-0049](./0049-downstream-context-for-models-and-signals.md) (downstream context, options B and C), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (walk-forward criteria, paper trading), [ADR-0011](./0011-spiffe-spire-workload-identity.md) (identities), [ADR-0016](./0016-shared-contracts-ownership.md) (shared contracts), [ADR-0039](./0039-configuration-feature-flags.md) (flags), [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) (audit trail), [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md) (no unreachable code), [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) (N-1 messages)
 
-This ADR is a proposal: the owner decides. It creates no service, no package, no contract and no manifest, and adds no code (ADR-0029). **Live execution stays forbidden** until every prerequisite of section 9 is met and this ADR is Accepted.
+**Decision (owner, issue #1652, 2026-11-20):** option **A** (dedicated `risk-execution` service, section 8); the proposed values of the [loss limits and kill switch policy](../compliance/risk-limits-policy.md) are kept as they are; the paper broker is the simulated broker (internal paper ledger), not the exchange testnet (section 6). Accepting this ADR added no code by itself (ADR-0029); the `risk-execution` service (issue #1695) implements sections 1 to 7 with the simulated broker only. **Live execution stays forbidden** until every prerequisite of section 9 is met and the `**Verified by:**` line names the specs and drills of the service.
 
 ## Context
 
@@ -17,7 +18,7 @@ The platform has no order chain. Of signal → decision → sizing → pre-trade
 
 The audit of trading risk (2026-11-11, score 9/100, "live trading forbidden") rates the execution controls 0 to 10/100. Root cause: the project is a research platform and execution was never designed. This ADR fixes the architecture of the layer that must exist before any order flow, paper or live. The loss limits (daily loss, drawdown) and the global exposure cap belong to the [loss limits and kill switch policy](../compliance/risk-limits-policy.md) (issue #882), not here; the other pre-trade caps of section 2 are set by the project owner in the service configuration.
 
-## Decision (proposed)
+## Decision
 
 Each control below states what it does, where it lives, what triggers it, and the test or drill that will prove it. "Spec" means a Jest spec of the future service (run by `bun run test`); "drill" means a scripted exercise on the paper environment whose result is recorded in a runbook.
 
@@ -26,7 +27,7 @@ Each control below states what it does, where it lives, what triggers it, and th
 | Aspect | Rule |
 | --- | --- |
 | Control | One component owns every order: it receives order intents, applies sections 2 to 7, talks to the broker, and keeps the order and position state. Nothing else holds broker credentials or sends an order. |
-| Location | Its own process (a service, `risk-execution`), its own SPIFFE identity and ACL (ADR-0011), its own durable store. The decision consumer (ADR-0049 option B or C) and the model never call the broker: they send an intent (instrument, side, quantity, limit price, reference price and its timestamp, decision id) to this service. The intent and order event types go in `@trading-model/contracts` (ADR-0016) and follow the N-1 rule (ADR-0061). |
+| Location | Its own process (a service, `risk-execution`), its own SPIFFE identity and ACL (ADR-0011), its own durable store. The decision consumer (ADR-0049 option B or C) and the model never call the broker: they send an intent (instrument, side, quantity, limit price, reference price and its timestamp, decision id, source model symbol and version) to this service. The intent and order event types go in `@trading-model/contracts` (ADR-0016) and follow the N-1 rule (ADR-0061). |
 | Trigger | Every order, without exception. The service ACL accepts intents only from the decision consumer identity; the gateway never exposes its routes (`PUBLIC_ROUTES` excluded). |
 | Proof | Spec: an intent from any other SPIFFE ID gets 403. `api:check` keeps its routes out of `PUBLIC_ROUTES`. Review: no broker client or credential outside the service (`deps:check` and a grep gate on the broker host and key names). |
 
@@ -38,6 +39,7 @@ Every limit has a hard ceiling in code that configuration cannot raise, and a co
 
 | Check | Rule | Trigger | Proof |
 | --- | --- | --- | --- |
+| Admitted model | The intent names its source model (symbol and version); rejected unless that model's manifest has `admission.admissible: true` (ADR-0069). Applies even when the decision consumer already filters (ADR-0049 §1.4) | Every intent | Spec: intent from a non-admissible model rejected |
 | Allowed instruments | Allow-list of symbols; anything else rejected. Spot only: margin, futures and short selling need their own ADR | Every intent | Spec: unlisted symbol rejected |
 | Max size per order | Quantity and notional (quantity × reference price) caps per instrument | Every intent | Spec: cap + 1 rejected, cap accepted; config above the hard ceiling refuses to start |
 | Price band | Limit price within a band around the reference price; no order without a reference price; a market order is checked on the reference price and the notional cap | Every intent | Spec: price outside the band rejected; missing reference rejected |
@@ -85,9 +87,9 @@ Every limit has a hard ceiling in code that configuration cannot raise, and a co
 
 | Aspect | Rule |
 | --- | --- |
-| Control | Same code in both modes. Only the broker adapter differs behind one port: a simulated broker (or the exchange testnet) in paper, the real exchange in live. |
+| Control | Same code in both modes. Only the broker adapter differs behind one port: the simulated broker (internal paper ledger, owner choice 2026-11-20) in paper, the real exchange in live. |
 | Location | An execution mode read at startup (`paper` by default). `live` is accepted only when the deployment environment is production; the service refuses to start in any other combination: `live` outside production, `live` without live keys, `paper` with live keys present. |
-| Keys | Live broker keys exist only in the production Secret (SealedSecret), never in compose, staging, CI or `.env.example`. Paper keys (testnet) cannot place a real order. |
+| Keys | Live broker keys exist only in the production Secret (SealedSecret), never in compose, staging, CI or `.env.example`. Paper mode uses no broker key. |
 | Trace | Every order, event, metric and log line carries the mode. |
 | Proof | Specs on the startup check (each forbidden combination refuses to start). A K8s overlay check (`tests/k8s/check-overlays.mjs`) that only the production overlay may set `live`. |
 
@@ -121,7 +123,7 @@ Order of milestones: ADR-0049 option B (offline inference, no order) → paper t
 | Section 1: separate service, identity, ACL | Required | Required |
 | Section 2: every pre-trade check | Required | Required, global exposure cap from the [policy](../compliance/risk-limits-policy.md), other caps set by the project owner in the service configuration |
 | Section 3: lifecycle, idempotency, `unknown` handling | Required | Required, crash drill passed |
-| Section 4: reconciliation | Required, against the paper ledger or testnet | Required, against the real account |
+| Section 4: reconciliation | Required, against the paper ledger | Required, against the real account |
 | Section 5: kill switch | Required, drill passed | Required, drill passed in the last period set by the [policy](../compliance/risk-limits-policy.md) |
 | Section 6: paper/live lock | Required | Required, live keys in production only |
 | Section 7: stale data and abnormal markets | Required | Required, drills passed |
@@ -132,6 +134,6 @@ Order of milestones: ADR-0049 option B (offline inference, no order) → paper t
 
 ## Consequences
 
-- Until the owner accepts this ADR, nothing changes in the code or the manifests. `algorithmic-trading-compliance.md` §6 and `bounded-contexts.md` point here instead of suggesting controls in the api-gateway.
-- If the owner accepts option A, a follow-up change creates the service, its contracts, identity, ACL, alerts and runbooks, with the specs and drills listed above, and this ADR moves to Accepted with a `**Verified by:**` line naming them. Choosing between ADR-0049 options B and C stays a separate decision.
+- Accepting this ADR changes nothing in the code or the manifests by itself. `algorithmic-trading-compliance.md` §6 and `bounded-contexts.md` point here instead of suggesting controls in the api-gateway.
+- Option A being accepted (2026-11-20), a follow-up change creates the service, its contracts, identity, ACL, alerts and runbooks, with the specs and drills listed above, and replaces the manual review of the `**Verified by:**` line with them. Choosing between ADR-0049 options B and C stays a separate decision.
 - A decision consumer added before this layer must not hold broker credentials or send orders: an executing consumer without it would expose 100 % of the allocated capital.

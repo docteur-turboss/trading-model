@@ -112,11 +112,16 @@ export default class BrokerMessage {
 	}
 
 	private async _consume(): Promise<void> {
+		await this._consumer?.stop();
+		this._consumer = undefined;
 		const journal = this._journal;
-		if (!journal) {
+		// No listener = the service reads only the callback route: consuming here would ack and drop entries owed to message-manager's workers.
+		const topics = this._topics.filter(
+			(topic) => EVENT_MANAGER.listenerCount(topic as keyof EventMap) > 0
+		);
+		if (!journal || topics.length === 0) {
 			return;
 		}
-		await this._consumer?.stop();
 		this._consumer = new BusConsumer({
 			journal,
 			deadStreams: new DeadStreams(journal),
@@ -131,7 +136,7 @@ export default class BrokerMessage {
 			onDeadLetter: (group, _message, reason, deadId) =>
 				this._publishDeadLetterEvent(group.topic, reason, deadId),
 		});
-		await this._consumer.start(this._topics);
+		await this._consumer.start(topics);
 	}
 
 	/** The audit trail records each dead letter (a dead DLQ event does not publish another: it would loop). */

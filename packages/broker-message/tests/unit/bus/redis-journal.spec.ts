@@ -3,7 +3,11 @@ import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/logger";
 import { JOURNAL_RETENTION_MS } from "../../../src/bus/journal.port";
 import { JOURNAL_TRIMMED_PENDING_TOTAL } from "../../../src/bus/metrics";
-import { RedisMessageJournal } from "../../../src/bus/redis-journal";
+import {
+	JOURNAL_WRITE_OPTIONS,
+	openJournalWriter,
+	RedisMessageJournal,
+} from "../../../src/bus/redis-journal";
 import { createMockMessage } from "../../fixtures/broker.fixture";
 
 const GROUP = { topic: "test.topic", service: "trader-trainer" } as never;
@@ -146,6 +150,7 @@ describe("RedisMessageJournal", () => {
 		expect(writer.sadd).toHaveBeenCalledTimes(2);
 		expect(redis.call.mock.calls.map(([name]) => name)).toEqual(["XACK"]);
 		expect(redis.sadd).not.toHaveBeenCalled();
+		await Promise.resolve();
 		expect(writer.disconnect).toHaveBeenCalledTimes(1);
 	});
 
@@ -533,5 +538,54 @@ describe("RedisMessageJournal", () => {
 
 			await expect(journal.lag()).rejects.toThrow("NOPERM");
 		});
+	});
+});
+
+describe("openJournalWriter", () => {
+	function fakeClient() {
+		let onReady: () => void = () => undefined;
+		const writer = {
+			call: jest.fn<(...args: any[]) => any>(),
+			sadd: jest.fn<(...args: any[]) => any>(),
+			disconnect: jest.fn(),
+			once: (_event: "ready", cb: () => void) => {
+				onReady = cb;
+			},
+		};
+		const duplicate = jest.fn<(options: object) => typeof writer>(() => writer);
+		return { writer, duplicate, ready: () => onReady() };
+	}
+
+	it("should open a writer without offline queue and resolve only once it is ready", async () => {
+		const { writer, duplicate, ready } = fakeClient();
+		let resolved = false;
+		const opening = openJournalWriter({ duplicate }).then((w) => {
+			resolved = true;
+			return w;
+		});
+
+		await Promise.resolve();
+		expect(resolved).toBe(false);
+		ready();
+
+		expect(await opening).toBe(writer);
+		expect(duplicate).toHaveBeenCalledWith(
+			expect.objectContaining({ enableOfflineQueue: false })
+		);
+		expect(JOURNAL_WRITE_OPTIONS.commandTimeout).toBeGreaterThan(2000);
+	});
+
+	it("should reject and disconnect when the writer never becomes ready", async () => {
+		jest.useFakeTimers();
+		try {
+			const { writer, duplicate } = fakeClient();
+			const opening = openJournalWriter({ duplicate });
+			const assertion = expect(opening).rejects.toThrow("not ready");
+			jest.advanceTimersByTime(JOURNAL_WRITE_OPTIONS.commandTimeout);
+			await assertion;
+			expect(writer.disconnect).toHaveBeenCalled();
+		} finally {
+			jest.useRealTimers();
+		}
 	});
 });

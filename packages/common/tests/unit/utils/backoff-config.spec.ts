@@ -36,18 +36,17 @@ describe("computeExponentialBackoff", () => {
 });
 
 describe("computeExponentialBackoffWithJitter", () => {
-	it("adds a jitter in [0, jitterMs) to the backoff", () => {
+	it("jitters by default within +-20 % and never above maxDelayMs", () => {
+		const delays = new Set<number>();
 		for (let i = 0; i < 50; i++) {
-			const delay = computeExponentialBackoffWithJitter(1, {
-				...range,
-				jitterMs: Ms.of(50),
-			});
-			expect(delay).toBeGreaterThanOrEqual(200);
-			expect(delay).toBeLessThan(250);
+			const delay = computeExponentialBackoffWithJitter(1, range);
+			expect(delay).toBeGreaterThanOrEqual(160);
+			expect(delay).toBeLessThan(240);
+			delays.add(delay);
+			expect(
+				computeExponentialBackoffWithJitter(10, range)
+			).toBeLessThanOrEqual(500);
 		}
-	});
-
-	it("adds nothing without jitter", () => {
-		expect(computeExponentialBackoffWithJitter(1, range)).toBe(200);
+		expect(delays.size).toBeGreaterThan(1);
 	});
 });

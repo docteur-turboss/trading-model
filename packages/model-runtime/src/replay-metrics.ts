@@ -6,6 +6,7 @@ interface TimedPriceStep {
 	timestamp?: number;
 }
 
+const MS_PER_DAY = 24 * 3_600_000;
 const MS_PER_YEAR = 365.25 * 24 * 3_600_000;
 
 /**
@@ -27,7 +28,13 @@ export function barsPerYear(
 		return;
 	}
 	gaps.sort((left, right) => left - right);
-	return MS_PER_YEAR / gaps[Math.floor(gaps.length / 2)];
+	const median = gaps[Math.floor(gaps.length / 2)];
+	// Daily bars skip weekends and holidays: the mean gap counts the bars a year really has.
+	const gap =
+		median >= MS_PER_DAY
+			? gaps.reduce((sum, value) => sum + value, 0) / gaps.length
+			: median;
+	return MS_PER_YEAR / gap;
 }
 
 /**
@@ -45,4 +52,26 @@ export function buyAndHoldSharpe(
 	);
 	const perYear = barsPerYear(segments.flat());
 	return new EpisodeScores(curve).sharpe() * Math.sqrt(perYear ?? 1);
+}
+
+/** ADR-0030 ratios of one segment, annualised, next to buy and hold on its bars (ADR-0069). */
+export interface SegmentRatios {
+	sharpe: number;
+	sortino: number;
+	calmar: number;
+	buyAndHoldSharpe: number;
+}
+
+/** Ratios of the bar-by-bar PnL `curve` of `steps`, with `perYear` bars a year. */
+export function segmentRatios(
+	curve: EpisodeScores,
+	perYear: number,
+	steps: readonly TimedPriceStep[]
+): SegmentRatios {
+	return {
+		sharpe: curve.sharpe() * Math.sqrt(perYear),
+		sortino: curve.sortino() * Math.sqrt(perYear),
+		calmar: curve.calmar() * perYear,
+		buyAndHoldSharpe: buyAndHoldSharpe([steps]),
+	};
 }

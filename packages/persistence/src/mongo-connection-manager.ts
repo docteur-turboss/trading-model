@@ -19,8 +19,8 @@ export interface MongoConnectionConfig {
 	collectionName?: string;
 	poolSize?: number;
 	minPoolSize?: number;
-	serverSelectionTimeoutMS?: number;
-	connectTimeoutMS?: number;
+	/** Attempts before `getConnection` rejects; `Infinity` for a background connect that outlives an outage. */
+	maxRetries?: number;
 }
 
 export class MongoConnectionManager extends ConnectionManager<MongoClient> {
@@ -50,7 +50,10 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 			},
 			async (client) => {
 				await client.close();
-			}
+			},
+			config.maxRetries === undefined
+				? undefined
+				: { maxRetries: config.maxRetries }
 		);
 		this._dbName = config.dbName;
 		this._collectionName = config.collectionName;

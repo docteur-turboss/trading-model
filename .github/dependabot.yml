@@ -1,7 +1,11 @@
+# Version updates scan development and open their PRs there, where the k8s
+# N-1 check runs (#1561). GitHub reads this file from main only, and security
+# updates always target main: the orchestrator retargets those to development.
 version: 2
 updates:
   - package-ecosystem: "bun"
     directory: "/"
+    target-branch: "development"
     schedule:
       interval: "weekly"
     ignore:
@@ -13,65 +17,101 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/services/discovery-server"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/services/financial-scraper"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/services/message-manager"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/services/trader-trainer"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/services/api-gateway"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/services/audit-logger"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/services/dlq-service"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/deploy/backup"
+    target-branch: "development"
     schedule:
       interval: "weekly"
+    ignore:
+      # Stay on MySQL 8.4 LTS like K8s: later majors are innovation releases, volumes cannot downgrade (#1767).
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/deploy/spire"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/deploy/migrate"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "bun"
     directory: "/deploy/migrate"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "docker-compose"
     directory: "/"
+    target-branch: "development"
     schedule:
       interval: "weekly"
+    ignore:
+      # Datastore majors are done by hand: they rewrite data files, so the N-1 rollback cannot pass
+      # (mongo 7.0 to 9.0: exit 62, #1751); MySQL stays on 8.4 LTS, later majors are innovation releases (#1767).
+      - dependency-name: "mongo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/k8s/infra"
+    target-branch: "development"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # Same reason as docker-compose above.
+      - dependency-name: "mongo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "mysql"
+        update-types: ["version-update:semver-major"]

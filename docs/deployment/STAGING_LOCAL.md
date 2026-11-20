@@ -269,7 +269,7 @@ While it is down:
 - After the start, with no run yet: `BackupIncrementalStale` after 2 h,
   `BackupJobStale` after 26 h, `RetentionStale` after 36 h,
   `AuditChainVerificationStale` / `AuditChainAnchoringStale` after 45 min,
-  each plus its `for:` delay (`observability/alerting.yml`). They resolve on the next run.
+  each plus its `for:` delay (`deploy/k8s/infra/config/alerting.yml`). They resolve on the next run.
 - If `SEALED_SECRETS_BACKUP_RUNNER` is set, `sealed-secrets-key-backup.yml`
   (daily 03:30 UTC) needs the runner and the API server: its job stays queued or fails, and the key backup of that day is missing.
 - Every pod restarts, including the single-replica data pods (see the partition
