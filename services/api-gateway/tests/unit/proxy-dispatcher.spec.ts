@@ -8,6 +8,7 @@ import {
 import {
 	type ProxyDeps,
 	UpstreamResponseTooLargeError,
+	UpstreamTimeoutError,
 } from "../../src/domain/ports/gateway.port";
 import { PROXY_REQUEST_DURATION_SECONDS } from "../../src/infrastructure/config/metrics";
 
@@ -91,6 +92,14 @@ describe("proxyAndCache", () => {
 			d
 		);
 		expect(res.status).toBe(503);
+	});
+
+	it("answers 504 when the upstream deadline is exceeded", async () => {
+		const d = deps();
+		d.forward.mockRejectedValue(new UpstreamTimeoutError(10));
+		const res = await proxyAndCache(GET, TARGET, CTX, d);
+		expect(res.status).toBe(HTTP_STATUS.GATEWAY_TIMEOUT);
+		expect(res.data).toEqual({ error: "Upstream timeout" });
 	});
 
 	it("answers 502 when the upstream answer is too large", async () => {
