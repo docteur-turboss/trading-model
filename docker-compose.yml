@@ -48,6 +48,7 @@ services:
     logging: *default-logging
     image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo
+    stop_grace_period: 2m
     restart: unless-stopped
     mem_limit: 2g
     # Authentication on (issue #669, ADR-0067): the image creates `root` on an
@@ -134,6 +135,7 @@ services:
     logging: *default-logging
     image: mysql:26.10.0@sha256:3819b2b23835c4a73c8b022fafc33c8095c0f81c929a8b7a84613d2fba6c52f5
     container_name: trading-mysql
+    stop_grace_period: 2m
     restart: unless-stopped
     mem_limit: 2g
     environment:
@@ -414,6 +416,7 @@ services:
       context: .
       dockerfile: services/trader-trainer/Dockerfile
     container_name: trading-trainer
+    stop_grace_period: 2m
     restart: unless-stopped
     mem_limit: 1g
     ports:
@@ -580,6 +583,44 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
+  #  Risk/Execution — order flow owner of ADR-0064 (simulated broker, paper only)
+  # ---------------------------------------------------------------------------
+  risk-execution:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: services/risk-execution/Dockerfile
+    container_name: trading-risk-execution
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - '127.0.0.1:${RISK_EXECUTION_PORT:-8454}:3000'
+    environment:
+      <<: *message-env
+      APP_NAME: risk-execution
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      SERVICE_NAME: risk-execution
+      INSTANCE_ID: risk-execution-1
+      EXECUTION_MODE: paper
+      DEPLOYMENT_ENV: development
+      RISK_STATE_DIR: /data/risk-execution
+    volumes:
+      - svid-risk:/run/spire/svid
+      - risk-execution-data:/data/risk-execution
+    networks:
+      - backend-net
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      spiffe-helper-risk:
+        condition: service_started
+      discovery-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
   #  DLQ Service - Dead Letter Queue management
   # ---------------------------------------------------------------------------
   dlq-service:
@@ -733,6 +774,21 @@ services:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-evaluator:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-risk:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    container_name: trading-helper-risk
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-risk:/run/spire/svid
     depends_on:
       spire-agent:
         condition: service_healthy
@@ -1167,6 +1223,7 @@ volumes:
   redis-data:
   trainer-checkpoints:
   model-evaluations:
+  risk-execution-data:
   mysql-data:
   spire-server-data:
   spire-agent-data:
@@ -1181,6 +1238,7 @@ volumes:
   svid-audit:
   svid-dlq:
   svid-evaluator:
+  svid-risk:
   svid-edge:
   svid-prometheus:
   svid-blackbox:

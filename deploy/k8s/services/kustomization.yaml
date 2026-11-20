@@ -10,4 +10,5 @@ resources:
   - audit-logger.yaml
   - dlq-service.yaml
   - model-evaluator.yaml
+  - risk-execution.yaml
   - edge-proxy.yaml
