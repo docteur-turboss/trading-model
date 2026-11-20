@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10
-**Verified by:** `tests/alerts/alerting.test.yml`, `packages/http/tests/unit/config/http-retry.spec.ts`, `services/financial-scraper/tests/unit/config/http.spec.ts`, `services/financial-scraper/tests/unit/job/worker/worker-orchestrator.spec.ts`, `services/trader-trainer/tests/unit/adapters/scheduler/training-loop.spec.ts`
+**Verified by:** `tests/alerts/alerting.test.yml`, `packages/http/tests/unit/config/http-retry.spec.ts`, `services/financial-scraper/tests/unit/config/http.spec.ts`, `services/financial-scraper/tests/unit/application/worker-orchestrator.spec.ts`, `services/trader-trainer/tests/unit/adapters/inbound/scheduler/training-loop.spec.ts`
 
 ## Context
 

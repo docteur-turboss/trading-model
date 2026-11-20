@@ -12,6 +12,7 @@ import { DeadStreams } from "../../../src/bus/dead-streams";
 import {
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
+	PUBLISHER_REJECTED_TOTAL,
 } from "../../../src/bus/metrics";
 import { publishToBus } from "../../../src/bus/publisher";
 import { RedisMessageJournal } from "../../../src/bus/redis-journal";
@@ -113,6 +114,58 @@ describe("BusConsumer", () => {
 
 		expect(handled).toEqual(["a"]);
 		expect(pendingOf(redis)).toBe(0);
+	});
+
+	it("should reject and count a message published under a name the topic does not allow", async () => {
+		const handled: unknown[] = [];
+		const rejected = jest.spyOn(PUBLISHER_REJECTED_TOTAL, "inc");
+		const topic = "training.model.published";
+		const parts = bus();
+		const {
+			consumer: c,
+			journal,
+			redis,
+		} = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+		await c.start([topic]);
+		await publishToBus(journal, "forged", {
+			...METADATA,
+			topic,
+			publisher: { ...METADATA.publisher, serviceName: "financial-scraper" },
+		} as never);
+		await until(() => rejected.mock.calls.length === 1);
+		await c.stop();
+
+		expect(handled).toEqual([]);
+		expect(rejected.mock.calls[0]?.[0]).toEqual({
+			topic,
+			publisher: "financial-scraper",
+		});
+		expect(
+			redis.streams.get(`p:journal:${topic}`)?.groups.get(GROUP.service)
+				?.pending.size
+		).toBe(0);
+		rejected.mockRestore();
+	});
+
+	it("should deliver a dlq.entry.added entry published by message-manager", async () => {
+		const handled: unknown[] = [];
+		const topic = "dlq.entry.added";
+		const parts = bus();
+		const { consumer: c, journal } = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+		await c.start([topic]);
+		await publishToBus(journal, "dead", {
+			...METADATA,
+			topic,
+			publisher: { ...METADATA.publisher, serviceName: "message-manager" },
+		} as never);
+		await until(() => handled.length === 1);
+		await c.stop();
+
+		expect(handled).toEqual(["dead"]);
 	});
 
 	it("should run the handler in the publisher trace and count the delivery", async () => {

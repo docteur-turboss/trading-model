@@ -192,7 +192,28 @@ describe("AddressManager (main)", () => {
 		expect(MOCK_ADDRESS_MANAGER_CLIENT.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
-		handle.stop();
+		await handle.stop();
+	});
+
+	it("should resolve stop only after the unregistration completes", async () => {
+		let release!: () => void;
+		MOCK_ADDRESS_MANAGER_CLIENT.unregisterService.mockReturnValueOnce(
+			new Promise<void>((resolve) => {
+				release = resolve;
+			})
+		);
+		const am = new AddressManager(makeConfig());
+		const handle = am.lifecycleManager.start();
+		await handle.ready;
+		let stopped = false;
+		const stopping = handle.stop().then(() => {
+			stopped = true;
+		});
+		await Promise.resolve();
+		expect(stopped).toBe(false);
+		release();
+		await stopping;
+		expect(stopped).toBe(true);
 	});
 
 	it("should return token from getToken", () => {

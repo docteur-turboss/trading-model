@@ -1,0 +1,56 @@
+import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
+import { AuditEvent } from "./audit-events";
+import { DlqEvent } from "./dlq-events";
+import type { EventEnumMap } from "./event-map";
+import { MarketEvent } from "./market-events";
+import { TrainingEvent } from "./training-events";
+
+const TRAINER = ServiceInstanceName.TraderTrainerService;
+const AUDIT = ServiceInstanceName.AuditLoggerService;
+const DLQ = ServiceInstanceName.DlqService;
+
+/** Services allowed to publish each topic (ADR-0073 §5). `dlq.entry.added` comes from any subscriber that dead-letters. */
+export const EVENT_PUBLISHERS: Record<
+	EventEnumMap,
+	readonly ServiceInstanceName[]
+> = {
+	...(Object.fromEntries(
+		Object.values(MarketEvent).map((topic) => [
+			topic,
+			[ServiceInstanceName.FinancialScraperService],
+		])
+	) as Record<string, readonly ServiceInstanceName[]> as Record<
+		MarketEvent,
+		readonly ServiceInstanceName[]
+	>),
+	[TrainingEvent.ModelPublished]: [TRAINER],
+	[AuditEvent.AuditHeartbeat]: [AUDIT],
+	[AuditEvent.AuditGapDetected]: [AUDIT],
+	[DlqEvent.EntryAdded]: [
+		AUDIT,
+		ServiceInstanceName.ModelEvaluatorService,
+		ServiceInstanceName.MessageManagerService,
+	],
+	[DlqEvent.ReplayCompleted]: [DLQ, AUDIT],
+	[DlqEvent.EntriesDeleted]: [DLQ, AUDIT],
+};
+
+/** Bus services and the topics they subscribe to (Redis users of `redis-ha.sh`). */
+export const EVENT_SUBSCRIBERS: Partial<
+	Record<ServiceInstanceName, readonly EventEnumMap[]>
+> = {
+	[AUDIT]: [
+		...Object.values(AuditEvent),
+		...Object.values(TrainingEvent),
+		...Object.values(DlqEvent),
+	],
+	[ServiceInstanceName.ModelEvaluatorService]: [TrainingEvent.ModelPublished],
+};
+
+/** False only for a known topic published under a name outside its publishers. */
+export function isExpectedPublisher(topic: string, publisher: string): boolean {
+	const allowed = EVENT_PUBLISHERS[topic as EventEnumMap] as
+		| readonly string[]
+		| undefined;
+	return !allowed || allowed.includes(publisher);
+}

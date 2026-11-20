@@ -314,6 +314,13 @@ for (const env of OVERLAYS) {
 		if (!image.includes("@sha256:")) errors.push(`${env}: image ${image} is not pinned by digest`);
 	}
 
+	// SPIRE agents must not be newer than the server they talk to (upgrade guide): the node agents are applied before the server.
+	const spireMinor = (name) => rendered.match(new RegExp(`image: \\S*${name}:(\\d+)\\.(\\d+)`))?.slice(1).map(Number);
+	const [server, agent] = [spireMinor("spire-server"), spireMinor("spire-agent")];
+	if (server && agent && (agent[0] > server[0] || (agent[0] === server[0] && agent[1] > server[1]))) {
+		errors.push(`${env}: spire-agent ${agent.join(".")} is newer than spire-server ${server.join(".")} (agents move one release after the server)`);
+	}
+
 	for (const [dir, file, text] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml", app], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml", nodeAgents]]) {
 		for (const kind of uncoveredKinds(documents(text), file)) {
 			errors.push(env + ": " + kind + " of " + dir + " is not covered by deploy/k8s/deploy-identity/" + file + " (or cluster-role.yaml): the deploy identity could not apply it");
@@ -390,6 +397,12 @@ for (const env of OVERLAYS) {
 			const replicas = Number(workload?.text.match(/^ {2}replicas: (\d+)$/m)?.[1]);
 			if (min >= replicas) errors.push(`production: PodDisruptionBudget ${pdb.name} requires ${min} of ${replicas} pod(s) of ${workload.name}: node drains would block`);
 		}
+	}
+
+	// Issue #1634: every major of PUBLIC_ROUTES needs an Ingress path to the edge-proxy.
+	const majors = new Set(readFileSync("services/api-gateway/src/shared/public-routes.ts", "utf8").match(/"[A-Z]+ \/v\d+(?=\/)/g)?.map((route) => route.split("/")[1]));
+	for (const major of majors) {
+		if (!new RegExp(`^ +(?:- )?path: /${major}$`, "m").test(rendered)) errors.push(`${env}: PUBLIC_ROUTES serves /${major} but the api-gateway Ingress has no /${major} path`);
 	}
 
 	if (env.startsWith("staging")) {

@@ -55,11 +55,11 @@ Every service instance is provisioned with an X.509 SVID issued by the SPIRE Ser
 | `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 4 h TTL (auto-rotated) |
 | `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 4 h TTL (auto-rotated) |
 
-**Enforcement:** `@trading-model/http/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). When `ENFORCE_MTLS_STRICT` is enabled (production), `mtls-authorization.ts` additionally enforces the ACL on every inbound request.
+**Enforcement:** `@trading-model/http/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). `mtls-authorization.ts` enforces the ACL on every inbound request.
 
 ### 3.2 Service Registration Tokens
 
-Services obtain HMAC-SHA256 tokens from the discovery-server upon registration. These tokens are used for service-to-service identity verification in non-mTLS fallback scenarios.
+Services obtain HMAC-SHA256 tokens from the discovery-server upon registration. These instance tokens authenticate the lease routes (heartbeat, deregistration) of the discovery-server; service identity itself is the SPIFFE SVID.
 
 | Lifecycle Phase | Action | Implementation |
 |---|---|---|
@@ -72,26 +72,13 @@ Services obtain HMAC-SHA256 tokens from the discovery-server upon registration. 
 
 ### 4.1 Default ACL
 
-The default ACL is defined in `@trading-model/http/mtls-authorization.ts`. It maps each target service to the set of callers allowed to reach it (`"*"` = any platform service).
+The default ACL maps each target service to the callers allowed to reach it (`"*"` = any platform service). Its single source is [`packages/http/src/acl-config.ts`](../../packages/http/src/acl-config.ts).
 
-```typescript
-// Simplified example of the DEFAULT_ACL mapping
-const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
-  'discovery-server':   [ '*' ],
-  'audit-logger':       [ '*' ],
-  'message-manager':    [ 'discovery-server', 'financial-scraper', 'trader-trainer', 'audit-logger', 'dlq-service' ],
-  'financial-scraper':  [ 'api-gateway', 'message-manager', 'trader-trainer' ],   // trader-trainer: reads the data supply (ADR-0036)
-  'trader-trainer':     [ 'api-gateway', 'financial-scraper', 'discovery-server', 'message-manager' ],
-  'api-gateway':        [ 'edge-proxy' ],   // external entry point (ADR-0018)
-  'dlq-service':        [ '*' ],
-};
-```
-
-**Enforcement:** When `ENFORCE_MTLS_STRICT` is enabled, every incoming request passes through `mtls-authorization.ts` middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.
+**Enforcement:** Every incoming request passes through `mtls-authorization.ts` middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.
 
 ### 4.2 ACL Change Procedure
 
-1. Submit PR modifying the `DEFAULT_ACL` mapping in `mtls-authorization.ts`
+1. Submit PR modifying the `DEFAULT_ACL` mapping in `acl-config.ts`
 2. PR must be reviewed by Platform Security Lead
 3. Deploy updated package to all services
 4. Rollback available via git revert
@@ -102,9 +89,9 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 
 | Resource | Access Method | Authentication | Authorisation |
 |---|---|---|---|
-| API gateway admin endpoints (DLQ delete, replay, store) | HTTPS + API key | `x-api-key` header | scope `dlq:write` of the key in `AUTH_TOKENS` (403 without it); the key name is recorded as `actor` of the DLQ audit events (ADR-0059) |
+| API gateway admin endpoints (DLQ delete, replay) | HTTPS + API key | `x-api-key` header | scope `dlq:write` of the key in `AUTH_TOKENS` (403 without it); the key name is recorded as `actor` of the DLQ audit events (ADR-0059) |
 | Database (MySQL) | TLS 1.2+ (cert-manager server certificate, host name verified; plain TCP refused: `require_secure_transport=ON`, issue #767) | Username/password + SealedSecret **and** a cert-manager client certificate per user (`REQUIRE ISSUER / SUBJECT`) | NetworkPolicy: ports 3306 / 33061 only from the listed client components ([databases.md](../architecture/databases.md)); SQL grants |
-| Database (MongoDB) | Plain TCP in the cluster (no TLS, ADR-0060); operators through `kubectl exec` | None until issue #669 ships MongoDB authentication | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--audit-and-dlq)); `kubectl exec` through Kubernetes RBAC |
+| Database (MongoDB) | TLS `preferTLS` in the cluster; operators through `kubectl exec` | One user per service, replica-set `keyFile` (ADR-0067; `transitionToAuth` until the release after 3.1.0) | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--audit-and-dlq), which also covers auth and TLS); `kubectl exec` through Kubernetes RBAC |
 | Grafana (metrics, Loki logs) | HTTPS through the ingress | OIDC, one account per person (ADR-0063); local `admin` kept for break-glass only | Role `Viewer` by default, no sign-up, no anonymous access; Admin granted by hand |
 | Kubernetes API | kubectl + client cert | mTLS certificate | RBAC roles + SealedSecrets |
 
@@ -129,8 +116,8 @@ The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity p
 | SVID audit | Continuous | All SVIDs auto-rotated (4h TTL, ADR-0065); expired SVIDs rejected |
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
-| Grafana account review | Quarterly | List Grafana users (Administration > Users): remove leavers, keep Admin to named operators, check `GRAFANA_PASSWORD` was rotated after any break-glass use. Logins are in Loki (logger `context`) |
-| API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, keep `dlq:write` to operators who purge or replay the DLQ, rewrite old-format keys (bare secret, ADR-0059) |
+| Grafana account review | Quarterly | List Grafana users (Administration > Users): remove leavers, keep Admin to named operators, check `GRAFANA_PASSWORD` was rotated after any break-glass use. Logins are in Loki (logger `context`). Delete the account of each leaver (register activity 8) |
+| API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, check every name is a pseudonym (ADR-0059), keep `dlq:write` to operators who purge or replay the DLQ, rewrite old-format keys (bare secret, ADR-0059) |
 
 ## 7. Enforcement & Violations
 

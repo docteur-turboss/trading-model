@@ -28,7 +28,7 @@ Machine: the owner's workstation, Bun, one thread, no other load. Numbers are an
 | One generation, population 20, 10 episodes, 2 000 bars | 4.0 s |
 | One session, 50 generations (`TRAINER_GENERATIONS`) | 100 to 200 s, inside `TRAINER_TIME_BUDGET_MS` (300 s) |
 
-**How to redo it.** From `services/trader-trainer`, a throwaway script (not committed) imports `NeuralNetwork` (`src/domain/neural-network/neural-network.ts`) and times 20 000 calls of `forward(x)` and `train(x, t)` after 2 000 warm-up calls. For the session it builds `WindowSet[]` of random `MarketStep` as in `tests/unit/genetic-algorithm/ga-replay.spec.ts` and times `runInProcess(windowSets, settings)` with population 20, 10 episodes, `generations` 3; the generation time is the total divided by the generation count. Random features measure the compute, not the quality.
+**How to redo it.** From `services/trader-trainer`, a throwaway script (not committed) imports `NeuralNetwork` (`src/domain/neural-network/neural-network.ts`) and times 20 000 calls of `forward(x)` and `train(x, t)` after 2 000 warm-up calls. For the session it builds `WindowSet[]` of random `MarketStep` as in `tests/unit/domain/genetic-algorithm/ga-replay.spec.ts` and times `runInProcess(windowSets, settings)` with population 20, 10 episodes, `generations` 3; the generation time is the total divided by the generation count. Random features measure the compute, not the quality.
 
 **Budget of one session per asset count** (sequential, 100 to 200 s per asset, interval `TRAINER_INTERVAL_MS` = 1 h):
 

@@ -133,9 +133,9 @@ environment and prints its secrets):
   tag rule `v*` (the release deploys its tag).
   A required reviewer is advised, not checked.
 - `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
-  backup): "Selected branches and tags" with exactly the branch `main`, and at
-  least one required reviewer. Set both **before** storing the escrow key. The
-  weekly run then waits for the reviewer's approval.
+  backup): "Selected branches and tags" with exactly the branch `main`, **before**
+  storing the escrow key. No required reviewer: it would hold the weekly
+  scheduled run until someone approves it (ADR-0034).
 
 The expected rules are the `RULES` table of the script. `backup-key-check.yml`
 runs its own `check-environment` job first and `verify-escrow-key` (the only
@@ -191,6 +191,7 @@ bash scripts/deploy-identity.sh cluster --namespace trading-model --environment 
   `repo` and `environment` of the `production` job to RBAC subjects bound to the same
   Role and ClusterRole, and drop the static secrets. Provider-specific, not done by the
   repository.
+- **Grafana access**: the `production` variable `GRAFANA_ALLOWED_CIDRS` (comma-separated CIDRs, no spaces) is the only source range `grafana-ingress` accepts; `deploy.yml` refuses production without it. Behind a CDN or proxy the controller sees the proxy address: list that. Also check by hand that the sealed Secret has `GRAFANA_OIDC_ENABLED=true` and a non-empty `GRAFANA_OIDC_ALLOWED_DOMAINS` (`check-grafana-oidc.sh` only checks the keys exist).
 - **Human settings** (cannot be checked by the workflow): required reviewer on
   `production` (above), and a second CODEOWNER on `/.github/`, `/deploy/` and
   `/deploy/k8s/secrets/` in `.github/CODEOWNERS` (only `@docteur-turboss` today).
@@ -308,7 +309,7 @@ the repository can check, and lists every gap in one run. What stays manual
    `ALERTMANAGER_PUSHOVER_TOKEN` (all four required in staging and production), `SIGNAL_CONTACT_EMAIL`,
    `BACKUP_AGE_RECIPIENTS` (two distinct keys), `BACKUP_S3_*` for an Object Lock
    bucket ([Prerequisites (off-site backup bucket)](#prerequisites-off-site-backup-bucket)), `AUDIT_ANCHOR_*` for the audit
-   chain anchor bucket (ADR-0027).
+   chain anchor bucket (ADR-0027; `AUDIT_ANCHOR_REGION` is required and must be an EU region).
 6. **Compliance**: the `Controller` and `Contact` fields of the
    [data processing register](../compliance/data-processing-register.md).
 
@@ -341,6 +342,8 @@ deploys release N-1 on kind, forces a failed upgrade to N, checks every
 Deployment is back on its N-1 pod template (image digests, ConfigMaps) with the
 N-1 migrations still applied, runs `migrate-down 1` and the migrations again,
 then upgrades to N (`tests/k8s/run-kind.sh upgrade`).
+
+**SPIRE order.** A SPIRE agent must not be newer than the server it talks to. The node agents are applied before the server, so a release bumps the server only; the agents (`deploy/k8s/node-agents/spire-agent.yaml`) take that version in the next release. The rollback above does not touch the agents: to downgrade, move the agents back first, then the server. `tests/k8s/check-overlays.mjs` fails when the agent minor is higher than the server's.
 
 "Wait for rollout" gives each Deployment 180 s plus the
 `terminationGracePeriodSeconds` of its pod template: a `Recreate` Deployment

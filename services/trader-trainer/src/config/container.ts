@@ -1,5 +1,6 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import {
 	KubernetesLease,
@@ -24,7 +25,6 @@ import { DEFAULT_ASSET_COSTS, parseAssets } from "../domain/asset-costs";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
-import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import type { SimulatorCosts } from "../domain/genetic-algorithm/rl-backend";
 import {
 	MarketDataBuffer,
@@ -38,7 +38,6 @@ import { parseSignalKeys } from "../domain/signal-features";
 import { effectiveFitnessType } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
-	CROSSOVER_FALLBACK_TOTAL,
 	CURRENT_GENERATION,
 	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
@@ -61,9 +60,6 @@ const PROMETHEUS_GA_TELEMETRY: GaTelemetry = {
 	},
 	genomeEvaluated(durationMs) {
 		GENOME_EVALUATION_SECONDS.observe(durationMs / 1000);
-	},
-	crossoverFallbacks(count) {
-		CROSSOVER_FALLBACK_TOTAL.inc(count);
 	},
 };
 

@@ -145,39 +145,27 @@ spec:
           startupProbe:
             exec:
               command:
-                - mysqladmin
-                - ping
-                - -h
-                - localhost
-                - -u
-                - root
-                - -p$(MYSQL_ROOT_PASSWORD)
+                - sh
+                - -c
+                - MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqladmin ping -h localhost -u root
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 60
           livenessProbe:
             exec:
               command:
-                - mysqladmin
-                - ping
-                - -h
-                - localhost
-                - -u
-                - root
-                - -p$(MYSQL_ROOT_PASSWORD)
+                - sh
+                - -c
+                - MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqladmin ping -h localhost -u root
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
           readinessProbe:
             exec:
               command:
-                - mysqladmin
-                - ping
-                - -h
-                - localhost
-                - -u
-                - root
-                - -p$(MYSQL_ROOT_PASSWORD)
+                - sh
+                - -c
+                - MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqladmin ping -h localhost -u root
             initialDelaySeconds: 15
             periodSeconds: 5
             timeoutSeconds: 3
