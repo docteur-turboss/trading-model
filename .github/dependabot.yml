@@ -1,7 +1,11 @@
+# Version updates scan development and open their PRs there, where the k8s
+# N-1 check runs (#1561). GitHub reads this file from main only, and security
+# updates always target main: the orchestrator retargets those to development.
 version: 2
 updates:
   - package-ecosystem: "bun"
     directory: "/"
+    target-branch: "development"
     schedule:
       interval: "weekly"
     ignore:
@@ -79,6 +83,7 @@ updates:
 
   - package-ecosystem: "bun"
     directory: "/deploy/migrate"
+    target-branch: "development"
     schedule:
       interval: "weekly"
 
