@@ -11,6 +11,7 @@
     "./dlq-events": "./dist/dlq-events.js",
     "./dlq-types": "./dist/dlq-types.js",
     "./event-map": "./dist/event-map.js",
+    "./event-routes": "./dist/event-routes.js",
     "./http-headers": "./dist/http-headers.js",
     "./http-status": "./dist/http-status.js",
     "./logger-registry": "./dist/logger-registry.js",

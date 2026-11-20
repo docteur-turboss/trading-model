@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { isExpectedPublisher } from "@trading-model/contracts/event-routes";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { Message } from "@trading-model/contracts/message-types";
 import type {
@@ -21,6 +22,7 @@ import {
 	JOURNAL_PENDING_ENTRIES,
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
+	PUBLISHER_REJECTED_TOTAL,
 } from "./metrics";
 import type { RedisMessageJournal } from "./redis-journal";
 
@@ -99,7 +101,7 @@ export class BusConsumer {
 		JOURNAL_PENDING_ENTRIES.reset();
 		JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
 		try {
-			for (const lag of await journal.lag()) {
+			for (const lag of await journal.lag(service)) {
 				if (lag.service === service) {
 					const labels = { topic: lag.topic, service };
 					JOURNAL_PENDING_ENTRIES.set(labels, lag.pending);
@@ -192,6 +194,18 @@ export class BusConsumer {
 			entryId: entry.id,
 		};
 		try {
+			const publisher = entry.message.metadata.publisher.serviceName;
+			if (!isExpectedPublisher(group.topic, publisher)) {
+				PUBLISHER_REJECTED_TOTAL.inc({ topic: group.topic, publisher });
+				getLogger().error(
+					"Bus entry rejected: publisher not allowed on topic",
+					{
+						context: { ...context, publisher },
+					}
+				);
+				await journal.ack(group, entry.id);
+				return;
+			}
 			try {
 				await runInMessageTraceContext(entry.message.metadata, () =>
 					handle(entry.message)

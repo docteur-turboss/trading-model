@@ -1,13 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { createReq } from "../helpers/express";
 
-jest.mock("../../src/infrastructure/config/env", () => ({
-	ENV: {
-		AUTH_TOKEN_HEADER: "x-api-key",
-		PROXY_TIMEOUT_MS: 10000,
-		PROXY_MAX_RESPONSE_BYTES: 16,
-	},
-}));
+const ENV: any = {
+	AUTH_TOKEN_HEADER: "x-api-key",
+	PROXY_TIMEOUT_MS: 10000,
+	PROXY_MAX_RESPONSE_BYTES: 16,
+};
 
 jest.mock("@trading-model/http/logger", () => ({
 	logger: {
@@ -95,9 +93,12 @@ function stubUpstream(
 	);
 }
 
-const loadForward = async () =>
-	(await Promise.resolve(require("../../src/adapters/outbound/proxy-handler")))
-		.forwardRequest;
+const loadForward = async () => {
+	const { forwardRequest } = await Promise.resolve(
+		require("../../src/adapters/outbound/proxy-handler")
+	);
+	return (opts: any) => forwardRequest(opts, ENV);
+};
 
 describe("proxy-handler", () => {
 	beforeEach(() => {

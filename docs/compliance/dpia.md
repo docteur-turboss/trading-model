@@ -6,7 +6,7 @@
 
 ## 1. System Overview
 
-The trading-model platform is a microservices-based algorithmic trading research infrastructure. It ingests market data from Binance, trains machine learning trading agents via genetic algorithms and deep Q-learning, and routes inter-service messages through an internal message bus. It has no user accounts and no authentication for individuals; its only personal data is the truncated IP of external API callers in the edge-proxy access logs (31 days).
+The trading-model platform is a microservices-based algorithmic trading research infrastructure. It ingests market data from Binance, trains machine learning trading agents via genetic algorithms and deep Q-learning, and routes inter-service messages through an internal message bus. It has no end-user accounts; its personal data is the truncated IP of external API callers in the edge-proxy access logs (31 days) and the operators' own data (register activity 8).
 
 **Key characteristics:**
 
@@ -19,7 +19,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 
 | Question                                  | Answer | Justification                                                                                                                                                     |
 | ----------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Is personal data collected?               | **Minimal** | Only the caller IP of the public API, truncated by the edge-proxy (IPv4 /24, IPv6 /48) before it is logged or forwarded, kept 31 days in Loki (register activity 6). All other data is machine-generated. No names, emails or device IDs |
+| Is personal data collected?               | **Minimal** | Only the caller IP of the public API, truncated by the edge-proxy (IPv4 /24, IPv6 /48) before it is logged or forwarded, kept 31 days in Loki (register activity 6). Operators' e-mail, name, login and pseudonymous API key name: register activity 8. All other data is machine-generated |
 | Could the system function with less data? | N/A    | The system already operates with the minimum data necessary: trading symbols + numeric market data                                                                |
 | Are data subjects informed?               | Partly | API callers are operators of the platform; the access-log processing is documented in the register (activity 6) |
 | Is consent required?                      | **No** | Art. 6(1)(f) — legitimate interest applies. No human interaction occurs                                                                                           |
@@ -88,7 +88,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 
 **The trading-model platform does not require prior consultation with a supervisory authority under Art. 36 GDPR**, because:
 
-1. The only personal data is a truncated caller IP kept 31 days for security — no large-scale processing, no profiling, no special categories
+1. The personal data is a truncated caller IP kept 31 days and operator data (register activity 8) — no large-scale processing, no profiling, no special categories
 2. The residual risks (secret exposure, data transfer) are mitigated by encryption, rotation, and procedural safeguards
 3. The DPIA confirms that data protection by design and by default is effectively implemented
 4. The identified action items (audit retention, MySQL retention: done, ADR-0051) are operational improvements, not GDPR compliance gaps
