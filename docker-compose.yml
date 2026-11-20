@@ -48,6 +48,7 @@ services:
     logging: *default-logging
     image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo
+    stop_grace_period: 2m
     restart: unless-stopped
     mem_limit: 2g
     # Authentication on (issue #669, ADR-0067): the image creates `root` on an
@@ -134,6 +135,7 @@ services:
     logging: *default-logging
     image: mysql@sha256:3819b2b23835c4a73c8b022fafc33c8095c0f81c929a8b7a84613d2fba6c52f5
     container_name: trading-mysql
+    stop_grace_period: 2m
     restart: unless-stopped
     mem_limit: 2g
     environment:
@@ -414,6 +416,7 @@ services:
       context: .
       dockerfile: services/trader-trainer/Dockerfile
     container_name: trading-trainer
+    stop_grace_period: 2m
     restart: unless-stopped
     mem_limit: 1g
     ports:
