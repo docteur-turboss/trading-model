@@ -8,10 +8,18 @@ name: Mutation Testing
 # config). A single run over all of `src/domain` stalled at 38 %
 # after 1 h (genetic-algorithm / neural-network mutants are slow), so the
 # domain is sharded: one job, and one time budget, per shard.
+# Incremental (issue #1813): each shard caches its Stryker incremental file and
+# only re-mutates changed code or tests. Full run: dispatch with `full` checked
+# (or delete the `stryker-incremental-*` caches).
 on:
   schedule:
     - cron: '0 3 * * 0'  # Weekly: Sunday 3 AM UTC
   workflow_dispatch:
+    inputs:
+      full:
+        description: Ignore the incremental cache and re-run every mutant
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -61,12 +69,25 @@ jobs:
       - run: bun install --frozen-lockfile
       # The TypeScript checker resolves @trading-model/* through the built packages
       - run: bun run build
+      - name: Restore incremental file
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ matrix.dir }}/.stryker-incremental
+          key: stryker-incremental-${{ matrix.name }}-${{ github.run_id }}
+          restore-keys: stryker-incremental-${{ matrix.name }}-
       - name: Stryker
         working-directory: ${{ matrix.dir }}
         env:
           MUTATE: ${{ matrix.mutate }}
           MUTATION_BREAK: ${{ matrix.break }}
-        run: bun run stryker --mutate "$MUTATE,!src/**/*.spec.ts,!src/**/*.d.ts"
+          FORCE: ${{ inputs.full && '--force' || '' }}
+        run: bun run stryker --incremental --incrementalFile ".stryker-incremental/${{ matrix.name }}.json" $FORCE --mutate "$MUTATE,!src/**/*.spec.ts,!src/**/*.d.ts"
+      - name: Save incremental file
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ matrix.dir }}/.stryker-incremental
+          key: stryker-incremental-${{ matrix.name }}-${{ github.run_id }}
       - name: Upload mutation report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
