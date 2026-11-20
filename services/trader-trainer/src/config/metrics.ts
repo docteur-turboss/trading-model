@@ -43,13 +43,6 @@ export const GENOME_EVALUATION_SECONDS = new promClient.Histogram({
 	buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
 });
 
-// Parents with different weight lengths (diverging architectures) are crossed by
-// copying one parent: expected, so counted here instead of logged per crossover.
-export const CROSSOVER_FALLBACK_TOTAL = new promClient.Counter({
-	name: "tt_crossover_fallback_total",
-	help: "Crossovers that copied a parent's weights because the parents' weight lengths differ",
-});
-
 export const TRAINING_LEADER = new promClient.Gauge({
 	name: "tt_training_leader",
 	help: "1 while this instance holds the trainer lease and trains, 0 otherwise (ADR-0058; alert TrainerNoLeader)",
@@ -151,7 +144,7 @@ export const SIGNAL_READ_ERRORS_TOTAL = new promClient.Counter({
 
 export const DAILY_BAR_ISSUES_TOTAL = new promClient.Counter({
 	name: "tt_daily_bar_issues_total",
-	help: "Daily bars rebuilt from signals: dropped (incomplete_day) or a jump that looks like a split (split_suspect)",
+	help: "Candles dropped or suspect: daily bar incomplete_day, split_suspect, or a candle whose low/high do not bound open/close (ohlc_inconsistent)",
 	labelNames: ["symbol", "issue"] as const,
 });
 

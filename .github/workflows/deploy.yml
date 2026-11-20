@@ -179,6 +179,10 @@ jobs:
       # MySQL, migration and rollout timeouts are multiplied by, for a slow
       # cluster (local kind staging). Unset: 1.
       DEPLOY_TIMEOUT_FACTOR: ${{ vars.DEPLOY_TIMEOUT_FACTOR || '1' }}
+      # Free-text inputs reach scripts through env only, never ${{ }} in run:.
+      DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+      ALLOW_FIRING_ALERTS: ${{ inputs.allow_firing_alerts }}
+      GRAFANA_ALLOWED_CIDRS: ${{ vars.GRAFANA_ALLOWED_CIDRS }}
     steps:
       # Manifests, node agents and migrations come from the released tag, not
       # from the branch picked at dispatch: production only deploys a vX.Y.Z
@@ -221,17 +225,23 @@ jobs:
         continue-on-error: ${{ inputs.preflight_only }}
         id: ns
         shell: bash
+        env:
+          STAGING_NAMESPACE: ${{ inputs.staging_namespace }}
+          PRODUCTION_NAMESPACE: ${{ inputs.production_namespace }}
+          K8S_OVERLAY: ${{ vars.K8S_OVERLAY }}
         run: |
-          if [ "${{ inputs.environment }}" = "staging" ]; then
-            NS="${{ inputs.staging_namespace }}"
+          if [ "$DEPLOY_ENVIRONMENT" = "staging" ]; then
+            NS="$STAGING_NAMESPACE"
           else
-            NS="${{ inputs.production_namespace }}"
+            NS="$PRODUCTION_NAMESPACE"
           fi
+          [[ "$NS" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ && ${#NS} -le 63 ]] || { echo "::error::Namespace is not a DNS-1123 label"; exit 1; }
           echo "namespace=$NS" >> "$GITHUB_OUTPUT"
+          echo "NAMESPACE=$NS" >> "$GITHUB_ENV"
           echo "Target namespace: $NS"
           # K8S_OVERLAY (variable of the GitHub environment): overlay directory
           # when it differs from the environment name (staging-local).
-          OVERLAY="${{ vars.K8S_OVERLAY || inputs.environment }}"
+          OVERLAY="${K8S_OVERLAY:-$DEPLOY_ENVIRONMENT}"
           [ -d "deploy/k8s/overlays/$OVERLAY" ] || { echo "::error::No overlay deploy/k8s/overlays/$OVERLAY"; exit 1; }
           echo "OVERLAY=$OVERLAY" >> "$GITHUB_ENV"
           echo "Overlay: $OVERLAY"
@@ -291,13 +301,15 @@ jobs:
           done
           [ -z "$missing" ] || exit 1
           umask 077
-          mkdir -p "$HOME/.kube"
-          echo "$APP_KUBECONFIG" | base64 -d > "$HOME/.kube/config"
-          echo "$CLUSTER_KUBECONFIG_CONTENT" | base64 -d > "$HOME/.kube/cluster"
-          echo "CLUSTER_KUBECONFIG=$HOME/.kube/cluster" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/kube"
+          echo "$APP_KUBECONFIG" | base64 -d > "$RUNNER_TEMP/kube/config"
+          echo "$CLUSTER_KUBECONFIG_CONTENT" | base64 -d > "$RUNNER_TEMP/kube/cluster"
+          echo "KUBECONFIG=$RUNNER_TEMP/kube/config" >> "$GITHUB_ENV"
+          echo "CLUSTER_KUBECONFIG=$RUNNER_TEMP/kube/cluster" >> "$GITHUB_ENV"
+          export KUBECONFIG="$RUNNER_TEMP/kube/config"
           # cluster-info reads kube-system, which neither identity may.
           kubectl auth can-i get deployments -n "$NS"
-          KUBECONFIG="$HOME/.kube/cluster" kubectl auth can-i get namespaces
+          KUBECONFIG="$RUNNER_TEMP/kube/cluster" kubectl auth can-i get namespaces
 
       # release.yml pushes v1.2.3 as :1.2.3; the git tag form is accepted too.
       - name: Resolve image tag
@@ -306,9 +318,10 @@ jobs:
         env:
           IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
           OWNER: ${{ github.repository_owner }}
+          TAG: ${{ inputs.image_tag }}
+          VERSION: ${{ inputs.version_number }}
         run: |
-          ENV="${{ inputs.environment }}"
-          TAG="${{ inputs.image_tag }}"
+          ENV="$DEPLOY_ENVIRONMENT"
           if [ -z "$TAG" ]; then
             echo "::error::image_tag is required. Provide a tag (e.g. latest, v1.2.3)."
             exit 1
@@ -316,10 +329,11 @@ jobs:
           if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
             TAG="${TAG#v}"
           fi
-          VERSION="${{ inputs.version_number }}"
           if [ -z "$VERSION" ]; then
             VERSION="$TAG"
           fi
+          [[ "$TAG$VERSION" =~ ^[A-Za-z0-9._+-]+$ ]] || { echo "::error::image_tag and version_number accept [A-Za-z0-9._+-] only"; exit 1; }
+          { echo "RESOLVED_TAG=$TAG"; echo "RESOLVED_VERSION=$VERSION"; } >> "$GITHUB_ENV"
           REGISTRY="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
           {
             echo "tag=$TAG"
@@ -358,7 +372,7 @@ jobs:
         shell: bash
         run: |
           REGISTRY="${{ steps.tag.outputs.registry }}"
-          TAG="${{ steps.tag.outputs.tag }}"
+          TAG="$RESOLVED_TAG"
           missing=""
           : > "$RUNNER_TEMP/image-digests"
           for img in $IMAGES; do
@@ -409,7 +423,7 @@ jobs:
         continue-on-error: ${{ inputs.preflight_only }}
         shell: bash
         run: |
-          ENV="${{ inputs.environment }}"
+          ENV="$DEPLOY_ENVIRONMENT"
           rendered=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY")
           if ! grep -q '^kind: SealedSecret$' <<<"$rendered"; then
             echo "$ENV uses no SealedSecret"
@@ -446,6 +460,24 @@ jobs:
           # Grafana OIDC (ADR-0063): production refuses a shared admin as the only access.
           bash scripts/check-grafana-oidc.sh "$ENV" <<<"$rendered"
 
+      # Grafana is reachable only from the operator's CIDRs (issue #1630; docs/deployment/DEPLOY.md).
+      - name: Check Grafana allowed CIDRs
+        continue-on-error: ${{ inputs.preflight_only }}
+        shell: bash
+        env:
+          GRAFANA_ALLOWED_CIDRS: ${{ vars.GRAFANA_ALLOWED_CIDRS }}
+        run: |
+          ENV="$DEPLOY_ENVIRONMENT"
+          cidr='[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}|[0-9A-Fa-f:]+:[0-9A-Fa-f:]*/[0-9]{1,3}'
+          if [ -z "$GRAFANA_ALLOWED_CIDRS" ]; then
+            msg="GRAFANA_ALLOWED_CIDRS is not set: the Grafana Ingress is open to the Internet (docs/deployment/DEPLOY.md)"
+            [ "$ENV" = "production" ] && { echo "::error::$msg"; exit 1; }
+            echo "::warning::$msg"
+          elif ! grep -qE "^($cidr)(,($cidr))*$" <<<"$GRAFANA_ALLOWED_CIDRS"; then
+            echo "::error::GRAFANA_ALLOWED_CIDRS must be comma-separated CIDRs without spaces, got: $GRAFANA_ALLOWED_CIDRS"
+            exit 1
+          fi
+
       # The Ingress hosts ship as example.com placeholders (issue #415): in
       # production they would leave the API unreachable from outside while
       # cert-manager keeps failing Let's Encrypt orders (rate limits). Checked
@@ -455,7 +487,7 @@ jobs:
         continue-on-error: ${{ inputs.preflight_only }}
         shell: bash
         run: |
-          ENV="${{ inputs.environment }}"
+          ENV="$DEPLOY_ENVIRONMENT"
           rendered=$(kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY")
           hosts=$(grep -oE '[A-Za-z0-9.-]*example\.com' <<<"$rendered" | sort -u | tr '\n' ' ' || true)
           if [ -z "$hosts" ]; then
@@ -490,7 +522,7 @@ jobs:
             kubectl kustomize "deploy/k8s/overlays/$OVERLAY/node-agents"
           } | bash scripts/split-cluster-scope.sh cluster |
             KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-cluster-rbac.sh \
-              --namespace "${{ steps.ns.outputs.namespace }}" --environment "$OVERLAY"
+              --namespace "$NAMESPACE" --environment "$OVERLAY"
 
       # The app identity cannot grant itself rights: a Role deploy-app created
       # by an older deploy-identity.sh app lacks what the release needs (3.1.0:
@@ -501,7 +533,7 @@ jobs:
         shell: bash
         run: |
           bash deploy/k8s/scripts/check-app-rbac.sh \
-            --namespace "${{ steps.ns.outputs.namespace }}" --environment "$OVERLAY"
+            --namespace "$NAMESPACE" --environment "$OVERLAY"
 
       # Anchor store of the audit chain (ADR-0027): an S3 bucket with Object
       # Lock (compliance mode), its own write-only credentials, not the backup
@@ -515,25 +547,38 @@ jobs:
         shell: bash
         env:
           AUDIT_ANCHOR_BUCKET: ${{ vars.AUDIT_ANCHOR_BUCKET }}
+          AUDIT_ANCHOR_REGION: ${{ vars.AUDIT_ANCHOR_REGION }}
+          BACKUP_S3_ALLOWED_REGIONS: ${{ vars.BACKUP_S3_ALLOWED_REGIONS }}
           AUDIT_ANCHOR_ACCESS_KEY_ID: ${{ secrets.AUDIT_ANCHOR_ACCESS_KEY_ID }}
           AUDIT_ANCHOR_SECRET_ACCESS_KEY: ${{ secrets.AUDIT_ANCHOR_SECRET_ACCESS_KEY }}
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           if [ -z "$AUDIT_ANCHOR_BUCKET" ]; then
             if kubectl -n "$NS" get secret audit-anchor-s3 >/dev/null 2>&1; then
               exit 0
             fi
-            if [ "${{ inputs.environment }}" = "production" ]; then
+            if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
               echo "::error::AUDIT_ANCHOR_BUCKET is not set for production: audit-logger refuses to start without an anchor store (ADR-0027)"
               exit 1
             fi
-            echo "::warning::AUDIT_ANCHOR_BUCKET is not set for ${{ inputs.environment }}: the audit chain is verified but not anchored"
+            echo "::warning::AUDIT_ANCHOR_BUCKET is not set for $DEPLOY_ENVIRONMENT: the audit chain is verified but not anchored"
             exit 0
           fi
           if [ -z "$AUDIT_ANCHOR_ACCESS_KEY_ID" ] || [ -z "$AUDIT_ANCHOR_SECRET_ACCESS_KEY" ]; then
             echo "::error::AUDIT_ANCHOR_BUCKET is set but AUDIT_ANCHOR_ACCESS_KEY_ID / AUDIT_ANCHOR_SECRET_ACCESS_KEY are not"
             exit 1
           fi
+          # Same EU list as the backup bucket: variable, else the default of backup-bucket-check.sh.
+          allowed="${BACKUP_S3_ALLOWED_REGIONS:-$(sed -n 's/^ALLOWED_REGIONS="${BACKUP_S3_ALLOWED_REGIONS:-\(.*\)}"$/\1/p' scripts/backup-bucket-check.sh)}"
+          case " $allowed " in
+            *" $AUDIT_ANCHOR_REGION "*) [ -n "$AUDIT_ANCHOR_REGION" ] && exit 0 ;;
+          esac
+          msg="AUDIT_ANCHOR_REGION '${AUDIT_ANCHOR_REGION}' is empty or not in the allowed EU regions (${allowed}): anchors must stay in the EU (docs/compliance/third-party-dpas.md)"
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            echo "::error::$msg"
+            exit 1
+          fi
+          echo "::warning::$msg"
 
       # Critical alerts firing before the release changes anything. Staging:
       # verify-release reports them but fails only on the alerts this release
@@ -544,14 +589,14 @@ jobs:
         if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
-          export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
+          export K8S_NAMESPACE="$NAMESPACE"
           f="$RUNNER_TEMP/alerts-before-deploy"
           bash deploy/k8s/scripts/deploy-k8s.sh firing-critical | sed '/^$/d' >"$f" ||
             { echo "::warning::Prometheus unreachable: no baseline, every critical alert fails verify-release"; : >"$f"; }
           if [ -s "$f" ]; then
             names="$(jq -rs 'map(.alertname) | unique | join(",")' "$f")"
-            if [ "${{ inputs.environment }}" = production ]; then
-              if [ "${{ inputs.allow_firing_alerts }}" != true ]; then
+            if [ "$DEPLOY_ENVIRONMENT" = production ]; then
+              if [ "$ALLOW_FIRING_ALERTS" != true ]; then
                 echo "::error::Critical alerts firing before the deploy: ${names}. Resolve them first, or rerun with allow_firing_alerts for a hotfix; nothing was changed."
                 exit 1
               fi
@@ -569,7 +614,7 @@ jobs:
         id: cluster_scope
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           export KUBECONFIG="$CLUSTER_KUBECONFIG"
           kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
           kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY" |
@@ -586,14 +631,14 @@ jobs:
           AUDIT_ANCHOR_ACCESS_KEY_ID: ${{ secrets.AUDIT_ANCHOR_ACCESS_KEY_ID }}
           AUDIT_ANCHOR_SECRET_ACCESS_KEY: ${{ secrets.AUDIT_ANCHOR_SECRET_ACCESS_KEY }}
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           [ -n "$AUDIT_ANCHOR_BUCKET" ] || exit 0
           # An empty endpoint would override the SDK default (AWS): left out.
           endpoint=()
           [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
           kubectl -n "$NS" create secret generic audit-anchor-s3 \
             --from-literal=AUDIT_ANCHOR_BUCKET="$AUDIT_ANCHOR_BUCKET" \
-            --from-literal=AUDIT_ANCHOR_REGION="${AUDIT_ANCHOR_REGION:-us-east-1}" \
+            --from-literal=AUDIT_ANCHOR_REGION="$AUDIT_ANCHOR_REGION" \
             --from-literal=AWS_ACCESS_KEY_ID="$AUDIT_ANCHOR_ACCESS_KEY_ID" \
             --from-literal=AWS_SECRET_ACCESS_KEY="$AUDIT_ANCHOR_SECRET_ACCESS_KEY" \
             "${endpoint[@]}" \
@@ -624,7 +669,7 @@ jobs:
           # Empty: the script's default list of EU regions.
           BACKUP_S3_ALLOWED_REGIONS: ${{ vars.BACKUP_S3_ALLOWED_REGIONS }}
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           bucket="$BACKUP_S3_BUCKET" endpoint="$BACKUP_S3_ENDPOINT" region="$BACKUP_S3_REGION"
           key_id="$BACKUP_S3_ACCESS_KEY_ID" secret="$BACKUP_S3_SECRET_ACCESS_KEY"
           if [ -z "$bucket" ] && kubectl -n "$NS" get secret trading-model-backup-s3 >/dev/null 2>&1; then
@@ -644,14 +689,18 @@ jobs:
             echo "::error::Off-site backup bucket $bucket has no credentials: set BACKUP_S3_ACCESS_KEY_ID / BACKUP_S3_SECRET_ACCESS_KEY"
             exit 1
           fi
+          if [ -n "$bucket" ] && [ -z "$endpoint" ] && [ -z "$region" ]; then
+            echo "::error::BACKUP_S3_REGION is not set: it is required for an AWS off-site bucket (no BACKUP_S3_ENDPOINT)"
+            exit 1
+          fi
           # Minimum lock: what the CronJob keeps on the volume (RETENTION_DAYS).
           retention=$(awk '/name: RETENTION_DAYS/ { getline; gsub(/[^0-9]/, ""); print; exit }' deploy/k8s/jobs/backup-cronjob.yaml)
           if [ -z "$retention" ]; then
             echo "::error::RETENTION_DAYS not found in deploy/k8s/jobs/backup-cronjob.yaml"
             exit 1
           fi
-          AWS_ACCESS_KEY_ID="$key_id" AWS_SECRET_ACCESS_KEY="$secret" AWS_REGION="${region:-us-east-1}" \
-            bash scripts/backup-bucket-check.sh --environment "${{ inputs.environment }}" \
+          AWS_ACCESS_KEY_ID="$key_id" AWS_SECRET_ACCESS_KEY="$secret" AWS_REGION="$region" \
+            bash scripts/backup-bucket-check.sh --environment "$DEPLOY_ENVIRONMENT" \
               --bucket "$bucket" --endpoint "$endpoint" --min-days "$retention"
 
       # At least two distinct age recipients in production (operator key +
@@ -667,8 +716,8 @@ jobs:
         env:
           BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          ENV="${{ inputs.environment }}"
+          NS="$NAMESPACE"
+          ENV="$DEPLOY_ENVIRONMENT"
           if [ -z "$BACKUP_AGE_RECIPIENTS" ] && kubectl -n "$NS" get configmap backup-encryption >/dev/null 2>&1; then
             echo "BACKUP_AGE_RECIPIENTS is not set: checking the existing backup-encryption ConfigMap"
             BACKUP_AGE_RECIPIENTS="$(kubectl -n "$NS" get configmap backup-encryption -o 'jsonpath={.data.BACKUP_AGE_RECIPIENTS}')"
@@ -692,8 +741,8 @@ jobs:
           BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
           BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
         run: |
-          bash scripts/backup-config-check.sh --environment "${{ inputs.environment }}" \
-            --namespace "${{ steps.ns.outputs.namespace }}"
+          bash scripts/backup-config-check.sh --environment "$DEPLOY_ENVIRONMENT" \
+            --namespace "$NAMESPACE"
 
       # Notification credentials, mounted as files by Alertmanager and read at
       # send time (no restart needed). Keys left unset are left out.
@@ -706,7 +755,7 @@ jobs:
           PUSHOVER_USER: ${{ secrets.ALERTMANAGER_PUSHOVER_USER_KEY }}
           PUSHOVER_TOKEN: ${{ secrets.ALERTMANAGER_PUSHOVER_TOKEN }}
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           keys=()
           [ -z "$SLACK" ] || keys+=(--from-literal=SLACK_WEBHOOK_URL="$SLACK")
           [ -z "$DEADMAN" ] || keys+=(--from-literal=DEADMAN_URL="$DEADMAN")
@@ -731,9 +780,9 @@ jobs:
         env:
           SIGNAL_CONTACT_EMAIL: ${{ secrets.SIGNAL_CONTACT_EMAIL }}
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           if [ -z "$SIGNAL_CONTACT_EMAIL" ]; then
-            echo "::warning::SIGNAL_CONTACT_EMAIL is not set for ${{ inputs.environment }}: SEC EDGAR refuses the signal collector"
+            echo "::warning::SIGNAL_CONTACT_EMAIL is not set for $DEPLOY_ENVIRONMENT: SEC EDGAR refuses the signal collector"
             exit 0
           fi
           kubectl -n "$NS" create configmap signal-contact \
@@ -750,7 +799,7 @@ jobs:
         continue-on-error: ${{ inputs.preflight_only }}
         shell: bash
         run: |
-          ENV="${{ inputs.environment }}"
+          ENV="$DEPLOY_ENVIRONMENT"
           {
             kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY"
             echo ---
@@ -766,8 +815,8 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" "${{ steps.tag.outputs.tag }}" |
-            bash deploy/k8s/scripts/deploy-release.sh dry-run "${{ steps.ns.outputs.namespace }}" "deploy/k8s/overlays/$OVERLAY/node-agents"
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" "$RESOLVED_TAG" |
+            bash deploy/k8s/scripts/deploy-release.sh dry-run "$NAMESPACE" "deploy/k8s/overlays/$OVERLAY/node-agents"
 
       # Every guard above ran (continue-on-error in preflight): one table, and
       # the job fails if any of them would have stopped a real deploy.
@@ -813,7 +862,7 @@ jobs:
         if: ${{ !inputs.preflight_only && inputs.environment == 'production' }}
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           if ! kubectl get statefulset mysql -n "$NS" >/dev/null 2>&1; then
             echo "First deploy: MySQL not there yet, no backup"
             exit 0
@@ -832,7 +881,7 @@ jobs:
         id: migrate
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           if ! kubectl get statefulset mysql -n "$NS" >/dev/null 2>&1; then
             echo "First deploy: MySQL not there yet, migrations run after the overlay"
             echo "deferred=true" >> "$GITHUB_OUTPUT"
@@ -843,7 +892,7 @@ jobs:
           # Both environments are served by a SealedSecret (issue #417): applied before the
           # migrations when it has a key the live Secret lacks (MYSQL_MIGRATE_PASSWORD, the
           # exporter passwords...), then waited for: issue #698.
-          if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
+          if [ "$DEPLOY_ENVIRONMENT" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
           # Keys removed on purpose from the SealedSecret (docs/deployment/sealed-secrets.md).
           export RETIRED_SECRET_KEYS="${{ vars.RETIRED_SECRET_KEYS }}"
@@ -865,11 +914,11 @@ jobs:
           # only gets requests on a dead letter or an admin call.
           CANARY_READINESS_ONLY: ${{ vars.CANARY_READINESS_ONLY || 'dlq-service' }}
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           export K8S_NAMESPACE="$NS"
           export CANARY_IMAGE_REPO="${{ steps.tag.outputs.registry }}"
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
-          TAG="${{ steps.tag.outputs.tag }}"
+          TAG="$RESOLVED_TAG"
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
           # No singleton here (trader-trainer ADR-0058, collector ADR-0057): a canary is a second pod.
           ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
@@ -882,7 +931,7 @@ jobs:
         if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh record "${{ steps.ns.outputs.namespace }}" "$RUNNER_TEMP/deploy-revisions"
+          bash deploy/k8s/scripts/deploy-release.sh record "$NAMESPACE" "$RUNNER_TEMP/deploy-revisions"
 
       # HPA-driven Deployments: spec.replicas leaves last-applied-configuration
       # first, or the apply resets them to 1 (deploy-release.sh).
@@ -890,23 +939,23 @@ jobs:
         if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh release-replicas "${{ steps.ns.outputs.namespace }}"
+          bash deploy/k8s/scripts/deploy-release.sh release-replicas "$NAMESPACE"
 
       - name: Apply overlay
         if: ${{ !inputs.preflight_only }}
         id: apply
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" "${{ steps.tag.outputs.tag }}" |
+          bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" "$RESOLVED_TAG" |
             bash scripts/split-cluster-scope.sh app >"$RUNNER_TEMP/app.yaml"
           # Redis last ("Wait for rollout"): it never restarts under the previous release (issue #1156).
-          bash deploy/k8s/scripts/deploy-release.sh without-redis "${{ steps.ns.outputs.namespace }}" <"$RUNNER_TEMP/app.yaml" |
+          bash deploy/k8s/scripts/deploy-release.sh without-redis "$NAMESPACE" <"$RUNNER_TEMP/app.yaml" |
             kubectl apply -f -
           # The former secret-rotation CronJob (issue #424) held write rights on every
           # Secret; apply never prunes, so remove what an older deploy left behind.
           kubectl delete cronjob/secret-rotation role/secret-rotator-role \
             rolebinding/secret-rotator-binding serviceaccount/secret-rotator \
-            -n "${{ steps.ns.outputs.namespace }}" --ignore-not-found
+            -n "$NAMESPACE" --ignore-not-found
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
       # private keys never enter the cluster). Environment variable of the
@@ -920,9 +969,9 @@ jobs:
         env:
           BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           if [ -z "$BACKUP_AGE_RECIPIENTS" ]; then
-            echo "::warning::BACKUP_AGE_RECIPIENTS is not set for ${{ inputs.environment }}: backups are disabled until it is"
+            echo "::warning::BACKUP_AGE_RECIPIENTS is not set for $DEPLOY_ENVIRONMENT: backups are disabled until it is"
             exit 0
           fi
           kubectl -n "$NS" create configmap backup-encryption \
@@ -946,10 +995,10 @@ jobs:
           BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
           BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           if [ -z "$BACKUP_S3_BUCKET" ]; then
             if ! kubectl -n "$NS" get secret trading-model-backup-s3 >/dev/null 2>&1; then
-              echo "::warning::BACKUP_S3_BUCKET is not set for ${{ inputs.environment }}: the backup job fails until an off-site copy is configured"
+              echo "::warning::BACKUP_S3_BUCKET is not set for $DEPLOY_ENVIRONMENT: the backup job fails until an off-site copy is configured"
             fi
             exit 0
           fi
@@ -958,7 +1007,7 @@ jobs:
           [ -z "$BACKUP_S3_ENDPOINT" ] || endpoint=(--from-literal=S3_ENDPOINT="$BACKUP_S3_ENDPOINT")
           kubectl -n "$NS" create secret generic trading-model-backup-s3 \
             --from-literal=BACKUP_S3_BUCKET="$BACKUP_S3_BUCKET" \
-            --from-literal=AWS_REGION="${BACKUP_S3_REGION:-us-east-1}" \
+            --from-literal=AWS_REGION="$BACKUP_S3_REGION" \
             --from-literal=S3_PROVIDER="${BACKUP_S3_PROVIDER:-AWS}" \
             --from-literal=AWS_ACCESS_KEY_ID="$BACKUP_S3_ACCESS_KEY_ID" \
             --from-literal=AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECRET_ACCESS_KEY" \
@@ -969,7 +1018,7 @@ jobs:
         if: ${{ steps.migrate.outputs.deferred == 'true' && !inputs.preflight_only }}
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           kubectl rollout status statefulset/mysql -n "$NS" --timeout="$((300 * DEPLOY_TIMEOUT_FACTOR))s"
           # The migrations job runs the released db-migrate image, by digest.
           digest=$(awk '$1 == "db-migrate" { print $2 }' "$RUNNER_TEMP/image-digests")
@@ -980,8 +1029,8 @@ jobs:
         if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
-          bash deploy/k8s/scripts/deploy-release.sh wait "${{ steps.ns.outputs.namespace }}"
-          bash deploy/k8s/scripts/deploy-release.sh redis-last "${{ steps.ns.outputs.namespace }}" <"$RUNNER_TEMP/app.yaml"
+          bash deploy/k8s/scripts/deploy-release.sh wait "$NAMESPACE"
+          bash deploy/k8s/scripts/deploy-release.sh redis-last "$NAMESPACE" <"$RUNNER_TEMP/app.yaml"
 
       # First upgrade to a release with MySQL TLS: the migrations ran while mysqld still served
       # its auto-generated certificate and left the users unbound. run-migrations.sh binds them
@@ -992,16 +1041,16 @@ jobs:
         if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
-          if [ "${{ inputs.environment }}" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
+          if [ "$DEPLOY_ENVIRONMENT" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
-          bash deploy/k8s/scripts/run-migrations.sh "${{ steps.ns.outputs.namespace }}" user-only
+          bash deploy/k8s/scripts/run-migrations.sh "$NAMESPACE" user-only
 
       # Runs on the new version, after the rollout; a failure triggers the rollback below.
       - name: Smoke test
         if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
-          export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
+          export K8S_NAMESPACE="$NAMESPACE"
           bash deploy/k8s/scripts/deploy-k8s.sh smoke-test
 
       # ADR-0057: the collector Lease passes to the new pod during the rollout.
@@ -1011,9 +1060,9 @@ jobs:
         if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
-          export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
+          export K8S_NAMESPACE="$NAMESPACE"
           export MARKET_DATA_RECOVERY_TIMEOUT=600
-          [ "${{ inputs.environment }}" = production ] || export MARKET_DATA_RECOVERY_MODE=warn
+          [ "$DEPLOY_ENVIRONMENT" = production ] || export MARKET_DATA_RECOVERY_MODE=warn
           bash deploy/k8s/scripts/deploy-k8s.sh verify-market-data
 
       # Functional gate over an observation window: API call through edge-proxy
@@ -1029,15 +1078,15 @@ jobs:
           # Missing market data only warns in staging (verify-market-data above).
           VERIFY_REQUIRE_FRESH_DATA: ${{ inputs.environment == 'production' && 'true' || 'false' }}
         run: |
-          export K8S_NAMESPACE="${{ steps.ns.outputs.namespace }}"
+          export K8S_NAMESPACE="$NAMESPACE"
           bash deploy/k8s/scripts/deploy-k8s.sh verify-release
 
       - name: Annotate deployments with release metadata
         if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
-          VERSION="${{ steps.tag.outputs.version }}"
+          NS="$NAMESPACE"
+          VERSION="$RESOLVED_VERSION"
           for dep in $(bash deploy/k8s/scripts/deploy-release.sh deployments); do
             kubectl annotate deployment "$dep" -n "$NS" --overwrite \
               trading-model.dev/git-sha="${{ steps.src.outputs.sha }}" \
@@ -1051,7 +1100,7 @@ jobs:
         if: ${{ always() && inputs.canary && !inputs.preflight_only }}
         shell: bash
         run: |
-          NS="${{ steps.ns.outputs.namespace }}"
+          NS="$NAMESPACE"
           export K8S_NAMESPACE="$NS"
           for dep in discovery-server message-manager financial-scraper \
                      api-gateway audit-logger dlq-service; do
@@ -1069,7 +1118,7 @@ jobs:
         run: |
           # Every Deployment back to the revision recorded before the overlay
           # (image and hashed ConfigMaps of the previous release, issue #410).
-          bash deploy/k8s/scripts/deploy-release.sh rollback "${{ steps.ns.outputs.namespace }}" "$RUNNER_TEMP/deploy-revisions"
+          bash deploy/k8s/scripts/deploy-release.sh rollback "$NAMESPACE" "$RUNNER_TEMP/deploy-revisions"
 
       # No rollback ran because the overlay was never applied: say so, and list
       # what the earlier steps already changed (none of it is undone automatically).
@@ -1105,3 +1154,8 @@ jobs:
           SHA: ${{ steps.src.outputs.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: bash deploy/k8s/scripts/notify-slack.sh
+
+      - name: Remove the kubeconfigs
+        if: ${{ always() }}
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/kube"

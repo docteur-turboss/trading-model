@@ -8,16 +8,14 @@ import { sampleGaussian } from "@trading-model/model-runtime/noise";
 /**
  * Per-weight uniform crossover using separate RNG to produce a child weight vector.
  * Parents of different lengths (diverging network architectures) are expected:
- * the child copies `wa` and `onFallback` is called, so the caller counts it.
+ * the child copies `wa`.
  */
 export function crossoverWeights(
 	wa: Float32Array,
 	wb: Float32Array,
-	rng: () => number,
-	onFallback?: () => void
+	rng: () => number
 ): Float32Array {
 	if (wa.length !== wb.length) {
-		onFallback?.();
 		return wa.slice();
 	}
 	const out = new Float32Array(wa.length);

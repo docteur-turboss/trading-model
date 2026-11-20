@@ -13,6 +13,9 @@ const Rows = z.array(
 	})
 );
 
+// A median over fewer sales than this would reveal an individual price (decree 2018-1350).
+const MIN_SALES = 11;
+
 const TYPES = { Appartement: "apartment", Maison: "house" } as const;
 
 function _median(values: number[]) {
@@ -36,7 +39,8 @@ function _median(values: number[]) {
  * (same type and surface) from one dwelling on two lots, so a real twin sale
  * is read as one dwelling and its price/m2 is overstated (about 1 % of kept
  * sales have repeated rows on the 2025 files). Only per-commune aggregates leave this function: no
- * address, parcel or date of a sale. No kept sale is no signal.
+ * address, parcel or date of a sale. A median needs at least 11 sales of its
+ * type; `sales_count` is always published. No kept sale is no signal.
  * The key holds the values, so a corrected publication is a second signal.
  */
 export const DVF_COMMUNE_SALES: SourceAdapter = {
@@ -84,7 +88,7 @@ export const DVF_COMMUNE_SALES: SourceAdapter = {
 		const measures: [string, number, string][] = [
 			["sales_count", count, "sales"],
 			...(["apartment", "house"] as const)
-				.filter((type) => prices[type].length > 0)
+				.filter((type) => prices[type].length >= MIN_SALES)
 				.map((type): [string, number, string] => [
 					`median_price_per_m2_${type}`,
 					_median(prices[type]),

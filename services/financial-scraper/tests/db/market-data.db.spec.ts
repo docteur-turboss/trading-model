@@ -719,7 +719,7 @@ describe("timestamp queries — real MySQL (issue #555)", () => {
 		"should read %s through %s for timestamp %s ?, not a full scan",
 		async (table, index, op) => {
 			const [plan] = await DATABASE.promise().query(
-				`EXPLAIN SELECT * FROM \`${table}\` WHERE \`timestamp\` ${op} ?`,
+				`EXPLAIN FORMAT=TRADITIONAL SELECT * FROM \`${table}\` WHERE \`timestamp\` ${op} ?`,
 				[new Date(T0)]
 			);
 			const [row] = plan as { type: string; key: string | null }[];

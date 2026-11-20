@@ -161,7 +161,10 @@ Schema v1, the model of the design note's §1: `src/domain/signals.ts`
   (legal), `area` and `period` (macro).
 
 **Sources** are declared in `src/config/signal-registry.json` (assets and
-sources), checked at startup: a broken registry stops the service. A
+sources), checked at startup: a broken registry stops the service. Deployed
+pods read the same repository file from `SIGNAL_REGISTRY_FILE` (K8s ConfigMap
+`financial-scraper-signal-registry`, compose bind mount), so an asset or source
+of a known format ships with a deploy, without a new image (issue #1308). A
 request's dimension must be covered by its source for the asset type of its
 subject, apply to that asset, and be written by the adapter.
 

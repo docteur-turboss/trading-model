@@ -11,11 +11,8 @@ import type { ReadinessCheck } from "./readiness";
 import type { HttpsServer } from "./server-factory";
 
 export interface ServiceServerOptions {
-	env: TlsEnvVars & { PORT: number; ENFORCE_MTLS_STRICT?: boolean };
-	/**
-	 * Canonical SPIFFE service identity used as the ACL target for inbound
-	 * authorization (ADR-0011). Required when `ENFORCE_MTLS_STRICT` is enabled.
-	 */
+	env: TlsEnvVars & { PORT: number };
+	/** Canonical SPIFFE service identity used as the ACL target for inbound authorization (ADR-0011). */
 	serviceId?: ServiceId;
 	routes: (app: Application) => void;
 	trustProxy?: boolean;
@@ -37,14 +34,10 @@ export function createServiceServer(
 
 function _resolveAuthorization(
 	options: ServiceServerOptions
-): AuthorizationOptions | undefined {
-	if (options.env.ENFORCE_MTLS_STRICT === false) {
-		return;
-	}
+): AuthorizationOptions {
 	if (!options.serviceId) {
 		throw configurationError(
-			"Authorization is enabled by default but createServiceServer received no serviceId. " +
-				"Set ENFORCE_MTLS_STRICT=false to disable or provide a serviceId."
+			"createServiceServer received no serviceId: the caller ACL needs a target service."
 		);
 	}
 	return { targetService: options.serviceId };

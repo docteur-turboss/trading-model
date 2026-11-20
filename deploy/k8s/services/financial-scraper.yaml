@@ -150,6 +150,9 @@ spec:
             - name: mysql-tls
               mountPath: /etc/mysql-tls
               readOnly: true
+            - name: signal-registry
+              mountPath: /etc/signal-registry
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -199,6 +202,9 @@ spec:
                   - -c
                   - sleep 10
       volumes:
+        - name: signal-registry
+          configMap:
+            name: financial-scraper-signal-registry
         - name: spiffe-helper-config
           configMap:
             name: spiffe-helper-config
@@ -403,6 +409,9 @@ spec:
             - name: mysql-tls
               mountPath: /etc/mysql-tls
               readOnly: true
+            - name: signal-registry
+              mountPath: /etc/signal-registry
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -452,6 +461,9 @@ spec:
                   - -c
                   - sleep 10
       volumes:
+        - name: signal-registry
+          configMap:
+            name: financial-scraper-signal-registry
         - name: spiffe-helper-config
           configMap:
             name: spiffe-helper-config

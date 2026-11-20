@@ -1,17 +1,12 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "es2020",
     "module": "node16",
-    "declaration": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
-		"types": ["node"],
-		"resolveJsonModule": true,
+    "types": ["node"],
+    "resolveJsonModule": true,
     "isolatedModules": true
   },
   "include": ["src/**/*"],
