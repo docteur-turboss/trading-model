@@ -48,7 +48,13 @@ async function replay(
 			reason: `read-error: ${normalizeError(err).message}`,
 		};
 	}
-	return replayOutcome(window, manifest.genome, weights, candles);
+	return replayOutcome(
+		window,
+		manifest.genome,
+		weights,
+		candles,
+		manifest.riskLimits?.maxExposureFraction
+	);
 }
 
 /**
