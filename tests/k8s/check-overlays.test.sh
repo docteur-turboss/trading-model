@@ -29,3 +29,14 @@ if grep -q '^staging: StatefulSet mysql mounts ConfigMap mysql-entrypoint by a b
 else
   echo "  ✗ unexpected failure:"; echo "$out"; exit 1
 fi
+# Issue #1685: a spire-agent newer than the spire-server it talks to.
+rm -r "$TMP/deploy" && cp -r "$ROOT/deploy" "$TMP/deploy"
+sed -i 's#spire-agent:1\.[0-9]*\.[0-9]*@#spire-agent:9.0.0@#' "$TMP/deploy/k8s/node-agents/spire-agent.yaml"
+if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
+  echo "  ✗ newer spire-agent accepted"; exit 1
+fi
+if grep -q '^staging: spire-agent 9.0 is newer than spire-server' <<<"$out"; then
+  echo "  ✓ newer spire-agent refused"
+else
+  echo "  ✗ unexpected failure:"; echo "$out"; exit 1
+fi
