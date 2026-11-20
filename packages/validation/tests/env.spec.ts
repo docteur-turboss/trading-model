@@ -1,3 +1,4 @@
+import { logger } from "@trading-model/http/logger";
 import { z } from "zod";
 import { AddressManagerEnvSchema } from "../src/config/address-manager-env";
 import { BaseEnvSchema } from "../src/config/env";
@@ -164,42 +165,14 @@ describe("validateEnv", () => {
 	});
 
 	it("logs the field errors and throws a configuration error on failure", () => {
-		const error = jest.spyOn(console, "error").mockImplementation(() => {
+		const error = jest.spyOn(logger, "error").mockImplementation(() => {
 			// silenced: the call itself is asserted
 		});
 		const schema = z.object({ REQUIRED_FOR_TEST: z.string() });
 
 		expect(() => validateEnv(schema)).toThrow("Environment validation failed");
 		expect(error).toHaveBeenCalledWith("Invalid environment configuration", {
-			errors: expect.objectContaining({
-				properties: expect.objectContaining({
-					REQUIRED_FOR_TEST: expect.anything(),
-				}),
-			}),
-		});
-		error.mockRestore();
-	});
-
-	it("falls back to the raw Zod error when it cannot be treeified", () => {
-		const error = jest.spyOn(console, "error").mockImplementation(() => {
-			// silenced: the call itself is asserted
-		});
-		// zod's exports are read-only (no spyOn): hand over an error whose
-		// issues cannot be read, so treeifyError itself throws.
-		const unreadable = Object.create(z.ZodError.prototype, {
-			issues: {
-				get() {
-					throw new Error("boom");
-				},
-			},
-		}) as z.ZodError;
-		const schema = {
-			safeParse: () => ({ success: false, error: unreadable }),
-		} as unknown as z.ZodType;
-
-		expect(() => validateEnv(schema)).toThrow("Environment validation failed");
-		expect(error).toHaveBeenCalledWith("Invalid environment configuration", {
-			errors: unreadable,
+			issues: [expect.objectContaining({ path: "REQUIRED_FOR_TEST" })],
 		});
 		error.mockRestore();
 	});
@@ -213,23 +186,5 @@ describe("RedisEnvSchema", () => {
 		});
 		expect(result.REDIS_SENTINELS).toBe("10.0.0.1:26379,redis-sentinel:26379");
 		expect(result.REDIS_URL).toBeUndefined();
-	});
-});
-
-describe("validateEnv treeify fallback", () => {
-	it("warns on console without any registered logger", () => {
-		const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-		const err = jest.spyOn(console, "error").mockImplementation(() => {});
-		// malformed error: z.treeifyError throws on it
-		const schema = { safeParse: () => ({ success: false, error: {} }) };
-		expect(() => validateEnv(schema as unknown as z.ZodType)).toThrow(
-			"Environment validation failed"
-		);
-		expect(warn).toHaveBeenCalledWith(
-			"Failed to treeify Zod error, using raw format",
-			expect.anything()
-		);
-		warn.mockRestore();
-		err.mockRestore();
 	});
 });

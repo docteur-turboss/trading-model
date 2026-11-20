@@ -78,6 +78,12 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 		 */
 		SIGNAL_CONTACT_EMAIL: z.string().trim().default(""),
 		/**
+		 * Comma-separated ids of `non-commercial` signal sources (ADR-0075) the
+		 * operator accepts to collect. In production, an active such source
+		 * missing here stops the start.
+		 */
+		SIGNAL_NON_COMMERCIAL_ACCEPTED: z.string().trim().default(""),
+		/**
 		 * Kubernetes Lease the collector pods compete for (ADR-0057): only its
 		 * holder runs the crons. Empty: no election, this instance collects
 		 * (compose, dev: a single collector).

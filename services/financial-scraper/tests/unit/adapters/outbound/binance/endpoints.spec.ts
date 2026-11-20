@@ -1,0 +1,90 @@
+import { describe, expect, it } from "@jest/globals";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
+import { toSymbol } from "@trading-model/primitives/primitives";
+import { BINANCE_ENDPOINTS } from "../../../../../src/adapters/outbound/binance/endpoints";
+
+const BTC = toSymbol("BTCUSDT");
+const ETH = toSymbol("ETHUSDT");
+
+describe("BINANCE_ENDPOINTS", () => {
+	describe("depth", () => {
+		it("should build order book URL with limit and symbol", () => {
+			const url = BINANCE_ENDPOINTS.depth({ symbol: BTC, limit: 100 });
+			expect(url).toBe("/api/v3/depth?symbol=BTCUSDT&limit=100");
+		});
+
+		it("should build order book URL without params", () => {
+			const url = BINANCE_ENDPOINTS.depth();
+			expect(url).toBe("/api/v3/depth");
+		});
+	});
+
+	describe("trades", () => {
+		it("should build recent trades URL with limit and symbol", () => {
+			const url = BINANCE_ENDPOINTS.trades({ symbol: ETH, limit: 500 });
+			expect(url).toBe("/api/v3/trades?symbol=ETHUSDT&limit=500");
+		});
+
+		it("should build recent trades URL without params", () => {
+			const url = BINANCE_ENDPOINTS.trades();
+			expect(url).toBe("/api/v3/trades");
+		});
+	});
+
+	describe("candlesticks", () => {
+		it("should build candlestick URL with all params", () => {
+			const url = BINANCE_ENDPOINTS.candlesticks({
+				symbol: BTC,
+				interval: CandleInterval.Min1,
+				startTime:
+					1620000000000 as unknown as import("@trading-model/primitives/primitives").UnixTimestamp,
+				limit: 100,
+			});
+			expect(url).toBe(
+				"/api/v3/klines?symbol=BTCUSDT&interval=1m&startTime=1620000000000&limit=100"
+			);
+		});
+
+		it("should build candlestick URL without params", () => {
+			const url = BINANCE_ENDPOINTS.candlesticks();
+			expect(url).toBe("/api/v3/klines");
+		});
+	});
+
+	describe("change24hrStats", () => {
+		it("should build 24hr stats URL with symbols", () => {
+			const url = BINANCE_ENDPOINTS.change24hrStats([BTC]);
+			expect(url).toContain("/api/v3/ticker/24hr?symbols=");
+			expect(url).toContain("BTCUSDT");
+		});
+
+		it("should build 24hr stats URL without symbols", () => {
+			const url = BINANCE_ENDPOINTS.change24hrStats();
+			expect(url).toBe("/api/v3/ticker/24hr");
+		});
+	});
+
+	describe("symbolPriceTicker", () => {
+		it("should build price ticker URL with symbols", () => {
+			const url = BINANCE_ENDPOINTS.symbolPriceTicker([BTC]);
+			expect(url).toContain("/api/v3/ticker/price?symbols=");
+		});
+
+		it("should build price ticker URL without symbols", () => {
+			const url = BINANCE_ENDPOINTS.symbolPriceTicker();
+			expect(url).toBe("/api/v3/ticker/price");
+		});
+	});
+
+	describe("orderBookTicker", () => {
+		it("should build book ticker URL with symbols", () => {
+			const url = BINANCE_ENDPOINTS.orderBookTicker([BTC]);
+			expect(url).toContain("/api/v3/ticker/bookTicker?symbols=");
+		});
+
+		it("should build book ticker URL without symbols", () => {
+			const url = BINANCE_ENDPOINTS.orderBookTicker();
+			expect(url).toBe("/api/v3/ticker/bookTicker");
+		});
+	});
+});

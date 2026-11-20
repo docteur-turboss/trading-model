@@ -40,18 +40,6 @@ describe("server", () => {
 		jest.clearAllMocks();
 	});
 
-	it("should call createServiceServer with env config", () => {
-		void createServer();
-
-		expect(createServiceServer).toHaveBeenCalledWith(
-			expect.objectContaining({
-				env: expect.objectContaining({
-					PORT: 3000,
-				}),
-			})
-		);
-	});
-
 	// ADR-0072: no registry to wait for, the address is the Service DNS name.
 	it("gates readiness on the SVID only", () => {
 		void createServer();

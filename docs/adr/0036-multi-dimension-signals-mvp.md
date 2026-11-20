@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0026](./0026-binance-public-market-data-kept.md) (Binance public data, source port), [ADR-0021](./0021-http-api-schemas-and-generated-openapi.md) (API schemas), [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md) (reachability gate), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (point-in-time data)
-**Verified by:** `services/financial-scraper/tests/unit/signals/signal-registry.spec.ts`, `packages/http/tests/unit/adapters/inbound/acl-config.spec.ts`, `tests/e2e/gateway.e2e.spec.ts`, `services/financial-scraper/tests/unit/signals/source-adapters.spec.ts`, `services/financial-scraper/tests/unit/signals/signal-collector.spec.ts`, `services/financial-scraper/tests/unit/clients/http/api-routes.spec.ts`, `services/financial-scraper/tests/db/market-data.db.spec.ts`
+**Verified by:** `services/financial-scraper/tests/unit/config/signal-registry.spec.ts`, `packages/http/tests/unit/adapters/inbound/acl-config.spec.ts`, `tests/e2e/gateway.e2e.spec.ts`, `services/financial-scraper/tests/unit/adapters/outbound/signal-sources/source-adapters.spec.ts`, `services/financial-scraper/tests/unit/application/signal-collector.spec.ts`, `services/financial-scraper/tests/unit/adapters/inbound/http/api-routes.spec.ts`, `services/financial-scraper/tests/db/market-data.db.spec.ts`
 
 ## Context
 

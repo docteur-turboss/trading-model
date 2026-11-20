@@ -25,7 +25,7 @@ async function _onBeforeServer(): Promise<void> {
 		await app.releaseStaleClaims();
 	} catch (err) {
 		logger.error(
-			"MongoDB unavailable — service cannot persist messages. Rejecting incoming entries.",
+			"MongoDB unavailable: DLQ entries cannot be read or replayed",
 			{ error: normalizeError(err) }
 		);
 		await app.resetDb();
@@ -45,8 +45,7 @@ function _onStart(): void {
 async function _onStop(): Promise<void> {
 	await shutdownTelemetry();
 	try {
-		// LifecycleHandle.stop is typed void but returns the fullStop promise
-		await (_discovery?.stop() as unknown as Promise<void> | undefined);
+		await _discovery?.stop();
 	} catch (err) {
 		logger.warn("Error stopping address manager", {
 			error: normalizeError(err),

@@ -87,7 +87,7 @@ Post-mortems are stored in `docs/operations/post-mortems/`.
 | **DORA Art. 10** | Major ICT incident | 24 hours | Competent authority (ACPR/ECB) |
 | **MiFID II Art. 72** | Record-keeping failure | Immediate internal escalation | Compliance officer |
 
-**Important:** The only personal data is the truncated caller IP in the edge-proxy access logs (31 days, register activity 6). A breach of those logs is unlikely to result in a risk to individuals (Art. 33(1)): record it in the internal breach register (Art. 33(5), template: [breach-register.md](breach-register.md)); notify the CNIL only if the assessment concludes otherwise.
+**Important:** The personal data is the truncated caller IP in the edge-proxy access logs (31 days, register activity 6) and operator data (register activity 8). A breach of those logs is unlikely to result in a risk to individuals (Art. 33(1)): record it in the internal breach register (Art. 33(5), template: [breach-register.md](breach-register.md)); notify the CNIL only if the assessment concludes otherwise.
 
 ### 4.1 Notification Template
 

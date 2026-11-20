@@ -1,7 +1,7 @@
+import { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
 import { DataType } from "./data-handlers/data-types";
 import type { BaseSymbolState } from "./market-data-types";
 import { NormalizationManager } from "./normalization-manager";
-import { NormalizationStats } from "./normalization-stats";
 
 interface StoredStats {
 	count: number;
@@ -49,6 +49,7 @@ export function featureDriftScore(
 		for (const [field, stored] of Object.entries(
 			(fields ?? {}) as Record<string, unknown>
 		)) {
+			// as unknown as: `norm` is a class instance; its per-group stats are read by dynamic key
 			const liveStats = (
 				live.norm as unknown as Record<
 					string,
