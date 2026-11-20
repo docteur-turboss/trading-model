@@ -81,6 +81,7 @@ interface AppContainerConfig {
 	actionSpaceGene: boolean;
 	signalKeys: string[];
 	eventDriven: boolean;
+	seedOffset: number;
 	inputGroups?: string[];
 	protectCandleGroup?: boolean;
 	bufferMemoryLimitMb?: number;
@@ -136,6 +137,7 @@ class ApplicationContainer {
 				observePosition: config.observePosition,
 				actionSpaceGene: config.actionSpaceGene,
 				eventDriven: config.eventDriven,
+				seedOffset: config.seedOffset,
 				inputGroups: config.inputGroups,
 				protectCandleGroup: config.protectCandleGroup,
 			},
@@ -185,6 +187,7 @@ interface TraderTrainerSettings {
 	FEATURE_INPUT_MASK_GENE?: boolean;
 	TRAINER_INPUT_MASK_PROTECT_CANDLE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
+	TRAINER_SEED_OFFSET?: number;
 	FEATURE_ACTION_SPACE_GENE?: boolean;
 	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
 	TRAINER_SIGNAL_FEATURES?: string;
@@ -239,6 +242,7 @@ export function createTraderTrainerContainer(
 		actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
 		signalKeys,
 		eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
+		seedOffset: settings.TRAINER_SEED_OFFSET ?? 0,
 		inputGroups: settings.FEATURE_INPUT_MASK_GENE
 			? inputGroupNames(signalKeys)
 			: undefined,
