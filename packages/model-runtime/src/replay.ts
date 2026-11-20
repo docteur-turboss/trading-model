@@ -60,6 +60,8 @@ export interface SimulatorParams {
 	executionCostRate: number;
 	tradeFraction: number;
 	observePosition: boolean;
+	/** Cap the model was trained with (manifest `riskLimits`); default when absent. */
+	maxExposureFraction?: number;
 }
 
 /** Network shape of a genome; the trainer adds its training settings. */
@@ -95,7 +97,8 @@ export function policyAgentConfig(
 			initialPrice: Price.of(1),
 			feeRate: Percentage.of(simulator.feeRate),
 			executionCostRate: Percentage.of(simulator.executionCostRate),
-			maxExposureFraction: DEFAULT_MAX_EXPOSURE_FRACTION,
+			maxExposureFraction:
+				simulator.maxExposureFraction ?? DEFAULT_MAX_EXPOSURE_FRACTION,
 		},
 		tradeFraction: simulator.tradeFraction,
 		inputMask: network.inputMask,
