@@ -25,6 +25,7 @@ spec:
           - message-manager
           - model-evaluator
           - mongodb-audit
+          - risk-execution
           - mysql
           - spire-server
           - trader-trainer
