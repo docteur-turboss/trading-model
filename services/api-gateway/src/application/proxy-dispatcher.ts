@@ -16,6 +16,7 @@ import {
 	type ProxyDeps,
 	type ResponseCachePort,
 	UpstreamResponseTooLargeError,
+	UpstreamTimeoutError,
 } from "../domain/ports/gateway.port";
 import { PROXY_REQUEST_DURATION_SECONDS } from "../infrastructure/config/metrics";
 
@@ -112,6 +113,12 @@ function buildProxyErrorResponse(
 	});
 	// The cause stays in the log: returned to the client, connection errors
 	// would map the internal network.
+	if (err instanceof UpstreamTimeoutError) {
+		return sendResponse(
+			{ error: "Upstream timeout" },
+			HTTP_STATUS.GATEWAY_TIMEOUT
+		);
+	}
 	return sendResponse(
 		{ error: "Service unavailable" },
 		HTTP_STATUS.SERVICE_UNAVAILABLE

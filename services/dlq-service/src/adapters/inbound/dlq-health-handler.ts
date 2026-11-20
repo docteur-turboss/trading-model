@@ -7,13 +7,10 @@ import {
 
 export interface HealthDeps {
 	entries: { count(): Promise<number> };
-	db: { isConnected(): boolean; getMissingCriticalIndexes(): string[] };
-	queue: { isAvailable(): boolean };
 }
 
 export interface HealthHandlers {
 	healthCheck(): Promise<ResponseObject>;
-	readyCheck(): Promise<ResponseObject>;
 }
 
 export function createHealthHandlers(deps: HealthDeps): HealthHandlers {
@@ -25,44 +22,5 @@ export function createHealthHandlers(deps: HealthDeps): HealthHandlers {
 		);
 	}
 
-	function _checkDbReady(): ResponseObject | null {
-		if (!deps.db.isConnected()) {
-			return sendResponse(
-				{ status: "not ready", reason: "Database not connected" },
-				HTTP_STATUS.SERVICE_UNAVAILABLE
-			);
-		}
-		return null;
-	}
-
-	function _checkIndexesReady(): ResponseObject | null {
-		const missingIndexes = deps.db.getMissingCriticalIndexes();
-		if (missingIndexes.length > 0) {
-			return sendResponse(
-				{
-					status: "degraded",
-					reason: `Missing critical indexes: ${missingIndexes.join(", ")}`,
-				},
-				HTTP_STATUS.SERVICE_UNAVAILABLE
-			);
-		}
-		return null;
-	}
-
-	async function _buildReadyResponse(): Promise<ResponseObject> {
-		const redisOk = deps.queue.isAvailable();
-		const status = redisOk ? "ready" : "degraded";
-		const count = await deps.entries.count();
-		return sendResponse(
-			{ status, entries: count, redis: redisOk ? "connected" : "unavailable" },
-			HTTP_STATUS.OK
-		);
-	}
-
-	function readyCheck(): Promise<ResponseObject> {
-		const notReady = _checkDbReady() ?? _checkIndexesReady();
-		return notReady ? Promise.resolve(notReady) : _buildReadyResponse();
-	}
-
-	return { healthCheck, readyCheck };
+	return { healthCheck };
 }

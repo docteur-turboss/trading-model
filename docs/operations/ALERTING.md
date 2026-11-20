@@ -183,6 +183,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `ScrapeCyclesFailing` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | critical | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
 | `BinanceRestrictedLocation` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `BinanceQuarantined` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SignalCollectionFailing` | warning | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `SignalSourceStale` | warning | [runbook-market-data-stale#signalsourcestale](runbooks/runbook-market-data-stale.md#signalsourcestale) |
 | `MarketDataUnpublished` | warning | [runbook-message-bus-outage#5-scraper-publish-backlog](runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog) |
