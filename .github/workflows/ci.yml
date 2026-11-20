@@ -444,10 +444,20 @@ jobs:
       - name: Create the cluster
         run: bash tests/k8s/run-kind.sh cluster
       - name: Download the images (release N-1 and N)
+        id: download-images
+        continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: kind-images
           path: ${{ runner.temp }}
+      # A re-run of this job alone after the 1-day retention finds no artifact (issue #1675): build the images here.
+      - name: Build the images (artifact expired)
+        if: ${{ steps.download-images.outcome == 'failure' }}
+        env:
+          KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
+        run: |
+          echo "::warning::kind-images artifact not found (expired after a re-run?): building the images in this job"
+          bash tests/k8s/run-kind.sh images
       - name: Load the images into kind
         env:
           KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
