@@ -2,6 +2,13 @@ import { describe, expect, it } from "@jest/globals";
 import { sanitizeForLog } from "../../src/utils/sanitize";
 
 describe("sanitizeForLog", () => {
+	it("handles many BEGIN markers without END in linear time", () => {
+		const start = Date.now();
+		const input = "-----BEGIN X-----".repeat(20000);
+		expect(sanitizeForLog(input)).toBe(input);
+		expect(Date.now() - start).toBeLessThan(1000);
+	});
+
 	it("should redact PEM content in strings", () => {
 		const pemStr =
 			"some text\n-----BEGIN CERTIFICATE-----\nZm9v\n-----END CERTIFICATE-----\nmore text";
