@@ -655,22 +655,7 @@ services:
       timeout: 5s
       retries: 3
     depends_on:
-      spiffe-helper-risk:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
-    container_name: trading-helper-risk
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
-    volumes:
-      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
-      - spire-agent-sockets:/run/spire/agent-sockets:ro
-      - svid-risk:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
-
-  spiffe-helper-dlq:
+      spiffe-helper-dlq:
         condition: service_started
       mongo-users:
         condition: service_completed_successfully
@@ -786,6 +771,21 @@ services:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-evaluator:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-risk:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    container_name: trading-helper-risk
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-risk:/run/spire/svid
     depends_on:
       spire-agent:
         condition: service_healthy
