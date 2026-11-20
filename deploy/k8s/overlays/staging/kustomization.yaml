@@ -85,6 +85,23 @@ patches:
                 - source_labels: [__name__]
                   regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
                   action: keep
+  # Badger outgrew its PVC on the staging disk (#1773): keep one day of traces.
+  - target:
+      kind: Deployment
+      name: jaeger
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: jaeger
+      spec:
+        template:
+          spec:
+            containers:
+              - name: jaeger
+                env:
+                  - name: BADGER_SPAN_STORE_TTL
+                    value: 24h
   - target:
       kind: StatefulSet
       name: "^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$"
