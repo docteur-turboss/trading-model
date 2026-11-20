@@ -5,7 +5,7 @@
 > **Architecture:** [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Accepted, option A, owner, 2026-11-20)  
 > **Last review:** 2026-11-20
 
-> **Status: Not implemented, prerequisite to any live execution.** The platform places no order, paper or live. No loss limit and no kill switch exist in the code: `maxDrawdown` is a metric of the model manifest and of the training events (`packages/contracts/src/training-events.ts`), never a limit, and the only flag named "kill switch" in the code (`FEATURE_RISK_ADJUSTED_FITNESS`, [ADR-0039](../adr/0039-configuration-feature-flags.md)) changes how the GA scores agents and stops nothing. Every number below was validated by the project owner on 2026-11-20 (issue #1652); none is read from the code yet: the Risk/Execution service sets them in its configuration (ADR-0064 §9).
+> **Status: Implemented in the `risk-execution` service (paper only, simulated broker), issue #1695.** The values below are the hard ceilings of `services/risk-execution/src/domain/limits.ts` and its defaults; a configuration above them refuses to start. No live adapter exists: live execution stays forbidden until every prerequisite of ADR-0064 §9 is met. The only flag named "kill switch" elsewhere (`FEATURE_RISK_ADJUSTED_FITNESS`, [ADR-0039](../adr/0039-configuration-feature-flags.md)) changes how the GA scores agents and stops nothing. Every number below was validated by the project owner on 2026-11-20 (issue #1652).
 
 ## 1. Purpose
 
@@ -101,13 +101,13 @@ A tighter bound needs positions reduced without an operator, for example stop or
 | Scenario | 1. Run an order flow on at least two symbols. 2. Engage the per-symbol switch manually: that symbol stops, the other trades. 3. Engage the global switch manually: no new order, open orders cancelled. 4. Restart the service: the switch stays on. 5. Try to re-arm with an identity other than an operator: refused. 6. Re-arm manually. 7. Force each automatic trigger in turn: a loss past the daily limit (fake prices), stale data (stop the feed), a reconciliation mismatch (change the paper ledger), a reject storm (fake broker rejecting). |
 | Evidence | A dated entry with: the time from trigger to the last order sent and to the last open order cancelled, the audit trail records of each engagement and re-arming, the alert raised for each automatic trigger, the restart result, and the operator. Kept in a drill log under `docs/compliance/`, in the format of [dr-exercise-log.md](dr-exercise-log.md), created with the Risk/Execution service. A failed step blocks paper or live trading until a passing re-run. |
 
-No runbook exists yet: it comes with the Risk/Execution service, as do the alerts and specs of ADR-0064.
+Runbook: [runbook-risk-execution](../operations/runbooks/runbook-risk-execution.md); alerts `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskMarketDataStale`; log: [risk-drill-log](risk-drill-log.md).
 
 ## 8. Status
 
 | Control | Status |
 |---|---|
-| Loss limits and global exposure cap (§3) | ❌ Not implemented, prerequisite to any live execution |
-| Kill switch, manual and automatic (§4) | ❌ Not implemented, prerequisite to any live execution |
-| Drill (§7) | ❌ Never run: nothing to exercise |
+| Loss limits and global exposure cap (§3) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden |
+| Kill switch, manual and automatic (§4) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden |
+| Drill (§7) | ✅ Passed 2026-11-20 in-process ([risk-drill-log](risk-drill-log.md)); to repeat on the deployed paper environment before the 30 days start |
 | Values | ✅ Validated by the project owner, 2026-11-20 (issue #1652) |

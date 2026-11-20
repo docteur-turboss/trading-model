@@ -32,7 +32,7 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 | **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/adapters/outbound/binance/`) | Integration tests |
 | **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (1.0, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) rejects a buy that would take the position value above that fraction of the initial cash (`packages/model-runtime/src/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
-| **Kill functionality** — ability to halt trading | Not implemented, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status) | ❌ Not implemented |
+| **Kill functionality** — ability to halt trading | Implemented in `risk-execution`, paper only, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status) | ⚠️ Paper only, no live adapter |
 
 ### 3.2 Stress Testing (Art. 5)
 
@@ -58,9 +58,9 @@ The platform should undergo an annual review covering:
 | Control | Implementation |
 |---|---|
 | **Max order volume/ value** | Partial: exposure cap `maxExposureFraction` only (`packages/model-runtime/src/env/trade-executor.ts`): position value ≤ 1.0 × initial cash in training, no leverage. No per-order value limit |
-| **Max order frequency** | Not implemented. No limit on orders per episode or per time unit; simulation only |
+| **Max order frequency** | Implemented in `risk-execution` (orders per minute per symbol and global, ADR-0064 §2), paper only; the trainer simulation keeps no limit |
 | **Dual-channel price validation** | Not implemented — simulation only. For production: requires independent price feed comparison |
-| **Pre-trade risk checks** | Not implemented — simulation only. Required before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Accepted, option A) |
+| **Pre-trade risk checks** | Implemented in `risk-execution` (paper only, simulated broker), required before any order flow: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Accepted, option A) |
 
 ### 4.2 Market Making Obligations (RTS 6 Art. 17-18)
 
@@ -81,7 +81,7 @@ Not applicable — the platform does not implement market making strategies.
 | Risk | Mitigation |
 |---|---|
 | **Spoofing / Layering** — placing orders with intent to cancel | Simulation-only; no real orders placed. Production: order-to-trade ratio monitoring required |
-| **Quote stuffing** — high-frequency order submission | Not implemented: no cadence limit on agent actions. Simulation-only; no real orders placed |
+| **Quote stuffing** — high-frequency order submission | Order rate caps in `risk-execution` (ADR-0064 §2); the trainer simulation keeps no cadence limit. No real orders placed |
 | **Marking the close** — manipulating closing prices | Agent does not prioritise end-of-day positioning. No real execution |
 
 ## 6. Deployment Checklist for Regulated Production
@@ -93,7 +93,7 @@ When transitioning from research/simulation to production algorithmic trading, t
 | 1 | Register with competent authority as algorithmic trading firm | N/A — infrastructure provider responsibility |
 | 2 | Implement pre-trade risk controls (Art. 12-15) | In a Risk/Execution service separate from the model and the decision consumer, never in the api-gateway (the order path does not cross it): [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 (Accepted, option A) |
 | 3 | Deploy market-making obligations if applicable (Art. 17-18) | Not planned |
-| 4 | Implement kill switch functionality | Not implemented, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status); architecture in [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Accepted, option A) |
+| 4 | Implement kill switch functionality | Implemented in `risk-execution` (paper), drill passed 2026-11-20 ([risk-drill-log](risk-drill-log.md)); policy [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status); architecture in [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Accepted, option A) |
 | 5 | Annual RTS 6 conformance testing | Schedule via CI/CD pipeline |
 | 6 | MAR suspicious transaction reporting | Integrate audit-logger with regulatory reporting |
 | 7 | Maintain algorithmic trading register | See [data-processing-register.md](data-processing-register.md) |
