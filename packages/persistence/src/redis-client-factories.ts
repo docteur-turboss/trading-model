@@ -8,16 +8,18 @@ import type {
 	RedisTlsConfig,
 } from "./redis-config";
 
-export const BASE_RETRY_STRATEGY = (times: number): number | null => {
-	if (times > 20) {
-		return null;
-	}
-	return Math.min(times * 200, 5000);
-};
+/** Reconnects forever (a client in `end` never comes back: issue #1740), backoff capped at 5 s. */
+export const BASE_RETRY_STRATEGY = (times: number): number =>
+	Math.min(times * 200, 5000);
+
+/** A command fails after this long when Redis is unreachable; ioredis removes a timed-out command from its queue, so it is never applied late. */
+export const REDIS_COMMAND_TIMEOUT_MS = 2000;
 
 export const BASE_REDIS_OPTIONS: Partial<RedisOptions> = {
 	lazyConnect: true,
 	retryStrategy: BASE_RETRY_STRATEGY,
+	commandTimeout: REDIS_COMMAND_TIMEOUT_MS,
+	maxRetriesPerRequest: 5,
 };
 
 /** Sentinel clients retry every second at most (never give up): a restarted Redis is back within seconds (issue #1112). */
@@ -30,7 +32,6 @@ export function createFromUrl(
 ): Redis {
 	const client = new Redis(url, {
 		...BASE_REDIS_OPTIONS,
-		maxRetriesPerRequest: 5,
 		...extraOptions,
 	});
 	return withErrorLogging(client);
@@ -57,7 +58,6 @@ export function createSentinel(
 		}),
 		...BASE_REDIS_OPTIONS,
 		retryStrategy: SENTINEL_RETRY_STRATEGY,
-		maxRetriesPerRequest: null,
 		// Follow +switch-master: without it a client left on a frozen or
 		// half-dead master keeps waiting on it after Sentinel has failed over.
 		failoverDetector: true,
