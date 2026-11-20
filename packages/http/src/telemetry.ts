@@ -10,14 +10,13 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { withTimeout } from "@trading-model/common/utils/retry";
-import { DurationMs, toInstanceId } from "@trading-model/primitives/primitives";
+import { toInstanceId } from "@trading-model/primitives/primitives";
 import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;
 
-/** The span flush may not outlast the container stop grace (10 s by default): a collector that never answers must not hold the process. */
-const SHUTDOWN_FLUSH_TIMEOUT_MS = DurationMs.of(2000);
+/** Aborts an OTLP request to a silent collector: its open socket would hold the process past the 10 s stop grace. */
+const EXPORT_TIMEOUT_MS = 2000;
 
 const PROBE_PATHS = new Set(["/ping", "/health/ready", "/metrics"]);
 
@@ -53,7 +52,10 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 				process.env.INSTANCE_ID ?? serviceName
 			),
 		}),
-		traceExporter: new OTLPTraceExporter({ url: `${otlpEndpoint}/v1/traces` }),
+		traceExporter: new OTLPTraceExporter({
+			url: `${otlpEndpoint}/v1/traces`,
+			timeoutMillis: EXPORT_TIMEOUT_MS,
+		}),
 		instrumentations: [
 			new HttpInstrumentation({ ignoreIncomingRequestHook: isProbeRequest }),
 			new ExpressInstrumentation(),
@@ -79,11 +81,7 @@ export async function shutdownTelemetry(): Promise<void> {
 		return;
 	}
 	try {
-		await withTimeout(
-			sdk.shutdown(),
-			SHUTDOWN_FLUSH_TIMEOUT_MS,
-			"OpenTelemetry flush timed out"
-		);
+		await sdk.shutdown();
 		logger.info("OpenTelemetry shut down");
 	} catch (err) {
 		logger.warn("OpenTelemetry shutdown error", {
