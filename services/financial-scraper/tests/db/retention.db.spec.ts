@@ -145,16 +145,19 @@ describe("scripts/retention-mysql.sh — real MySQL", () => {
 		await insertAged("market_candles", "timestamp", 60);
 		await insertAged("signals", "observed_at", 60);
 		await insertAged("market_order_books", "timestamp", 60);
+		await insertAged("market_trades", "timestamp", 60);
 
 		retention({
 			RETENTION_DAYS: "100",
 			RETENTION_SIGNALS_DAYS: "30",
 			RETENTION_ORDER_BOOKS_DAYS: "30",
+			RETENTION_TRADES_DAYS: "30",
 		});
 
 		expect(await count("market_candles")).toBe(1);
 		expect(await count("signals")).toBe(0);
 		expect(await count("market_order_books")).toBe(0);
+		expect(await count("market_trades")).toBe(0);
 	});
 
 	it("should publish metrics and keep the last success time when a table fails", async () => {
