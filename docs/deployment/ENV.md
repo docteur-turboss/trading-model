@@ -55,8 +55,6 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, AL, DLQ |
 | `DISCOVERY_TIMEOUT_MS`            | number | `5000`                          | no       | Timeout of the calls to the discovery server     | MM, FS, TT, AL, DLQ |
 | `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object); not read by the gateway | MM, FS, TT, AL, DLQ |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, AL, DLQ |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, AL, DLQ |
 | `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
 
 ---

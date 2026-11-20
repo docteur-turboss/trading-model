@@ -1,20 +1,17 @@
 import type { AuditEvent, AuditEventMap } from "./audit-events";
 import type { DlqEvent, DlqEventMap } from "./dlq-events";
-import type { MarketEvent, MarketEventMap } from "./market-events";
 import type { RiskEvent, RiskEventMap } from "./risk-events";
 import type { TrainingEvent, TrainingEventMap } from "./training-events";
 
 /** Union interface combining all per-context event maps. */
 export interface EventMap
-	extends MarketEventMap,
-		AuditEventMap,
+	extends AuditEventMap,
 		TrainingEventMap,
 		DlqEventMap,
 		RiskEventMap {}
 
 /** Union of all valid event message string values. */
 export type EventEnumMap =
-	| `${MarketEvent}`
 	| `${AuditEvent}`
 	| `${TrainingEvent}`
 	| `${DlqEvent}`
