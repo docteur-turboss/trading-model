@@ -12,9 +12,9 @@ describe("EVENT_MANAGER", () => {
 		it("should register a listener for an event", () => {
 			const callback = jest.fn<(...args: any[]) => any>();
 
-			EVENT_MANAGER.on("market.candlestick.series.fetch" as never, callback);
+			EVENT_MANAGER.on("training.model.published" as never, callback);
 
-			(EVENT_MANAGER as any).emit("market.candlestick.series.fetch" as never, {
+			(EVENT_MANAGER as any).emit("training.model.published" as never, {
 				candle: [],
 			});
 
@@ -86,8 +86,8 @@ describe("EVENT_MANAGER", () => {
 		it("should support void events (no data)", () => {
 			const callback = jest.fn<(...args: any[]) => any>();
 
-			EVENT_MANAGER.on("market.trade.recent.fetch" as never, callback);
-			EVENT_MANAGER.emit("market.trade.recent.fetch" as never);
+			EVENT_MANAGER.on("training.model.published" as never, callback);
+			EVENT_MANAGER.emit("training.model.published" as never);
 
 			expect(callback).toHaveBeenCalled();
 		});

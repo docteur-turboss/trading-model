@@ -68,8 +68,8 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
 	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
 	TRAINER_TIME_BUDGET_MS: z.coerce.number().int().positive().default(300000),
-	/** Time between two training sessions (1 h: one new candle per 1-min session was not worth a full retrain, 20 models then cover 20 h). Keep well above TRAINER_TIME_BUDGET_MS. */
-	TRAINER_INTERVAL_MS: z.coerce.number().int().positive().default(3600000),
+	/** Time between two training sessions (4 h: no paper trading consumes the models yet, a full retrain per hour was wasted CPU; 20 models then cover 80 h). Keep well above TRAINER_TIME_BUDGET_MS. */
+	TRAINER_INTERVAL_MS: z.coerce.number().int().positive().default(14400000),
 	/** Newest candle older than this: the symbol is not trained (15 min, like MarketDataStale). */
 	TRAINER_MAX_DATA_AGE_MS: z.coerce.number().int().positive().default(900000),
 	/** At least 10: the risk ratios and the drawdown need several episodes. */
@@ -88,6 +88,8 @@ const TRAINER_ENV_SHAPE = {
 	FEATURE_EVENT_DRIVEN_DECISIONS: featureFlag(false),
 	/** Show the agent its position; false to measure what it is worth (ADR-0025). */
 	TRAINER_OBSERVE_POSITION: z.stringbool().default(true),
+	/** Added to the default PRNG seeds: same value + same data = same run (A/B measures, ADR-0030). */
+	TRAINER_SEED_OFFSET: z.coerce.number().int().default(0),
 	/**
 	 * Kubernetes Lease the trainer pods compete for (ADR-0058): only its holder
 	 * trains. Empty: no election, this instance trains (compose, dev).

@@ -8,7 +8,7 @@ import {
 } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
-import { MarketEvent } from "@trading-model/contracts/market-events";
+import { TrainingEvent } from "@trading-model/contracts/training-events";
 import {
 	createRecordingBrokerClient,
 	relayThroughMessageManager,
@@ -38,8 +38,8 @@ afterAll(() => {
 });
 
 const METADATA = {
-	topic: MarketEvent.FetchCandlestickSeries,
-	eventType: MarketEvent.FetchCandlestickSeries,
+	topic: TrainingEvent.ModelPublished,
+	eventType: TrainingEvent.ModelPublished,
 	schemaVersion: "1.0.0",
 	publisher: {
 		serviceName: "financial-scraper",

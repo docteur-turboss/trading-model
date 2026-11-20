@@ -11,7 +11,5 @@ process.env.CACHE_TTL_MS = "84000000";
 process.env.SERVICE_PING_TIMEOUT_MS = "84000000";
 process.env.TOKEN_REFRESH_INTERVAL_MS = "84000000";
 process.env.TTL_REFRESH_INTERVAL_MS = "84000000";
-process.env.MESSAGE_BUS_INIT_TIMEOUT_MS = "84000000";
-process.env.MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS = "84000000";
 process.env.ADDRESS_MANAGER_URL = "https://localhost:8443";
 process.env.LOG_LEVEL = "error";

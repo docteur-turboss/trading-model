@@ -147,6 +147,7 @@ spec:
                 --config.file=/etc/prometheus/prometheus.yml \
                 --storage.tsdb.path=/prometheus \
                 --storage.tsdb.retention.time=30d \
+                --storage.tsdb.retention.size=40GB \
                 --enable-feature=expand-external-labels
           ports:
             - containerPort: 9090
