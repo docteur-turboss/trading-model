@@ -1,9 +1,6 @@
 import { computeExponentialBackoffWithJitter } from "@trading-model/common/utils/backoff-config";
 import { sleep } from "@trading-model/common/utils/sleep";
-import {
-	isRetryableStatusPermissive,
-	RETRY_JITTER_MS,
-} from "@trading-model/http/http-retry";
+import { isRetryableStatusPermissive } from "@trading-model/http/http-retry";
 import { DataSource, DurationMs } from "@trading-model/primitives/primitives";
 import axios, {
 	type AxiosError,
@@ -25,7 +22,6 @@ const RETRY_CONFIG = {
 	retries: 5,
 	baseDelayMs: DurationMs.of(300),
 	maxDelayMs: DurationMs.of(10000),
-	jitterMs: RETRY_JITTER_MS,
 };
 
 /** Longest Retry-After honoured (also cut by the retry deadline). Beyond it the error surfaces and the next cycle resumes. */
