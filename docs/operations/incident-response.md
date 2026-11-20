@@ -54,9 +54,10 @@ person, team or on-call tool exists: do not look for one.
 | 3    | Security incident: follow the private reporting procedure in [SECURITY.md](../../SECURITY.md) | Acknowledgement within 72 hours (SECURITY.md)   |
 
 Realistic delay: minutes to a few hours during the day, possibly none at night
-(no 24/7 cover). Choosing a paging tool with automatic escalation and naming a
-backup person is an owner decision, tracked outside this document. Contact
-details are never committed (public repository).
+(no 24/7 cover). The owner chose not to name a backup person or use a paging
+tool with automatic escalation: covered hours, the off-hours reaction target and
+the data losses accepted are in [slo.md](slo.md#outside-working-hours).
+Contact details are never committed (public repository).
 
 ## Communication Channels
 

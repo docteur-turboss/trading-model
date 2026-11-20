@@ -96,6 +96,49 @@ A quantile has no error budget to burn, so the alerts stay single-window:
 - Fast burn: P95 > 5s for 5m.
 - Slow burn: P95 > 3s for 1h.
 
+## Outside working hours
+
+Decision of the owner (issue #1613, option B): no backup person and no paging
+escalation. Losses during the hours nobody watches are accepted, as listed
+below.
+
+- **Covered hours:** Monday to Friday, 09:00-19:00 Europe/Paris, public
+  holidays excluded. Inside them, the targets of
+  [on-call.md](on-call.md#responsibilities) apply (15 min L1, 1 hour L2).
+- **Outside them:** best effort. Pushover still repeats a `critical` alert
+  until it is acknowledged, but nobody is expected to answer. Target: reaction
+  at the start of the next covered period (Monday 09:00 for a Friday-night
+  incident), so an incident can last up to about 62 hours (Friday 19:00 to
+  Monday 09:00).
+- **Error budget:** time lost outside covered hours counts against the SLOs
+  above like any other time. A night incident that burns more than the budget
+  policy allows triggers the same freeze and postmortem.
+
+### Losses accepted while nobody reacts
+
+A collection that does not run is not caught up later, except where the
+source itself returns a window wider than the outage. Lost data is lost for
+good (point-in-time sources, ADR-0036).
+
+| Data | Lost when the outage lasts longer than | Why |
+| ---- | -------------------------------------- | --- |
+| `nws-kansas-wheat-belt` | 1 hour (each missed hourly run) | latest observation only |
+| `twelvedata-daily-prices` | 1 missed run (01:30 UTC, Tuesday to Saturday) | `outputsize=1`: the previous close only |
+| Binance trades, order books, tickers | any outage | snapshots of the moment, no history fetched |
+| `ecb-*` | 5 observations (about a week for daily series) | `lastNObservations=5` |
+| `nasa-power-crop-regions`, `wikipedia-pageviews`, `federal-register-documents` | 7 days | window `{date-8}` to `{date-1}` |
+| `cftc-cot-legacy`, `eia-weekly-energy` | 5 weeks | last 5 reports |
+| `treasury-par-yield-curve`, `sec-edgar-*`, `fred-us-macro`, `eurostat-*`, `dvf-commune-sales` | not lost within a weekend | the source returns the whole year, series or file |
+| Binance candles | not lost | each series restarts from its publish cursor (`market_publish_cursors`) |
+
+The table follows `services/financial-scraper/src/config/signal-registry.json`:
+a new source gets a row here. No source has a `history` block yet, so
+`signal-backfill` cannot recover a gap.
+
+A value collected late (after a weekend, for instance) gets a later
+`observedAt` than if it had been collected on time: features stay
+point-in-time correct, but they see the value later.
+
 ## Error Budget Policy
 
 1. **Budget remaining > 50%:** Proceed with normal deployments.
