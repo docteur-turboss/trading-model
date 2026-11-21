@@ -95,5 +95,4 @@ check_output() {
 out="$(BACKUP_DIR="$WORK/k8s" K8S_NAMESPACE=test bash "$ROOT/scripts/backup-k8s.sh" 2>&1 || true)"
 check_output "backup-k8s.sh" "$out" FAKE-MONGO FAKE-MYSQL FAKE-TAR FAKE-SQLITE
 
-
 exit "$FAILED"
