@@ -1,7 +1,8 @@
 import { ACTIVATIONS } from "@trading-model/model-runtime/neural-network/activation";
-import type {
-	ActivationType,
-	ForwardContext,
+import {
+	type ActivationType,
+	ConnectionType,
+	type ForwardContext,
 } from "@trading-model/model-runtime/neural-network/type";
 import { GradientApplier } from "./gradient-applier";
 import type { NnTrainingDeps } from "./nn-training-deps";
@@ -50,23 +51,38 @@ export class BackpropEngine {
 		context: ForwardContext
 	): Float32Array[] {
 		const { layers, config } = this._deps;
+		const residual =
+			config.connectionType === ConnectionType.ResidualConnection;
 		const deltas: Float32Array[] = [];
 		let nextDeltas = outputDelta;
+		let aboveGrad: Float32Array | undefined;
 		for (let layerIdx = lastLayerIndex - 1; layerIdx >= 0; layerIdx--) {
 			const next = layers[layerIdx + 1];
-			const { derivative } = ACTIVATIONS[config.activationType[layerIdx]];
-			const output = context.layerOutputs[layerIdx];
+			const { fn, derivative } = ACTIVATIONS[config.activationType[layerIdx]];
 			const zs = context.layerZValues[layerIdx];
-			const delta = new Float32Array(layers[layerIdx].fanOut);
-			for (let i = 0; i < delta.length; i++) {
+			// dL/dy: Wᵀ of the next deltas, plus the residual path mirroring the forward projection.
+			const outGrad = new Float32Array(next.fanIn);
+			for (let i = 0; i < outGrad.length; i++) {
 				let sum = 0;
 				for (let j = 0; j < next.fanOut; j++) {
 					sum += nextDeltas[j] * next.weights[j * next.fanIn + i];
 				}
-				delta[i] = sum * derivative(output[i], zs[i]);
+				outGrad[i] = sum;
+			}
+			if (aboveGrad) {
+				const count = Math.min(outGrad.length, aboveGrad.length);
+				for (let i = 0; i < count; i++) {
+					outGrad[i] += aboveGrad[i];
+				}
+			}
+			// f' from f(z), never from the output after the skip term.
+			const delta = new Float32Array(outGrad.length);
+			for (let i = 0; i < delta.length; i++) {
+				delta[i] = outGrad[i] * derivative(fn(zs[i]), zs[i]);
 			}
 			nextDeltas = clipGradients(delta, config.gradientClipNorm);
 			deltas.unshift(nextDeltas);
+			aboveGrad = residual ? outGrad : undefined;
 		}
 		return deltas;
 	}
