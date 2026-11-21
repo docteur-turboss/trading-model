@@ -5,6 +5,7 @@
     "tags": ["slo", "trading-model"],
     "timezone": "browser",
     "editable": true,
+    "annotations": { "list": [ { "name": "Deploys", "enable": true, "iconColor": "blue", "expr": "count by (service, version) (build_info) unless count by (service, version) (build_info offset 5m)", "titleFormat": "Deploy", "textFormat": "{{service}} {{version}}", "step": "60s" } ] },
     "panels": [
       {
         "title": "Availability SLO — Request Success Rate",
