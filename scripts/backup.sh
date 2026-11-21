@@ -44,9 +44,11 @@ wait_for_bgsave() {
 
 # Gzipped dump `$1` (default: every non-system database) of trading-mysql, with the
 # container's own password: never on a command line.
-mysql_dump_gz() {
-  docker exec trading-mysql sh -c "export MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\"; ${1:-$MYSQL_DUMP_SH}" | gzip
+mysql_sh() {
+  docker exec trading-mysql sh -c "export MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\"; $1"
 }
+mysql_dump_gz() { mysql_sh "$MYSQL_DUMP_SH" | gzip; }
+mysql_core_dump_gz() { mysql_sh "$MYSQL_CORE_DUMP_SH" | mysql_core_if_not_exists | gzip; }
 
 backup_mongodb() {
   log "Starting MongoDB backup..."
@@ -107,7 +109,7 @@ backup_mysql() {
     fail "MySQL backup failed"
     write_metric "mysql" 0
   fi
-  backup_mysql_core mysql_dump_gz "$MYSQL_CORE_DUMP_SH"
+  backup_mysql_core mysql_core_dump_gz
 }
 
 backup_redis() {

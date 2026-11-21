@@ -32,7 +32,8 @@
 #  `mongodb-audit` the audit trail alone, e.g. from a weekly or monthly
 #  off-site tier, which holds no operational dump (ADR-0032).
 #  `mysql-core` restores the MySQL dump of those tiers: it holds every table
-#  but MYSQL_CORE_EXCLUDED_TABLES (backup-lib.sh), left as they are (logged);
+#  but the rows of MYSQL_CORE_EXCLUDED_TABLES (backup-lib.sh): created empty
+#  when missing, rows left as they are otherwise (logged);
 #  no --until from it (only the full daily `mysql` dump has coordinates).
 #
 #  --ns <pattern> (repeatable, issue #335; --components mongodb or
@@ -420,7 +421,7 @@ restore_mysql() {
     fail "MySQL restore failed (${pod})"
     return
   fi
-  [ "$key" = mysql ] || warn "MySQL: ${key} does not hold ${MYSQL_CORE_EXCLUDED_TABLES}: left as they were in ${pod}"
+  [ "$key" = mysql ] || warn "MySQL: ${key} does not hold the rows of ${MYSQL_CORE_EXCLUDED_TABLES}: created empty if missing in ${pod}, existing rows left as they were"
   if [ "${#chain[@]}" -eq 0 ]; then
     ok "MySQL restore complete (${pod})"
     purge_expired_rows

@@ -80,7 +80,7 @@ mysql_dump_gz() {
 }
 
 mysql_core_dump_gz() {
-  mysql_root_sh "$1" "$MYSQL_CORE_DUMP_SH" | gzip
+  mysql_root_sh "$1" "$MYSQL_CORE_DUMP_SH" | mysql_core_if_not_exists | gzip
 }
 
 backup_mysql() {

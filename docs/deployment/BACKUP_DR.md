@@ -462,12 +462,13 @@ tiered bucket, `--tier weekly` or `--tier monthly` another tier
 (`--components mongodb-audit,mysql-core` there), and `--tier flat` the bucket root
 ([From the off-site bucket](#from-the-off-site-bucket)). The weekly and monthly
 prefixes hold only `mongodb-audit`, `mysql-core` and the manifests.
-`mysql-core` is a second MySQL dump of each run without the tables of
+`mysql-core` is a second MySQL dump of each run without the rows of the tables of
 `MYSQL_CORE_EXCLUDED_TABLES` (`backup-lib.sh`): `market_trades` and
 `market_candles` (re-downloadable from Binance) and `market_order_books`
 (kept 180 days in the database, ADR-0053). The full `mysql` dump, with
-them, is daily only (31 days); restoring `mysql-core` leaves those tables as
-they are and logs it. No
+them, is daily only (31 days); restoring `mysql-core` recreates those tables
+empty when they are missing (`CREATE TABLE IF NOT EXISTS`, matching
+`_migrations`), never touches their existing rows, and logs it. No
 operational `mongodb`, no checkpoints, no CA keys, and no `.pitr` starting
 point (useless once the binlogs and oplogs, kept 72 h, are gone). The
 incremental job (`db-backup-incremental`) uses the tiered layout too: its

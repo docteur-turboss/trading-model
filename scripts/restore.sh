@@ -13,8 +13,9 @@
 #  component. Every file is checked against its manifest (size,
 #  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
 #  anything is written, --dry-run included. A run without manifest is refused.
-#  `mysql-core` (weekly / monthly tiers, ADR-0032) leaves the tables of
-#  MYSQL_CORE_EXCLUDED_TABLES (backup-lib.sh) as they are.
+#  `mysql-core` (weekly / monthly tiers, ADR-0032) holds no row of
+#  MYSQL_CORE_EXCLUDED_TABLES (backup-lib.sh): created empty if missing,
+#  existing rows left as they are.
 # =============================================================================
 
 set -euo pipefail
@@ -107,7 +108,7 @@ restore_mysql() {
 
   if open_backup "$file" | gunzip | docker exec -i trading-mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --user=root'; then
     ok "MySQL restore complete"
-    [ "$key" = mysql ] || warn "MySQL: ${key} does not hold ${MYSQL_CORE_EXCLUDED_TABLES}: left as they were"
+    [ "$key" = mysql ] || warn "MySQL: ${key} does not hold the rows of ${MYSQL_CORE_EXCLUDED_TABLES}: created empty if missing, existing rows left as they were"
     log "Verifying restore..."
     local tables
     if tables=$(docker exec trading-mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --user=root -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema NOT IN ('"'"'mysql'"'"', '"'"'sys'"'"', '"'"'information_schema'"'"', '"'"'performance_schema'"'"')"'); then
