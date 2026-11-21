@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { WindowSet } from "../../../../src/domain/genetic-algorithm/generation-types";
 import type { MarketStep } from "../../../../src/domain/genetic-algorithm/genome-fitness";
 import type { MarketDataContext } from "../../../../src/domain/market-data/market-data-context";
 import {
@@ -164,20 +165,19 @@ describe("WindowSplitter.getAllWindows", () => {
 
 	it("returns an array of windows when walkForwardFolds >= 2", () => {
 		const r = withSteps(120).getAllWindows(ctx, 0.2, 4);
-		expect(Array.isArray(r)).toBe(true);
 		expect(r).toHaveLength(3);
 	});
 
-	it("returns a single WindowSet when walkForwardFolds is 1", () => {
-		const r = withSteps(120).getAllWindows(ctx, 0.2, 1);
-		expect(Array.isArray(r)).toBe(false);
-		expect((r as { train: unknown[] }).train).toHaveLength(81);
+	it("returns one WindowSet when walkForwardFolds is 1", () => {
+		const r = withSteps(120).getAllWindows(ctx, 0.2, 1)!;
+		expect(r).toHaveLength(1);
+		expect(r[0].train).toHaveLength(81);
 	});
 
 	it("uses the default split and a single fold when called with the context only", () => {
 		const r = withSteps(120).getAllWindows(ctx);
-		expect(Array.isArray(r)).toBe(false);
-		expect((r as { train: unknown[] }).train).toHaveLength(86);
+		expect(r).toHaveLength(1);
+		expect(r![0].train).toHaveLength(86);
 	});
 
 	it("returns null with fewer than MIN_TRAINING_STEPS steps", () => {
@@ -193,11 +193,7 @@ describe("embargo between segments", () => {
 	it("leaves EMBARGO_STEPS steps between train, validation and test", () => {
 		const s = splitter();
 		jest.spyOn(s, "buildMarketSteps").mockReturnValue(makeSteps(120));
-		const set = s.getAllWindows(ctx, 0.2, 1) as {
-			train: MarketStep[];
-			validation: MarketStep[];
-			test: MarketStep[];
-		};
+		const set = s.getAllWindows(ctx, 0.2, 1)![0] as Required<WindowSet>;
 		const last = (steps: MarketStep[]) => ts(steps)[steps.length - 1];
 		expect(ts(set.validation)[0] - last(set.train)).toBe(EMBARGO_STEPS + 1);
 		expect(ts(set.test)[0] - last(set.validation)).toBe(EMBARGO_STEPS + 1);

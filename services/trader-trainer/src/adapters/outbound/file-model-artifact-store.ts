@@ -123,7 +123,7 @@ export class FileModelArtifactStore implements ModelArtifactStorePort {
 			.map(summarizeModel);
 	}
 
-	async latest(symbol: string): Promise<ModelSummary | undefined> {
+	async latest(symbol: string): Promise<ModelManifest | undefined> {
 		const symbolDir = this._symbolDir(symbol);
 		if (!symbolDir) {
 			return;
@@ -131,7 +131,7 @@ export class FileModelArtifactStore implements ModelArtifactStorePort {
 		for (const version of await this._versions(symbolDir)) {
 			const manifest = await this.manifest(symbol, version);
 			if (manifest) {
-				return summarizeModel(manifest);
+				return manifest;
 			}
 		}
 	}

@@ -304,7 +304,7 @@ No price is stated: it depends on the provider, which is not chosen.
 - 20Gi PVC (`data-mysql-0`)
 - Retention: CronJob `db-retention` purges market data and signals older than `RETENTION_DAYS` as MySQL user `retention` (key `MYSQL_RETENTION_PASSWORD` of `trading-model-secrets`, to seal before the first production deploy; `db-migrate-user` runs again after the migrations to grant it per table). Operation: [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0051
 - Schema from the `db-migrate` Job (`run-migrations.sh`), the same migrations as compose: no second copy of the schema. The Job runs the released `db-migrate` image (`deploy/migrate`: `migrate.mjs`, `scripts/migrations`, `mysql2` locked by its `bun.lock`; pinned by digest by `deploy.yml`): nothing is installed at run time. It connects as the MySQL user `migrator` (DDL/DML on `financial_scraper` only, password `MYSQL_MIGRATE_PASSWORD`), created or updated on every deploy by the idempotent Job `db-migrate-user` (the only one that reads `MYSQL_ROOT_PASSWORD`; works on a database initialised before the user existed). The password must match `[A-Za-z0-9_.@%+=-]`
-- PodDisruptionBudget: maxUnavailable 1 (one pod: `minAvailable` would block `kubectl drain`)
+- PodDisruptionBudget: maxUnavailable 1 (one pod accepted by ADR-0085, RTO 4 h of `BACKUP_DR.md`: `minAvailable` would block `kubectl drain`)
 
 ### MongoDB (Replica Set)
 
@@ -417,9 +417,8 @@ Each service has a dedicated ServiceAccount with `automountServiceAccountToken: 
    backups with age: see [Encryption at Rest](ENCRYPTION_AT_REST.md). Nothing
    in the cluster can tell whether the nodes' disks are encrypted: run
    `deploy/host/check-encryption.sh` on each node
-2. **MySQL has no failover** — the group has one member (`mysql-0`),
-   bootstrapped on the first member only; joining others is not automated
-   (ADR-0020)
+2. **MySQL has no failover** — single primary (`mysql-0`), no replica to
+   promote (ADR-0020, accepted by ADR-0085)
 3. **Grafana is single-instance** — dashboard provisioning but no HA
 4. **Jaeger is single-instance** — Badger storage on the 5Gi PVC `jaeger-data`, traces kept 72 h (not Elasticsearch/Cassandra, ADR-0055)
 5. **Off-site backups need a bucket** — the `db-backup` CronJob copies the
