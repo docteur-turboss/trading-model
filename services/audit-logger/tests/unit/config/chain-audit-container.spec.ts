@@ -77,9 +77,8 @@ describe("createChainAudit", () => {
 	});
 
 	it("verifies only, and says so, without a bucket", async () => {
-		const audit = createChainAudit(DB, SETTINGS);
+		createChainAudit(DB, SETTINGS);
 
-		expect(audit.anchoringEnabled).toBe(false);
 		expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
 			expect.stringContaining("AUDIT_ANCHOR_BUCKET not set")
 		);
@@ -87,13 +86,12 @@ describe("createChainAudit", () => {
 	});
 
 	it("anchors in the bucket when one is set", async () => {
-		const audit = createChainAudit(DB, {
+		createChainAudit(DB, {
 			...SETTINGS,
 			anchorBucket: "anchors",
 			anchorEndpoint: "https://s3.example.test",
 		});
 
-		expect(audit.anchoringEnabled).toBe(true);
 		expect(await gauge("audit_chain_anchoring_enabled")).toBe(1);
 		expect(S3_CONFIGS[S3_CONFIGS.length - 1].requestHandler).toEqual({
 			connectionTimeout: 3000,

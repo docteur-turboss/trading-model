@@ -131,6 +131,7 @@ const CLUSTER_KINDS = new Set(["Namespace", "ClusterRole", "ClusterRoleBinding",
 const RESOURCES = {
 	ConfigMap: ["", "configmaps"], Secret: ["", "secrets"], Service: ["", "services"],
 	PersistentVolumeClaim: ["", "persistentvolumeclaims"], ServiceAccount: ["", "serviceaccounts"],
+	ResourceQuota: ["", "resourcequotas"], LimitRange: ["", "limitranges"],
 	Deployment: ["apps", "deployments"], StatefulSet: ["apps", "statefulsets"], DaemonSet: ["apps", "daemonsets"],
 	CronJob: ["batch", "cronjobs"], Job: ["batch", "jobs"],
 	Ingress: ["networking.k8s.io", "ingresses"], NetworkPolicy: ["networking.k8s.io", "networkpolicies"],

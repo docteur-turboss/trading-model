@@ -58,9 +58,18 @@ export const ModelManifest = z.looseObject({
 });
 export type ModelManifest = z.infer<typeof ModelManifest>;
 
+/** Fees and execution cost paid over the replay, in quote currency. */
+interface ReplayCosts {
+	feesPaid: number;
+	executionCostPaid: number;
+}
+
 /** Ratios of the greedy replay on the test segment, or why there are none (ADR-0079). */
 export type ReplayOutcome =
-	| { replay: "done"; metrics: { policy: "greedy" } & SegmentRatios }
+	| {
+			replay: "done";
+			metrics: { policy: "greedy" } & SegmentRatios & ReplayCosts;
+	  }
 	| { replay: "failed"; reason: string };
 
 /** One evaluation per `(symbol, version)`. */

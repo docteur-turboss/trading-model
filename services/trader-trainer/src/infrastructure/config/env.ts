@@ -1,3 +1,4 @@
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { featureFlag } from "@trading-model/validation/config/feature-flags";
@@ -6,10 +7,7 @@ import { validateEnv } from "@trading-model/validation/config/validate-env";
 import { AssetType } from "@trading-model/validation/wire/signals";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
-import {
-	parseSignalKeys,
-	SIGNAL_KEY_PATTERN,
-} from "../../domain/signal-features";
+import { SIGNAL_KEY_PATTERN } from "../../domain/signal-features";
 
 const COST_RATE = z.number().min(0).max(0.1);
 /** Overrides of `DEFAULT_ASSET_COSTS`, by asset type. */
@@ -46,7 +44,7 @@ const TRAINER_ENV_SHAPE = {
 		.default("")
 		.refine(
 			(csv) =>
-				parseSignalKeys(csv).every((key) => SIGNAL_KEY_PATTERN.test(key)),
+				parseCommaSeparated(csv).every((key) => SIGNAL_KEY_PATTERN.test(key)),
 			"TRAINER_SIGNAL_FEATURES: each key must be SUBJECT:dimension:metric"
 		),
 	/** Feature flag (ADR-0039): false keeps the network input at the market values. */
@@ -68,8 +66,8 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
 	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
 	TRAINER_TIME_BUDGET_MS: z.coerce.number().int().positive().default(300000),
-	/** Time between two training sessions (1 h: one new candle per 1-min session was not worth a full retrain, 20 models then cover 20 h). Keep well above TRAINER_TIME_BUDGET_MS. */
-	TRAINER_INTERVAL_MS: z.coerce.number().int().positive().default(3600000),
+	/** Time between two training sessions (4 h: no paper trading consumes the models yet, a full retrain per hour was wasted CPU; 20 models then cover 80 h). Keep well above TRAINER_TIME_BUDGET_MS. */
+	TRAINER_INTERVAL_MS: z.coerce.number().int().positive().default(14400000),
 	/** Newest candle older than this: the symbol is not trained (15 min, like MarketDataStale). */
 	TRAINER_MAX_DATA_AGE_MS: z.coerce.number().int().positive().default(900000),
 	/** At least 10: the risk ratios and the drawdown need several episodes. */

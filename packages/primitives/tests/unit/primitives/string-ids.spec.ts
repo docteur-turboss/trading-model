@@ -3,14 +3,12 @@ import {
 	AuthToken,
 	ClientIdentity,
 	Environment,
-	ProcessId,
 	Role,
 	Subject,
 	toAuthToken,
 	toEnvironment,
 	toRole,
 	toSubject,
-	UserId,
 } from "../../../src/primitives/auth-ids";
 import {
 	CaPem,
@@ -57,8 +55,6 @@ describe.each([
 	["Version", Version, "1.0.0", toVersion],
 	["GenomeId", GenomeId, "genome-x", undefined],
 	["TenantId", TenantId, "tenant-42", toTenantId],
-	["UserId", UserId, "user-abc", undefined],
-	["ProcessId", ProcessId, "sess-xyz", undefined],
 	["AuthToken", AuthToken, "tok-abc", toAuthToken],
 	["ClientIdentity", ClientIdentity, "ci-123", undefined],
 	["Subject", Subject, "spiffe://example/foo", toSubject],

@@ -55,19 +55,6 @@ export function normalizeServiceName(service: string | ServiceId): ServiceId {
 	return ServiceId.of(LEGACY_SERVICE_NAME_ALIASES[raw] ?? raw);
 }
 
-/**
- * Every name a service may be registered under in discovery: the requested
- * name, its canonical name and the legacy aliases of that canonical name
- * (e.g. `financial-scraper` → also `financial-scraper-service`).
- */
-export function registryNamesFor(service: string | ServiceId): string[] {
-	const canonical = String(normalizeServiceName(service));
-	const aliases = Object.entries(LEGACY_SERVICE_NAME_ALIASES)
-		.filter(([, target]) => target === canonical)
-		.map(([alias]) => alias);
-	return [...new Set([String(service), canonical, ...aliases])];
-}
-
 /** True when the identity string is a syntactically valid SPIFFE ID. */
 export function isSpiffeId(identity: string): boolean {
 	return parseSpiffeId(identity) !== null;
@@ -84,21 +71,6 @@ export interface ParsedSpiffeId {
 	serviceName: ServiceId;
 	/** The raw SPIFFE ID. */
 	raw: string;
-}
-
-/** Builds a platform SPIFFE ID for the given service and namespace. */
-export function buildSpiffeId(
-	service: string | ServiceId,
-	namespace: string = DEFAULT_NAMESPACE
-): string {
-	const name = normalizeServiceName(service);
-	return [
-		SPIFFE_URI_SCHEME + TRUST_DOMAIN,
-		SPIFFE_PATH_SEGMENT_NAMESPACE,
-		namespace,
-		SPIFFE_PATH_SEGMENT_SERVICE_ACCOUNT,
-		String(name),
-	].join("/");
 }
 
 /**

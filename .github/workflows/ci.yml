@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   # Decides once which jobs run (a skipped gate skips every job that needs it) and whether the
-  # k8s job is worth running: always, except on a pull request touching nothing it deploys or tests.
+  # k8s jobs are worth running: always, except on a pull request touching nothing they deploy or test.
   gate:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
@@ -37,8 +37,15 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           k8s=true
+          # A PR only runs kind when it changes what kind deploys or runs; the merge push to development
+          # (k8s-images/k8s below) proves the rest, a red commit status there means revert.
+          # deploy/: manifests, tool images, migrate; tests/k8s/: the kind runner; scripts/: the deploy, migration,
+          # backup/restore (incl. verify-restore-k8s.sh) and sealed-secrets scripts the jobs call; tests/backup/: audit-chain.js and
+          # drill-timings.sh of the restore drill (same filter as the drill step); tests/e2e/binance-stub/: the stub run-kind.sh
+          # loads in the cluster; services/*/Dockerfile: the images kind builds;
+          # ci.yml: this job definition. services/*/src and packages/*/src alone: unit/e2e jobs cover them.
           if [ "$EVENT" = pull_request ] && ! git diff --name-only "$BASE...$GITHUB_SHA" |
-            grep -qE '^(deploy/|services/|packages/|tests/k8s/|scripts/|docker-compose[^/]*.yml$|.github/workflows/|bun.lock$|package.json$)'; then
+            grep -qE '^(deploy/|tests/k8s/|scripts/[^/]*(deploy-|backup|restore|migrat|fetch-offsite|retention|sealed-secrets|split-cluster)|tests/(backup|e2e/binance-stub)/|services/[^/]+/Dockerfile$|.github/workflows/ci.yml$)'; then
             k8s=false
           fi
           echo "k8s=$k8s" >> "$GITHUB_OUTPUT"
@@ -369,7 +376,8 @@ jobs:
   # Images of release N-1 and N, built once for the three k8s groups (run-kind.sh images).
   k8s-images:
     needs: gate
-    if: ${{ needs.gate.outputs.k8s == 'true' }}
+    # The merge push to development skips gate (see its if): kind still runs there, the other jobs stay skipped.
+    if: ${{ !cancelled() && (needs.gate.outputs.k8s == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -395,7 +403,7 @@ jobs:
           retention-days: 1
   k8s:
     needs: [gate, k8s-images]
-    if: ${{ needs.gate.outputs.k8s == 'true' }}
+    if: ${{ !cancelled() && needs.k8s-images.result == 'success' }}
     name: k8s (${{ matrix.group }})
     runs-on: ubuntu-latest
     # One job per group of checks (run-kind.sh verify_group): each deploys N-1, upgrades to N,

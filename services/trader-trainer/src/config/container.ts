@@ -34,7 +34,6 @@ import type { TradingSymbol } from "../domain/market-data-types";
 import type { CandleHistoryPort } from "../domain/ports/candle-history.port";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type { SignalHistoryPort } from "../domain/ports/signal-history.port";
-import { parseSignalKeys } from "../domain/signal-features";
 import { effectiveFitnessType } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
@@ -217,7 +216,7 @@ export function createTraderTrainerContainer(
 	);
 	const bars = new SignalBarHistory(signalHistory, assets);
 	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
-		? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
+		? parseCommaSeparated(settings.TRAINER_SIGNAL_FEATURES ?? "")
 		: [];
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
@@ -283,25 +282,21 @@ export function createTrainingLeadership(
 	settings: TrainingLeadershipSettings,
 	training: LeaderJob
 ): Leadership {
-	if (!settings.TRAINER_LEASE_NAME) {
-		return new Leadership(
-			SOLE_INSTANCE_LEASE,
-			training,
-			(leader) => TRAINING_LEADER.set(leader),
-			"Trainer"
-		);
-	}
-	getLogger().info("Trainer leader election enabled", {
-		context: {
-			lease: settings.TRAINER_LEASE_NAME,
-			identity: settings.INSTANCE_ID,
-		},
-	});
-	return new Leadership(
-		new KubernetesLease(
+	let lease: ConstructorParameters<typeof Leadership>[0] = SOLE_INSTANCE_LEASE;
+	if (settings.TRAINER_LEASE_NAME) {
+		getLogger().info("Trainer leader election enabled", {
+			context: {
+				lease: settings.TRAINER_LEASE_NAME,
+				identity: settings.INSTANCE_ID,
+			},
+		});
+		lease = new KubernetesLease(
 			settings.INSTANCE_ID,
 			kubernetesLeaseApi(settings.TRAINER_LEASE_NAME)
-		),
+		);
+	}
+	return new Leadership(
+		lease,
 		training,
 		(leader) => TRAINING_LEADER.set(leader),
 		"Trainer"

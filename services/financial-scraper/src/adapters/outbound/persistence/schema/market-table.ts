@@ -56,7 +56,7 @@ function toDate(epochMs: number | undefined): Date | undefined {
 }
 
 /** Query on `table` narrowed by `filter`, the window and the (timestamp, id) cursor of `page`; the caller selects, orders and limits. */
-export function pagedQuery<Tbl extends PagedTable>(
+function pagedQuery<Tbl extends PagedTable>(
 	table: Tbl,
 	filter: BooleanValueSource<Tbl[typeof tableOrViewRef], "required">,
 	page: MarketDataPage
@@ -79,8 +79,23 @@ export function pagedQuery<Tbl extends PagedTable>(
 		);
 }
 
-/** Filter accepted by {@link pagedQuery} for `TABLE`. */
-export type PageFilter<Tbl extends PagedTable> = BooleanValueSource<
-	Tbl[typeof tableOrViewRef],
-	"required"
->;
+/** Page of `table` rows (`columns`) matching `filter`, in (timestamp, id) order, `page.limit` rows at most. */
+export function pagedSelect<
+	Tbl extends PagedTable,
+	Cols extends Parameters<ReturnType<typeof pagedQuery<Tbl>>["select"]>[0],
+>(
+	table: Tbl,
+	columns: Cols,
+	filter: BooleanValueSource<Tbl[typeof tableOrViewRef], "required">,
+	page: MarketDataPage
+) {
+	return (
+		pagedQuery(table, filter, page)
+			.select(columns)
+			// `as never`: the generic `Cols` cannot prove the two names are selected; they are in every SELECT
+			.orderBy("timestamp" as never)
+			.orderBy("id" as never)
+			.limit(page.limit)
+			.executeSelectMany()
+	);
+}

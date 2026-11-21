@@ -98,6 +98,15 @@ describe("AuditRepository", () => {
 				{ key: { chainSequence: 1 }, unique: true },
 			]);
 		});
+
+		it("does not run the stats aggregations", async () => {
+			MOCK_COLLECTION.createIndexes.mockResolvedValue([]);
+			MOCK_COLLECTION.aggregate.mockClear();
+
+			await repository.ensureIndexes();
+
+			expect(MOCK_COLLECTION.aggregate).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("insert", () => {

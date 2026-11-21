@@ -243,8 +243,13 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 
 Computed from `kubectl kustomize deploy/k8s/overlays/production` (overlay patches
 applied), commit `c967735d2`. Per-pod figures sum every container that declares
-resources; `spiffe-helper` declares none and no LimitRange exists, so it is not counted.
+resources; `spiffe-helper` declares none (it gets the LimitRange defaults, 10m / 32Mi
+requests), so it is not counted.
 Init containers, CronJobs, Jobs and the `trading-model-node` agents are not counted.
+
+The ResourceQuota `compute-and-storage` (`deploy/k8s/base/resource-quota.yaml`) caps the
+namespace at 16 vCPU / 28 GiB requests, 90 vCPU / 96 GiB limits and 512 GiB of volumes: a pod
+beyond it fails with `exceeded quota`; raise it with any change to the figures below.
 
 | Scenario    | CPU requests | Memory requests | CPU limits | Memory limits |
 | ----------- | ------------ | --------------- | ---------- | ------------- |

@@ -1,4 +1,4 @@
-import { ServiceInstancesWire } from "../../src/wire/service-instance";
+import { ServiceInstanceWire } from "../../src/wire/service-instance";
 
 /** What discovery-server answers on `GET /services/:serviceName`. */
 const FROM_DISCOVERY = {
@@ -13,21 +13,20 @@ const FROM_DISCOVERY = {
 	lastHeartbeat: 1_761_609_615_000,
 };
 
-describe("ServiceInstancesWire", () => {
+describe("ServiceInstanceWire", () => {
 	it("accepts the instances discovery sends", () => {
-		const [instance] = ServiceInstancesWire.parse([FROM_DISCOVERY]);
-		expect(instance).toEqual(FROM_DISCOVERY);
+		expect(ServiceInstanceWire.parse(FROM_DISCOVERY)).toEqual(FROM_DISCOVERY);
 	});
 
 	it("rejects an instance whose host is not an IP address", () => {
 		expect(() =>
-			ServiceInstancesWire.parse([{ ...FROM_DISCOVERY, host: "not an ip" }])
+			ServiceInstanceWire.parse({ ...FROM_DISCOVERY, host: "not an ip" })
 		).toThrow();
 	});
 
 	it("rejects an unknown protocol", () => {
 		expect(() =>
-			ServiceInstancesWire.parse([{ ...FROM_DISCOVERY, protocol: "ftp" }])
+			ServiceInstanceWire.parse({ ...FROM_DISCOVERY, protocol: "ftp" })
 		).toThrow();
 	});
 });

@@ -20,6 +20,8 @@ export interface WalletAPI {
 	getValuation: () => Cash;
 	getPrice: () => Price;
 	getPnL: () => Cash;
+	/** Fees and execution cost paid since the last reset. */
+	getCostsPaid: () => { feesPaid: number; executionCostPaid: number };
 	reset: () => void;
 }
 
@@ -76,6 +78,10 @@ class Wallet implements WalletAPI {
 			this._config.initialCash,
 			this._config.decimals
 		);
+	}
+
+	getCostsPaid(): { feesPaid: number; executionCostPaid: number } {
+		return this._executor.costsPaid;
 	}
 
 	reset(): void {

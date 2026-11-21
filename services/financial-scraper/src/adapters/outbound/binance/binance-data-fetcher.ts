@@ -22,7 +22,12 @@ import {
 	getRecentTrades,
 	getSymbolPriceTicker,
 } from "./binance.client";
-import { BinanceNormalizer } from "./normalizer";
+import { normalizeBookTicker } from "./normalizers/book-ticker";
+import { normalizeCandles } from "./normalizers/candles";
+import { normalizeOrderBook } from "./normalizers/order-book";
+import { normalizePriceTicker } from "./normalizers/price-ticker";
+import { normalizeTicker24h } from "./normalizers/ticker";
+import { normalizeTrades } from "./normalizers/trades";
 
 /** Raw answer of each Binance endpoint; absent when that request failed. */
 export interface RawBinanceData {
@@ -199,36 +204,34 @@ export function buildResponse(
 		orderBook:
 			orderBookRaw &&
 			normalizePart(query, "orderBook", () =>
-				BinanceNormalizer.orderBook(query, orderBookRaw)
+				normalizeOrderBook(query, orderBookRaw)
 			),
 		recentTrades:
 			tradesRaw &&
 			normalizePart(query, "recentTrades", () =>
-				BinanceNormalizer.trades(query, tradesRaw)
+				normalizeTrades(query, tradesRaw)
 			),
 		// Binance returns the still-open candle last: persisting it would store a
 		// partial candle that the next cycle overwrites with other values.
 		candles:
 			candlesRaw &&
 			normalizePart(query, "candles", () =>
-				BinanceNormalizer.candles(query, candlesRaw).filter(
+				normalizeCandles(query, candlesRaw).filter(
 					(candle) => candle.closeTimestamp + CLOSE_MARGIN_MS < fetchedAt
 				)
 			),
 		ticker24h:
 			ticker24hRaw &&
-			normalizePart(query, "ticker24h", () =>
-				BinanceNormalizer.ticker24h(ticker24hRaw)
-			),
+			normalizePart(query, "ticker24h", () => normalizeTicker24h(ticker24hRaw)),
 		priceTicker:
 			priceTickerRaw &&
 			normalizePart(query, "priceTicker", () =>
-				BinanceNormalizer.priceTicker(priceTickerRaw)
+				normalizePriceTicker(priceTickerRaw)
 			),
 		bookTicker:
 			bookTickerRaw &&
 			normalizePart(query, "bookTicker", () =>
-				BinanceNormalizer.bookTicker(bookTickerRaw)
+				normalizeBookTicker(bookTickerRaw)
 			),
 		fetchedAt,
 	};

@@ -1,21 +1,18 @@
 import { agentError } from "../errors";
-import { LayerComputer } from "./layer-computer";
+import { ACTIVATIONS } from "./activation";
 import { NORMALIZERS, type NormalizeParams } from "./normalizers";
-import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
+import {
+	ConnectionType,
+	type ForwardContext,
+	type LayerMemory,
+	type NeuralNetworkConfig,
+} from "./type";
 
 export class FeedForwardEngine {
-	private readonly _layerComputer: LayerComputer;
-
 	constructor(
 		private readonly _config: Required<NeuralNetworkConfig>,
 		private readonly _layers: LayerMemory[]
-	) {
-		this._layerComputer = new LayerComputer({
-			activationType: this._config.activationType,
-			connectionType: this._config.connectionType,
-			useBias: this._config.useBias,
-		});
-	}
+	) {}
 
 	forward(input: Float32Array): ForwardContext {
 		const expected = this._config.neuronsByLayer[0];
@@ -46,20 +43,53 @@ export class FeedForwardEngine {
 		let current = input;
 
 		for (let layerIndex = 0; layerIndex < this._layers.length; layerIndex++) {
-			const { preActivations, output } = this._layerComputer.computeLayerOutput(
-				{
-					layer: this._layers[layerIndex],
-					current,
-					layerIndex,
-					originalInput,
-				}
-			);
-			layerZValues.push(preActivations);
+			const zValues = this._preActivations(this._layers[layerIndex], current);
+			const output = this._activate(zValues, layerIndex, originalInput);
+			layerZValues.push(zValues);
 			layerOutputs.push(output);
 			current = output;
 		}
 
 		return { current, layerZValues, layerOutputs };
+	}
+
+	private _preActivations(
+		layer: LayerMemory,
+		input: Float32Array
+	): Float32Array {
+		const { fanIn, fanOut, weights, bias } = layer;
+		const zValues = new Float32Array(fanOut);
+		for (let j = 0; j < fanOut; j++) {
+			let sum = this._config.useBias ? bias[j] : 0;
+			const rowOffset = j * fanIn;
+			for (let idx = 0; idx < fanIn; idx++) {
+				sum += weights[rowOffset + idx] * input[idx];
+			}
+			zValues[j] = sum;
+		}
+		return zValues;
+	}
+
+	/** Activation of `zValues` into a new array (zValues is kept as the layer's zValues values), plus the DenseSkip residual. */
+	private _activate(
+		zValues: Float32Array,
+		layerIndex: number,
+		originalInput: Float32Array
+	): Float32Array {
+		const { fn } = ACTIVATIONS[this._config.activationType[layerIndex]];
+		const output = new Float32Array(zValues.length);
+		for (let i = 0; i < output.length; i++) {
+			output[i] = fn(zValues[i]);
+		}
+		if (
+			this._config.connectionType === ConnectionType.DenseSkip &&
+			originalInput.length === output.length
+		) {
+			for (let i = 0; i < output.length; i++) {
+				output[i] += originalInput[i];
+			}
+		}
+		return output;
 	}
 
 	private _normalize(
