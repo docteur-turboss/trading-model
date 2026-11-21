@@ -41,7 +41,6 @@ import type {
 import { createAutoRetryScheduler } from "../infrastructure/auto-retry-scheduler";
 import type { Env } from "../infrastructure/config/env";
 import { DlqPruner } from "../infrastructure/dlq-pruner";
-import { ensureRedisQueue } from "../infrastructure/redis-init";
 import { RedisWorkerTimer } from "../infrastructure/redis-worker-timer";
 import { emitReplayMetrics } from "../shared/replay-metrics";
 import { isShuttingDown, setShuttingDown } from "../shared/shutdown-flag";
@@ -66,7 +65,7 @@ export interface DlqApp {
 		rebuildQueueFromMongo(): Promise<void>;
 		processRedisQueue(): Promise<void>;
 	};
-	/** Starts the Redis queue, the periodic prune and, when enabled, the auto-retry. */
+	/** Starts the periodic prune and, when enabled, the auto-retry. */
 	start(): void;
 	/** Stops the timers, drains the replays in flight, releases the claims. */
 	shutdownSchedulers(): Promise<void>;
@@ -162,8 +161,6 @@ export function createDlqApp(env: Env): DlqApp {
 	});
 	const claimReleaseService = new ClaimReleaseService({
 		claimRelease,
-		entries: repository,
-		queue: dlqRedisQueue,
 		settings,
 	});
 	const replayDrainService = new ReplayDrainService();
@@ -228,7 +225,6 @@ export function createDlqApp(env: Env): DlqApp {
 		},
 		closeDb: () => mongo.close(),
 		start() {
-			void ensureRedisQueue(dlqRedisQueue, rebuildQueueFromMongo);
 			pruner.start();
 			autoRetry.start();
 		},
@@ -238,7 +234,7 @@ export function createDlqApp(env: Env): DlqApp {
 			autoRetry.stop();
 			// Releasing the claims of a replay still in flight would publish it twice.
 			if (await replayDrainService.drain()) {
-				await claimReleaseService.releaseAndRequeue();
+				await claimReleaseService.releaseOwn();
 			}
 			await dlqRedisQueue.close();
 			await closeHttpClient();

@@ -1,3 +1,5 @@
+import { withTimeout } from "@trading-model/common/utils/retry";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import type { RiskLimits } from "../domain/limits";
 import { FINAL, type Order, transition } from "../domain/order";
 import type {
@@ -312,8 +314,23 @@ export class RiskExecution {
 		this._d.emit?.(event, { ...fields, mode: this._d.mode });
 	}
 
+	private _emitBrokerError(order: Order, error: unknown): void {
+		this._emit("broker.error", {
+			clientOrderId: order.clientOrderId,
+			error: String(error),
+		});
+	}
+
 	private async _save(): Promise<void> {
 		if (!this._broken) {
+			// Final orders older than the longest window read by the pre-trade checks (rate: 60 s, duplicates).
+			const keepMs = Math.max(60_000, this._d.limits.duplicateWindowMs);
+			const cutoff = this._now() - keepMs;
+			for (const [id, order] of Object.entries(this._state.orders)) {
+				if (FINAL.has(order.status) && order.createdAt < cutoff) {
+					delete this._state.orders[id];
+				}
+			}
 			await this._d.store.save(this._state);
 		}
 	}
@@ -331,15 +348,13 @@ export class RiskExecution {
 					limitPrice: order.limitPrice,
 					referencePrice: order.referencePrice,
 				}),
-				this._d.limits.submitTimeoutMs
+				DurationMs.of(this._d.limits.submitTimeoutMs),
+				`broker timeout after ${this._d.limits.submitTimeoutMs} ms`
 			);
 			await this._apply(order, view);
 		} catch (error) {
 			// Never resent: the broker is asked by client order id (ADR-0064 §3).
-			this._emit("broker.error", {
-				clientOrderId: order.clientOrderId,
-				error: String(error),
-			});
+			this._emitBrokerError(order, error);
 			this._move(order, "unknown");
 			await this._failure(order.symbol);
 			await this._resolve(order);
@@ -357,10 +372,7 @@ export class RiskExecution {
 				this._move(order, "unknown");
 			}
 		} catch (error) {
-			this._emit("broker.error", {
-				clientOrderId: order.clientOrderId,
-				error: String(error),
-			});
+			this._emitBrokerError(order, error);
 			if (order.status === "submitted") {
 				this._move(order, "unknown");
 			}
@@ -433,10 +445,7 @@ export class RiskExecution {
 				await this._apply(order, view);
 			}
 		} catch (error) {
-			this._emit("broker.error", {
-				clientOrderId: order.clientOrderId,
-				error: String(error),
-			});
+			this._emitBrokerError(order, error);
 		}
 	}
 
@@ -450,10 +459,7 @@ export class RiskExecution {
 				await this._apply(order, view);
 			}
 		} catch (error) {
-			this._emit("broker.error", {
-				clientOrderId: order.clientOrderId,
-				error: String(error),
-			});
+			this._emitBrokerError(order, error);
 		}
 		if (!FINAL.has(order.status)) {
 			this._move(order, "expired");
@@ -612,20 +618,4 @@ export class RiskExecution {
 			),
 		};
 	}
-}
-
-function withTimeout<Result>(
-	promise: Promise<Result>,
-	ms: number
-): Promise<Result> {
-	let timer: NodeJS.Timeout;
-	return Promise.race([
-		promise,
-		new Promise<never>((_, reject) => {
-			timer = setTimeout(
-				() => reject(new Error(`broker timeout after ${ms} ms`)),
-				ms
-			);
-		}),
-	]).finally(() => clearTimeout(timer));
 }

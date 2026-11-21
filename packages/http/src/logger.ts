@@ -4,15 +4,9 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import { formatLogEntry } from "./console-formatter";
-import {
-	isLogLevelAtLeast,
-	type LogEntry,
-	LogLevel,
-	type LogOptions,
-} from "./log-types";
+import { isLogLevelAtLeast, LogLevel } from "./log-types";
 import { getNodeEnv, NODE_ENV } from "./shared/node-env";
 
-export type { LogEntry, LogOptions };
 export { LogLevel };
 
 /** Writes structured log entries at or above the configured level. */

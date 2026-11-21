@@ -27,14 +27,6 @@ jest.mock("@trading-model/http/http-client", () => ({
 	),
 }));
 
-const MOCK_CREATE_CALLBACK_ROUTE = jest.fn<(...args: any[]) => any>();
-
-jest.mock("../../src/messages.routes", () => ({
-	CREATE_CALLBACK_ROUTE: jest.fn(
-		(..._args: any[]) => MOCK_CREATE_CALLBACK_ROUTE
-	),
-}));
-
 import { SUBSCRIPTION_REFRESH_MS } from "../../src/broker-message";
 import BrokerMessage from "../../src/index";
 
@@ -155,14 +147,6 @@ describe("BrokerMessage", () => {
 				metadata
 			);
 			expect(listener).toHaveBeenCalledWith({ candle: [] }, metadata);
-		});
-	});
-
-	describe("listenExpress", () => {
-		it("should call app.use with CreateCallbackRoute result", () => {
-			const app = { use: jest.fn<(...args: any[]) => any>() };
-			broker.listenExpress(app as any);
-			expect(app.use).toHaveBeenCalledWith(MOCK_CREATE_CALLBACK_ROUTE);
 		});
 	});
 

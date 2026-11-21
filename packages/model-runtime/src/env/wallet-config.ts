@@ -6,7 +6,7 @@ import {
 	type Volume,
 } from "@trading-model/primitives/primitives";
 import type { BuyCostResult, SellProceedsResult } from "./wallet-costs";
-import { roundValue, TradeCostParams } from "./wallet-costs";
+import { TradeCostParams } from "./wallet-costs";
 import { validateConfig } from "./wallet-validation";
 
 /**
@@ -58,7 +58,7 @@ export class WalletConfig {
 	}
 
 	roundValue(value: number): number {
-		return roundValue(value, this.decimals);
+		return DecimalPrecision.round(value, this.decimals);
 	}
 
 	private _buildTradeParams(amount: Volume, price: Price): TradeCostParams {

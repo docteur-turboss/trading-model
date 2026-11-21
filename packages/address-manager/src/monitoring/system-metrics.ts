@@ -130,8 +130,4 @@ export class SystemMetrics {
 		this._previousCpuTimes = newCpuTimes;
 		return percent;
 	}
-
-	reset(): void {
-		this._previousCpuTimes = { idle: 0 as DurationMs, total: 0 as DurationMs };
-	}
 }

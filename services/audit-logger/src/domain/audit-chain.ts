@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+export const MS_PER_DAY = 86_400_000;
+
 /**
  * The audit trail is a hash chain (ADR-0027): each event carries the sha256 of
  * its content and of the previous event's hash, and a contiguous sequence.

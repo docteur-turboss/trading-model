@@ -4,14 +4,14 @@ import {
 	PutObjectCommand,
 	type S3Client,
 } from "@aws-sdk/client-s3";
-import type {
-	ChainAnchor,
-	ChainLossAcknowledgement,
-	ChainPoint,
+import {
+	type ChainAnchor,
+	type ChainLossAcknowledgement,
+	type ChainPoint,
+	MS_PER_DAY,
 } from "../../../domain/audit-chain";
 import type { AnchorStorePort } from "../../../domain/ports/audit-chain.port";
 
-const MS_PER_DAY = 86_400_000;
 /** Sequences sort as text once padded: listings come back in chain order. */
 const SEQUENCE_DIGITS = 16;
 const ANCHOR_KEY = /\/(\d{16})-([0-9a-f]{64})\.json$/;

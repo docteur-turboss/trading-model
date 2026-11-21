@@ -21,7 +21,6 @@ import {
 	toServiceId,
 	toTopic,
 } from "@trading-model/primitives/primitives";
-import type { Application } from "express";
 import { BusConsumer } from "./bus/consumer";
 import { DeadStreams } from "./bus/dead-streams";
 import { publishToBus } from "./bus/publisher";
@@ -31,7 +30,6 @@ import { EVENT_MANAGER } from "./event-manager-client";
 import { MessageManagerClient } from "./message-manager-client";
 import { MessageMetadataBuilder } from "./messages/message-metadata-builder";
 import { deliverToListeners } from "./messages.controller";
-import { CREATE_CALLBACK_ROUTE } from "./messages.routes";
 import { deadLetterError } from "./shared/errors";
 
 /** Renewal period of topic subscriptions (also the retry delay after a failure). */
@@ -236,11 +234,6 @@ export default class BrokerMessage {
 		listener: Listener<EventMessagesArgs<TEvent>>
 	) {
 		this._eventCleanups.push(EVENT_MANAGER.on(eventName, listener));
-	}
-
-	/** Mounts the callback route on the Express application. */
-	listenExpress(app: Application) {
-		app.use(CREATE_CALLBACK_ROUTE(this._callbackPath));
 	}
 
 	/** Publishes messages through the Message Manager. */

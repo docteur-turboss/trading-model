@@ -16,7 +16,6 @@ export interface MongoConnectionConfig {
 	 */
 	auth?: { username: string; password: string };
 	dbName: string;
-	collectionName?: string;
 	poolSize?: number;
 	minPoolSize?: number;
 	/** Attempts before `getConnection` rejects; `Infinity` for a background connect that outlives an outage. */
@@ -26,7 +25,6 @@ export interface MongoConnectionConfig {
 export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	private _db: Db | null = null;
 	private readonly _dbName: string;
-	private readonly _collectionName?: string;
 
 	constructor(config: MongoConnectionConfig) {
 		const poolSize = resolvePoolSize(config.poolSize);
@@ -56,7 +54,6 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 				: { maxRetries: config.maxRetries }
 		);
 		this._dbName = config.dbName;
-		this._collectionName = config.collectionName;
 	}
 
 	async getDb(): Promise<Db> {
@@ -65,10 +62,6 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 			this._db = client.db(this._dbName);
 		}
 		return this._db;
-	}
-
-	protected get collectionName(): string | undefined {
-		return this._collectionName;
 	}
 
 	protected _clearState(): void {

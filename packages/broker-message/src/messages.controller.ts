@@ -1,11 +1,7 @@
 import type { EventMap } from "@trading-model/contracts/event-map";
-import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
 import { runWithCorrelationId } from "@trading-model/http/correlation-id";
-import { sendResponse } from "@trading-model/http/response-exception";
 import { toCorrelationId } from "@trading-model/primitives/primitives";
-import type { BROKER_CALLBACK_API } from "./api-routes";
 import { type DeliveredMetadata, EVENT_MANAGER } from "./event-manager-client";
 import { MESSAGE_PAYLOAD_SCHEMA } from "./shared/barrel/message.schema";
 
@@ -64,14 +60,3 @@ export async function deliverToListeners(
 	}
 	return true;
 }
-
-/** Callback route of message-manager's HTTP delivery (kept for release N, ADR-0073). */
-export const MESSAGE_CONTROLLER: ApiRouteHandler<
-	(typeof BROKER_CALLBACK_API)["receive"]
-> = async ({ body: { metadata, payload } }) =>
-	(await deliverToListeners(metadata, payload))
-		? sendResponse({ status: "delivered" }, HTTP_STATUS.OK)
-		: sendResponse(
-				{ error: "Invalid payload format" },
-				HTTP_STATUS.BAD_REQUEST
-			);

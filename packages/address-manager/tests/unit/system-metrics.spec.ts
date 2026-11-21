@@ -81,15 +81,6 @@ describe("SystemMetrics", () => {
 		});
 	});
 
-	describe("reset", () => {
-		test("should clear previous cpu times", () => {
-			metrics.collect();
-			metrics.reset();
-			const snapshot = metrics.collect();
-			expect(snapshot.cpu.percent).toBe(0);
-		});
-	});
-
 	describe("edge cases with mocked os", () => {
 		test("should handle totalMem of 0 in usedPercent calculation", () => {
 			jest.isolateModules(() => {

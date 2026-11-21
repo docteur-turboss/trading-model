@@ -7,6 +7,7 @@ import {
 	SourceId,
 } from "@trading-model/validation/wire/signals";
 import { z } from "zod";
+import { _field } from "./cron-period";
 
 /** §1.3: how a source is fetched. A protocol enters this list with its worker (`createProtocolWorkers`). */
 export const Protocol = z.enum(["rest_api"]);
@@ -193,24 +194,11 @@ export const Source = z.strictObject({
 });
 export type Source = z.infer<typeof Source>;
 
-function _fieldSize(field: string, min: number, max: number): number {
-	const values = new Set<number>();
-	for (const part of field.split(",")) {
-		const [range = "", step = "1"] = part.split("/");
-		const [from = min, to = range.includes("-") ? max : from] =
-			range === "*" ? [min, max] : range.split("-").map(Number);
-		for (let value = from; value <= to; value += Number(step)) {
-			values.add(value);
-		}
-	}
-	return values.size;
-}
-
 /**
  * Requests sent on the busiest day: ticks of a day times requests. The weekday
  * field cannot make one weekday busier than another (every day has the same
  * hours and minutes), so only seconds, minutes and hours count.
- * shortcut: day-of-month and month are ignored, so a rare date overestimates.
+ * shortcut: an unparsable field counts 0 (the registry refuses it itself); day-of-month and month are ignored, so a rare date overestimates.
  */
 export function dailyRequests(source: {
 	schedule: string;
@@ -219,10 +207,13 @@ export function dailyRequests(source: {
 	const fields = source.schedule.trim().split(/\s+/);
 	const [seconds = "0", minute = "*", hour = "*"] =
 		fields.length === 6 ? fields : ["0", ...fields];
-	return (
-		_fieldSize(seconds, 0, 59) *
-		_fieldSize(minute, 0, 59) *
-		_fieldSize(hour, 0, 23) *
+	const sizes = [
+		_field(seconds, 0, 59),
+		_field(minute, 0, 59),
+		_field(hour, 0, 23),
+	].map((values) => values?.size ?? 0);
+	return sizes.reduce(
+		(product, size) => product * size,
 		source.requests.length
 	);
 }

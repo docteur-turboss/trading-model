@@ -23,14 +23,6 @@ export async function createBrokerMessage(
 		instanceId: toInstanceId(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.AuditLoggerService,
 	});
-	await subscribeToAllTopics(brokerMessage, record);
-	return { brokerMessage };
-}
-
-async function subscribeToAllTopics(
-	brokerMessage: BrokerMessage,
-	record: ReturnType<typeof createAuditRecorder>
-): Promise<void> {
 	const allTopics = auditedTopics();
 	for (const topic of allTopics) {
 		// The bus metadata is the full envelope metadata: kept as sent, like the callback route.
@@ -42,4 +34,5 @@ async function subscribeToAllTopics(
 	logger.info("Subscribed to audited topics", {
 		context: { topicCount: allTopics.length },
 	});
+	return { brokerMessage };
 }
