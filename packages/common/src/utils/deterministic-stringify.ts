@@ -22,18 +22,13 @@ export function deterministicStringify(value: unknown): string {
 }
 
 function deterministicReplacer(_key: string, value: unknown): unknown {
-	if (typeof value === "object" && value !== null) {
-		/* istanbul ignore next */ if (value instanceof Date) {
-			return value.toISOString();
+	if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+		const keys = Object.keys(value).sort();
+		const sorted: JsonObject = {};
+		for (const key of keys) {
+			sorted[key] = (value as JsonObject)[key];
 		}
-		if (!Array.isArray(value)) {
-			const keys = Object.keys(value).sort();
-			const sorted: JsonObject = {};
-			for (const key of keys) {
-				sorted[key] = (value as JsonObject)[key];
-			}
-			return sorted;
-		}
+		return sorted;
 	}
 
 	return value;

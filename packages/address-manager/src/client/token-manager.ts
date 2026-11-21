@@ -2,26 +2,22 @@ import {
 	authenticationError,
 	isAuthenticationError,
 } from "@trading-model/common/utils/errors";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import type { HttpClient } from "@trading-model/http/http-client";
+import { ServiceId, URLString } from "@trading-model/primitives/primitives";
+import { RotatedTokenWire } from "@trading-model/validation/wire/service-instance";
 import type { AddressManagerConfig } from "../config/address-manager-config";
-import { TokenRefreshClient } from "./token-refresh-client";
 
 /** Holds the registration token and refreshes it before it expires. */
 export class TokenManager {
 	private _token = "";
-	private readonly _refreshClient: TokenRefreshClient;
 	/** Tail of the token operations queue (see `exclusive`). */
 	private _lane: Promise<unknown> = Promise.resolve();
 
 	constructor(
 		private readonly _httpClient: HttpClient,
 		private readonly _config: AddressManagerConfig
-	) {
-		this._refreshClient = new TokenRefreshClient(
-			this._httpClient,
-			this._config
-		);
-	}
+	) {}
 
 	getToken(): string {
 		if (!this._token) {
@@ -41,10 +37,6 @@ export class TokenManager {
 		return this._token || undefined;
 	}
 
-	clearToken(): void {
-		this._token = "";
-	}
-
 	/**
 	 * Runs `operation` once every token use or rotation queued before it has
 	 * settled. Discovery drops the old token as soon as it issues the new one:
@@ -58,10 +50,31 @@ export class TokenManager {
 		return run;
 	}
 
+	private async _rotate(): Promise<string> {
+		const response = await this._httpClient.post(
+			URLString.of(`${this._config.addressManagerUrl}/token/rotate`),
+			{
+				instanceId: this._config.identity.instanceId,
+				serviceName: this._config.identity.serviceName,
+			},
+			{
+				headers: this._token
+					? { [HTTP_HEADERS.X_INSTANCE_TOKEN]: this._token }
+					: {},
+				serviceName: ServiceId.of("discovery-server"),
+			},
+			RotatedTokenWire
+		);
+		if (!response?.token) {
+			throw authenticationError("Invalid token response from Address Manager");
+		}
+		return response.token;
+	}
+
 	refreshToken(): Promise<void> {
 		return this.exclusive(async () => {
 			try {
-				this._token = await this._refreshClient.doRefresh(this._token);
+				this._token = await this._rotate();
 			} catch (err) {
 				if (isAuthenticationError(err)) {
 					throw err;

@@ -46,11 +46,6 @@ services:
       # Scenarios and stress need more: tests/load/README.md, "Rate limit".
       RATE_LIMIT_MAX: '2000'
 
-  # Same key on both sides of the dead-letter path (dead-letter-flow suite).
-  message-manager:
-    environment:
-      DLQ_AUTH_HMAC_SECRET: test-hmac-secret-for-e2e-0123456789
-
   # The DLQ suites sign their requests as e2e-test-runner.
   dlq-service:
     environment:

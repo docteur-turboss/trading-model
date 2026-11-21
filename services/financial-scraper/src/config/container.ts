@@ -227,26 +227,22 @@ export async function createCollector(
 			await Promise.all(schedulers.map((scheduler) => scheduler.stop()));
 		},
 	};
-	if (!settings.COLLECTOR_LEASE_NAME) {
-		return new Leadership(
-			SOLE_INSTANCE_LEASE,
-			collection,
-			(leader) => COLLECTOR_LEADER.set(leader),
-			"Collector"
+	let lease: ConstructorParameters<typeof Leadership>[0] = SOLE_INSTANCE_LEASE;
+	if (settings.COLLECTOR_LEASE_NAME) {
+		logger.info("Collector leader election enabled", {
+			lease: settings.COLLECTOR_LEASE_NAME,
+			identity: settings.INSTANCE_ID,
+		});
+		const { KubernetesLease, kubernetesLeaseApi } = await import(
+			"@trading-model/reliability/kubernetes-lease"
 		);
-	}
-	logger.info("Collector leader election enabled", {
-		lease: settings.COLLECTOR_LEASE_NAME,
-		identity: settings.INSTANCE_ID,
-	});
-	const { KubernetesLease, kubernetesLeaseApi } = await import(
-		"@trading-model/reliability/kubernetes-lease"
-	);
-	return new Leadership(
-		new KubernetesLease(
+		lease = new KubernetesLease(
 			settings.INSTANCE_ID,
 			kubernetesLeaseApi(settings.COLLECTOR_LEASE_NAME)
-		),
+		);
+	}
+	return new Leadership(
+		lease,
 		collection,
 		(leader) => COLLECTOR_LEADER.set(leader),
 		"Collector"

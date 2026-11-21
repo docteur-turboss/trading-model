@@ -1,10 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import type { TLSSocket } from "node:tls";
-import {
-	extractCanonicalServiceName,
-	isSpiffeId,
-	serviceNameFromSpiffeId,
-} from "@trading-model/common/utils/spiffe";
+import { extractCanonicalServiceName } from "@trading-model/common/utils/spiffe";
 import type { ServiceId } from "@trading-model/primitives/primitives";
 import type { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
 
@@ -48,20 +44,11 @@ export function resolveMtlsIdentity(
 	const value = Array.isArray(raw) ? raw.join(", ") : raw;
 	const identity = value as ClientIdentity;
 
-	const spiffeStr = _extractSpiffeUri(value);
-	const serviceName = spiffeStr
-		? serviceNameFromSpiffeId(spiffeStr)
-		: extractCanonicalServiceName(value);
+	const serviceName = extractCanonicalServiceName(value);
 
 	if (!serviceName) {
 		return null;
 	}
 
 	return { identity, serviceName };
-}
-
-function _extractSpiffeUri(value: string): string | null {
-	const match = value.match(/spiffe:\/\/[^\s,]+/);
-	const candidate = match?.[0] ?? value;
-	return candidate && isSpiffeId(candidate) ? candidate : null;
 }

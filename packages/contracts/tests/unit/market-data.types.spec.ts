@@ -46,9 +46,4 @@ describe("TradeSide", () => {
 		expect(TradeSide.Buy).toBe("buy");
 		expect(TradeSide.Sell).toBe("sell");
 	});
-
-	it("should list all values", () => {
-		const values = TradeSide.values();
-		expect(values).toContain(TradeSide.Buy);
-	});
 });

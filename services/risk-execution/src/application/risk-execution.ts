@@ -1,3 +1,5 @@
+import { withTimeout } from "@trading-model/common/utils/retry";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import type { RiskLimits } from "../domain/limits";
 import { FINAL, type Order, transition } from "../domain/order";
 import type {
@@ -321,6 +323,14 @@ export class RiskExecution {
 
 	private async _save(): Promise<void> {
 		if (!this._broken) {
+			// Final orders older than the longest window read by the pre-trade checks (rate: 60 s, duplicates).
+			const keepMs = Math.max(60_000, this._d.limits.duplicateWindowMs);
+			const cutoff = this._now() - keepMs;
+			for (const [id, order] of Object.entries(this._state.orders)) {
+				if (FINAL.has(order.status) && order.createdAt < cutoff) {
+					delete this._state.orders[id];
+				}
+			}
 			await this._d.store.save(this._state);
 		}
 	}
@@ -338,7 +348,8 @@ export class RiskExecution {
 					limitPrice: order.limitPrice,
 					referencePrice: order.referencePrice,
 				}),
-				this._d.limits.submitTimeoutMs
+				DurationMs.of(this._d.limits.submitTimeoutMs),
+				`broker timeout after ${this._d.limits.submitTimeoutMs} ms`
 			);
 			await this._apply(order, view);
 		} catch (error) {
@@ -607,20 +618,4 @@ export class RiskExecution {
 			),
 		};
 	}
-}
-
-function withTimeout<Result>(
-	promise: Promise<Result>,
-	ms: number
-): Promise<Result> {
-	let timer: NodeJS.Timeout;
-	return Promise.race([
-		promise,
-		new Promise<never>((_, reject) => {
-			timer = setTimeout(
-				() => reject(new Error(`broker timeout after ${ms} ms`)),
-				ms
-			);
-		}),
-	]).finally(() => clearTimeout(timer));
 }

@@ -102,14 +102,12 @@ export class BusConsumer {
 		JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
 		try {
 			for (const lag of await journal.lag(service)) {
-				if (lag.service === service) {
-					const labels = { topic: lag.topic, service };
-					JOURNAL_PENDING_ENTRIES.set(labels, lag.pending);
-					JOURNAL_OLDEST_PENDING_AGE_SECONDS.set(
-						labels,
-						lag.oldestPendingAgeMs / 1000
-					);
-				}
+				const labels = { topic: lag.topic, service };
+				JOURNAL_PENDING_ENTRIES.set(labels, lag.pending);
+				JOURNAL_OLDEST_PENDING_AGE_SECONDS.set(
+					labels,
+					lag.oldestPendingAgeMs / 1000
+				);
 			}
 			for (const topic of topics) {
 				BUS_DEAD_LETTERS.set({ topic }, await deadStreams.length(topic));

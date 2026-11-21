@@ -5,10 +5,7 @@ import type {
 	InstanceId,
 } from "@trading-model/primitives/primitives";
 
-const MOCK_LISTEN_EXPRESS = jest.fn<(...args: any[]) => any>();
-const MOCK_MESSAGE_MANAGER_INSTANCE = {
-	listenExpress: MOCK_LISTEN_EXPRESS,
-};
+const MOCK_MESSAGE_MANAGER_INSTANCE = {};
 
 jest.mock("../../src/broker-message", () => ({
 	__esModule: true,
@@ -52,20 +49,9 @@ describe("createMessageManager", () => {
 		});
 	});
 
-	it("should return MessageManager instance and bound listenExpress", () => {
+	it("should return MessageManager instance", () => {
 		const result = createMessageManager(options);
 
 		expect(result.messageManager).toBe(MOCK_MESSAGE_MANAGER_INSTANCE);
-		expect(result.messageManagerListenExpress).toBeDefined();
-
-		result.messageManagerListenExpress({} as any);
-		expect(MOCK_LISTEN_EXPRESS).toHaveBeenCalledWith({});
-	});
-
-	it("should return a bound listenExpress function", () => {
-		const result = createMessageManager(options);
-
-		expect(typeof result.messageManagerListenExpress).toBe("function");
-		expect(result.messageManagerListenExpress.name).toContain("bound");
 	});
 });
