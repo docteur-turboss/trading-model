@@ -110,6 +110,7 @@ jobs:
   # (fine-grained PAT, repository permission "Administration: read") is required.
   check-environment:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       # Reads the production-ready objective issue (label objectif).
@@ -195,6 +196,11 @@ jobs:
     # (docs/deployment/STAGING_LOCAL.md). Production always runs on GitHub.
     runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-latest' }}
     environment: ${{ inputs.environment }}
+    # Budget = 90 + 45 * DEPLOY_TIMEOUT_FACTOR min (135 at 1, 270 at 4), sum of the step caps:
+    # fixed 90 = checks 10 + pre-migrate backup 30 + canary 5 + smoke 5 + market data 10 + verify 10 + rollback 10 + margin 10;
+    # per factor 45 = migrations 3 + Redis TLS/sts 10 + rollouts 15 + API wait 5 + rollback rollouts 12.
+    # A timeout cancels the job: "Rollback on failure" runs on cancelled(); the rollback share above keeps time for it.
+    timeout-minutes: ${{ 90 + 45 * fromJSON(vars.DEPLOY_TIMEOUT_FACTOR || '1') }}
     env:
       # DEPLOY_TIMEOUT_FACTOR (variable of the GitHub environment): integer the
       # MySQL, migration and rollout timeouts are multiplied by, for a slow
