@@ -129,7 +129,7 @@ build_images() {
 	done
 	[ "$tag" = previous ] || return 0
 	for svc in $RETIRED; do
-		docker compose -f "$root/docker-compose.yml" config --services | grep -qx "$svc" || continue
+		[ -f "$root/services/$svc/Dockerfile" ] || continue
 		retry 3 docker compose -f "$root/docker-compose.yml" build "$svc"
 		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
 	done
