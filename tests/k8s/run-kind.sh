@@ -846,9 +846,11 @@ verify_traces() {
 	local result=0
 	wait_for 30 'curl -s -o /dev/null http://localhost:18451/ && curl -s -o /dev/null http://localhost:18686/' || result=1
 	# 30 requests: the collector keeps 20 % of traces, 1 - 0.8^30 ~ 99.9 % that one survives.
+	# A distinct query each: the gateway caches a 200 for CACHE_TTL_MS (30 s), and a
+	# cached answer never reaches trader-trainer, so its trace has one service.
 	if [ "$result" = 0 ]; then
-		for _ in $(seq 30); do
-			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
+		for i in $(seq 30); do
+			curl -s -o /dev/null -H "x-api-key: $API_KEY" "http://localhost:18451/v1/trader-trainer/training-status?trace=$i"
 		done
 	fi
 	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
