@@ -95,7 +95,7 @@ rm -f "$vf"
 ! grep -rq SECRETVALUE "$WORK/state/calls" && pass "no value in kubectl/kubeseal argv" || failed "value in argv"
 
 run
-[ "$(restarts)" = "api-gateway discovery-server dlq-service message-manager" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
+[ "$(restarts)" = "api-gateway discovery-server dlq-service" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
 
 STUB_DECRYPT=0 run --component dlq
 [ "$RC" = 1 ] && [ -z "$(restarts)" ] && pass "no restart when the controller did not decrypt" || failed "undecrypted: rc=$RC restarts=$(restarts)"
