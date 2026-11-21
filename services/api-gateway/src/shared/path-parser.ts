@@ -26,7 +26,6 @@ function extractPathComponents(match: RegExpMatchArray): {
 
 export function parseRequestPath(req: {
 	path: string;
-	method: string;
 }): ParsedRequestPath | null {
 	const match = req.path.match(VERSION_PATH_REGEX);
 	if (!match) {
