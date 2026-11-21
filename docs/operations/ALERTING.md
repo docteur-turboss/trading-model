@@ -195,6 +195,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `KubePersistentVolumeFillingUp` | warning | [runbook-infrastructure#kubepersistentvolumefillingup](runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup) |
 | `NodeFilesystemAlmostFull` | warning | [runbook-infrastructure#nodefilesystemalmostfull](runbooks/runbook-infrastructure.md#nodefilesystemalmostfull) |
 | `MySQLDown` | critical | [runbook-infrastructure#mysqldown](runbooks/runbook-infrastructure.md#mysqldown) |
+| `MySQLSecureTransportOff` | warning | [runbook-infrastructure#mysqlsecuretransportoff](runbooks/runbook-infrastructure.md#mysqlsecuretransportoff) |
 | `RedisDown` | critical | [runbook-infrastructure#redisdown](runbooks/runbook-infrastructure.md#redisdown) |
 | `RedisReplicasMissing` | warning | [runbook-infrastructure#redisreplicasmissing](runbooks/runbook-infrastructure.md#redisreplicasmissing) |
 | `StatefulSetStuckOnOldRevision` | warning | [runbook-infrastructure#statefulsetstuckonoldrevision](runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision) |
