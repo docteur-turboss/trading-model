@@ -112,6 +112,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Reads the production-ready objective issue (label objectif).
+      issues: read
     outputs:
       # Read by the preflight summary of the deploy job; a staging failure never blocks.
       protection: ${{ (inputs.environment != 'production' && steps.protection.outcome == 'failure') && 'warning' || steps.protection.outcome }}
@@ -135,6 +137,25 @@ jobs:
             exit 0
           fi
           node scripts/check-environment-protection.mjs "$TARGET" "$GITHUB_REPOSITORY"
+
+      # Version stability and production readiness are separate: a stable
+      # vX.Y.Z ships after staging, but production waits until every audit of
+      # the production-ready objective is ready. The orchestrator keeps the
+      # count in the title of the issue labelled `objectif` ("n/m audits").
+      # No issue or an unreadable title = refused.
+      - name: Check the production-ready objective
+        if: ${{ inputs.environment == 'production' }}
+        continue-on-error: ${{ inputs.preflight_only }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title=$(gh issue list --repo "$GITHUB_REPOSITORY" --label objectif --state all --limit 1 --json title --jq '.[0].title // ""')
+          if [[ "$title" =~ ([0-9]+)/([0-9]+) ]] && [ "${BASH_REMATCH[2]}" -gt 0 ] && [ "${BASH_REMATCH[1]}" = "${BASH_REMATCH[2]}" ]; then
+            echo "Production-ready objective met: $title"
+            exit 0
+          fi
+          echo "::error::production waits for the production-ready objective (issue labelled objectif) to read n/n audits; found '${title:-no issue}'. See docs/deployment/DEPLOY.md (Before the first production deploy)."
+          exit 1
 
       # The self-hosted runner is persistent and the repository public: a fork
       # pull request could add a job on it (issue #842). No continue-on-error,
