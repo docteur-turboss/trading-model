@@ -192,22 +192,29 @@ describe("evaluate a published model", () => {
 			});
 		});
 
-		it("records why a replay failed: missing candles, read error, replay error", async () => {
+		it("records why a replay failed: missing candles, replay error", async () => {
 			expect(await record(async () => [candle(1)])).toMatchObject({
 				replay: "failed",
 				reason: "missing-candles",
 			});
-			expect(
-				await record(async () => {
-					throw new Error("scraper down");
-				})
-			).toMatchObject({ replay: "failed", reason: "read-error: scraper down" });
 			jest.mocked(replayModel).mockImplementationOnce(() => {
 				throw new Error("Expected input size 19, got 22");
 			});
 			expect(await record(async () => [0, 1].map(candle))).toMatchObject({
 				replay: "failed",
 				reason: "replay-error: Expected input size 19, got 22",
+			});
+		});
+
+		it("records nothing on a read error, then `done` on the redelivery", async () => {
+			await expect(
+				record(async () => {
+					throw new Error("scraper down");
+				})
+			).rejects.toThrow("scraper down");
+			await expect(readdir(dir)).resolves.toEqual([]);
+			expect(await record(async () => [0, 1].map(candle))).toMatchObject({
+				replay: "done",
 			});
 		});
 	});
