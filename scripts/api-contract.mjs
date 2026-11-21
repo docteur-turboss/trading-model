@@ -135,18 +135,6 @@ const ROUTE_PROVIDERS = [
 			"packages/address-manager/src/routes/metrics.routes.ts",
 		],
 	},
-	{
-		// broker-message CREATE_CALLBACK_ROUTE, default callback path "message"
-		mountedBy: /MessageManagerListenExpress\(/,
-		routes: [
-			{
-				method: "POST",
-				path: "/message",
-				file: "packages/broker-message/src/messages.routes.ts",
-				registry: { file: "packages/broker-message/src/api-routes.ts", name: "BROKER_CALLBACK_API", key: "receive" },
-			},
-		],
-	},
 ];
 
 /** Markdown read for gateway URLs (generated TypeDoc output excluded). */
