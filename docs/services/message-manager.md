@@ -125,7 +125,7 @@ Previously validated as `z.unknown()`, the `authContext` object is now strictly 
 - **Retry with backoff**: `AT_LEAST_ONCE` retries up to 10 times (10s per attempt, no HTTP-client retry underneath) with exponential backoff (1s base, 20s cap) and ±20% random jitter; the retry state (attempts, last attempt) is the pending list of the journal, shared by the replicas: a retry is due once the previous attempt has timed out and its backoff passed, and any replica takes it over if the one that owned it died
 - **Circuit breaker**: After 5 consecutive dispatch failures, new messages for that subscriber are not sent: they stay pending in the journal and are retried until the breaker resets on a successful delivery
 - **Alerting**: Persistent delivery failures are logged at ERROR level with topic, service name, and attempt count
-- **Dead Letter Queue**: Undelivered messages are sent to dlq-service (a `POST` to its `/dlq` route, signed with `DLQ_AUTH_HMAC_SECRET`). While it cannot take one, the journal entry stays pending and is retried (no local file); an entry refused for good (400, 413) is counted (`mm_dlq_rejected_total`) and stays pending until the 24 h trim
+- **Dead Letter Queue**: Undelivered messages are written to their Redis dead stream (ADR-0073), which dlq-service reads. While it cannot take one, the journal entry stays pending and is retried (no local file); an entry refused for good (400, 413) is counted (`mm_dlq_rejected_total`) and stays pending until the 24 h trim
 - **Graceful shutdown**: on SIGTERM the instance leaves discovery, keeps serving for `CACHE_TTL_MS`, stops its delivery worker after the attempts in flight (10 s at most); messages not delivered yet stay in the journal for the other replicas (K8s `terminationGracePeriodSeconds: 120`, compose `stop_grace_period: 2m`)
 - **Durable journal**: one Redis stream per topic, one consumer group per subscriber service (delivery once per service, at least once); entries older than 24 h are trimmed, and an undelivered one is counted (`mm_journal_trimmed_pending_total`), logged and alerted (`JournalEntriesTrimmed`); the backlog of each group is read every 15 s (`XINFO GROUPS`, `XPENDING`, `XRANGE`: calls per group, none per message) into `mm_journal_pending_entries` and `mm_journal_oldest_pending_age_seconds` (`JournalBacklogOld` at 15 min); `JOURNAL_MIN_REPLICAS` replicas must hold a write before the 202 (`WAIT`); production needs Redis with AOF
 - **Partitioning**: Via `partitionKey` in routing metadata
@@ -140,7 +140,7 @@ HTTP Routes (src/adapters/inbound/http.routes.ts)
       → Dispatcher (src/application/services/dispatcher.ts)
         → Subscription Registry (src/application/services/subscription-registry.ts)
         → Delivery over HTTP (src/adapters/outbound/http-message-delivery.ts → POST to subscriber callback URLs)
-        → Dead Letter (src/adapters/outbound/http-dead-letter-store.ts, signed POST /dlq to dlq-service)
+        → Dead Letter (src/adapters/outbound/redis-dead-letter-store.ts, Redis dead stream)
 ```
 
 HTTP is the only transport: there is no WebSocket endpoint.
