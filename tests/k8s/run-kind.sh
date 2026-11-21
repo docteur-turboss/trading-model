@@ -1625,6 +1625,22 @@ verify_backup() {
 	mongo_eval mongodb-audit "db.getSiblingDB('audit').audit_events.updateOne({dataHash: 'tampered'}, {\$set: {dataHash: '$audit_hash'}})" >/dev/null
 	log "  verify-restore-k8s.sh passes on the restore and fails on an altered audit event"
 
+	# TTL indexes came back with mongorestore (no --noIndexRestore) and purge.
+	# audit_events is a hash chain: only its index is checked, never a document.
+	local ttl_audit ttl_dlq
+	ttl_audit="$(mongo_eval mongodb-audit "print(db.getSiblingDB('audit').audit_events.getIndexes().filter((i) => i.expireAfterSeconds === 0).length)" | tail -1)"
+	ttl_dlq="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.getIndexes().filter((i) => i.expireAfterSeconds === 2592000).length)" | tail -1)"
+	if [ "$ttl_audit" != 1 ] || [ "$ttl_dlq" != 1 ]; then
+		log "TTL index missing after restore (audit: $ttl_audit, dlq: $ttl_dlq)"
+		return 1
+	fi
+	mongo_eval mongodb "db.getSiblingDB('dlq').dlq_entries.insertOne({messageId: 'ttl-drill', createdAt: new Date(Date.now() - 31 * 86400000)})" >/dev/null
+	wait_for 120 '[ "$(mongo_eval mongodb "print(db.getSiblingDB(\"dlq\").dlq_entries.countDocuments({messageId: \"ttl-drill\"}))" | tail -1)" = 0 ]' || {
+		log "expired dead letter not purged by the TTL monitor after restore"
+		return 1
+	}
+	log "  TTL indexes restored (audit, dlq) and the DLQ one purges an expired document"
+
 	# The SPIRE server came back with the restored CA: the agents still hold
 	# SVIDs from the CA of the wiped volume until they bootstrap again
 	# (rebootstrap_mode, 1 min, ADR-0065). Restart them now and wait for the

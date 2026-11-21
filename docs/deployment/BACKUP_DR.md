@@ -592,7 +592,7 @@ backups from the off-site copy first).
 
 Limit: the compose `scripts/restore.sh` does not run it (no `db-retention` job in compose, where no purge runs at all); purge by hand after a compose restore.
 
-MongoDB: `mongorestore` runs without `--noIndexRestore`, so the TTL indexes of `audit_events` and the DLQ come back with the data and the TTL monitor purges expired documents on its own (it wakes every 60 s). This is read from the code (`audit-repository.ts`, `index-manager.ts`) and has not been measured on a live restore: no drill asserts it yet.
+MongoDB: `mongorestore` runs without `--noIndexRestore`, so the TTL indexes of `audit_events` and the DLQ come back with the data and the TTL monitor purges expired documents on its own (it wakes every 60 s). The CI `k8s` drill asserts both indexes after the restore and that an expired DLQ document (31 days old, inserted after the restore) is purged within 2 minutes.
 
 ## Restore Procedures
 
