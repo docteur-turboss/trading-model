@@ -1,3 +1,4 @@
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { featureFlag } from "@trading-model/validation/config/feature-flags";
@@ -6,10 +7,7 @@ import { validateEnv } from "@trading-model/validation/config/validate-env";
 import { AssetType } from "@trading-model/validation/wire/signals";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
-import {
-	parseSignalKeys,
-	SIGNAL_KEY_PATTERN,
-} from "../../domain/signal-features";
+import { SIGNAL_KEY_PATTERN } from "../../domain/signal-features";
 
 const COST_RATE = z.number().min(0).max(0.1);
 /** Overrides of `DEFAULT_ASSET_COSTS`, by asset type. */
@@ -46,7 +44,7 @@ const TRAINER_ENV_SHAPE = {
 		.default("")
 		.refine(
 			(csv) =>
-				parseSignalKeys(csv).every((key) => SIGNAL_KEY_PATTERN.test(key)),
+				parseCommaSeparated(csv).every((key) => SIGNAL_KEY_PATTERN.test(key)),
 			"TRAINER_SIGNAL_FEATURES: each key must be SUBJECT:dimension:metric"
 		),
 	/** Feature flag (ADR-0039): false keeps the network input at the market values. */
