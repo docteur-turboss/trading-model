@@ -44,7 +44,11 @@ export class FeedForwardEngine {
 
 		for (let layerIndex = 0; layerIndex < this._layers.length; layerIndex++) {
 			const zValues = this._preActivations(this._layers[layerIndex], current);
-			const output = this._activate(zValues, layerIndex, originalInput);
+			const skip =
+				this._config.connectionType === ConnectionType.ResidualConnection
+					? current
+					: originalInput;
+			const output = this._activate(zValues, layerIndex, skip);
 			layerZValues.push(zValues);
 			layerOutputs.push(output);
 			current = output;
@@ -70,11 +74,11 @@ export class FeedForwardEngine {
 		return zValues;
 	}
 
-	/** Activation of `zValues` into a new array (zValues is kept as the layer's zValues values), plus the DenseSkip residual. */
+	/** Activation of `zValues` into a new array, plus the skip term: DenseSkip adds `skip` where sizes match; ResidualConnection adds it to hidden layers, truncated or zero-padded (no parameters). */
 	private _activate(
 		zValues: Float32Array,
 		layerIndex: number,
-		originalInput: Float32Array
+		skip: Float32Array
 	): Float32Array {
 		const { fn } = ACTIVATIONS[this._config.activationType[layerIndex]];
 		const output = new Float32Array(zValues.length);
@@ -83,10 +87,19 @@ export class FeedForwardEngine {
 		}
 		if (
 			this._config.connectionType === ConnectionType.DenseSkip &&
-			originalInput.length === output.length
+			skip.length === output.length
 		) {
 			for (let i = 0; i < output.length; i++) {
-				output[i] += originalInput[i];
+				output[i] += skip[i];
+			}
+		}
+		if (
+			this._config.connectionType === ConnectionType.ResidualConnection &&
+			layerIndex < this._layers.length - 1
+		) {
+			const count = Math.min(skip.length, output.length);
+			for (let i = 0; i < count; i++) {
+				output[i] += skip[i];
 			}
 		}
 		return output;

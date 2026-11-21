@@ -3,6 +3,7 @@ import { makePRNG } from "@trading-model/crypto/prng";
 import { FeedForwardEngine } from "@trading-model/model-runtime/neural-network/feed-forward-engine";
 import {
 	ActivationType,
+	ConnectionType,
 	InitialisationType,
 	NormalisationType,
 } from "@trading-model/model-runtime/neural-network/type";
@@ -25,7 +26,11 @@ interface Net {
 function buildNet(
 	neuronsByLayer: number[],
 	activationType: ActivationType[],
-	options: { learningRate?: number; gradientClipNorm?: number } = {}
+	options: {
+		learningRate?: number;
+		gradientClipNorm?: number;
+		connectionType?: ConnectionType;
+	} = {}
 ): Net {
 	const deps = NeuralNetworkBuilder.build({
 		neuronsByLayer: neuronsByLayer as PositiveInt[],
@@ -33,6 +38,7 @@ function buildNet(
 		initialisationType: InitialisationType.Xavier,
 		biasInitialisationType: InitialisationType.Xavier,
 		normalisationType: NormalisationType.None,
+		connectionType: options.connectionType,
 		learningRate: (options.learningRate ?? 0) as never,
 		gradientClipNorm: options.gradientClipNorm ?? 0,
 		enablePool: false,
@@ -198,7 +204,27 @@ describe("BackpropEngine", () => {
 					ActivationType.Linear,
 				],
 			},
+			{
+				name: "3 → 4 → 4 → 2 sigmoid/relu/linear",
+				sizes: [3, 4, 4, 2],
+				activations: [
+					ActivationType.Sigmoid,
+					ActivationType.Relu,
+					ActivationType.Linear,
+				],
+			},
 		];
+		const CASES = [
+			ConnectionType.FullyConnected,
+			ConnectionType.DenseSkip,
+			ConnectionType.ResidualConnection,
+		].flatMap((connection) =>
+			TOPOLOGIES.map((t) => ({
+				...t,
+				connection,
+				name: `${connection}: ${t.name}`,
+			}))
+		);
 
 		function numericalGradient(
 			net: Net,
@@ -215,10 +241,12 @@ describe("BackpropEngine", () => {
 			return (lossPlus - lossMinus) / (2 * EPS);
 		}
 
-		it.each(TOPOLOGIES)(
+		it.each(CASES)(
 			"$name: analytic ∇L matches (L(w+ε) − L(w−ε)) / 2ε",
-			({ sizes, activations }) => {
-				const net = buildNet(sizes, activations);
+			({ sizes, activations, connection }) => {
+				const net = buildNet(sizes, activations, {
+					connectionType: connection,
+				});
 				const rng = makePRNG(3);
 				const sample = {
 					input: Float32Array.from({ length: sizes[0] }, () => rng() * 2 - 1),
