@@ -996,7 +996,9 @@ verify_bus() {
 	local key=trading-model:message-manager:journal:training.model.published
 	local metrics="$K -n $NS exec deploy/model-evaluator -c model-evaluator -- curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/metrics"
 	log "bus: BusConsumer of model-evaluator, audit-dlq in audit-logger"
-	wait_for 120 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS $key model-evaluator' | grep -q '^model-evaluator-'"
+	# staging-local keeps model-evaluator on message-manager over HTTP (issue #1931): no BusConsumer.
+	[ "${KIND_OVERLAY:-staging}" = staging-local ] ||
+		wait_for 120 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS $key model-evaluator' | grep -q '^model-evaluator-'"
 	wait_for 600 "$metrics | grep '^mm_messages_delivered_total{' | grep 'topic=\"training.model.published\"' | grep 'status=\"success\"' | awk '\$2 > 0' | grep -q ."
 	log "  $($metrics | grep '^mm_messages_delivered_total{.*training.model.published')"
 	$K -n "$NS" exec deploy/audit-logger -c audit-logger -- node services/audit-logger/dist/application/dlq-cli.js kind list training.model.published

@@ -16,7 +16,21 @@ jest.mock("../../src/broker-message", () => ({
 
 jest.mock("@trading-model/address-manager", () => ({}));
 
-import { createMessageManager } from "../../src/create-message-manager";
+import {
+	busJournalFromEnv,
+	createMessageManager,
+} from "../../src/create-message-manager";
+
+describe("busJournalFromEnv", () => {
+	it("should leave the bus to message-manager when REDIS_SENTINELS is empty (staging-local, issue #1931)", () => {
+		expect(
+			busJournalFromEnv({
+				REDIS_SENTINELS: "",
+				REDIS_USERNAME: "trader-trainer",
+			})
+		).toBeUndefined();
+	});
+});
 
 describe("createMessageManager", () => {
 	const options = {
