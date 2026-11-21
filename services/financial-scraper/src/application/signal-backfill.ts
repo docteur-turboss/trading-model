@@ -1,3 +1,4 @@
+import { runCli } from "./run-cli";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -235,11 +236,5 @@ async function _main(): Promise<number> {
 }
 
 if (require.main === module) {
-	_main().then(
-		(code) => process.exit(code),
-		(err: unknown) => {
-			console.error(err);
-			process.exit(1);
-		}
-	);
+	runCli(_main);
 }

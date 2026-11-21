@@ -1,5 +1,5 @@
+import { runCli } from "./run-cli";
 import { randomUUID } from "node:crypto";
-import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	DlqEvent,
 	type DlqEventMap,
@@ -75,15 +75,11 @@ export async function runDlqCli(
 
 if (require.main === module) {
 	const cli = openDlqCli();
-	runDlqCli(process.argv.slice(2), {
+	runCli(() =>
+		runDlqCli(process.argv.slice(2), {
 		...cli,
 		out: (text) => console.log(text),
 		err: (text) => console.error(text),
-	}).then(
-		(code) => process.exit(code),
-		(err: unknown) => {
-			console.error(normalizeError(err).message ?? err);
-			process.exit(1);
-		}
+	})
 	);
 }
