@@ -40,17 +40,17 @@ describe("DLQ Routes", () => {
 
 		expect(paths).toEqual(
 			expect.arrayContaining([
-				// Public routes, by major (ADR-0072).
+				// Public routes: /v1 plus the alias N-1 gateways still use during the rollout (ADR-0072).
 				expect.objectContaining({
-					path: "/v1/dlq",
+					path: ["/v1/dlq", "/dlq"],
 					methods: expect.arrayContaining(["get"]),
 				}),
 				expect.objectContaining({
-					path: "/v1/dlq",
+					path: ["/v1/dlq", "/dlq"],
 					methods: expect.arrayContaining(["delete"]),
 				}),
 				expect.objectContaining({
-					path: "/v1/dlq/replay",
+					path: ["/v1/dlq/replay", "/dlq/replay"],
 					methods: expect.arrayContaining(["post"]),
 				}),
 				expect.objectContaining({
