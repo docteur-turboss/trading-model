@@ -150,7 +150,7 @@ import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 | Logger / logging pipeline | `@trading-model/http` (concrete `Logger`); `LoggerPort` registry in `@trading-model/contracts/logger-registry` |
 | Contracts (events, market-data, http-status, http-headers) | `@trading-model/contracts` |
 | Domain primitives (branded types, pagination, identities) | `@trading-model/primitives` |
-| Circuit breakers, latency tracker, heartbeats | `@trading-model/reliability` |
+| Circuit breakers, heartbeats, leader lease | `@trading-model/reliability` |
 | Redis/Mongo stores, connection managers, `redis-config` | `@trading-model/persistence` |
 | Server bootstrap, secure HTTPS factory, TLS loading | `@trading-model/http` |
 | Environment validation (Zod) | `@trading-model/validation` |

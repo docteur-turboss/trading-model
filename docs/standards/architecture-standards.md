@@ -76,7 +76,7 @@ Shared packages (base → derived):
 ```
 @trading-model/primitives       (branded types, pagination, identities — zero deps)
 @trading-model/contracts        (events, market-data, http constants, LoggerPort registry) → primitives
-@trading-model/reliability      (circuit breaker, latency tracker, heartbeats) → primitives, contracts
+@trading-model/reliability      (circuit breaker, heartbeats, leader lease) → primitives, contracts
 @trading-model/model-runtime    (forward pass, features, agent, wallet simulator, replay) → primitives, contracts, common
 @trading-model/common           (residual config, utils, shared schemas, AppError) → primitives, contracts
 @trading-model/persistence      (Redis/Mongo connection managers, store adapters) → common, primitives, contracts
@@ -99,7 +99,7 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, validation |
 | discovery-server | common, contracts, crypto, http, persistence, primitives, validation |
 | model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, primitives, validation |
-| risk-execution | address-manager, common, contracts, http, primitives, validation |
+| risk-execution | address-manager, broker-message, common, contracts, http, primitives, validation |
 | financial-scraper | address-manager, common, contracts, crypto, http, primitives, reliability, validation |
 | trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, validation |
 

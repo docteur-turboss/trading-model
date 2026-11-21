@@ -29,6 +29,7 @@ const PASSWORDS = {
 	discovery: "discovery-pw",
 	"audit-logger": "audit-pw",
 	"trader-trainer": "trainer-pw",
+	"model-evaluator": "evaluator-pw",
 	exporter: "exporter-pw",
 };
 const DISCOVERY_KEY = "trading-model:discovery:spec";
@@ -37,6 +38,7 @@ const HA_ENV = {
 	REDIS_DISCOVERY_PASSWORD: PASSWORDS.discovery,
 	REDIS_AUDIT_LOGGER_PASSWORD: PASSWORDS["audit-logger"],
 	REDIS_TRADER_TRAINER_PASSWORD: PASSWORDS["trader-trainer"],
+	REDIS_MODEL_EVALUATOR_PASSWORD: PASSWORDS["model-evaluator"],
 	REDIS_EXPORTER_PASSWORD: PASSWORDS.exporter,
 	REDIS_HOSTS: ORDINALS.map((n) => `redis-${n}`).join(" "),
 	SENTINEL_HOSTS: ORDINALS.map((n) => `redis-sentinel-${n}`).join(" "),
@@ -314,6 +316,17 @@ describe("K8s Redis HA start script — real failovers", () => {
 				"0-1"
 			)
 		).resolves.toMatch(/^NOPERM/);
+		// The evaluator acknowledges the topic it subscribes to.
+		await expect(
+			asService(
+				master,
+				"model-evaluator",
+				"XACK",
+				`${bus}training.model.published`,
+				"model-evaluator",
+				"0-1"
+			)
+		).resolves.toEqual(["0"]);
 		await expect(
 			(
 				await asService(

@@ -71,6 +71,8 @@ backup_run() {
 		mysql)
 			mkdir -p "$BACKUP_DIR/mysql"
 			write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_$ts.sql.gz.age" plain "mysql $ts"
+			mkdir -p "$BACKUP_DIR/mysql-core"
+			write_dump mysql-core "$BACKUP_DIR/mysql-core/financial_scraper_$ts.sql.gz.age" plain "mysql-core $ts"
 			;;
 		checkpoints)
 			mkdir -p "$BACKUP_DIR/checkpoints"
@@ -291,9 +293,9 @@ done <<<"$TIERED_ARCHIVES"
 BACKUP_FAILURES=0
 BACKUP_S3_BUCKET=s3://backups/tiered BACKUP_OFFSITE_LAYOUT=tiered upload_offsite 2>/dev/null
 long_tiers="$(cd "$WORK/s3/backups/tiered" && find weekly monthly -type f | sort)"
-if [ "$BACKUP_FAILURES" -eq 0 ] && ! grep -qE '\.pitr\.age$|/binlog/|/oplog/' <<<"$long_tiers" &&
+if [ "$BACKUP_FAILURES" -eq 0 ] && ! grep -qE '\.pitr\.age$|/binlog/|/oplog/|/mysql/' <<<"$long_tiers" &&
 	[ "$(grep -c . <<<"$long_tiers")" = 6 ]; then
-	pass "weekly/ and monthly/ hold the audit dump, the MySQL dump and the manifest only: no .pitr, no binlog / oplog archive"
+	pass "weekly/ and monthly/ hold the audit dump, the mysql-core dump and the manifest only: no full mysql, no .pitr, no binlog / oplog archive"
 else
 	failed "long tiers hold: $long_tiers"
 fi
@@ -311,10 +313,10 @@ if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered-pitr"
 else
 	failed "--pitr on a tiered bucket: $(cd "$WORK/fetched-tiered-pitr" 2>/dev/null && find . -type f | sort) $(cat "$WORK/out")"
 fi
-if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly" --tier monthly --components mysql &&
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly" --tier monthly --components mysql-core &&
 	[ "$(cd "$WORK/fetched-monthly" && find . -type f | sed 's|^\./||' | sort)" = "manifests/manifest_${TIERED}.json.age
-mysql/financial_scraper_${TIERED}.sql.gz.age" ]; then
-	pass "--tier monthly --components mysql fetches the monthly MySQL dump and its manifest"
+mysql-core/financial_scraper_${TIERED}.sql.gz.age" ]; then
+	pass "--tier monthly --components mysql-core fetches the monthly MySQL dump and its manifest"
 else
 	failed "--tier monthly: $(cat "$WORK/out")"
 fi
@@ -327,16 +329,16 @@ mongodb/${TIERED}/mongodb-audit.archive.gz.age" ] &&
 else
 	failed "--tier monthly --components mongodb-audit: $(cat "$WORK/out")"
 fi
-if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-weekly-long" --tier weekly --components mongodb-audit,mysql &&
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-weekly-long" --tier weekly --components mongodb-audit,mysql-core &&
 	[ "$(find "$WORK/fetched-weekly-long" -type f | wc -l | tr -d ' ')" = 3 ]; then
-	pass "--tier weekly --components mongodb-audit,mysql fetches both long-term dumps"
+	pass "--tier weekly --components mongodb-audit,mysql-core fetches both long-term dumps"
 else
-	failed "--tier weekly --components mongodb-audit,mysql: $(cat "$WORK/out")"
+	failed "--tier weekly --components mongodb-audit,mysql-core: $(cat "$WORK/out")"
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly-all" --tier monthly; then
 	failed "the monthly tier gave a complete run for every component"
 else
-	grep -q "try --components mongodb-audit,mysql" "$WORK/out" && pass "exit 1 on the monthly tier for every component, suggesting --components mongodb-audit,mysql" || failed "monthly tier refusal: $(cat "$WORK/out")"
+	grep -q "try --components mongodb-audit,mysql-core" "$WORK/out" && pass "exit 1 on the monthly tier for every component, suggesting --components mongodb-audit,mysql-core" || failed "monthly tier refusal: $(cat "$WORK/out")"
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly-pitr" --tier monthly --components mysql --pitr; then
 	failed "--pitr was accepted on the monthly tier, which holds no starting point"

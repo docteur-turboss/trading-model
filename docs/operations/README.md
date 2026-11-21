@@ -15,7 +15,7 @@ This directory contains operational procedures, policies, and runbooks for the T
 | Document                               | Purpose                                                    |
 | -------------------------------------- | ---------------------------------------------------------- |
 | [Service Down](runbooks/runbook-service-down.md)       | Recovery procedure for any service crash             |
-| [Database Failover](runbooks/runbook-database-failover.md) | Loss of `mysql-0` (no MySQL failover, SPIRE stops), MongoDB DLQ / audit trail and Redis recovery, encrypted restores |
+| [Database Failover](runbooks/runbook-database-failover.md) | Loss of `mysql-0` (no MySQL failover, ingestion stops), MongoDB DLQ / audit trail and Redis recovery, encrypted restores |
 | [Message Bus Outage](runbooks/runbook-message-bus-outage.md) | Bus (Redis journal) outage recovery                |
 | [Certificate Expiry](runbooks/runbook-certificate-expiry.md) | mTLS certificate expiry prevention             |
 | [Data Corruption](runbooks/runbook-data-corruption.md) | Data corruption detection and recovery               |

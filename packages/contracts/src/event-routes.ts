@@ -2,10 +2,12 @@ import { ServiceInstanceName } from "@trading-model/primitives/service-instance-
 import { AuditEvent } from "./audit-events";
 import { DlqEvent } from "./dlq-events";
 import type { EventEnumMap } from "./event-map";
+import { RiskEvent } from "./risk-events";
 import { TrainingEvent } from "./training-events";
 
 const TRAINER = ServiceInstanceName.TraderTrainerService;
 const AUDIT = ServiceInstanceName.AuditLoggerService;
+const RISK = ServiceInstanceName.RiskExecutionService;
 
 /** Services allowed to publish each topic (ADR-0073 §5). `market.*` topics have no publisher since ADR-0078. `dlq.entry.added` comes from any subscriber that dead-letters. */
 export const EVENT_PUBLISHERS: Partial<
@@ -17,6 +19,9 @@ export const EVENT_PUBLISHERS: Partial<
 	[DlqEvent.EntryAdded]: [AUDIT, ServiceInstanceName.ModelEvaluatorService],
 	[DlqEvent.ReplayCompleted]: [AUDIT],
 	[DlqEvent.EntriesDeleted]: [AUDIT],
+	[RiskEvent.OrderTransitioned]: [RISK],
+	[RiskEvent.KillSwitchEngaged]: [RISK],
+	[RiskEvent.KillSwitchRearmed]: [RISK],
 };
 
 /** Bus services and the topics they subscribe to (Redis users of `redis-ha.sh`). */
@@ -27,6 +32,7 @@ export const EVENT_SUBSCRIBERS: Partial<
 		...Object.values(AuditEvent),
 		...Object.values(TrainingEvent),
 		...Object.values(DlqEvent),
+		...Object.values(RiskEvent),
 	],
 	[ServiceInstanceName.ModelEvaluatorService]: [TrainingEvent.ModelPublished],
 };

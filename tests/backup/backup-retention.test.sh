@@ -17,6 +17,10 @@ FAILED=0
 source "$ROOT/tests/backup/test-lib.sh"
 # shellcheck source=../../scripts/backup-lib.sh
 source "$ROOT/scripts/backup-lib.sh"
+# The scenario promotes the `mysql` directory; the default (mysql-core, the
+# full mysql dump daily only) is checked in "off-site tiers".
+DEFAULT_LONG_COMPONENTS="$RETENTION_LONG_COMPONENTS"
+RETENTION_LONG_COMPONENTS="mongodb-audit mysql"
 
 NOW_DAY="2026-11-03"
 NOW="${NOW_DAY}_020000"
@@ -287,6 +291,12 @@ echo '{}' >"$BACKUP_DIR/manifests/manifest_${TIMESTAMP}.json.age"
 got="$(offsite_tiers "mysql/financial_scraper_${TIMESTAMP}.sql.gz.age")"
 [ "$got" = "daily weekly monthly" ] && pass "first complete run of a month and week: ${got}" ||
 	failed "first run of December: '${got}'"
+mkdir -p "$BACKUP_DIR/mysql-core"
+echo x >"$BACKUP_DIR/mysql-core/financial_scraper_${TIMESTAMP}.sql.gz.age"
+got="$(RETENTION_LONG_COMPONENTS="$DEFAULT_LONG_COMPONENTS" offsite_tiers "mysql/financial_scraper_${TIMESTAMP}.sql.gz.age") / $(RETENTION_LONG_COMPONENTS="$DEFAULT_LONG_COMPONENTS" offsite_tiers "mysql-core/financial_scraper_${TIMESTAMP}.sql.gz.age")"
+[ "$got" = "daily / daily weekly monthly" ] && pass "default policy: the full mysql dump is daily only, mysql-core is promoted" ||
+	failed "default policy, mysql / mysql-core: '${got}'"
+rm -r "$BACKUP_DIR/mysql-core"
 for f in "mysql/financial_scraper_${TIMESTAMP}.pitr.age" "mongodb/${TIMESTAMP}/mongodb-audit.pitr.age" \
 	"mysql/binlog/uuid-1/binlog.000009_${TIMESTAMP}.gz.age" "mongodb/oplog/mongodb-audit/1.1_2.1.bson.gz.age"; do
 	got="$(offsite_tiers "$f")"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Restore Script (Kubernetes)
-#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb-audit,mysql,checkpoints,spire]
+#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb-audit,mysql,mysql-core,checkpoints,spire]
 #          [--timestamp 2025-01-01_120000 | --until 2025-01-01T13:45:00Z]
 #          [--no-retention]
 #          [--allow-mixed-runs] [--ns <db.coll|db.*>]... [--into-scratch]
@@ -31,6 +31,10 @@
 #  Component `mongodb` restores both replica sets (operational, then audit);
 #  `mongodb-audit` the audit trail alone, e.g. from a weekly or monthly
 #  off-site tier, which holds no operational dump (ADR-0032).
+#  `mysql-core` restores the MySQL dump of those tiers: it holds every table
+#  but the rows of MYSQL_CORE_EXCLUDED_TABLES (backup-lib.sh): created empty
+#  when missing, rows left as they are otherwise (logged);
+#  no --until from it (only the full daily `mysql` dump has coordinates).
 #
 #  --ns <pattern> (repeatable, issue #335; --components mongodb or
 #  mongodb-audit only): restores only the matching namespaces of each replica
@@ -356,8 +360,9 @@ purge_expired_rows() {
 }
 
 restore_mysql() {
-  log "Starting MySQL restore..."
-  resolve_and_verify mysql || return 0
+  local key="${1:-mysql}"
+  log "Starting MySQL restore (${key})..."
+  resolve_and_verify "$key" || return 0
   local file="$RESOLVED_FILE"
   verify_mysql_dump_complete "$file" || return 0
 
@@ -371,7 +376,10 @@ restore_mysql() {
   # from the dump's coordinates, unbroken and readable, before anything is
   # dropped. mysqlbinlog runs here (backup-tools image).
   local chain=() pos=""
-  if [ -n "$UNTIL_EPOCH" ]; then
+  if [ -n "$UNTIL_EPOCH" ] && [ "$key" = mysql-core ]; then
+    fail "MySQL: mysql-core has no binlog coordinates: --until needs --components mysql"
+    return
+  elif [ -n "$UNTIL_EPOCH" ]; then
     local meta stamp uuid binlog list
     stamp="${file##*/financial_scraper_}"
     stamp="${stamp%%.*}"
@@ -414,6 +422,7 @@ restore_mysql() {
     fail "MySQL restore failed (${pod})"
     return
   fi
+  [ "$key" = mysql ] || warn "MySQL: ${key} does not hold the rows of ${MYSQL_CORE_EXCLUDED_TABLES}: created empty if missing in ${pod}, existing rows left as they were"
   if [ "${#chain[@]}" -eq 0 ]; then
     ok "MySQL restore complete (${pod})"
     purge_expired_rows
@@ -578,7 +587,7 @@ RUN_KEYS=()
 IFS=',' read -ra REQUESTED <<< "$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
   case "$part" in
-    mongodb-audit|mysql|checkpoints|spire) RUN_KEYS+=("$part") ;;
+    mongodb-audit|mysql|mysql-core|checkpoints|spire) RUN_KEYS+=("$part") ;;
   esac
 done
 if ! select_common_run "${RUN_KEYS[@]}"; then
@@ -610,6 +619,7 @@ run_components() {
     case "$part" in
       mongodb-audit) restore_mongodb mongodb-audit ;;
       mysql)       restore_mysql ;;
+      mysql-core)  restore_mysql mysql-core ;;
       checkpoints) restore_checkpoints ;;
       spire)       restore_spire ;;
       # Derived state only (discovery registrations and tokens): rebuilt by the

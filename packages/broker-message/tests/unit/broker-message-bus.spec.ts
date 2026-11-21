@@ -1,4 +1,4 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 
 import BrokerMessage, { HELPER } from "../../src/broker-message";
 import { RedisMessageJournal } from "../../src/bus/redis-journal";
@@ -39,5 +39,22 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 
 		expect(received).toEqual([]);
 		expect([...REDIS.streams.keys()]).toContain(`p:journal:${TOPIC}`);
+	});
+
+	it("should not block intents() while Redis refuses the service's user", async () => {
+		const topic = "dlq.entry.added";
+		const journal = new RedisMessageJournal({ redis: REDIS, keyPrefix: "q" });
+		jest
+			.spyOn(journal, "register")
+			.mockRejectedValue(new Error("WRONGPASS invalid username-password pair"));
+		const bus = new BrokerMessage({
+			journal,
+			instanceId: "i-1" as never,
+			serviceName: "model-evaluator" as never,
+		});
+		await expect(
+			bus.intents([topic] as never, async () => undefined)
+		).resolves.toBeUndefined();
+		await bus.stopMessageManager();
 	});
 });

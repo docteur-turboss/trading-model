@@ -64,7 +64,8 @@ each component (checksum verified), or the run given by `--timestamp`.
 errors, `MarketDataStale`  
 **Severity:** L1
 
-There is **no MySQL failover** (ADR-0020). Every client (financial-scraper,
+There is **no MySQL failover** (ADR-0020): one pod is accepted by ADR-0085,
+with the RTO 4 h of `BACKUP_DR.md`. Every client (financial-scraper,
 financial-scraper-collector, migration and retention Jobs) writes through
 `mysql-primary`, whose selector is the pod `mysql-0`. The StatefulSet runs
 one replica. A cluster created before issue #814 may still have the empty

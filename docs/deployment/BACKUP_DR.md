@@ -226,7 +226,7 @@ dump. So the backup scripts (`write_dump` in `scripts/backup-lib.sh`):
 ```
 
 `component` is the restore unit: `mongodb`, `mongodb-audit`, `mysql`,
-`checkpoints`, `spire` (Kubernetes); `mongodb`, `mysql`, `redis:<container>`,
+`mysql-core`, `checkpoints`, `spire` (Kubernetes); `mongodb`, `mysql`, `mysql-core`, `redis:<container>`,
 `checkpoints`, `spire` (Docker). `path` is relative to `BACKUP_DIR`, `size` is
 the size of the file on disk (encrypted), `sha256` the checksum of its
 decrypted content. One entry per line: the restore scripts read it without
@@ -400,8 +400,8 @@ off-site layout (`scripts/backup-lib.sh`):
 | Tier | Run kept | Components | `backup-data` (CronJob) | Off-site |
 | ---- | -------- | ---------- | ----------------------- | -------- |
 | daily | every run | all | 30 days (`RETENTION_DAYS`) | `daily/`, 31 days |
-| weekly | first complete run of each ISO week (Monday's, normally) | `mongodb-audit`, `mysql` | no (`RETENTION_WEEKLY_WEEKS=0`) | `weekly/`, 85 days (12 weeks) |
-| monthly | first complete run of each calendar month | `mongodb-audit`, `mysql` | no (`RETENTION_MONTHLY_MONTHS=0`) | `monthly/`, 1830 days (60 months) |
+| weekly | first complete run of each ISO week (Monday's, normally) | `mongodb-audit`, `mysql-core` | no (`RETENTION_WEEKLY_WEEKS=0`) | `weekly/`, 85 days (12 weeks) |
+| monthly | first complete run of each calendar month | `mongodb-audit`, `mysql-core` | no (`RETENTION_MONTHLY_MONTHS=0`) | `monthly/`, 1830 days (60 months) |
 
 - **Age** comes from the `%Y-%m-%d_%H%M%S` timestamp in the file name, never
   from the mtime (a copy or a fetch from the bucket changes it). A file
@@ -421,7 +421,7 @@ off-site layout (`scripts/backup-lib.sh`):
 - A manifest is kept as long as one of its dumps, and at least 30 days.
 - Variables: `RETENTION_DAYS` (default 30), `RETENTION_WEEKLY_WEEKS` and
   `RETENTION_MONTHLY_MONTHS` (long tiers on the volume, default 0),
-  `RETENTION_LONG_COMPONENTS` (manifest keys, default `mongodb-audit mysql`),
+  `RETENTION_LONG_COMPONENTS` (manifest keys, default `mongodb-audit mysql-core`),
   `BACKUP_OFFSITE_LAYOUT` (`flat` by default, `tiered` in the CronJob).
   Without any of them the behaviour is the former one: 30 days, plus the
   guard. With `RETENTION_WEEKLY_WEEKS=12 RETENTION_MONTHLY_MONTHS=60` the same
@@ -458,9 +458,16 @@ holds no earlier complete run of it in the same ISO week (month); the daily
 tier keeps those earlier runs (`RETENTION_DAYS` >= 30). Under each prefix
 the layout is the volume's: `fetch-offsite.sh` reads `daily/` by default on a
 tiered bucket, `--tier weekly` or `--tier monthly` another tier
-(`--components mongodb-audit,mysql` there), and `--tier flat` the bucket root
+(`--components mongodb-audit,mysql-core` there), and `--tier flat` the bucket root
 ([From the off-site bucket](#from-the-off-site-bucket)). The weekly and monthly
-prefixes hold only `mongodb-audit`, the MySQL dump and the manifests: no
+prefixes hold only `mongodb-audit`, `mysql-core` and the manifests.
+`mysql-core` is a second MySQL dump of each run without the rows of the tables of
+`MYSQL_CORE_EXCLUDED_TABLES` (`backup-lib.sh`): `market_trades` and
+`market_candles` (re-downloadable from Binance) and `market_order_books`
+(kept 180 days in the database, ADR-0053). The full `mysql` dump, with
+them, is daily only (31 days); restoring `mysql-core` recreates those tables
+empty when they are missing (`CREATE TABLE IF NOT EXISTS`, matching
+`_migrations`), never touches their existing rows, and logs it. No
 operational `mongodb`, no checkpoints, no CA keys, and no `.pitr` starting
 point (useless once the binlogs and oplogs, kept 72 h, are gone). The
 incremental job (`db-backup-incremental`) uses the tiered layout too: its
@@ -669,8 +676,8 @@ bash scripts/fetch-offsite.sh --dest ./restore          # newest complete run
 bash scripts/fetch-offsite.sh --dest ./restore --timestamp 2026-10-01_020000 --components mongodb,mysql
 BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
   bash scripts/restore-k8s.sh --timestamp <TS printed by fetch-offsite.sh>
-# Long tiers of a tiered bucket (ADR-0032): audit trail and market data only
-bash scripts/fetch-offsite.sh --dest ./restore --tier monthly --components mongodb-audit,mysql
+# Long tiers of a tiered bucket (ADR-0032): audit trail and MySQL without the market tables
+bash scripts/fetch-offsite.sh --dest ./restore --tier monthly --components mongodb-audit,mysql-core
 bash scripts/fetch-offsite.sh --dest ./restore --tier monthly --components mongodb-audit --timestamp 2025-09-01_020000
 BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
   bash scripts/restore-k8s.sh --timestamp <TS> --components mongodb-audit   # audit replica set alone

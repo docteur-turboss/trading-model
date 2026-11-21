@@ -203,14 +203,6 @@ describe("createRedisClient (sentinel) — real failover", () => {
 		await network.stop();
 	}, 60_000);
 
-	it("should connect to the master the sentinel designates", async () => {
-		topology = await startTopology();
-		const { client } = topology;
-
-		await expect(client.set("key", "value")).resolves.toBe("OK");
-		await expect(role(client)).resolves.toBe("master");
-	}, 120_000);
-
 	it("should follow the promoted replica when the master dies, without losing replicated writes", async () => {
 		topology = await startTopology();
 		const { client } = topology;

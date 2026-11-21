@@ -715,7 +715,8 @@ record_incremental_archives() {
 #                             many months (default 0: none)
 #  RETENTION_LONG_COMPONENTS  components promoted to the weekly and monthly
 #                             tiers, locally and off-site (manifest keys,
-#                             default "mongodb-audit mysql")
+#                             default "mongodb-audit mysql-core": the full
+#                             `mysql` dump stays daily, ADR-0032)
 #  BACKUP_OFFSITE_LAYOUT      flat (default): `<bucket>/<path>`; tiered:
 #                             `<bucket>/daily/<path>` for every file, plus
 #                             `weekly/` and `monthly/` copies of the promoted
@@ -729,7 +730,7 @@ record_incremental_archives() {
 #  whatever its age. Ages come from the timestamp in the file name, never
 #  from the mtime (a copy or a fetch from the bucket changes the mtime).
 
-RETENTION_LONG_COMPONENTS="${RETENTION_LONG_COMPONENTS:-mongodb-audit mysql}"
+RETENTION_LONG_COMPONENTS="${RETENTION_LONG_COMPONENTS:-mongodb-audit mysql-core}"
 
 # awk program shared by gfs_plan and offsite_tiers. Input: paths relative to
 # BACKUP_DIR, one per line. Fills files[path] = TS, comp[path] = manifest key
@@ -1054,6 +1055,38 @@ mysql_root_sh() {
 # `mysql` schema is left out: it cannot be restored over a running server.
 # No GTID statement: the restore must go through the binlog to the replicas.
 MYSQL_DUMP_SH="dbs=\$(mysql --user=root -N -e \"SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('mysql', 'sys', 'information_schema', 'performance_schema')\") && exec mysqldump --user=root --databases \$dbs --single-transaction --quick --routines --events --set-gtid-purged=OFF"
+
+# Tables left out of the `mysql-core` dump, the only MySQL dump promoted to
+# the weekly and monthly tiers (ADR-0032): re-downloadable from Binance
+# (trades, candles) or kept 180 days in the database anyway (order books,
+# ADR-0053). Only the full daily `mysql` dump holds their rows; the core dump
+# ends with their structure (no rows, no DROP), so that a restore into an
+# empty instance matches `_migrations` and never touches live rows.
+MYSQL_CORE_EXCLUDED_TABLES="financial_scraper.market_trades financial_scraper.market_candles financial_scraper.market_order_books"
+# shellcheck disable=SC2086 # one --ignore-table per table
+MYSQL_CORE_DUMP_SH="${MYSQL_DUMP_SH/exec /}$(printf ' --ignore-table=%s' $MYSQL_CORE_EXCLUDED_TABLES) && echo 'USE \`financial_scraper\`;' && exec mysqldump --user=root --no-data --skip-add-drop-table --set-gtid-purged=OFF financial_scraper ${MYSQL_CORE_EXCLUDED_TABLES//financial_scraper./}"
+
+# Filter of the core dump: CREATE TABLE IF NOT EXISTS, so the structure of an
+# excluded table never fails on a live one (kept tables are dropped first).
+mysql_core_if_not_exists() {
+	sed 's/^CREATE TABLE `/CREATE TABLE IF NOT EXISTS `/'
+}
+
+# backup_mysql_core <command...>
+# Writes `mysql-core/financial_scraper_<TS>.sql.gz` from the gzipped dump
+# <command> prints (MYSQL_CORE_DUMP_SH through mysql_core_if_not_exists) and
+# records its metric.
+backup_mysql_core() {
+	local file="${BACKUP_DIR}/mysql-core/financial_scraper_${TIMESTAMP}.sql.gz${AGE_SUFFIX}"
+	mkdir -p "${BACKUP_DIR}/mysql-core"
+	if write_dump mysql-core "$file" "$@"; then
+		ok "MySQL core backup complete (without ${MYSQL_CORE_EXCLUDED_TABLES}): ${file}"
+		write_metric "mysql-core" 1
+	else
+		fail "MySQL core backup failed"
+		write_metric "mysql-core" 0
+	fi
+}
 
 # --- Point-in-time recovery (ADR-0031) --------------------------------------
 #
