@@ -1,3 +1,4 @@
+import type { DeliveredMetadata } from "@trading-model/broker-message";
 import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
@@ -12,10 +13,7 @@ import type { EVALUATOR_API } from "./api-routes";
 function createModelPublishedHandler(
 	evaluate: ReturnType<typeof createEvaluateModel>
 ) {
-	return async (
-		payload: unknown,
-		metadata: { topic: string; messageId?: string }
-	) => {
+	return async (payload: unknown, metadata: DeliveredMetadata) => {
 		const event = PublishedModel.safeParse(payload);
 		if (!event.success) {
 			getLogger().warn("Invalid training.model.published payload rejected", {
@@ -38,7 +36,7 @@ export function createModelPublishedListener(
 	const handle = createModelPublishedHandler(evaluate);
 	return async (
 		payload: unknown,
-		metadata: { topic: string; messageId?: string }
+		metadata: DeliveredMetadata
 	): Promise<void> => {
 		if (!(await handle(payload, metadata))) {
 			throw deadLetterError("Invalid training.model.published payload", {

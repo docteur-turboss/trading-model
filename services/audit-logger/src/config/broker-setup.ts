@@ -5,13 +5,14 @@ import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import type { EventMap } from "@trading-model/contracts/event-map";
 import { logger } from "@trading-model/http/logger";
 import { toInstanceId } from "@trading-model/primitives/primitives";
+import type { createAuditRecorder } from "../adapters/inbound/subscription/audit-subscriber";
 import type { DeliveredEnvelope } from "../adapters/outbound/persistence/audit-document-builder";
 import { ENV } from "../infrastructure/config/env";
 import { AddressManager } from "./address-manager";
 import { auditedTopics } from "./audited-topics";
 
 export async function createBrokerMessage(
-	record: (envelope: DeliveredEnvelope) => Promise<void>
+	record: ReturnType<typeof createAuditRecorder>
 ): Promise<{
 	brokerMessage: BrokerMessage;
 }> {
@@ -28,7 +29,7 @@ export async function createBrokerMessage(
 
 async function subscribeToAllTopics(
 	brokerMessage: BrokerMessage,
-	record: (envelope: DeliveredEnvelope) => Promise<void>
+	record: ReturnType<typeof createAuditRecorder>
 ): Promise<void> {
 	const allTopics = auditedTopics();
 	for (const topic of allTopics) {
