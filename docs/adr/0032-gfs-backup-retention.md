@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Verified by:** `tests/backup/backup-retention.test.sh`, `tests/backup/fetch-offsite.test.sh`
+**Verified by:** `tests/backup/backup-retention.test.sh`, `tests/backup/fetch-offsite.test.sh`, `tests/backup/pitr-chain.test.sh`
 
 ## Context
 
@@ -16,7 +16,7 @@ Options were put to the project owner on issue #292; the owner chose option 1 + 
 
 ## Decision
 
-1. **Tiers.** Daily: every run, every component, 30 days (`RETENTION_DAYS`). Weekly: the first complete run of each ISO week, 12 weeks. Monthly: the first complete run of each calendar month, 60 months. Only `mongodb-audit` and `mysql` are promoted (`RETENTION_LONG_COMPONENTS`).
+1. **Tiers.** Daily: every run, every component, 30 days (`RETENTION_DAYS`). Weekly: the first complete run of each ISO week, 12 weeks. Monthly: the first complete run of each calendar month, 60 months. Only `mongodb-audit` and `mysql-core` are promoted (`RETENTION_LONG_COMPONENTS`). *Amended 2026-11-21 (issue #1814, owner's option 2):* `mysql-core` is a second MySQL dump of each run without `market_trades`, `market_candles` (re-downloadable from Binance) and `market_order_books` (kept 180 days in the database, so a 60-month copy would outlive it, [ADR-0053](./0053-order-books-persisted-not-served.md)), listed once in `MYSQL_CORE_EXCLUDED_TABLES` (`scripts/backup-lib.sh`). The full `mysql` dump and its `.pitr` stay daily only: these tables account for about 99 % of the dump, so ~100 locked copies of the whole base become ~100 copies of signals, tickers, cursors and migration state.
 2. **Long tiers off-site only.** The `backup-data` PVC (100Gi) keeps the dailies: the CronJob leaves `RETENTION_WEEKLY_WEEKS` and `RETENTION_MONTHLY_MONTHS` at 0. With `BACKUP_OFFSITE_LAYOUT=tiered`, `upload_offsite` copies every file under `daily/`, and the promoted dumps with their manifest also under `weekly/` and `monthly/`. The same tiers can be kept locally by setting the two variables (Docker hosts).
 3. **Off-site expiry by bucket lifecycle rules (B1)**, one per prefix: `daily/` 31 days, `weekly/` 85 days, `monthly/` 1830 days, documented in `docs/deployment/BACKUP_DR.md` ("Off-site tiers"). The job never deletes in the bucket, so its credentials need no delete right (compatible with Object Lock, finding A3). `scripts/backup-bucket-check.sh` reads the rules at deploy and reports a missing prefix.
 4. **Complete run (C2).** The run manifest of issue #288 is the source: a run is complete for a component when its manifest exists and the component's final file exists (`write_dump` renames a dump only when it succeeded). No decryption is needed, so the job, which holds no age identity, can apply it. Only complete runs are promoted. The first run of a week or month is promoted, rather than Sunday's, because the off-site tier must be chosen at upload time. A promoted copy that fails is caught up: each daily run sends again the weekly and monthly copies of every period whose runs are all still on the volume (`offsite_catchup`: periods started at most `RETENTION_DAYS` days ago), so one transient S3 failure cannot leave a month without monthly copy.
@@ -25,11 +25,11 @@ Options were put to the project owner on issue #292; the owner chose option 1 + 
 7. **Minimisation (GDPR).** The DLQ, checkpoints and SPIRE CA private key backups are never promoted: they never outlive 30 days (31 off-site). The `spire` database rides in the promoted MySQL dump (registration entries, trust bundle, no private key): accepted, low stakes. A monthly backup keeps what it contains up to 60 months after it was taken, so a record may outlive its live retention in an encrypted backup; accepted because the 5 years are a regulatory minimum and the backups hold no personal data (data processing register, activity 7).
 
 8. **Point-in-time files stay out of the GFS (ADR-0031).** The binlog and oplog archives (`mysql/binlog/`, `mongodb/oplog/`) are left out of the retention plan: `backup-incremental-k8s.sh` keeps them 72 h, and they never count as a component's newest file. A `.pitr` starting point is no dump: on the volume it lives as long as the dump of its component and run, and off-site it goes to `daily/` only, as do the archives (the incremental job uses the tiered layout too), since it is useless once the archives are gone.
-9. **The long tiers are restorable per component.** `fetch-offsite.sh` and `restore-k8s.sh` take a `mongodb-audit` component (the audit replica set alone), because a weekly or monthly run never holds the operational `mongodb` dump: `--tier monthly --components mongodb-audit,mysql`, then `restore-k8s.sh --components mongodb-audit,mysql`.
+9. **The long tiers are restorable per component.** `fetch-offsite.sh` and `restore-k8s.sh` take a `mongodb-audit` component (the audit replica set alone), because a weekly or monthly run never holds the operational `mongodb` dump: `--tier monthly --components mongodb-audit,mysql-core`, then `restore-k8s.sh --components mongodb-audit,mysql-core`, which leaves the excluded tables as they are and logs it (no `--until` from `mysql-core`).
 
 ## Consequences
 
-- About 30 daily, 12 weekly and 60 monthly copies of the audit and MySQL dumps off-site: storage cost proportional to their size. The local volume is unchanged.
+- About 30 daily, 12 weekly and 60 monthly copies of the audit and `mysql-core` dumps off-site (31 days of full `mysql` dumps): a trade, candle or order book older than 31 days is restorable only from the live database or a re-download, never from a long tier: storage cost proportional to their size. The local volume is unchanged.
 - Restoring a long tier goes through the bucket: the layout under each prefix is the volume's, and `fetch-offsite.sh --tier <tier>` fetches from it (issue #290). The weekly and monthly prefixes hold no operational `mongodb`, checkpoints or CA keys.
 - Off-site expiry relies on rules set outside the repository. A missing rule keeps copies forever, it never loses one; `backup-bucket-check.sh` verifies them at deploy.
 - Consistent with ADR-0027: audit anchors keep their own Object Lock retention (`AUDIT_RETENTION_DAYS`) in a separate bucket. No error is swallowed (ADR-0017): a failed retention plan is reported and prunes nothing.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Restore Script (Docker)
-#  Usage:  bash scripts/restore.sh [--dry-run] [--components mongodb,mysql,redis,spire]
+#  Usage:  bash scripts/restore.sh [--dry-run] [--components mongodb,mysql,mysql-core,redis,spire]
 #          [--allow-mixed-runs]
 #          BACKUP_DIR=./backups RESTORE_TIMESTAMP=2025-01-01_120000
 #          BACKUP_AGE_IDENTITY=~/backup-key.txt (to read *.age backups)
@@ -13,6 +13,8 @@
 #  component. Every file is checked against its manifest (size,
 #  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
 #  anything is written, --dry-run included. A run without manifest is refused.
+#  `mysql-core` (weekly / monthly tiers, ADR-0032) leaves the tables of
+#  MYSQL_CORE_EXCLUDED_TABLES (backup-lib.sh) as they are.
 # =============================================================================
 
 set -euo pipefail
@@ -87,8 +89,9 @@ restore_mongodb() {
 }
 
 restore_mysql() {
-  log "Starting MySQL restore..."
-  resolve_and_verify mysql || return 0
+  local key="${1:-mysql}"
+  log "Starting MySQL restore (${key})..."
+  resolve_and_verify "$key" || return 0
   local file="$RESOLVED_FILE"
   verify_mysql_dump_complete "$file" || return 0
 
@@ -104,6 +107,7 @@ restore_mysql() {
 
   if open_backup "$file" | gunzip | docker exec -i trading-mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --user=root'; then
     ok "MySQL restore complete"
+    [ "$key" = mysql ] || warn "MySQL: ${key} does not hold ${MYSQL_CORE_EXCLUDED_TABLES}: left as they were"
     log "Verifying restore..."
     local tables
     if tables=$(docker exec trading-mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --user=root -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema NOT IN ('"'"'mysql'"'"', '"'"'sys'"'"', '"'"'information_schema'"'"', '"'"'performance_schema'"'"')"'); then
@@ -243,7 +247,7 @@ RUN_KEYS=()
 IFS=',' read -ra REQUESTED <<< "$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
   case "$part" in
-    mongodb|mysql|checkpoints|spire) RUN_KEYS+=("$part") ;;
+    mongodb|mysql|mysql-core|checkpoints|spire) RUN_KEYS+=("$part") ;;
     redis) RUN_KEYS+=(redis:trading-redis) ;;
   esac
 done
@@ -266,6 +270,7 @@ for part in "${PARTS[@]}"; do
   case "$part" in
     mongodb)     restore_mongodb ;;
     mysql)       restore_mysql ;;
+    mysql-core)  restore_mysql mysql-core ;;
     redis)       restore_redis ;;
     checkpoints) restore_checkpoints ;;
     spire)       restore_spire ;;

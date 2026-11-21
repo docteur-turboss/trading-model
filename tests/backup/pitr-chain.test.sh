@@ -295,6 +295,8 @@ for label in mongodb mongodb-audit; do
 	gz_of oplog >"$BACKUP_DIR/mongodb/oplog/$label/$((DUMP_EPOCH - 3600)).1_$((DUMP_EPOCH + 7200)).1.bson.gz"
 done
 write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_$TIMESTAMP.sql.gz" gz_of "-- Dump completed" 2>/dev/null
+mkdir -p "$BACKUP_DIR/mysql-core"
+write_dump mysql-core "$BACKUP_DIR/mysql-core/financial_scraper_$TIMESTAMP.sql.gz" gz_of "-- Dump completed" 2>/dev/null
 printf 'server_uuid=u-1\nbinlog_file=mysql-bin.000001\nbinlog_pos=4\n' >"$BACKUP_DIR/mysql/financial_scraper_$TIMESTAMP.pitr"
 write_manifest >/dev/null 2>&1
 export KUBECTL_LOG="$R/kubectl.log"
@@ -319,6 +321,18 @@ if PATH="$STUB:$PATH" BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/restore-k8s.s
 	pass "once every chain reaches the instant, both stores are restored, each dump checksummed once"
 else
 	failed "complete chains: $(tail -8 "$R/out")"
+fi
+# The weekly / monthly MySQL dump (ADR-0032): restored, says which tables it
+# lacks, and never serves a point-in-time restore.
+if PATH="$STUB:$PATH" BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/restore-k8s.sh" --components mysql-core 	--timestamp "$TIMESTAMP" >"$R/out" 2>&1 && grep -q "mysql-core does not hold financial_scraper.market_trades" "$R/out"; then
+	pass "mysql-core restores and names the market tables it does not hold"
+else
+	failed "mysql-core restore: $(tail -8 "$R/out")"
+fi
+if ! PATH="$STUB:$PATH" BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/restore-k8s.sh" --components mysql-core 	--until "2026-11-01 03:00:00" >"$R/out" 2>&1 && grep -q "mysql-core has no binlog coordinates" "$R/out"; then
+	pass "mysql-core is refused for --until (no binlog coordinates)"
+else
+	failed "mysql-core with --until: $(tail -8 "$R/out")"
 fi
 unset KUBECTL_LOG
 TIMESTAMP=""
