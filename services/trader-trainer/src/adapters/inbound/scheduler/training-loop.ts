@@ -228,31 +228,35 @@ export class TrainingLoop {
 			) {
 				// Advance before training: a rejected train() still passes the turn.
 				this._nextIndex = (index + 1) % symbols.length;
-				const group = this._sharedTrunk?.includes(symbol)
-					? await this._eligibleGroup(symbol, maxDataAgeMs)
-					: [symbol];
-				for (const member of group) {
-					if (this._signals?.assets.has(member)) {
-						await this._observeSignals(member);
-					}
-				}
-				const bars = group.map((member) =>
-					this._dataBuffer.getLastCandleCloseTime(member)
-				);
-				const result =
-					group.length > 1
-						? await this._trainer.trainGroup(group)
-						: await this._trainer.train(symbol);
-				for (const [i, member] of group.entries()) {
-					if (
-						this._daily.has(member) &&
-						result.success &&
-						bars[i] !== undefined
-					) {
-						this._trainedBar.set(member, bars[i] as number);
-					}
-				}
+				await this._trainReady(symbol, maxDataAgeMs);
 				return;
+			}
+		}
+	}
+
+	/** Trains `symbol`, with the eligible symbols of its group under FEATURE_SHARED_TRUNK. */
+	private async _trainReady(
+		symbol: TradingSymbol,
+		maxDataAgeMs: number
+	): Promise<void> {
+		const group = this._sharedTrunk?.includes(symbol)
+			? await this._eligibleGroup(symbol, maxDataAgeMs)
+			: [symbol];
+		for (const member of group) {
+			if (this._signals?.assets.has(member)) {
+				await this._observeSignals(member);
+			}
+		}
+		const bars = group.map((member) =>
+			this._dataBuffer.getLastCandleCloseTime(member)
+		);
+		const result =
+			group.length > 1
+				? await this._trainer.trainGroup(group)
+				: await this._trainer.train(symbol);
+		for (const [i, member] of group.entries()) {
+			if (this._daily.has(member) && result.success && bars[i] !== undefined) {
+				this._trainedBar.set(member, bars[i] as number);
 			}
 		}
 	}

@@ -2,12 +2,15 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { Trainer } from "../../../../src/application/trainer";
-import { runInProcess } from "../../../../src/application/training-session";
+import {
+	runInProcess,
+	type TrainingSessionResult,
+} from "../../../../src/application/training-session";
 import { FitnessType } from "../../../../src/domain/genetic-algorithm/genome";
 import { makeSeededBackendFactory } from "../../../../src/domain/genetic-algorithm/rl-backend";
 import {
-	trunkOf,
 	trunkSha256,
+	withHeadOf,
 } from "../../../../src/domain/genetic-algorithm/shared-trunk";
 import { MarketDataBuffer } from "../../../../src/domain/market-data-buffer";
 import {
@@ -39,77 +42,115 @@ const SETTINGS: TrainingSettings = {
 const A = TradingSymbol.of("BTCUSDT");
 const B = TradingSymbol.of("ETHUSDT");
 
-async function run(group: boolean) {
+async function run(
+	group: boolean,
+	options: {
+		failSave?: string;
+		dailyCosts?: (symbol: TradingSymbol) => never;
+	} = {}
+) {
 	const buffer = new MarketDataBuffer({ maxSize: 600 } as never);
 	feedCandles(buffer, "BTCUSDT", 500);
 	feedCandles(buffer, "ETHUSDT", 500);
 	const saved: NewModelArtifact[] = [];
+	let session: TrainingSessionResult | undefined;
 	const models = {
 		save: async (artifact: NewModelArtifact) => {
+			if (artifact.symbol === options.failSave) {
+				throw new Error("disk full");
+			}
 			saved.push(artifact);
 			return { version: "v", sha256: "0".repeat(64), createdAt: "2026-01-01" };
 		},
 	};
 	const trainer = new Trainer(buffer, {
 		settings: SETTINGS,
-		runner: runInProcess,
+		runner: async (...args) => {
+			session = await runInProcess(...args);
+			return session;
+		},
 		models: models as never,
+		dailyCosts: options.dailyCosts,
 	});
 	const result = group
 		? await trainer.trainGroup([A, B])
 		: await trainer.train(A);
-	expect(result.success).toBe(true);
-	return saved;
+	return { saved, result, session: session as TrainingSessionResult };
 }
 
 describe("FEATURE_SHARED_TRUNK", () => {
-	it("flag off: one self-contained model, same genome as before", async () => {
-		const [first, ...others] = await run(false);
-		expect(others).toEqual([]);
+	it("flag off: same published genome as before the change (reference computed on development)", async () => {
+		const { saved, result } = await run(false);
+		expect(result.success).toBe(true);
+		const [first] = saved;
+		expect(saved).toHaveLength(1);
 		expect(first.components).toBeUndefined();
-		expect(first.bestGenome).not.toHaveProperty("heads");
-		const again = (await run(false))[0];
-		expect(Array.from(again.weights)).toEqual(Array.from(first.weights));
+		expect(Object.keys(first.bestGenome).sort()).toEqual([
+			"crossover",
+			"gaControl",
+			"generation",
+			"id",
+			"mutation",
+			"network",
+			"rl",
+			"trainedWeights",
+		]);
+		const weights = Array.from(first.weights);
+		expect(weights).toHaveLength(3459);
+		expect(weights.slice(0, 6).map((w) => Number(w.toFixed(4)))).toEqual([
+			0.8164, -0.7885, 0.9385, -0.1851, 0.0995, -0.0778,
+		]);
+		expect(weights.reduce((a, b) => a + b, 0)).toBeCloseTo(-47.041, 2);
 	}, 120_000);
 
-	it("flag on: one asset model per symbol, same trunk component, weights reload to the same output", async () => {
-		const saved = await run(true);
+	it("flag on: one asset model per symbol, same trunk component, reloaded output = training output", async () => {
+		const { saved, session } = await run(true);
 		expect(saved.map((model) => model.symbol)).toEqual(["BTCUSDT", "ETHUSDT"]);
 		const [a, b] = saved;
 		const genome = a.bestGenome;
 		expect(a.components).toEqual(b.components);
 		expect(a.components?.[0].sha256).toBe(trunkSha256(a.weights, genome));
-		expect(Array.from(trunkOf(a.weights, genome))).toEqual(
-			Array.from(trunkOf(b.weights, genome))
-		);
+		expect(trunkSha256(b.weights, genome)).toBe(a.components?.[0].sha256);
 		expect(Array.from(a.weights)).not.toEqual(Array.from(b.weights));
 
-		const input = FeatureVector.fromFloat32Array(new Float32Array(1));
-		const output = (seed: number) => {
-			const backend = makeSeededBackendFactory(seed)(genome);
-			backend.setWeights(a.weights);
-			return Array.from(backend.forwardPass(input));
-		};
-		expect(output(1)).toEqual(output(2));
+		const { inputDim } = session.bestGenome.network;
+		const input = FeatureVector.fromFloat32Array(
+			Float32Array.from({ length: inputDim - 1 }, (_v, i) => Math.sin(i + 1))
+		);
+		for (const model of saved) {
+			// What the GA trained and scored: the group genome with this symbol's head.
+			const trained = makeSeededBackendFactory(7)(
+				withHeadOf(session.bestGenome, model.symbol)
+			);
+			const reloaded = makeSeededBackendFactory(99)(genome);
+			reloaded.setWeights(model.weights);
+			expect(Array.from(reloaded.forwardPass(input))).toEqual(
+				Array.from(trained.forwardPass(input))
+			);
+		}
+		const manifest = buildModelManifest(a, {
+			version: "v",
+			createdAt: new Date(0),
+			sha256: "0",
+		});
+		expect(manifest.components).toEqual(a.components);
+		expect(manifest.genome).not.toHaveProperty("heads");
 	}, 120_000);
 
-	it("manifest: components is optional and kept when set", () => {
-		const base = {
-			symbol: "BTCUSDT",
-			instanceId: "t",
-			bestGenome: { network: {}, heads: {} } as never,
-			weights: new Float32Array([1]),
-			features: { dim: 1, fields: ["close"] },
-			normalization: {},
-			summary: { generation: 1, fitness: 1, sharpe: 1, avgPnl: 1 } as never,
-		};
-		const stored = { version: "v", createdAt: new Date(0), sha256: "0" };
-		const components = [
-			{ role: "trunk" as const, id: "trunk:ab", version: "ab", sha256: "ab" },
-		];
-		expect(buildModelManifest(base, stored)).not.toHaveProperty("components");
-		const manifest = buildModelManifest({ ...base, components }, stored);
-		expect(manifest.components).toEqual(components);
-		expect(manifest.genome).not.toHaveProperty("heads");
-	});
+	it("flag on: one symbol failing to store does not stop the others", async () => {
+		const { saved, result } = await run(true, { failSave: "BTCUSDT" });
+		expect(result.success).toBe(true);
+		expect(saved.map((model) => model.symbol)).toEqual(["ETHUSDT"]);
+	}, 120_000);
+
+	it("flag on: refuses a group mixing a daily and an intraday symbol", async () => {
+		const costs = { fee: 0 } as never;
+		const { saved, result } = await run(true, {
+			dailyCosts: (symbol) => (symbol === B ? costs : (undefined as never)),
+		});
+		expect(saved).toEqual([]);
+		expect(String(!result.success && result.error.message)).toContain(
+			"mixes daily and intraday"
+		);
+	}, 120_000);
 });

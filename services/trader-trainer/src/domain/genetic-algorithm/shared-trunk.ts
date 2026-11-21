@@ -10,11 +10,6 @@ function headLength(genome: Genome): number {
 	return (hiddenLayers[hiddenLayers.length - 1].neurons + 1) * outputDim;
 }
 
-/** Hidden layers: shared by every symbol of the group (FEATURE_SHARED_TRUNK, ADR-0076 step 1). */
-export function trunkOf(weights: Float32Array, genome: Genome): Float32Array {
-	return weights.subarray(0, weights.length - headLength(genome));
-}
-
 /** The genome ready to train on `symbol`: its own head when it has one, else the trunk's current one. */
 export function withHeadOf(genome: Genome, symbol: string): Genome {
 	const head = genome.heads?.[symbol];
@@ -44,9 +39,9 @@ export function weightsOf(genome: Genome, symbol: string): Float32Array {
 	return (withHeadOf(genome, symbol).trainedWeights as Float32Array).slice();
 }
 
-/** Hash of the trunk bytes: the same value in every asset model of the group. */
+/** Hash of the hidden layers (all but the head): the same value in every asset model of the group (FEATURE_SHARED_TRUNK, ADR-0076 step 1). */
 export function trunkSha256(weights: Float32Array, genome: Genome): string {
-	const trunk = trunkOf(weights, genome);
+	const trunk = weights.subarray(0, weights.length - headLength(genome));
 	return createHash("sha256")
 		.update(new Uint8Array(trunk.buffer, trunk.byteOffset, trunk.byteLength))
 		.digest("hex");

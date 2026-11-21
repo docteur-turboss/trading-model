@@ -128,6 +128,8 @@ Each step sits behind a flag (ADR-0039), has its measure on the test segment (AD
 
 Step 1 is the first proof because it needs no new network code, answers "does sharing hurt" and attacks the cost table directly.
 
+Step 1 as built (`FEATURE_SHARED_TRUNK`, `scripts/shared-trunk-bench.ts` measures it): the limits below stay until their step. (a) The trunk is not a separate artifact: every asset model carries its full weights and `components` names the trunk by the sha256 of its bytes, which nothing resolves or verifies yet; the trunk becomes a published, immutable component under a group id (section 7) at step 2, when the encoders need it. (b) The DQN trains symbol after symbol on the shared trunk, one replay buffer per window as before, not on one pooled buffer: pooling needs the replay to pick the head of each transition and is left to the owner (issue #1897). (c) The simulator costs of a group are those of its first symbol, so all symbols must be daily or all intraday (a mixed group is refused; per-asset costs differ inside a class).
+
 ## Questions to the owner
 
 - **Q1**: pooling before attention (recommended), or attention first?

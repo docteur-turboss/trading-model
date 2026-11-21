@@ -173,6 +173,19 @@ export class Trainer {
 		if (failed && !failed.ok) {
 			return failed.error;
 		}
+		// One simulator cost model serves the whole session (ADR-0083): a daily
+		// symbol next to a crypto one would be scored on the wrong costs.
+		const daily = symbols.map(
+			(symbol) => this._deps.dailyCosts?.(symbol) !== undefined
+		);
+		if (daily.some((isDaily) => isDaily !== daily[0])) {
+			return this._handleTrainingError(
+				symbols[0],
+				new Error(
+					`Shared trunk group mixes daily and intraday symbols: ${symbols.join(", ")}`
+				)
+			);
+		}
 		const sets = checks.map((check) => (check.ok ? check.windowSets : []));
 		const windowSets = sets.flatMap((group, index) =>
 			group.map((ws) => ({ ...ws, symbol: String(symbols[index]) }))
@@ -195,6 +208,8 @@ export class Trainer {
 				},
 			];
 			const successes: TrainingSuccess[] = [];
+			// Store and publish errors are caught and logged per symbol by
+			// _complete (ADR-0017): one symbol failing leaves the others published.
 			for (const [i, symbol] of symbols.entries()) {
 				const own = session.symbols?.[String(symbol)];
 				successes.push(
