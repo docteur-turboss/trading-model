@@ -19,6 +19,7 @@ import {
 	ADDRESS_MANAGER_ROUTES,
 	REGISTRATION_READINESS,
 } from "./address-manager";
+import { publishRiskEvent } from "./audit";
 import {
 	metricsHandler,
 	RISK_KILL_SWITCH,
@@ -64,7 +65,10 @@ export async function createRiskExecutionApp() {
 		),
 		store: new JsonFile<RiskState>(join(ENV.RISK_STATE_DIR, "state.json")),
 		admission: new TrainerAdmission(buildTlsFromEnv(ENV)),
-		emit: (event, fields) => getLogger().info(event, fields),
+		emit: (event, fields) => {
+			getLogger().info(event, fields);
+			publishRiskEvent(event, fields);
+		},
 	});
 	await risk.start();
 
