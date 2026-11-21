@@ -35,6 +35,8 @@
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
 //     node-agents overlay in node-role.yaml or cluster-role.yaml
+//   - no bus user (BUS_USERS) of staging-local reaches the partitioned redis-0 through
+//     the sentinels, unless in BUS_ON_PARTITIONED_REDIS (issue #1931)
 // Usage: node tests/k8s/check-overlays.mjs   (needs kubectl)
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -51,6 +53,11 @@ const SINGLETONS = {
 // Data and observability StatefulSets of staging-local held by a partition (issue #700).
 const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
 const DATA_STATEFULSETS = [...DATABASES, "alertmanager", "grafana", "loki", "prometheus"];
+// Bus ACL users (redis-ha.sh) a partitioned redis-0 learns only when restarted (issue #1931).
+const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution"];
+// Bus users allowed on the sentinels in staging-local: those redis-0 knows after the
+// planned switch of docs/deployment/STAGING_LOCAL.md, "Bus switch".
+const BUS_ON_PARTITIONED_REDIS = new Set([]);
 // Bare names a database may mount: also applied by name outside kustomize (run-migrations.sh), read by the exporter sidecar only.
 const BARE_CONFIGMAPS = new Set(["mysql-client-tls"]);
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
@@ -393,6 +400,17 @@ for (const env of OVERLAYS) {
 		}
 		if (env !== "staging-local" && partition > 0) {
 			errors.push(`${env}: StatefulSet ${name} must not set a partition: its pods would keep the old template`);
+		}
+	}
+
+	const redisSts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === "redis")?.text ?? "";
+	if (/^ {6}partition: [1-9]/m.test(redisSts)) {
+		for (const cm of docs.filter((doc) => doc.kind === "ConfigMap")) {
+			const user = cm.text.match(/^ +REDIS_USERNAME: "?([^"\n]+)"?$/m)?.[1];
+			const sentinels = cm.text.match(/^ +REDIS_SENTINELS: "?([^"\n]*)"?$/m)?.[1]?.trim();
+			if (BUS_USERS.includes(user) && sentinels && !BUS_ON_PARTITIONED_REDIS.has(user)) {
+				errors.push(`${env}: ${cm.name} sends bus user ${user} to the partitioned redis, which lacks it until restarted: set REDIS_SENTINELS= (issue #1931)`);
+			}
 		}
 	}
 
