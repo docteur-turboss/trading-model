@@ -3,6 +3,7 @@ import { makePRNG } from "@trading-model/crypto/prng";
 import { FeedForwardEngine } from "@trading-model/model-runtime/neural-network/feed-forward-engine";
 import {
 	ActivationType,
+	ConnectionType,
 	InitialisationType,
 	NormalisationType,
 } from "@trading-model/model-runtime/neural-network/type";
@@ -25,7 +26,11 @@ interface Net {
 function buildNet(
 	neuronsByLayer: number[],
 	activationType: ActivationType[],
-	options: { learningRate?: number; gradientClipNorm?: number } = {}
+	options: {
+		learningRate?: number;
+		gradientClipNorm?: number;
+		connectionType?: ConnectionType;
+	} = {}
 ): Net {
 	const deps = NeuralNetworkBuilder.build({
 		neuronsByLayer: neuronsByLayer as PositiveInt[],
@@ -36,6 +41,7 @@ function buildNet(
 		learningRate: (options.learningRate ?? 0) as never,
 		gradientClipNorm: options.gradientClipNorm ?? 0,
 		enablePool: false,
+		connectionType: options.connectionType,
 		rng: makePRNG(11),
 	});
 	return {
@@ -178,7 +184,14 @@ describe("BackpropEngine", () => {
 			name: string;
 			sizes: number[];
 			activations: ActivationType[];
+			connectionType?: ConnectionType;
 		}> = [
+			{
+				name: "2 → 2 sigmoid DenseSkip output",
+				sizes: [2, 2],
+				activations: [ActivationType.Sigmoid],
+				connectionType: ConnectionType.DenseSkip,
+			},
 			{
 				name: "2 → 2 → 1 sigmoid/linear",
 				sizes: [2, 2, 1],
@@ -217,8 +230,8 @@ describe("BackpropEngine", () => {
 
 		it.each(TOPOLOGIES)(
 			"$name: analytic ∇L matches (L(w+ε) − L(w−ε)) / 2ε",
-			({ sizes, activations }) => {
-				const net = buildNet(sizes, activations);
+			({ sizes, activations, connectionType }) => {
+				const net = buildNet(sizes, activations, { connectionType });
 				const rng = makePRNG(3);
 				const sample = {
 					input: Float32Array.from({ length: sizes[0] }, () => rng() * 2 - 1),

@@ -139,6 +139,16 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: MONGO_AUDIT_PASSWORD
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_AUDIT_LOGGER_PASSWORD
+            - name: REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
@@ -155,6 +165,9 @@ spec:
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
+            - name: redis-tls
+              mountPath: /etc/redis-tls
+              readOnly: true
             - name: mongo-tls
               mountPath: /etc/mongo-tls
               readOnly: true
@@ -220,6 +233,12 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         # CA certificate only: the CA key stays in the Secret (mongo-tls.yaml).
         - name: mongo-tls
           secret:
