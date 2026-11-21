@@ -146,15 +146,11 @@ export function spiffeServerIdentityCheck(
 	};
 }
 
-/** Builds the HTTPS agent options from the TLS paths; the server must present `expectedService`'s SVID. */
-export function buildHttpsAgentOptions(
-	tlsConfig?: TlsPaths,
+/** TLS client options of a PEM bundle; the server must present `expectedService`'s SVID. */
+export function buildTlsClientOptions(
+	bundle: Partial<TlsPemBundle>,
 	expectedService?: string
-): https.AgentOptions | undefined {
-	if (!tlsConfig) {
-		return;
-	}
-	const bundle = loadTlsPemBundleSync(tlsConfig);
+): https.AgentOptions {
 	const opts: https.AgentOptions = {};
 	if (bundle.caPem) {
 		opts.ca = bundle.caPem;
@@ -169,4 +165,15 @@ export function buildHttpsAgentOptions(
 		opts.checkServerIdentity = spiffeServerIdentityCheck(expectedService);
 	}
 	return opts;
+}
+
+/** Builds the HTTPS agent options from the TLS paths; the server must present `expectedService`'s SVID. */
+export function buildHttpsAgentOptions(
+	tlsConfig?: TlsPaths,
+	expectedService?: string
+): https.AgentOptions | undefined {
+	return (
+		tlsConfig &&
+		buildTlsClientOptions(loadTlsPemBundleSync(tlsConfig), expectedService)
+	);
 }

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fillAssetHoles, type SignalRegistry } from "../config/signal-registry";
 import { dailyRequests } from "../domain/signals";
+import { runCli } from "./run-cli";
 import { SignalCollector } from "./signal-collector";
 
 const USAGE = `Backfill the history of a signal source, run inside the collector pod:
@@ -235,11 +236,5 @@ async function _main(): Promise<number> {
 }
 
 if (require.main === module) {
-	_main().then(
-		(code) => process.exit(code),
-		(err: unknown) => {
-			console.error(err);
-			process.exit(1);
-		}
-	);
+	runCli(_main);
 }

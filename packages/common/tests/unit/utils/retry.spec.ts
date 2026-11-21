@@ -81,6 +81,7 @@ describe("withTimeout", () => {
 		const promise = Promise.resolve("ok");
 		const result = await withTimeout(promise, DurationMs.of(1000));
 		expect(result).toBe("ok");
+		expect(jest.getTimerCount()).toBe(0);
 	});
 
 	it("should reject if promise takes too long", async () => {

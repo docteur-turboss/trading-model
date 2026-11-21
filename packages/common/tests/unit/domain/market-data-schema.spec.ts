@@ -6,9 +6,7 @@ import {
 import { z } from "zod";
 import {
 	BaseMarketDataShape,
-	BidAskShape,
 	OhlcvShape,
-	OhlcvTickerShape,
 } from "../../../src/shared/schemas/market-data-schema";
 
 const BASE = {
@@ -26,12 +24,6 @@ describe("market-data-schema", () => {
 			OhlcvShape,
 			{ low: 1, open: 2, high: 3, close: 2, volume: 10 },
 		],
-		[
-			"OhlcvTickerShape",
-			OhlcvTickerShape,
-			{ low: 1, open: 2, high: 3, last: 2, volume: 10 },
-		],
-		["BidAskShape", BidAskShape, { bid: 1, ask: 2, bidQty: 3, askQty: 4 }],
 	] as const)(
 		"%s should accept a complete record and refuse one missing a field",
 		(_name, shape, valid) => {

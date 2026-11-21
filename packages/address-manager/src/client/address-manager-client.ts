@@ -9,7 +9,6 @@ import { ServiceRegistrationWire } from "@trading-model/validation/wire/service-
 import type { AddressManagerConfig } from "../config/address-manager-config";
 import { LocalIPDetector } from "../shared/client/local-ip-detector";
 import { addressManagerError } from "../shared/errors";
-import { HeartbeatRefresher } from "./heartbeat-refresher";
 import type { TokenManager } from "./token-manager";
 import type {
 	RegisterServicePayload,
@@ -18,23 +17,11 @@ import type {
 
 /** Client of the discovery server: registration, heartbeats and token refresh. */
 export class AddressManagerClient {
-	private readonly _heartbeatRefresher: HeartbeatRefresher;
-
 	constructor(
 		private readonly _httpClient: HttpClient,
 		private readonly _tokenManager: TokenManager,
 		private readonly _config: AddressManagerConfig
-	) {
-		this._heartbeatRefresher = new HeartbeatRefresher(
-			this._httpClient,
-			this._tokenManager,
-			this._config.identity
-		);
-	}
-
-	static resetLocalIP(): void {
-		LocalIPDetector.reset();
-	}
+	) {}
 
 	private _buildRegistrationPayload(): RegisterServicePayload {
 		return {
@@ -70,9 +57,26 @@ export class AddressManagerClient {
 	}
 
 	async refreshTTL(): Promise<void> {
-		await this._heartbeatRefresher.refresh(
-			URLString.of(this._config.addressManagerUrl)
-		);
+		// Never concurrent with a token rotation (TokenManager.exclusive).
+		await this._tokenManager.exclusive(async () => {
+			try {
+				await this._httpClient.post(
+					this._url("/heartbeat"),
+					this._config.identity,
+					{
+						headers: {
+							[HTTP_HEADERS.X_INSTANCE_TOKEN]: this._tokenManager.getToken(),
+						},
+						idempotent: true,
+						serviceName: ServiceId.of("discovery-server"),
+					}
+				);
+			} catch (error) {
+				throw addressManagerError("Failed to refresh service TTL", {
+					cause: normalizeError(error),
+				});
+			}
+		});
 	}
 
 	async unregisterService(): Promise<void> {

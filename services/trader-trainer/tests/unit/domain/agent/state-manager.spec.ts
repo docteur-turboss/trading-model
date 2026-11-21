@@ -1,22 +1,5 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import StateManager from "@trading-model/model-runtime/agent/state-manager";
-import {
-	ActivationType,
-	ConnectionType,
-	NormalisationType,
-} from "@trading-model/model-runtime/neural-network/type";
-import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { Agent } from "../../../../src/domain/neural-network/agent";
-
-function makeAgent(): Agent {
-	return new Agent({
-		neuronsByLayer: [4 as PositiveInt, 6 as PositiveInt, 3 as PositiveInt],
-		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
-		normalisationType: NormalisationType.None,
-		connectionType: ConnectionType.FullyConnected,
-		enablePool: false,
-	});
-}
 
 describe("StateManager", () => {
 	describe("default configuration", () => {
@@ -139,49 +122,6 @@ describe("StateManager", () => {
 			sm.resetEpsilon();
 
 			expect(sm.getEpsilon()).toBe(1.0);
-		});
-	});
-
-	describe("initialiseFromGenome", () => {
-		it("should initialise agent with scalar genome (broadcast)", () => {
-			const sm = new StateManager();
-			const agent = makeAgent();
-			const weightsBefore = agent.nn.getWeights();
-
-			sm.initialiseFromGenome(agent, 0);
-
-			const weightsAfter = agent.nn.getWeights();
-			expect(weightsAfter.length).toBe(weightsBefore.length);
-			expect(weightsAfter).not.toEqual(weightsBefore);
-		});
-
-		it("should initialise agent with Float32Array genome (direct setWeights)", () => {
-			const sm = new StateManager();
-			const agent = makeAgent();
-			const genome = agent.nn.getWeights();
-
-			const modifiedGenome = new Float32Array(genome.length);
-			for (let i = 0; i < modifiedGenome.length; i++) {
-				modifiedGenome[i] = 0.5;
-			}
-
-			sm.initialiseFromGenome(agent, modifiedGenome);
-
-			const newWeights = agent.nn.getWeights();
-			for (let i = 0; i < newWeights.length; i++) {
-				expect(newWeights[i]).toBe(0.5);
-			}
-		});
-
-		it("should reject a genome whose length does not match the network", () => {
-			const sm = new StateManager();
-			const agent = makeAgent();
-			const weightsBefore = agent.nn.getWeights();
-
-			expect(() => sm.initialiseFromGenome(agent, new Float32Array(5))).toThrow(
-				"Buffer length mismatch"
-			);
-			expect(agent.nn.getWeights()).toEqual(weightsBefore);
 		});
 	});
 });

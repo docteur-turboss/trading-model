@@ -1,10 +1,9 @@
 import { describe, expect, test } from "@jest/globals";
 import { NumericRange } from "@trading-model/primitives/numeric-range";
-import type { DataSlice } from "../../src/neural-network/normalizers";
 import { NORMALIZERS } from "../../src/neural-network/normalizers";
 import { NormalisationType } from "../../src/neural-network/type";
 
-function makeSlice(values: number[]): DataSlice {
+function makeSlice(values: number[]) {
 	const data = new Float32Array(values);
 	return { data, len: values.length };
 }

@@ -314,8 +314,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 				return this._parse(group, claimed, () => deliveries + 1);
 			})
 		);
-		const entries: JournalEntry[] = batches.flat();
-		return entries;
+		return batches.flat();
 	}
 
 	/** Lag of the groups of `service` only when given: a bus user has no right on other services' streams. */

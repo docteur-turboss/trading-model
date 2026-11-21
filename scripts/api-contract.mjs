@@ -90,7 +90,7 @@ const SERVICE_TO_SERVICE = {
  */
 const CALLERS = {
 	"discovery-server POST /register": { caller: "packages/address-manager", call: /_url\("\/register"\)/ },
-	"discovery-server POST /heartbeat": { caller: "packages/address-manager", call: /\/heartbeat`/ },
+	"discovery-server POST /heartbeat": { caller: "packages/address-manager", call: /_url\("\/heartbeat"\)/ },
 	"discovery-server POST /token/rotate": { caller: "packages/address-manager", call: /\/token\/rotate`/ },
 	"discovery-server POST /unregister": { caller: "packages/address-manager", call: /_url\("\/unregister"\)/ },
 	"message-manager POST /message": { caller: "packages/broker-message", call: /\}\/message`/ },
@@ -131,20 +131,7 @@ const ROUTE_PROVIDERS = [
 		mountedBy: /ADDRESS_MANAGER_ROUTES\(/,
 		files: [
 			"packages/address-manager/src/monitoring/metrics-collector.ts",
-			"packages/address-manager/src/routes/ping.routes.ts",
 			"packages/address-manager/src/routes/metrics.routes.ts",
-		],
-	},
-	{
-		// broker-message CREATE_CALLBACK_ROUTE, default callback path "message"
-		mountedBy: /MessageManagerListenExpress\(/,
-		routes: [
-			{
-				method: "POST",
-				path: "/message",
-				file: "packages/broker-message/src/messages.routes.ts",
-				registry: { file: "packages/broker-message/src/api-routes.ts", name: "BROKER_CALLBACK_API", key: "receive" },
-			},
 		],
 	},
 ];

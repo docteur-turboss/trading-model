@@ -10,7 +10,7 @@ import type {
 	MarketDataPage,
 	TradeData,
 } from "../../../../domain/market-data.types";
-import { defineUpsert, type PageFilter, pagedQuery } from "./market-table";
+import { defineUpsert, pagedSelect } from "./market-table";
 
 const T_MARKET_TRADES = new (class TMarketTrades extends Table<
 	DBConnection,
@@ -73,24 +73,27 @@ export const insertTrades = defineUpsert<TradeData>({
 	],
 });
 
-function _selectPage(
-	filter: PageFilter<typeof T_MARKET_TRADES>,
-	page: MarketDataPage
-) {
-	return pagedQuery(T_MARKET_TRADES, filter, page)
-		.select(SELECT)
-		.orderBy("timestamp")
-		.orderBy("id")
-		.limit(page.limit)
-		.executeSelectMany();
-}
-
 /** Query helpers for the market_trades table, indexed by symbol, timestamp, and source. */
 export const selectTradesBy = {
 	symbol: (symbol: TradingSymbol, page: MarketDataPage) =>
-		_selectPage(T_MARKET_TRADES.symbol.equals(symbol), page),
+		pagedSelect(
+			T_MARKET_TRADES,
+			SELECT,
+			T_MARKET_TRADES.symbol.equals(symbol),
+			page
+		),
 	timestamp: (timestamp: UnixTimestamp, page: MarketDataPage) =>
-		_selectPage(T_MARKET_TRADES.timestamp.equals(new Date(timestamp)), page),
+		pagedSelect(
+			T_MARKET_TRADES,
+			SELECT,
+			T_MARKET_TRADES.timestamp.equals(new Date(timestamp)),
+			page
+		),
 	source: (source: SourceType, page: MarketDataPage) =>
-		_selectPage(T_MARKET_TRADES.source.equals(source), page),
+		pagedSelect(
+			T_MARKET_TRADES,
+			SELECT,
+			T_MARKET_TRADES.source.equals(source),
+			page
+		),
 };

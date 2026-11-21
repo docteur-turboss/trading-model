@@ -132,7 +132,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_GENERATIONS`             | number       | `50`              | no       | Number of GA generations             | TT       |
 | `TRAINER_POPULATION_SIZE`         | number       | `20`              | no       | GA population size                   | TT       |
 | `TRAINER_TIME_BUDGET_MS`          | number       | `300000` (5min)   | no       | Max training time per run            | TT       |
-| `TRAINER_INTERVAL_MS`             | number       | `3600000` (1h)    | no       | Time between two training sessions   | TT       |
+| `TRAINER_INTERVAL_MS`             | number       | `14400000` (4h)   | no       | Time between two training sessions   | TT       |
 | `TRAINER_MAX_DATA_AGE_MS`         | number       | `900000` (15min)  | no       | Newest candle older than this: symbol not trained | TT       |
 | `TRAINER_EPISODES_PER_INDIVIDUAL` | number       | `10`              | no       | DRL episodes per genome evaluation (adaptive control keeps 10–30) | TT       |
 | `TRAINER_FITNESS_TYPE`            | enum         | `total_pnl`       | no       | GA scalar fitness: `total_pnl`, `sharpe`, `sortino`, `calmar`, `composite` (ADR-0025) | TT       |
@@ -212,7 +212,6 @@ No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), accepted 
 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
-| `DLQ_AUTH_HMAC_SECRET`    | string | —                           | **yes** (production) | Signs the dead letters sent to dlq-service: same value as dlq-service (min 32 chars in production). Unset (outside production): dead-lettering fails and the entries stay pending in the journal | MM       |
 | `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publisher gets its 202 (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM       |
 
 ---
@@ -302,7 +301,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `MAX_ENTRIES`                | number  | `100000`                             | no       | Maximum stored DLQ entries           | DLQ      |
 | `DLQ_RETRY_MAX_ATTEMPTS`     | number  | `5`                                  | no       | Max retry attempts for replay        | DLQ      |
 | `MESSAGE_MANAGER_URL`        | URL     | —                                    | no       | Message manager URL for replay       | DLQ      |
-| `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 32 chars in production), shared with message-manager | DLQ      |
+| `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 32 chars in production) | DLQ      |
 | `DLQ_ALLOWED_SERVICES`       | string  | `message-manager,admin`              | no       | Callers allowed to sign requests (`admin`: operator scripts such as `examples/manage-dlq.sh`) | DLQ      |
 | `DLQ_PRUNE_INTERVAL_MS`      | number  | `60000`                              | no       | Interval for pruning expired entries | DLQ      |
 | `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (no profile enables it, ADR-0073)| no       | Replay eligible entries automatically| DLQ      |
@@ -416,7 +415,7 @@ TRAINER_TEST_SPLIT=0.15
 TRAINER_GENERATIONS=50
 TRAINER_POPULATION_SIZE=20
 TRAINER_TIME_BUDGET_MS=300000
-TRAINER_INTERVAL_MS=3600000
+TRAINER_INTERVAL_MS=14400000
 TRAINER_MAX_DATA_AGE_MS=900000
 TRAINER_EPISODES_PER_INDIVIDUAL=10
 TRAINER_FITNESS_TYPE=total_pnl

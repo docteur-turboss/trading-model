@@ -1,9 +1,7 @@
 import {
 	type BaseMarketData,
-	type BidAsk,
 	MarketType,
 	type OhlcvData,
-	type OhlcvTickerData,
 	SourceType,
 } from "@trading-model/contracts/market-data.types";
 import { z } from "zod";
@@ -30,18 +28,3 @@ export const OhlcvShape = {
 	close: PriceSchema,
 	volume: VolumeSchema,
 } as const satisfies Record<keyof OhlcvData, z.ZodType>;
-
-export const OhlcvTickerShape = {
-	low: PriceSchema,
-	open: PriceSchema,
-	high: PriceSchema,
-	last: PriceSchema,
-	volume: VolumeSchema,
-} as const satisfies Record<keyof OhlcvTickerData, z.ZodType>;
-
-export const BidAskShape = {
-	bid: PriceSchema,
-	ask: PriceSchema,
-	bidQty: VolumeSchema,
-	askQty: VolumeSchema,
-} as const satisfies Record<keyof BidAsk, z.ZodType>;
