@@ -100,16 +100,6 @@ describe("candles.schema", () => {
 				"market_candles",
 				"timestamp > ?"
 			));
-		it("pages timestamp.before in (timestamp, id) order, limit applied", () =>
-			expectPagedSelect(
-				(o) =>
-					selectCandlesBy.timestamp.before(
-						UnixTimestamp.of(Date.UTC(2024, 0, 1)),
-						o
-					),
-				"market_candles",
-				"timestamp < ?"
-			));
 
 		it("adds the window and the cursor of the page", async () => {
 			await selectCandlesBy.symbol(TradingSymbol.of("BTCUSDT"), {

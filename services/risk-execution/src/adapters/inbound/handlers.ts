@@ -16,6 +16,13 @@ const callerOf = (req: Request): string | null => {
 		? String(extractCanonicalServiceName(identity))
 		: null;
 };
+const scopeError = (body: { scope: string; symbol?: string }) =>
+	body.scope === "symbol" && !body.symbol
+		? sendResponse(
+				{ error: "symbol is required for scope symbol" },
+				HTTP_STATUS.BAD_REQUEST
+			)
+		: null;
 const forbidden = (req: Request, ...allowed: string[]) =>
 	allowed.includes(callerOf(req) ?? "")
 		? null
@@ -78,11 +85,9 @@ export function createHandlers(
 		if (denied) {
 			return denied;
 		}
-		if (body.scope === "symbol" && !body.symbol) {
-			return sendResponse(
-				{ error: "symbol is required for scope symbol" },
-				HTTP_STATUS.BAD_REQUEST
-			);
+		const invalid = scopeError(body);
+		if (invalid) {
+			return invalid;
 		}
 		await risk.engage(body.scope, body.reason, body.actor, body.symbol);
 		return sendResponse({ status: "engaged" as const }, HTTP_STATUS.OK);
@@ -92,11 +97,9 @@ export function createHandlers(
 		if (denied) {
 			return denied;
 		}
-		if (body.scope === "symbol" && !body.symbol) {
-			return sendResponse(
-				{ error: "symbol is required for scope symbol" },
-				HTTP_STATUS.BAD_REQUEST
-			);
+		const invalid = scopeError(body);
+		if (invalid) {
+			return invalid;
 		}
 		try {
 			await risk.rearm(body.scope, body.reason, body.actor, body.symbol);

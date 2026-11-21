@@ -1,10 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { buildSpiffeId } from "@trading-model/common/utils/spiffe";
 import { createHandlers } from "../../src/adapters/inbound/handlers";
 import type { RiskExecution } from "../../src/application/risk-execution";
 
 const as = (service: string) =>
-	({ clientIdentity: buildSpiffeId(service) }) as never;
+	({
+		clientIdentity: `spiffe://trading-model.local/ns/trading-model/sa/${service}`,
+	}) as never;
 const input = (body?: unknown, params?: unknown) =>
 	({ body, params, query: undefined }) as never;
 

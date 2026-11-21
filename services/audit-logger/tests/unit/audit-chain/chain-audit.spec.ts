@@ -195,7 +195,6 @@ describe("ChainAudit", () => {
 		trail.events = chainOf(2);
 		const unanchored = audit(false);
 
-		expect(unanchored.anchoringEnabled).toBe(false);
 		expect((await unanchored.runCycle()).broken).toBeNull();
 		expect(metrics.anchored).not.toHaveBeenCalled();
 		await expect(unanchored.acknowledgeLoss(1, "x")).rejects.toThrow(

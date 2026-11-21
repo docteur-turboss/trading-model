@@ -67,6 +67,7 @@ const MOCK_AUDIT_REPOSITORY_INSTANCE = {
 	query: jest.fn<(...args: any[]) => any>(),
 	getStats: jest.fn<(...args: any[]) => any>(),
 	ensureIndexes: jest.fn<(...args: any[]) => any>(),
+	warmStats: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock(
@@ -169,6 +170,7 @@ describe("Audit Logger entry point (index.ts)", () => {
 		jest.useRealTimers();
 		expect(mongoManager.isConnected()).toBe(true);
 		expect(isReady()).toBe(true);
+		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.warmStats).toHaveBeenCalled();
 		repo.findById("m1");
 		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.findById).toHaveBeenCalledWith("m1");
 		capturedOptions.onStart();

@@ -18,16 +18,10 @@ export async function createBrokerMessage(): Promise<{
 		instanceId: toInstanceId(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.AuditLoggerService,
 	});
-	await subscribeToAllTopics(brokerMessage);
-	return { brokerMessage };
-}
-
-async function subscribeToAllTopics(
-	brokerMessage: BrokerMessage
-): Promise<void> {
 	const allTopics = auditedTopics();
 	await brokerMessage.intents(allTopics);
 	logger.info("Subscribed to audited topics", {
 		context: { topicCount: allTopics.length },
 	});
+	return { brokerMessage };
 }

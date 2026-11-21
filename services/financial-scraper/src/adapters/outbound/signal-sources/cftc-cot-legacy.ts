@@ -38,6 +38,12 @@ function _nthWeekday(year: number, month: number, dow: number, nth: number) {
 	return last.getTime() - ((last.getUTCDay() - dow + 7) % 7) * DAY_MS;
 }
 
+/** UTC instant of `hour:minute` New York time on the UTC-midnight `day` (EST or EDT). */
+export function newYorkLocalToUtc(day: number, hour: number, minute: number) {
+	const est = day + (hour + 5) * 3_600_000 + minute * 60_000;
+	return Number(NEW_YORK_HOUR.format(est)) === hour ? est : est - 3_600_000;
+}
+
 /** Federal holidays of a year as UTC midnights; a weekend one is observed on Friday or Monday. */
 export function federalHolidays(year: number) {
 	const fixed = [
@@ -80,11 +86,7 @@ function _publishedAt(tuesday: string) {
 			left--;
 		}
 	}
-	const utc1530Est = day + 20.5 * 3_600_000;
-	// 15:30 EST is 20:30Z, 15:30 EDT is 19:30Z.
-	return Number(NEW_YORK_HOUR.format(utc1530Est)) === 15
-		? utc1530Est
-		: utc1530Est - 3_600_000;
+	return newYorkLocalToUtc(day, 15, 30);
 }
 
 /**

@@ -312,6 +312,13 @@ export class RiskExecution {
 		this._d.emit?.(event, { ...fields, mode: this._d.mode });
 	}
 
+	private _emitBrokerError(order: Order, error: unknown): void {
+		this._emit("broker.error", {
+			clientOrderId: order.clientOrderId,
+			error: String(error),
+		});
+	}
+
 	private async _save(): Promise<void> {
 		if (!this._broken) {
 			await this._d.store.save(this._state);
@@ -336,10 +343,7 @@ export class RiskExecution {
 			await this._apply(order, view);
 		} catch (error) {
 			// Never resent: the broker is asked by client order id (ADR-0064 §3).
-			this._emit("broker.error", {
-				clientOrderId: order.clientOrderId,
-				error: String(error),
-			});
+			this._emitBrokerError(order, error);
 			this._move(order, "unknown");
 			await this._failure(order.symbol);
 			await this._resolve(order);
@@ -357,10 +361,7 @@ export class RiskExecution {
 				this._move(order, "unknown");
 			}
 		} catch (error) {
-			this._emit("broker.error", {
-				clientOrderId: order.clientOrderId,
-				error: String(error),
-			});
+			this._emitBrokerError(order, error);
 			if (order.status === "submitted") {
 				this._move(order, "unknown");
 			}
@@ -433,10 +434,7 @@ export class RiskExecution {
 				await this._apply(order, view);
 			}
 		} catch (error) {
-			this._emit("broker.error", {
-				clientOrderId: order.clientOrderId,
-				error: String(error),
-			});
+			this._emitBrokerError(order, error);
 		}
 	}
 
@@ -450,10 +448,7 @@ export class RiskExecution {
 				await this._apply(order, view);
 			}
 		} catch (error) {
-			this._emit("broker.error", {
-				clientOrderId: order.clientOrderId,
-				error: String(error),
-			});
+			this._emitBrokerError(order, error);
 		}
 		if (!FINAL.has(order.status)) {
 			this._move(order, "expired");
