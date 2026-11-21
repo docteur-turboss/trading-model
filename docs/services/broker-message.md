@@ -122,8 +122,8 @@ Fluent builder for message metadata.
 import BrokerMessage, { HELPER } from '@trading-model/broker-message';
 
 const metadata = new HELPER.metadataBuilder()
-  .setTopic('market.trade.recent.fetch')
-  .setEventType('market.trade.recent.fetch')
+  .setTopic('training.model.published')
+  .setEventType('training.model.published')
   .setDelivery({ mode: 'at-least-once' })
   .toJSON();
 ```
@@ -165,7 +165,7 @@ EVENT_MANAGER.emit(eventName, data);
 ```ts
 import { EVENT_MANAGER } from '@trading-model/broker-message';
 
-EVENT_MANAGER.on('market.trade.recent.fetch', data => {
+EVENT_MANAGER.on('training.model.published', data => {
   console.log(data.trades);
 });
 ```
@@ -240,15 +240,15 @@ const broker = new BrokerMessage({
 });
 
 broker.listenExpress(app);
-await broker.intents(['market.trade.recent.fetch', 'market.ticker.24hr-stats.fetch']);
+await broker.intents(['training.model.published', 'dlq.entry.added']);
 
-const cleanup = broker.on('market.trade.recent.fetch', data => {
+const cleanup = broker.on('training.model.published', data => {
   console.log('Received trades:', data.trades);
 });
 
 const metadata = new HELPER.metadataBuilder()
-  .setTopic('market.trade.executed')
-  .setEventType('trade.executed')
+  .setTopic('training.model.published')
+  .setEventType('training.model.published')
   .toJSON();
 
 await broker.post.indirect({ price: 50000 }, metadata);

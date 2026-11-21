@@ -24,8 +24,6 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		APP_VERSION: "1.0.0",
 		SERVICE_NAME: "financial-scraper",
 		INSTANCE_ID: "instance-1",
-		MESSAGE_BUS_INIT_TIMEOUT_MS: "2000",
-		MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: "2000",
 		MESSAGE_CALLBACK_PATH: "message",
 		SYMBOLS_TO_TRACK: [],
 		SCRAPE_INTERVAL: "*/1 * * * *",

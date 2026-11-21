@@ -112,9 +112,6 @@ jest.mock("@trading-model/broker-message", () => {
 	};
 });
 
-jest.mock("@trading-model/contracts/market-events", () => ({
-	MarketEvent: {},
-}));
 jest.mock("@trading-model/contracts/audit-events", () => ({
 	AuditEvent: {},
 }));

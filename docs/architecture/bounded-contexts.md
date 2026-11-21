@@ -44,7 +44,7 @@ graph TD
 - **Owner:** `financial-scraper`
 - **Core entities:** Candle, Trade, Ticker, OrderBook
 - **External dependency:** Binance API
-- **Publishes:** nothing since ADR-0078: the trainer reads candles through the scraper API. `MarketEvent` has no publisher and no subscriber
+- **Publishes:** nothing since ADR-0078: the trainer reads candles through the scraper API.
 - **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; **no consumer yet** (trader-trainer and model-evaluator do not read them).
 
 ### 2. Training Context
@@ -100,10 +100,9 @@ No Strategy or Execution context exists: the only consumer of trained models is 
 
 The historical single `EnumEventMessage` enum (mixing market data, certificate, and audit topics) has been split into per-context enums:
 
-1. `MarketEvent` — `@trading-model/contracts/market-events`
-2. `AuditEvent` — `@trading-model/contracts/audit-events`
-3. `TrainingEvent` — `@trading-model/contracts/training-events`
-4. `DlqEvent` — `@trading-model/contracts/dlq-events`: dlq-service publishes `dlq.entry.added`, `dlq.replay.completed` and `dlq.entries.deleted` so the audit trail records what happens to undelivered messages
+1. `AuditEvent` — `@trading-model/contracts/audit-events`
+2. `TrainingEvent` — `@trading-model/contracts/training-events`
+3. `DlqEvent` — `@trading-model/contracts/dlq-events`: dlq-service publishes `dlq.entry.added`, `dlq.replay.completed` and `dlq.entries.deleted` so the audit trail records what happens to undelivered messages
 5. Certificate/security events were **removed** with the CA decommission (ADR-0011)
 
 Per-context Zod schemas live in `@trading-model/broker-message/messages/schemas` (metadata, message payload, market events, audit events).

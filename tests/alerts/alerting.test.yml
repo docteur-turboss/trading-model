@@ -149,7 +149,7 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 50% over 3h.'
+              description: 'Trainer completion rate is 50% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -169,7 +169,7 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 40% over 3h.'
+              description: 'Trainer completion rate is 40% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -177,7 +177,7 @@ tests:
           - exp_labels: {severity: critical, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 50%'
-              description: 'Trainer completion rate is 40% over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+              description: 'Trainer completion rate is 40% over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
   - name: 80 percent of the training sessions succeed
@@ -194,7 +194,28 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 80% over 3h.'
+              description: 'Trainer completion rate is 80% over 12h.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+      - eval_time: 100m
+        alertname: TrainingCompletionRateCritical
+        exp_alerts: []
+
+  # 4 h interval: one failure among three sessions of the 12 h window warns, never pages.
+  - name: one failed training session out of three does not page
+    interval: 1m
+    input_series:
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="success"}'
+        values: '0+2x120'
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="fail"}'
+        values: '0+1x120'
+    alert_rule_test:
+      - eval_time: 100m
+        alertname: TrainingCompletionRateLow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
+            exp_annotations:
+              summary: 'Training completion rate below 95%'
+              description: 'Trainer completion rate is 66.67% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -296,7 +317,7 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 0% over 3h.'
+              description: 'Trainer completion rate is 0% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -304,7 +325,7 @@ tests:
           - exp_labels: {severity: critical, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 50%'
-              description: 'Trainer completion rate is 0% over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+              description: 'Trainer completion rate is 0% over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
   # Every message goes to the DLQ: no successful delivery series at all.
@@ -772,54 +793,54 @@ tests:
         exp_alerts: []
 
   # Issue #804: every session failing for hours paged nobody. Two trainer pods,
-  # one leader. Cold start (series born at 0): nothing stored for 2 h pages.
-  - name: no model stored for 2 hours after a start pages
+  # one leader. Cold start (series born at 0): nothing stored for 4 h pages.
+  - name: no model stored for 4 hours after a start pages
     interval: 1m
     input_series:
       - series: 'tt_model_artifacts_total{job="trader-trainer",instance="t1",result="stored"}'
-        values: '0x200'
+        values: '0x300'
       - series: 'tt_model_artifacts_total{job="trader-trainer",instance="t2",result="stored"}'
-        values: '0x200'
+        values: '0x300'
       - series: 'tt_training_leader{job="trader-trainer",instance="t1"}'
-        values: '1x200'
+        values: '1x300'
       - series: 'tt_training_leader{job="trader-trainer",instance="t2"}'
-        values: '0x200'
+        values: '0x300'
     alert_rule_test:
-      - eval_time: 110m
+      - eval_time: 230m
         alertname: TrainerNoModelStored
         exp_alerts: []
-      - eval_time: 130m
+      - eval_time: 250m
         alertname: TrainerNoModelStored
         exp_alerts:
           - exp_labels: {severity: critical, job: trader-trainer}
             exp_annotations:
               summary: 'trader-trainer has stored no model for hours'
-              description: 'No model artifact stored for at least 5 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
+              description: 'No model artifact stored for at least 13 hours (4 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernomodelstored'
 
   # A first model 20 min after the start keeps the cold start quiet; the
-  # trainer then stores nothing more and pages 5 h after that model (321m).
-  - name: no model stored for 5 hours after the last one pages
+  # trainer then stores nothing more and pages 13 h after that model (801m).
+  - name: no model stored for 13 hours after the last one pages
     interval: 1m
     input_series:
       - series: 'tt_model_artifacts_total{job="trader-trainer",instance="t1",result="stored"}'
-        values: '0x20 1x320'
+        values: '0x20 1x840'
       - series: 'tt_training_leader{job="trader-trainer",instance="t1"}'
-        values: '1x340'
+        values: '1x860'
     alert_rule_test:
-      - eval_time: 130m
+      - eval_time: 250m
         alertname: TrainerNoModelStored
         exp_alerts: []
-      - eval_time: 310m
+      - eval_time: 790m
         alertname: TrainerNoModelStored
         exp_alerts: []
-      - eval_time: 330m
+      - eval_time: 820m
         alertname: TrainerNoModelStored
         exp_alerts:
           - exp_labels: {severity: critical, job: trader-trainer}
             exp_annotations:
               summary: 'trader-trainer has stored no model for hours'
-              description: 'No model artifact stored for at least 5 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
+              description: 'No model artifact stored for at least 13 hours (4 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernomodelstored'
 
   # Models stored regularly, or no leader at all (TrainerNoLeader's case):

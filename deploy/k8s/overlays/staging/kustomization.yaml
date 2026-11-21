@@ -37,7 +37,7 @@ images:
   - name: ghcr.io/trading-model/backup-tools
     newTag: latest
 
-# Staging-specific resource reductions (smaller than production)
+# Staging: one replica per workload; resources as production
 patches:
 
   # Kubelet certificates are not verified in staging (issue #851): kind (and a

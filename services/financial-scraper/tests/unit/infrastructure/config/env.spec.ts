@@ -19,8 +19,6 @@ describe("env", () => {
 		process.env.APP_VERSION = "1.0.0";
 		process.env.SERVICE_NAME = "financial-scraper";
 		process.env.INSTANCE_ID = "instance-1";
-		process.env.MESSAGE_BUS_INIT_TIMEOUT_MS = "2000";
-		process.env.MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS = "2000";
 		process.env.MESSAGE_CALLBACK_PATH = "message";
 	};
 

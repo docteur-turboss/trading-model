@@ -106,7 +106,7 @@ import { retry } from '@trading-model/common/utils/retry';
 ## Event Types
 
 Event types are owned by `@trading-model/contracts` (the former `@trading-model/common/config/event.types` facade was removed, see ADR-0015):
-- Market events & market data types: `@trading-model/contracts/market-events` + `@trading-model/contracts/market-data.types`
+- Market data types: `@trading-model/contracts/market-data.types`
 - Audit events: `@trading-model/contracts/audit-events`
 - Training events (and the canonical `Optimizer` enum): `@trading-model/contracts/training-events`
 
@@ -114,7 +114,7 @@ The combined helpers live in `@trading-model/contracts/event-map`:
 
 | Export | Description |
 | ------ | ----------- |
-| `EventMap` | Event → payload type mapping (MarketEventMap ∪ AuditEventMap ∪ TrainingEventMap) |
+| `EventMap` | Event → payload type mapping (AuditEventMap ∪ TrainingEventMap) |
 | `EventMessagesArgs<K>` | Payload type for a given event K |
 | `EventEnumMap` | Union of all valid event name strings |
 

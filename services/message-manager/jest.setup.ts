@@ -7,6 +7,4 @@ process.env.TLS_CERT_PATH = "/tmp/cert.pem";
 process.env.TLS_CA_PATH = "/tmp/ca.pem";
 process.env.SERVICE_NAME = "message-manager-service";
 process.env.INSTANCE_ID = "test-instance";
-process.env.MESSAGE_BUS_INIT_TIMEOUT_MS = "84000000";
-process.env.MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS = "84000000";
 process.env.LOG_LEVEL = "error";

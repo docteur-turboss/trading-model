@@ -9,12 +9,6 @@ export const AddressManagerEnvSchema = z.object({
 	SERVICE_NAME: z.string().min(1),
 	INSTANCE_ID: z.string().min(1),
 
-	MESSAGE_BUS_INIT_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
-	MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: z.coerce
-		.number()
-		.int()
-		.positive()
-		.default(2000),
 	MESSAGE_CALLBACK_PATH: z.string().min(1).default("message"),
 
 	DNS_NAME_MAP: z

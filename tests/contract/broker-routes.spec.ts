@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, jest } from "@jest/globals";
-import { MarketEvent } from "@trading-model/contracts/market-events";
+import { TrainingEvent } from "@trading-model/contracts/training-events";
 import {
 	type ApiRoute,
 	parseRequest,
@@ -31,8 +31,7 @@ jest.mock("../../services/message-manager/src/config/address-manager", () => ({
 
 const TRAINER = "trader-trainer";
 const ROOT = join(__dirname, "../..");
-const TOPIC =
-	MarketEvent[Object.keys(MarketEvent)[0] as keyof typeof MarketEvent];
+const TOPIC = TrainingEvent.ModelPublished;
 
 /** The message-manager route serving this request, if any. */
 function brokerRouteFor(request: PublishedRequest): ApiRoute | undefined {

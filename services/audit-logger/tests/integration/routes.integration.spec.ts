@@ -15,8 +15,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		APP_VERSION: "1.0.0",
 		SERVICE_NAME: "audit-logger-service",
 		INSTANCE_ID: "test-instance",
-		MESSAGE_BUS_INIT_TIMEOUT_MS: 5000,
-		MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: 5000,
 		MESSAGE_CALLBACK_PATH: "message",
 	},
 }));

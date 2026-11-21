@@ -83,7 +83,7 @@ describe("Env Schema", () => {
 			expect(result.data.TRAINER_VALIDATION_SPLIT).toBe(0.15);
 			expect(result.data.TRAINER_GENERATIONS).toBe(50);
 			expect(result.data.TRAINER_POPULATION_SIZE).toBe(20);
-			expect(result.data.TRAINER_INTERVAL_MS).toBe(3_600_000);
+			expect(result.data.TRAINER_INTERVAL_MS).toBe(14_400_000);
 			expect(result.data.TRAINER_SYMBOLS).toBe("BTCUSDT,ETHUSDT");
 		}
 	});

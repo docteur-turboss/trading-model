@@ -48,8 +48,6 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity (`build_info` label)  | MM, FS, TT, AL, DLQ, GW |
 | `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT, AL, DLQ |
 | `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object); not read by the gateway | MM, FS, TT, AL, DLQ |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, AL, DLQ |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, AL, DLQ |
 | `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
 
 ---
@@ -116,7 +114,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_GENERATIONS`             | number       | `50`              | no       | Number of GA generations             | TT       |
 | `TRAINER_POPULATION_SIZE`         | number       | `20`              | no       | GA population size                   | TT       |
 | `TRAINER_TIME_BUDGET_MS`          | number       | `300000` (5min)   | no       | Max training time per run            | TT       |
-| `TRAINER_INTERVAL_MS`             | number       | `3600000` (1h)    | no       | Time between two training sessions   | TT       |
+| `TRAINER_INTERVAL_MS`             | number       | `14400000` (4h)   | no       | Time between two training sessions   | TT       |
 | `TRAINER_MAX_DATA_AGE_MS`         | number       | `900000` (15min)  | no       | Newest candle older than this: symbol not trained | TT       |
 | `TRAINER_EPISODES_PER_INDIVIDUAL` | number       | `10`              | no       | DRL episodes per genome evaluation (adaptive control keeps 10–30) | TT       |
 | `TRAINER_FITNESS_TYPE`            | enum         | `total_pnl`       | no       | GA scalar fitness: `total_pnl`, `sharpe`, `sortino`, `calmar`, `composite` (ADR-0025) | TT       |
@@ -218,6 +216,7 @@ Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host 
 | `RETENTION_DAYS`          | number (≥1) | `1827` (5 years)  | no       | Age after which `market_candles`, `market_trades`, `market_tickers` and `market_order_books` rows (column `timestamp`) are deleted | retention job |
 | `RETENTION_SIGNALS_DAYS`  | number (≥1) | `RETENTION_DAYS`  | no       | Same for `signals` (column `observed_at`) | retention job |
 | `RETENTION_ORDER_BOOKS_DAYS` | number (≥1) | `RETENTION_DAYS` | no       | Same for `market_order_books` (column `timestamp`); the K8s CronJob sets 180 (ADR-0053) | retention job |
+| `RETENTION_TRADES_DAYS` | number (≥1) | `RETENTION_DAYS` | no       | Same for `market_trades` (column `timestamp`; a 100-trade sample per minute); the K8s CronJob sets 180 | retention job |
 | `RETENTION_BATCH_SIZE`    | number (≥1) | `10000`           | no       | Rows per `DELETE ... LIMIT` | retention job |
 | `RETENTION_PAUSE_SECONDS` | number (≥0) | `1`               | no       | Pause between two batches | retention job |
 | `MYSQL_RETENTION_PASSWORD` | string | —                      | **yes** in K8s | Password of MySQL user `retention` (SELECT, DELETE on the five tables). Key of Secret `trading-model-secrets`, read by `db-migrate-user` and `db-retention` | retention job |
@@ -397,7 +396,7 @@ TRAINER_TEST_SPLIT=0.15
 TRAINER_GENERATIONS=50
 TRAINER_POPULATION_SIZE=20
 TRAINER_TIME_BUDGET_MS=300000
-TRAINER_INTERVAL_MS=3600000
+TRAINER_INTERVAL_MS=14400000
 TRAINER_MAX_DATA_AGE_MS=900000
 TRAINER_EPISODES_PER_INDIVIDUAL=10
 TRAINER_FITNESS_TYPE=total_pnl
