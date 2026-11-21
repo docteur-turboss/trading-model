@@ -1,8 +1,8 @@
 # System Overview (C4)
 
-Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md) (broker), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
+Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md) (bus), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry, being retired by [ADR-0072](../adr/0072-dns-routing-and-majors-served-by-services.md)), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
 
-> **Offline consumer only.** Trained models (`training.model.published`, weights route open to `model-evaluator` alone through `MODEL_DOWNLOAD_CALLERS`) are verified and recorded by the offline `model-evaluator`; collected signals (`GET /financial-scraper/signals/assets/:assetId`) are only read and measured by trader-trainer for the symbols of `TRAINER_SYMBOL_ASSETS` (empty by default), not yet fed to the model. There is no paper-trading or execution context. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Accepted).
+> **Paper only, no decision consumer yet.** Trained models (`training.model.published`, weights route open to `model-evaluator` alone through `MODEL_DOWNLOAD_CALLERS`) are verified and replayed on stored candles by the offline `model-evaluator` ([ADR-0079](../adr/0079-replay-window-in-the-model-manifest.md)). Collected signals (`GET /financial-scraper/signals/assets/:assetId`) enter the network only when `FEATURE_SIGNAL_INPUTS` is on (default off, [ADR-0081](../adr/0081-signal-inputs-to-the-network.md), mask [ADR-0082](../adr/0082-input-mask-gene.md)). `risk-execution` owns every order, paper only (simulated broker, kill switch, [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md)): it takes intents and prices over HTTP (`POST /intents`, `POST /prices`), and no decision consumer sends them yet. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md).
 
 ## 1. C4 level 1 — Context
 
@@ -12,7 +12,7 @@ flowchart LR
   binance["Binance<br/>(market data REST)"]
   s3["S3 buckets, Object Lock<br/>(backups, audit anchors)"]
   ops["Operator<br/>(Grafana, Alertmanager receivers)"]
-  system["trading-model<br/>8 services + data stores + SPIRE + observability"]
+  system["trading-model<br/>services + data stores + SPIRE + observability"]
   client -->|HTTPS /v1| system
   system -->|scrape candles| binance
   system -->|age-encrypted backups, audit anchors| s3
@@ -34,6 +34,8 @@ flowchart TB
     tt["trader-trainer<br/>(npm name trader-trainer)"]
     al["audit-logger"]
     dlq["dlq-service"]
+    me["model-evaluator"]
+    re["risk-execution<br/>(paper broker, kill switch)"]
   end
 
   gw -->|"PUBLIC_ROUTES only"| al
@@ -44,6 +46,12 @@ flowchart TB
   fs -->|"publish candles"| mm
   mm -->|"callback /message"| tt
   mm -->|"callback /message (audit, training, dlq topics)"| al
+  mm -->|"training.model.published"| me
+  me -->|"weights"| tt
+  me -->|"candles for replay"| fs
+  re -->|"model admission"| tt
+  re -->|"risk.* events"| mm
+  re --> rpvc[("risk-execution volume<br/>state, paper ledger")]
   mm -->|"dead letter to Redis dead stream"| redis
   services -.->|"register + heartbeat (address-manager)"| disc
 
@@ -71,7 +79,7 @@ flowchart TB
   prom -.->|"scrape /metrics"| services
 ```
 
-message-manager keeps its subscriptions and a durable message journal (Redis Streams) in Redis (ADR-0048): it has no database of its own. MongoDB belongs to audit-logger and dlq-service. Compose runs one `mongo` container (databases `audit-logger` and `dlq`); K8s runs two StatefulSets, `mongo-audit` and `mongo-dlq`.
+The bus journal is Redis Streams in the shared Redis. [ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md) release N: services that set their `REDIS_*` variables publish and consume in process through the library, the others still go through message-manager, which shares the same streams and groups; message-manager has no database of its own. MongoDB belongs to audit-logger and dlq-service. Compose runs one `mongo` container (databases `audit-logger` and `dlq`); K8s runs two StatefulSets, `mongo-audit` and `mongo-dlq`.
 
 ## 3. Kubernetes deployment
 
@@ -79,7 +87,7 @@ message-manager keeps its subscriptions and a durable message journal (Redis Str
 flowchart TB
   subgraph tm["namespace trading-model (Pod Security: restricted)"]
     ing["Ingress gateway / grafana"] --> edge["Deployment edge-proxy"]
-    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints);<br/>trader-trainer: 1 replica, training on the Lease holder only (ADR-0058);<br/>financial-scraper-collector: 1 replica, crons on the Lease holder only (ADR-0057)"]
+    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints);<br/>model-evaluator, risk-execution: 1 replica, own PVC;<br/>trader-trainer: 1 replica, training on the Lease holder only (ADR-0058);<br/>financial-scraper-collector: 1 replica, crons on the Lease holder only (ADR-0057)"]
     svc --> mysql["StatefulSet mysql"]
     svc --> mA["StatefulSet mongo-audit"]
     svc --> mD["StatefulSet mongo-dlq"]
@@ -130,6 +138,6 @@ sequenceDiagram
 
 The trainer subscribes to no topic: its candle window is read from financial-scraper at each session ([ADR-0078](../adr/0078-trainer-features-from-candles-only.md)).
 
-Each subscribed service gets one delivery per message, whatever its number of instances: message-manager groups the subscribed instances by service and posts to the service name, the Kubernetes Service picks the pod (consumer group, [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
+Each subscribed service gets one delivery per message, whatever its number of instances: one consumer group per subscriber service, every replica a consumer of it ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md)).
 
 Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed or deleted with the operator CLI `audit-dlq` (audit-logger `dlq-cli.js`); an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).

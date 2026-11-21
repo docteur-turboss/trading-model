@@ -174,6 +174,7 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 | `TRAINER_*`           | Generations, population size, time budget, etc. |
 | `TRAINER_MODEL_DIR`   | Model artifacts directory (`/data/checkpoints/models`) |
 | `TRAINER_MODEL_RETENTION` | Versions kept per symbol (default 20)        |
+| `FEATURE_SIGNAL_INPUTS` | `true`: the signals of `TRAINER_SIGNAL_FEATURES` enter the network as value, age and confidence inputs (default `false`, [ADR-0081](../adr/0081-signal-inputs-to-the-network.md); GA input mask `FEATURE_INPUT_MASK_GENE`, [ADR-0082](../adr/0082-input-mask-gene.md)) |
 | `MODEL_DOWNLOAD_CALLERS` | Services allowed to download weights (comma-separated, empty: nobody; `model-evaluator` in compose and K8s) |
 
 ## TLS
