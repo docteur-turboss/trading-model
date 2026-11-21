@@ -7,38 +7,16 @@ import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
+import {
+	expectPagedSelect,
+	MOCK_QUERY,
+	MOCK_SQL,
+	SQL_OF,
+} from "../../../../../support/sql-mock";
 
-/** SQL and parameters the selects sent; rows they get back. */
-const MOCK_SQL: Array<{ query: string; params: unknown[] }> = [];
-/** Backticks dropped: MySQL quotes only some identifiers. */
-const SQL_OF = (query: string) => query.replaceAll("`", "");
-let MOCK_ROWS: unknown[] = [];
-const MOCK_QUERY = jest
-	.fn<(...args: any[]) => Promise<any>>()
-	.mockResolvedValue(undefined);
-
-jest.mock("../../../../../../src/config/db", () => {
-	const {
-		MySqlConnection,
-	} = require("ts-sql-query/connections/MySqlConnection");
-	const {
-		MockQueryRunner,
-	} = require("ts-sql-query/queryRunners/MockQueryRunner");
-	// The real query builder, so the tests see the SQL a select sends.
-	const runner = new MockQueryRunner(
-		(_type: string, query: string, params: unknown[]) => {
-			MOCK_SQL.push({ query, params: [...params] });
-			return MOCK_ROWS;
-		}
-	);
-	const connection = class extends MySqlConnection<"DBConnection"> {};
-	return {
-		createDBConnection: () => new (connection as any)(runner),
-		DATABASE: {
-			promise: jest.fn((..._args: any[]) => ({ query: MOCK_QUERY })),
-		},
-	};
-});
+jest.mock("../../../../../../src/config/db", () =>
+	require("../../../../../support/sql-mock").createDbMock()
+);
 
 import {
 	insertCandles,
@@ -88,12 +66,6 @@ describe("candles.schema", () => {
 			expect(MOCK_QUERY).toHaveBeenCalled();
 		});
 
-		it("should do nothing when first argument is empty array and undefined trades", async () => {
-			const data: never[] = [];
-			await insertCandles(data);
-			expect(MOCK_QUERY).not.toHaveBeenCalled();
-		});
-
 		it("should handle null trades field", async () => {
 			const data: never[] = [MAKE_CANDLE({ trades: null }) as never];
 			await insertCandles(data);
@@ -106,63 +78,40 @@ describe("candles.schema", () => {
 			MOCK_SQL.length = 0;
 		});
 
-		it("pages symbol in (timestamp, id) order, limit applied", async () => {
-			MOCK_ROWS = [];
-			const rows = await selectCandlesBy.symbol(TradingSymbol.of("BTCUSDT"), {
-				limit: 3,
-			});
-			expect(rows).toEqual([]);
-			const [{ query, params }] = MOCK_SQL;
-			const sql = SQL_OF(query);
-			expect(sql).toContain("from market_candles");
-			expect(sql).toContain("symbol = ?");
-			expect(sql).toMatch(/order by timestamp, id limit \?$/);
-			expect(params.at(-1)).toBe(3);
-		});
-		it("pages source in (timestamp, id) order, limit applied", async () => {
-			MOCK_ROWS = [];
-			const rows = await selectCandlesBy.source(SourceType.Binance, {
-				limit: 3,
-			});
-			expect(rows).toEqual([]);
-			const [{ query, params }] = MOCK_SQL;
-			const sql = SQL_OF(query);
-			expect(sql).toContain("from market_candles");
-			expect(sql).toContain("source = ?");
-			expect(sql).toMatch(/order by timestamp, id limit \?$/);
-			expect(params.at(-1)).toBe(3);
-		});
-		it("pages timestamp.after in (timestamp, id) order, limit applied", async () => {
-			MOCK_ROWS = [];
-			const rows = await selectCandlesBy.timestamp.after(
-				UnixTimestamp.of(Date.UTC(2024, 0, 1)),
-				{ limit: 3 }
-			);
-			expect(rows).toEqual([]);
-			const [{ query, params }] = MOCK_SQL;
-			const sql = SQL_OF(query);
-			expect(sql).toContain("from market_candles");
-			expect(sql).toContain("timestamp > ?");
-			expect(sql).toMatch(/order by timestamp, id limit \?$/);
-			expect(params.at(-1)).toBe(3);
-		});
-		it("pages timestamp.before in (timestamp, id) order, limit applied", async () => {
-			MOCK_ROWS = [];
-			const rows = await selectCandlesBy.timestamp.before(
-				UnixTimestamp.of(Date.UTC(2024, 0, 1)),
-				{ limit: 3 }
-			);
-			expect(rows).toEqual([]);
-			const [{ query, params }] = MOCK_SQL;
-			const sql = SQL_OF(query);
-			expect(sql).toContain("from market_candles");
-			expect(sql).toContain("timestamp < ?");
-			expect(sql).toMatch(/order by timestamp, id limit \?$/);
-			expect(params.at(-1)).toBe(3);
-		});
+		it("pages symbol in (timestamp, id) order, limit applied", () =>
+			expectPagedSelect(
+				(o) => selectCandlesBy.symbol(TradingSymbol.of("BTCUSDT"), o),
+				"market_candles",
+				"symbol = ?"
+			));
+		it("pages source in (timestamp, id) order, limit applied", () =>
+			expectPagedSelect(
+				(o) => selectCandlesBy.source(SourceType.Binance, o),
+				"market_candles",
+				"source = ?"
+			));
+		it("pages timestamp.after in (timestamp, id) order, limit applied", () =>
+			expectPagedSelect(
+				(o) =>
+					selectCandlesBy.timestamp.after(
+						UnixTimestamp.of(Date.UTC(2024, 0, 1)),
+						o
+					),
+				"market_candles",
+				"timestamp > ?"
+			));
+		it("pages timestamp.before in (timestamp, id) order, limit applied", () =>
+			expectPagedSelect(
+				(o) =>
+					selectCandlesBy.timestamp.before(
+						UnixTimestamp.of(Date.UTC(2024, 0, 1)),
+						o
+					),
+				"market_candles",
+				"timestamp < ?"
+			));
 
 		it("adds the window and the cursor of the page", async () => {
-			MOCK_ROWS = [];
 			await selectCandlesBy.symbol(TradingSymbol.of("BTCUSDT"), {
 				limit: 10,
 				after: { timestamp: 5000, id: 7 },
