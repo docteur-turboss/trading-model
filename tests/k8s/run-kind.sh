@@ -1153,8 +1153,6 @@ verify_alerts() {
 # fresh market data, no critical alert. One pass (no observation window).
 verify_release() {
 	log "release gate (deploy-k8s.sh verify-release)"
-	# A fresh volume starts with the global kill switch engaged (state_missing, issue #1933): re-arm it once, as an operator does.
-	risk_admin kill-switch/rearm '{"scope":"global","reason":"fresh kind cluster","actor":"ci"}' >/dev/null || true
 	# The upgrade restarts message-manager: its deliberate 503 "no subscriber" refusals can
 	# fire SLOAvailabilityFastBurn for a few minutes (5 m window, low kind traffic). Wait for
 	# it to clear (max 8 min) so the gate judges the settled stack; a persistent alert still fails it.

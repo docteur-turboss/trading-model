@@ -29,7 +29,7 @@ Service unreachable, last resort: revoke the broker API key at the exchange, or 
    - `daily_loss`, `daily_loss_symbol`: the limit restarts at 00:00 UTC but the switch does not; re-arm after review.
    - `drawdown`: only the owner (`RISK_OWNER_ACTOR`) re-arms, after reviewing the strategy.
    - `stale_data`, `reconciliation`, `rejects`: see the sections below.
-   - `state_missing`: no `state.json` at start (first install, or the volume was lost). After a loss, restore it first (`restore-k8s.sh --components risk`, [BACKUP_DR](../../deployment/BACKUP_DR.md)); on a first install, or when no backup is usable, re-arm once you have checked there is nothing to restore.
+   - `state_missing`: no `state.json` at start (first install, or the volume was lost). After a loss, restore it first (`restore-k8s.sh --components risk`, [BACKUP_DR](../../deployment/BACKUP_DR.md)); on a first install, or when no backup is usable, re-arm once you have checked there is nothing to restore. The `deploy.yml` gate (`deploy-k8s.sh verify-release`) reports this alert without rolling back, so the first deploy of a new or rebuilt environment passes; re-arm after it.
    - `state_unreadable`: the state file cannot be read and **cannot be re-armed**. Restore the newest daily backup (`restore-k8s.sh --components risk`), or copy `state.json` and `paper-ledger.json` out of the pod (`kubectl cp`), then either repair `state.json` from that copy, or remove both files together (state and paper ledger start flat, switch on `state_missing`), then restart the pod.
 3. Re-arm with a reason that says what you checked; it goes to the log with the actor.
 

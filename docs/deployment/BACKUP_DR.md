@@ -632,6 +632,9 @@ BACKUP_DIR=./backups K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-ke
 bash scripts/restore-k8s.sh --timestamp 2026-10-01_020000 --components mongodb
 ```
 
+A run taken before `risk` was backed up (issue #1933) has no such component:
+restore it with `--components mongodb,mysql,checkpoints,spire`.
+
 Or inside the cluster, next to the `backup-data` volume: a pod running
 `backup-tools` with the `backup-scripts` ConfigMap at `/scripts`,
 `backup-data` at `/backups` (the default `BACKUP_DIR`) and a service account
