@@ -5,7 +5,7 @@ import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import { Port } from "@trading-model/primitives/primitives";
 import { Hostname } from "@trading-model/primitives/primitives/hostname";
 import { getCorrelationId } from "./correlation-id";
-import { spiffeServerIdentityCheck } from "./http-tls-loader";
+import { buildTlsClientOptions } from "./http-tls-loader";
 import type { HttpHeaders, HttpMethod, TlsHttpOptions } from "./http-types";
 
 let sharedAgent: https.Agent | null = null;
@@ -54,25 +54,6 @@ function _buildUrlParts(url: URL): UrlParts {
 	};
 }
 
-function _buildTlsOptions(
-	options: TlsHttpOptions
-): Partial<https.RequestOptions> {
-	const hasCustomTrust = Boolean(options.caPem || options.certPem);
-	const tlsOptions: Partial<https.RequestOptions> = {
-		cert: options.certPem,
-		key: options.keyPem,
-		ca: options.caPem,
-		rejectUnauthorized: true,
-		agent: getKeepAliveAgent(),
-	};
-	if (hasCustomTrust) {
-		tlsOptions.checkServerIdentity = spiffeServerIdentityCheck(
-			options.serviceName
-		);
-	}
-	return tlsOptions;
-}
-
 function buildRequestOptions(
 	method: HttpMethod,
 	url: URL,
@@ -82,7 +63,9 @@ function buildRequestOptions(
 		method,
 		..._buildUrlParts(url),
 		headers: _buildDefaultHeaders(options),
-		..._buildTlsOptions(options),
+		...buildTlsClientOptions(options, options.serviceName),
+		rejectUnauthorized: true,
+		agent: getKeepAliveAgent(),
 	};
 }
 
