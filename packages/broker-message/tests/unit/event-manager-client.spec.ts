@@ -1,129 +1,58 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { EVENT_MANAGER } from "../../src/event-manager-client";
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
+const METADATA = { topic: "test.event", messageId: "m-1" };
+const emitter = EVENT_MANAGER as any;
 
 describe("EVENT_MANAGER", () => {
 	beforeEach(() => {
-		(EVENT_MANAGER as any)._emitter.removeAllListeners();
+		emitter._emitter.removeAllListeners();
 	});
 
-	describe("on", () => {
-		it("should register a listener for an event", () => {
-			const callback = jest.fn<(...args: any[]) => any>();
+	it("should hand the payload and the metadata to every listener of the event", async () => {
+		const callback1 = jest.fn<(...args: any[]) => any>();
+		const callback2 = jest.fn<(...args: any[]) => any>();
+		const other = jest.fn<(...args: any[]) => any>();
+		emitter.on("test.event", callback1);
+		emitter.on("test.event", callback2);
+		emitter.on("other.event", other);
 
-			EVENT_MANAGER.on("training.model.published" as never, callback);
+		await emitter.emit("test.event", { id: "txn-123" }, METADATA);
 
-			(EVENT_MANAGER as any).emit("training.model.published" as never, {
-				candle: [],
-			});
-
-			expect(callback).toHaveBeenCalledWith({ candle: [] });
-		});
-
-		it("should register multiple listeners for the same event", () => {
-			const callback1 = jest.fn<(...args: any[]) => any>();
-			const callback2 = jest.fn<(...args: any[]) => any>();
-
-			(EVENT_MANAGER as any).on("test.event", callback1);
-			(EVENT_MANAGER as any).on("test.event", callback2);
-
-			(EVENT_MANAGER as any).emit("test.event", { id: "txn-123" });
-
-			expect(callback1).toHaveBeenCalledWith({ id: "txn-123" });
-			expect(callback2).toHaveBeenCalledWith({ id: "txn-123" });
-		});
-
-		it("should return an unsubscribe function", () => {
-			const callback = jest.fn<(...args: any[]) => any>();
-
-			const unsubscribe = (EVENT_MANAGER as any).on("test.event", callback);
-
-			(EVENT_MANAGER as any).emit("test.event", { id: "user-1" });
-			expect(callback).toHaveBeenCalledTimes(1);
-
-			unsubscribe();
-
-			(EVENT_MANAGER as any).emit("test.event", { id: "user-2" });
-			expect(callback).toHaveBeenCalledTimes(1);
-		});
+		expect(callback1).toHaveBeenCalledWith({ id: "txn-123" }, METADATA);
+		expect(callback2).toHaveBeenCalledWith({ id: "txn-123" }, METADATA);
+		expect(other).not.toHaveBeenCalled();
 	});
 
-	describe("emit", () => {
-		it("should call all listeners for an event", () => {
-			const callback1 = jest.fn<(...args: any[]) => any>();
-			const callback2 = jest.fn<(...args: any[]) => any>();
+	it("should return an unsubscribe function", async () => {
+		const callback = jest.fn<(...args: any[]) => any>();
+		const unsubscribe = emitter.on("test.event", callback);
 
-			(EVENT_MANAGER as any).on("test.event", callback1);
-			(EVENT_MANAGER as any).on("test.event", callback2);
+		await emitter.emit("test.event", { id: "user-1" }, METADATA);
+		unsubscribe();
+		await emitter.emit("test.event", { id: "user-2" }, METADATA);
 
-			const data = { id: "user-999", name: "John" };
-			(EVENT_MANAGER as any).emit("test.event", data);
-
-			expect(callback1).toHaveBeenCalledWith(data);
-			expect(callback2).toHaveBeenCalledWith(data);
-		});
-
-		it("should not call listeners for other events", () => {
-			const callback1 = jest.fn<(...args: any[]) => any>();
-			const callback2 = jest.fn<(...args: any[]) => any>();
-
-			(EVENT_MANAGER as any).on("event.a", callback1);
-			(EVENT_MANAGER as any).on("event.b", callback2);
-
-			(EVENT_MANAGER as any).emit("event.a", { id: "1" });
-
-			expect(callback1).toHaveBeenCalled();
-			expect(callback2).not.toHaveBeenCalled();
-		});
-
-		it("should handle events with no listeners gracefully", () => {
-			expect(() => {
-				(EVENT_MANAGER as any).emit("nonexistent.event", { data: "test" });
-			}).not.toThrow();
-		});
-
-		it("should support void events (no data)", () => {
-			const callback = jest.fn<(...args: any[]) => any>();
-
-			EVENT_MANAGER.on("training.model.published" as never, callback);
-			EVENT_MANAGER.emit("training.model.published" as never);
-
-			expect(callback).toHaveBeenCalled();
-		});
+		expect(callback).toHaveBeenCalledTimes(1);
 	});
 
-	describe("Listener lifecycle", () => {
-		it("should handle rapid subscribe/unsubscribe cycles", () => {
-			const callback = jest.fn<(...args: any[]) => any>();
+	it("should resolve when the event has no listener", async () => {
+		await expect(
+			emitter.emit("nonexistent.event", { data: "test" }, METADATA)
+		).resolves.toBeUndefined();
+	});
 
-			for (let i = 0; i < 5; i++) {
-				const unsubscribe = (EVENT_MANAGER as any).on("test.event", callback);
-				unsubscribe();
-			}
+	// The bus acks only after emit resolves: an async failure must reach it.
+	it("should wait for an async listener and reject with its failure", async () => {
+		const failing = jest
+			.fn<(...args: any[]) => any>()
+			.mockRejectedValue(new Error("Listener error"));
+		const next = jest.fn<(...args: any[]) => any>();
+		emitter.on("error.event", failing);
+		emitter.on("error.event", next);
 
-			(EVENT_MANAGER as any).emit("test.event", { iteration: 1 });
-			expect(callback).not.toHaveBeenCalled();
-		});
-
-		it("should handle errors in listener callbacks gracefully", () => {
-			const errorCallback = jest.fn((..._args: any[]) => {
-				throw new Error("Listener error");
-			});
-			const normalCallback = jest.fn<(...args: any[]) => any>();
-
-			(EVENT_MANAGER as any).on("error.event", errorCallback);
-			(EVENT_MANAGER as any).on("error.event", normalCallback);
-
-			let errorWasThrown = false;
-			try {
-				(EVENT_MANAGER as any).emit("error.event", { test: true });
-			} catch {
-				errorWasThrown = true;
-			}
-
-			expect(errorCallback).toHaveBeenCalled();
-			expect(errorWasThrown).toBe(true);
-		});
+		await expect(
+			emitter.emit("error.event", { test: true }, METADATA)
+		).rejects.toThrow("Listener error");
+		expect(next).not.toHaveBeenCalled();
 	});
 });

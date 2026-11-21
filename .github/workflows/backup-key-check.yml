@@ -24,7 +24,7 @@ on:
         type: string
         default: ''
       components:
-        description: 'Components (weekly/monthly tiers: mongodb-audit,mysql)'
+        description: 'Components (weekly/monthly tiers: mongodb-audit,mysql-core)'
         required: false
         type: string
         default: 'mongodb,mongodb-audit,mysql,checkpoints,spire'

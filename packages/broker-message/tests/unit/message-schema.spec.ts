@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
-
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
+import { RiskEvent } from "@trading-model/contracts/risk-events";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 
 import {
@@ -97,7 +97,11 @@ describe("training and DLQ events", () => {
 	};
 
 	it("covers every event type", () => {
-		const types = [...Object.values(TrainingEvent), ...Object.values(DlqEvent)];
+		const types = [
+			...Object.values(TrainingEvent),
+			...Object.values(DlqEvent),
+			...Object.values(RiskEvent),
+		];
 		expect(types.every((t) => t in EVENT_VALIDATORS)).toBe(true);
 	});
 
@@ -130,5 +134,30 @@ describe("training and DLQ events", () => {
 			MESSAGE_PAYLOAD_SCHEMA.safeParse({ type: "dlq.entry.added", data })
 				.success
 		).toBe(true);
+	});
+
+	it.each([
+		[
+			RiskEvent.OrderTransitioned,
+			{
+				clientOrderId: "rx-1",
+				symbol: "BTCUSDT",
+				status: "filled",
+				reason: null,
+			},
+		],
+		[
+			RiskEvent.KillSwitchEngaged,
+			{ scope: "global", symbol: null, reason: "drawdown", actor: "system" },
+		],
+		[
+			RiskEvent.KillSwitchRearmed,
+			{ scope: "symbol", symbol: "BTCUSDT", reason: "checked", actor: "owner" },
+		],
+	])("accepts %s with its mode and refuses it without", (type, fields) => {
+		const parse = (data: object) =>
+			MESSAGE_PAYLOAD_SCHEMA.safeParse({ type, data }).success;
+		expect(parse({ ...fields, mode: "paper" })).toBe(true);
+		expect(parse(fields)).toBe(false);
 	});
 });

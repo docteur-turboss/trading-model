@@ -133,6 +133,16 @@ spec:
             # Only its holder trains (ADR-0058).
             - name: TRAINER_LEASE_NAME
               value: trader-trainer
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_TRADER_TRAINER_PASSWORD
+            - name: REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
@@ -149,6 +159,9 @@ spec:
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
+            - name: redis-tls
+              mountPath: /etc/redis-tls
+              readOnly: true
             - name: trainer-checkpoints
               mountPath: /data/checkpoints
           livenessProbe:
@@ -213,6 +226,12 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         - name: trainer-checkpoints
           persistentVolumeClaim:
             claimName: trainer-checkpoints-pvc
