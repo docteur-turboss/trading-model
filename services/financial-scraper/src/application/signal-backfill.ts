@@ -1,9 +1,9 @@
-import { runCli } from "./run-cli";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fillAssetHoles, type SignalRegistry } from "../config/signal-registry";
 import { dailyRequests } from "../domain/signals";
+import { runCli } from "./run-cli";
 import { SignalCollector } from "./signal-collector";
 
 const USAGE = `Backfill the history of a signal source, run inside the collector pod:

@@ -1,4 +1,5 @@
 import { runCli } from "./run-cli";
+
 /**
  * Operator command (ADR-0053): prints the stored order book snapshots of a
  * series as JSON lines, oldest first.

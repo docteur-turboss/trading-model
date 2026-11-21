@@ -1,10 +1,10 @@
-import { runCli } from "./run-cli";
 import { randomUUID } from "node:crypto";
 import {
 	DlqEvent,
 	type DlqEventMap,
 } from "@trading-model/contracts/dlq-events";
 import { openDlqCli } from "../config/dlq-cli";
+import { runCli } from "./run-cli";
 
 const USAGE = `Dead letters of the bus (ADR-0073), run inside an audit-logger pod:
   node services/audit-logger/dist/application/dlq-cli.js <operator> list <topic>
@@ -77,9 +77,9 @@ if (require.main === module) {
 	const cli = openDlqCli();
 	runCli(() =>
 		runDlqCli(process.argv.slice(2), {
-		...cli,
-		out: (text) => console.log(text),
-		err: (text) => console.error(text),
-	})
+			...cli,
+			out: (text) => console.log(text),
+			err: (text) => console.error(text),
+		})
 	);
 }

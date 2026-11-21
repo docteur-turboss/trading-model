@@ -1,4 +1,3 @@
-import { runCli } from "./run-cli";
 import { mongoAuthFromEnv } from "@trading-model/persistence/mongo-utils";
 import {
 	chainAuditSettingsFromEnv,
@@ -7,6 +6,7 @@ import {
 } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
 import type { ChainAudit } from "./audit-chain/chain-audit";
+import { runCli } from "./run-cli";
 
 const USAGE = `Audit chain tools (ADR-0027), run inside an audit-logger pod:
   node services/audit-logger/dist/application/chain-cli.js report
@@ -72,6 +72,6 @@ if (require.main === module) {
 			},
 			out: (text) => console.log(text),
 			err: (text) => console.error(text),
-})
+		})
 	);
 }
