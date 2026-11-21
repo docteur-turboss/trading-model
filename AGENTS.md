@@ -46,7 +46,7 @@ Packages must be built in this order before services:
 
 1. `@trading-model/primitives` (zero dependencies — branded types, domain primitives)
 2. `@trading-model/contracts` (depends on primitives; owner of every shared runtime-free contract — events, message envelope, service registry, signed request, DLQ, recovery/worker protocol — plus http-status/headers, logger-registry; see ADR-0016)
-3. `@trading-model/reliability` (depends on primitives + contracts; circuit breakers, heartbeat interfaces, leader lease)
+3. `@trading-model/reliability` (depends on primitives + contracts; circuit breakers, heartbeat, leader lease)
 4. `@trading-model/common` (depends on primitives + contracts; residual: config, utils, shared schemas)
 5. `@trading-model/model-runtime` (depends on primitives + contracts + common; forward pass, feature codec, portfolio simulator ADR-0066, used by trader-trainer and model-evaluator (replay), ADR-0016)
 6. `@trading-model/persistence` (depends on common + primitives + contracts; Redis/Mongo stores)
