@@ -1703,6 +1703,26 @@ tests:
               description: 'Only 10% of /dev/sda1 is free on 10.0.0.5:9100 (one alert per device, whatever its mount points). A full node disk evicts pods; a full Docker Desktop host disk froze the whole VM (2026-10-28).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#nodefilesystemalmostfull'
 
+  - name: MySQL accepting plain connections is reported after 15 minutes
+    interval: 1m
+    input_series:
+      - series: 'mysql_global_variables_require_secure_transport{job="mysql",instance="10.0.0.1:9104"}'
+        values: '0x20'
+      - series: 'mysql_global_variables_require_secure_transport{job="mysql",instance="10.0.0.2:9104"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: MySQLSecureTransportOff
+        exp_alerts: []
+      - eval_time: 17m
+        alertname: MySQLSecureTransportOff
+        exp_alerts:
+          - exp_labels: {severity: warning, job: mysql, instance: '10.0.0.1:9104'}
+            exp_annotations:
+              summary: 'MySQL 10.0.0.1:9104 accepts plain connections'
+              description: 'require_secure_transport has been OFF on 10.0.0.1:9104 for 15 minutes: a deploy rollback relaxed MySQL TLS (scraper no longer needs a client certificate) and nothing restored it.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqlsecuretransportoff'
+
   - name: a database its exporter cannot query is reported per member
     interval: 1m
     input_series:
