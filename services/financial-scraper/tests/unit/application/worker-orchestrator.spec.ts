@@ -193,7 +193,7 @@ describe("WorkerOrchestrator", () => {
 		expect(startTimeOfCall(0)).toBe(299 * MINUTE);
 	});
 
-	it("should fetch the latest candles and read the stored one again next cycle when MySQL fails", async () => {
+	it("should fetch nothing while MySQL is unreadable, then resume at the stored candle", async () => {
 		backlog.store({ candles: [candleAt(5)], fetchedAt: 0 });
 		backlog.failReads = true;
 
@@ -201,8 +201,9 @@ describe("WorkerOrchestrator", () => {
 		backlog.failReads = false;
 		await runCycle();
 
-		expect(startTimeOfCall(0)).toBeUndefined();
-		expect(startTimeOfCall(1)).toBe(5 * MINUTE);
+		expect(fetchSnapshot).toHaveBeenCalledTimes(1);
+		expect(startTimeOfCall(0)).toBe(5 * MINUTE);
+		expect(await symbolCount(SYMBOLS_FAILED_TOTAL, BTC)).toBe(1);
 	});
 
 	it("should fetch the same candles again when persistence fails", async () => {
