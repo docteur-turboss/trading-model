@@ -8,14 +8,14 @@ Inter-service messaging library: the Redis Streams bus used in process ([ADR-007
 
 ## Bus library (`src/bus/`)
 
-Opt-in: `busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-manager`) returns a `RedisMessageJournal`, or `undefined` when no Redis setting is present (`REDIS_URL` or `REDIS_SENTINELS`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_PASSWORD`, `REDIS_TLS_MODE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, plus `JOURNAL_MIN_REPLICAS`). `createServiceMessageManager` passes it to `BrokerMessage`. Keys keep the prefix `trading-model:message-manager`.
+Opt-in: `busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-manager`) returns a `RedisMessageJournal`, or `undefined` when no Redis setting is present (`REDIS_URL` or `REDIS_SENTINELS`, `REDIS_SENTINEL_MASTER_NAME`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_PASSWORD`, `REDIS_TLS_MODE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, plus `JOURNAL_MIN_REPLICAS`). `createServiceMessageManager` passes it to `BrokerMessage`. Keys keep the prefix `trading-model:message-manager`.
 
 | Export (`@trading-model/broker-message/bus/…`) | Role |
 | ---------------------------------------------- | ---- |
 | `publisher` — `publishToBus` | `XADD` into the topic stream; rejects when Redis refuses the write or when `delivery.requireSubscriber` is set and nobody subscribes |
 | `consumer` — `BusConsumer` | One loop per topic, `XREADGROUP` + `XCLAIM` retries, `XACK` on success; one consumer group per subscriber service |
 | `redis-journal`, `journal.port` | Journal over Redis Streams (`RedisMessageJournal`, `MessageJournalPort`) |
-| `dead-streams` — `DeadStreams` | Entries over the delivery limit (10 for `at-least-once`) or rejected with a `DeadLetterError` are copied to `trading-model:message-manager:dead:<topic>`, never trimmed |
+| `dead-streams` — `DeadStreams` | Entries over the delivery limit (10 for `at-least-once`) expired TTL, failed `exactly-once` attempt, or rejected with a `DeadLetterError` are copied to `trading-model:message-manager:dead:<topic>`, never trimmed |
 | `metrics` | `mm_messages_delivered_total`, `mm_messages_dlq_total`, `mm_journal_*`, `bus_dead_letters`, `bus_publisher_rejected_total` |
 | `backoff`, `delivery-error-classifier`, `delivery-metadata-extractor`, `message-factory` | Retry delay, error classification, delivery metadata, message construction |
 
@@ -77,19 +77,9 @@ const message = new BrokerMessage({...});
 await message.post.indirect(payload, metadata);
 ```
 
-## HTTP client of message-manager (to be removed with #1241)
+## HTTP client of message-manager (to be removed with [#1241](https://github.com/docteur-turboss/trading-model/issues/1241))
 
-Removed with message-manager in release N+1 ([#1241](https://github.com/docteur-turboss/trading-model/issues/1241)).
-
-## Endpoints
-
-### Served (Inbound)
-
-None: each subscriber mounts its own `POST /message` route.
-
-### Consumed (Outbound)
-
-Calls made to message-manager:
+Served: none (each subscriber mounts its own `POST /message` route). Calls made to message-manager:
 
 | Method | Path                              | Source                                      | Purpose                                |
 | ------ | --------------------------------- | ------------------------------------------- | -------------------------------------- |
@@ -226,7 +216,7 @@ import BrokerMessage, { HELPER } from '@trading-model/broker-message';
 import AddressManager from '@trading-model/address-manager';
 
 const am = new AddressManager({/* config */});
-am.start();
+const { stop: stopAM } = am.start();
 
 const broker = new BrokerMessage({
   instanceId: 'instance-1',
@@ -251,4 +241,5 @@ await broker.post.indirect({ price: 50000 }, metadata);
 
 cleanup();
 await broker.stopMessageManager();
+stopAM();
 ```
