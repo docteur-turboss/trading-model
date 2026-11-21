@@ -11,7 +11,7 @@ import type {
 	CandleData,
 	MarketDataPage,
 } from "../../../../domain/market-data.types";
-import { defineUpsert, type PageFilter, pagedQuery } from "./market-table";
+import { defineUpsert, pagedSelect } from "./market-table";
 
 const T_MARKET_CANDLES = new (class TMarketCandles extends Table<
 	DBConnection,
@@ -98,36 +98,31 @@ export const insertCandles = defineUpsert<CandleData>({
 	],
 });
 
-function _selectPage(
-	filter: PageFilter<typeof T_MARKET_CANDLES>,
-	page: MarketDataPage
-) {
-	return pagedQuery(T_MARKET_CANDLES, filter, page)
-		.select(SELECT)
-		.orderBy("timestamp")
-		.orderBy("id")
-		.limit(page.limit)
-		.executeSelectMany();
-}
-
 /** Query helpers for the market_candles table, indexed by symbol, timestamp, and source. */
 export const selectCandlesBy = {
 	symbol: (symbol: TradingSymbol, page: MarketDataPage) =>
-		_selectPage(T_MARKET_CANDLES.symbol.equals(symbol), page),
+		pagedSelect(
+			T_MARKET_CANDLES,
+			SELECT,
+			T_MARKET_CANDLES.symbol.equals(symbol),
+			page
+		),
 	timestamp: {
 		after: (timestamp: UnixTimestamp, page: MarketDataPage) =>
-			_selectPage(
+			pagedSelect(
+				T_MARKET_CANDLES,
+				SELECT,
 				T_MARKET_CANDLES.timestamp.greaterThan(new Date(timestamp)),
-				page
-			),
-		before: (timestamp: UnixTimestamp, page: MarketDataPage) =>
-			_selectPage(
-				T_MARKET_CANDLES.timestamp.lessThan(new Date(timestamp)),
 				page
 			),
 	},
 	source: (source: SourceType, page: MarketDataPage) =>
-		_selectPage(T_MARKET_CANDLES.source.equals(source), page),
+		pagedSelect(
+			T_MARKET_CANDLES,
+			SELECT,
+			T_MARKET_CANDLES.source.equals(source),
+			page
+		),
 };
 
 interface LastRow extends RowDataPacket {

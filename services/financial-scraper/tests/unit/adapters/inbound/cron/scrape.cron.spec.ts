@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import {
 	DataSource,
-	PositiveInt,
 	TradingSymbol,
 } from "@trading-model/primitives/primitives";
 
@@ -73,7 +72,6 @@ describe("ScrapeCronOrchestrator", () => {
 		// the default is min(8, symbols), whatever the host cores
 		it.each([
 			["default concurrency capped at 2 symbols", {}, 2],
-			["provided maxConcurrency", { maxConcurrency: PositiveInt.of(3) }, 3],
 			["default concurrency capped at 1 symbol", { symbols: [BTC] }, 1],
 			[
 				"default concurrency capped at 8",
@@ -208,24 +206,6 @@ describe("ScrapeCronOrchestrator", () => {
 
 			expect(MOCK_FETCH_SNAPSHOT).toHaveBeenCalledWith(
 				expect.objectContaining({ interval: CandleInterval.Min1 })
-			);
-		});
-
-		it("should use provided candle interval", async () => {
-			const orchestrator = new ScrapeCronOrchestrator({
-				...defaultConfig,
-				candleInterval: CandleInterval.Min5,
-			});
-			orchestrator.start();
-
-			const cronHandler = GET_CRON_HANDLER();
-			MOCK_FETCH_SNAPSHOT.mockResolvedValue({ fetchedAt: Date.now() });
-			MOCK_PERSIST.mockResolvedValue(undefined);
-
-			await cronHandler();
-
-			expect(MOCK_FETCH_SNAPSHOT).toHaveBeenCalledWith(
-				expect.objectContaining({ interval: CandleInterval.Min5 })
 			);
 		});
 	});

@@ -328,7 +328,7 @@ describe("market_candles — real MySQL", () => {
 		expect(row.trades).toBeUndefined();
 	});
 
-	it("should select candles strictly after or before a timestamp", async () => {
+	it("should select candles strictly after a timestamp", async () => {
 		await insertCandles([
 			candle(),
 			candle({ timestamp: UnixTimestamp.of(T0 + 60_000) }),
@@ -336,9 +336,6 @@ describe("market_candles — real MySQL", () => {
 
 		await expect(
 			selectCandlesBy.timestamp.after(T0, PAGE)
-		).resolves.toHaveLength(1);
-		await expect(
-			selectCandlesBy.timestamp.before(UnixTimestamp.of(T0 + 60_000), PAGE)
 		).resolves.toHaveLength(1);
 	});
 });
