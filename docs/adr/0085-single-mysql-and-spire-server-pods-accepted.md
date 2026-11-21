@@ -29,7 +29,7 @@ The production node count is not decided yet: today only staging runs, on a loca
 
 ### Revisit condition
 
-Reopen this decision when production has at least 2 nodes. B is then the best cost/protection ratio (two lines in the production overlay). C is the option if losing ingestion for the RTO becomes unacceptable.
+Reopen this decision when production has at least 2 nodes. B is then the best cost/protection ratio (two lines in the production overlay). C is the option if losing ingestion for the RTO becomes unacceptable. The condition is repeated in the [Kubernetes prerequisites](../deployment/KUBERNETES.md#prerequisites).
 
 ## Alternatives Considered
 

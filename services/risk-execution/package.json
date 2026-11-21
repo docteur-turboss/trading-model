@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@trading-model/address-manager": "*",
+    "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
     "@trading-model/contracts": "*",
     "@trading-model/http": "*",
