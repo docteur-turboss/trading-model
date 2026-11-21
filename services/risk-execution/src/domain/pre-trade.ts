@@ -33,11 +33,22 @@ export interface PreTradeContext {
 
 /** Reason codes: the first failing check rejects the intent (ADR-0064 §2). */
 export function preTradeReject(ctx: PreTradeContext): string | null {
-	const { intent, limits, state, now } = ctx;
-	const cap = limits.allocatedCapital;
-	const instrument = limits.instruments[intent.symbol];
-	const open = Object.values(state.orders).filter(isOpen);
+	return (
+		gateReject(ctx) ??
+		priceReject(ctx) ??
+		exposureReject(ctx) ??
+		balanceReject(ctx) ??
+		rateReject(ctx) ??
+		lossReject(ctx)
+	);
+}
 
+const orderPrice = (intent: Intent): number =>
+	intent.limitPrice ?? intent.referencePrice;
+
+function gateReject(ctx: PreTradeContext): string | null {
+	const { intent, limits, state, now } = ctx;
+	const instrument = limits.instruments[intent.symbol];
 	if (state.killSwitch.global || state.killSwitch.symbols[intent.symbol]) {
 		return "kill_switch";
 	}
@@ -59,8 +70,15 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 	if (intent.quantity > instrument.maxQuantity) {
 		return "max_quantity";
 	}
-	const price = intent.limitPrice ?? intent.referencePrice;
-	if (intent.quantity * price > limits.orderNotionalPct * cap) {
+	return null;
+}
+
+function priceReject(ctx: PreTradeContext): string | null {
+	const { intent, limits, state } = ctx;
+	if (
+		intent.quantity * orderPrice(intent) >
+		limits.orderNotionalPct * limits.allocatedCapital
+	) {
 		return "max_notional";
 	}
 	if (
@@ -77,7 +95,12 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 	) {
 		return "price_gap";
 	}
+	return null;
+}
 
+function exposureReject(ctx: PreTradeContext): string | null {
+	const { intent, limits, state } = ctx;
+	const cap = limits.allocatedCapital;
 	const projected = projectedPositions(state);
 	const after =
 		(projected[intent.symbol] ?? 0) +
@@ -100,28 +123,31 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 	if (global > limits.globalExposurePct * cap) {
 		return "global_exposure";
 	}
-	if (global > equity(state)) {
-		return "leverage";
-	}
+	return global > equity(state) ? "leverage" : null;
+}
 
-	if (intent.side === "buy") {
-		const reserved = open
-			.filter((order) => order.side === "buy")
-			.reduce(
-				(sum, order) =>
-					sum +
-					(order.quantity - order.filledQty) *
-						(order.limitPrice ?? order.referencePrice),
-				0
-			);
-		if (
-			state.cash - reserved <
-			intent.quantity * price * (1 + limits.feeBps / 10_000)
-		) {
-			return "insufficient_balance";
-		}
+function balanceReject(ctx: PreTradeContext): string | null {
+	const { intent, limits, state } = ctx;
+	if (intent.side !== "buy") {
+		return null;
 	}
+	const reserved = Object.values(state.orders)
+		.filter((order) => isOpen(order) && order.side === "buy")
+		.reduce(
+			(sum, order) =>
+				sum +
+				(order.quantity - order.filledQty) *
+					(order.limitPrice ?? order.referencePrice),
+			0
+		);
+	return state.cash - reserved <
+		intent.quantity * orderPrice(intent) * (1 + limits.feeBps / 10_000)
+		? "insufficient_balance"
+		: null;
+}
 
+function rateReject(ctx: PreTradeContext): string | null {
+	const { intent, limits, state, now } = ctx;
 	const recent = Object.values(state.orders).filter(
 		(order) => now - order.createdAt < 60_000 && order.status !== "rejected"
 	);
@@ -142,24 +168,24 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 			now - order.createdAt < limits.duplicateWindowMs &&
 			order.status !== "rejected"
 	);
-	if (dup && !intent.allowRepeat) {
-		return "duplicate_window";
-	}
+	return dup && !intent.allowRepeat ? "duplicate_window" : null;
+}
 
-	// Worst case: filled at the far end of the band, marked back to the reference price (policy §3).
-	if (intent.side === "buy") {
-		const worst = intent.quantity * intent.referencePrice * limits.priceBandPct;
-		if (dailyLoss(state) + worst >= limits.dailyLossPct * cap) {
-			return "loss_limit_daily";
-		}
-		if (
-			symbolLoss(state, intent.symbol) + worst >=
-			limits.symbolDailyLossPct * cap
-		) {
-			return "loss_limit_symbol";
-		}
+function lossReject(ctx: PreTradeContext): string | null {
+	const { intent, limits, state } = ctx;
+	if (intent.side !== "buy") {
+		return null;
 	}
-	return null;
+	const cap = limits.allocatedCapital;
+	// Worst case: filled at the far end of the band, marked back to the reference price (policy §3).
+	const worst = intent.quantity * intent.referencePrice * limits.priceBandPct;
+	if (dailyLoss(state) + worst >= limits.dailyLossPct * cap) {
+		return "loss_limit_daily";
+	}
+	return symbolLoss(state, intent.symbol) + worst >=
+		limits.symbolDailyLossPct * cap
+		? "loss_limit_symbol"
+		: null;
 }
 
 export const dailyLoss = (state: RiskState): number =>

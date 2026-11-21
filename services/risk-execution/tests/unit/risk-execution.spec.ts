@@ -101,8 +101,20 @@ describe("preTradeReject on crafted states", () => {
 	};
 
 	it.each<[string, (s: RiskState) => void, string]>([
-		["leverage", (s) => (s.cash = 1_000), "leverage"],
-		["insufficient balance", (s) => (s.cash = 3_000), "insufficient_balance"],
+		[
+			"leverage",
+			(s) => {
+				s.cash = 1_000;
+			},
+			"leverage",
+		],
+		[
+			"insufficient balance",
+			(s) => {
+				s.cash = 3_000;
+			},
+			"insufficient_balance",
+		],
 		[
 			"global order rate",
 			(s) => {
@@ -118,12 +130,16 @@ describe("preTradeReject on crafted states", () => {
 		],
 		[
 			"daily loss",
-			(s) => (s.day.startEquity = CAPITAL * 1.02),
+			(s) => {
+				s.day.startEquity = CAPITAL * 1.02;
+			},
 			"loss_limit_daily",
 		],
 		[
 			"symbol daily loss",
-			(s) => (s.day.symbols.BTCUSDT = { startValue: 1_000, flow: 0 }),
+			(s) => {
+				s.day.symbols.BTCUSDT = { startValue: 1_000, flow: 0 };
+			},
 			"loss_limit_symbol",
 		],
 	])("rejects %s", (_n, edit, expected) => {
