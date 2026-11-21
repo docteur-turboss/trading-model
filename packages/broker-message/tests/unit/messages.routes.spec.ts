@@ -90,7 +90,10 @@ describe("CREATE_CALLBACK_ROUTE (BROKER_CALLBACK_API.receive)", () => {
 
 		expect(status).toBe(200);
 		expect(body).toEqual({ status: "delivered" });
-		expect(listener).toHaveBeenCalledWith(PAYLOAD);
+		expect(listener).toHaveBeenCalledWith(
+			PAYLOAD,
+			expect.objectContaining({ topic: METADATA.topic })
+		);
 	});
 
 	it("runs the listeners in the correlation context of the message", async () => {

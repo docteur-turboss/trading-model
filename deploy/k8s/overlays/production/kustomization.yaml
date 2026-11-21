@@ -15,10 +15,10 @@ components:
 patches:
   # Redis runs master + 2 replicas in production only: a journal write is
   # accepted once one replica holds it (ADR-0048). Staging has one Redis node,
-  # where WAIT 1 can never succeed.
+  # where WAIT 1 can never succeed. The bus services publish with their own XADD (ADR-0073).
   - target:
       kind: ConfigMap
-      name: message-manager-config
+      name: (message-manager|audit-logger|trader-trainer|model-evaluator)-config
     patch: |-
       - op: add
         path: /data/JOURNAL_MIN_REPLICAS

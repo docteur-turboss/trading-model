@@ -87,4 +87,28 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 		).toBe(false);
 		expect(CLIENT.subscribe).toHaveBeenCalledWith([topic]);
 	});
+
+	it("should consume in process a topic with a listener registered by on(), metadata included", async () => {
+		const topic = "dlq.entry.added";
+		const bus = broker();
+		const received: unknown[] = [];
+		bus.on(
+			topic as never,
+			((payload: unknown, metadata: { topic: string }) => {
+				received.push([payload, metadata.topic]);
+			}) as never
+		);
+		await bus.intents([topic] as never);
+		const metadata = new HELPER.metadataBuilder(
+			topic as never,
+			topic as never,
+			{ instanceId: "i-1", serviceName: "model-evaluator" } as never
+		).toJSON();
+		const payload = { entryId: "e2", topic: null, reason: null, actor: null };
+		await bus.post.indirect(payload, metadata);
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		await bus.stopMessageManager();
+
+		expect(received).toEqual([[payload, topic]]);
+	});
 });

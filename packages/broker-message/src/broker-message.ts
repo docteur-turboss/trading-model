@@ -209,7 +209,7 @@ export default class BrokerMessage {
 		this._eventCleanups = [];
 	}
 
-	/** Registers a listener for a broker message event. */
+	/** Registers a listener for a broker message event; call it before `intents`, which consumes on the bus only the topics with a listener. */
 	on<TEvent extends keyof EventMap>(
 		eventName: TEvent,
 		listener: Listener<EventMessagesArgs<TEvent>>
