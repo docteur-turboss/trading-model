@@ -287,6 +287,12 @@ tag, `preflight_only: true`) until it passes: it checks everything below that
 the repository can check, and lists every gap in one run. What stays manual
 (owner, with admin rights):
 
+0. **Production-ready objective**: the deploy refuses production until the
+   pinned issue labelled `objectif` reads `n/n audits` (every audit of the
+   objective has a green decision and a score of at least 80). A stable
+   `vX.Y.Z` tag says the version is stable (expand/contract, contract
+   baseline), not that production is ready: releases ship to staging before
+   the objective is met.
 1. **GitHub environment `production`**: create it, required reviewers with
    "Prevent self-review", deployment tag rule `v*` only, and the repository
    secret `ENVIRONMENT_READ_TOKEN` ([Prerequisites](#prerequisites-secrets)).

@@ -83,7 +83,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md) | The Message Bus as a Redis Streams Library, Dead Letters in Dead Streams | Accepted | 2026-11 |
 | [ADR-0074](./0074-merge-shared-packages-into-six.md) | Merge the Twelve Shared Packages into Six, One Merge per PR | Accepted | 2026-11 |
 | [ADR-0075](./0075-non-commercial-signal-sources-admitted-and-tagged.md) | Free Personal-Use Signal Sources Are Admitted, Tagged by Their Terms | Accepted | 2026-11 |
-| [ADR-0076](./0076-multi-asset-trainer-shared-encoders-and-agent-hierarchy.md) | Multi-Asset Trainer: Shared Encoders, a Three-Level Agent Hierarchy and a Migration Path in Flagged Steps | Proposed | 2026-11 |
+| [ADR-0076](./0076-multi-asset-trainer-shared-encoders-and-agent-hierarchy.md) | Multi-Asset Trainer: Shared Encoders, a Three-Level Agent Hierarchy and a Migration Path in Flagged Steps | Accepted | 2026-11 |
 | [ADR-0077](./0077-rank-the-market-data-source-terms.md) | Rank the Market Data Source Terms Against the Licence Order, Add Bitstamp as Second Source | Proposed | 2026-11 |
 | [ADR-0078](./0078-trainer-features-from-candles-only.md) | The Trainer's Features Come From the Candle Window Alone | Accepted | 2026-11 |
 | [ADR-0079](./0079-replay-window-in-the-model-manifest.md) | The Model Manifest Carries the Window and the Simulator to Replay It | Accepted | 2026-11 |
@@ -92,6 +92,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0082](./0082-input-mask-gene.md) | The GA Evolves a Mask over the Input Groups | Accepted | 2026-11 |
 | [ADR-0083](./0083-daily-bars-from-signals-for-registry-assets.md) | Registry Assets Train on Daily Bars Rebuilt from Market Signals | Accepted | 2026-11 |
 | [ADR-0084](./0084-text-signals-stored-as-documents-enriched-to-numbers.md) | Text Signals Are Stored as Documents and Enriched Into v1 Numeric Signals | Accepted | 2026-11 |
+| [ADR-0085](./0085-single-mysql-and-spire-server-pods-accepted.md) | One MySQL Pod and One spire-server Pod Are Accepted Until the Production Topology Is Known | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

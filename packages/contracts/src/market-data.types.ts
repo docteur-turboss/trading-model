@@ -16,12 +16,6 @@ export type {
 	OrderBookData,
 	OrderBookLevel,
 } from "./market-data/orderbook.types";
-export {
-	getAskTotalQty,
-	getAvgAsk,
-	getAvgBid,
-	getBidTotalQty,
-} from "./market-data/orderbook.types";
 export type {
 	OhlcvTickerData,
 	TickerData,

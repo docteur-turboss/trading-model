@@ -4,6 +4,7 @@ import { toJsonWire } from "@trading-model/http/json-wire";
 import { sendResponse } from "@trading-model/http/response-exception";
 import { Router } from "express";
 import type { Trainer } from "../../../application/trainer";
+import { summarizeModel } from "../../../domain/model-artifact";
 import type { ModelArtifactStorePort } from "../../../domain/ports/model-artifact-store.port";
 import { TRAINER_API } from "./api-routes";
 import {
@@ -89,12 +90,13 @@ export const TRAINER_ROUTES = (
 			if (!agent) {
 				return notFound("No trained agent available at the moment.");
 			}
+			const latest = await models.latest(String(symbol));
 			return ok({
 				symbol,
 				agent,
 				training: trainer.isTraining() && trainer.getCurrentSymbol() === symbol,
 				generation: snapshot.generation,
-				model: (await models.latest(String(symbol))) ?? null,
+				model: latest ? summarizeModel(latest) : null,
 			});
 		}
 	);

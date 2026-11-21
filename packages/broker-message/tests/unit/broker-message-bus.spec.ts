@@ -18,7 +18,7 @@ import BrokerMessage, { HELPER } from "../../src/broker-message";
 import { RedisMessageJournal } from "../../src/bus/redis-journal";
 import { StreamRedis } from "../fixtures/stream-redis";
 
-const TOPIC = "market.candlestick.series.fetch";
+const TOPIC = "training.model.published";
 const REDIS = new StreamRedis();
 
 function broker() {
@@ -65,7 +65,7 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 	});
 
 	it("should leave a topic with no listener to message-manager's workers, never ack it in process", async () => {
-		const topic = "training.model.published";
+		const topic = "dlq.entry.added";
 		const bus = broker();
 		await bus.intents([topic] as never);
 		const metadata = new HELPER.metadataBuilder(
@@ -73,7 +73,10 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 			topic as never,
 			{ instanceId: "i-1", serviceName: "trader-trainer" } as never
 		).toJSON();
-		await bus.post.indirect({ symbol: "BTCUSDT" }, metadata);
+		await bus.post.indirect(
+			{ entryId: "e1", topic: null, reason: null, actor: null },
+			metadata
+		);
 		await new Promise((resolve) => setTimeout(resolve, 100));
 		await bus.stopMessageManager();
 
@@ -83,5 +86,47 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 				false
 		).toBe(false);
 		expect(CLIENT.subscribe).toHaveBeenCalledWith([topic]);
+	});
+
+	it("should consume in process a topic with a listener registered by on(), metadata included", async () => {
+		const topic = "dlq.entry.added";
+		const bus = broker();
+		const received: unknown[] = [];
+		bus.on(
+			topic as never,
+			((payload: unknown, metadata: { topic: string }) => {
+				received.push([payload, metadata.topic]);
+			}) as never
+		);
+		await bus.intents([topic] as never);
+		const metadata = new HELPER.metadataBuilder(
+			topic as never,
+			topic as never,
+			{ instanceId: "i-1", serviceName: "model-evaluator" } as never
+		).toJSON();
+		const payload = { entryId: "e2", topic: null, reason: null, actor: null };
+		await bus.post.indirect(payload, metadata);
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		await bus.stopMessageManager();
+
+		expect(received).toEqual([[payload, topic]]);
+	});
+
+	it("should not block intents() while Redis refuses the service's user", async () => {
+		const topic = "dlq.entry.added";
+		const journal = new RedisMessageJournal({ redis: REDIS, keyPrefix: "q" });
+		jest
+			.spyOn(journal, "register")
+			.mockRejectedValue(new Error("WRONGPASS invalid username-password pair"));
+		const bus = new BrokerMessage({
+			journal,
+			tlsPaths: {} as never,
+			instanceId: "i-1" as never,
+			addressManagerClient: {} as never,
+			serviceName: "model-evaluator" as never,
+		});
+		bus.on(topic as never, (() => undefined) as never);
+		await expect(bus.intents([topic] as never)).resolves.toBeUndefined();
+		await bus.stopMessageManager();
 	});
 });

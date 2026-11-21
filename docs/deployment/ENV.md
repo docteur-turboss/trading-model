@@ -13,6 +13,7 @@ Service abbreviation legend:
 | AL    | audit-logger                                                                                        |
 | DLQ   | dlq-service                                                                                         |
 | ME    | model-evaluator                                                                                     |
+| RX    | risk-execution                                                                                      |
 | DC    | docker-compose.yml (host-side `.env` file)                                                          |
 
 ---
@@ -54,8 +55,6 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, AL, DLQ |
 | `DISCOVERY_TIMEOUT_MS`            | number | `5000`                          | no       | Timeout of the calls to the discovery server     | MM, FS, TT, AL, DLQ |
 | `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object); not read by the gateway | MM, FS, TT, AL, DLQ |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, AL, DLQ |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, AL, DLQ |
 | `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
 
 ---
@@ -66,14 +65,14 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
-| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, DLQ |
-| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, DLQ |
-| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: `discovery`, `message-manager`, `dlq-service`, ADR-0047; only with `REDIS_SENTINELS`) | DS, MM, DLQ |
-| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | DS, MM, DLQ |
-| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | DS, MM, DLQ |
-| `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | DS, MM, DLQ |
-| `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | DS, MM, DLQ |
-| `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | DS, MM, DLQ |
+| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: `discovery`, `message-manager`, `dlq-service`, ADR-0047; bus users `audit-logger`, `trader-trainer`, `model-evaluator`, ADR-0073; only with `REDIS_SENTINELS`) | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | DS, MM, DLQ, AL, TT, ME |
 
 ---
 
@@ -109,7 +108,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
 | `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
-| `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy request timeout           | GW       |
+| `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy total deadline (ms)       | GW       |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
 | `ALLOWED_PROXY_CIDRS` | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs the resolved proxy target IP must be in. Empty: target IP check off; in production the gateway refuses to start | GW |
 
@@ -133,13 +132,14 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_GENERATIONS`             | number       | `50`              | no       | Number of GA generations             | TT       |
 | `TRAINER_POPULATION_SIZE`         | number       | `20`              | no       | GA population size                   | TT       |
 | `TRAINER_TIME_BUDGET_MS`          | number       | `300000` (5min)   | no       | Max training time per run            | TT       |
-| `TRAINER_INTERVAL_MS`             | number       | `3600000` (1h)    | no       | Time between two training sessions   | TT       |
+| `TRAINER_INTERVAL_MS`             | number       | `14400000` (4h)   | no       | Time between two training sessions   | TT       |
 | `TRAINER_MAX_DATA_AGE_MS`         | number       | `900000` (15min)  | no       | Newest candle older than this: symbol not trained | TT       |
 | `TRAINER_EPISODES_PER_INDIVIDUAL` | number       | `10`              | no       | DRL episodes per genome evaluation (adaptive control keeps 10–30) | TT       |
 | `TRAINER_FITNESS_TYPE`            | enum         | `total_pnl`       | no       | GA scalar fitness: `total_pnl`, `sharpe`, `sortino`, `calmar`, `composite` (ADR-0025) | TT       |
 | `FEATURE_RISK_ADJUSTED_FITNESS`   | boolean      | `true`            | no       | Feature flag (ADR-0039): `false` forces fitness `total_pnl` whatever `TRAINER_FITNESS_TYPE` says. Invalid value: refused at startup | TT       |
 | `FEATURE_ACTION_SPACE_GENE`        | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076): `true` lets the GA mutate the action set (partial order sizes, recorded as `actions` in the manifest); `false`: `sell_hold_buy`, never mutated | TT       |
 | `FEATURE_EVENT_DRIVEN_DECISIONS`   | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 §5): `true` makes the agent decide on market events (price move, volume) instead of every bar; network gets a 33rd input `BarsSinceDecision`. `false`: genome and manifest unchanged. Invalid value: refused at startup | TT       |
+| `TRAINER_SEED_OFFSET`             | int          | `0`               | no       | Added to the default PRNG seeds: same value and same data give the same run (A/B measures, ADR-0030) | TT       |
 | `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
 | `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |
 | `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas | TT       |
@@ -154,6 +154,25 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | Variable | Type | Default | Required | Description | Services |
 | --- | --- | --- | --- | --- | --- |
 | `EVALUATIONS_DIR` | string | `/data/evaluations` | no | Directory of the evaluation records, one file per `(symbol, version)` created exclusively; a ReadWriteOnce PVC in K8s, a volume in compose (ADR-0049) | ME |
+
+---
+
+## Risk/Execution
+
+ADR-0064. Limits are validated at startup and refuse to start above their hard ceiling in code (`services/risk-execution/src/domain/limits.ts`); percentages are shares of `RISK_ALLOCATED_CAPITAL`.
+
+| Variable | Type | Default | Required | Description | Services |
+| --- | --- | --- | --- | --- | --- |
+| `EXECUTION_MODE` | `paper | live` | `paper` | no | Only the production overlay may say `live` (`tests/k8s/check-overlays.mjs`); the service refuses `live` outside production, without live keys, and `paper` with live keys. No live adapter exists yet: `live` stops the start | RX |
+| `DEPLOYMENT_ENV` | `development | ci | staging | production` | `development` | no | The deployment (NODE_ENV is `production` everywhere in K8s); `production` only in the production overlay | RX |
+| `BROKER_API_KEY` | string | _(unset)_ | no | Live broker key, in the production Secret only; its presence in paper mode refuses the start | RX |
+| `BROKER_API_SECRET` | string | _(unset)_ | no | Live broker secret, same rule as `BROKER_API_KEY` | RX |
+| `RISK_STATE_DIR` | string | `/data/risk-execution` | no | Durable state (kill switch, orders, paper ledger); a ReadWriteOnce PVC in K8s. An unreadable state engages the global kill switch | RX |
+| `RISK_ALLOCATED_CAPITAL` | number | `10000` | no | Allocated capital of the mode (policy §2) | RX |
+| `RISK_INSTRUMENTS` | JSON | `{"BTCUSDT":{"maxQuantity":0.01}}` | no | Allow-list of spot instruments with their quantity cap per order | RX |
+| `RISK_LIMITS_JSON` | JSON | `{}` | no | Overrides of the other caps of ADR-0064 §2 (at or below their ceiling) | RX |
+| `RISK_OWNER_ACTOR` | string | `owner` | no | Only this actor re-arms after the drawdown stop (policy §4.4) | RX |
+| `RISK_TICK_MS` | number | `10000` | no | Period of expiry, stale-data, limit and reconciliation checks | RX |
 
 ## Financial Scraper — Market data
 
@@ -193,8 +212,7 @@ No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), accepted 
 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
-| `DLQ_AUTH_HMAC_SECRET`    | string | —                           | **yes** (production) | Signs the dead letters sent to dlq-service: same value as dlq-service (min 32 chars in production). Unset (outside production): dead-lettering fails and the entries stay pending in the journal | MM       |
-| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publisher gets its 202 (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM       |
+| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publisher gets its 202 (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM, AL, TT, ME |
 
 ---
 
@@ -215,6 +233,7 @@ Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host 
 | `RETENTION_DAYS`          | number (≥1) | `1827` (5 years)  | no       | Age after which `market_candles`, `market_trades`, `market_tickers` and `market_order_books` rows (column `timestamp`) are deleted | retention job |
 | `RETENTION_SIGNALS_DAYS`  | number (≥1) | `RETENTION_DAYS`  | no       | Same for `signals` (column `observed_at`) | retention job |
 | `RETENTION_ORDER_BOOKS_DAYS` | number (≥1) | `RETENTION_DAYS` | no       | Same for `market_order_books` (column `timestamp`); the K8s CronJob sets 180 (ADR-0053) | retention job |
+| `RETENTION_TRADES_DAYS` | number (≥1) | `RETENTION_DAYS` | no       | Same for `market_trades` (column `timestamp`; a 100-trade sample per minute); the K8s CronJob sets 180 | retention job |
 | `RETENTION_BATCH_SIZE`    | number (≥1) | `10000`           | no       | Rows per `DELETE ... LIMIT` | retention job |
 | `RETENTION_PAUSE_SECONDS` | number (≥0) | `1`               | no       | Pause between two batches | retention job |
 | `MYSQL_RETENTION_PASSWORD` | string | —                      | **yes** in K8s | Password of MySQL user `retention` (SELECT, DELETE on the five tables). Key of Secret `trading-model-secrets`, read by `db-migrate-user` and `db-retention` | retention job |
@@ -282,7 +301,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `MAX_ENTRIES`                | number  | `100000`                             | no       | Maximum stored DLQ entries           | DLQ      |
 | `DLQ_RETRY_MAX_ATTEMPTS`     | number  | `5`                                  | no       | Max retry attempts for replay        | DLQ      |
 | `MESSAGE_MANAGER_URL`        | URL     | —                                    | no       | Message manager URL for replay       | DLQ      |
-| `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 32 chars in production), shared with message-manager | DLQ      |
+| `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 32 chars in production) | DLQ      |
 | `DLQ_ALLOWED_SERVICES`       | string  | `message-manager,admin`              | no       | Callers allowed to sign requests (`admin`: operator scripts such as `examples/manage-dlq.sh`) | DLQ      |
 | `DLQ_PRUNE_INTERVAL_MS`      | number  | `60000`                              | no       | Interval for pruning expired entries | DLQ      |
 | `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (no profile enables it, ADR-0073)| no       | Replay eligible entries automatically| DLQ      |
@@ -396,7 +415,7 @@ TRAINER_TEST_SPLIT=0.15
 TRAINER_GENERATIONS=50
 TRAINER_POPULATION_SIZE=20
 TRAINER_TIME_BUDGET_MS=300000
-TRAINER_INTERVAL_MS=3600000
+TRAINER_INTERVAL_MS=14400000
 TRAINER_MAX_DATA_AGE_MS=900000
 TRAINER_EPISODES_PER_INDIVIDUAL=10
 TRAINER_FITNESS_TYPE=total_pnl

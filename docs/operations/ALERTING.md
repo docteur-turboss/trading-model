@@ -92,11 +92,10 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `MarketDataStale` | no candle persisted for 15 min, all scraper replicas together | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoLeader` | no trainer pod reports `tt_training_leader` = 1 for 5 min: no trainer holds the Lease, nothing is trained (ADR-0058); the read routes still answer | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoLeaderProlonged` | `critical` (page): same condition as `TrainerNoLeader` for 30 min, far beyond a rollout handover (end of a generation plus a few seconds) | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
-| `TrainerNoModelStored` | a trainer holds the Lease but no model was stored (`tt_model_artifacts_total{result="stored"}`) for 5 h (2 h after a start), whatever the cause: sessions failing, nothing trained, writes failing | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
+| `TrainerNoModelStored` | a trainer holds the Lease but no model was stored (`tt_model_artifacts_total{result="stored"}`) for 13 h (4 h after a start), whatever the cause: sessions failing, nothing trained, writes failing | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `TrainerMarketDataStale` | newest stored candle read by the trainer older than 15 min for every symbol (`tt_last_candle_age_seconds`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ModelBelowBuyAndHold` | the last 3 stored models of a symbol have an out-of-sample Sharpe below buy and hold on the same bars (`tt_model_below_buy_and_hold_streak`, Lease holder only; `segment="test"`, ADR-0068) | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
 | `TrainerFeatureDrift` | for 1 h, a normalized field of a symbol received since its newest stored model has a mean more than 3 standard deviations from the statistics stored with that model (`tt_feature_drift_score`) | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
-| `MarketDataUnpublished` | persisted candles of a symbol have waited 15 min for the bus (`fs_unpublished_candles`): sent from MySQL once message-manager answers, the trainer lags meanwhile | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `ScrapeCyclesFailing` | more than half of the scrape cycles fail | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | no candle of one symbol persisted for 15 min while the others may still flow (`fs_candles_persisted_total{symbol}`): symbol rejected, klines failing or candles refused by the normalizer, by symbol | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
 | `SignalCollectionFailing` | a signal source (ADR-0036) failed a collection in the last 24 h, by source: fetch error (403 from SEC EDGAR without contact e-mail), changed format or MySQL | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
@@ -105,6 +104,9 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `MessagesDeadLettered` | message-manager gave up on messages: they are in dlq-service (`GET /dlq`) to inspect and replay | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `BusDeadLetters` | A dead stream holds entries (`bus_dead_letters`): a subscriber group gave up on them, an operator replays or deletes them with `audit-dlq` | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DlqAuditEventLost` | a DLQ delete or replay was done but message-manager refused its audit event (`dlq_audit_publish_failures_total`): not in the audit chain, the API answered 502 (ADR-0059) | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
+| `KillSwitchEngaged` | the Risk/Execution kill switch is engaged (global or per symbol): no new order, open orders cancelled, manual re-arming only | [runbook-risk-execution#killswitchengaged](runbooks/runbook-risk-execution.md#killswitchengaged) |
+| `ReconciliationMismatch` | risk-execution found a position, open order or balance difference with the broker (ADR-0064 §4) | [runbook-risk-execution#reconciliationmismatch](runbooks/runbook-risk-execution.md#reconciliationmismatch) |
+| `RiskMarketDataStale` | the newest reference price of an allowed instrument is older than 15 min (ADR-0064 §7) | [runbook-risk-execution#riskmarketdatastale](runbooks/runbook-risk-execution.md#riskmarketdatastale) |
 | `RetentionFailed` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
 | `RetentionStale` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
 | `ApiAuthFailuresHigh` | the gateway rejected API keys at more than 0.1/s (6/min) for 5 min | [runbook-auth-failures](runbooks/runbook-auth-failures.md) |
@@ -140,7 +142,6 @@ file absent from the repository, or on an anchor that matches no heading.
 | `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
 | `CertificateExpiry` | critical | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
 | `HttpCircuitBreakerRejecting` | warning | [runbook-circuit-breaker-open#symptom](runbooks/runbook-circuit-breaker-open.md#symptom) |
-| `DLQSizeGrowing` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
 | `InstanceCountLow` | critical | [runbook-discovery#instancecountlow](runbooks/runbook-discovery.md#instancecountlow) |
 | `HighMemoryUsage` | warning | [runbook-service-down#1-oomkilled-out-of-memory](runbooks/runbook-service-down.md#1-oomkilled-out-of-memory) |
 | `HeartbeatStopped` | critical | [runbook-discovery#heartbeatstopped](runbooks/runbook-discovery.md#heartbeatstopped) |
@@ -167,9 +168,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `MessagesDeadLettered` | warning | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
 | `BusDeadLetters` | warning | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
 | `MessagesUnrouted` | warning | [runbook-message-bus-outage#3-no-subscriber-on-a-topic](runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic) |
-| `JournalEntriesTrimmed` | critical | [runbook-message-bus-outage#6-journal-entries-trimmed-before-delivery](runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery) |
-| `JournalBacklogOld` | warning | [runbook-message-bus-outage#7-journal-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber) |
-| `DLQDrainRateLow` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
+| `JournalEntriesTrimmed` | critical | [runbook-message-bus-outage#5-journal-entries-trimmed-before-delivery](runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery) |
+| `JournalBacklogOld` | warning | [runbook-message-bus-outage#6-journal-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber) |
 | `TrainingCompletionRateLow` | warning | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainingCompletionRateCritical` | critical | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainerEventLoopBlocked` | warning | [runbook-trainer#trainereventloopblocked](runbooks/runbook-trainer.md#trainereventloopblocked) |
@@ -180,9 +180,9 @@ file absent from the repository, or on an anchor that matches no heading.
 | `ScrapeCyclesFailing` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | critical | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
 | `BinanceRestrictedLocation` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `BinanceQuarantined` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SignalCollectionFailing` | warning | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `SignalSourceStale` | warning | [runbook-market-data-stale#signalsourcestale](runbooks/runbook-market-data-stale.md#signalsourcestale) |
-| `MarketDataUnpublished` | warning | [runbook-message-bus-outage#5-scraper-publish-backlog](runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog) |
 | `TrainerMarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoModelStored` | critical | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |

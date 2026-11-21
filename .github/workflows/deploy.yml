@@ -96,7 +96,7 @@ permissions:
 env:
   IMAGES: >-
     discovery-server message-manager financial-scraper trader-trainer
-    api-gateway audit-logger dlq-service model-evaluator spire-tools backup-tools db-migrate
+    api-gateway audit-logger dlq-service model-evaluator risk-execution spire-tools backup-tools db-migrate
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -112,6 +112,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Reads the production-ready objective issue (label objectif).
+      issues: read
     outputs:
       # Read by the preflight summary of the deploy job; a staging failure never blocks.
       protection: ${{ (inputs.environment != 'production' && steps.protection.outcome == 'failure') && 'warning' || steps.protection.outcome }}
@@ -135,6 +137,25 @@ jobs:
             exit 0
           fi
           node scripts/check-environment-protection.mjs "$TARGET" "$GITHUB_REPOSITORY"
+
+      # Version stability and production readiness are separate: a stable
+      # vX.Y.Z ships after staging, but production waits until every audit of
+      # the production-ready objective is ready. The orchestrator keeps the
+      # count in the title of the issue labelled `objectif` ("n/m audits").
+      # No issue or an unreadable title = refused.
+      - name: Check the production-ready objective
+        if: ${{ inputs.environment == 'production' }}
+        continue-on-error: ${{ inputs.preflight_only }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title=$(gh issue list --repo "$GITHUB_REPOSITORY" --label objectif --state all --limit 1 --json title --jq '.[0].title // ""')
+          if [[ "$title" =~ ([0-9]+)/([0-9]+) ]] && [ "${BASH_REMATCH[2]}" -gt 0 ] && [ "${BASH_REMATCH[1]}" = "${BASH_REMATCH[2]}" ]; then
+            echo "Production-ready objective met: $title"
+            exit 0
+          fi
+          echo "::error::production waits for the production-ready objective (issue labelled objectif) to read n/n audits; found '${title:-no issue}'. See docs/deployment/DEPLOY.md (Before the first production deploy)."
+          exit 1
 
       # The self-hosted runner is persistent and the repository public: a fork
       # pull request could add a job on it (issue #842). No continue-on-error,
@@ -183,6 +204,9 @@ jobs:
       DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
       ALLOW_FIRING_ALERTS: ${{ inputs.allow_firing_alerts }}
       GRAFANA_ALLOWED_CIDRS: ${{ vars.GRAFANA_ALLOWED_CIDRS }}
+      # Keys removed on purpose from the SealedSecret, for every run-migrations.sh
+      # call (migrations and user-only bind): docs/deployment/sealed-secrets.md.
+      RETIRED_SECRET_KEYS: ${{ vars.RETIRED_SECRET_KEYS }}
     steps:
       # Manifests, node agents and migrations come from the released tag, not
       # from the branch picked at dispatch: production only deploys a vX.Y.Z
@@ -450,11 +474,20 @@ jobs:
           # Exporter users (ADR-0056): optional keys for the pods, but without
           # them MySQLDown / RedisDown fire and verify-release rolls back.
           missing=""
-          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD MONGO_AUDIT_KEYFILE MONGO_DLQ_KEYFILE; do
+          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD REDIS_AUDIT_LOGGER_PASSWORD REDIS_TRADER_TRAINER_PASSWORD REDIS_MODEL_EVALUATOR_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD MONGO_AUDIT_KEYFILE MONGO_DLQ_KEYFILE; do
             grep -qE "^ +$key: " <<<"$rendered" || missing="$missing $key"
           done
           if [ -n "$missing" ]; then
             echo "::error::trading-model-secrets of $ENV lacks:$missing (run bash scripts/init-sealed-secrets.sh and commit deploy/k8s/secrets)"
+            exit 1
+          fi
+          # A SealedSecret the controller cannot sync (e.g. the Secret exists but is
+          # not managed by it) leaves the Secret frozen: new keys never arrive and
+          # removed ones are never deleted. Absent on a first deploy: nothing to check.
+          # --ignore-not-found tolerates only the absent SealedSecret; any other error fails the step.
+          sync=$(kubectl -n "$NAMESPACE" get sealedsecret trading-model-secrets --ignore-not-found -o 'jsonpath={.status.conditions[?(@.type=="Synced")].status}|{.status.conditions[?(@.type=="Synced")].message}')
+          if [ "${sync%%|*}" = "False" ]; then
+            echo "::error::SealedSecret trading-model-secrets of $ENV is not synced: ${sync#*|}. If the Secret exists unmanaged, check its values then run: kubectl -n $NAMESPACE annotate secret trading-model-secrets sealedsecrets.bitnami.com/managed=true"
             exit 1
           fi
           # Grafana OIDC (ADR-0063): production refuses a shared admin as the only access.
@@ -894,8 +927,6 @@ jobs:
           # exporter passwords...), then waited for: issue #698.
           if [ "$DEPLOY_ENVIRONMENT" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
-          # Keys removed on purpose from the SealedSecret (docs/deployment/sealed-secrets.md).
-          export RETIRED_SECRET_KEYS="${{ vars.RETIRED_SECRET_KEYS }}"
           MIGRATE_IMAGE="${{ steps.tag.outputs.registry }}/db-migrate@$digest" \
             bash deploy/k8s/scripts/run-migrations.sh "$NS"
 
@@ -1043,6 +1074,8 @@ jobs:
         run: |
           if [ "$DEPLOY_ENVIRONMENT" = staging ]; then export SEALED_SECRETS_FILE="deploy/k8s/overlays/$OVERLAY/sealed-secrets.yaml"
           else export SEALED_SECRETS_FILE=deploy/k8s/secrets/trading-model-sealed-secrets.yaml; fi
+          # Same key guard as the migrations step: it must accept the same retired keys.
+          export RETIRED_SECRET_KEYS="${{ vars.RETIRED_SECRET_KEYS }}"
           bash deploy/k8s/scripts/run-migrations.sh "$NAMESPACE" user-only
 
       # Runs on the new version, after the rollout; a failure triggers the rollback below.

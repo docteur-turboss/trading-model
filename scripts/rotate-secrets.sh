@@ -4,7 +4,7 @@
 #   signing  SIGNING_SECRET        -> discovery-server (instance tokens: services re-register)
 #   tokens   AUTH_TOKENS           -> api-gateway (only the key API_KEY_NAME is replaced, the others kept;
 #            ADR-0059 `name:scopes:secret`). The new key is written to a 0600 file, path logged.
-#   dlq      DLQ_AUTH_HMAC_SECRET  -> message-manager + dlq-service (restarted together)
+#   dlq      DLQ_AUTH_HMAC_SECRET  -> dlq-service
 #   all      the three above
 # Database passwords (MYSQL_*, MONGO_ROOT_PASSWORD, REDIS_*_PASSWORD) are refused: the change must also be made
 # in the database, see docs/deployment/sealed-secrets.md "Rotate a database password".
@@ -112,7 +112,7 @@ rotate_component() {
   case "$1" in
     signing) rotate_secret SIGNING_SECRET 32 "" discovery-server ;;
     tokens) rotate_secret AUTH_TOKENS 24 "${API_KEY_NAME}:${API_KEY_SCOPES}:" api-gateway ;;
-    dlq) rotate_secret DLQ_AUTH_HMAC_SECRET 32 "" message-manager dlq-service ;;
+    dlq) rotate_secret DLQ_AUTH_HMAC_SECRET 32 "" dlq-service ;;
     *) die "unknown component '$1'" ;;
   esac
 }

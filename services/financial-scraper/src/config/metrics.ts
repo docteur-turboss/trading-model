@@ -36,17 +36,6 @@ export const SNAPSHOT_PARTS_FAILED_TOTAL = new promClient.Counter({
 	labelNames: ["part"] as const,
 });
 
-export const UNPUBLISHED_CANDLES = new promClient.Gauge({
-	name: "fs_unpublished_candles",
-	help: "Candles persisted to MySQL but not yet published to the bus, per symbol (sent from MySQL, oldest first)",
-	labelNames: ["symbol"] as const,
-});
-
-export const PUBLISHES_SKIPPED_TOTAL = new promClient.Counter({
-	name: "fs_publishes_skipped_total",
-	help: "Symbol publishes skipped because the previous one is still in flight (candles stay in the backlog)",
-});
-
 export const BINANCE_REQUESTS_TOTAL = new promClient.Counter({
 	name: "fs_binance_requests_total",
 	help: "Total Binance API requests",
@@ -76,12 +65,6 @@ export const TICKERS_PERSISTED_TOTAL = new promClient.Counter({
 	help: "Total ticker rows persisted to MySQL",
 });
 
-export const EVENTS_PUBLISHED_TOTAL = new promClient.Counter({
-	name: "fs_events_published_total",
-	help: "Total market data events published to message bus",
-	labelNames: ["event_type"] as const,
-});
-
 export const SIGNAL_COLLECTIONS_TOTAL = new promClient.Counter({
 	name: "fs_signal_collections_total",
 	help: "Signal source requests collected (ADR-0036), by source and result: success, not_modified (304, nothing to store), not_found (404 on a source that opts in: no fact), fetch_error, invalid_payload (format changed), store_error, skipped_quarantine (tick skipped, source in quarantine)",
@@ -90,7 +73,7 @@ export const SIGNAL_COLLECTIONS_TOTAL = new promClient.Counter({
 
 export const SIGNAL_SOURCE_QUARANTINED = new promClient.Gauge({
 	name: "fs_signal_source_quarantined",
-	help: "1 while a signal source is in quarantine after repeated fetch failures, else 0",
+	help: "1 while a signal source is in quarantine after repeated fetch failures, or Binance after a 418/451 (source binance), else 0",
 	labelNames: ["source"] as const,
 });
 

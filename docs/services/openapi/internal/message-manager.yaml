@@ -85,6 +85,7 @@ paths:
                             - "financial-scraper"
                             - "message-manager"
                             - "model-evaluator"
+                            - "risk-execution"
                             - "trader-trainer"
                         instanceId:
                           type: "string"
@@ -234,6 +235,7 @@ paths:
                                 - "financial-scraper"
                                 - "message-manager"
                                 - "model-evaluator"
+                                - "risk-execution"
                                 - "trader-trainer"
                             instanceId:
                               type: "string"
@@ -410,6 +412,7 @@ paths:
                         - "financial-scraper"
                         - "message-manager"
                         - "model-evaluator"
+                        - "risk-execution"
                         - "trader-trainer"
                     instanceId:
                       type: "string"

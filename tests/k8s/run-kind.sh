@@ -36,7 +36,7 @@ NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
-SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator"
+SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
@@ -588,7 +588,7 @@ upgrade() {
 		log "migrations of release N-1 no longer applied after the rollback: $missing"
 		return 1
 	}
-	SMOKE_SKIP=model-evaluator deploy_script smoke-test # new in N: deleted by the rollback
+	SMOKE_SKIP="model-evaluator risk-execution" deploy_script smoke-test # new in N: deleted by the rollback
 	log "  rollback: every Deployment back on its N-1 pod template (image digests, $marked N-1 ConfigMaps), N-1 migrations applied"
 
 	log "migrate-down 1, then the migrations again"
@@ -735,6 +735,7 @@ verify_network() {
 	verify_db_ingress
 	verify_mysql_tls
 	verify_redis_tls
+	verify_bus
 
 	log "external path: edge-proxy → api-gateway → trader-trainer"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -762,7 +763,7 @@ verify_observability() {
 	wait_for 180 prometheus_targets_down
 
 	log "Loki receives the pod logs (promtail)"
-	wait_for 180 "$K -n $NS exec loki-0 -- wget -qO- http://localhost:3100/loki/api/v1/label/component/values | grep -q discovery-server"
+	wait_for 180 "$K -n $NS get --raw /api/v1/namespaces/$NS/services/loki:http/proxy/loki/api/v1/label/component/values | grep -q discovery-server"
 
 	verify_alerts
 	verify_release
@@ -841,7 +842,12 @@ verify_traces() {
 	local jaeger=$!
 	local result=0
 	wait_for 30 'curl -s -o /dev/null http://localhost:18451/ && curl -s -o /dev/null http://localhost:18686/' || result=1
-	[ "$result" = 0 ] && curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
+	# 30 requests: the collector keeps 20 % of traces, 1 - 0.8^30 ~ 99.9 % that one survives.
+	if [ "$result" = 0 ]; then
+		for _ in $(seq 30); do
+			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
+		done
+	fi
 	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
 	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
 		log "  $(traces_span_services 2>&1)"
@@ -876,7 +882,7 @@ verify_egress() {
 # empty). Restricted Pod Security: the security context is spelled out.
 mongo_ping() {
 	local img uri
-	img="$(grep -m1 -o 'mongo@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
+	img="$(grep -m1 -oE 'mongo(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
 	uri="mongodb://$3:27017/?directConnection=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
@@ -915,7 +921,7 @@ verify_mongo_ingress() {
 # (none when empty), with bash of the MySQL image (issue #747).
 tcp_probe() {
 	local img
-	img="$(grep -m1 -o 'mysql@sha256:[0-9a-f]*' "$ROOT/deploy/k8s/infra/mysql.yaml")"
+	img="$(grep -m1 -oE 'mysql(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/deploy/k8s/infra/mysql.yaml")"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
 		\"spec\": {
@@ -979,6 +985,21 @@ verify_redis_tls() {
 		fi
 	done
 	log "  REDIS_TLS_MODE=$mode, TLS session verified on the data node and the sentinel"
+}
+
+# Bus library (ADR-0073, issue #1835): model-evaluator reads its topic in process
+# (consumer model-evaluator-<uuid>, message-manager's are message-manager-<uuid>)
+# with its own ACL user, and the audit-dlq CLI reaches the dead streams.
+# The group is shared with message-manager's workers: wait until the trainer's
+# publications have given at least one entry to the BusConsumer, handled without error.
+verify_bus() {
+	local key=trading-model:message-manager:journal:training.model.published
+	local metrics="$K -n $NS exec deploy/model-evaluator -c model-evaluator -- curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/metrics"
+	log "bus: BusConsumer of model-evaluator, audit-dlq in audit-logger"
+	wait_for 120 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS $key model-evaluator' | grep -q '^model-evaluator-'"
+	wait_for 600 "$metrics | grep '^mm_messages_delivered_total{' | grep 'topic=\"training.model.published\"' | grep 'status=\"success\"' | awk '\$2 > 0' | grep -q ."
+	log "  $($metrics | grep '^mm_messages_delivered_total{.*training.model.published')"
+	$K -n "$NS" exec deploy/audit-logger -c audit-logger -- node services/audit-logger/dist/application/dlq-cli.js kind list training.model.published
 }
 
 # MySQL TLS (issue #767, ADR-0060), run from the tls-reload sidecar of mysql-0
@@ -1672,6 +1693,11 @@ dump() {
 		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
 		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
 	done
+	echo "===== loki-0 (loki), promtail warnings, loki labels"
+	$K -n "$NS" logs loki-0 -c loki --tail=200 2>&1 | cut -c1-300 || true
+	$K -n "$NS" logs loki-0 -c loki --previous --tail=100 2>&1 | cut -c1-300 || true
+	$K -n trading-model-node logs ds/promtail --tail=200 2>&1 | grep -E "level=(warn|error)" | cut -c1-300 | tail -40 || true
+	$K -n "$NS" get --raw /api/v1/namespaces/$NS/services/loki:http/proxy/loki/api/v1/labels 2>&1 || true
 	echo "===== spire-server (spire-entries)"
 	$K -n "$NS" logs deploy/spire-server -c spire-entries --tail=40 2>&1 || true
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true

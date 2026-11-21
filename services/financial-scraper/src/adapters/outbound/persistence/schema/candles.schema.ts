@@ -1,16 +1,17 @@
 import type { SourceType } from "@trading-model/contracts/market-data.types";
-import type {
-	TradingSymbol,
+import {
+	type TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
+import type { RowDataPacket } from "mysql2";
 import { Table } from "ts-sql-query/Table";
-
-import type { DBConnection } from "../../../../config/db";
+import type { CandleSeries } from "../../../../application/worker-orchestrator";
+import { DATABASE, type DBConnection } from "../../../../config/db";
 import type {
 	CandleData,
 	MarketDataPage,
 } from "../../../../domain/market-data.types";
-import { defineUpsert, type PageFilter, pagedQuery } from "./market-table";
+import { defineUpsert, pagedSelect } from "./market-table";
 
 const T_MARKET_CANDLES = new (class TMarketCandles extends Table<
 	DBConnection,
@@ -97,34 +98,45 @@ export const insertCandles = defineUpsert<CandleData>({
 	],
 });
 
-function _selectPage(
-	filter: PageFilter<typeof T_MARKET_CANDLES>,
-	page: MarketDataPage
-) {
-	return pagedQuery(T_MARKET_CANDLES, filter, page)
-		.select(SELECT)
-		.orderBy("timestamp")
-		.orderBy("id")
-		.limit(page.limit)
-		.executeSelectMany();
-}
-
 /** Query helpers for the market_candles table, indexed by symbol, timestamp, and source. */
 export const selectCandlesBy = {
 	symbol: (symbol: TradingSymbol, page: MarketDataPage) =>
-		_selectPage(T_MARKET_CANDLES.symbol.equals(symbol), page),
+		pagedSelect(
+			T_MARKET_CANDLES,
+			SELECT,
+			T_MARKET_CANDLES.symbol.equals(symbol),
+			page
+		),
 	timestamp: {
 		after: (timestamp: UnixTimestamp, page: MarketDataPage) =>
-			_selectPage(
+			pagedSelect(
+				T_MARKET_CANDLES,
+				SELECT,
 				T_MARKET_CANDLES.timestamp.greaterThan(new Date(timestamp)),
-				page
-			),
-		before: (timestamp: UnixTimestamp, page: MarketDataPage) =>
-			_selectPage(
-				T_MARKET_CANDLES.timestamp.lessThan(new Date(timestamp)),
 				page
 			),
 	},
 	source: (source: SourceType, page: MarketDataPage) =>
-		_selectPage(T_MARKET_CANDLES.source.equals(source), page),
+		pagedSelect(
+			T_MARKET_CANDLES,
+			SELECT,
+			T_MARKET_CANDLES.source.equals(source),
+			page
+		),
 };
+
+interface LastRow extends RowDataPacket {
+	last: Date | null;
+}
+
+/** Open time of the newest persisted candle of the series (undefined: none). */
+export async function lastCandleOpenTime(
+	series: CandleSeries
+): Promise<UnixTimestamp | undefined> {
+	const [rows] = await DATABASE.promise().query<LastRow[]>(
+		"SELECT MAX(timestamp) AS last FROM market_candles WHERE source = ? AND symbol = ? AND interval_value = ?",
+		[series.source, series.symbol, series.interval]
+	);
+	const last = rows[0]?.last;
+	return last ? UnixTimestamp.of(last.getTime()) : undefined;
+}

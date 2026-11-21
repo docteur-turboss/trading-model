@@ -75,7 +75,6 @@ const MOCK_TOKEN_MANAGER = (() => {
 			.fn<(...args: any[]) => any>()
 			.mockResolvedValue(undefined),
 		setToken: jest.fn<(...args: any[]) => any>(),
-		clearToken: jest.fn<(...args: any[]) => any>(),
 	};
 	return impl;
 })();
@@ -163,13 +162,6 @@ describe("AddressManager (main)", () => {
 		await expect(
 			am.findService("test-service" as ServiceInstanceName)
 		).resolves.toEqual({ host: "127.0.0.1", port: 3000 });
-	});
-
-	it("should get metrics", () => {
-		const am = new AddressManager(makeConfig());
-		const metrics = am.metricsCollector.getMetrics();
-		expect(metrics).toHaveProperty("memory");
-		expect(metrics).toHaveProperty("cpu");
 	});
 
 	it("should listen on express app", () => {

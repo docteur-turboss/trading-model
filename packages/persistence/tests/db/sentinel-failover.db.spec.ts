@@ -161,13 +161,23 @@ async function expectServedByPromotedReplica(
 	topology: Topology
 ): Promise<void> {
 	let promotedAt = Number.POSITIVE_INFINITY;
-	const [written] = await Promise.all([
-		client.set("after-failover", "written"),
+	// Commands fail fast while Redis is unreachable (issue #1740): retry the write.
+	const written = async (): Promise<string> => {
+		while (true) {
+			try {
+				return await client.set("after-failover", "written");
+			} catch {
+				await new Promise((resolve) => setTimeout(resolve, 200));
+			}
+		}
+	};
+	const [result] = await Promise.all([
+		written(),
 		waitForPromotion(topology).then(() => {
 			promotedAt = Date.now();
 		}),
 	]);
-	expect(written).toBe("OK");
+	expect(result).toBe("OK");
 	expect(Date.now() - promotedAt).toBeLessThan(FAILOVER_DEADLINE_MS);
 	await expect(role(client)).resolves.toBe("master");
 	await expect(client.get("replicated")).resolves.toBe("1");
@@ -192,14 +202,6 @@ describe("createRedisClient (sentinel) — real failover", () => {
 		client.disconnect();
 		await network.stop();
 	}, 60_000);
-
-	it("should connect to the master the sentinel designates", async () => {
-		topology = await startTopology();
-		const { client } = topology;
-
-		await expect(client.set("key", "value")).resolves.toBe("OK");
-		await expect(role(client)).resolves.toBe("master");
-	}, 120_000);
 
 	it("should follow the promoted replica when the master dies, without losing replicated writes", async () => {
 		topology = await startTopology();

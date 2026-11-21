@@ -60,6 +60,8 @@ export interface SimulatorParams {
 	executionCostRate: number;
 	tradeFraction: number;
 	observePosition: boolean;
+	/** Cap the model was trained with (manifest `riskLimits`); default when absent. */
+	maxExposureFraction?: number;
 }
 
 /** Network shape of a genome; the trainer adds its training settings. */
@@ -95,7 +97,8 @@ export function policyAgentConfig(
 			initialPrice: Price.of(1),
 			feeRate: Percentage.of(simulator.feeRate),
 			executionCostRate: Percentage.of(simulator.executionCostRate),
-			maxExposureFraction: DEFAULT_MAX_EXPOSURE_FRACTION,
+			maxExposureFraction:
+				simulator.maxExposureFraction ?? DEFAULT_MAX_EXPOSURE_FRACTION,
 		},
 		tradeFraction: simulator.tradeFraction,
 		inputMask: network.inputMask,
@@ -110,9 +113,6 @@ function emptyLayer(fanIn: number, fanOut: number): LayerMemory {
 		fanOut: PositiveInt.of(fanOut),
 		weights: new Float32Array(fanIn * fanOut),
 		bias: zeros(),
-		output: zeros(),
-		preActivation: zeros(),
-		delta: zeros(),
 		gradW: new Float32Array(fanIn * fanOut),
 		gradB: zeros(),
 	};
@@ -123,7 +123,8 @@ function emptyLayer(fanIn: number, fanOut: number): LayerMemory {
  * of its window, cleaned as the trainer does (consistent OHLC, last gap-free
  * run): features are normalised from its first candle, the episode
  * runs over the test steps (`testFrom` onwards), and the ratios are those of
- * the ADR-0069 admission. Throws when the weights do not fit the network.
+ * the ADR-0069 admission, plus the fees and execution cost paid over the
+ * replay. Throws when the weights do not fit the network.
  */
 export function replayModel(input: {
 	genome: PolicyGenome;
@@ -131,7 +132,7 @@ export function replayModel(input: {
 	testFrom: number;
 	simulator: SimulatorParams;
 	candles: CandleData[];
-}): SegmentRatios {
+}): SegmentRatios & { feesPaid: number; executionCostPaid: number } {
 	const { genome } = input;
 	const test = candleSteps(
 		contiguousCandles(input.candles.filter(isConsistentCandle))
@@ -165,5 +166,8 @@ export function replayModel(input: {
 		},
 		curve
 	);
-	return segmentRatios(new EpisodeScores(curve), barsPerYear(test) ?? 1, test);
+	return {
+		...segmentRatios(new EpisodeScores(curve), barsPerYear(test) ?? 1, test),
+		...agent.wallet.getCostsPaid(),
+	};
 }

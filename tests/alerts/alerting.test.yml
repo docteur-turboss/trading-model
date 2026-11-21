@@ -149,7 +149,7 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 50% over 3h.'
+              description: 'Trainer completion rate is 50% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -169,7 +169,7 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 40% over 3h.'
+              description: 'Trainer completion rate is 40% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -177,7 +177,7 @@ tests:
           - exp_labels: {severity: critical, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 50%'
-              description: 'Trainer completion rate is 40% over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+              description: 'Trainer completion rate is 40% over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
   - name: 80 percent of the training sessions succeed
@@ -194,7 +194,28 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 80% over 3h.'
+              description: 'Trainer completion rate is 80% over 12h.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
+      - eval_time: 100m
+        alertname: TrainingCompletionRateCritical
+        exp_alerts: []
+
+  # 4 h interval: one failure among three sessions of the 12 h window warns, never pages.
+  - name: one failed training session out of three does not page
+    interval: 1m
+    input_series:
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="success"}'
+        values: '0+2x120'
+      - series: 'tt_training_sessions_total{job="trader-trainer",instance="t",result="fail"}'
+        values: '0+1x120'
+    alert_rule_test:
+      - eval_time: 100m
+        alertname: TrainingCompletionRateLow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
+            exp_annotations:
+              summary: 'Training completion rate below 95%'
+              description: 'Trainer completion rate is 66.67% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -296,7 +317,7 @@ tests:
           - exp_labels: {severity: warning, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 95%'
-              description: 'Trainer completion rate is 0% over 3h.'
+              description: 'Trainer completion rate is 0% over 12h.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
       - eval_time: 100m
         alertname: TrainingCompletionRateCritical
@@ -304,7 +325,7 @@ tests:
           - exp_labels: {severity: critical, slo: training_completion, job: trader-trainer}
             exp_annotations:
               summary: 'Training completion rate below 50%'
-              description: 'Trainer completion rate is 0% over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+              description: 'Trainer completion rate is 0% over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
   # Every message goes to the DLQ: no successful delivery series at all.
@@ -726,29 +747,25 @@ tests:
               description: 'Binance answered 451 (restricted location) 90 times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
-  # 0 while the bus takes the candles; a backlog that stays 15 minutes alerts,
-  # per symbol, and ends once it drained.
-  - name: persisted candles waiting for the bus alert after 15 minutes
+  - name: binance quarantine stays visible without requests
     interval: 1m
     input_series:
-      - series: 'fs_unpublished_candles{job="financial-scraper-collector",instance="c",symbol="BTCUSDT"}'
-        values: '0x10 1+1x30 0x20'
-      - series: 'fs_unpublished_candles{job="financial-scraper-collector",instance="c",symbol="ETHUSDT"}'
-        values: '0x60'
+      - series: 'fs_signal_source_quarantined{job="financial-scraper-collector",instance="c",source="binance"}'
+        values: '0x5 1x40 0x10'
     alert_rule_test:
-      - eval_time: 20m
-        alertname: MarketDataUnpublished
+      - eval_time: 3m
+        alertname: BinanceQuarantined
         exp_alerts: []
-      - eval_time: 30m
-        alertname: MarketDataUnpublished
+      - eval_time: 40m
+        alertname: BinanceQuarantined
         exp_alerts:
-          - exp_labels: {severity: warning, symbol: BTCUSDT}
+          - exp_labels: {severity: critical}
             exp_annotations:
-              summary: 'Persisted candles not reaching the bus'
-              description: '20 persisted BTCUSDT candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
-      - eval_time: 55m
-        alertname: MarketDataUnpublished
+              summary: 'Binance quarantined after a 418 or 451'
+              description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"418|451"} and runbook-market-data-stale.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
+      - eval_time: 50m
+        alertname: BinanceQuarantined
         exp_alerts: []
 
   # Model artifacts (ADR-0022): the error series exists at 0 from startup, so
@@ -780,54 +797,54 @@ tests:
         exp_alerts: []
 
   # Issue #804: every session failing for hours paged nobody. Two trainer pods,
-  # one leader. Cold start (series born at 0): nothing stored for 2 h pages.
-  - name: no model stored for 2 hours after a start pages
+  # one leader. Cold start (series born at 0): nothing stored for 4 h pages.
+  - name: no model stored for 4 hours after a start pages
     interval: 1m
     input_series:
       - series: 'tt_model_artifacts_total{job="trader-trainer",instance="t1",result="stored"}'
-        values: '0x200'
+        values: '0x300'
       - series: 'tt_model_artifacts_total{job="trader-trainer",instance="t2",result="stored"}'
-        values: '0x200'
+        values: '0x300'
       - series: 'tt_training_leader{job="trader-trainer",instance="t1"}'
-        values: '1x200'
+        values: '1x300'
       - series: 'tt_training_leader{job="trader-trainer",instance="t2"}'
-        values: '0x200'
+        values: '0x300'
     alert_rule_test:
-      - eval_time: 110m
+      - eval_time: 230m
         alertname: TrainerNoModelStored
         exp_alerts: []
-      - eval_time: 130m
+      - eval_time: 250m
         alertname: TrainerNoModelStored
         exp_alerts:
           - exp_labels: {severity: critical, job: trader-trainer}
             exp_annotations:
               summary: 'trader-trainer has stored no model for hours'
-              description: 'No model artifact stored for at least 5 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
+              description: 'No model artifact stored for at least 13 hours (4 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernomodelstored'
 
   # A first model 20 min after the start keeps the cold start quiet; the
-  # trainer then stores nothing more and pages 5 h after that model (321m).
-  - name: no model stored for 5 hours after the last one pages
+  # trainer then stores nothing more and pages 13 h after that model (801m).
+  - name: no model stored for 13 hours after the last one pages
     interval: 1m
     input_series:
       - series: 'tt_model_artifacts_total{job="trader-trainer",instance="t1",result="stored"}'
-        values: '0x20 1x320'
+        values: '0x20 1x840'
       - series: 'tt_training_leader{job="trader-trainer",instance="t1"}'
-        values: '1x340'
+        values: '1x860'
     alert_rule_test:
-      - eval_time: 130m
+      - eval_time: 250m
         alertname: TrainerNoModelStored
         exp_alerts: []
-      - eval_time: 310m
+      - eval_time: 790m
         alertname: TrainerNoModelStored
         exp_alerts: []
-      - eval_time: 330m
+      - eval_time: 820m
         alertname: TrainerNoModelStored
         exp_alerts:
           - exp_labels: {severity: critical, job: trader-trainer}
             exp_annotations:
               summary: 'trader-trainer has stored no model for hours'
-              description: 'No model artifact stored for at least 5 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
+              description: 'No model artifact stored for at least 13 hours (4 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernomodelstored'
 
   # Models stored regularly, or no leader at all (TrainerNoLeader's case):
@@ -949,23 +966,6 @@ tests:
               description: 'Service api-gateway had 2+ instances for 15 min in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire, nor does the surge pod of a rolling update).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#instancecountlow'
 
-  - name: the DLQ drains half of what comes in
-    interval: 1m
-    input_series:
-      - series: 'dlq_entries_added_total{job="dlq-service",instance="d"}'
-        values: '0+10x60'
-      - series: 'dlq_entries_replayed_total{job="dlq-service",instance="d"}'
-        values: '0+5x60'
-    alert_rule_test:
-      - eval_time: 40m
-        alertname: DLQDrainRateLow
-        exp_alerts:
-          - exp_labels: {severity: warning, slo: dlq_drain, job: dlq-service}
-            exp_annotations:
-              summary: 'DLQ drain rate is critically low'
-              description: 'DLQ replay/add ratio is 50% — queue is growing.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
-
   - name: the alerting pipeline watches itself
     interval: 1m
     input_series:
@@ -1049,7 +1049,7 @@ tests:
           - exp_labels: {severity: warning, topic: market.ticker}
             exp_annotations:
               summary: 'Messages dropped on market.ticker: no subscriber'
-              description: 'message-manager drops the messages published on market.ticker: no instance subscribes to it. audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
+              description: 'message-manager drops the messages published on market.ticker: the topic has no journal group (no service ever subscribed to it). audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
 
   - name: journal entries trimmed before delivery
@@ -1065,7 +1065,7 @@ tests:
             exp_annotations:
               summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
               description: 'trader-trainer stayed unreachable for more than 24 h: message-manager trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
       - eval_time: 30m
         alertname: JournalEntriesTrimmed
         exp_alerts: []
@@ -1084,7 +1084,7 @@ tests:
             exp_annotations:
               summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
               description: 'trader-trainer stayed unreachable for more than 24 h: message-manager trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
       - eval_time: 19m
         alertname: JournalEntriesTrimmed
         exp_alerts: []
@@ -1112,7 +1112,7 @@ tests:
             exp_annotations:
               summary: 'Journal backlog on market.candle for trader-trainer: oldest entry waiting for more than 15 min'
               description: 'trader-trainer has not acknowledged a market.candle entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber'
 
   # V8 keeps the allocated heap close to the used one (95% here): no alert.
   # 92% of the heap limit: out of memory is close.
@@ -1960,3 +1960,63 @@ tests:
               summary: 'A service denied an mTLS or ACL request'
               description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-auth-failures.md#mtlsacldenials'
+
+  # Risk/Execution (ADR-0064): each gauge above its threshold for the `for` of the rule.
+  - name: risk-execution alerts
+    interval: 1m
+    input_series:
+      - series: 'risk_kill_switch{job="risk-execution",mode="paper",scope="global"}'
+        values: '0 0 1x10'
+      - series: 'risk_kill_switch{job="risk-execution",mode="paper",scope="symbol"}'
+        values: '0x12'
+      - series: 'risk_reconciliation_mismatch{job="risk-execution",mode="paper"}'
+        values: '0 0 1x10'
+      - series: 'risk_market_data_age_seconds{job="risk-execution",mode="paper"}'
+        values: '30 30 901x10'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: KillSwitchEngaged
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: KillSwitchEngaged
+        exp_alerts:
+          - exp_labels: {severity: critical, job: risk-execution, mode: paper, scope: global}
+            exp_annotations:
+              summary: 'Kill switch engaged (global, paper)'
+              description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
+      - eval_time: 5m
+        alertname: ReconciliationMismatch
+        exp_alerts:
+          - exp_labels: {severity: critical, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'risk-execution state differs from the broker (paper)'
+              description: 'The last reconciliation found a position, open order or balance difference with the broker. The global kill switch is on and the service is not ready; the store is never fixed to match the broker.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#reconciliationmismatch'
+      - eval_time: 1m
+        alertname: RiskMarketDataStale
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: RiskMarketDataStale
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'Reference price older than 15 minutes (paper)'
+              description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
+
+  # Deployed with no decision consumer: no price ever received, the service publishes age 0 and no switch, so nothing pages.
+  - name: risk-execution without a price flow
+    interval: 1m
+    input_series:
+      - series: 'risk_kill_switch{job="risk-execution",mode="paper",scope="global"}'
+        values: '0x30'
+      - series: 'risk_market_data_age_seconds{job="risk-execution",mode="paper"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: KillSwitchEngaged
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: RiskMarketDataStale
+        exp_alerts: []

@@ -44,7 +44,7 @@ flowchart TB
   fs -->|"publish candles"| mm
   mm -->|"callback /message"| tt
   mm -->|"callback /message (audit, training, dlq topics)"| al
-  mm -->|"signed POST /dlq"| dlq
+  mm -->|"dead letter to Redis dead stream"| redis
   services -.->|"register + heartbeat (address-manager)"| disc
 
   binance["Binance"] --> fs
@@ -111,21 +111,11 @@ sequenceDiagram
   participant DB as MySQL
   participant MM as message-manager
   participant TT as trader-trainer
-  participant DLQ as dlq-service
+  participant R as Redis
   Note over FS: only the collector pod holding the Lease financial-scraper-collector runs the cycles (ADR-0057)
   loop each scrape cycle, per symbol
     FS->>B: fetch candles
     FS->>DB: persist candles
-    FS->>DB: read market_publish_cursors, next persisted candles
-    FS->>MM: POST /message
-    alt a subscriber is reachable
-      MM->>TT: callback /message
-      MM-->>FS: all deliveries settled
-      FS->>DB: advance cursor
-    else no subscriber (503) or message-manager down
-      MM-->>FS: refused
-      Note over FS,DB: cursor stays: next cycle resends from MySQL<br/>alert MarketDataUnpublished after 15 min
-    end
   end
   opt each training session of the trainer
     TT->>FS: GET /candles/symbols/:symbol (from, to = session start, keyset pages)
@@ -133,8 +123,8 @@ sequenceDiagram
     Note over TT: the candle window comes from MySQL, not from the bus (ADR-0044)
   end
   opt a subscriber keeps failing (at-least-once, 10 attempts)
-    MM->>DLQ: signed POST /dlq
-    Note over MM,DLQ: dlq-service down: entry stays in the journal, retried
+    MM->>R: dead letter to dead stream
+    Note over MM,R: after 10 attempts the entry is copied to the dead stream, then acked in the journal
   end
 ```
 
@@ -142,4 +132,4 @@ The trainer subscribes to no topic: its candle window is read from financial-scr
 
 Each subscribed service gets one delivery per message, whatever its number of instances: message-manager groups the subscribed instances by service and posts to the service name, the Kubernetes Service picks the pod (consumer group, [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
 
-Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed through `POST /dlq/replay`; an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).
+Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed or deleted with the operator CLI `audit-dlq` (audit-logger `dlq-cli.js`); an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).

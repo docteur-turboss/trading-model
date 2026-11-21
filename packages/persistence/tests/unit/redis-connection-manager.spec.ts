@@ -29,12 +29,4 @@ describe("createRedisClient", () => {
 		const client = createRedisClient("redis://localhost:6379");
 		expect(client).toBeInstanceOf(Redis);
 	});
-
-	it("should create a client from a config object", () => {
-		const client = createRedisClient({
-			mode: "single",
-			url: "redis://localhost:6379" as never,
-		});
-		expect(client).toBeInstanceOf(Redis);
-	});
 });

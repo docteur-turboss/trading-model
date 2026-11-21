@@ -11,13 +11,6 @@ const MAX_ABS_VALUE = 5;
 /** One `<subject>:<dimension>:<metric>` key (`BTC:social:pageviews`), subject = asset id, sector or area. */
 export const SIGNAL_KEY_PATTERN = /^[^:,\s]+:[^:,\s]+:[^:,\s]+$/;
 
-export function parseSignalKeys(csv: string): string[] {
-	return csv
-		.split(",")
-		.map((key) => key.trim())
-		.filter(Boolean);
-}
-
 // The wire schema sets exactly one subject; "" only keeps a malformed signal off every key.
 export function signalKey(signal: Signal): string {
 	const subject = signal.assetId ?? signal.sector ?? signal.area ?? "";

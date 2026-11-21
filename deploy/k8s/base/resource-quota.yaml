@@ -1,0 +1,34 @@
+# Consumption cap of the application namespace (issue #1810). A manifest error
+# (replicas, requests, looping Job) is refused by the API server (`exceeded
+# quota`, FailedCreate) instead of filling the node. Sized on the production
+# render (docs/deployment/KUBERNETES.md "Capacity and cost").
+# Margin: HPA max (10.2 vCPU / 18.0 GiB requests, 58 / 62.8 limits) + one surge pod per rolling Deployment (1.6 / 2.3, 8.1 / 7.0) + every CronJob and Job at once (0.4 / 0.5, 3 / 2.3) = 12.2 / 20.8, 69 / 72.0, then about +30%.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-and-storage
+spec:
+  hard:
+    requests.cpu: "16"
+    requests.memory: 28Gi
+    limits.cpu: "90"
+    limits.memory: 96Gi
+    # 420 GiB of PersistentVolumeClaims in production.
+    requests.storage: 512Gi
+---
+# A quota on limits.* refuses any container without limits: these defaults
+# cover the ones that declare none (spiffe-helper, Mongo keyfile init, mongosh
+# Jobs, the kind test pods).
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: container-defaults
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 10m
+        memory: 32Mi
+      default:
+        cpu: 250m
+        memory: 256Mi

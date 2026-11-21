@@ -1,12 +1,5 @@
 import { networkInterfaces } from "node:os";
-import {
-	afterAll,
-	beforeEach,
-	describe,
-	expect,
-	jest,
-	test,
-} from "@jest/globals";
+import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import {
 	registerServiceName,
 	type ServiceInstanceName,
@@ -43,12 +36,7 @@ describe("AddressManagerClient", () => {
 	let config: AddressManagerConfig;
 	let client: AddressManagerClient;
 
-	afterAll(() => {
-		AddressManagerClient.resetLocalIP();
-	});
-
 	beforeEach(() => {
-		AddressManagerClient.resetLocalIP();
 		(networkInterfaces as jest.Mock<(...args: any[]) => any>).mockReturnValue({
 			eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
 		});

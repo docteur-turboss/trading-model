@@ -15,14 +15,24 @@ components:
 patches:
   # Redis runs master + 2 replicas in production only: a journal write is
   # accepted once one replica holds it (ADR-0048). Staging has one Redis node,
-  # where WAIT 1 can never succeed.
+  # where WAIT 1 can never succeed. The bus services publish with their own XADD (ADR-0073).
   - target:
       kind: ConfigMap
-      name: message-manager-config
+      name: (message-manager|audit-logger|trader-trainer|model-evaluator)-config
     patch: |-
       - op: add
         path: /data/JOURNAL_MIN_REPLICAS
         value: "1"
+  # Only this overlay names the deployment "production", the one environment
+  # where EXECUTION_MODE=live may ever be set (ADR-0064 §6, checked by
+  # tests/k8s/check-overlays.mjs). The mode stays paper: no live adapter exists.
+  - target:
+      kind: ConfigMap
+      name: risk-execution-config
+    patch: |-
+      - op: replace
+        path: /data/DEPLOYMENT_ENV
+        value: production
   # The audit chain must be anchored in production (ADR-0027): audit-logger
   # refuses to start without AUDIT_ANCHOR_BUCKET (Secret audit-anchor-s3).
   - target:

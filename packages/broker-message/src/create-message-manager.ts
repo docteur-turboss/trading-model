@@ -12,7 +12,7 @@ import {
 } from "@trading-model/persistence/redis-env";
 import { toInstanceId } from "@trading-model/primitives/primitives";
 import MessageManagerClass from "./broker-message";
-import { RedisMessageJournal } from "./bus/redis-journal";
+import { openJournalWriter, RedisMessageJournal } from "./bus/redis-journal";
 import type { MessageManagerConfig } from "./types/config";
 
 /** Configuration options for creating a MessageManager instance. */
@@ -23,16 +23,15 @@ export interface MessageManagerOptions extends MessageManagerConfig {
 	journal?: RedisMessageJournal;
 }
 
-/** Creates a MessageManager instance with its bound Express listener.
+/** Creates a MessageManager instance.
  *
  * @param options - Configuration options
- * @returns An object containing the MessageManager instance and its Express listener
+ * @returns An object containing the MessageManager instance
  */
 export function createMessageManager(options: MessageManagerOptions) {
 	const ma = new MessageManagerClass(options);
 	return {
 		messageManager: ma,
-		messageManagerListenExpress: ma.listenExpress.bind(ma),
 	};
 }
 
@@ -60,7 +59,7 @@ export function busJournalFromEnv(
 	return new RedisMessageJournal({
 		redis: redis as never,
 		openBlockingRedis: () => redis.duplicate() as never,
-		openWriteRedis: () => redis.duplicate() as never,
+		openWriteRedis: () => openJournalWriter(redis as never),
 		keyPrefix: BUS_KEY_PREFIX,
 		minReplicas: env.JOURNAL_MIN_REPLICAS,
 	});

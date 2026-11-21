@@ -59,11 +59,6 @@ export function sha256Hex(input: string): string {
 	return createHash(CryptoAlg.SHA256).update(input).digest(CryptoAlg.HEX);
 }
 
-/** Returns the SHA-256 digest of the input, base64url encoded. */
-export function sha256Base64url(input: string): string {
-	return createHash(CryptoAlg.SHA256).update(input).digest(CryptoAlg.BASE64URL);
-}
-
 /** Returns a base64url string built from `crypto.getRandomValues`, used as a token nonce. */
 export function generateRandomStr(): string {
 	return Buffer.from(

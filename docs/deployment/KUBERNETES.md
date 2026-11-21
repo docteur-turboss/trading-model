@@ -22,6 +22,8 @@ This guide covers deploying the Trading Model platform on Kubernetes. The K8s ma
 - `deploy.yml` derives these from the rendered overlay (`deploy/k8s/scripts/check-prereqs.sh`) and
   refuses, listing what is missing, before the first apply
 - A CNI that enforces NetworkPolicies
+- Production with 2 nodes or more: reopen [ADR-0085](../adr/0085-single-mysql-and-spire-server-pods-accepted.md)
+  (option B: `minAvailable: 1` on `mysql-pdb` and `spire-server-pdb` in the production overlay)
 - One environment per cluster: the node agents (SPIRE agent, promtail) serve a
   single application namespace
 - Self-hosted nodes: data disk encrypted with LUKS2 + Clevis/Tang
@@ -243,8 +245,13 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 
 Computed from `kubectl kustomize deploy/k8s/overlays/production` (overlay patches
 applied), commit `c967735d2`. Per-pod figures sum every container that declares
-resources; `spiffe-helper` declares none and no LimitRange exists, so it is not counted.
+resources; `spiffe-helper` declares none (it gets the LimitRange defaults, 10m / 32Mi
+requests), so it is not counted.
 Init containers, CronJobs, Jobs and the `trading-model-node` agents are not counted.
+
+The ResourceQuota `compute-and-storage` (`deploy/k8s/base/resource-quota.yaml`) caps the
+namespace at 16 vCPU / 28 GiB requests, 90 vCPU / 96 GiB limits and 512 GiB of volumes: a pod
+beyond it fails with `exceeded quota`; raise it with any change to the figures below.
 
 | Scenario    | CPU requests | Memory requests | CPU limits | Memory limits |
 | ----------- | ------------ | --------------- | ---------- | ------------- |
@@ -297,7 +304,7 @@ No price is stated: it depends on the provider, which is not chosen.
 - 20Gi PVC (`data-mysql-0`)
 - Retention: CronJob `db-retention` purges market data and signals older than `RETENTION_DAYS` as MySQL user `retention` (key `MYSQL_RETENTION_PASSWORD` of `trading-model-secrets`, to seal before the first production deploy; `db-migrate-user` runs again after the migrations to grant it per table). Operation: [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0051
 - Schema from the `db-migrate` Job (`run-migrations.sh`), the same migrations as compose: no second copy of the schema. The Job runs the released `db-migrate` image (`deploy/migrate`: `migrate.mjs`, `scripts/migrations`, `mysql2` locked by its `bun.lock`; pinned by digest by `deploy.yml`): nothing is installed at run time. It connects as the MySQL user `migrator` (DDL/DML on `financial_scraper` only, password `MYSQL_MIGRATE_PASSWORD`), created or updated on every deploy by the idempotent Job `db-migrate-user` (the only one that reads `MYSQL_ROOT_PASSWORD`; works on a database initialised before the user existed). The password must match `[A-Za-z0-9_.@%+=-]`
-- PodDisruptionBudget: maxUnavailable 1 (one pod: `minAvailable` would block `kubectl drain`)
+- PodDisruptionBudget: maxUnavailable 1 (one pod accepted by ADR-0085, RTO 4 h of `BACKUP_DR.md`: `minAvailable` would block `kubectl drain`)
 
 ### MongoDB (Replica Set)
 
@@ -410,9 +417,8 @@ Each service has a dedicated ServiceAccount with `automountServiceAccountToken: 
    backups with age: see [Encryption at Rest](ENCRYPTION_AT_REST.md). Nothing
    in the cluster can tell whether the nodes' disks are encrypted: run
    `deploy/host/check-encryption.sh` on each node
-2. **MySQL has no failover** — the group has one member (`mysql-0`),
-   bootstrapped on the first member only; joining others is not automated
-   (ADR-0020)
+2. **MySQL has no failover** — single primary (`mysql-0`), no replica to
+   promote (ADR-0020, accepted by ADR-0085)
 3. **Grafana is single-instance** — dashboard provisioning but no HA
 4. **Jaeger is single-instance** — Badger storage on the 5Gi PVC `jaeger-data`, traces kept 72 h (not Elasticsearch/Cassandra, ADR-0055)
 5. **Off-site backups need a bucket** — the `db-backup` CronJob copies the

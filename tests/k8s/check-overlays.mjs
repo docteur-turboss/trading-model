@@ -131,6 +131,7 @@ const CLUSTER_KINDS = new Set(["Namespace", "ClusterRole", "ClusterRoleBinding",
 const RESOURCES = {
 	ConfigMap: ["", "configmaps"], Secret: ["", "secrets"], Service: ["", "services"],
 	PersistentVolumeClaim: ["", "persistentvolumeclaims"], ServiceAccount: ["", "serviceaccounts"],
+	ResourceQuota: ["", "resourcequotas"], LimitRange: ["", "limitranges"],
 	Deployment: ["apps", "deployments"], StatefulSet: ["apps", "statefulsets"], DaemonSet: ["apps", "daemonsets"],
 	CronJob: ["batch", "cronjobs"], Job: ["batch", "jobs"],
 	Ingress: ["networking.k8s.io", "ingresses"], NetworkPolicy: ["networking.k8s.io", "networkpolicies"],
@@ -340,6 +341,13 @@ for (const env of OVERLAYS) {
 	}
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
+
+	// ADR-0064 §6: only the production overlay is the "production" deployment and may set live.
+	const risk = docs.find((d) => d.kind === "ConfigMap" && d.name?.startsWith("risk-execution-config"))?.text ?? "";
+	const riskValue = (key) => risk.match(new RegExp(`^ +${key}: "?([^"\n]+)"?$`, "m"))?.[1];
+	if (riskValue("EXECUTION_MODE") === "live" && env !== "production") errors.push(`${env}: risk-execution-config sets EXECUTION_MODE=live outside production (ADR-0064 §6)`);
+	if ((riskValue("DEPLOYMENT_ENV") === "production") !== (env === "production")) errors.push(`${env}: risk-execution-config DEPLOYMENT_ENV=${riskValue("DEPLOYMENT_ENV")}, only the production overlay may be production`);
+	if (env !== "production" && /BROKER_API_(KEY|SECRET)/.test(rendered)) errors.push(`${env}: live broker keys outside the production overlay (ADR-0064 §6)`);
 
 	// Issue #809 (ADR-0062): production runs the alerting path twice, Alertmanager as one cluster.
 	for (const name of ["alertmanager", "prometheus"]) {

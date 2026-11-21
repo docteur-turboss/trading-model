@@ -1,9 +1,6 @@
 import { computeExponentialBackoffWithJitter } from "@trading-model/common/utils/backoff-config";
 import { sleep } from "@trading-model/common/utils/sleep";
-import {
-	isRetryableStatusPermissive,
-	RETRY_JITTER_MS,
-} from "@trading-model/http/http-retry";
+import { isRetryableStatusPermissive } from "@trading-model/http/http-retry";
 import { DataSource, DurationMs } from "@trading-model/primitives/primitives";
 import axios, {
 	type AxiosError,
@@ -11,6 +8,7 @@ import axios, {
 	type AxiosRequestConfig,
 } from "axios";
 
+import { retryAfterMs } from "../domain/retry-after";
 import { ENV } from "../infrastructure/config/env";
 import {
 	BINANCE_REQUEST_DURATION_SECONDS,
@@ -24,7 +22,6 @@ const RETRY_CONFIG = {
 	retries: 5,
 	baseDelayMs: DurationMs.of(300),
 	maxDelayMs: DurationMs.of(10000),
-	jitterMs: RETRY_JITTER_MS,
 };
 
 /** Longest Retry-After honoured (also cut by the retry deadline). Beyond it the error surfaces and the next cycle resumes. */
@@ -33,13 +30,11 @@ const RETRY_AFTER_MAX_MS = 60_000;
 /** Total time one request may spend retrying, below the 60 s scrape cycle so a slow cycle never makes the next tick skip. */
 const RETRY_DEADLINE_MS = 45_000;
 
-/** Retry-After of a 429, in ms. shortcut: seconds form only (the one Binance sends), HTTP dates are ignored. */
+/** Retry-After of a 429, in ms. */
 function _retryAfterMs(error: AxiosError): number {
-	if (error.response?.status !== 429) {
-		return 0;
-	}
-	const seconds = Number(error.response.headers?.["retry-after"]);
-	return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
+	return error.response?.status === 429
+		? retryAfterMs(error.response.headers?.["retry-after"], Date.now())
+		: 0;
 }
 
 type RetryConfig = AxiosRequestConfig & {

@@ -2,7 +2,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
-import { MarketEvent } from "@trading-model/contracts/market-events";
+import { RiskEvent } from "@trading-model/contracts/risk-events";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import {
 	toRole,
@@ -115,7 +115,6 @@ export const SCHEMA_METADATA_VERSION_PREDICATE = z
 const TOPIC_FORMAT_MESSAGE =
 	"Invalid topic format. Expected at least '<bounded-context>.<aggregate>.<action>': dot-separated lowercase segments of letters, digits and hyphens (e.g. 'billing.invoice.created', 'market.order-book.snapshot.fetch').";
 
-/** Accepts every topic the contracts define (MarketEvent: 4 segments, hyphens, digits). */
 export const TOPIC_METADATA_PREDICATE = z
 	.string(TOPIC_FORMAT_MESSAGE)
 	.toLowerCase()
@@ -124,10 +123,10 @@ export const TOPIC_METADATA_PREDICATE = z
 	});
 
 const ALL_EVENT_TYPES = [
-	...Object.values(MarketEvent),
 	...Object.values(AuditEvent),
 	...Object.values(TrainingEvent),
 	...Object.values(DlqEvent),
+	...Object.values(RiskEvent),
 ] as const;
 
 /** Predicate checking the event type of a message metadata. */

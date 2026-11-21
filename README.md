@@ -47,6 +47,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `audit-logger`          | 8450 | Immutable event traceability (hash-chained audit trail)        |
 | `dlq-service`           | 8452 | Dead letter queue storage with auto-retry + replay             |
 | `edge-proxy`            | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS      |
+| `risk-execution`        | 8454 | Order flow owner of ADR-0064: pre-trade checks, kill switch, lifecycle, simulated broker (paper only, no live adapter) |
 | `model-evaluator`       | 8453 | Offline check of trained models on each `training.model.published` (ADR-0049); records one evaluation per model, never promotes |
 
 ### Shared Packages
@@ -55,7 +56,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, retry-policy. Zero dependencies |
 | `@trading-model/contracts` | Shared runtime-free contracts: events, message envelope, service registry, `http-status`/`http-headers`, `LoggerPort` registry |
-| `@trading-model/reliability` | Circuit breaker, circuit-state machine, latency tracker |
+| `@trading-model/reliability` | Circuit breaker, circuit-state machine, heartbeat, leader lease |
 | `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator shared by trader-trainer and model-evaluator |
 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, shared Zod schemas |
 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders |

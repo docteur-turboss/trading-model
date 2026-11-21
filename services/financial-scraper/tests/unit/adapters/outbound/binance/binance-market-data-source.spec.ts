@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import {
 	DataSource,
@@ -19,16 +26,47 @@ jest.mock(
 	})
 );
 
-jest.mock("../../../../../src/adapters/outbound/binance/normalizer", () => ({
-	BinanceNormalizer: {
-		orderBook: jest.fn<(...args: any[]) => any>(),
-		trades: jest.fn<(...args: any[]) => any>(),
-		candles: jest.fn<(...args: any[]) => any>(),
-		ticker24h: jest.fn<(...args: any[]) => any>(),
-		priceTicker: jest.fn<(...args: any[]) => any>(),
-		bookTicker: jest.fn<(...args: any[]) => any>(),
-	},
-}));
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/order-book",
+	() => ({
+		normalizeOrderBook: jest.fn<(...args: any[]) => any>(),
+	})
+);
+
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/trades",
+	() => ({
+		normalizeTrades: jest.fn<(...args: any[]) => any>(),
+	})
+);
+
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/candles",
+	() => ({
+		normalizeCandles: jest.fn<(...args: any[]) => any>(),
+	})
+);
+
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/ticker",
+	() => ({
+		normalizeTicker24h: jest.fn<(...args: any[]) => any>(),
+	})
+);
+
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/price-ticker",
+	() => ({
+		normalizePriceTicker: jest.fn<(...args: any[]) => any>(),
+	})
+);
+
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/book-ticker",
+	() => ({
+		normalizeBookTicker: jest.fn<(...args: any[]) => any>(),
+	})
+);
 
 jest.mock("@trading-model/http/logger", () => ({
 	logger: {
@@ -41,7 +79,12 @@ jest.mock("@trading-model/http/logger", () => ({
 
 import * as binanceClient from "../../../../../src/adapters/outbound/binance/binance.client";
 import { BinanceMarketDataSource } from "../../../../../src/adapters/outbound/binance/binance-market-data-source";
-import { BinanceNormalizer } from "../../../../../src/adapters/outbound/binance/normalizer";
+import { normalizeBookTicker } from "../../../../../src/adapters/outbound/binance/normalizers/book-ticker";
+import { normalizeCandles } from "../../../../../src/adapters/outbound/binance/normalizers/candles";
+import { normalizeOrderBook } from "../../../../../src/adapters/outbound/binance/normalizers/order-book";
+import { normalizePriceTicker } from "../../../../../src/adapters/outbound/binance/normalizers/price-ticker";
+import { normalizeTicker24h } from "../../../../../src/adapters/outbound/binance/normalizers/ticker";
+import { normalizeTrades } from "../../../../../src/adapters/outbound/binance/normalizers/trades";
 import { SNAPSHOT_PARTS_FAILED_TOTAL } from "../../../../../src/config/metrics";
 
 const BTC = toSymbol("BTCUSDT");
@@ -60,12 +103,12 @@ const MOCK_SYMBOL_PRICE_TICKER = jest.mocked(
 	binanceClient.getSymbolPriceTicker
 );
 
-const MOCK_NORMALIZER_ORDER_BOOK = jest.mocked(BinanceNormalizer.orderBook);
-const MOCK_NORMALIZER_TRADES = jest.mocked(BinanceNormalizer.trades);
-const MOCK_NORMALIZER_CANDLES = jest.mocked(BinanceNormalizer.candles);
-const MOCK_NORMALIZER_TICKER24H = jest.mocked(BinanceNormalizer.ticker24h);
-const MOCK_NORMALIZER_PRICE_TICKER = jest.mocked(BinanceNormalizer.priceTicker);
-const MOCK_NORMALIZER_BOOK_TICKER = jest.mocked(BinanceNormalizer.bookTicker);
+const MOCK_NORMALIZER_ORDER_BOOK = jest.mocked(normalizeOrderBook);
+const MOCK_NORMALIZER_TRADES = jest.mocked(normalizeTrades);
+const MOCK_NORMALIZER_CANDLES = jest.mocked(normalizeCandles);
+const MOCK_NORMALIZER_TICKER24H = jest.mocked(normalizeTicker24h);
+const MOCK_NORMALIZER_PRICE_TICKER = jest.mocked(normalizePriceTicker);
+const MOCK_NORMALIZER_BOOK_TICKER = jest.mocked(normalizeBookTicker);
 
 describe("BinanceMarketDataSource", () => {
 	const source = new BinanceMarketDataSource();
@@ -232,6 +275,81 @@ describe("BinanceMarketDataSource", () => {
 			expect(counted.values).toEqual([
 				expect.objectContaining({ labels: { part: "orderBook" }, value: 1 }),
 			]);
+		});
+
+		describe("418/451 quarantine", () => {
+			const ban = (status: number, retryAfter?: string) =>
+				Object.assign(new Error(String(status)), {
+					response: { status, headers: { "retry-after": retryAfter } },
+				});
+			const failAll = (error: Error) => {
+				for (const mock of [
+					MOCK_GET_ORDER_BOOK,
+					MOCK_RECENT_TRADES,
+					MOCK_CANDLESTICK_DATA,
+					MOCK24HR_TICKER_STATS,
+					MOCK_SYMBOL_PRICE_TICKER,
+					MOCK_ORDER_BOOK_TICKER,
+				]) {
+					mock.mockRejectedValueOnce(error);
+				}
+			};
+
+			beforeEach(() => {
+				jest.useFakeTimers({ now: 1_000_000 });
+			});
+			afterEach(() => {
+				jest.useRealTimers();
+			});
+
+			it.each([418, 451])(
+				"makes no call after a %i until the backoff ends, then probes",
+				async (status) => {
+					const banned = new BinanceMarketDataSource();
+					failAll(ban(status));
+					await expect(banned.fetchSnapshot(request)).rejects.toThrow();
+					MOCK_GET_ORDER_BOOK.mockClear();
+					MOCK24HR_TICKER_STATS.mockClear();
+
+					jest.advanceTimersByTime(60_000);
+					banned.beginCycle([BTC]);
+					await expect(banned.fetchSnapshot(request)).rejects.toThrow(
+						"quarantined"
+					);
+					expect(MOCK_GET_ORDER_BOOK).not.toHaveBeenCalled();
+					expect(MOCK24HR_TICKER_STATS).not.toHaveBeenCalled();
+
+					jest.advanceTimersByTime(5 * 60_000);
+					await banned.fetchSnapshot(request);
+					expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledTimes(1);
+				}
+			);
+
+			it("quarantines on a 418 of one endpoint while the others answer", async () => {
+				const banned = new BinanceMarketDataSource();
+				MOCK_GET_ORDER_BOOK.mockRejectedValueOnce(ban(418));
+				await banned.fetchSnapshot(request);
+				MOCK_GET_ORDER_BOOK.mockClear();
+
+				banned.beginCycle([BTC]);
+				await expect(banned.fetchSnapshot(request)).rejects.toThrow(
+					"quarantined"
+				);
+				expect(MOCK_GET_ORDER_BOOK).not.toHaveBeenCalled();
+			});
+
+			it("holds until a Retry-After given as an HTTP date", async () => {
+				const banned = new BinanceMarketDataSource();
+				failAll(ban(418, new Date(1_000_000 + 3_600_000).toUTCString()));
+				await expect(banned.fetchSnapshot(request)).rejects.toThrow();
+
+				jest.advanceTimersByTime(3_000_000);
+				await expect(banned.fetchSnapshot(request)).rejects.toThrow(
+					"quarantined"
+				);
+				jest.advanceTimersByTime(700_000);
+				await banned.fetchSnapshot(request);
+			});
 		});
 
 		it("should reject with the first error when every endpoint fails", async () => {

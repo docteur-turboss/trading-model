@@ -53,12 +53,23 @@ export const ModelManifest = z.looseObject({
 		})
 		.optional(),
 	replay: ReplayWindow.optional(),
+	/** Absent before metricsVersion 5: those models trained with a cap of 1. */
+	riskLimits: z.looseObject({ maxExposureFraction: z.number() }).optional(),
 });
 export type ModelManifest = z.infer<typeof ModelManifest>;
 
+/** Fees and execution cost paid over the replay, in quote currency. */
+interface ReplayCosts {
+	feesPaid: number;
+	executionCostPaid: number;
+}
+
 /** Ratios of the greedy replay on the test segment, or why there are none (ADR-0079). */
 export type ReplayOutcome =
-	| { replay: "done"; metrics: { policy: "greedy" } & SegmentRatios }
+	| {
+			replay: "done";
+			metrics: { policy: "greedy" } & SegmentRatios & ReplayCosts;
+	  }
 	| { replay: "failed"; reason: string };
 
 /** One evaluation per `(symbol, version)`. */
@@ -114,7 +125,8 @@ export function replayOutcome(
 	window: ReplayWindow,
 	genome: ModelManifest["genome"],
 	weights: Uint8Array,
-	candles: readonly CandleData[]
+	candles: readonly CandleData[],
+	maxExposureFraction = 1
 ): ReplayOutcome {
 	const bars = candles.filter((candle) => candle.closeTimestamp <= window.to);
 	if (
@@ -129,7 +141,7 @@ export function replayOutcome(
 			// A copy: float32 needs 4-byte alignment, a Buffer slice may not have it.
 			weights: new Float32Array(new Uint8Array(weights).buffer),
 			testFrom: window.testFrom,
-			simulator: window.simulator,
+			simulator: { ...window.simulator, maxExposureFraction },
 			candles: bars,
 		});
 		return { replay: "done", metrics: { policy: "greedy", ...ratios } };

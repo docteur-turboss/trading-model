@@ -34,8 +34,10 @@ import type { TradingSymbol } from "../domain/market-data-types";
 import type { CandleHistoryPort } from "../domain/ports/candle-history.port";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type { SignalHistoryPort } from "../domain/ports/signal-history.port";
-import { parseSignalKeys } from "../domain/signal-features";
-import { effectiveFitnessType } from "../domain/training-settings";
+import {
+	effectiveFitnessType,
+	type TrainingSettings,
+} from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
 	CURRENT_GENERATION,
@@ -69,21 +71,8 @@ const SIGNAL_WINDOW_MS = 30 * 24 * 3_600_000;
 interface AppContainerConfig {
 	bufferSize: number;
 	symbols: TradingSymbol[];
-	validationSplit: number;
-	testSplit: number;
-	walkForwardFolds: number;
-	generations: number;
-	populationSize: number;
-	timeBudgetMs: number;
-	episodesPerIndividual: number;
-	fitnessType: FitnessType;
-	observePosition: boolean;
-	actionSpaceGene: boolean;
+	settings: TrainingSettings;
 	signalKeys: string[];
-	eventDriven: boolean;
-	inputGroups?: string[];
-	protectCandleGroup?: boolean;
-	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
 	instanceId: string;
@@ -104,7 +93,7 @@ class ApplicationContainer {
 		this.symbols = config.symbols;
 		const bufferConfig: MarketDataBufferConfig = {
 			maxSize: config.bufferSize,
-			maxMemoryBytes: (config.bufferMemoryLimitMb ?? 512) * 1024 * 1024,
+			maxMemoryBytes: 512 * 1024 * 1024,
 			evictionPolicy: EvictionPolicy.Lru,
 			signalKeys: config.signalKeys,
 			onDataAdded: (symbol, candleCount, symbolCount) => {
@@ -124,21 +113,7 @@ class ApplicationContainer {
 			retention: config.modelRetention,
 		});
 		this.trainer = new Trainer(this.dataBuffer, {
-			settings: {
-				validationSplit: config.validationSplit,
-				testSplit: config.testSplit,
-				walkForwardFolds: config.walkForwardFolds,
-				generations: config.generations,
-				populationSize: config.populationSize,
-				timeBudgetMs: config.timeBudgetMs,
-				episodesPerIndividual: config.episodesPerIndividual,
-				fitnessType: config.fitnessType,
-				observePosition: config.observePosition,
-				actionSpaceGene: config.actionSpaceGene,
-				eventDriven: config.eventDriven,
-				inputGroups: config.inputGroups,
-				protectCandleGroup: config.protectCandleGroup,
-			},
+			settings: config.settings,
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
 			dailyCosts: (symbol) => config.dailyCosts.get(symbol),
@@ -151,11 +126,7 @@ class ApplicationContainer {
 			this.trainer,
 			this.dataBuffer,
 			config.history,
-			{
-				validationSplit: config.validationSplit,
-				testSplit: config.testSplit,
-				walkForwardFolds: config.walkForwardFolds,
-			},
+			config.settings,
 			config.signals,
 			new Set(config.dailyCosts.keys())
 		);
@@ -185,6 +156,7 @@ interface TraderTrainerSettings {
 	FEATURE_INPUT_MASK_GENE?: boolean;
 	TRAINER_INPUT_MASK_PROTECT_CANDLE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
+	TRAINER_SEED_OFFSET?: number;
 	FEATURE_ACTION_SPACE_GENE?: boolean;
 	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
 	TRAINER_SIGNAL_FEATURES?: string;
@@ -214,7 +186,7 @@ export function createTraderTrainerContainer(
 	);
 	const bars = new SignalBarHistory(signalHistory, assets);
 	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
-		? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
+		? parseCommaSeparated(settings.TRAINER_SIGNAL_FEATURES ?? "")
 		: [];
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
@@ -227,22 +199,25 @@ export function createTraderTrainerContainer(
 			]),
 		],
 		dailyCosts,
-		validationSplit: settings.TRAINER_VALIDATION_SPLIT,
-		testSplit: settings.TRAINER_TEST_SPLIT,
-		walkForwardFolds: settings.TRAINER_WALK_FORWARD_FOLDS,
-		generations: settings.TRAINER_GENERATIONS,
-		populationSize: settings.TRAINER_POPULATION_SIZE,
-		timeBudgetMs: settings.TRAINER_TIME_BUDGET_MS,
-		episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
-		fitnessType: effectiveFitnessType(settings),
-		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
-		actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
+		settings: {
+			validationSplit: settings.TRAINER_VALIDATION_SPLIT,
+			testSplit: settings.TRAINER_TEST_SPLIT,
+			walkForwardFolds: settings.TRAINER_WALK_FORWARD_FOLDS,
+			generations: settings.TRAINER_GENERATIONS,
+			populationSize: settings.TRAINER_POPULATION_SIZE,
+			timeBudgetMs: settings.TRAINER_TIME_BUDGET_MS,
+			episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
+			fitnessType: effectiveFitnessType(settings),
+			observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
+			actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
+			eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
+			seedOffset: settings.TRAINER_SEED_OFFSET ?? 0,
+			inputGroups: settings.FEATURE_INPUT_MASK_GENE
+				? inputGroupNames(signalKeys)
+				: undefined,
+			protectCandleGroup: settings.TRAINER_INPUT_MASK_PROTECT_CANDLE,
+		},
 		signalKeys,
-		eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
-		inputGroups: settings.FEATURE_INPUT_MASK_GENE
-			? inputGroupNames(signalKeys)
-			: undefined,
-		protectCandleGroup: settings.TRAINER_INPUT_MASK_PROTECT_CANDLE,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,
@@ -279,25 +254,21 @@ export function createTrainingLeadership(
 	settings: TrainingLeadershipSettings,
 	training: LeaderJob
 ): Leadership {
-	if (!settings.TRAINER_LEASE_NAME) {
-		return new Leadership(
-			SOLE_INSTANCE_LEASE,
-			training,
-			(leader) => TRAINING_LEADER.set(leader),
-			"Trainer"
-		);
-	}
-	getLogger().info("Trainer leader election enabled", {
-		context: {
-			lease: settings.TRAINER_LEASE_NAME,
-			identity: settings.INSTANCE_ID,
-		},
-	});
-	return new Leadership(
-		new KubernetesLease(
+	let lease: ConstructorParameters<typeof Leadership>[0] = SOLE_INSTANCE_LEASE;
+	if (settings.TRAINER_LEASE_NAME) {
+		getLogger().info("Trainer leader election enabled", {
+			context: {
+				lease: settings.TRAINER_LEASE_NAME,
+				identity: settings.INSTANCE_ID,
+			},
+		});
+		lease = new KubernetesLease(
 			settings.INSTANCE_ID,
 			kubernetesLeaseApi(settings.TRAINER_LEASE_NAME)
-		),
+		);
+	}
+	return new Leadership(
+		lease,
 		training,
 		(leader) => TRAINING_LEADER.set(leader),
 		"Trainer"

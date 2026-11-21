@@ -60,6 +60,9 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=REDIS_DISCOVERY_PASSWORD='your-discovery-redis-password' \
   --from-literal=REDIS_MESSAGE_MANAGER_PASSWORD='your-message-manager-redis-password' \
   --from-literal=REDIS_DLQ_PASSWORD='your-dlq-redis-password' \
+  --from-literal=REDIS_AUDIT_LOGGER_PASSWORD='your-audit-logger-redis-password' \
+  --from-literal=REDIS_TRADER_TRAINER_PASSWORD='your-trader-trainer-redis-password' \
+  --from-literal=REDIS_MODEL_EVALUATOR_PASSWORD='your-model-evaluator-redis-password' \
   --from-literal=REDIS_EXPORTER_PASSWORD='your-exporter-redis-password' \
   --from-literal=MONGO_ROOT_PASSWORD='your-mongo-root-password' \
   --from-literal=MONGO_EXPORTER_PASSWORD='your-mongo-exporter-password' \
@@ -110,7 +113,7 @@ Before `kubectl apply` the script compares the live Secret keys with the file: a
 |-----------|-----|-----------|
 | `signing` | `SIGNING_SECRET` | discovery-server (services re-register) |
 | `tokens` | `AUTH_TOKENS` (`name:scopes:secret`, ADR-0059): only the entry named `API_KEY_NAME` (default `ops`, scopes `API_KEY_SCOPES`) is replaced, the other keys are kept | api-gateway |
-| `dlq` | `DLQ_AUTH_HMAC_SECRET` | message-manager + dlq-service |
+| `dlq` | `DLQ_AUTH_HMAC_SECRET` | dlq-service |
 
 The script merges the new key into `SEALED_SECRETS_FILE` (default `deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, commit the result), applies it, waits until the live Secret holds the value, then restarts the consumers. It never prints a value and never puts one on a command line. `SEALED_SECRETS_FILE` must be the real sealed file of the overlay: a file with `CHANGE_ME` placeholders is refused before any `kubeseal` or `apply`.
 

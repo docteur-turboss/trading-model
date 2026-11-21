@@ -41,7 +41,6 @@ export async function retryWithBackoff<_TResult>(
 		maxRetries,
 		baseDelayMs = DurationMs.of(100),
 		maxDelayMs = DurationMs.of(5000),
-		jitterMs = DurationMs.of(0),
 	} = options;
 	let lastError: Error | null = null;
 
@@ -59,7 +58,6 @@ export async function retryWithBackoff<_TResult>(
 			await _sleepBackoff(attempt + 1, {
 				baseDelayMs,
 				maxDelayMs,
-				jitterMs,
 			});
 		}
 	}
@@ -71,14 +69,12 @@ export function withTimeout<TResult>(
 	timeoutMs: DurationMs,
 	timeoutMessage = "Operation timed out"
 ): Promise<TResult> {
+	let timer: NodeJS.Timeout;
 	return Promise.race([
 		promise,
 		new Promise<never>((_, reject) => {
-			const timer = setTimeout(
-				() => reject(new Error(timeoutMessage)),
-				timeoutMs
-			);
+			timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
 			timer.unref();
 		}),
-	]);
+	]).finally(() => clearTimeout(timer));
 }

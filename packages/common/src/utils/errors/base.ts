@@ -21,17 +21,11 @@ export function errorProp(err: unknown, key: string): unknown {
 }
 
 export enum ErrorCode {
-	ServiceNotFound = "ServiceNotFoundError",
-	ServiceUnreachable = "ServiceUnreachableError",
 	Authentication = "AuthenticationError",
 	AddressManager = "AddressManagerError",
 	MessageManager = "MessageManagerError",
-	MetadataBuilder = "MetadataBuilderError",
-	Timeout = "TimeoutError",
-	Nack = "NackError",
 	DeadLetter = "DeadLetterError",
 	Agent = "AgentError",
-	Backpressure = "BackpressureError",
 	Configuration = "ConfigurationError",
 	DlqCapacity = "DlqCapacityError",
 	AppError = "AppErrorError",

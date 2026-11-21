@@ -17,9 +17,7 @@ import { type NoOverlapTask, scheduleNoOverlap } from "./no-overlap";
 export interface CronConfig {
 	schedule: string;
 	symbols: TradingSymbol[];
-	maxConcurrency?: PositiveInt;
-	candleInterval?: CandleInterval;
-	/** Source, publisher and persistence of each symbol scrape. */
+	/** Source and persistence of each symbol scrape. */
 	deps: WorkerOrchestratorDeps;
 }
 
@@ -27,17 +25,11 @@ export interface CronConfig {
 const DEFAULT_MAX_CONCURRENCY = 8;
 
 export class ScrapeCronOrchestrator {
-	private readonly _maxConcurrency: PositiveInt;
 	private _workerOrchestrator: WorkerOrchestrator;
-	/** Its run is a cycle: fetch and persist of every symbol (not the publishes). */
+	/** Its run is a cycle: fetch and persist of every symbol. */
 	private _task?: NoOverlapTask;
 
 	constructor(private readonly _config: CronConfig) {
-		const maxConcurrency =
-			_config.maxConcurrency ??
-			PositiveInt.of(Math.min(DEFAULT_MAX_CONCURRENCY, _config.symbols.length));
-
-		this._maxConcurrency = maxConcurrency;
 		this._workerOrchestrator = this._createWorker();
 	}
 
@@ -51,17 +43,18 @@ export class ScrapeCronOrchestrator {
 		);
 	}
 
-	/** Stops scheduling, then waits for the running cycle and its publishes. */
+	/** Stops scheduling, then waits for the running cycle. */
 	public async stop(): Promise<void> {
 		await this._task?.stop();
-		await this._workerOrchestrator.drain();
 	}
 
 	private _createWorker(): WorkerOrchestrator {
 		return new WorkerOrchestrator(
-			this._maxConcurrency,
+			PositiveInt.of(
+				Math.min(DEFAULT_MAX_CONCURRENCY, this._config.symbols.length)
+			),
 			this._config.symbols,
-			this._config.candleInterval ?? CandleInterval.Min1,
+			CandleInterval.Min1,
 			this._config.deps
 		);
 	}

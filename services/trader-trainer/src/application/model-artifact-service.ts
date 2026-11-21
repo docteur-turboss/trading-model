@@ -36,6 +36,7 @@ export interface RehydratedModel {
 	symbol: TradingSymbol;
 	snapshot: ArtifactTrainingInfo;
 	lastModel: LastModel;
+	ref: StoredModelRef;
 }
 
 /** Reads and writes the versioned model artifacts (ADR-0022); owns no trainer state. */
@@ -62,9 +63,7 @@ export class ModelArtifactService {
 		}
 		for (const symbol of symbols) {
 			try {
-				const latest = await models.latest(String(symbol));
-				const manifest =
-					latest && (await models.manifest(String(symbol), latest.version));
+				const manifest = await models.latest(String(symbol));
 				if (!manifest) {
 					continue;
 				}
@@ -89,6 +88,11 @@ export class ModelArtifactService {
 					lastModel: {
 						createdAt: Date.parse(manifest.createdAt),
 						normalization: manifest.normalization,
+					},
+					ref: {
+						version: manifest.version,
+						sha256: manifest.weights.sha256,
+						admissible: manifest.admission?.admissible ?? false,
 					},
 				});
 				getLogger().info("Best agent rehydrated", {

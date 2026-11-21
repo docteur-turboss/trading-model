@@ -88,16 +88,6 @@ groups:
           description: '{{ $labels.job }} has had its outbound calls to {{ $labels.kind }} {{ $labels.target }} refused by the open HTTP circuit breaker for 10 minutes.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
 
-      - alert: DLQSizeGrowing
-        expr: sum by (job) (rate(dlq_entries_added_total[15m])) > sum by (job) (rate(dlq_entries_replayed_total[15m]))
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'DLQ is growing faster than it is drained'
-          description: 'Messages are being added to the DLQ faster than they are replayed.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
-
       - alert: InstanceCountLow
         expr: max by (service) (discovery_registered_instances_per_service) < 2 and max_over_time(min_over_time(max by (service) (discovery_registered_instances_per_service)[15m:1m])[1d:5m]) >= 2
         for: 2m
@@ -277,6 +267,38 @@ groups:
           description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
 
+      # -- Risk/Execution (ADR-0064, docs/compliance/risk-limits-policy.md) -------
+
+      - alert: KillSwitchEngaged
+        expr: 'max by (job, mode, scope) (risk_kill_switch) > 0'
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Kill switch engaged ({{ $labels.scope }}, {{ $labels.mode }})'
+          description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
+
+      - alert: ReconciliationMismatch
+        expr: 'max by (job, mode) (risk_reconciliation_mismatch) > 0'
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'risk-execution state differs from the broker ({{ $labels.mode }})'
+          description: 'The last reconciliation found a position, open order or balance difference with the broker. The global kill switch is on and the service is not ready; the store is never fixed to match the broker.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#reconciliationmismatch'
+
+      - alert: RiskMarketDataStale
+        expr: 'max by (job, mode) (risk_market_data_age_seconds) > 900'
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Reference price older than 15 minutes ({{ $labels.mode }})'
+          description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
+
       # -- Authentication failures and ACL denials -------------------
 
       - alert: ApiAuthFailuresHigh
@@ -383,7 +405,7 @@ groups:
           description: 'message-manager refused {{ $value | humanize }} {{ $labels.event }} event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'
 
-      # A topic nobody subscribes to drops its messages. Expected for a few
+      # A topic with no journal group (no service ever subscribed) drops its messages. Expected for a few
       # seconds at a cold start (publishers up before subscribers), so only a
       # drop lasting 10 minutes alerts.
       - alert: MessagesUnrouted
@@ -393,7 +415,7 @@ groups:
           severity: warning
         annotations:
           summary: 'Messages dropped on {{ $labels.topic }}: no subscriber'
-          description: 'message-manager drops the messages published on {{ $labels.topic }}: no instance subscribes to it. audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
+          description: 'message-manager drops the messages published on {{ $labels.topic }}: the topic has no journal group (no service ever subscribed to it). audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
 
       - alert: JournalEntriesTrimmed
@@ -404,7 +426,7 @@ groups:
         annotations:
           summary: 'Messages lost on {{ $labels.topic }} for {{ $labels.service }}: journal trimmed before delivery'
           description: '{{ $labels.service }} stayed unreachable for more than 24 h: message-manager trimmed undelivered {{ $labels.topic }} entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
 
       - alert: JournalBacklogOld
         expr: max by (topic, service) (mm_journal_oldest_pending_age_seconds) > 900
@@ -414,39 +436,28 @@ groups:
         annotations:
           summary: 'Journal backlog on {{ $labels.topic }} for {{ $labels.service }}: oldest entry waiting for more than 15 min'
           description: '{{ $labels.service }} has not acknowledged a {{ $labels.topic }} entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber'
-
-      - alert: DLQDrainRateLow
-        expr: sum by (job) (rate(dlq_entries_replayed_total[15m])) / sum by (job) (rate(dlq_entries_added_total[15m])) < 0.8
-        for: 15m
-        labels:
-          severity: warning
-          slo: dlq_drain
-        annotations:
-          summary: 'DLQ drain rate is critically low'
-          description: 'DLQ replay/add ratio is {{ $value | humanizePercentage }} — queue is growing.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber'
 
       - alert: TrainingCompletionRateLow
-        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[3h])) or sum by (job) (rate(tt_training_sessions_total[3h])) * 0) / sum by (job) (rate(tt_training_sessions_total[3h])) < 0.95
+        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[12h])) or sum by (job) (rate(tt_training_sessions_total[12h])) * 0) / sum by (job) (rate(tt_training_sessions_total[12h])) < 0.95
         for: 1h
         labels:
           severity: warning
           slo: training_completion
         annotations:
           summary: 'Training completion rate below 95%'
-          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 3h.'
+          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 12h.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
       - alert: TrainingCompletionRateCritical
-        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[3h])) or sum by (job) (rate(tt_training_sessions_total[3h])) * 0) / sum by (job) (rate(tt_training_sessions_total[3h])) < 0.5
+        expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[12h])) or sum by (job) (rate(tt_training_sessions_total[12h])) * 0) / sum by (job) (rate(tt_training_sessions_total[12h])) < 0.5
         for: 1h
         labels:
           severity: critical
           slo: training_completion
         annotations:
           summary: 'Training completion rate below 50%'
-          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 3h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
+          description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
       - alert: TrainerEventLoopBlocked
@@ -552,6 +563,19 @@ groups:
           description: 'Binance answered 451 (restricted location) {{ $value | humanize }} times in 15 minutes: market data collection is blocked. Re-examine ADR-0026 and switch BINANCE_BASE_URL to the next fallback (runbook-market-data-stale).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
+      # The 451 counter stops growing while the source is quarantined (no call
+      # between probes, up to 24 h), so this rule keeps the block visible; it
+      # also covers the 418 ban, which has no other alert.
+      - alert: BinanceQuarantined
+        expr: max(fs_signal_source_quarantined{source="binance"}) == 1
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Binance quarantined after a 418 or 451'
+          description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"418|451"} and runbook-market-data-stale.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
+
       # ADR-0036: the signal sources publish daily (SEC, Wikimedia), on working
       # days (ECB) or hourly (NWS): one day covers every schedule. The failure
       # series are born at 0 when the collector starts (zeroCollectionFailures).
@@ -576,19 +600,6 @@ groups:
           description: '{{ $labels.source }} has had no successful collection for {{ $value | humanizeDuration }}, beyond its freshness threshold (no failure counted: cron stopped or lease lost).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#signalsourcestale'
 
-      # The scraper persists before publishing and sends the waiting candles
-      # from MySQL (publish cursor, migration 005): a backlog means the bus
-      # refuses them; 0 in normal operation.
-      - alert: MarketDataUnpublished
-        expr: max by (symbol) (fs_unpublished_candles) > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'Persisted candles not reaching the bus'
-          description: '{{ $value | humanize }} persisted {{ $labels.symbol }} candles have waited for the bus for 15 minutes: message-manager refuses or holds the scraper publishes. They go out from MySQL, oldest first, once it answers; the trainer lags meanwhile (runbook-message-bus-outage)'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog'
-
       - alert: TrainerMarketDataStale
         expr: min(tt_last_candle_age_seconds) > 900
         for: 5m
@@ -602,17 +613,17 @@ groups:
       # The useful output of the trainer is a stored model, whatever stops it
       # (training failing, nothing to train, write failing). A session lasts at
       # most TRAINER_TIME_BUDGET_MS (5 min) and the loop starts one every
-      # TRAINER_INTERVAL_MS (1 h): 3 h without a stored model is already abnormal; the 2 h of "for"
+      # TRAINER_INTERVAL_MS (4 h): 9 h (two missed sessions) without a stored model is abnormal; the 4 h of "for"
       # also covers a cold start (series born at 0). Fires only while a trainer
       # holds the Lease (no leader: TrainerNoLeader; trainer down: ServiceDown).
       - alert: TrainerNoModelStored
-        expr: sum by (job) (increase(tt_model_artifacts_total{result="stored"}[3h])) == 0 and on (job) max by (job) (tt_training_leader) == 1
-        for: 2h
+        expr: sum by (job) (increase(tt_model_artifacts_total{result="stored"}[9h])) == 0 and on (job) max by (job) (tt_training_leader) == 1
+        for: 4h
         labels:
           severity: critical
         annotations:
           summary: 'trader-trainer has stored no model for hours'
-          description: 'No model artifact stored for at least 5 hours (2 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
+          description: 'No model artifact stored for at least 13 hours (4 hours after a start) while a trainer holds the Lease: every session fails or produces nothing to store. Check the "Training failed" logs and the deployed version (build_info).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainernomodelstored'
 
       # A trained model could not be stored (ADR-0022): the best agent then

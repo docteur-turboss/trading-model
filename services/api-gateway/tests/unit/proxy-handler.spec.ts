@@ -172,36 +172,41 @@ describe("proxy-handler", () => {
 		).rejects.toThrow("ECONNREFUSED");
 	});
 
-	it("should reject on timeout", async () => {
-		const timeoutEvents: Array<() => void> = [];
-
-		const https = require("node:https");
-		https.request = jest
-			.fn<(...args: any[]) => any>()
-			.mockImplementation(() => {
-				const timeoutReq = {
-					on: jest.fn((event: string, handler: () => void) => {
-						if (event === "timeout") {
-							timeoutEvents.push(handler);
-						}
-						return timeoutReq;
-					}),
-					write: jest.fn<(...args: any[]) => any>(),
-					end: jest.fn<(...args: any[]) => any>().mockImplementation(() => {
-						for (const h of timeoutEvents) {
-							h();
-						}
-					}),
-					destroy: jest.fn<(...args: any[]) => any>(),
-				};
-				return timeoutReq;
+	it("should reject after PROXY_TIMEOUT_MS in total, even if the upstream keeps sending", async () => {
+		jest.useFakeTimers();
+		try {
+			const { mockRes, mockReq, events } = createMockResponse(200, "");
+			mockReq.end.mockImplementation(() => undefined);
+			(mockReq as any).destroy = jest.fn<(...args: any[]) => any>();
+			require("node:https").request = createMockHttps(
+				(_opts: any, callback: (res: any) => void) => {
+					callback(mockRes);
+					return mockReq;
+				}
+			);
+			const forward = await loadForward();
+			const {
+				UpstreamTimeoutError,
+			} = require("../../src/domain/ports/gateway.port");
+			const result = forward({
+				req: createReq({ method: "GET" }),
+				target: MOCK_TARGET,
+				path: "/test",
 			});
-
-		const forward = await loadForward();
-		const req = createReq({ method: "GET" });
-		await expect(
-			forward({ req, target: MOCK_TARGET, path: "/test" })
-		).rejects.toThrow("timeout");
+			const outcome =
+				expect(result).rejects.toBeInstanceOf(UpstreamTimeoutError);
+			// One byte every 3 s: the inactivity timeout of the socket never fires.
+			for (let i = 0; i < 4; i++) {
+				for (const h of events.data ?? []) {
+					h(Buffer.from("x"));
+				}
+				jest.advanceTimersByTime(3000);
+			}
+			await outcome;
+			expect((mockReq as any).destroy).toHaveBeenCalled();
+		} finally {
+			jest.useRealTimers();
+		}
 	});
 
 	it("should handle array headers by joining with comma", async () => {

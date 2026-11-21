@@ -1,10 +1,11 @@
 # ADR-0076: Multi-Asset Trainer: Shared Encoders, a Three-Level Agent Hierarchy and a Migration Path in Flagged Steps
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-11
+**Verified by:** `services/trader-trainer/tests/unit/domain/genetic-algorithm/event-driven-decisions.spec.ts` (section 5, the only step implemented so far), manual review 2026-11-20 (sections 1 to 4 and 6 to 9 add no code yet: each step issue adds its spec here)
 **Related:** [ADR-0001](./0001-ga-dqn-training.md) (GA + DQN), [ADR-0022](./0022-versioned-model-artifacts.md) (artifacts), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (success criteria), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (signals), [ADR-0039](./0039-configuration-feature-flags.md) (flags), [ADR-0044](./0044-singleton-trainer.md) (singleton trainer), [ADR-0049](./0049-downstream-context-for-models-and-signals.md) (downstream context), [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) (N-1), [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md) (risk and execution), [ADR-0066](./0066-simulated-fills-at-next-bar-open-with-execution-costs.md) (simulator), [ADR-0068](./0068-test-segment-for-published-model-metrics.md) (test segment), [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md) (admission)
 
-This ADR is a proposal: the owner decides. It changes no code, no configuration and no manifest. Implementation issues are written from it once Accepted (#1306 waits for it).
+**Decision (owner, issue #1306, 2026-11-20):** accepted with the recommended answers. **Q1**: mean pooling first; attention is written only if the step 4 ablation shows pooling is the limit (step 6 stays conditional). **Q2**: the scraper registry entry (`signal-registry.json`, its `sector` and `assetClass` fields) is the authoritative source of an asset's sector and class; no separate table. **Q3**: the allocator learns the limits as inputs in training, and production clips to them; the risk context of ADR-0064 still enforces them. **Q4**: the first target is 100 assets: hierarchy by sector, attention optional inside groups. Accepting this ADR added no code by itself (ADR-0029); #1306 is split into one issue per step of section 9 once its other resumption conditions (#1298, #1300) are met.
 
 ## Context
 
@@ -40,7 +41,7 @@ Machine: the owner's workstation, Bun, one thread, no other load. Numbers are an
 
 Past about 20 assets the current design cannot refresh every model hourly, even before any inter-asset view.
 
-## Decision (proposed)
+## Decision
 
 ### 1. Factor the compute by data type (shared encoders)
 

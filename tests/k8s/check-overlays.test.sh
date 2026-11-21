@@ -40,3 +40,14 @@ if grep -q '^staging: spire-agent 9.0 is newer than spire-server' <<<"$out"; the
 else
   echo "  ✗ unexpected failure:"; echo "$out"; exit 1
 fi
+# ADR-0064 §6 (issue #1695): EXECUTION_MODE=live in a base shared with staging.
+rm -r "$TMP/deploy" && cp -r "$ROOT/deploy" "$TMP/deploy"
+sed -i 's/^EXECUTION_MODE=paper$/EXECUTION_MODE=live/' "$TMP/deploy/k8s/config/risk-execution.properties"
+if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
+  echo "  ✗ live outside production accepted"; exit 1
+fi
+if grep -q '^staging: risk-execution-config sets EXECUTION_MODE=live outside production' <<<"$out"; then
+  echo "  ✓ live outside production refused"
+else
+  echo "  ✗ unexpected failure:"; echo "$out"; exit 1
+fi

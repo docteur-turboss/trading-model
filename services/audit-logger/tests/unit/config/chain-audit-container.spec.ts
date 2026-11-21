@@ -20,6 +20,19 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		AUDIT_ANCHOR_REQUIRED: true,
 	},
 }));
+const S3_CONFIGS: any[] = [];
+jest.mock("@aws-sdk/client-s3", () => {
+	const actual = jest.requireActual<any>("@aws-sdk/client-s3");
+	return {
+		...actual,
+		S3Client: class extends actual.S3Client {
+			constructor(config: any) {
+				super(config);
+				S3_CONFIGS.push(config);
+			}
+		},
+	};
+});
 jest.mock("../../../src/config/broker-setup", () => ({}));
 jest.mock("../../../src/application/server", () => ({}));
 
@@ -64,9 +77,8 @@ describe("createChainAudit", () => {
 	});
 
 	it("verifies only, and says so, without a bucket", async () => {
-		const audit = createChainAudit(DB, SETTINGS);
+		createChainAudit(DB, SETTINGS);
 
-		expect(audit.anchoringEnabled).toBe(false);
 		expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
 			expect.stringContaining("AUDIT_ANCHOR_BUCKET not set")
 		);
@@ -74,14 +86,17 @@ describe("createChainAudit", () => {
 	});
 
 	it("anchors in the bucket when one is set", async () => {
-		const audit = createChainAudit(DB, {
+		createChainAudit(DB, {
 			...SETTINGS,
 			anchorBucket: "anchors",
 			anchorEndpoint: "https://s3.example.test",
 		});
 
-		expect(audit.anchoringEnabled).toBe(true);
 		expect(await gauge("audit_chain_anchoring_enabled")).toBe(1);
+		expect(S3_CONFIGS[S3_CONFIGS.length - 1].requestHandler).toEqual({
+			connectionTimeout: 3000,
+			requestTimeout: 10_000,
+		});
 	});
 
 	it("publishes the verification and anchoring metrics", async () => {
