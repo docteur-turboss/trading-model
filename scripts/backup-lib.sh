@@ -544,6 +544,24 @@ write_pitr_gap() {
 	echo "backup_pitr_gap{component=\"$1\"${BACKUP_RUN:+,run=\"${BACKUP_RUN}\"}} $2" >>"$_METRICS_TMP"
 }
 
+# write_sealed_key_timestamp: epoch of the newest off-site
+# `sealed-secrets-key/sealed-secrets-key_<TS>.yaml.age` (0 when none; a failed
+# listing publishes nothing). Dated by the name, never the mtime. Alert
+# SealedSecretsKeyBackupStale. Opt-in: BACKUP_SEALED_KEY_CHECK=true (the key
+# backup runs from GitHub Actions, outside this job).
+write_sealed_key_timestamp() {
+	[ "${BACKUP_SEALED_KEY_CHECK:-false}" = true ] || return 0
+	[ -n "${METRICS_FILE:-}" ] && [ -n "${BACKUP_S3_BUCKET:-}" ] && [ -n "$_METRICS_TMP" ] || return 0
+	local names stamp ts=0
+	if ! names="$(RCLONE_S3_ENV_AUTH=true rclone lsf --files-only "$(offsite_remote "${BACKUP_S3_BUCKET%/}/sealed-secrets-key")")"; then
+		warn "Cannot list sealed-secrets-key/: backup_sealed_secrets_key_timestamp not published"
+		return 0
+	fi
+	stamp="$(grep -E '^sealed-secrets-key_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}\.yaml\.age$' <<<"$names" | sort | tail -1 | sed -E 's/^sealed-secrets-key_([0-9-]+)_([0-9]{2})([0-9]{2})([0-9]{2})\..*/\1 \2:\3:\4/' || true)"
+	[ -z "$stamp" ] || ts="$(date -u -d "$stamp" +%s)"
+	echo "backup_sealed_secrets_key_timestamp ${ts}" >>"$_METRICS_TMP"
+}
+
 # write_volume_usage: used / capacity of the filesystem holding BACKUP_DIR as
 # backup_volume_used_ratio (alert BackupVolumeFilling). Measured by the job
 # itself: no dependency on kubelet_volume_stats_* being scraped. A failing df
