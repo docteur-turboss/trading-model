@@ -205,7 +205,9 @@ prints the same revision twice.
 `redis-0` creates the bus ACL users of 3.1.0 (`trader-trainer`, `audit-logger`,
 `model-evaluator`) only when it restarts. Until then the overlay sets
 `REDIS_SENTINELS=` for these three services (issue #1931): they publish and
-receive through message-manager over HTTP. Outside a deploy:
+receive through message-manager over HTTP. `audit-dlq` (dead streams, runbook
+`BusDeadLetters`) is unavailable in staging-local until the switch: it needs
+the `audit-logger` user on Redis. Outside a deploy:
 
 1. Restart `redis` and `redis-sentinel` with the loop above.
 2. Merge the removal of the three `REDIS_SENTINELS=` entries from
