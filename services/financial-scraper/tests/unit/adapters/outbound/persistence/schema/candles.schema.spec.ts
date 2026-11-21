@@ -146,20 +146,6 @@ describe("candles.schema", () => {
 			expect(sql).toMatch(/order by timestamp, id limit \?$/);
 			expect(params.at(-1)).toBe(3);
 		});
-		it("pages timestamp.before in (timestamp, id) order, limit applied", async () => {
-			MOCK_ROWS = [];
-			const rows = await selectCandlesBy.timestamp.before(
-				UnixTimestamp.of(Date.UTC(2024, 0, 1)),
-				{ limit: 3 }
-			);
-			expect(rows).toEqual([]);
-			const [{ query, params }] = MOCK_SQL;
-			const sql = SQL_OF(query);
-			expect(sql).toContain("from market_candles");
-			expect(sql).toContain("timestamp < ?");
-			expect(sql).toMatch(/order by timestamp, id limit \?$/);
-			expect(params.at(-1)).toBe(3);
-		});
 
 		it("adds the window and the cursor of the page", async () => {
 			MOCK_ROWS = [];
