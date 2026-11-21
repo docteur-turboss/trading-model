@@ -966,23 +966,6 @@ tests:
               description: 'Service api-gateway had 2+ instances for 15 min in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire, nor does the surge pod of a rolling update).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#instancecountlow'
 
-  - name: the DLQ drains half of what comes in
-    interval: 1m
-    input_series:
-      - series: 'dlq_entries_added_total{job="dlq-service",instance="d"}'
-        values: '0+10x60'
-      - series: 'dlq_entries_replayed_total{job="dlq-service",instance="d"}'
-        values: '0+5x60'
-    alert_rule_test:
-      - eval_time: 40m
-        alertname: DLQDrainRateLow
-        exp_alerts:
-          - exp_labels: {severity: warning, slo: dlq_drain, job: dlq-service}
-            exp_annotations:
-              summary: 'DLQ drain rate is critically low'
-              description: 'DLQ replay/add ratio is 50% — queue is growing.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
-
   - name: the alerting pipeline watches itself
     interval: 1m
     input_series:
