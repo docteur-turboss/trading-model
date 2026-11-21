@@ -162,7 +162,7 @@ The repository neither signs a DPA nor picks a provider. The operating entity si
 
 | Field | Value |
 | ----- | ----- |
-| Role | Off-site copy of every backup (ADR-0032, ADR-0033): `BACKUP_S3_BUCKET`, Object Lock compliance mode |
+| Role | Off-site copy of every backup (ADR-0032, ADR-0033): `BACKUP_S3_BUCKET`, Object Lock compliance mode; optional second copy at another provider, `BACKUP_S3_SECONDARY_BUCKET`, same rules and same DPA requirement |
 | Data sent | `.age` files only, encrypted before upload; the provider holds no key. Contents: dumps of activities 1–4 (no personal data, see the register) and the audit trail (only the pseudonymous API key name `actor`, register activity 8) |
 | Region | Operator-set (`BACKUP_S3_REGION`), must be an EU region: `scripts/backup-bucket-check.sh` refuses any region outside `BACKUP_S3_ALLOWED_REGIONS` in production (warning elsewhere). Provider and region: to be confirmed by the operator |
 | Processor? | Storage only; the data is ciphertext to the provider. The register's position is that the dumps hold no personal data beyond the pseudonymous key name in the audit trail (activity 8) |
