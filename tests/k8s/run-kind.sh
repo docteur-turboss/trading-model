@@ -1199,6 +1199,12 @@ inspector() {
 	$K -n "$NS" exec backup-inspector -- sh -c "$1"
 }
 
+# risk-execution admin route `$1` (POST body `$2` when given), from its own pod
+# (docs/operations/runbooks/runbook-risk-execution.md).
+risk_admin() {
+	$K -n "$NS" exec deployment/risk-execution -c risk-execution -- sh -c 		"curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem -H content-type:application/json https://localhost:3000/admin/$1${2:+ -d '$2'}"
+}
+
 # The real audit trail: tests/backup/audit-chain.js on the `audit` database
 # (JSON: count, first, last, digest, broken).
 audit_chain() {
@@ -1296,6 +1302,8 @@ verify_backup() {
 	mysql_root "INSERT INTO financial_scraper.market_tickers (symbol, market, source, open, high, low, last, volume, timestamp, close_time) VALUES ('DRILLEXP', 'spot', 'drill', 1, 1, 1, 1, 1, NOW() - INTERVAL 2000 DAY, NOW() - INTERVAL 2000 DAY);"
 	local bundle_before
 	bundle_before="$(spire_bundle)"
+	# Engaged before the backup, re-armed after it: the restore must bring it back (issue #1933).
+	risk_admin kill-switch '{"scope":"symbol","symbol":"BTCUSDT","reason":"restore_drill","actor":"drill"}' >/dev/null
 
 	log "restore drill: recording the real audit trail and dead letters"
 	audit_grows count 0
@@ -1354,10 +1362,10 @@ verify_backup() {
 	inspector "grep -qx 'backup_last_status{component=\"offsite\"} 1' /backups/metrics/backup.prom"
 	local offsite
 	offsite="$($K -n "$NS" exec deployment/backup-s3 -- sh -c "find /data/backups/staging -name '*.age' | wc -l")"
-	# 5 dumps + 3 PITR starting points (mysql, mongodb, mongodb-audit) + the
+	# 6 dumps + 3 PITR starting points (mysql, mongodb, mongodb-audit) + the
 	# run manifest (backup-lib.sh, write_manifest).
-	[ "$offsite" -ge 9 ] || {
-		log "only $offsite encrypted file(s) copied off-site (expected 9)"
+	[ "$offsite" -ge 10 ] || {
+		log "only $offsite encrypted file(s) copied off-site (expected 10)"
 		return 1
 	}
 	local listed
@@ -1367,6 +1375,7 @@ verify_backup() {
 		return 1
 	}
 	log "  every file is age-encrypted, $offsite copied off-site, run manifest written"
+	risk_admin kill-switch/rearm '{"scope":"symbol","symbol":"BTCUSDT","reason":"after the backup","actor":"drill"}' >/dev/null
 
 	log "point-in-time: writes after the daily dump (markers, audit events, a dead letter)"
 	local audit_dumped
@@ -1499,11 +1508,11 @@ verify_backup() {
 	runner "bash /scripts/fetch-offsite.sh --pitr --dest /restore"
 	fetch_seconds=$((SECONDS - started))
 	drill_record fetch_offsite "$fetch_seconds"
-	# The run: 5 dumps + 3 PITR starting points + the run manifest, which
+	# The run: 6 dumps + 3 PITR starting points + the run manifest, which
 	# restore-k8s.sh selects and verifies with; then the archives replayed.
-	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'data_*.tar.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
-	[ "$fetched" -eq 9 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
-		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 9 (5 dumps, 3 PITR starting points, run manifest)"
+	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'risk_*.age' -o -name 'data_*.tar.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
+	[ "$fetched" -eq 10 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
+		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 10 (6 dumps, 3 PITR starting points, run manifest)"
 		return 1
 	}
 	for dir in mysql/binlog mongodb/oplog/mongodb mongodb/oplog/mongodb-audit; do
@@ -1536,7 +1545,7 @@ verify_backup() {
 	restore_log="$(mktemp)"
 	echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
 		"umask 077 && cat > /tmp/identity && BACKUP_DIR=/restore BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
-		bash /scripts/restore-k8s.sh --components mongodb,mysql,checkpoints,spire --until $until; rc=\$?; rm -f /tmp/identity; exit \$rc" |
+		bash /scripts/restore-k8s.sh --components mongodb,mysql,checkpoints,spire,risk --until $until; rc=\$?; rm -f /tmp/identity; exit \$rc" |
 		tee "$restore_log"
 	restore_seconds=$((SECONDS - started))
 	drill_record_components "$restore_log"
@@ -1577,6 +1586,10 @@ verify_backup() {
 	}
 	[ "$(spire_bundle)" = "$bundle_before" ] || {
 		log "the SPIRE trust bundle differs: the CA keys were not restored"
+		return 1
+	}
+	risk_admin status | grep -q '"BTCUSDT":"restore_drill"' || {
+		log "risk-execution: the kill switch engaged before the backup is off after the restore"
 		return 1
 	}
 	# Up to the instant: every audit event written after the dump too, with

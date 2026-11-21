@@ -73,7 +73,7 @@ spec:
                 - |
                   set -euo pipefail
                   /scripts/backup-k8s.sh \
-                    --components mongodb,mysql,checkpoints,spire
+                    --components mongodb,mysql,checkpoints,spire,risk
               env:
                 - name: BACKUP_DIR
                   value: /backups

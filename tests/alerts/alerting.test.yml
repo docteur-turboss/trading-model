@@ -1262,6 +1262,53 @@ tests:
               description: 'db-backup-incremental reported nothing for mongodb-audit-oplog (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
+  # The risk-execution state (K8s only) stops being backed up; compose
+  # (backup_pitr_supported 0) has no such component and stays silent.
+  - name: a daily component that never reports fires after 26 h, except risk on compose
+    interval: 10m
+    input_series:
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-audit"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="spire"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="checkpoints"}'
+        values: '0+600x200'
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: BackupComponentMissing
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: BackupComponentMissing
+        exp_alerts:
+          - exp_labels: {severity: critical, component: risk}
+            exp_annotations:
+              summary: 'A database is no longer backed up: risk'
+              description: 'The last backup runs reported nothing for risk (component removed from the job, or skipped).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+  - name: no risk backup alert on compose
+    interval: 10m
+    input_series:
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-audit"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="spire"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="checkpoints"}'
+        values: '0+600x200'
+      - series: 'backup_pitr_supported{job="backup-metrics"}'
+        values: '0x200'
+    alert_rule_test:
+      - eval_time: 27h
+        alertname: BackupComponentMissing
+        exp_alerts: []
+
   # Compose (scripts/backup.sh) has no incremental job and says so.
   - name: no incremental alert where point-in-time recovery is not supported
     interval: 1m
