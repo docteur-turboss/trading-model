@@ -572,7 +572,7 @@ and Prometheus scrapes them (job `backup-metrics`).
 | `BackupPitrGap`           | a binlog / oplog chain has a break after the newest daily dump: no `--until` past it, until the next daily dump (stays firing while the runs succeed again) |
 | `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
-| `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
+| `BackupOffsiteCopyFailed` | the off-site copy failed (`component="offsite"`, or `offsite-secondary` for the second bucket) or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
 | `RetentionFailed`         | the last `db-retention` run failed on a table ([Retention job](#retention-job); warning) |
 | `RetentionStale`          | no successful `db-retention` run for 36 h (daily job) |
 | `BackupVolumeFilling`     | the `backup-data` volume is more than 80 % full for 30 min (`backup_volume_used_ratio`, measured with `df` by both jobs; independent of kubelet volume metrics) |
@@ -975,8 +975,11 @@ credentials of the cloud account (not the ones stored in the cluster);
 
 3. **Access to the buckets from the new region.** The off-site backup bucket
    and the audit anchor bucket are S3 or S3-compatible. Their data is only
-   reachable if the provider still serves them; the repository configures no
-   replica. If reachable:
+   reachable if the provider still serves them. The backup bucket has an
+   optional second copy at another provider (`BACKUP_S3_SECONDARY_*`, ADR-0033):
+   fetch from it by setting `BACKUP_S3_BUCKET` and the `AWS_*` / `RCLONE_S3_*`
+   variables of `scripts/fetch-offsite.sh` to its values. The anchor bucket has
+   no replica. If reachable:
    - keep the **same buckets**: Object Lock (compliance mode; 30-31 days
      default for backups, `AUDIT_RETENTION_DAYS` for anchors) and the
      credentials without delete right stay as they are

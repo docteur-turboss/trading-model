@@ -698,6 +698,11 @@ jobs:
           BACKUP_S3_ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
           BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
           BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_S3_SECONDARY_BUCKET: ${{ vars.BACKUP_S3_SECONDARY_BUCKET }}
+          BACKUP_S3_SECONDARY_REGION: ${{ vars.BACKUP_S3_SECONDARY_REGION }}
+          BACKUP_S3_SECONDARY_ENDPOINT: ${{ vars.BACKUP_S3_SECONDARY_ENDPOINT }}
+          BACKUP_S3_SECONDARY_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_SECONDARY_ACCESS_KEY_ID }}
+          BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY }}
           BACKUP_S3_IMMUTABILITY_CHECK: ${{ vars.BACKUP_S3_IMMUTABILITY_CHECK }}
           # Empty: the script's default list of EU regions.
           BACKUP_S3_ALLOWED_REGIONS: ${{ vars.BACKUP_S3_ALLOWED_REGIONS }}
@@ -735,6 +740,10 @@ jobs:
           AWS_ACCESS_KEY_ID="$key_id" AWS_SECRET_ACCESS_KEY="$secret" AWS_REGION="$region" \
             bash scripts/backup-bucket-check.sh --environment "$DEPLOY_ENVIRONMENT" \
               --bucket "$bucket" --endpoint "$endpoint" --min-days "$retention"
+          # Optional second bucket at another provider: same rules.
+          if [ -n "$BACKUP_S3_SECONDARY_BUCKET" ]; then
+            AWS_ACCESS_KEY_ID="$BACKUP_S3_SECONDARY_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY"               AWS_REGION="$BACKUP_S3_SECONDARY_REGION"               bash scripts/backup-bucket-check.sh --environment "$DEPLOY_ENVIRONMENT"                 --bucket "$BACKUP_S3_SECONDARY_BUCKET" --endpoint "$BACKUP_S3_SECONDARY_ENDPOINT" --min-days "$retention"
+          fi
 
       # At least two distinct age recipients in production (operator key +
       # escrow key, issue #327): with one, losing its private key makes every
@@ -1025,6 +1034,12 @@ jobs:
           BACKUP_S3_PROVIDER: ${{ vars.BACKUP_S3_PROVIDER }}
           BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
           BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_S3_SECONDARY_BUCKET: ${{ vars.BACKUP_S3_SECONDARY_BUCKET }}
+          BACKUP_S3_SECONDARY_REGION: ${{ vars.BACKUP_S3_SECONDARY_REGION }}
+          BACKUP_S3_SECONDARY_ENDPOINT: ${{ vars.BACKUP_S3_SECONDARY_ENDPOINT }}
+          BACKUP_S3_SECONDARY_PROVIDER: ${{ vars.BACKUP_S3_SECONDARY_PROVIDER }}
+          BACKUP_S3_SECONDARY_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_SECONDARY_ACCESS_KEY_ID }}
+          BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY }}
         run: |
           NS="$NAMESPACE"
           if [ -z "$BACKUP_S3_BUCKET" ]; then
@@ -1036,6 +1051,13 @@ jobs:
           # An empty endpoint would override rclone's default (AWS): left out.
           endpoint=()
           [ -z "$BACKUP_S3_ENDPOINT" ] || endpoint=(--from-literal=S3_ENDPOINT="$BACKUP_S3_ENDPOINT")
+          # Optional second off-site bucket: the keys the job reads as BACKUP_S3_SECONDARY_*.
+          if [ -n "$BACKUP_S3_SECONDARY_BUCKET" ]; then
+            for k in BUCKET REGION ENDPOINT PROVIDER ACCESS_KEY_ID SECRET_ACCESS_KEY; do
+              v="BACKUP_S3_SECONDARY_$k"
+              [ -z "${!v}" ] || endpoint+=(--from-literal="$v=${!v}")
+            done
+          fi
           kubectl -n "$NS" create secret generic trading-model-backup-s3 \
             --from-literal=BACKUP_S3_BUCKET="$BACKUP_S3_BUCKET" \
             --from-literal=AWS_REGION="$BACKUP_S3_REGION" \
