@@ -6,5 +6,9 @@
 	{
 		"break": "example.show.create $: event removed",
 		"reason": "topic de debug sans producteur, retiré du contrat (issue #1206)"
+	},
+	{
+		"break": "audit.heartbeat $.serviceName: enum value \"discovery-server\" removed",
+		"reason": "service discovery-server retiré (release N+1, issue #1244)"
 	}
 ]

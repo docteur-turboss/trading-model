@@ -1,4 +1,5 @@
 import { mountRoute } from "@trading-model/http/api-route/mount-route";
+import { svidReadinessCheck } from "@trading-model/http/readiness";
 import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { Router } from "express";
@@ -21,5 +22,6 @@ export function createServer(
 			app.get("/metrics", metricsHandler);
 			ADDRESS_MANAGER_ROUTES(app);
 		},
+		readiness: [svidReadinessCheck(ENV)],
 	});
 }

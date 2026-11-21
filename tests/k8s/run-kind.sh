@@ -39,6 +39,8 @@ API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS
 SERVICES="message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
+# Services N-1 still deploys but N removed: only their :previous image exists (drop once N-1 is past the removal).
+RETIRED="discovery-server"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
 # Release N-1 checkout, image digests, recorded revisions: kept between the
 # steps of the CI job, removed by `delete`.
@@ -125,6 +127,12 @@ build_images() {
 	for svc in $SERVICES; do
 		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
 	done
+	[ "$tag" = previous ] || return 0
+	for svc in $RETIRED; do
+		docker compose -f "$root/docker-compose.yml" config --services | grep -qx "$svc" || continue
+		retry 3 docker compose -f "$root/docker-compose.yml" build "$svc"
+		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
+	done
 }
 
 # Release N-1: a worktree of $PREVIOUS_REF. Its service config gets one extra
@@ -148,7 +156,7 @@ previous_checkout() {
 # only: a reference by digest is added, so pods pinned by digest find them.
 node_digests() {
 	local node="${CLUSTER}-control-plane" img ref digest
-	for img in $IMAGES; do
+	for img in $IMAGES $([ "$1" != previous ] || echo "$RETIRED"); do
 		ref="ghcr.io/trading-model/$img"
 		digest="$(docker exec "$node" ctr -n k8s.io images ls "name==$ref:$1" | awk 'NR == 2 {print $3}')"
 		[ -n "$digest" ] || {
@@ -166,7 +174,7 @@ images() {
 	log "building the images of release N-1"
 	build_images "$PREVIOUS" previous
 	# Same sources build the same image: a label keeps N-1 digests apart from N.
-	for img in $IMAGES; do
+	for img in $IMAGES $RETIRED; do
 		echo "FROM ghcr.io/trading-model/$img:previous" |
 			docker build -q --label trading-model.kind-release=previous -t "ghcr.io/trading-model/$img:previous" - >/dev/null
 	done
@@ -175,6 +183,7 @@ images() {
 	build_images "$ROOT" latest
 	local images=""
 	for img in $IMAGES; do images="$images ghcr.io/trading-model/$img:latest ghcr.io/trading-model/$img:previous"; done
+	for img in $RETIRED; do images="$images ghcr.io/trading-model/$img:previous"; done
 	# One archive for every cluster job (ci.yml `k8s-images`): built once, loaded by `load`.
 	log "saving the images to $IMAGE_ARCHIVE"
 	mkdir -p "$(dirname "$IMAGE_ARCHIVE")"
