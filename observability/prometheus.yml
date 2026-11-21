@@ -127,12 +127,6 @@ scrape_configs:
     static_configs:
       - targets: ['alertmanager:9093']
 
-  # scripts/backup.sh metrics (METRICS_FILE), served by backup-metrics-exporter.
-  - job_name: 'backup-metrics'
-    static_configs:
-      - targets: ['backup-metrics-exporter:9118']
-    scrape_interval: 60s
-
   # Infrastructure exporters (issue #601, ADR-0056).
   - job_name: 'mysql'
     static_configs:

@@ -75,9 +75,6 @@ services:
   prometheus:
     container_name: !reset null
     ports: !reset []
-  backup-metrics-exporter:
-    container_name: !reset null
-    ports: !reset []
   alertmanager:
     container_name: !reset null
     ports: !reset []
