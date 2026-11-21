@@ -126,4 +126,4 @@ The trainer subscribes to no topic: its candle window is read from financial-scr
 
 Each subscribed service gets one delivery per message, whatever its number of instances: its replicas share one consumer group, so one of them reads each entry ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md), after [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
 
-Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed with the audit-logger `dlq-cli`; an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).
+Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed or deleted with the operator CLI `audit-dlq` (audit-logger `dlq-cli.js`); an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).
