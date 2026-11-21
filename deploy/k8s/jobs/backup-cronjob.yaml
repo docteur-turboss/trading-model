@@ -278,9 +278,10 @@ spec:
             - sh
             - -c
             - |
-              # Served as /metrics, the path Prometheus scrapes.
+              # Scraped as /metrics.txt (text/plain by extension; Prometheus 3 rejects octet-stream).
               mkdir -p /tmp/metrics
               echo '# No backup metrics yet' > /tmp/metrics/metrics
+              ln -s metrics /tmp/metrics/metrics.txt
               httpd -f -p 9118 -h /tmp/metrics &
               HTTPD_PID=$!
               # backup.prom (daily db-backup) and backup-incremental.prom

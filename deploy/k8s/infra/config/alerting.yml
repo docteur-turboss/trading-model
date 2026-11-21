@@ -839,6 +839,16 @@ groups:
           description: 'mysqld-exporter of {{ $labels.instance }} cannot query MySQL for 5 minutes: MySQL is down or refuses connections, or the exporter user is missing (Access denied in the mysqld-exporter logs).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqldown'
 
+      - alert: MySQLSecureTransportOff
+        expr: mysql_global_variables_require_secure_transport == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'MySQL {{ $labels.instance }} accepts plain connections'
+          description: 'require_secure_transport has been OFF on {{ $labels.instance }} for 15 minutes: a deploy rollback relaxed MySQL TLS (scraper no longer needs a client certificate) and nothing restored it.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqlsecuretransportoff'
+
       - alert: RedisDown
         expr: redis_up == 0
         for: 5m

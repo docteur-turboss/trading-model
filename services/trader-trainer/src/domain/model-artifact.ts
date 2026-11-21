@@ -74,6 +74,14 @@ type SimulatorParams = {
 	[Key in keyof typeof SIMULATOR_PARAMS]: number | boolean;
 };
 
+/** A shared part of a model (ADR-0076 §7), immutable once published: content-addressed, `version` is the prefix of `sha256`. */
+export interface ModelComponent {
+	role: "trunk";
+	id: string;
+	version: string;
+	sha256: string;
+}
+
 export interface ModelManifest {
 	formatVersion: typeof MODEL_FORMAT_VERSION;
 	symbol: string;
@@ -102,6 +110,8 @@ export interface ModelManifest {
 	admission?: ModelAdmission;
 	/** Window and simulator to replay the model (ADR-0079); absent on older manifests. */
 	replay?: ModelReplay;
+	/** Shared parts the weights contain (FEATURE_SHARED_TRUNK); absent: self-contained. */
+	components?: ModelComponent[];
 }
 
 /** What lists and API responses tell about a version, without the manifest body. */
@@ -124,6 +134,7 @@ export interface NewModelArtifact {
 	summary: BestAgentSummary;
 	admission?: ModelAdmission;
 	window?: ModelReplayWindow;
+	components?: ModelComponent[];
 }
 
 export function modelVersion(createdAt: Date, sha256: string): string {
@@ -138,7 +149,11 @@ export function buildModelManifest(
 	artifact: NewModelArtifact,
 	stored: { version: string; createdAt: Date; sha256: string }
 ): ModelManifest {
-	const { trainedWeights: _weights, ...genome } = artifact.bestGenome;
+	const {
+		trainedWeights: _weights,
+		heads: _heads,
+		...genome
+	} = artifact.bestGenome;
 	const { summary } = artifact;
 	return {
 		formatVersion: MODEL_FORMAT_VERSION,
@@ -169,6 +184,7 @@ export function buildModelManifest(
 			actions: actionLabels(artifact.bestGenome.network.actionSet),
 		}),
 		...(artifact.admission && { admission: artifact.admission }),
+		...(artifact.components && { components: artifact.components }),
 		...(artifact.window && {
 			replay: {
 				intervalMs: CANDLE_INTERVAL_MS,

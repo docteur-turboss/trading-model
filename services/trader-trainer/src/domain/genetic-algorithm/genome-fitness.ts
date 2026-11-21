@@ -44,6 +44,8 @@ export interface Genome {
 
 export type LamarckGenome = Genome & {
 	readonly trainedWeights?: Float32Array;
+	/** FEATURE_SHARED_TRUNK: output layer of each symbol of the group; `trainedWeights` holds the trunk. */
+	readonly heads?: Readonly<Record<string, Float32Array>>;
 };
 
 export interface PopMember {

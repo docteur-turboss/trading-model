@@ -68,6 +68,15 @@ list, ADR-0027). Their keys and the age recipient go to the environment
 MinIO no longer publishes binaries or images: the compose file pins the
 `pgsty/minio` community build by digest.
 
+MinIO's region is `eu-west-3` (`MINIO_SITE_REGION` in the compose file), so
+the checks of `backup-bucket-check.sh` and `deploy.yml` see an EU region. To
+change it, in this order:
+
+1. Restart MinIO: `docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml --env-file ~/.trading-staging/env up -d minio`
+2. Check: `aws --endpoint-url http://127.0.0.1:9000 s3api get-bucket-location --bucket trading-staging-backup` returns `eu-west-3`.
+3. Set `BACKUP_S3_REGION` and `AUDIT_ANCHOR_REGION` to `eu-west-3` in the GitHub environment `staging`.
+4. Redeploy staging. MinIO rejects signatures from another region, so the pods and `backup-key-check.yml` need the new value at the same time.
+
 ## Runner
 
 In a container, without the Docker socket. Registered once with a
