@@ -268,14 +268,23 @@ canary_start() {
   # Resolve image: prefer immutable @sha256 digest over mutable tag.
   local repo="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}"
   local image_ref="${repo}:latest"
-  if [[ -n "$image_tag" ]]; then
+  if [[ -n "${CANARY_DIGESTS_FILE:-}" ]]; then
+    # deploy.yml: only the cosign-verified digest, never a tag.
+    local digest
+    digest="$(awk -v s="$service" '$1 == s { print $2 }' "$CANARY_DIGESTS_FILE")"
+    if [[ -z "$digest" ]]; then
+      err "No verified digest for ${service} in ${CANARY_DIGESTS_FILE}"
+      exit 1
+    fi
+    image_ref="${repo}@${digest}"
+  elif [[ -n "$image_tag" ]]; then
     local digest
     if digest="$(resolve_image_digest "$repo" "$image_tag")"; then
       image_ref="${repo}@${digest}"
       log "Pinned ${service} canary image to digest ${digest}"
     else
       image_ref="${repo}:${image_tag}"
-      log "WARNING: could not resolve a digest for ${service}:${image_tag} â€” falling back to tag"
+      log "WARNING: could not resolve a digest for ${service}:${image_tag} — falling back to tag"
     fi
   fi
 

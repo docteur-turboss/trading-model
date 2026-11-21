@@ -206,6 +206,8 @@ jobs:
       # MySQL, migration and rollout timeouts are multiplied by, for a slow
       # cluster (local kind staging). Unset: 1.
       DEPLOY_TIMEOUT_FACTOR: ${{ vars.DEPLOY_TIMEOUT_FACTOR || '1' }}
+      # Canary services (canary-all and canary-cleanup read this one list).
+      CANARY_SERVICES: discovery-server message-manager financial-scraper api-gateway audit-logger dlq-service
       # Free-text inputs reach scripts through env only, never ${{ }} in run:.
       DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
       ALLOW_FIRING_ALERTS: ${{ inputs.allow_firing_alerts }}
@@ -979,13 +981,12 @@ jobs:
           NS="$NAMESPACE"
           export K8S_NAMESPACE="$NS"
           export CANARY_IMAGE_REPO="${{ steps.tag.outputs.registry }}"
+          export CANARY_DIGESTS_FILE="$RUNNER_TEMP/image-digests"
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="$RESOLVED_TAG"
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
           # No singleton here (trader-trainer ADR-0058, collector ADR-0057): a canary is a second pod.
-          ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
-            discovery-server message-manager financial-scraper \
-            api-gateway audit-logger dlq-service
+          ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 $CANARY_SERVICES
 
       # Revision each Deployment runs before the overlay: "Rollback on failure"
       # returns to exactly it (deploy-release.sh, shared with the k8s CI job).
@@ -1179,8 +1180,7 @@ jobs:
         run: |
           NS="$NAMESPACE"
           export K8S_NAMESPACE="$NS"
-          for dep in discovery-server message-manager financial-scraper \
-                     api-gateway audit-logger dlq-service; do
+          for dep in $CANARY_SERVICES; do
             ./deploy/k8s/scripts/deploy-k8s.sh canary-cleanup "$dep"
           done
 
