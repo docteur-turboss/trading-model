@@ -83,7 +83,7 @@ grep -q "MYSQL_ROOT_PASSWORD: b2xk" "$WORK/sealed.yaml" && ! grep -q "DLQ_AUTH_H
 ! grep -q SECRETVALUE <<<"$OUT" && pass "no value printed" || failed "value printed"
 
 run --component dlq
-[ "$(restarts)" = "dlq-service message-manager" ] && grep -q "DLQ_AUTH_HMAC_SECRET:" "$WORK/sealed.yaml" && pass "dlq restarts message-manager and dlq-service" || failed "dlq: restarts=$(restarts)"
+[ "$(restarts)" = "dlq-service" ] && grep -q "DLQ_AUTH_HMAC_SECRET:" "$WORK/sealed.yaml" && pass "dlq restarts dlq-service" || failed "dlq: restarts=$(restarts)"
 
 SEED_TOKENS='ops:read:old1,team:read+dlq:write:keep2' run --component tokens
 tok=$(base64 -d <<<"$(sed -n 's/^    AUTH_TOKENS: //p' "$WORK/sealed.yaml")")
@@ -94,7 +94,7 @@ rm -f "$vf"
 ! grep -rq SECRETVALUE "$WORK/state/calls" && pass "no value in kubectl/kubeseal argv" || failed "value in argv"
 
 run
-[ "$(restarts)" = "api-gateway dlq-service message-manager" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
+[ "$(restarts)" = "api-gateway dlq-service" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
 
 STUB_DECRYPT=0 run --component dlq
 [ "$RC" = 1 ] && [ -z "$(restarts)" ] && pass "no restart when the controller did not decrypt" || failed "undecrypted: rc=$RC restarts=$(restarts)"

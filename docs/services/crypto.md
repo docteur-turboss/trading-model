@@ -11,7 +11,7 @@ Depends on `primitives`, `contracts`, `common`. Never import `http` or `validati
 | Import path | Exports | Purpose |
 |-------------|---------|---------|
 | `@trading-model/crypto/request-signer` | `signRequest`, `verifySignature`, `buildSignedHeaders` | HMAC request signature with freshness check |
-| `@trading-model/crypto/node-crypto` | `sha256Hex`, `sha256Base64url`, HMAC, random | SHA-256 digests |
+| `@trading-model/crypto/node-crypto` | `sha256Hex`, HMAC, random | SHA-256 digests |
 | `@trading-model/crypto/timestamp` | `isTimestampFresh` | Replay window |
 | `@trading-model/crypto/constants/crypto-constants` | `CryptoAlg` | Algorithm names |
 

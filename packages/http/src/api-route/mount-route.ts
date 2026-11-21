@@ -17,14 +17,6 @@ export interface MountRouteOptions {
 	middlewares?: RequestHandler[];
 }
 
-const METHODS = {
-	GET: "get",
-	POST: "post",
-	PUT: "put",
-	PATCH: "patch",
-	DELETE: "delete",
-} as const;
-
 /**
  * Mounts a registry entry on the router (ADR-0021): the method and path come
  * from the entry, params, query and body are parsed with its schemas (400
@@ -37,7 +29,7 @@ export function mountRoute<Route extends ApiRoute>(
 	handler: ApiRouteHandler<Route>,
 	options: MountRouteOptions = {}
 ): void {
-	router[METHODS[route.method]](
+	router[route.method.toLowerCase() as Lowercase<typeof route.method>](
 		route.path,
 		...(options.middlewares ?? []),
 		catchSync((req) => {

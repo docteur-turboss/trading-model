@@ -31,5 +31,3 @@ export const AddressManagerEnvSchema = z.object({
 			}
 		}),
 });
-
-export type AddressManagerEnv = z.infer<typeof AddressManagerEnvSchema>;

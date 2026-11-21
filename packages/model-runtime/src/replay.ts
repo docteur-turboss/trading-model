@@ -113,9 +113,6 @@ function emptyLayer(fanIn: number, fanOut: number): LayerMemory {
 		fanOut: PositiveInt.of(fanOut),
 		weights: new Float32Array(fanIn * fanOut),
 		bias: zeros(),
-		output: zeros(),
-		preActivation: zeros(),
-		delta: zeros(),
 		gradW: new Float32Array(fanIn * fanOut),
 		gradB: zeros(),
 	};

@@ -1,5 +1,4 @@
 export {
-	buildSpiffeId,
 	extractCanonicalServiceName,
 	isSpiffeId,
 	normalizeServiceName,

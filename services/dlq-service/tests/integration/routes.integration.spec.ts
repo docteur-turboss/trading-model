@@ -67,7 +67,6 @@ jest.mock("../../src/config/redis-queue", () => ({
 jest.mock("../../src/config/metrics", () => ({
 	metricsHandler: jest.fn<(...args: any[]) => any>(),
 	metrics: {
-		entriesAdded: { inc: jest.fn<(...args: any[]) => any>() },
 		entriesDeleted: { inc: jest.fn<(...args: any[]) => any>() },
 		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
 		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },

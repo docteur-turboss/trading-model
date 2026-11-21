@@ -142,7 +142,6 @@ file absent from the repository, or on an anchor that matches no heading.
 | `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
 | `CertificateExpiry` | critical | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
 | `HttpCircuitBreakerRejecting` | warning | [runbook-circuit-breaker-open#symptom](runbooks/runbook-circuit-breaker-open.md#symptom) |
-| `DLQSizeGrowing` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
 | `HighMemoryUsage` | warning | [runbook-service-down#1-oomkilled-out-of-memory](runbooks/runbook-service-down.md#1-oomkilled-out-of-memory) |
 | `BackupFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupNotRunning` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
@@ -169,7 +168,6 @@ file absent from the repository, or on an anchor that matches no heading.
 | `MessagesUnrouted` | warning | [runbook-message-bus-outage#3-no-subscriber-on-a-topic](runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic) |
 | `JournalEntriesTrimmed` | critical | [runbook-message-bus-outage#5-journal-entries-trimmed-before-delivery](runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery) |
 | `JournalBacklogOld` | warning | [runbook-message-bus-outage#6-journal-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber) |
-| `DLQDrainRateLow` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
 | `TrainingCompletionRateLow` | warning | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainingCompletionRateCritical` | critical | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainerEventLoopBlocked` | warning | [runbook-trainer#trainereventloopblocked](runbooks/runbook-trainer.md#trainereventloopblocked) |

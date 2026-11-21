@@ -24,7 +24,6 @@ interface NumberBrandOptions {
 	min?: number;
 	max?: number;
 	message?: string | ((value: number) => string);
-	validate?: (value: number) => void;
 }
 
 type NumberBrandConfig = NumberBrandOptions | ((value: number) => void);
@@ -70,7 +69,7 @@ function createNumberBrand<Tag extends string>(
 
 	const finite = config.finite !== false;
 	const integer = config.integer === true;
-	const { min, max, validate } = config;
+	const { min, max } = config;
 
 	return {
 		of(value: number): BrandedNumber<Tag> {
@@ -82,7 +81,6 @@ function createNumberBrand<Tag extends string>(
 			if (invalid) {
 				throw new RangeError(buildNumberBrandMessage(tag, config, value));
 			}
-			validate?.(value);
 			return value as BrandedNumber<Tag>;
 		},
 	};

@@ -23,16 +23,15 @@ export interface MessageManagerOptions extends MessageManagerConfig {
 	journal?: RedisMessageJournal;
 }
 
-/** Creates a MessageManager instance with its bound Express listener.
+/** Creates a MessageManager instance.
  *
  * @param options - Configuration options
- * @returns An object containing the MessageManager instance and its Express listener
+ * @returns An object containing the MessageManager instance
  */
 export function createMessageManager(options: MessageManagerOptions) {
 	const ma = new MessageManagerClass(options);
 	return {
 		messageManager: ma,
-		messageManagerListenExpress: ma.listenExpress.bind(ma),
 	};
 }
 

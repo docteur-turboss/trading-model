@@ -81,40 +81,6 @@ describe("MessageMetadataBuilder", () => {
 		});
 	});
 
-	describe("setTopic", () => {
-		it("should set valid topic", () => {
-			const m = buildMinimalMetadata();
-			m.setTopic("other.event.happened" as Topic);
-			expect(m.toJSON().topic).toBe("other.event.happened");
-		});
-
-		it("should throw on invalid topic format", () => {
-			const m = buildMinimalMetadata();
-			expect(() => m.setTopic("" as Topic)).toThrow();
-			expect(() => m.setTopic("no-dots" as Topic)).toThrow();
-			expect(() => m.setTopic("two.segments" as Topic)).toThrow();
-			expect(() => m.setTopic("market..fetch" as Topic)).toThrow();
-			expect(() => m.setTopic("market.-trade.fetch" as Topic)).toThrow();
-		});
-
-		it.each(Object.values(TrainingEvent))(
-			"should accept the %s training event as a topic",
-			(event) => {
-				const m = buildMinimalMetadata();
-				m.setTopic(event as unknown as Topic);
-				expect(m.toJSON().topic).toBe(event);
-			}
-		);
-	});
-
-	describe("setEventType", () => {
-		it("should set event type", () => {
-			const m = buildMinimalMetadata();
-			m.setEventType("training.model.published");
-			expect(m.toJSON().eventType).toBe("training.model.published");
-		});
-	});
-
 	describe("toJSON", () => {
 		it("should return complete metadata", () => {
 			const result = buildMinimalMetadata().toJSON();
@@ -141,32 +107,6 @@ describe("MessageMetadataBuilder", () => {
 			});
 			m.setDelivery(null);
 			expect(m.toJSON().delivery).toBeUndefined();
-		});
-	});
-
-	describe("setSecurity", () => {
-		it("should set security context with authContext", () => {
-			const security = {
-				authContext: {
-					subject: "service-a",
-					roles: ["reader"],
-					tenantId: "t1",
-				},
-			};
-			const m = buildMinimalMetadata().setSecurity(security as never);
-			expect(m.toJSON().security?.authContext?.subject).toBe("service-a");
-		});
-
-		it("should clear security when null", () => {
-			const m = buildMinimalMetadata().setSecurity({
-				authContext: {
-					subject: "service-a" as Subject,
-					roles: ["reader" as Role],
-					tenantId: "t1" as TenantId,
-				},
-			});
-			m.setSecurity(null);
-			expect(m.toJSON().security).toBeUndefined();
 		});
 	});
 
@@ -213,19 +153,19 @@ describe("MessageMetadataBuilder", () => {
 						partitionKey: "key-1" as CorrelationId,
 						priority: 10 as MessagePriority,
 					},
+					security: {
+						authContext: {
+							subject: "service-a" as Subject,
+							roles: ["reader" as Role],
+							tenantId: "t1" as TenantId,
+						},
+						signature: "sig123" as Signature,
+					},
 				}
 			)
 				.setDelivery({
 					mode: DeliveryMode.AtLeastOnce,
 					ttl: 5000 as DurationMs,
-				})
-				.setSecurity({
-					authContext: {
-						subject: "service-a" as Subject,
-						roles: ["reader" as Role],
-						tenantId: "t1" as TenantId,
-					},
-					signature: "sig123" as Signature,
 				})
 				.setIds({
 					causationId: "550e8400-e29b-41d4-a716-446655440000" as CorrelationId,

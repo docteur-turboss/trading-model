@@ -53,10 +53,6 @@ export class ChainAudit {
 		this._now = _deps.now ?? (() => new Date());
 	}
 
-	get anchoringEnabled(): boolean {
-		return this._deps.anchors !== null;
-	}
-
 	/** One scheduled cycle: verify the new events, then anchor the head. */
 	async runCycle(): Promise<ChainVerification> {
 		const verification = await this.verify("incremental");

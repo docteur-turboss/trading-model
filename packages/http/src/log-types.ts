@@ -1,10 +1,3 @@
-import type {
-	JsonObject,
-	ServiceId,
-	UnixTimestamp,
-	URLString,
-} from "@trading-model/primitives/primitives";
-
 /** Log severity levels, from the most verbose to the most critical. */
 export enum LogLevel {
 	Debug = "debug",
@@ -26,21 +19,4 @@ export function isLogLevelAtLeast(
 	threshold: LogLevel
 ): boolean {
 	return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[threshold];
-}
-
-/** Optional context attached to a log entry. */
-export interface LogOptions {
-	context?: JsonObject;
-	url?: URLString;
-	serviceInCharge?: ServiceId;
-}
-
-/** Structured log entry, as written to the logs. */
-export interface LogEntry {
-	timestamp: UnixTimestamp;
-	level: LogLevel;
-	message: string;
-	context?: JsonObject;
-	url?: URLString;
-	serviceInCharge?: ServiceId;
 }

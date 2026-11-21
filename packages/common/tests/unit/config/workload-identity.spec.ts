@@ -1,7 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceId } from "@trading-model/primitives/primitives/general-ids";
 import {
-	buildSpiffeId,
 	DEFAULT_NAMESPACE,
 	isSpiffeId,
 	normalizeServiceName,
@@ -10,27 +9,10 @@ import {
 	TRUST_DOMAIN,
 } from "../../../src/config/workload-identity";
 
+const buildSpiffeId = (name: string): string =>
+	`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/${name}`;
+
 describe("workload-identity", () => {
-	describe("buildSpiffeId", () => {
-		it("should build a platform SPIFFE ID with the default namespace", () => {
-			expect(buildSpiffeId("message-manager")).toBe(
-				`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/message-manager`
-			);
-		});
-
-		it("should accept an explicit namespace", () => {
-			expect(buildSpiffeId("api-gateway", "default")).toBe(
-				`spiffe://${TRUST_DOMAIN}/ns/default/sa/api-gateway`
-			);
-		});
-
-		it("should normalize legacy aliases onto canonical names", () => {
-			expect(buildSpiffeId("audit-logger-service")).toBe(
-				`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/audit-logger`
-			);
-		});
-	});
-
 	describe("isSpiffeId", () => {
 		it("should accept valid SPIFFE IDs", () => {
 			expect(isSpiffeId(buildSpiffeId("dlq-service"))).toBe(true);

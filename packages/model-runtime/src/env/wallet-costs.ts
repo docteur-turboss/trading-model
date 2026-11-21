@@ -6,10 +6,6 @@ import {
 	type Volume,
 } from "@trading-model/primitives/primitives";
 
-export function roundValue(value: number, decimals: DecimalPrecision): number {
-	return DecimalPrecision.round(value, decimals);
-}
-
 export class TradeCostParams {
 	constructor(
 		readonly amount: Volume,
@@ -22,7 +18,7 @@ export class TradeCostParams {
 
 	/** `side` 1 = buy (pays above the price), -1 = sell (receives below it). */
 	private _computeBaseCost(side: 1 | -1): number {
-		return roundValue(
+		return DecimalPrecision.round(
 			this.amount * this.price * (1 + side * this.executionCostRate),
 			this.decimals
 		);
@@ -31,25 +27,32 @@ export class TradeCostParams {
 	/** Gap between the filled amount and the amount at the quoted price. */
 	private _executionCost(base: number): Cash {
 		return Cash.of(
-			roundValue(Math.abs(base - this.amount * this.price), this.decimals)
+			DecimalPrecision.round(
+				Math.abs(base - this.amount * this.price),
+				this.decimals
+			)
 		);
 	}
 
 	private _computeFee(base: number): Cash {
-		return Cash.of(roundValue(base * this.feeRate, this.decimals));
+		return Cash.of(DecimalPrecision.round(base * this.feeRate, this.decimals));
 	}
 
 	computeBuyCosts(): BuyCostResult {
 		const baseCost = this._computeBaseCost(1);
 		const fee = this._computeFee(baseCost);
-		const totalCost = Cash.of(roundValue(baseCost + fee, this.decimals));
+		const totalCost = Cash.of(
+			DecimalPrecision.round(baseCost + fee, this.decimals)
+		);
 		return { totalCost, fee, executionCost: this._executionCost(baseCost) };
 	}
 
 	computeSellProceeds(): SellProceedsResult {
 		const baseProceeds = this._computeBaseCost(-1);
 		const fee = this._computeFee(baseProceeds);
-		const netProceeds = Cash.of(roundValue(baseProceeds - fee, this.decimals));
+		const netProceeds = Cash.of(
+			DecimalPrecision.round(baseProceeds - fee, this.decimals)
+		);
 		return {
 			netProceeds,
 			fee,

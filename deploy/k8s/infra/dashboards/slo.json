@@ -186,26 +186,6 @@
         ]
       },
       {
-        "title": "DLQ Growth Rate",
-        "type": "timeseries",
-        "gridPos": { "h": 6, "w": 12, "x": 12, "y": 24 },
-        "targets": [
-          {
-            "expr": "rate(dlq_entries_added_total[15m])",
-            "legendFormat": "Added"
-          },
-          {
-            "expr": "rate(dlq_entries_replayed_total[15m])",
-            "legendFormat": "Replayed"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "rps"
-          }
-        }
-      },
-      {
         "title": "Message Delivery Success Rate",
         "type": "bargauge",
         "gridPos": { "h": 6, "w": 8, "x": 0, "y": 30 },
@@ -226,32 +206,6 @@
                 { "color": "red", "value": null },
                 { "color": "orange", "value": 99.5 },
                 { "color": "green", "value": 99.95 }
-              ]
-            }
-          }
-        }
-      },
-      {
-        "title": "DLQ Drain Ratio",
-        "type": "timeseries",
-        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 30 },
-        "targets": [
-          {
-            "expr": "rate(dlq_entries_replayed_total[15m]) / rate(dlq_entries_added_total[15m])",
-            "legendFormat": "Drain Ratio"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percentunit",
-            "min": 0,
-            "max": 2,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "red", "value": null },
-                { "color": "orange", "value": 0.8 },
-                { "color": "green", "value": 1 }
               ]
             }
           }

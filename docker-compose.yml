@@ -276,8 +276,6 @@ services:
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: message-manager
       INSTANCE_ID: message-manager-1
-      # Signs the dead letters sent to dlq-service: same key as dlq-service.
-      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:?DLQ_AUTH_HMAC_SECRET must be set (min 32 chars, shared by message-manager and dlq-service)}
     # Lets in-flight publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries
     # finish: see application/index.ts. Undelivered messages stay in the Redis journal.
     stop_grace_period: 2m

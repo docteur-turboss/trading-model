@@ -9,11 +9,6 @@ export interface CircuitBreakerConfig {
 	failureThreshold: number;
 	cooldownMs: DurationMs;
 	halfOpenMaxAttempts?: number;
-	onOpen?: (state: {
-		failures: number;
-		halfOpenAttempts: number;
-		previousState: CircuitState;
-	}) => void;
 }
 
 /** Default circuit config: opens after 5 failures, 30 s cooldown, one half-open probe. */
@@ -35,10 +30,6 @@ export class CircuitStateMachine {
 
 	static defaultConfig(): CircuitBreakerConfig {
 		return { ...DEFAULT_CIRCUIT_CONFIG };
-	}
-
-	get failures(): number {
-		return this._failures;
 	}
 
 	/** Half-open lets one caller through (the probe); the others see OPEN until its result or the cooldown. */
@@ -84,37 +75,25 @@ export class CircuitStateMachine {
 
 	recordFailure(count = 1, threshold?: number): boolean {
 		const effectiveNow = UnixTimestamp.now();
-		const prevState = this.getState(effectiveNow);
 		this._probeUntil = 0 as UnixTimestamp;
 		this._failures += count;
 		if (this._openUntil > 0) {
-			return this._recordHalfOpenFailure(effectiveNow, prevState);
+			return this._recordHalfOpenFailure(effectiveNow);
 		}
-		return this._recordClosedFailure(effectiveNow, threshold, prevState);
+		return this._recordClosedFailure(effectiveNow, threshold);
 	}
 
-	private _openCircuit(
-		effectiveNow: UnixTimestamp,
-		prevState: CircuitState
-	): void {
+	private _openCircuit(effectiveNow: UnixTimestamp): void {
 		this._openUntil = UnixTimestamp.add(effectiveNow, this._config.cooldownMs);
-		this._config.onOpen?.({
-			failures: this._failures,
-			halfOpenAttempts: this._halfOpenAttempts,
-			previousState: prevState,
-		});
 	}
 
-	private _recordHalfOpenFailure(
-		effectiveNow: UnixTimestamp,
-		prevState: CircuitState
-	): boolean {
+	private _recordHalfOpenFailure(effectiveNow: UnixTimestamp): boolean {
 		this._halfOpenAttempts++;
 		if (
 			this._config.halfOpenMaxAttempts !== undefined &&
 			this._halfOpenAttempts >= this._config.halfOpenMaxAttempts
 		) {
-			this._openCircuit(effectiveNow, prevState);
+			this._openCircuit(effectiveNow);
 			return true;
 		}
 		return false;
@@ -122,13 +101,12 @@ export class CircuitStateMachine {
 
 	private _recordClosedFailure(
 		effectiveNow: UnixTimestamp,
-		threshold: number | undefined,
-		prevState: CircuitState
+		threshold: number | undefined
 	): boolean {
 		if (this._failures < (threshold ?? this._config.failureThreshold)) {
 			return false;
 		}
-		this._openCircuit(effectiveNow, prevState);
+		this._openCircuit(effectiveNow);
 		return true;
 	}
 

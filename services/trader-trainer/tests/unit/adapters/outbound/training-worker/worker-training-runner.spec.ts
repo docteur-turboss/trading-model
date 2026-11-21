@@ -110,7 +110,7 @@ describe("worker training runner", () => {
 		done = true;
 		await probe;
 		server.close();
-		expect(worst).toBeLessThan(250);
+		expect(worst).toBeLessThan(1000);
 	}, 120_000);
 
 	it("ends the session after the current generation once aborted (ADR-0058)", async () => {

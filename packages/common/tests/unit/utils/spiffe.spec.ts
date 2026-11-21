@@ -1,9 +1,13 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import {
-	buildSpiffeId,
-	extractCanonicalServiceName,
-} from "../../../src/utils/spiffe";
+	DEFAULT_NAMESPACE,
+	TRUST_DOMAIN,
+} from "../../../src/config/workload-identity";
+import { extractCanonicalServiceName } from "../../../src/utils/spiffe";
+
+const buildSpiffeId = (name: string): string =>
+	`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/${name}`;
 
 describe("extractCanonicalServiceName", () => {
 	it("should extract service name from a foreign-trust-domain SPIFFE ID", () => {

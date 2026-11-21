@@ -71,21 +71,6 @@ export interface ParsedSpiffeId {
 	raw: string;
 }
 
-/** Builds a platform SPIFFE ID for the given service and namespace. */
-export function buildSpiffeId(
-	service: string | ServiceId,
-	namespace: string = DEFAULT_NAMESPACE
-): string {
-	const name = normalizeServiceName(service);
-	return [
-		SPIFFE_URI_SCHEME + TRUST_DOMAIN,
-		SPIFFE_PATH_SEGMENT_NAMESPACE,
-		namespace,
-		SPIFFE_PATH_SEGMENT_SERVICE_ACCOUNT,
-		String(name),
-	].join("/");
-}
-
 /**
  * Parses a SPIFFE ID (any path shape) into its components. Returns null for
  * anything that is not a valid SPIFFE ID.

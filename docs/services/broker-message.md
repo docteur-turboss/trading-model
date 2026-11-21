@@ -54,7 +54,6 @@ constructor({
 | `intents(topics)`      | Subscribes to a list of topics (`EventEnumMap[]`)    |
 | `stopMessageManager()` | Unsubscribes from all topics and cleans up listeners |
 | `on(event, listener)`  | Registers a listener for a broker event              |
-| `listenExpress(app)`   | Mounts the POST callback route on the Express app    |
 
 ### Publishing
 
@@ -69,11 +68,7 @@ await message.post.indirect(payload, metadata);
 
 ### Served (Inbound)
 
-Mounted via `broker.listenExpress(app)`:
-
-| Method | Path                                    | Handler             | Description                                                                          |
-| ------ | --------------------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
-| POST   | `/{callbackPath}` (default: `/message`) | `MessageController` | Receives incoming broker messages, validates metadata + payload, emits event locally |
+None: each subscriber mounts its own `POST /message` route.
 
 ### Consumed (Outbound)
 
@@ -121,24 +116,19 @@ Fluent builder for message metadata.
 ```ts
 import BrokerMessage, { HELPER } from '@trading-model/broker-message';
 
-const metadata = new HELPER.metadataBuilder()
-  .setTopic('training.model.published')
-  .setEventType('training.model.published')
+const metadata = new HELPER.metadataBuilder('training.model.published', 'training.model.published', publisher)
   .setDelivery({ mode: 'at-least-once' })
   .toJSON();
 ```
 
 | Method                                     | Description                                                                                         |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `setTopic(topic)`                          | Sets the topic (`bounded-context.aggregate.action` format)                                          |
-| `setEventType(event)`                      | Sets the event type                                                                                 |
 | `setDelivery(context)`                     | Sets delivery mode (mode, ttl)                                                     |
-| `setSecurity(context)`                     | Sets security context (authContext, signature)                                                      |
 | `setIds({ causationId?, correlationId? })` | Sets correlation IDs                                                                                |
 | `toJSON()`                                 | Produces the `MessageMetadata` object. Throws `MetadataBuilderError` if required fields are missing |
 | ------------------------------------------ | ----------------------------------------------------------                                          |
 
-> **Note on required fields**: `topic`, `eventType`, and `publisher` must be set before calling `toJSON()`, otherwise a `MetadataBuilderError` is thrown. Previously, unset fields were tracked via the sentinel string `'null'`, which was indistinguishable from a legitimate value — this has been replaced with proper `undefined`-based tracking.
+> **Note on required fields**: `topic`, `eventType`, and `publisher` are constructor arguments (`new HELPER.metadataBuilder(topic, eventType, publisher)`); `toJSON()` throws a `MetadataBuilderError` if a required field is missing. Previously, unset fields were tracked via the sentinel string `'null'`, which was indistinguishable from a legitimate value — this has been replaced with proper `undefined`-based tracking.
 
 ## Zod Schemas
 
@@ -239,17 +229,13 @@ const broker = new BrokerMessage({
   addressManagerClient: am,
 });
 
-broker.listenExpress(app);
 await broker.intents(['training.model.published', 'dlq.entry.added']);
 
 const cleanup = broker.on('training.model.published', data => {
   console.log('Received trades:', data.trades);
 });
 
-const metadata = new HELPER.metadataBuilder()
-  .setTopic('training.model.published')
-  .setEventType('training.model.published')
-  .toJSON();
+const metadata = new HELPER.metadataBuilder('training.model.published', 'training.model.published', publisher).toJSON();
 
 await broker.post.indirect({ price: 50000 }, metadata);
 

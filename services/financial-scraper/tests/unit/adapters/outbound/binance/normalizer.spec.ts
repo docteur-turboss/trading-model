@@ -4,7 +4,12 @@ import {
 	TradeSide,
 } from "@trading-model/contracts/market-data.types";
 import { toSymbol } from "@trading-model/primitives/primitives";
-import { BinanceNormalizer } from "../../../../../src/adapters/outbound/binance/normalizer";
+import { normalizeBookTicker } from "../../../../../src/adapters/outbound/binance/normalizers/book-ticker";
+import { normalizeCandles } from "../../../../../src/adapters/outbound/binance/normalizers/candles";
+import { normalizeOrderBook } from "../../../../../src/adapters/outbound/binance/normalizers/order-book";
+import { normalizePriceTicker } from "../../../../../src/adapters/outbound/binance/normalizers/price-ticker";
+import { normalizeTicker24h } from "../../../../../src/adapters/outbound/binance/normalizers/ticker";
+import { normalizeTrades } from "../../../../../src/adapters/outbound/binance/normalizers/trades";
 import {
 	mock24hrTickerResponse,
 	mockBookTickerResponse,
@@ -19,13 +24,10 @@ const SYMBOL = toSymbol("BTCUSDT");
 
 const SYMBOL_QUERY = { symbol: SYMBOL };
 
-describe("BinanceNormalizer", () => {
+describe("Binance normalizers", () => {
 	describe("orderBook", () => {
 		it("should normalize depth response to OrderBookData", () => {
-			const result = BinanceNormalizer.orderBook(
-				SYMBOL_QUERY,
-				mockDepthResponse
-			);
+			const result = normalizeOrderBook(SYMBOL_QUERY, mockDepthResponse);
 			expect(result.symbol).toBe("BTCUSDT");
 			expect(result.source).toBe("binance");
 			expect(result.market).toBe("crypto");
@@ -35,10 +37,7 @@ describe("BinanceNormalizer", () => {
 		});
 
 		it("should parse bid/ask prices as numbers", () => {
-			const result = BinanceNormalizer.orderBook(
-				SYMBOL_QUERY,
-				mockDepthResponse
-			);
+			const result = normalizeOrderBook(SYMBOL_QUERY, mockDepthResponse);
 			const firstBid = [...result.bids][0];
 			expect(typeof firstBid.price).toBe("number");
 			expect(typeof firstBid.quantity).toBe("number");
@@ -47,7 +46,7 @@ describe("BinanceNormalizer", () => {
 
 	describe("trades", () => {
 		it("should normalize trade response to TradeData array", () => {
-			const result = BinanceNormalizer.trades(SYMBOL_QUERY, mockTradeResponse);
+			const result = normalizeTrades(SYMBOL_QUERY, mockTradeResponse);
 			expect(result).toHaveLength(2);
 			expect(result[0].symbol).toBe("BTCUSDT");
 			expect(result[0].side).toBe(TradeSide.Sell); // isBuyerMaker = true → sell
@@ -55,15 +54,12 @@ describe("BinanceNormalizer", () => {
 		});
 
 		it("should handle historical trade response", () => {
-			const result = BinanceNormalizer.trades(
-				SYMBOL_QUERY,
-				mockHistoricalTradeResponse
-			);
+			const result = normalizeTrades(SYMBOL_QUERY, mockHistoricalTradeResponse);
 			expect(result).toHaveLength(1);
 		});
 
 		it("should convert string price and quantity to numbers", () => {
-			const result = BinanceNormalizer.trades(SYMBOL_QUERY, mockTradeResponse);
+			const result = normalizeTrades(SYMBOL_QUERY, mockTradeResponse);
 			expect(typeof result[0].price).toBe("number");
 			expect(typeof result[0].quantity).toBe("number");
 		});
@@ -71,7 +67,7 @@ describe("BinanceNormalizer", () => {
 
 	describe("candles", () => {
 		it("should normalize candlestick response to CandleData array", () => {
-			const result = BinanceNormalizer.candles(
+			const result = normalizeCandles(
 				{ symbol: SYMBOL, interval: CandleInterval.Min1 },
 				mockCandlestickResponse
 			);
@@ -89,7 +85,7 @@ describe("BinanceNormalizer", () => {
 		});
 
 		it("should keep a candle nobody traded in, with trades = 0", () => {
-			const result = BinanceNormalizer.candles(
+			const result = normalizeCandles(
 				{ symbol: SYMBOL, interval: CandleInterval.Min1 },
 				[{ ...mockCandlestickResponse[0], numberOfTrades: 0 }]
 			);
@@ -100,7 +96,7 @@ describe("BinanceNormalizer", () => {
 
 	describe("ticker24h", () => {
 		it("should normalize 24hr ticker response to TickerData array", () => {
-			const result = BinanceNormalizer.ticker24h(mock24hrTickerResponse);
+			const result = normalizeTicker24h(mock24hrTickerResponse);
 			expect(result).toHaveLength(1);
 			expect(result[0].symbol).toBe("BTCUSDT");
 			expect(result[0].open).toBe(99);
@@ -113,14 +109,14 @@ describe("BinanceNormalizer", () => {
 
 	describe("priceTicker", () => {
 		it("should normalize price ticker to Record<string, number>", () => {
-			const result = BinanceNormalizer.priceTicker(mockPriceTickerResponse);
+			const result = normalizePriceTicker(mockPriceTickerResponse);
 			expect(result).toEqual({ BTCUSDT: 50000 });
 		});
 	});
 
 	describe("bookTicker", () => {
 		it("should normalize book ticker response", () => {
-			const result = BinanceNormalizer.bookTicker(mockBookTickerResponse);
+			const result = normalizeBookTicker(mockBookTickerResponse);
 			expect(result).toHaveLength(1);
 			expect(result[0].symbol).toBe("BTCUSDT");
 			expect(result[0].bid).toBe(49990);

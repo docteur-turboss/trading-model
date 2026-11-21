@@ -120,20 +120,7 @@ const ROUTE_PROVIDERS = [
 		mountedBy: /ADDRESS_MANAGER_ROUTES\(/,
 		files: [
 			"packages/address-manager/src/monitoring/metrics-collector.ts",
-			"packages/address-manager/src/routes/ping.routes.ts",
 			"packages/address-manager/src/routes/metrics.routes.ts",
-		],
-	},
-	{
-		// broker-message CREATE_CALLBACK_ROUTE, default callback path "message"
-		mountedBy: /MessageManagerListenExpress\(/,
-		routes: [
-			{
-				method: "POST",
-				path: "/message",
-				file: "packages/broker-message/src/messages.routes.ts",
-				registry: { file: "packages/broker-message/src/api-routes.ts", name: "BROKER_CALLBACK_API", key: "receive" },
-			},
 		],
 	},
 ];

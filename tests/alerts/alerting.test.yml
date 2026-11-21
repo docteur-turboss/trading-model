@@ -912,23 +912,6 @@ tests:
               description: 'A normalized field of BTCUSDT received since the newest stored model has a mean 4 standard deviations away from the statistics stored with that model (tt_feature_drift_score), for 1 hour: the model sees a market it was not trained on.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainerfeaturedrift'
 
-  - name: the DLQ drains half of what comes in
-    interval: 1m
-    input_series:
-      - series: 'dlq_entries_added_total{job="dlq-service",instance="d"}'
-        values: '0+10x60'
-      - series: 'dlq_entries_replayed_total{job="dlq-service",instance="d"}'
-        values: '0+5x60'
-    alert_rule_test:
-      - eval_time: 40m
-        alertname: DLQDrainRateLow
-        exp_alerts:
-          - exp_labels: {severity: warning, slo: dlq_drain, job: dlq-service}
-            exp_annotations:
-              summary: 'DLQ drain rate is critically low'
-              description: 'DLQ replay/add ratio is 50% — queue is growing.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md'
-
   - name: the alerting pipeline watches itself
     interval: 1m
     input_series:
@@ -1431,7 +1414,6 @@ tests:
       - eval_time: 25m
         alertname: LokiRetentionStale
         exp_alerts: []
-
 
   # time() is 12000 s at 200m: 3 h 20 min past a timestamp of 0, over the
   # 3 h threshold plus the 15 min `for`.

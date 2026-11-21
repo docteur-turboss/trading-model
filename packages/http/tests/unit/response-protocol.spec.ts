@@ -9,11 +9,8 @@ import { logger } from "@trading-model/http/logger";
 import { ResponseProtocol } from "@trading-model/http/response-protocol";
 
 const addressManagerError = makeErrorCode(ErrorCode.AddressManager, 503);
-const serviceNotFoundError = makeErrorCode(ErrorCode.ServiceNotFound, 404);
-const serviceUnreachableError = makeErrorCode(
-	ErrorCode.ServiceUnreachable,
-	410
-);
+const serviceNotFoundError = makeErrorCode(ErrorCode.Agent, 404);
+const serviceUnreachableError = makeErrorCode(ErrorCode.DlqCapacity, 410);
 
 describe("ResponseProtocol", () => {
 	let req: any;
