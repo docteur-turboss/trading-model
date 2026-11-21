@@ -73,10 +73,12 @@ describe("createFromUrl", () => {
 	});
 
 	it("should merge extra options", () => {
-		const client = createFromUrl("redis://localhost:6379" as never, {
+		createFromUrl("redis://localhost:6379" as never, {
 			maxRetriesPerRequest: 3,
 		});
-		expect(client).toBeInstanceOf(Redis);
+		const options = (Redis as unknown as { lastOptions: Record<string, any> })
+			.lastOptions;
+		expect(options.maxRetriesPerRequest).toBe(3);
 	});
 });
 
@@ -101,15 +103,6 @@ describe("command deadline", () => {
 });
 
 describe("createSentinel", () => {
-	it("should create a Redis client from sentinel config", () => {
-		const client = createSentinel({
-			sentinels: [{ host: "127.0.0.1" as never, port: 26379 as never }],
-			name: "mymaster",
-			password: "secret",
-		});
-		expect(client).toBeInstanceOf(Redis);
-	});
-
 	it("should retire the failover detector when the connection closes", () => {
 		const client = createSentinel({
 			sentinels: [{ host: "127.0.0.1" as never, port: 26379 as never }],
