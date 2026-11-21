@@ -75,7 +75,6 @@ const MOCK_TOKEN_MANAGER = (() => {
 			.fn<(...args: any[]) => any>()
 			.mockResolvedValue(undefined),
 		setToken: jest.fn<(...args: any[]) => any>(),
-		clearToken: jest.fn<(...args: any[]) => any>(),
 	};
 	return impl;
 })();

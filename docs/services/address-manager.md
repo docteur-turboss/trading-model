@@ -39,7 +39,7 @@ const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES, FIND_
 ### Served
 
 | Method | Path       | Description                          |
-| GET    | `/ping`    | `"pong"`, status 200                 |
+| ------ | ---------- | ------------------------------------ |
 | GET    | `/status`  | Memory, CPU and uptime of the process|
 | GET    | `/metrics` | Prometheus metrics                   |
 
