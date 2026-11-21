@@ -21,6 +21,7 @@ import type { GaTelemetry } from "./ga-telemetry";
 import type { WindowSet } from "./generation-types";
 import type { GenomeFitnessMeta, LamarckGenome } from "./genome";
 import type { BackendFactory } from "./rl-backend";
+import { keepHead, withHeadOf } from "./shared-trunk";
 import type { DeepReadonly } from "./shared-types";
 import { deepFreeze } from "./shared-types";
 import { trainPhase } from "./training-phase";
@@ -38,12 +39,21 @@ function evaluateSingleGenomeOnWindow(
 	telemetry?: GaTelemetry
 ): EvaluationResult & { failed: boolean } {
 	validateGenomeInputs(genome, windowSet);
+	const { symbol } = windowSet;
+	const start = symbol ? withHeadOf(genome, symbol) : genome;
 
 	try {
-		const trainBackend = backendFactory(genome);
-		trainPhase({ backend: trainBackend, trainData: windowSet.train, genome });
+		const trainBackend = backendFactory(start);
+		trainPhase({
+			backend: trainBackend,
+			trainData: windowSet.train,
+			genome: start,
+		});
 
-		const updatedGenome = deepFreeze(lamarckianUpdate(genome, trainBackend));
+		const trained = lamarckianUpdate(start, trainBackend);
+		const updatedGenome = deepFreeze(
+			symbol ? keepHead(trained, symbol) : trained
+		);
 
 		const evalCtx: GenomeEvaluationContext = {
 			genome: updatedGenome,

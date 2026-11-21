@@ -78,6 +78,8 @@ interface AppContainerConfig {
 	instanceId: string;
 	history: CandleHistoryPort;
 	signals: ConstructorParameters<typeof TrainingLoop>[4];
+	/** FEATURE_SHARED_TRUNK (ADR-0076): all the symbols train as one group. */
+	sharedTrunk?: boolean;
 	/** Costs of each daily asset (ADR-0083); empty: crypto symbols only. */
 	dailyCosts: ReadonlyMap<TradingSymbol, SimulatorCosts>;
 }
@@ -128,7 +130,8 @@ class ApplicationContainer {
 			config.history,
 			config.settings,
 			config.signals,
-			new Set(config.dailyCosts.keys())
+			new Set(config.dailyCosts.keys()),
+			config.sharedTrunk ? config.symbols : undefined
 		);
 	}
 }
@@ -154,6 +157,7 @@ interface TraderTrainerSettings {
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
 	FEATURE_INPUT_MASK_GENE?: boolean;
+	FEATURE_SHARED_TRUNK?: boolean;
 	TRAINER_INPUT_MASK_PROTECT_CANDLE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
 	TRAINER_SEED_OFFSET?: number;
