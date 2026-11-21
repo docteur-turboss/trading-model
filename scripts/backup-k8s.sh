@@ -214,7 +214,7 @@ for part in "${PARTS[@]}"; do
   case "$part" in
     mongodb)      backup_mongodb ;;
     mysql)        backup_mysql ;;
-    # Derived state only (discovery registrations and tokens, DLQ retry queue
+    # Derived state only (DLQ retry queue
     # rebuilt from MongoDB): rebuilt by the services, never restored.
     redis)        warn "Redis is not backed up: its content is rebuilt by the services" ;;
     checkpoints)  backup_checkpoints ;;

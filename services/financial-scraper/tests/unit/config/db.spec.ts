@@ -6,7 +6,6 @@ process.env.TLS_CA_PATH = "/etc/tls/ca.pem";
 process.env.APP_NAME = "financial-scraper";
 process.env.SERVICE_NAME = "financial-scraper";
 process.env.INSTANCE_ID = "instance-1";
-process.env.ADDRESS_MANAGER_URL = "https://address-manager.example.com";
 
 const MOCK_CREATE_POOL = jest.fn<(...args: any[]) => any>().mockReturnValue({});
 

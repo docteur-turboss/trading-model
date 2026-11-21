@@ -629,7 +629,7 @@ run_components() {
       mysql-core)  restore_mysql mysql-core ;;
       checkpoints) restore_checkpoints ;;
       spire)       restore_spire ;;
-      # Derived state only (discovery registrations and tokens, DLQ retry queue
+      # Derived state only (DLQ retry queue
       # rebuilt from MongoDB): rebuilt by the services, never restored.
       redis)       warn "Redis is not backed up: its content is rebuilt by the services" ;;
       *)           fail "Unknown component: ${part}" ;;

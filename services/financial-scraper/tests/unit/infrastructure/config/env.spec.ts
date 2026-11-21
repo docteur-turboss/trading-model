@@ -19,11 +19,6 @@ describe("env", () => {
 		process.env.APP_VERSION = "1.0.0";
 		process.env.SERVICE_NAME = "financial-scraper";
 		process.env.INSTANCE_ID = "instance-1";
-		process.env.CACHE_TTL_MS = "30000";
-		process.env.SERVICE_PING_TIMEOUT_MS = "2000";
-		process.env.TOKEN_REFRESH_INTERVAL_MS = "60000";
-		process.env.TTL_REFRESH_INTERVAL_MS = "15000";
-		process.env.ADDRESS_MANAGER_URL = "https://address-manager.example.com";
 		process.env.MESSAGE_CALLBACK_PATH = "message";
 	};
 

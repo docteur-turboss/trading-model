@@ -80,7 +80,6 @@ paths:
                           enum:
                             - "api-gateway"
                             - "audit-logger"
-                            - "discovery-server"
                             - "dlq-service"
                             - "financial-scraper"
                             - "message-manager"
@@ -230,7 +229,6 @@ paths:
                               enum:
                                 - "api-gateway"
                                 - "audit-logger"
-                                - "discovery-server"
                                 - "dlq-service"
                                 - "financial-scraper"
                                 - "message-manager"
@@ -407,7 +405,6 @@ paths:
                       enum:
                         - "api-gateway"
                         - "audit-logger"
-                        - "discovery-server"
                         - "dlq-service"
                         - "financial-scraper"
                         - "message-manager"

@@ -35,7 +35,7 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | 8 | `@trading-model/validation` | Environment validation, Zod schemas, DTOs, shared type contracts | primitives, contracts, common, http |
 | 9 | `@trading-model/http` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
 | 10 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
-| 11 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, validation |
+| 11 | `@trading-model/address-manager` | DNS service resolution client, service routes (`/ping`, `/status`, `/metrics`) | primitives, contracts, common, persistence, http, reliability, validation |
 | 12 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
 
 ## What Remains in `common`

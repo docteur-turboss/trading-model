@@ -7,7 +7,7 @@ The HTTP status is the `httpStatus` set by the factory in `errors/*.ts`. `500` i
 | Code | HTTP | Cause | Expected action (caller) |
 | ---- | ---- | ----- | ------------------------ |
 | `AuthenticationError` | 498 | Signed request or token rejected (bad signature, expired timestamp, unknown caller). | Do not retry as is; fix the credentials, SVID or clock, then resend. |
-| `AddressManagerError` | 503 | Address manager failed to register, heartbeat or resolve an address. | Retry; check discovery-server and Redis availability. |
+| `AddressManagerError` | 503 | Address manager failed to resolve an address. | Retry; check DNS and the target service. |
 | `MessageManagerError` | 503 | Message-manager call failed (publish, subscribe, unavailable). | Retry with backoff; check message-manager health. |
 | `DeadLetterError` | 503 | Sending a message to the dead-letter queue failed. | Retry; check dlq-service and MongoDB. |
 | `AgentError` | 503 | A trading agent (training or inference) failed. | Check trainer logs; retry the run. |

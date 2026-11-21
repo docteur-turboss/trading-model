@@ -14,8 +14,6 @@ describe("HTTP_HEADERS", () => {
 
 	it("exposes the service identity headers", () => {
 		expect(HTTP_HEADERS.X_API_KEY).toBe("x-api-key");
-		expect(HTTP_HEADERS.X_INSTANCE_TOKEN).toBe("x-instance-token");
-		expect(HTTP_HEADERS.X_INSTANCE_ID).toBe("x-instance-id");
 		expect(HTTP_HEADERS.X_SERVICE_NAME).toBe("x-service-name");
 	});
 

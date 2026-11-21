@@ -43,8 +43,8 @@ describe("extractCanonicalServiceName", () => {
 	});
 
 	it("should normalize legacy names onto canonical names", () => {
-		expect(extractCanonicalServiceName("discovery-service")).toBe(
-			ServiceId.of("discovery-server")
+		expect(extractCanonicalServiceName("audit-logger-service")).toBe(
+			ServiceId.of("audit-logger")
 		);
 	});
 

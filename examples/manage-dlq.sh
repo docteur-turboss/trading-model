@@ -17,7 +17,8 @@ DLQ_CALLER="${DLQ_CALLER:-admin}"
 DLQ_SECRET="${DLQ_AUTH_HMAC_SECRET:?set DLQ_AUTH_HMAC_SECRET (dlq-service secret)}"
 
 # signed_curl METHOD PATH [JSON_BODY] — PATH is the dlq-service path (/dlq...), query string included.
-# Signature: HMAC-SHA256(secret, "caller:timestamp:sha256(body):METHOD:path"),
+# Signature: HMAC-SHA256(secret, "caller:timestamp:sha256(body):METHOD:/v1path"): the gateway forwards
+# /v1/dlq-service/dlq to the service as /v1/dlq, and the service signs what it receives.
 # body as compact JSON with sorted keys ("{}" when there is none).
 signed_curl() {
   local method="$1" path="$2" body="${3:-}"
@@ -30,7 +31,7 @@ signed_curl() {
   fi
   ts="$(( $(date +%s) * 1000 ))"
   body_hash="$(printf '%s' "${signed_body}" | openssl dgst -sha256 -r | cut -d' ' -f1)"
-  signature="$(printf '%s' "${DLQ_CALLER}:${ts}:${body_hash}:${method}:${path}" |
+  signature="$(printf '%s' "${DLQ_CALLER}:${ts}:${body_hash}:${method}:/v1${path}" |
     openssl dgst -sha256 -hmac "${DLQ_SECRET}" -r | cut -d' ' -f1)"
   curl -s -X "${method}" "${API_GATEWAY}/v1/dlq-service${path}" \
     -H "x-api-key: ${ADMIN_TOKEN}" \

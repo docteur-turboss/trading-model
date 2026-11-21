@@ -20,7 +20,6 @@
     "./primitives/time-ids": "./dist/primitives/time-ids.js",
     "./service-identity": "./dist/service-identity.js",
     "./service-instance-name": "./dist/service-instance-name.js",
-    "./token-validation": "./dist/token-validation.js",
     "./topic-binding": "./dist/topic-binding.js"
   },
   "devDependencies": {

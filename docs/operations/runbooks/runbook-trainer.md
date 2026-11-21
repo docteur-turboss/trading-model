@@ -43,7 +43,7 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
 kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,sum by (le) (rate(tt_training_duration_seconds_bucket[1h])))'
 # Longest event loop block: one genome evaluation (heartbeats, /metrics and
-# candles wait that long). Several seconds: ServiceDown / HeartbeatStopped follow.
+# candles wait that long). Several seconds: ServiceDown follows.
 kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=histogram_quantile(0.99,sum by (le) (rate(tt_genome_evaluation_seconds_bucket[1h])))'
 
@@ -95,8 +95,7 @@ The previous artifacts stay valid meanwhile: nothing serving them is affected.
 
 p99 of `tt_genome_evaluation_seconds` above 5 s over 15 min, for 15 min.
 The trainer yields between genomes, so the longest block is one evaluation.
-Above 10 s (delivery timeout) or 15 s (heartbeat), `ServiceDown`,
-`HeartbeatStopped` and DLQ alerts follow: this one names the cause.
+Above 10 s (delivery timeout) or 15 s (heartbeat), `ServiceDown` and DLQ alerts follow: this one names the cause.
 
 ### Symptom
 

@@ -8,6 +8,10 @@
 		"reason": "topic de debug sans producteur, retiré du contrat (issue #1206)"
 	},
 	{
+		"break": "audit.heartbeat $.serviceName: enum value \"discovery-server\" removed",
+		"reason": "service discovery-server retiré (release N+1, issue #1244)"
+	},
+	{
 		"break": "market.candlestick.series.fetch $: event removed",
 		"reason": "topic sans éditeur ni abonné depuis #1737 / ADR-0078, retiré du contrat (issue #1765)"
 	},

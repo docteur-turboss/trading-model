@@ -10,7 +10,7 @@ Document capturing a significant architectural decision, its context, alternativ
 ## B
 
 **Bounded Context**
-A DDD concept: a logical boundary within which a particular domain model applies. The platform defines 7 bounded contexts (Market Data, Training, Messaging, Security, Discovery, Observability, Gateway).
+A DDD concept: a logical boundary within which a particular domain model applies. The platform defines 6 bounded contexts (Market Data, Training, Messaging, Security, Observability, Gateway).
 
 ## C
 
@@ -52,7 +52,7 @@ Encoded representation of a candidate solution in a GA. In the trader-trainer, a
 ## H
 
 **HMAC (Hash-based Message Authentication Code)**
-Used for instance-level authentication between services. Each registered instance receives an HMAC-SHA256 token validated via the `x-instance-token` header.
+Used to sign service-to-service requests (signed `POST /dlq`).
 
 ## L
 
@@ -82,7 +82,7 @@ Machine learning paradigm where an agent learns by interacting with an environme
 ## S
 
 **Service Discovery**
-Mechanism allowing services to find each other dynamically. The discovery-server maintains a registry with TTL-based leases, heartbeat monitoring, and token-based authentication.
+Mechanism allowing services to find each other by DNS name (`address-manager`, `findService`).
 
 **Sharpe Ratio**
 Risk-adjusted return metric: `(return - risk_free_rate) / standard_deviation_of_returns`. Higher values indicate better risk-adjusted performance.
@@ -93,7 +93,7 @@ Short-lived X.509 identity issued by the SPIRE Server after workload attestation
 ## T
 
 **TTL (Time-To-Live)**
-Expiration duration for service registration leases, cached entries, or message delivery deadlines.
+Expiration duration for cached entries, or message delivery deadlines.
 
 **Token Bucket**
 Rate-limiting algorithm used by the financial-scraper to respect Binance API rate limits. Tokens are added at a fixed rate; requests consume tokens.

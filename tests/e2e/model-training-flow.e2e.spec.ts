@@ -96,7 +96,7 @@ describe("Model training flow E2E", () => {
 			() => {
 				const { status, body } = meshRequest(
 					CALLER.gateway,
-					`${AUDIT}/events?topic=${PUBLISHED}&limit=100`
+					`${AUDIT}/v1/events?topic=${PUBLISHED}&limit=100`
 				);
 				if (status !== 200) {
 					return;

@@ -102,7 +102,7 @@ Common issues grouped by category. For per-service debugging, see the [runbooks]
 | Symptom                                     | Likely cause               | Fix                                                                                     |
 | ------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------- |
 | Services can't reach each other             | Custom network conflict    | `docker network rm trading-network` and restart                                         |
-| `curl -k` (no `--cert`) to a service `/ping` fails | Expected: no client SVID   | Services only accept SPIFFE mTLS clients. Use `docker exec trading-discovery curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping`, or the gateway through `http://localhost:8449/v1/...` |
+| `curl -k` (no `--cert`) to a service `/ping` fails | Expected: no client SVID   | Services only accept SPIFFE mTLS clients. Use `docker exec trading-message curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping`, or the gateway through `http://localhost:8449/v1/...` |
 | Connection refused on all ports             | Docker not running         | Start Docker Desktop or the Docker daemon                                               |
 | DNS resolution fails inside containers      | Docker DNS config          | Edit `/etc/docker/daemon.json`: `{ "dns": ["1.1.1.1", "8.8.8.8"] }` then restart Docker |
 

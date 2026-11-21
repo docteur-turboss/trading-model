@@ -20,13 +20,8 @@ jest.mock<{
 		TLS_KEY_PATH: string;
 		TLS_CERT_PATH: string;
 		TLS_CA_PATH: string;
-		ADDRESS_MANAGER_URL: string;
-		CACHE_TTL_MS: number;
 		INSTANCE_ID: string;
 		SERVICE_NAME: string;
-		SERVICE_PING_TIMEOUT_MS: number;
-		TOKEN_REFRESH_INTERVAL_MS: number;
-		TTL_REFRESH_INTERVAL_MS: number;
 		MESSAGE_CALLBACK_PATH: string;
 		TRAINER_SYMBOLS: string;
 		TRAINER_DATA_WINDOW: number;
@@ -44,13 +39,8 @@ jest.mock<{
 		TLS_KEY_PATH: "",
 		TLS_CERT_PATH: "",
 		TLS_CA_PATH: "",
-		ADDRESS_MANAGER_URL: "http://localhost:3000",
-		CACHE_TTL_MS: 5000,
 		INSTANCE_ID: "test-instance",
 		SERVICE_NAME: "trader-trainer",
-		SERVICE_PING_TIMEOUT_MS: 5000,
-		TOKEN_REFRESH_INTERVAL_MS: 30000,
-		TTL_REFRESH_INTERVAL_MS: 30000,
 		MESSAGE_CALLBACK_PATH: "/callback",
 		TRAINER_SYMBOLS: "BTCUSDT",
 		TRAINER_DATA_WINDOW: 500,
@@ -65,9 +55,6 @@ jest.mock<{
 
 jest.mock("../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: (): void => {},
-	BOOTSTRAP_ADDRESS_MANAGER: (): { stop: () => void } => ({
-		stop: (): void => {},
-	}),
 	AddressManager: { getAddress: (): null => null },
 }));
 
@@ -221,7 +208,7 @@ describe("Server routes", () => {
 	}
 
 	it("GET /training-status should return idle status when no training is active", async () => {
-		const result = await get(TRAINER_API.trainingStatus, "/training-status");
+		const result = await get(TRAINER_API.trainingStatus, "/v1/training-status");
 
 		expect(result.status).toBe(200);
 		expect(result.body).toEqual({
@@ -234,7 +221,7 @@ describe("Server routes", () => {
 	});
 
 	it("GET /best-agent should return 404 when no agent has been trained", async () => {
-		const result = await get(TRAINER_API.bestAgent, "/best-agent");
+		const result = await get(TRAINER_API.bestAgent, "/v1/best-agent");
 
 		expect(result.status).toBe(404);
 		expect(result.body).toEqual({
@@ -245,7 +232,7 @@ describe("Server routes", () => {
 	it("GET /best-agent should return the best agent once trained", async () => {
 		jest.spyOn(trainer, "getBestAgentSummary").mockReturnValue(AGENT as never);
 
-		const result = await get(TRAINER_API.bestAgent, "/best-agent");
+		const result = await get(TRAINER_API.bestAgent, "/v1/best-agent");
 
 		expect(result.status).toBe(200);
 		expect(result.body).toMatchObject({
@@ -258,7 +245,7 @@ describe("Server routes", () => {
 			.spyOn(trainer, "getAllSnapshots")
 			.mockReturnValue(new Map([["BTCUSDT", snapshot(null)]]) as never);
 
-		const result = await get(TRAINER_API.trainingAgents, "/training-agents");
+		const result = await get(TRAINER_API.trainingAgents, "/v1/training-agents");
 
 		expect(result.status).toBe(200);
 		expect(result.body).toMatchObject({
@@ -275,7 +262,7 @@ describe("Server routes", () => {
 
 		const result = await get(
 			TRAINER_API.trainingAgent,
-			"/training-agents/BTCUSDT"
+			"/v1/training-agents/BTCUSDT"
 		);
 
 		expect(result.status).toBe(200);
@@ -292,7 +279,7 @@ describe("Server routes", () => {
 	it("GET /training-agents/:symbol should return 404 for an untrained symbol", async () => {
 		const result = await get(
 			TRAINER_API.trainingAgent,
-			"/training-agents/ETHUSDT"
+			"/v1/training-agents/ETHUSDT"
 		);
 
 		expect(result.status).toBe(404);

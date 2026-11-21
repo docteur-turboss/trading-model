@@ -5,10 +5,10 @@ Single external entry point for the system. Routes, authenticates, rate-limits a
 ## Operation
 
 ```
-Client → /v1/{service}/... → API Gateway → auth → rate-limit → resolve Discovery → proxy mTLS → service
+Client → /v1/{service}/... → API Gateway → auth → rate-limit → resolve DNS name → proxy mTLS → service
 ```
 
-- **Versioned routing** : `/v{major}/{serviceName}/**` → resolved via Discovery Server, filtered by major version
+- **Versioned routing** : `/v{major}/{serviceName}/**` → resolved to its DNS name, forwarded as `/v{major}{path}` (a service answers 404 for a major it does not serve)
 - **Auth** : `x-api-key` or `authorization` header, validated against a configurable list via `AUTH_TOKENS` (`name:scope1+scope2:secret` entries, ADR-0059; the client sends only the secret)
 - **Rate limiting** : `express-rate-limit`, configurable (default 100 req/min)
 - **Cache** : in-memory GET responses with configurable TTL
@@ -16,10 +16,10 @@ Client → /v1/{service}/... → API Gateway → auth → rate-limit → resolve
 
 ## Startup order
 
-Position 6 — after discovery-server, port 8448. Depends only on `discovery-server:healthy`.
+Port 8448. No dependency on another service.
 
 ## Failure impact
 
 - **Internal services**: no impact (direct mTLS communication)
 - **External**: all API requests fail
-- **Recovery**: Docker restarts the container (20-50s), re-registers with Discovery
+- **Recovery**: Docker restarts the container (20-50s)

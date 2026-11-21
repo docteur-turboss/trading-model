@@ -15,11 +15,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		APP_VERSION: "1.0.0",
 		SERVICE_NAME: "audit-logger-service",
 		INSTANCE_ID: "test-instance",
-		CACHE_TTL_MS: 30000,
-		SERVICE_PING_TIMEOUT_MS: 2000,
-		TOKEN_REFRESH_INTERVAL_MS: 60000,
-		TTL_REFRESH_INTERVAL_MS: 15000,
-		ADDRESS_MANAGER_URL: "http://localhost:3000",
 		MESSAGE_CALLBACK_PATH: "message",
 	},
 }));
@@ -34,9 +29,6 @@ jest.mock("@trading-model/http/logger", () => ({
 
 jest.mock("../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: (_app: any): void => {},
-	BOOTSTRAP_ADDRESS_MANAGER: (): { stop: () => void } => ({
-		stop: (): void => {},
-	}),
 	AddressManager: { getAddress: (): null => null },
 }));
 

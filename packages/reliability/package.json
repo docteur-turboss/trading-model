@@ -7,7 +7,6 @@
   "exports": {
     "./circuit-breaker": "./dist/circuit-breaker.js",
     "./circuit-state-machine": "./dist/circuit-state-machine.js",
-    "./heartbeat-sender.port": "./dist/heartbeat-sender.port.js",
     "./kubernetes-lease": "./dist/kubernetes-lease.js",
     "./leadership": "./dist/leadership.js"
   },

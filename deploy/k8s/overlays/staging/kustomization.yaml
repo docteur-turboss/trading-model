@@ -16,8 +16,6 @@ components:
 # Staging image tags: `latest` is only a default for rendering outside deploy.yml.
 # deploy.yml always deploys the digests of the requested release tag (deploy-release.sh render).
 images:
-  - name: ghcr.io/trading-model/discovery-server
-    newTag: latest
   - name: ghcr.io/trading-model/message-manager
     newTag: latest
   - name: ghcr.io/trading-model/financial-scraper

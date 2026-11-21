@@ -9,18 +9,18 @@ describe("DLQ E2E", () => {
 	});
 
 	it("lists the entries for a signed caller", () => {
-		const { status } = meshRequest(CALLER.gateway, `${DLQ}/dlq`, {
-			headers: signedDlqHeaders(undefined, "GET", "/dlq"),
+		const { status } = meshRequest(CALLER.gateway, `${DLQ}/v1/dlq`, {
+			headers: signedDlqHeaders(undefined, "GET", "/v1/dlq"),
 		});
 		expect(status).toBe(200);
 	});
 
 	it("no longer takes dead letters: they go to the dead streams (ADR-0073)", () => {
 		const entry = { topic: "e2e.test.topic", message: {} };
-		const { status } = meshRequest(CALLER.gateway, `${DLQ}/dlq`, {
+		const { status } = meshRequest(CALLER.gateway, `${DLQ}/v1/dlq`, {
 			method: "POST",
 			body: entry,
-			headers: signedDlqHeaders(entry, "POST", "/dlq"),
+			headers: signedDlqHeaders(entry, "POST", "/v1/dlq"),
 		});
 		expect(status).toBe(404);
 	});

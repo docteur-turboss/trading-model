@@ -6,27 +6,17 @@ import {
 	type ServiceId,
 } from "@trading-model/primitives/primitives";
 import type { HostPort } from "@trading-model/primitives/service-identity";
-import type { TokenManager } from "./client/token-manager";
-import type { AddressManagerConfig } from "./config/address-manager-config";
-import { buildAddressManagerDependencies } from "./config/container";
-import type { LifecycleManager } from "./lifecycle-manager";
-import type { MetricsCollector } from "./monitoring/metrics-collector";
+import { MetricsCollector } from "./monitoring/metrics-collector";
 
 /** Every service listens on HTTPS port 3000 behind its DNS name (compose service, K8s Service). */
 const SERVICE_PORT = Port.of(3000);
 
-/** Address manager facade: registration lifecycle of the service, and where the other services are. */
+/** Address manager facade: where the other services are, and the service metrics routes. */
 export default class AddressManager {
-	public readonly tokenManager: TokenManager;
-	public readonly metricsCollector: MetricsCollector;
-	public readonly lifecycleManager: LifecycleManager;
+	public readonly metricsCollector = new MetricsCollector();
 	private readonly _dnsNameMap: Partial<Record<ServiceId, IPAddress>>;
 
-	constructor(config: AddressManagerConfig) {
-		const deps = buildAddressManagerDependencies(config);
-		this.tokenManager = deps.tokenManager;
-		this.metricsCollector = deps.metricsCollector;
-		this.lifecycleManager = deps.lifecycleManager;
+	constructor(config: { dnsNameMap?: Record<ServiceId, IPAddress> }) {
 		this._dnsNameMap = config.dnsNameMap ?? {};
 	}
 

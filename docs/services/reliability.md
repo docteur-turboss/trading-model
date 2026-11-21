@@ -1,6 +1,6 @@
 # @trading-model/reliability — Resilience Building Blocks
 
-Circuit breaker, circuit state machine, heartbeat and leader lease interfaces, used by the HTTP client and the service discovery layer.
+Circuit breaker, circuit state machine, latency tracker and heartbeat interfaces, used by the HTTP client.
 
 ## Dependency rule
 

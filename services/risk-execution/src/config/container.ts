@@ -15,10 +15,7 @@ import { assertExecutionLock } from "../domain/execution-mode";
 import { RiskLimits } from "../domain/limits";
 import type { RiskState } from "../domain/state";
 import { ENV } from "../infrastructure/config/env";
-import {
-	ADDRESS_MANAGER_ROUTES,
-	REGISTRATION_READINESS,
-} from "./address-manager";
+import { ADDRESS_MANAGER_ROUTES } from "./address-manager";
 import { publishRiskEvent } from "./audit";
 import {
 	metricsHandler,
@@ -113,10 +110,7 @@ export async function createRiskExecutionApp() {
 			app.get("/metrics", metricsHandler);
 			ADDRESS_MANAGER_ROUTES(app);
 		},
-		readiness: [
-			REGISTRATION_READINESS,
-			{ name: "reconciliation", check: () => risk.isReady() },
-		],
+		readiness: [{ name: "reconciliation", check: () => risk.isReady() }],
 	});
 	return { server, stop: () => clearInterval(timer) };
 }

@@ -31,7 +31,7 @@ Examples:
 feature/token-refresh-mechanism
 fix/missing-fields-scraper
 refactor/extract-validation-logic
-docs/api-endpoints-discovery
+docs/api-endpoints-messages
 chore/update-typescript-6
 ```
 

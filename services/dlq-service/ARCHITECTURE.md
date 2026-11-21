@@ -13,7 +13,6 @@ graph LR
     DLQ -->|Queue| R[("Redis<br/>rate limiting + queue")]
     DLQ -->|POST /dlq/:id/replay| MM
     API["Admin / API"] -->|GET /dlq<br/>DELETE /dlq<br/>POST /dlq/replay| DLQ
-    DLQ --> DS["Discovery Server"]
 ```
 
 ## Project Structure

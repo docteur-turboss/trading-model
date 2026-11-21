@@ -64,14 +64,14 @@ export async function fetchCandles(symbol: string, interval: string): Promise<Ca
 
 ```typescript
 /**
- * Register a service instance so it can be discovered by peers.
- * Sends a POST to the discovery-server with TTL-based lease.
+ * Subscribe a service to a topic of the message-manager.
+ * Sends a POST to the message-manager.
  *
- * @param instance - Service metadata to register.
- * @returns The server response with assigned lease duration.
- * @throws If the discovery-server is unreachable after 3 retries.
+ * @param subscription - Topic and callback path to subscribe.
+ * @returns The server response with the subscription state.
+ * @throws If the message-manager is unreachable after 3 retries.
  */
-export async function register(instance: ServiceInstance): Promise<RegistrationResponse> {
+export async function subscribe(subscription: Subscription): Promise<SubscriptionResponse> {
 ```
 
 ```typescript

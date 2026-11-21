@@ -2,21 +2,16 @@ import "./telemetry";
 import { createBootstrap } from "@trading-model/http/bootstrap";
 import { logger } from "@trading-model/http/logger";
 import { shutdownTelemetry } from "@trading-model/http/telemetry";
-import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { type AuditLoggerApp, createAuditLoggerApp } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
 
-type CleanupContext = Omit<AuditLoggerApp, "server"> & {
-	addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
-};
-
-let _context: CleanupContext | null = null;
+let _context: Omit<AuditLoggerApp, "server"> | null = null;
 
 createBootstrap({
 	name: "Audit Logger",
 	createServer: async () => {
 		const { server, ...resources } = await createAuditLoggerApp();
-		_context = { ...resources, addressManager: null! };
+		_context = resources;
 
 		return server;
 	},
@@ -24,7 +19,6 @@ createBootstrap({
 		if (!_context) {
 			return;
 		}
-		_context.addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 		_context.chainAuditScheduler.start();
 		logger.info("Audit Logger fully operational", {
 			context: {
@@ -38,11 +32,9 @@ createBootstrap({
 			await shutdownTelemetry();
 			return;
 		}
-		const { brokerMessage, addressManager, mongoManager, chainAuditScheduler } =
-			_context;
+		const { brokerMessage, mongoManager, chainAuditScheduler } = _context;
 		chainAuditScheduler.stop();
 		await brokerMessage.stopMessageManager();
-		await addressManager.stop();
 		await mongoManager.close();
 		_context = null;
 		await shutdownTelemetry();

@@ -300,10 +300,10 @@ describe("DLQ Service — Routes Integration", () => {
 
 	it("POST /dlq is gone: dead letters live in the dead streams (ADR-0073)", async () => {
 		await start();
-		const result = await request(server, "/dlq", {
+		const result = await request(server, "/v1/dlq", {
 			method: "POST",
 			body: validEntry,
-			headers: signHeaders(validEntry, "POST", "/dlq"),
+			headers: signHeaders(validEntry, "POST", "/v1/dlq"),
 		});
 		expect(result.status).toBe(404);
 		expect(dlqRepository.insert).not.toHaveBeenCalled();
@@ -324,8 +324,8 @@ describe("DLQ Service — Routes Integration", () => {
 			},
 		]);
 		await start();
-		const result = await request(server, "/dlq", {
-			headers: signHeaders(null, "GET", "/dlq"),
+		const result = await request(server, "/v1/dlq", {
+			headers: signHeaders(null, "GET", "/v1/dlq"),
 		});
 		expect(result.status).toBe(200);
 		expect(result.body).toMatchObject({ count: 1, hasMore: false });
@@ -335,8 +335,8 @@ describe("DLQ Service — Routes Integration", () => {
 
 	it("GET /dlq should reject an invalid query with 400", async () => {
 		await start();
-		const result = await request(server, "/dlq?limit=abc", {
-			headers: signHeaders(null, "GET", "/dlq?limit=abc"),
+		const result = await request(server, "/v1/dlq?limit=abc", {
+			headers: signHeaders(null, "GET", "/v1/dlq?limit=abc"),
 		});
 		expect(result.status).toBe(400);
 		expectDocumented(DLQ_API.listEntries, result);
@@ -349,10 +349,10 @@ describe("DLQ Service — Routes Integration", () => {
 		).mockResolvedValue(2);
 		await start();
 		const body = { ids: ["a", "b"] };
-		const result = await request(server, "/dlq", {
+		const result = await request(server, "/v1/dlq", {
 			method: "DELETE",
 			body,
-			headers: signHeaders(body, "DELETE", "/dlq"),
+			headers: signHeaders(body, "DELETE", "/v1/dlq"),
 		});
 		expect(result.status).toBe(200);
 		expect(result.body).toEqual({ deleted: 2, auditRecorded: true });
@@ -366,10 +366,13 @@ describe("DLQ Service — Routes Integration", () => {
 		auditPort.notifyDelete.mockResolvedValueOnce(false);
 		await start();
 		const body = { ids: ["a"] };
-		const result = await request(server, "/dlq", {
+		const result = await request(server, "/v1/dlq", {
 			method: "DELETE",
 			body,
-			headers: { ...signHeaders(body, "DELETE", "/dlq"), "x-actor": "forged" },
+			headers: {
+				...signHeaders(body, "DELETE", "/v1/dlq"),
+				"x-actor": "forged",
+			},
 		});
 		expect(result.status).toBe(502);
 		expect(result.body).toEqual({ deleted: 1, auditRecorded: false });
@@ -380,10 +383,10 @@ describe("DLQ Service — Routes Integration", () => {
 	it("DELETE /dlq should reject an empty id list with 400", async () => {
 		await start();
 		const body = { ids: [] };
-		const result = await request(server, "/dlq", {
+		const result = await request(server, "/v1/dlq", {
 			method: "DELETE",
 			body,
-			headers: signHeaders(body, "DELETE", "/dlq"),
+			headers: signHeaders(body, "DELETE", "/v1/dlq"),
 		});
 		expect(result.status).toBe(400);
 		expectDocumented(DLQ_API.deleteEntries, result);
@@ -395,9 +398,9 @@ describe("DLQ Service — Routes Integration", () => {
 			dlqClaimManager.claimEntriesForRetry as jest.Mock<(...args: any[]) => any>
 		).mockResolvedValue([]);
 		await start();
-		const result = await request(server, "/dlq/replay?limit=10", {
+		const result = await request(server, "/v1/dlq/replay?limit=10", {
 			method: "POST",
-			headers: signHeaders(null, "POST", "/dlq/replay?limit=10"),
+			headers: signHeaders(null, "POST", "/v1/dlq/replay?limit=10"),
 		});
 		expect(result.status).toBe(200);
 		expect(result.body).toEqual({
@@ -409,9 +412,9 @@ describe("DLQ Service — Routes Integration", () => {
 
 	it("POST /dlq/replay should reject a limit above 100", async () => {
 		await start();
-		const result = await request(server, "/dlq/replay?limit=500", {
+		const result = await request(server, "/v1/dlq/replay?limit=500", {
 			method: "POST",
-			headers: signHeaders(null, "POST", "/dlq/replay?limit=500"),
+			headers: signHeaders(null, "POST", "/v1/dlq/replay?limit=500"),
 		});
 		expect(result.status).toBe(400);
 		expectDocumented(DLQ_API.replayEntries, result);
@@ -420,9 +423,9 @@ describe("DLQ Service — Routes Integration", () => {
 
 	it("POST /dlq/replay should reject a signature made for another query", async () => {
 		await start();
-		const result = await request(server, "/dlq/replay?limit=100", {
+		const result = await request(server, "/v1/dlq/replay?limit=100", {
 			method: "POST",
-			headers: signHeaders(null, "POST", "/dlq/replay?limit=10"),
+			headers: signHeaders(null, "POST", "/v1/dlq/replay?limit=10"),
 		});
 		expect(result.status).toBe(401);
 		expect(dlqClaimManager.claimEntriesForRetry).not.toHaveBeenCalled();
@@ -430,7 +433,7 @@ describe("DLQ Service — Routes Integration", () => {
 
 	it("GET /dlq should reject an unsigned request", async () => {
 		await start();
-		const result = await request(server, "/dlq");
+		const result = await request(server, "/v1/dlq");
 		expect(result.status).toBe(403);
 		expect(dlqRepository.query).not.toHaveBeenCalled();
 	});

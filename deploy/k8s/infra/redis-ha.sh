@@ -153,7 +153,6 @@ acl_args() {
 	print_args --user ha on ">$REDIS_INTERNAL_PASSWORD" allchannels -@all +psync +replconf +ping
 	print_args +role +info +multi +exec +slaveof +replicaof +subscribe +publish
 	print_args "+config|rewrite" "+client|setname" "+client|kill" "+script|kill"
-	service_user discovery "${REDIS_DISCOVERY_PASSWORD:-}" "trading-model:discovery:*" +get +set +del +mget +sadd +srem +smembers +sismember +scard +eval +evalsha "+script|load"
 	service_user message-manager "${REDIS_MESSAGE_MANAGER_PASSWORD:-}" "trading-model:message-manager:*" +hset +hgetall +hdel +pexpire +sadd +srem +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
 	# Bus users (ADR-0073, #1620): write only the journal of the topics published, consume only the topics subscribed.
 	# Topic lists = EVENT_PUBLISHERS / EVENT_SUBSCRIBERS of @trading-model/contracts/event-routes (checked by bus-acl.spec.ts).

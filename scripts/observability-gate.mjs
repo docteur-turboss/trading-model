@@ -35,7 +35,6 @@ import { WORKSPACE_ROOTS, walk as walkFiles } from "./lib/fs.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const SERVICES = [
-  "discovery-server",
   "message-manager",
   "financial-scraper",
   "trader-trainer",

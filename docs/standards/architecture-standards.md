@@ -23,7 +23,6 @@ trading-model/
 │   ├── address-manager/     # @trading-model/address-manager
 │   └── broker-message/      # @trading-model/broker-message
 ├── services/           # Microservices
-│   ├── discovery-server/
 │   ├── message-manager/
 │   ├── financial-scraper/
 │   ├── trader-trainer/
@@ -63,7 +62,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 | API          | Express.js                                           |
 | Frontend     | None for now (ADR-0018)                              |
 | Security     | mTLS (all services)                                  |
-| Database     | MongoDB (audit-logger, dlq-service), MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), Redis (discovery registry, message-manager subscriptions, dlq-service) |
+| Database     | MongoDB (audit-logger, dlq-service), MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), Redis (message-manager subscriptions, dlq-service) |
 | Validation   | Zod                                                  |
 | Scheduling   | node-cron                                            |
 | Formatting   | Biome                                                |
@@ -87,7 +86,7 @@ Shared packages (base → derived):
 @trading-model/server-utils     (secure HTTPS server factory, TLS watcher, bootstrap) → primitives, contracts, common, http
 @trading-model/crypto           (hashing, signatures, crypto primitives) → primitives, contracts, common, validation
 
-@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, validation
+@trading-model/address-manager  (DNS service resolution client, service routes) → primitives, contracts, common, persistence, http, reliability, validation
 @trading-model/broker-message   (inter-service messaging SDK) → primitives, contracts, address-manager, common, http, validation
 ```
 
@@ -99,7 +98,6 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | --- | --- |
 | api-gateway | common, contracts, http, primitives, validation |
 | audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, validation |
-| discovery-server | common, contracts, crypto, http, persistence, primitives, validation |
 | dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, validation |
 | model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, primitives, validation |
 | risk-execution | address-manager, broker-message, common, contracts, http, primitives, validation |
@@ -123,7 +121,7 @@ There is no frontend workspace: `admin-interface` was removed until a new one is
 | `@trading-model/validation`      | Zod schemas, DTOs, event types, shared type contracts, admin contracts                                                                                  | primitives, contracts, common, http |
 | `@trading-model/server-utils`    | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry                                                         | primitives, contracts, common, http |
 | `@trading-model/crypto`          | Hashing, request signing, token generation, secure randomness                                                                                           | primitives, contracts, common, validation |
-| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing                                              | primitives, contracts, common, persistence, http, reliability, validation |
+| `@trading-model/address-manager` | DNS service resolution client, service routes (`/ping`, `/status`, `/metrics`)                                                          | primitives, contracts, common, persistence, http, reliability, validation |
 | `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                        | primitives, contracts, address-manager, common, http, validation |
 
 ## Workload Identity & Security Model
@@ -134,7 +132,6 @@ There is no frontend workspace: `admin-interface` was removed until a new one is
   consumed via `spiffe-helper` sidecars. The former in-house CA and
   `certificate-client` were decommissioned.
 - No service trusts another without explicit certificate/bundle validation.
-- The Discovery-Server issues and rotates HMAC tokens.
 - Live trading will be gated by risk limits, capital exposure constraints, and fail-safe mechanisms (planned).
 
 ## Service Conventions
@@ -145,7 +142,6 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 
 | Service           | Host port (dev) | Container port | Notes         |
 | ----------------- | --------------- | -------------- | ------------- |
-| discovery-server  | 8443            | 3000           |               |
 | message-manager   | 8444            | 3000           |               |
 | financial-scraper | 8445            | 3000           |               |
 | trader-trainer    | 8446            | 3000           |               |
@@ -196,27 +192,25 @@ Rules:
 - `index.ts` and `server.ts` are the **only** files of `application/` allowed to touch adapters/infrastructure, and only for startup concerns. They obtain their collaborators from `config/container.ts` and never `new` an adapter themselves.
 - Every other file of `application/` depends on ports only.
 - **Ports**: type `XxxPort` (never an `I` prefix), file `xxx.port.ts` (never `-port.ts` / `.ports.ts`), located in `domain/ports/` (several ports of one concern may share a file). Non-port interfaces: `xxx.interface.ts`; MySQL schemas: `xxx.schema.ts`.
-- Containers take environment values **as parameters** (`createDiscoveryApp(ENV)`, `createScrapeScheduler(ENV)`) rather than importing `ENV`, so they can be imported by tests without environment validation.
+- Containers take environment values **as parameters** (`createMessageManagerApp(ENV)`, `createScrapeScheduler(ENV)`) rather than importing `ENV`, so they can be imported by tests without environment validation.
 
 ### Entry Point (`src/application/index.ts`)
 
 ```typescript
 import { createBootstrap } from '@trading-model/server-utils/bootstrap';
-import { createDiscoveryApp } from '../config/container';
+import { createMessageManagerApp } from '../config/container';
 import { ENV } from '../infrastructure/config/env';
 import { createServer } from './server';
 
-const { registry, leaseManager, redisClient } = createDiscoveryApp(ENV);
+const { store, redisClient } = createMessageManagerApp(ENV);
 
 createBootstrap({
-  name: 'Discovery',
-  createServer: () => createServer(registry),
+  name: 'MessageManager',
+  createServer: () => createServer(store),
   onStart: async () => {
     await redisClient?.connect();
-    leaseManager.start();
   },
   onStop: () => {
-    leaseManager.stop();
     redisClient?.disconnect();
   },
 });
@@ -227,17 +221,15 @@ createBootstrap({
 ```typescript
 import { ServiceId } from '@trading-model/primitives/primitives';
 import { createServiceServer } from '@trading-model/server-utils/service-server-factory';
-import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
-import { registryRoutes } from '../adapters/inbound/register.routes';
+import { messageRoutes } from '../adapters/inbound/message.routes';
 import { env } from '../config/env';
 
 export function createServer() {
   return createServiceServer({
     env,
-    serviceId: ServiceId.of('discovery-server'),
+    serviceId: ServiceId.of('message-manager'),
     routes: app => {
-      app.use('/', registryRoutes());
-      app.use('/', heartbeatRoutes());
+      app.use('/', messageRoutes());
     },
   });
 }
