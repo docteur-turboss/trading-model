@@ -35,8 +35,8 @@
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
 //     node-agents overlay in node-role.yaml or cluster-role.yaml
-//   - no bus user (BUS_USERS) of staging-local reaches the partitioned redis-0 through
-//     the sentinels, unless in BUS_ON_PARTITIONED_REDIS (issue #1931)
+//   - no bus user (BUS_USERS) of staging-local reaches the partitioned redis-0 (its ConfigMap
+//     sets BUS_TRANSPORT=http), unless in BUS_ON_PARTITIONED_REDIS (issue #1931)
 // Usage: node tests/k8s/check-overlays.mjs   (needs kubectl)
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -407,9 +407,9 @@ for (const env of OVERLAYS) {
 	if (/^ {6}partition: [1-9]/m.test(redisSts)) {
 		for (const cm of docs.filter((doc) => doc.kind === "ConfigMap")) {
 			const user = cm.text.match(/^ +REDIS_USERNAME: "?([^"\n]+)"?$/m)?.[1];
-			const sentinels = cm.text.match(/^ +REDIS_SENTINELS: "?([^"\n]*)"?$/m)?.[1]?.trim();
-			if (BUS_USERS.includes(user) && sentinels && !BUS_ON_PARTITIONED_REDIS.has(user)) {
-				errors.push(`${env}: ${cm.name} sends bus user ${user} to the partitioned redis, which lacks it until restarted: set REDIS_SENTINELS= (issue #1931)`);
+			const transport = cm.text.match(/^ +BUS_TRANSPORT: "?([^"\n]*)"?$/m)?.[1]?.trim();
+			if (BUS_USERS.includes(user) && transport !== "http" && !BUS_ON_PARTITIONED_REDIS.has(user)) {
+				errors.push(`${env}: ${cm.name} sends bus user ${user} to the partitioned redis, which lacks it until restarted: set BUS_TRANSPORT=http (issue #1931)`);
 			}
 		}
 	}

@@ -2,7 +2,7 @@ import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated
 import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/validation/config/env";
 import { featureFlag } from "@trading-model/validation/config/feature-flags";
-import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
+import { BusEnvSchema } from "@trading-model/validation/config/redis-env";
 import { validateEnv } from "@trading-model/validation/config/validate-env";
 import { AssetType } from "@trading-model/validation/wire/signals";
 import { z } from "zod";
@@ -98,7 +98,7 @@ const TRAINER_ENV_SHAPE = {
 export const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
 	AddressManagerEnvSchema
 )
-	.extend(RedisEnvSchema.shape)
+	.extend(BusEnvSchema.shape)
 	.extend(TRAINER_ENV_SHAPE);
 
 export const ENV = validateEnv(TRADER_TRAINER_ENV_SCHEMA);

@@ -73,6 +73,7 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 | `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | DS, MM, DLQ, AL, TT, ME |
 | `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | DS, MM, DLQ, AL, TT, ME |
 | `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | DS, MM, DLQ, AL, TT, ME |
+| `BUS_TRANSPORT` | `library` \| `http` | — | no | Bus transport (ADR-0073, `BusEnvSchema`): `library` = Redis Streams in process, refuses to start without `REDIS_URL` / `REDIS_SENTINELS`; `http` = message-manager, Redis settings ignored; unset = `library` when Redis is set (N-1 rule). Set by every deployment | AL, TT, ME |
 
 ---
 
