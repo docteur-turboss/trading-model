@@ -1117,8 +1117,13 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
   store real data in it ([SETUP.md](SETUP.md#local-development-setup),
   [DOCKER.md](DOCKER.md#docker-compose-services)).
 - **Business validation after a restore** is `scripts/verify-restore-k8s.sh`
-  (Recovery Verification); it has no source of expected row counts (the run
-  manifest holds none) and the audit anchors (ADR-0027) are not checked.
+  (Recovery Verification); it fails when a main table (`market_candles`,
+  `market_trades`, `market_tickers`, `signals`, `audit_events`, `dlq_entries`)
+  holds fewer rows than the run manifest counted at dump time (more is fine:
+  PITR replays later writes; `db-retention` purging since the dump can also
+  trip it). Manifests written before this have no counts (warning). The
+  counts are exact `COUNT(*)` taken just before the dump, not in its
+  transaction. The audit anchors (ADR-0027) are not checked.
 - Events stored before 2026-10-31 hold `correlationId: null` where their hash saw no field; the
   verifier drops that null (audit-logger never hashes one), so they verify too.
 
