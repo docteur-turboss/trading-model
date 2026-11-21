@@ -9,8 +9,8 @@ import {
 } from "@jest/globals";
 
 /**
- * Automatic replay of dead letters (DLQ_AUTO_RETRY_ENABLED, on in compose and
- * K8s since ADR-0029) against real MongoDB and Redis. Only the mTLS hop to
+ * Automatic replay of dead letters (DLQ_AUTO_RETRY_ENABLED, off by default, no
+ * profile sets it: ADR-0073) against real MongoDB and Redis. Only the mTLS hop to
  * message-manager is replaced: the E2E stack keeps auto-retry off, because its
  * suites replay by hand and would race it.
  */
