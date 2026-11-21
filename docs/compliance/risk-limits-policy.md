@@ -70,6 +70,7 @@ Closing positions is a separate, explicit operator action, never automatic: a fo
 | Reconciliation mismatch | Any position or open order difference with the broker, or a balance difference above 0.1 % of allocated capital (rounding and fees), found by a reconciliation run every 5 min, at startup and after any order in state `unknown` (ADR-0064 §4) | Global |
 | Reject rate | 5 broker rejections or errors within 10 min on one symbol engage that symbol; 10 within 10 min across symbols engage the global switch | Symbol, or global |
 | Unreadable switch state | The service cannot read its stored state: it counts as on (fail closed, ADR-0064 §5) | Global |
+| Missing switch state | No stored state at start (first install or lost volume): it counts as on until an operator re-arms (ADR-0064 §5) | Global |
 
 Below the stale data threshold, an intent decided on a price older than 1 min (value of this policy for the maximum age of ADR-0064 §7) is rejected without engaging the switch.
 

@@ -63,6 +63,7 @@ function build(
 ) {
 	const ledger = new MemoryStore<never>();
 	const store = new MemoryStore<RiskState>();
+	store.value = newState((over.limits ?? LIMITS).allocatedCapital, T0); // an installed service: a missing state engages the switch
 	const broker = over.broker ?? new PaperBroker(ledger, CAPITAL);
 	const events: string[] = [];
 	const svc = new RiskExecution({
@@ -622,6 +623,19 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		await expect(ctx.svc.rearm("global", "x", "owner")).rejects.toThrow(
 			/unreadable/
 		);
+	});
+
+	it("a missing state (install or lost volume) counts as on until an operator re-arms", async () => {
+		const ctx = build();
+		ctx.store.value = null;
+		await ctx.svc.start();
+		expect(ctx.svc.status().killSwitch.global).toBe("state_missing");
+		expect(ctx.events).toContain("kill_switch.engaged:state_missing");
+		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
+			reason: "kill_switch",
+		});
+		await ctx.svc.rearm("global", "fresh install checked", "ops");
+		expect((await ctx.svc.submitIntent(intent())).status).toBe("filled");
 	});
 
 	it("cancellation still works while the switch is on", async () => {

@@ -78,10 +78,10 @@ Every limit has a hard ceiling in code that configuration cannot raise, and a co
 | Aspect | Rule |
 | --- | --- |
 | Control | One switch that stops new orders and cancels open orders ([policy](../compliance/risk-limits-policy.md) §4.1). Closing positions is a separate, explicit operator action. |
-| Location | The Risk/Execution service owns its state, in its durable store: a restart keeps it on, and an unreadable state counts as on (fail closed). The decision consumer and the model cannot read or change it. Last resort outside the service: revoke the broker API key, or delete the service SPIRE entry so it loses its identity. |
+| Location | The Risk/Execution service owns its state, in its durable store: a restart keeps it on, and an unreadable state counts as on (fail closed). A missing state (first install or lost volume: the two cannot be told apart) counts as on too (`state_missing`, issue #1933), re-armed by an operator once checked, where an unreadable one cannot be re-armed; the state volume is backed up daily ([BACKUP_DR](../deployment/BACKUP_DR.md)). The decision consumer and the model cannot read or change it. Last resort outside the service: revoke the broker API key, or delete the service SPIRE entry so it loses its identity. |
 | Triggers | Operator (an authenticated admin route, actor recorded in the audit trail); automatic: loss limits and drawdown (values in the [policy](../compliance/risk-limits-policy.md)), reconciliation mismatch (section 4), stale data beyond the halt threshold and reject storm (section 7). Switching it off is always manual and recorded. |
 | Not | Not a feature flag of the gateway or of the model (ADR-0039 flags are read at startup and change behaviour, they do not stop a running order flow), not `FEATURE_RISK_ADJUSTED_FITNESS`. |
-| Proof | Specs: every trigger engages it; it survives a restart; an unreadable state rejects intents; cancellation still works. Drill (frequency set by the [policy](../compliance/risk-limits-policy.md)): engage it on paper while orders flow, measure the time to the last order sent, restart the pod, check it stays on. |
+| Proof | Specs: every trigger engages it; it survives a restart; an unreadable or missing state rejects intents, a restored backup keeps it on (`tests/k8s/run-kind.sh` restore drill); cancellation still works. Drill (frequency set by the [policy](../compliance/risk-limits-policy.md)): engage it on paper while orders flow, measure the time to the last order sent, restart the pod, check it stays on. |
 
 ### 6. Paper and live separation
 
