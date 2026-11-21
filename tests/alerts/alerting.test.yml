@@ -1769,7 +1769,7 @@ tests:
           - exp_labels: {severity: critical, master_name: mymaster}
             exp_annotations:
               summary: 'Redis Sentinel cannot fail over mymaster'
-              description: 'No sentinel can reach a quorum for mymaster (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and discovery, message-manager and dlq-service lose Redis.'
+              description: 'No sentinel can reach a quorum for mymaster (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and message-manager and dlq-service lose Redis.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redissentinelquorumlost'
 
   # Two exporters report the same members (deduplicated): member 1 is down,

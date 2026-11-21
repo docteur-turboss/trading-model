@@ -1,7 +1,7 @@
 {
   "name": "@trading-model/address-manager",
   "version": "1.3.2",
-  "description": "Address management and service discovery client",
+  "description": "DNS address resolution client",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
