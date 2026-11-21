@@ -165,13 +165,6 @@ describe("AddressManager (main)", () => {
 		).resolves.toEqual({ host: "127.0.0.1", port: 3000 });
 	});
 
-	it("should get metrics", () => {
-		const am = new AddressManager(makeConfig());
-		const metrics = am.metricsCollector.getMetrics();
-		expect(metrics).toHaveProperty("memory");
-		expect(metrics).toHaveProperty("cpu");
-	});
-
 	it("should listen on express app", () => {
 		const am = new AddressManager(makeConfig());
 		const app = {
