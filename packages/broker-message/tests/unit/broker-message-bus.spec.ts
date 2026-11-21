@@ -111,4 +111,22 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 
 		expect(received).toEqual([[payload, topic]]);
 	});
+
+	it("should not block intents() while Redis refuses the service's user", async () => {
+		const topic = "dlq.entry.added";
+		const journal = new RedisMessageJournal({ redis: REDIS, keyPrefix: "q" });
+		jest
+			.spyOn(journal, "register")
+			.mockRejectedValue(new Error("WRONGPASS invalid username-password pair"));
+		const bus = new BrokerMessage({
+			journal,
+			tlsPaths: {} as never,
+			instanceId: "i-1" as never,
+			addressManagerClient: {} as never,
+			serviceName: "model-evaluator" as never,
+		});
+		bus.on(topic as never, (() => undefined) as never);
+		await expect(bus.intents([topic] as never)).resolves.toBeUndefined();
+		await bus.stopMessageManager();
+	});
 });

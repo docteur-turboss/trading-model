@@ -136,7 +136,28 @@ export default class BrokerMessage {
 			onDeadLetter: (group, _message, reason, deadId) =>
 				this._publishDeadLetterEvent(group.topic, reason, deadId),
 		});
-		await this._consumer.start(topics);
+		void this._startConsumer(this._consumer, topics);
+	}
+
+	/**
+	 * Not awaited: until Redis knows this service's ACL user (a rollout applies Redis after the services),
+	 * the groups cannot be created, and the service must still start and serve its HTTP routes.
+	 */
+	private async _startConsumer(
+		consumer: BusConsumer,
+		topics: readonly string[]
+	): Promise<void> {
+		while (this._consumer === consumer) {
+			try {
+				await consumer.start(topics);
+				return;
+			} catch (err) {
+				getLogger().error("Bus consumer not started, retrying", {
+					context: { error: normalizeError(err).message },
+				});
+				await new Promise((resolve) => setTimeout(resolve, 5000).unref());
+			}
+		}
 	}
 
 	/** The audit trail records each dead letter (a dead DLQ event does not publish another: it would loop). */
