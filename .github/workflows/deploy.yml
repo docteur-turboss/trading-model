@@ -330,6 +330,22 @@ jobs:
           echo "$CLUSTER_KUBECONFIG_CONTENT" | base64 -d > "$RUNNER_TEMP/kube/cluster"
           echo "KUBECONFIG=$RUNNER_TEMP/kube/config" >> "$GITHUB_ENV"
           echo "CLUSTER_KUBECONFIG=$RUNNER_TEMP/kube/cluster" >> "$GITHUB_ENV"
+          # Token expiry (deploy-identity.sh: 168 h): fail with the date before any network call.
+          # token-expiry:begin
+          for v in APP CLUSTER; do
+            f=config; [ "$v" = CLUSTER ] && f=cluster
+            p="$(KUBECONFIG="$RUNNER_TEMP/kube/$f" kubectl config view --raw -o jsonpath='{.users[0].user.token}' | cut -d. -f2 | tr '_-' '/+')"
+            exp="$(printf '%s%s' "$p" "$(printf '%*s' $(((4 - ${#p} % 4) % 4)) '' | tr ' ' =)" | base64 -d 2>/dev/null | jq -r '.exp // empty' 2>/dev/null || true)"
+            [[ "$exp" =~ ^[0-9]+$ ]] || continue
+            at="$(date -u -d "@$exp" '+%Y-%m-%d %H:%M UTC')"
+            if [ "$exp" -le "$(date +%s)" ]; then
+              echo "::error::KUBECONFIG_${upper}_$v token expired on $at: regenerate with bash scripts/deploy-identity.sh ${v,,} (docs/deployment/DEPLOY.md)"
+              exit 1
+            elif [ "$exp" -le "$(( $(date +%s) + 86400 ))" ]; then
+              echo "::warning::KUBECONFIG_${upper}_$v token expires on $at: regenerate with bash scripts/deploy-identity.sh ${v,,}"
+            fi
+          done
+          # token-expiry:end
           export KUBECONFIG="$RUNNER_TEMP/kube/config"
           # cluster-info reads kube-system, which neither identity may.
           kubectl auth can-i get deployments -n "$NS"
