@@ -12,7 +12,7 @@ Imports use the subpath of the source file (`exports` maps `./*` to `dist/*.js`)
 
 | Import path | Exports | Purpose |
 |-------------|---------|---------|
-| `@trading-model/primitives/primitives` | `UserId`, `AuthToken`, `Role`, `Environment`, … (`X.of(value)` brands, some with a `toX` alias) | Branded string/number types so ids cannot be mixed |
+| `@trading-model/primitives/primitives` | `Subject`, `AuthToken`, `Role`, `Environment`, … (`X.of(value)` brands, some with a `toX` alias) | Branded string/number types so ids cannot be mixed |
 | `@trading-model/primitives/service-identity` | `ServiceIdentity`, `HostPort`, `ServiceEndpoint` | Who a service is and where it listens |
 | `@trading-model/primitives/service-instance-name` | `ServiceInstanceName`, `ALL_SERVICE_NAMES`, `parseServiceName`, `registerServiceName` | Canonical list of service names |
 | `@trading-model/primitives/numeric-range` | `NumericRange` | Min/max bounds (GA genes, parameters) |
@@ -23,10 +23,10 @@ Also present: `circuit-state`, `date-range`, `pagination`, `json-object`, `token
 ## Example
 
 ```typescript
-import { toUserId, type UserId } from "@trading-model/primitives/primitives";
+import { Subject } from "@trading-model/primitives/primitives";
 import { ALL_SERVICE_NAMES } from "@trading-model/primitives/service-instance-name";
 
-const id: UserId = toUserId("alice");
+const id: Subject = Subject.of("alice");
 ```
 
 ## See also
