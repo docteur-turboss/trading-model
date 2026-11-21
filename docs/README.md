@@ -49,7 +49,7 @@ There is no frontend for now: the admin SPA was removed until a new one is speci
 
 | Section | Description |
 | ------- | ----------- |
-| [Deployment](deployment/README.md) | Docker, K8s, CI/CD, backup, multi-region |
+| [Deployment](deployment/README.md) | Docker, K8s, CI/CD, backup |
 | [Operations](operations/README.md) | Runbooks, SLOs, incident response, on-call |
 | [Standards](standards/README.md) | Code style, commit conventions, testing, PRs, architecture |
 | [Troubleshooting](troubleshooting/README.md) | Common issues, diagnostics, recovery |
