@@ -42,7 +42,6 @@ function buildNet(
 		learningRate: (options.learningRate ?? 0) as never,
 		gradientClipNorm: options.gradientClipNorm ?? 0,
 		enablePool: false,
-		connectionType: options.connectionType,
 		rng: makePRNG(11),
 	});
 	return {
