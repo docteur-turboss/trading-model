@@ -1,33 +1,18 @@
-import {
-	createDefaultHandlers,
-	type DataHandler,
-} from "./data-handlers/data-handler";
+import type { CandleData } from "@trading-model/contracts/market-data.types";
+import { candleHandler } from "./data-handlers/candle-handler";
 import type { DataType } from "./data-handlers/data-types";
 import type { SymbolNormalizers, SymbolState } from "./market-data-types";
 
 export class NormalizationManager {
-	private readonly _handlerMap: Record<DataType, DataHandler>;
-	private readonly _handlers: DataHandler[];
-
-	constructor(handlers?: DataHandler[]) {
-		this._handlers = handlers ?? createDefaultHandlers();
-		this._handlerMap = Object.fromEntries(
-			this._handlers.map((handler) => [handler.dataType, handler])
-		) as Record<DataType, DataHandler>;
-	}
-
 	createNormStats(): SymbolNormalizers {
-		return Object.assign(
-			{},
-			...this._handlers.map((handler) => handler.createNorms())
-		) as SymbolNormalizers;
+		return candleHandler.createNorms() as SymbolNormalizers;
 	}
 
 	updateNorms(
-		dataType: DataType,
+		_dataType: DataType,
 		state: Pick<SymbolState, "norm">,
 		data: unknown
 	): void {
-		this._handlerMap[dataType]?.updateNorms(state, data);
+		candleHandler.updateNorms(state, data as CandleData);
 	}
 }

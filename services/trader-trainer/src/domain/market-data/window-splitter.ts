@@ -94,7 +94,12 @@ export class WindowSplitter {
 		for (const signal of signals) {
 			const key = signalKey(signal);
 			if (this.signalKeys.includes(key)) {
-				byKey.set(key, [...(byKey.get(key) ?? []), signal]);
+				const list = byKey.get(key);
+				if (list) {
+					list.push(signal);
+				} else {
+					byKey.set(key, [signal]);
+				}
 			}
 		}
 		this._signals.set(symbol, byKey);

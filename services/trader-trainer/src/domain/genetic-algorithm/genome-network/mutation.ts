@@ -191,7 +191,12 @@ export function mutateNetworkStructure(
 	);
 
 	_maybeResizeLayer(layers, mutationConfig.structural.addNeuronRate, 1, rng);
-	_maybeResizeLayer(layers, mutationConfig.structural.removeNeuronRate, -1, rng);
+	_maybeResizeLayer(
+		layers,
+		mutationConfig.structural.removeNeuronRate,
+		-1,
+		rng
+	);
 	_maybeAddLayer(layers, mutationConfig, rng);
 	_maybeRemoveLayer(layers, mutationConfig, rng);
 

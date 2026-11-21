@@ -866,8 +866,7 @@ describe("Trainer — model publication", () => {
 
 			it("publishes the rehydrated model once, only when the leader asks (issue #1739)", async () => {
 				const models = fakeStore();
-				models.latest.mockResolvedValue({ version: "v1" } as never);
-				models.manifest.mockResolvedValue((await storedManifest()) as never);
+				models.latest.mockResolvedValue((await storedManifest()) as never);
 				const publish = jest
 					.fn<(...args: any[]) => any>()
 					.mockResolvedValue(undefined);
@@ -894,8 +893,7 @@ describe("Trainer — model publication", () => {
 				const genome = await trainedGenome();
 				mockRunImpl = () => Promise.resolve(genome);
 				const models = fakeStore();
-				models.latest.mockResolvedValue({ version: "v1" } as never);
-				models.manifest.mockResolvedValue((await storedManifest()) as never);
+				models.latest.mockResolvedValue((await storedManifest()) as never);
 				const trainer = new Trainer(dataBuffer, {
 					settings: TEST_TRAINING_SETTINGS,
 					models,
@@ -920,8 +918,7 @@ describe("Trainer — model publication", () => {
 
 			it("skips a model published with another feature layout (ADR-0078)", async () => {
 				const models = fakeStore();
-				models.latest.mockResolvedValue({ version: "v1" } as never);
-				models.manifest.mockResolvedValue({
+				models.latest.mockResolvedValue({
 					...(await storedManifest()),
 					features: { dim: 33, fields: [] },
 				} as never);

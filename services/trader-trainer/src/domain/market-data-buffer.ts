@@ -94,7 +94,7 @@ export class MarketDataBuffer {
 	}
 
 	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
-		this._stateManager.restoreSymbolState(symbol, state);
+		this._stateManager.states.set(symbol, state);
 	}
 
 	getCandleCount(symbol: TradingSymbol): number {

@@ -94,7 +94,7 @@ class ApplicationContainer {
 		this.symbols = config.symbols;
 		const bufferConfig: MarketDataBufferConfig = {
 			maxSize: config.bufferSize,
-			maxMemoryBytes: (config.bufferMemoryLimitMb ?? 512) * 1024 * 1024,
+			maxMemoryBytes: 512 * 1024 * 1024,
 			evictionPolicy: EvictionPolicy.Lru,
 			signalKeys: config.signalKeys,
 			onDataAdded: (symbol, candleCount, symbolCount) => {

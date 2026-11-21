@@ -56,14 +56,14 @@ export class BackpropEngine {
 			const next = layers[layerIdx + 1];
 			const { derivative } = ACTIVATIONS[config.activationType[layerIdx]];
 			const output = context.layerOutputs[layerIdx];
-			const z = context.layerZValues[layerIdx];
+			const zs = context.layerZValues[layerIdx];
 			const delta = new Float32Array(layers[layerIdx].fanOut);
 			for (let i = 0; i < delta.length; i++) {
 				let sum = 0;
 				for (let j = 0; j < next.fanOut; j++) {
 					sum += nextDeltas[j] * next.weights[j * next.fanIn + i];
 				}
-				delta[i] = sum * derivative(output[i], z[i]);
+				delta[i] = sum * derivative(output[i], zs[i]);
 			}
 			nextDeltas = clipGradients(delta, config.gradientClipNorm);
 			deltas.unshift(nextDeltas);

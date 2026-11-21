@@ -4,7 +4,6 @@ import type {
 	SymbolState,
 	TradingSymbol,
 } from "../market-data-types";
-import { candleHandler } from "./candle-handler";
 import type { DataType } from "./data-types";
 
 interface MutateStateContext<TData = unknown> {
@@ -29,8 +28,4 @@ export interface DataHandler<TData = unknown> {
 	estimateMemoryBytes(state: SymbolState): number;
 	createState(): Partial<BaseSymbolState>;
 	createNorms(): Partial<SymbolNormalizers>;
-}
-
-export function createDefaultHandlers(): DataHandler[] {
-	return [candleHandler];
 }

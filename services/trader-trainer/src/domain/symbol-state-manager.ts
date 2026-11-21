@@ -1,8 +1,5 @@
+import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { candleHandler } from "./data-handlers/candle-handler";
-import {
-	createDefaultHandlers,
-	type DataHandler,
-} from "./data-handlers/data-handler";
 import { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
 import { MemoryManager } from "./market-data/memory-manager";
@@ -16,22 +13,16 @@ export class SymbolStateManager {
 	readonly states: Map<TradingSymbol, SymbolState> = new Map();
 	private readonly _memoryManager: MemoryManager;
 	private readonly _normManager: NormalizationManager;
-	private readonly _handlers: DataHandler[];
-	private readonly _handlerMap: Record<DataType, DataHandler>;
 	private readonly _evictionPolicy: EvictionPolicy;
 
-	constructor(config: SymbolStateManagerConfig, handlers?: DataHandler[]) {
+	constructor(config: SymbolStateManagerConfig) {
 		this._evictionPolicy = config.evictionPolicy;
 		this._memoryManager = new MemoryManager({
 			maxSize: config.maxSize,
 			maxMemoryBytes: config.maxMemoryBytes,
 			evictionPolicy: config.evictionPolicy,
 		});
-		this._normManager = new NormalizationManager(handlers);
-		this._handlers = handlers ?? createDefaultHandlers();
-		this._handlerMap = Object.fromEntries(
-			this._handlers.map((handler) => [handler.dataType, handler])
-		) as Record<DataType, DataHandler>;
+		this._normManager = new NormalizationManager();
 	}
 
 	getMaxSize(): number {
@@ -50,10 +41,7 @@ export class SymbolStateManager {
 
 	private _createSymbolState(): SymbolState {
 		return {
-			...Object.assign(
-				{},
-				...this._handlers.map((handler) => handler.createState())
-			),
+			...(candleHandler.createState() as Pick<SymbolState, "candles">),
 			norm: this._normManager.createNormStats(),
 		};
 	}
@@ -61,12 +49,16 @@ export class SymbolStateManager {
 	addData(dataType: DataType, symbol: TradingSymbol, data: unknown): void {
 		const maxSize = this._memoryManager.getMaxSize();
 		const state = this._getOrCreate(symbol);
-		const handler = this._handlerMap[dataType];
-		if (!handler) {
+		if (dataType !== DataType.Candle) {
 			return;
 		}
-		const isNew = handler.isNew?.(state, data) ?? true;
-		handler.mutateState({ symbol, data, state, maxSize });
+		const isNew = candleHandler.isNew?.(state, data as CandleData) ?? true;
+		candleHandler.mutateState({
+			symbol,
+			data: data as CandleData,
+			state,
+			maxSize,
+		});
 		if (isNew) {
 			this._normManager.updateNorms(dataType, state, data);
 		}
@@ -98,10 +90,7 @@ export class SymbolStateManager {
 		if (!state) {
 			return 0;
 		}
-		return this._handlers.reduce(
-			(total, handler) => total + handler.estimateMemoryBytes(state),
-			0
-		);
+		return candleHandler.estimateMemoryBytes(state);
 	}
 
 	getSymbols(): TradingSymbol[] {
@@ -111,12 +100,7 @@ export class SymbolStateManager {
 	/** Normalization statistics of a symbol, as every handler serializes them. */
 	serializeNorms(symbol: TradingSymbol): Record<string, unknown> {
 		const state = this.getSymbolState(symbol);
-		return state
-			? Object.assign(
-					{},
-					...this._handlers.map((handler) => handler.serializeNorms(state))
-				)
-			: {};
+		return state ? candleHandler.serializeNorms(state) : {};
 	}
 
 	getSymbolState(symbol: TradingSymbol): SymbolState | undefined {
@@ -125,10 +109,6 @@ export class SymbolStateManager {
 			return;
 		}
 		return { ...state };
-	}
-
-	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
-		this.states.set(symbol, state);
 	}
 
 	/** Replaces the candles and their statistics: the result depends on `candles` only. */
