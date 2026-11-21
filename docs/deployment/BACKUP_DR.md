@@ -5,7 +5,7 @@
 This document defines the backup strategy, disaster recovery procedures, and
 restore verification for the trading-model platform.
 
-> **Status (2026-10-28):** a backup counts only once it has been restored.
+> **Status:** a backup counts only once it has been restored.
 > Both sets of scripts are restored for real by CI:
 >
 > - Kubernetes: the CI `k8s` job (pull requests touching databases, backups or their services, and releases) backs up with the `db-backup`
@@ -22,8 +22,8 @@ restore verification for the trading-model platform.
 >   by audit-logger after the restore.
 > - Docker: `backup-test.yml` (weekly and on changes to the scripts) deletes
 >   the containers and their volumes and restores them with
->   `scripts/restore.sh` (`tests/backup/compose-restore-drill.sh`). Last run
->   passed on 2026-10-28.
+>   `scripts/restore.sh` (`tests/backup/compose-restore-drill.sh`). Results:
+>   the workflow runs ([Backup Verification](#backup-verification-cicd)).
 >
 > Known limits are listed at the end of this document.
 
@@ -571,7 +571,7 @@ and Prometheus scrapes them (job `backup-metrics`).
 | `BackupPitrGap`           | a binlog / oplog chain has a break after the newest daily dump: no `--until` past it, until the next daily dump (stays firing while the runs succeed again) |
 | `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
-| `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
+| `BackupOffsiteCopyFailed` | the off-site copy failed (`component="offsite"`, or `offsite-secondary` for the second bucket) or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
 | `RetentionFailed`         | the last `db-retention` run failed on a table ([Retention job](#retention-job); warning) |
 | `RetentionStale`          | no successful `db-retention` run for 36 h (daily job) |
 | `BackupVolumeFilling`     | the `backup-data` volume is more than 80 % full for 30 min (`backup_volume_used_ratio`, measured with `df` by both jobs; independent of kubelet volume metrics) |
@@ -854,19 +854,12 @@ operator key, or the escrow key from the safe if it is lost
 ([Key custody](ENCRYPTION_AT_REST.md#key-custody)).
 
 1. Provision replacement hosts and install Kubernetes. Restore the
-   SealedSecrets controller keys **before** the manifests are deployed:
-   without them no SealedSecret of `deploy/k8s/secrets/` decrypts in the new
-   cluster. `bash scripts/restore-sealed-secrets-key.sh --identity <key file>`
-   (newest `sealed-secrets-key_<TIMESTAMP>.yaml.age` of the off-site bucket,
-   same credentials as below, restored into the namespace `sealed-secrets`),
-   then install the controller (`bash scripts/install-sealed-secrets.sh`)
+   SealedSecrets controller keys **before** the manifests are deployed, or no
+   SealedSecret decrypts: `bash scripts/restore-sealed-secrets-key.sh --identity <key file>`,
+   then `bash scripts/install-sealed-secrets.sh`
    ([sealed-secrets.md](sealed-secrets.md#restore-the-controller-keys-in-a-new-cluster)).
-   Then deploy the manifests from git (`deploy.yml`), back up the keys of
-   the new cluster (`bash scripts/backup-sealed-secrets-key.sh`) and create
-   the identity of the daily key backup again
-   (`bash scripts/sealed-secrets-backup-identity.sh | gh secret set
-   SEALED_SECRETS_BACKUP_KUBECONFIG --env sealed-secrets-key-backup`): until
-   then `sealed-secrets-key-backup.yml` fails every day
+   Then deploy the manifests from git (`deploy.yml`) and re-arm the key backup
+   of the new cluster (step 9 of [Disaster Recovery Without a Second Region](#disaster-recovery-without-a-second-region))
 2. Fetch the newest complete run from the off-site bucket, still encrypted:
    `bash scripts/fetch-offsite.sh --dest ./restore` (credentials and options
    in [From the off-site bucket](#from-the-off-site-bucket)); it prints the
@@ -974,8 +967,11 @@ credentials of the cloud account (not the ones stored in the cluster);
 
 3. **Access to the buckets from the new region.** The off-site backup bucket
    and the audit anchor bucket are S3 or S3-compatible. Their data is only
-   reachable if the provider still serves them; the repository configures no
-   replica. If reachable:
+   reachable if the provider still serves them. The backup bucket has an
+   optional second copy at another provider (`BACKUP_S3_SECONDARY_*`, ADR-0033):
+   fetch from it by setting `BACKUP_S3_BUCKET` and the `AWS_*` / `RCLONE_S3_*`
+   variables of `scripts/fetch-offsite.sh` to its values. The anchor bucket has
+   no replica. If reachable:
    - keep the **same buckets**: Object Lock (compliance mode; 30-31 days
      default for backups, `AUDIT_RETENTION_DAYS` for anchors) and the
      credentials without delete right stay as they are
@@ -1076,19 +1072,10 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
 
 ## Known Limits
 
-- **SealedSecrets controller keys are backed up once a day** by
-  `sealed-secrets-key-backup.yml` (ADR-0035): a key created less than 24 h
-  before the loss of the cluster may be missing, unless an operator ran
-  `scripts/backup-sealed-secrets-key.sh` after the change
-  ([sealed-secrets.md](sealed-secrets.md#back-up-the-controller-keys)). The
-  workflow holds a production kubeconfig that can list every Secret of the
-  controller namespace (RBAC cannot filter by label). That namespace,
-  `sealed-secrets`, holds the controller keys and the identity's token only:
-  a leak of the kubeconfig exposes every SealedSecret of the repository, no
-  other cluster credential (response in
-  [sealed-secrets.md](sealed-secrets.md#daily-backup-by-github-actions)).
-  Deploying anything else in `sealed-secrets` widens that exposure. The
-  workflow needs the API server reachable from GitHub-hosted runners.
+- **SealedSecrets controller keys are backed up once a day** (ADR-0035): a key
+  created less than 24 h before the loss of the cluster may be missing unless
+  an operator backed it up after the change. Risks and the daily workflow:
+  [sealed-secrets.md](sealed-secrets.md#daily-backup-by-github-actions).
 - **A disabled schedule stops the key backup without any failed run.**
   GitHub disables the `schedule` trigger of a public repository after 60
   days without activity, and mails a failed scheduled run only to the last

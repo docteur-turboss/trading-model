@@ -77,9 +77,6 @@ const metadata = new HELPER.metadataBuilder('training.model.published', 'trainin
 | `setDelivery(context)`                     | Sets delivery mode (mode, ttl)                                                     |
 | `setIds({ causationId?, correlationId? })` | Sets correlation IDs                                                                                |
 | `toJSON()`                                 | Produces the `MessageMetadata` object. Throws `MetadataBuilderError` if required fields are missing |
-| ------------------------------------------ | ----------------------------------------------------------                                          |
-
-> **Note on required fields**: `topic`, `eventType`, and `publisher` are constructor arguments (`new HELPER.metadataBuilder(topic, eventType, publisher)`); `toJSON()` throws a `MetadataBuilderError` if a required field is missing. Previously, unset fields were tracked via the sentinel string `'null'`, which was indistinguishable from a legitimate value — this has been replaced with proper `undefined`-based tracking.
 
 ## Zod Schemas
 

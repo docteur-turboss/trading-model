@@ -1,6 +1,6 @@
 # Quick Start — Your First Trading Platform Interaction
 
-> **Goal:** Go from zero to market data flowing through the bus and viewing audit events in 10 minutes.
+> **Goal:** Go from zero to a running stack, the service registry, the scraper collecting market data and the audit events in 10 minutes.
 
 ## Prerequisites
 
@@ -93,7 +93,7 @@ export ADMIN_TOKEN="change-me-to-a-long-random-key"  # Use your .env value
 
 ```bash
 # Call a public route (via gateway proxy)
-curl -s http://localhost:8449/v1/trader-trainer/training-status \
+curl -s http://localhost:8449/v1/discovery-server/services \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
@@ -137,6 +137,6 @@ Market data is not in the audit trail (MySQL keeps it, ADR-0027). The trail hold
 | Understand the full architecture | `docs/standards/architecture-standards.md`                |
 | Train a trading agent            | `services/trader-trainer/README.md`             |
 | Debug a failed message           | `docs/operations/runbooks/runbook-message-bus-outage.md` |
-| Set up monitoring                | `docs/deployment/DOCKER.md#monitoring`          |
+| Set up monitoring                | `docs/operations/ALERTING.md`                   |
 | Deploy to Kubernetes             | `docs/deployment/KUBERNETES.md`                 |
 | Run the full test suite          | `bun run test`                         |

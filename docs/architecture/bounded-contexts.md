@@ -12,6 +12,7 @@ graph TD
     subgraph "Training Context"
         TT["trader-trainer"]
         TS["trading-agent (RL + NN)"]
+        ME["model-evaluator"]
     end
     subgraph "Messaging Context"
         BUS["bus library (Redis Streams)"]
@@ -29,12 +30,17 @@ graph TD
     subgraph "Gateway Context"
         GW["api-gateway"]
     end
+    subgraph "Execution Context"
+        RE["risk-execution"]
+    end
 
     TT -->|"AgentPayload (published)"| BUS
     BUS -->|"events"| AL
     AL -.->|"subscribe (audit, training, dlq topics)"| BUS
     BUS -->|"dead letters"| AL
     DS --> GW
+    RE -->|"risk.* events"| MM
+    RE -.->|"model admission"| TT
     GW --> DS
 ```
 
@@ -46,16 +52,16 @@ graph TD
 - **Core entities:** Candle, Trade, Ticker, OrderBook
 - **External dependency:** Binance API
 - **Publishes:** nothing since ADR-0078: the trainer reads candles through the scraper API.
-- **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; **no consumer yet** (trader-trainer and model-evaluator do not read them).
+- **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; read by trader-trainer, and fed to the network only when `FEATURE_SIGNAL_INPUTS` is on (default off, ADR-0081, input mask ADR-0082).
 
 ### 2. Training Context
 
 - **Owner:** `trader-trainer`
 - **Sub-contexts:** `genetic-algorithm` (population evolution), `neural-network` (agent learning)
 - **Core entities:** Genome, Agent, Wallet, Experience
-- **Consumes:** Market events from Market Data Context (not candles: it reads the stored candle window from `GET /candles/symbols/:symbol` at each session, ADR-0044)
-- **Publishes:** Agent payloads (best agent after each generation), `training.model.published` after each versioned artifact (ADR-0022)
-- **Consumers:** audit-logger (chain) and `model-evaluator`, the offline evaluation consumer (ADR-0049 option B): it is the only entry of `MODEL_DOWNLOAD_CALLERS`, verifies the weights against the manifest and records one evaluation per `(symbol, version)`; the replay on stored candles is not done yet. No decision, paper-trading or order consumer exists. The trainer does not read signals.
+- **Consumes:** no topic; reads the stored candle window from `GET /candles/symbols/:symbol` at each session (ADR-0078)
+- **Publishes:** `training.model.published` after each versioned artifact (ADR-0022)
+- **Consumers:** audit-logger (chain) and `model-evaluator`, the offline evaluation consumer (ADR-0049 option B): it is the only entry of `MODEL_DOWNLOAD_CALLERS`, verifies the weights against the manifest, replays the model on the stored candles of its manifest window (ADR-0079) and records one evaluation per `(symbol, version)`. No decision consumer exists yet.
 
 ### 3. Messaging Context
 
@@ -81,7 +87,7 @@ graph TD
 
 - **Owner:** `audit-logger`
 - **Core entities:** AuditEvent
-- **Consumes:** audit, training and dlq topics (market data is not chained)
+- **Consumes:** audit, training, dlq and risk topics (market data is not chained)
 - **Internal events:** `audit.heartbeat`, `audit.gap.detected`
 
 ### 7. Gateway Context
@@ -90,16 +96,20 @@ graph TD
 - **Core entities:** Route, CacheEntry
 - **Responsibilities:** Auth, rate limiting, caching, proxying
 
-### Not yet defined: downstream context
+### 8. Execution Context
 
-No Strategy or Execution context exists: the only consumer of trained models is the offline `model-evaluator` (no order flow), and collected signals have no consumer, so the trading decision is not part of the system yet. The contract and the decision (B now, paper trading C after ADR-0064, real capital out of scope) are in [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Accepted). A future Execution context, a Risk/Execution service separate from the model and from the decision consumer, must exist before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Accepted, option A, 2026-11-20). It has no code yet and no consumer.
+- **Owner:** `risk-execution` ([ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md)), separate from the model and from the decision consumer
+- **Core entities:** Intent, Order, Position, KillSwitch
+- **Responsibilities:** pre-trade checks, order lifecycle, kill switch, reconciliation; paper only (simulated broker, no live adapter)
+- **Consumes:** intents and prices over HTTP (`POST /intents`, `POST /prices`); no decision consumer sends them yet ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md))
+- **Publishes:** `risk.*` events (order transitions, kill switch), chained by audit-logger
 
 ## Integration Patterns
 
 | Relationship           | Pattern              | Implementation                        |
 | ---------------------- | -------------------- | ------------------------------------- |
-| Market Data → Training | Pub/Sub (async)      | Message Manager topics                |
-| Any → Audit            | Pub/Sub (async)      | Audit-logger subscribes to audit, training and dlq topics |
+| Market Data → Training | Request/Reply (sync) | Candle read route of financial-scraper (ADR-0078) |
+| Any → Audit            | Pub/Sub (async)      | Audit-logger subscribes to audit, training, dlq and risk topics |
 | Services → Discovery   | Request/Reply (sync) | HTTPS mTLS                            |
 | Services → Security    | Request/Reply (sync) | SPIFFE/SPIRE workload attestation + Workload API |
 | External → Platform    | Proxy (sync)         | API Gateway                           |

@@ -21,7 +21,7 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 
 ## Package Map Post-Split
 
-The monorepo has **12 shared packages** under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
+The monorepo has shared packages under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
 
 | # | Package | Role | Dependencies |
 |---|---------|------|--------------|
@@ -31,7 +31,7 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | 4 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE, TLS config, cache, sanitize, shared schemas | primitives, contracts |
 | 5 | `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator (ADR-0066); moved out of the trainer | primitives, contracts, common |
 | 6 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`) | common, primitives, contracts (+ ioredis, mongodb) |
-| 7 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline | primitives, contracts, common, reliability |
+| 7 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline, secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, reliability |
 | 8 | `@trading-model/validation` | Environment validation, Zod schemas, DTOs, shared type contracts | primitives, contracts, common, http |
 | 9 | `@trading-model/http` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
 | 10 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |

@@ -420,6 +420,21 @@ if binlog_chain "$WORK/catchup-fetched/mysql/binlog/uuid-9" binlog.000001 2026-1
 else
 	failed "the chains fetched back from off-site have a gap"
 fi
+# Second bucket (BACKUP_S3_SECONDARY_*): same files, same layout, own metric;
+# an unreachable one fails the run without touching the primary copy.
+SECOND=s3://backups/second
+BACKUP_DIR="$WORK/local/catchup"
+BACKUP_FAILURES=0
+BACKUP_S3_BUCKET="$CATCHUP" BACKUP_S3_SECONDARY_BUCKET="$SECOND" BACKUP_S3_SECONDARY_ENDPOINT="$RCLONE_S3_ENDPOINT" 	BACKUP_S3_SECONDARY_ACCESS_KEY_ID=test BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY=test-secret-key BACKUP_S3_SECONDARY_REGION=us-east-1 	upload_offsite >/dev/null 2>&1
+if [ "$BACKUP_FAILURES" -eq 0 ] &&
+	[ "$(cd "$WORK/s3/backups/second" && find . -type f | sort)" = "$(cd "$WORK/s3/backups/catchup" && find . -type f | sort)" ]; then
+	pass "second bucket receives the same files as the primary"
+else
+	failed "second bucket holds $(cd "$WORK/s3/backups/second" 2>/dev/null && find . -type f | sort)"
+fi
+BACKUP_FAILURES=0
+BACKUP_S3_BUCKET="$CATCHUP" BACKUP_S3_SECONDARY_BUCKET="$SECOND" BACKUP_S3_SECONDARY_ENDPOINT="http://127.0.0.1:1" 	RCLONE_LOW_LEVEL_RETRIES=1 RCLONE_RETRIES=1 RCLONE_CONTIMEOUT=2s upload_offsite >/dev/null 2>&1
+[ "$BACKUP_FAILURES" -gt 0 ] && pass "an unreachable second bucket counts as a failure" || failed "unreachable second bucket not reported"
 BACKUP_DIR="$WORK/local/archives"
 
 echo "refusals"

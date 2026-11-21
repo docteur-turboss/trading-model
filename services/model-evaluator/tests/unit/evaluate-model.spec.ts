@@ -102,6 +102,10 @@ describe("evaluate a published model", () => {
 
 		expect(ModelManifest.safeParse(base).success).toBe(true);
 		expect(ModelManifest.safeParse(withSignals).success).toBe(true);
+		const components = [
+			{ role: "trunk", id: "trunk:ab", version: "ab", sha256: "ab" },
+		];
+		expect(ModelManifest.safeParse({ ...base, components }).success).toBe(true);
 	});
 
 	it("records the model of a daily asset: replay with a one-day bar and its own costs", async () => {

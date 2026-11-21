@@ -78,15 +78,7 @@ bundle to create or mount.
 cp .env.example .env
 ```
 
-Before the first `docker compose up`, set these variables in `.env` and replace their example values with your own secrets (`openssl rand -hex 32`):
-
-- `MYSQL_ROOT_PASSWORD` — MySQL root password
-- `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
-- `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
-- `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated
-- `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
-
-The Compose stack runs with `NODE_ENV=production` by default and `docker-compose.yml` provides no usable value for these variables: without them the gateway and discovery-server refuse to start, and MySQL has no root password.
+Before the first `docker compose up`, replace every `change-me` / `changeme` value of `.env` with your own secret (`openssl rand -hex 32`): `.env.example` lists every required variable. The Compose stack runs with `NODE_ENV=production`, which refuses the example values of some secrets.
 
 Do not run this stack with real data. For a real deployment, use the [Kubernetes deployment guide](KUBERNETES.md) and set every secret before startup.
 

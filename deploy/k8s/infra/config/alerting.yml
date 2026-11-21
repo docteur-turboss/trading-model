@@ -227,13 +227,13 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
       - alert: BackupOffsiteCopyFailed
-        expr: backup_last_status{component="offsite"} == 0
+        expr: backup_last_status{component=~"offsite|offsite-secondary"} == 0
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: 'Off-site backup copy failed'
-          description: 'The encrypted backups were not copied off-site: check the S3 credentials (Secret trading-model-backup-s3 in K8s).'
+          summary: 'Off-site backup copy failed: {{ $labels.component }}'
+          description: 'The encrypted backups were not copied to the {{ $labels.component }} bucket: check the S3 credentials (Secret trading-model-backup-s3 in K8s).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
       - alert: BackupVolumeFilling

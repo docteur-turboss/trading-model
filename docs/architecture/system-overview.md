@@ -1,8 +1,8 @@
 # System Overview (C4)
 
-Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md) (broker), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
+Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md) (bus), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry, being retired by [ADR-0072](../adr/0072-dns-routing-and-majors-served-by-services.md)), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
 
-> **Offline consumer only.** Trained models (`training.model.published`, weights route open to `model-evaluator` alone through `MODEL_DOWNLOAD_CALLERS`) are verified and recorded by the offline `model-evaluator`; collected signals (`GET /financial-scraper/signals/assets/:assetId`) are only read and measured by trader-trainer for the symbols of `TRAINER_SYMBOL_ASSETS` (empty by default), not yet fed to the model. There is no paper-trading or execution context. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) (Accepted).
+> **Paper only, no decision consumer yet.** Trained models (`training.model.published`, weights route open to `model-evaluator` alone through `MODEL_DOWNLOAD_CALLERS`) are verified and replayed on stored candles by the offline `model-evaluator` ([ADR-0079](../adr/0079-replay-window-in-the-model-manifest.md)). Collected signals (`GET /financial-scraper/signals/assets/:assetId`) enter the network only when `FEATURE_SIGNAL_INPUTS` is on (default off, [ADR-0081](../adr/0081-signal-inputs-to-the-network.md), mask [ADR-0082](../adr/0082-input-mask-gene.md)). `risk-execution` owns every order, paper only (simulated broker, kill switch, [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md)): it takes intents and prices over HTTP (`POST /intents`, `POST /prices`), and no decision consumer sends them yet. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md).
 
 ## 1. C4 level 1 — Context
 
@@ -12,7 +12,7 @@ flowchart LR
   binance["Binance<br/>(market data REST)"]
   s3["S3 buckets, Object Lock<br/>(backups, audit anchors)"]
   ops["Operator<br/>(Grafana, Alertmanager receivers)"]
-  system["trading-model<br/>8 services + data stores + SPIRE + observability"]
+  system["trading-model<br/>services + data stores + SPIRE + observability"]
   client -->|HTTPS /v1| system
   system -->|scrape candles| binance
   system -->|age-encrypted backups, audit anchors| s3
@@ -126,4 +126,4 @@ The trainer subscribes to no topic: its candle window is read from financial-scr
 
 Each subscribed service gets one delivery per message, whatever its number of instances: its replicas share one consumer group, so one of them reads each entry ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md), after [ADR-0043](../adr/0043-message-delivery-once-per-subscribed-service.md)).
 
-Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed or deleted with the operator CLI `audit-dlq` (audit-logger `dlq-cli.js`); an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).
+Recoveries: dead letters can be replayed or deleted with the operator CLI `audit-dlq` (audit-logger `dlq-cli.js`); an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).

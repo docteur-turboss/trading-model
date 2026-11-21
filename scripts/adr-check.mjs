@@ -29,6 +29,8 @@
 
  * - every PascalCase `Name` cited in code in docs/architecture/*.md exists in
  *   services/ or packages/ (issue #498)
+ * - a docs/architecture/*.md page that cites a superseded ADR also cites one
+ *   of its successors (issue #1953; the ADRs themselves are not checked)
  *
  * A manual review older than MANUAL_REVIEW_MAX_AGE_DAYS is reported as a
  * warning, not a failure: the check must not break a build on a date.
@@ -243,6 +245,24 @@ function checkArchitectureSymbols() {
   }
 }
 
+/** Superseded ADRs a page cites without any of their successors; `successors` maps an ADR number to its successor numbers. */
+function staleCitations(text, successors) {
+  const cited = new Set([...text.matchAll(/ADR-(\d{4})/g)].map(([, n]) => n));
+  return [...cited].filter((n) => successors.get(n)?.length && !successors.get(n).some((s) => cited.has(s)));
+}
+assert.deepEqual(staleCitations('ADR-0048 ADR-0011', new Map([['0048', ['0073']]])), ['0048']);
+assert.deepEqual(staleCitations('ADR-0048, now ADR-0073', new Map([['0048', ['0073']]])), []);
+
+function checkArchitectureSupersededCitations(adrs) {
+  const successors = new Map([...adrs.values()].map((adr) => [adr.number, adr.supersededBy.map((link) => link.number)]));
+  const dir = join(ROOT, 'docs/architecture');
+  for (const page of readdirSync(dir).filter((f) => f.endsWith('.md'))) {
+    for (const n of staleCitations(readFileSync(join(dir, page), 'utf8'), successors)) {
+      errors.push(`docs/architecture/${page}: cites ADR-${n}, superseded by ADR-${successors.get(n).join('/ADR-')}, without its successor`);
+    }
+  }
+}
+
 const adrs = readAdrs();
 const scripts = packageScripts();
 const gates = gateSources();
@@ -254,6 +274,7 @@ for (const adr of adrs.values()) {
 checkIndex(adrs);
 checkMarkdownLinks();
 checkArchitectureSymbols();
+checkArchitectureSupersededCitations(adrs);
 
 for (const warning of warnings) console.warn(`  ! ${warning}`);
 if (errors.length > 0) {

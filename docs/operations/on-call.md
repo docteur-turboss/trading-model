@@ -38,6 +38,7 @@ from inside its own container, with its SVID.
 | financial-scraper | `/health`       | `trading-scraper`   |
 | trader-trainer    | `/ping`         | `trading-trainer`   |
 | model-evaluator   | `/ping`         | `trading-model-evaluator` |
+| risk-execution    | `/ping`         | `trading-risk-execution` |
 
 ```bash
 # Kubernetes (<service> and <route> from the table)

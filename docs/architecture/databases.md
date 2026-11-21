@@ -52,7 +52,7 @@ Inventory (issue #506). Address-manager caches in memory per process, so only th
 
 | Service | Key prefix | Commands | Purpose |
 | ------- | ---------- | -------- | ------- |
-| discovery-server | `trading-model:discovery:*` | `GET SET DEL MGET SADD SREM SMEMBERS SISMEMBER SCARD MULTI EVAL` | Instance registry and tokens (ADR-0023) |
+| discovery-server | `trading-model:discovery:*` | `GET SET DEL MGET SADD SREM SMEMBERS SISMEMBER SCARD MULTI EVAL` | Instance registry and tokens (ADR-0023; being retired by ADR-0072) |
 | audit-logger, trader-trainer, risk-execution, model-evaluator | per stream (Redis 7 selectors): `journal:<topic>` written (`XADD`, `XDEL`, `XGROUP`) only for the topics the service publishes, `journal:<topic>` read and acknowledged and `dead:<topic>` written only for the topics it subscribes to; `journal-groups` (`SADD`, `SMEMBERS`). Topic lists = `EVENT_PUBLISHERS` / `EVENT_SUBSCRIBERS` (`@trading-model/contracts/event-routes`), checked against `redis-ha.sh` by `bus-acl.spec.ts` | stream commands of those selectors only | Bus library: publish and consume in process (ADR-0073); users created when `REDIS_<SERVICE>_PASSWORD` is set |
 | redis_exporter sidecar (user `exporter`) | none | `PING INFO CLIENT SETNAME SLOWLOG GET/LEN LATENCY LATEST/HISTOGRAM`; on the sentinels `SENTINEL MASTERS/SENTINELS/SLAVES/REPLICAS/CKQUORUM` | Metrics (ADR-0056): never `CONFIG GET`, which would hand out `masterauth` |
 

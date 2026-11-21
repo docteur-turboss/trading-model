@@ -1230,6 +1230,25 @@ tests:
         alertname: BackupIncrementalMissing
         exp_alerts: []
 
+  # The copy to the second off-site bucket fails: BackupOffsiteCopyFailed fires
+  # for it, the primary copy stays quiet.
+  - name: a failed second off-site copy raises BackupOffsiteCopyFailed
+    interval: 1m
+    input_series:
+      - series: 'backup_last_status{job="backup-metrics",component="offsite"}'
+        values: '1x10'
+      - series: 'backup_last_status{job="backup-metrics",component="offsite-secondary"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: BackupOffsiteCopyFailed
+        exp_alerts:
+          - exp_labels: {severity: critical, job: backup-metrics, component: offsite-secondary}
+            exp_annotations:
+              summary: 'Off-site backup copy failed: offsite-secondary'
+              description: 'The encrypted backups were not copied to the offsite-secondary bucket: check the S3 credentials (Secret trading-model-backup-s3 in K8s).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
   # One run of the binlog archive fails (S3 down): warned after 5 m, resolved
   # by the next run (60m), which retries it. A failed off-site copy of the
   # incremental job is BackupOffsiteCopyFailed's, not this alert's.

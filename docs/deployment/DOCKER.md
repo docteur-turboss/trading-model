@@ -38,7 +38,7 @@ Services on `backend-net` can reach each other by Docker service name (e.g. `dis
 
 ## Multi-stage Dockerfile
 
-All 7 TypeScript services use the same 3-stage pattern, for example [`services/discovery-server/Dockerfile`](../../services/discovery-server/Dockerfile). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
+Every TypeScript service uses the same 3-stage pattern, for example [`services/discovery-server/Dockerfile`](../../services/discovery-server/Dockerfile). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
 
 | Stage     | Base image | Operations |
 | --------- | ---------- | ---------- |

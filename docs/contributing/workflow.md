@@ -37,7 +37,7 @@ The project is an bun workspaces monorepo:
 
 ```
 trading-model/
-├── packages/     # 12 shared libraries (@trading-model/*)
+├── packages/     # shared libraries (@trading-model/*)
 │   ├── primitives/           # Branded types, domain primitives (zero dependencies)
 │   ├── contracts/            # Shared contracts, http-status/headers, logger-registry
 │   ├── reliability/          # Circuit breakers, heartbeat, leader lease
