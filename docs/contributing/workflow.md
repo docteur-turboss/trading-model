@@ -40,7 +40,7 @@ trading-model/
 ├── packages/     # 12 shared libraries (@trading-model/*)
 │   ├── primitives/           # Branded types, domain primitives (zero dependencies)
 │   ├── contracts/            # Shared contracts, http-status/headers, logger-registry
-│   ├── reliability/          # Circuit breakers, latency tracker
+│   ├── reliability/          # Circuit breakers, heartbeat, leader lease
 │   ├── common/               # Residual config, cross-cutting utilities, shared schemas
 │   ├── persistence/          # Redis/Mongo stores
 │   ├── http/                 # Middleware, HTTP client, logger

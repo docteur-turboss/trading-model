@@ -326,7 +326,7 @@ describe("replay of a published model (ADR-0079 §3)", () => {
 			for (const candle of candles) {
 				buffer.addData(DataType.Candle, "BTCUSDT" as never, candle);
 			}
-			const test = (buffer.getAllWindows("BTCUSDT" as never) as any).test;
+			const test = buffer.getAllWindows("BTCUSDT" as never)![0].test!;
 			const genome = createDefaultGenome("g-1", 1 as PositiveInt, eventDriven);
 			// Weights the greedy policy trades with on these bars.
 			const weights = makeTradingAgentBackend(genome as never)
@@ -359,7 +359,7 @@ describe("replay of a published model (ADR-0079 §3)", () => {
 			const replayed = replayModel({
 				genome: JSON.parse(JSON.stringify(genome)),
 				weights,
-				testFrom: test[0].timestamp,
+				testFrom: test[0].timestamp!,
 				simulator: SIMULATOR_PARAMS,
 				candles,
 			});

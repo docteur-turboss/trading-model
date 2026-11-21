@@ -19,6 +19,7 @@
     "./message-types": "./dist/message-types.js",
     "./publish-timeout": "./dist/publish-timeout.js",
     "./signed-request": "./dist/signed-request.js",
+    "./risk-events": "./dist/risk-events.js",
     "./training-events": "./dist/training-events.js"
   },
   "dependencies": {
