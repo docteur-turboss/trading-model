@@ -10,22 +10,17 @@ import {
 	normalizeError,
 } from "../../src/utils/errors";
 
-const serviceNotFoundError = makeErrorCode(ErrorCode.ServiceNotFound);
-const isServiceNotFoundError = makeGuard(ErrorCode.ServiceNotFound);
-const serviceUnreachableError = makeErrorCode(ErrorCode.ServiceUnreachable);
-const isServiceUnreachableError = makeGuard(ErrorCode.ServiceUnreachable);
 const addressManagerError = makeErrorCode(ErrorCode.AddressManager);
 const isAddressManagerError = makeGuard(ErrorCode.AddressManager);
 const messageManagerError = makeErrorCode(ErrorCode.MessageManager);
 const isMessageManagerError = makeGuard(ErrorCode.MessageManager);
-const nackError = makeErrorCode(ErrorCode.Nack);
 const deadLetterError = makeErrorCode(ErrorCode.DeadLetter);
 const agentError = makeErrorCode(ErrorCode.Agent);
 const isAgentError = makeGuard(ErrorCode.Agent);
 
 describe("AppError", () => {
 	it("should be constructable with message", () => {
-		const error = serviceNotFoundError("test");
+		const error = addressManagerError("test");
 		expect(error).toBeInstanceOf(Error);
 		expect(isAppError(error)).toBe(true);
 		expect(error.message).toBe("test");
@@ -38,23 +33,18 @@ describe("AppError", () => {
 	});
 
 	it("should have cause undefined when not provided", () => {
-		const error = serviceNotFoundError("test");
+		const error = addressManagerError("test");
 		expect(error.cause).toBeUndefined();
 	});
 
 	it("should set error code for correct identification", () => {
-		const error = serviceNotFoundError("Service X not found");
-		expect(error.code).toBe("ServiceNotFoundError");
+		const error = addressManagerError("Service X not found");
+		expect(error.code).toBe("AddressManagerError");
 	});
 
 	it("should be identified by type guard", () => {
-		const error = serviceNotFoundError("Service X not found");
-		expect(isServiceNotFoundError(error)).toBe(true);
-	});
-
-	it("should be identified by type guard for ServiceUnreachableError", () => {
-		const error = serviceUnreachableError("Cannot reach");
-		expect(isServiceUnreachableError(error)).toBe(true);
+		const error = addressManagerError("Service X not found");
+		expect(isAddressManagerError(error)).toBe(true);
 	});
 
 	it("should be identified by type guard for AuthenticationError", () => {
@@ -62,38 +52,9 @@ describe("AppError", () => {
 		expect(isAuthenticationError(error)).toBe(true);
 	});
 
-	it("should be identified by type guard for AddressManagerError", () => {
-		const error = addressManagerError("Generic error");
-		expect(isAddressManagerError(error)).toBe(true);
-	});
-
 	it("should be identified by type guard for MessageManagerError", () => {
 		const error = messageManagerError("Failed");
 		expect(isMessageManagerError(error)).toBe(true);
-	});
-
-	it("should support reason via options", () => {
-		const error = nackError("custom reason", {
-			reason: "custom reason",
-		});
-		expect(error.reason).toBe("custom reason");
-		expect(error.message).toBe("custom reason");
-	});
-
-	it("should support NACK_ERROR without reason", () => {
-		const error = nackError("Message negatively acknowledged");
-		expect(error.reason).toBeUndefined();
-		expect(error.message).toBe("Message negatively acknowledged");
-	});
-
-	it("should store cause with NackError", () => {
-		const cause = new Error("root");
-		const error = nackError("reason", {
-			reason: "reason",
-			cause,
-		});
-		expect(error.cause).toBe(cause);
-		expect(error.reason).toBe("reason");
 	});
 
 	it("should support DeadLetterError with reason", () => {

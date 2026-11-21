@@ -8,7 +8,6 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
-import { buildSpiffeId } from "@trading-model/common/utils/spiffe";
 import { RISK_API } from "../../src/adapters/inbound/api-routes";
 import { createHandlers } from "../../src/adapters/inbound/handlers";
 import { JsonFile } from "../../src/adapters/outbound/json-file";
@@ -62,7 +61,9 @@ function boot(broker?: BrokerPort) {
 }
 
 const asCaller = (service: string) =>
-	({ clientIdentity: buildSpiffeId(service) }) as never;
+	({
+		clientIdentity: `spiffe://trading-model.local/ns/trading-model/sa/${service}`,
+	}) as never;
 
 beforeAll(async () => {
 	dir = await mkdtemp(join(tmpdir(), "risk-drill-"));
