@@ -494,14 +494,11 @@ describe("MarketDataBuffer", () => {
 			const big = new MarketDataBuffer({ maxSize: 200 });
 			feedCandles(big, "BTCUSDT", 130);
 
-			const result = big.getAllWindows(TradingSymbol.of("BTCUSDT")) as {
-				train: unknown[];
-				validation: unknown[];
-			} | null;
+			const result = big.getAllWindows(TradingSymbol.of("BTCUSDT"));
 
 			expect(result).not.toBeNull();
-			expect(result!.train.length).toBeGreaterThan(0);
-			expect(result!.validation.length).toBeGreaterThan(0);
+			expect(result![0].train.length).toBeGreaterThan(0);
+			expect(result![0].validation.length).toBeGreaterThan(0);
 		});
 
 		it("should return null for unknown symbol", () => {

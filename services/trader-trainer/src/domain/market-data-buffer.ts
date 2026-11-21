@@ -94,7 +94,7 @@ export class MarketDataBuffer {
 	}
 
 	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
-		this._stateManager.restoreSymbolState(symbol, state);
+		this._stateManager.states.set(symbol, state);
 	}
 
 	getCandleCount(symbol: TradingSymbol): number {
@@ -117,7 +117,7 @@ export class MarketDataBuffer {
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
 		walkForwardFolds = 1,
 		testSplit: number = DEFAULT_TEST_SPLIT
-	): WindowSet | WindowSet[] | null {
+	): WindowSet[] | null {
 		const ctx: MarketDataContext = { symbol };
 		return this._windowSplitter.getAllWindows(
 			ctx,

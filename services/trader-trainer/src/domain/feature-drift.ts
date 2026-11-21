@@ -1,5 +1,4 @@
 import { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
-import { DataType } from "./data-handlers/data-types";
 import type { BaseSymbolState } from "./market-data-types";
 import { NormalizationManager } from "./normalization-manager";
 
@@ -8,11 +7,6 @@ interface StoredStats {
 	mean: number;
 	m2: number;
 }
-
-/** Normalized fields read from the live buffer, by the data type that feeds them. */
-const LIVE_SOURCES: [DataType, keyof BaseSymbolState][] = [
-	[DataType.Candle, "candles"],
-];
 
 function isStoredStats(value: unknown): value is StoredStats {
 	const stats = value as StoredStats | null;
@@ -37,11 +31,9 @@ export function featureDriftScore(
 ): number | undefined {
 	const manager = new NormalizationManager();
 	const live = { norm: manager.createNormStats() };
-	for (const [dataType, key] of LIVE_SOURCES) {
-		for (const item of state[key]) {
-			if (item.timestamp >= since) {
-				manager.updateNorms(dataType, live, item);
-			}
+	for (const item of state.candles) {
+		if (item.timestamp >= since) {
+			manager.updateNorms(live, item);
 		}
 	}
 	let score: number | undefined;

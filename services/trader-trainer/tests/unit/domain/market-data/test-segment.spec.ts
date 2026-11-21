@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { WindowSet } from "../../../../src/domain/genetic-algorithm/generation-types";
 import type { MarketStep } from "../../../../src/domain/genetic-algorithm/genome-fitness";
 import type { MarketDataContext } from "../../../../src/domain/market-data/market-data-context";
 import {
@@ -26,11 +27,12 @@ const withSteps = (n: number) => {
 
 describe("train | validation | test split (issue #885)", () => {
 	it("cuts three disjoint segments in time order, an embargo between each", () => {
-		const ws = withSteps(200).getAllWindows(ctx, 0.15, 1, 0.15) as {
-			train: MarketStep[];
-			validation: MarketStep[];
-			test: MarketStep[];
-		};
+		const ws = withSteps(200).getAllWindows(
+			ctx,
+			0.15,
+			1,
+			0.15
+		)![0] as Required<WindowSet>;
 		expect(ws.test).toHaveLength(30 - EMBARGO_STEPS);
 		const all = [...ts(ws.train), ...ts(ws.validation), ...ts(ws.test)];
 		expect(all).toHaveLength(200 - 2 * EMBARGO_STEPS);
@@ -41,11 +43,12 @@ describe("train | validation | test split (issue #885)", () => {
 	});
 
 	it("never lets train or validation reach a test timestamp, in walk-forward too", () => {
-		const sets = withSteps(200).getAllWindows(ctx, 0.15, 4, 0.15) as {
-			train: MarketStep[];
-			validation: MarketStep[];
-			test: MarketStep[];
-		}[];
+		const sets = withSteps(200).getAllWindows(
+			ctx,
+			0.15,
+			4,
+			0.15
+		) as Required<WindowSet>[];
 		for (const ws of sets) {
 			const firstTest = Math.min(...ts(ws.test));
 			expect(Math.max(...ts(ws.train), ...ts(ws.validation))).toBeLessThan(
