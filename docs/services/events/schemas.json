@@ -146,6 +146,124 @@
 			"actor"
 		]
 	},
+	"risk.kill-switch.engaged": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"mode": {
+				"type": "string",
+				"enum": [
+					"paper",
+					"live"
+				]
+			},
+			"scope": {
+				"type": "string",
+				"enum": [
+					"global",
+					"symbol"
+				]
+			},
+			"symbol": {
+				"type": [
+					"string",
+					"null"
+				]
+			},
+			"reason": {
+				"type": "string",
+				"minLength": 1
+			},
+			"actor": {
+				"type": "string"
+			},
+			"error": {
+				"type": "string"
+			}
+		},
+		"required": [
+			"mode",
+			"scope",
+			"reason"
+		]
+	},
+	"risk.kill-switch.rearmed": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"mode": {
+				"type": "string",
+				"enum": [
+					"paper",
+					"live"
+				]
+			},
+			"scope": {
+				"type": "string",
+				"enum": [
+					"global",
+					"symbol"
+				]
+			},
+			"symbol": {
+				"type": [
+					"string",
+					"null"
+				]
+			},
+			"reason": {
+				"type": "string",
+				"minLength": 1
+			},
+			"actor": {
+				"type": "string",
+				"minLength": 1
+			}
+		},
+		"required": [
+			"mode",
+			"scope",
+			"reason",
+			"actor"
+		]
+	},
+	"risk.order.transitioned": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"mode": {
+				"type": "string",
+				"enum": [
+					"paper",
+					"live"
+				]
+			},
+			"clientOrderId": {
+				"type": "string",
+				"minLength": 1
+			},
+			"symbol": {
+				"type": "string",
+				"minLength": 1
+			},
+			"status": {
+				"type": "string",
+				"minLength": 1
+			},
+			"reason": {
+				"type": [
+					"string",
+					"null"
+				]
+			}
+		},
+		"required": [
+			"mode",
+			"clientOrderId",
+			"symbol",
+			"status"
+		]
+	},
 	"training.model.published": {
 		"$schema": "https://json-schema.org/draft/2020-12/schema",
 		"type": "object",

@@ -58,7 +58,7 @@ export function validateTrainingPrerequisites(
 			`Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
 		);
 	}
-	const windowSets: WindowSet[] = Array.isArray(result) ? result : [result];
+	const windowSets = result;
 	const hasInsufficientTrain = windowSets.some(
 		(ws) => ws.train.length < MIN_TRAINING_STEPS
 	);
