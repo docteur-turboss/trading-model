@@ -1,5 +1,4 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { logger } from "@trading-model/http/logger";
 import {
 	removeProcessHandlers,
@@ -9,7 +8,6 @@ import type { ShutdownHandlerDeps } from "./types";
 
 /** Stops the address manager on process signals, and removes its signal handlers when asked. */
 export class ShutdownHandler {
-	private readonly _metricsTimer = new TimerHandle();
 	private _signalHandlersRegistered = false;
 	private _unregistered = false;
 
@@ -27,7 +25,6 @@ export class ShutdownHandler {
 
 	async fullStop(): Promise<void> {
 		await this.leaveRegistry();
-		this._metricsTimer.stop();
 	}
 
 	private async _tryUnregisterService(): Promise<void> {
