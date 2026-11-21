@@ -42,6 +42,7 @@ function buildNet(
 		learningRate: (options.learningRate ?? 0) as never,
 		gradientClipNorm: options.gradientClipNorm ?? 0,
 		enablePool: false,
+		connectionType: options.connectionType,
 		rng: makePRNG(11),
 	});
 	return {
@@ -184,7 +185,14 @@ describe("BackpropEngine", () => {
 			name: string;
 			sizes: number[];
 			activations: ActivationType[];
+			connectionType?: ConnectionType;
 		}> = [
+			{
+				name: "2 → 2 sigmoid DenseSkip output",
+				sizes: [2, 2],
+				activations: [ActivationType.Sigmoid],
+				connectionType: ConnectionType.DenseSkip,
+			},
 			{
 				name: "2 → 2 → 1 sigmoid/linear",
 				sizes: [2, 2, 1],

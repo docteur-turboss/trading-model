@@ -137,22 +137,16 @@ describe("BrokerMessage", () => {
 	});
 
 	describe("on", () => {
-		it("should register an event listener and trigger on emit", () => {
+		it("should register an event listener that receives the payload and the metadata", async () => {
 			const listener = jest.fn<(...args: any[]) => any>();
+			const metadata = { topic: "training.model.published" };
 			broker.on("training.model.published" as never, listener);
-			(EVENT_MANAGER as any).emit("training.model.published", {
-				candle: [],
-			});
-			expect(listener).toHaveBeenCalledWith({ candle: [] });
-		});
-
-		it("should trigger listener when event is emitted", () => {
-			const listener = jest.fn<(...args: any[]) => any>();
-			broker.on("training.model.published" as never, listener);
-			(EVENT_MANAGER as any).emit("training.model.published", {
-				candle: [],
-			});
-			expect(listener).toHaveBeenCalledWith({ candle: [] });
+			await (EVENT_MANAGER as any).emit(
+				"training.model.published",
+				{ candle: [] },
+				metadata
+			);
+			expect(listener).toHaveBeenCalledWith({ candle: [] }, metadata);
 		});
 	});
 
