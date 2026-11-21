@@ -43,9 +43,9 @@ flowchart TB
   gw --> fs
   gw --> disc
   gw --> tt
-  fs -->|"publish candles"| mm
-  mm -->|"callback /message"| tt
-  mm -->|"callback /message (audit, training, dlq topics)"| al
+  tt -->|"GET /candles (ADR-0078)"| fs
+  tt -->|"training.model.published"| mm
+  mm -->|"callback /message (audit, training, dlq, risk topics)"| al
   mm -->|"training.model.published"| me
   me -->|"weights"| tt
   me -->|"candles for replay"| fs
@@ -140,4 +140,4 @@ The trainer subscribes to no topic: its candle window is read from financial-scr
 
 Each subscribed service gets one delivery per message, whatever its number of instances: one consumer group per subscriber service, every replica a consumer of it ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md)).
 
-Recoveries: persist-before-publish and the cursor make a bus outage lossless for candles; dead letters can be replayed or deleted with the operator CLI `audit-dlq` (audit-logger `dlq-cli.js`); an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).
+Recoveries: dead letters can be replayed or deleted with the operator CLI `audit-dlq` (audit-logger `dlq-cli.js`); an `exactly-once` message relies on audit-logger being idempotent on `messageId`. See [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md).

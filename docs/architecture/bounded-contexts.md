@@ -12,6 +12,7 @@ graph TD
     subgraph "Training Context"
         TT["trader-trainer"]
         TS["trading-agent (RL + NN)"]
+        ME["model-evaluator"]
     end
     subgraph "Messaging Context"
         MM["message-manager"]
@@ -35,9 +36,13 @@ graph TD
         RE["risk-execution"]
     end
 
-    TT -->|"AgentPayload (published)"| MM
+    TT -->|"training.model.published"| MM
+    TT -->|"GET /candles (ADR-0078)"| FS
+    MM -->|"training.model.published"| ME
+    ME -->|"weights"| TT
+    ME -->|"candles for replay"| FS
     MM -->|"events"| AL
-    AL -.->|"subscribe (audit, training, dlq topics)"| MM
+    AL -.->|"subscribe (audit, training, dlq, risk topics)"| MM
     MM -->|"dead letters"| DLQ
     DLQ -->|"replay"| MM
     DLQ -->|"dlq.* events"| MM
@@ -62,8 +67,8 @@ graph TD
 - **Owner:** `trader-trainer`
 - **Sub-contexts:** `genetic-algorithm` (population evolution), `neural-network` (agent learning)
 - **Core entities:** Genome, Agent, Wallet, Experience
-- **Consumes:** Market events from Market Data Context (not candles: it reads the stored candle window from `GET /candles/symbols/:symbol` at each session, ADR-0044)
-- **Publishes:** Agent payloads (best agent after each generation), `training.model.published` after each versioned artifact (ADR-0022)
+- **Consumes:** no topic; reads the stored candle window from `GET /candles/symbols/:symbol` at each session (ADR-0078)
+- **Publishes:** `training.model.published` after each versioned artifact (ADR-0022)
 - **Consumers:** audit-logger (chain) and `model-evaluator`, the offline evaluation consumer (ADR-0049 option B): it is the only entry of `MODEL_DOWNLOAD_CALLERS`, verifies the weights against the manifest, replays the model on the stored candles of its manifest window (ADR-0079) and records one evaluation per `(symbol, version)`. No decision consumer exists yet.
 
 ### 3. Messaging Context
