@@ -78,7 +78,7 @@ Shared packages (base → derived):
 ```
 @trading-model/primitives       (branded types, pagination, identities — zero deps)
 @trading-model/contracts        (events, market-data, http constants, LoggerPort registry) → primitives
-@trading-model/reliability      (circuit breaker, latency tracker, heartbeats) → primitives, contracts
+@trading-model/reliability      (circuit breaker, heartbeats, leader lease) → primitives, contracts
 @trading-model/model-runtime    (forward pass, features, agent, wallet simulator, replay) → primitives, contracts, common
 @trading-model/common           (residual config, utils, shared schemas, AppError) → primitives, contracts
 @trading-model/persistence      (Redis/Mongo connection managers, store adapters) → common, primitives, contracts

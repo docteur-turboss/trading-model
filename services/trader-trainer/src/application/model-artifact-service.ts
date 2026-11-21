@@ -66,9 +66,7 @@ export class ModelArtifactService {
 		}
 		for (const symbol of symbols) {
 			try {
-				const latest = await models.latest(String(symbol));
-				const manifest =
-					latest && (await models.manifest(String(symbol), latest.version));
+				const manifest = await models.latest(String(symbol));
 				if (!manifest) {
 					continue;
 				}

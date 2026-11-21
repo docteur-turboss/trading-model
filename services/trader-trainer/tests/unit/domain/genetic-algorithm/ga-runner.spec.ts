@@ -54,24 +54,6 @@ jest.mock("@trading-model/model-runtime/agent/state-manager", () => ({
 	default: jest.fn<(...args: any[]) => any>(),
 }));
 
-jest.mock("../../../../src/domain/neural-network/agent", () => ({
-	Agent: jest.fn<(...args: any[]) => any>().mockImplementation(() => ({
-		nn: {
-			forward: jest.fn((..._args: any[]) => ({
-				output: new Float32Array([0.5, 0.5, 0.5]),
-			})),
-			parameterCount: jest.fn((..._args: any[]) => 42),
-			getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
-			setWeights: jest.fn<(...args: any[]) => any>(),
-			distributeAroundWeights: jest.fn<(...args: any[]) => any>(),
-		},
-		experience: {
-			getPool: jest.fn((..._args: any[]) => []),
-			clearPool: jest.fn<(...args: any[]) => any>(),
-		},
-	})),
-}));
-
 jest.mock("../../../../src/domain/neural-network/neural-network", () => ({
 	NeuralNetwork: jest.fn<(...args: any[]) => any>(),
 }));

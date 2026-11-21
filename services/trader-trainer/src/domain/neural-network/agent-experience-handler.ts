@@ -62,10 +62,6 @@ export class AgentExperienceHandler {
 		this._pool.add(exp);
 	}
 
-	getPool(): Experience[] {
-		return this._pool.getPool();
-	}
-
 	clearPool(): void {
 		this._pool.clearPool();
 	}
