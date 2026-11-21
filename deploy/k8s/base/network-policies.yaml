@@ -18,9 +18,12 @@ spec:
           - api-gateway
           - audit-logger
           - discovery-server
+          # N-1 pods, kept one release (ADR-0040): removed in N+1.
+          - dlq-service
           - edge-proxy
           - financial-scraper
           - financial-scraper-collector
+          - message-manager
           - model-evaluator
           - mongodb-audit
           - risk-execution

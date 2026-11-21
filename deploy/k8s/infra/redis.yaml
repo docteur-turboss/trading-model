@@ -171,6 +171,19 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_DISCOVERY_PASSWORD
+            # Kept one release for the N-1 message-manager / dlq-service pods (ADR-0040); removed in N+1.
+            - name: REDIS_MESSAGE_MANAGER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_MESSAGE_MANAGER_PASSWORD
+                  optional: true
+            - name: REDIS_DLQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_DLQ_PASSWORD
+                  optional: true
             # Bus users (redis-ha.sh bus_user, ADR-0073): absent key = user not created.
             - name: REDIS_AUDIT_LOGGER_PASSWORD
               valueFrom:
@@ -600,6 +613,9 @@ spec:
                   - trader-trainer
                   - risk-execution
                   - model-evaluator
+                  # N-1 pods, kept one release (ADR-0040); removed in N+1.
+                  - message-manager
+                  - dlq-service
                   - redis
                   - redis-sentinel
                   - redis-cert-cache
