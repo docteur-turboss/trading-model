@@ -131,7 +131,6 @@ const ROUTE_PROVIDERS = [
 		mountedBy: /ADDRESS_MANAGER_ROUTES\(/,
 		files: [
 			"packages/address-manager/src/monitoring/metrics-collector.ts",
-			"packages/address-manager/src/routes/ping.routes.ts",
 			"packages/address-manager/src/routes/metrics.routes.ts",
 		],
 	},
