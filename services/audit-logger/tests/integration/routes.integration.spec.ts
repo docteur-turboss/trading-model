@@ -20,8 +20,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		TOKEN_REFRESH_INTERVAL_MS: 60000,
 		TTL_REFRESH_INTERVAL_MS: 15000,
 		ADDRESS_MANAGER_URL: "http://localhost:3000",
-		MESSAGE_BUS_INIT_TIMEOUT_MS: 5000,
-		MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: 5000,
 	},
 }));
 

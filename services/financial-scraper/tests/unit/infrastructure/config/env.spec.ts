@@ -24,8 +24,6 @@ describe("env", () => {
 		process.env.TOKEN_REFRESH_INTERVAL_MS = "60000";
 		process.env.TTL_REFRESH_INTERVAL_MS = "15000";
 		process.env.ADDRESS_MANAGER_URL = "https://address-manager.example.com";
-		process.env.MESSAGE_BUS_INIT_TIMEOUT_MS = "2000";
-		process.env.MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS = "2000";
 	};
 
 	it("should export env with default values when optional vars missing", () => {
