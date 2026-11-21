@@ -176,6 +176,25 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_DLQ_PASSWORD
+            # Bus users (redis-ha.sh bus_user, ADR-0073): absent key = user not created.
+            - name: REDIS_AUDIT_LOGGER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_AUDIT_LOGGER_PASSWORD
+                  optional: true
+            - name: REDIS_TRADER_TRAINER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_TRADER_TRAINER_PASSWORD
+                  optional: true
+            - name: REDIS_MODEL_EVALUATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_MODEL_EVALUATOR_PASSWORD
+                  optional: true
             # ACL user of the exporter sidecar (redis-ha.sh exporter_user).
             - name: REDIS_EXPORTER_PASSWORD
               valueFrom:

@@ -54,6 +54,9 @@ stringData:
   REDIS_INTERNAL_PASSWORD: dev-redis-internal-password
   REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
   REDIS_DLQ_PASSWORD: dev-redis-dlq-password
+  REDIS_AUDIT_LOGGER_PASSWORD: dev-redis-audit-logger-password
+  REDIS_TRADER_TRAINER_PASSWORD: dev-redis-trader-trainer-password
+  REDIS_MODEL_EVALUATOR_PASSWORD: dev-redis-model-evaluator-password
   REDIS_EXPORTER_PASSWORD: dev-redis-exporter-password
   MONGO_ROOT_PASSWORD: dev-mongo-root-password
   MONGO_EXPORTER_PASSWORD: dev-mongo-exporter-password

@@ -744,6 +744,7 @@ verify_network() {
 	verify_db_ingress
 	verify_mysql_tls
 	verify_redis_tls
+	verify_bus
 
 	log "external path: edge-proxy → api-gateway → trader-trainer"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -990,6 +991,21 @@ verify_redis_tls() {
 		fi
 	done
 	log "  REDIS_TLS_MODE=$mode, TLS session verified on the data node and the sentinel"
+}
+
+# Bus library (ADR-0073, issue #1835): model-evaluator reads its topic in process
+# (consumer model-evaluator-<uuid>, message-manager's are message-manager-<uuid>)
+# with its own ACL user, and the audit-dlq CLI reaches the dead streams.
+# The group is shared with message-manager's workers: wait until the trainer's
+# publications have given at least one entry to the BusConsumer, handled without error.
+verify_bus() {
+	local key=trading-model:message-manager:journal:training.model.published
+	local metrics="$K -n $NS exec deploy/model-evaluator -c model-evaluator -- curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/metrics"
+	log "bus: BusConsumer of model-evaluator, audit-dlq in audit-logger"
+	wait_for 120 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS $key model-evaluator' | grep -q '^model-evaluator-'"
+	wait_for 600 "$metrics | grep '^mm_messages_delivered_total{' | grep 'topic=\"training.model.published\"' | grep 'status=\"success\"' | awk '\$2 > 0' | grep -q ."
+	log "  $($metrics | grep '^mm_messages_delivered_total{.*training.model.published')"
+	$K -n "$NS" exec deploy/audit-logger -c audit-logger -- node services/audit-logger/dist/application/dlq-cli.js kind list training.model.published
 }
 
 # MySQL TLS (issue #767, ADR-0060), run from the tls-reload sidecar of mysql-0

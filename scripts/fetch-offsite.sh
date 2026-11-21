@@ -2,7 +2,7 @@
 # =============================================================================
 #  Trading Model — Fetch a backup run from the off-site bucket
 #  Usage:  bash scripts/fetch-offsite.sh --dest DIR [--timestamp TS] [--tier T] [--pitr] [--dry-run]
-#            [--components mongodb,mongodb-audit,mysql,checkpoints,spire]
+#            [--components mongodb,mongodb-audit,mysql,mysql-core,checkpoints,spire]
 #          BACKUP_S3_BUCKET=s3://bucket/prefix AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
 #          RCLONE_S3_ENDPOINT / RCLONE_S3_PROVIDER for a non-AWS store
 #
@@ -13,6 +13,8 @@
 #    mongodb/<TS>/<replica set>.archive.gz.age   (mongodb, mongodb-audit)
 #      component `mongodb`: both replica sets; `mongodb-audit`: the audit one
 #    mysql/financial_scraper_<TS>.sql.gz.age
+#    mysql-core/financial_scraper_<TS>.sql.gz.age (without the market tables
+#      of MYSQL_CORE_EXCLUDED_TABLES, backup-lib.sh)
 #    checkpoints/checkpoints_<TS>.tar.gz.age
 #    spire/data_<TS>.tar.age                     (SQLite datastore + CA keys, ADR-0065;
 #      spire/keys_<TS>.json.age in runs taken before it)
@@ -23,8 +25,8 @@
 #  `daily/`, `weekly/` and `monthly/`, each in the layout above. --tier picks
 #  one (default: daily when the bucket is tiered, else the bucket root, also
 #  reachable with --tier flat). weekly/ and monthly/ only hold the audit
-#  trail, the MySQL dump and the manifests: fetch them with
-#  --components mongodb-audit,mysql (mongodb-audit alone: the audit replica
+#  trail, the `mysql-core` dump and the manifests: fetch them with
+#  --components mongodb-audit,mysql-core (mongodb-audit alone: the audit replica
 #  set only, without the operational one, which is never promoted).
 #
 #  --pitr (point-in-time recovery, ADR-0031): the run must also hold its
@@ -101,6 +103,7 @@ component_files() {
       echo "mysql/financial_scraper_$2.sql.gz.age"
       ! $PITR || echo "mysql/financial_scraper_$2.pitr.age"
       ;;
+    mysql-core) echo "mysql-core/financial_scraper_$2.sql.gz.age" ;;
     checkpoints) echo "checkpoints/checkpoints_$2.tar.gz.age" ;;
     # data_ since ADR-0065 (datastore + CA keys), keys_ before it.
     spire)
@@ -148,7 +151,7 @@ manifest_file() {
 
 # Timestamps of the runs present in the listing on stdin, oldest first.
 run_timestamps() {
-  grep -oE "^(mongodb/${TS_PATTERN}/|mysql/financial_scraper_${TS_PATTERN}|checkpoints/checkpoints_${TS_PATTERN}|spire/(keys|data)_${TS_PATTERN}|manifests/manifest_${TS_PATTERN})" |
+  grep -oE "^(mongodb/${TS_PATTERN}/|mysql(-core)?/financial_scraper_${TS_PATTERN}|checkpoints/checkpoints_${TS_PATTERN}|spire/(keys|data)_${TS_PATTERN}|manifests/manifest_${TS_PATTERN})" |
     grep -oE "$TS_PATTERN" | sort -u
 }
 
@@ -181,7 +184,7 @@ PARTS=()
 IFS=',' read -ra REQUESTED <<<"$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
   case "$part" in
-    mongodb|mongodb-audit|mysql|checkpoints|spire) PARTS+=("$part") ;;
+    mongodb|mongodb-audit|mysql|mysql-core|checkpoints|spire) PARTS+=("$part") ;;
     redis) warn "Redis is not backed up: its content is rebuilt by the services" ;;
     *) fail "Unknown component: ${part}"; exit 1 ;;
   esac
@@ -280,7 +283,7 @@ fi
 if [ -z "$SELECTED" ]; then
   fail "No complete run (every dump and its run manifest) in ${BUCKET} for ${PARTS[*]}"
   case "$TIER" in
-    weekly|monthly) warn "The ${TIER} tier only holds the audit trail and the MySQL dump (no PITR starting point): try --components mongodb-audit,mysql without --pitr" ;;
+    weekly|monthly) warn "The ${TIER} tier only holds the audit trail and the mysql-core dump (no PITR starting point): try --components mongodb-audit,mysql-core without --pitr" ;;
   esac
   exit 1
 fi
