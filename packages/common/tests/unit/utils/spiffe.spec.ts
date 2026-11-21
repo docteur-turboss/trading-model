@@ -1,10 +1,13 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import {
-	buildSpiffeId,
-	extractCanonicalServiceName,
-	registryNamesFor,
-} from "../../../src/utils/spiffe";
+	DEFAULT_NAMESPACE,
+	TRUST_DOMAIN,
+} from "../../../src/config/workload-identity";
+import { extractCanonicalServiceName } from "../../../src/utils/spiffe";
+
+const buildSpiffeId = (name: string): string =>
+	`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/${name}`;
 
 describe("extractCanonicalServiceName", () => {
 	it("should extract service name from a foreign-trust-domain SPIFFE ID", () => {
@@ -53,21 +56,5 @@ describe("extractCanonicalServiceName", () => {
 
 	it("should return null for empty string", () => {
 		expect(extractCanonicalServiceName("")).toBeNull();
-	});
-});
-
-describe("registryNamesFor", () => {
-	it("lists the canonical name and its legacy registration aliases", () => {
-		expect(registryNamesFor("financial-scraper")).toEqual([
-			"financial-scraper",
-			"financial-scraper-service",
-		]);
-	});
-
-	it("maps a legacy name back to the same set", () => {
-		expect(registryNamesFor("financial-scraper-service")).toEqual([
-			"financial-scraper-service",
-			"financial-scraper",
-		]);
 	});
 });

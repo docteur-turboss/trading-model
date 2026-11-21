@@ -3,7 +3,7 @@ import { NormalisationType } from "./type";
 
 export type NormalizeParams = NumericRange;
 
-export interface DataSlice {
+interface DataSlice {
 	data: Float32Array;
 	len: number;
 }

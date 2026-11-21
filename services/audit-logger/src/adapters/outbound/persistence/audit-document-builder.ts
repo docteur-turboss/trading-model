@@ -6,9 +6,8 @@ import {
 	toServiceId,
 	toTopic,
 } from "@trading-model/primitives/primitives";
+import { MS_PER_DAY } from "../../../domain/audit-chain";
 import type { AuditEventDocument } from "./audit-repository";
-
-const MS_PER_DAY = 86_400_000;
 
 /** A message as the bus delivers it: only the topic is guaranteed. */
 export interface DeliveredEnvelope {

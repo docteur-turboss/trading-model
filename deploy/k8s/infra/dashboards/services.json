@@ -208,6 +208,28 @@
           "legendFormat": "{{source}}"
         }
       ]
+    },
+    {
+      "title": "Container CPU usage vs requests (cores)",
+      "description": "Kubernetes only (cAdvisor + kube-state-metrics); compose has neither.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 42 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "expr": "sum by (container) (rate(container_cpu_usage_seconds_total{container!=\"\"}[5m]))", "legendFormat": "{{container}} usage" },
+        { "expr": "sum by (container) (kube_pod_container_resource_requests{resource=\"cpu\"})", "legendFormat": "{{container}} request" }
+      ]
+    },
+    {
+      "title": "Container memory usage vs requests",
+      "description": "Kubernetes only (cAdvisor + kube-state-metrics); compose has neither.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 42 },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        { "expr": "sum by (container) (container_memory_working_set_bytes{container!=\"\"})", "legendFormat": "{{container}} usage" },
+        { "expr": "sum by (container) (kube_pod_container_resource_requests{resource=\"memory\"})", "legendFormat": "{{container}} request" }
+      ]
     }
   ],
   "tags": ["trading-model", "production"],

@@ -85,7 +85,7 @@ const SERVICE_TO_SERVICE = {
  */
 const CALLERS = {
 	"discovery-server POST /register": { caller: "packages/address-manager", call: /_url\("\/register"\)/ },
-	"discovery-server POST /heartbeat": { caller: "packages/address-manager", call: /\/heartbeat`/ },
+	"discovery-server POST /heartbeat": { caller: "packages/address-manager", call: /_url\("\/heartbeat"\)/ },
 	"discovery-server POST /token/rotate": { caller: "packages/address-manager", call: /\/token\/rotate`/ },
 	"discovery-server POST /unregister": { caller: "packages/address-manager", call: /_url\("\/unregister"\)/ },
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "services/model-evaluator", call: /\/weights`/ },
@@ -120,7 +120,6 @@ const ROUTE_PROVIDERS = [
 		mountedBy: /ADDRESS_MANAGER_ROUTES\(/,
 		files: [
 			"packages/address-manager/src/monitoring/metrics-collector.ts",
-			"packages/address-manager/src/routes/ping.routes.ts",
 			"packages/address-manager/src/routes/metrics.routes.ts",
 		],
 	},

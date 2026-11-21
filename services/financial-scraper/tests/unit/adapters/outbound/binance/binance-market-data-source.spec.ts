@@ -26,16 +26,47 @@ jest.mock(
 	})
 );
 
-jest.mock("../../../../../src/adapters/outbound/binance/normalizer", () => ({
-	BinanceNormalizer: {
-		orderBook: jest.fn<(...args: any[]) => any>(),
-		trades: jest.fn<(...args: any[]) => any>(),
-		candles: jest.fn<(...args: any[]) => any>(),
-		ticker24h: jest.fn<(...args: any[]) => any>(),
-		priceTicker: jest.fn<(...args: any[]) => any>(),
-		bookTicker: jest.fn<(...args: any[]) => any>(),
-	},
-}));
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/order-book",
+	() => ({
+		normalizeOrderBook: jest.fn<(...args: any[]) => any>(),
+	})
+);
+
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/trades",
+	() => ({
+		normalizeTrades: jest.fn<(...args: any[]) => any>(),
+	})
+);
+
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/candles",
+	() => ({
+		normalizeCandles: jest.fn<(...args: any[]) => any>(),
+	})
+);
+
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/ticker",
+	() => ({
+		normalizeTicker24h: jest.fn<(...args: any[]) => any>(),
+	})
+);
+
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/price-ticker",
+	() => ({
+		normalizePriceTicker: jest.fn<(...args: any[]) => any>(),
+	})
+);
+
+jest.mock(
+	"../../../../../src/adapters/outbound/binance/normalizers/book-ticker",
+	() => ({
+		normalizeBookTicker: jest.fn<(...args: any[]) => any>(),
+	})
+);
 
 jest.mock("@trading-model/http/logger", () => ({
 	logger: {
@@ -48,7 +79,12 @@ jest.mock("@trading-model/http/logger", () => ({
 
 import * as binanceClient from "../../../../../src/adapters/outbound/binance/binance.client";
 import { BinanceMarketDataSource } from "../../../../../src/adapters/outbound/binance/binance-market-data-source";
-import { BinanceNormalizer } from "../../../../../src/adapters/outbound/binance/normalizer";
+import { normalizeBookTicker } from "../../../../../src/adapters/outbound/binance/normalizers/book-ticker";
+import { normalizeCandles } from "../../../../../src/adapters/outbound/binance/normalizers/candles";
+import { normalizeOrderBook } from "../../../../../src/adapters/outbound/binance/normalizers/order-book";
+import { normalizePriceTicker } from "../../../../../src/adapters/outbound/binance/normalizers/price-ticker";
+import { normalizeTicker24h } from "../../../../../src/adapters/outbound/binance/normalizers/ticker";
+import { normalizeTrades } from "../../../../../src/adapters/outbound/binance/normalizers/trades";
 import { SNAPSHOT_PARTS_FAILED_TOTAL } from "../../../../../src/config/metrics";
 
 const BTC = toSymbol("BTCUSDT");
@@ -67,12 +103,12 @@ const MOCK_SYMBOL_PRICE_TICKER = jest.mocked(
 	binanceClient.getSymbolPriceTicker
 );
 
-const MOCK_NORMALIZER_ORDER_BOOK = jest.mocked(BinanceNormalizer.orderBook);
-const MOCK_NORMALIZER_TRADES = jest.mocked(BinanceNormalizer.trades);
-const MOCK_NORMALIZER_CANDLES = jest.mocked(BinanceNormalizer.candles);
-const MOCK_NORMALIZER_TICKER24H = jest.mocked(BinanceNormalizer.ticker24h);
-const MOCK_NORMALIZER_PRICE_TICKER = jest.mocked(BinanceNormalizer.priceTicker);
-const MOCK_NORMALIZER_BOOK_TICKER = jest.mocked(BinanceNormalizer.bookTicker);
+const MOCK_NORMALIZER_ORDER_BOOK = jest.mocked(normalizeOrderBook);
+const MOCK_NORMALIZER_TRADES = jest.mocked(normalizeTrades);
+const MOCK_NORMALIZER_CANDLES = jest.mocked(normalizeCandles);
+const MOCK_NORMALIZER_TICKER24H = jest.mocked(normalizeTicker24h);
+const MOCK_NORMALIZER_PRICE_TICKER = jest.mocked(normalizePriceTicker);
+const MOCK_NORMALIZER_BOOK_TICKER = jest.mocked(normalizeBookTicker);
 
 describe("BinanceMarketDataSource", () => {
 	const source = new BinanceMarketDataSource();

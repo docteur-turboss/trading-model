@@ -43,14 +43,14 @@ rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[
 (rate(mm_messages_delivered_total{status="success"}[5m]) + rate(mm_messages_dlq_total[5m]))`.
 - **Source:** the bus library of each subscriber service.
 
-### 6. Training Completion Rate
+### 5. Training Completion Rate
 
 - **Definition:** Proportion of training sessions that complete successfully.
-- **Measurement:** Prometheus `rate(tt_training_sessions_total{result="success"}[3h]) /
-rate(tt_training_sessions_total[3h])`.
+- **Measurement:** Prometheus `rate(tt_training_sessions_total{result="success"}[12h]) /
+rate(tt_training_sessions_total[12h])`.
 - **Source:** trader-trainer.
 
-### 7. Data Freshness
+### 6. Data Freshness
 
 - **Definition:** Age of the newest candle the trainer reads from financial-scraper.
 - **Measurement:** Prometheus `min(tt_last_candle_age_seconds)`, read at each session.
@@ -62,7 +62,7 @@ rate(tt_training_sessions_total[3h])`.
 | ------------------- | -------- | ------ | ------ |
 | Availability        | ≥ 99.9%  | 30d    | fast: 5xx > 1.44% over 1h and 5m (14.4x); slow: > 0.6% over 6h and 30m (6x) |
 | Latency P95         | ≤ 2s     | 30d    | fast: P95 > 5s over 5m; slow: P95 > 3s over 1h (single window) |
-| Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 3h; `TrainingCompletionRateCritical` (critical, pages): < 50% over 3h (no slow burn) |
+| Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 12h; `TrainingCompletionRateCritical` (critical, pages): < 50% over 12h (no slow burn) |
 | Data Freshness      | ≤ 15 min | 30d    | `MarketDataStale` / `TrainerMarketDataStale` |
 
 The Training SLO has no slow-burn alert: its

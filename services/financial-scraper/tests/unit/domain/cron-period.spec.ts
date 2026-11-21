@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import { cronMaxGapMs } from "../../../src/domain/cron-period";
+import { dailyRequests } from "../../../src/domain/signals";
 
 const DAY = 86_400_000;
 
@@ -33,5 +34,15 @@ describe("cronMaxGapMs", () => {
 		"1-5/0 * * * *",
 	])("cannot read %s", (expression) => {
 		expect(cronMaxGapMs(expression)).toBeUndefined();
+	});
+});
+
+describe("dailyRequests", () => {
+	it.each([
+		["5/10 * * * *", 144],
+		["*/5 * * * *", 288],
+		["0 0 9 * * *", 1],
+	])("counts %s like cron", (schedule, expected) => {
+		expect(dailyRequests({ schedule, requests: [{}] })).toBe(expected);
 	});
 });

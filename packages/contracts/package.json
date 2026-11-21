@@ -15,7 +15,6 @@
     "./http-status": "./dist/http-status.js",
     "./logger-registry": "./dist/logger-registry.js",
     "./market-data.types": "./dist/market-data.types.js",
-    "./market-events": "./dist/market-events.js",
     "./message-types": "./dist/message-types.js",
     "./service-registry-types": "./dist/service-registry-types.js",
     "./signed-request": "./dist/signed-request.js",

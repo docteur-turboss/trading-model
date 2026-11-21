@@ -49,7 +49,7 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | `event.types.ts` | **Deprecated** facade — re-exports per-context types from `@trading-model/contracts`. Import directly from `contracts` for new code (see [Event Types](#event-types)) |
 | `db-connection-config.ts` | `createDbConfigFromEnv()` — builds `DbConnectionConfig` from `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME` |
 | `tls-paths.ts` | `TlsPaths`, `TlsEnvVars`, `TlsConfig`, `TlsPemBundle`, Zod `TlsEnvVarsSchema`, and helpers (`buildTlsFromEnv`, `resolveSecureContextOptions`, …) |
-| `workload-identity.ts` | SPIFFE workload-identity primitives (ADR-0011): trust domain, SPIFFE ID scheme, canonical service identities, `parseSpiffeId`, `buildSpiffeId`, `extractServiceName` |
+| `workload-identity.ts` | SPIFFE workload-identity primitives (ADR-0011): trust domain, SPIFFE ID scheme, canonical service identities, `parseSpiffeId`, `extractServiceName` |
 
 > Note: `redis-config` was absorbed into `@trading-model/persistence` — it is **not** in `common`.
 
@@ -105,7 +105,7 @@ import { retry } from '@trading-model/common/utils/retry';
 ## Event Types
 
 Event types are owned by `@trading-model/contracts` (the former `@trading-model/common/config/event.types` facade was removed, see ADR-0015):
-- Market events & market data types: `@trading-model/contracts/market-events` + `@trading-model/contracts/market-data.types`
+- Market data types: `@trading-model/contracts/market-data.types`
 - Audit events: `@trading-model/contracts/audit-events`
 - Training events (and the canonical `Optimizer` enum): `@trading-model/contracts/training-events`
 
@@ -113,7 +113,7 @@ The combined helpers live in `@trading-model/contracts/event-map`:
 
 | Export | Description |
 | ------ | ----------- |
-| `EventMap` | Event → payload type mapping (MarketEventMap ∪ AuditEventMap ∪ TrainingEventMap) |
+| `EventMap` | Event → payload type mapping (AuditEventMap ∪ TrainingEventMap) |
 | `EventMessagesArgs<K>` | Payload type for a given event K |
 | `EventEnumMap` | Union of all valid event name strings |
 
@@ -126,7 +126,7 @@ The combined helpers live in `@trading-model/contracts/event-map`:
 
 - **Import**: `@trading-model/common/config/workload-identity` (or the `utils/spiffe` facade)
 
-Provides the platform's SPIFFE trust domain, ID scheme, canonical service identities (ADR-0011): `buildSpiffeId`, `parseSpiffeId`, `isSpiffeId`, `extractCanonicalServiceName`, `normalizeServiceName`, `PLATFORM_SERVICES`.
+Provides the platform's SPIFFE trust domain, ID scheme, canonical service identities (ADR-0011): `parseSpiffeId`, `isSpiffeId`, `extractCanonicalServiceName`, `normalizeServiceName`, `PLATFORM_SERVICES`.
 
 ## TLS Configuration
 

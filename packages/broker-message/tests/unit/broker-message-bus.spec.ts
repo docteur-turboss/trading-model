@@ -4,7 +4,7 @@ import BrokerMessage, { HELPER } from "../../src/broker-message";
 import { RedisMessageJournal } from "../../src/bus/redis-journal";
 import { StreamRedis } from "../fixtures/stream-redis";
 
-const TOPIC = "market.candlestick.series.fetch";
+const TOPIC = "training.model.published";
 const REDIS = new StreamRedis();
 
 function broker() {

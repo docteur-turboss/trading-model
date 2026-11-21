@@ -13,7 +13,7 @@ metadata:
   name: deploy-app
 rules:
   - apiGroups: [""]
-    resources: [configmaps, secrets, services, persistentvolumeclaims, serviceaccounts]
+    resources: [configmaps, secrets, services, persistentvolumeclaims, serviceaccounts, resourcequotas, limitranges]
     verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [""]
     resources: [pods/log]

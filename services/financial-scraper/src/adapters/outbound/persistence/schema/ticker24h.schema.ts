@@ -10,7 +10,7 @@ import type {
 	MarketDataPage,
 	TickerData,
 } from "../../../../domain/market-data.types";
-import { defineUpsert, type PageFilter, pagedQuery } from "./market-table";
+import { defineUpsert, pagedSelect } from "./market-table";
 
 const T_MARKET_TICKER = new (class TMarketTicker extends Table<
 	DBConnection,
@@ -81,24 +81,27 @@ export const insertTicker = defineUpsert<TickerData>({
 	],
 });
 
-function _selectPage(
-	filter: PageFilter<typeof T_MARKET_TICKER>,
-	page: MarketDataPage
-) {
-	return pagedQuery(T_MARKET_TICKER, filter, page)
-		.select(SELECT)
-		.orderBy("timestamp")
-		.orderBy("id")
-		.limit(page.limit)
-		.executeSelectMany();
-}
-
 /** Query helpers for the market_tickers table, indexed by symbol, timestamp, and source. */
 export const selectTickerBy = {
 	symbol: (symbol: TradingSymbol, page: MarketDataPage) =>
-		_selectPage(T_MARKET_TICKER.symbol.equals(symbol), page),
+		pagedSelect(
+			T_MARKET_TICKER,
+			SELECT,
+			T_MARKET_TICKER.symbol.equals(symbol),
+			page
+		),
 	timestamp: (timestamp: UnixTimestamp, page: MarketDataPage) =>
-		_selectPage(T_MARKET_TICKER.timestamp.equals(new Date(timestamp)), page),
+		pagedSelect(
+			T_MARKET_TICKER,
+			SELECT,
+			T_MARKET_TICKER.timestamp.equals(new Date(timestamp)),
+			page
+		),
 	source: (source: SourceType, page: MarketDataPage) =>
-		_selectPage(T_MARKET_TICKER.source.equals(source), page),
+		pagedSelect(
+			T_MARKET_TICKER,
+			SELECT,
+			T_MARKET_TICKER.source.equals(source),
+			page
+		),
 };

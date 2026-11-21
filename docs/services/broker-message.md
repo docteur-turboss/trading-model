@@ -67,24 +67,19 @@ Fluent builder for message metadata.
 ```ts
 import BrokerMessage, { HELPER } from '@trading-model/broker-message';
 
-const metadata = new HELPER.metadataBuilder()
-  .setTopic('market.trade.recent.fetch')
-  .setEventType('market.trade.recent.fetch')
+const metadata = new HELPER.metadataBuilder('training.model.published', 'training.model.published', publisher)
   .setDelivery({ mode: 'at-least-once' })
   .toJSON();
 ```
 
 | Method                                     | Description                                                                                         |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `setTopic(topic)`                          | Sets the topic (`bounded-context.aggregate.action` format)                                          |
-| `setEventType(event)`                      | Sets the event type                                                                                 |
 | `setDelivery(context)`                     | Sets delivery mode (mode, ttl)                                                     |
-| `setSecurity(context)`                     | Sets security context (authContext, signature)                                                      |
 | `setIds({ causationId?, correlationId? })` | Sets correlation IDs                                                                                |
 | `toJSON()`                                 | Produces the `MessageMetadata` object. Throws `MetadataBuilderError` if required fields are missing |
 | ------------------------------------------ | ----------------------------------------------------------                                          |
 
-> **Note on required fields**: `topic`, `eventType`, and `publisher` must be set before calling `toJSON()`, otherwise a `MetadataBuilderError` is thrown. Previously, unset fields were tracked via the sentinel string `'null'`, which was indistinguishable from a legitimate value — this has been replaced with proper `undefined`-based tracking.
+> **Note on required fields**: `topic`, `eventType`, and `publisher` are constructor arguments (`new HELPER.metadataBuilder(topic, eventType, publisher)`); `toJSON()` throws a `MetadataBuilderError` if a required field is missing. Previously, unset fields were tracked via the sentinel string `'null'`, which was indistinguishable from a legitimate value — this has been replaced with proper `undefined`-based tracking.
 
 ## Zod Schemas
 
@@ -154,14 +149,11 @@ const broker = new BrokerMessage({
   serviceName: 'audit-logger',
 });
 
-await broker.intents(['market.trade.recent.fetch'], async ({ metadata, payload }) => {
+await broker.intents(['training.model.published'], async ({ metadata, payload }) => {
   console.log(metadata.topic, payload);
 });
 
-const metadata = new HELPER.metadataBuilder()
-  .setTopic('market.trade.executed')
-  .setEventType('trade.executed')
-  .toJSON();
+const metadata = new HELPER.metadataBuilder('training.model.published', 'training.model.published', publisher).toJSON();
 
 await broker.post.indirect({ price: 50000 }, metadata);
 await broker.stopMessageManager();

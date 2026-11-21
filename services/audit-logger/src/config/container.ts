@@ -22,6 +22,7 @@ import { dropRetiredCollections } from "../adapters/outbound/persistence/retired
 import { ChainAudit } from "../application/audit-chain/chain-audit";
 import { ChainAuditScheduler } from "../application/audit-chain/chain-audit-scheduler";
 import { createServer } from "../application/server";
+import { MS_PER_DAY } from "../domain/audit-chain";
 import type { ChainAuditMetricsPort } from "../domain/ports/audit-chain.port";
 import { ENV } from "../infrastructure/config/env";
 import { createBrokerMessage } from "./broker-setup";
@@ -33,8 +34,6 @@ import {
 	CHAIN_LAST_VERIFICATION_TIMESTAMP,
 	CHAIN_VERIFIED_SEQUENCE,
 } from "./metrics";
-
-const MS_PER_DAY = 86_400_000;
 
 const CHAIN_METRICS: ChainAuditMetricsPort = {
 	verified(upTo, broken) {
@@ -116,14 +115,6 @@ export function chainAuditSettingsFromEnv(): ChainAuditSettings {
 	};
 }
 
-export function createAuditServer(
-	auditRepo: AuditRepository,
-	mongoManager: MongoConnectionManager,
-	isReady: () => boolean
-): ReturnType<typeof createServer> {
-	return createServer(auditRepo, mongoManager, isReady);
-}
-
 export async function createRepositories(
 	mongoUri: string,
 	auth?: { username: string; password: string }
@@ -169,6 +160,7 @@ export async function createAuditLoggerApp() {
 					auditRepo.ensureIndexes(),
 					dropRetiredCollections(db),
 				]);
+				auditRepo.warmStats();
 				repo = auditRepo;
 				return createChainAudit(db, chainAuditSettingsFromEnv());
 			} catch (err) {
@@ -202,7 +194,7 @@ export async function createAuditLoggerApp() {
 		},
 		DurationMs.of(ENV.AUDIT_CHAIN_INTERVAL_MS)
 	);
-	const server = await createAuditServer(
+	const server = await createServer(
 		lazyRepo,
 		mongoManager,
 		() => repo !== null

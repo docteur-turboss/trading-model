@@ -147,6 +147,28 @@ describe("Wallet module", () => {
 		});
 	});
 
+	describe("Costs paid", () => {
+		test("totals fees and execution cost of a buy and a sell, zero after reset", () => {
+			const wallet = createWallet({
+				initialCash: Cash.of(1000),
+				initialPrice: Price.of(100),
+				feeRate: Percentage.of(0.01),
+				executionCostRate: Percentage.of(0.005),
+			});
+			wallet.buy(Volume.of(1));
+			wallet.sell(Volume.of(1));
+			expect(wallet.getCostsPaid()).toEqual({
+				feesPaid: 2,
+				executionCostPaid: 1,
+			});
+			wallet.reset();
+			expect(wallet.getCostsPaid()).toEqual({
+				feesPaid: 0,
+				executionCostPaid: 0,
+			});
+		});
+	});
+
 	describe("Buying behavior", () => {
 		test("should buy successfully if enough cash", () => {
 			const wallet = createWallet({

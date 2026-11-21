@@ -123,32 +123,3 @@ describe("MongoConnectionManager", () => {
 		expect(db1).not.toBe(db2);
 	});
 });
-
-describe("MongoConnectionManager collection name", () => {
-	it("should expose the configured collectionName to subclasses", () => {
-		class TestStore extends MongoConnectionManager {
-			collection(): string | undefined {
-				return this.collectionName;
-			}
-		}
-		const mgr = new TestStore({
-			uri: URLString.of("mongodb://localhost:27017"),
-			dbName: "test",
-			collectionName: "audit_entries",
-		});
-		expect(mgr.collection()).toBe("audit_entries");
-	});
-
-	it("should expose an undefined collectionName when not configured", () => {
-		class TestStore extends MongoConnectionManager {
-			collection(): string | undefined {
-				return this.collectionName;
-			}
-		}
-		const mgr = new TestStore({
-			uri: URLString.of("mongodb://localhost:27017"),
-			dbName: "test",
-		});
-		expect(mgr.collection()).toBeUndefined();
-	});
-});

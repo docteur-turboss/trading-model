@@ -17,7 +17,6 @@ import {
 	EVENT_TYPE_METADATA_PREDICATE,
 	IDS_METADATA_PREDICATE,
 	PUBLISHER_METADATA_CONTEXT_PREDICATE,
-	SECURITY_METADATA_CONTEXT_PREDICATE,
 	TOPIC_METADATA_PREDICATE,
 } from "../shared/barrel/message.schema";
 
@@ -60,35 +59,11 @@ export class MessageMetadataBuilder {
 		this.setIds(data);
 	}
 
-	public get causationId(): CorrelationId | undefined {
-		return this._ids?.causationId;
-	}
-	public get correlationId(): CorrelationId | undefined {
-		return this._ids?.correlationId;
-	}
-
-	public setSecurity(context: SecurityType | null): this {
-		if (context !== null) {
-			SECURITY_METADATA_CONTEXT_PREDICATE.parse(context);
-		}
-		this._security = context ?? undefined;
-		return this;
-	}
 	public setDelivery(context: DeliveryType | null): this {
 		if (context !== null) {
 			DELIVERY_METADATA_MODE_PREDICATE.parse(context);
 		}
 		this._delivery = context ?? undefined;
-		return this;
-	}
-	public setEventType(event: EventEnumMap): this {
-		EVENT_TYPE_METADATA_PREDICATE.parse(event);
-		this.eventType = event;
-		return this;
-	}
-	public setTopic(topic: Topic): this {
-		TOPIC_METADATA_PREDICATE.parse(topic);
-		this.topic = toTopic(topic);
 		return this;
 	}
 	/** Replaces both ids; `null` clears them, an object with neither id keeps them. */
