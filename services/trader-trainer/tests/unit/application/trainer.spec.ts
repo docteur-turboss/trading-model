@@ -778,8 +778,8 @@ describe("Trainer — model publication", () => {
 			await trainer.train(symbol);
 
 			const candles = dataBuffer.getSymbolState(symbol)?.candles ?? [];
-			const windows = dataBuffer.getAllWindows(symbol) as any;
-			const test = (Array.isArray(windows) ? windows.at(-1) : windows).test;
+			const windows = dataBuffer.getAllWindows(symbol)!;
+			const test = windows.at(-1)!.test!;
 			const { window } = models.save.mock.calls[0][0];
 			expect(window).toEqual({
 				from: candles[0].timestamp,

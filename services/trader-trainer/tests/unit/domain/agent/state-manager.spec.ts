@@ -6,16 +6,18 @@ import {
 	NormalisationType,
 } from "@trading-model/model-runtime/neural-network/type";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { Agent } from "../../../../src/domain/neural-network/agent";
+import { NeuralNetwork } from "../../../../src/domain/neural-network/neural-network";
 
-function makeAgent(): Agent {
-	return new Agent({
-		neuronsByLayer: [4 as PositiveInt, 6 as PositiveInt, 3 as PositiveInt],
-		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
-		normalisationType: NormalisationType.None,
-		connectionType: ConnectionType.FullyConnected,
-		enablePool: false,
-	});
+function makeAgent(): { nn: NeuralNetwork } {
+	return {
+		nn: new NeuralNetwork({
+			neuronsByLayer: [4 as PositiveInt, 6 as PositiveInt, 3 as PositiveInt],
+			activationType: [ActivationType.Relu, ActivationType.Sigmoid],
+			normalisationType: NormalisationType.None,
+			connectionType: ConnectionType.FullyConnected,
+			enablePool: false,
+		}),
+	};
 }
 
 describe("StateManager", () => {

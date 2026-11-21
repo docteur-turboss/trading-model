@@ -86,11 +86,11 @@ export const TRAINER_ROUTES = (
 			if (!snapshot) {
 				return notFound(`No trained agent for symbol ${symbol}.`);
 			}
-			const latest = await models.latest(String(symbol));
 			const agent = snapshot.buildBestAgentSummary();
 			if (!agent) {
 				return notFound("No trained agent available at the moment.");
 			}
+			const latest = await models.latest(String(symbol));
 			return ok({
 				symbol,
 				agent,

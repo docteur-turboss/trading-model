@@ -52,15 +52,16 @@ export class SymbolStateManager {
 		if (dataType !== DataType.Candle) {
 			return;
 		}
-		const isNew = candleHandler.isNew?.(state, data as CandleData) ?? true;
+		const candle = data as CandleData;
+		const isNew = candleHandler.isNew?.(state, candle) ?? true;
 		candleHandler.mutateState({
 			symbol,
-			data: data as CandleData,
+			data: candle,
 			state,
 			maxSize,
 		});
 		if (isNew) {
-			this._normManager.updateNorms(dataType, state, data);
+			this._normManager.updateNorms(state, candle);
 		}
 		this._evictIfNeeded();
 	}
