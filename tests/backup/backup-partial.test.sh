@@ -90,13 +90,14 @@ open_backup "$manifest" | node -e 'JSON.parse(require("fs").readFileSync(0, "utf
 	pass "the manifest is valid JSON" || failed "the manifest is not valid JSON"
 
 echo "row counts ride on the entry and old entries without rows stay readable"
-new_run 2026-11-01_030000
+new_run 2026-10-31_030000
 DUMP_ROWS='{"financial_scraper.signals":7}' write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_${TIMESTAMP}.sql.gz.age" dump_ok 2>/dev/null
 write_manifest 2>/dev/null
 open_backup "$BACKUP_DIR/manifests/manifest_${TIMESTAMP}.json.age" | grep -q '"rows":{"financial_scraper.signals":7}}' &&
 	pass "entry carries rows" || failed "no rows in the manifest"
 manifest_entry "$BACKUP_DIR/manifests/manifest_${TIMESTAMP}.json.age" mysql | grep -q "^mysql/financial_scraper_${TIMESTAMP}" &&
 	pass "entry with rows is still read" || failed "entry with rows refused"
+rm -f "$BACKUP_DIR/manifests/manifest_${TIMESTAMP}.json.age" "$BACKUP_DIR/mysql/financial_scraper_${TIMESTAMP}.sql.gz.age" # later cases read the newest runs
 
 echo "latest = the newest run whose manifest lists the component"
 # Run 2026-11-02: MySQL failed, SPIRE succeeded. A truncated dump of that run,
