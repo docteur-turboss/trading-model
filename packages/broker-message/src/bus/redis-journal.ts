@@ -89,9 +89,6 @@ export function openJournalWriter(
 		});
 	});
 }
-/** Approximate cap of a journal stream, applied every `CAP_EVERY` appends: bounds a burst the 24 h `MINID` would keep. Unmeasured: 100 000 × ~1 KB ≈ 100 MB per stream, against 512 Mi of Redis. */
-const JOURNAL_MAX_LENGTH = 100_000;
-const CAP_EVERY = 100;
 const FIELD = "message";
 const ONLY_FIELD = "only";
 
@@ -120,7 +117,6 @@ export class RedisMessageJournal implements MessageJournalPort {
 	>();
 	private readonly _readers = new Map<string, BlockingBusRedis>();
 	private _writer: Promise<BlockingBusRedis> | undefined;
-	private readonly _appends = new Map<string, number>();
 
 	constructor(private readonly _deps: RedisMessageJournalDeps) {
 		this._now = _deps.now ?? Date.now;
@@ -168,16 +164,12 @@ export class RedisMessageJournal implements MessageJournalPort {
 		await Promise.all(
 			services.map((service) => this._register(writer, { topic, service }))
 		);
-		// XADD takes MINID or MAXLEN, not both: the 24 h rule by default, the length cap every CAP_EVERY appends of the topic.
-		const count = (this._appends.get(topic) ?? 0) + 1;
-		this._appends.set(topic, count);
-		const capped = count % CAP_EVERY === 0;
 		const entryId = (await writer.call(
 			"XADD",
 			this.stream(topic),
-			...(capped
-				? ["MAXLEN", "~", String(JOURNAL_MAX_LENGTH)]
-				: ["MINID", "~", String(now - JOURNAL_RETENTION_MS)]),
+			"MINID",
+			"~",
+			String(now - JOURNAL_RETENTION_MS),
 			"*",
 			FIELD,
 			JSON.stringify(message),
