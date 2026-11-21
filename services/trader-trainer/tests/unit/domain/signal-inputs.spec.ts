@@ -96,7 +96,7 @@ describe("signal inputs (ADR-0081)", () => {
 			{ mean: number; std: number }
 		>;
 
-		expect(Array.isArray(set)).toBe(false);
+		expect(set).toHaveLength(1);
 		expect(norms[KEY]).toEqual({ mean: 10, std: 1 });
 	});
 

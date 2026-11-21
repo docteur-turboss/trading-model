@@ -94,7 +94,12 @@ export class WindowSplitter {
 		for (const signal of signals) {
 			const key = signalKey(signal);
 			if (this.signalKeys.includes(key)) {
-				byKey.set(key, [...(byKey.get(key) ?? []), signal]);
+				const list = byKey.get(key);
+				if (list) {
+					list.push(signal);
+				} else {
+					byKey.set(key, [signal]);
+				}
 			}
 		}
 		this._signals.set(symbol, byKey);
@@ -197,7 +202,7 @@ export class WindowSplitter {
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
 		walkForwardFolds: number = DEFAULT_WALK_FORWARD_FOLDS,
 		testSplit: number = DEFAULT_TEST_SPLIT
-	): WindowSet | WindowSet[] | null {
+	): WindowSet[] | null {
 		const all = this.buildMarketSteps(ctx);
 		// The newest steps are cut off first: train and validation never see them.
 		const testStart = Math.floor(all.length * (1 - testSplit));
@@ -213,10 +218,9 @@ export class WindowSplitter {
 						test,
 					}))
 				: [{ ...this.splitTrainValidation(steps, validationSplit), test }];
-		const windows = this.signalKeys.length
+		return this.signalKeys.length
 			? sets.map((set) => this._normalizeSignals(ctx.symbol, set))
 			: sets;
-		return walkForwardFolds >= 2 ? windows : windows[0];
 	}
 
 	/** Statistics from the training steps alone: validation and test never shape them. */
