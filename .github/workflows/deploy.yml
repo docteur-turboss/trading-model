@@ -110,6 +110,7 @@ jobs:
   # (fine-grained PAT, repository permission "Administration: read") is required.
   check-environment:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       # Reads the production-ready objective issue (label objectif).
@@ -195,6 +196,8 @@ jobs:
     # (docs/deployment/STAGING_LOCAL.md). Production always runs on GitHub.
     runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-latest' }}
     environment: ${{ inputs.environment }}
+    # Worst case ~60 min fixed (verify window 10, canary, migrations, rollback) + 30 min per DEPLOY_TIMEOUT_FACTOR (rollouts, API wait 5 min, rollback): 90 min at 1, 180 at 4. A timeout cancels the job; "Rollback on failure" runs on cancelled().
+    timeout-minutes: ${{ 60 + 30 * fromJSON(vars.DEPLOY_TIMEOUT_FACTOR || '1') }}
     env:
       # DEPLOY_TIMEOUT_FACTOR (variable of the GitHub environment): integer the
       # MySQL, migration and rollout timeouts are multiplied by, for a slow
