@@ -54,7 +54,6 @@ constructor({
 | `intents(topics)`      | Subscribes to a list of topics (`EventEnumMap[]`)    |
 | `stopMessageManager()` | Unsubscribes from all topics and cleans up listeners |
 | `on(event, listener)`  | Registers a listener for a broker event              |
-| `listenExpress(app)`   | Mounts the POST callback route on the Express app    |
 
 ### Publishing
 
@@ -69,11 +68,7 @@ await message.post.indirect(payload, metadata);
 
 ### Served (Inbound)
 
-Mounted via `broker.listenExpress(app)`:
-
-| Method | Path                                    | Handler             | Description                                                                          |
-| ------ | --------------------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
-| POST   | `/{callbackPath}` (default: `/message`) | `MessageController` | Receives incoming broker messages, validates metadata + payload, emits event locally |
+None: each subscriber mounts its own `POST /message` route.
 
 ### Consumed (Outbound)
 
@@ -239,7 +234,6 @@ const broker = new BrokerMessage({
   addressManagerClient: am,
 });
 
-broker.listenExpress(app);
 await broker.intents(['training.model.published', 'dlq.entry.added']);
 
 const cleanup = broker.on('training.model.published', data => {
