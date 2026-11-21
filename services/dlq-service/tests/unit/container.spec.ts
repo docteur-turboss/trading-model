@@ -1,6 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_SET_SHUTTING_DOWN = jest.fn<(...args: any[]) => any>();
+const MOCK_CONNECT_REDIS_QUEUE = jest.fn<(...args: any[]) => any>();
+const MOCK_PUSH_REDIS_QUEUE = jest.fn<(...args: any[]) => any>();
 const MOCK_CLOSE_REDIS_QUEUE = jest.fn<(...args: any[]) => any>();
 const MOCK_CLOSE_HTTP_CLIENT = jest.fn<(...args: any[]) => any>();
 const MOCK_AUTO_RETRY_START = jest.fn<(...args: any[]) => any>();
@@ -8,7 +10,7 @@ const MOCK_AUTO_RETRY_STOP = jest.fn<(...args: any[]) => any>();
 const MOCK_PRUNE_START = jest.fn<(...args: any[]) => any>();
 const MOCK_PRUNE_STOP = jest.fn<(...args: any[]) => any>();
 const MOCK_DRAIN = jest.fn<(...args: any[]) => any>();
-const MOCK_RELEASE_AND_REQUEUE = jest.fn<(...args: any[]) => any>();
+const MOCK_RELEASE_OWN = jest.fn<(...args: any[]) => any>();
 const MOCK_RELEASE_STALE = jest.fn<(...args: any[]) => any>();
 const MOCK_MONGO_CTOR = jest.fn<(...args: any[]) => any>();
 const MOCK_STATE = { connected: true, missing: [] as string[] };
@@ -37,7 +39,8 @@ jest.mock("../../src/config/address-manager", () => ({
 jest.mock("../../src/config/redis-queue", () => ({
 	dlqRedisQueue: {
 		close: MOCK_CLOSE_REDIS_QUEUE,
-		connect: jest.fn<(...args: any[]) => any>(),
+		connect: MOCK_CONNECT_REDIS_QUEUE,
+		push: MOCK_PUSH_REDIS_QUEUE,
 	},
 }));
 
@@ -69,7 +72,7 @@ jest.mock("../../src/infrastructure/dlq-pruner", () => ({
 jest.mock("../../src/application/services/claim-release-service", () => ({
 	ClaimReleaseService: jest.fn((..._args: any[]) => ({
 		releaseStale: MOCK_RELEASE_STALE,
-		releaseAndRequeue: MOCK_RELEASE_AND_REQUEUE,
+		releaseOwn: MOCK_RELEASE_OWN,
 	})),
 }));
 
@@ -157,13 +160,15 @@ describe("createDlqApp", () => {
 		build().start();
 		expect(MOCK_PRUNE_START).toHaveBeenCalled();
 		expect(MOCK_AUTO_RETRY_START).toHaveBeenCalled();
+		expect(MOCK_CONNECT_REDIS_QUEUE).not.toHaveBeenCalled();
+		expect(MOCK_PUSH_REDIS_QUEUE).not.toHaveBeenCalled();
 	});
 
 	it("shuts down: timers, drain, claims, then resources", async () => {
 		MOCK_CLOSE_REDIS_QUEUE.mockResolvedValue(undefined);
 		MOCK_CLOSE_HTTP_CLIENT.mockResolvedValue(undefined);
 		MOCK_DRAIN.mockResolvedValue(true);
-		MOCK_RELEASE_AND_REQUEUE.mockResolvedValue(undefined);
+		MOCK_RELEASE_OWN.mockResolvedValue(undefined);
 
 		await build().shutdownSchedulers();
 
@@ -171,7 +176,7 @@ describe("createDlqApp", () => {
 		expect(MOCK_PRUNE_STOP).toHaveBeenCalled();
 		expect(MOCK_AUTO_RETRY_STOP).toHaveBeenCalled();
 		expect(MOCK_DRAIN).toHaveBeenCalled();
-		expect(MOCK_RELEASE_AND_REQUEUE).toHaveBeenCalled();
+		expect(MOCK_RELEASE_OWN).toHaveBeenCalled();
 		expect(MOCK_CLOSE_REDIS_QUEUE).toHaveBeenCalled();
 		expect(MOCK_CLOSE_HTTP_CLIENT).toHaveBeenCalled();
 	});
@@ -181,7 +186,7 @@ describe("createDlqApp", () => {
 
 		await build().shutdownSchedulers();
 
-		expect(MOCK_RELEASE_AND_REQUEUE).not.toHaveBeenCalled();
+		expect(MOCK_RELEASE_OWN).not.toHaveBeenCalled();
 		expect(MOCK_CLOSE_HTTP_CLIENT).toHaveBeenCalled();
 	});
 });
