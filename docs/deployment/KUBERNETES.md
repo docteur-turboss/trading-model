@@ -22,6 +22,8 @@ This guide covers deploying the Trading Model platform on Kubernetes. The K8s ma
 - `deploy.yml` derives these from the rendered overlay (`deploy/k8s/scripts/check-prereqs.sh`) and
   refuses, listing what is missing, before the first apply
 - A CNI that enforces NetworkPolicies
+- Production with 2 nodes or more: reopen [ADR-0085](../adr/0085-single-mysql-and-spire-server-pods-accepted.md)
+  (option B: `minAvailable: 1` on `mysql-pdb` and `spire-server-pdb` in the production overlay)
 - One environment per cluster: the node agents (SPIRE agent, promtail) serve a
   single application namespace
 - Self-hosted nodes: data disk encrypted with LUKS2 + Clevis/Tang
