@@ -36,9 +36,6 @@ export const ServiceInstanceWire = z.object({
 	region: z.string().transform(brand(toRegion)).optional(),
 });
 
-/** The instances of one service, `GET /services/:serviceName`. */
-export const ServiceInstancesWire = z.array(ServiceInstanceWire);
-
 /** `POST /register`: the stored instance and its token, sent only there. */
 export const ServiceRegistrationWire = ServiceInstanceWire.extend({
 	token: z.string().min(1),
