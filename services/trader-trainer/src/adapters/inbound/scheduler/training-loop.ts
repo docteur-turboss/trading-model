@@ -228,9 +228,7 @@ export class TrainingLoop {
 			) {
 				// Advance before training: a rejected train() still passes the turn.
 				this._nextIndex = (index + 1) % symbols.length;
-				if (this._signals?.assets.has(symbol)) {
-					await this._observeSignals(symbol);
-				}
+				await this._observeSignals(symbol);
 				const bar = this._dataBuffer.getLastCandleCloseTime(symbol);
 				const result = await this._trainer.train(symbol);
 				if (this._daily.has(symbol) && result.success && bar !== undefined) {
