@@ -1000,7 +1000,7 @@ bus_delivered() {
 # (consumer model-evaluator-<uuid>, message-manager's are message-manager-<uuid>)
 # with its own ACL user, and the audit-dlq CLI reaches the dead streams.
 # The group is shared with message-manager's workers: wait until the trainer's
-# publications have given at least one entry to the BusConsumer, handled without error.
+# publications have been read by the group (whichever consumer won them), none pending or failed.
 verify_bus() {
 	local key=trading-model:message-manager:journal:training.model.published
 	# staging-local keeps model-evaluator and audit-logger on message-manager over HTTP (issue #1931):
@@ -1013,8 +1013,10 @@ verify_bus() {
 	fi
 	log "bus: BusConsumer of model-evaluator, audit-dlq in audit-logger"
 	wait_for 120 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS $key model-evaluator' | grep -q '^model-evaluator-'"
-	wait_for 600 "bus_delivered model-evaluator | grep 'status=\"success\"' | awk '\$2 > 0' | grep -q ."
-	log "  $(bus_delivered model-evaluator)"
+	# The group is shared with message-manager's HTTP workers, so the counter of model-evaluator
+	# alone may stay at 0: assert on the group (read, nothing pending, no lag) and on no failed delivery.
+	wait_for 600 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO GROUPS $key' | awk 'prev==\"name\"{g=(\$0==\"model-evaluator\")} g&&prev==\"entries-read\"{r=\$0} g&&prev==\"pending\"{p=\$0} g&&prev==\"lag\"{l=\$0} {prev=\$0} END{exit !(r>=1 && p==0 && l==0)}'"
+	! bus_delivered model-evaluator | grep -q 'status="failed"' || { log "  model-evaluator failed deliveries: $(bus_delivered model-evaluator)"; return 1; }
 	$K -n "$NS" exec deploy/audit-logger -c audit-logger -- node services/audit-logger/dist/application/dlq-cli.js kind list training.model.published
 }
 
