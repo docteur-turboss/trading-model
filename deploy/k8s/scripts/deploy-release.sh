@@ -11,7 +11,7 @@
 #       `none` when it does not exist yet), kept in configmap/deploy-revisions:
 #       while it exists, a new run reuses it instead.
 #   deploy-release.sh release-replicas <namespace>
-#       Deletes retired HPAs, discovery-server and the finished Mongo init Jobs (immutable pod
+#       Deletes retired HPAs and the finished Mongo init Jobs (immutable pod
 #       template, recreated by the apply), then drops spec.replicas from
 #       last-applied-configuration of HPA-driven Deployments (needs jq).
 #   deploy-release.sh render <overlay-dir> <registry> <digests-file> [<tag>]
@@ -132,6 +132,10 @@ record() {
 
 forget() {
 	kubectl delete configmap "$REVISIONS_CM" -n "$1" --ignore-not-found
+	# discovery-server (retired, ADR-0072): the apply no longer carries it. Removed only after a
+	# good release: pods of release N need it to be Ready, so a rollback to N must still find it.
+	kubectl delete deployment/discovery-server service/discovery-server hpa/discovery-server-hpa pdb/discovery-server-pdb networkpolicy/discovery-server-network-policy serviceaccount/discovery-server -n "$1" --ignore-not-found
+	kubectl delete vpa/discovery-server-vpa -n "$1" --ignore-not-found 2>/dev/null || true
 }
 
 # Deployments driven by an HPA carry no spec.replicas in the overlay. A
@@ -146,10 +150,6 @@ release_replicas() {
 	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501);
 	# audit-logger runs 2 fixed pods (one lease holder writes, issue #1395).
 	kubectl delete hpa/trader-trainer-hpa hpa/audit-logger-hpa -n "$ns" --ignore-not-found
-	# discovery-server (retired, ADR-0072): the apply no longer carries it, nothing of
-	# release N reads its registry, so what N left behind goes.
-	kubectl delete deployment/discovery-server service/discovery-server hpa/discovery-server-hpa 		pdb/discovery-server-pdb networkpolicy/discovery-server-network-policy 		serviceaccount/discovery-server -n "$ns" --ignore-not-found
-	kubectl delete vpa/discovery-server-vpa -n "$ns" --ignore-not-found 2>/dev/null || true
 	# A Job's pod template is immutable: apply fails on a finished init Job
 	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.
