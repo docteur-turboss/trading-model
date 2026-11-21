@@ -367,7 +367,9 @@ for (const env of OVERLAYS) {
 		}
 		if (name === "prometheus" && sts && env === "production") {
 			const config = docs.find((doc) => doc.kind === "ConfigMap" && doc.name?.startsWith("prometheus-config-"))?.text ?? "";
-			if (!sts.text.includes("--enable-feature=expand-external-labels")) errors.push("production: prometheus lacks --enable-feature=expand-external-labels, so the replica label stays a literal ${HOSTNAME} (ADR-0062)");
+			const promImage = (text) => text.match(/image: (prom\/prometheus:\S+)/)?.[1];
+			const composeImage = promImage(readFileSync("docker-compose.yml", "utf8"));
+			if (promImage(sts.text) !== composeImage) errors.push(`production: prometheus image differs from docker-compose.yml (${composeImage}): the alert rules would be tested on another version (#1892)`);
 			if (/\\n\s+--/.test(sts.text)) errors.push("prometheus: literal backslash-n inside the launch command (merges two flags on one line)");
 			if (!/external_labels:\s+replica: '\$\{HOSTNAME\}'/.test(config)) errors.push("production: prometheus external label replica: '${HOSTNAME}' missing (ADR-0062)");
 			if (!/alert_relabel_configs:\s+- action: labeldrop\s+regex: replica/.test(config)) errors.push("production: prometheus does not drop the replica label before sending alerts: both replicas' alerts would differ (ADR-0062)");
