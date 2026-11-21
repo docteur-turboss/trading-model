@@ -53,10 +53,6 @@ export class ConnectionManager<_TConnection> {
 		return conn;
 	}
 
-	getClient(): _TConnection | null {
-		return this._connection;
-	}
-
 	isConnected(): boolean {
 		return this._connected && this._connection !== null;
 	}

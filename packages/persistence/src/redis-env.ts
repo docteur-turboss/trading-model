@@ -1,4 +1,5 @@
 import { isIP } from "node:net";
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import {
 	Hostname,
 	IPAddress,
@@ -38,11 +39,7 @@ export interface RedisEnv {
 
 /** Parses `host:port,host:port`; throws a RangeError on a malformed entry. */
 export function parseRedisNodes(list: string): RedisNodeAddress[] {
-	return list
-		.split(",")
-		.map((entry) => entry.trim())
-		.filter((entry) => entry.length > 0)
-		.map(_parseNode);
+	return parseCommaSeparated(list).map(_parseNode);
 }
 
 /**

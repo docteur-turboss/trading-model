@@ -27,9 +27,6 @@ function layer(
 		fanOut,
 		weights: new Float32Array(fanIn * fanOut).fill(w),
 		bias: new Float32Array(fanOut).fill(b),
-		output: z(),
-		preActivation: z(),
-		delta: z(),
 		gradW: new Float32Array(fanIn * fanOut),
 		gradB: z(),
 	} as unknown as LayerMemory;

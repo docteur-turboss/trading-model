@@ -86,14 +86,6 @@ describe("TokenManager", () => {
 		});
 	});
 
-	describe("clearToken", () => {
-		test("should clear the stored token", () => {
-			manager.setToken("some-token");
-			manager.clearToken();
-			expect(manager.getTokenOrUndefined()).toBeUndefined();
-		});
-	});
-
 	describe("refreshToken", () => {
 		test("should call HttpClient.post with correct URL and payload", async () => {
 			const mockToken = "rotated-token";

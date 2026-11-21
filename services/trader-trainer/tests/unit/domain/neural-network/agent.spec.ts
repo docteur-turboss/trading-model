@@ -51,11 +51,5 @@ describe("Agent", () => {
 				() => new Agent(makeConfig({ neuronsByLayer: [3 as PositiveInt] }))
 			).toThrow();
 		});
-
-		it("should create neural network inside agent", () => {
-			const agent = new Agent(makeConfig());
-
-			expect(agent.nn.parameterCount()).toBeGreaterThan(0);
-		});
 	});
 });

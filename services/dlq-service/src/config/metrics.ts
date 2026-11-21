@@ -3,10 +3,6 @@ import { metricsHandler } from "@trading-model/http/metrics-handler";
 import promClient from "prom-client";
 
 export const metrics = {
-	entriesAdded: new promClient.Counter({
-		name: "dlq_entries_added_total",
-		help: "Total number of DLQ entries added",
-	}),
 	entriesDeleted: new promClient.Counter({
 		name: "dlq_entries_deleted_total",
 		help: "Total number of DLQ entries deleted",

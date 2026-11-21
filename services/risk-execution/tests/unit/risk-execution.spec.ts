@@ -17,8 +17,8 @@ import type {
 	BrokerPort,
 	StatePort,
 } from "../../src/domain/ports";
-import type { Intent } from "../../src/domain/pre-trade";
-import type { RiskState } from "../../src/domain/state";
+import { type Intent, preTradeReject } from "../../src/domain/pre-trade";
+import { newState, type RiskState } from "../../src/domain/state";
 
 const T0 = Date.parse("2026-11-20T10:00:00Z");
 const CAPITAL = 100_000;
@@ -83,6 +83,68 @@ beforeEach(() => {
 	clock = T0;
 	admissible = true;
 	seq = 0;
+});
+
+describe("preTradeReject on crafted states", () => {
+	const reasonFor = (edit: (s: RiskState) => void) => {
+		const state = newState(CAPITAL, T0);
+		edit(state);
+		return preTradeReject({
+			intent: intent({ allowRepeat: false }),
+			limits: LIMITS,
+			state,
+			now: T0,
+			admissible: true,
+			reconciled: true,
+			halted: [],
+		});
+	};
+
+	it.each<[string, (s: RiskState) => void, string]>([
+		[
+			"leverage",
+			(s) => {
+				s.cash = 1_000;
+			},
+			"leverage",
+		],
+		[
+			"insufficient balance",
+			(s) => {
+				s.cash = 3_000;
+			},
+			"insufficient_balance",
+		],
+		[
+			"global order rate",
+			(s) => {
+				for (let n = 0; n < LIMITS.ordersPerMinuteGlobal; n++) {
+					s.orders[`o${n}`] = {
+						symbol: `S${n}`,
+						status: "filled",
+						createdAt: T0,
+					} as unknown as RiskState["orders"][string];
+				}
+			},
+			"rate_global",
+		],
+		[
+			"daily loss",
+			(s) => {
+				s.day.startEquity = CAPITAL * 1.02;
+			},
+			"loss_limit_daily",
+		],
+		[
+			"symbol daily loss",
+			(s) => {
+				s.day.symbols.BTCUSDT = { startValue: 1_000, flow: 0 };
+			},
+			"loss_limit_symbol",
+		],
+	])("rejects %s", (_n, edit, expected) => {
+		expect(reasonFor(edit)).toBe(expected);
+	});
 });
 
 describe("pre-trade checks (ADR-0064 §2)", () => {
@@ -207,6 +269,20 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		const same = await ctx.svc.submitIntent(intent({ allowRepeat: false }));
 		expect(same).toMatchObject({ reason: "duplicate_window" });
 		expect((await ctx.broker.account()).positions.BTCUSDT).toBeCloseTo(0.05);
+	});
+
+	it("purges final orders past the longest window on save, after which the same intent is accepted", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		const first = await ctx.svc.submitIntent(intent({ allowRepeat: false }));
+		clock += 61_000;
+		const again = await ctx.svc.submitIntent(
+			intent({ allowRepeat: false, referenceAt: clock })
+		);
+		expect(again.status).not.toBe("rejected");
+		const orders = (ctx.store.value as RiskState).orders;
+		expect(orders[first.clientOrderId]).toBeUndefined();
+		expect(orders[again.clientOrderId]).toBeDefined();
 	});
 
 	it("a replay under the kill switch never rewrites the existing order", async () => {
@@ -365,10 +441,7 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		clock += 7_200_000; // 2 h later
 		await build({ store: a.store, broker: a.broker }).svc.start();
 		const orders = (a.store.value as RiskState).orders;
-		expect([orders.old.status, orders.off.status]).toEqual([
-			"expired",
-			"expired",
-		]);
+		expect([orders.old, orders.off?.status]).toEqual([undefined, "expired"]); // old: expired, then purged
 		expect(await a.broker.query("old")).toBeNull();
 	});
 
@@ -470,9 +543,9 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		expect(r.status).toBe("acknowledged");
 		clock += LIMITS.orderTtlMs + 1;
 		await ctx.svc.tick();
-		expect((ctx.store.value as RiskState).orders[r.clientOrderId].status).toBe(
-			"expired"
-		);
+		expect(
+			(ctx.store.value as RiskState).orders[r.clientOrderId]
+		).toBeUndefined(); // expired, then purged
 		expect((await ctx.broker.account()).openOrders).toEqual([]);
 	});
 });

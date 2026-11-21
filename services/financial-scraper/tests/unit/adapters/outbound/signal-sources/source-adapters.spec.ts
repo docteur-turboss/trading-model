@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import { PAYLOADS } from "@trading-model/validation/wire/signals";
-import { CFTC_COT_LEGACY } from "../../../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
+import {
+	CFTC_COT_LEGACY,
+	newYorkLocalToUtc,
+} from "../../../../../src/adapters/outbound/signal-sources/cftc-cot-legacy";
 import { DVF_COMMUNE_SALES } from "../../../../../src/adapters/outbound/signal-sources/dvf-commune-sales";
 import { ECB_SDMX_SERIES } from "../../../../../src/adapters/outbound/signal-sources/ecb-sdmx-series";
 import { EIA_OPEN_DATA } from "../../../../../src/adapters/outbound/signal-sources/eia-open-data";
@@ -731,6 +734,15 @@ describe("eia-open-data", () => {
 });
 
 describe("cftc-cot-legacy", () => {
+	it.each([
+		["winter (EST)", "2025-01-15", "2025-01-15T20:30:00.000Z"],
+		["summer (EDT)", "2025-07-15", "2025-07-15T19:30:00.000Z"],
+	])("converts 15:30 New York in %s", (_name, day, expected) => {
+		expect(
+			new Date(newYorkLocalToUtc(Date.parse(day), 15, 30)).toISOString()
+		).toBe(expected);
+	});
+
 	const rows = fixture("cftc-cot-legacy");
 
 	it("nets the positions and stamps the Friday release after the Tuesday", () => {

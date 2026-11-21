@@ -92,14 +92,7 @@ export const AUDIT_API = {
 				.optional()
 				.transform((value) => value !== "false"),
 			page: z.coerce.number().int().min(1).optional(),
-			limit: z.coerce
-				.number()
-				.int()
-				.min(1)
-				.optional()
-				.transform((limit) =>
-					limit === undefined ? limit : Math.min(limit, 1000)
-				),
+			limit: z.coerce.number().int().min(1).optional(),
 		}),
 		responses: {
 			200: z.object({

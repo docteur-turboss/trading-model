@@ -1,4 +1,4 @@
-import { Cash, Price, Volume } from "@trading-model/primitives/primitives";
+import type { Price, Volume } from "@trading-model/primitives/primitives";
 import type { BaseMarketData } from "./base.types";
 
 export interface OrderBookLevel {
@@ -21,38 +21,4 @@ export interface BidAsk {
 export interface BookTickerData extends BaseMarketData, BidAsk {
 	bidQty: Volume;
 	askQty: Volume;
-}
-
-function avgPrice(levels: Set<OrderBookLevel>): Price {
-	let totalQty = Volume.zero();
-	let totalValue = Cash.zero();
-	for (const { price, quantity } of levels) {
-		totalValue = Cash.add(totalValue, Cash.fromProduct(quantity, price));
-		totalQty = Volume.add(totalQty, quantity);
-	}
-	return Price.of(totalQty > 0 ? Number(totalValue) / Number(totalQty) : 0);
-}
-
-function totalQty(levels: Set<OrderBookLevel>): Volume {
-	let total = Volume.zero();
-	for (const { quantity } of levels) {
-		total = Volume.add(total, quantity);
-	}
-	return total;
-}
-
-export function getAvgBid(orderBook: OrderBookData): Price {
-	return avgPrice(orderBook.bids);
-}
-
-export function getAvgAsk(orderBook: OrderBookData): Price {
-	return avgPrice(orderBook.asks);
-}
-
-export function getBidTotalQty(orderBook: OrderBookData): Volume {
-	return totalQty(orderBook.bids);
-}
-
-export function getAskTotalQty(orderBook: OrderBookData): Volume {
-	return totalQty(orderBook.asks);
 }
