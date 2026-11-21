@@ -7,7 +7,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
+import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { RISK_API } from "../../src/adapters/inbound/api-routes";
 import { createHandlers } from "../../src/adapters/inbound/handlers";
 import { JsonFile } from "../../src/adapters/outbound/json-file";
@@ -74,6 +74,7 @@ afterAll(async () => {
 });
 
 describe("kill switch drill (policy §7)", () => {
+	jest.setTimeout(30_000); // the full parallel suite stretches ~700 ms of work past the 5 s default
 	it("passes the seven steps, restart included", async () => {
 		let { svc, ledger } = boot();
 		await svc.start();
